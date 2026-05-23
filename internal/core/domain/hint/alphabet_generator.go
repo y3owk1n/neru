@@ -78,7 +78,7 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	charCount := len(characters)
 
 	// Calculate max hints: up to 3 chars
-	// Max capacity for length 3 prefix-free code is N^3
+	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
 	maxHints := n * n * n
 
