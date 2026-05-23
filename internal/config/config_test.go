@@ -356,6 +356,123 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 	}
 }
 
+func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *config.Config
+		bundleID string
+		want     bool
+	}{
+		{
+			name: "no app configs",
+			config: &config.Config{
+				Hints: config.HintsConfig{},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "app config with matching bundle ID and visible check true",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.example.app",
+							VisibleCheckEnabled: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "app config with matching bundle ID and visible check false",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.example.app",
+							VisibleCheckEnabled: false,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "app config with non-matching bundle ID",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.other.app",
+							VisibleCheckEnabled: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false,
+		},
+		{
+			name: "multiple app configs, one matching",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.other.app",
+							VisibleCheckEnabled: true,
+						},
+						{
+							BundleID:            "com.example.app",
+							VisibleCheckEnabled: true,
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "global visible check enabled true",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					VisibleCheckEnabled: true,
+				},
+			},
+			bundleID: "com.example.app",
+			want:     true,
+		},
+		{
+			name: "app config overrides global visible check",
+			config: &config.Config{
+				Hints: config.HintsConfig{
+					VisibleCheckEnabled: true, // global true
+					AppConfigs: []config.AppConfig{
+						{
+							BundleID:            "com.example.app",
+							VisibleCheckEnabled: false, // app-specific false
+						},
+					},
+				},
+			},
+			bundleID: "com.example.app",
+			want:     false, // app-specific should take precedence
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := testCase.config.ShouldEnableVisibleCheckForApp(testCase.bundleID)
+			if got != testCase.want {
+				t.Errorf("ShouldEnableVisibleCheckForApp() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestConfig_HotkeysForModeAndApp(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Hotkeys["Return"] = config.StringOrStringArray{"action left_click", "hints"}
