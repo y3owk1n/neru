@@ -747,14 +747,33 @@ func (e *Element) IsClickable(
 // (empty bundleID) so that a reused PID is always re-queried rather than
 // inheriting a stale mapping from a previous process.
 var (
-	pidBundleCache   = map[int]string{}
-	pidBundleCacheMu sync.RWMutex
+	pidBundleCache       = map[int]string{}
+	pidVisibleCheckCache = map[int]bool{}
+	lastConfigPointer    *config.Config
+	pidBundleCacheMu     sync.RWMutex
 )
 
 // resolveVisibleCheckEnabled checks the config to determine if the visibility
 // hit-test should be performed for the given PID. Returns true if the visibility
 // check should run, false to skip it.
 func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
+	var cfg *config.Config
+	if configProvider != nil {
+		cfg = configProvider.Get()
+	}
+
+	pidBundleCacheMu.Lock()
+	if cfg != lastConfigPointer {
+		pidVisibleCheckCache = make(map[int]bool)
+		lastConfigPointer = cfg
+	}
+	enabled, ok := pidVisibleCheckCache[pid]
+	pidBundleCacheMu.Unlock()
+
+	if ok {
+		return enabled
+	}
+
 	pidBundleCacheMu.RLock()
 	bundleID, hasBundle := pidBundleCache[pid]
 	pidBundleCacheMu.RUnlock()
@@ -773,16 +792,19 @@ func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
 		pidBundleCacheMu.Unlock()
 	}
 
-	if bundleID == "" || configProvider == nil {
+	if bundleID == "" || cfg == nil {
 		return false
 	}
 
-	cfg := configProvider.Get()
-	if cfg == nil {
-		return false
-	}
+	res := cfg.ShouldEnableVisibleCheckForApp(bundleID)
 
-	return cfg.ShouldEnableVisibleCheckForApp(bundleID)
+	pidBundleCacheMu.Lock()
+	if cfg == lastConfigPointer {
+		pidVisibleCheckCache[pid] = res
+	}
+	pidBundleCacheMu.Unlock()
+
+	return res
 }
 
 // IsMissionControlActive checks if Mission Control is currently active.
