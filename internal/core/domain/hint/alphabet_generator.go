@@ -45,8 +45,7 @@ var stringBuilderPool = sync.Pool{
 }
 
 // AlphabetGenerator generates hint labels using an alphabet-based strategy.
-// It uses a prefix-avoidance algorithm to ensure no single-character label
-// conflicts with the start of a multi-character label.
+// It uses fixed-length base-N encoding within each tier to spread labels across the alphabet.
 type AlphabetGenerator struct {
 	characters       string
 	uppercaseChars   string
