@@ -218,10 +218,9 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 	return nil
 }
 
-// generateLabels generates alphabet-based hint labels using a prefix-avoidance strategy.
-// It ensures no label is a prefix of another to prevent ambiguity during input.
-// Returns uppercase labels sorted by length then alphabetically.
-// Uses a level-based approach where each level represents labels of increasing length.
+// generateLabels generates fixed-length base-N alphabet labels.
+// For counts up to the alphabet size, returns single characters.
+// For larger counts, progressively generates 2-char, 3-char, etc. labels to satisfy the count.
 // Results are cached in a bounded LRU cache for instant reuse on repeated counts.
 func (g *AlphabetGenerator) generateLabels(count int) []string {
 	if count == 0 {
