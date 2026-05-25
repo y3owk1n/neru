@@ -349,6 +349,38 @@ func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
 	return validateAppConfigsWithCallback(modeName, appConfigs, nil)
 }
 
+// rejectScrollFields creates a field validator that rejects scroll-specific fields.
+// Used for non-scroll modes (hints, grid, recursive_grid) to catch accidental configuration.
+func rejectScrollFields(modeName string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		if appConfig.ScrollStep != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.ScrollStepHalf != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step_half is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.ScrollStepFull != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step_full is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		return nil
+	}
+}
+
 // validateScrollAppConfigs validates per-app scroll configuration.
 func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 	scrollFieldValidator := func(idx int, appConfig *AppConfig) error {
@@ -393,7 +425,7 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 
 // ValidateAppConfigs validates per-app hint configuration.
 func (c *Config) ValidateAppConfigs() error {
-	return validateAppConfigs("hints", c.Hints.AppConfigs)
+	return validateAppConfigsWithCallback("hints", c.Hints.AppConfigs, rejectScrollFields("hints"))
 }
 
 // ValidateGrid validates the grid configuration.
@@ -446,7 +478,7 @@ func (c *Config) ValidateGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.border_width must be non-negative")
 	}
 
-	err = validateAppConfigs("grid", c.Grid.AppConfigs)
+	err = validateAppConfigsWithCallback("grid", c.Grid.AppConfigs, rejectScrollFields("grid"))
 	if err != nil {
 		return err
 	}
@@ -881,7 +913,7 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.ui.font_size must be >= 1")
 	}
 
-	err = validateAppConfigs("recursive_grid", c.RecursiveGrid.AppConfigs)
+	err = validateAppConfigsWithCallback("recursive_grid", c.RecursiveGrid.AppConfigs, rejectScrollFields("recursive_grid"))
 	if err != nil {
 		return err
 	}
