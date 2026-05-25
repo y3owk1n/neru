@@ -310,7 +310,7 @@ go build \
 
 ## Testing
 
-Neru has a comprehensive test suite with clear separation between unit tests and integration tests. For detailed testing guidelines and standards, see [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards).
+Neru has a comprehensive test suite with clear separation between unit tests and integration tests. For detailed testing guidelines and standards, see [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md).
 
 ### Test Organization
 
@@ -692,7 +692,7 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 ### Code Standards
 
-**All code must follow the [CODING_STANDARDS.md](CODING_STANDARDS.md) document.** See [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards) for test requirements.
+**All code must follow the [CODING_STANDARDS.md](CODING_STANDARDS.md) document.** See [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md) for test requirements.
 
 **Pre-commit Checklist:**
 
@@ -712,7 +712,7 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 ### Testing Guidelines
 
-**All new code requires appropriate tests.** See [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards) for detailed guidelines.
+**All new code requires appropriate tests.** See [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md) for detailed guidelines.
 
 **Test Types:**
 
