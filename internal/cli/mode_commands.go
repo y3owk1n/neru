@@ -12,12 +12,13 @@ import (
 
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
-	Name          string
-	Short         string
-	Long          string
-	ActionDesc    string   // Description for the action flag (e.g., "hint selection" or "grid selection")
-	Aliases       []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
-	SupportSearch bool     // Whether this mode supports the --search flag
+	Name             string
+	Short            string
+	Long             string
+	ActionDesc       string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases          []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	SupportSearch    bool     // Whether this mode supports the --search flag
+	SupportFiltering bool     // Whether this mode supports --role and --text filter flags
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -44,6 +45,19 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			var searchFlag bool
 			if config.SupportSearch {
 				searchFlag, err = cmd.Flags().GetBool("search")
+				if err != nil {
+					return err
+				}
+			}
+
+			var roleFlag, textFlag string
+			if config.SupportFiltering {
+				roleFlag, err = cmd.Flags().GetString("role")
+				if err != nil {
+					return err
+				}
+
+				textFlag, err = cmd.Flags().GetString("text")
 				if err != nil {
 					return err
 				}
@@ -114,6 +128,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--search")
 			}
 
+			if roleFlag != "" {
+				params = append(params, "--role="+roleFlag)
+			}
+
+			if textFlag != "" {
+				params = append(params, "--text="+textFlag)
+			}
+
 			if cursorSelectionMode != "" {
 				if cursorSelectionMode != modes.CursorSelectionModeFollow &&
 					cursorSelectionMode != modes.CursorSelectionModeHold {
@@ -155,6 +177,19 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"s",
 			false,
 			"Show search input when the mode is activated",
+		)
+	}
+
+	if config.SupportFiltering {
+		cmd.Flags().String(
+			"role",
+			"",
+			"Filter by AX role (comma-separated: AXButton,AXLink)",
+		)
+		cmd.Flags().String(
+			"text",
+			"",
+			"Filter elements by text content (comma-separated, case-insensitive substring match)",
 		)
 	}
 
