@@ -184,5 +184,5 @@ if ([NSThread isMainThread]) {
 
 ## See Also
 
-- [Go Conventions](./CONVENTIONS.md)
-- [Testing Patterns](../testing/TESTING_PATTERNS.md)
+- [CONVENTIONS.md](./CONVENTIONS.md)
+- [TESTING_PATTERNS.md](../testing/TESTING_PATTERNS.md)

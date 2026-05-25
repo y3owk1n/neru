@@ -5,6 +5,21 @@ This guide covers installation methods for Neru, with the most complete support 
 > [!NOTE]
 > macOS is the primary supported platform. Linux builds are available through the Nix flake (uses release artifacts when available, falls back to source build), and direct source builds. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
 
+---
+
+## Table of Contents
+
+- [Requirements](#requirements)
+- [Method 1: Homebrew (Recommended)](#method-1-homebrew-recommended)
+- [Method 2: Nix Flake](#method-2-nix-flake)
+- [Method 3: From Source](#method-3-from-source)
+- [Post-Installation](#post-installation)
+- [Shell Completions](#shell-completions)
+- [Troubleshooting](#troubleshooting)
+- [Uninstallation](#uninstallation)
+
+---
+
 ## Requirements
 
 - macOS 11.0 or later

@@ -16,6 +16,28 @@ For the higher-level design, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
+## Table of Contents
+
+- [Goals](#goals)
+- [First Stops](#first-stops)
+- [First 15 Minutes](#first-15-minutes)
+- [File Layout Rules](#file-layout-rules)
+- [Build And Test Commands](#build-and-test-commands)
+- [Where To Implement What](#where-to-implement-what)
+- [Linux Backend Model](#linux-backend-model)
+- [Windows Model](#windows-model)
+- [CGO Guidance](#cgo-guidance)
+- [Hotkeys And Modifiers](#hotkeys-and-modifiers)
+- [Adding A New Capability](#adding-a-new-capability)
+- [Error Handling Rules](#error-handling-rules)
+- [Capability Reporting](#capability-reporting)
+- [Testing Checklist](#testing-checklist)
+- [Documentation Checklist](#documentation-checklist)
+- [Suggested First Contributions](#suggested-first-contributions)
+- [What "Done" Looks Like](#what-done-looks-like)
+
+---
+
 ## Goals
 
 Neru aims to make cross-platform work predictable and low-friction.
@@ -38,8 +60,8 @@ Before changing code, read these files first:
 - [internal/core/ports/system.go](file:///Users/kylewong/Dev/neru/internal/core/ports/system.go)
 - [internal/core/ports/capabilities.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capabilities.go)
 - [internal/core/ports/capability_presets.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capability_presets.go)
-- [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
-- [docs/go/CONVENTIONS.md](./go/CONVENTIONS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [CONVENTIONS.md](./go/CONVENTIONS.md)
 
 If you are contributing Linux support, also inspect the reserved backend files in
 the package you plan to touch, such as:
@@ -372,9 +394,9 @@ When you land platform work, update docs in the same PR.
 Usually that means checking these files:
 
 - [README.md](/Users/kylewong/Dev/neru/README.md)
-- [docs/ARCHITECTURE.md](./ARCHITECTURE.md)
-- [docs/DEVELOPMENT.md](./DEVELOPMENT.md)
-- [docs/go/CONVENTIONS.md](./go/CONVENTIONS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [DEVELOPMENT.md](./DEVELOPMENT.md)
+- [CONVENTIONS.md](./go/CONVENTIONS.md)
 
 Update them when:
 

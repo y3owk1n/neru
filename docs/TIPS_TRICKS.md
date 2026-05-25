@@ -1,4 +1,4 @@
-# Some Tips & Tricks
+# Tips & Tricks
 
 ---
 
@@ -6,9 +6,11 @@
 
 - [Vimium-Style Click-on-Select](#vimium-style-click-on-select)
 - [Homerow Action Clicks](#homerow-action-clicks)
+- [Hints Search (Homerow.app Style, sort of...)](#hints-search-homerowapp-style-sort-of)
 - [Auto-Exit After Click](#auto-exit-after-click)
 - [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
 - [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
+- [Click, sleep, move](#click-sleep-move)
 - [Target Menus Without Moving the Real Cursor](#target-menus-without-moving-the-real-cursor)
 - [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
 - [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
@@ -16,7 +18,8 @@
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
 - [Combining Hints with Other Actions](#combining-hints-with-other-actions)
-- [Moving windows to other macOS native spaces](#moving-windows-to-other-macOS-native-spaces)
+- [Moving windows to other macOS native spaces](#moving-windows-to-other-macos-native-spaces)
+- [Further Reading](#further-reading)
 
 ---
 
@@ -24,7 +27,8 @@
 
 Hints mode that clicks automatically when you finish typing a label — similar to Vimium in a browser.
 
-> **Note:** The default hotkey for Hints mode is `Primary+Shift+Space`. The snippet below rebinds that same key to auto-click on select, so you are _replacing_ the default hints behaviour, not adding a new one. Bind it to a separate key if you want both.
+> [!NOTE]
+> The default hotkey for Hints mode is `Primary+Shift+Space`. The snippet below rebinds that same key to auto-click on select, so you are _replacing_ the default hints behaviour, not adding a new one. Bind it to a separate key if you want both.
 
 ```toml
 [hotkeys]
@@ -215,7 +219,8 @@ Both tools let you inspect element roles, labels, and positions. UIElementInspec
 open -a neru --args launch -c /absolute/path/to/your/config
 ```
 
-> **Note:** `~` expansion does not work here — use the full absolute path.
+> [!NOTE]
+> `~` expansion does not work here — use the full absolute path.
 
 This is useful for testing a config before committing it to your dotfiles, or for keeping separate profiles (e.g. a lighter config when presenting or screen-sharing).
 
@@ -265,7 +270,7 @@ The snippet is ugly but it works fine, feel free to improvise it. Things to note
 
 ## Further Reading
 
-- [Configuration Reference](CONFIGURATION.md) — every TOML option explained
-- [CLI Usage](CLI.md) — all commands and flags
-- [Troubleshooting](TROUBLESHOOTING.md) — common issues and fixes
-- [Community configs](CONFIG_SHOWCASES.md) — see how others configure Neru
+- [CONFIGURATION.md](CONFIGURATION.md) — every TOML option explained
+- [CLI.md](CLI.md) — all commands and flags
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and fixes
+- [CONFIG_SHOWCASES.md](CONFIG_SHOWCASES.md) — see how others configure Neru

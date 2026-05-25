@@ -201,5 +201,5 @@ The `internal/core/infra/platform/` package uses build-tagged `factory_<os>.go` 
 
 ## See Also
 
-- [Testing Patterns](../testing/TESTING_PATTERNS.md)
-- [Objective-C Guidelines](./OBJECTIVE_C.md)
+- [TESTING_PATTERNS.md](../testing/TESTING_PATTERNS.md)
+- [OBJECTIVE_C.md](./OBJECTIVE_C.md)

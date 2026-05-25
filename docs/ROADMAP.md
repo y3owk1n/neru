@@ -3,6 +3,17 @@
 This roadmap keeps the next improvements visible for contributors and helps
 separate "stable on macOS today" from "portable by design, still incomplete".
 
+---
+
+## Table of Contents
+
+- [Near Term](#near-term)
+- [Cross-Platform Foundations](#cross-platform-foundations)
+- [Contributor Priorities](#contributor-priorities)
+- [Definition Of Done For New Platform Work](#definition-of-done-for-new-platform-work)
+
+---
+
 ## Near Term
 
 - Strengthen macOS reliability around startup, config reloads, and mode transitions.
@@ -13,31 +24,31 @@ separate "stable on macOS today" from "portable by design, still incomplete".
 ## Cross-Platform Foundations
 
 - Linux (X11):
-  - [x] native overlay rendering
-  - [x] screen and cursor management
-  - [x] keyboard event capture & global hotkeys
-  - [ ] AT-SPI accessibility integration (shared)
-  - [ ] notifications and active app detection
+    - [x] native overlay rendering
+    - [x] screen and cursor management
+    - [x] keyboard event capture & global hotkeys
+    - [ ] AT-SPI accessibility integration (shared)
+    - [ ] notifications and active app detection
 - Linux (Wayland wlroots):
-  - [x] native layer-shell overlay rendering
-  - [x] virtual pointer injection and cursor discovery
-  - [x] keyboard event capture
-  - [ ] AT-SPI accessibility integration (shared)
-  - [ ] notifications and active app detection
+    - [x] native layer-shell overlay rendering
+    - [x] virtual pointer injection and cursor discovery
+    - [x] keyboard event capture
+    - [ ] AT-SPI accessibility integration (shared)
+    - [ ] notifications and active app detection
 - Linux (Wayland GNOME):
-  - [ ] input injection (libei or GNOME shell extension)
-  - [ ] native overlay rendering
-  - [ ] global hotkeys & event capture
+    - [ ] input injection (libei or GNOME shell extension)
+    - [ ] native overlay rendering
+    - [ ] global hotkeys & event capture
 - Linux (Wayland KDE Plasma):
-  - [ ] input injection (libei or KWin protocols)
-  - [ ] native overlay rendering
-  - [ ] global hotkeys & event capture
+    - [ ] input injection (libei or KWin protocols)
+    - [ ] native overlay rendering
+    - [ ] global hotkeys & event capture
 - Windows:
-  - [ ] UI Automation integration
-  - [ ] screen and cursor management
-  - [ ] global hotkeys and keyboard event capture
-  - [ ] native overlay rendering
-  - [ ] notifications and app watching
+    - [ ] UI Automation integration
+    - [ ] screen and cursor management
+    - [ ] global hotkeys and keyboard event capture
+    - [ ] native overlay rendering
+    - [ ] notifications and app watching
 
 ## Contributor Priorities
 
@@ -53,4 +64,4 @@ If you want to help, the highest-leverage areas are:
 - Return real values instead of `CodeNotSupported`.
 - Add unit tests next to the implementation.
 - Add integration tests when the feature needs a real OS session.
-- Update `docs/ARCHITECTURE.md` and user-facing docs when support changes.
+- Update `ARCHITECTURE.md` and user-facing docs when support changes.

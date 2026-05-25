@@ -8,19 +8,11 @@ Contributing to Neru: build instructions, architecture overview, and contributio
 
 - [Quick Start](#quick-start)
 - [Development Setup](#development-setup)
-- [Building & Running](#building--running)
-- [Testing](#testing)
+- [Building](#building)
 - [Testing Tiers](#testing-tiers)
+- [Testing](#testing)
 - [Architecture Overview](#architecture-overview)
-    - [Project Structure](#project-structure)
-    - [Core Concepts](#core-concepts)
-    - [Architectural Layers](#architectural-layers)
-    - [Data Flow](#data-flow)
 - [Contributing](#contributing)
-    - [Development Workflow](#development-workflow)
-    - [Code Standards](#code-standards)
-    - [Testing Guidelines](#testing-guidelines)
-    - [Documentation](#documentation)
 - [Release Process](#release-process)
 - [Development Tips](#development-tips)
 - [Troubleshooting](#troubleshooting)
@@ -57,7 +49,7 @@ just build
 neru hints  # Should show hint overlays
 ```
 
-**Need help?** See [Installation Guide](INSTALLATION.md) for detailed setup instructions.
+**Need help?** See [INSTALLATION.md](INSTALLATION.md) for detailed setup instructions.
 
 ---
 
@@ -594,131 +586,30 @@ To add a new navigation mode:
 5. **Register Mode**: Add to Handler's mode map
 6. **Add Tests**: Create unit and integration tests
 7. **Update Config**: Add hotkey defaults
-8. **Update Docs**: Document in CLI.md and DEVELOPMENT.md
+8. **Update Docs**: Document in [CLI.md](CLI.md) and [DEVELOPMENT.md](DEVELOPMENT.md)
 
-### Key Technologies
+### Architecture Summary
 
-- **Go** - Core application logic, CLI, configuration
-- **CGo + Objective-C** - macOS Accessibility API integration
-- **Cobra** - CLI framework
-- **TOML** - Configuration format
-- **Unix Sockets** - IPC communication
+Neru follows a **Hexagonal Architecture (Ports and Adapters)** pattern. For the
+full architectural reference — layers, component diagrams, data flows, coordinate
+systems, and technology stack — see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-### Architectural Layers
+The key project directories and their roles at a glance:
 
-Neru follows clean architecture with clear separation of concerns:
+| Directory                  | Role                                         |
+| -------------------------- | -------------------------------------------- |
+| `internal/core/domain/`    | Pure business logic, entities, value objects |
+| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay) |
+| `internal/core/infra/`     | Platform-specific adapter implementations    |
+| `internal/app/`            | Application orchestration, services, modes   |
+| `internal/app/components/` | Mode-specific overlay rendering              |
+| `internal/app/modes/`      | Navigation mode implementations              |
+| `internal/ui/`             | Coordinate conversion, abstract rendering    |
+| `internal/cli/`            | Cobra CLI commands, IPC dispatch             |
+| `internal/config/`         | TOML parsing, validation, defaults           |
 
-#### Domain Layer (`internal/core/domain`)
-
-Pure business logic with no external dependencies:
-
-- **Entities**: Core concepts (Hint, Grid, Element, Action)
-- **Value Objects**: Immutable data structures
-- **Business Rules**: Domain logic and validation
-
-#### Ports Layer (`internal/core/ports`)
-
-Interfaces defining contracts between layers:
-
-- **AccessibilityPort**: UI element access and interaction
-- **OverlayPort**: UI overlay management
-- **ConfigPort**: Configuration management
-- **InfrastructurePort**: System-level operations
-
-#### Application Layer (`internal/app`)
-
-Implements use cases and orchestrates domain entities:
-
-- **Services**: Business logic orchestration (HintService, GridService, ActionService)
-- **Components**: UI components for Hints, Grid, and Scroll modes
-- **Modes**: Navigation mode implementations following the `Mode` interface
-- **Lifecycle**: Application startup, shutdown, and orchestration
-
-#### Infrastructure Layer (`internal/core/infra`)
-
-Concrete implementations of ports:
-
-- **Accessibility**: Platform accessibility API integration (AXUIElement on macOS)
-- **Overlay**: UI overlay management and rendering
-- **Config**: Configuration loading and parsing
-- **EventTap**: Global input monitoring
-- **Hotkeys**: System hotkey registration
-- **IPC**: Inter-process communication
-- **Platform**: OS-specific adapters (`platform/darwin`, `platform/linux`, `platform/windows`)
-
-#### Presentation Layer (`internal/ui`)
-
-User interface rendering:
-
-- **UI**: Overlay rendering and coordinate conversion
-
-### Data Flow
-
-1. **Startup**: Configuration is loaded → Dependencies are wired → Hotkeys registered → App waits for input
-2. **User Interaction**: Hotkey pressed → Event tap captures → Mode activated → UI overlays displayed
-3. **Processing**: User input processed → Actions determined → System APIs called → Results rendered
-4. **Cleanup**: Mode exited → Overlays hidden → State reset → App returns to idle
-
-### Core Packages
-
-#### `internal/core/domain`
-
-Core business logic and entities (pure Go, no external dependencies):
-
-- **Element**: UI element representation with bounds, role, and state
-- **Hint/Grid/Action**: Navigation and interaction primitives
-
-#### `internal/core/ports`
-
-Interface contracts between layers:
-
-- **AccessibilityPort**: UI element access and interaction
-- **OverlayPort**: UI overlay management
-- **ConfigPort**: Configuration management
-- **InfrastructurePort**: System-level operations
-
-#### `internal/app`
-
-Application orchestration and use cases:
-
-- **Services**: Business logic orchestration (HintService, GridService, ActionService)
-- **Components**: UI components for Hints, Grid, and Scroll modes
-- **Modes**: Navigation mode implementations following the `Mode` interface
-- **App**: Central application state and dependencies
-- **Lifecycle**: Startup, shutdown, and orchestration
-
-#### `internal/core/infra`
-
-Infrastructure implementations:
-
-- **Accessibility**: Platform accessibility API integration (AXUIElement on macOS)
-- **Overlay**: UI overlay management and rendering
-- **Config**: Configuration loading and parsing
-- **EventTap**: Global input monitoring
-- **Hotkeys**: System hotkey registration
-- **IPC**: Inter-process communication
-- **Platform**: OS-specific adapters (`platform/darwin`, `platform/linux`, `platform/windows`)
-
-#### `internal/ui`
-
-Presentation layer:
-
-- **UI**: Overlay rendering and coordinate conversion
-
-#### `internal/cli`
-
-Command-line interface (Cobra-based):
-
-- Command parsing and dispatch
-- Output formatting and error handling
-
-#### `internal/config`
-
-Configuration management:
-
-- TOML parsing and validation
-- Multi-location config loading
-- Default value provision
+Cross-platform file-slot conventions follow the naming rules in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md).
 
 ### Where to Add New Code
 
@@ -727,7 +618,7 @@ Configuration management:
 1. Add fields to `internal/config/config.go` structs
 2. Update `commonDefaultConfig()` with shared defaults; add platform-specific defaults to `internal/config/config_<os>.go`
 3. Add validation in `Validate*()` methods
-4. Update `configs/` examples and `docs/CONFIGURATION.md`
+4. Update `configs/` examples and [CONFIGURATION.md](CONFIGURATION.md)
 
 **Navigation Modes:**
 
@@ -757,7 +648,7 @@ Configuration management:
 
 1. Create command file in `internal/cli/`
 2. Register in `internal/cli/root.go`
-3. Document in `docs/CLI.md`
+3. Document in [CLI.md](CLI.md)
 
 ### Dependency Injection and Wiring
 
@@ -785,7 +676,7 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 1. **Fork and clone** the repository
 2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make changes** following [Coding Standards](CODING_STANDARDS.md)
+3. **Make changes** following [CODING_STANDARDS.md](CODING_STANDARDS.md)
 4. **Add tests** for new functionality
 5. **Test thoroughly**: `just test && just lint && just build`
 6. **Commit conventionally**: `git commit -m "feat: description"`
@@ -801,7 +692,7 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 ### Code Standards
 
-**All code must follow the [Coding Standards](CODING_STANDARDS.md) document.** See [Testing Standards](CODING_STANDARDS.md#testing-standards) for test requirements.
+**All code must follow the [CODING_STANDARDS.md](CODING_STANDARDS.md) document.** See [CODING_STANDARDS.md](CODING_STANDARDS.md#testing-standards) for test requirements.
 
 **Pre-commit Checklist:**
 

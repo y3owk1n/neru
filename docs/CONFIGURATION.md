@@ -1,8 +1,8 @@
 # Configuration Guide
 
-Neru uses TOML for configuration. No config file is required — Neru works out of the box with sensible defaults. When you're ready to customise, only define the options you want to change; all other defaults are preserved automatically.
+Neru uses TOML for configuration. No config file is required — Neru works out of the box with sensible defaults. Only define the options you want to change; all other defaults are preserved automatically.
 
-> **Throughout this guide**, "the daemon" refers to the background process started with `neru launch`.
+> "The daemon" refers to the background process started with `neru launch`.
 
 ---
 
@@ -11,32 +11,26 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Quick Start](#quick-start)
 - [Config File Location](#config-file-location)
 - [Managing Your Config](#managing-your-config)
-- [Hotkeys](#hotkeys)
-- [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
-- [Action Commands and Primitives](#action-commands-and-primitives)
-    - [Feed keys](#feed-keys)
-- [General Settings](#general-settings)
-- [Hint Mode](#hint-mode)
-- [Grid Mode](#grid-mode)
-- [Recursive Grid Mode](#recursive-grid-mode)
-- [Scroll Mode](#scroll-mode)
-- [Virtual Pointer](#virtual-pointer)
-- [Mouse Action Indicator](#mouse-action-indicator)
-- [Mode Indicator](#mode-indicator)
-- [Sticky Modifiers](#sticky-modifiers)
-- [Theme Palette](#theme-palette)
 - [Color Format](#color-format)
-- [Smooth Cursor](#smooth-cursor)
-- [Keyboard Layout](#keyboard-layout)
-- [Font Configuration](#font-configuration)
+- [Hotkeys](#hotkeys)
+- [General](#general)
+- [Theme](#theme)
+- [Hints](#hints)
+- [Grid](#grid)
+- [Recursive Grid](#recursive_grid)
+- [Scroll](#scroll)
+- [Virtual Pointer](#virtual_pointer)
+- [Mouse Action Indicator](#mouse_action_indicator)
+- [Mode indicator](#mode_indicator)
+- [Sticky Modifiers](#sticky_modifiers)
+- [Smooth Cursor](#smooth_cursor)
+- [Smooth Scroll](#smooth_scroll)
 - [Systray](#systray)
 - [Logging](#logging)
 
 ---
 
 ## Quick Start
-
-A minimal config for most users — copy this as a starting point:
 
 ```toml
 [hints.hotkeys]
@@ -50,207 +44,181 @@ Generate a fully-commented starter file:
 
 ```bash
 neru config init                          # Creates ~/.config/neru/config.toml
-neru config init --force                  # Overwrite an existing file
-neru config init -c /path/to/config.toml  # Create at a custom path
+neru config init --force                  # Overwrite existing
+neru config init -c /path/to/config.toml  # Custom path
 ```
 
 ---
 
 ## Config File Location
 
-> **Recommended location:** `~/.config/neru/config.toml`
+> **Recommended:** `~/.config/neru/config.toml`
 
-Config files are loaded in this order (highest to lowest priority):
+Loaded in priority order (highest first):
 
-1. `$XDG_CONFIG_HOME/neru/config.toml` (if `XDG_CONFIG_HOME` is set)
-2. `~/.config/neru/config.toml` _(recommended)_
-3. `~/.neru.toml` _(legacy)_
-4. `neru.toml` _(current directory)_
-5. `config.toml` _(current directory)_
+1. `$XDG_CONFIG_HOME/neru/config.toml`
+2. `~/.config/neru/config.toml`
+3. `~/.neru.toml` (legacy)
+4. `neru.toml` (current directory)
+5. `config.toml` (current directory)
 
-Use `--config` (or `-c`) to specify a custom path at launch:
-
-```bash
-neru launch -c /path/to/config.toml
-```
+Override at launch: `neru launch -c /path/to/config.toml`
 
 ---
 
 ## Managing Your Config
 
 ```bash
-neru config validate    # Check for errors (no daemon needed)
-neru config reload      # Apply changes to a running daemon
-neru config dump        # Print the loaded configuration as JSON (daemon required)
+neru config validate    # Check syntax (no daemon needed)
+neru config reload      # Apply changes to running daemon
+neru config dump        # Print loaded config as JSON (daemon required)
+neru config init        # Create default config file
 ```
 
-To restart the daemon instead: `pkill neru && neru launch`
+See [CLI.md](CLI.md#configuration-management) for full flag documentation.
 
-See [CLI.md — Configuration Management](CLI.md#configuration-management) for full flag documentation.
+---
+
+## Color Format
+
+Colors use hex notation with optional alpha transparency.
+
+| Format      | Example     | Alpha | Notes              |
+| ----------- | ----------- | ----- | ------------------ |
+| `#AARRGGBB` | `#FF000000` | Yes   | Recommended format |
+| `#RRGGBB`   | `#FF0000`   | No    | Fully opaque       |
+| `#RGB`      | `#F00`      | No    | Shorthand          |
+
+### Alpha Reference
+
+| Opacity | Hex  | Common Use                  |
+| ------- | ---- | --------------------------- |
+| 100%    | `FF` | Solid colors, high contrast |
+| 95%     | `F2` | Hint labels (default)       |
+| 70%     | `B3` | Grid cell backgrounds       |
+| 60%     | `99` | Grid borders                |
+| 30%     | `4D` | Subtle highlights           |
+| 0%      | `00` | Invisible                   |
+
+Calculate: `round(opacity_fraction × 255)` → hex.
+
+### Light / Dark Mode
+
+Colors can be a single string or a dictionary with `light` / `dark` keys:
+
+```toml
+# Same for both themes
+background_color = "#FF0000AA"
+
+# Per-theme
+background_color = { light = "#FF0000AA", dark = "#00FF00AA" }
+```
+
+Omitted colors inherit Neru's theme-derived defaults and update in real time when you switch system themes.
 
 ---
 
 ## Hotkeys
 
-Global hotkeys trigger Neru navigation modes from anywhere on screen.
-
-> [!TIP]
-> User-defined hotkeys are **merged on top of defaults**. You only need to define the bindings you want to add or change — all other defaults are preserved.
-> When you rebind a built-in launcher action (`hints`, `grid`, `recursive_grid`, `scroll`) to a new single hotkey, Neru removes the default launcher for that action automatically.
-
-### Merging behavior
-
-| Scenario                              | Result                                                |
-| ------------------------------------- | ----------------------------------------------------- |
-| `[hotkeys]` section absent            | All defaults are used                                 |
-| `[hotkeys]` section present but empty | All hotkeys disabled (for external daemons like skhd) |
-| `[hotkeys]` with entries              | Entries are merged on top of defaults                 |
-
-To **remove** a single default binding without affecting the rest, use the `__disabled__` sentinel:
+### Global Hotkeys
 
 ```toml
 [hotkeys]
-"Primary+Shift+S"         = "__disabled__"   # removes the default scroll hotkey
-"Ctrl+Space"              = "hints"          # adds a new binding; other defaults remain
-"Cmd+Shift+Option+Ctrl+G" = "grid"           # rebinds grid to Hyper+G: default Primary+Shift+G is removed
+"Primary+Shift+Space" = "hints"
 ```
 
-**Automatically disabled:** When a mode is disabled (`enabled = false`), its default launcher hotkey is automatically removed:
+**Syntax:** `"Mod1+Mod2+Key" = "action"`
 
-```toml
-[hints]
-enabled = false  # automatically removes Primary+Shift+Space -> hints from global hotkeys
-```
+| Modifier  | Aliases                                 |
+| --------- | --------------------------------------- |
+| `Cmd`     | `Command`, `Super`, `Meta`              |
+| `Ctrl`    | `Control`                               |
+| `Alt`     | `Option`                                |
+| `Shift`   |                                         |
+| `Primary` | `Cmd` on macOS, `Ctrl` on Linux/Windows |
 
-This prevents stale keybindings from remaining in the config when a mode is no longer in use.
+**Available keys** (the `Key` part after modifiers):
 
-### Syntax
+| Category   | Keys                                                               |
+| ---------- | ------------------------------------------------------------------ |
+| Letters    | `a`–`z`, `A`–`Z`                                                   |
+| Numbers    | `0`–`9`                                                            |
+| Symbols    | `` ` ``, `-`, `=`, `[`, `]`, `\`, `;`, `'`, `,`, `.`, `/`          |
+| Named      | `Space`, `Return`, `Enter`, `Escape`, `Tab`, `Delete`, `Backspace` |
+| Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown` |
+| Function   | `F1`–`F20`                                                         |
 
-**Format:** `"Modifier1+Modifier2+Key" = "action"`
+See [CLI.md](CLI.md#feed-keys) for a full key reference with key codes and platform behavior.
 
-**Modifiers:** `Cmd`, `Ctrl`, `Alt` / `Option`, `Shift`, `Primary`, `Super`, `Meta` (case-insensitive).
+Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.
 
-`Primary` is a cross-platform alias that resolves to `Cmd` on macOS and `Ctrl` on Linux/Windows. Use this for hotkeys you want to work identically across platforms without changes.
-
-`Super` and `Meta` are aliases for `Cmd`. Linux users familiar with the Super key can use `Super+…` in their configs — it maps to the Command modifier internally.
-
-**Actions can be:**
-
-- A mode command: `"hints"`, `"grid"`, `"scroll"`, `"recursive_grid"`, `"idle"`
-- An IPC action command: `"action left_click"`, `"action move_mouse_relative --dx=0 --dy=-10"`, `"action feed h e l l o return"`
-- A shell command: `"exec open -a Terminal"`
-
-### Multiple actions per hotkey
-
-Bind multiple actions to a single hotkey using an array. Actions are executed sequentially; if one fails, the error is logged but remaining actions continue.
+**Action values** can be a single string or an array:
 
 ```toml
 [hotkeys]
-"PageUp" = ["action go_top", "action page_down"]
 "Primary+Shift+D" = ["hints", "exec echo 'hints activated'"]
+"PageUp"          = ["action go_top", "action page_down"]
 ```
 
-Both `[hotkeys]` and `[<mode>.hotkeys]` support this array syntax.
+**Shell commands** use the `exec` prefix: `"Primary+T" = "exec open -a Terminal"`
 
----
+#### Merging Behavior
 
-## Per-Mode Custom Hotkeys
+| Config                 | Result                    |
+| ---------------------- | ------------------------- |
+| Section absent         | All defaults used         |
+| Section present, empty | All hotkeys disabled      |
+| Section has entries    | Merged on top of defaults |
 
-Define hotkeys that are only active while a specific mode is running.
-
-> [!TIP]
-> Like `[hotkeys]`, per-mode custom hotkeys are **merged on top of defaults**. You only need to define what you want to add, change, or remove.
-
-### Merging behavior
-
-| Scenario                                     | Result                              |
-| -------------------------------------------- | ----------------------------------- |
-| `[<mode>.hotkeys]` section absent            | All defaults for that mode are used |
-| `[<mode>.hotkeys]` section present but empty | All bindings for that mode disabled |
-| `[<mode>.hotkeys]` with entries              | Entries merged on top of defaults   |
-
-To remove a single default binding, use `__disabled__`:
+Use `__disabled__` to remove individual defaults:
 
 ```toml
-[scroll.hotkeys]
-"h" = "__disabled__"             # removes default scroll_left on "h"
-"x" = "action scroll_left"       # adds "x" for scroll_left; all other defaults remain
+[hotkeys]
+"Primary+Shift+S" = "__disabled__"   # removes default scroll binding
+"Ctrl+Space"      = "hints"          # adds binding; other defaults unchanged
 ```
 
-### Syntax
+When a mode is disabled (`enabled = false`), its default launcher hotkey is removed automatically.
+
+### Per-Mode Hotkeys
+
+Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
 
 ```toml
 [hints.hotkeys]
-"Escape" = "idle"
+"Escape"    = "idle"
 "Backspace" = "action backspace"
-"Shift+L" = ["action left_click", "idle"]
+"Shift+L"   = ["action left_click", "idle"]
 
 [scroll.hotkeys]
-"gg" = "action go_top"
-"Primary+Shift+T" = "exec open -a Terminal"
+"gg"                   = "action go_top"      # two-letter sequence
+"Primary+Shift+T"      = "exec open -a Terminal"
 ```
 
-### Supported actions
+Multi-key alphabetic sequences (e.g. `gg`) use a 500ms timeout.
 
-All actions from `[hotkeys]` work here, plus these mode-specific ones:
+#### Per-App Hotkey Overrides
 
-- Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
-- Action subcommands: `action left_click`, `action scroll_down`, `action feed`, `action sleep`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
-- Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
-- Shell commands: `exec ...`
-
-### Per-App Hotkey Overrides
-
-`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` bindings for a specific app bundle ID. App hotkeys are merged on top of global mode hotkeys; missing keys inherit the global binding; `__disabled__` removes an inherited binding for that app only.
-
-This works for `hints`, `grid`, and `recursive_grid` modes:
+`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` for specific apps. Supported for `hints`, `grid`, and `recursive_grid`. App hotkeys merge on top of mode hotkeys; `__disabled__` removes an inherited binding.
 
 ```toml
-[hints.hotkeys]
-"Return" = ["action left_click", "hints"]
-
 [[hints.app_configs]]
 bundle_id = "com.brave.Browser"
 hotkeys = {
-	"Return" = "action left_click",
-	"Shift+L" = "__disabled__"
+    "Return" = "action left_click",
+    "Shift+L" = "__disabled__"
 }
-
-[[grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "Return" = "action left_click" }
-
-[[recursive_grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "u" = "action left_click" }
 ```
 
-### Priority order
-
-When a key is pressed inside a mode, Neru checks in this order:
+**Priority order** when a key is pressed inside a mode:
 
 1. Modifier toggle
-2. Mode custom hotkeys (`<mode>.hotkeys`)
-3. Mode-specific keys (hint/grid/recursive-grid character input)
+2. `<mode>.hotkeys` + per-app overrides
+3. Mode built-in keys (hint/grid character input)
 
-### Multi-key sequences
+### Action Reference
 
-Two-letter alphabetic sequences are supported in `hotkeys`:
-
-```toml
-[scroll.hotkeys]
-"gg" = "action go_top"
-```
-
-Sequence timeout is `500ms`.
-
----
-
-## Action Commands and Primitives
-
-All one-shot actions are exposed through `action` subcommands and are valid in custom hotkeys as `"action <name>"`.
-
-### Available actions
+All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#action-commands) for full flag documentation.
 
 | Category    | Actions                                                       |
 | ----------- | ------------------------------------------------------------- |
@@ -259,188 +227,155 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 | Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`     |
 | Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                 |
 | Keyboard    | `feed`                                                        |
+| Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`         |
+| Delay       | `sleep`                                                       |
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
 
-> [!NOTE]
-> `reset`, `backspace`, `wait_for_mode_exit`, and `save_cursor_pos` / `restore_cursor_pos` are not valid mode `--action` values. Use them as `neru action ...` or in hotkeys as `"action ..."`. `toggle-cursor-follow-selection` is a root command.
+- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
+- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))
+- `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor_pos` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 
-> [!TIP]
-> Point-targeted actions prefer the current mode selection by default. Use the `--bare` flag (e.g. `"action left_click --bare"`) to ignore the selection and target the current cursor position instead.
->
-> `scroll_up`, `scroll_down`, `scroll_left`, and `scroll_right` also support a `--steps` flag
-> (e.g. `"action scroll_down --steps 200"`) to override the configured `scroll_step` for a
-> single invocation. `page_up`, `page_down`, `go_top`, and `go_bottom` do not support `--steps`.
-
-### Feed keys
-
-`action feed` can be used in config hotkeys because it runs through Neru's IPC
-action path. This is useful when a Neru hotkey should hand input back to the
-focused app instead of triggering a Neru-owned click, scroll, or mode action.
+#### Feed Keys
 
 ```toml
 [hotkeys]
-"Primary+Y" = "action feed h e l l o return"
+"Primary+Y"       = "action feed h e l l o return"
 "Primary+Shift+C" = "action feed ctrl+c"
 
 [hints.hotkeys]
-"o" = ["idle", "action feed o"]
+"o"               = ["idle", "action feed o"]
 ```
 
-See [CLI Usage: Feed Keys](CLI.md#feed-keys) for syntax, supported key names,
-multi-key sequences, and platform behavior.
+See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform behavior.
 
-### Composition example
+#### Composition Example
 
 ```toml
 [hints.hotkeys]
-"Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
+"Enter"  = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
 "Return" = ["action left_click", "action sleep 0.5", "hints"]
 ```
 
-See [CLI Usage: Feed Keys](CLI.md#feed-keys) for syntax and supported actions.
+---
+
+## [general]
+
+| Option                                 | Type   | Default | Description                                         |
+| -------------------------------------- | ------ | ------- | --------------------------------------------------- |
+| `excluded_apps`                        | array  | `[]`    | Bundle IDs where Neru won't activate                |
+| `kb_layout_to_use`                     | string | `""`    | Force keyboard layout InputSourceID (auto if empty) |
+| `hide_overlay_in_screen_share`         | bool   | `false` | Hide overlay in screen sharing apps                 |
+| `passthrough_unbounded_keys`           | bool   | `false` | Let unbound Cmd/Ctrl/Alt shortcuts pass through     |
+| `should_exit_after_passthrough`        | bool   | `false` | Exit mode after a passthrough shortcut              |
+| `passthrough_unbounded_keys_blacklist` | array  | `[]`    | Shortcuts to keep consumed when passthrough is on   |
+
+Find available `kb_layout_to_use` IDs on macOS:
+
+```bash
+defaults read com.apple.HIToolbox AppleEnabledInputSources
+```
 
 ---
 
-## General Settings
+## [theme]
 
-Core behaviour settings that affect all Neru functionality.
+Base colors used to derive all component defaults. Use solid `#RRGGBB` or `#RGB` (no alpha).
 
-| Option                                 | Type   | Default | Description                                            |
-| -------------------------------------- | ------ | ------- | ------------------------------------------------------ |
-| `excluded_apps`                        | array  | `[]`    | Bundle IDs where Neru won't activate                   |
-| `kb_layout_to_use`                     | string | `""`    | Optional InputSourceID for layout mapping              |
-| `hide_overlay_in_screen_share`         | bool   | `false` | Hide overlay in screen sharing apps                    |
-| `passthrough_unbounded_keys`           | bool   | `false` | Let unbound modifier shortcuts pass through            |
-| `should_exit_after_passthrough`        | bool   | `false` | Exit current mode after passthrough                    |
-| `passthrough_unbounded_keys_blacklist` | array  | `[]`    | Shortcuts to keep consumed when passthrough is enabled |
+| Key             | Role                                                |
+| --------------- | --------------------------------------------------- |
+| `surface`       | Translucent fills, badges, indicator backgrounds    |
+| `accent`        | Borders, lines, primary chrome                      |
+| `accent_alt`    | Active/emphasis states, highlights, virtual pointer |
+| `on_accent_alt` | Foreground text/icon on `accent_alt` surfaces       |
+| `text`          | Foreground text on `surface` backgrounds            |
+
+```toml
+[theme.light]
+surface       = "#EEF2FF"
+accent        = "#465FBC"
+accent_alt    = "#0B2377"
+on_accent_alt = "#F8FAFF"
+text          = "#17327A"
+
+[theme.dark]
+surface       = "#0A1338"
+accent        = "#6E82D6"
+accent_alt    = "#8FA2F0"
+on_accent_alt = "#081022"
+text          = "#E8EEFF"
+```
+
+Explicit component colors override theme derivation. Omitted colors inherit from the palette.
 
 ---
 
-## Hint Mode
+## [hints]
 
-Hint mode uses macOS Accessibility APIs to identify clickable UI elements and overlay short labels on them.
+Uses macOS Accessibility APIs to label clickable UI elements with short overlay labels.
 
-Press `/` in hints mode to start text search. While search is active, typed
-characters filter hints by element title, description, or value. `Space` is
-supported for multi-word searches (e.g., "search for"). `Return` confirms the
-filtered hints — if 1 or more hints remain, the first hint is auto-selected.
-`Escape` cancels search and restores all hints.
+Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
-You can also start hints mode with the search input shown immediately by using the `--search` flag (e.g., `neru hints --search`).
+Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode))
 
 ### Options
 
-| Option                             | Type   | Default       | Description                                                                                                                                     |
-| ---------------------------------- | ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`                          | bool   | `true`        | Enable/disable hints mode                                                                                                                       |
-| `hint_characters`                  | string | `"asdfghjkl"` | Characters used for labels                                                                                                                      |
-| `max_depth`                        | int    | `50`          | Max accessibility tree depth (0 = unlimited)                                                                                                    |
-| `include_menubar_hints`            | bool   | `false`       | Show hints on menubar items                                                                                                                     |
-| `include_dock_hints`               | bool   | `false`       | Show hints on Dock items                                                                                                                        |
-| `include_nc_hints`                 | bool   | `false`       | Show hints in Notification Center                                                                                                               |
-| `include_stage_manager_hints`      | bool   | `false`       | Show hints in Stage Manager                                                                                                                     |
-| `include_pip_hints`                | bool   | `false`       | Show hints on macOS Picture in Picture controls                                                                                                 |
-| `include_screen_capture_hints`     | bool   | `false`       | Show hints on macOS Screen Capture controls                                                                                                     |
-| `detect_mission_control`           | bool   | `false`       | Enable Mission Control state detection                                                                                                          |
-| `on_mission_control_activated`     | string | `nil`         | Action to execute when Mission Control opens                                                                                                    |
-| `on_mission_control_deactivated`   | string | `nil`         | Action to execute when Mission Control closes                                                                                                   |
-| `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                                                                                                                        |
-| `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                                                                                                                    |
-| `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                                                                                                                     |
-| `visible_check_enabled`            | bool   | `false`       | Enable visibility hit-test for elements (this uses expensive AX api, it will cause tree traversing slower if enabled, but get less noisy hints) |
+| Option                             | Type         | Default                 | Description                                               |
+| ---------------------------------- | ------------ | ----------------------- | --------------------------------------------------------- |
+| `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                 |
+| `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                |
+| `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)              |
+| `include_menubar_hints`            | bool         | `false`                 | Show hints on menubar items                               |
+| `include_dock_hints`               | bool         | `false`                 | Show hints on Dock items                                  |
+| `include_nc_hints`                 | bool         | `false`                 | Show hints in Notification Center                         |
+| `include_stage_manager_hints`      | bool         | `false`                 | Show hints in Stage Manager                               |
+| `include_pip_hints`                | bool         | `false`                 | Show hints on Picture in Picture controls                 |
+| `include_screen_capture_hints`     | bool         | `false`                 | Show hints on Screen Capture controls                     |
+| `detect_mission_control`           | bool         | `false`                 | Enable Mission Control state detection                    |
+| `on_mission_control_activated`     | string/array | `nil`                   | Action(s) to execute when Mission Control opens           |
+| `on_mission_control_deactivated`   | string/array | `nil`                   | Action(s) to execute when Mission Control closes          |
+| `additional_menubar_hints_targets` | array        | macOS-specific defaults | Extra menubar bundle IDs                                  |
+| `clickable_roles`                  | array        | macOS-specific defaults | AX roles that generate hints                              |
+| `ignore_clickable_check`           | bool         | `false`                 | Skip clickability heuristic                               |
+| `visible_check_enabled`            | bool         | `false`                 | Enable visibility hit-test (slower but fewer noisy hints) |
 
-Default search hotkey:
+### UI
 
-```toml
-[hints.hotkeys]
-"/" = "action search_hints"
-```
-
-### Per-App Config Overrides
-
-`[[hints.app_configs]]` allows you to override settings for specific apps:
-
-| Field                        | Type   | Description                              |
-| ---------------------------- | ------ | ---------------------------------------- |
-| `bundle_id`                  | string | App bundle ID (e.g. "com.apple.Safari")  |
-| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable     |
-| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app |
-| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app  |
-| `hotkeys`                    | map    | Per-app hotkey overrides (see below)     |
-
-```toml
-[[hints.app_configs]]
-bundle_id = "com.apple.Safari"
-additional_clickable_roles = ["AXLink"]
-ignore_clickable_check = true
-visible_check_enabled = true
-```
-
-See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app hotkey overrides work.
-
-### Additional Accessibility Support
-
-Enable framework-specific accessibility support for improved hint detection in Electron, Chromium, Firefox, and WebKit-based apps:
-
-```toml
-[hints.additional_ax_support]
-enable = true
-additional_electron_bundles = []
-additional_chromium_bundles = []
-additional_firefox_bundles = []
-additional_webkit_bundles = []
-```
-
-To find a bundle ID:
-
-```bash
-osascript -e 'id of app "Safari"'
-```
-
-### UI Options
-
-| Option               | Type   | Default  | Description                          |
-| -------------------- | ------ | -------- | ------------------------------------ |
-| `font_size`          | int    | `10`     | Font size in points                  |
-| `font_family`        | string | `""`     | Font family (empty = system default) |
-| `border_radius`      | int    | `-1`     | Corner radius (-1 = auto)            |
-| `padding_x`          | int    | `-1`     | Horizontal padding (-1 = auto)       |
-| `padding_y`          | int    | `-1`     | Vertical padding (-1 = auto)         |
-| `border_width`       | int    | `1`      | Border width in pixels               |
-| `placement`          | string | `bottom` | Label placement relative to target   |
-| `background_color`   | color  | derived  | Background color with alpha          |
-| `text_color`         | color  | derived  | Text color                           |
-| `matched_text_color` | color  | derived  | Text color for matched characters    |
-| `border_color`       | color  | derived  | Border color                         |
-
-Valid placements: `top`, `center`, `bottom`.
+| Option               | Type   | Default    | Description                                |
+| -------------------- | ------ | ---------- | ------------------------------------------ |
+| `font_size`          | int    | `10`       | Font size in points                        |
+| `font_family`        | string | `""`       | Font family (empty = system default)       |
+| `border_radius`      | int    | `-1`       | Corner radius (-1 = auto)                  |
+| `padding_x`          | int    | `-1`       | Horizontal padding (-1 = auto)             |
+| `padding_y`          | int    | `-1`       | Vertical padding (-1 = auto)               |
+| `border_width`       | int    | `1`        | Border width in pixels                     |
+| `placement`          | string | `"bottom"` | Label placement: `top`, `center`, `bottom` |
+| `background_color`   | color  | derived    | Background color                           |
+| `text_color`         | color  | derived    | Text color                                 |
+| `matched_text_color` | color  | derived    | Text color for matched characters          |
+| `border_color`       | color  | derived    | Border color                               |
 
 ```toml
 [hints.ui]
 font_size = 10
-font_family = ""
 border_radius = -1
 padding_x = -1
 padding_y = -1
 border_width = 1
 placement = "bottom"
-background_color = "#F2465FBC"
-text_color = "#17327A"
-matched_text_color = "#0B2377"
-border_color = "#0B2377"
 ```
 
-Optional target boundary highlights can make dense or ambiguous hint layouts
-easier to read. They are off by default to keep hints mode quiet.
+### Boundary Highlight
 
-| Option             | Type  | Default | Description                             |
-| ------------------ | ----- | ------- | --------------------------------------- |
-| `enabled`          | bool  | `false` | Draw target element boundaries          |
-| `border_width`     | int   | `1`     | Boundary stroke width in pixels         |
-| `border_radius`    | int   | `-1`    | Boundary corner radius (-1 = auto pill) |
-| `background_color` | color | derived | Very subtle target fill color           |
-| `border_color`     | color | derived | Target boundary stroke color            |
+Optional element outlines for dense layouts. Off by default.
+
+| Option             | Type  | Default | Description                    |
+| ------------------ | ----- | ------- | ------------------------------ |
+| `enabled`          | bool  | `false` | Draw element boundaries        |
+| `border_width`     | int   | `1`     | Stroke width in pixels         |
+| `border_radius`    | int   | `-1`    | Corner radius (-1 = auto pill) |
+| `background_color` | color | derived | Element fill color             |
+| `border_color`     | color | derived | Element stroke color           |
 
 ```toml
 [hints.boundary_highlight]
@@ -449,19 +384,16 @@ border_width = 1
 border_radius = -1
 ```
 
-The search input uses `[hints.search_input_ui]` with the same visual options as
-`[hints.ui]`, except `matched_text_color`. It also supports active-screen
-placement:
+### Search Input UI
 
-| Option     | Type   | Default           | Description                       |
-| ---------- | ------ | ----------------- | --------------------------------- |
-| `position` | string | `"bottom_center"` | Anchor on active screen           |
-| `x_offset` | int    | `0`               | Horizontal offset from the anchor |
-| `y_offset` | int    | `24`              | Vertical offset from the anchor   |
-| `width`    | int    | `320`             | Search input width in pixels      |
+| Option     | Type   | Default           | Description                                                                                             |
+| ---------- | ------ | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| `position` | string | `"bottom_center"` | Anchor: `top_left`, `top_center`, `top_right`, `center`, `bottom_left`, `bottom_center`, `bottom_right` |
+| `x_offset` | int    | `0`               | Horizontal offset from anchor                                                                           |
+| `y_offset` | int    | `24`              | Vertical offset from anchor                                                                             |
+| `width`    | int    | `320`             | Width in pixels                                                                                         |
 
-Valid positions: `top_left`, `top_center`, `top_right`, `center`,
-`bottom_left`, `bottom_center`, `bottom_right`.
+Also supports all [hints UI](#ui) visual options except `matched_text_color`.
 
 ```toml
 [hints.search_input_ui]
@@ -471,44 +403,82 @@ y_offset = 24
 width = 320
 ```
 
+### Additional AX Support
+
+Framework-specific accessibility improvements for Electron, Chromium, Firefox, and WebKit apps:
+
+```toml
+[hints.additional_ax_support]
+enable = false
+additional_electron_bundles  = []
+additional_chromium_bundles  = []
+additional_firefox_bundles   = []
+additional_webkit_bundles    = []
+```
+
+Find bundle IDs: `osascript -e 'id of app "Safari"'`
+
+### Per-App Config
+
+| Field                        | Type   | Description                                           |
+| ---------------------------- | ------ | ----------------------------------------------------- |
+| `bundle_id`                  | string | App bundle ID                                         |
+| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                  |
+| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app              |
+| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app               |
+| `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides) |
+
+```toml
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+additional_clickable_roles = ["AXLink"]
+ignore_clickable_check = true
+visible_check_enabled = true
+```
+
 ---
 
-## Grid Mode
+## [grid]
 
-Grid mode divides the screen into a labelled coordinate grid.
+Divides the screen into a labelled coordinate grid.
+
+Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#grid-mode)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
-| Option              | Type   | Default              | Description                   |
-| ------------------- | ------ | -------------------- | ----------------------------- |
-| `enabled`           | bool   | `true`               | Enable/disable grid mode      |
-| `characters`        | string | see default config   | Primary grid labels           |
-| `sublayer_keys`     | string | same as `characters` | Subgrid labels                |
-| `live_match_update` | bool   | `true`               | Highlight cells as you type   |
-| `hide_unmatched`    | bool   | `true`               | Hide non-matching cells       |
-| `prewarm_enabled`   | bool   | `true`               | Pre-compute grid on startup   |
-| `enable_gc`         | bool   | `false`              | Periodic memory cleanup       |
-| `row_labels`        | string | `""`                 | Optional custom row labels    |
-| `col_labels`        | string | `""`                 | Optional custom column labels |
+| Option              | Type   | Default                       | Description                 |
+| ------------------- | ------ | ----------------------------- | --------------------------- |
+| `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
+| `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
+| `sublayer_keys`     | string | same as `characters`          | Subgrid labels              |
+| `row_labels`        | string | `""`                          | Custom row labels           |
+| `col_labels`        | string | `""`                          | Custom column labels        |
+| `live_match_update` | bool   | `true`                        | Highlight cells as you type |
+| `hide_unmatched`    | bool   | `true`                        | Hide non-matching cells     |
+| `prewarm_enabled`   | bool   | `true`                        | Pre-compute grid on startup |
+| `enable_gc`         | bool   | `false`                       | Periodic memory cleanup     |
 
-Runtime cursor behavior is chosen per invocation rather than in config:
+### UI
+
+| Option                     | Type   | Default | Description                          |
+| -------------------------- | ------ | ------- | ------------------------------------ |
+| `font_size`                | int    | `10`    | Font size in points                  |
+| `font_family`              | string | `""`    | Font family (empty = system default) |
+| `border_width`             | int    | `1`     | Border width in pixels               |
+| `background_color`         | color  | derived | Cell background                      |
+| `text_color`               | color  | derived | Label text                           |
+| `matched_text_color`       | color  | derived | Matched cell text                    |
+| `matched_background_color` | color  | derived | Matched cell background              |
+| `matched_border_color`     | color  | derived | Matched cell border                  |
+| `border_color`             | color  | derived | Default cell border                  |
 
 ```toml
-[hotkeys]
-"Primary+Shift+G" = "grid --cursor-selection-mode follow"
-"Primary+Alt+G"   = "grid --cursor-selection-mode hold"
+[grid.ui]
+font_size = 10
+border_width = 1
 ```
 
-Default grid hotkeys include ``"`" = "toggle-cursor-follow-selection"`` so you can flip cursor follow behavior mid-session.
-
-### Per-App Config Overrides
-
-`[[grid.app_configs]]` allows you to override hotkeys for specific apps:
-
-| Field       | Type   | Description                              |
-| ----------- | ------ | ---------------------------------------- |
-| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
-| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
+### Per-App Config
 
 ```toml
 [[grid.app_configs]]
@@ -516,98 +486,66 @@ bundle_id = "com.brave.Browser"
 hotkeys = { "Return" = "action left_click" }
 ```
 
-See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
-
-### UI Options
-
-| Option                     | Type   | Default | Description                          |
-| -------------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`                | int    | `10`    | Font size in points                  |
-| `font_family`              | string | `""`    | Font family (empty = system default) |
-| `border_width`             | int    | `1`     | Border width in pixels               |
-| `background_color`         | color  | derived | Cell background color with alpha     |
-| `text_color`               | color  | derived | Label text color                     |
-| `matched_text_color`       | color  | derived | Text color for matched cells         |
-| `matched_background_color` | color  | derived | Background color for matched cells   |
-| `matched_border_color`     | color  | derived | Border color for matched cells       |
-| `border_color`             | color  | derived | Default border color                 |
-
-```toml
-[grid.ui]
-font_size = 10
-font_family = ""
-border_width = 1
-background_color = "#B3465FBC"
-text_color = "#E8EEFF"
-matched_text_color = "#F8FAFF"
-matched_background_color = "#465FBC"
-matched_border_color = "#0B2377"
-border_color = "#99465FBC"
-```
+See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 ---
 
-## Recursive Grid Mode
+## [recursive_grid]
 
-Recursive grid narrows the active area with each keypress for precise cursor placement.
+Narrows the active area with each keypress for precise cursor placement.
+
+Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#recursive-grid-mode)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
-| Option            | Type   | Default  | Description                                      |
-| ----------------- | ------ | -------- | ------------------------------------------------ |
-| `enabled`         | bool   | `true`   | Enable/disable mode                              |
-| `grid_cols`       | int    | `2`      | Number of columns (≥ 1; total cells must be ≥ 2) |
-| `grid_rows`       | int    | `2`      | Number of rows (≥ 1; total cells must be ≥ 2)    |
-| `keys`            | string | `"uijk"` | Cell selection keys                              |
-| `min_size_width`  | int    | `25`     | Minimum cell width in pixels                     |
-| `min_size_height` | int    | `25`     | Minimum cell height in pixels                    |
-| `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)                  |
-| `layers`          | array  | `[]`     | Optional per-depth layout overrides              |
+| Option            | Type   | Default  | Description                                                      |
+| ----------------- | ------ | -------- | ---------------------------------------------------------------- |
+| `enabled`         | bool   | `true`   | Enable/disable mode                                              |
+| `grid_cols`       | int    | `2`      | Columns (≥ 1; total cells ≥ 2)                                   |
+| `grid_rows`       | int    | `2`      | Rows (≥ 1; total cells ≥ 2)                                      |
+| `keys`            | string | `"uijk"` | Cell selection keys (must be `grid_cols × grid_rows` characters) |
+| `min_size_width`  | int    | `25`     | Minimum cell width in pixels                                     |
+| `min_size_height` | int    | `25`     | Minimum cell height in pixels                                    |
+| `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)                                  |
+| `layers`          | array  | `[]`     | Per-depth layout overrides (see below)                           |
 
-Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time. Default hotkeys also include ``"`" = "toggle-cursor-follow-selection"``.
+#### Layers
 
-### Per-App Config Overrides
+Each entry overrides the grid dimensions and keys for a specific depth:
 
-`[[recursive_grid.app_configs]]` allows you to override hotkeys for specific apps:
-
-| Field       | Type   | Description                              |
-| ----------- | ------ | ---------------------------------------- |
-| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
-| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
-
-```toml
-[[recursive_grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "Return" = "action left_click" }
-```
-
-See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
-
-### Animation Options
-
-| Option        | Type | Default | Description                                               |
-| ------------- | ---- | ------- | --------------------------------------------------------- |
-| `enabled`     | bool | `false` | Opt in to native depth transitions on supported platforms |
-| `duration_ms` | int  | `180`   | Depth transition duration in milliseconds                 |
+| Field       | Type   | Default        | Description                  |
+| ----------- | ------ | -------------- | ---------------------------- |
+| `depth`     | int    | required       | Recursion depth to override  |
+| `grid_cols` | int    | same as parent | Columns at this depth        |
+| `grid_rows` | int    | same as parent | Rows at this depth           |
+| `keys`      | string | same as parent | Selection keys at this depth |
 
 ```toml
-[recursive_grid.animation]
-enabled = false
-duration_ms = 180
+[recursive_grid]
+layers = [
+  { depth = 1, grid_cols = 3, grid_rows = 3, keys = "uiojklmn" },
+]
 ```
 
-### UI Options
+### Animation
+
+| Option        | Type | Default | Description                                     |
+| ------------- | ---- | ------- | ----------------------------------------------- |
+| `enabled`     | bool | `false` | Native depth transitions on supported platforms |
+| `duration_ms` | int  | `180`   | Transition duration in milliseconds             |
+
+### UI
 
 | Option                                | Type   | Default | Description                          |
 | ------------------------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`                           | int    | `10`    | Font size in points                  |
+| `font_size`                           | int    | `10`    | Font size                            |
 | `font_family`                         | string | `""`    | Font family (empty = system default) |
-| `line_width`                          | int    | `1`     | Grid line width in pixels            |
+| `line_width`                          | int    | `1`     | Grid line width                      |
 | `line_color`                          | color  | derived | Grid line color                      |
-| `highlight_color`                     | color  | derived | Selected cell highlight color        |
-| `text_color`                          | color  | derived | Label text color                     |
-| `label_background`                    | bool   | `false` | Show background behind labels        |
-| `label_background_color`              | color  | derived | Label background color               |
+| `highlight_color`                     | color  | derived | Selected cell highlight              |
+| `text_color`                          | color  | derived | Label text                           |
+| `label_background`                    | bool   | `false` | Background behind labels             |
+| `label_background_color`              | color  | derived | Label background                     |
 | `label_background_padding_x`          | int    | `-1`    | Horizontal label padding (-1 = auto) |
 | `label_background_padding_y`          | int    | `-1`    | Vertical label padding (-1 = auto)   |
 | `label_background_border_radius`      | int    | `-1`    | Label corner radius (-1 = auto)      |
@@ -619,37 +557,37 @@ duration_ms = 180
 
 ```toml
 [recursive_grid.ui]
-line_color = "#000000"
 line_width = 1
-highlight_color = "#465FBC"
-text_color = "#FFFFFF"
 font_size = 10
-font_family = ""
 label_background = false
+sub_key_preview = false
 ```
+
+### Per-App Config
+
+```toml
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "u" = "action left_click" }
+```
+
+See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 ---
 
-## Scroll Mode
+## [scroll]
 
-Scroll mode provides keyboard-driven scrolling.
+Keyboard-driven scrolling.
 
 ### Options
 
 | Option             | Type | Default   | Description                        |
 | ------------------ | ---- | --------- | ---------------------------------- |
-| `scroll_step`      | int  | `50`      | Pixels for line scroll actions     |
-| `scroll_step_half` | int  | `500`     | Pixels for half-page actions       |
+| `scroll_step`      | int  | `50`      | Pixels per line scroll action      |
+| `scroll_step_half` | int  | `500`     | Pixels per half-page action        |
 | `scroll_step_full` | int  | `1000000` | Pixels for top/bottom jump actions |
 
-```toml
-[scroll]
-scroll_step = 50
-scroll_step_half = 500
-scroll_step_full = 1000000
-```
-
-Default scroll hotkeys:
+### Default Hotkeys
 
 ```toml
 [scroll.hotkeys]
@@ -663,52 +601,90 @@ Default scroll hotkeys:
 "u"       = "action page_up"
 "PageUp"  = "action page_up"
 "d"       = "action page_down"
-"PageDown" = "action page_down"
+"PageDown"= "action page_down"
 ```
 
 ---
 
-## Virtual Pointer
+## [virtual_pointer]
 
-When grid or recursive-grid runs in `--cursor-selection-mode hold`, Neru renders a small dot at the active selection so you can track the target while the real cursor stays still.
+A small dot rendered at the active selection when grid or recursive-grid runs in `--cursor-selection-mode hold`.
 
-### Options
-
-| Option    | Type | Default | Description                        |
-| --------- | ---- | ------- | ---------------------------------- |
-| `enabled` | bool | `true`  | Enable/disable the virtual pointer |
-
-### UI Options
-
-| Option  | Type  | Default       | Description          |
-| ------- | ----- | ------------- | -------------------- |
-| `size`  | int   | `3`           | Dot radius in points |
-| `color` | color | Theme-derived | Dot color            |
+| Option    | Type  | Default | Description          |
+| --------- | ----- | ------- | -------------------- |
+| `enabled` | bool  | `true`  | Enable/disable       |
+| `size`    | int   | `3`     | Dot radius in points |
+| `color`   | color | derived | Dot color            |
 
 ```toml
 [virtual_pointer]
 enabled = true
 
 [virtual_pointer.ui]
-size = 4
-color = { light = "#0B2377", dark = "#8FA2F0" }
+size = 3
 ```
 
 ---
 
-## Mode Indicator
+## [mouse_action_indicator]
 
-A floating label that follows the cursor and shows the current mode.
+Transient visual marker at mouse action locations. macOS only; other platforms accept the config and no-op.
 
-### Per-mode Options
+| Option    | Type     | Default                                                                   | Description        |
+| --------- | -------- | ------------------------------------------------------------------------- | ------------------ |
+| `enabled` | bool     | `false`                                                                   | Enable indicators  |
+| `actions` | string[] | `["left_click", "right_click", "middle_click", "mouse_down", "mouse_up"]` | Triggering actions |
 
-| Option             | Type   | Default | Description                       |
-| ------------------ | ------ | ------- | --------------------------------- |
-| `enabled`          | bool   | varies  | Show/hide indicator for this mode |
-| `text`             | string | varies  | Label shown in indicator          |
-| `background_color` | color  | derived | Custom background color           |
-| `text_color`       | color  | derived | Custom text color                 |
-| `border_color`     | color  | derived | Custom border color               |
+### UI
+
+| Option             | Type   | Default    | Description          |
+| ------------------ | ------ | ---------- | -------------------- |
+| `size`             | int    | `36`       | Diameter in points   |
+| `border_width`     | int    | `2`        | Border width         |
+| `background_color` | color  | derived    | Fill color           |
+| `border_color`     | color  | derived    | Stroke color         |
+| `shape`            | string | `"circle"` | `circle` or `square` |
+
+### Animation
+
+| Option          | Type   | Default      | Description                                    |
+| --------------- | ------ | ------------ | ---------------------------------------------- |
+| `duration_ms`   | int    | `260`        | Animation duration in ms                       |
+| `start_scale`   | float  | `0.55`       | Starting scale                                 |
+| `end_scale`     | float  | `1.35`       | Ending scale                                   |
+| `start_opacity` | float  | `0.85`       | Starting opacity                               |
+| `end_opacity`   | float  | `0.0`        | Ending opacity                                 |
+| `easing`        | string | `"ease_out"` | `linear`, `ease_in`, `ease_out`, `ease_in_out` |
+
+```toml
+[mouse_action_indicator]
+enabled = false
+actions = ["left_click", "right_click"]
+
+[mouse_action_indicator.ui]
+size = 36
+shape = "circle"
+
+[mouse_action_indicator.animation]
+duration_ms = 260
+easing = "ease_out"
+```
+
+---
+
+## [mode_indicator]
+
+A floating label that follows the cursor and displays the current mode name.
+
+### Per-Mode
+
+| Option             | Type   | Default        | Description                       |
+| ------------------ | ------ | -------------- | --------------------------------- |
+| `enabled`          | bool   | varies by mode | Show/hide indicator for this mode |
+| `text`             | string | varies by mode | Label text                        |
+| `background_color` | color  | derived        | Override background color         |
+| `text_color`       | color  | derived        | Override text color               |
+| `border_color`     | color  | derived        | Override border color             |
 
 ```toml
 [mode_indicator.scroll]
@@ -728,16 +704,16 @@ enabled = false
 text = "Recursive Grid"
 ```
 
-### UI Options
+### UI
 
 | Option               | Type   | Default | Description                             |
 | -------------------- | ------ | ------- | --------------------------------------- |
-| `font_size`          | int    | `10`    | Font size in points                     |
+| `font_size`          | int    | `10`    | Font size                               |
 | `font_family`        | string | `""`    | Font family (empty = system default)    |
-| `background_color`   | color  | derived | Background color with alpha             |
+| `background_color`   | color  | derived | Background with alpha                   |
 | `text_color`         | color  | derived | Text color                              |
 | `border_color`       | color  | derived | Border color                            |
-| `border_width`       | int    | `1`     | Border width in pixels                  |
+| `border_width`       | int    | `1`     | Border width                            |
 | `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)          |
 | `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)            |
 | `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)               |
@@ -747,7 +723,6 @@ text = "Recursive Grid"
 ```toml
 [mode_indicator.ui]
 font_size = 10
-font_family = ""
 border_width = 1
 padding_x = -1
 padding_y = -1
@@ -758,169 +733,49 @@ indicator_y_offset = 20
 
 ---
 
-## Sticky Modifiers
+## [sticky_modifiers]
 
 Tap modifiers inside a mode to make them sticky for subsequent actions.
 
-### Options
+| Option             | Type | Default | Description                                         |
+| ------------------ | ---- | ------- | --------------------------------------------------- |
+| `enabled`          | bool | `true`  | Enable sticky modifiers                             |
+| `tap_max_duration` | int  | `300`   | Max hold (ms) for tap detection (0 = always toggle) |
 
-| Option             | Type | Default | Description                                           |
-| ------------------ | ---- | ------- | ----------------------------------------------------- |
-| `enabled`          | bool | `true`  | Enable sticky modifiers                               |
-| `tap_max_duration` | int  | `300`   | Max hold duration (ms) for tap detection (0 = always) |
+### UI
 
-### UI Options
-
-| Option               | Type   | Default | Description                                      |
-| -------------------- | ------ | ------- | ------------------------------------------------ |
-| `font_size`          | int    | `10`    | Font size in points                              |
-| `font_family`        | string | `""`    | Font family (empty = system default)             |
-| `background_color`   | color  | derived | Background color with alpha                      |
-| `text_color`         | color  | derived | Text color                                       |
-| `border_color`       | color  | derived | Border color                                     |
-| `border_width`       | int    | `1`     | Border width in pixels                           |
-| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)                   |
-| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)                     |
-| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)                        |
-| `indicator_x_offset` | int    | `-40`   | X offset from cursor (negative = left of cursor) |
-| `indicator_y_offset` | int    | `20`    | Y offset from cursor (positive = down)           |
+| Option               | Type   | Default | Description                            |
+| -------------------- | ------ | ------- | -------------------------------------- |
+| `font_size`          | int    | `10`    | Font size                              |
+| `font_family`        | string | `""`    | Font family (empty = system default)   |
+| `background_color`   | color  | derived | Background with alpha                  |
+| `text_color`         | color  | derived | Text color                             |
+| `border_color`       | color  | derived | Border color                           |
+| `border_width`       | int    | `1`     | Border width                           |
+| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)         |
+| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)           |
+| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)              |
+| `indicator_x_offset` | int    | `-40`   | X offset from cursor (negative = left) |
+| `indicator_y_offset` | int    | `20`    | Y offset from cursor (down)            |
 
 ```toml
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
-```
 
-On Linux, the sticky modifier indicator renders the symbols `❖⇧⌥⌃`. If they
-appear as `[][][][]`, the selected font does not include those glyphs. Set
-`sticky_modifiers.ui.font_family` to a font on your system that can display
-those characters.
-
-```toml
 [sticky_modifiers.ui]
-font_family = "Your installed symbol-capable font"
+font_size = 10
+indicator_x_offset = -40
+indicator_y_offset = 20
 ```
 
-You can quickly test a candidate font by pasting `❖⇧⌥⌃` into a text editor and
-checking whether it renders correctly.
+On Linux, the indicator renders the symbols `❖⇧⌥⌃`. If they appear as `[][][][]`, set `font_family` to a font with those glyphs.
 
 ---
 
-## Theme Palette
+## [smooth_cursor]
 
-Neru exposes a top-level `[theme]` palette. All built-in defaults for hints, grid, recursive grid, the virtual pointer, the mode indicator, and sticky modifiers are derived from these base colors with component-specific alpha applied automatically.
-
-Use solid colors only in `[theme.light]` / `[theme.dark]` — use `#RGB` or `#RRGGBB` format without alpha.
-
-| Key             | Role                                                        |
-| --------------- | ----------------------------------------------------------- |
-| `surface`       | Translucent fills, badges, and indicator backgrounds        |
-| `accent`        | Borders, lines, and primary chrome                          |
-| `accent_alt`    | Active/emphasis states, highlights, and the virtual pointer |
-| `on_accent_alt` | Foreground text/icon color on top of `accent_alt` surfaces  |
-| `text`          | Readable foreground text on `surface` and calm backgrounds  |
-
-```toml
-[theme.light]
-surface       = "#EEF2FF"
-accent        = "#465FBC"
-accent_alt    = "#0B2377"
-on_accent_alt = "#F8FAFF"
-text          = "#17327A"
-
-[theme.dark]
-surface       = "#0A1338"
-accent        = "#6E82D6"
-accent_alt    = "#8FA2F0"
-on_accent_alt = "#081022"
-text          = "#E8EEFF"
-```
-
-If you leave a component color unset, Neru derives it from `[theme]`. If you set a component color explicitly, that value wins for the specified variant.
-
----
-
-## Color Format
-
-> **Read this before customising any colors.** Color values appear throughout this guide — this section explains the format.
-
-Neru colors use hex notation with optional alpha transparency.
-
-### Supported formats
-
-| Format      | Example     | Alpha | Description                         |
-| ----------- | ----------- | ----- | ----------------------------------- |
-| `#AARRGGBB` | `#FF000000` | Yes   | 8-char: Alpha + RGB _(recommended)_ |
-| `#RRGGBB`   | `#FF0000`   | No    | 6-char: RGB only (fully opaque)     |
-| `#RGB`      | `#F00`      | No    | 3-char shorthand                    |
-
-### Alpha channel reference
-
-| Opacity | Hex  | Common use                  |
-| ------- | ---- | --------------------------- |
-| 100%    | `FF` | Solid colors, high contrast |
-| 95%     | `F2` | Hint labels (default)       |
-| 70%     | `B3` | Grid cell backgrounds       |
-| 60%     | `99` | Grid borders                |
-| 30%     | `4D` | Subtle highlights           |
-| 0%      | `00` | Invisible                   |
-
-To calculate any alpha value: `round(opacity_fraction × 255)` → convert to hex.
-
-### Light and dark mode
-
-Colors can be a single string (same for both themes) or a dictionary with `light` and `dark` keys:
-
-```toml
-# Same color for both themes:
-background_color = "#FF0000AA"
-
-# Different colors per theme:
-background_color = { light = "#FF0000AA", dark = "#00FF00AA" }
-```
-
-When a color is omitted or set to empty, Neru uses its built-in theme-aware defaults. Colors update in real time when you switch system themes.
-
----
-
-## Mouse Action Indicator
-
-Mouse action indicators show a transient visual marker where a mouse button action happened. This is useful for CLI-triggered actions too, so the macOS implementation uses its own temporary window instead of relying on an active mode overlay.
-
-> [!NOTE]
-> Currently rendered on **macOS only**. Other platforms accept the config and no-op.
-
-| Option      | Type     | Default                  | Description                            |
-| ----------- | -------- | ------------------------ | -------------------------------------- |
-| `enabled`   | bool     | `false`                  | Enable mouse action indicators         |
-| `actions`   | string[] | all mouse button actions | Actions that should show the indicator |
-| `ui`        | table    | see below                | Visual styling                         |
-| `animation` | table    | see below                | Animation timing and interpolation     |
-
-```toml
-[mouse_action_indicator]
-enabled = true
-actions = ["left_click", "right_click", "middle_click"]
-
-[mouse_action_indicator.ui]
-size = 36
-border_width = 2
-background_color = "#FF5B8CFF"
-border_color = "#5B8CFF"
-shape = "circle" # circle or square
-
-[mouse_action_indicator.animation]
-duration_ms = 260
-start_scale = 0.55
-end_scale = 1.35
-start_opacity = 0.85
-end_opacity = 0.0
-easing = "ease_out" # linear, ease_in, ease_out, ease_in_out
-```
-
----
-
-## Smooth Cursor
+Animates cursor movement between positions.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
@@ -939,12 +794,9 @@ duration_per_pixel = 0.1
 
 ---
 
-## Smooth Scroll
+## [smooth_scroll]
 
-Smooth scroll animates scroll actions by splitting the total scroll delta into chunked events with an ease-out curve. This provides visual feedback during scrolling, making navigation feel more responsive.
-
-> [!NOTE]
-> Currently supported on **macOS only**. Other platforms fall back to instant scrolling.
+Splits scroll deltas into chunked ease-out events for visual feedback. macOS only; other platforms fall back to instant scrolling.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
@@ -961,74 +813,30 @@ max_duration = 180
 duration_per_pixel = 1.0
 ```
 
-The animation adapts to scroll magnitude: a small `scroll_step` scroll completes quickly, while a `scroll_step_full` jump takes longer up to `max_duration`. The easing curve uses ease-out cubic for natural deceleration.
-
 ---
 
-## Keyboard Layout
-
-Neru uses a reference keyboard layout for key translation so hotkeys and mode keys stay stable when you switch active input sources.
-
-```toml
-[general]
-kb_layout_to_use = "com.apple.keylayout.ABC"
-```
-
-To find available layout IDs on macOS:
-
-```bash
-defaults read com.apple.HIToolbox AppleEnabledInputSources
-```
-
----
-
-## Font Configuration
-
-Use `font_family` in any UI section (`hints.ui`, `grid.ui`, `recursive_grid.ui`, `mode_indicator.ui`, `sticky_modifiers.ui`). An empty string uses the system default.
-
-If the sticky modifier indicator shows `[][][][]` on Linux, your current font is
-missing the modifier glyphs `❖⇧⌥⌃`. Set `sticky_modifiers.ui.font_family` to a
-font installed on your system that renders those symbols correctly.
-
----
-
-## Systray
+## [systray]
 
 | Option    | Type | Default | Description                |
 | --------- | ---- | ------- | -------------------------- |
 | `enabled` | bool | `true`  | Show/hide the systray icon |
 
-```toml
-[systray]
-enabled = true
-```
-
-> [!NOTE]
-> Changing systray behavior requires a daemon restart.
+> Changing this option requires a daemon restart.
 
 ---
 
-## Logging
+## [logging]
 
 | Option                 | Type   | Default  | Description                                     |
 | ---------------------- | ------ | -------- | ----------------------------------------------- |
-| `log_level`            | string | `"info"` | Log level: `debug`, `info`, `warn`, `error`     |
+| `log_level`            | string | `"info"` | Level: `debug`, `info`, `warn`, `error`         |
 | `log_file`             | string | `""`     | Custom log file path (empty = default location) |
-| `structured_logging`   | bool   | `true`   | Enable structured JSON logging                  |
-| `disable_file_logging` | bool   | `true`   | Disable file logging (stdout only)              |
-| `max_file_size`        | int    | `10`     | Max log file size in MB before rotation         |
-| `max_backups`          | int    | `5`      | Number of old log files to retain               |
-| `max_age`              | int    | `30`     | Days to retain old log files                    |
+| `structured_logging`   | bool   | `true`   | JSON format                                     |
+| `disable_file_logging` | bool   | `true`   | Console only (no file)                          |
+| `max_file_size`        | int    | `10`     | MB before rotation                              |
+| `max_backups`          | int    | `5`      | Old log files to keep                           |
+| `max_age`              | int    | `30`     | Days to retain old logs                         |
 
-```toml
-[logging]
-log_level = "info"
-log_file = ""
-structured_logging = true
-disable_file_logging = true
-max_file_size = 10
-max_backups = 5
-max_age = 30
-```
+---
 
 Use `neru doctor` and runtime logs for troubleshooting configuration issues.

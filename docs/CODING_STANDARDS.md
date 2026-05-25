@@ -2,11 +2,22 @@
 
 This document defines the coding standards and conventions for the Neru project. Following these standards ensures the codebase appears written by a single developer and maintains consistency across all files.
 
+---
+
+## Table of Contents
+
+- [Quick Reference](#quick-reference)
+- [General Standards](#general-standards)
+- [Documentation Standards](#documentation-standards)
+- [Git Commit Standards](#git-commit-standards)
+- [Pre-commit Checklist](#pre-commit-checklist)
+- [References](#references)
+
 ## Quick Reference
 
-- [Go Conventions](./go/CONVENTIONS.md) - Go code style, imports, naming, error handling
-- [Objective-C Guidelines](./go/OBJECTIVE_C.md) - .h/.m files, naming, memory management
-- [Testing Patterns](./testing/TESTING_PATTERNS.md) - Test file naming, unit vs integration, table-driven tests
+- [CONVENTIONS.md](./go/CONVENTIONS.md) — Go code style, imports, naming, error handling
+- [OBJECTIVE_C.md](./go/OBJECTIVE_C.md) — .h/.m files, naming, memory management
+- [TESTING_PATTERNS.md](./testing/TESTING_PATTERNS.md) — Test file naming, unit vs integration, table-driven tests
 
 ## General Standards
 

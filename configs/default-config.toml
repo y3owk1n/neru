@@ -5,7 +5,7 @@
 # Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
 
 # General settings
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#general-settings
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#general
 [general]
 excluded_apps = []                           # Bundle IDs to ignore (e.g. "com.apple.Terminal")
 kb_layout_to_use = ""                        # Force a keyboard layout InputSourceID (empty = auto)
@@ -15,7 +15,7 @@ passthrough_unbounded_keys_blacklist = []    # Shortcuts to still consume when p
 hide_overlay_in_screen_share = false         # Hide overlay from screen sharing apps
 
 # Theme palette
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#theme-palette
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#theme
 [theme.light]
 surface = "#EEF2FF"
 accent = "#465FBC"
@@ -40,7 +40,7 @@ text = "#E8EEFF"
 "Primary+Shift+S" = "scroll"
 
 # Hint mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hint-mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hints
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"               # Characters used for hint labels
@@ -130,7 +130,7 @@ border_width = 1
 border_radius = -1                          # -1 = auto pill
 
 # Grid mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid-mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid
 [grid]
 enabled = true
 characters = "abcdefghijklmnpqrstuvwxyz"    # Primary grid labels
@@ -161,7 +161,7 @@ font_family = ""
 border_width = 1
 
 # Recursive grid mode (recommended)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive-grid-mode-recommended
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#recursive_grid
 [recursive_grid]
 enabled = true
 grid_cols = 2                               # Number of columns (>= 1)
@@ -204,7 +204,7 @@ sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
 
 # Virtual pointer
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual-pointer
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual_pointer
 [virtual_pointer]
 enabled = true
 
@@ -212,7 +212,7 @@ enabled = true
 size = 3
 
 # Mouse action indicator (macOS)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse-action-indicator
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse_action_indicator
 [mouse_action_indicator]
 enabled = false                             # Disabled by default
 actions = ["left_click", "right_click", "middle_click", "mouse_down", "mouse_up"]
@@ -231,7 +231,7 @@ end_opacity = 0.0
 easing = "ease_out"                         # linear, ease_in, ease_out, ease_in_out
 
 # Scroll mode
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll-mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll
 [scroll]
 scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
@@ -260,7 +260,7 @@ scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
 # Mode indicator
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode-indicator
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mode_indicator
 [mode_indicator]
 
 [mode_indicator.scroll]
@@ -290,7 +290,7 @@ indicator_x_offset = 20
 indicator_y_offset = 20
 
 # Sticky modifiers
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#sticky-modifiers
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#sticky_modifiers
 [sticky_modifiers]
 enabled = true
 tap_max_duration = 300
@@ -306,7 +306,7 @@ indicator_x_offset = -40
 indicator_y_offset = 20
 
 # Smooth cursor (animates cursor movement between positions)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth-cursor
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_cursor
 [smooth_cursor]
 move_mouse_enabled = false                  # Enable smooth mouse movement
 steps = 10                                  # Number of intermediate positions
@@ -314,7 +314,7 @@ max_duration = 200                          # Maximum animation duration in ms
 duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
 
 # Smooth scroll (animates scroll actions with eased chunking)
-# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth-scroll
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_scroll
 [smooth_scroll]
 enabled = false                             # Enable smooth scrolling
 steps = 20                                  # Number of animation steps

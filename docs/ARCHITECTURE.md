@@ -13,8 +13,8 @@ Neru is a keyboard-driven navigation tool for macOS (with Linux and Windows supp
 - [CLI Layer Cross-Platform Notes](#cli-layer-cross-platform-notes)
 - [Application Identifier Terminology](#application-identifier-terminology)
 - [Codebase Navigation Guide](#codebase-navigation-guide)
-- [Coordinate Systems and Units](#coordinate-systems-and-units)
 - [Runtime Capability Reporting](#runtime-capability-reporting)
+- [Coordinate Systems and Units](#coordinate-systems-and-units)
 - [Error Handling and Graceful Degradation](#error-handling-and-graceful-degradation)
 - [Technology Stack](#technology-stack)
 - [Component Architecture](#component-architecture)
@@ -41,7 +41,7 @@ The architecture is designed for high performance, low latency, and cross-platfo
 
 This document focuses on system shape and architectural rationale.
 For contributor workflow, file-slot selection, Linux backend guidance, and
-practical porting steps, use [CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
+practical porting steps, use [CROSS_PLATFORM.md](CROSS_PLATFORM.md).
 
 ---
 
@@ -88,7 +88,7 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 
 This section explains how platform work fits into the architecture.
 It is intentionally high-level. For the contributor playbook, see
-[CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md).
 
 ### Source Of Truth
 
@@ -154,7 +154,7 @@ Current high-level model:
 - Windows: prefer pure Go first
 
 The practical decisions and file-by-file guidance live in
-[CROSS_PLATFORM.md](./CROSS_PLATFORM.md).
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md).
 
 ---
 
@@ -209,9 +209,18 @@ To understand how Neru works, follow the path of an event from the OS to the use
 
 The [factory.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory.go) and its build-tagged siblings (e.g., [factory_darwin.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory_darwin.go)) are the gatekeepers for OS-specific code. They return the correct `ports.SystemPort` implementation without polluting shared code with OS-specific imports.
 
+### 4. Input Processing Flow
+
+1. **OS Level**: [eventtap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/eventtap_darwin.m) captures low-level keyboard events.
+2. **Infrastructure Level**: [adapter.go](file:///Users/kylewong/Dev/neru/internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
+3. **Application Level**: [handler.go](file:///Users/kylewong/Dev/neru/internal/app/modes/handler.go) receives the key and routes it to the active [Mode](file:///Users/kylewong/Dev/neru/internal/app/modes/base.go).
+4. **Service Level**: The mode calls into services like [hint_service.go](file:///Users/kylewong/Dev/neru/internal/app/services/hint_service.go) to perform business logic.
+
+---
+
 ## Runtime Capability Reporting
 
-Neru now reports a runtime capability matrix through the platform adapters.
+Neru reports a runtime capability matrix through the platform adapters.
 This is intentionally stricter than "it compiles":
 
 - Supported features report `supported`
@@ -219,13 +228,6 @@ This is intentionally stricter than "it compiles":
 
 The main user-facing entry point is `neru doctor`, which surfaces platform
 gaps instead of letting unsupported behavior fail silently.
-
-### 4. Input Processing Flow
-
-1. **OS Level**: [eventtap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/eventtap_darwin.m) captures low-level keyboard events.
-2. **Infrastructure Level**: [adapter.go](file:///Users/kylewong/Dev/neru/internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
-3. **Application Level**: [handler.go](file:///Users/kylewong/Dev/neru/internal/app/modes/handler.go) receives the key and routes it to the active [Mode](file:///Users/kylewong/Dev/neru/internal/app/modes/base.go).
-4. **Service Level**: The mode calls into services like [hint_service.go](file:///Users/kylewong/Dev/neru/internal/app/services/hint_service.go) to perform business logic.
 
 ---
 
@@ -430,8 +432,8 @@ Neru uses `just` for build automation.
 
 ## References
 
-- [Cross-Platform Contributor Guide](CROSS_PLATFORM.md)
-- [Development Guide](DEVELOPMENT.md)
-- [Coding Standards](CODING_STANDARDS.md)
-- [Configuration Reference](CONFIGURATION.md)
+- [CROSS_PLATFORM.md](CROSS_PLATFORM.md)
+- [DEVELOPMENT.md](DEVELOPMENT.md)
+- [CODING_STANDARDS.md](CODING_STANDARDS.md)
+- [CONFIGURATION.md](CONFIGURATION.md)
 - [macOS Accessibility API](https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref)
