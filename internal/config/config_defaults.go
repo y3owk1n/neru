@@ -530,6 +530,7 @@ func newDefaultConfig() *Config {
 			ScrollStep:     DefaultScrollStep,
 			ScrollStepHalf: DefaultScrollStepHalf,
 			ScrollStepFull: DefaultScrollStepFull,
+			AppConfigs:     []AppConfig{},
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":   {"idle"},
 				"k":        {"action scroll_up"},

@@ -294,8 +294,16 @@ func (c *Config) ValidateHints() error {
 	return nil
 }
 
-// validateAppConfigs validates per-app configuration for a given mode.
-func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
+// AppConfigFieldValidator is a callback for validating mode-specific fields in AppConfig.
+// It's called for each app config after common validation passes.
+type AppConfigFieldValidator func(idx int, appConfig *AppConfig) error
+
+// validateAppConfigsWithCallback validates per-app configuration with optional field-level validation.
+func validateAppConfigsWithCallback(
+	modeName string,
+	appConfigs []AppConfig,
+	fieldValidator AppConfigFieldValidator,
+) error {
 	seen := make(map[string]struct{}, len(appConfigs))
 	for idx, appConfig := range appConfigs {
 		if strings.TrimSpace(appConfig.BundleID) == "" {
@@ -323,14 +331,148 @@ func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
 		if err != nil {
 			return err
 		}
+
+		// Call mode-specific field validator if provided
+		if fieldValidator != nil {
+			err = fieldValidator(idx, &appConfig)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
 }
 
+// rejectScrollFields creates a field validator that rejects scroll-specific fields.
+// Used for non-scroll modes (hints, grid, recursive_grid) to catch accidental configuration.
+func rejectScrollFields(modeName string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		if appConfig.ScrollStep != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.ScrollStepHalf != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step_half is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.ScrollStepFull != nil {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].scroll_step_full is only valid for scroll mode",
+				modeName, idx,
+			)
+		}
+
+		return nil
+	}
+}
+
+// rejectHintsFields creates a field validator that rejects hints-specific fields.
+// Used for non-hints modes (grid, recursive_grid) to catch accidental configuration.
+func rejectHintsFields(modeName string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		if len(appConfig.AdditionalClickable) > 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].additional_clickable_roles is only valid for hints mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.IgnoreClickableCheck {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].ignore_clickable_check is only valid for hints mode",
+				modeName, idx,
+			)
+		}
+
+		if appConfig.VisibleCheckEnabled {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].visible_check_enabled is only valid for hints mode",
+				modeName, idx,
+			)
+		}
+
+		return nil
+	}
+}
+
+// rejectModeSpecificFields creates a combined validator that rejects both scroll and hints fields.
+// Used for grid and recursive_grid modes.
+func rejectModeSpecificFields(modeName string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		err := rejectScrollFields(modeName)(idx, appConfig)
+		if err != nil {
+			return err
+		}
+
+		return rejectHintsFields(modeName)(idx, appConfig)
+	}
+}
+
+// validateScrollAppConfigs validates per-app scroll configuration.
+func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
+	scrollFieldValidator := func(idx int, appConfig *AppConfig) error {
+		// First, reject hints fields
+		err := rejectHintsFields(modeName)(idx, appConfig)
+		if err != nil {
+			return err
+		}
+
+		// Then validate scroll fields
+		if appConfig.ScrollStep != nil {
+			err := validateMinValue(
+				*appConfig.ScrollStep,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if appConfig.ScrollStepHalf != nil {
+			err := validateMinValue(
+				*appConfig.ScrollStepHalf,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step_half", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if appConfig.ScrollStepFull != nil {
+			err := validateMinValue(
+				*appConfig.ScrollStepFull,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step_full", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return validateAppConfigsWithCallback(modeName, appConfigs, scrollFieldValidator)
+}
+
 // ValidateAppConfigs validates per-app hint configuration.
 func (c *Config) ValidateAppConfigs() error {
-	return validateAppConfigs("hints", c.Hints.AppConfigs)
+	return validateAppConfigsWithCallback("hints", c.Hints.AppConfigs, rejectScrollFields("hints"))
 }
 
 // ValidateGrid validates the grid configuration.
@@ -383,7 +525,11 @@ func (c *Config) ValidateGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.border_width must be non-negative")
 	}
 
-	err = validateAppConfigs("grid", c.Grid.AppConfigs)
+	err = validateAppConfigsWithCallback(
+		"grid",
+		c.Grid.AppConfigs,
+		rejectModeSpecificFields("grid"),
+	)
 	if err != nil {
 		return err
 	}
@@ -543,6 +689,20 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(modeNameHints, appConfig.BundleID),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	for idx, appConfig := range c.Scroll.AppConfigs {
+		err := checkHotkeyConflicts(
+			fmt.Sprintf(
+				"scroll.hotkeys merged with scroll.app_configs[%d] (%s)",
+				idx,
+				appConfig.BundleID,
+			),
+			c.HotkeysForModeAndApp(modeNameScroll, appConfig.BundleID),
 		)
 		if err != nil {
 			return err
@@ -804,7 +964,11 @@ func (c *Config) ValidateRecursiveGrid() error {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.ui.font_size must be >= 1")
 	}
 
-	err = validateAppConfigs("recursive_grid", c.RecursiveGrid.AppConfigs)
+	err = validateAppConfigsWithCallback(
+		"recursive_grid",
+		c.RecursiveGrid.AppConfigs,
+		rejectModeSpecificFields("recursive_grid"),
+	)
 	if err != nil {
 		return err
 	}

@@ -492,6 +492,9 @@ type AppConfig struct {
 	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
 	IgnoreClickableCheck bool                           `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
 	VisibleCheckEnabled  bool                           `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
+	ScrollStep           *int                           `json:"scrollStep"           toml:"scroll_step,omitempty"`
+	ScrollStepHalf       *int                           `json:"scrollStepHalf"       toml:"scroll_step_half,omitempty"`
+	ScrollStepFull       *int                           `json:"scrollStepFull"       toml:"scroll_step_full,omitempty"`
 	Hotkeys              map[string]StringOrStringArray `json:"hotkeys"              toml:"hotkeys"`
 }
 
@@ -516,6 +519,8 @@ type ScrollConfig struct {
 	ScrollStep     int `json:"scrollStep"     toml:"scroll_step"`
 	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
 	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
+
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
@@ -1249,7 +1254,7 @@ func (c *Config) HotkeysForMode(modeName string) map[string]StringOrStringArray 
 
 // HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
 // and focused app bundle ID. For modes without app-specific overrides, it returns the
-// base mode hotkeys unchanged. Hints, Grid, and RecursiveGrid modes support
+// base mode hotkeys unchanged. Hints, Grid, RecursiveGrid, and Scroll modes support
 // per-app hotkey overrides through [[<mode>.app_configs]].
 func (c *Config) HotkeysForModeAndApp(
 	modeName, bundleID string,
@@ -1267,6 +1272,8 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Grid.AppConfigForBundleID(bundleID)
 	case modeNameRecursiveGrid:
 		appConfig = c.RecursiveGrid.AppConfigForBundleID(bundleID)
+	case modeNameScroll:
+		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
 	}
 
 	if appConfig == nil || len(appConfig.Hotkeys) == 0 {
@@ -1335,6 +1342,18 @@ func (c *RecursiveGridConfig) HasAppHotkeyOverrides() bool {
 	return false
 }
 
+// HasAppHotkeyOverrides reports whether any [[scroll.app_configs]] entry has a
+// non-empty Hotkeys map.
+func (c *ScrollConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AppConfigForBundleID returns the matching hints app config for the given bundle ID.
 func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	for idx := range c.AppConfigs {
@@ -1359,6 +1378,17 @@ func (c *GridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 
 // AppConfigForBundleID returns the matching recursive grid app config for the given bundle ID.
 func (c *RecursiveGridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].BundleID == bundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}
+
+// AppConfigForBundleID returns the matching scroll app config for the given bundle ID.
+func (c *ScrollConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	for idx := range c.AppConfigs {
 		if c.AppConfigs[idx].BundleID == bundleID {
 			return &c.AppConfigs[idx]
@@ -1484,6 +1514,11 @@ func (c *Config) ValidateScroll() error {
 	}
 
 	err = validateMinValue(c.Scroll.ScrollStepFull, 1, "scroll.scroll_step_full")
+	if err != nil {
+		return err
+	}
+
+	err = validateScrollAppConfigs("scroll", c.Scroll.AppConfigs)
 	if err != nil {
 		return err
 	}

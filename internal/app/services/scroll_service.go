@@ -69,9 +69,7 @@ func (s *ScrollService) Scroll(
 	amount ScrollAmount,
 	stepOverride int,
 ) error {
-	s.mu.RLock()
-	deltaX, deltaY := s.calculateDelta(direction, amount, stepOverride)
-	s.mu.RUnlock()
+	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
 
 	s.logger.Debug("Scrolling",
 		zap.Int("dir", int(direction)),
@@ -108,6 +106,7 @@ func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 // calculateDelta computes the scroll delta values based on direction and magnitude.
 // If stepOverride is > 0, it takes precedence over the configured value.
 func (s *ScrollService) calculateDelta(
+	ctx context.Context,
 	direction ScrollDirection,
 	amount ScrollAmount,
 	stepOverride int,
@@ -120,13 +119,42 @@ func (s *ScrollService) calculateDelta(
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
+		// Snapshot config under lock, then release before IPC call
+		s.mu.RLock()
+		scrollStep := s.config.ScrollStep
+		scrollStepHalf := s.config.ScrollStepHalf
+		scrollStepFull := s.config.ScrollStepFull
+		configSnapshot := s.config
+		s.mu.RUnlock()
+
+		// Only perform IPC lookup if there are app-specific overrides configured
+		if len(configSnapshot.AppConfigs) > 0 {
+			bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
+
+			if err == nil && bundleID != "" {
+				if appConfig := configSnapshot.AppConfigForBundleID(bundleID); appConfig != nil {
+					if appConfig.ScrollStep != nil {
+						scrollStep = *appConfig.ScrollStep
+					}
+
+					if appConfig.ScrollStepHalf != nil {
+						scrollStepHalf = *appConfig.ScrollStepHalf
+					}
+
+					if appConfig.ScrollStepFull != nil {
+						scrollStepFull = *appConfig.ScrollStepFull
+					}
+				}
+			}
+		}
+
 		switch amount {
 		case ScrollAmountChar:
-			baseScroll = s.config.ScrollStep
+			baseScroll = scrollStep
 		case ScrollAmountHalfPage:
-			baseScroll = s.config.ScrollStepHalf
+			baseScroll = scrollStepHalf
 		case ScrollAmountEnd:
-			baseScroll = s.config.ScrollStepFull
+			baseScroll = scrollStepFull
 		}
 	}
 

@@ -92,6 +92,66 @@ func TestConfigValidateScroll_OnlyStepValidation(t *testing.T) {
 	}
 }
 
+func TestConfigValidateScroll_AppConfigs(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	// Valid scroll app configs
+	cfg.Scroll.AppConfigs = []config.AppConfig{
+		{
+			BundleID: "com.apple.Safari",
+			Hotkeys: map[string]config.StringOrStringArray{
+				"k": {"action scroll_up"},
+			},
+		},
+	}
+
+	err := cfg.ValidateScroll()
+	if err != nil {
+		t.Fatalf("ValidateScroll() unexpected error: %v", err)
+	}
+
+	// Invalid: Empty BundleID
+	cfg.Scroll.AppConfigs = []config.AppConfig{
+		{
+			BundleID: "",
+		},
+	}
+
+	err = cfg.ValidateScroll()
+	if err == nil {
+		t.Fatal("ValidateScroll() expected error for empty bundle_id, got nil")
+	}
+
+	// Invalid: Duplicate BundleID
+	cfg.Scroll.AppConfigs = []config.AppConfig{
+		{
+			BundleID: "com.apple.Safari",
+		},
+		{
+			BundleID: "com.apple.Safari",
+		},
+	}
+
+	err = cfg.ValidateScroll()
+	if err == nil {
+		t.Fatal("ValidateScroll() expected error for duplicate bundle_id, got nil")
+	}
+
+	// Invalid: scroll_step = 0 in app config
+	zero := 0
+	cfg.Scroll.AppConfigs = []config.AppConfig{
+		{
+			BundleID:   "com.apple.Safari",
+			ScrollStep: &zero,
+		},
+	}
+
+	err = cfg.ValidateScroll()
+	if err == nil {
+		t.Fatal("ValidateScroll() expected error for scroll_step = 0 in app config, got nil")
+	}
+}
+
 func TestConfigValidateHints_AsciiHintChars(t *testing.T) {
 	cfg := config.DefaultConfig()
 

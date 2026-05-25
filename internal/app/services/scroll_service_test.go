@@ -18,6 +18,7 @@ func TestScrollService_Scroll(t *testing.T) {
 		amount       services.ScrollAmount
 		stepOverride int
 		setupMocks   func(*mocks.MockAccessibilityPort)
+		setupConfig  func(*config.ScrollConfig)
 		wantErr      bool
 	}{
 		{
@@ -226,18 +227,54 @@ func TestScrollService_Scroll(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:      "scroll down with app override",
+			direction: services.ScrollDirectionDown,
+			amount:    services.ScrollAmountChar,
+			setupConfig: func(c *config.ScrollConfig) {
+				step := 25
+				half := 200
+				full := 1000
+				c.AppConfigs = []config.AppConfig{
+					{
+						BundleID:       "com.apple.Safari",
+						ScrollStep:     &step,
+						ScrollStepHalf: &half,
+						ScrollStepFull: &full,
+					},
+				}
+			},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
+					return "com.apple.Safari", nil
+				}
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+					// Safari scroll_step is overridden to 25, so Down is -25
+					if deltaY != -25 {
+						t.Errorf("Expected deltaY -25 for Safari app override, got %d", deltaY)
+					}
+
+					return nil
+				}
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{
+			cfg := config.ScrollConfig{
 				ScrollStep:     10,
 				ScrollStepHalf: 30,
 				ScrollStepFull: 50,
 			}
 			logger := logger.Get()
+
+			if testCase.setupConfig != nil {
+				testCase.setupConfig(&cfg)
+			}
 
 			if testCase.setupMocks != nil {
 				testCase.setupMocks(mockAcc)
@@ -247,7 +284,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				mockAcc,
 				mockOverlay,
 				&mocks.SystemMock{},
-				config,
+				cfg,
 				logger,
 			)
 			ctx := context.Background()
