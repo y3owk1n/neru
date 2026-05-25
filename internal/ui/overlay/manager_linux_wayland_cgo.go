@@ -355,7 +355,7 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			o.displayMu.Lock()
 		}
 
-		C.neru_wayland_overlay_poll(o.raw)
+		C.neru_wayland_overlay_poll(o.raw) //nolint:nlreturn
 
 		for {
 			key := C.neru_wayland_overlay_get_key(o.raw) //nolint:nlreturn
