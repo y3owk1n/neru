@@ -190,6 +190,23 @@ func (et *EventTap) dispatchKey(key string) {
 	}
 }
 
+// linuxKeyUpPrefix matches modes.keyUpPrefix — signals key release to stop held-key repeat.
+const linuxKeyUpPrefix = "__keyup_"
+
+// linuxKeyUpEvent formats a key-up notification for held-repeat actions (scroll, page, etc.).
+// Uses the base key (no modifier prefix) to match modes.Handler held-key tracking.
+func linuxKeyUpEvent(key string) string {
+	key = normalizeLinuxKey(key)
+	if key == "" {
+		return ""
+	}
+
+	parts := strings.Split(key, "+")
+	baseKey := parts[len(parts)-1]
+
+	return linuxKeyUpPrefix + baseKey
+}
+
 // stickyToggleEnabled returns whether sticky toggle is active.
 func (et *EventTap) stickyToggleEnabled() bool {
 	et.mu.RLock()

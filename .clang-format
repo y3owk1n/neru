@@ -1,6 +1,6 @@
 # Clang-Format Configuration for Objective-C
 # Compatible with LLVM 21+
-Language: ObjC
+# Language: ObjC
 BasedOnStyle: LLVM
 
 # Indentation

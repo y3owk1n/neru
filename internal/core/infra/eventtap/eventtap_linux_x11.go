@@ -91,22 +91,32 @@ func (et *EventTap) runX11() {
 			continue
 		}
 
-		if eventType != C.KeyPress {
+		key := x11KeyFromLookup(length, buffer, keysym)
+		if key == "" {
 			continue
 		}
 
-		var key string
-		if length > 0 {
-			key = C.GoStringN(&buffer[0], length)
-		} else {
-			key = x11KeysymName(keysym)
-		}
-		key = normalizeLinuxKey(key)
+		if eventType == C.KeyRelease {
+			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
+				et.dispatchKey(keyUp)
+			}
 
-		if key != "" {
-			et.dispatchKey(key)
+			continue
 		}
+
+		et.dispatchKey(key)
 	}
+}
+
+func x11KeyFromLookup(length C.int, buffer []C.char, keysym C.KeySym) string {
+	var key string
+	if length > 0 {
+		key = C.GoStringN(&buffer[0], length)
+	} else {
+		key = x11KeysymName(keysym)
+	}
+
+	return normalizeLinuxKey(key)
 }
 
 func x11KeysymName(keysym C.KeySym) string {

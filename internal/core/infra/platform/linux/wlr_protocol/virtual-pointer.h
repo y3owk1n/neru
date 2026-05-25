@@ -3,11 +3,12 @@
 #ifndef WLR_VIRTUAL_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
 #define WLR_VIRTUAL_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "wayland-client.h"
 
-#ifdef  __cplusplus
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -85,6 +86,7 @@ extern const struct wl_interface zwlr_virtual_pointer_manager_v1_interface;
 
 #ifndef ZWLR_VIRTUAL_POINTER_V1_ERROR_ENUM
 #define ZWLR_VIRTUAL_POINTER_V1_ERROR_ENUM
+
 enum zwlr_virtual_pointer_v1_error {
 	/**
 	 * client sent invalid axis enumeration value
@@ -106,7 +108,6 @@ enum zwlr_virtual_pointer_v1_error {
 #define ZWLR_VIRTUAL_POINTER_V1_AXIS_STOP 6
 #define ZWLR_VIRTUAL_POINTER_V1_AXIS_DISCRETE 7
 #define ZWLR_VIRTUAL_POINTER_V1_DESTROY 8
-
 
 /**
  * @ingroup iface_zwlr_virtual_pointer_v1
@@ -146,23 +147,18 @@ enum zwlr_virtual_pointer_v1_error {
 #define ZWLR_VIRTUAL_POINTER_V1_DESTROY_SINCE_VERSION 1
 
 /** @ingroup iface_zwlr_virtual_pointer_v1 */
-static inline void
-zwlr_virtual_pointer_v1_set_user_data(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwlr_virtual_pointer_v1, user_data);
+static inline void zwlr_virtual_pointer_v1_set_user_data(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwlr_virtual_pointer_v1, user_data);
 }
 
 /** @ingroup iface_zwlr_virtual_pointer_v1 */
-static inline void *
-zwlr_virtual_pointer_v1_get_user_data(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwlr_virtual_pointer_v1);
+static inline void *zwlr_virtual_pointer_v1_get_user_data(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwlr_virtual_pointer_v1);
 }
 
-static inline uint32_t
-zwlr_virtual_pointer_v1_get_version(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1);
+static inline uint32_t zwlr_virtual_pointer_v1_get_version(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1) {
+	return wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1);
 }
 
 /**
@@ -172,11 +168,11 @@ zwlr_virtual_pointer_v1_get_version(struct zwlr_virtual_pointer_v1 *zwlr_virtual
  *
  * Values are in the global compositor space.
  */
-static inline void
-zwlr_virtual_pointer_v1_motion(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, wl_fixed_t dx, wl_fixed_t dy)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_MOTION, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, dx, dy);
+static inline void zwlr_virtual_pointer_v1_motion(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, wl_fixed_t dx, wl_fixed_t dy) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_MOTION, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, dx, dy);
 }
 
 /**
@@ -187,11 +183,12 @@ zwlr_virtual_pointer_v1_motion(struct zwlr_virtual_pointer_v1 *zwlr_virtual_poin
  * Value of x can range from 0 to x_extent, value of y can range from 0
  * to y_extent.
  */
-static inline void
-zwlr_virtual_pointer_v1_motion_absolute(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t x, uint32_t y, uint32_t x_extent, uint32_t y_extent)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_MOTION_ABSOLUTE, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, x, y, x_extent, y_extent);
+static inline void zwlr_virtual_pointer_v1_motion_absolute(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t x, uint32_t y, uint32_t x_extent,
+    uint32_t y_extent) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_MOTION_ABSOLUTE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, x, y, x_extent, y_extent);
 }
 
 /**
@@ -199,11 +196,11 @@ zwlr_virtual_pointer_v1_motion_absolute(struct zwlr_virtual_pointer_v1 *zwlr_vir
  *
  * A button was pressed or released.
  */
-static inline void
-zwlr_virtual_pointer_v1_button(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t button, uint32_t state)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_BUTTON, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, button, state);
+static inline void zwlr_virtual_pointer_v1_button(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t button, uint32_t state) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_BUTTON, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, button, state);
 }
 
 /**
@@ -211,11 +208,11 @@ zwlr_virtual_pointer_v1_button(struct zwlr_virtual_pointer_v1 *zwlr_virtual_poin
  *
  * Scroll and other axis requests.
  */
-static inline void
-zwlr_virtual_pointer_v1_axis(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis, wl_fixed_t value)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_AXIS, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, axis, value);
+static inline void zwlr_virtual_pointer_v1_axis(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis, wl_fixed_t value) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_AXIS, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, axis, value);
 }
 
 /**
@@ -223,11 +220,10 @@ zwlr_virtual_pointer_v1_axis(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointe
  *
  * Indicates the set of events that logically belong together.
  */
-static inline void
-zwlr_virtual_pointer_v1_frame(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_FRAME, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0);
+static inline void zwlr_virtual_pointer_v1_frame(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_FRAME, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0);
 }
 
 /**
@@ -235,11 +231,11 @@ zwlr_virtual_pointer_v1_frame(struct zwlr_virtual_pointer_v1 *zwlr_virtual_point
  *
  * Source information for scroll and other axis.
  */
-static inline void
-zwlr_virtual_pointer_v1_axis_source(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t axis_source)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_AXIS_SOURCE, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, axis_source);
+static inline void zwlr_virtual_pointer_v1_axis_source(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t axis_source) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_AXIS_SOURCE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, axis_source);
 }
 
 /**
@@ -247,11 +243,11 @@ zwlr_virtual_pointer_v1_axis_source(struct zwlr_virtual_pointer_v1 *zwlr_virtual
  *
  * Stop notification for scroll and other axes.
  */
-static inline void
-zwlr_virtual_pointer_v1_axis_stop(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_AXIS_STOP, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, axis);
+static inline void zwlr_virtual_pointer_v1_axis_stop(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_AXIS_STOP, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, axis);
 }
 
 /**
@@ -262,27 +258,26 @@ zwlr_virtual_pointer_v1_axis_stop(struct zwlr_virtual_pointer_v1 *zwlr_virtual_p
  * This event allows the client to extend data normally sent using the axis
  * event with discrete value.
  */
-static inline void
-zwlr_virtual_pointer_v1_axis_discrete(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis, wl_fixed_t value, int32_t discrete)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_AXIS_DISCRETE, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), 0, time, axis, value, discrete);
+static inline void zwlr_virtual_pointer_v1_axis_discrete(
+    struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1, uint32_t time, uint32_t axis, wl_fixed_t value,
+    int32_t discrete) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_AXIS_DISCRETE, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), 0, time, axis, value, discrete);
 }
 
 /**
  * @ingroup iface_zwlr_virtual_pointer_v1
  */
-static inline void
-zwlr_virtual_pointer_v1_destroy(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_v1,
-			 ZWLR_VIRTUAL_POINTER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwlr_virtual_pointer_v1_destroy(struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_v1) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_v1, ZWLR_VIRTUAL_POINTER_V1_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
 }
 
 #define ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER 0
 #define ZWLR_VIRTUAL_POINTER_MANAGER_V1_DESTROY 1
 #define ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER_WITH_OUTPUT 2
-
 
 /**
  * @ingroup iface_zwlr_virtual_pointer_manager_v1
@@ -298,23 +293,20 @@ zwlr_virtual_pointer_v1_destroy(struct zwlr_virtual_pointer_v1 *zwlr_virtual_poi
 #define ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER_WITH_OUTPUT_SINCE_VERSION 2
 
 /** @ingroup iface_zwlr_virtual_pointer_manager_v1 */
-static inline void
-zwlr_virtual_pointer_manager_v1_set_user_data(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwlr_virtual_pointer_manager_v1, user_data);
+static inline void zwlr_virtual_pointer_manager_v1_set_user_data(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwlr_virtual_pointer_manager_v1, user_data);
 }
 
 /** @ingroup iface_zwlr_virtual_pointer_manager_v1 */
-static inline void *
-zwlr_virtual_pointer_manager_v1_get_user_data(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwlr_virtual_pointer_manager_v1);
+static inline void *zwlr_virtual_pointer_manager_v1_get_user_data(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwlr_virtual_pointer_manager_v1);
 }
 
-static inline uint32_t
-zwlr_virtual_pointer_manager_v1_get_version(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_manager_v1);
+static inline uint32_t zwlr_virtual_pointer_manager_v1_get_version(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1) {
+	return wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_manager_v1);
 }
 
 /**
@@ -323,25 +315,26 @@ zwlr_virtual_pointer_manager_v1_get_version(struct zwlr_virtual_pointer_manager_
  * Creates a new virtual pointer. The optional seat is a suggestion to the
  * compositor.
  */
-static inline struct zwlr_virtual_pointer_v1 *
-zwlr_virtual_pointer_manager_v1_create_virtual_pointer(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, struct wl_seat *seat)
-{
+static inline struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_manager_v1_create_virtual_pointer(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, struct wl_seat *seat) {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_manager_v1,
-			 ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER, &zwlr_virtual_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_manager_v1), 0, seat, NULL);
+	id = wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_manager_v1, ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER,
+	    &zwlr_virtual_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_manager_v1), 0,
+	    seat, NULL);
 
-	return (struct zwlr_virtual_pointer_v1 *) id;
+	return (struct zwlr_virtual_pointer_v1 *)id;
 }
 
 /**
  * @ingroup iface_zwlr_virtual_pointer_manager_v1
  */
-static inline void
-zwlr_virtual_pointer_manager_v1_destroy(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_manager_v1,
-			 ZWLR_VIRTUAL_POINTER_MANAGER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_manager_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwlr_virtual_pointer_manager_v1_destroy(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_manager_v1, ZWLR_VIRTUAL_POINTER_MANAGER_V1_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_manager_v1), WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -352,18 +345,20 @@ zwlr_virtual_pointer_manager_v1_destroy(struct zwlr_virtual_pointer_manager_v1 *
  * input device to the requested seat. If the output argument is set, the
  * compositor should map the input device to the requested output.
  */
-static inline struct zwlr_virtual_pointer_v1 *
-zwlr_virtual_pointer_manager_v1_create_virtual_pointer_with_output(struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, struct wl_seat *seat, struct wl_output *output)
-{
+static inline struct zwlr_virtual_pointer_v1 *zwlr_virtual_pointer_manager_v1_create_virtual_pointer_with_output(
+    struct zwlr_virtual_pointer_manager_v1 *zwlr_virtual_pointer_manager_v1, struct wl_seat *seat,
+    struct wl_output *output) {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwlr_virtual_pointer_manager_v1,
-			 ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER_WITH_OUTPUT, &zwlr_virtual_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwlr_virtual_pointer_manager_v1), 0, seat, output, NULL);
+	id = wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwlr_virtual_pointer_manager_v1,
+	    ZWLR_VIRTUAL_POINTER_MANAGER_V1_CREATE_VIRTUAL_POINTER_WITH_OUTPUT, &zwlr_virtual_pointer_v1_interface,
+	    wl_proxy_get_version((struct wl_proxy *)zwlr_virtual_pointer_manager_v1), 0, seat, output, NULL);
 
-	return (struct zwlr_virtual_pointer_v1 *) id;
+	return (struct zwlr_virtual_pointer_v1 *)id;
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

@@ -1,14 +1,15 @@
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <X11/extensions/Xfixes.h>
-#include <X11/extensions/shape.h>
-#include <cairo/cairo.h>
-#include <cairo/cairo-xlib.h>
-#include <stdlib.h>
 #include "x11_overlay.h"
 
-static Visual* neru_x11_argb_visual(Display *display, int screen) {
+#include <X11/Xatom.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/extensions/Xfixes.h>
+#include <X11/extensions/shape.h>
+#include <cairo/cairo-xlib.h>
+#include <cairo/cairo.h>
+#include <stdlib.h>
+
+static Visual *neru_x11_argb_visual(Display *display, int screen) {
 	XVisualInfo vinfo;
 	if (XMatchVisualInfo(display, screen, 32, TrueColor, &vinfo)) {
 		return vinfo.visual;
@@ -16,7 +17,7 @@ static Visual* neru_x11_argb_visual(Display *display, int screen) {
 	return DefaultVisual(display, screen);
 }
 
-NeruX11Overlay* neru_x11_overlay_new(void) {
+NeruX11Overlay *neru_x11_overlay_new(void) {
 	Display *display = XOpenDisplay(NULL);
 	if (display == NULL) {
 		return NULL;
@@ -39,18 +40,8 @@ NeruX11Overlay* neru_x11_overlay_new(void) {
 	attrs.event_mask = ExposureMask;
 
 	overlay->window = XCreateWindow(
-		display,
-		overlay->root,
-		0, 0,
-		overlay->width,
-		overlay->height,
-		0,
-		32,
-		InputOutput,
-		overlay->visual,
-		CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask,
-		&attrs
-	);
+	    display, overlay->root, 0, 0, overlay->width, overlay->height, 0, 32, InputOutput, overlay->visual,
+	    CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask, &attrs);
 
 	Atom dock = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", False);
 	Atom window_type = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
@@ -64,7 +55,8 @@ NeruX11Overlay* neru_x11_overlay_new(void) {
 	XFixesSetWindowShapeRegion(display, overlay->window, ShapeInput, 0, 0, region);
 	XFixesDestroyRegion(display, region);
 
-	overlay->surface = cairo_xlib_surface_create(display, overlay->window, overlay->visual, overlay->width, overlay->height);
+	overlay->surface =
+	    cairo_xlib_surface_create(display, overlay->window, overlay->visual, overlay->width, overlay->height);
 	overlay->cr = cairo_create(overlay->surface);
 	XFlush(display);
 
@@ -150,10 +142,8 @@ static void neru_x11_overlay_color(cairo_t *cr, unsigned int color) {
 }
 
 void neru_x11_overlay_rect(
-	NeruX11Overlay *overlay,
-	double x, double y, double width, double height,
-	unsigned int fill, unsigned int stroke, double stroke_width
-) {
+    NeruX11Overlay *overlay, double x, double y, double width, double height, unsigned int fill, unsigned int stroke,
+    double stroke_width) {
 	cairo_t *cr = overlay->cr;
 	cairo_save(cr);
 	cairo_rectangle(cr, x, y, width, height);
@@ -166,22 +156,13 @@ void neru_x11_overlay_rect(
 }
 
 void neru_x11_overlay_text(
-	NeruX11Overlay *overlay,
-	const char *text,
-	const char *font_family,
-	double x, double y,
-	double font_size,
-	unsigned int color
-) {
+    NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
+    unsigned int color) {
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	cairo_save(cr);
 	cairo_select_font_face(
-		cr,
-		font_family && font_family[0] ? font_family : "Sans",
-		CAIRO_FONT_SLANT_NORMAL,
-		CAIRO_FONT_WEIGHT_BOLD
-	);
+	    cr, font_family && font_family[0] ? font_family : "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
 	neru_x11_overlay_color(cr, color);

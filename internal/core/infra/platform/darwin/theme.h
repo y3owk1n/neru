@@ -24,4 +24,3 @@ void startThemeObserver(void);
 void stopThemeObserver(void);
 
 #endif /* THEME_H */
-

@@ -23,17 +23,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdint.h>
 #include "wayland-util.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 #ifndef __has_attribute
-# define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#define __has_attribute(x) 0 /* Compatibility with non-clang compilers. */
 #endif
 
 #if (__has_attribute(visibility) || defined(__GNUC__) && __GNUC__ >= 4)
-#define WL_PRIVATE __attribute__ ((visibility("hidden")))
+#define WL_PRIVATE __attribute__((visibility("hidden")))
 #else
 #define WL_PRIVATE
 #endif
@@ -43,45 +44,40 @@ extern const struct wl_interface wl_seat_interface;
 extern const struct wl_interface zwlr_virtual_pointer_v1_interface;
 
 static const struct wl_interface *wlr_virtual_pointer_unstable_v1_types[] = {
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	&wl_seat_interface,
-	&zwlr_virtual_pointer_v1_interface,
-	&wl_seat_interface,
-	&wl_output_interface,
-	&zwlr_virtual_pointer_v1_interface,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    &wl_seat_interface,
+    &zwlr_virtual_pointer_v1_interface,
+    &wl_seat_interface,
+    &wl_output_interface,
+    &zwlr_virtual_pointer_v1_interface,
 };
 
 static const struct wl_message zwlr_virtual_pointer_v1_requests[] = {
-	{ "motion", "uff", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "motion_absolute", "uuuuu", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "button", "uuu", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "axis", "uuf", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "frame", "", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "axis_source", "u", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "axis_stop", "uu", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "axis_discrete", "uufi", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "destroy", "", wlr_virtual_pointer_unstable_v1_types + 0 },
+    {"motion", "uff", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"motion_absolute", "uuuuu", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"button", "uuu", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"axis", "uuf", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"frame", "", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"axis_source", "u", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"axis_stop", "uu", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"axis_discrete", "uufi", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"destroy", "", wlr_virtual_pointer_unstable_v1_types + 0},
 };
 
 WL_PRIVATE const struct wl_interface zwlr_virtual_pointer_v1_interface = {
-	"zwlr_virtual_pointer_v1", 2,
-	9, zwlr_virtual_pointer_v1_requests,
-	0, NULL,
+    "zwlr_virtual_pointer_v1", 2, 9, zwlr_virtual_pointer_v1_requests, 0, NULL,
 };
 
 static const struct wl_message zwlr_virtual_pointer_manager_v1_requests[] = {
-	{ "create_virtual_pointer", "?on", wlr_virtual_pointer_unstable_v1_types + 5 },
-	{ "destroy", "", wlr_virtual_pointer_unstable_v1_types + 0 },
-	{ "create_virtual_pointer_with_output", "2?o?on", wlr_virtual_pointer_unstable_v1_types + 7 },
+    {"create_virtual_pointer", "?on", wlr_virtual_pointer_unstable_v1_types + 5},
+    {"destroy", "", wlr_virtual_pointer_unstable_v1_types + 0},
+    {"create_virtual_pointer_with_output", "2?o?on", wlr_virtual_pointer_unstable_v1_types + 7},
 };
 
 WL_PRIVATE const struct wl_interface zwlr_virtual_pointer_manager_v1_interface = {
-	"zwlr_virtual_pointer_manager_v1", 2,
-	3, zwlr_virtual_pointer_manager_v1_requests,
-	0, NULL,
+    "zwlr_virtual_pointer_manager_v1", 2, 3, zwlr_virtual_pointer_manager_v1_requests, 0, NULL,
 };
-

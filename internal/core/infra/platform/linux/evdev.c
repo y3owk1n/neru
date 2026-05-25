@@ -1,3 +1,5 @@
+#include "evdev.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/input.h>
@@ -5,12 +7,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "evdev.h"
 
-
-int neru_evdev_grab(int fd, int grab) {
-	return ioctl(fd, EVIOCGRAB, grab);
-}
+int neru_evdev_grab(int fd, int grab) { return ioctl(fd, EVIOCGRAB, grab); }
 
 int neru_evdev_key_down(int fd, unsigned int keycode) {
 	unsigned long key_bits[(KEY_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
@@ -20,8 +18,7 @@ int neru_evdev_key_down(int fd, unsigned int keycode) {
 		return 0;
 	}
 
-	return (key_bits[keycode / (8 * sizeof(unsigned long))] >>
-		(keycode % (8 * sizeof(unsigned long)))) & 1UL;
+	return (key_bits[keycode / (8 * sizeof(unsigned long))] >> (keycode % (8 * sizeof(unsigned long)))) & 1UL;
 }
 
 int neru_evdev_is_keyboard(int fd) {
@@ -32,20 +29,17 @@ int neru_evdev_is_keyboard(int fd) {
 		return 0;
 	}
 
-	#define NERU_TEST_KEY(bits, key) \
-		((bits[(key) / (8 * sizeof(unsigned long))] >> ((key) % (8 * sizeof(unsigned long)))) & 1UL)
+#define NERU_TEST_KEY(bits, key)                                                                                       \
+	((bits[(key) / (8 * sizeof(unsigned long))] >> ((key) % (8 * sizeof(unsigned long)))) & 1UL)
 
-	return NERU_TEST_KEY(key_bits, KEY_Q) &&
-		NERU_TEST_KEY(key_bits, KEY_W) &&
-		NERU_TEST_KEY(key_bits, KEY_E) &&
-		NERU_TEST_KEY(key_bits, KEY_R) &&
-		NERU_TEST_KEY(key_bits, KEY_SPACE) &&
-		NERU_TEST_KEY(key_bits, KEY_ENTER);
+	return NERU_TEST_KEY(key_bits, KEY_Q) && NERU_TEST_KEY(key_bits, KEY_W) && NERU_TEST_KEY(key_bits, KEY_E) &&
+	       NERU_TEST_KEY(key_bits, KEY_R) && NERU_TEST_KEY(key_bits, KEY_SPACE) && NERU_TEST_KEY(key_bits, KEY_ENTER);
 }
 
 int neru_evdev_get_name(int fd, char *name, size_t name_size) {
 	int r = ioctl(fd, EVIOCGNAME(name_size), name);
-	if (r < 0) return -1;
+	if (r < 0)
+		return -1;
 	return r;
 }
 
@@ -57,9 +51,7 @@ int neru_evdev_get_bustype(int fd) {
 	return id.bustype;
 }
 
-ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
-	return read(fd, event, sizeof(struct input_event));
-}
+ssize_t neru_evdev_read_event(int fd, struct input_event *event) { return read(fd, event, sizeof(struct input_event)); }
 
 int neru_uinput_create_scroll(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);

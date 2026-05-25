@@ -20,11 +20,11 @@ typedef void (*HotkeyCallback)(int hotkeyId, int eventKind, void *userData);
 
 /// Modifier keys
 typedef enum {
-	ModifierNone = 0,       ///< No modifier
-	ModifierCmd = 1 << 0,   ///< Command key
-	ModifierShift = 1 << 1, ///< Shift key
-	ModifierAlt = 1 << 2,   ///< Alt/Option key
-	ModifierCtrl = 1 << 3   ///< Control key
+	ModifierNone = 0,        ///< No modifier
+	ModifierCmd = 1 << 0,    ///< Command key
+	ModifierShift = 1 << 1,  ///< Shift key
+	ModifierAlt = 1 << 2,    ///< Alt/Option key
+	ModifierCtrl = 1 << 3    ///< Control key
 } ModifierKey;
 
 #pragma mark - Hotkey Functions
@@ -52,4 +52,4 @@ void unregisterAllHotkeys(void);
 /// @return 1 on success, 0 on failure
 int parseKeyString(const char *keyString, int *keyCode, int *modifiers);
 
-#endif // HOTKEYS_H
+#endif  // HOTKEYS_H

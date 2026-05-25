@@ -5,7 +5,7 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
-Display* neru_eventtap_open(void);
+Display *neru_eventtap_open(void);
 void neru_eventtap_close(Display *display);
 int neru_eventtap_grab_keyboard(Display *display);
 void neru_eventtap_ungrab_keyboard(Display *display);

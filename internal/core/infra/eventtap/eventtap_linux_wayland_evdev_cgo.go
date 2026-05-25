@@ -435,6 +435,13 @@ func (et *EventTap) handleWaylandEvdevEvent(
 	case evdevValueRelease:
 		state.trackKey(event.code, false)
 
+		key := evdevKeyName(event.code)
+		if key != "" {
+			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
+				et.dispatchKey(keyUp)
+			}
+		}
+
 		return
 	case evdevValueRepeat:
 		if !state.pressed[event.code] {

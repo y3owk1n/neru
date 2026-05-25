@@ -1,16 +1,14 @@
-#include <X11/Xlib.h>
+#include "x11_accessibility.h"
+
 #include <X11/Xatom.h>
+#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
 #include <string.h>
-#include "x11_accessibility.h"
 
-
-Display* neru_ax_open_display(void) {
-	return XOpenDisplay(NULL);
-}
+Display *neru_ax_open_display(void) { return XOpenDisplay(NULL); }
 
 void neru_ax_close_display(Display *display) {
 	if (display != NULL) {
@@ -18,9 +16,7 @@ void neru_ax_close_display(Display *display) {
 	}
 }
 
-static Window neru_ax_root_window(Display *display) {
-	return RootWindow(display, DefaultScreen(display));
-}
+static Window neru_ax_root_window(Display *display) { return RootWindow(display, DefaultScreen(display)); }
 
 int neru_ax_query_pointer(Display *display, int *x, int *y) {
 	Window root_return;
@@ -29,16 +25,7 @@ int neru_ax_query_pointer(Display *display, int *x, int *y) {
 	unsigned int mask_return;
 
 	return XQueryPointer(
-		display,
-		neru_ax_root_window(display),
-		&root_return,
-		&child_return,
-		x,
-		y,
-		&win_x,
-		&win_y,
-		&mask_return
-	);
+	    display, neru_ax_root_window(display), &root_return, &child_return, x, y, &win_x, &win_y, &mask_return);
 }
 
 int neru_ax_get_active_window(Display *display, Window *out) {
@@ -49,19 +36,8 @@ int neru_ax_get_active_window(Display *display, Window *out) {
 	unsigned long bytes_after;
 	unsigned char *data = NULL;
 	int status = XGetWindowProperty(
-		display,
-		neru_ax_root_window(display),
-		property,
-		0,
-		1,
-		False,
-		XA_WINDOW,
-		&actual_type,
-		&actual_format,
-		&item_count,
-		&bytes_after,
-		&data
-	);
+	    display, neru_ax_root_window(display), property, 0, 1, False, XA_WINDOW, &actual_type, &actual_format,
+	    &item_count, &bytes_after, &data);
 
 	if (status != Success || data == NULL || item_count == 0) {
 		if (data != NULL) {
@@ -93,19 +69,8 @@ unsigned long neru_ax_window_pid(Display *display, Window window, int *ok) {
 	unsigned long bytes_after;
 	unsigned char *data = NULL;
 	int status = XGetWindowProperty(
-		display,
-		window,
-		property,
-		0,
-		1,
-		False,
-		XA_CARDINAL,
-		&actual_type,
-		&actual_format,
-		&item_count,
-		&bytes_after,
-		&data
-	);
+	    display, window, property, 0, 1, False, XA_CARDINAL, &actual_type, &actual_format, &item_count, &bytes_after,
+	    &data);
 
 	if (status != Success || data == NULL || item_count == 0) {
 		if (data != NULL) {
@@ -121,7 +86,7 @@ unsigned long neru_ax_window_pid(Display *display, Window window, int *ok) {
 	return pid;
 }
 
-char* neru_ax_window_class(Display *display, Window window) {
+char *neru_ax_window_class(Display *display, Window window) {
 	XClassHint hint;
 	if (XGetClassHint(display, window, &hint) == 0) {
 		return NULL;
