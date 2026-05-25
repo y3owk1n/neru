@@ -21,7 +21,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Scroll](#scroll)
 - [Virtual Pointer](#virtual_pointer)
 - [Mouse Action Indicator](#mouse_action_indicator)
-- [Mode indicator](#mode_indicator)
+- [Mode Indicator](#mode_indicator)
 - [Sticky Modifiers](#sticky_modifiers)
 - [Smooth Cursor](#smooth_cursor)
 - [Smooth Scroll](#smooth_scroll)
