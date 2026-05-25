@@ -228,7 +228,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                 |
 | Keyboard    | `feed`                                                        |
 | Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`         |
-| Delay       | `sleep`                                                       |
+| Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s` |
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
 

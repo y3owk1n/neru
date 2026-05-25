@@ -352,6 +352,19 @@ neru action move_monitor --name "DELL U2720Q" # Move to named monitor
 
 Find monitor names in **System Settings → Displays**.
 
+### Delay
+
+Pauses execution for a specified duration. Useful in hotkey arrays to sequence actions:
+
+```bash
+neru action sleep 0.5      # 0.5 seconds
+neru action sleep 500ms    # 500 milliseconds
+neru action sleep 1s       # 1 second
+neru action sleep 1        # 1 second (plain number = seconds)
+```
+
+**Duration format:** plain numbers are seconds (`0.2`, `1`). Explicit units: `ms` (milliseconds), `s` (seconds).
+
 ---
 
 ## Configuration Management
