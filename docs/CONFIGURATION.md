@@ -513,17 +513,18 @@ Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see 
 
 Each entry overrides the grid dimensions and keys for a specific depth:
 
-| Field       | Type   | Default        | Description                  |
-| ----------- | ------ | -------------- | ---------------------------- |
-| `depth`     | int    | required       | Recursion depth to override  |
-| `grid_cols` | int    | same as parent | Columns at this depth        |
-| `grid_rows` | int    | same as parent | Rows at this depth           |
-| `keys`      | string | same as parent | Selection keys at this depth |
+| Field       | Type   | Default        | Description                                 |
+| ----------- | ------ | -------------- | ------------------------------------------- |
+| `depth`     | int    | required       | Recursion depth to override (0 based index) |
+| `grid_cols` | int    | same as parent | Columns at this depth                       |
+| `grid_rows` | int    | same as parent | Rows at this depth                          |
+| `keys`      | string | same as parent | Selection keys at this depth                |
 
 ```toml
 [recursive_grid]
 layers = [
-  { depth = 1, grid_cols = 3, grid_rows = 3, keys = "uiojklmn" },
+  { depth = 0, grid_cols = 2, grid_rows = 2, keys = "crtn," },
+  { depth = 1, grid_cols = 3, grid_rows = 3, keys = "gcrhtnmwv" },
 ]
 ```
 
