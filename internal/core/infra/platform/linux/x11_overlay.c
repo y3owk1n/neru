@@ -8,20 +8,6 @@
 #include <stdlib.h>
 #include "x11_overlay.h"
 
-
-typedef struct {
-	Display *display;
-	int screen;
-	Window root;
-	Window window;
-	Visual *visual;
-	Colormap colormap;
-	cairo_surface_t *surface;
-	cairo_t *cr;
-	int width;
-	int height;
-} NeruX11Overlay;
-
 static Visual* neru_x11_argb_visual(Display *display, int screen) {
 	XVisualInfo vinfo;
 	if (XMatchVisualInfo(display, screen, 32, TrueColor, &vinfo)) {

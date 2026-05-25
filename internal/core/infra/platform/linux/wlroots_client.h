@@ -1,6 +1,7 @@
 #ifndef WLROOTS_CLIENT_H
 #define WLROOTS_CLIENT_H
 
+#include <stdint.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 

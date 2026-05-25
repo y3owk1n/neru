@@ -29,7 +29,6 @@
 // wl_display_roundtrip — called from the rendering path — may dispatch
 // multiple keyboard events in a single call. With a single-slot buffer the
 // second event would silently overwrite the first.
-#define NERU_KEY_RING_CAP 32
 static struct {
     char keys[NERU_KEY_RING_CAP][256];
     int head; // next slot to write

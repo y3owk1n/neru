@@ -7,16 +7,6 @@
 #include <string.h>
 #include "x11_system.h"
 
-
-typedef struct {
-	int x;
-	int y;
-	int width;
-	int height;
-	int primary;
-	char *name;
-} NeruX11Monitor;
-
 Display* neru_x11_open_display(void) {
 	return XOpenDisplay(NULL);
 }
