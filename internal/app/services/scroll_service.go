@@ -70,7 +70,7 @@ func (s *ScrollService) Scroll(
 	stepOverride int,
 ) error {
 	s.mu.RLock()
-	deltaX, deltaY := s.calculateDelta(direction, amount, stepOverride)
+	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
 	s.mu.RUnlock()
 
 	s.logger.Debug("Scrolling",
@@ -108,6 +108,7 @@ func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 // calculateDelta computes the scroll delta values based on direction and magnitude.
 // If stepOverride is > 0, it takes precedence over the configured value.
 func (s *ScrollService) calculateDelta(
+	ctx context.Context,
 	direction ScrollDirection,
 	amount ScrollAmount,
 	stepOverride int,
@@ -120,13 +121,35 @@ func (s *ScrollService) calculateDelta(
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
+		scrollStep := s.config.ScrollStep
+		scrollStepHalf := s.config.ScrollStepHalf
+		scrollStepFull := s.config.ScrollStepFull
+
+		bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
+
+		if err == nil && bundleID != "" {
+			if appConfig := s.config.AppConfigForBundleID(bundleID); appConfig != nil {
+				if appConfig.ScrollStep != nil {
+					scrollStep = *appConfig.ScrollStep
+				}
+
+				if appConfig.ScrollStepHalf != nil {
+					scrollStepHalf = *appConfig.ScrollStepHalf
+				}
+
+				if appConfig.ScrollStepFull != nil {
+					scrollStepFull = *appConfig.ScrollStepFull
+				}
+			}
+		}
+
 		switch amount {
 		case ScrollAmountChar:
-			baseScroll = s.config.ScrollStep
+			baseScroll = scrollStep
 		case ScrollAmountHalfPage:
-			baseScroll = s.config.ScrollStepHalf
+			baseScroll = scrollStepHalf
 		case ScrollAmountEnd:
-			baseScroll = s.config.ScrollStepFull
+			baseScroll = scrollStepFull
 		}
 	}
 

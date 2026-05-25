@@ -562,6 +562,12 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		}
 	}
 
+	if scrollRaw, ok := raw["scroll"].(map[string]any); ok {
+		if result := validateAppConfigsHotkeys(s.logger, "scroll", scrollRaw); result != nil {
+			return result
+		}
+	}
+
 	validateErr := configResult.Config.Validate()
 	if validateErr != nil {
 		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")

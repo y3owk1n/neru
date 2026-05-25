@@ -328,6 +328,73 @@ func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
 	return nil
 }
 
+// validateScrollAppConfigs validates per-app scroll configuration.
+func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
+	seen := make(map[string]struct{}, len(appConfigs))
+	for idx, appConfig := range appConfigs {
+		if strings.TrimSpace(appConfig.BundleID) == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].bundle_id cannot be empty",
+				modeName, idx,
+			)
+		}
+
+		if _, ok := seen[appConfig.BundleID]; ok {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"duplicate %s.app_configs bundle_id: %s",
+				modeName, appConfig.BundleID,
+			)
+		}
+
+		seen[appConfig.BundleID] = struct{}{}
+
+		err := validateHotkeyTable(
+			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
+			appConfig.Hotkeys,
+		)
+		if err != nil {
+			return err
+		}
+
+		if appConfig.ScrollStep != nil {
+			err = validateMinValue(
+				*appConfig.ScrollStep,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if appConfig.ScrollStepHalf != nil {
+			err = validateMinValue(
+				*appConfig.ScrollStepHalf,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step_half", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if appConfig.ScrollStepFull != nil {
+			err = validateMinValue(
+				*appConfig.ScrollStepFull,
+				1,
+				fmt.Sprintf("%s.app_configs[%d].scroll_step_full", modeName, idx),
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // ValidateAppConfigs validates per-app hint configuration.
 func (c *Config) ValidateAppConfigs() error {
 	return validateAppConfigs("hints", c.Hints.AppConfigs)
@@ -543,6 +610,20 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(modeNameHints, appConfig.BundleID),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	for idx, appConfig := range c.Scroll.AppConfigs {
+		err := checkHotkeyConflicts(
+			fmt.Sprintf(
+				"scroll.hotkeys merged with scroll.app_configs[%d] (%s)",
+				idx,
+				appConfig.BundleID,
+			),
+			c.HotkeysForModeAndApp(modeNameScroll, appConfig.BundleID),
 		)
 		if err != nil {
 			return err

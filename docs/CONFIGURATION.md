@@ -199,7 +199,7 @@ Multi-key alphabetic sequences (e.g. `gg`) use a 500ms timeout.
 
 #### Per-App Hotkey Overrides
 
-`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` for specific apps. Supported for `hints`, `grid`, and `recursive_grid`. App hotkeys merge on top of mode hotkeys; `__disabled__` removes an inherited binding.
+`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` for specific apps. Supported for `hints`, `grid`, `recursive_grid`, and `scroll`. App hotkeys merge on top of mode hotkeys; `__disabled__` removes an inherited binding.
 
 ```toml
 [[hints.app_configs]]
@@ -604,6 +604,26 @@ Keyboard-driven scrolling.
 "d"       = "action page_down"
 "PageDown"= "action page_down"
 ```
+
+### Per-App Config
+
+| Field              | Type   | Description                                           |
+| ------------------ | ------ | ----------------------------------------------------- |
+| `bundle_id`        | string | App bundle ID                                         |
+| `scroll_step`      | int    | Optional app-specific scroll step override            |
+| `scroll_step_half` | int    | Optional app-specific scroll step half override       |
+| `scroll_step_full` | int    | Optional app-specific scroll step full override       |
+| `hotkeys`          | map    | [per-app hotkey overrides](#per-app-hotkey-overrides) |
+
+```toml
+[[scroll.app_configs]]
+bundle_id = "com.apple.Safari"
+scroll_step = 25
+scroll_step_half = 200
+scroll_step_full = 1000
+hotkeys = { "k" = "action scroll_up", "j" = "action scroll_down" }
+```
+
 
 ---
 

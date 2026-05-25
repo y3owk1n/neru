@@ -173,6 +173,60 @@ bundle_id = "com.apple.Safari"
 		}
 	})
 
+	t.Run("Scroll App Config Overrides Loading", func(t *testing.T) {
+		configContent := `
+[scroll]
+scroll_step = 100
+
+[[scroll.app_configs]]
+bundle_id = "com.apple.Safari"
+scroll_step = 25
+scroll_step_half = 200
+scroll_step_full = 1000
+
+[scroll.app_configs.hotkeys]
+"Return" = ["action scroll_down"]
+"k" = "__disabled__"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		cfg := loadResult.Config
+
+		appCfg := cfg.Scroll.AppConfigForBundleID("com.apple.Safari")
+		if appCfg == nil {
+			t.Fatal("expected Safari app config to be present")
+		}
+
+		if appCfg.ScrollStep == nil || *appCfg.ScrollStep != 25 {
+			t.Errorf("expected app scroll_step override 25, got %v", appCfg.ScrollStep)
+		}
+
+		if appCfg.ScrollStepHalf == nil || *appCfg.ScrollStepHalf != 200 {
+			t.Errorf("expected app scroll_step_half override 200, got %v", appCfg.ScrollStepHalf)
+		}
+
+		if appCfg.ScrollStepFull == nil || *appCfg.ScrollStepFull != 1000 {
+			t.Errorf("expected app scroll_step_full override 1000, got %v", appCfg.ScrollStepFull)
+		}
+
+		got := cfg.HotkeysForModeAndApp("scroll", "com.apple.Safari")
+		if actions := got["Return"]; len(actions) != 1 || actions[0] != "action scroll_down" {
+			t.Fatalf("expected app-specific Return override, got %v", actions)
+		}
+
+		if _, exists := got["k"]; exists {
+			t.Fatal("expected app-specific __disabled__ to remove inherited k binding")
+		}
+	})
+
 	t.Run("Global Hotkey Rebind Replaces Default Launcher", func(t *testing.T) {
 		configContent := `
 [hotkeys]

@@ -116,7 +116,11 @@ func (h *Handler) HandleKeyPress(key string) {
 		if h.config.RecursiveGrid.HasAppHotkeyOverrides() {
 			bundleID = h.focusedBundleID()
 		}
-	case domain.ModeIdle, domain.ModeScroll:
+	case domain.ModeScroll:
+		if h.config.Scroll.HasAppHotkeyOverrides() {
+			bundleID = h.focusedBundleID()
+		}
+	case domain.ModeIdle:
 		// No app hotkey overrides for these modes
 	}
 
