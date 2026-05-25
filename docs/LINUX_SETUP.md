@@ -11,13 +11,13 @@ Neru provides native Linux support through two display server backends:
 
 ## Table of Contents
 
-- [Supported Compositors & Backends](#supported-compositors-backends)
+- [Supported Compositors & Backends](#supported-compositors--backends)
 - [Wayland Keyboard Capture Permissions](#wayland-keyboard-capture-permissions)
 - [Using nix home manager](#using-nix-home-manager)
 - [Build Dependencies](#build-dependencies)
 - [Building](#building)
 - [Under The Hood: Wayland (wlroots) Architecture Details for Testers](#under-the-hood-wayland-wlroots-architecture-details-for-testers)
-- [Validation & Setup Guide](#validation-setup-guide)
+- [Validation & Setup Guide](#validation--setup-guide)
 - [Known Limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
 

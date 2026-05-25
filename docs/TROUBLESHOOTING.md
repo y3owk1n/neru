@@ -7,9 +7,9 @@ Common issues and solutions for Neru.
 ## Table of Contents
 
 - [Quick Diagnosis](#quick-diagnosis)
-- [Installation & Setup](#installation-setup)
+- [Installation & Setup](#installation--setup)
 - [Permissions](#permissions)
-- [Hints & Grids](#hints-grids)
+- [Hints & Grids](#hints--grids)
 - [Hotkeys Not Working](#hotkeys-not-working)
 - [Performance Issues](#performance-issues)
 - [Daemon Issues](#daemon-issues)

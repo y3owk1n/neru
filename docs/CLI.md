@@ -14,7 +14,7 @@ Neru provides a comprehensive command-line interface for controlling the daemon,
 - [Toggle Commands](#toggle-commands)
 - [Action Commands](#action-commands)
 - [Configuration Management](#configuration-management)
-- [Status & Diagnostics](#status-diagnostics)
+- [Status & Diagnostics](#status--diagnostics)
 - [Service Management](#service-management)
 - [Documentation](#documentation)
 - [Shell Completions](#shell-completions)
