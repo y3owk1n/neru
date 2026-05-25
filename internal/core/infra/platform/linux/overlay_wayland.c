@@ -436,18 +436,18 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
         NeruWaylandOverlayScreen *scr = &overlay->screens[i];
         if (scr->buffer) continue;
 
-        int stride = scr->width * 4;
-        scr->shm_size = stride * scr->height;
+        size_t stride = ((size_t)scr->width) * 4u;
+        scr->shm_size = stride * (size_t)scr->height;
         int fd = create_shm_file(scr->shm_size);
         if (fd < 0) continue;
 
         scr->shm_data = mmap(NULL, scr->shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-        struct wl_shm_pool *pool = wl_shm_create_pool(overlay->shm, fd, scr->shm_size);
-        scr->buffer = wl_shm_pool_create_buffer(pool, 0, scr->width, scr->height, stride, WL_SHM_FORMAT_ARGB8888);
+        struct wl_shm_pool *pool = wl_shm_create_pool(overlay->shm, fd, (int)scr->shm_size);
+        scr->buffer = wl_shm_pool_create_buffer(pool, 0, scr->width, scr->height, (int)stride, WL_SHM_FORMAT_ARGB8888);
         wl_shm_pool_destroy(pool);
         close(fd);
 
-        scr->cairo_surface = cairo_image_surface_create_for_data(scr->shm_data, CAIRO_FORMAT_ARGB32, scr->width, scr->height, stride);
+        scr->cairo_surface = cairo_image_surface_create_for_data(scr->shm_data, CAIRO_FORMAT_ARGB32, scr->width, scr->height, (int)stride);
         scr->cr = cairo_create(scr->cairo_surface);
     }
 }
