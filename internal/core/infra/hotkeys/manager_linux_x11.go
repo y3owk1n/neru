@@ -4,6 +4,7 @@ package hotkeys
 
 /*
 #cgo linux pkg-config: x11
+#include <stdlib.h>
 #include "../platform/linux/x11_hotkeys.h"
 */
 import "C"

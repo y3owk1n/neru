@@ -4,6 +4,7 @@ package accessibility
 
 /*
 #cgo linux pkg-config: x11 xtst
+#include <stdlib.h>
 #include "../platform/linux/x11_accessibility.h"
 */
 import "C"

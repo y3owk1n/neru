@@ -4,6 +4,7 @@ package overlay
 
 /*
 #cgo linux pkg-config: x11 xrender xfixes xext cairo
+#include <stdlib.h>
 #include "../../core/infra/platform/linux/x11_overlay.h"
 */
 import "C"

@@ -4,6 +4,7 @@ package overlay
 
 /*
 #cgo linux pkg-config: wayland-client cairo xkbcommon
+#include <stdlib.h>
 #include "../../core/infra/platform/linux/overlay_wayland.h"
 */
 import "C"

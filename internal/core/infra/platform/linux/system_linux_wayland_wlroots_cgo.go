@@ -5,6 +5,7 @@ package linux
 /*
 #cgo linux pkg-config: wayland-client xkbcommon
 #cgo linux CFLAGS: -DWLR_CPLUSPLUS
+#include <stdlib.h>
 #include "wlroots_client.h"
 */
 import "C"

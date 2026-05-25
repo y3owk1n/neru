@@ -4,6 +4,7 @@ package eventtap
 
 /*
 #cgo linux pkg-config: x11 xtst
+#include <stdlib.h>
 #include "../platform/linux/x11_eventtap.h"
 */
 import "C"
