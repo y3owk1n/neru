@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:testpackage
 package eventtap
 
 import "testing"

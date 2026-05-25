@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package linux
 
 import (
