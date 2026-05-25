@@ -69,9 +69,7 @@ func (s *ScrollService) Scroll(
 	amount ScrollAmount,
 	stepOverride int,
 ) error {
-	s.mu.RLock()
 	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
-	s.mu.RUnlock()
 
 	s.logger.Debug("Scrolling",
 		zap.Int("dir", int(direction)),
@@ -121,14 +119,18 @@ func (s *ScrollService) calculateDelta(
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
+		// Snapshot config under lock, then release before IPC call
+		s.mu.RLock()
 		scrollStep := s.config.ScrollStep
 		scrollStepHalf := s.config.ScrollStepHalf
 		scrollStepFull := s.config.ScrollStepFull
+		configSnapshot := s.config
+		s.mu.RUnlock()
 
 		bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
 
 		if err == nil && bundleID != "" {
-			if appConfig := s.config.AppConfigForBundleID(bundleID); appConfig != nil {
+			if appConfig := configSnapshot.AppConfigForBundleID(bundleID); appConfig != nil {
 				if appConfig.ScrollStep != nil {
 					scrollStep = *appConfig.ScrollStep
 				}
