@@ -127,20 +127,23 @@ func (s *ScrollService) calculateDelta(
 		configSnapshot := s.config
 		s.mu.RUnlock()
 
-		bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
+		// Only perform IPC lookup if there are app-specific overrides configured
+		if len(configSnapshot.AppConfigs) > 0 {
+			bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
 
-		if err == nil && bundleID != "" {
-			if appConfig := configSnapshot.AppConfigForBundleID(bundleID); appConfig != nil {
-				if appConfig.ScrollStep != nil {
-					scrollStep = *appConfig.ScrollStep
-				}
+			if err == nil && bundleID != "" {
+				if appConfig := configSnapshot.AppConfigForBundleID(bundleID); appConfig != nil {
+					if appConfig.ScrollStep != nil {
+						scrollStep = *appConfig.ScrollStep
+					}
 
-				if appConfig.ScrollStepHalf != nil {
-					scrollStepHalf = *appConfig.ScrollStepHalf
-				}
+					if appConfig.ScrollStepHalf != nil {
+						scrollStepHalf = *appConfig.ScrollStepHalf
+					}
 
-				if appConfig.ScrollStepFull != nil {
-					scrollStepFull = *appConfig.ScrollStepFull
+					if appConfig.ScrollStepFull != nil {
+						scrollStepFull = *appConfig.ScrollStepFull
+					}
 				}
 			}
 		}
