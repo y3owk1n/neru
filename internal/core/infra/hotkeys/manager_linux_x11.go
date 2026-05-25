@@ -4,29 +4,7 @@ package hotkeys
 
 /*
 #cgo linux pkg-config: x11
-#include <X11/Xlib.h>
-#include <X11/keysym.h>
-#include <stdlib.h>
-
-static Window neru_hotkeys_root_window(Display *display) {
-	return RootWindow(display, DefaultScreen(display));
-}
-
-static int neru_hotkeys_pending(Display *display) {
-	return XPending(display);
-}
-
-static int neru_xevent_type(XEvent *ev) {
-	return ev->type;
-}
-
-static unsigned int neru_xkey_keycode(XEvent *ev) {
-	return ev->xkey.keycode;
-}
-
-static unsigned int neru_xkey_state(XEvent *ev) {
-	return ev->xkey.state;
-}
+#include "../platform/linux/x11_hotkeys.h"
 */
 import "C"
 
@@ -37,6 +15,7 @@ import (
 	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
 const x11HotkeyPollInterval = 10 * time.Millisecond

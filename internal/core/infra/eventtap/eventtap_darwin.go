@@ -9,9 +9,6 @@ package eventtap
 
 extern void eventTapCallbackBridge(char* key, void* userData);
 extern void eventTapPassthroughBridge(void* userData);
-
-void setEventTapStickyModifierToggle(EventTap tap, int enabled);
-void postEventTapModifierEvent(const char* modifier, int isDown);
 */
 import "C"
 

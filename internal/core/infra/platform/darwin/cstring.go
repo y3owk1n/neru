@@ -3,16 +3,8 @@
 package darwin
 
 /*
+#include "callback_context.h"
 #include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-// callbackContext is a C struct matching overlayutil.CallbackContext.
-// Allocated via C.malloc so the pointer is outside Go's GC and safe for
-// C code to hold across async dispatch boundaries.
-typedef struct {
-	uint64_t callbackID;
-	uint64_t generation;
-} callbackContext;
 */
 import "C"
 

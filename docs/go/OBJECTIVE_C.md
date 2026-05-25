@@ -2,6 +2,15 @@
 
 ## File Organization
 
+### CGO and Go Files
+
+Native bridge **implementations** belong in platform bridge files, not in Go CGO comment blocks:
+
+- **macOS**: `.m` / `.h` under `internal/core/infra/platform/darwin/`
+- **Linux**: `.c` / `.h` under `internal/core/infra/platform/linux/` (Wayland protocol stubs stay in `wlr_protocol/`)
+
+Go files may use a minimal CGO preamble (`#include` headers, `#cgo` flags, and `extern` declarations for `//export` callbacks only). Packages that call bridge symbols from another directory should blank-import `internal/core/infra/platform/linux` or `darwin` so the linker pulls in the compiled native objects once (same pattern as `wlr_protocol`).
+
 ### Header Files (.h)
 
 - Minimal public interface

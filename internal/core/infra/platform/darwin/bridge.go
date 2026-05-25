@@ -6,14 +6,10 @@ package darwin
 #include "hotkeys.h"
 #include "theme.h"
 #include "appwatcher.h"
-#include <stdbool.h>
+#include "accessibility.h"
 #include <stdlib.h>
 
 extern void hotkeyCallbackBridge(int hotkeyId, int eventKind, void* userData);
-
-void startAppWatcher();
-void stopAppWatcher();
-void setDetectMissionControlEnabled(bool enabled);
 */
 import "C"
 
