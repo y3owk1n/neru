@@ -294,8 +294,16 @@ func (c *Config) ValidateHints() error {
 	return nil
 }
 
-// validateAppConfigs validates per-app configuration for a given mode.
-func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
+// AppConfigFieldValidator is a callback for validating mode-specific fields in AppConfig.
+// It's called for each app config after common validation passes.
+type AppConfigFieldValidator func(idx int, appConfig *AppConfig) error
+
+// validateAppConfigsWithCallback validates per-app configuration with optional field-level validation.
+func validateAppConfigsWithCallback(
+	modeName string,
+	appConfigs []AppConfig,
+	fieldValidator AppConfigFieldValidator,
+) error {
 	seen := make(map[string]struct{}, len(appConfigs))
 	for idx, appConfig := range appConfigs {
 		if strings.TrimSpace(appConfig.BundleID) == "" {
@@ -322,44 +330,30 @@ func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
 		)
 		if err != nil {
 			return err
+		}
+
+		// Call mode-specific field validator if provided
+		if fieldValidator != nil {
+			err = fieldValidator(idx, &appConfig)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
+// validateAppConfigs validates per-app configuration for a given mode.
+func validateAppConfigs(modeName string, appConfigs []AppConfig) error {
+	return validateAppConfigsWithCallback(modeName, appConfigs, nil)
+}
+
 // validateScrollAppConfigs validates per-app scroll configuration.
 func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
-	seen := make(map[string]struct{}, len(appConfigs))
-	for idx, appConfig := range appConfigs {
-		if strings.TrimSpace(appConfig.BundleID) == "" {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"%s.app_configs[%d].bundle_id cannot be empty",
-				modeName, idx,
-			)
-		}
-
-		if _, ok := seen[appConfig.BundleID]; ok {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"duplicate %s.app_configs bundle_id: %s",
-				modeName, appConfig.BundleID,
-			)
-		}
-
-		seen[appConfig.BundleID] = struct{}{}
-
-		err := validateHotkeyTable(
-			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
-			appConfig.Hotkeys,
-		)
-		if err != nil {
-			return err
-		}
-
+	scrollFieldValidator := func(idx int, appConfig *AppConfig) error {
 		if appConfig.ScrollStep != nil {
-			err = validateMinValue(
+			err := validateMinValue(
 				*appConfig.ScrollStep,
 				1,
 				fmt.Sprintf("%s.app_configs[%d].scroll_step", modeName, idx),
@@ -370,7 +364,7 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 		}
 
 		if appConfig.ScrollStepHalf != nil {
-			err = validateMinValue(
+			err := validateMinValue(
 				*appConfig.ScrollStepHalf,
 				1,
 				fmt.Sprintf("%s.app_configs[%d].scroll_step_half", modeName, idx),
@@ -381,7 +375,7 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 		}
 
 		if appConfig.ScrollStepFull != nil {
-			err = validateMinValue(
+			err := validateMinValue(
 				*appConfig.ScrollStepFull,
 				1,
 				fmt.Sprintf("%s.app_configs[%d].scroll_step_full", modeName, idx),
@@ -390,9 +384,11 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 				return err
 			}
 		}
+
+		return nil
 	}
 
-	return nil
+	return validateAppConfigsWithCallback(modeName, appConfigs, scrollFieldValidator)
 }
 
 // ValidateAppConfigs validates per-app hint configuration.
