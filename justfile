@@ -162,7 +162,8 @@ fmt-check:
     echo "Checking Objective-C file formatting..."
     EXIT_CODE=0
     while IFS= read -r -d '' file; do
-        OUTPUT=$(clang-format --dry-run -Werror --style=file --assume-filename=file.m "$file" 2>&1)
+        case "$file" in *.c) af=file.c;; *) af=file.m;; esac
+        OUTPUT=$(clang-format --dry-run -Werror --style=file --assume-filename="$af" "$file" 2>&1)
         RESULT=$?
         # Filter out the "does not support C++" warnings
         FILTERED=$(echo "$OUTPUT" | grep -v "Configuration file(s) do(es) not support C++")
