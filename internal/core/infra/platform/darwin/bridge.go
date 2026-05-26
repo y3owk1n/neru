@@ -167,17 +167,14 @@ func dispatchAppWatcherAppEvent(
 	log := getLogger()
 	log.Debug("Darwin: " + handlerName + " called")
 
-	name := C.GoString(appName)
-	bundleIDValue := C.GoString(bundleID)
-
-	dispatch := func(watcher AppWatcherInterface) {
+	appWatcherSlot.withValid(func(watcher AppWatcherInterface) {
+		name := C.GoString(appName)
+		bundleIDValue := C.GoString(bundleID)
 		log.Debug("Darwin: "+forwardMsg,
 			zap.String("app_name", name),
 			zap.String("bundle_id", bundleIDValue))
 		forward(watcher, name, bundleIDValue)
-	}
-
-	appWatcherSlot.withValid(dispatch)
+	})
 }
 
 func dispatchAppWatcherVoidEvent(

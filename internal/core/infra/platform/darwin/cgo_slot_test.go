@@ -63,26 +63,16 @@ func TestCgoSlotWithValidAsyncRejectsStaleGeneration(t *testing.T) {
 	)
 
 	slot.Set(1)
-
-	_, gen, ok := slot.snapshot()
-	if !ok {
-		t.Fatal("expected snapshot")
-	}
-
 	slot.Set(0)
 
-	go func() {
-		if !slot.stillValid(gen) {
-			return
-		}
-
+	slot.withValidAsync(func(_ int) {
 		calls.Add(1)
-	}()
+	})
 
 	time.Sleep(20 * time.Millisecond)
 
 	if got := calls.Load(); got != 0 {
-		t.Fatalf("expected stale async dispatch to be dropped, got %d calls", got)
+		t.Fatalf("expected withValidAsync to drop dispatch after Set(0), got %d calls", got)
 	}
 }
 
