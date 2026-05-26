@@ -616,7 +616,6 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 	type result struct {
 		elements []*element.Element
-		err      error
 	}
 
 	results := make(chan result, numWorkers)
@@ -650,8 +649,6 @@ func (a *Adapter) processClickableNodesConcurrent(
 						remaining.Release()
 					}
 
-					results <- result{err: ctx.Err()}
-
 					return
 				}
 
@@ -684,11 +681,11 @@ func (a *Adapter) processClickableNodesConcurrent(
 	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
 
 	for res := range results {
-		if res.err != nil {
-			return nil, res.err
-		}
-
 		allElements = append(allElements, res.elements...)
+	}
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	return allElements, nil
