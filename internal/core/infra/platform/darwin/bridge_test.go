@@ -117,6 +117,23 @@ func TestSetAppWatcher(t *testing.T) {
 	}
 }
 
+func TestAppWatcherDispatchDroppedAfterClear(t *testing.T) {
+	darwin.InitializeLogger(zap.NewNop())
+
+	mock := &MockAppWatcher{}
+	darwin.SetAppWatcher(mock)
+	darwin.SetAppWatcher(nil)
+
+	darwin.HandleAppLaunch("TestApp", "com.test.app")
+
+	if len(mock.launchCalls) != 0 {
+		t.Fatalf(
+			"expected no dispatch after SetAppWatcher(nil), got %d calls",
+			len(mock.launchCalls),
+		)
+	}
+}
+
 func TestCallbacks(t *testing.T) {
 	// Initialize logger
 	darwin.InitializeLogger(zap.NewNop())
@@ -124,6 +141,9 @@ func TestCallbacks(t *testing.T) {
 	// Setup mock watcher
 	mock := &MockAppWatcher{}
 	darwin.SetAppWatcher(mock)
+	t.Cleanup(func() {
+		darwin.SetAppWatcher(nil)
+	})
 
 	// Enable Mission Control detection so the handlers forward events
 	darwin.SetDetectMissionControlEnabled(true)

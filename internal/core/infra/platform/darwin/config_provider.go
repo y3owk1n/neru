@@ -2,32 +2,21 @@
 
 package darwin
 
-import (
-	"sync"
+import "github.com/y3owk1n/neru/internal/config"
 
-	"github.com/y3owk1n/neru/internal/config"
-)
-
-var (
-	configProviderMu sync.RWMutex
-	configProvider   config.Provider
-)
+var configProviderSlot cgoSlot[config.Provider]
 
 // SetConfigProvider updates the runtime config provider used by mouse helpers.
 func SetConfigProvider(provider config.Provider) {
-	configProviderMu.Lock()
-	defer configProviderMu.Unlock()
-
-	configProvider = provider
+	configProviderSlot.Set(provider)
 }
 
 func currentConfig() *config.Config {
-	configProviderMu.RLock()
-	defer configProviderMu.RUnlock()
+	var cfg *config.Config
 
-	if configProvider == nil {
-		return nil
-	}
+	configProviderSlot.withValid(func(provider config.Provider) {
+		cfg = provider.Get()
+	})
 
-	return configProvider.Get()
+	return cfg
 }

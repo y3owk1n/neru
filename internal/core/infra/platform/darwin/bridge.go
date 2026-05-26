@@ -14,7 +14,6 @@ extern void hotkeyCallbackBridge(int hotkeyId, int eventKind, void* userData);
 import "C"
 
 import (
-	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -22,17 +21,13 @@ import (
 )
 
 var (
-	appWatcher         AppWatcherInterface
-	appWatcherMu       sync.RWMutex
+	appWatcherSlot     cgoSlot[AppWatcherInterface]
 	mcDetectionEnabled atomic.Bool
 )
 
 // AppWatcher returns the global application watcher instance.
 func AppWatcher() AppWatcherInterface {
-	appWatcherMu.RLock()
-	defer appWatcherMu.RUnlock()
-
-	return appWatcher
+	return appWatcherSlot.Get()
 }
 
 // RegisterHotkey registers a global hotkey on macOS.
@@ -111,16 +106,11 @@ const (
 // HotkeyHandler defines the signature for hotkey event handlers.
 type HotkeyHandler func(hotkeyID int, eventKind HotkeyEventKind)
 
-var (
-	hotkeyHandler   HotkeyHandler
-	hotkeyHandlerMu sync.RWMutex
-)
+var hotkeyHandlerSlot cgoSlot[HotkeyHandler]
 
 // SetHotkeyHandler sets the global hotkey event handler.
 func SetHotkeyHandler(handler HotkeyHandler) {
-	hotkeyHandlerMu.Lock()
-	defer hotkeyHandlerMu.Unlock()
-	hotkeyHandler = handler
+	hotkeyHandlerSlot.Set(handler)
 }
 
 // GetHotkeyCallbackBridge returns a pointer to the C hotkey callback bridge function.
@@ -132,13 +122,11 @@ func GetHotkeyCallbackBridge() unsafe.Pointer {
 
 //export hotkeyCallbackBridge
 func hotkeyCallbackBridge(hotkeyID C.int, eventKind C.int, _ unsafe.Pointer) {
-	hotkeyHandlerMu.RLock()
-	handler := hotkeyHandler
-	hotkeyHandlerMu.RUnlock()
-
-	if handler != nil {
-		handler(int(hotkeyID), HotkeyEventKind(eventKind))
-	}
+	id := int(hotkeyID)
+	kind := HotkeyEventKind(eventKind)
+	hotkeyHandlerSlot.withValid(func(handler HotkeyHandler) {
+		handler(id, kind)
+	})
 }
 
 // SetAppWatcher configures the application watcher implementation.
@@ -146,10 +134,7 @@ func SetAppWatcher(watcher AppWatcherInterface) {
 	log := getLogger()
 	log.Debug("Darwin: Setting app watcher")
 
-	appWatcherMu.Lock()
-	defer appWatcherMu.Unlock()
-
-	appWatcher = watcher
+	appWatcherSlot.Set(watcher)
 }
 
 // SetDetectMissionControlEnabled enables or disables Mission Control detection.
@@ -174,14 +159,6 @@ func StopAppWatcher() {
 	C.NeruStopAppWatcher()
 }
 
-func currentAppWatcher() AppWatcherInterface {
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	return watcher
-}
-
 func dispatchAppWatcherAppEvent(
 	handlerName, forwardMsg string,
 	appName, bundleID *C.char,
@@ -190,17 +167,17 @@ func dispatchAppWatcherAppEvent(
 	log := getLogger()
 	log.Debug("Darwin: " + handlerName + " called")
 
-	watcher := currentAppWatcher()
-	if watcher == nil {
-		return
+	name := C.GoString(appName)
+	bundleIDValue := C.GoString(bundleID)
+
+	dispatch := func(watcher AppWatcherInterface) {
+		log.Debug("Darwin: "+forwardMsg,
+			zap.String("app_name", name),
+			zap.String("bundle_id", bundleIDValue))
+		forward(watcher, name, bundleIDValue)
 	}
 
-	name := C.GoString(appName)
-	id := C.GoString(bundleID)
-	log.Debug("Darwin: "+forwardMsg,
-		zap.String("app_name", name),
-		zap.String("bundle_id", id))
-	forward(watcher, name, id)
+	appWatcherSlot.withValid(dispatch)
 }
 
 func dispatchAppWatcherVoidEvent(
@@ -211,19 +188,18 @@ func dispatchAppWatcherVoidEvent(
 	log := getLogger()
 	log.Debug("Darwin: " + handlerName + " called")
 
-	watcher := currentAppWatcher()
-	if watcher == nil {
-		return
+	dispatch := func(watcher AppWatcherInterface) {
+		log.Debug("Darwin: " + forwardMsg)
+		forward(watcher)
 	}
 
-	log.Debug("Darwin: " + forwardMsg)
 	if async {
-		go forward(watcher)
+		appWatcherSlot.withValidAsync(dispatch)
 
 		return
 	}
 
-	forward(watcher)
+	appWatcherSlot.withValid(dispatch)
 }
 
 //export handleAppLaunch
