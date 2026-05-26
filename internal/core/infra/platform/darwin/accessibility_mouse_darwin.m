@@ -10,6 +10,7 @@
 #import "accessibility_visibility.h"
 
 #import <Cocoa/Cocoa.h>
+#import <os/lock.h>
 #include <sys/time.h>
 
 #pragma mark - Mouse Functions
@@ -130,6 +131,10 @@ static struct {
 	int clickCount;                ///< Current click count
 } clickState = {0};
 
+/// Lock guarding clickState — performLeftClickAtPosition may be called
+/// from concurrent goroutines via the CGo bridge.
+static os_unfair_lock clickStateLock = OS_UNFAIR_LOCK_INIT;
+
 /// Get current time in milliseconds
 /// @return Current time in milliseconds
 static long long getCurrentTimeMs(void) {
@@ -154,6 +159,8 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	}
 
 	// Determine click count (single, double, triple...)
+	os_unfair_lock_lock(&clickStateLock);
+
 	long long currentTime = getCurrentTimeMs();
 	long long lastTime = (long long)clickState.lastClickTime.tv_sec * 1000 + clickState.lastClickTime.tv_usec / 1000;
 	long long timeDiff = currentTime - lastTime;
@@ -171,6 +178,8 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	// Update click state
 	clickState.lastPosition = position;
 	gettimeofday(&clickState.lastClickTime, NULL);
+
+	os_unfair_lock_unlock(&clickStateLock);
 
 	moveMouseWithType(position, kCGEventMouseMoved);
 
@@ -190,8 +199,13 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	// Set modifier flags and click count
 	CGEventSetFlags(down, flags);
 	CGEventSetFlags(up, flags);
-	CGEventSetIntegerValueField(down, kCGMouseEventClickState, clickState.clickCount);
-	CGEventSetIntegerValueField(up, kCGMouseEventClickState, clickState.clickCount);
+
+	os_unfair_lock_lock(&clickStateLock);
+	int clickCount = clickState.clickCount;
+	os_unfair_lock_unlock(&clickStateLock);
+
+	CGEventSetIntegerValueField(down, kCGMouseEventClickState, clickCount);
+	CGEventSetIntegerValueField(up, kCGMouseEventClickState, clickCount);
 
 	// Post mouse down and allow a short moment before posting mouse up to ensure
 	// the system attributes the down/up pair to the target location.
