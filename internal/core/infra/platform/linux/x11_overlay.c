@@ -24,6 +24,10 @@ NeruX11Overlay *neru_x11_overlay_new(void) {
 	}
 
 	NeruX11Overlay *overlay = calloc(1, sizeof(NeruX11Overlay));
+	if (!overlay) {
+		XCloseDisplay(display);
+		return NULL;
+	}
 	overlay->display = display;
 	overlay->screen = DefaultScreen(display);
 	overlay->root = RootWindow(display, overlay->screen);
