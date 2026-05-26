@@ -167,7 +167,6 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	double distance =
 	    sqrt(pow(position.x - clickState.lastPosition.x, 2) + pow(position.y - clickState.lastPosition.y, 2));
 
-	int clickCount;
 	if (timeDiff < kNeruDoubleClickIntervalMs && distance < kNeruDoubleClickDistancePoints) {
 		// Same location, quick succession — increment click count
 		clickState.clickCount++;
@@ -176,12 +175,11 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 		clickState.clickCount = 1;
 	}
 
-	clickCount = clickState.clickCount;
-
 	// Update click state
 	clickState.lastPosition = position;
 	gettimeofday(&clickState.lastClickTime, NULL);
 
+	int clickCount = clickState.clickCount;
 	os_unfair_lock_unlock(&clickStateLock);
 
 	moveMouseWithType(position, kCGEventMouseMoved);
