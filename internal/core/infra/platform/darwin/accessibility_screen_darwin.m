@@ -236,7 +236,7 @@ static bool detectMissionControlActive(void) {
 /// When disabled, the timer and window scans are completely inactive.
 /// When enabled, kicks off lazy initialization of the detection system if
 /// it hasn't been started yet.
-void setDetectMissionControlEnabled(bool enabled) {
+void NeruSetDetectMissionControlEnabled(bool enabled) {
 	setDetectionEnabled(enabled);
 	if (enabled && g_detectionQueue == NULL) {
 		updateMissionControlState();

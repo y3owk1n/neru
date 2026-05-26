@@ -245,7 +245,7 @@ void NeruStartAppWatcher(void) {
 		// Synchronize the cached Mission Control state at startup.
 		// If detection is disabled (the default), this is a cheap no-op that
 		// resets the cache to false.  When detection is later enabled via
-		// setDetectMissionControlEnabled, the queue, timer, and space-change
+		// NeruSetDetectMissionControlEnabled, the queue, timer, and space-change
 		// observer are initialized lazily at that point.
 		updateMissionControlState();
 	});

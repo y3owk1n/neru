@@ -282,7 +282,7 @@ void updateMissionControlState(void);
 
 /// Enable or disable Mission Control detection.
 /// When disabled, no timer, window scans, or callbacks are active.
-void setDetectMissionControlEnabled(bool enabled);
+void NeruSetDetectMissionControlEnabled(bool enabled);
 
 /// Get main screen bounds
 /// @return Main screen bounds rectangle

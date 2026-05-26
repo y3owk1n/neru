@@ -157,7 +157,7 @@ func SetAppWatcher(watcher AppWatcherInterface) {
 // no timer, no window scans, and no callbacks to the Go bridge.
 func SetDetectMissionControlEnabled(enabled bool) {
 	mcDetectionEnabled.Store(enabled)
-	C.setDetectMissionControlEnabled(C.bool(enabled))
+	C.NeruSetDetectMissionControlEnabled(C.bool(enabled))
 }
 
 // StartAppWatcher begins monitoring application lifecycle events.
