@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -79,7 +79,7 @@ func (s *ScrollService) Scroll(
 
 	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY)
 	if scrollErr != nil {
-		return core.WrapActionFailed(scrollErr, "scroll")
+		return derrors.WrapActionFailed(scrollErr, "scroll")
 	}
 
 	return nil

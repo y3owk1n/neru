@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // ReloadWithAppContext reloads configuration with app-specific context and side effects.
@@ -36,7 +36,7 @@ func (s *Service) ReloadWithAppContext(
 			)
 		}
 
-		return loadResult, core.WrapConfigFailed(loadResult.ValidationError, "validate config")
+		return loadResult, derrors.WrapConfigFailed(loadResult.ValidationError, "validate config")
 	}
 
 	// Update the service with the new config
@@ -52,7 +52,7 @@ func (s *Service) ReloadWithAppContext(
 		select {
 		case watcher <- loadResult.Config:
 		case <-ctx.Done():
-			return loadResult, core.WrapContextCanceled(ctx, "notify config watchers")
+			return loadResult, derrors.WrapContextCanceled(ctx, "notify config watchers")
 		default:
 			// Skip if watcher is not ready
 		}

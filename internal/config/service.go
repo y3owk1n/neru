@@ -11,7 +11,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -285,7 +284,10 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		configResult.Config = DefaultConfig()
 
 		if explicitPath {
-			configResult.ValidationError = core.WrapConfigFailed(statErr, "config file not found")
+			configResult.ValidationError = derrors.WrapConfigFailed(
+				statErr,
+				"config file not found",
+			)
 		} else {
 			s.logger.Info("Config file not found, using default configuration")
 			// Clear ConfigPath for auto-discovered missing files
@@ -304,7 +306,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	_, decodeErr := toml.DecodeFile(configResult.ConfigPath, &raw)
 	if decodeErr != nil {
-		configResult.ValidationError = core.WrapConfigFailed(decodeErr, "parse config file")
+		configResult.ValidationError = derrors.WrapConfigFailed(decodeErr, "parse config file")
 		configResult.Config = DefaultConfig()
 
 		return configResult
@@ -313,7 +315,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	// Decode into typed config struct (separate pass for validation)
 	_, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
 	if err != nil {
-		configResult.ValidationError = core.WrapConfigFailed(err, "parse config file")
+		configResult.ValidationError = derrors.WrapConfigFailed(err, "parse config file")
 		configResult.Config = DefaultConfig()
 
 		return configResult
@@ -570,7 +572,10 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 	validateErr := configResult.Config.Validate()
 	if validateErr != nil {
-		configResult.ValidationError = core.WrapConfigFailed(validateErr, "validate configuration")
+		configResult.ValidationError = derrors.WrapConfigFailed(
+			validateErr,
+			"validate configuration",
+		)
 		configResult.Config = DefaultConfig()
 
 		s.logger.Warn("Configuration validation failed",
@@ -718,7 +723,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 		// Check if context was canceled during send
 		select {
 		case <-ctx.Done():
-			return core.WrapContextCanceled(ctx, "notify config watchers")
+			return derrors.WrapContextCanceled(ctx, "notify config watchers")
 		default:
 		}
 	}

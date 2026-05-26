@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -42,7 +42,7 @@ func (s *BaseService) Health(ctx context.Context) map[string]error {
 func (s *BaseService) HideOverlay(ctx context.Context, operation string) error {
 	err := s.overlay.Hide(ctx)
 	if err != nil {
-		return core.WrapOverlayFailed(err, operation)
+		return derrors.WrapOverlayFailed(err, operation)
 	}
 
 	return nil

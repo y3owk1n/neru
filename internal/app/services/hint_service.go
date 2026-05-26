@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -65,7 +65,7 @@ func (s *HintService) ShowHints(
 	if showHintsErr != nil {
 		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
 
-		return nil, core.WrapOverlayFailed(showHintsErr, "show hints")
+		return nil, derrors.WrapOverlayFailed(showHintsErr, "show hints")
 	}
 
 	s.logger.Info("Hints displayed successfully")
@@ -159,7 +159,7 @@ func (s *HintService) GenerateHints(
 	if elementsErr != nil {
 		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
 
-		return nil, core.WrapAccessibilityFailed(elementsErr, "get clickable elements")
+		return nil, derrors.WrapAccessibilityFailed(elementsErr, "get clickable elements")
 	}
 
 	if len(elements) == 0 {
@@ -192,7 +192,7 @@ func (s *HintService) GenerateHints(
 	if elementsErr != nil {
 		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
 
-		return nil, core.WrapInternalFailed(elementsErr, "generate hints")
+		return nil, derrors.WrapInternalFailed(elementsErr, "generate hints")
 	}
 
 	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
@@ -230,7 +230,7 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 	if refreshOverlayErr != nil {
 		s.logger.Error("Failed to refresh overlay", zap.Error(refreshOverlayErr))
 
-		return core.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
+		return derrors.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
 	}
 
 	s.logger.Info("Hints refreshed successfully")

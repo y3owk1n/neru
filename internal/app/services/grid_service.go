@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -37,7 +37,7 @@ func (s *GridService) ShowGrid(ctx context.Context) error {
 	if showGridErr != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))
 
-		return core.WrapOverlayFailed(showGridErr, "show grid")
+		return derrors.WrapOverlayFailed(showGridErr, "show grid")
 	}
 
 	s.logger.Info("Grid displayed successfully")

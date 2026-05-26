@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -65,7 +64,7 @@ func (s *ActionService) ExecuteAction(
 			zap.Error(performActionErr),
 			zap.String("action", actionType.String()))
 
-		return core.WrapActionFailed(performActionErr, actionType.String())
+		return derrors.WrapActionFailed(performActionErr, actionType.String())
 	}
 
 	s.logger.Info("Action executed successfully",
@@ -85,7 +84,7 @@ func (s *ActionService) PerformActionAtPoint(
 	// Parse action string to domain type
 	actionType, actionTypeErr := action.ParseType(actionString)
 	if actionTypeErr != nil {
-		return core.WrapConfigFailed(actionTypeErr, "validate action type")
+		return derrors.WrapConfigFailed(actionTypeErr, "validate action type")
 	}
 
 	s.logger.Info("Performing action at point",
@@ -100,7 +99,7 @@ func (s *ActionService) PerformActionAtPoint(
 			zap.Error(performActionErr),
 			zap.String("action", actionType.String()))
 
-		return core.WrapActionFailed(performActionErr, actionType.String()+" at point")
+		return derrors.WrapActionFailed(performActionErr, actionType.String()+" at point")
 	}
 
 	s.drawMouseActionIndicator(point, actionType)
@@ -118,7 +117,7 @@ func mouseActionIndicatorIncludes(actions []string, actionType action.Type) bool
 func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) {
 	bundleID, bundleIDErr := s.accessibility.FocusedAppBundleID(ctx)
 	if bundleIDErr != nil {
-		return false, core.WrapAccessibilityFailed(bundleIDErr, "get focused app bundle ID")
+		return false, derrors.WrapAccessibilityFailed(bundleIDErr, "get focused app bundle ID")
 	}
 
 	isExcluded := s.accessibility.IsAppExcluded(ctx, bundleID)
@@ -194,7 +193,7 @@ func (s *ActionService) MoveMouseTo(
 	if err != nil {
 		s.logger.Error("Failed to get screen bounds", zap.Error(err))
 
-		return core.WrapAccessibilityFailed(err, "get screen bounds")
+		return derrors.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
@@ -218,7 +217,7 @@ func (s *ActionService) MoveMouseRelative(
 	if err != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(err))
 
-		return core.WrapAccessibilityFailed(err, "get cursor position")
+		return derrors.WrapAccessibilityFailed(err, "get cursor position")
 	}
 
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
@@ -244,7 +243,7 @@ func (s *ActionService) MoveMouseToCenter(ctx context.Context, offsetX, offsetY 
 	if err != nil {
 		s.logger.Error("Failed to get screen bounds", zap.Error(err))
 
-		return core.WrapAccessibilityFailed(err, "get screen bounds")
+		return derrors.WrapAccessibilityFailed(err, "get screen bounds")
 	}
 
 	centerX := screenBounds.Min.X + screenBounds.Dx()/2 //nolint:mnd
@@ -275,7 +274,7 @@ func (s *ActionService) MoveMouseToCenterOfMonitor(
 	if err != nil {
 		s.logger.Error("Failed to get screen bounds by name", zap.Error(err))
 
-		return core.WrapAccessibilityFailed(err, "get screen bounds by name")
+		return derrors.WrapAccessibilityFailed(err, "get screen bounds by name")
 	}
 
 	if !found {
@@ -324,7 +323,7 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 	if err != nil {
 		s.logger.Error("Failed to get focused window bounds", zap.Error(err))
 
-		return core.WrapAccessibilityFailed(err, "get focused window bounds")
+		return derrors.WrapAccessibilityFailed(err, "get focused window bounds")
 	}
 
 	if !found {
