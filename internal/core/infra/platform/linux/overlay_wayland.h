@@ -26,6 +26,13 @@ typedef struct {
 } NeruWaylandOverlayScreen;
 
 typedef struct {
+	char keys[NERU_KEY_RING_CAP][256];
+	int head;
+	int tail;
+	int count;
+} NeruWaylandKeyRing;
+
+typedef struct {
 	struct wl_display *display;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
@@ -46,6 +53,8 @@ typedef struct {
 
 	int event_fd;
 	int running;
+
+	NeruWaylandKeyRing key_ring;
 } NeruWaylandOverlay;
 
 NeruWaylandOverlay *neru_wayland_overlay_new(void);

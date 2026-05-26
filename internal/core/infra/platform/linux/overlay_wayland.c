@@ -29,20 +29,13 @@
 // wl_display_roundtrip — called from the rendering path — may dispatch
 // multiple keyboard events in a single call. With a single-slot buffer the
 // second event would silently overwrite the first.
-static struct {
-	char keys[NERU_KEY_RING_CAP][256];
-	int head;  // next slot to write
-	int tail;  // next slot to read
-	int count;
-} key_ring = {.head = 0, .tail = 0, .count = 0};
-
-static void neru_key_ring_push(const char *key) {
-	if (!key || key[0] == '\0' || key_ring.count >= NERU_KEY_RING_CAP)
+static void neru_key_ring_push(NeruWaylandOverlay *overlay, const char *key) {
+	if (!key || key[0] == '\0' || overlay->key_ring.count >= NERU_KEY_RING_CAP)
 		return;
 
-	snprintf(key_ring.keys[key_ring.head], sizeof(key_ring.keys[0]), "%s", key);
-	key_ring.head = (key_ring.head + 1) % NERU_KEY_RING_CAP;
-	key_ring.count++;
+	snprintf(overlay->key_ring.keys[overlay->key_ring.head], sizeof(overlay->key_ring.keys[0]), "%s", key);
+	overlay->key_ring.head = (overlay->key_ring.head + 1) % NERU_KEY_RING_CAP;
+	overlay->key_ring.count++;
 }
 
 static const char *neru_modifier_name_from_keysym(xkb_keysym_t keysym) {
@@ -259,7 +252,7 @@ static void neru_keyboard_key(
 		snprintf(
 		    modifier_key, sizeof(modifier_key), "__modifier_%s_%s", modifier_name,
 		    state == WL_KEYBOARD_KEY_STATE_PRESSED ? "down" : "up");
-		neru_key_ring_push(modifier_key);
+		neru_key_ring_push(overlay, modifier_key);
 
 		return;
 	}
@@ -274,7 +267,7 @@ static void neru_keyboard_key(
 	if (state == WL_KEYBOARD_KEY_STATE_RELEASED) {
 		char release_key[128] = {0};
 		snprintf(release_key, sizeof(release_key), "__keyup_%s", final_key);
-		neru_key_ring_push(release_key);
+		neru_key_ring_push(overlay, release_key);
 
 		return;
 	}
@@ -299,7 +292,7 @@ static void neru_keyboard_key(
 
 	char full_key[128] = {0};
 	snprintf(full_key, sizeof(full_key), "%s%s", mod_prefix, final_key);
-	neru_key_ring_push(full_key);
+	neru_key_ring_push(overlay, full_key);
 }
 
 static void neru_keyboard_modifiers(
@@ -678,11 +671,10 @@ int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay) {
 // Get next pending key from ring buffer (non-blocking).
 // Returns NULL when the ring is empty.
 const char *neru_wayland_overlay_get_key(NeruWaylandOverlay *overlay) {
-	(void)overlay;
-	if (key_ring.count == 0)
+	if (overlay->key_ring.count == 0)
 		return NULL;
-	const char *key = key_ring.keys[key_ring.tail];
-	key_ring.tail = (key_ring.tail + 1) % NERU_KEY_RING_CAP;
-	key_ring.count--;
+	const char *key = overlay->key_ring.keys[overlay->key_ring.tail];
+	overlay->key_ring.tail = (overlay->key_ring.tail + 1) % NERU_KEY_RING_CAP;
+	overlay->key_ring.count--;
 	return key;
 }
