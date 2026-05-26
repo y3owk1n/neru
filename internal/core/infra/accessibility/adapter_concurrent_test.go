@@ -46,17 +46,20 @@ func TestProcessClickableNodesConcurrent_CancelledBeforeStart(t *testing.T) {
 	}
 }
 
-// signalNode wraps MockNode and closes the started channel on the first Bounds() call,
-// providing a deterministic handshake that a worker has begun processing a node.
-type signalNode struct {
+// holdNode blocks on Bounds() until released, guaranteeing a worker is
+// mid-processing when we cancel the context.
+type holdNode struct {
 	MockNode
 
-	started chan struct{}
+	started chan struct{} // closed on first Bounds() call
+	release chan struct{} // close to unblock
 	once    sync.Once
 }
 
-func (n *signalNode) Bounds() image.Rectangle {
+func (n *holdNode) Bounds() image.Rectangle {
 	n.once.Do(func() { close(n.started) })
+
+	<-n.release
 
 	return n.MockBounds
 }
@@ -67,9 +70,10 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 
 	nodeCount := ConcurrentProcessingThreshold * 4
 	started := make(chan struct{})
+	release := make(chan struct{})
 
-	// First node is a signalNode so we know when a worker starts processing
-	// after the context check passes at idx=0.
+	// First node is a holdNode that blocks until we release it, ensuring
+	// the worker is still running when we cancel the context.
 	baseNode := &MockNode{
 		MockID:     "test-id",
 		MockBounds: image.Rect(0, 0, 100, 100),
@@ -78,7 +82,7 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 
 	nodes := make([]AXNode, nodeCount)
 
-	nodes[0] = &signalNode{MockNode: *baseNode, started: started}
+	nodes[0] = &holdNode{MockNode: *baseNode, started: started, release: release}
 	for i := 1; i < nodeCount; i++ {
 		nodes[i] = &MockNode{
 			MockID:     "test-id",
@@ -101,9 +105,13 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 		close(done)
 	}()
 
-	// Wait for a worker to begin processing a node, then cancel mid-flight.
+	// Wait for a worker to begin processing a node, then cancel mid-flight
+	// while the worker is still blocked on Bounds().
 	<-started
 	cancel()
+
+	// Release the blocked worker so it can observe the canceled context.
+	close(release)
 
 	<-done
 
