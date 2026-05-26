@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
-
-	"github.com/y3owk1n/neru/internal/config"
 )
 
 // cgoSlot holds a process-global target for C-exported callbacks. macOS bridges
@@ -35,18 +33,8 @@ func (s *cgoSlot[T]) isZero(v T) bool {
 // scalars use IsZero.
 func isEmptyValue[T any](v T) bool {
 	valueAsAny := any(v)
-
-	switch typed := valueAsAny.(type) {
-	case nil:
+	if valueAsAny == nil {
 		return true
-	case AppWatcherInterface:
-		return typed == nil
-	case config.Provider:
-		return typed == nil
-	case HotkeyHandler:
-		return typed == nil
-	case func(bool):
-		return typed == nil
 	}
 
 	reflected := reflect.ValueOf(valueAsAny)
