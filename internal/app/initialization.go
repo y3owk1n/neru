@@ -223,7 +223,6 @@ func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
 
 	a.eventTap.SetHotkeys(keys)
 
-	// Use Background context as this is a synchronous cleanup operation
 	err := a.eventTap.Disable(a.ctx)
 	if err != nil {
 		logger.Warn("Failed to disable event tap after setting hotkeys", zap.Error(err))

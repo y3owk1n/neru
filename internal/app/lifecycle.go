@@ -607,9 +607,11 @@ func (a *App) Cleanup() {
 		// immediately before it can complete graceful teardown.
 		if a.ipcServer != nil {
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), StopTimeout)
-			defer stopCancel()
 
 			stopServerErr := a.ipcServer.Stop(stopCtx)
+
+			stopCancel()
+
 			if stopServerErr != nil {
 				a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
 			}

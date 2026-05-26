@@ -123,9 +123,8 @@ type Handler struct {
 	// Cycle hint state
 	cycleHintIndex int
 
-	// Base context for Handler methods. Initialized from context.Background() in
-	// NewHandler; overridden by the App with a cancellable context during startup
-	// so all Handler operations observe app-level cancellation.
+	// Base context for Handler methods. Injected by the App via NewHandler so
+	// all Handler operations observe app-level cancellation.
 	ctx context.Context //nolint:containedctx
 
 	// heldRepeatingKey tracks which key is currently held for custom repeat.

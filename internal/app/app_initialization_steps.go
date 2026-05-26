@@ -501,9 +501,11 @@ func cleanupEventTapAndIPC(app *App) {
 		// Try to stop the server gracefully.
 		// Use a fresh context since app.ctx may already be canceled.
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), StopTimeout)
-		defer stopCancel()
 
 		stopErr := app.ipcServer.Stop(stopCtx)
+
+		stopCancel()
+
 		if stopErr != nil {
 			app.logger.Error("Failed to stop IPC server during cleanup", zap.Error(stopErr))
 		}
