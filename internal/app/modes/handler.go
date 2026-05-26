@@ -831,7 +831,9 @@ func (h *Handler) startHintSearchLocked() error {
 
 func (h *Handler) stopHintSearchTextInputLocked(keepEventTapDisabled bool) {
 	if h.hintSearchTextInputActive && h.textInput != nil {
-		_ = h.textInput.StopHintSearchSession(h.ctx)
+		// Use Background context since this may be called during cleanup,
+		// after h.ctx has already been canceled.
+		_ = h.textInput.StopHintSearchSession(context.Background())
 	}
 
 	h.hintSearchTextInputActive = false
