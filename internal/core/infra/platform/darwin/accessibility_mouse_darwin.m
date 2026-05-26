@@ -167,6 +167,7 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	double distance =
 	    sqrt(pow(position.x - clickState.lastPosition.x, 2) + pow(position.y - clickState.lastPosition.y, 2));
 
+	int clickCount;
 	if (timeDiff < kNeruDoubleClickIntervalMs && distance < kNeruDoubleClickDistancePoints) {
 		// Same location, quick succession — increment click count
 		clickState.clickCount++;
@@ -174,6 +175,8 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 		// New click sequence
 		clickState.clickCount = 1;
 	}
+
+	clickCount = clickState.clickCount;
 
 	// Update click state
 	clickState.lastPosition = position;
@@ -199,10 +202,6 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 	// Set modifier flags and click count
 	CGEventSetFlags(down, flags);
 	CGEventSetFlags(up, flags);
-
-	os_unfair_lock_lock(&clickStateLock);
-	int clickCount = clickState.clickCount;
-	os_unfair_lock_unlock(&clickStateLock);
 
 	CGEventSetIntegerValueField(down, kCGMouseEventClickState, clickCount);
 	CGEventSetIntegerValueField(up, kCGMouseEventClickState, clickCount);
