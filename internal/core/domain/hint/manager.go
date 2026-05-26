@@ -1,6 +1,7 @@
 package hint
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -72,9 +73,12 @@ func (m *Manager) SetUpdateCallback(callback func([]*Interface)) {
 }
 
 // SetHints updates the current hint collection and resets the input state.
-// The caller MUST hold externalMu (when set) — see assertExternalMuHeld.
-func (m *Manager) SetHints(hints *Collection) {
-	m.assertExternalMuHeld("SetHints")
+// The caller MUST hold externalMu (when set) — see requireExternalMuHeld.
+func (m *Manager) SetHints(hints *Collection) error {
+	err := m.requireExternalMuHeld("SetHints")
+	if err != nil {
+		return err
+	}
 
 	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
@@ -108,12 +112,17 @@ func (m *Manager) SetHints(hints *Collection) {
 			callback(hints.All())
 		}
 	}
+
+	return nil
 }
 
 // Reset clears the current input.
-// The caller MUST hold externalMu (when set) — see assertExternalMuHeld.
-func (m *Manager) Reset() {
-	m.assertExternalMuHeld("Reset")
+// The caller MUST hold externalMu (when set) — see requireExternalMuHeld.
+func (m *Manager) Reset() error {
+	err := m.requireExternalMuHeld("Reset")
+	if err != nil {
+		return err
+	}
 
 	// Cancel any pending debounced updates
 	if m.debounceTimer != nil {
@@ -146,14 +155,19 @@ func (m *Manager) Reset() {
 			callback(m.hints.All())
 		}
 	}
+
+	return nil
 }
 
 // Clear releases session-scoped hint state without invoking the update
 // callback. It is intended for mode teardown, where the overlay has already
 // been cleared by the caller and retaining the previous collection would keep
 // every generated hint and domain element alive until the next activation.
-func (m *Manager) Clear() {
-	m.assertExternalMuHeld("Clear")
+func (m *Manager) Clear() error {
+	err := m.requireExternalMuHeld("Clear")
+	if err != nil {
+		return err
+	}
 
 	if m.debounceTimer != nil {
 		m.debounceTimer.Stop()
@@ -168,15 +182,17 @@ func (m *Manager) Clear() {
 	m.cachedFilteredHints = nil
 	m.lastFilteredLen = 0
 	m.SetCurrentInput("")
+
+	return nil
 }
 
 // HandleInput processes an input character and returns the matched hint if an exact match is found.
 // Handles backspace for input correction, filters hints by prefix, and detects exact matches.
 // Returns (hint, true) if exact match found, (nil, false) otherwise.
 // Maintains input state and triggers overlay updates for filtered hints.
-func (m *Manager) HandleInput(key string) (*Interface, bool) {
+func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 	if m.hints == nil {
-		return nil, false
+		return nil, false, nil
 	}
 
 	if m.Logger != nil {
@@ -187,7 +203,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 
 	// Ignore non-single-character keys
 	if len(key) != 1 {
-		return nil, false
+		return nil, false, nil
 	}
 
 	prevLen := m.lastFilteredLen
@@ -214,13 +230,16 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 			// immediately since only text colors change. Otherwise
 			// debounce to batch the structural redraw.
 			if allLen == prevLen {
-				m.immediateUpdate(m.hints.All())
+				err := m.immediateUpdate(m.hints.All())
+				if err != nil {
+					return nil, false, err
+				}
 			} else {
 				m.debouncedUpdate(m.hints.All())
 			}
 		}
 
-		return nil, false
+		return nil, false, nil
 	}
 
 	// Update matched prefix for all filtered hints using cached buffer
@@ -256,7 +275,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 
 		m.lastFilteredLen = len(filtered)
 
-		return m.cachedFilteredHints[0], true
+		return m.cachedFilteredHints[0], true, nil
 	}
 
 	m.lastFilteredLen = len(filtered)
@@ -271,12 +290,15 @@ func (m *Manager) HandleInput(key string) (*Interface, bool) {
 	// (or maintain) it. If Collection ever gains mutation methods, this
 	// assumption must be revisited.
 	if len(filtered) == prevLen {
-		m.immediateUpdate(m.cachedFilteredHints)
+		err := m.immediateUpdate(m.cachedFilteredHints)
+		if err != nil {
+			return nil, false, err
+		}
 	} else {
 		m.debouncedUpdate(m.cachedFilteredHints)
 	}
 
-	return nil, false
+	return nil, false, nil
 }
 
 // FilteredHints returns hints filtered by the current input.
@@ -294,7 +316,7 @@ func (m *Manager) FilteredHints() []*Interface {
 
 // HandleBackspace applies the same input-correction behavior used when
 // backspace is pressed during HandleInput.
-func (m *Manager) HandleBackspace() {
+func (m *Manager) HandleBackspace() error {
 	if len(m.CurrentInput()) > 0 {
 		prevLen := m.lastFilteredLen
 		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
@@ -321,34 +343,41 @@ func (m *Manager) HandleBackspace() {
 			// changed (same count), update immediately — the overlay only
 			// needs to repaint text colors which is very cheap.
 			if len(filtered) == prevLen {
-				m.immediateUpdate(m.cachedFilteredHints)
+				err := m.immediateUpdate(m.cachedFilteredHints)
+				if err != nil {
+					return err
+				}
 			} else {
 				m.debouncedUpdate(m.cachedFilteredHints)
 			}
 		}
 
-		return
+		return nil
 	}
 
 	// Reset to show all hints if backspacing from empty input
-	m.Reset()
+	return m.Reset()
 }
 
-// assertExternalMuHeld is a debug assertion verifying that the caller holds
-// externalMu (when set). Methods that invoke the onUpdate callback
-// synchronously (SetHints, Reset, immediateUpdate) must be called while
-// the caller holds externalMu to protect shared state (e.g., screen bounds,
-// overlay manager) accessed by the callback.
+// requireExternalMuHeld verifies that the caller holds externalMu (when set).
+// Methods that invoke the onUpdate callback synchronously (SetHints, Reset,
+// immediateUpdate) must be called while the caller holds externalMu to protect
+// shared state (e.g., screen bounds, overlay manager) accessed by the callback.
 //
-// TryLock succeeds only if the mutex is NOT held — meaning the caller
-// forgot to lock it, which would cause a data race on shared state.
-func (m *Manager) assertExternalMuHeld(caller string) {
-	if m.externalMu != nil {
-		if m.externalMu.TryLock() {
-			m.externalMu.Unlock()
-			panic("hint.Manager." + caller + ": caller must hold externalMu")
-		}
+// TryLock succeeds only if the mutex is NOT held — meaning the caller forgot
+// to lock it, which would cause a data race on shared state.
+func (m *Manager) requireExternalMuHeld(caller string) error {
+	if m.externalMu == nil {
+		return nil
 	}
+
+	if m.externalMu.TryLock() {
+		m.externalMu.Unlock()
+
+		return fmt.Errorf("hint.Manager.%s: %w", caller, ErrExternalMuNotHeld)
+	}
+
+	return nil
 }
 
 // immediateUpdate invokes the update callback synchronously, canceling any
@@ -359,15 +388,18 @@ func (m *Manager) assertExternalMuHeld(caller string) {
 // (whose timer goroutine acquires externalMu itself), immediateUpdate runs in
 // the caller's goroutine and relies on the caller already holding the lock to
 // protect shared state (e.g., screen bounds, overlay manager) accessed by the
-// callback. A debug assertion verifies this at runtime.
+// callback. requireExternalMuHeld verifies the lock is held when externalMu is set.
 //
 // Unlike debouncedUpdate, this does NOT copy the hints slice because the
 // callback executes synchronously in the caller's goroutine — the slice
 // is consumed (iterated to build overlay hints) before returning. If the
 // callback contract ever changes to store or defer processing of the
 // slice, a defensive copy must be added here.
-func (m *Manager) immediateUpdate(hints []*Interface) {
-	m.assertExternalMuHeld("immediateUpdate")
+func (m *Manager) immediateUpdate(hints []*Interface) error {
+	err := m.requireExternalMuHeld("immediateUpdate")
+	if err != nil {
+		return err
+	}
 
 	// Cancel any pending debounced update so it doesn't fire stale data.
 	if m.debounceTimer != nil {
@@ -386,6 +418,8 @@ func (m *Manager) immediateUpdate(hints []*Interface) {
 	if callback != nil {
 		callback(hints)
 	}
+
+	return nil
 }
 
 // debouncedUpdate schedules a debounced update of the overlay.

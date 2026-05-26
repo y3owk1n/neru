@@ -2,6 +2,7 @@ package hint_test
 
 import (
 	"context"
+	"errors"
 	"image"
 	"sync"
 	"testing"
@@ -19,8 +20,13 @@ func TestManager_Filtering(t *testing.T) {
 	h3, _ := hint.NewHint("AC", element, image.Point{0, 0})
 
 	collection := hint.NewCollection([]*hint.Interface{h1, h2, h3})
+
 	manager := hint.NewManager(logger.Get(), nil)
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	tests := []struct {
 		name        string
@@ -37,7 +43,10 @@ func TestManager_Filtering(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			manager.Reset()
+			err := manager.Reset()
+			if err != nil {
+				t.Fatalf("Reset: %v", err)
+			}
 
 			var (
 				match *hint.Interface
@@ -45,7 +54,12 @@ func TestManager_Filtering(t *testing.T) {
 			)
 
 			for _, char := range testCase.input {
-				match, found = manager.HandleInput(string(char))
+				var err error
+
+				match, found, err = manager.HandleInput(string(char))
+				if err != nil {
+					t.Fatalf("HandleInput: %v", err)
+				}
 			}
 
 			filtered := manager.FilteredHints()
@@ -74,18 +88,29 @@ func TestManager_Backspace(t *testing.T) {
 	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1})
+
 	manager := hint.NewManager(logger.Get(), nil)
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	// Type 'A'
-	manager.HandleInput("A")
+	_, _, err = manager.HandleInput("A")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
 
 	if len(manager.FilteredHints()) != 1 {
 		t.Error("Expected 1 hint after 'A'")
 	}
 
 	// Backspace via explicit API (backspace is driven by hotkeys, not HandleInput)
-	manager.HandleBackspace()
+	err = manager.HandleBackspace()
+	if err != nil {
+		t.Fatalf("HandleBackspace: %v", err)
+	}
 
 	if len(manager.FilteredHints()) != 1 {
 		t.Error("Expected 1 hint after Backspace")
@@ -101,11 +126,23 @@ func TestManager_ClearReleasesSessionState(t *testing.T) {
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
 	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager := hint.NewManager(logger.Get(), nil)
-	manager.SetHints(collection)
 
-	manager.HandleInput("A")
-	manager.Clear()
+	manager := hint.NewManager(logger.Get(), nil)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
+
+	_, _, err = manager.HandleInput("A")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
+
+	err = manager.Clear()
+	if err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
 
 	if manager.CurrentInput() != "" {
 		t.Errorf("Expected input to be cleared, got %q", manager.CurrentInput())
@@ -147,11 +184,18 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	hints := hint.NewCollection(hintInterfaces)
 
 	// Set hints in manager
-	hintManager.SetHints(hints)
+	err = hintManager.SetHints(hints)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	t.Run("Hint manager and router integration", func(t *testing.T) {
 		// Router no longer handles mode exit keys.
-		result := hintRouter.RouteKey("escape")
+		result, err := hintRouter.RouteKey("escape")
+		if err != nil {
+			t.Fatalf("RouteKey: %v", err)
+		}
+
 		if result.ExactHint() != nil {
 			t.Error("Expected no exact match on escape in hint router")
 		}
@@ -166,7 +210,10 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 		})
 
 		// Reset should trigger callback
-		hintManager.Reset()
+		err := hintManager.Reset()
+		if err != nil {
+			t.Fatalf("Reset: %v", err)
+		}
 
 		if !callbackCalled {
 			t.Error("Expected callback to be called on reset")
@@ -191,10 +238,9 @@ func TestCollection_Empty(t *testing.T) {
 	}
 }
 
-func TestManager_ImmediateUpdatePanicsWithoutExternalMu(t *testing.T) {
+func TestManager_ImmediateUpdateRequiresExternalMu(t *testing.T) {
 	// When externalMu is set, HandleInput's immediate-update path must be
-	// called while the caller holds externalMu. This test verifies the
-	// runtime assertion fires when the lock is NOT held.
+	// called while the caller holds externalMu.
 	var mut sync.Mutex
 
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
@@ -203,26 +249,23 @@ func TestManager_ImmediateUpdatePanicsWithoutExternalMu(t *testing.T) {
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
 	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
-	// SetHints must be called while holding externalMu (mirrors production).
 	mut.Lock()
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 	mut.Unlock()
-	// Calling HandleInput WITHOUT holding mu should panic on the
-	// immediate-update path (same count → immediateUpdate).
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("Expected panic when immediateUpdate called without holding externalMu")
-		}
-	}()
+
 	// "A" narrows to 2 hints (AA, AB) — same count as the full set (2),
-	// so this triggers immediateUpdate which should panic.
-	manager.HandleInput("A")
+	// so this triggers immediateUpdate which should fail without the lock.
+	_, _, err = manager.HandleInput("A")
+	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
+		t.Fatalf("HandleInput without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
+	}
 }
 
-func TestManager_SetHintsPanicsWithoutExternalMu(t *testing.T) {
-	// SetHints invokes the onUpdate callback synchronously, so the caller
-	// must hold externalMu. Verify the assertion fires when it is NOT held.
+func TestManager_SetHintsRequiresExternalMu(t *testing.T) {
 	var mut sync.Mutex
 
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
@@ -231,19 +274,13 @@ func TestManager_SetHintsPanicsWithoutExternalMu(t *testing.T) {
 	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
 
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("Expected panic when SetHints called without holding externalMu")
-		}
-	}()
-	// Calling SetHints WITHOUT holding mut should panic.
-	manager.SetHints(collection)
+	err := manager.SetHints(collection)
+	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
+		t.Fatalf("SetHints without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
+	}
 }
 
-func TestManager_ResetPanicsWithoutExternalMu(t *testing.T) {
-	// Reset invokes the onUpdate callback synchronously, so the caller
-	// must hold externalMu. Verify the assertion fires when it is NOT held.
+func TestManager_ResetRequiresExternalMu(t *testing.T) {
 	var mut sync.Mutex
 
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
@@ -251,19 +288,18 @@ func TestManager_ResetPanicsWithoutExternalMu(t *testing.T) {
 	collection := hint.NewCollection([]*hint.Interface{h1})
 	manager := hint.NewManager(logger.Get(), &mut)
 	manager.SetUpdateCallback(func(_ []*hint.Interface) {})
-	// SetHints must be called while holding externalMu.
 	mut.Lock()
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 	mut.Unlock()
 
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("Expected panic when Reset called without holding externalMu")
-		}
-	}()
-	// Calling Reset WITHOUT holding mut should panic.
-	manager.Reset()
+	err = manager.Reset()
+	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
+		t.Fatalf("Reset without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
+	}
 }
 
 func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
@@ -282,10 +318,16 @@ func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
 		callbackCalled = true
 	})
 	mut.Lock()
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 	// "A" narrows to 2 hints (AA, AB) — same count → immediateUpdate.
-	// Caller holds mu, so the assertion should pass.
-	manager.HandleInput("A")
+	_, _, err = manager.HandleInput("A")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
 	mut.Unlock()
 
 	if !callbackCalled {
@@ -310,17 +352,27 @@ func TestManager_NoMatchRepeatedUsesImmediateUpdate(t *testing.T) {
 		callCount++
 	})
 	mut.Lock()
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 	// First invalid key "X" → no match, resets to full set (count 2).
 	// Previous count was 2 (from SetHints), so same count → immediateUpdate.
-	manager.HandleInput("X")
+	_, _, err = manager.HandleInput("X")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
 
 	if callCount != 2 { // 1 from SetHints + 1 from HandleInput("X")
 		t.Errorf("Expected 2 callback calls after first invalid key, got %d", callCount)
 	}
 	// Second invalid key "Z" → no match again, full set (count 2).
 	// Previous count was 2, same count → immediateUpdate (synchronous).
-	manager.HandleInput("Z")
+	_, _, err = manager.HandleInput("Z")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
 
 	if callCount != 3 { // +1 synchronous callback
 		t.Errorf("Expected 3 callback calls after second invalid key, got %d", callCount)
@@ -352,10 +404,18 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 
 	// Set hints
 	collection := hint.NewCollection(hintInterfaces)
-	hintManager.SetHints(collection)
+
+	err = hintManager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	// Test that letters are accepted and complete for single-char hints
-	matchedHint, complete := hintManager.HandleInput("a")
+	matchedHint, complete, err := hintManager.HandleInput("a")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
+
 	if !complete {
 		t.Error("Expected complete after single letter matching hint")
 	}
@@ -364,10 +424,17 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Error("Expected hint to be returned")
 	}
 
-	hintManager.Reset()
+	err = hintManager.Reset()
+	if err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
 
 	// Test that numbers are accepted and complete for single-char hints
-	matchedHint2, complete2 := hintManager.HandleInput("1")
+	matchedHint2, complete2, err := hintManager.HandleInput("1")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
+
 	if !complete2 {
 		t.Error("Expected complete after single number matching hint")
 	}
@@ -376,10 +443,17 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Error("Expected hint to be returned")
 	}
 
-	hintManager.Reset()
+	err = hintManager.Reset()
+	if err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
 
 	// Test that symbols are accepted and complete for single-char hints
-	matchedHint3, complete3 := hintManager.HandleInput("!")
+	matchedHint3, complete3, err := hintManager.HandleInput("!")
+	if err != nil {
+		t.Fatalf("HandleInput: %v", err)
+	}
+
 	if !complete3 {
 		t.Error("Expected complete after single symbol matching hint")
 	}
@@ -388,7 +462,10 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 		t.Error("Expected hint to be returned")
 	}
 
-	hintManager.Reset()
+	err = hintManager.Reset()
+	if err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
 
 	// Note: Unicode characters like é and emoji are rejected at config validation level
 	// so they won't be present in hint_characters, making this test unnecessary

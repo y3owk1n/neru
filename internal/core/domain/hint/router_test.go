@@ -39,7 +39,10 @@ func TestRouter_RouteKey(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := router.RouteKey(testCase.key)
+			result, err := router.RouteKey(testCase.key)
+			if err != nil {
+				t.Fatalf("RouteKey: %v", err)
+			}
 
 			if (result.ExactHint() != nil) != testCase.wantExact {
 				t.Errorf(
@@ -65,17 +68,27 @@ func TestRouter_WithHints(t *testing.T) {
 	h2, _ := hint.NewHint("AC", elem2, image.Point{X: 15, Y: 15})
 
 	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager.SetHints(collection)
+
+	err := manager.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	// Test partial match - typing "A" should not complete yet
-	result := router.RouteKey("a")
+	result, err := router.RouteKey("a")
+	if err != nil {
+		t.Fatalf("RouteKey: %v", err)
+	}
 
 	if result.ExactHint() != nil {
 		t.Error("Should not have exact hint match for partial input 'a'")
 	}
 
 	// Test exact match - typing "AB" should complete
-	result = router.RouteKey("b")
+	result, err = router.RouteKey("b")
+	if err != nil {
+		t.Fatalf("RouteKey: %v", err)
+	}
 
 	if result.ExactHint() == nil {
 		t.Error("Should have exact hint match for 'ab'")
@@ -86,16 +99,27 @@ func TestRouter_WithHints(t *testing.T) {
 	}
 
 	// Reset and test another partial/exact sequence
-	manager.SetHints(collection) // Reset input state
+	err = manager.SetHints(collection) // Reset input state
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
 
 	// Type "A" again (partial)
-	result = router.RouteKey("a")
+	result, err = router.RouteKey("a")
+	if err != nil {
+		t.Fatalf("RouteKey: %v", err)
+	}
+
 	if result.ExactHint() != nil {
 		t.Error("Should not have exact hint match for partial input 'a' (second time)")
 	}
 
 	// Type "C" to complete "AC"
-	result = router.RouteKey("c")
+	result, err = router.RouteKey("c")
+	if err != nil {
+		t.Fatalf("RouteKey: %v", err)
+	}
+
 	if result.ExactHint() == nil {
 		t.Error("Should have exact hint match for 'ac'")
 	}

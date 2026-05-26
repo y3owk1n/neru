@@ -108,7 +108,12 @@ func (h *Handler) handleHintsModeKey(key string) {
 		return
 	}
 
-	hintKeyResult := h.hints.Context.Router().RouteKey(key)
+	hintKeyResult, routeErr := h.hints.Context.Router().RouteKey(key)
+	if routeErr != nil {
+		h.logger.Error("Hint key routing failed", zap.Error(routeErr))
+
+		return
+	}
 
 	// Hint input processed by router; if exact match, perform action
 	if hintKeyResult.ExactHint() != nil {
@@ -205,7 +210,12 @@ func (h *Handler) applyHintSearchFilter() {
 	}
 
 	filteredHints := sourceHints.FilterByText(ctx.SearchQuery())
-	ctx.SetVisibleHints(filteredHints)
+
+	setHintsErr := ctx.SetVisibleHints(filteredHints)
+	if setHintsErr != nil {
+		h.logger.Error("Failed to apply hint search filter", zap.Error(setHintsErr))
+	}
+
 	h.drawHintSearchInput()
 	h.cycleHintIndex = -1
 }
@@ -244,7 +254,10 @@ func (h *Handler) cancelHintSearch() {
 	ctx.SetSearchActive(false)
 
 	if sourceHints := ctx.SourceHints(); sourceHints != nil {
-		ctx.SetVisibleHints(sourceHints)
+		setHintsErr := ctx.SetVisibleHints(sourceHints)
+		if setHintsErr != nil {
+			h.logger.Error("Failed to restore hints after search cancel", zap.Error(setHintsErr))
+		}
 	}
 
 	h.overlayManager.HideHintSearchInput()

@@ -126,22 +126,26 @@ func (c *Context) Router() *domainHint.Router {
 }
 
 // SetHints sets the current hint collection.
-func (c *Context) SetHints(hints *domainHint.Collection) {
+func (c *Context) SetHints(hints *domainHint.Collection) error {
 	c.hints = hints
 
 	c.sourceHints = hints
 	if c.manager != nil {
-		c.manager.SetHints(hints)
+		return c.manager.SetHints(hints)
 	}
+
+	return nil
 }
 
 // SetVisibleHints sets the currently selectable hint collection without
 // replacing the original source collection used by search cancellation.
-func (c *Context) SetVisibleHints(hints *domainHint.Collection) {
+func (c *Context) SetVisibleHints(hints *domainHint.Collection) error {
 	c.hints = hints
 	if c.manager != nil {
-		c.manager.SetHints(hints)
+		return c.manager.SetHints(hints)
 	}
+
+	return nil
 }
 
 // Hints returns the current hint collection.
@@ -175,9 +179,12 @@ func (c *Context) SearchActive() bool {
 }
 
 // Reset resets the hints context to its initial state.
-func (c *Context) Reset() {
+func (c *Context) Reset() error {
 	if c.manager != nil {
-		c.manager.Clear()
+		err := c.manager.Clear()
+		if err != nil {
+			return err
+		}
 	}
 
 	c.hints = nil
@@ -185,4 +192,6 @@ func (c *Context) Reset() {
 	c.searchQuery = ""
 	c.searchActive = false
 	c.baseContext.Reset()
+
+	return nil
 }

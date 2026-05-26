@@ -32,9 +32,13 @@ func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 }
 
 // RouteKey processes a key press and returns the routing result.
-func (r *Router) RouteKey(key string) RouteResult {
+func (r *Router) RouteKey(key string) (RouteResult, error) {
 	// Process input through manager
-	hint, exactMatch := r.manager.HandleInput(key)
+	hint, exactMatch, err := r.manager.HandleInput(key)
+	if err != nil {
+		return RouteResult{}, err
+	}
+
 	if exactMatch {
 		if r.Logger != nil {
 			r.Logger.Debug("Hints router: Exact hint match found",
@@ -43,9 +47,9 @@ func (r *Router) RouteKey(key string) RouteResult {
 
 		return RouteResult{
 			exactHint: hint,
-		}
+		}, nil
 	}
 
 	// No exact match, continue in hint mode
-	return RouteResult{}
+	return RouteResult{}, nil
 }

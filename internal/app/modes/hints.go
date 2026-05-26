@@ -375,7 +375,11 @@ func (h *Handler) activateHintModeInternal(
 
 	debugElapsed(h.logger, activationStart, "Manager.SetHints completed")
 
-	h.hints.Context.SetHints(hintCollection)
+	setHintsErr := h.hints.Context.SetHints(hintCollection)
+	if setHintsErr != nil {
+		h.logger.Error("Failed to set hints in manager", zap.Error(setHintsErr))
+	}
+
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 

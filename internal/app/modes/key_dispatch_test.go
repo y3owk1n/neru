@@ -120,7 +120,12 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 	handler.mu.Lock()
 	manager := domainhint.NewManager(handler.logger, &handler.mu)
 	handler.hints.Context.SetManager(manager)
-	handler.hints.Context.SetHints(collection)
+
+	err := handler.hints.Context.SetHints(collection)
+	if err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
+
 	handler.hints.Context.SetSearchActive(true)
 	handler.mu.Unlock()
 

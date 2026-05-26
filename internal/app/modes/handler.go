@@ -298,7 +298,14 @@ func (h *Handler) RefreshHintsForScreenChange(
 		return false
 	}
 
-	h.hints.Context.SetHints(domainHint.NewCollection(filtered))
+	setHintsErr := h.hints.Context.SetHints(
+		domainHint.NewCollection(filtered),
+	)
+	if setHintsErr != nil {
+		h.logger.Error("Failed to refresh hints for screen change", zap.Error(setHintsErr))
+
+		return false
+	}
 
 	return true
 }
@@ -600,7 +607,10 @@ func (h *Handler) BackspaceCurrentMode() {
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints != nil && h.hints.Context != nil && h.hints.Context.Manager() != nil {
-			h.hints.Context.Manager().HandleBackspace()
+			backspaceErr := h.hints.Context.Manager().HandleBackspace()
+			if backspaceErr != nil {
+				h.logger.Error("Hint backspace failed", zap.Error(backspaceErr))
+			}
 		}
 
 		h.cycleHintIndex = -1
@@ -759,7 +769,14 @@ func (h *Handler) startHintSearchLocked() error {
 	h.stopHintSearchTextInputLocked(true)
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
-	h.hints.Context.SetVisibleHints(h.hints.Context.SourceHints())
+
+	setHintsErr := h.hints.Context.SetVisibleHints(
+		h.hints.Context.SourceHints(),
+	)
+	if setHintsErr != nil {
+		return setHintsErr
+	}
+
 	h.cycleHintIndex = -1
 	h.drawHintSearchInput()
 

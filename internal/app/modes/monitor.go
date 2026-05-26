@@ -412,7 +412,11 @@ func (h *Handler) refreshHintsForMonitorMove(
 	}
 
 	hintCollection := domainHint.NewCollection(filtered)
-	h.hints.Context.SetHints(hintCollection)
+
+	setHintsErr := h.hints.Context.SetHints(hintCollection)
+	if setHintsErr != nil {
+		h.logger.Error("Failed to set hints after monitor move", zap.Error(setHintsErr))
+	}
 
 	h.overlayManager.Show()
 }
