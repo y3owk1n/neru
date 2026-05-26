@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
@@ -303,8 +304,12 @@ func (h *IPCControllerModes) extractModeOptions(
 		if !action.IsKnownName(action.Name(*opts.Action)) {
 			resp := ipc.Response{
 				Success: false,
-				Message: "invalid action: " + *opts.Action + ". Supported actions: " + action.SupportedNamesString(),
-				Code:    ipc.CodeInvalidInput,
+				Message: fmt.Sprintf(
+					"invalid action: %s. Supported actions: %s",
+					*opts.Action,
+					action.SupportedNamesString(),
+				),
+				Code: ipc.CodeInvalidInput,
 			}
 
 			return opts, &resp
@@ -316,8 +321,12 @@ func (h *IPCControllerModes) extractModeOptions(
 		if action.IsScrollSubAction(*opts.Action) {
 			resp := ipc.Response{
 				Success: false,
-				Message: "scroll sub-action \"" + *opts.Action + "\" cannot be used as a mode action; use 'action " + *opts.Action + "' instead",
-				Code:    ipc.CodeInvalidInput,
+				Message: fmt.Sprintf(
+					"scroll sub-action %q cannot be used as a mode action; use 'action %s' instead",
+					*opts.Action,
+					*opts.Action,
+				),
+				Code: ipc.CodeInvalidInput,
 			}
 
 			return opts, &resp
@@ -330,8 +339,12 @@ func (h *IPCControllerModes) extractModeOptions(
 			action.IsRestoreCursorPosAction(*opts.Action) {
 			resp := ipc.Response{
 				Success: false,
-				Message: "mode action \"" + *opts.Action + "\" is not allowed; use 'action " + *opts.Action + "' instead",
-				Code:    ipc.CodeInvalidInput,
+				Message: fmt.Sprintf(
+					"mode action %q is not allowed; use 'action %s' instead",
+					*opts.Action,
+					*opts.Action,
+				),
+				Code: ipc.CodeInvalidInput,
 			}
 
 			return opts, &resp
