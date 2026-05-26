@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.40.0](https://github.com/y3owk1n/neru/compare/v1.39.0...v1.40.0) (2026-05-26)
+
+
+### Features
+
+* **scroll:** add similar `<mode>.app_configs` with overridables ([#849](https://github.com/y3owk1n/neru/issues/849)) ([1b0de2e](https://github.com/y3owk1n/neru/commit/1b0de2e1ae21a52c8088c0f4747c06894b26e638))
+
+
+### Bug Fixes
+
+* **cli:** expose missing `--role` and `--text` flag on cli ([#846](https://github.com/y3owk1n/neru/issues/846)) ([a5e61a8](https://github.com/y3owk1n/neru/commit/a5e61a835d1184638e6d4b27d39d3393d3e30ae7))
+* **darwin:** harden CGo callback singletons with generation-stamped slots ([#862](https://github.com/y3owk1n/neru/issues/862)) ([0ec420a](https://github.com/y3owk1n/neru/commit/0ec420aaa9e24373fe017a9c9b5215b6a2e0b834))
+* **darwin:** protect clickState `performLeftClickAtPosition` ([#853](https://github.com/y3owk1n/neru/issues/853)) ([a8bdc48](https://github.com/y3owk1n/neru/commit/a8bdc482c5f37847520a476be6cc7bb38fdfabfb))
+* **linux,overlay,wayland:** add `MAP_FAILED` check after mmap in overlay buffer setup ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* **linux,overlay,wayland:** add `xkb_state_unref` and `xkb_context_unref` to overlay destroy ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* **linux,overlay,wayland:** embed key ring in `NeruWaylandOverlay` instead of file-scope singleton ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* **linux,overlay,x11:** add null-check after calloc in `x11_overlay_new` ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* **linux,overlay:** close keymap fd outside format check to prevent leak ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* **linux,scroll:** ensure `__keyup_<key>` on release just like darwin variant ([9ebd520](https://github.com/y3owk1n/neru/commit/9ebd52035dd14ed9fceccb73fd4d930eb1d4bf03))
+* prevent goroutine leak on context cancellation in `processClickableNodesConcurrent` ([#852](https://github.com/y3owk1n/neru/issues/852)) ([f76b4a7](https://github.com/y3owk1n/neru/commit/f76b4a727092c5f9c52ccff1c1ba1bc7da812506))
+* rename variable to ctx to avoid package shadowing ([#851](https://github.com/y3owk1n/neru/issues/851)) ([cabc51d](https://github.com/y3owk1n/neru/commit/cabc51da66415d3bdd712ac0e90a8b78baedf3aa))
+
+
+### Performance Improvements
+
+* **darwin:** replace layout map init busy-wait with NSCondition ([#856](https://github.com/y3owk1n/neru/issues/856)) ([4cffc9a](https://github.com/y3owk1n/neru/commit/4cffc9af018122ab98a07bfa691a326066c6a390))
+
+
+### Documentation
+
+* better and concise write-ups for docs ([#848](https://github.com/y3owk1n/neru/issues/848)) ([452785d](https://github.com/y3owk1n/neru/commit/452785ddec0edc0d667aa6ddc009e9b1e25289ff))
+
 ## [1.39.0](https://github.com/y3owk1n/neru/compare/v1.38.1...v1.39.0) (2026-05-23)
 
 
