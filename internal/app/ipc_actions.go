@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"strconv"
 	"strings"
@@ -666,7 +667,7 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 
 			return ipc.Response{
 				Success: false,
-				Message: "failed to feed key " + key + ": " + err.Error(),
+				Message: fmt.Sprintf("failed to feed key %s: %s", key, err.Error()),
 				Code:    code,
 			}
 		}
