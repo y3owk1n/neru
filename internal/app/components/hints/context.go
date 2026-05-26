@@ -187,11 +187,9 @@ func (c *Context) SearchActive() bool {
 
 // Reset resets the hints context to its initial state.
 func (c *Context) Reset() error {
+	var err error
 	if c.manager != nil {
-		err := c.manager.Clear()
-		if err != nil {
-			return err
-		}
+		err = c.manager.Clear()
 	}
 
 	c.hints = nil
@@ -200,5 +198,5 @@ func (c *Context) Reset() error {
 	c.searchActive = false
 	c.baseContext.Reset()
 
-	return nil
+	return err
 }
