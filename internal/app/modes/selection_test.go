@@ -56,7 +56,7 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{},
+			&portmocks.MockSystemPort{},
 			zap.NewNop(),
 		),
 		hints: &components.HintsComponent{
@@ -102,7 +102,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredGridSelectionWhenEnablin
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {
 					moved = append(moved, point)
 
@@ -144,7 +144,7 @@ func TestToggleCursorFollowSelection_DoesNotMoveCursorWhenDisabling(t *testing.T
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
 					moveCount++
 
@@ -188,7 +188,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredRecursiveGridSelectionWh
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {
 					moved = append(moved, point)
 

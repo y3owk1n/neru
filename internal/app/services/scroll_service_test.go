@@ -283,7 +283,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			service := services.NewScrollService(
 				mockAcc,
 				mockOverlay,
-				&mocks.SystemMock{},
+				&mocks.MockSystemPort{},
 				cfg,
 				logger,
 			)
@@ -346,7 +346,7 @@ func TestScrollService_Hide(t *testing.T) {
 			service := services.NewScrollService(
 				mockAcc,
 				mockOverlay,
-				&mocks.SystemMock{},
+				&mocks.MockSystemPort{},
 				config,
 				logger,
 			)
@@ -377,7 +377,7 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 	service := services.NewScrollService(
 		mockAcc,
 		mockOverlay,
-		&mocks.SystemMock{},
+		&mocks.MockSystemPort{},
 		initialConfig,
 		logger,
 	)

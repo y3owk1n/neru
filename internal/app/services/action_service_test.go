@@ -16,7 +16,7 @@ import (
 
 func newTestActionService(
 	acc *portmocks.MockAccessibilityPort,
-	sys *portmocks.SystemMock,
+	sys *portmocks.MockSystemPort,
 ) *services.ActionService {
 	return services.NewActionService(acc, &portmocks.MockOverlayPort{}, sys, zap.NewNop())
 }
@@ -45,7 +45,7 @@ func TestPerformActionAtPoint_ParsesAndDispatches(t *testing.T) {
 			return nil
 		},
 	}
-	service := newTestActionService(acc, &portmocks.SystemMock{})
+	service := newTestActionService(acc, &portmocks.MockSystemPort{})
 
 	err := service.PerformActionAtPoint(
 		ctx,
@@ -93,7 +93,7 @@ func TestPerformActionAtPoint_DrawsMouseActionIndicatorWhenEnabled(t *testing.T)
 		},
 	}
 
-	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = true
 	cfg.Actions = []string{"left_click"}
@@ -143,7 +143,7 @@ func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorWhenDisabled(t *tes
 		},
 	}
 
-	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = false
 	cfg.Actions = []string{"left_click"}
@@ -183,7 +183,7 @@ func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorForUnlistedAction(t
 		},
 	}
 
-	service := services.NewActionService(acc, overlay, &portmocks.SystemMock{}, zap.NewNop())
+	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = true
 	cfg.Actions = []string{"left_click"}
@@ -200,7 +200,7 @@ func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorForUnlistedAction(t
 }
 
 func TestPerformActionAtPoint_InvalidAction(t *testing.T) {
-	service := newTestActionService(&portmocks.MockAccessibilityPort{}, &portmocks.SystemMock{})
+	service := newTestActionService(&portmocks.MockAccessibilityPort{}, &portmocks.MockSystemPort{})
 
 	err := service.PerformActionAtPoint(context.Background(), "not_real", image.Point{}, 0)
 	if err == nil {
@@ -215,7 +215,7 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 
 	waitCalled := false
 
-	sys := &portmocks.SystemMock{
+	sys := &portmocks.MockSystemPort{
 		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
 			return image.Rect(0, 0, 100, 100), nil
 		},
@@ -251,7 +251,7 @@ func TestMoveMouseRelative_UsesCurrentCursorPosition(t *testing.T) {
 
 	var moved image.Point
 
-	sys := &portmocks.SystemMock{
+	sys := &portmocks.MockSystemPort{
 		CursorPositionFunc: func(context.Context) (image.Point, error) {
 			return image.Point{X: 40, Y: 40}, nil
 		},
@@ -282,7 +282,7 @@ func TestMoveCursorToPointAndWait_WaitsForCursorIdle(t *testing.T) {
 	moved := false
 	waitCalled := false
 
-	sys := &portmocks.SystemMock{
+	sys := &portmocks.MockSystemPort{
 		MoveCursorToPointFunc: func(_ context.Context, p image.Point, _ bool) error {
 			moved = true
 

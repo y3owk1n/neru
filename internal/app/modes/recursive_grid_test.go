@@ -45,7 +45,7 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
 					moveCount++
 
@@ -104,7 +104,7 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
 					moveCount++
 

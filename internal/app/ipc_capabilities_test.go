@@ -20,7 +20,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 	appState := state.NewAppState()
 	logger := zap.NewNop()
 	configService := config.NewService(cfg, "", logger, nil)
-	system := &portmocks.SystemMock{
+	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{
 				Platform: "testos",
@@ -103,7 +103,7 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 	appState := state.NewAppState()
 	logger := zap.NewNop()
 	configService := config.NewService(cfg, "", logger, nil)
-	system := &portmocks.SystemMock{
+	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{
 				Platform: "testos",

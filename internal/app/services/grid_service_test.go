@@ -48,7 +48,7 @@ func TestGridService_ShowGrid(t *testing.T) {
 				testCase.setupMocks(mockOverlay)
 			}
 
-			service := services.NewGridService(mockOverlay, &mocks.SystemMock{}, logger)
+			service := services.NewGridService(mockOverlay, &mocks.MockSystemPort{}, logger)
 			ctx := context.Background()
 
 			showGridErr := service.ShowGrid(ctx)
@@ -98,7 +98,7 @@ func TestGridService_HideGrid(t *testing.T) {
 				testCase.setupMocks(mockOverlay)
 			}
 
-			service := services.NewGridService(mockOverlay, &mocks.SystemMock{}, logger)
+			service := services.NewGridService(mockOverlay, &mocks.MockSystemPort{}, logger)
 			ctx := context.Background()
 
 			hideGridErr := service.HideGrid(ctx)

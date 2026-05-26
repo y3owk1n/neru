@@ -42,7 +42,7 @@ func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&uioverlay.NoOpManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.SystemMock{},
+		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 
@@ -56,7 +56,7 @@ func TestAdapterHealth_ReturnsNilForSupportedOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&supportedManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.SystemMock{},
+		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 
@@ -70,7 +70,7 @@ func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&stubManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.SystemMock{},
+		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 

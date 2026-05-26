@@ -11,7 +11,7 @@ import (
 
 // MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
 // Note: ScreenBounds, MoveCursorToPoint, CursorPosition, and CheckPermissions
-// were removed from AccessibilityPort and moved to SystemPort. Use SystemMock
+// were removed from AccessibilityPort and moved to SystemPort. Use MockSystemPort
 // for those operations.
 type MockAccessibilityPort struct {
 	HealthFunc               func(context.Context) error

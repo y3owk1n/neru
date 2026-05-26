@@ -348,7 +348,7 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 		scrollService: services.NewScrollService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{},
+			&portmocks.MockSystemPort{},
 			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),
 		),
@@ -415,7 +415,7 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 		scrollService: services.NewScrollService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{},
+			&portmocks.MockSystemPort{},
 			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),
 		),

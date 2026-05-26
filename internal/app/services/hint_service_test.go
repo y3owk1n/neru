@@ -306,7 +306,7 @@ func TestHintService_ShowHints(t *testing.T) {
 			service := services.NewHintService(
 				mockAcc,
 				mockOverlay,
-				&mocks.SystemMock{},
+				&mocks.MockSystemPort{},
 				generator,
 				testCase.config,
 				logger,
@@ -380,7 +380,7 @@ func TestHintService_HideHints(t *testing.T) {
 			service := services.NewHintService(
 				mockAcc,
 				mockOverlay,
-				&mocks.SystemMock{},
+				&mocks.MockSystemPort{},
 				generator,
 				config.HintsConfig{},
 				logger,
@@ -453,7 +453,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 			service := services.NewHintService(
 				mockAcc,
 				mockOverlay,
-				&mocks.SystemMock{},
+				&mocks.MockSystemPort{},
 				generator,
 				config.HintsConfig{},
 				logger,
@@ -484,7 +484,7 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 	service := services.NewHintService(
 		mockAcc,
 		mockOverlay,
-		&mocks.SystemMock{},
+		&mocks.MockSystemPort{},
 		initialGen,
 		config.HintsConfig{},
 		logger,
@@ -508,7 +508,7 @@ func TestHintService_Health(t *testing.T) {
 	service := services.NewHintService(
 		mockAcc,
 		mockOverlay,
-		&mocks.SystemMock{},
+		&mocks.MockSystemPort{},
 		generator,
 		config.HintsConfig{},
 		logger,

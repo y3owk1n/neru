@@ -7,8 +7,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// SystemMock is a mock implementation of ports.SystemPort.
-type SystemMock struct {
+// MockSystemPort is a mock implementation of ports.SystemPort.
+type MockSystemPort struct {
 	ConfigDirFunc                   func() (string, error)
 	UserDataDirFunc                 func() (string, error)
 	LogDirFunc                      func() (string, error)
@@ -33,7 +33,7 @@ type SystemMock struct {
 }
 
 // ConfigDir is a mock implementation.
-func (m *SystemMock) ConfigDir() (string, error) {
+func (m *MockSystemPort) ConfigDir() (string, error) {
 	if m.ConfigDirFunc != nil {
 		return m.ConfigDirFunc()
 	}
@@ -42,7 +42,7 @@ func (m *SystemMock) ConfigDir() (string, error) {
 }
 
 // UserDataDir is a mock implementation.
-func (m *SystemMock) UserDataDir() (string, error) {
+func (m *MockSystemPort) UserDataDir() (string, error) {
 	if m.UserDataDirFunc != nil {
 		return m.UserDataDirFunc()
 	}
@@ -51,7 +51,7 @@ func (m *SystemMock) UserDataDir() (string, error) {
 }
 
 // LogDir is a mock implementation.
-func (m *SystemMock) LogDir() (string, error) {
+func (m *MockSystemPort) LogDir() (string, error) {
 	if m.LogDirFunc != nil {
 		return m.LogDirFunc()
 	}
@@ -60,7 +60,7 @@ func (m *SystemMock) LogDir() (string, error) {
 }
 
 // FocusedApplicationPID is a mock implementation.
-func (m *SystemMock) FocusedApplicationPID(ctx context.Context) (int, error) {
+func (m *MockSystemPort) FocusedApplicationPID(ctx context.Context) (int, error) {
 	if m.FocusedAppPIDFunc != nil {
 		return m.FocusedAppPIDFunc(ctx)
 	}
@@ -69,7 +69,7 @@ func (m *SystemMock) FocusedApplicationPID(ctx context.Context) (int, error) {
 }
 
 // ApplicationNameByPID is a mock implementation.
-func (m *SystemMock) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
+func (m *MockSystemPort) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
 	if m.AppNameByPIDFunc != nil {
 		return m.AppNameByPIDFunc(ctx, pid)
 	}
@@ -78,7 +78,7 @@ func (m *SystemMock) ApplicationNameByPID(ctx context.Context, pid int) (string,
 }
 
 // ApplicationBundleIDByPID is a mock implementation.
-func (m *SystemMock) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
+func (m *MockSystemPort) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
 	if m.AppBundleIDByPIDFunc != nil {
 		return m.AppBundleIDByPIDFunc(ctx, pid)
 	}
@@ -87,7 +87,7 @@ func (m *SystemMock) ApplicationBundleIDByPID(ctx context.Context, pid int) (str
 }
 
 // ScreenBounds is a mock implementation.
-func (m *SystemMock) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
+func (m *MockSystemPort) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
 	if m.ScreenBoundsFunc != nil {
 		return m.ScreenBoundsFunc(ctx)
 	}
@@ -96,7 +96,7 @@ func (m *SystemMock) ScreenBounds(ctx context.Context) (image.Rectangle, error) 
 }
 
 // ScreenBoundsByName is a mock implementation.
-func (m *SystemMock) ScreenBoundsByName(
+func (m *MockSystemPort) ScreenBoundsByName(
 	ctx context.Context,
 	name string,
 ) (image.Rectangle, bool, error) {
@@ -108,7 +108,7 @@ func (m *SystemMock) ScreenBoundsByName(
 }
 
 // ScreenNames is a mock implementation.
-func (m *SystemMock) ScreenNames(ctx context.Context) ([]string, error) {
+func (m *MockSystemPort) ScreenNames(ctx context.Context) ([]string, error) {
 	if m.ScreenNamesFunc != nil {
 		return m.ScreenNamesFunc(ctx)
 	}
@@ -117,7 +117,7 @@ func (m *SystemMock) ScreenNames(ctx context.Context) ([]string, error) {
 }
 
 // FocusedWindowBounds is a mock implementation.
-func (m *SystemMock) FocusedWindowBounds(
+func (m *MockSystemPort) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
 	if m.FocusedWindowBoundsFunc != nil {
@@ -128,7 +128,7 @@ func (m *SystemMock) FocusedWindowBounds(
 }
 
 // MoveCursorToPoint is a mock implementation.
-func (m *SystemMock) MoveCursorToPoint(
+func (m *MockSystemPort) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
 	bypassSmooth bool,
@@ -141,7 +141,7 @@ func (m *SystemMock) MoveCursorToPoint(
 }
 
 // WaitForCursorIdle is a mock implementation.
-func (m *SystemMock) WaitForCursorIdle(ctx context.Context) error {
+func (m *MockSystemPort) WaitForCursorIdle(ctx context.Context) error {
 	if m.WaitForCursorIdleFunc != nil {
 		return m.WaitForCursorIdleFunc(ctx)
 	}
@@ -150,7 +150,7 @@ func (m *SystemMock) WaitForCursorIdle(ctx context.Context) error {
 }
 
 // CursorPosition is a mock implementation.
-func (m *SystemMock) CursorPosition(ctx context.Context) (image.Point, error) {
+func (m *MockSystemPort) CursorPosition(ctx context.Context) (image.Point, error) {
 	if m.CursorPositionFunc != nil {
 		return m.CursorPositionFunc(ctx)
 	}
@@ -159,7 +159,7 @@ func (m *SystemMock) CursorPosition(ctx context.Context) (image.Point, error) {
 }
 
 // CheckPermissions is a mock implementation.
-func (m *SystemMock) CheckPermissions(ctx context.Context) error {
+func (m *MockSystemPort) CheckPermissions(ctx context.Context) error {
 	if m.CheckPermissionsFunc != nil {
 		return m.CheckPermissionsFunc(ctx)
 	}
@@ -168,7 +168,7 @@ func (m *SystemMock) CheckPermissions(ctx context.Context) error {
 }
 
 // IsDarkMode is a mock implementation.
-func (m *SystemMock) IsDarkMode() bool {
+func (m *MockSystemPort) IsDarkMode() bool {
 	if m.IsDarkModeFunc != nil {
 		return m.IsDarkModeFunc()
 	}
@@ -177,7 +177,7 @@ func (m *SystemMock) IsDarkMode() bool {
 }
 
 // IsSecureInputEnabled is a mock implementation.
-func (m *SystemMock) IsSecureInputEnabled() bool {
+func (m *MockSystemPort) IsSecureInputEnabled() bool {
 	if m.IsSecureInputEnabledFunc != nil {
 		return m.IsSecureInputEnabledFunc()
 	}
@@ -186,14 +186,14 @@ func (m *SystemMock) IsSecureInputEnabled() bool {
 }
 
 // ShowSecureInputNotification is a mock implementation.
-func (m *SystemMock) ShowSecureInputNotification() {
+func (m *MockSystemPort) ShowSecureInputNotification() {
 	if m.ShowSecureInputNotificationFunc != nil {
 		m.ShowSecureInputNotificationFunc()
 	}
 }
 
 // ShowAlert is a mock implementation.
-func (m *SystemMock) ShowAlert(ctx context.Context, title, message string) error {
+func (m *MockSystemPort) ShowAlert(ctx context.Context, title, message string) error {
 	if m.ShowAlertFunc != nil {
 		return m.ShowAlertFunc(ctx, title, message)
 	}
@@ -202,14 +202,14 @@ func (m *SystemMock) ShowAlert(ctx context.Context, title, message string) error
 }
 
 // ShowNotification is a mock implementation.
-func (m *SystemMock) ShowNotification(title, message string) {
+func (m *MockSystemPort) ShowNotification(title, message string) {
 	if m.ShowNotificationFunc != nil {
 		m.ShowNotificationFunc(title, message)
 	}
 }
 
 // Capabilities is a mock implementation.
-func (m *SystemMock) Capabilities() ports.PlatformCapabilities {
+func (m *MockSystemPort) Capabilities() ports.PlatformCapabilities {
 	if m.CapabilitiesFunc != nil {
 		return m.CapabilitiesFunc()
 	}
@@ -218,7 +218,7 @@ func (m *SystemMock) Capabilities() ports.PlatformCapabilities {
 }
 
 // Health is a mock implementation.
-func (m *SystemMock) Health(ctx context.Context) error {
+func (m *MockSystemPort) Health(ctx context.Context) error {
 	if m.HealthFunc != nil {
 		return m.HealthFunc(ctx)
 	}
@@ -226,4 +226,4 @@ func (m *SystemMock) Health(ctx context.Context) error {
 	return nil
 }
 
-var _ ports.SystemPort = (*SystemMock)(nil)
+var _ ports.SystemPort = (*MockSystemPort)(nil)

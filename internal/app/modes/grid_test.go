@@ -55,7 +55,7 @@ func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelection
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
 					moveCount++
 
@@ -112,7 +112,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
-			&portmocks.SystemMock{
+			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, _ image.Point, _ bool) error {
 					moveCount++
 
