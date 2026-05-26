@@ -1786,7 +1786,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 /// Create overlay window
 /// @return Overlay window handle
-OverlayWindow createOverlayWindow(void) {
+OverlayWindow NeruCreateOverlayWindow(void) {
 	__block OverlayWindowController *controller = nil;
 	if ([NSThread isMainThread]) {
 		controller = [[OverlayWindowController alloc] init];
@@ -2510,7 +2510,7 @@ void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {
 
 		if (oldController) {
 			[oldController.window close];
-			CFRelease(*pwindow);  // Balance the CFBridgingRetain from createOverlayWindow
+			CFRelease(*pwindow);  // Balance the CFBridgingRetain from NeruCreateOverlayWindow
 		}
 
 		*pwindow = (__bridge_retained void *)newController;  // Transfer ownership to caller

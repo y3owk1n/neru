@@ -26,7 +26,7 @@ extern void handleThemeChanged(int isDark);
                         change:(NSDictionary<NSKeyValueChangeKey, id> *)change
                        context:(void *)context {
 	if ([keyPath isEqualToString:@"effectiveAppearance"]) {
-		int dark = isDarkMode();
+		int dark = NeruIsDarkMode();
 		handleThemeChanged(dark);
 	}
 }
@@ -41,7 +41,7 @@ static ThemeObserver *g_themeObserver = nil;
 
 /// Check if macOS Dark Mode is active
 /// @return 1 if Dark Mode is active, 0 if Light Mode
-int isDarkMode(void) {
+int NeruIsDarkMode(void) {
 	@autoreleasepool {
 		NSAppearance *appearance = [NSApp effectiveAppearance];
 
@@ -58,7 +58,7 @@ int isDarkMode(void) {
 }
 
 /// Start observing macOS theme changes using KVO on NSApp.effectiveAppearance
-void startThemeObserver(void) {
+void NeruStartThemeObserver(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (g_themeObserver != nil)
 			return;
@@ -72,7 +72,7 @@ void startThemeObserver(void) {
 }
 
 /// Stop observing macOS theme changes
-void stopThemeObserver(void) {
+void NeruStopThemeObserver(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (g_themeObserver == nil)
 			return;

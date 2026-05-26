@@ -136,7 +136,7 @@ typedef void (*ResizeCompletionCallback)(void *context);
 
 /// Create overlay window
 /// @return Overlay window handle
-OverlayWindow createOverlayWindow(void);
+OverlayWindow NeruCreateOverlayWindow(void);
 
 /// Destroy overlay window
 /// @param window Overlay window handle

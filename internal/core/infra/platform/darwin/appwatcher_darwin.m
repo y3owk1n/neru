@@ -195,7 +195,7 @@ static AppWatcherDelegate *delegate = nil;
 static dispatch_queue_t watcherQueue = nil;
 
 /// Start the application watcher
-void startAppWatcher(void) {
+void NeruStartAppWatcher(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		watcherQueue = dispatch_queue_create("com.neru.appwatcher", DISPATCH_QUEUE_SERIAL);
@@ -252,7 +252,7 @@ void startAppWatcher(void) {
 }
 
 /// Stop the application watcher
-void stopAppWatcher(void) {
+void NeruStopAppWatcher(void) {
 	if (watcherQueue == nil)
 		return;
 

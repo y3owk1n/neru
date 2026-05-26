@@ -164,14 +164,14 @@ func SetDetectMissionControlEnabled(enabled bool) {
 func StartAppWatcher() {
 	log := getLogger()
 	log.Debug("Darwin: Starting app watcher")
-	C.startAppWatcher()
+	C.NeruStartAppWatcher()
 }
 
 // StopAppWatcher ceases monitoring application lifecycle events.
 func StopAppWatcher() {
 	log := getLogger()
 	log.Debug("Darwin: Stopping app watcher")
-	C.stopAppWatcher()
+	C.NeruStopAppWatcher()
 }
 
 func currentAppWatcher() AppWatcherInterface {

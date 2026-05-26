@@ -13,7 +13,7 @@ import (
 
 // IsDarkMode returns true if macOS Dark Mode is currently active.
 func IsDarkMode() bool {
-	return C.isDarkMode() != 0
+	return C.NeruIsDarkMode() != 0
 }
 
 var (
@@ -30,12 +30,12 @@ func SetThemeChangeHandler(handler func(bool)) {
 
 // StartThemeObserver starts observing macOS theme changes.
 func StartThemeObserver() {
-	C.startThemeObserver()
+	C.NeruStartThemeObserver()
 }
 
 // StopThemeObserver stops observing macOS theme changes.
 func StopThemeObserver() {
-	C.stopThemeObserver()
+	C.NeruStopThemeObserver()
 }
 
 //export handleThemeChanged

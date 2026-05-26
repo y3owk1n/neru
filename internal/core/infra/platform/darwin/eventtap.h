@@ -31,25 +31,25 @@ typedef void *EventTap;
 /// @param callback Callback function
 /// @param userData User data pointer
 /// @return Event tap handle
-EventTap createEventTap(EventTapCallback callback, void *userData);
+EventTap NeruCreateEventTap(EventTapCallback callback, void *userData);
 
 /// Enable event tap
 /// @param tap Event tap handle
-void enableEventTap(EventTap tap);
+void NeruEnableEventTap(EventTap tap);
 
 /// Disable event tap
 /// @param tap Event tap handle
-void disableEventTap(EventTap tap);
+void NeruDisableEventTap(EventTap tap);
 
 /// Destroy event tap
 /// @param tap Event tap handle
-void destroyEventTap(EventTap tap);
+void NeruDestroyEventTap(EventTap tap);
 
 /// Set event tap hotkeys
 /// @param tap Event tap handle
 /// @param hotkeys Array of hotkey strings
 /// @param count Number of hotkeys
-void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
+void NeruSetEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
 
 /// Set event tap modifier passthrough behavior.
 /// When enabled, modifier shortcuts that are not claimed by the active mode are
@@ -58,26 +58,26 @@ void setEventTapHotkeys(EventTap tap, const char **hotkeys, int count);
 /// @param enabled Non-zero to enable passthrough
 /// @param blacklistKeys Array of blacklisted key strings (same format as hotkeys)
 /// @param count Number of blacklisted keys
-void setEventTapModifierPassthrough(EventTap tap, int enabled, const char **blacklistKeys, int count);
+void NeruSetEventTapModifierPassthrough(EventTap tap, int enabled, const char **blacklistKeys, int count);
 
 /// Set modifier shortcuts that the active mode still wants Neru to consume.
 /// @param tap Event tap handle
 /// @param keys Array of key strings (same format as hotkeys)
 /// @param count Number of keys
-void setEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int count);
+void NeruSetEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int count);
 
 /// Set callback invoked when a modifier shortcut passes through to macOS.
 /// The callback is delivered asynchronously after the passthrough is observed.
 /// @param tap Event tap handle
 /// @param callback Passthrough callback function (may be NULL to clear)
-void setEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback callback);
+void NeruSetEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallback callback);
 
 /// Enable or disable sticky modifier toggle detection.
 /// When enabled, modifier key events (Shift, Cmd, Alt, Ctrl) are detected and
 /// callback is invoked with "__modifier_<name>_down/up" strings for sticky modifier toggling.
 /// @param tap Event tap handle
 /// @param enabled Non-zero to enable, zero to disable
-void setEventTapStickyModifierToggle(EventTap tap, int enabled);
+void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled);
 
 #pragma mark - Standalone Utilities
 
@@ -85,6 +85,6 @@ void setEventTapStickyModifierToggle(EventTap tap, int enabled);
 /// This is a standalone utility that does not require an event tap handle.
 /// @param modifier One of "cmd", "shift", "alt", "ctrl"
 /// @param isDown Non-zero for key-down, zero for key-up
-void postEventTapModifierEvent(const char *modifier, int isDown);
+void NeruPostEventTapModifierEvent(const char *modifier, int isDown);
 
 #endif /* EVENTTAP_H */

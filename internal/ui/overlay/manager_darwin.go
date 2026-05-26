@@ -70,7 +70,7 @@ var (
 // Init initializes the singleton overlay manager with a new overlay window.
 func Init(logger *zap.Logger) *Manager {
 	once.Do(func() {
-		window := C.createOverlayWindow()
+		window := C.NeruCreateOverlayWindow()
 		manager = &Manager{
 			window: window,
 			logger: logger,

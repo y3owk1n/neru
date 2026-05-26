@@ -25,7 +25,7 @@ type BaseOverlay struct {
 
 // NewBaseOverlay creates a new overlay window and initializes common components.
 func NewBaseOverlay(logger *zap.Logger) (*BaseOverlay, error) {
-	window := C.createOverlayWindow()
+	window := C.NeruCreateOverlayWindow()
 	if window == nil {
 		return nil, derrors.New(derrors.CodeOverlayFailed, "failed to create overlay window")
 	}

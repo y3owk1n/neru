@@ -96,7 +96,7 @@ func LeftClickAtPoint(point image.Point, restoreCursor bool, modifiers action.Mo
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftClickAtPosition(
+	result := C.NeruPerformLeftClickAtPosition(
 		pos,
 		C.bool(restoreCursor),
 		modifiersToCGEventFlags(modifiers),
@@ -118,7 +118,7 @@ func RightClickAtPoint(point image.Point, restoreCursor bool, modifiers action.M
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performRightClickAtPosition(
+	result := C.NeruPerformRightClickAtPosition(
 		pos,
 		C.bool(restoreCursor),
 		modifiersToCGEventFlags(modifiers),
@@ -140,7 +140,7 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performMiddleClickAtPosition(
+	result := C.NeruPerformMiddleClickAtPosition(
 		pos,
 		C.bool(restoreCursor),
 		modifiersToCGEventFlags(modifiers),
@@ -164,7 +164,7 @@ func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	SetLeftMouseDown(true, point)
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseDownAtPosition(pos, modifiersToCGEventFlags(modifiers))
+	result := C.NeruPerformLeftMouseDownAtPosition(pos, modifiersToCGEventFlags(modifiers))
 	if result == 0 {
 		ClearLeftMouseDownState()
 
@@ -184,7 +184,7 @@ func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 	cursorAnimator.stop()
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.performLeftMouseUpAtPosition(pos, modifiersToCGEventFlags(modifiers))
+	result := C.NeruPerformLeftMouseUpAtPosition(pos, modifiersToCGEventFlags(modifiers))
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
@@ -203,7 +203,7 @@ func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 func LeftMouseUp() error {
 	cursorAnimator.stop()
 
-	result := C.performLeftMouseUpAtCursor()
+	result := C.NeruPerformLeftMouseUpAtCursor()
 	if result == 0 {
 		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
 	}

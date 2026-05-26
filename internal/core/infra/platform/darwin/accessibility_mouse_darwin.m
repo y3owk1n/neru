@@ -45,7 +45,7 @@ void postMouseMoveEvent(CGPoint position, CGEventType eventType) {
 
 /// Release the left button without moving
 /// @return 1 on success, 0 on failure
-int performLeftMouseUpAtCursor(void) {
+int NeruPerformLeftMouseUpAtCursor(void) {
 	CGEventRef currentEvent = CGEventCreate(NULL);
 	if (!currentEvent)
 		return 0;
@@ -131,7 +131,7 @@ static struct {
 	int clickCount;                ///< Current click count
 } clickState = {0};
 
-/// Lock guarding clickState — performLeftClickAtPosition may be called
+/// Lock guarding clickState — NeruPerformLeftClickAtPosition may be called
 /// from concurrent goroutines via the CGo bridge.
 static os_unfair_lock clickStateLock = OS_UNFAIR_LOCK_INIT;
 
@@ -147,7 +147,7 @@ static long long getCurrentTimeMs(void) {
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
+int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	// Capture original cursor position before moving
 	CGPoint originalPosition = CGPointZero;
 	if (restoreCursor) {
@@ -225,7 +225,7 @@ int performLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlag
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performRightClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
+int NeruPerformRightClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	return performClickAtPosition(
 	    position, kCGEventRightMouseDown, kCGEventRightMouseUp, kCGMouseButtonRight, restoreCursor, flags);
 }
@@ -234,7 +234,7 @@ int performRightClickAtPosition(CGPoint position, bool restoreCursor, CGEventFla
 /// @param position Target position
 /// @param restoreCursor Whether to restore cursor position after click
 /// @return 1 on success, 0 on failure
-int performMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
+int NeruPerformMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags) {
 	return performClickAtPosition(
 	    position, kCGEventOtherMouseDown, kCGEventOtherMouseUp, kCGMouseButtonCenter, restoreCursor, flags);
 }
@@ -242,7 +242,7 @@ int performMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFl
 /// Perform left mouse down at position
 /// @param position Target position
 /// @return 1 on success, 0 on failure
-int performLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
+int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
@@ -262,7 +262,7 @@ int performLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 /// Perform left mouse up at position
 /// @param position Target position
 /// @return 1 on success, 0 on failure
-int performLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
+int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
 	moveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 

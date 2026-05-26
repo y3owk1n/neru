@@ -13,9 +13,9 @@
 #pragma mark - App Watcher Functions
 
 /// Start the application watcher
-void startAppWatcher(void);
+void NeruStartAppWatcher(void);
 
 /// Stop the application watcher
-void stopAppWatcher(void);
+void NeruStopAppWatcher(void);
 
 #endif /* APPWATCHER_H */
