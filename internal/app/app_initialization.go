@@ -9,7 +9,8 @@ import (
 // New creates a new App instance with the provided options.
 // It applies sensible defaults and allows customization through functional options.
 func New(opts ...Option) (*App, error) {
-	app := &App{ctx: context.Background()}
+	ctx, cancel := context.WithCancel(context.Background())
+	app := &App{ctx: ctx, cancel: cancel}
 
 	// Apply all options
 	for _, opt := range opts {

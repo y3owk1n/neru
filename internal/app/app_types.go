@@ -39,6 +39,7 @@ type SystrayComponent interface {
 // App represents the main application instance containing all state and dependencies.
 type App struct {
 	ctx        context.Context //nolint:containedctx // Root context for all App operations
+	cancel     context.CancelFunc
 	config     *config.Config
 	ConfigPath string
 	logger     *zap.Logger

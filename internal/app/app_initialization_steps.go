@@ -320,6 +320,7 @@ func initializeModeHandler(app *App) {
 	}
 
 	app.modes = modes.NewHandler(
+		app.ctx,
 		deps.config,
 		deps.logger,
 		deps.appState,

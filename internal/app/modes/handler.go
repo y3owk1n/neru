@@ -137,6 +137,7 @@ type Handler struct {
 
 // NewHandler creates a new mode handler.
 func NewHandler(
+	ctx context.Context,
 	config *configpkg.Config,
 	logger *zap.Logger,
 	appState *state.AppState,
@@ -181,7 +182,7 @@ func NewHandler(
 	}
 
 	handler := &Handler{
-		ctx:                        context.Background(),
+		ctx:                        ctx,
 		config:                     config,
 		logger:                     logger,
 		appState:                   appState,

@@ -586,6 +586,10 @@ func (a *App) Stop() {
 func (a *App) Cleanup() {
 	a.cleanupOnce.Do(func() {
 		a.logger.Info("Cleaning up")
+		// Cancel root context to signal shutdown to all operations
+		if a.cancel != nil {
+			a.cancel()
+		}
 		// Cancel background GC if running
 		if a.gcCancel != nil {
 			a.gcCancel()
