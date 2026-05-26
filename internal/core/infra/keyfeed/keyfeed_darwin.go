@@ -32,7 +32,7 @@ func Feed(key string) error {
 	cKey := C.CString(normalized)
 	defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
 
-	ret := C.postKeyFeed(cKey)
+	ret := C.NeruPostKeyFeed(cKey)
 	switch ret {
 	case 1:
 		return nil

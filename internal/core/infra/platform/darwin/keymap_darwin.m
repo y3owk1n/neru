@@ -889,7 +889,7 @@ static void ensureLayoutMapsInitialized(void) {
 
 #pragma mark - Public Functions
 
-NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
+NSDictionary<NSString *, NSNumber *> *NeruKeyNameToCodeMap(void) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
@@ -900,7 +900,7 @@ NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void) {
 	return map;
 }
 
-NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
+NSDictionary<NSNumber *, NSString *> *NeruKeyCodeToNameMap(void) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
@@ -911,7 +911,7 @@ NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void) {
 	return map;
 }
 
-CGKeyCode keyNameToCode(NSString *keyName) {
+CGKeyCode NeruKeyNameToCode(NSString *keyName) {
 	if (!keyName || keyName.length == 0) {
 		return 0xFFFF;
 	}
@@ -932,7 +932,7 @@ CGKeyCode keyNameToCode(NSString *keyName) {
 	return code ? code.unsignedShortValue : 0xFFFF;
 }
 
-NSString *keyCodeToName(CGKeyCode keyCode) {
+NSString *NeruKeyCodeToName(CGKeyCode keyCode) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
@@ -943,7 +943,7 @@ NSString *keyCodeToName(CGKeyCode keyCode) {
 	return map[@(keyCode)];
 }
 
-NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
+NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
 
@@ -1055,7 +1055,7 @@ NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	return keyCodeToCharacterQWERTY(keyCode, flags);
 }
 
-void refreshKeyboardLayoutMaps(void) {
+void NeruRefreshKeyboardLayoutMaps(void) {
 	void (^cancelAndRebuild)(void) = ^{
 		// Cancel any pending debounce rebuild before running synchronously
 		if (gLayoutChangeDebounceBlock) {
@@ -1085,7 +1085,7 @@ void refreshKeyboardLayoutMaps(void) {
 	}
 }
 
-int setReferenceKeyboardLayout(const char *inputSourceID) {
+int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 	// Normalise input — treat empty string as nil (auto-detect)
 	NSString *trimmedInputSourceID = nil;
 	if (inputSourceID) {
@@ -1162,6 +1162,6 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 	return configuredResolved ? 1 : 0;
 }
 
-void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) {
+void NeruSetKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback) {
 	atomic_store(&gLayoutChangeCallback, callback);
 }

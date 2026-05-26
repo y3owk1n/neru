@@ -92,7 +92,7 @@ static OSStatus hotkeyHandler(EventHandlerCallRef nextHandler, EventRef event, v
 /// @param callback Callback function
 /// @param userData User data pointer
 /// @return 1 on success, 0 on failure
-int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData) {
+int NeruRegisterHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData) {
 	initializeStorage();
 
 	// Convert modifiers to Carbon format
@@ -135,7 +135,7 @@ int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback call
 
 /// Unregister hotkey
 /// @param hotkeyId Hotkey identifier
-void unregisterHotkey(int hotkeyId) {
+void NeruUnregisterHotkey(int hotkeyId) {
 	if (!hotkeyRefs)
 		return;
 
@@ -159,7 +159,7 @@ void unregisterHotkey(int hotkeyId) {
 }
 
 /// Unregister all hotkeys
-void unregisterAllHotkeys(void) {
+void NeruUnregisterAllHotkeys(void) {
 	if (!hotkeyRefs)
 		return;
 
@@ -181,7 +181,7 @@ void unregisterAllHotkeys(void) {
 
 /// Cleanup (call this before app termination)
 void cleanupHotkeys(void) {
-	unregisterAllHotkeys();
+	NeruUnregisterAllHotkeys();
 
 	if (eventHandlerRef) {
 		RemoveEventHandler(eventHandlerRef);
@@ -199,7 +199,7 @@ void cleanupHotkeys(void) {
 /// @param keyCode Output parameter for key code
 /// @param modifiers Output parameter for modifiers
 /// @return 1 on success, 0 on failure
-int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
+int NeruParseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 	if (!keyString || !keyCode || !modifiers)
 		return 0;
 
@@ -239,7 +239,7 @@ int parseKeyString(const char *keyString, int *keyCode, int *modifiers) {
 			return 0;
 
 		// Map key name to key code using shared keymap
-		CGKeyCode keyCodeValue = keyNameToCode(mainKey);
+		CGKeyCode keyCodeValue = NeruKeyNameToCode(mainKey);
 		if (keyCodeValue == 0xFFFF) {
 			return 0;
 		}

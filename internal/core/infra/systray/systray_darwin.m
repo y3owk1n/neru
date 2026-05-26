@@ -61,7 +61,7 @@ static BOOL _exitCalled = NO;
 
 AppDelegate *appDelegate;
 
-void registerSystray(void) {
+void NeruRegisterSystray(void) {
 	// Placeholder if needed for init
 }
 
@@ -75,17 +75,17 @@ void internalNativeLoop(void) {
 	}
 }
 
-void nativeLoop(void) {
+void NeruNativeLoop(void) {
 	_showSystray = YES;
 	internalNativeLoop();
 }
 
-void nativeLoopHeadless(void) {
+void NeruNativeLoopHeadless(void) {
 	_showSystray = NO;
 	internalNativeLoop();
 }
 
-void quit(void) {
+void NeruQuit(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (!_exitCalled) {
 			_exitCalled = YES;
@@ -111,7 +111,7 @@ void quit(void) {
 
 #pragma mark - Status Item Functions
 
-void setIcon(const char *iconBytes, int length, bool isTemplate) {
+void NeruSetIcon(const char *iconBytes, int length, bool isTemplate) {
 	// Copy the icon bytes before dispatching so the caller can free
 	// the original buffer immediately after this function returns.
 	NSData *data = [NSData dataWithBytes:iconBytes length:length];
@@ -131,7 +131,7 @@ void setIcon(const char *iconBytes, int length, bool isTemplate) {
 	});
 }
 
-void setTitle(const char *title) {
+void NeruSetTitle(const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title];
 
 	dispatch_async(dispatch_get_main_queue(), ^{
@@ -141,7 +141,7 @@ void setTitle(const char *title) {
 	});
 }
 
-void setTooltip(const char *tooltip) {
+void NeruSetTooltip(const char *tooltip) {
 	NSString *str = [NSString stringWithUTF8String:tooltip];
 
 	dispatch_async(dispatch_get_main_queue(), ^{
@@ -193,7 +193,7 @@ void runOnMainThread(void (^block)(void)) {
 
 #pragma mark - Menu Item Functions
 
-void add_menu_item(int menuId, const char *title, short disabled, short checked) {
+void NeruAddMenuItem(int menuId, const char *title, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
 
 	runOnMainThread(^{
@@ -207,7 +207,7 @@ void add_menu_item(int menuId, const char *title, short disabled, short checked)
 	});
 }
 
-void add_sub_menu_item(int parentId, int menuId, const char *title, short disabled, short checked) {
+void NeruAddSubMenuItem(int parentId, int menuId, const char *title, short disabled, short checked) {
 	NSString *titleStr = [NSString stringWithUTF8String:title];
 
 	runOnMainThread(^{
@@ -231,7 +231,7 @@ void add_sub_menu_item(int parentId, int menuId, const char *title, short disabl
 	});
 }
 
-void add_separator(int parentId) {
+void NeruAddSeparator(int parentId) {
 	runOnMainThread(^{
 		if (parentId == 0) {
 			[appDelegate.menu addItem:[NSMenuItem separatorItem]];
@@ -252,7 +252,7 @@ void add_separator(int parentId) {
 	});
 }
 
-void hide_menu_item(int menuId) {
+void NeruHideMenuItem(int menuId) {
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
@@ -260,7 +260,7 @@ void hide_menu_item(int menuId) {
 	});
 }
 
-void show_menu_item(int menuId) {
+void NeruShowMenuItem(int menuId) {
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
@@ -268,7 +268,7 @@ void show_menu_item(int menuId) {
 	});
 }
 
-void set_item_checked(int menuId, short checked) {
+void NeruSetItemChecked(int menuId, short checked) {
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
@@ -276,7 +276,7 @@ void set_item_checked(int menuId, short checked) {
 	});
 }
 
-void set_item_disabled(int menuId, short disabled) {
+void NeruSetItemDisabled(int menuId, short disabled) {
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);
 		if (item)
@@ -284,7 +284,7 @@ void set_item_disabled(int menuId, short disabled) {
 	});
 }
 
-void set_item_title(int menuId, const char *title) {
+void NeruSetItemTitle(int menuId, const char *title) {
 	NSString *str = [NSString stringWithUTF8String:title];
 
 	runOnMainThread(^{

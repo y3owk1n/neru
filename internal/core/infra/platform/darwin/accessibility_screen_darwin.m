@@ -28,7 +28,7 @@ extern void handleMissionControlActivated(void);
 extern void handleMissionControlDeactivated(void);
 
 // Forward declarations
-void updateMissionControlState(void);
+void NeruUpdateMissionControlState(void);
 static bool detectMissionControlActive(void);
 static void initializeMissionControlDetection(void);
 
@@ -91,7 +91,7 @@ static bool isCacheValid(void) {
 /// Get scroll bounds of element
 /// @param element Element reference
 /// @return Scroll bounds rectangle
-CGRect getScrollBounds(void *element) {
+CGRect NeruGetScrollBounds(void *element) {
 	CGRect rect = CGRectZero;
 	if (!element)
 		return rect;
@@ -150,7 +150,7 @@ CGRect getScrollBounds(void *element) {
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
-int scrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
+int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
 	@autoreleasepool {
 		CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
 		if (!scrollEvent)
@@ -239,12 +239,12 @@ static bool detectMissionControlActive(void) {
 void NeruSetDetectMissionControlEnabled(bool enabled) {
 	setDetectionEnabled(enabled);
 	if (enabled && g_detectionQueue == NULL) {
-		updateMissionControlState();
+		NeruUpdateMissionControlState();
 	}
 }
 
 /// Update the cached Mission Control state on the detection queue
-void updateMissionControlState(void) {
+void NeruUpdateMissionControlState(void) {
 	if (!isDetectionEnabled()) {
 		setCachedMissionControlState(false);
 		return;
@@ -278,7 +278,7 @@ void updateMissionControlState(void) {
 /// Triggered by NSWorkspaceActiveSpaceDidChangeNotification.
 static void spaceDidChangeNotification(NSNotification *notification) {
 	(void)notification;
-	updateMissionControlState();
+	NeruUpdateMissionControlState();
 }
 
 /// Initialize Mission Control detection system.
@@ -352,7 +352,7 @@ static void initializeMissionControlDetection(void) {
 /// Reference: https://stackoverflow.com/questions/12683225/osx-how-to-detect-if-mission-control-is-running
 ///
 /// @return true if Mission Control is active, false otherwise
-bool isMissionControlActive(void) {
+bool NeruIsMissionControlActive(void) {
 	if (isDetectionEnabled()) {
 		initializeMissionControlDetection();
 	}
@@ -371,7 +371,7 @@ bool isMissionControlActive(void) {
 
 /// Get main screen bounds
 /// @return Main screen bounds rectangle
-CGRect getMainScreenBounds(void) {
+CGRect NeruGetMainScreenBounds(void) {
 	@autoreleasepool {
 		NSScreen *mainScreen = [NSScreen mainScreen];
 		if (!mainScreen) {
@@ -385,7 +385,7 @@ CGRect getMainScreenBounds(void) {
 
 /// Get active screen bounds (screen containing cursor)
 /// @return Active screen bounds rectangle
-CGRect getActiveScreenBounds(void) {
+CGRect NeruGetActiveScreenBounds(void) {
 	@autoreleasepool {
 		// Get current mouse location in screen coordinates
 		NSPoint mouseLoc = [NSEvent mouseLocation];
@@ -428,7 +428,7 @@ CGRect getActiveScreenBounds(void) {
 /// @return NUL-separated localized display names, or empty string if no screens
 /// @note Caller must free the returned string with free()
 /// @note NUL is used as the delimiter because display names may theoretically contain commas
-char *getScreenNames(int *outLen) {
+char *NeruGetScreenNames(int *outLen) {
 	@autoreleasepool {
 		*outLen = 0;
 
@@ -459,7 +459,7 @@ char *getScreenNames(int *outLen) {
 /// @param name Display name to match (e.g. "Built-in Retina Display", "DELL U2720Q")
 /// @param found Output parameter set to 1 if screen was found, 0 otherwise
 /// @return Screen bounds rectangle in CG coordinates, or CGRectZero if not found
-CGRect getScreenBoundsByName(const char *name, int *found) {
+CGRect NeruGetScreenBoundsByName(const char *name, int *found) {
 	@autoreleasepool {
 		*found = 0;
 
@@ -504,7 +504,7 @@ CGRect getScreenBoundsByName(const char *name, int *found) {
 
 /// Get current cursor position
 /// @return Current cursor position
-CGPoint getCurrentCursorPosition(void) {
+CGPoint NeruGetCurrentCursorPosition(void) {
 	@autoreleasepool {
 		CGEventRef event = CGEventCreate(NULL);
 		if (!event) {

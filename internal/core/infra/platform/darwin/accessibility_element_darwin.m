@@ -15,14 +15,14 @@
 
 /// Get system-wide accessibility element
 /// @return System-wide element reference
-void *getSystemWideElement(void) {
+void *NeruGetSystemWideElement(void) {
 	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
 	return (void *)systemWide;
 }
 
 /// Get focused application
 /// @return Focused application reference
-void *getFocusedApplication(void) {
+void *NeruGetFocusedApplication(void) {
 	@autoreleasepool {
 		AXUIElementRef systemWide = AXUIElementCreateSystemWide();
 		if (systemWide) {
@@ -51,7 +51,7 @@ void *getFocusedApplication(void) {
 /// Get the menu bar element of an application
 /// @param app Application reference
 /// @return Menu bar element reference
-void *getMenuBar(void *app) {
+void *NeruGetMenuBar(void *app) {
 	if (!app)
 		return NULL;
 
@@ -69,7 +69,7 @@ void *getMenuBar(void *app) {
 /// Get application by PID
 /// @param pid Process identifier
 /// @return Application reference
-void *getApplicationByPID(int pid) {
+void *NeruGetApplicationByPID(int pid) {
 	AXUIElementRef app = AXUIElementCreateApplication(pid);
 	return (void *)app;
 }
@@ -77,7 +77,7 @@ void *getApplicationByPID(int pid) {
 /// Get application by bundle identifier
 /// @param bundle_id Bundle identifier
 /// @return Application reference
-void *getApplicationByBundleId(const char *bundle_id) {
+void *NeruGetApplicationByBundleId(const char *bundle_id) {
 	if (!bundle_id)
 		return NULL;
 
@@ -113,7 +113,7 @@ static bool shouldPrefetchActions(const char *role) {
 /// Get element information using batched attribute queries
 /// @param element Element reference
 /// @return Element information structure
-ElementInfo *getElementInfo(void *element) {
+ElementInfo *NeruGetElementInfo(void *element) {
 	if (!element)
 		return NULL;
 
@@ -186,37 +186,37 @@ ElementInfo *getElementInfo(void *element) {
 
 		CFTypeRef titleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
 		if (titleValue && CFGetTypeID(titleValue) == CFStringGetTypeID()) {
-			info->title = cfStringToCString((CFStringRef)titleValue);
+			info->title = NeruCFStringToCString((CFStringRef)titleValue);
 		}
 
 		CFTypeRef descValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
 		if (descValue && CFGetTypeID(descValue) == CFStringGetTypeID()) {
-			info->description = cfStringToCString((CFStringRef)descValue);
+			info->description = NeruCFStringToCString((CFStringRef)descValue);
 		}
 
 		CFTypeRef valueValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 4);
 		if (valueValue && CFGetTypeID(valueValue) == CFStringGetTypeID()) {
-			info->value = cfStringToCString((CFStringRef)valueValue);
+			info->value = NeruCFStringToCString((CFStringRef)valueValue);
 		}
 
 		CFTypeRef identifierValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 5);
 		if (identifierValue && CFGetTypeID(identifierValue) == CFStringGetTypeID()) {
-			info->identifier = cfStringToCString((CFStringRef)identifierValue);
+			info->identifier = NeruCFStringToCString((CFStringRef)identifierValue);
 		}
 
 		CFTypeRef roleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 6);
 		if (roleValue && CFGetTypeID(roleValue) == CFStringGetTypeID()) {
-			info->role = cfStringToCString((CFStringRef)roleValue);
+			info->role = NeruCFStringToCString((CFStringRef)roleValue);
 		}
 
 		CFTypeRef subroleValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 7);
 		if (subroleValue && CFGetTypeID(subroleValue) == CFStringGetTypeID()) {
-			info->subrole = cfStringToCString((CFStringRef)subroleValue);
+			info->subrole = NeruCFStringToCString((CFStringRef)subroleValue);
 		}
 
 		CFTypeRef roleDescValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 8);
 		if (roleDescValue && CFGetTypeID(roleDescValue) == CFStringGetTypeID()) {
-			info->roleDescription = cfStringToCString((CFStringRef)roleDescValue);
+			info->roleDescription = NeruCFStringToCString((CFStringRef)roleDescValue);
 		}
 
 		CFTypeRef enabledValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 9);
@@ -278,7 +278,7 @@ ElementInfo *getElementInfo(void *element) {
 
 /// Free element info
 /// @param info Element information structure
-void freeElementInfo(ElementInfo *info) {
+void NeruFreeElementInfo(ElementInfo *info) {
 	if (!info)
 		return;
 
@@ -322,7 +322,7 @@ static AXUIElementRef getCachedSystemWideElement(void) {
 /// Get element at screen position
 /// @param position Screen position
 /// @return Element reference
-void *getElementAtPosition(CGPoint position) {
+void *NeruGetElementAtPosition(CGPoint position) {
 	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
 	if (!systemWide)
 		return NULL;
@@ -343,7 +343,7 @@ void *getElementAtPosition(CGPoint position) {
 /// @param element Element reference
 /// @param outPoint Output parameter for center point
 /// @return 1 on success, 0 on failure
-int getElementCenter(void *element, CGPoint *outPoint) {
+int NeruGetElementCenter(void *element, CGPoint *outPoint) {
 	if (!element || !outPoint)
 		return 0;
 
@@ -410,7 +410,7 @@ int getElementCenter(void *element, CGPoint *outPoint) {
 /// @param element Element reference
 /// @param count Output parameter for number of children
 /// @return Array of child element references
-void **getChildren(void *element, int *count) {
+void **NeruGetChildren(void *element, int *count) {
 	if (!element || !count)
 		return NULL;
 
@@ -453,7 +453,7 @@ void **getChildren(void *element, int *count) {
 /// @param element Element reference
 /// @param count Output parameter for number of rows
 /// @return Array of row element references
-void **getVisibleRows(void *element, int *count) {
+void **NeruGetVisibleRows(void *element, int *count) {
 	if (!element || !count)
 		return NULL;
 
@@ -542,7 +542,7 @@ static bool elementOrAncestorMatches(AXUIElementRef element, AXUIElementRef targ
 /// @param center Pre-computed center point
 /// @return 1 if the element itself is the hit-test result at the point, or the result is a descendant of the element, 0
 /// otherwise
-int isElementVisibleAtPoint(void *element, CGPoint center) {
+int NeruIsElementVisibleAtPoint(void *element, CGPoint center) {
 	if (!element)
 		return 0;
 
@@ -615,7 +615,7 @@ static bool getElementFrame(AXUIElementRef element, CGRect *outFrame) {
 /// @param centerY Pre-computed center Y (from ElementInfo)
 /// @param preActionsFetched Whether action names were successfully pre-fetched
 /// @return 1 if element is clickable, 0 otherwise
-int hasClickAction(
+int NeruHasClickAction(
     void *element, bool skipVisCheck, bool preHidden, bool preVisible, bool preEnabled, bool hasEnabledAttr,
     const char *preRole, bool preIsWidget, double centerX, double centerY, bool preHasPressAction,
     bool preHasShowMenuAction, bool preActionsFetched) {
@@ -630,7 +630,7 @@ int hasClickAction(
 	// Use pre-computed center from ElementInfo (no redundant AX call).
 	CGPoint visCenter = CGPointMake(centerX, centerY);
 
-#define visHit (!skipVisCheck ? isElementVisibleAtPoint((void *)axElement, visCenter) : 1)
+#define visHit (!skipVisCheck ? NeruIsElementVisibleAtPoint((void *)axElement, visCenter) : 1)
 
 	// Use pre-fetched action flags from ElementInfo (eliminates AXUIElementCopyActionNames call).
 	// Explicit actions are the strongest signal, so we check for them first
@@ -726,7 +726,7 @@ int hasClickAction(
 
 	// Visibility check: hit-test at center to filter obscured/scroll-clipped elements.
 	if (!skipVisCheck) {
-		return isElementVisibleAtPoint((void *)axElement, visCenter);
+		return NeruIsElementVisibleAtPoint((void *)axElement, visCenter);
 	}
 
 	return 1;
@@ -740,7 +740,7 @@ int hasClickAction(
 /// @param element Element reference
 /// @param attribute Attribute name
 /// @return Attribute value string
-char *getElementAttribute(void *element, const char *attribute) {
+char *NeruGetElementAttribute(void *element, const char *attribute) {
 	if (!element || !attribute)
 		return NULL;
 
@@ -760,7 +760,7 @@ char *getElementAttribute(void *element, const char *attribute) {
 	char *result = NULL;
 
 	if (CFGetTypeID(value) == CFStringGetTypeID()) {
-		result = cfStringToCString((CFStringRef)value);
+		result = NeruCFStringToCString((CFStringRef)value);
 	} else if (CFGetTypeID(value) == AXValueGetTypeID()) {
 		AXValueType valueType = AXValueGetType((AXValueRef)value);
 
@@ -797,16 +797,16 @@ char *getElementAttribute(void *element, const char *attribute) {
 	return result;
 }
 
-/// Free string allocated by getElementAttribute
+/// Free string allocated by NeruGetElementAttribute
 /// @param str String to free
-void freeString(char *str) {
+void NeruFreeString(char *str) {
 	if (str)
 		free(str);
 }
 
 /// Release element reference
 /// @param element Element reference
-void releaseElement(void *element) {
+void NeruReleaseElement(void *element) {
 	if (element) {
 		CFRelease((AXUIElementRef)element);
 	}
@@ -814,7 +814,7 @@ void releaseElement(void *element) {
 
 /// Retain element reference
 /// @param element Element reference
-void retainElement(void *element) {
+void NeruRetainElement(void *element) {
 	if (element) {
 		CFRetain((AXUIElementRef)element);
 	}
@@ -825,7 +825,7 @@ void retainElement(void *element) {
 /// Get element hash
 /// @param element Element reference
 /// @return Element hash value
-unsigned long getElementHash(void *element) {
+unsigned long NeruGetElementHash(void *element) {
 	if (!element)
 		return 0;
 
@@ -836,7 +836,7 @@ unsigned long getElementHash(void *element) {
 /// @param element1 First element reference
 /// @param element2 Second element reference
 /// @return 1 if equal, 0 otherwise
-int areElementsEqual(void *element1, void *element2) {
+int NeruAreElementsEqual(void *element1, void *element2) {
 	if (!element1 || !element2)
 		return element1 == element2;
 

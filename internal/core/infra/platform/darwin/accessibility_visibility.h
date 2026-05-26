@@ -12,8 +12,8 @@
 extern "C" {
 #endif
 
-char *cfStringToCString(CFStringRef cfStr);
-bool isPointVisible(CGPoint point, pid_t elementPid);
+char *NeruCFStringToCString(CFStringRef cfStr);
+bool NeruIsPointVisible(CGPoint point, pid_t elementPid);
 
 #ifdef __cplusplus
 }

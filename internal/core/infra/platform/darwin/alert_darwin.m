@@ -24,7 +24,7 @@ static int showAccessibilityPermissionStartupAlertOnMainThread(void);
 /// @param errorMessage The error message to display
 /// @param configPath The path to the config file
 /// @return 1 if user clicked OK, 2 if user clicked Copy Path, 0 otherwise
-int showConfigValidationErrorAlert(const char *errorMessage, const char *configPath) {
+int NeruShowConfigValidationErrorAlert(const char *errorMessage, const char *configPath) {
 	@autoreleasepool {
 		__block int result = 0;
 
@@ -90,7 +90,7 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 /// Show a config onboarding alert for new users
 /// @param configPath The default config path that will be created
 /// @return 1 if user clicked Create Config, 2 if user clicked Use Defaults, 3 if user clicked Quit
-int showConfigOnboardingAlert(const char *configPath) {
+int NeruShowConfigOnboardingAlert(const char *configPath) {
 	@autoreleasepool {
 		__block int result = 0;
 
@@ -150,7 +150,7 @@ static int showOnboardingAlertOnMainThread(const char *configPath) {
 }
 
 /// Show the startup accessibility permission guidance alert.
-int showAccessibilityPermissionStartupAlert(void) {
+int NeruShowAccessibilityPermissionStartupAlert(void) {
 	@autoreleasepool {
 		__block int result = 0;
 
@@ -168,7 +168,7 @@ int showAccessibilityPermissionStartupAlert(void) {
 
 /// Internal function to show the accessibility permission alert on main thread.
 static int showAccessibilityPermissionStartupAlertOnMainThread(void) {
-	while (checkAccessibilityPermissions() != 1) {
+	while (NeruCheckAccessibilityPermissions() != 1) {
 		NSAlert *alert = [[NSAlert alloc] init];
 		alert.messageText = @"Accessibility Permission Needed";
 		alert.informativeText =
@@ -191,7 +191,7 @@ static int showAccessibilityPermissionStartupAlertOnMainThread(void) {
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
 		if (response == NSAlertFirstButtonReturn) {
-			requestAccessibilityPermissions();
+			NeruRequestAccessibilityPermissions();
 		} else if (response == NSAlertThirdButtonReturn) {
 			return 2;
 		}
@@ -297,7 +297,7 @@ static void ensureNotificationSetup(void (^completion)(BOOL authorized)) {
 
 /// Fire-and-forget: the UNUserNotificationCenter path is fully asynchronous.
 /// This function returns before the notification is actually delivered.
-void showNotification(const char *title, const char *message) {
+void NeruShowNotification(const char *title, const char *message) {
 	@autoreleasepool {
 		NSString *nsTitle = title ? [NSString stringWithUTF8String:title] : @"Neru";
 		NSString *nsMessage = message ? [NSString stringWithUTF8String:message] : @"";

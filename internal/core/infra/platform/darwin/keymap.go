@@ -24,7 +24,7 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 		defer C.free(unsafe.Pointer(cLayoutID)) //nolint:nlreturn
 	}
 
-	result := C.setReferenceKeyboardLayout(cLayoutID) != 0
+	result := C.NeruSetReferenceKeyboardLayout(cLayoutID) != 0
 
 	return result
 }

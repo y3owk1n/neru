@@ -15,7 +15,7 @@ import (
 
 // ActiveScreenBounds returns the active screen bounds (the screen containing the cursor).
 func ActiveScreenBounds() image.Rectangle {
-	rect := C.getActiveScreenBounds()
+	rect := C.NeruGetActiveScreenBounds()
 
 	return image.Rect(
 		int(rect.origin.x),
@@ -31,7 +31,7 @@ func ActiveScreenBounds() image.Rectangle {
 func ScreenNames() []string {
 	var bufLen C.int
 
-	cNames := C.getScreenNames(&bufLen)
+	cNames := C.NeruGetScreenNames(&bufLen)
 	if cNames == nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func ScreenBoundsByName(name string) (image.Rectangle, bool) {
 
 	var found C.int
 
-	rect := C.getScreenBoundsByName(cName, &found)
+	rect := C.NeruGetScreenBoundsByName(cName, &found)
 	if found == 0 {
 		return image.Rectangle{}, false
 	}
@@ -87,14 +87,14 @@ func ScreenBoundsByName(name string) (image.Rectangle, bool) {
 
 // IsMissionControlActive returns true if Mission Control is active.
 func IsMissionControlActive() bool {
-	return bool(C.isMissionControlActive())
+	return bool(C.NeruIsMissionControlActive())
 }
 
 // FocusedWindowBounds returns the bounds of the focused (frontmost) window.
 // Returns the bounds and true if a window was found, or a zero rectangle and
 // false if no focused window exists (e.g. the desktop is focused).
 func FocusedWindowBounds() (image.Rectangle, bool) {
-	rect := C.getFocusedWindowFrame()
+	rect := C.NeruGetFocusedWindowFrame()
 
 	// CGRectZero means no window was found.
 	if rect.size.width == 0 && rect.size.height == 0 {

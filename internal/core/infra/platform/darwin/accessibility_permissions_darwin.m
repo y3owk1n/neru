@@ -42,7 +42,7 @@ static BOOL resetAccessibilityPermissionDecision(void) {
 
 /// Check if accessibility permissions are granted
 /// @return 1 if permissions are granted, 0 otherwise
-int checkAccessibilityPermissions(void) {
+int NeruCheckAccessibilityPermissions(void) {
 	@autoreleasepool {
 		Boolean trusted = AXIsProcessTrusted();
 		return trusted ? 1 : 0;
@@ -51,7 +51,7 @@ int checkAccessibilityPermissions(void) {
 
 /// Request accessibility permissions from macOS
 /// @return 1 if permissions are granted after the request, 0 otherwise
-int requestAccessibilityPermissions(void) {
+int NeruRequestAccessibilityPermissions(void) {
 	@autoreleasepool {
 		if (!resetAccessibilityPermissionDecision()) {
 			NSLog(@"Neru: continuing with Accessibility permission request after reset failure");
@@ -70,7 +70,7 @@ int requestAccessibilityPermissions(void) {
 /// @param attribute Attribute name
 /// @param value Attribute value
 /// @return 1 on success, 0 on failure
-int setApplicationAttribute(int pid, const char *attribute, int value) {
+int NeruSetApplicationAttribute(int pid, const char *attribute, int value) {
 	if (!attribute)
 		return 0;
 

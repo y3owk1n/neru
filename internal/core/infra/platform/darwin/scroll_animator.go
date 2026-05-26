@@ -161,7 +161,7 @@ restart:
 		prevX = targetX
 		prevY = targetY
 
-		C.scrollAtPoint(cgPos, C.int(chunkX), C.int(chunkY))
+		C.NeruScrollAtPoint(cgPos, C.int(chunkX), C.int(chunkY))
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)

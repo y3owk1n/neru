@@ -20,7 +20,7 @@ var (
 	menuItems     = make(map[int]*MenuItem)
 	menuItemsLock sync.RWMutex
 	// nextID must start at 1; 0 is reserved as the sentinel for the main menu
-	// in the Objective-C add_separator function (parentId == 0 means root menu).
+	// in the Objective-C NeruAddSeparator function (parentId == 0 means root menu).
 	nextID  = 1
 	onReady func()
 	onExit  func()
@@ -73,7 +73,7 @@ func (m *MenuItem) Hidden() bool {
 func Run(onReadyFunc, onExitFunc func()) {
 	onReady = onReadyFunc
 	onExit = onExitFunc
-	C.nativeLoop()
+	C.NeruNativeLoop()
 }
 
 // RunHeadless starts the system tray loop without a status icon.
@@ -81,26 +81,26 @@ func Run(onReadyFunc, onExitFunc func()) {
 func RunHeadless(onReadyFunc, onExitFunc func()) {
 	onReady = onReadyFunc
 	onExit = onExitFunc
-	C.nativeLoopHeadless()
+	C.NeruNativeLoopHeadless()
 }
 
 // Quit quits the application.
 func Quit() {
-	C.quit()
+	C.NeruQuit()
 }
 
 // SetTitle sets the title of the system tray icon.
 func SetTitle(title string) {
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
-	C.setTitle(cTitle)
+	C.NeruSetTitle(cTitle)
 }
 
 // SetTooltip sets the tooltip of the system tray icon.
 func SetTooltip(tooltip string) {
 	cTooltip := C.CString(tooltip)
 	defer C.free(unsafe.Pointer(cTooltip)) //nolint
-	C.setTooltip(cTooltip)
+	C.NeruSetTooltip(cTooltip)
 }
 
 // SetIcon sets the icon of the system tray item.
@@ -109,7 +109,7 @@ func SetIcon(icon []byte) {
 		return
 	}
 	cIcon := (*C.char)(unsafe.Pointer(&icon[0]))
-	C.setIcon(cIcon, C.int(len(icon)), C.bool(false))
+	C.NeruSetIcon(cIcon, C.int(len(icon)), C.bool(false))
 }
 
 // SetTemplateIcon sets the icon of the system tray item as a template icon (monochrome).
@@ -118,17 +118,17 @@ func SetTemplateIcon(icon []byte, template bool) {
 		return
 	}
 	cIcon := (*C.char)(unsafe.Pointer(&icon[0]))
-	C.setIcon(cIcon, C.int(len(icon)), C.bool(template))
+	C.NeruSetIcon(cIcon, C.int(len(icon)), C.bool(template))
 }
 
 // AddSeparator adds a separator to the main menu.
 func AddSeparator() {
-	C.add_separator(C.int(0))
+	C.NeruAddSeparator(C.int(0))
 }
 
 // AddSeparator adds a separator to a submenu.
 func (m *MenuItem) AddSeparator() {
-	C.add_separator(C.int(m.id))
+	C.NeruAddSeparator(C.int(m.id))
 }
 
 // AddMenuItem adds a menu item to the system tray menu.
@@ -142,7 +142,7 @@ func AddMenuItem(title string) *MenuItem {
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
 
-	C.add_menu_item(C.int(item.id), cTitle, C.short(0), C.short(0))
+	C.NeruAddMenuItem(C.int(item.id), cTitle, C.short(0), C.short(0))
 
 	return item
 }
@@ -158,7 +158,7 @@ func (m *MenuItem) AddSubMenuItem(title string) *MenuItem {
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
 
-	C.add_sub_menu_item(C.int(m.id), C.int(item.id), cTitle, C.short(0), C.short(0))
+	C.NeruAddSubMenuItem(C.int(m.id), C.int(item.id), cTitle, C.short(0), C.short(0))
 
 	return item
 }
@@ -170,7 +170,7 @@ func (m *MenuItem) SetTitle(title string) {
 	m.mu.Unlock()
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle)) //nolint
-	C.set_item_title(C.int(m.id), cTitle)
+	C.NeruSetItemTitle(C.int(m.id), cTitle)
 }
 
 // Enable enables the menu item.
@@ -178,7 +178,7 @@ func (m *MenuItem) Enable() {
 	m.mu.Lock()
 	m.disabled = false
 	m.mu.Unlock()
-	C.set_item_disabled(C.int(m.id), C.short(0))
+	C.NeruSetItemDisabled(C.int(m.id), C.short(0))
 }
 
 // Disable disables the menu item.
@@ -186,7 +186,7 @@ func (m *MenuItem) Disable() {
 	m.mu.Lock()
 	m.disabled = true
 	m.mu.Unlock()
-	C.set_item_disabled(C.int(m.id), C.short(1))
+	C.NeruSetItemDisabled(C.int(m.id), C.short(1))
 }
 
 // Check checks the menu item.
@@ -194,7 +194,7 @@ func (m *MenuItem) Check() {
 	m.mu.Lock()
 	m.checked = true
 	m.mu.Unlock()
-	C.set_item_checked(C.int(m.id), C.short(1))
+	C.NeruSetItemChecked(C.int(m.id), C.short(1))
 }
 
 // Uncheck unchecks the menu item.
@@ -202,7 +202,7 @@ func (m *MenuItem) Uncheck() {
 	m.mu.Lock()
 	m.checked = false
 	m.mu.Unlock()
-	C.set_item_checked(C.int(m.id), C.short(0))
+	C.NeruSetItemChecked(C.int(m.id), C.short(0))
 }
 
 // Hide hides the menu item.
@@ -210,7 +210,7 @@ func (m *MenuItem) Hide() {
 	m.mu.Lock()
 	m.hidden = true
 	m.mu.Unlock()
-	C.hide_menu_item(C.int(m.id))
+	C.NeruHideMenuItem(C.int(m.id))
 }
 
 // Show shows the menu item.
@@ -218,7 +218,7 @@ func (m *MenuItem) Show() {
 	m.mu.Lock()
 	m.hidden = false
 	m.mu.Unlock()
-	C.show_menu_item(C.int(m.id))
+	C.NeruShowMenuItem(C.int(m.id))
 }
 
 //export systray_on_ready

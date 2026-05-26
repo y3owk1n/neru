@@ -16,7 +16,7 @@
 /// @param point Screen position to check
 /// @param elementPid Process identifier of the element
 /// @return true if point is visible, false otherwise
-bool isPointVisible(CGPoint point, pid_t elementPid) {
+bool NeruIsPointVisible(CGPoint point, pid_t elementPid) {
 	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
 	if (!systemWide)
 		return true;
@@ -65,7 +65,7 @@ static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 	// Element is considered visible if at least kNeruMinVisibleSamplePoints are visible
 	int visiblePoints = 0;
 	for (int i = 0; i < 5; i++) {
-		if (isPointVisible(samplePoints[i], elementPid)) {
+		if (NeruIsPointVisible(samplePoints[i], elementPid)) {
 			visiblePoints++;
 			if (visiblePoints >= kNeruMinVisibleSamplePoints) {
 				return false;  // Not occluded
@@ -81,7 +81,7 @@ static bool isElementOccluded(CGRect elementRect, pid_t elementPid) {
 /// Helper function to convert CFStringRef to C string
 /// @param cfStr CFString reference
 /// @return C string (must be freed by caller)
-char *cfStringToCString(CFStringRef cfStr) {
+char *NeruCFStringToCString(CFStringRef cfStr) {
 	if (!cfStr)
 		return NULL;
 

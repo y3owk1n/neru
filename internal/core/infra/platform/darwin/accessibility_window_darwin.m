@@ -15,7 +15,7 @@
 /// Set focus to element
 /// @param element Element reference
 /// @return 1 on success, 0 on failure
-int setFocus(void *element) {
+int NeruSetFocus(void *element) {
 	if (!element)
 		return 0;
 
@@ -31,12 +31,12 @@ int setFocus(void *element) {
 /// Get all windows of focused application
 /// @param count Output parameter for number of windows
 /// @return Array of window references
-void **getAllWindows(int *count) {
+void **NeruGetAllWindows(int *count) {
 	if (!count)
 		return NULL;
 
 	@autoreleasepool {
-		AXUIElementRef focusedApp = (AXUIElementRef)getFocusedApplication();
+		AXUIElementRef focusedApp = (AXUIElementRef)NeruGetFocusedApplication();
 		if (!focusedApp) {
 			*count = 0;
 			return NULL;
@@ -83,14 +83,14 @@ void **getAllWindows(int *count) {
 /// Get focused window plus popover windows of the focused application.
 /// This keeps hint activation on one focused-app lookup and avoids asking Go
 /// to fetch each window role separately just to discover AXPopover siblings.
-void **getFrontmostAndPopoverWindows(int *count) {
+void **NeruGetFrontmostAndPopoverWindows(int *count) {
 	if (!count)
 		return NULL;
 
 	@autoreleasepool {
 		*count = 0;
 
-		AXUIElementRef focusedApp = (AXUIElementRef)getFocusedApplication();
+		AXUIElementRef focusedApp = (AXUIElementRef)NeruGetFocusedApplication();
 		AXUIElementRef appRef = focusedApp;
 		bool shouldReleaseAppRef = false;
 
@@ -236,9 +236,9 @@ void **getFrontmostAndPopoverWindows(int *count) {
 
 /// Get frontmost window
 /// @return Frontmost window reference
-void *getFrontmostWindow(void) {
+void *NeruGetFrontmostWindow(void) {
 	@autoreleasepool {
-		AXUIElementRef focusedApp = (AXUIElementRef)getFocusedApplication();
+		AXUIElementRef focusedApp = (AXUIElementRef)NeruGetFocusedApplication();
 		AXUIElementRef appRef = focusedApp;
 		bool shouldReleaseAppRef = false;
 
@@ -330,9 +330,9 @@ void *getFrontmostWindow(void) {
 
 /// Get the frame (position + size) of the focused window
 /// @return Window frame rectangle, or CGRectZero if no window is found
-CGRect getFocusedWindowFrame(void) {
+CGRect NeruGetFocusedWindowFrame(void) {
 	@autoreleasepool {
-		void *windowRef = getFrontmostWindow();
+		void *windowRef = NeruGetFrontmostWindow();
 		if (!windowRef)
 			return CGRectZero;
 
@@ -394,7 +394,7 @@ CGRect getFocusedWindowFrame(void) {
 /// Get application name
 /// @param app Application reference
 /// @return Application name string
-char *getApplicationName(void *app) {
+char *NeruGetApplicationName(void *app) {
 	if (!app)
 		return NULL;
 
@@ -407,7 +407,7 @@ char *getApplicationName(void *app) {
 
 	char *result = NULL;
 	if (CFGetTypeID(titleValue) == CFStringGetTypeID()) {
-		result = cfStringToCString((CFStringRef)titleValue);
+		result = NeruCFStringToCString((CFStringRef)titleValue);
 	}
 
 	CFRelease(titleValue);
@@ -417,7 +417,7 @@ char *getApplicationName(void *app) {
 /// Get bundle identifier
 /// @param app Application reference
 /// @return Bundle identifier string
-char *getBundleIdentifier(void *app) {
+char *NeruGetBundleIdentifier(void *app) {
 	if (!app)
 		return NULL;
 
@@ -435,14 +435,14 @@ char *getBundleIdentifier(void *app) {
 		if (!bundleId)
 			return NULL;
 
-		return cfStringToCString((__bridge CFStringRef)bundleId);
+		return NeruCFStringToCString((__bridge CFStringRef)bundleId);
 	}
 }
 
 /// Get bundle identifier from PID directly
 /// @param pid Process identifier
 /// @return Bundle identifier string, or NULL if not found
-char *getBundleIDForPID(int pid) {
+char *NeruGetBundleIDForPID(int pid) {
 	@autoreleasepool {
 		NSRunningApplication *runningApp = [NSRunningApplication runningApplicationWithProcessIdentifier:(pid_t)pid];
 		if (!runningApp)
@@ -452,6 +452,6 @@ char *getBundleIDForPID(int pid) {
 		if (!bundleId)
 			return NULL;
 
-		return cfStringToCString((__bridge CFStringRef)bundleId);
+		return NeruCFStringToCString((__bridge CFStringRef)bundleId);
 	}
 }

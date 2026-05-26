@@ -140,24 +140,24 @@ typedef NS_ENUM(uint16_t, KeyCode) {
 /// Layout-aware for letter and symbol keys, static for special keys.
 /// Keys: "Space", "Return", "A", "1", "F1", etc.
 /// Values: NSNumber containing CGKeyCode
-NSDictionary<NSString *, NSNumber *> *keyNameToCodeMap(void);
+NSDictionary<NSString *, NSNumber *> *NeruKeyNameToCodeMap(void);
 
 /// Returns the shared keycode to name mapping dictionary
 /// Layout-aware for letter and symbol keys, static for special keys.
 /// Keys: NSNumber containing CGKeyCode
 /// Values: "Space", "Return", "A", "1", "F1", etc.
-NSDictionary<NSNumber *, NSString *> *keyCodeToNameMap(void);
+NSDictionary<NSNumber *, NSString *> *NeruKeyCodeToNameMap(void);
 
 /// Map key name to keycode (case-insensitive)
 /// Layout-aware: "S" returns the keycode that produces "S" on the current layout
 /// @param keyName Key name like "Space", "Return", "A", "1"
 /// @return Keycode or 0xFFFF if not found
-CGKeyCode keyNameToCode(NSString *keyName);
+CGKeyCode NeruKeyNameToCode(NSString *keyName);
 
 /// Map keycode to key name using the current keyboard layout
 /// @param keyCode Key code
 /// @return Key name or nil if not found
-NSString *keyCodeToName(CGKeyCode keyCode);
+NSString *NeruKeyCodeToName(CGKeyCode keyCode);
 
 /// Map keycode to character with shift/capslock handling
 /// Uses UCKeyTranslate to respect Colemak, Dvorak, etc. while bypassing IME.
@@ -165,13 +165,13 @@ NSString *keyCodeToName(CGKeyCode keyCode);
 /// @param keyCode Key code
 /// @param flags Event flags (for shift/capslock detection)
 /// @return Character string or nil if not found
-NSString *keyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
+NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
 
 /// Rebuild layout-aware key maps after a keyboard layout change.
 /// Called automatically via kTISNotifySelectedKeyboardInputSourceChanged.
 /// Safe to call manually if needed. When called from a non-main thread,
 /// the rebuild is dispatched asynchronously to the main queue.
-void refreshKeyboardLayoutMaps(void);
+void NeruRefreshKeyboardLayoutMaps(void);
 
 /// Set the reference keyboard layout used for key translation.
 /// Pass NULL or empty string to use automatic fallback resolution:
@@ -181,7 +181,7 @@ void refreshKeyboardLayoutMaps(void);
 /// 4) current keyboard layout (last-resort)
 /// Returns 1 when the explicit layout ID is resolved (or auto mode is used),
 /// and 0 when an explicit ID was provided but could not be resolved.
-int setReferenceKeyboardLayout(const char *inputSourceID);
+int NeruSetReferenceKeyboardLayout(const char *inputSourceID);
 
 /// Callback type invoked after keyboard layout maps are rebuilt.
 typedef void (*KeymapLayoutChangeCallback)(void);
@@ -189,6 +189,6 @@ typedef void (*KeymapLayoutChangeCallback)(void);
 /// Register a callback to be invoked after keyboard layout maps are rebuilt.
 /// Only one callback is supported; subsequent calls replace the previous one.
 /// Pass NULL to unregister.
-void setKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
+void NeruSetKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
 
 #endif  // KEYMAP_H

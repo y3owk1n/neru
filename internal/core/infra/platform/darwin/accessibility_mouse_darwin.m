@@ -18,7 +18,7 @@
 /// Move mouse cursor to position with specified event type
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void moveMouseWithType(CGPoint position, CGEventType eventType) {
+void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
 	if (move) {
 		CGEventSetFlags(move, 0);
@@ -32,7 +32,7 @@ void moveMouseWithType(CGPoint position, CGEventType eventType) {
 /// Post a single mouse move event (non-blocking, for async animation)
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void postMouseMoveEvent(CGPoint position, CGEventType eventType) {
+void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) {
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
 	if (move) {
 		CGEventSetFlags(move, 0);
@@ -87,7 +87,7 @@ static int performClickAtPosition(
 		}
 	}
 
-	moveMouseWithType(pos, kCGEventMouseMoved);
+	NeruMoveMouseWithType(pos, kCGEventMouseMoved);
 
 	// Create down and up events
 	CGEventRef down = CGEventCreateMouseEvent(NULL, downEvent, pos, button);
@@ -98,7 +98,7 @@ static int performClickAtPosition(
 		if (up)
 			CFRelease(up);
 		if (restoreCursor)
-			moveMouseWithType(originalPosition, kCGEventMouseMoved);
+			NeruMoveMouseWithType(originalPosition, kCGEventMouseMoved);
 		return 0;
 	}
 
@@ -120,7 +120,7 @@ static int performClickAtPosition(
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
-		moveMouseWithType(originalPosition, kCGEventMouseMoved);
+		NeruMoveMouseWithType(originalPosition, kCGEventMouseMoved);
 	return 1;
 }
 
@@ -182,7 +182,7 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 	int clickCount = clickState.clickCount;
 	os_unfair_lock_unlock(&clickStateLock);
 
-	moveMouseWithType(position, kCGEventMouseMoved);
+	NeruMoveMouseWithType(position, kCGEventMouseMoved);
 
 	// Create down and up events
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
@@ -193,7 +193,7 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 		if (up)
 			CFRelease(up);
 		if (restoreCursor)
-			moveMouseWithType(originalPosition, kCGEventMouseMoved);
+			NeruMoveMouseWithType(originalPosition, kCGEventMouseMoved);
 		return 0;
 	}
 
@@ -217,7 +217,7 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	if (restoreCursor)
-		moveMouseWithType(originalPosition, kCGEventMouseMoved);
+		NeruMoveMouseWithType(originalPosition, kCGEventMouseMoved);
 	return 1;
 }
 
@@ -243,7 +243,7 @@ int NeruPerformMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEve
 /// @param position Target position
 /// @return 1 on success, 0 on failure
 int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
-	moveMouseWithType(position, kCGEventMouseMoved);
+	NeruMoveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
@@ -263,7 +263,7 @@ int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 /// @param position Target position
 /// @return 1 on success, 0 on failure
 int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
-	moveMouseWithType(position, kCGEventMouseMoved);
+	NeruMoveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
 	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);

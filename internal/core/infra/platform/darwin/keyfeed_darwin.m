@@ -81,10 +81,10 @@ static int postModifierEvent(CGEventSourceRef source, int modifier, bool isDown,
 	return 1;
 }
 
-int postKeyFeed(const char *keyString) {
+int NeruPostKeyFeed(const char *keyString) {
 	int keyCode = 0;
 	int modifiers = 0;
-	if (!parseKeyString(keyString, &keyCode, &modifiers)) {
+	if (!NeruParseKeyString(keyString, &keyCode, &modifiers)) {
 		return 0;
 	}
 

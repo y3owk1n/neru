@@ -44,7 +44,7 @@ func ShowConfigValidationError(errorMessage, configPath string) ConfigValidation
 	defer C.free(unsafe.Pointer(cError)) //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cPath))  //nolint:nlreturn
 
-	return ConfigValidationChoice(C.showConfigValidationErrorAlert(cError, cPath))
+	return ConfigValidationChoice(C.NeruShowConfigValidationErrorAlert(cError, cPath))
 }
 
 // ShowNotification displays a native macOS notification with a title and message.
@@ -54,7 +54,7 @@ func ShowNotification(title, message string) {
 	defer C.free(unsafe.Pointer(cTitle))   //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cMessage)) //nolint:nlreturn
 
-	C.showNotification(cTitle, cMessage)
+	C.NeruShowNotification(cTitle, cMessage)
 }
 
 // ShowConfigOnboardingAlert displays a native macOS alert for new users without a config file.
@@ -62,11 +62,11 @@ func ShowConfigOnboardingAlert(configPath string) ConfigOnboardingChoice {
 	cPath := C.CString(configPath)
 	defer C.free(unsafe.Pointer(cPath)) //nolint:nlreturn
 
-	return ConfigOnboardingChoice(C.showConfigOnboardingAlert(cPath))
+	return ConfigOnboardingChoice(C.NeruShowConfigOnboardingAlert(cPath))
 }
 
 // ShowAccessibilityPermissionStartupAlert displays the macOS startup guidance for granting
 // accessibility permission.
 func ShowAccessibilityPermissionStartupAlert() AccessibilityPermissionStartupChoice {
-	return AccessibilityPermissionStartupChoice(C.showAccessibilityPermissionStartupAlert())
+	return AccessibilityPermissionStartupChoice(C.NeruShowAccessibilityPermissionStartupAlert())
 }

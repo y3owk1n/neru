@@ -36,20 +36,20 @@ typedef enum {
 /// @param callback Callback function
 /// @param userData User data pointer
 /// @return 1 on success, 0 on failure
-int registerHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData);
+int NeruRegisterHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData);
 
 /// Unregister hotkey
 /// @param hotkeyId Hotkey identifier
-void unregisterHotkey(int hotkeyId);
+void NeruUnregisterHotkey(int hotkeyId);
 
 /// Unregister all hotkeys
-void unregisterAllHotkeys(void);
+void NeruUnregisterAllHotkeys(void);
 
 /// Parse key string
 /// @param keyString Key string (e.g., "Cmd+Shift+Space")
 /// @param keyCode Output parameter for key code
 /// @param modifiers Output parameter for modifiers
 /// @return 1 on success, 0 on failure
-int parseKeyString(const char *keyString, int *keyCode, int *modifiers);
+int NeruParseKeyString(const char *keyString, int *keyCode, int *modifiers);
 
 #endif  // HOTKEYS_H

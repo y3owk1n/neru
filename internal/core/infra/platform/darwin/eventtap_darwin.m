@@ -203,7 +203,7 @@ static BOOL parseHotkeyString(NSString *hotkeyString, CGKeyCode *outKeyCode, uin
 		if (!mainKey)
 			return NO;
 
-		CGKeyCode keyCode = keyNameToCode(mainKey);
+		CGKeyCode keyCode = NeruKeyNameToCode(mainKey);
 		if (keyCode == 0xFFFF)
 			return NO;
 
@@ -472,7 +472,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 				}
 
 				// Build the full key string (e.g. "Cmd+Shift+K") and dispatch to callback
-				NSString *keyName = keyCodeToName(keyCode);
+				NSString *keyName = NeruKeyCodeToName(keyCode);
 				if (!keyName) {
 					keyName = specialKeyName(keyCode);
 				}
@@ -498,7 +498,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// Handle Shift+Letter for direct action matching (before Unicode translation)
 			if (hasShift && !hasCmd && !hasAlt && !hasCtrl) {
-				NSString *keyName = keyCodeToName(keyCode);
+				NSString *keyName = NeruKeyCodeToName(keyCode);
 				if (!keyName) {
 					keyName = specialKeyName(keyCode);
 				}
@@ -523,7 +523,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 
 			// Map key code to character using current keyboard layout (with US QWERTY fallback).
 			// Uses UCKeyTranslate to respect the active keyboard layout while bypassing input methods.
-			NSString *keyChar = keyCodeToCharacter(keyCode, flags);
+			NSString *keyChar = NeruKeyCodeToCharacter(keyCode, flags);
 			if (keyChar && context->callback) {
 				const char *keyCString = [keyChar UTF8String];
 				if (keyCString) {
@@ -540,7 +540,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			NSString *keyName = specialKeyName(keyCode);
 			if (!keyName) {
-				keyName = keyCodeToCharacter(keyCode, 0);
+				keyName = NeruKeyCodeToCharacter(keyCode, 0);
 			}
 			if (keyName && context->callback) {
 				NSString *keyUpStr = [NSString stringWithFormat:@"__keyup_%@", keyName];
@@ -589,7 +589,7 @@ EventTap NeruCreateEventTap(EventTapCallback callback, void *userData) {
 
 	// Register for keyboard layout change notifications so all key lookups are
 	// rebuilt when key names map to different keycodes.
-	setKeymapLayoutChangeCallback(rebuildEventTapLookups);
+	NeruSetKeymapLayoutChangeCallback(rebuildEventTapLookups);
 
 	context->pendingAddSourceBlock = nil;
 
@@ -601,7 +601,7 @@ EventTap NeruCreateEventTap(EventTapCallback callback, void *userData) {
 	if (!context->eventTap) {
 		// Creation failed — clean up all allocated resources
 		gEventTapContext = nil;
-		setKeymapLayoutChangeCallback(NULL);
+		NeruSetKeymapLayoutChangeCallback(NULL);
 		context->hotkeyLookup = nil;
 		context->hotkeyStrings = nil;
 		context->interceptedModifierLookup = nil;
@@ -911,7 +911,7 @@ void NeruDestroyEventTap(EventTap tap) {
 		// Clear global reference before freeing
 		if (gEventTapContext == context) {
 			gEventTapContext = nil;
-			setKeymapLayoutChangeCallback(NULL);
+			NeruSetKeymapLayoutChangeCallback(NULL);
 		}
 
 		// Synchronize with any in-flight event tap callback that may be

@@ -47,7 +47,7 @@ func RegisterHotkey(
 		zap.Int("modifiers", modifiers),
 		zap.Int("hotkey_id", hotkeyID))
 
-	result := C.registerHotkey(
+	result := C.NeruRegisterHotkey(
 		C.int(keyCode),
 		C.int(modifiers),
 		C.int(hotkeyID),
@@ -68,12 +68,12 @@ func UnregisterHotkey(hotkeyID int) {
 	log := getLogger()
 	log.Debug("Darwin: Unregistering hotkey", zap.Int("hotkey_id", hotkeyID))
 
-	C.unregisterHotkey(C.int(hotkeyID))
+	C.NeruUnregisterHotkey(C.int(hotkeyID))
 }
 
 // UnregisterAllHotkeys unregisters all global hotkeys on macOS.
 func UnregisterAllHotkeys() {
-	C.unregisterAllHotkeys()
+	C.NeruUnregisterAllHotkeys()
 }
 
 // ParseKeyString parses a key string into a key code and modifiers on macOS.
@@ -86,7 +86,7 @@ func ParseKeyString(keyString string) (int, int, bool) {
 
 	var keyCode C.int
 	var modifiers C.int
-	result := C.parseKeyString(cKeyString, &keyCode, &modifiers)
+	result := C.NeruParseKeyString(cKeyString, &keyCode, &modifiers)
 
 	log.Debug("Darwin: Parse key string result",
 		zap.Int("key_code", int(keyCode)),

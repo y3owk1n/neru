@@ -114,7 +114,7 @@ func (c *InfraAXClient) ClickableNodes(
 	)
 
 	// Release tree nodes that are not part of the result to avoid
-	// leaking CFRetain'd AXUIElementRefs from getChildren/getVisibleRows.
+	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
 	releaseTreeExcept(tree, clickableNodes)
 
 	clickableNodesResult := make([]AXNode, len(clickableNodes))

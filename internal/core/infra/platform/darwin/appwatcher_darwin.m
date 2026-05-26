@@ -114,7 +114,7 @@ extern void handleScreenParametersChanged(void);
 			});
 		}
 
-		updateMissionControlState();
+		NeruUpdateMissionControlState();
 	}
 }
 
@@ -140,7 +140,7 @@ extern void handleScreenParametersChanged(void);
 			free(bundleIDCopy);
 		});
 
-		updateMissionControlState();
+		NeruUpdateMissionControlState();
 	}
 }
 
@@ -247,7 +247,7 @@ void NeruStartAppWatcher(void) {
 		// resets the cache to false.  When detection is later enabled via
 		// NeruSetDetectMissionControlEnabled, the queue, timer, and space-change
 		// observer are initialized lazily at that point.
-		updateMissionControlState();
+		NeruUpdateMissionControlState();
 	});
 }
 

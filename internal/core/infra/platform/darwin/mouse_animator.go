@@ -206,7 +206,7 @@ restart:
 		}
 
 		pos := C.CGPoint{x: C.double(intermediate.X), y: C.double(intermediate.Y)}
-		C.postMouseMoveEvent(pos, C.CGEventType(req.eventType))
+		C.NeruPostMouseMoveEvent(pos, C.CGEventType(req.eventType))
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)

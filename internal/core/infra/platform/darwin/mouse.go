@@ -75,7 +75,7 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 	} else {
 		cursorAnimator.stop()
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-		C.moveMouseWithType(pos, eventType)
+		C.NeruMoveMouseWithType(pos, eventType)
 	}
 }
 
@@ -86,7 +86,7 @@ func MoveMouseSmooth(end image.Point, steps int, eventType uint32) {
 
 // CursorPosition returns the current cursor position.
 func CursorPosition() image.Point {
-	pos := C.getCurrentCursorPosition()
+	pos := C.NeruGetCurrentCursorPosition()
 
 	return image.Point{X: int(pos.x), Y: int(pos.y)}
 }
@@ -232,7 +232,7 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 
 	pos := CursorPosition()
 	cgPos := C.CGPoint{x: C.double(pos.X), y: C.double(pos.Y)}
-	result := C.scrollAtPoint(cgPos, C.int(deltaX), C.int(deltaY))
+	result := C.NeruScrollAtPoint(cgPos, C.int(deltaX), C.int(deltaY))
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,

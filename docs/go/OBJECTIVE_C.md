@@ -79,16 +79,17 @@ OverlayWindow NeruCreateOverlayWindow(void) {
 
 ### C bridge exports (Go-callable)
 
-Functions declared in `.h` files and called from Go via CGO use a **`Neru` prefix** (PascalCase after the prefix) to avoid symbol collisions with system libraries and to mark the public bridge surface:
+Every function declared in a `.h` file and called from Go via CGO must use a **`Neru` prefix** (PascalCase after the prefix) to avoid symbol collisions with system libraries and to mark the public bridge surface. Do not add unprefixed CGO exports.
 
 ```objc
 OverlayWindow NeruCreateOverlayWindow(void);
 void NeruShowOverlayWindow(OverlayWindow window);
 EventTap NeruCreateEventTap(EventTapCallback callback, void *userData);
-int NeruIsDarkMode(void);
+int NeruCheckAccessibilityPermissions(void);
+int NeruRegisterHotkey(int keyCode, int modifiers, int hotkeyId, HotkeyCallback callback, void *userData);
 ```
 
-Objective-C methods and private helpers keep Apple's usual camelCase without the prefix.
+Objective-C methods, private `static` helpers, and symbols not exported through bridge headers keep Apple's usual camelCase without the prefix.
 
 ### Objective-C methods
 

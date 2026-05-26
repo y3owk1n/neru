@@ -3,22 +3,22 @@
 
 #include <stdbool.h>
 
-void registerSystray(void);
-void nativeLoop(void);
-void nativeLoopHeadless(void);
-void quit(void);
+void NeruRegisterSystray(void);
+void NeruNativeLoop(void);
+void NeruNativeLoopHeadless(void);
+void NeruQuit(void);
 
-void setIcon(const char *iconBytes, int length, bool isTemplate);
-void setTitle(const char *title);
-void setTooltip(const char *tooltip);
+void NeruSetIcon(const char *iconBytes, int length, bool isTemplate);
+void NeruSetTitle(const char *title);
+void NeruSetTooltip(const char *tooltip);
 
-void add_menu_item(int menuId, const char *title, short disabled, short checked);
-void add_sub_menu_item(int parentId, int menuId, const char *title, short disabled, short checked);
-void add_separator(int parentId);
-void hide_menu_item(int menuId);
-void show_menu_item(int menuId);
-void set_item_checked(int menuId, short checked);
-void set_item_disabled(int menuId, short disabled);
-void set_item_title(int menuId, const char *title);
+void NeruAddMenuItem(int menuId, const char *title, short disabled, short checked);
+void NeruAddSubMenuItem(int parentId, int menuId, const char *title, short disabled, short checked);
+void NeruAddSeparator(int parentId);
+void NeruHideMenuItem(int menuId);
+void NeruShowMenuItem(int menuId);
+void NeruSetItemChecked(int menuId, short checked);
+void NeruSetItemDisabled(int menuId, short disabled);
+void NeruSetItemTitle(int menuId, const char *title);
 
 #endif
