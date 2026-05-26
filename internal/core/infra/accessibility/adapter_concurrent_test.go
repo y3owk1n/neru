@@ -4,11 +4,13 @@ package accessibility
 import (
 	"context"
 	"image"
+	"sync"
 	"testing"
 
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -44,15 +46,40 @@ func TestProcessClickableNodesConcurrent_CancelledBeforeStart(t *testing.T) {
 	}
 }
 
+// signalNode wraps MockNode and closes the started channel on the first Bounds() call,
+// providing a deterministic handshake that a worker has begun processing a node.
+type signalNode struct {
+	MockNode
+
+	started chan struct{}
+	once    sync.Once
+}
+
+func (n *signalNode) Bounds() image.Rectangle {
+	n.once.Do(func() { close(n.started) })
+
+	return n.MockBounds
+}
+
 func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	logger := zap.NewNop()
 	adapter := NewAdapter(logger, nil, nil, &MockAXClient{}, false)
 
-	// Use enough nodes that workers are busy when cancellation arrives
 	nodeCount := ConcurrentProcessingThreshold * 4
+	started := make(chan struct{})
+
+	// First node is a signalNode so we know when a worker starts processing
+	// after the context check passes at idx=0.
+	baseNode := &MockNode{
+		MockID:     "test-id",
+		MockBounds: image.Rect(0, 0, 100, 100),
+		MockRole:   "AXButton",
+	}
 
 	nodes := make([]AXNode, nodeCount)
-	for i := range nodeCount {
+
+	nodes[0] = &signalNode{MockNode: *baseNode, started: started}
+	for i := 1; i < nodeCount; i++ {
 		nodes[i] = &MockNode{
 			MockID:     "test-id",
 			MockBounds: image.Rect(0, 0, 100, 100),
@@ -61,9 +88,25 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	var (
+		result []*element.Element
+		err    error
+	)
+
+	done := make(chan struct{})
+	go func() {
+		result, err = adapter.processClickableNodesConcurrent(ctx, nodes, ports.ElementFilter{})
+
+		close(done)
+	}()
+
+	// Wait for a worker to begin processing a node, then cancel mid-flight.
+	<-started
 	cancel()
 
-	result, err := adapter.processClickableNodesConcurrent(ctx, nodes, ports.ElementFilter{})
+	<-done
+
 	if err == nil {
 		t.Fatal("expected error from canceled context, got nil")
 	}
