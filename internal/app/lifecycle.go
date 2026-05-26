@@ -25,6 +25,8 @@ const (
 	MaxExecDisplayLength = 30
 	// SystrayQuitTimeout is the timeout for systray quit.
 	SystrayQuitTimeout = 10 * time.Second
+	// StopTimeout is the timeout for IPC server stop during cleanup.
+	StopTimeout = 5 * time.Second
 	// GCTickerInterval is the interval for garbage collection.
 	GCTickerInterval = 5 * time.Minute
 
@@ -599,9 +601,15 @@ func (a *App) Cleanup() {
 		// Stop theme observer: nil the handler first so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()
-		// Stop IPC server first to prevent new requests
+		// Stop IPC server first to prevent new requests.
+		// Use a fresh context instead of a.ctx since the root context was
+		// canceled above; a canceled context would cause Stop() to fail
+		// immediately before it can complete graceful teardown.
 		if a.ipcServer != nil {
-			stopServerErr := a.ipcServer.Stop(a.ctx)
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), StopTimeout)
+			defer stopCancel()
+
+			stopServerErr := a.ipcServer.Stop(stopCtx)
 			if stopServerErr != nil {
 				a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
 			}
