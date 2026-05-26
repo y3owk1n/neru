@@ -198,8 +198,8 @@ static void neru_keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint3
 			}
 			munmap(map, size);
 		}
-		close(fd);
 	}
+	close(fd);
 }
 
 static void neru_keyboard_enter(
