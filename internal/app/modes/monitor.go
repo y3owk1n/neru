@@ -416,6 +416,9 @@ func (h *Handler) refreshHintsForMonitorMove(
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to set hints after monitor move", zap.Error(setHintsErr))
+		h.exitModeLocked()
+
+		return
 	}
 
 	h.overlayManager.Show()

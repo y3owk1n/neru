@@ -127,12 +127,15 @@ func (c *Context) Router() *domainHint.Router {
 
 // SetHints sets the current hint collection.
 func (c *Context) SetHints(hints *domainHint.Collection) error {
-	c.hints = hints
-
-	c.sourceHints = hints
 	if c.manager != nil {
-		return c.manager.SetHints(hints)
+		err := c.manager.SetHints(hints)
+		if err != nil {
+			return err
+		}
 	}
+
+	c.hints = hints
+	c.sourceHints = hints
 
 	return nil
 }
@@ -140,10 +143,14 @@ func (c *Context) SetHints(hints *domainHint.Collection) error {
 // SetVisibleHints sets the currently selectable hint collection without
 // replacing the original source collection used by search cancellation.
 func (c *Context) SetVisibleHints(hints *domainHint.Collection) error {
-	c.hints = hints
 	if c.manager != nil {
-		return c.manager.SetHints(hints)
+		err := c.manager.SetHints(hints)
+		if err != nil {
+			return err
+		}
 	}
+
+	c.hints = hints
 
 	return nil
 }
