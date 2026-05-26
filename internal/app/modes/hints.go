@@ -198,7 +198,7 @@ func (h *Handler) activateHintModeInternal(
 	var activeScreenBounds image.Rectangle
 
 	if h.system != nil {
-		b, err := h.system.ScreenBounds(context.Background())
+		b, err := h.system.ScreenBounds(h.ctx)
 		if err == nil {
 			activeScreenBounds = b
 		} else if !derrors.IsNotSupported(err) {
@@ -253,7 +253,7 @@ func (h *Handler) activateHintModeInternal(
 	// Fetch bundle ID for hint generation. Validation already passed (secure input check,
 	// exclusion check), so this is the only call. Use a dedicated short timeout so slow
 	// AX doesn't erode the hint generation budget.
-	bundleCtx, bundleCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	bundleCtx, bundleCancel := context.WithTimeout(h.ctx, 1*time.Second)
 	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
 
 	bundleCancel()
@@ -265,7 +265,7 @@ func (h *Handler) activateHintModeInternal(
 
 	// Get hints from service. Drawing is intentionally deferred until after
 	// active-screen filtering so activation performs one full overlay render.
-	ctx, cancel := context.WithTimeout(context.Background(), HintTimeout)
+	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
 	defer cancel()
 
 	activationStart := time.Now()

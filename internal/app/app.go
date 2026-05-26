@@ -1,8 +1,6 @@
 package app
 
 import (
-	"context"
-
 	"go.uber.org/zap"
 )
 
@@ -13,10 +11,7 @@ func (a *App) ActivateMode(mode Mode) {
 
 // IsFocusedAppExcluded checks if the focused app is excluded.
 func (a *App) IsFocusedAppExcluded() bool {
-	// Use ActionService to check exclusion
-	ctx := context.Background()
-
-	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(ctx)
+	excluded, excludedErr := a.actionService.IsFocusedAppExcluded(a.ctx)
 	if excludedErr != nil {
 		a.logger.Warn("Failed to check exclusion", zap.Error(excludedErr))
 

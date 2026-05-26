@@ -50,11 +50,11 @@ func (h *Handler) validateModeActivation(bundleID string, modeName string, modeE
 
 	// Check if focused app is excluded
 	if bundleID != "" {
-		if h.actionService.IsAppExcluded(bundleID) {
+		if h.actionService.IsAppExcluded(h.ctx, bundleID) {
 			return derrors.New(derrors.CodeInvalidInput, "focused app is excluded")
 		}
 	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), ValidationTimeout)
+		ctx, cancel := context.WithTimeout(h.ctx, ValidationTimeout)
 		defer cancel()
 
 		isExcluded, isExcludedErr := h.actionService.IsFocusedAppExcluded(ctx)

@@ -129,7 +129,7 @@ func (a *App) updateServiceConfigs(cfg *config.Config) {
 		if genErr != nil {
 			a.logger.Error("Failed to create hint generator during reload", zap.Error(genErr))
 		} else {
-			a.hintService.UpdateGenerator(context.Background(), newGen)
+			a.hintService.UpdateGenerator(a.ctx, newGen)
 		}
 	}
 

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"context"
-
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
@@ -498,7 +496,7 @@ func cleanupEventTapAndIPC(app *App) {
 	// Clean up IPC server
 	if app.ipcServer != nil {
 		// Try to stop the server gracefully
-		stopErr := app.ipcServer.Stop(context.Background())
+		stopErr := app.ipcServer.Stop(app.ctx)
 		if stopErr != nil {
 			app.logger.Error("Failed to stop IPC server during cleanup", zap.Error(stopErr))
 		}

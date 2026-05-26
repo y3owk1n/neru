@@ -54,7 +54,7 @@ const (
 func (a *App) Run() error {
 	a.logger.Info("Starting Neru")
 
-	err := a.ipcServer.Start(context.Background())
+	err := a.ipcServer.Start(a.ctx)
 	if err != nil {
 		a.logger.Error("Failed to start IPC server", zap.Error(err))
 
@@ -76,7 +76,7 @@ func (a *App) Run() error {
 	cfg := a.configSnapshot()
 
 	if cfg.Grid.EnableGC {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(a.ctx)
 		a.gcCancel = cancel
 
 		go func() {
@@ -274,7 +274,7 @@ func (a *App) processScreenChange() {
 		a.logger.Info("Screen parameters changed; adjusting overlays")
 	}
 
-	ctx := context.Background()
+	ctx := a.ctx
 
 	cfg := a.configSnapshot()
 
@@ -597,7 +597,7 @@ func (a *App) Cleanup() {
 		a.stopThemeObserver()
 		// Stop IPC server first to prevent new requests
 		if a.ipcServer != nil {
-			stopServerErr := a.ipcServer.Stop(context.Background())
+			stopServerErr := a.ipcServer.Stop(a.ctx)
 			if stopServerErr != nil {
 				a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
 			}

@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"context"
 	"image"
 	"strings"
 
@@ -136,7 +135,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		b, err := h.system.ScreenBounds(context.Background())
+		b, err := h.system.ScreenBounds(h.ctx)
 		if err == nil {
 			screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
@@ -187,7 +186,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		var screenBounds image.Rectangle
 
 		if h.system != nil {
-			b, err := h.system.ScreenBounds(context.Background())
+			b, err := h.system.ScreenBounds(h.ctx)
 			if err == nil {
 				screenBounds = b
 			} else if !derrors.IsNotSupported(err) {
@@ -276,7 +275,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			}
 
 			// Move mouse to center of cell before showing subgrid for better UX
-			ctx := context.Background()
+			ctx := h.ctx
 
 			// Convert cell center from window-local to screen-absolute coordinates
 			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(

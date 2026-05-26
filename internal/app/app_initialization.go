@@ -1,13 +1,15 @@
 package app
 
 import (
+	"context"
+
 	"github.com/y3owk1n/neru/internal/config"
 )
 
 // New creates a new App instance with the provided options.
 // It applies sensible defaults and allows customization through functional options.
 func New(opts ...Option) (*App, error) {
-	app := &App{}
+	app := &App{ctx: context.Background()}
 
 	// Apply all options
 	for _, opt := range opts {

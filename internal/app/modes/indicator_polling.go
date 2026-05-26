@@ -57,7 +57,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	go func() {
 		defer close(doneCh)
 		// Create a cancellable context bound to the stop channel.
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(h.ctx)
 		defer cancel()
 		// Monitor stopCh to cancel context immediately if the polling operation hangs.
 		go func() {

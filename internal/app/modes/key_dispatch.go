@@ -391,7 +391,7 @@ func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []stri
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
 func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(h.ctx)
 	h.heldRepeatingKey = key
 	h.heldRepeatingCancel = cancel
 

@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"context"
 	"image"
 
 	"go.uber.org/zap"
@@ -99,7 +98,7 @@ func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 
 		if enabled {
 			if target, ok := h.grid.Context.SelectionPoint(); ok && h.actionService != nil {
-				moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), target)
+				moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, target)
 				if moveCursorErr != nil {
 					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 				}
@@ -119,7 +118,7 @@ func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 		if enabled {
 			if target, ok := h.recursiveGrid.Context.SelectionPoint(); ok &&
 				h.actionService != nil {
-				moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), target)
+				moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, target)
 				if moveCursorErr != nil {
 					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 				}

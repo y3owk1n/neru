@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"context"
 	"image"
 
 	"go.uber.org/zap"
@@ -60,7 +59,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
-		b, err := h.system.ScreenBounds(context.Background())
+		b, err := h.system.ScreenBounds(h.ctx)
 		if err == nil {
 			screenBounds = b
 		} else if !derrors.IsNotSupported(err) {
@@ -94,7 +93,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		}
 
 		if cursorShouldFollow {
-			err := h.actionService.MoveCursorToPoint(context.Background(), absoluteCenter)
+			err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
 			if err != nil {
 				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
 			}
@@ -201,7 +200,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 
 // handleRecursiveGridKey handles key processing for recursive-grid mode.
 func (h *Handler) handleRecursiveGridKey(key string) {
-	ctx := context.Background()
+	ctx := h.ctx
 
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
 		h.logger.Warn("Recursive-grid manager is nil - ignoring key press")

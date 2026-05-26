@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"context"
 	"image"
 	"time"
 	"unicode/utf8"
@@ -34,7 +33,7 @@ func (h *Handler) executeActionAtPoint(
 		zap.String("modifiers", h.stickyModifiers().String()),
 		zap.Bool("repeat", repeat))
 
-	ctx := context.Background()
+	ctx := h.ctx
 
 	performActionErr := h.actionService.PerformActionAtPoint(
 		ctx,
@@ -80,7 +79,7 @@ func (h *Handler) moveCursorAndHandleAction(
 	shouldReActivate bool,
 	reActivateFunc func(),
 ) {
-	ctx := context.Background()
+	ctx := h.ctx
 
 	moveCursorErr := h.actionService.MoveCursorToPoint(ctx, point)
 	if moveCursorErr != nil {
@@ -224,7 +223,7 @@ func (h *Handler) confirmHintSearch() {
 
 	if visibleHints := ctx.Hints(); visibleHints != nil && visibleHints.Count() >= 1 {
 		go func() {
-			_ = h.CycleHint(context.Background(), false)
+			_ = h.CycleHint(h.ctx, false)
 		}()
 	} else {
 		h.cancelHintSearch()
@@ -400,7 +399,7 @@ func (h *Handler) handleGridModeKey(key string) {
 			return
 		}
 
-		moveCursorErr := h.actionService.MoveCursorToPoint(context.Background(), absolutePoint)
+		moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, absolutePoint)
 		if moveCursorErr != nil {
 			h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
 		}

@@ -140,7 +140,7 @@ func (a *App) dispatchHotkeyActions(key string, actions []string) {
 }
 
 func (a *App) startHotkeyRepeat(key string, actions []string) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(a.ctx)
 
 	a.hotkeyRepeatMu.Lock()
 
@@ -319,7 +319,7 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 	}
 
 	ipcResponse := a.ipcController.HandleCommand(
-		context.Background(),
+		a.ctx,
 		ipc.Command{Action: actionStr, Args: params},
 	)
 	if !ipcResponse.Success {
@@ -350,7 +350,7 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 		zap.String("cmd", cmdString),
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), domain.ShellCommandTimeout)
+	ctx, cancel := context.WithTimeout(a.ctx, domain.ShellCommandTimeout)
 	defer cancel()
 
 	command := exec.CommandContext(ctx, "/bin/bash", "-lc", cmdString) //nolint:gosec
@@ -394,7 +394,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 	if bundleID == "" {
 		// Use ActionService to get focused bundle ID
-		ctx := context.Background()
+		ctx := a.ctx
 
 		var bundleIDErr error
 
