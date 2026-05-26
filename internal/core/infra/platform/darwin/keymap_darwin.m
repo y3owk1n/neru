@@ -815,6 +815,11 @@ static void waitForLayoutMapsInitialized(NSTimeInterval timeoutSeconds) {
 		return;
 	}
 
+	NSCAssert(gLayoutInitCondition != nil, @"waitForLayoutMapsInitialized called before initializeKeyMaps");
+	if (!gLayoutInitCondition) {
+		return;
+	}
+
 	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeoutSeconds];
 	[gLayoutInitCondition lock];
 	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
