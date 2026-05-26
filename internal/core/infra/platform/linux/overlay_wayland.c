@@ -409,6 +409,10 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 			zxdg_output_v1_destroy(scr->xdg_output);
 	}
 
+	if (overlay->xkb_state)
+		xkb_state_unref(overlay->xkb_state);
+	if (overlay->xkb_ctx)
+		xkb_context_unref(overlay->xkb_ctx);
 	if (overlay->xdg_output_mgr)
 		zxdg_output_manager_v1_destroy(overlay->xdg_output_mgr);
 	if (overlay->layer_shell)
