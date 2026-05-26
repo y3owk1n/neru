@@ -128,78 +128,78 @@ func (w *Watcher) OnMissionControlDeactivated(callback func()) {
 // HandleLaunch processes application launch events from the platform layer.
 // It dispatches the event to all registered launch callbacks.
 func (w *Watcher) HandleLaunch(appName, bundleID string) {
-	w.logger.Debug("App watcher: Application launched",
-		zap.String("app_name", appName),
-		zap.String("bundle_id", bundleID))
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	for _, callback := range w.launchCallbacks {
-		callback(appName, bundleID)
-	}
+	w.dispatchAppEvent("App watcher: Application launched", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.launchCallbacks })
 }
 
 // HandleTerminate processes application termination events from the platform layer.
 // It dispatches the event to all registered termination callbacks.
 func (w *Watcher) HandleTerminate(appName, bundleID string) {
-	w.logger.Debug("App watcher: Application terminated",
-		zap.String("app_name", appName),
-		zap.String("bundle_id", bundleID))
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	for _, callback := range w.terminateCallbacks {
-		callback(appName, bundleID)
-	}
+	w.dispatchAppEvent("App watcher: Application terminated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.terminateCallbacks })
 }
 
 // HandleActivate processes application activation events from the platform layer.
 // It dispatches the event to all registered activation callbacks.
 func (w *Watcher) HandleActivate(appName, bundleID string) {
-	w.logger.Debug("App watcher: Application activated",
-		zap.String("app_name", appName),
-		zap.String("bundle_id", bundleID))
-
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	for _, callback := range w.activateCallbacks {
-		callback(appName, bundleID)
-	}
+	w.dispatchAppEvent("App watcher: Application activated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.activateCallbacks })
 }
 
 // HandleDeactivate processes application deactivation events from the platform layer.
 // It dispatches the event to all registered deactivation callbacks.
 func (w *Watcher) HandleDeactivate(appName, bundleID string) {
-	w.logger.Debug("App watcher: Application deactivated",
+	w.dispatchAppEvent("App watcher: Application deactivated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.deactivateCallbacks })
+}
+
+// HandleScreenParametersChanged processes screen parameter change events from the platform layer.
+// It dispatches the event to all registered screen change callbacks.
+func (w *Watcher) HandleScreenParametersChanged() {
+	w.dispatchVoidEvent("App watcher: Screen parameters changed",
+		func(w *Watcher) []func() { return w.screenChangeCallbacks })
+}
+
+// HandleMissionControlActivated processes Mission Control activation events from the platform layer.
+func (w *Watcher) HandleMissionControlActivated() {
+	w.dispatchMCEvent("App watcher: Mission Control activated",
+		func(w *Watcher) []func() { return w.mcActivatedCallbacks })
+}
+
+// HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
+func (w *Watcher) HandleMissionControlDeactivated() {
+	w.dispatchMCEvent("App watcher: Mission Control deactivated",
+		func(w *Watcher) []func() { return w.mcDeactivatedCallbacks })
+}
+
+func (w *Watcher) dispatchAppEvent(
+	logMsg, appName, bundleID string,
+	callbacks func(*Watcher) []AppCallback,
+) {
+	w.logger.Debug(logMsg,
 		zap.String("app_name", appName),
 		zap.String("bundle_id", bundleID))
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	for _, callback := range w.deactivateCallbacks {
+	for _, callback := range callbacks(w) {
 		callback(appName, bundleID)
 	}
 }
 
-// HandleScreenParametersChanged processes screen parameter change events from the platform layer.
-// It dispatches the event to all registered screen change callbacks.
-func (w *Watcher) HandleScreenParametersChanged() {
-	w.logger.Debug("App watcher: Screen parameters changed")
+func (w *Watcher) dispatchVoidEvent(logMsg string, callbacks func(*Watcher) []func()) {
+	w.logger.Debug(logMsg)
 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	for _, callback := range w.screenChangeCallbacks {
+	for _, callback := range callbacks(w) {
 		callback()
 	}
 }
 
-// HandleMissionControlActivated processes Mission Control activation events from the platform layer.
-func (w *Watcher) HandleMissionControlActivated() {
+func (w *Watcher) dispatchMCEvent(logMsg string, callbacks func(*Watcher) []func()) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -207,25 +207,9 @@ func (w *Watcher) HandleMissionControlActivated() {
 		return
 	}
 
-	w.logger.Debug("App watcher: Mission Control activated")
+	w.logger.Debug(logMsg)
 
-	for _, callback := range w.mcActivatedCallbacks {
-		callback()
-	}
-}
-
-// HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
-func (w *Watcher) HandleMissionControlDeactivated() {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	if !w.mcDetection {
-		return
-	}
-
-	w.logger.Debug("App watcher: Mission Control deactivated")
-
-	for _, callback := range w.mcDeactivatedCallbacks {
+	for _, callback := range callbacks(w) {
 		callback()
 	}
 }

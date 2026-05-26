@@ -174,91 +174,105 @@ func StopAppWatcher() {
 	C.stopAppWatcher()
 }
 
-//export handleAppLaunch
-func handleAppLaunch(appName *C.char, bundleID *C.char) {
-	log := getLogger()
-	log.Debug("Darwin: handleAppLaunch called")
-
+func currentAppWatcher() AppWatcherInterface {
 	appWatcherMu.RLock()
 	watcher := appWatcher
 	appWatcherMu.RUnlock()
 
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding app launch event",
-			zap.String("app_name", C.GoString(appName)),
-			zap.String("bundle_id", C.GoString(bundleID)))
+	return watcher
+}
 
-		watcher.HandleLaunch(C.GoString(appName), C.GoString(bundleID))
+func dispatchAppWatcherAppEvent(
+	handlerName, forwardMsg string,
+	appName, bundleID *C.char,
+	forward func(AppWatcherInterface, string, string),
+) {
+	log := getLogger()
+	log.Debug("Darwin: " + handlerName + " called")
+
+	watcher := currentAppWatcher()
+	if watcher == nil {
+		return
 	}
+
+	name := C.GoString(appName)
+	id := C.GoString(bundleID)
+	log.Debug("Darwin: "+forwardMsg,
+		zap.String("app_name", name),
+		zap.String("bundle_id", id))
+	forward(watcher, name, id)
+}
+
+func dispatchAppWatcherVoidEvent(
+	handlerName, forwardMsg string,
+	async bool,
+	forward func(AppWatcherInterface),
+) {
+	log := getLogger()
+	log.Debug("Darwin: " + handlerName + " called")
+
+	watcher := currentAppWatcher()
+	if watcher == nil {
+		return
+	}
+
+	log.Debug("Darwin: " + forwardMsg)
+	if async {
+		go forward(watcher)
+
+		return
+	}
+
+	forward(watcher)
+}
+
+//export handleAppLaunch
+func handleAppLaunch(appName *C.char, bundleID *C.char) {
+	dispatchAppWatcherAppEvent("handleAppLaunch", "Forwarding app launch event", appName, bundleID,
+		func(w AppWatcherInterface, name, id string) { w.HandleLaunch(name, id) })
 }
 
 //export handleAppTerminate
 func handleAppTerminate(appName *C.char, bundleID *C.char) {
-	log := getLogger()
-	log.Debug("Darwin: handleAppTerminate called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding app termination event",
-			zap.String("app_name", C.GoString(appName)),
-			zap.String("bundle_id", C.GoString(bundleID)))
-
-		watcher.HandleTerminate(C.GoString(appName), C.GoString(bundleID))
-	}
+	dispatchAppWatcherAppEvent(
+		"handleAppTerminate",
+		"Forwarding app termination event",
+		appName,
+		bundleID,
+		func(w AppWatcherInterface, name, id string) { w.HandleTerminate(name, id) },
+	)
 }
 
 //export handleAppActivate
 func handleAppActivate(appName *C.char, bundleID *C.char) {
-	log := getLogger()
-	log.Debug("Darwin: handleAppActivate called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding app activation event",
-			zap.String("app_name", C.GoString(appName)),
-			zap.String("bundle_id", C.GoString(bundleID)))
-
-		watcher.HandleActivate(C.GoString(appName), C.GoString(bundleID))
-	}
+	dispatchAppWatcherAppEvent(
+		"handleAppActivate",
+		"Forwarding app activation event",
+		appName,
+		bundleID,
+		func(w AppWatcherInterface, name, id string) { w.HandleActivate(name, id) },
+	)
 }
 
 //export handleAppDeactivate
 func handleAppDeactivate(appName *C.char, bundleID *C.char) {
-	log := getLogger()
-	log.Debug("Darwin: handleAppDeactivate called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding app deactivation event",
-			zap.String("app_name", C.GoString(appName)),
-			zap.String("bundle_id", C.GoString(bundleID)))
-
-		watcher.HandleDeactivate(C.GoString(appName), C.GoString(bundleID))
-	}
+	dispatchAppWatcherAppEvent(
+		"handleAppDeactivate",
+		"Forwarding app deactivation event",
+		appName,
+		bundleID,
+		func(w AppWatcherInterface, name, id string) { w.HandleDeactivate(name, id) },
+	)
 }
 
 //export handleScreenParametersChanged
 func handleScreenParametersChanged() {
-	log := getLogger()
-	log.Debug("Darwin: handleScreenParametersChanged called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding screen parameters changed event")
-		go watcher.HandleScreenParametersChanged()
-	}
+	dispatchAppWatcherVoidEvent(
+		"handleScreenParametersChanged",
+		"Forwarding screen parameters changed event",
+		true,
+		func(w AppWatcherInterface) { w.HandleScreenParametersChanged() },
+	)
 }
 
 //export handleMissionControlActivated
@@ -267,17 +281,12 @@ func handleMissionControlActivated() {
 		return
 	}
 
-	log := getLogger()
-	log.Debug("Darwin: handleMissionControlActivated called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding Mission Control activated event")
-		go watcher.HandleMissionControlActivated()
-	}
+	dispatchAppWatcherVoidEvent(
+		"handleMissionControlActivated",
+		"Forwarding Mission Control activated event",
+		true,
+		func(w AppWatcherInterface) { w.HandleMissionControlActivated() },
+	)
 }
 
 //export handleMissionControlDeactivated
@@ -286,17 +295,12 @@ func handleMissionControlDeactivated() {
 		return
 	}
 
-	log := getLogger()
-	log.Debug("Darwin: handleMissionControlDeactivated called")
-
-	appWatcherMu.RLock()
-	watcher := appWatcher
-	appWatcherMu.RUnlock()
-
-	if watcher != nil {
-		log.Debug("Darwin: Forwarding Mission Control deactivated event")
-		go watcher.HandleMissionControlDeactivated()
-	}
+	dispatchAppWatcherVoidEvent(
+		"handleMissionControlDeactivated",
+		"Forwarding Mission Control deactivated event",
+		true,
+		func(w AppWatcherInterface) { w.HandleMissionControlDeactivated() },
+	)
 }
 
 // HandleAppLaunch simulates an app launch event for testing.
