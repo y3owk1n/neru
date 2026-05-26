@@ -798,6 +798,33 @@ static void handleKeyboardLayoutChanged(
 /// Flag for tracking layout maps initialization status (atomic for thread safety)
 static atomic_bool gLayoutMapsInitialized = false;
 
+/// Waiters block here until the first layout map build completes (main thread).
+static NSCondition *gLayoutInitCondition = nil;
+
+static void markLayoutMapsInitialized(void) {
+	if (atomic_exchange_explicit(&gLayoutMapsInitialized, true, memory_order_acq_rel)) {
+		return;
+	}
+	[gLayoutInitCondition lock];
+	[gLayoutInitCondition broadcast];
+	[gLayoutInitCondition unlock];
+}
+
+static void waitForLayoutMapsInitialized(NSTimeInterval timeoutSeconds) {
+	if (atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+		return;
+	}
+
+	NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeoutSeconds];
+	[gLayoutInitCondition lock];
+	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+		if (![gLayoutInitCondition waitUntilDate:deadline]) {
+			break;
+		}
+	}
+	[gLayoutInitCondition unlock];
+}
+
 /// Register notification observer (called once from initializeKeyMaps)
 static void registerLayoutChangeObserver(void) {
 	CFNotificationCenterAddObserver(
@@ -809,6 +836,7 @@ static void initializeKeyMaps(void) {
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
 		gKeymapLock = [[NSLock alloc] init];
+		gLayoutInitCondition = [[NSCondition alloc] init];
 
 		initializeSpecialKeyMaps();
 
@@ -830,14 +858,14 @@ static void ensureLayoutMapsInitialized(void) {
 	dispatch_once(&layoutOnceToken, ^{
 		if ([NSThread isMainThread]) {
 			buildLayoutMaps();
-			atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+			markLayoutMapsInitialized();
 		} else {
 			// Dispatch to main thread to build layout maps
 			dispatch_async(dispatch_get_main_queue(), ^{
 				// Guard against double execution if the main thread already ran it
 				if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
 					buildLayoutMaps();
-					atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+					markLayoutMapsInitialized();
 				}
 			});
 		}
@@ -847,20 +875,11 @@ static void ensureLayoutMapsInitialized(void) {
 	// to avoid deadlock (the async block is queued behind us).
 	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire) && [NSThread isMainThread]) {
 		buildLayoutMaps();
-		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+		markLayoutMapsInitialized();
 		return;
 	}
 
-	// Poll with timeout for all waiters.
-	// Allows multiple concurrent background threads to proceed once
-	// initialization is complete, rather than timing out individually.
-	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
-	while (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
-		if (dispatch_time(DISPATCH_TIME_NOW, 0) >= timeout) {
-			break;  // Timeout reached
-		}
-		[NSThread sleepForTimeInterval:0.001];  // 1ms sleep to avoid busy-wait
-	}
+	waitForLayoutMapsInitialized(5.0);
 }
 
 #pragma mark - Public Functions
@@ -1083,7 +1102,7 @@ int setReferenceKeyboardLayout(const char *inputSourceID) {
 		[gKeymapLock unlock];
 
 		buildLayoutMaps();
-		atomic_store_explicit(&gLayoutMapsInitialized, true, memory_order_release);
+		markLayoutMapsInitialized();
 
 		[gKeymapLock lock];
 		configuredResolved = gConfiguredInputSourceResolved;
