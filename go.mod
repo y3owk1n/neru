@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/text v0.37.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
