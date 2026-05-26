@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.40.1](https://github.com/y3owk1n/neru/compare/v1.40.0...v1.40.1) (2026-05-26)
+
+
+### Bug Fixes
+
+* retrigger github action due to outage during v1.40 release ([8f4800e](https://github.com/y3owk1n/neru/commit/8f4800e53ae99c99a143f1b9c0ce096d26ab4f5b))
+
 ## [1.40.0](https://github.com/y3owk1n/neru/compare/v1.39.0...v1.40.0) (2026-05-26)
 
 
