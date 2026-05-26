@@ -42,9 +42,6 @@ func isEmptyValue[T any](v T) bool {
 	}
 
 	kind := reflected.Kind()
-	if kind == reflect.Invalid {
-		return true
-	}
 
 	if kind == reflect.Chan || kind == reflect.Func || kind == reflect.Interface ||
 		kind == reflect.Map || kind == reflect.Pointer || kind == reflect.Slice {
