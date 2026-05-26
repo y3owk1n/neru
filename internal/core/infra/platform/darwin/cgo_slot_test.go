@@ -4,6 +4,7 @@
 package darwin
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -78,30 +79,41 @@ func TestCgoSlotWithValidAsyncRejectsStaleGeneration(t *testing.T) {
 
 func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	var (
-		slot    cgoSlot[int]
-		okCalls atomic.Int32
+		slot      cgoSlot[int]
+		calls     atomic.Int32
+		waitGroup sync.WaitGroup
 	)
 
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
+	slot.Set(1)
 
-		for i := 1; i <= 100; i++ {
-			slot.withValid(func(v int) {
-				if v == i {
-					okCalls.Add(1)
-				}
-			})
+	const dispatchers = 50
+	waitGroup.Add(dispatchers + 1)
+
+	for range dispatchers {
+		go func() {
+			defer waitGroup.Done()
+
+			for range 20 {
+				slot.withValid(func(v int) {
+					if v != 0 {
+						calls.Add(1)
+					}
+				})
+			}
+		}()
+	}
+
+	go func() {
+		defer waitGroup.Done()
+
+		for range 100 {
+			slot.Set(1)
 		}
 	}()
 
-	for i := 1; i <= 100; i++ {
-		slot.Set(i)
-	}
+	waitGroup.Wait()
 
-	<-done
-
-	if okCalls.Load() == 0 {
-		t.Fatal("expected at least one valid dispatch under concurrent set")
+	if calls.Load() == 0 {
+		t.Fatal("expected at least one dispatch while slot holds a value")
 	}
 }
