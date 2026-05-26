@@ -4,6 +4,7 @@
 package darwin
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -81,6 +82,7 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	var (
 		slot      cgoSlot[int]
 		calls     atomic.Int32
+		staleSeen atomic.Int32
 		waitGroup sync.WaitGroup
 	)
 
@@ -93,12 +95,25 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 
-			for range 20 {
-				slot.withValid(func(v int) {
-					if v != 0 {
-						calls.Add(1)
-					}
-				})
+			for range 200 {
+				value, generation, ok := slot.snapshot()
+				if !ok {
+					continue
+				}
+
+				// Encourage interleaving so concurrent Set(0)/Set(1) updates can
+				// invalidate this snapshot before stillValid checks it.
+				runtime.Gosched()
+
+				if !slot.stillValid(generation) {
+					staleSeen.Add(1)
+
+					continue
+				}
+
+				if value != 0 {
+					calls.Add(1)
+				}
 			}
 		}()
 	}
@@ -106,8 +121,9 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	go func() {
 		defer waitGroup.Done()
 
-		for range 100 {
+		for range 400 {
 			slot.Set(1)
+			slot.Set(0)
 		}
 	}()
 
@@ -115,5 +131,9 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 
 	if calls.Load() == 0 {
 		t.Fatal("expected at least one dispatch while slot holds a value")
+	}
+
+	if staleSeen.Load() == 0 {
+		t.Fatal("expected at least one stale snapshot invalidated by concurrent clear")
 	}
 }
