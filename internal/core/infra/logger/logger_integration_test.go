@@ -203,6 +203,8 @@ func TestSyncIntegration(t *testing.T) {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
 
+	defer logger.Close() //nolint:errcheck
+
 	// Write some logs
 	logger.Info("test message 1")
 	logger.Info("test message 2")
