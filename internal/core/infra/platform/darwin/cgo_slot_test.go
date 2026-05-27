@@ -121,6 +121,12 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	go func() {
 		defer waitGroup.Done()
 
+		// Yield so readers can observe the initial slot.Set(1) before
+		// we start toggling between 1 and 0.
+		for range 50 {
+			runtime.Gosched()
+		}
+
 		for range 200 {
 			slot.Set(1)
 			runtime.Gosched()
