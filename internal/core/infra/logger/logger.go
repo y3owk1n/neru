@@ -67,11 +67,24 @@ func Init(
 		level = zapcore.ErrorLevel
 	}
 
+	// Determine the effective console writer early so terminal detection
+	// targets the actual output rather than always checking os.Stdout.
+	if consoleWriter == nil {
+		consoleWriter = os.Stdout
+	}
+
+	isTerminal := false
+
+	if f, ok := consoleWriter.(*os.File); ok {
+		isTerminal = term.IsTerminal(int(f.Fd()))
+	}
+
 	// Configure encoder
 	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
 
 	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	if term.IsTerminal(int(os.Stdout.Fd())) {
+
+	if isTerminal {
 		consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	} else {
 		consoleEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
@@ -84,11 +97,6 @@ func Init(
 
 	// Create console encoder (human-readable)
 	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
-
-	// Determine console writer
-	if consoleWriter == nil {
-		consoleWriter = os.Stdout
-	}
 
 	// Create cores slice
 	cores := []zapcore.Core{
