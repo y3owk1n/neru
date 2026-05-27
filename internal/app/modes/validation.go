@@ -35,14 +35,14 @@ func (h *Handler) validateModeActivation(bundleID string, modeName string, modeE
 	}
 
 	if !h.appState.IsEnabled() {
-		h.logger.Debug("Neru is disabled, ignoring mode activation",
+		h.logger.Warn("Neru is disabled, ignoring mode activation",
 			zap.String("mode", modeName))
 
 		return derrors.New(derrors.CodeInvalidInput, "neru is disabled")
 	}
 
 	if !modeEnabled {
-		h.logger.Debug("Mode disabled by config, ignoring activation",
+		h.logger.Warn("Mode disabled by config, ignoring activation",
 			zap.String("mode", modeName))
 
 		return derrors.Newf(derrors.CodeInvalidInput, "mode %s is disabled", modeName)
