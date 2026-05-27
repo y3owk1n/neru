@@ -361,6 +361,7 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 			"hotkey exec failed",
 			zap.String("key", key),
 			zap.String("cmd", cmdString),
+			zap.ByteString("output", commandOutput),
 			zap.Error(commandErr),
 		)
 
