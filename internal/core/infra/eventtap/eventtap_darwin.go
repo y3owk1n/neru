@@ -378,7 +378,7 @@ func (et *EventTap) enqueueKey(key string) {
 		key:  key,
 	}:
 	default:
-		et.logger.Warn("Event tap queue full, dropping key")
+		et.logger.Warn("Event tap queue full, dropping key", zap.String("key", key))
 	}
 }
 

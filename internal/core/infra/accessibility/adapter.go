@@ -589,7 +589,7 @@ func (a *Adapter) processClickableNodes(
 		node.Release()
 
 		if err != nil {
-			a.logger.Debug("Failed to convert element", zap.Error(err))
+			a.logger.Warn("Failed to convert element", zap.Error(err))
 
 			continue
 		}

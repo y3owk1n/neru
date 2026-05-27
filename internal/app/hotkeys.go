@@ -97,7 +97,7 @@ func (a *App) registerHotkeys() {
 			a.logger.Error(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
-				zap.Int("action_count", len(actions)),
+				zap.Strings("actions", actions),
 				zap.Error(registerHotkeyErr),
 			)
 
