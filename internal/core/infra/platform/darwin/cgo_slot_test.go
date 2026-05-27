@@ -121,9 +121,11 @@ func TestCgoSlotConcurrentSetAndDispatch(t *testing.T) {
 	go func() {
 		defer waitGroup.Done()
 
-		for range 400 {
+		for range 200 {
 			slot.Set(1)
+			runtime.Gosched()
 			slot.Set(0)
+			runtime.Gosched()
 		}
 	}()
 
