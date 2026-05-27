@@ -360,7 +360,7 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 		a.logger.Error(
 			"hotkey exec failed",
 			zap.String("key", key),
-			zap.Int("cmd_length", len(cmdString)),
+			zap.String("cmd", cmdString),
 			zap.Error(commandErr),
 		)
 
