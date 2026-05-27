@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -68,10 +69,16 @@ func Init(
 
 	// Configure encoder
 	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
+
 	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		consoleEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	}
 
 	fileEncoderConfig := zap.NewProductionEncoderConfig()
+
 	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 

@@ -88,7 +88,7 @@ Constructors that accept a logger should tolerate `nil` by falling back to `zap.
 
 Avoid logging routine success paths at `info`, especially for keypresses, mouse movement, scrolling, overlay refreshes, IPC action execution, and hint generation internals.
 
-Startup logs should include enough context to identify the running binary and environment: version, platform, config path, log level, structured logging mode, and whether file logging is enabled. Initialization failures should include the failed phase and root error before cleanup begins.
+Startup logs should include enough context to identify the running binary and environment: version, platform, config path, log level, and whether file logging is enabled. Initialization failures should include the failed phase and root error before cleanup begins.
 
 ### Fields And Privacy
 
