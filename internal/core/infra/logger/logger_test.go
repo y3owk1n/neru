@@ -49,7 +49,7 @@ func TestInit(t *testing.T) {
 	var buf bytes.Buffer
 
 	// Test basic initialization
-	err := logger.Init("info", "", true, true, 10, 5, 30, &buf)
+	err := logger.Init("info", "", true, 10, 5, 30, &buf)
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -77,7 +77,7 @@ func TestSync(t *testing.T) {
 	// Reset and init
 	logger.Reset()
 
-	err := logger.Init("info", "", true, true, 10, 5, 30, &bytes.Buffer{})
+	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -93,7 +93,7 @@ func TestClose(t *testing.T) {
 	// Reset and init
 	logger.Reset()
 
-	err := logger.Init("info", "", true, true, 10, 5, 30, &bytes.Buffer{})
+	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -114,7 +114,7 @@ func TestClose(t *testing.T) {
 func TestWith(t *testing.T) {
 	logger.Reset()
 
-	err := logger.Init("info", "", true, true, 10, 5, 30, &bytes.Buffer{})
+	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
@@ -142,7 +142,7 @@ func TestRaceCondition(t *testing.T) {
 
 	// Concurrent Init (write path)
 	waitGroup.Go(func() {
-		_ = logger.Init("info", "", true, true, 10, 5, 30, os.Stdout)
+		_ = logger.Init("info", "", true, 10, 5, 30, os.Stdout)
 	})
 
 	// Concurrent Sync (read-copy-unlock path)

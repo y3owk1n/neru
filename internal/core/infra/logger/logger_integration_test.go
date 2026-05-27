@@ -23,7 +23,6 @@ func TestInitIntegration(t *testing.T) {
 		name               string
 		logLevel           string
 		logFilePath        string
-		structured         bool
 		disableFileLogging bool
 		maxFileSize        int
 		maxBackups         int
@@ -34,7 +33,6 @@ func TestInitIntegration(t *testing.T) {
 			name:               "debug level with file logging",
 			logLevel:           "debug",
 			logFilePath:        logPath,
-			structured:         false,
 			disableFileLogging: false,
 			maxFileSize:        10,
 			maxBackups:         3,
@@ -42,10 +40,9 @@ func TestInitIntegration(t *testing.T) {
 			wantErr:            false,
 		},
 		{
-			name:               "info level structured",
+			name:               "info level with file logging",
 			logLevel:           "info",
 			logFilePath:        logPath,
-			structured:         true,
 			disableFileLogging: false,
 			maxFileSize:        10,
 			maxBackups:         3,
@@ -56,7 +53,6 @@ func TestInitIntegration(t *testing.T) {
 			name:               "warn level no file",
 			logLevel:           "warn",
 			logFilePath:        "",
-			structured:         false,
 			disableFileLogging: true,
 			maxFileSize:        10,
 			maxBackups:         3,
@@ -67,7 +63,6 @@ func TestInitIntegration(t *testing.T) {
 			name:               "error level",
 			logLevel:           "error",
 			logFilePath:        logPath,
-			structured:         false,
 			disableFileLogging: false,
 			maxFileSize:        10,
 			maxBackups:         3,
@@ -81,7 +76,6 @@ func TestInitIntegration(t *testing.T) {
 			initErr := logger.Init(
 				testCase.logLevel,
 				testCase.logFilePath,
-				testCase.structured,
 				testCase.disableFileLogging,
 				testCase.maxFileSize,
 				testCase.maxBackups,
@@ -124,7 +118,7 @@ func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("debug", logPath, false, false, 10, 3, 7, nil)
+	initErr := logger.Init("debug", logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -180,7 +174,7 @@ func TestLoggingFunctions(t *testing.T) {
 
 func TestWithIntegration(t *testing.T) {
 	// Initialize logger
-	err := logger.Init("info", "", false, true, 10, 3, 7, nil)
+	err := logger.Init("info", "", true, 10, 3, 7, nil)
 	if err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
@@ -204,12 +198,10 @@ func TestSyncIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, false, 10, 3, 7, nil)
+	initErr := logger.Init("info", logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
-
-	defer logger.Close() //nolint:errcheck
 
 	// Write some logs
 	logger.Info("test message 1")
@@ -224,7 +216,7 @@ func TestCloseIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, false, 10, 3, 7, nil)
+	initErr := logger.Init("info", logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -257,7 +249,7 @@ func TestLogLevels(t *testing.T) {
 			tempDir := t.TempDir()
 			logPath := filepath.Join(tempDir, "test.log")
 
-			initErr := logger.Init(testCase.logLevel, logPath, false, false, 10, 3, 7, nil)
+			initErr := logger.Init(testCase.logLevel, logPath, false, 10, 3, 7, nil)
 			if initErr != nil {
 				t.Fatalf("Init() failed: %v", initErr)
 			}
@@ -280,7 +272,7 @@ func TestFileRotation(t *testing.T) {
 	logPath := filepath.Join(tempDir, "test.log")
 
 	// Initialize with small max size for testing
-	initErr := logger.Init("info", logPath, false, false, 1, 2, 1, io.Discard)
+	initErr := logger.Init("info", logPath, false, 1, 2, 1, io.Discard)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}

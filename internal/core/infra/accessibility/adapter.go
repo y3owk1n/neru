@@ -124,7 +124,14 @@ func (a *Adapter) ClickableElements(
 		filter.TextContainsList = loweredList
 	}
 
-	a.logger.Debug("Getting clickable elements", zap.Any("filter", filter))
+	a.logger.Debug("Getting clickable elements",
+		zap.Int("role_count", len(filter.Roles)),
+		zap.Bool("include_menubar", filter.IncludeMenubar),
+		zap.Bool("include_dock", filter.IncludeDock),
+		zap.Bool("include_notification_center", filter.IncludeNotificationCenter),
+		zap.Bool("include_stage_manager", filter.IncludeStageManager),
+		zap.Bool("include_pip", filter.IncludePIP),
+		zap.Bool("include_screen_capture", filter.IncludeScreenCapture))
 
 	adapterStart := time.Now()
 
@@ -350,13 +357,13 @@ func (a *Adapter) ClickableElements(
 	}
 
 	elapsed := time.Since(adapterStart)
-	a.logger.Info("Total elements collected",
+	a.logger.Debug("Total elements collected",
 		zap.Int("count", len(allElements)),
 		zap.Duration("total", elapsed))
 
 	// Log warning if collection took too long
 	if elapsed > 2*time.Second {
-		a.logger.Warn("TIMING: ClickableElements took too long",
+		a.logger.Warn("Clickable element collection was slow",
 			zap.Duration("elapsed", elapsed),
 			zap.Int("element_count", len(allElements)),
 		)
@@ -391,7 +398,7 @@ func (a *Adapter) PerformAction(
 	default:
 	}
 
-	a.logger.Info("Performing action",
+	a.logger.Debug("Performing action",
 		zap.String("action", actionType.String()),
 		zap.String("element_id", string(element.ID())))
 
@@ -419,7 +426,7 @@ func (a *Adapter) PerformActionAtPoint(
 		return err
 	}
 
-	a.logger.Info("Performing action at point",
+	a.logger.Debug("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y),
@@ -499,14 +506,14 @@ func (a *Adapter) Health(ctx context.Context) error {
 
 // UpdateClickableRoles updates the list of clickable roles.
 func (a *Adapter) UpdateClickableRoles(roles []string) {
-	a.logger.Info("Updating clickable roles", zap.Int("count", len(roles)))
+	a.logger.Debug("Updating clickable roles", zap.Int("count", len(roles)))
 	a.clickableRoles = roles
 	a.client.SetClickableRoles(roles)
 }
 
 // UpdateExcludedBundles updates the list of excluded bundle IDs.
 func (a *Adapter) UpdateExcludedBundles(bundles []string) {
-	a.logger.Info("Updating excluded bundles", zap.Int("count", len(bundles)))
+	a.logger.Debug("Updating excluded bundles", zap.Int("count", len(bundles)))
 
 	a.excludedBundles = make(map[string]bool, len(bundles))
 	for _, bundle := range bundles {
@@ -582,7 +589,7 @@ func (a *Adapter) processClickableNodes(
 		node.Release()
 
 		if err != nil {
-			a.logger.Warn("Failed to convert element", zap.Error(err))
+			a.logger.Debug("Failed to convert element", zap.Error(err))
 
 			continue
 		}

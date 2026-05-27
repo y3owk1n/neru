@@ -31,8 +31,12 @@ type Watcher struct {
 // NewWatcher creates and initializes a new application watcher instance.
 // The watcher is ready to register callbacks and start monitoring immediately.
 func NewWatcher(logger *zap.Logger) *Watcher {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	watcher := &Watcher{
-		logger: logger,
+		logger: logger.Named("appwatcher"),
 	}
 
 	platformRegisterWatcher(watcher)

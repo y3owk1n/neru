@@ -129,7 +129,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	h.overlayManager.Show()
 
 	if actionStr != nil {
-		h.logger.Info(
+		h.logger.Debug(
 			"Recursive-grid mode activated with pending action",
 			zap.String("action", *actionStr),
 			zap.Bool("repeat", repeat != nil && *repeat),
@@ -143,7 +143,6 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	}
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
-	h.logger.Info("Press u/i/j/k to select cells, backspace to backtrack, escape to exit")
 
 	h.startIndicatorPolling(domain.ModeRecursiveGrid)
 }
@@ -190,7 +189,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		},
 		// Complete callback
 		func(point image.Point) {
-			h.logger.Info("Recursive-grid selection complete",
+			h.logger.Debug("Recursive-grid selection complete",
 				zap.Int("x", point.X),
 				zap.Int("y", point.Y))
 		},

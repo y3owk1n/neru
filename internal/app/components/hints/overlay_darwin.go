@@ -200,6 +200,7 @@ func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error)
 	if err != nil {
 		return nil, err
 	}
+	base.CallbackManager.SetComponent("hints")
 	initPools()
 
 	return &Overlay{
@@ -220,6 +221,7 @@ func NewOverlayWithWindow(
 ) (*Overlay, error) {
 	initPools()
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+	base.CallbackManager.SetComponent("hints")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),

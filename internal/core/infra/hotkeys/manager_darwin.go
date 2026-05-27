@@ -35,9 +35,13 @@ type Manager struct {
 // NewManager creates and initializes a new hotkey manager instance.
 // The manager is ready to register hotkeys immediately after creation.
 func NewManager(logger *zap.Logger) *Manager {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	manager := &Manager{
 		callbacks: make(map[HotkeyID]callbackPair),
-		logger:    logger,
+		logger:    logger.Named("hotkeys"),
 		nextID:    1,
 	}
 
@@ -57,8 +61,6 @@ func (m *Manager) RegisterWithRelease(
 	pressCallback Callback,
 	releaseCallback Callback,
 ) (HotkeyID, error) {
-	m.logger.Debug("Registering hotkey", zap.String("key", keyString))
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -77,12 +79,6 @@ func (m *Manager) RegisterWithRelease(
 	// Generate hotkey ID
 	hotkeyID := m.nextID
 	m.nextID++
-
-	m.logger.Debug("Parsed key string",
-		zap.String("key", keyString),
-		zap.Int("key_code", keyCode),
-		zap.Int("modifiers", modifiers),
-		zap.Int("id", int(hotkeyID)))
 
 	// Register hotkey
 	success := darwin.RegisterHotkey(keyCode, modifiers, int(hotkeyID),
@@ -104,8 +100,10 @@ func (m *Manager) RegisterWithRelease(
 		release: releaseCallback,
 	}
 
-	m.logger.Info("Registered hotkey",
+	m.logger.Debug("Registered hotkey",
 		zap.String("key", keyString),
+		zap.Int("key_code", keyCode),
+		zap.Int("modifiers", modifiers),
 		zap.Int("id", int(hotkeyID)))
 
 	return hotkeyID, nil
@@ -122,7 +120,7 @@ func (m *Manager) Unregister(hotkeyID HotkeyID) {
 	darwin.UnregisterHotkey(int(hotkeyID))
 	delete(m.callbacks, hotkeyID)
 
-	m.logger.Info("Unregistered hotkey", zap.Int("id", int(hotkeyID)))
+	m.logger.Debug("Unregistered hotkey", zap.Int("id", int(hotkeyID)))
 }
 
 // UnregisterAll removes all currently registered hotkeys.
@@ -137,7 +135,7 @@ func (m *Manager) UnregisterAll() {
 
 	m.callbacks = make(map[HotkeyID]callbackPair)
 
-	m.logger.Info("Unregistered all hotkeys")
+	m.logger.Debug("Unregistered all hotkeys")
 }
 
 // handleCallback processes hotkey events received from the C callback darwin.
@@ -179,8 +177,7 @@ func SetGlobalManager(manager *Manager) {
 	if manager != nil {
 		manager.logger.Debug("Setting global hotkey manager")
 	} else {
-		// This would be unusual but let's log it
-		logger.Get().Info("Setting global hotkey manager to nil")
+		logger.Get().Named("hotkeys").Debug("Setting global hotkey manager to nil")
 	}
 
 	globalManager = manager

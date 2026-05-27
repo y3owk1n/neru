@@ -142,6 +142,7 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) 
 	if err != nil {
 		return nil, err
 	}
+	base.CallbackManager.SetComponent("grid")
 	initGridPools()
 	chars := config.Characters
 
@@ -172,6 +173,7 @@ func NewOverlayWithWindow(
 		go domainGrid.Prewarm(chars, getCommonGridSizes())
 	}
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+	base.CallbackManager.SetComponent("grid")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),

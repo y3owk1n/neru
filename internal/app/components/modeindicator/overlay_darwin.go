@@ -96,6 +96,7 @@ func NewOverlay(
 	if err != nil {
 		return nil, err
 	}
+	base.CallbackManager.SetComponent("modeindicator")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
@@ -116,6 +117,7 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+	base.CallbackManager.SetComponent("modeindicator")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),

@@ -158,6 +158,7 @@ func FreeCallbackContext(ptr unsafe.Pointer) {
 
 // CallbackManager manages asynchronous callbacks for overlay operations.
 type CallbackManager struct {
+	component   string
 	logger      *zap.Logger
 	callbackMap map[uint64]chan struct{}
 	callbackMu  sync.Mutex
@@ -172,6 +173,12 @@ func NewCallbackManager(logger *zap.Logger) *CallbackManager {
 		callbackMap: make(map[uint64]chan struct{}, DefaultCallbackMapSize),
 		cancelCh:    make(chan struct{}),
 	}
+}
+
+// SetComponent sets the component name for this manager, used in log output
+// to distinguish between multiple manager instances during cleanup.
+func (c *CallbackManager) SetComponent(name string) {
+	c.component = name
 }
 
 // StartResizeOperation begins a resize operation with callback tracking.
@@ -293,7 +300,8 @@ func (c *CallbackManager) Cleanup() {
 		callbackManagerRegistryMu.Unlock()
 
 		if c.logger != nil {
-			c.logger.Debug("CallbackManager cleanup completed")
+			c.logger.Debug("CallbackManager cleanup completed",
+				zap.String("component", c.component))
 		}
 	})
 }

@@ -23,7 +23,6 @@ func (h *Handler) StartInteractiveScroll() {
 	h.setModeLocked(domain.ModeScroll, overlay.ModeScroll)
 
 	h.logger.Info("Interactive scroll activated")
-	h.logger.Info("Use configured keys for navigation")
 }
 
 // handleGenericScrollKey intentionally does nothing.

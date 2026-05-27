@@ -60,6 +60,12 @@ const callbackQueueSize = 256
 // NewEventTap initializes a new event tap for capturing global keyboard events.
 // Returns nil if the event tap cannot be created, typically due to missing Accessibility permissions.
 func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	logger = logger.Named("eventtap")
+
 	eventTap := &EventTap{
 		callback:      callback,
 		logger:        logger,
@@ -113,8 +119,6 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 			cHotkeys[index] = C.CString(hotkey)
 
 			defer C.free(unsafe.Pointer(cHotkeys[index])) //nolint:nlreturn
-
-			et.logger.Debug("Adding hotkey", zap.String("hotkey", hotkey))
 		} else {
 			cHotkeys[index] = nil
 		}
@@ -151,8 +155,6 @@ func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
 			cKeys[index] = C.CString(key)
 
 			defer C.free(unsafe.Pointer(cKeys[index])) //nolint:nlreturn
-
-			et.logger.Debug("Adding modifier passthrough blacklist key", zap.String("key", key))
 		} else {
 			cKeys[index] = nil
 		}
@@ -194,8 +196,6 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 			cKeys[index] = C.CString(key)
 
 			defer C.free(unsafe.Pointer(cKeys[index])) //nolint:nlreturn
-
-			et.logger.Debug("Adding intercepted modifier key", zap.String("key", key))
 		} else {
 			cKeys[index] = nil
 		}
@@ -324,8 +324,6 @@ func (et *EventTap) Destroy() {
 // handleKeyCallback processes key press events received from the C event tap darwin.
 // It forwards the key information to the registered callback function if one exists.
 func (et *EventTap) handleKeyCallback(key string) {
-	et.logger.Debug("Key pressed", zap.String("key", key))
-
 	et.callbackMu.RLock()
 	callback := et.callback
 	et.callbackMu.RUnlock()
@@ -380,7 +378,7 @@ func (et *EventTap) enqueueKey(key string) {
 		key:  key,
 	}:
 	default:
-		et.logger.Warn("Event tap queue full, dropping key", zap.String("key", key))
+		et.logger.Warn("Event tap queue full, dropping key")
 	}
 }
 

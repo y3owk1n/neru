@@ -32,10 +32,14 @@ func NewActionService(
 	system ports.SystemPort,
 	logger *zap.Logger,
 ) *ActionService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &ActionService{
 		BaseService: NewBaseService(accessibility, overlay, system),
 		config:      config.DefaultConfig().MouseAction,
-		logger:      logger,
+		logger:      logger.Named("service.action"),
 	}
 }
 
@@ -53,7 +57,7 @@ func (s *ActionService) ExecuteAction(
 	element *element.Element,
 	actionType action.Type,
 ) error {
-	s.logger.Info("Executing action",
+	s.logger.Debug("Executing action",
 		zap.String("action", actionType.String()),
 		zap.String("element_id", string(element.ID())),
 		zap.String("element_role", string(element.Role())))
@@ -67,7 +71,7 @@ func (s *ActionService) ExecuteAction(
 		return derrors.WrapActionFailed(performActionErr, actionType.String())
 	}
 
-	s.logger.Info("Action executed successfully",
+	s.logger.Debug("Action executed successfully",
 		zap.String("action", actionType.String()))
 
 	return nil
@@ -87,7 +91,7 @@ func (s *ActionService) PerformActionAtPoint(
 		return derrors.WrapConfigFailed(actionTypeErr, "validate action type")
 	}
 
-	s.logger.Info("Performing action at point",
+	s.logger.Debug("Performing action at point",
 		zap.String("action", actionType.String()),
 		zap.Int("x", point.X),
 		zap.Int("y", point.Y),
@@ -122,7 +126,7 @@ func (s *ActionService) IsFocusedAppExcluded(ctx context.Context) (bool, error) 
 
 	isExcluded := s.accessibility.IsAppExcluded(ctx, bundleID)
 	if isExcluded {
-		s.logger.Info("Focused app is excluded", zap.String("bundle_id", bundleID))
+		s.logger.Debug("Focused app is excluded", zap.String("bundle_id", bundleID))
 	}
 
 	return isExcluded, nil
@@ -405,7 +409,7 @@ func (s *ActionService) moveMouseWithBounds(
 		zap.Bool("bypassSmooth", bypassSmooth),
 	)
 	logFields = append(logFields, fields...)
-	s.logger.Info("Moving mouse cursor", logFields...)
+	s.logger.Debug("Moving mouse cursor", logFields...)
 
 	err := s.system.MoveCursorToPoint(ctx, clamped, bypassSmooth)
 	if err != nil {

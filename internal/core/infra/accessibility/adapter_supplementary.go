@@ -41,7 +41,7 @@ func (a *Adapter) addMenubarElements(
 	// Get menubar elements
 	menubarNodes, menubarNodesErr := a.client.MenuBarClickableElements(ctx, menubarTreeDepth)
 	if menubarNodesErr != nil {
-		a.logger.Warn("Failed to get menubar elements", zap.Error(menubarNodesErr))
+		a.logger.Debug("Failed to get menubar elements", zap.Error(menubarNodesErr))
 	} else {
 		for _, node := range menubarNodes {
 			element, elementErr := a.convertToDomainElement(node)
@@ -78,7 +78,7 @@ func (a *Adapter) addMenubarElements(
 				0,
 			)
 			if err != nil {
-				a.logger.Warn("Failed to get additional menubar elements",
+				a.logger.Debug("Failed to get additional menubar elements",
 					zap.String("bundle_id", bundleID),
 					zap.Error(err))
 
@@ -155,13 +155,13 @@ func (a *Adapter) addDockElements(
 	// Validate we got the correct application element (not a stale menu item)
 	appInfo, appInfoErr := dockApp.Info()
 	if appInfoErr != nil {
-		a.logger.Warn("Failed to get dock application info", zap.Error(appInfoErr))
+		a.logger.Debug("Failed to get dock application info", zap.Error(appInfoErr))
 
 		return elements
 	}
 
 	if appInfo.Role != string(element.RoleApplication) {
-		a.logger.Warn("Got incorrect element for dock, expected AXApplication",
+		a.logger.Debug("Got incorrect element for dock, expected AXApplication",
 			zap.String("actual_role", appInfo.Role),
 			zap.String("title", appInfo.Title))
 
@@ -171,7 +171,7 @@ func (a *Adapter) addDockElements(
 	// Build tree and find clickable elements
 	dockNodes, dockNodesErr := a.client.ClickableNodes(ctx, dockApp, dockRoles, dockTreeDepth)
 	if dockNodesErr != nil {
-		a.logger.Warn("Failed to get dock elements", zap.Error(dockNodesErr))
+		a.logger.Debug("Failed to get dock elements", zap.Error(dockNodesErr))
 
 		return elements
 	}
@@ -182,7 +182,7 @@ func (a *Adapter) addDockElements(
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert dock element", zap.Error(elementErr))
+			a.logger.Debug("Failed to convert dock element", zap.Error(elementErr))
 
 			continue
 		}
@@ -217,7 +217,7 @@ func (a *Adapter) addNotificationCenterElements(
 		0,
 	)
 	if ncNodesErr != nil {
-		a.logger.Warn("Failed to get notification center elements", zap.Error(ncNodesErr))
+		a.logger.Debug("Failed to get notification center elements", zap.Error(ncNodesErr))
 
 		return elements
 	}
@@ -228,7 +228,7 @@ func (a *Adapter) addNotificationCenterElements(
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert notification center element", zap.Error(elementErr))
+			a.logger.Debug("Failed to convert notification center element", zap.Error(elementErr))
 
 			continue
 		}
@@ -260,13 +260,13 @@ func (a *Adapter) addStageManagerElements(
 	// Validate we got the correct application element (not a stale menu item)
 	appInfo, appInfoErr := wmApp.Info()
 	if appInfoErr != nil {
-		a.logger.Warn("Failed to get window manager application info", zap.Error(appInfoErr))
+		a.logger.Debug("Failed to get window manager application info", zap.Error(appInfoErr))
 
 		return elements
 	}
 
 	if appInfo.Role != string(element.RoleApplication) {
-		a.logger.Warn("Got incorrect element for window manager, expected AXApplication",
+		a.logger.Debug("Got incorrect element for window manager, expected AXApplication",
 			zap.String("actual_role", appInfo.Role),
 			zap.String("title", appInfo.Title))
 
@@ -276,7 +276,7 @@ func (a *Adapter) addStageManagerElements(
 	// Build tree and find clickable elements
 	wmNodes, wmNodesErr := a.client.ClickableNodes(ctx, wmApp, nil, stageManagerTreeDepth)
 	if wmNodesErr != nil {
-		a.logger.Warn("Failed to get window manager elements", zap.Error(wmNodesErr))
+		a.logger.Debug("Failed to get window manager elements", zap.Error(wmNodesErr))
 
 		return elements
 	}
@@ -287,7 +287,7 @@ func (a *Adapter) addStageManagerElements(
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert window manager element", zap.Error(elementErr))
+			a.logger.Debug("Failed to convert window manager element", zap.Error(elementErr))
 
 			continue
 		}
@@ -314,7 +314,7 @@ func (a *Adapter) addPIPElements(
 		flatAppTreeDepth,
 	)
 	if pipNodesErr != nil {
-		a.logger.Warn("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
+		a.logger.Debug("Failed to get Picture in Picture elements", zap.Error(pipNodesErr))
 
 		return elements
 	}
@@ -325,7 +325,7 @@ func (a *Adapter) addPIPElements(
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert Picture in Picture element", zap.Error(elementErr))
+			a.logger.Debug("Failed to convert Picture in Picture element", zap.Error(elementErr))
 
 			continue
 		}
@@ -352,7 +352,7 @@ func (a *Adapter) addScreenCaptureElements(
 		flatAppTreeDepth,
 	)
 	if screenCaptureNodesErr != nil {
-		a.logger.Warn("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))
+		a.logger.Debug("Failed to get Screen Capture elements", zap.Error(screenCaptureNodesErr))
 
 		return elements
 	}
@@ -363,7 +363,7 @@ func (a *Adapter) addScreenCaptureElements(
 		node.Release()
 
 		if elementErr != nil {
-			a.logger.Warn("Failed to convert Screen Capture element", zap.Error(elementErr))
+			a.logger.Debug("Failed to convert Screen Capture element", zap.Error(elementErr))
 
 			continue
 		}

@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/metrics"
-	"strings"
 	"syscall"
 	"time"
 
@@ -16,13 +15,13 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
+	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
 const (
-	// MaxExecDisplayLength is the maximum length for executable display names.
-	MaxExecDisplayLength = 30
 	// SystrayQuitTimeout is the timeout for systray quit.
 	SystrayQuitTimeout = 10 * time.Second
 	// StopTimeout is the timeout for IPC server stop during cleanup.
@@ -54,7 +53,13 @@ const (
 
 // Run starts the main application loop and initializes all subsystems.
 func (a *App) Run() error {
-	a.logger.Info("Starting Neru")
+	cfg := a.configSnapshot()
+	a.logger.Info("Starting Neru",
+		zap.String("version", ipc.BuildVersion()),
+		zap.String("platform", string(platform.CurrentOS())),
+		zap.String("config_path", a.ConfigPath),
+		zap.String("log_level", cfg.Logging.LogLevel),
+		zap.Bool("file_logging", !cfg.Logging.DisableFileLogging))
 
 	err := a.ipcServer.Start(a.ctx)
 	if err != nil {
@@ -72,10 +77,6 @@ func (a *App) Run() error {
 	a.logger.Info("Hotkeys initialized")
 
 	a.setupAppWatcherCallbacks()
-
-	a.logger.Info("Neru is running")
-
-	cfg := a.configSnapshot()
 
 	if cfg.Grid.EnableGC {
 		ctx, cancel := context.WithCancel(a.ctx)
@@ -202,7 +203,7 @@ func (a *App) setupAppWatcherCallbacks() {
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlActivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control activated: executing actions",
-				zap.Strings("actions", cfg.Hints.OnMissionControlActivated))
+				zap.Int("action_count", len(cfg.Hints.OnMissionControlActivated)))
 			a.dispatchHotkeyActionsAsync(
 				"mission_control_activated",
 				cfg.Hints.OnMissionControlActivated,
@@ -215,7 +216,7 @@ func (a *App) setupAppWatcherCallbacks() {
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlDeactivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control deactivated: executing actions",
-				zap.Strings("actions", cfg.Hints.OnMissionControlDeactivated))
+				zap.Int("action_count", len(cfg.Hints.OnMissionControlDeactivated)))
 			a.dispatchHotkeyActionsAsync(
 				"mission_control_deactivated",
 				cfg.Hints.OnMissionControlDeactivated,
@@ -273,7 +274,7 @@ func (a *App) processScreenChange() {
 	// but avoid showing the overlay window which happens in ResizeToActiveScreen.
 	isIdle := currentMode == domain.ModeIdle
 	if !isIdle {
-		a.logger.Info("Screen parameters changed; adjusting overlays")
+		a.logger.Debug("Screen parameters changed; adjusting overlays")
 	}
 
 	ctx := a.ctx
@@ -329,7 +330,7 @@ func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode
 	}
 
 	a.overlayManager.Show()
-	a.logger.Info("Grid overlay resized and regenerated for new screen bounds")
+	a.logger.Debug("Grid overlay resized and regenerated for new screen bounds")
 
 	return true
 }
@@ -363,7 +364,7 @@ func (a *App) handleHintScreenChange(
 		return true
 	}
 
-	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")
+	a.logger.Debug("Hint overlay resized and regenerated for new screen bounds")
 
 	return true
 }
@@ -403,7 +404,7 @@ func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode do
 	}
 
 	a.overlayManager.Show()
-	a.logger.Info("Recursive-grid overlay resized and regenerated for new screen bounds")
+	a.logger.Debug("Recursive-grid overlay resized and regenerated for new screen bounds")
 
 	return true
 }
@@ -488,7 +489,8 @@ func (a *App) printStartupInfo() {
 
 	cfg := a.configSnapshot()
 
-	for key, actions := range cfg.Hotkeys.Bindings {
+	registeredBindings := 0
+	for _, actions := range cfg.Hotkeys.Bindings {
 		if len(actions) == 0 {
 			continue
 		}
@@ -497,21 +499,10 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
-		// For display, show first action or truncate if exec
-		toShow := actions[0]
-		if strings.HasPrefix(toShow, "exec") {
-			runes := []rune(toShow)
-			if len(runes) > MaxExecDisplayLength {
-				toShow = string(runes[:MaxExecDisplayLength]) + "..."
-			}
-		}
-
-		if len(actions) > 1 {
-			toShow = fmt.Sprintf("%s (+%d more)", toShow, len(actions)-1)
-		}
-
-		a.logger.Info(fmt.Sprintf("  %s: %s", key, toShow))
+		registeredBindings++
 	}
+
+	a.logger.Debug("Configured hotkey bindings", zap.Int("count", registeredBindings))
 }
 
 // waitForShutdown waits for shutdown signals and handles graceful termination.
@@ -587,7 +578,7 @@ func (a *App) Stop() {
 // first invocation performs the actual teardown.
 func (a *App) Cleanup() {
 	a.cleanupOnce.Do(func() {
-		a.logger.Info("Cleaning up")
+		a.logger.Debug("Cleaning up")
 		// Cancel root context to signal shutdown to all operations
 		if a.cancel != nil {
 			a.cancel()

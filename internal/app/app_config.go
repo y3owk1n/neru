@@ -40,7 +40,7 @@ func (a *App) prepareForConfigUpdate() {
 	}
 
 	if a.appState.HotkeysRegistered() {
-		a.logger.Info("Unregistering current hotkeys before reload")
+		a.logger.Debug("Unregistering current hotkeys before reload")
 		a.stopAllHotkeyRepeats()
 		a.hotkeyManager.UnregisterAll()
 		a.appState.SetHotkeysRegistered(false)
@@ -50,7 +50,7 @@ func (a *App) prepareForConfigUpdate() {
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 	if loadResult.Config.Hints.Enabled {
-		a.logger.Info("Updating clickable roles",
+		a.logger.Debug("Updating clickable roles",
 			zap.Int("count", len(loadResult.Config.Hints.ClickableRoles)))
 		infra.SetClickableRoles(loadResult.Config.Hints.ClickableRoles, a.logger)
 	}

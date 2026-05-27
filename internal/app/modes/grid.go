@@ -113,7 +113,7 @@ func (h *Handler) activateGridModeWithAction(
 	h.refreshGridVirtualPointerLocked()
 
 	if actionStr != nil {
-		h.logger.Info("Grid mode activated with pending action",
+		h.logger.Debug("Grid mode activated with pending action",
 			zap.String("action", *actionStr),
 			zap.Bool("repeat", repeat != nil && *repeat))
 	}
@@ -125,7 +125,6 @@ func (h *Handler) activateGridModeWithAction(
 	}
 
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
-	h.logger.Info("Type a grid label to select a location")
 
 	h.startIndicatorPolling(domain.ModeGrid)
 }

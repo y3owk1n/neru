@@ -34,11 +34,15 @@ func NewHintService(
 	config config.HintsConfig,
 	logger *zap.Logger,
 ) *HintService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &HintService{
 		BaseService: NewBaseService(accessibility, overlay, system),
 		generator:   generator,
 		config:      config,
-		logger:      logger,
+		logger:      logger.Named("service.hints"),
 	}
 }
 
@@ -49,7 +53,7 @@ func (s *HintService) ShowHints(
 	filterRoles []string,
 	filterTextContains []string,
 ) ([]*hint.Interface, error) {
-	s.logger.Info("Showing hints")
+	s.logger.Debug("Showing hints")
 
 	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "")
 	if err != nil {
@@ -68,7 +72,7 @@ func (s *HintService) ShowHints(
 		return nil, derrors.WrapOverlayFailed(showHintsErr, "show hints")
 	}
 
-	s.logger.Info("Hints displayed successfully")
+	s.logger.Debug("Hints displayed successfully", zap.Int("count", len(hints)))
 
 	return hints, nil
 }
@@ -145,7 +149,7 @@ func (s *HintService) GenerateHints(
 		}
 
 		s.logger.Debug("Applying text filter",
-			zap.Strings("text", filterTextContains))
+			zap.Int("term_count", len(filterTextContains)))
 	}
 
 	// Get clickable elements
@@ -163,12 +167,12 @@ func (s *HintService) GenerateHints(
 	}
 
 	if len(elements) == 0 {
-		s.logger.Info("No clickable elements found")
+		s.logger.Debug("No clickable elements found")
 
 		return nil, nil
 	}
 
-	s.logger.Info("Found clickable elements", zap.Int("count", len(elements)))
+	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
 	maxHints := gen.MaxHints()
 	if maxHints > 0 && len(elements) > maxHints {
@@ -195,14 +199,14 @@ func (s *HintService) GenerateHints(
 		return nil, derrors.WrapInternalFailed(elementsErr, "generate hints")
 	}
 
-	s.logger.Info("Generated hints", zap.Int("count", len(hints)))
+	s.logger.Debug("Generated hints", zap.Int("count", len(hints)))
 
 	return hints, nil
 }
 
 // HideHints removes the hint overlay from the screen.
 func (s *HintService) HideHints(ctx context.Context) error {
-	s.logger.Info("Hiding hints")
+	s.logger.Debug("Hiding hints")
 
 	err := s.HideOverlay(ctx, "hide hints")
 	if err != nil {
@@ -211,14 +215,14 @@ func (s *HintService) HideHints(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Info("Hints hidden successfully")
+	s.logger.Debug("Hints hidden successfully")
 
 	return nil
 }
 
 // RefreshHints updates the hint display (e.g., after screen changes).
 func (s *HintService) RefreshHints(ctx context.Context) error {
-	s.logger.Info("Refreshing hints")
+	s.logger.Debug("Refreshing hints")
 
 	if !s.overlay.IsVisible() {
 		s.logger.Debug("Overlay not visible, skipping refresh")
@@ -233,7 +237,7 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 		return derrors.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
 	}
 
-	s.logger.Info("Hints refreshed successfully")
+	s.logger.Debug("Hints refreshed successfully")
 
 	return nil
 }
@@ -246,7 +250,7 @@ func (s *HintService) UpdateConfig(config config.HintsConfig) {
 
 	s.config = config
 
-	s.logger.Info("Hints configuration updated",
+	s.logger.Debug("Hints configuration updated",
 		zap.Bool("include_menubar", config.IncludeMenubarHints),
 		zap.Bool("include_dock", config.IncludeDockHints),
 		zap.Bool("include_nc", config.IncludeNCHints),
@@ -269,5 +273,5 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 
 	s.generator = generator
 
-	s.logger.Info("Hint generator updated")
+	s.logger.Debug("Hint generator updated")
 }

@@ -103,7 +103,7 @@ func (h *Handler) activateModeBase(
 	h.prepareForModeActivation()
 
 	actionString := domain.ActionString(actionEnum)
-	h.logger.Info("Activating "+modeName+" mode", zap.String("action", actionString))
+	h.logger.Debug("Activating "+modeName+" mode", zap.String("action", actionString))
 
 	// Always resize overlay to the active screen
 	if h.overlayManager != nil {

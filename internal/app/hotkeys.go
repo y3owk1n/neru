@@ -65,10 +65,10 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 
-		a.logger.Info(
+		a.logger.Debug(
 			"Registering hotkey binding",
 			zap.String("key", trimmedKey),
-			zap.Strings("actions", actions),
+			zap.Int("action_count", len(actions)),
 		)
 
 		bindKey := config.CanonicalHotkeyForPlatform(trimmedKey)
@@ -97,7 +97,7 @@ func (a *App) registerHotkeys() {
 			a.logger.Error(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
-				zap.Strings("actions", actions),
+				zap.Int("action_count", len(actions)),
 				zap.Error(registerHotkeyErr),
 			)
 
@@ -360,19 +360,18 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 		a.logger.Error(
 			"hotkey exec failed",
 			zap.String("key", key),
-			zap.String("cmd", cmdString),
-			zap.ByteString("output", commandOutput),
+			zap.Int("cmd_length", len(cmdString)),
 			zap.Error(commandErr),
 		)
 
 		return derrors.Wrap(commandErr, derrors.CodeInternal, "hotkey exec failed")
 	}
 
-	a.logger.Info(
+	a.logger.Debug(
 		"hotkey exec completed",
 		zap.String("key", key),
-		zap.String("cmd", cmdString),
-		zap.ByteString("output", commandOutput),
+		zap.Int("cmd_length", len(cmdString)),
+		zap.Int("output_bytes", len(commandOutput)),
 	)
 
 	return nil
@@ -410,7 +409,7 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 	if cfg.IsAppExcluded(bundleID) {
 		if a.appState.HotkeysRegistered() {
-			a.logger.Info("Focused app excluded; unregistering global hotkeys",
+			a.logger.Debug("Focused app excluded; unregistering global hotkeys",
 				zap.String("bundle_id", bundleID))
 			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()

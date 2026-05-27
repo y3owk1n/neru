@@ -862,8 +862,6 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 			NSFontTraitMask boldTraits = [fm traitsOfFont:boldFont];
 			if (boldTraits & NSBoldFontMask) {
 				font = boldFont;
-			} else {
-				NSLog(@"[Neru] Font family \"%@\" has no bold variant; using regular weight", name);
 			}
 		}
 	}
@@ -1651,10 +1649,8 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	// Guard: labels must contain exactly cols*rows items so that
 	// the positional index (row * cols + col) maps to the correct label.
 	// If they are out of sync the preview would silently misalign.
-	if (count != (NSUInteger)(cols * rows)) {
-		NSLog(@"[Neru] sub-key preview skipped: label count %lu != cols*rows %d", (unsigned long)count, cols * rows);
+	if (count != (NSUInteger)(cols * rows))
 		return;
-	}
 
 	NSFont *subFont = self.gridSubKeyFont;
 	NSColor *subColor = self.gridSubKeyTextColor;

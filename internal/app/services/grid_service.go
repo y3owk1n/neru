@@ -22,15 +22,19 @@ func NewGridService(
 	system ports.SystemPort,
 	logger *zap.Logger,
 ) *GridService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &GridService{
 		BaseService: NewBaseService(nil, overlay, system),
-		logger:      logger,
+		logger:      logger.Named("service.grid"),
 	}
 }
 
 // ShowGrid displays the grid overlay.
 func (s *GridService) ShowGrid(ctx context.Context) error {
-	s.logger.Info("Showing grid")
+	s.logger.Debug("Showing grid")
 
 	// Show grid overlay
 	showGridErr := s.overlay.ShowGrid(ctx)
@@ -40,14 +44,14 @@ func (s *GridService) ShowGrid(ctx context.Context) error {
 		return derrors.WrapOverlayFailed(showGridErr, "show grid")
 	}
 
-	s.logger.Info("Grid displayed successfully")
+	s.logger.Debug("Grid displayed successfully")
 
 	return nil
 }
 
 // HideGrid hides the grid overlay.
 func (s *GridService) HideGrid(ctx context.Context) error {
-	s.logger.Info("Hiding grid")
+	s.logger.Debug("Hiding grid")
 
 	err := s.HideOverlay(ctx, "hide grid")
 	if err != nil {

@@ -256,7 +256,7 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 	// Check for exact match
 	if len(m.cachedFilteredHints) == 1 && m.cachedFilteredHints[0].Label() == m.CurrentInput() {
 		if m.Logger != nil {
-			m.Logger.Info("Hint manager: Exact match found",
+			m.Logger.Debug("Hint manager: Exact match found",
 				zap.String("label", m.cachedFilteredHints[0].Label()))
 		}
 

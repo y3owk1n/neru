@@ -460,7 +460,7 @@ All mode implementations follow this pattern:
     - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
     - Show mode-specific overlays/UI
     - Initialize mode-specific state
-    - Log mode activation
+    - Log mode activation at `info`; keep routing and redraw details at `debug`
 
 ##### `HandleKey(key string)`
 
@@ -522,7 +522,7 @@ func (m *ExampleMode) Activate(action *string) {
     m.handler.setModeLocked(domain.ModeExample, overlay.ModeExample)
     // Show example overlay
     // Initialize state
-    m.handler.logger.Info("Example mode activated")
+    m.handler.logger.Info("Example mode activated", zap.String("mode", "example"))
 }
 
 func (m *ExampleMode) HandleKey(key string) {
@@ -570,7 +570,7 @@ func NewHandler(...) *Handler {
 1. **Consistent Naming**: Use `XXXMode` for struct names, `NewXXXMode` for constructors
 2. **Handler Reference**: Always store a reference to the Handler for accessing services
 3. **State Management**: Use the Handler's state management methods
-4. **Logging**: Log mode transitions and important events
+4. **Logging**: Log mode activation and real failures; keep key handling, redraws, and routine routing at `debug`
 5. **Error Handling**: Handle errors gracefully, don't panic
 6. **Resource Cleanup**: Always clean up overlays and state in `Exit()`
 7. **Action Mode Support**: Implement `ToggleActionMode()` even if not used

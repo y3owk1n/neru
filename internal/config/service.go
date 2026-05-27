@@ -250,7 +250,7 @@ func NewService(
 	return &Service{
 		config:        cfg,
 		path:          path,
-		logger:        logger,
+		logger:        logger.Named("config"),
 		alertProvider: alertProvider,
 	}
 }
@@ -340,7 +340,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 			configResult.Config = DefaultConfig()
 
 			s.logger.Warn("Invalid hotkeys section type",
-				zap.Any("value", hot),
+				zap.String("value_type", fmt.Sprintf("%T", hot)),
 				zap.Error(configResult.ValidationError))
 
 			return configResult
@@ -407,7 +407,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					configResult.Config = DefaultConfig()
 					s.logger.Warn("Invalid hotkey configuration",
 						zap.String("key", key),
-						zap.Any("value", value),
+						zap.String("value_type", fmt.Sprintf("%T", value)),
 						zap.Error(configResult.ValidationError))
 
 					return configResult
@@ -422,7 +422,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					configResult.Config = DefaultConfig()
 					s.logger.Warn("Invalid hotkey configuration",
 						zap.String("key", key),
-						zap.Any("value", value),
+						zap.String("value_type", fmt.Sprintf("%T", value)),
 						zap.Error(configResult.ValidationError))
 
 					return configResult

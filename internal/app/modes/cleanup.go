@@ -33,7 +33,7 @@ func (h *Handler) exitModeLocked() {
 		return
 	}
 
-	h.logger.Info("Exiting current mode", zap.String("mode", h.CurrModeString()))
+	h.logger.Debug("Exiting current mode", zap.String("mode", h.CurrModeString()))
 
 	h.performModeSpecificCleanup()
 	h.performCommonCleanup()

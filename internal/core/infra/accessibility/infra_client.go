@@ -28,7 +28,7 @@ func NewInfraAXClient(
 	}
 
 	return &InfraAXClient{
-		logger:         logger,
+		logger:         logger.Named("accessibility.client"),
 		configProvider: configProvider,
 	}
 }

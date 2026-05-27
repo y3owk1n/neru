@@ -279,7 +279,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	bottom := yBreaks[rowIndex+1]
 	xCoordinate := left + (right-left)/CenterDivisor
 	yCoordinate := top + (bottom-top)/CenterDivisor
-	m.Logger.Info("Grid manager: Subgrid selection complete",
+	m.Logger.Debug("Grid manager: Subgrid selection complete",
 		zap.Int("row", rowIndex), zap.Int("col", colIndex),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()

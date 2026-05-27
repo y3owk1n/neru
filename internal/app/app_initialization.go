@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -44,12 +46,19 @@ func New(opts ...Option) (*App, error) {
 func initializeApp(app *App) (*App, error) {
 	var initializedPhases []func() // Cleanup functions for successful phases
 
-	var initializationFailed bool
+	var (
+		initializationFailed bool
+		failurePhase         string
+		failureErr           error
+	)
 
 	// Cleanup function that runs on failure to prevent resource leaks
+
 	defer func() {
 		if initializationFailed {
-			app.logger.Info("Initialization failed, cleaning up partially allocated resources")
+			app.logger.Error("Initialization failed, cleaning up partially allocated resources",
+				zap.String("phase", failurePhase),
+				zap.Error(failureErr))
 			// Run cleanup functions in reverse order (LIFO)
 			for i := len(initializedPhases) - 1; i >= 0; i-- {
 				initializedPhases[i]()
@@ -61,6 +70,8 @@ func initializeApp(app *App) (*App, error) {
 	err := initializeInfrastructure(app)
 	if err != nil {
 		initializationFailed = true
+		failurePhase = "infrastructure"
+		failureErr = err
 
 		return nil, err
 	}
@@ -73,6 +84,8 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeServicesAndAdapters(app)
 	if err != nil {
 		initializationFailed = true
+		failurePhase = "services"
+		failureErr = err
 
 		return nil, err
 	}
@@ -89,6 +102,8 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeUIComponents(app)
 	if err != nil {
 		initializationFailed = true
+		failurePhase = "ui_components"
+		failureErr = err
 
 		return nil, err
 	}
@@ -134,6 +149,8 @@ func initializeApp(app *App) (*App, error) {
 	err = initializeEventTapAndIPC(app)
 	if err != nil {
 		initializationFailed = true
+		failurePhase = "eventtap_ipc"
+		failureErr = err
 
 		return nil, err
 	}

@@ -54,10 +54,14 @@ func NewScrollService(
 	config config.ScrollConfig,
 	logger *zap.Logger,
 ) *ScrollService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &ScrollService{
 		BaseService: NewBaseService(accessibility, overlay, system),
 		config:      config,
-		logger:      logger,
+		logger:      logger.Named("service.scroll"),
 	}
 }
 
@@ -98,7 +102,7 @@ func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 
 	s.config = config
 
-	s.logger.Info("Scroll configuration updated",
+	s.logger.Debug("Scroll configuration updated",
 		zap.Int("scroll_step", config.ScrollStep),
 		zap.Int("scroll_step_full", config.ScrollStepFull))
 }

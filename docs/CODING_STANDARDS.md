@@ -8,6 +8,7 @@ This document defines the coding standards and conventions for the Neru project.
 
 - [Quick Reference](#quick-reference)
 - [General Standards](#general-standards)
+- [Logging Standards](#logging-standards)
 - [Documentation Standards](#documentation-standards)
 - [Git Commit Standards](#git-commit-standards)
 - [Pre-commit Checklist](#pre-commit-checklist)
@@ -51,6 +52,87 @@ neru/
 - **Directories**: lowercase, underscore-separated
 - **Files**: lowercase, underscore-separated
 - **Test files**: `*_test.go`, `*_integration_darwin_test.go`, `*_integration_linux_test.go`
+
+## Logging Standards
+
+Neru logs are for production troubleshooting first. Every log entry should explain a lifecycle event, an actionable degradation, a failed operation, or diagnostic context that is useful only when debug logging is enabled.
+
+### Logger Categories
+
+Use named zap loggers at component boundaries so log streams can be filtered by subsystem.
+
+Common names:
+
+- `app`
+- `config`
+- `modes`
+- `ipc`
+- `ipc.controller`
+- `service.hints`, `service.grid`, `service.action`, `service.scroll`
+- `overlay`
+- `hotkeys`, `hotkeys.adapter`
+- `eventtap`, `eventtap.adapter`
+- `appwatcher`
+- `accessibility.client`
+- `electron`
+- `textinput`
+
+Constructors that accept a logger should tolerate `nil` by falling back to `zap.NewNop()`, then call `logger.Named(...)` before storing it.
+
+### Log Levels
+
+- `debug`: high-volume or user-driven events, routing decisions, generated counts, timing, cache hits, mode cleanup, overlay redraws, optional platform probes.
+- `info`: daemon lifecycle, startup/shutdown, config load/reload success, mode activation, and important platform capability state that an operator should see at the default log level.
+- `warn`: actionable degradation where Neru continues with a fallback, a rejected/invalid configuration, secure input blocking activation, queue pressure, version mismatch, or shutdown escalation.
+- `error`: an operation failed and the caller returned or handled an error; include `zap.Error(err)`.
+
+Avoid logging routine success paths at `info`, especially for keypresses, mouse movement, scrolling, overlay refreshes, IPC action execution, and hint generation internals.
+
+Startup logs should include enough context to identify the running binary and environment: version, platform, config path, log level, structured logging mode, and whether file logging is enabled. Initialization failures should include the failed phase and root error before cleanup begins.
+
+### Fields And Privacy
+
+Prefer structured fields over interpolated messages:
+
+```go
+logger.Warn("Clickable element collection was slow",
+    zap.Duration("elapsed", elapsed),
+    zap.Int("element_count", len(elements)),
+)
+```
+
+Do not log sensitive or unbounded payloads:
+
+- UI text, hint search terms, element titles/descriptions/values
+- feed-key sequences or captured keystreams
+- exec command output
+- full hotkey action arrays
+- full config subtrees or raw TOML values
+- complete accessibility filters that may contain UI text
+
+Log counts, lengths, types, IDs, booleans, durations, and stable non-sensitive identifiers instead. Bundle IDs and configured hotkey strings are acceptable when they are needed for troubleshooting, but do not log downstream command output or typed text.
+
+### Native Code
+
+Prefer routing native diagnostics through the Go zap bridge. Use `NSLog` only when Go logging is unavailable and the message represents an actionable native failure, such as notification authorization or Accessibility permission reset failures.
+
+### Examples
+
+Good:
+
+```go
+logger.Debug("Hotkey matched",
+    zap.String("mode", modeName),
+    zap.String("key", rawKey),
+    zap.Int("action_count", len(actions)),
+)
+```
+
+Avoid:
+
+```go
+logger.Info("Hotkey matched", zap.Strings("actions", actions))
+```
 
 ## Documentation Standards
 

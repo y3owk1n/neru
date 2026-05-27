@@ -27,11 +27,10 @@ var (
 )
 
 // Init configures and initializes the global logger with the specified settings.
-// It supports both console and file output with configurable log levels, file rotation,
-// and structured or unstructured logging formats.
+// It supports both console and file output with configurable log levels and file rotation.
+// Console output uses human-readable format; file output uses JSON for machine parsing.
 func Init(
 	logLevel, logFilePath string,
-	structured bool,
 	disableFileLogging bool,
 	maxFileSize, maxBackups, maxAge int,
 	consoleWriter io.Writer,
@@ -68,22 +67,15 @@ func Init(
 	}
 
 	// Configure encoder
-	var consoleEncoderConfig, fileEncoderConfig zapcore.EncoderConfig
-	if structured {
-		consoleEncoderConfig = zap.NewProductionEncoderConfig()
-		fileEncoderConfig = zap.NewProductionEncoderConfig()
-	} else {
-		consoleEncoderConfig = zap.NewDevelopmentEncoderConfig()
-		fileEncoderConfig = zap.NewDevelopmentEncoderConfig()
-	}
-
+	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
 	consoleEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
 	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	fileEncoderConfig := zap.NewProductionEncoderConfig()
+	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	// Create console encoder
+	// Create console encoder (human-readable)
 	consoleEncoder := zapcore.NewConsoleEncoder(consoleEncoderConfig)
 
 	// Determine console writer
@@ -129,13 +121,8 @@ func Init(
 			Compress:   true,        // Compress old log files
 		}
 
-		// Create file encoder (no colors)
-		var fileEncoder zapcore.Encoder
-		if structured {
-			fileEncoder = zapcore.NewJSONEncoder(fileEncoderConfig)
-		} else {
-			fileEncoder = zapcore.NewConsoleEncoder(fileEncoderConfig)
-		}
+		// Create file encoder (JSON for machine parsing)
+		fileEncoder := zapcore.NewJSONEncoder(fileEncoderConfig)
 
 		// Add file core
 		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), level))

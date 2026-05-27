@@ -28,10 +28,14 @@ type Manager struct {
 
 // NewManager creates and initializes a new hotkey manager instance.
 func NewManager(logger *zap.Logger) *Manager {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &Manager{
 		callbacks: make(map[HotkeyID]Callback),
 		keys:      make(map[HotkeyID]string),
-		logger:    logger,
+		logger:    logger.Named("hotkeys"),
 		nextID:    1,
 		backend:   platformBackend(),
 	}

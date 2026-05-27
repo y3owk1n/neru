@@ -25,9 +25,13 @@ type Adapter struct {
 
 // NewAdapter creates a new hotkey adapter.
 func NewAdapter(manager InfraManager, logger *zap.Logger) *Adapter {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &Adapter{
 		manager:       manager,
-		logger:        logger,
+		logger:        logger.Named("hotkeys.adapter"),
 		registeredIDs: make(map[string]int),
 	}
 }

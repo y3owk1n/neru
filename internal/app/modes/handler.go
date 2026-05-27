@@ -165,6 +165,12 @@ func NewHandler(
 	textInput ports.TextInputPort,
 	systemPort ports.SystemPort,
 ) *Handler {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	logger = logger.Named("modes")
+
 	// Initialize screen bounds for coordinate conversion.
 	// Use a background context since this runs during startup.
 	// CodeNotSupported is expected on non-darwin platforms and is silently ignored;

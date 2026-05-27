@@ -331,11 +331,11 @@ func (h *Handler) dispatchHotkeyActions(
 	rawKey string,
 	actions []string,
 ) {
-	h.logger.Info("Hotkey matched",
+	h.logger.Debug("Hotkey matched",
 		zap.String("mode", modeName),
 		zap.String("bindKey", bindKey),
 		zap.String("key", rawKey),
-		zap.Strings("actions", actions))
+		zap.Int("action_count", len(actions)))
 
 	// Execute in a goroutine so the event tap callback returns quickly.
 	// This also avoids a deadlock: executeHotkeyAction may call

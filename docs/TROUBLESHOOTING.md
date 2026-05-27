@@ -620,9 +620,15 @@ grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 
 **"Enabled AXManualAccessibility"** - Electron support activated successfully
 
-**"No clickable elements found"** - No hints to show (app may need custom config)
+**"Hints mode activated"** - Hint overlay is active; includes hint count when available
 
-**"Failed to get AX elements"** - Accessibility permission issue
+**"Clickable element collection was slow"** - Accessibility scanning completed but took longer than expected
+
+**"Failed to get clickable elements"** - Accessibility query failed; check macOS Accessibility permission and app-specific exclusions
+
+**"Secure input is enabled, blocking mode activation"** - macOS secure input is active, often because a password field is focused
+
+Most key routing, overlay redraw, and hint filtering details are logged only at `debug` to keep production logs quiet.
 
 ### Clear logs
 

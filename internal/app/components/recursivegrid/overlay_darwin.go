@@ -71,6 +71,7 @@ func NewOverlay(cfg config.RecursiveGridConfig, logger *zap.Logger) (*Overlay, e
 	if err != nil {
 		return nil, err
 	}
+	base.CallbackManager.SetComponent("recursivegrid")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
@@ -89,6 +90,7 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) *Overlay {
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
+	base.CallbackManager.SetComponent("recursivegrid")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),

@@ -75,6 +75,8 @@ func ensureAccessibility(
 		logger = zap.NewNop()
 	}
 
+	logger = logger.Named("electron")
+
 	app := accessibility.ApplicationByBundleID(bundleID)
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))

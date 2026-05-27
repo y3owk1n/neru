@@ -25,7 +25,6 @@ func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
 	initConfigErr := logger.Init(
 		cfg.Logging.LogLevel,
 		cfg.Logging.LogFile,
-		cfg.Logging.StructuredLogging,
 		cfg.Logging.DisableFileLogging,
 		cfg.Logging.MaxFileSize,
 		cfg.Logging.MaxBackups,
@@ -36,7 +35,7 @@ func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
 		return nil, derrors.Wrap(initConfigErr, derrors.CodeInternal, "failed to initialize logger")
 	}
 
-	logger := logger.Get()
+	logger := logger.Get().Named("app")
 	initializePlatformLogger(logger)
 
 	return logger, nil
@@ -51,9 +50,8 @@ func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 	// Apply clickable roles if hints are enabled
 	if cfg.Hints.Enabled {
-		logger.Info("Applying clickable roles",
-			zap.Int("count", len(cfg.Hints.ClickableRoles)),
-			zap.Strings("roles", cfg.Hints.ClickableRoles))
+		logger.Debug("Applying clickable roles",
+			zap.Int("count", len(cfg.Hints.ClickableRoles)))
 		accessibilityAdapter.SetClickableRoles(cfg.Hints.ClickableRoles, logger)
 	}
 
@@ -182,7 +180,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 			logger.Warn(
 				"Skipping empty hotkey binding",
 				zap.String("key", key),
-				zap.Strings("actions", actions),
+				zap.Int("action_count", len(actions)),
 			)
 
 			continue

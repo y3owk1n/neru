@@ -852,11 +852,12 @@ duration_per_pixel = 1.0
 | ---------------------- | ------ | -------- | ----------------------------------------------- |
 | `log_level`            | string | `"info"` | Level: `debug`, `info`, `warn`, `error`         |
 | `log_file`             | string | `""`     | Custom log file path (empty = default location) |
-| `structured_logging`   | bool   | `true`   | JSON format                                     |
-| `disable_file_logging` | bool   | `true`   | Console only (no file)                          |
+| `disable_file_logging` | bool   | `true`   | Console only (no file); file logs always use JSON |
 | `max_file_size`        | int    | `10`     | MB before rotation                              |
 | `max_backups`          | int    | `5`      | Old log files to keep                           |
 | `max_age`              | int    | `30`     | Days to retain old logs                         |
+
+At the default `info` level, logs focus on lifecycle, configuration, mode activation, and actionable operational events. Use `debug` temporarily when investigating key routing, hint generation, accessibility collection, overlay redraws, or IPC action flow. Debug logs intentionally avoid typed UI text, feed-key payloads, exec output, and full configuration values.
 
 ---
 

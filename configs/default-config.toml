@@ -331,8 +331,7 @@ enabled = true                              # Show menu bar icon (false = headle
 [logging]
 log_level = "info"                          # debug, info, warn, error
 log_file = ""                               # Custom log path (empty = default location)
-structured_logging = true                   # JSON format
-disable_file_logging = true                 # Console only (no file)
+disable_file_logging = true                 # Console only (no file); file logs use JSON
 max_file_size = 10                          # MB before rotation
 max_backups = 5                             # Old log files to keep
 max_age = 30                                # Days to retain old logs

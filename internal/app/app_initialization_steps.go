@@ -376,13 +376,11 @@ func initializeIPCController(app *App) {
 
 // setupScreenShareStateSubscription sets up a callback to update overlay when screen share state changes.
 func setupScreenShareStateSubscription(app *App) {
-	// Apply initial config value to overlay if set to hide in screen share
+	// Apply initial config value to overlay if set to hide in screen share.
+	// The OnScreenShareStateChanged callback fires immediately with the current
+	// state, so no direct SetSharingType call is needed here.
 	if app.config != nil && app.config.General.HideOverlayInScreenShare {
 		app.appState.SetHiddenForScreenShare(true)
-
-		if app.overlayManager != nil {
-			app.overlayManager.SetSharingType(true)
-		}
 	}
 
 	app.screenShareSubscriptionID = app.appState.OnScreenShareStateChanged(func(hidden bool) {
@@ -409,7 +407,9 @@ func initializeEventTapAndIPC(app *App) error {
 	// Initialize event tap if not provided
 	if app.eventTap == nil {
 		tap := eventtapadapter.NewEventTap(app.HandleKeyPress, logger)
-		app.eventTap = eventtapadapter.NewAdapter(tap, logger)
+		if tap != nil {
+			app.eventTap = eventtapadapter.NewAdapter(tap, logger)
+		}
 	}
 
 	if app.eventTap == nil {

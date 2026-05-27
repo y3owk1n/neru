@@ -28,7 +28,7 @@ func (h *Handler) executeActionAtPoint(
 		return
 	}
 
-	h.logger.Info("Executing pending action",
+	h.logger.Debug("Executing pending action",
 		zap.String("action", *action),
 		zap.String("modifiers", h.stickyModifiers().String()),
 		zap.Bool("repeat", repeat))
@@ -63,7 +63,7 @@ func (h *Handler) executeActionAtPoint(
 			time.Sleep(postActionSettleDelay)
 		}
 
-		h.logger.Info("Re-activating mode after action (--repeat)")
+		h.logger.Debug("Re-activating mode after action (--repeat)")
 		reActivateFunc()
 
 		return
@@ -94,7 +94,7 @@ func (h *Handler) moveCursorAndHandleAction(
 
 	// No pending action - re-activate mode if requested
 	if shouldReActivate && reActivateFunc != nil {
-		h.logger.Info("Re-activating mode after cursor movement")
+		h.logger.Debug("Re-activating mode after cursor movement")
 		reActivateFunc()
 	}
 }
@@ -120,7 +120,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 		hint := hintKeyResult.ExactHint()
 		center := hint.Element().Center()
 
-		h.logger.Info("Found element", zap.String("label", hint.Label()))
+		h.logger.Debug("Found element", zap.String("label", hint.Label()))
 
 		pendingAction := h.hints.Context.PendingAction()
 		repeat := h.hints.Context.Repeat()
@@ -378,7 +378,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 
-		h.logger.Info(
+		h.logger.Debug(
 			"Grid move mouse",
 			zap.Int("x", absolutePoint.X),
 			zap.Int("y", absolutePoint.Y),

@@ -756,9 +756,8 @@ func (c *RecursiveGridConfig) AllKeysIncludingLayers() string {
 
 // LoggingConfig defines the logging behavior and file management settings.
 type LoggingConfig struct {
-	LogLevel          string `json:"logLevel"          toml:"log_level"`
-	LogFile           string `json:"logFile"           toml:"log_file"`
-	StructuredLogging bool   `json:"structuredLogging" toml:"structured_logging"`
+	LogLevel string `json:"logLevel" toml:"log_level"`
+	LogFile  string `json:"logFile"  toml:"log_file"`
 
 	// New options for log rotation and file logging control
 	DisableFileLogging bool `json:"disableFileLogging" toml:"disable_file_logging"`

@@ -386,16 +386,15 @@ func (h *Handler) activateHintModeInternal(
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
-	if actionStr != nil {
-		h.logger.Info("Hints mode activated",
-			zap.String("action", *actionStr),
-			zap.Duration("elapsed", time.Since(activationStart)),
-		)
-	} else {
-		h.logger.Info("Hints mode activated",
-			zap.Duration("elapsed", time.Since(activationStart)),
-		)
+	fields := []zap.Field{
+		zap.Duration("elapsed", time.Since(activationStart)),
+		zap.Int("hint_count", len(domainHints)),
 	}
+	if actionStr != nil {
+		fields = append(fields, zap.String("action", *actionStr))
+	}
+
+	h.logger.Info("Hints mode activated", fields...)
 
 	if search != nil && *search {
 		err := h.startHintSearchLocked()

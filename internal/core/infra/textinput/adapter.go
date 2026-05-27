@@ -19,9 +19,13 @@ type Adapter struct {
 
 // NewAdapter creates a new Adapter with the given TextInput and logger.
 func NewAdapter(input *TextInput, logger *zap.Logger) *Adapter {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	return &Adapter{
 		input:  input,
-		logger: logger,
+		logger: logger.Named("textinput"),
 	}
 }
 

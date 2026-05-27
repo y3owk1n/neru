@@ -476,7 +476,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 		offsetX, offsetY := parsed.xVal, parsed.yVal
 
-		h.logger.Info("Moving mouse to center via IPC",
+		h.logger.Debug("Moving mouse to center via IPC",
 			zap.Int("offsetX", offsetX),
 			zap.Int("offsetY", offsetY),
 		)
@@ -515,7 +515,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 		offsetX, offsetY := parsed.xVal, parsed.yVal
 
-		h.logger.Info("Moving mouse to window center via IPC",
+		h.logger.Debug("Moving mouse to window center via IPC",
 			zap.Int("offsetX", offsetX),
 			zap.Int("offsetY", offsetY),
 		)
@@ -560,7 +560,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 			}
 		}
 
-		h.logger.Info("Moving mouse relative via IPC",
+		h.logger.Debug("Moving mouse relative via IPC",
 			zap.Int("dx", parsed.deltaX),
 			zap.Int("dy", parsed.deltaY),
 		)
@@ -589,7 +589,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	h.logger.Info("Performing action via IPC",
+	h.logger.Debug("Performing action via IPC",
 		zap.String("action", actionName),
 		zap.Int("x", parsed.xVal),
 		zap.Int("y", parsed.yVal),
@@ -650,7 +650,7 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 		keys = append(keys, key)
 	}
 
-	h.logger.Info("Feeding keys via IPC", zap.Strings("keys", keys))
+	h.logger.Debug("Feeding keys via IPC", zap.Int("key_count", len(keys)))
 
 	for index, key := range keys {
 		err := keyfeed.Feed(key)
@@ -1163,7 +1163,7 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	}
 
 	if parsed.hasMonitorName {
-		h.logger.Info("Moving to monitor by name via IPC",
+		h.logger.Debug("Moving to monitor by name via IPC",
 			zap.String("monitor", parsed.monitorName),
 		)
 
@@ -1190,7 +1190,7 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 		direction = modes.MonitorDirectionPrevious
 	}
 
-	h.logger.Info("Cycling monitor via IPC",
+	h.logger.Debug("Cycling monitor via IPC",
 		zap.Bool("previous", parsed.usePrevious),
 	)
 
@@ -1236,7 +1236,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 		}
 	}
 
-	h.logger.Info("Cycling hints via IPC",
+	h.logger.Debug("Cycling hints via IPC",
 		zap.Bool("backward", parsed.useBackward),
 	)
 
@@ -1345,7 +1345,7 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	h.logger.Info("Performing scroll action via IPC",
+	h.logger.Debug("Performing scroll action via IPC",
 		zap.String("action", actionName),
 		zap.Int("direction", int(direction)),
 		zap.Int("amount", int(amount)),

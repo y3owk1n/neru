@@ -87,7 +87,7 @@ func (h *Handler) MoveMonitor(
 		return err
 	}
 
-	h.logger.Info("Moved cursor to monitor",
+	h.logger.Debug("Moved cursor to monitor",
 		zap.String("monitor", targetDisplayName),
 		zap.Int("x", center.X),
 		zap.Int("y", center.Y),
@@ -157,7 +157,7 @@ func (h *Handler) MoveMonitorByName(
 		return err
 	}
 
-	h.logger.Info("Moved cursor to monitor by name",
+	h.logger.Debug("Moved cursor to monitor by name",
 		zap.String("monitor", monitorName),
 		zap.Int("x", center.X),
 		zap.Int("y", center.Y),

@@ -126,6 +126,11 @@ func SocketPath() string {
 
 // NewServer initializes a new IPC server instance with the specified handler.
 func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	logger = logger.Named("ipc")
 	socketPath := SocketPath()
 
 	// Remove existing socket if it exists
@@ -175,7 +180,7 @@ func (s *Server) Start() {
 			if connectionErr != nil {
 				// If listener is closed, exit gracefully
 				if errors.Is(connectionErr, net.ErrClosed) {
-					s.logger.Info("IPC server listener closed, stopping accept loop")
+					s.logger.Debug("IPC server listener closed, stopping accept loop")
 
 					return
 				}
@@ -280,7 +285,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 		return
 	}
 
-	logger.Info(
+	logger.Debug(
 		"Received command",
 		zap.String("action", cmd.Action),
 		zap.String("version", cmd.Version),

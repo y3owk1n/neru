@@ -60,6 +60,10 @@ func NewIPCController(
 	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
 ) *IPCController {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	ipcController := &IPCController{
 		HintService:   hintService,
 		GridService:   gridService,
@@ -72,7 +76,7 @@ func NewIPCController(
 		EventTap:      eventTap,
 		IPCServer:     ipcServer,
 		ReloadConfig:  reloadConfig,
-		Logger:        logger,
+		Logger:        logger.Named("ipc.controller"),
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
@@ -84,7 +88,7 @@ func NewIPCController(
 
 // HandleCommand routes an IPC command to the appropriate handler.
 func (c *IPCController) HandleCommand(ctx context.Context, command ipc.Command) ipc.Response {
-	c.Logger.Info(
+	c.Logger.Debug(
 		"Handling IPC command",
 		zap.String("action", command.Action),
 	)
