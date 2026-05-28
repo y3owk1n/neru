@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	hotkeySequenceTimeout = 500 * time.Millisecond
-	heldRepeatInterval    = 50 * time.Millisecond
+	hotkeySequenceTimeout  = 500 * time.Millisecond
+	heldRepeatInitialDelay = 50 * time.Millisecond
+	heldRepeatInterval     = 50 * time.Millisecond
 )
 
 const keyUpPrefix = "__keyup_"
@@ -405,6 +406,15 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 					zap.String("key", bindKey))
 			}
 		}()
+
+		initialTimer := time.NewTimer(heldRepeatInitialDelay)
+		defer initialTimer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-initialTimer.C:
+		}
 
 		ticker := time.NewTicker(heldRepeatInterval)
 		defer ticker.Stop()

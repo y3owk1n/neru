@@ -186,12 +186,11 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 		defer ticker.Stop()
 
 		for {
-			a.dispatchHotkeyActions(key, actions)
-
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				a.dispatchHotkeyActions(key, actions)
 			}
 		}
 	}()
