@@ -85,8 +85,8 @@ static CGImageRef captureDisplayImageWithScreenCaptureKit(CGDirectDisplayID disp
 
 			SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 			SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
-			config.width = CGDisplayPixelsWide(displayID);
-			config.height = CGDisplayPixelsHigh(displayID);
+			config.width = CGDisplayPixelsWide(display.displayID);
+			config.height = CGDisplayPixelsHigh(display.displayID);
 
 			[SCScreenshotManager captureImageWithFilter:filter
 			                              configuration:config
