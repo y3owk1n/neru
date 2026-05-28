@@ -341,6 +341,12 @@ func (s *HintService) generateHintsVision(
 		zap.Duration("elapsed", time.Since(supplementStart)),
 		zap.Int("count", len(supplementElements)))
 
+	if s.vision == nil {
+		s.logger.Warn("Vision strategy selected but vision port is unavailable")
+
+		return allElements
+	}
+
 	// Get focused window bounds for vision detection
 	windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
 	if boundsErr != nil || !found {

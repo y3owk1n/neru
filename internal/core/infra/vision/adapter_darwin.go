@@ -164,7 +164,7 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 		8, // bits per component
 		C.size_t(bytesPerRow),
 		colorSpace,
-		C.kCGImageAlphaPremultipliedFirst|C.kCGBitmapByteOrder32Little, //nolint:nlreturn
+		C.kCGImageAlphaPremultipliedLast, //nolint:nlreturn
 	)
 
 	if uintptr(ctx) == 0 {

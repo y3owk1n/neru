@@ -9,12 +9,10 @@ import (
 // Framework request. Multiple requests (text, rectangles, saliency) produce
 // overlapping regions that are merged into a single element.
 type DetectedRegion struct {
-	Bounds   image.Rectangle
-	Label    string
-	Score    float64
-	Role     string
-	IsText   bool
-	IsButton bool
+	Bounds image.Rectangle
+	Label  string
+	Score  float64
+	IsText bool
 }
 
 // regionClassifier applies geometric and saliency heuristics to assign

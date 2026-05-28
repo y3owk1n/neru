@@ -563,6 +563,56 @@ func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryEle
 	}
 }
 
+func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
+	t *testing.T,
+) {
+	supplementElement := mustNewElement("menubar", image.Rect(10, 0, 60, 20))
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		if !filter.SkipWindowElements {
+			t.Error("nil vision port should not trigger window AX collection")
+		}
+
+		return []*element.Element{supplementElement}, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf")
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{},
+		generator,
+		config.HintsConfig{
+			IncludeMenubarHints: true,
+		},
+		logger.Get(),
+		nil,
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		config.StrategyVision,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("GenerateHints() returned %d hints, want 1", len(hints))
+	}
+
+	if hints[0].Element().ID() != supplementElement.ID() {
+		t.Errorf("hint element = %q, want %q", hints[0].Element().ID(), supplementElement.ID())
+	}
+}
+
 func TestHintService_UpdateGenerator(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}
