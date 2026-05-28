@@ -4,7 +4,7 @@ package vision
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Vision -framework CoreGraphics -framework Foundation
+#cgo LDFLAGS: -framework Vision -framework CoreGraphics -framework Foundation -framework ScreenCaptureKit
 #include "../platform/darwin/vision.h"
 #include <stdlib.h>
 */

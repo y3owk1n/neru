@@ -2,13 +2,139 @@
 
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
+#import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <Vision/Vision.h>
+#import <dlfcn.h>
+#import <os/lock.h>
 
 static VisionResult *emptyVisionResult(void) {
 	VisionResult *result = malloc(sizeof(VisionResult));
 	result->regions = NULL;
 	result->count = 0;
 	return result;
+}
+
+typedef CGImageRef (*CGDisplayCreateImageFunc)(CGDirectDisplayID display);
+
+typedef struct {
+	os_unfair_lock lock;
+	CGImageRef image;
+	BOOL timedOut;
+} NeruScreenshotState;
+
+static CGImageRef createDisplayImage(CGDirectDisplayID display) {
+	static CGDisplayCreateImageFunc createImage = NULL;
+	static dispatch_once_t onceToken;
+
+	dispatch_once(&onceToken, ^{
+		createImage = (CGDisplayCreateImageFunc)dlsym(RTLD_DEFAULT, "CGDisplayCreateImage");
+	});
+
+	if (createImage == NULL) {
+		return NULL;
+	}
+
+	return createImage(display);
+}
+
+static SCDisplay *screenCaptureDisplayForID(CGDirectDisplayID displayID, SCShareableContent *content)
+    API_AVAILABLE(macos(12.3)) {
+	for (SCDisplay *display in content.displays) {
+		if (display.displayID == displayID) {
+			return display;
+		}
+	}
+
+	return content.displays.firstObject;
+}
+
+static void releaseScreenshotState(NeruScreenshotState *state) {
+	if (state == NULL) {
+		return;
+	}
+
+	if (state->image != NULL) {
+		CGImageRelease(state->image);
+	}
+
+	free(state);
+}
+
+static CGImageRef captureDisplayImageWithScreenCaptureKit(CGDirectDisplayID displayID) {
+	if (@available(macOS 14.0, *)) {
+		NeruScreenshotState *state = calloc(1, sizeof(NeruScreenshotState));
+		if (state == NULL) {
+			return NULL;
+		}
+		state->lock = OS_UNFAIR_LOCK_INIT;
+
+		dispatch_group_t group = dispatch_group_create();
+		dispatch_group_enter(group);
+
+		[SCShareableContent getShareableContentWithCompletionHandler:^(SCShareableContent *content, NSError *error) {
+			if (error != nil || content.displays.count == 0) {
+				dispatch_group_leave(group);
+				return;
+			}
+
+			SCDisplay *display = screenCaptureDisplayForID(displayID, content);
+			if (display == nil) {
+				dispatch_group_leave(group);
+				return;
+			}
+
+			SCContentFilter *filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
+			SCStreamConfiguration *config = [[SCStreamConfiguration alloc] init];
+			config.width = CGDisplayPixelsWide(displayID);
+			config.height = CGDisplayPixelsHigh(displayID);
+
+			[SCScreenshotManager captureImageWithFilter:filter
+			                              configuration:config
+			                          completionHandler:^(CGImageRef image, NSError *captureError) {
+				                          if (captureError == nil && image != NULL) {
+					                          os_unfair_lock_lock(&state->lock);
+					                          if (!state->timedOut) {
+						                          state->image = CGImageRetain(image);
+					                          }
+					                          os_unfair_lock_unlock(&state->lock);
+				                          }
+
+				                          dispatch_group_leave(group);
+			                          }];
+		}];
+
+		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+		if (dispatch_group_wait(group, timeout) != 0) {
+			os_unfair_lock_lock(&state->lock);
+			state->timedOut = YES;
+			os_unfair_lock_unlock(&state->lock);
+
+			dispatch_group_notify(group, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+				releaseScreenshotState(state);
+			});
+
+			return NULL;
+		}
+
+		os_unfair_lock_lock(&state->lock);
+		CGImageRef image = state->image;
+		state->image = NULL;
+		os_unfair_lock_unlock(&state->lock);
+
+		releaseScreenshotState(state);
+
+		return image;
+	}
+
+	return NULL;
+}
+
+static CGImageRef captureDisplayImage(CGDirectDisplayID displayID) {
+	if (@available(macOS 14.0, *)) {
+		return captureDisplayImageWithScreenCaptureKit(displayID);
+	}
+
+	return createDisplayImage(displayID);
 }
 
 static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image) {
@@ -64,7 +190,7 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 
 		CGRect displayBounds = CGDisplayBounds(display);
 
-		CGImageRef image = CGDisplayCreateImage(display);
+		CGImageRef image = captureDisplayImage(display);
 		if (!image) {
 			return emptyVisionResult();
 		}
@@ -166,7 +292,7 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 	}
 }
 
-CGImageRef NeruCaptureScreen(void) { return CGDisplayCreateImage(CGMainDisplayID()); }
+CGImageRef NeruCaptureScreen(void) { return captureDisplayImage(CGMainDisplayID()); }
 
 void NeruFreeVisionResult(VisionResult *result) {
 	if (result) {
