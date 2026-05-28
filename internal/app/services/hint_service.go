@@ -370,7 +370,16 @@ func (s *HintService) generateHintsVision(
 
 		// Fall back to AX for window elements if vision fails
 		axStart := time.Now()
-		fallbackElements, fallbackErr := s.accessibility.ClickableElements(ctx, filter)
+		fallbackFilter := filter
+		fallbackFilter.IncludeMenubar = false
+		fallbackFilter.AdditionalMenubarTargets = nil
+		fallbackFilter.IncludeDock = false
+		fallbackFilter.IncludeNotificationCenter = false
+		fallbackFilter.IncludeStageManager = false
+		fallbackFilter.IncludePIP = false
+		fallbackFilter.IncludeScreenCapture = false
+
+		fallbackElements, fallbackErr := s.accessibility.ClickableElements(ctx, fallbackFilter)
 		s.logger.Debug("TIMING: Fallback elements (AX)",
 			zap.Duration("elapsed", time.Since(axStart)),
 			zap.Int("count", len(fallbackElements)),

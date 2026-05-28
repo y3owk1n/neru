@@ -476,6 +476,93 @@ func TestHintService_RefreshHints(t *testing.T) {
 	}
 }
 
+func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryElements(
+	t *testing.T,
+) {
+	supplementElement := mustNewElement("menubar", image.Rect(10, 0, 60, 20))
+	windowElement := mustNewElement("window", image.Rect(10, 40, 60, 90))
+
+	var fallbackFilter ports.ElementFilter
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		if filter.SkipWindowElements {
+			return []*element.Element{supplementElement}, nil
+		}
+
+		fallbackFilter = filter
+
+		return []*element.Element{windowElement}, nil
+	}
+
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+		return image.Rect(0, 0, 200, 200), true, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf")
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{
+			IncludeMenubarHints:           true,
+			AdditionalMenubarHintsTargets: []string{"Clock"},
+			IncludeDockHints:              true,
+			IncludeNCHints:                true,
+			IncludeStageManagerHints:      true,
+			IncludePIPHints:               true,
+			IncludeScreenCaptureHints:     true,
+		},
+		logger.Get(),
+		&mockVisionPort{
+			detectErr: derrors.New(derrors.CodeBridgeFailed, "vision failed"),
+		},
+	)
+
+	hints, err := service.GenerateHints(
+		context.Background(),
+		nil,
+		nil,
+		"com.example.app",
+		config.StrategyVision,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	if len(hints) != 2 {
+		t.Fatalf("GenerateHints() returned %d hints, want 2", len(hints))
+	}
+
+	seen := map[element.ID]int{}
+	for _, generatedHint := range hints {
+		seen[generatedHint.Element().ID()]++
+	}
+
+	if seen[supplementElement.ID()] != 1 {
+		t.Errorf("supplementary element count = %d, want 1", seen[supplementElement.ID()])
+	}
+
+	if seen[windowElement.ID()] != 1 {
+		t.Errorf("window element count = %d, want 1", seen[windowElement.ID()])
+	}
+
+	if fallbackFilter.IncludeMenubar ||
+		len(fallbackFilter.AdditionalMenubarTargets) != 0 ||
+		fallbackFilter.IncludeDock ||
+		fallbackFilter.IncludeNotificationCenter ||
+		fallbackFilter.IncludeStageManager ||
+		fallbackFilter.IncludePIP ||
+		fallbackFilter.IncludeScreenCapture {
+		t.Errorf("fallback filter should disable supplementary sources: %+v", fallbackFilter)
+	}
+}
+
 func TestHintService_UpdateGenerator(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}
@@ -561,4 +648,23 @@ func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 	}
 
 	return element
+}
+
+type mockVisionPort struct {
+	detectErr error
+}
+
+func (m *mockVisionPort) DetectElements(
+	context.Context,
+	image.Rectangle,
+) ([]*element.Element, error) {
+	return nil, m.detectErr
+}
+
+func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
+	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
+}
+
+func (m *mockVisionPort) Health(context.Context) error {
+	return nil
 }
