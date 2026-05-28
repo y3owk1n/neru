@@ -567,6 +567,30 @@ type SearchInputUI struct {
 	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
 }
 
+// HintsVisionConfig defines tunable settings for vision-based hint detection.
+type HintsVisionConfig struct {
+	DetectText             bool    `json:"detectText"             toml:"detect_text"`
+	DetectRectangles       bool    `json:"detectRectangles"       toml:"detect_rectangles"`
+	RequestTimeoutMS       int     `json:"requestTimeoutMs"       toml:"request_timeout_ms"`
+	MinimumConfidence      float64 `json:"minimumConfidence"      toml:"minimum_confidence"`
+	MergeIOUThreshold      float64 `json:"mergeIouThreshold"      toml:"merge_iou_threshold"`
+	RectangleMaxCandidates int     `json:"rectangleMaxCandidates" toml:"rectangle_max_candidates"`
+	RectangleMinSize       float64 `json:"rectangleMinSize"       toml:"rectangle_min_size"`
+	RectangleMinAspect     float64 `json:"rectangleMinAspect"     toml:"rectangle_min_aspect"`
+	RectangleMaxAspect     float64 `json:"rectangleMaxAspect"     toml:"rectangle_max_aspect"`
+
+	ButtonMinConfidence           float64 `json:"buttonMinConfidence"           toml:"button_min_confidence"`
+	ButtonMinAspect               float64 `json:"buttonMinAspect"               toml:"button_min_aspect"`
+	ButtonMaxAspect               float64 `json:"buttonMaxAspect"               toml:"button_max_aspect"`
+	ButtonIconMaxSize             int     `json:"buttonIconMaxSize"             toml:"button_icon_max_size"`
+	LinkMinAspect                 float64 `json:"linkMinAspect"                 toml:"link_min_aspect"`
+	LinkMaxHeight                 int     `json:"linkMaxHeight"                 toml:"link_max_height"`
+	LinkMinWidth                  int     `json:"linkMinWidth"                  toml:"link_min_width"`
+	ImageMinSize                  int     `json:"imageMinSize"                  toml:"image_min_size"`
+	CheckboxMaxSize               int     `json:"checkboxMaxSize"               toml:"checkbox_max_size"`
+	GenericClickableMinConfidence float64 `json:"genericClickableMinConfidence" toml:"generic_clickable_min_confidence"`
+}
+
 // Strategy constants for element detection.
 const (
 	StrategyAXTree = "axtree"
@@ -582,6 +606,7 @@ type HintsConfig struct {
 	UI                HintsUI             `json:"ui"                toml:"ui"`
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`
 	BoundaryHighlight BoundaryHighlightUI `json:"boundaryHighlight" toml:"boundary_highlight"`
+	Vision            HintsVisionConfig   `json:"vision"            toml:"vision"`
 
 	IncludeMenubarHints           bool                `json:"includeMenubarHints"           toml:"include_menubar_hints"`
 	AdditionalMenubarHintsTargets []string            `json:"additionalMenubarHintsTargets" toml:"additional_menubar_hints_targets"`

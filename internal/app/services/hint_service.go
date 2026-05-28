@@ -365,7 +365,7 @@ func (s *HintService) generateHintsVision(
 
 	// Detect window elements via vision
 	visionStart := time.Now()
-	windowElements, visionErr := s.vision.DetectElements(ctx, windowBounds)
+	windowElements, visionErr := s.vision.DetectElements(ctx, windowBounds, s.config.Vision)
 	s.logger.Debug("TIMING: Window elements (vision)",
 		zap.Duration("elapsed", time.Since(visionStart)),
 		zap.Int("count", len(windowElements)),
@@ -373,27 +373,6 @@ func (s *HintService) generateHintsVision(
 
 	if visionErr != nil {
 		s.logger.Error("Failed to detect elements via vision", zap.Error(visionErr))
-
-		// Fall back to AX for window elements if vision fails
-		axStart := time.Now()
-		fallbackFilter := filter
-		fallbackFilter.IncludeMenubar = false
-		fallbackFilter.AdditionalMenubarTargets = nil
-		fallbackFilter.IncludeDock = false
-		fallbackFilter.IncludeNotificationCenter = false
-		fallbackFilter.IncludeStageManager = false
-		fallbackFilter.IncludePIP = false
-		fallbackFilter.IncludeScreenCapture = false
-
-		fallbackElements, fallbackErr := s.accessibility.ClickableElements(ctx, fallbackFilter)
-		s.logger.Debug("TIMING: Fallback elements (AX)",
-			zap.Duration("elapsed", time.Since(axStart)),
-			zap.Int("count", len(fallbackElements)),
-			zap.Error(fallbackErr))
-
-		if fallbackErr == nil {
-			allElements = append(allElements, fallbackElements...)
-		}
 
 		return allElements
 	}

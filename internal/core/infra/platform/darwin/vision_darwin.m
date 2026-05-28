@@ -137,12 +137,12 @@ static CGImageRef captureDisplayImage(CGDirectDisplayID displayID) {
 	return createDisplayImage(displayID);
 }
 
-static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image) {
+static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image, NeruVisionConfig config) {
 	VNDetectRectanglesRequest *request = [[VNDetectRectanglesRequest alloc] init];
-	request.maximumObservations = 100;
-	request.minimumSize = 0.01;
-	request.minimumAspectRatio = 0.3;
-	request.maximumAspectRatio = 10.0;
+	request.maximumObservations = config.rectangleMaxCandidates;
+	request.minimumSize = config.rectangleMinSize;
+	request.minimumAspectRatio = config.rectangleMinAspect;
+	request.maximumAspectRatio = config.rectangleMaxAspect;
 
 	VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
 	NSError *error = nil;
@@ -175,7 +175,7 @@ static CGRect visionRectToCGRect(CGRect imageBounds, CGRect normalizedRect) {
 	return CGRectMake(x, y, w, h);
 }
 
-VisionResult *NeruDetectElements(CGRect screenBounds) {
+VisionResult *NeruDetectElements(CGRect screenBounds, NeruVisionConfig config) {
 	@autoreleasepool {
 		// Resolve which display contains the window
 		CGDirectDisplayID displays[32];
@@ -201,6 +201,7 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 		// Compute scale from the actual image pixels vs display bounds (points).
 		// CGDisplayPixelsWide can return point-count on some systems, so we rely
 		// on the captured image for the true pixel resolution.
+		// Scale handles high DPI / retina screens.
 		CGFloat scaleX = imgW / displayBounds.size.width;
 		CGFloat scaleY = imgH / displayBounds.size.height;
 
@@ -220,12 +221,12 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 
 		CFRetain(image);
 		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-			rects = detectRectangles(image);
+			rects = detectRectangles(image, config);
 		});
 		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
 			texts = detectText(image);
 		});
-		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)config.requestTimeoutMS * 1000000LL);
 		if (dispatch_group_wait(group, timeout) != 0) {
 			dispatch_group_notify(group, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
 				CGImageRelease(image);

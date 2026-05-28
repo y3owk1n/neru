@@ -15,6 +15,40 @@ const (
 	DefaultHintBoundaryBorderRadius = -1
 	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
 	DefaultHintBoundaryBorderWidth = 1
+	// DefaultVisionRequestTimeoutMS is the default Vision request timeout.
+	DefaultVisionRequestTimeoutMS = 5000
+	// DefaultVisionMinimumConfidence keeps all Vision observations by default.
+	DefaultVisionMinimumConfidence = 0.0
+	// DefaultVisionMergeIOUThreshold is the default overlap threshold for non-maximum suppression.
+	DefaultVisionMergeIOUThreshold = 0.5
+	// DefaultVisionRectangleMaxCandidates is the default maximum rectangle observations.
+	DefaultVisionRectangleMaxCandidates = 100
+	// DefaultVisionRectangleMinSize is the default minimum normalized rectangle size.
+	DefaultVisionRectangleMinSize = 0.01
+	// DefaultVisionRectangleMinAspect is the default minimum rectangle aspect ratio.
+	DefaultVisionRectangleMinAspect = 0.3
+	// DefaultVisionRectangleMaxAspect is the default maximum rectangle aspect ratio.
+	DefaultVisionRectangleMaxAspect = 10.0
+	// DefaultVisionButtonMinConfidence is the default button confidence threshold.
+	DefaultVisionButtonMinConfidence = 0.3
+	// DefaultVisionButtonMinAspect is the default minimum button aspect ratio.
+	DefaultVisionButtonMinAspect = 0.8
+	// DefaultVisionButtonMaxAspect is the default maximum button aspect ratio.
+	DefaultVisionButtonMaxAspect = 8.0
+	// DefaultVisionButtonIconMaxSize is the default max square button/icon size.
+	DefaultVisionButtonIconMaxSize = 48
+	// DefaultVisionLinkMinAspect is the default minimum link aspect ratio.
+	DefaultVisionLinkMinAspect = 5.0
+	// DefaultVisionLinkMaxHeight is the default maximum link text height.
+	DefaultVisionLinkMaxHeight = 40
+	// DefaultVisionLinkMinWidth is the default minimum link text width.
+	DefaultVisionLinkMinWidth = 50
+	// DefaultVisionImageMinSize is the default minimum size for image classification.
+	DefaultVisionImageMinSize = 48
+	// DefaultVisionCheckboxMaxSize is the default maximum size for checkbox classification.
+	DefaultVisionCheckboxMaxSize = 32
+	// DefaultVisionGenericClickableMinConfidence is the default generic clickable confidence threshold.
+	DefaultVisionGenericClickableMinConfidence = 0.5
 
 	// DefaultSearchInputYOffset is the default Y offset for search input.
 	DefaultSearchInputYOffset = 24
@@ -332,6 +366,27 @@ func newDefaultConfig() *Config {
 				BorderRadius:    DefaultHintBoundaryBorderRadius,
 				BorderColor:     Color{},
 				BackgroundColor: Color{},
+			},
+			Vision: HintsVisionConfig{
+				DetectText:                    true,
+				DetectRectangles:              true,
+				RequestTimeoutMS:              DefaultVisionRequestTimeoutMS,
+				MinimumConfidence:             DefaultVisionMinimumConfidence,
+				MergeIOUThreshold:             DefaultVisionMergeIOUThreshold,
+				RectangleMaxCandidates:        DefaultVisionRectangleMaxCandidates,
+				RectangleMinSize:              DefaultVisionRectangleMinSize,
+				RectangleMinAspect:            DefaultVisionRectangleMinAspect,
+				RectangleMaxAspect:            DefaultVisionRectangleMaxAspect,
+				ButtonMinConfidence:           DefaultVisionButtonMinConfidence,
+				ButtonMinAspect:               DefaultVisionButtonMinAspect,
+				ButtonMaxAspect:               DefaultVisionButtonMaxAspect,
+				ButtonIconMaxSize:             DefaultVisionButtonIconMaxSize,
+				LinkMinAspect:                 DefaultVisionLinkMinAspect,
+				LinkMaxHeight:                 DefaultVisionLinkMaxHeight,
+				LinkMinWidth:                  DefaultVisionLinkMinWidth,
+				ImageMinSize:                  DefaultVisionImageMinSize,
+				CheckboxMaxSize:               DefaultVisionCheckboxMaxSize,
+				GenericClickableMinConfidence: DefaultVisionGenericClickableMinConfidence,
 			},
 
 			IncludeMenubarHints:           false,

@@ -476,26 +476,24 @@ func TestHintService_RefreshHints(t *testing.T) {
 	}
 }
 
-func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryElements(
+func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 	t *testing.T,
 ) {
 	supplementElement := mustNewElement("menubar", image.Rect(10, 0, 60, 20))
 	windowElement := mustNewElement("window", image.Rect(10, 40, 60, 90))
-
-	var fallbackFilter ports.ElementFilter
 
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockAcc.ClickableElementsFunc = func(
 		_ context.Context,
 		filter ports.ElementFilter,
 	) ([]*element.Element, error) {
-		if filter.SkipWindowElements {
-			return []*element.Element{supplementElement}, nil
+		if !filter.SkipWindowElements {
+			t.Error("accessibility should not collect window elements when using vision strategy")
+
+			return nil, nil
 		}
 
-		fallbackFilter = filter
-
-		return []*element.Element{windowElement}, nil
+		return []*element.Element{supplementElement}, nil
 	}
 
 	mockSystem := &mocks.MockSystemPort{}
@@ -510,6 +508,7 @@ func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryEle
 		mockSystem,
 		generator,
 		config.HintsConfig{
+			ClickableRoles:                []string{string(element.RoleButton)},
 			IncludeMenubarHints:           true,
 			AdditionalMenubarHintsTargets: []string{"Clock"},
 			IncludeDockHints:              true,
@@ -520,7 +519,7 @@ func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryEle
 		},
 		logger.Get(),
 		&mockVisionPort{
-			detectErr: derrors.New(derrors.CodeBridgeFailed, "vision failed"),
+			detectedElements: []*element.Element{windowElement},
 		},
 	)
 
@@ -550,16 +549,6 @@ func TestHintService_GenerateHintsVisionFallbackDoesNotDuplicateSupplementaryEle
 
 	if seen[windowElement.ID()] != 1 {
 		t.Errorf("window element count = %d, want 1", seen[windowElement.ID()])
-	}
-
-	if fallbackFilter.IncludeMenubar ||
-		len(fallbackFilter.AdditionalMenubarTargets) != 0 ||
-		fallbackFilter.IncludeDock ||
-		fallbackFilter.IncludeNotificationCenter ||
-		fallbackFilter.IncludeStageManager ||
-		fallbackFilter.IncludePIP ||
-		fallbackFilter.IncludeScreenCapture {
-		t.Errorf("fallback filter should disable supplementary sources: %+v", fallbackFilter)
 	}
 }
 
@@ -701,14 +690,20 @@ func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 }
 
 type mockVisionPort struct {
-	detectErr error
+	detectedElements []*element.Element
+	detectErr        error
 }
 
 func (m *mockVisionPort) DetectElements(
 	context.Context,
 	image.Rectangle,
+	config.HintsVisionConfig,
 ) ([]*element.Element, error) {
-	return nil, m.detectErr
+	if m.detectErr != nil {
+		return nil, m.detectErr
+	}
+
+	return m.detectedElements, nil
 }
 
 func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {

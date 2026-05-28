@@ -419,6 +419,55 @@ additional_webkit_bundles    = []
 
 Find bundle IDs: `osascript -e 'id of app "Safari"'`
 
+### Vision
+
+Tunable settings for Vision-based hint detection (only used when `hints.strategy` or the app-specific `strategy` override is set to `"vision"`).
+
+| Option | Type | Default | Description |
+| ------------------------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `detect_text` | bool | `true` | Enable text detection via the Vision framework. |
+| `detect_rectangles` | bool | `true` | Enable rectangle detection via the Vision framework. |
+| `request_timeout_ms` | int | `5000` | Timeout in milliseconds for Vision framework analysis requests. |
+| `minimum_confidence` | float | `0.0` | Minimum confidence score (0.0 to 1.0) for keeping Vision framework observations. |
+| `merge_iou_threshold` | float | `0.5` | Intersection-over-Union (IoU) overlap threshold for merging redundant overlapping bounding boxes. |
+| `rectangle_max_candidates` | int | `100` | Maximum number of rectangle candidate observations to evaluate. |
+| `rectangle_min_size` | float | `0.01` | Minimum normalized size of detected rectangles (e.g. `0.01` is 1% of screen/window dimensions). |
+| `rectangle_min_aspect` | float | `0.3` | Minimum aspect ratio (width/height) for rectangle elements. |
+| `rectangle_max_aspect` | float | `10.0` | Maximum aspect ratio (width/height) for rectangle elements. |
+| `button_min_confidence` | float | `0.3` | Minimum confidence score threshold for classifying a rectangle as a button. |
+| `button_min_aspect` | float | `0.8` | Minimum aspect ratio for button elements. |
+| `button_max_aspect` | float | `8.0` | Maximum aspect ratio for button elements. |
+| `button_icon_max_size` | int | `48` | Maximum width/height in pixels for square button or icon elements. |
+| `link_min_aspect` | float | `5.0` | Minimum aspect ratio for text link elements. |
+| `link_max_height` | int | `40` | Maximum height in pixels for text link elements. |
+| `link_min_width` | int | `50` | Minimum width in pixels for text link elements. |
+| `image_min_size` | int | `48` | Minimum width/height in pixels for image elements. |
+| `checkbox_max_size` | int | `32` | Maximum width/height in pixels for checkbox elements. |
+| `generic_clickable_min_confidence` | float | `0.5` | Minimum confidence threshold for generic clickable elements. |
+
+```toml
+[hints.vision]
+detect_text = true
+detect_rectangles = true
+request_timeout_ms = 5000
+minimum_confidence = 0.0
+merge_iou_threshold = 0.5
+rectangle_max_candidates = 100
+rectangle_min_size = 0.01
+rectangle_min_aspect = 0.3
+rectangle_max_aspect = 10.0
+button_min_confidence = 0.3
+button_min_aspect = 0.8
+button_max_aspect = 8.0
+button_icon_max_size = 48
+link_min_aspect = 5.0
+link_max_height = 40
+link_min_width = 50
+image_min_size = 48
+checkbox_max_size = 32
+generic_clickable_min_confidence = 0.5
+```
+
 ### Per-App Config
 
 | Field                        | Type   | Description                                           |

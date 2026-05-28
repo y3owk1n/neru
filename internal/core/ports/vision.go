@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
@@ -23,7 +24,11 @@ type VisionPort interface {
 	// detection to the window region. Implementations use Vision Framework
 	// requests (text recognition, rectangle detection, saliency) and a
 	// heuristic classifier to assign element roles.
-	DetectElements(ctx context.Context, screenBounds image.Rectangle) ([]*element.Element, error)
+	DetectElements(
+		ctx context.Context,
+		screenBounds image.Rectangle,
+		cfg config.HintsVisionConfig,
+	) ([]*element.Element, error)
 
 	// CaptureScreen returns the current screen image for the primary display.
 	// Used by DetectElements internally, but exposed for testing or inspection.

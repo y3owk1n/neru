@@ -130,6 +130,27 @@ enabled = false                             # Draw a subtle outline around each 
 border_width = 1
 border_radius = -1                          # -1 = auto pill
 
+[hints.vision]
+detect_text = true                           # Enable text detection via Vision framework
+detect_rectangles = true                     # Enable rectangle detection via Vision framework
+request_timeout_ms = 5000                    # Timeout for Vision requests in milliseconds
+minimum_confidence = 0.0                     # Minimum confidence threshold for keeping vision observations
+merge_iou_threshold = 0.5                    # Overlap threshold (Intersection over Union) for merging redundant boxes
+rectangle_max_candidates = 100               # Maximum number of rectangle candidate observations to track
+rectangle_min_size = 0.01                    # Minimum size of detected rectangles (0.01 = 1% of screen/window width/height)
+rectangle_min_aspect = 0.3                   # Minimum aspect ratio (width/height) for rectangles
+rectangle_max_aspect = 10.0                  # Maximum aspect ratio (width/height) for rectangles
+button_min_confidence = 0.3                  # Minimum confidence for button classification
+button_min_aspect = 0.8                      # Minimum aspect ratio for button elements
+button_max_aspect = 8.0                      # Maximum aspect ratio for button elements
+button_icon_max_size = 48                    # Maximum width/height for square button/icon elements (px)
+link_min_aspect = 5.0                        # Minimum aspect ratio for text link elements
+link_max_height = 40                         # Maximum height for link elements (px)
+link_min_width = 50                          # Minimum width for link elements (px)
+image_min_size = 48                          # Minimum width/height for image elements (px)
+checkbox_max_size = 32                       # Maximum width/height for checkbox elements (px)
+generic_clickable_min_confidence = 0.5       # Minimum confidence for generic clickable classification
+
 # Grid mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#grid
 [grid]

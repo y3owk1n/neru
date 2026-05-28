@@ -301,6 +301,120 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	err = validateHintsVisionConfig(c.Hints.Vision)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateHintsVisionConfig(vision HintsVisionConfig) error {
+	if !vision.DetectText && !vision.DetectRectangles {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision must enable detect_text or detect_rectangles",
+		)
+	}
+
+	if vision.RequestTimeoutMS <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision.request_timeout_ms must be greater than 0",
+		)
+	}
+
+	if vision.RectangleMaxCandidates <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision.rectangle_max_candidates must be greater than 0",
+		)
+	}
+
+	err := validateUnitFloat(
+		"hints.vision.minimum_confidence",
+		vision.MinimumConfidence,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateUnitFloat(
+		"hints.vision.merge_iou_threshold",
+		vision.MergeIOUThreshold,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateUnitFloat(
+		"hints.vision.rectangle_min_size",
+		vision.RectangleMinSize,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateUnitFloat(
+		"hints.vision.button_min_confidence",
+		vision.ButtonMinConfidence,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = validateUnitFloat(
+		"hints.vision.generic_clickable_min_confidence",
+		vision.GenericClickableMinConfidence,
+	)
+	if err != nil {
+		return err
+	}
+
+	if vision.RectangleMinAspect <= 0 || vision.RectangleMaxAspect <= 0 ||
+		vision.RectangleMinAspect > vision.RectangleMaxAspect {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision rectangle aspect limits must be > 0 and min <= max",
+		)
+	}
+
+	if vision.ButtonMinAspect <= 0 || vision.ButtonMaxAspect <= 0 ||
+		vision.ButtonMinAspect > vision.ButtonMaxAspect {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision button aspect limits must be > 0 and min <= max",
+		)
+	}
+
+	if vision.ButtonIconMaxSize <= 0 || vision.LinkMaxHeight <= 0 ||
+		vision.LinkMinWidth <= 0 || vision.ImageMinSize <= 0 ||
+		vision.CheckboxMaxSize <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision size thresholds must be greater than 0",
+		)
+	}
+
+	if vision.LinkMinAspect <= 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.vision.link_min_aspect must be greater than 0",
+		)
+	}
+
+	return nil
+}
+
+func validateUnitFloat(name string, value float64) error {
+	if value < 0 || value > 1 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must be between 0 and 1",
+			name,
+		)
+	}
+
 	return nil
 }
 

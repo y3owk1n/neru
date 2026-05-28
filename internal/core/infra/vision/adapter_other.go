@@ -6,12 +6,17 @@ import (
 	"context"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 // DetectElements is a no-op stub on non-darwin platforms.
-func (a *Adapter) DetectElements(_ context.Context, _ image.Rectangle) ([]*element.Element, error) {
+func (a *Adapter) DetectElements(
+	_ context.Context,
+	_ image.Rectangle,
+	_ config.HintsVisionConfig,
+) ([]*element.Element, error) {
 	return nil, derrors.New(derrors.CodeNotSupported, "vision detection is only supported on macOS")
 }
 

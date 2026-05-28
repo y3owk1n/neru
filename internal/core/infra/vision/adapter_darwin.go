@@ -18,6 +18,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // ensure darwin CGo .m files are compiled
@@ -31,6 +32,7 @@ const bytesPerPixel = 4
 func (a *Adapter) DetectElements(
 	ctx context.Context,
 	screenBounds image.Rectangle,
+	cfg config.HintsVisionConfig,
 ) ([]*element.Element, error) {
 	select {
 	case <-ctx.Done():
@@ -44,7 +46,15 @@ func (a *Adapter) DetectElements(
 		size:   C.CGSize{width: C.double(screenBounds.Dx()), height: C.double(screenBounds.Dy())},
 	}
 
-	result := C.NeruDetectElements(cgRect)
+	cCfg := C.NeruVisionConfig{
+		requestTimeoutMS:       C.int(cfg.RequestTimeoutMS),
+		rectangleMaxCandidates: C.int(cfg.RectangleMaxCandidates),
+		rectangleMinSize:       C.double(cfg.RectangleMinSize),
+		rectangleMinAspect:     C.double(cfg.RectangleMinAspect),
+		rectangleMaxAspect:     C.double(cfg.RectangleMaxAspect),
+	}
+
+	result := C.NeruDetectElements(cgRect, cCfg)
 	if result == nil {
 		return nil, nil
 	}
@@ -61,6 +71,17 @@ func (a *Adapter) DetectElements(
 	cRegions := (*[1 << 30]C.VisionRegion)(unsafe.Pointer(result.regions))[:count:count]
 
 	for _, cRegion := range cRegions {
+		isText := cRegion.isText != 0
+		if isText && !cfg.DetectText {
+			continue
+		}
+		if !isText && !cfg.DetectRectangles {
+			continue
+		}
+		if float64(cRegion.score) < cfg.MinimumConfidence {
+			continue
+		}
+
 		region := DetectedRegion{
 			Bounds: image.Rectangle{
 				Min: image.Point{X: int(cRegion.x), Y: int(cRegion.y)},
@@ -70,7 +91,7 @@ func (a *Adapter) DetectElements(
 				},
 			},
 			Score:  float64(cRegion.score),
-			IsText: cRegion.isText != 0,
+			IsText: isText,
 		}
 		if cRegion.label != nil {
 			region.Label = C.GoString(cRegion.label)
@@ -79,7 +100,7 @@ func (a *Adapter) DetectElements(
 	}
 
 	// Merge overlapping regions via NMS
-	merged := MergeRegions(regions)
+	merged := MergeRegions(regions, cfg.MergeIOUThreshold)
 
 	// Filter regions outside the window bounds
 	windowElements := make([]DetectedRegion, 0, len(merged))
@@ -90,7 +111,7 @@ func (a *Adapter) DetectElements(
 	}
 
 	// Classify and convert to domain elements
-	classifier := regionClassifier{}
+	classifier := regionClassifier{cfg: cfg}
 	elements := make([]*element.Element, 0, len(windowElements))
 
 	for _, region := range windowElements {
