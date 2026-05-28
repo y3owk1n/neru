@@ -46,7 +46,19 @@ func (a *Adapter) DetectElements(
 		size:   C.CGSize{width: C.double(screenBounds.Dx()), height: C.double(screenBounds.Dy())},
 	}
 
+	var detectText C.int
+	if cfg.DetectText {
+		detectText = 1
+	}
+
+	var detectRectangles C.int
+	if cfg.DetectRectangles {
+		detectRectangles = 1
+	}
+
 	cCfg := C.NeruVisionConfig{
+		detectText:             detectText,
+		detectRectangles:       detectRectangles,
 		requestTimeoutMS:       C.int(cfg.RequestTimeoutMS),
 		rectangleMaxCandidates: C.int(cfg.RectangleMaxCandidates),
 		rectangleMinSize:       C.double(cfg.RectangleMinSize),

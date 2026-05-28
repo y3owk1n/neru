@@ -16,6 +16,8 @@ typedef struct {
 } VisionResult;
 
 typedef struct {
+	int detectText;
+	int detectRectangles;
 	int requestTimeoutMS;
 	int rectangleMaxCandidates;
 	double rectangleMinSize;

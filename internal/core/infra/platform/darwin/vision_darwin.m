@@ -220,12 +220,16 @@ VisionResult *NeruDetectElements(CGRect screenBounds, NeruVisionConfig config) {
 		__block NSArray<VNRecognizedTextObservation *> *texts = nil;
 
 		CFRetain(image);
-		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-			rects = detectRectangles(image, config);
-		});
-		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-			texts = detectText(image);
-		});
+		if (config.detectRectangles) {
+			dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+				rects = detectRectangles(image, config);
+			});
+		}
+		if (config.detectText) {
+			dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+				texts = detectText(image);
+			});
+		}
 		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)config.requestTimeoutMS * 1000000LL);
 		if (dispatch_group_wait(group, timeout) != 0) {
 			dispatch_group_notify(group, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{

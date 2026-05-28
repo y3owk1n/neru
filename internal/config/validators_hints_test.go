@@ -61,3 +61,41 @@ func TestValidateHints_UIPlacement(t *testing.T) {
 		t.Fatal("ValidateHints() expected error for invalid hints.ui.placement")
 	}
 }
+
+func TestValidateHints_PositiveUnitFloat(t *testing.T) {
+	// merge_iou_threshold cannot be 0
+	cfg := config.DefaultConfig()
+	cfg.Hints.Vision.MergeIOUThreshold = 0.0
+
+	err := cfg.ValidateHints()
+	if err == nil {
+		t.Fatal("ValidateHints() expected error for 0.0 merge_iou_threshold")
+	}
+
+	// button_min_confidence cannot be 0
+	cfg = config.DefaultConfig()
+	cfg.Hints.Vision.ButtonMinConfidence = 0.0
+
+	err = cfg.ValidateHints()
+	if err == nil {
+		t.Fatal("ValidateHints() expected error for 0.0 button_min_confidence")
+	}
+
+	// generic_clickable_min_confidence cannot be 0
+	cfg = config.DefaultConfig()
+	cfg.Hints.Vision.GenericClickableMinConfidence = 0.0
+
+	err = cfg.ValidateHints()
+	if err == nil {
+		t.Fatal("ValidateHints() expected error for 0.0 generic_clickable_min_confidence")
+	}
+
+	// but minimum_confidence CAN be 0
+	cfg = config.DefaultConfig()
+	cfg.Hints.Vision.MinimumConfidence = 0.0
+
+	err = cfg.ValidateHints()
+	if err != nil {
+		t.Fatalf("ValidateHints() expected no error for 0.0 minimum_confidence, got %v", err)
+	}
+}

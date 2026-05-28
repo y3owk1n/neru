@@ -339,7 +339,7 @@ func validateHintsVisionConfig(vision HintsVisionConfig) error {
 		return err
 	}
 
-	err = validateUnitFloat(
+	err = validatePositiveUnitFloat(
 		"hints.vision.merge_iou_threshold",
 		vision.MergeIOUThreshold,
 	)
@@ -355,7 +355,7 @@ func validateHintsVisionConfig(vision HintsVisionConfig) error {
 		return err
 	}
 
-	err = validateUnitFloat(
+	err = validatePositiveUnitFloat(
 		"hints.vision.button_min_confidence",
 		vision.ButtonMinConfidence,
 	)
@@ -363,7 +363,7 @@ func validateHintsVisionConfig(vision HintsVisionConfig) error {
 		return err
 	}
 
-	err = validateUnitFloat(
+	err = validatePositiveUnitFloat(
 		"hints.vision.generic_clickable_min_confidence",
 		vision.GenericClickableMinConfidence,
 	)
@@ -411,6 +411,18 @@ func validateUnitFloat(name string, value float64) error {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"%s must be between 0 and 1",
+			name,
+		)
+	}
+
+	return nil
+}
+
+func validatePositiveUnitFloat(name string, value float64) error {
+	if value <= 0 || value > 1 {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must be between 0 (exclusive) and 1 (inclusive)",
 			name,
 		)
 	}
