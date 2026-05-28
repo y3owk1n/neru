@@ -397,6 +397,9 @@ func (h *Handler) activateHintModeInternal(
 	h.overlayManager.Show()
 
 	strategy := h.config.Hints.StrategyForApp(bundleID)
+	if strategyOverride != nil && *strategyOverride != "" {
+		strategy = *strategyOverride
+	}
 
 	fields := []zap.Field{
 		zap.Duration("elapsed", time.Since(activationStart)),
