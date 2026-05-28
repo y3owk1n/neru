@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -516,7 +517,7 @@ func (h *IPCControllerModes) handleToggleCursorFollowSelection(
 // isValidStrategy checks that the given strategy value is one of the accepted
 // values: "axtree" (default), "vision".
 func isValidStrategy(v string) bool {
-	return v == "axtree" || v == "vision"
+	return v == config.StrategyAXTree || v == config.StrategyVision
 }
 
 // IPCControllerOverlay handles overlay-related IPC commands.

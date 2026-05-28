@@ -4,6 +4,13 @@
 #import <Foundation/Foundation.h>
 #import <Vision/Vision.h>
 
+static VisionResult *emptyVisionResult(void) {
+	VisionResult *result = malloc(sizeof(VisionResult));
+	result->regions = NULL;
+	result->count = 0;
+	return result;
+}
+
 static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image) {
 	VNDetectRectanglesRequest *request = [[VNDetectRectanglesRequest alloc] init];
 	request.maximumObservations = 100;
@@ -59,10 +66,7 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 
 		CGImageRef image = CGDisplayCreateImage(display);
 		if (!image) {
-			VisionResult *result = malloc(sizeof(VisionResult));
-			result->regions = NULL;
-			result->count = 0;
-			return result;
+			return emptyVisionResult();
 		}
 
 		CGFloat imgW = (CGFloat)CGImageGetWidth(image);
@@ -88,13 +92,22 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 		__block NSArray<VNRectangleObservation *> *rects = nil;
 		__block NSArray<VNRecognizedTextObservation *> *texts = nil;
 
+		CFRetain(image);
 		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
 			rects = detectRectangles(image);
 		});
 		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
 			texts = detectText(image);
 		});
-		dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
+		dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
+		if (dispatch_group_wait(group, timeout) != 0) {
+			dispatch_group_notify(group, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+				CGImageRelease(image);
+			});
+			CGImageRelease(image);
+			return emptyVisionResult();
+		}
+		CGImageRelease(image);
 
 		// Build region list from all observations
 		NSMutableArray *regionList = [NSMutableArray array];
