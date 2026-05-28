@@ -128,6 +128,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 		filterRoles := h.hints.Context.FilterRoles()
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
+		strategyOverride := h.hints.Context.StrategyOverride()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -141,7 +142,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					filterRoles,
 					filterTextContains,
 					&startWithSearch,
-					nil,
+					&strategyOverride,
 				)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.
@@ -154,6 +155,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.hints.Context.SetFilterRoles(filterRoles)
 					h.hints.Context.SetFilterTextContains(filterTextContains)
 					h.hints.Context.SetStartWithSearch(startWithSearch)
+					h.hints.Context.SetStrategyOverride(strategyOverride)
 				}
 			},
 		)

@@ -241,6 +241,10 @@ func (h *Handler) activateHintModeInternal(
 			if search != nil {
 				h.hints.Context.SetStartWithSearch(*search)
 			}
+
+			if strategyOverride != nil {
+				h.hints.Context.SetStrategyOverride(*strategyOverride)
+			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
 			h.hints.Context.SetRepeat(false)
@@ -251,6 +255,12 @@ func (h *Handler) activateHintModeInternal(
 			h.hints.Context.SetFilterRoles(filterRoles)
 			h.hints.Context.SetFilterTextContains(filterTextContains)
 			h.hints.Context.SetStartWithSearch(search != nil && *search)
+
+			if strategyOverride != nil {
+				h.hints.Context.SetStrategyOverride(*strategyOverride)
+			} else {
+				h.hints.Context.SetStrategyOverride("")
+			}
 		}
 	}
 
@@ -275,7 +285,9 @@ func (h *Handler) activateHintModeInternal(
 	activationStart := time.Now()
 
 	strategyVal := ""
-	if strategyOverride != nil {
+	if h.hints != nil && h.hints.Context != nil {
+		strategyVal = h.hints.Context.StrategyOverride()
+	} else if strategyOverride != nil {
 		strategyVal = *strategyOverride
 	}
 
@@ -397,8 +409,8 @@ func (h *Handler) activateHintModeInternal(
 	h.overlayManager.Show()
 
 	strategy := h.config.Hints.StrategyForApp(bundleID)
-	if strategyOverride != nil && *strategyOverride != "" {
-		strategy = *strategyOverride
+	if strategyVal != "" {
+		strategy = strategyVal
 	}
 
 	fields := []zap.Field{

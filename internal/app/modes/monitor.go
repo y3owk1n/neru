@@ -375,8 +375,15 @@ func (h *Handler) refreshHintsForMonitorMove(
 
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
+	strategyOverride := h.hints.Context.StrategyOverride()
 
-	domainHints, err := h.hintService.GenerateHints(ctx, filterRoles, filterTextContains, "", "")
+	domainHints, err := h.hintService.GenerateHints(
+		ctx,
+		filterRoles,
+		filterTextContains,
+		"",
+		strategyOverride,
+	)
 	if err != nil {
 		h.logger.Error(
 			"Failed to refresh hints after monitor move",

@@ -13,6 +13,7 @@ type baseContext struct {
 	filterRoles           []string
 	filterTextContains    []string
 	startWithSearch       bool
+	strategyOverride      string
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -60,6 +61,7 @@ func (c *baseContext) Reset() {
 	c.filterRoles = nil
 	c.filterTextContains = nil
 	c.startWithSearch = false
+	c.strategyOverride = ""
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -90,6 +92,16 @@ func (c *baseContext) SetStartWithSearch(search bool) {
 // StartWithSearch returns whether the mode was initially activated with search.
 func (c *baseContext) StartWithSearch() bool {
 	return c.startWithSearch
+}
+
+// SetStrategyOverride stores the session hint collection strategy override.
+func (c *baseContext) SetStrategyOverride(strategy string) {
+	c.strategyOverride = strategy
+}
+
+// StrategyOverride returns the session hint collection strategy override.
+func (c *baseContext) StrategyOverride() string {
+	return c.strategyOverride
 }
 
 // Context holds the state and context for hint mode operations.
