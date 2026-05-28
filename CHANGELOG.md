@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.41.0](https://github.com/y3owk1n/neru/compare/v1.40.1...v1.41.0) (2026-05-28)
+
+
+### Features
+
+* **hints,vision:** make vision options fully configurable ([#869](https://github.com/y3owk1n/neru/issues/869)) ([68c590f](https://github.com/y3owk1n/neru/commit/68c590fb9389f9f63235fbe1ad33e356e8288cf9))
+* **hints:** add `vision` detection strategy ([#867](https://github.com/y3owk1n/neru/issues/867)) ([6fe14f4](https://github.com/y3owk1n/neru/commit/6fe14f45568a3232cfa2d46c054a0788380878a3))
+
+
+### Bug Fixes
+
+* **hints,vision:** use `ScreenCaptureKit` for modern macOS ([#868](https://github.com/y3owk1n/neru/issues/868)) ([785f95b](https://github.com/y3owk1n/neru/commit/785f95b8fd65c64b93908cd93a4e7aae1f0fc148))
+* reduce log noise and remove `structured_logging` config option ([#864](https://github.com/y3owk1n/neru/issues/864)) ([ebadd9b](https://github.com/y3owk1n/neru/commit/ebadd9b127c6e2cbe682d41e9d75b6c755236b7a))
+* show `output` in log when `exec` failes in hotkey ([#866](https://github.com/y3owk1n/neru/issues/866)) ([4aa3b95](https://github.com/y3owk1n/neru/commit/4aa3b95c38e799fe5709ee58d2c7abb6e1af2610))
+
 ## [1.40.1](https://github.com/y3owk1n/neru/compare/v1.40.0...v1.40.1) (2026-05-26)
 
 
