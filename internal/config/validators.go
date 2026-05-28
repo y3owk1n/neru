@@ -482,23 +482,28 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 
 // ValidateAppConfigs validates per-app hint configuration.
 func (c *Config) ValidateAppConfigs() error {
-	return validateAppConfigsWithCallback("hints", c.Hints.AppConfigs, func(idx int, appConfig *AppConfig) error {
-		if err := rejectScrollFields("hints")(idx, appConfig); err != nil {
-			return err
-		}
+	return validateAppConfigsWithCallback(
+		"hints",
+		c.Hints.AppConfigs,
+		func(idx int, appConfig *AppConfig) error {
+			err := rejectScrollFields("hints")(idx, appConfig)
+			if err != nil {
+				return err
+			}
 
-		switch appConfig.Strategy {
-		case StrategyAXTree, StrategyVision, "":
-		default:
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.app_configs[%d].strategy must be %q or %q",
-				idx, StrategyAXTree, StrategyVision,
-			)
-		}
+			switch appConfig.Strategy {
+			case StrategyAXTree, StrategyVision, "":
+			default:
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"hints.app_configs[%d].strategy must be %q or %q",
+					idx, StrategyAXTree, StrategyVision,
+				)
+			}
 
-		return nil
-	})
+			return nil
+		},
+	)
 }
 
 // ValidateGrid validates the grid configuration.

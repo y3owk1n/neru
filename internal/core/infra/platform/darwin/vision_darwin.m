@@ -4,12 +4,6 @@
 #import <Foundation/Foundation.h>
 #import <Vision/Vision.h>
 
-static CGImageRef captureScreen(void) {
-	CGDirectDisplayID display = CGMainDisplayID();
-	CGImageRef image = CGDisplayCreateImage(display);
-	return image;
-}
-
 static NSArray<VNRectangleObservation *> *detectRectangles(CGImageRef image) {
 	VNDetectRectanglesRequest *request = [[VNDetectRectanglesRequest alloc] init];
 	request.maximumObservations = 100;
@@ -50,7 +44,20 @@ static CGRect visionRectToCGRect(CGRect imageBounds, CGRect normalizedRect) {
 
 VisionResult *NeruDetectElements(CGRect screenBounds) {
 	@autoreleasepool {
-		CGImageRef image = captureScreen();
+		// Resolve which display contains the window
+		CGDirectDisplayID displays[32];
+		uint32_t displayCount;
+		CGError err = CGGetDisplaysWithRect(screenBounds, 32, displays, &displayCount);
+		CGDirectDisplayID display;
+		if (err != kCGErrorSuccess || displayCount == 0) {
+			display = CGMainDisplayID();
+		} else {
+			display = displays[0];
+		}
+
+		CGRect displayBounds = CGDisplayBounds(display);
+
+		CGImageRef image = CGDisplayCreateImage(display);
 		if (!image) {
 			VisionResult *result = malloc(sizeof(VisionResult));
 			result->regions = NULL;
@@ -60,7 +67,21 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 
 		CGFloat imgW = (CGFloat)CGImageGetWidth(image);
 		CGFloat imgH = (CGFloat)CGImageGetHeight(image);
+
+		// Compute scale from the actual image pixels vs display bounds (points).
+		// CGDisplayPixelsWide can return point-count on some systems, so we rely
+		// on the captured image for the true pixel resolution.
+		CGFloat scaleX = imgW / displayBounds.size.width;
+		CGFloat scaleY = imgH / displayBounds.size.height;
+
 		CGRect imgRect = CGRectMake(0, 0, imgW, imgH);
+
+		// Vision coordinates are relative to the image (top-left origin, pixels).
+		// visionRectToCGRect converts to bottom-left position within the image.
+		// We then scale from pixels to points and offset by the display's
+		// global origin to get global top-left-origin screen coordinates.
+		CGFloat originX = displayBounds.origin.x;
+		CGFloat originY = displayBounds.origin.y;
 
 		// Run Vision requests in parallel using dispatch group
 		dispatch_group_t group = dispatch_group_create();
@@ -83,10 +104,10 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 			CGRect r = [obs boundingBox];
 			CGRect pixelRect = visionRectToCGRect(imgRect, r);
 			[regionList addObject:@{
-				@"x" : @(pixelRect.origin.x),
-				@"y" : @(pixelRect.origin.y),
-				@"w" : @(pixelRect.size.width),
-				@"h" : @(pixelRect.size.height),
+				@"x" : @(originX + pixelRect.origin.x / scaleX),
+				@"y" : @(originY + pixelRect.origin.y / scaleY),
+				@"w" : @(pixelRect.size.width / scaleX),
+				@"h" : @(pixelRect.size.height / scaleY),
 				@"score" : @(obs.confidence),
 				@"isText" : @(0),
 				@"label" : @""
@@ -100,10 +121,10 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 			VNRecognizedText *top = [[obs topCandidates:1] firstObject];
 			NSString *text = top ? top.string : @"";
 			[regionList addObject:@{
-				@"x" : @(pixelRect.origin.x),
-				@"y" : @(pixelRect.origin.y),
-				@"w" : @(pixelRect.size.width),
-				@"h" : @(pixelRect.size.height),
+				@"x" : @(originX + pixelRect.origin.x / scaleX),
+				@"y" : @(originY + pixelRect.origin.y / scaleY),
+				@"w" : @(pixelRect.size.width / scaleX),
+				@"h" : @(pixelRect.size.height / scaleY),
 				@"score" : @(obs.confidence),
 				@"isText" : @(1),
 				@"label" : text ?: @""
@@ -132,7 +153,7 @@ VisionResult *NeruDetectElements(CGRect screenBounds) {
 	}
 }
 
-CGImageRef NeruCaptureScreen(void) { return captureScreen(); }
+CGImageRef NeruCaptureScreen(void) { return CGDisplayCreateImage(CGMainDisplayID()); }
 
 void NeruFreeVisionResult(VisionResult *result) {
 	if (result) {
