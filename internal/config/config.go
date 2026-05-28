@@ -489,6 +489,7 @@ type StickyModifiersConfig struct {
 // AppConfig defines application-specific settings for role customization.
 type AppConfig struct {
 	BundleID             string                         `json:"bundleId"             toml:"bundle_id"`
+	Strategy             string                         `json:"strategy"             toml:"strategy"`
 	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
 	IgnoreClickableCheck bool                           `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
 	VisibleCheckEnabled  bool                           `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
@@ -566,9 +567,16 @@ type SearchInputUI struct {
 	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
 }
 
+// Strategy constants for element detection.
+const (
+	StrategyAXTree = "axtree"
+	StrategyVision = "vision"
+)
+
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
+	Strategy          string              `json:"strategy"          toml:"strategy"`
 	HintCharacters    string              `json:"hintCharacters"    toml:"hint_characters"`
 	MaxDepth          int                 `json:"maxDepth"          toml:"max_depth"`
 	UI                HintsUI             `json:"ui"                toml:"ui"`
@@ -1545,6 +1553,17 @@ func (c *HintsConfig) ClickableRolesForApp(bundleID string) []string {
 	rolesMap := c.buildRolesMap(bundleID)
 
 	return rolesMapToSlice(rolesMap)
+}
+
+// StrategyForApp returns the element detection strategy for the given bundle ID.
+// Falls back to the global HintsConfig.Strategy if no app-specific override is set.
+func (c *HintsConfig) StrategyForApp(bundleID string) string {
+	appConfig := c.AppConfigForBundleID(bundleID)
+	if appConfig != nil && appConfig.Strategy != "" {
+		return appConfig.Strategy
+	}
+
+	return c.Strategy
 }
 
 // buildRolesMap builds a map of clickable roles for the given bundle ID.

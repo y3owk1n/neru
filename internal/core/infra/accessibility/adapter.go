@@ -186,7 +186,7 @@ func (a *Adapter) ClickableElements(
 		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
 	}
 
-	if !missionControlActive {
+	if !missionControlActive && !filter.SkipWindowElements {
 		// Query frontmost window AND popover windows
 		waitGroup.Add(1)
 

@@ -28,6 +28,7 @@ type ModeActivationOptions struct {
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool
+	Strategy              *string
 }
 
 const (
@@ -109,6 +110,7 @@ func (h *Handler) activateHintModeWithAction(
 	filterRoles []string,
 	filterTextContains []string,
 	search *bool,
+	strategy *string,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -116,6 +118,7 @@ func (h *Handler) activateHintModeWithAction(
 		filterRoles,
 		filterTextContains,
 		search,
+		strategy,
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
@@ -134,6 +137,7 @@ func (h *Handler) activateHintModeInternal(
 	filterRoles []string,
 	filterTextContains []string,
 	search *bool,
+	strategyOverride *string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -270,11 +274,17 @@ func (h *Handler) activateHintModeInternal(
 
 	activationStart := time.Now()
 
+	strategyVal := ""
+	if strategyOverride != nil {
+		strategyVal = *strategyOverride
+	}
+
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
 		filterTextContains,
 		bundleID,
+		strategyVal,
 	)
 	if domainHintsErr != nil {
 		h.logger.Error(
@@ -386,9 +396,12 @@ func (h *Handler) activateHintModeInternal(
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
+	strategy := h.config.Hints.StrategyForApp(bundleID)
+
 	fields := []zap.Field{
 		zap.Duration("elapsed", time.Since(activationStart)),
 		zap.Int("hint_count", len(domainHints)),
+		zap.String("strategy", strategy),
 	}
 	if actionStr != nil {
 		fields = append(fields, zap.String("action", *actionStr))

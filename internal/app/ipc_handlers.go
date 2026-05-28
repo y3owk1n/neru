@@ -151,6 +151,7 @@ type ModeActivationOptions struct {
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool
+	Strategy              *string
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -283,6 +284,44 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			texts := parseCSV(cmd.Args[startIdx])
 			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
+		case strings.HasPrefix(arg, "--strategy="):
+			strategyVal := strings.TrimPrefix(arg, "--strategy=")
+			if !isValidStrategy(strategyVal) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "invalid --strategy value: must be 'axtree' or 'vision'",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			opts.Strategy = &strategyVal
+		case arg == "--strategy":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--strategy requires a value: axtree or vision",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+
+			strategyVal := cmd.Args[startIdx]
+			if !isValidStrategy(strategyVal) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "invalid --strategy value: must be 'axtree' or 'vision'",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			opts.Strategy = &strategyVal
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
@@ -381,6 +420,7 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		FilterRoles:           opts.FilterRoles,
 		FilterTextContains:    opts.FilterTextContains,
 		Search:                opts.Search,
+		Strategy:              opts.Strategy,
 	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}
@@ -471,6 +511,12 @@ func (h *IPCControllerModes) handleToggleCursorFollowSelection(
 		Message: "cursor_follow_selection " + state,
 		Code:    ipc.CodeOK,
 	}
+}
+
+// isValidStrategy checks that the given strategy value is one of the accepted
+// values: "axtree" (default), "vision".
+func isValidStrategy(v string) bool {
+	return v == "axtree" || v == "vision"
 }
 
 // IPCControllerOverlay handles overlay-related IPC commands.

@@ -87,7 +87,7 @@ neru recursive_grid --action middle_click          # Middle-click via recursive 
 
 ### Hints Mode
 
-Uses macOS Accessibility APIs to label clickable UI elements with short overlay labels.
+Labels clickable UI elements with short overlay labels. Uses either the macOS Accessibility API (`axtree`) or Vision Framework (`vision`) to discover elements. Default is `axtree`.
 
 ```bash
 neru hints
@@ -95,6 +95,7 @@ neru hints
 
 neru hints --search                                # Start with search input active
 neru hints --action left_click --repeat            # Click multiple elements in succession
+neru hints --strategy vision                       # Use Vision Framework for element detection
 
 # Filtering
 neru hints --role AXButton --text submit           # Show only buttons containing "submit"
@@ -110,6 +111,7 @@ neru hints --text next --action left_click --repeat   # Filter persists across r
 | `--search, -s`            | bool   | Start with search input active.                                                                                              |
 | `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                             |
 | `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match. |
+| `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation. |
 
 The filter is preserved across repeat activations.
 

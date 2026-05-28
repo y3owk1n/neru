@@ -8,6 +8,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 	ActionDesc:       "hint selection",
 	SupportSearch:    true,
 	SupportFiltering: true,
+	SupportStrategy:  true,
 })
 
 func init() {

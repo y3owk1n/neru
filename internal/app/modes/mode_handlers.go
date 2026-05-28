@@ -141,6 +141,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					filterRoles,
 					filterTextContains,
 					&startWithSearch,
+					nil,
 				)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.

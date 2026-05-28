@@ -184,7 +184,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		filterRoles := h.hints.Context.FilterRoles()
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
-		h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains, &startWithSearch)
+		h.activateHintModeInternal(nil, nil, filterRoles, filterTextContains, &startWithSearch, nil)
 	})
 	h.refreshHintsTimer = timer
 }

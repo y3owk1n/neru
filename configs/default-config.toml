@@ -43,6 +43,7 @@ text = "#E8EEFF"
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hints
 [hints]
 enabled = true
+strategy = "axtree"                          # Element detection: "axtree" (AX API) or "vision" (Vision Framework)
 hint_characters = "asdfghjkl"               # Characters used for hint labels
 max_depth = 50                              # Max accessibility tree depth (0 = unlimited)
 include_menubar_hints = false

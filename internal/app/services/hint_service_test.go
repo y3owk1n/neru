@@ -310,6 +310,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				generator,
 				testCase.config,
 				logger,
+				nil,
 			)
 
 			ctx := context.Background()
@@ -384,6 +385,7 @@ func TestHintService_HideHints(t *testing.T) {
 				generator,
 				config.HintsConfig{},
 				logger,
+				nil,
 			)
 
 			ctx := context.Background()
@@ -457,6 +459,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 				generator,
 				config.HintsConfig{},
 				logger,
+				nil,
 			)
 
 			ctx := context.Background()
@@ -488,6 +491,7 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 		initialGen,
 		config.HintsConfig{},
 		logger,
+		nil,
 	)
 
 	// Update with new generator
@@ -512,6 +516,7 @@ func TestHintService_Health(t *testing.T) {
 		generator,
 		config.HintsConfig{},
 		logger,
+		nil,
 	)
 
 	// Setup mocks

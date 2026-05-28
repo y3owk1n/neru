@@ -312,7 +312,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 
 ## [hints]
 
-Uses macOS Accessibility APIs to label clickable UI elements with short overlay labels.
+Labels clickable UI elements with short overlay labels. By default uses the macOS Accessibility API (`axtree` strategy). Optionally uses Vision Framework (`vision` strategy) for apps with poor AX trees — detects elements via screen capture + text/rectangle recognition scoped to the focused window.
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
@@ -323,6 +323,7 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode
 | Option                             | Type         | Default                 | Description                                               |
 | ---------------------------------- | ------------ | ----------------------- | --------------------------------------------------------- |
 | `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                 |
+| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`. |
 | `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                |
 | `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)              |
 | `include_menubar_hints`            | bool         | `false`                 | Show hints on menubar items                               |
@@ -423,6 +424,7 @@ Find bundle IDs: `osascript -e 'id of app "Safari"'`
 | Field                        | Type   | Description                                           |
 | ---------------------------- | ------ | ----------------------------------------------------- |
 | `bundle_id`                  | string | App bundle ID                                         |
+| `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`. |
 | `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                  |
 | `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app              |
 | `visible_check_enabled`      | bool   | Enable visibility hit-test for this app               |
@@ -431,6 +433,7 @@ Find bundle IDs: `osascript -e 'id of app "Safari"'`
 ```toml
 [[hints.app_configs]]
 bundle_id = "com.apple.Safari"
+strategy = "vision"
 additional_clickable_roles = ["AXLink"]
 ignore_clickable_check = true
 visible_check_enabled = true

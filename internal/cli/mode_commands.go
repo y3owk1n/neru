@@ -19,6 +19,7 @@ type ModeConfig struct {
 	Aliases          []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
 	SupportSearch    bool     // Whether this mode supports the --search flag
 	SupportFiltering bool     // Whether this mode supports --role and --text filter flags
+	SupportStrategy  bool     // Whether this mode supports the --strategy flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -58,6 +59,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				}
 
 				textFlag, err = cmd.Flags().GetString("text")
+				if err != nil {
+					return err
+				}
+			}
+
+			var strategyFlag string
+			if config.SupportStrategy {
+				strategyFlag, err = cmd.Flags().GetString("strategy")
 				if err != nil {
 					return err
 				}
@@ -148,6 +157,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--cursor-selection-mode="+cursorSelectionMode)
 			}
 
+			if strategyFlag != "" {
+				params = append(params, "--strategy="+strategyFlag)
+			}
+
 			return sendCommand(cmd, config.Name, params)
 		},
 	}
@@ -190,6 +203,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"text",
 			"",
 			"Filter elements by text content (comma-separated, case-insensitive substring match)",
+		)
+	}
+
+	if config.SupportStrategy {
+		cmd.Flags().String(
+			"strategy",
+			"",
+			"Element detection strategy: axtree (macOS AX API) or vision (Vision Framework)",
 		)
 	}
 

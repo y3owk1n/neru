@@ -60,6 +60,7 @@ func TestHintServiceIntegration(t *testing.T) {
 		hintGen,
 		cfg.Hints,
 		logger,
+		nil,
 	)
 
 	ctx := context.Background()

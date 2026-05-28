@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
+	visionAdapter "github.com/y3owk1n/neru/internal/core/infra/vision"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -123,6 +124,9 @@ func initializeServices(
 		)
 	}
 
+	// Vision adapter - vision-based element detection (optional, used on "vision" strategy)
+	visionPort := visionAdapter.NewAdapter(logger)
+
 	// Hint Service - orchestrates hint generation and display
 	hintService := services.NewHintService(
 		accAdapter,
@@ -131,6 +135,7 @@ func initializeServices(
 		hintGen,
 		cfg.Hints,
 		logger,
+		visionPort,
 	)
 
 	// Grid Service - manages grid-based navigation overlays

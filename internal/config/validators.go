@@ -291,6 +291,16 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	switch c.Hints.Strategy {
+	case StrategyAXTree, StrategyVision, "":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.strategy must be %q or %q",
+			StrategyAXTree, StrategyVision,
+		)
+	}
+
 	return nil
 }
 

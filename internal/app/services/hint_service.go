@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,7 +16,8 @@ import (
 )
 
 // HintService orchestrates hint generation and display.
-// It coordinates between the accessibility system, hint generator, and overlay.
+// It coordinates between the accessibility system, vision detection,
+// hint generator, and overlay.
 type HintService struct {
 	BaseService
 
@@ -23,6 +25,7 @@ type HintService struct {
 	generator hint.Generator
 	config    config.HintsConfig
 	logger    *zap.Logger
+	vision    ports.VisionPort
 }
 
 // NewHintService creates a new hint service with the given dependencies.
@@ -33,6 +36,7 @@ func NewHintService(
 	generator hint.Generator,
 	config config.HintsConfig,
 	logger *zap.Logger,
+	vision ports.VisionPort,
 ) *HintService {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -43,6 +47,7 @@ func NewHintService(
 		generator:   generator,
 		config:      config,
 		logger:      logger.Named("service.hints"),
+		vision:      vision,
 	}
 }
 
@@ -55,7 +60,7 @@ func (s *HintService) ShowHints(
 ) ([]*hint.Interface, error) {
 	s.logger.Debug("Showing hints")
 
-	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "")
+	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -81,11 +86,13 @@ func (s *HintService) ShowHints(
 // them. Mode handlers use this to filter and position hints before the first
 // render, avoiding an extra full overlay draw during activation.
 // If bundleID is non-empty, it is used directly (skips AX call).
+// If strategyOverride is non-empty, it overrides the config-derived strategy.
 func (s *HintService) GenerateHints(
 	ctx context.Context,
 	filterRoles []string,
 	filterTextContains []string,
 	bundleID string,
+	strategyOverride string,
 ) ([]*hint.Interface, error) {
 	s.mu.RLock()
 	cfg := s.config
@@ -152,18 +159,26 @@ func (s *HintService) GenerateHints(
 			zap.Int("term_count", len(filterTextContains)))
 	}
 
-	// Get clickable elements
-	axStart := time.Now()
-	elements, elementsErr := s.accessibility.ClickableElements(ctx, filter)
-	s.logger.Debug("TIMING: ClickableElements",
-		zap.Duration("elapsed", time.Since(axStart)),
-		zap.Int("element_count", len(elements)),
-		zap.Error(elementsErr))
+	// Determine strategy for the frontmost app (override takes precedence)
+	strategy := cfg.StrategyForApp(bundleID)
+	if strategyOverride != "" {
+		strategy = strategyOverride
+	}
 
-	if elementsErr != nil {
-		s.logger.Error("Failed to get clickable elements", zap.Error(elementsErr))
+	var (
+		elements []*element.Element
+		genErr   error
+	)
 
-		return nil, derrors.WrapAccessibilityFailed(elementsErr, "get clickable elements")
+	switch strategy {
+	case config.StrategyVision:
+		elements = s.generateHintsVision(ctx, bundleID, filter)
+	default:
+		elements, genErr = s.generateHintsAX(ctx, filter)
+	}
+
+	if genErr != nil {
+		return nil, genErr
 	}
 
 	if len(elements) == 0 {
@@ -274,4 +289,112 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	s.generator = generator
 
 	s.logger.Debug("Hint generator updated")
+}
+
+// generateHintsAX collects elements using the AX tree (default strategy).
+func (s *HintService) generateHintsAX(
+	ctx context.Context,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	axStart := time.Now()
+	elements, err := s.accessibility.ClickableElements(ctx, filter)
+	s.logger.Debug("TIMING: ClickableElements (axtree)",
+		zap.Duration("elapsed", time.Since(axStart)),
+		zap.Int("element_count", len(elements)),
+		zap.Error(err))
+
+	if err != nil {
+		s.logger.Error("Failed to get clickable elements via AX", zap.Error(err))
+
+		return nil, derrors.WrapAccessibilityFailed(err, "get clickable elements")
+	}
+
+	return elements, nil
+}
+
+// generateHintsVision collects window elements via vision detection and
+// supplementary elements (menubar, dock, etc.) via AX. This hybrid approach
+// ensures system UI is always detected while the frontmost window content
+// uses vision-based detection for apps with poor AX trees.
+func (s *HintService) generateHintsVision(
+	ctx context.Context,
+	_ string,
+	filter ports.ElementFilter,
+) []*element.Element {
+	// Collect supplementary elements (menubar, dock, NC, etc.) via AX.
+	// These are system-level components that vision should not attempt to detect.
+	var allElements []*element.Element
+
+	supplementStart := time.Now()
+	supplementFilter := filter
+	supplementFilter.Roles = nil               // no role filtering for supplementary elements
+	supplementFilter.SkipWindowElements = true // vision handles the window
+
+	supplementElements, err := s.accessibility.ClickableElements(ctx, supplementFilter)
+	if err != nil {
+		s.logger.Debug("Failed to get supplementary elements via AX", zap.Error(err))
+	} else {
+		allElements = append(allElements, supplementElements...)
+	}
+
+	s.logger.Debug("TIMING: Supplementary elements (AX)",
+		zap.Duration("elapsed", time.Since(supplementStart)),
+		zap.Int("count", len(supplementElements)))
+
+	// Get focused window bounds for vision detection
+	windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
+	if boundsErr != nil || !found {
+		s.logger.Debug(
+			"No focused window bounds, falling back to full screen",
+			zap.Error(boundsErr),
+		)
+
+		windowBounds, boundsErr = s.system.ScreenBounds(ctx)
+		if boundsErr != nil {
+			s.logger.Error("Failed to get screen bounds for vision detection", zap.Error(boundsErr))
+
+			return allElements
+		}
+	}
+
+	// Detect window elements via vision
+	visionStart := time.Now()
+	windowElements, visionErr := s.vision.DetectElements(ctx, windowBounds)
+	s.logger.Debug("TIMING: Window elements (vision)",
+		zap.Duration("elapsed", time.Since(visionStart)),
+		zap.Int("count", len(windowElements)),
+		zap.Error(visionErr))
+
+	if visionErr != nil {
+		s.logger.Error("Failed to detect elements via vision", zap.Error(visionErr))
+
+		// Fall back to AX for window elements if vision fails
+		axStart := time.Now()
+		fallbackElements, fallbackErr := s.accessibility.ClickableElements(ctx, filter)
+		s.logger.Debug("TIMING: Fallback elements (AX)",
+			zap.Duration("elapsed", time.Since(axStart)),
+			zap.Int("count", len(fallbackElements)),
+			zap.Error(fallbackErr))
+
+		if fallbackErr == nil {
+			allElements = append(allElements, fallbackElements...)
+		}
+
+		return allElements
+	}
+
+	// Filter vision-detected elements by configured roles
+	for _, element := range windowElements {
+		if len(filter.Roles) == 0 {
+			allElements = append(allElements, element)
+
+			continue
+		}
+
+		if slices.Contains(filter.Roles, element.Role()) {
+			allElements = append(allElements, element)
+		}
+	}
+
+	return allElements
 }

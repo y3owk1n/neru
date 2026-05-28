@@ -63,6 +63,12 @@ type ElementFilter struct {
 	// Roles specifies which accessibility roles to include.
 	Roles []element.Role
 
+	// SkipWindowElements skips querying the frontmost window for elements.
+	// When true, only supplementary elements (menubar, dock, NC, etc.) are
+	// collected. Used by the vision strategy where the frontmost window
+	// is detected via Vision Framework instead of the AX tree.
+	SkipWindowElements bool
+
 	// MinSize specifies the minimum element size to include.
 	MinSize image.Point
 

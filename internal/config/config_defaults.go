@@ -278,6 +278,7 @@ func newDefaultConfig() *Config {
 		},
 		Hints: HintsConfig{
 			Enabled:        true,
+			Strategy:       StrategyAXTree,
 			HintCharacters: "asdfghjkl",
 			MaxDepth:       DefaultMaxDepth,
 			Hotkeys: map[string]StringOrStringArray{
