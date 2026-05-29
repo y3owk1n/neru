@@ -298,21 +298,16 @@ func (h *Handler) activateHintModeInternal(
 		strategy = strategyVal
 	}
 
-	if strategy == config.StrategyVision {
-		if !platform.CheckScreenCapturePermissions() {
-			choice := platform.ShowScreenCapturePermissionAlert()
-			if choice == platform.ScreenCapturePermissionStartupQuit {
-				h.shutdown()
+	var permissionOk bool
 
-				return
-			}
-
-			if choice == platform.ScreenCapturePermissionStartupCancel {
-				h.exitModeLocked()
-
-				return
-			}
-		}
+	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissionsLocked(
+		activeScreenBounds,
+		bundleID,
+		strategy,
+		strategyVal,
+	)
+	if !permissionOk {
+		return
 	}
 
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
@@ -451,4 +446,80 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.startIndicatorPolling(domain.ModeHints)
+}
+
+// ensureScreenCapturePermissionsLocked checks and requests screen capture permissions.
+// It releases h.mu during the modal prompt to avoid blocking other threads.
+// Returns the updated activeScreenBounds, bundleID, strategy, and whether it is safe to proceed.
+func (h *Handler) ensureScreenCapturePermissionsLocked(
+	activeScreenBounds image.Rectangle,
+	bundleID string,
+	strategy string,
+	strategyVal string,
+) (image.Rectangle, string, string, bool) {
+	if strategy != config.StrategyVision {
+		return activeScreenBounds, bundleID, strategy, true
+	}
+
+	if platform.CheckScreenCapturePermissions() {
+		return activeScreenBounds, bundleID, strategy, true
+	}
+
+	session := h.modeSession
+	h.mu.Unlock()
+
+	choice := platform.ShowScreenCapturePermissionAlert()
+
+	h.mu.Lock()
+
+	// Check if state changed while we were unlocked.
+	if h.ctx.Err() != nil || h.modeSession != session {
+		h.logger.Debug(
+			"Aborting hint mode activation: state changed or context canceled while waiting for permission dialog",
+		)
+
+		return activeScreenBounds, bundleID, strategy, false
+	}
+
+	if choice == platform.ScreenCapturePermissionStartupQuit {
+		h.shutdown()
+
+		return activeScreenBounds, bundleID, strategy, false
+	}
+
+	if choice == platform.ScreenCapturePermissionStartupCancel {
+		h.exitModeLocked()
+
+		return activeScreenBounds, bundleID, strategy, false
+	}
+
+	// Re-read screen bounds under the lock in case they changed while the modal was open.
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(h.ctx)
+		if err == nil {
+			activeScreenBounds = b
+			h.screenBounds = activeScreenBounds
+		}
+	}
+
+	// Re-fetch bundle ID under the lock since the focused app might have changed while the modal was open.
+	bundleCtx, bundleCancel := context.WithTimeout(h.ctx, 1*time.Second)
+	newBundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
+
+	bundleCancel()
+
+	if bundleIDErr == nil {
+		bundleID = newBundleID
+	} else {
+		h.logger.Debug("Failed to re-fetch focused app bundle ID for hint generation",
+			zap.Error(bundleIDErr))
+	}
+
+	// Re-evaluate strategy in case the focused app changed.
+	strategy = h.config.Hints.StrategyForApp(bundleID)
+	if strategyVal != "" {
+		strategy = strategyVal
+	}
+
+	return activeScreenBounds, bundleID, strategy, true
 }
