@@ -130,7 +130,7 @@ static int showScreenCapturePermissionAlertOnMainThread(void) {
 
 /// Show the startup screen capture permission guidance alert.
 /// The alert lets the user request permission and then dismiss it with Granted.
-/// @return 1 if permission is granted, 2 if the user chose Quit.
+/// @return 1 if permission is granted, 2 if the user cancelled (exit mode), 3 if the user chose Quit/Restart.
 int NeruShowScreenCapturePermissionAlert(void) {
 	@autoreleasepool {
 		__block int result = 0;
