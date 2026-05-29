@@ -303,6 +303,8 @@ func (h *Handler) activateHintModeInternal(
 			choice := platform.ShowScreenCapturePermissionAlert()
 			if choice == platform.ScreenCapturePermissionStartupQuit {
 				h.shutdown()
+
+				return
 			}
 
 			if choice == platform.ScreenCapturePermissionStartupCancel {
