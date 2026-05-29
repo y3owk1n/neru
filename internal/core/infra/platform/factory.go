@@ -24,4 +24,8 @@ const (
 
 	AccessibilityPermissionStartupGranted = 1
 	AccessibilityPermissionStartupQuit    = 2
+
+	ScreenCapturePermissionStartupGranted = 1
+	ScreenCapturePermissionStartupCancel  = 2
+	ScreenCapturePermissionStartupQuit    = 3
 )

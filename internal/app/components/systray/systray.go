@@ -36,6 +36,8 @@ type AppInterface interface {
 	ToggleOverlayHiddenForScreenShare() bool
 	OnScreenShareStateChanged(callback func(bool)) uint64
 	OffScreenShareStateChanged(id uint64)
+	// Quit triggers a graceful shutdown of the application.
+	Quit()
 }
 
 // Component encapsulates systray functionality.
@@ -293,7 +295,7 @@ func (c *Component) handleEvents() {
 		case <-c.mToggleScreenShare.ClickedCh:
 			c.handleToggleScreenShare()
 		case <-c.mQuit.ClickedCh:
-			systray.Quit()
+			c.app.Quit()
 
 			return
 		case <-c.stateUpdateSignal:

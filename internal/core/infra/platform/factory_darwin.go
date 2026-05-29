@@ -31,3 +31,13 @@ func CheckAccessibilityPermissions() bool {
 func ShowAccessibilityPermissionStartupAlert() int {
 	return int(darwin.ShowAccessibilityPermissionStartupAlert())
 }
+
+// CheckScreenCapturePermissions checks macOS screen recording permission without prompting.
+func CheckScreenCapturePermissions() bool {
+	return darwin.CheckScreenCapturePermissions()
+}
+
+// ShowScreenCapturePermissionAlert displays the macOS screen recording permission guidance.
+func ShowScreenCapturePermissionAlert() int {
+	return darwin.ShowScreenCapturePermissionAlert()
+}

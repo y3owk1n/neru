@@ -574,6 +574,12 @@ func (a *App) Stop() {
 	})
 }
 
+// Quit triggers a graceful shutdown of the application.
+func (a *App) Quit() {
+	a.Stop()
+	platformQuit()
+}
+
 // Cleanup cleans up resources. It is safe to call multiple times; only the
 // first invocation performs the actual teardown.
 func (a *App) Cleanup() {

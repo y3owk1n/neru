@@ -33,3 +33,13 @@ func CheckAccessibilityPermissions() bool {
 func ShowAccessibilityPermissionStartupAlert() int {
 	return AccessibilityPermissionStartupGranted
 }
+
+// CheckScreenCapturePermissions is always true on unsupported platforms.
+func CheckScreenCapturePermissions() bool {
+	return true
+}
+
+// ShowScreenCapturePermissionAlert is a no-op on unsupported platforms.
+func ShowScreenCapturePermissionAlert() int {
+	return ScreenCapturePermissionStartupGranted
+}

@@ -38,3 +38,13 @@ func CheckAccessibilityPermissions() bool {
 func ShowAccessibilityPermissionStartupAlert() int {
 	return AccessibilityPermissionStartupGranted
 }
+
+// CheckScreenCapturePermissions is always true on Linux.
+func CheckScreenCapturePermissions() bool {
+	return true
+}
+
+// ShowScreenCapturePermissionAlert is a no-op on Linux.
+func ShowScreenCapturePermissionAlert() int {
+	return ScreenCapturePermissionStartupGranted
+}

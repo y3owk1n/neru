@@ -348,6 +348,7 @@ func initializeModeHandler(app *App) {
 		deps.callbacks.postModifierEvent,
 		deps.callbacks.refreshHotkeys,
 		deps.callbacks.executeHotkeyAction,
+		app.Quit,
 		app.textInput,
 		app.systemPort,
 	)

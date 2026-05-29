@@ -8,10 +8,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -291,6 +293,26 @@ func (h *Handler) activateHintModeInternal(
 		strategyVal = *strategyOverride
 	}
 
+	strategy := h.config.Hints.StrategyForApp(bundleID)
+	if strategyVal != "" {
+		strategy = strategyVal
+	}
+
+	if strategy == config.StrategyVision {
+		if !platform.CheckScreenCapturePermissions() {
+			choice := platform.ShowScreenCapturePermissionAlert()
+			if choice == platform.ScreenCapturePermissionStartupQuit {
+				h.shutdown()
+			}
+
+			if choice == platform.ScreenCapturePermissionStartupCancel {
+				h.exitModeLocked()
+
+				return
+			}
+		}
+	}
+
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
@@ -407,11 +429,6 @@ func (h *Handler) activateHintModeInternal(
 
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
-
-	strategy := h.config.Hints.StrategyForApp(bundleID)
-	if strategyVal != "" {
-		strategy = strategyVal
-	}
 
 	fields := []zap.Field{
 		zap.Duration("elapsed", time.Since(activationStart)),

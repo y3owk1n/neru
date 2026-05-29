@@ -90,6 +90,7 @@ type Handler struct {
 	postModifierEvent          func(modifier string, isDown bool)
 	refreshHotkeys             func()
 	executeHotkeyAction        func(key, actionStr string) error
+	shutdown                   func()
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
 	hotkeyLastKey              string
@@ -162,6 +163,7 @@ func NewHandler(
 	postModifierEvent func(modifier string, isDown bool),
 	refreshHotkeys func(),
 	executeHotkeyAction func(key, actionStr string) error,
+	shutdown func(),
 	textInput ports.TextInputPort,
 	systemPort ports.SystemPort,
 ) *Handler {
@@ -215,6 +217,7 @@ func NewHandler(
 		postModifierEvent:          postModifierEvent,
 		refreshHotkeys:             refreshHotkeys,
 		executeHotkeyAction:        executeHotkeyAction,
+		shutdown:                   shutdown,
 		textInput:                  textInput,
 		themeProvider:              systemPort,
 		system:                     systemPort,

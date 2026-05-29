@@ -36,19 +36,16 @@
 	<key>NeruBuildID</key>
 	<string>BUILD_ID</string>
 
-	<key>CSResourcesFileMapped</key>
-	<true/>
-
 	<key>NSHighResolutionCapable</key>
 	<true/>
 
 	<key>LSUIElement</key>
 	<true/>
 
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Used for automation</string>
-
 	<key>NSAccessibilityUsageDescription</key>
-	<string>Requires accessibility access</string>
+	<string>Neru needs Accessibility access to inspect and interact with user interface elements for keyboard-driven navigation.</string>
+
+	<key>NSScreenCaptureDescription</key>
+	<string>Neru may capture screen content for vision-based element detection to enhance navigation accuracy.</string>
 </dict>
 </plist>

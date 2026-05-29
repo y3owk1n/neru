@@ -63,6 +63,7 @@ func (m *mockApp) OnScreenShareStateChanged(callback func(bool)) uint64 {
 	return 0
 }
 func (m *mockApp) OffScreenShareStateChanged(id uint64) {}
+func (m *mockApp) Quit()                                {}
 
 func TestNewComponent(t *testing.T) {
 	logger := zaptest.NewLogger(t)
