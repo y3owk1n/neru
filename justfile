@@ -180,6 +180,13 @@ fmt-check:
     fi
     echo "✓ All Objective-C files are properly formatted"
 
+# Generate man pages
+genman OUTPUT_DIR="build/man":
+    @echo "Generating man pages..."
+    mkdir -p {{ OUTPUT_DIR }}
+    go run ./cmd/genman {{ OUTPUT_DIR }}
+    @echo "✓ Man pages generated in {{ OUTPUT_DIR }}/"
+
 # Clean build artifacts
 clean:
     @echo "Cleaning build artifacts..."
