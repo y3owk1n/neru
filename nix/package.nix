@@ -102,14 +102,14 @@ if useZip then
             mv ${appName} $out/Applications
             cp -R bin $out
             mkdir -p $out/share/man/man1
-            mv *.1 $out/share/man/man1/
+            mv share/man/man1/*.1 $out/share/man/man1/
           ''
         else
           ''
             mkdir -p $out/bin
             mv bin/neru $out/bin/neru
             mkdir -p $out/share/man/man1
-            mv *.1 $out/share/man/man1/
+            mv share/man/man1/*.1 $out/share/man/man1/
           ''
       }
       runHook postInstall

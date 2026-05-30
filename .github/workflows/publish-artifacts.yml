@@ -47,7 +47,8 @@ jobs:
                   cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
                   chmod +x build/arm64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
-                  cp build/man/*.1 build/arm64/
+                  mkdir -p build/arm64/share/man/man1
+                  cp build/man/*.1 build/arm64/share/man/man1/
                   sed \
                     -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
                     -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
@@ -62,7 +63,7 @@ jobs:
                   chmod +x build/arm64/bin/neru
 
                   cd build/arm64
-                  zip -r ../../neru-darwin-arm64.zip bin Neru.app *.1
+                  zip -r ../../neru-darwin-arm64.zip bin Neru.app share
                   cd ../..
 
             - name: Generate darwin arm64 checksum
@@ -103,7 +104,8 @@ jobs:
                   cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
                   chmod +x build/amd64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
-                  cp build/man/*.1 build/amd64/
+                  mkdir -p build/amd64/share/man/man1
+                  cp build/man/*.1 build/amd64/share/man/man1/
                   sed \
                     -e "s/BUNDLE_VERSION/${{ inputs.macos_bundle_version }}/g" \
                     -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
@@ -118,7 +120,7 @@ jobs:
                   chmod +x build/amd64/bin/neru
 
                   cd build/amd64
-                  zip -r ../../neru-darwin-amd64.zip bin Neru.app *.1
+                  zip -r ../../neru-darwin-amd64.zip bin Neru.app share
                   cd ../..
 
             - name: Generate darwin amd64 checksum
@@ -172,10 +174,11 @@ jobs:
                   mkdir -p build/linux-amd64/bin
                   cp bin/neru-linux-amd64 build/linux-amd64/bin/neru
                   chmod +x build/linux-amd64/bin/neru
-                  cp build/man/*.1 build/linux-amd64/
+                  mkdir -p build/linux-amd64/share/man/man1
+                  cp build/man/*.1 build/linux-amd64/share/man/man1/
 
                   cd build/linux-amd64
-                  zip -r ../../neru-linux-amd64.zip bin *.1
+                  zip -r ../../neru-linux-amd64.zip bin share
                   cd ../..
 
             - name: Generate linux amd64 checksum
@@ -229,10 +232,11 @@ jobs:
                   mkdir -p build/linux-arm64/bin
                   cp bin/neru-linux-arm64 build/linux-arm64/bin/neru
                   chmod +x build/linux-arm64/bin/neru
-                  cp build/man/*.1 build/linux-arm64/
+                  mkdir -p build/linux-arm64/share/man/man1
+                  cp build/man/*.1 build/linux-arm64/share/man/man1/
 
                   cd build/linux-arm64
-                  zip -r ../../neru-linux-arm64.zip bin *.1
+                  zip -r ../../neru-linux-arm64.zip bin share
                   cd ../..
 
             - name: Generate linux arm64 checksum
