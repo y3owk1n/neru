@@ -40,6 +40,10 @@ var RootCmd = &cobra.Command{
 	Short: "Neru - Keyboard-driven navigation tool",
 	Long: `Neru is a keyboard-driven navigation tool that provides
 vim-like navigation capabilities across applications using accessibility APIs.`,
+	Example: `  neru launch                        Start the Neru daemon
+  neru status                        Show daemon status
+  neru hints --action left_click     Activate hints mode with pending click
+  neru action scroll_down --steps 3  Scroll down 3 steps`,
 	SilenceErrors: true,
 	Version:       Version,
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -10,15 +10,26 @@ import (
 // Other platforms: stubbed and returns CodeNotSupported until implemented.
 var ServicesCmd = &cobra.Command{
 	Use:   "services",
-	Short: "Manage the neru system service",
-	Long:  `Manage the neru system service for automatic startup.`,
+	Short: "Manage the Neru system service (macOS launchd)",
+	Long: `Manage the Neru system service for automatic startup on login.
+
+On macOS, this manages a launchd plist so Neru starts automatically
+when you log in. Available on macOS only.
+
+Subcommands:
+  install     Install and load the system service
+  uninstall   Unload and remove the system service
+  start       Start the system service
+  stop        Stop the system service
+  restart     Restart the system service
+  status      Check whether the service is loaded and running`,
 }
 
 // ServicesInstallCmd is the CLI install subcommand.
 var ServicesInstallCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install and load the system service",
-	Long:  `Install the system service by placing its config and loading it.`,
+	Long:  `Install the Neru launchd service so it starts automatically on login. Creates the plist file and loads it with launchctl.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := installService()
 		if err != nil {
@@ -35,7 +46,7 @@ var ServicesInstallCmd = &cobra.Command{
 var ServicesUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Unload and remove the system service",
-	Long:  `Unload the system service and remove its config.`,
+	Long:  `Unload the Neru launchd service and remove its plist file. Neru will no longer start automatically on login.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := uninstallService()
 		if err != nil {
@@ -52,7 +63,7 @@ var ServicesUninstallCmd = &cobra.Command{
 var ServicesStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the system service",
-	Long:  `Start the neru system service.`,
+	Long:  `Start the Neru launchd service (loads the plist with launchctl). The daemon will begin running in the background.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := startService()
 		if err != nil {
@@ -69,7 +80,7 @@ var ServicesStartCmd = &cobra.Command{
 var ServicesStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the system service",
-	Long:  `Stop the neru system service.`,
+	Long:  `Stop the Neru launchd service (unloads the plist with launchctl). The daemon process will be terminated.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := stopService()
 		if err != nil {
@@ -86,7 +97,7 @@ var ServicesStopCmd = &cobra.Command{
 var ServicesRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the system service",
-	Long:  `Restart the neru system service.`,
+	Long:  `Stop then immediately start the Neru launchd service. Useful after configuration changes or to recover from an unresponsive state.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := restartService()
 		if err != nil {
@@ -103,7 +114,7 @@ var ServicesRestartCmd = &cobra.Command{
 var ServicesStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the system service",
-	Long:  `Check if the neru system service is loaded and running.`,
+	Long:  `Check whether the Neru launchd service is currently loaded and running. Displays the service PID if active.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.Println(statusService())
 

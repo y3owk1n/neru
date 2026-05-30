@@ -13,13 +13,21 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage Neru configuration",
-	Long:  "Commands for managing Neru configuration including dumping and reloading.",
+	Long: `Commands for managing the Neru configuration file and runtime settings.
+
+Subcommands:
+  dump       Print the currently active configuration as JSON
+  reload     Reload configuration from disk without restarting
+  init       Create a default configuration file to get started
+  validate   Check a configuration file for errors
+
+See 'neru config <subcommand> --help' for details on each.`,
 }
 
 var configDumpCmd = &cobra.Command{
 	Use:   "dump",
-	Short: "Dump effective config",
-	Long:  "Print the currently active Neru configuration as JSON.",
+	Short: "Print the active configuration as JSON",
+	Long:  "Print the currently active Neru configuration (as resolved by the running daemon) as pretty-printed JSON. Useful for verifying that your config file is being parsed correctly.",
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
@@ -66,8 +74,8 @@ var configDumpCmd = &cobra.Command{
 
 var configReloadCmd = &cobra.Command{
 	Use:   "reload",
-	Short: "Reload configuration",
-	Long:  "Reload the Neru configuration from disk without restarting the application.",
+	Short: "Reload configuration from disk",
+	Long:  "Reload the Neru configuration file from disk without restarting the running daemon. Changes to hotkeys, colors, and behavior take effect immediately.",
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},

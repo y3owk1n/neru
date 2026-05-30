@@ -7,8 +7,9 @@ import (
 // IdleCmd is the CLI idle command.
 var IdleCmd = &cobra.Command{
 	Use:   "idle",
-	Short: "Set mode to idle",
-	Long:  `Exit the current mode and return to idle state.`,
+	Short: "Exit the current navigation mode",
+	Long: `Exit the current navigation mode (hints, grid, recursive-grid, scroll)
+and return to idle state. Useful for scripting mode transitions.`,
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},

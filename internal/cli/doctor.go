@@ -19,11 +19,15 @@ var (
 // DoctorCmd is the CLI doctor command.
 var DoctorCmd = &cobra.Command{
 	Use:   "doctor",
-	Short: "Check the health of Neru components",
+	Short: "Run comprehensive diagnostics",
 	Long: `Run a comprehensive health check of the Neru system.
 
-This command performs client-side checks (socket, config) first, then
-queries the running daemon for component-level health status.`,
+This command performs client-side checks (IPC socket, config) first,
+then queries the running daemon for component-level health status
+(accessibility permissions, overlay state, input monitoring).
+
+Runs client-side checks even when the daemon is not running, so you
+can use it to verify accessibility permissions before launching.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()

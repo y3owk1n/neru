@@ -4,6 +4,7 @@ build/
 *.app
 *.dmg
 /neru
+/genman
 
 # Generated man pages
 /man/

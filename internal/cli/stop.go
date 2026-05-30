@@ -3,8 +3,12 @@ package cli
 // StopCmd is the CLI stop command.
 var StopCmd = BuildSimpleCommand(
 	"stop",
-	"Pause the neru program (does not quit)",
-	`Pause the neru program. This disables neru functionality but keeps it running in the background.`,
+	"Pause Neru (daemon stays running)",
+	`Pause the Neru daemon. All navigation modes and actions are disabled,
+but the daemon process remains running in the background.
+
+Use 'neru start' to resume functionality.
+Use 'neru status' to check whether Neru is active or paused.`,
 	"stop",
 )
 

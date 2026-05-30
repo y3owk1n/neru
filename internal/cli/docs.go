@@ -10,8 +10,19 @@ import (
 // Other platforms: stubbed and returns CodeNotSupported until implemented.
 var DocsCmd = &cobra.Command{
 	Use:   "docs",
-	Short: "Open Neru documentation in the browser",
-	Long:  "Open version-aware Neru documentation pages in the default browser.",
+	Short: "Open documentation in the browser",
+	Long: `Open version-aware Neru documentation pages in the default browser.
+
+The URL points to the documentation for the currently installed version
+of Neru, so you always see the relevant reference.
+
+Subcommands:
+  cli      Open the CLI reference documentation
+  config   Open the configuration reference documentation
+
+Example:
+  neru docs cli      Open CLI docs
+  neru docs config   Open config docs`,
 }
 
 // DocsCLICmd is the CLI docs cli subcommand.

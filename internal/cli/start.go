@@ -3,8 +3,11 @@ package cli
 // StartCmd is the CLI start command.
 var StartCmd = BuildSimpleCommand(
 	"start",
-	"Start the neru program (resume if paused)",
-	`Start or resume the neru program. This enables neru if it was previously stopped.`,
+	"Resume Neru after being stopped",
+	`Resume the Neru daemon after it was paused with 'neru stop'.
+
+This re-enables all navigation modes and actions without restarting
+the daemon process. Use 'neru stop' to pause.`,
 	"start",
 )
 

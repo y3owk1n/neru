@@ -9,8 +9,9 @@ import (
 // StatusCmd is the CLI status command.
 var StatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show neru status",
-	Long:  `Display the current status of the neru program.`,
+	Short: "Show Neru daemon status",
+	Long: `Display whether Neru is running, the active mode, and the current
+configuration state (running or paused).`,
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
