@@ -33,6 +33,8 @@ This guide covers installation methods for Neru, with the most complete support 
 > The homebrew tap is maintained in another repo: [y3owk1n/homebrew-tap](https://github.com/y3owk1n/homebrew-tap)
 > If there's a problem with the tap, please open an issue in that repo or even better, a PR.
 
+Note that you cannot have both `stable` and `nightly` installed at the same time. Uninstall the other one first or it will error out.
+
 ```bash
 brew tap y3owk1n/tap
 
@@ -49,10 +51,13 @@ brew upgrade --cask y3owk1n/tap/neru
 # Note that you will need to do `--greedy` due to the nature of nightly releases
 # without `--greedy`, it won't upgrade the rolling releases
 brew upgrade --cask --greedy y3owk1n/tap/neru-nightly
-```
 
-**Update:** `brew upgrade --cask neru`
-**Uninstall:** `brew uninstall --cask neru`
+# Uninstall stable
+brew uninstall --cask y3owk1n/tap/neru
+
+# Uninstall nightly
+brew uninstall --cask y3owk1n/tap/neru-nightly
+```
 
 ---
 
