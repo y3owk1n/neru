@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.42.0](https://github.com/y3owk1n/neru/compare/v1.41.0...v1.42.0) (2026-05-30)
+
+
+### Features
+
+* add cobra generated man pages ([#876](https://github.com/y3owk1n/neru/issues/876)) ([aa20dc9](https://github.com/y3owk1n/neru/commit/aa20dc95ff3ff275af0969bc224cab2dbc7f00c7))
+
+
+### Bug Fixes
+
+* ensure screen capture permission flow consistency ([#875](https://github.com/y3owk1n/neru/issues/875)) ([920d85d](https://github.com/y3owk1n/neru/commit/920d85d587dfb1a3df2d4e961125505033b9f0d6))
+* **hotkeys:** ensure consistent initialdelay with interval for repeat ([#872](https://github.com/y3owk1n/neru/issues/872)) ([caf1177](https://github.com/y3owk1n/neru/commit/caf1177294f6e57c4e6118db92bdef865e4a23ee))
+
+
+### Documentation
+
+* **installation:** add nightly homebrew `install` and `upgrade` guide ([#878](https://github.com/y3owk1n/neru/issues/878)) ([40dfe49](https://github.com/y3owk1n/neru/commit/40dfe49944022f3524660e9410f8eb7a723811d8))
+* make documenation richer for cli for better man generation ([#879](https://github.com/y3owk1n/neru/issues/879)) ([ddcd631](https://github.com/y3owk1n/neru/commit/ddcd63117f1ceaf9a0efed7c729919f2a0ff82bb))
+
 ## [1.41.0](https://github.com/y3owk1n/neru/compare/v1.40.1...v1.41.0) (2026-05-28)
 
 
