@@ -101,12 +101,15 @@ if useZip then
             mkdir -p $out/Applications
             mv ${appName} $out/Applications
             cp -R bin $out
-            mkdir -p $out/share
+            mkdir -p $out/share/man/man1
+            mv *.1 $out/share/man/man1/
           ''
         else
           ''
             mkdir -p $out/bin
             mv bin/neru $out/bin/neru
+            mkdir -p $out/share/man/man1
+            mv *.1 $out/share/man/man1/
           ''
       }
       runHook postInstall
@@ -162,7 +165,7 @@ else
     # `nix-shell -p go --run 'go mod vendor'`
     # `nix hash path vendor`
     # `rm -rf vendor`
-    vendorHash = "sha256-PvL9tqhhWefpHRCGNGKYsSFhYuv2Pe9gWOIeI5LgaLQ=";
+    vendorHash = "sha256-/ZijFhyVbzb05DFxJHd4eBgFqIIdo83QL6jOJ6ePW08=";
 
     ldflags = [
       "-s"
@@ -203,6 +206,10 @@ else
     '';
 
     postInstall = ''
+      # generate man pages
+      mkdir -p $out/share/man/man1
+      go run ./cmd/genman $out/share/man/man1
+
       # install shell completions
       if ${lib.boolToString (stdenv.buildPlatform.canExecute stdenv.hostPlatform)}; then
       	installShellCompletion --cmd neru \
