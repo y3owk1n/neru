@@ -18,6 +18,13 @@ func main() {
 	}
 
 	outputDir := os.Args[1]
+
+	err := os.MkdirAll(outputDir, 0o755) //nolint:mnd
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+		os.Exit(1)
+	}
+
 	now := time.Now()
 
 	header := &doc.GenManHeader{
@@ -28,7 +35,7 @@ func main() {
 		Source:  "Neru " + cli.Version,
 	}
 
-	err := doc.GenManTree(cli.RootCmd, header, outputDir)
+	err = doc.GenManTree(cli.RootCmd, header, outputDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating man pages: %v\n", err)
 		os.Exit(1)
