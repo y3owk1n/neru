@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra/doc"
@@ -26,6 +27,12 @@ func main() {
 	}
 
 	now := time.Now()
+	if epoch := os.Getenv("SOURCE_DATE_EPOCH"); epoch != "" {
+		sec, err := strconv.ParseInt(epoch, 10, 64)
+		if err == nil {
+			now = time.Unix(sec, 0).UTC()
+		}
+	}
 
 	header := &doc.GenManHeader{
 		Title:   "NERU",
