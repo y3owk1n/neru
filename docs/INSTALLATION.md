@@ -35,7 +35,20 @@ This guide covers installation methods for Neru, with the most complete support 
 
 ```bash
 brew tap y3owk1n/tap
+
+# Install latest stable release
 brew install --cask y3owk1n/tap/neru
+
+# Install latest nightly release
+brew install --cask y3owk1n/tap/neru-nightly
+
+# Upgrade to latest stable release
+brew upgrade --cask y3owk1n/tap/neru
+
+# Upgrade to latest nightly release
+# Note that you will need to do `--greedy` due to the nature of nightly releases
+# without `--greedy`, it won't upgrade the rolling releases
+brew upgrade --cask --greedy y3owk1n/tap/neru-nightly
 ```
 
 **Update:** `brew upgrade --cask neru`
