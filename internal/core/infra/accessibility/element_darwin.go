@@ -97,6 +97,8 @@ type ElementInfo struct {
 	position        image.Point
 	size            image.Point
 	title           string
+	description     string
+	value           string
 	role            string
 	roleDescription string
 	isEnabled       bool
@@ -117,6 +119,16 @@ func (ei *ElementInfo) Size() image.Point {
 // Title returns the element title.
 func (ei *ElementInfo) Title() string {
 	return ei.title
+}
+
+// Description returns the element description.
+func (ei *ElementInfo) Description() string {
+	return ei.description
+}
+
+// Value returns the element value.
+func (ei *ElementInfo) Value() string {
+	return ei.value
 }
 
 // Role returns the element role.
@@ -233,6 +245,12 @@ func (e *Element) Info() (*ElementInfo, error) {
 
 	if cInfo.title != nil {
 		info.title = C.GoString(cInfo.title)
+	}
+	if cInfo.description != nil {
+		info.description = C.GoString(cInfo.description)
+	}
+	if cInfo.value != nil {
+		info.value = C.GoString(cInfo.value)
 	}
 	if cInfo.role != nil {
 		info.role = C.GoString(cInfo.role)

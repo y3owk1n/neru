@@ -16,6 +16,7 @@
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
 - [Combining Hints with Other Actions](#combining-hints-with-other-actions)
+- [Moving windows to other macOS native spaces](#moving-windows-to-other-macOS-native-spaces)
 
 ---
 
@@ -95,7 +96,7 @@ On some apps (e.g. Discord), it requires you to wait for a bit after clicking be
 ```toml
 [recursive_grid.hotkeys]
 # Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
-"Ctrl+J" = ["action left_click", "exec sleep 0.05", "action reset"]
+"Ctrl+J" = ["action left_click", "action sleep 0.05", "action reset"]
 ```
 
 ## Target Menus Without Moving the Real Cursor
@@ -147,14 +148,26 @@ Some browser-like apps need a short delay after a click so the page content can 
 
 ```toml
 [[hints.app_configs]]
-bundle_id = "net.imput.helium"
-
-[hints.app_configs.hotkeys]
-"Return" = ["action left_click", "exec sleep 0.8", "hints"]
-"Shift+L" = "__disabled__"
+bundle_id = "com.brave.Browser"
+hotkeys = {
+	"Return" = ["action left_click", "action sleep 0.8", "hints"],
+	"Shift+L" = "__disabled__"
+}
 ```
 
-This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Helium. Everything else keeps using your normal hint bindings.
+This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Brave Browser. Everything else keeps using your normal hint bindings.
+
+You can use the same pattern for grid and recursive_grid modes:
+
+```toml
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "u" = "action left_click" }
+```
 
 ## Checking the Accessibility Tree on macOS
 
@@ -210,6 +223,19 @@ The `--action` flag on hints mode is not limited to `left_click`. You can pass o
 ```
 
 Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Code file tree) without moving your hands to the mouse.
+
+## Moving windows to other macOS native spaces
+
+The snippet is ugly but it works fine, feel free to improvise it. Things to note:
+
+- `feed <key>` should be your native macOS hotkey for switching spaces
+- `yabai` is just something that I uses and not required
+- restore cursor is also optional
+
+```toml
+"Alt+Shift+1" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+1", "action sleep 0.2", "action mouse_up", "exec yabai -m space --balance", "action restore_cursor_pos"]
+"Alt+Shift+2" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+2", "action sleep 0.2", "action mouse_up", "exec yabai -m space --balance", "action restore_cursor_pos"]
+```
 
 ---
 

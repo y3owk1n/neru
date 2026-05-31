@@ -74,8 +74,11 @@ func LinuxCapabilities() PlatformCapabilities {
 		AppWatcher: stubCapability(
 			"app watcher not needed for Neru's current navigation model",
 		),
-		DarkModeDetection: stubCapability(
-			"dark mode detection not implemented yet; target freedesktop appearance APIs",
+		// Default placeholder; the Linux SystemAdapter overrides this with
+		// the live-probed state (current color-scheme + source) on each
+		// Capabilities() call. See linux.SystemAdapter.Capabilities.
+		DarkModeDetection: supportedCapability(
+			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
 		),
 	}
 }

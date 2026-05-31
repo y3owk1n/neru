@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
 
@@ -80,13 +81,15 @@ func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
 	return true
 }
 
-// ensureAccessibility enables AXEnhancedUserInterface for the specified application.
+// ensureAccessibility enables accessibility attributes for the specified application.
 // This is a generic function used by both Chromium and Firefox accessibility enablers.
+// setManualAccessibility controls whether to also set AXManualAccessibility (Electron/Chromium only).
 func ensureAccessibility(
 	bundleID string,
 	enabledPIDs map[int]struct{},
 	pidsMu *sync.Mutex,
 	logger *zap.Logger,
+	setManualAccessibility bool,
 ) bool {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -122,14 +125,26 @@ func ensureAccessibility(
 		return true
 	}
 
-	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
+	// Set AXManualAccessibility for Electron/Chromium apps (not for Firefox).
+	// This is the preferred method for newer Electron/Chromium versions as it doesn't
+	// have the "screen reader active" side effects.
+	// Ref: https://github.com/electron/electron/issues/7206
+	var amaSuccess bool
+	if setManualAccessibility {
+		amaSuccess = platformSetApplicationAttribute(pid, electronAttributeName, true)
+	}
 
-	if !success {
-		logger.Warn("Failed to enable AXEnhancedUserInterface", zap.String("bundle_id", bundleID))
+	// Also set AXEnhancedUserInterface - this is the classic way to enable accessibility
+	// and is needed for older Chromium versions / Firefox.
+	euiSuccess := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
+
+	if !amaSuccess && !euiSuccess {
+		logger.Warn("Failed to enable accessibility attributes", zap.String("bundle_id", bundleID))
 
 		return false
 	}
 
+	// Mark as enabled only if at least one succeeded, to avoid retrying failed attempts
 	pidsMu.Lock()
 
 	enabledPIDs[pid] = struct{}{}
@@ -142,40 +157,13 @@ func ensureAccessibility(
 // EnsureChromiumAccessibility enables AXEnhancedUserInterface for Chromium-based applications.
 // This improves accessibility support for Chromium browsers and applications.
 func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu, logger)
+	return ensureAccessibility(bundleID, chromiumEnabledPIDs, &chromiumPIDsMu, logger, true)
 }
 
 // EnsureFirefoxAccessibility enables AXEnhancedUserInterface for Firefox-based applications.
 // This improves accessibility support for Firefox browsers and applications.
 func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger)
-}
-
-// KnownChromiumBundles contains known Chromium-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownChromiumBundles = []string{
-	"net.imput.helium",
-	"com.google.Chrome",
-	"com.brave.Browser",
-	"company.thebrowser.Browser",
-}
-
-// KnownFirefoxBundles contains known Firefox-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownFirefoxBundles = []string{
-	"org.mozilla.firefox",
-	"app.zen-browser.zen",
-}
-
-// KnownElectronBundles contains known Electron-based application bundle identifiers.
-// These applications require manual accessibility attribute toggling to work properly.
-var KnownElectronBundles = []string{
-	// electrons
-	"com.microsoft.VSCode",
-	"com.exafunction.windsurf",
-	"com.tinyspeck.slackmacgap",
-	"com.spotify.client",
-	"md.obsidian",
+	return ensureAccessibility(bundleID, firefoxEnabledPIDs, &firefoxPIDsMu, logger, false)
 }
 
 // ShouldEnableElectronSupport determines if the provided bundle identifier
@@ -186,7 +174,7 @@ func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -202,7 +190,7 @@ func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -218,7 +206,7 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 		return false
 	}
 
-	if matchesAdditionalBundle(bundleID, additionalBundles) {
+	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
 		return true
 	}
 
@@ -235,7 +223,7 @@ func IsLikelyElectronBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownElectronBundles {
+	for _, exact := range config.KnownElectronBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
 			return true
 		}
@@ -252,7 +240,7 @@ func IsLikelyChromiumBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownChromiumBundles {
+	for _, exact := range config.KnownChromiumBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
 			return true
 		}
@@ -269,34 +257,8 @@ func IsLikelyFirefoxBundle(bundleID string) bool {
 		return false
 	}
 
-	for _, exact := range KnownFirefoxBundles {
+	for _, exact := range config.KnownFirefoxBundles {
 		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// matchesAdditionalBundle checks if a bundle ID matches any user-provided additional bundles.
-// It supports both exact matches and wildcard patterns (ending with *).
-func matchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
-	if len(additionalBundles) == 0 {
-		return false
-	}
-
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	for _, candidate := range additionalBundles {
-		trimmed := strings.ToLower(strings.TrimSpace(candidate))
-		if trimmed == "" {
-			continue
-		}
-
-		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
-			if strings.HasPrefix(lower, prefix) {
-				return true
-			}
-		} else if lower == trimmed {
 			return true
 		}
 	}

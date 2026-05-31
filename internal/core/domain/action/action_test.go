@@ -215,6 +215,7 @@ func TestName_String(t *testing.T) {
 		{action.NameMoveMouse, "move_mouse"},
 		{action.NameMoveMouseRelative, "move_mouse_relative"},
 		{action.NameScroll, "scroll"},
+		{action.NameFeed, "feed"},
 	}
 
 	for _, testCase := range tests {
@@ -246,6 +247,7 @@ func TestIsKnownName(t *testing.T) {
 		{action.NameSaveCursorPos, true},
 		{action.NameRestoreCursorPos, true},
 		{action.NameMoveMonitor, true},
+		{action.NameFeed, true},
 		// Scroll sub-actions are recognized by IsKnownName (superset of knownNames).
 		{action.NameScrollUp, true},
 		{action.NameScrollDown, true},

@@ -140,6 +140,17 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	)
 }
 
+// FocusedWindowBounds returns the bounds of the currently focused window on Windows.
+// TODO(windows): implement using GetForegroundWindow + GetWindowRect.
+func (s *SystemAdapter) FocusedWindowBounds(
+	ctx context.Context,
+) (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"FocusedWindowBounds not yet implemented on windows",
+	)
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on Windows.
 // TODO(windows): implement using SetCursorPos (user32.dll).
 func (s *SystemAdapter) MoveCursorToPoint(

@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app"
-	"github.com/y3owk1n/neru/internal/cli"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
@@ -76,6 +75,8 @@ func LaunchDaemon(configPath string) {
 		configResult = handleConfigOnboarding(service, configResult)
 	}
 
+	handleAccessibilityPermissionStartup(configResult.Config)
+
 	app, appErr := app.New(
 		app.WithConfig(configResult.Config),
 		app.WithConfigPath(configResult.ConfigPath),
@@ -93,7 +94,7 @@ func LaunchDaemon(configPath string) {
 }
 
 // handleConfigValidationError shows a validation error and exits.
-// From an app bundle it displays a native alert; from a terminal it prints to stderr.
+// Always displays a native alert (on supported platforms) in addition to printing to stderr.
 func handleConfigValidationError(result *config.LoadResult) {
 	errMsg := result.ValidationError.Error()
 	cfgPath := result.ConfigPath
@@ -101,10 +102,8 @@ func handleConfigValidationError(result *config.LoadResult) {
 	fmt.Fprintf(os.Stderr, "Config file: %s\n", cfgPath)
 	fmt.Fprintf(os.Stderr, "Please fix the configuration and relaunch Neru.\n")
 
-	if cli.IsRunningFromAppBundle() {
-		absPath, _ := filepath.Abs(cfgPath)
-		_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
-	}
+	absPath, _ := filepath.Abs(cfgPath)
+	_ = platform.ShowConfigValidationErrorAlert(errMsg, absPath)
 
 	os.Exit(1)
 }
@@ -135,31 +134,39 @@ func handleConfigOnboarding(
 }
 
 func promptConfigInit(configPath string) bool {
-	if cli.IsRunningFromAppBundle() {
-		absPath, _ := filepath.Abs(configPath)
+	absPath, _ := filepath.Abs(configPath)
 
-		choice := platform.ShowConfigOnboardingAlert(absPath)
-		switch choice {
-		case platform.ConfigOnboardingCreate:
-			return true
-		case platform.ConfigOnboardingQuit:
-			os.Exit(0)
-		case platform.ConfigOnboardingDefaults:
-			return false
-		default:
-			fmt.Fprintf(
-				os.Stderr,
-				"Unexpected onboarding alert response (%d), continuing with defaults\n",
-				choice,
-			)
+	choice := platform.ShowConfigOnboardingAlert(absPath)
+	switch choice {
+	case platform.ConfigOnboardingCreate:
+		return true
+	case platform.ConfigOnboardingQuit:
+		os.Exit(0)
+	case platform.ConfigOnboardingDefaults:
+		return false
+	default:
+		fmt.Fprintf(
+			os.Stderr,
+			"Unexpected onboarding alert response (%d), continuing with defaults\n",
+			choice,
+		)
 
-			return false
-		}
+		return false
 	}
 
-	fmt.Fprintf(os.Stderr, "No config file found. Create one with: neru config init\n")
-
-	os.Exit(1)
-
 	return false
+}
+
+func handleAccessibilityPermissionStartup(cfg *config.Config) {
+	if !platform.IsDarwin() || cfg == nil || !cfg.General.AccessibilityCheckOnStart {
+		return
+	}
+
+	if platform.CheckAccessibilityPermissions() {
+		return
+	}
+
+	if platform.ShowAccessibilityPermissionStartupAlert() == platform.AccessibilityPermissionStartupQuit {
+		os.Exit(0)
+	}
 }

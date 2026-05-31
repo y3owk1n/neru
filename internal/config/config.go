@@ -398,6 +398,7 @@ type Config struct {
 	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
 	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
 	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
+	SmoothScroll    SmoothScrollConfig    `json:"smoothScroll"    toml:"smooth_scroll"`
 	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
 }
 
@@ -586,6 +587,8 @@ type GridConfig struct {
 	PrewarmEnabled  bool   `json:"prewarmEnabled"  toml:"prewarm_enabled"`
 	EnableGC        bool   `json:"enableGc"        toml:"enable_gc"`
 
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
+
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
@@ -642,6 +645,8 @@ type RecursiveGridConfig struct {
 	// Per-depth overrides for grid dimensions and keys.
 	// Depths not listed here use the top-level GridCols/GridRows/Keys.
 	Layers []RecursiveGridLayerConfig `json:"layers" toml:"layers"`
+
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
@@ -702,6 +707,14 @@ type SmoothCursorConfig struct {
 	Steps            int     `json:"steps"            toml:"steps"`
 	MaxDuration      int     `json:"maxDuration"      toml:"max_duration"`       // Max animation duration in ms
 	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"` // Ms per pixel for adaptive duration
+}
+
+// SmoothScrollConfig defines smooth scroll animation settings.
+type SmoothScrollConfig struct {
+	Enabled          bool    `json:"enabled"          toml:"enabled"`
+	Steps            int     `json:"steps"            toml:"steps"`
+	MaxDuration      int     `json:"maxDuration"      toml:"max_duration"`
+	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"`
 }
 
 // AdditionalAXSupport defines accessibility support for specific application frameworks.
@@ -797,6 +810,12 @@ func (c *Config) Validate() error {
 
 	// Validate smooth cursor settings
 	err = c.ValidateSmoothCursor()
+	if err != nil {
+		return err
+	}
+
+	// Validate smooth scroll settings
+	err = c.ValidateSmoothScroll()
 	if err != nil {
 		return err
 	}
@@ -1163,17 +1182,26 @@ func (c *Config) HotkeysForMode(modeName string) map[string]StringOrStringArray 
 
 // HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
 // and focused app bundle ID. For modes without app-specific overrides, it returns the
-// base mode hotkeys unchanged. Hints mode supports per-app hotkey overrides through
-// [[hints.app_configs]].
+// base mode hotkeys unchanged. Hints, Grid, and RecursiveGrid modes support
+// per-app hotkey overrides through [[<mode>.app_configs]].
 func (c *Config) HotkeysForModeAndApp(
 	modeName, bundleID string,
 ) map[string]StringOrStringArray {
 	base := c.baseHotkeysForMode(modeName)
-	if modeName != modeNameHints || bundleID == "" {
+	if bundleID == "" {
 		return base
 	}
 
-	appConfig := c.Hints.AppConfigForBundleID(bundleID)
+	var appConfig *AppConfig
+	switch modeName {
+	case modeNameHints:
+		appConfig = c.Hints.AppConfigForBundleID(bundleID)
+	case modeNameGrid:
+		appConfig = c.Grid.AppConfigForBundleID(bundleID)
+	case modeNameRecursiveGrid:
+		appConfig = c.RecursiveGrid.AppConfigForBundleID(bundleID)
+	}
+
 	if appConfig == nil || len(appConfig.Hotkeys) == 0 {
 		return base
 	}
@@ -1216,8 +1244,54 @@ func (c *HintsConfig) HasAppHotkeyOverrides() bool {
 	return false
 }
 
+// HasAppHotkeyOverrides reports whether any [[grid.app_configs]] entry has a
+// non-empty Hotkeys map.
+func (c *GridConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasAppHotkeyOverrides reports whether any [[recursive_grid.app_configs]] entry has a
+// non-empty Hotkeys map.
+func (c *RecursiveGridConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AppConfigForBundleID returns the matching hints app config for the given bundle ID.
 func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].BundleID == bundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}
+
+// AppConfigForBundleID returns the matching grid app config for the given bundle ID.
+func (c *GridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].BundleID == bundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}
+
+// AppConfigForBundleID returns the matching recursive grid app config for the given bundle ID.
+func (c *RecursiveGridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	for idx := range c.AppConfigs {
 		if c.AppConfigs[idx].BundleID == bundleID {
 			return &c.AppConfigs[idx]
@@ -1395,6 +1469,33 @@ func (c *HintsConfig) buildRolesMap(bundleID string) map[string]struct{} {
 	return rolesMap
 }
 
+// MatchesAdditionalBundle checks if a bundle ID matches any user-provided additional bundles.
+// It supports both exact matches and wildcard patterns (ending with *).
+func MatchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
+	if bundleID == "" || len(additionalBundles) == 0 {
+		return false
+	}
+
+	lower := strings.ToLower(strings.TrimSpace(bundleID))
+
+	for _, candidate := range additionalBundles {
+		trimmed := strings.ToLower(strings.TrimSpace(candidate))
+		if trimmed == "" {
+			continue
+		}
+
+		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
+			if strings.HasPrefix(lower, prefix) {
+				return true
+			}
+		} else if lower == trimmed {
+			return true
+		}
+	}
+
+	return false
+}
+
 // IsAllLetters checks if a string contains only letters (a-z, A-Z).
 func IsAllLetters(keyStr string) bool {
 	for _, r := range keyStr {
@@ -1406,4 +1507,30 @@ func IsAllLetters(keyStr string) bool {
 	}
 
 	return len(keyStr) > 0
+}
+
+// KnownChromiumBundles contains known Chromium-based application bundle identifiers.
+// These applications benefit from AXEnhancedUserInterface accessibility improvements.
+var KnownChromiumBundles = []string{
+	"net.imput.helium",
+	"com.google.Chrome",
+	"com.brave.Browser",
+	"company.thebrowser.Browser",
+}
+
+// KnownFirefoxBundles contains known Firefox-based application bundle identifiers.
+// These applications benefit from AXEnhancedUserInterface accessibility improvements.
+var KnownFirefoxBundles = []string{
+	"org.mozilla.firefox",
+	"app.zen-browser.zen",
+}
+
+// KnownElectronBundles contains known Electron-based application bundle identifiers.
+// These applications require manual accessibility attribute toggling to work properly.
+var KnownElectronBundles = []string{
+	"com.microsoft.VSCode",
+	"com.exafunction.windsurf",
+	"com.tinyspeck.slackmacgap",
+	"com.spotify.client",
+	"md.obsidian",
 }

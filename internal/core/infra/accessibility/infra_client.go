@@ -3,6 +3,7 @@ package accessibility
 import (
 	"fmt"
 	"image"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -55,6 +56,21 @@ func (c *InfraAXClient) FrontmostWindow() (AXWindow, error) {
 	return &InfraWindow{element: window}, nil
 }
 
+// AllWindows returns all windows of the focused application.
+func (c *InfraAXClient) AllWindows() ([]AXWindow, error) {
+	windows, err := AllWindows()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]AXWindow, len(windows))
+	for i, w := range windows {
+		result[i] = &InfraWindow{element: w}
+	}
+
+	return result, nil
+}
+
 // FocusedApplication returns the focused application.
 func (c *InfraAXClient) FocusedApplication() (AXApp, error) {
 	app := FocusedApplication()
@@ -89,6 +105,22 @@ func (c *InfraAXClient) ClickableNodes(
 	opts := DefaultTreeOptions(c.logger)
 	opts.SetCache(c.cache)
 	opts.SetIncludeOutOfBounds(includeOffscreen)
+
+	// Enable strict filtering for Chromium/Electron apps which have noisy DOM trees
+	bundleID := element.BundleIdentifier()
+	if isLikelyChromiumOrElectron(bundleID) ||
+		isUserConfiguredChromiumElectron(bundleID, c.configProvider) {
+		opts.SetStrictFiltering(true)
+
+		if includeOffscreen {
+			c.logger.Warn(
+				"strict filtering requires includeOutOfBounds=false, overriding user preference",
+				zap.String("bundle_id", bundleID),
+			)
+		}
+
+		opts.SetIncludeOutOfBounds(false) // strict filtering requires bound checks to be active
+	}
 
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		opts.SetMaxDepth(cfg.Hints.MaxDepth)
@@ -142,8 +174,15 @@ func (c *InfraAXClient) ApplicationByBundleID(bundleID string) (AXApp, error) {
 }
 
 // MenuBarClickableElements returns clickable elements in the menu bar.
-func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
-	nodes, nodesErr := MenuBarClickableElements(c.logger, c.cache, c.configProvider)
+func (c *InfraAXClient) MenuBarClickableElements(
+	strictFiltering bool,
+) ([]AXNode, error) {
+	nodes, nodesErr := MenuBarClickableElements(
+		c.logger,
+		c.cache,
+		c.configProvider,
+		strictFiltering,
+	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
 			nodesErr,
@@ -168,6 +207,7 @@ func (c *InfraAXClient) MenuBarClickableElements() ([]AXNode, error) {
 func (c *InfraAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
+	strictFiltering bool,
 ) ([]AXNode, error) {
 	nodes, nodesErr := ClickableElementsFromBundleID(
 		bundleID,
@@ -175,6 +215,7 @@ func (c *InfraAXClient) ClickableElementsFromBundleID(
 		c.logger,
 		c.cache,
 		c.configProvider,
+		strictFiltering,
 	)
 	if nodesErr != nil {
 		return nil, derrors.Wrap(
@@ -301,6 +342,18 @@ type InfraWindow struct {
 	element *Element
 }
 
+// Role returns the window role (e.g., "AXWindow", "AXPopover").
+func (w *InfraWindow) Role() string {
+	if w.element != nil {
+		info, err := w.element.Info()
+		if err == nil && info != nil {
+			return info.Role()
+		}
+	}
+
+	return ""
+}
+
 // Release releases the Window.
 func (w *InfraWindow) Release() {
 	if w.element != nil {
@@ -404,7 +457,16 @@ func (n *InfraNode) Description() string {
 		return ""
 	}
 
-	return n.node.Info().RoleDescription()
+	return n.node.Info().Description()
+}
+
+// Value returns the node value.
+func (n *InfraNode) Value() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Value()
 }
 
 // IsClickable returns true if the node is clickable.
@@ -421,4 +483,51 @@ func (n *InfraNode) Release() {
 	if n.node != nil && n.node.Element() != nil {
 		n.node.Element().Release()
 	}
+}
+
+// isLikelyChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps.
+// This is duplicated from electron package to avoid import cycle.
+func isLikelyChromiumOrElectron(bundleID string) bool {
+	if bundleID == "" {
+		return false
+	}
+
+	bundleID = strings.TrimSpace(bundleID)
+
+	for _, b := range config.KnownChromiumBundles {
+		if strings.EqualFold(b, bundleID) {
+			return true
+		}
+	}
+
+	for _, b := range config.KnownElectronBundles {
+		if strings.EqualFold(b, bundleID) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
+// additional Chromium/Electron bundles from config. Supports exact matches and
+// wildcard patterns (ending with *).
+func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Provider) bool {
+	if bundleID == "" || configProvider == nil {
+		return false
+	}
+
+	cfg := configProvider.Get()
+	if cfg == nil {
+		return false
+	}
+
+	chromiumBundles := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
+	if config.MatchesAdditionalBundle(bundleID, chromiumBundles) {
+		return true
+	}
+
+	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
+
+	return config.MatchesAdditionalBundle(bundleID, electronBundles)
 }

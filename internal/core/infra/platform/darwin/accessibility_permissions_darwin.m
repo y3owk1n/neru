@@ -11,10 +11,52 @@
 
 #pragma mark - Permission Functions
 
+static BOOL resetAccessibilityPermissionDecision(void) {
+	NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
+	if (bundleID == nil || [bundleID length] == 0) {
+		bundleID = @"com.y3owk1n.neru";
+	}
+
+	NSTask *task = [[NSTask alloc] init];
+	task.launchPath = @"/usr/bin/tccutil";
+	task.arguments = @[ @"reset", @"Accessibility", bundleID ];
+
+	@try {
+		[task launch];
+		[task waitUntilExit];
+
+		int status = [task terminationStatus];
+		if (status != 0) {
+			NSLog(
+			    @"Neru: tccutil reset Accessibility %@ exited with status %d; system permission dialog may not appear",
+			    bundleID, status);
+			return NO;
+		}
+	} @catch (NSException *exception) {
+		NSLog(@"Neru: failed to reset Accessibility permission decision: %@", exception);
+		return NO;
+	}
+
+	return YES;
+}
+
 /// Check if accessibility permissions are granted
 /// @return 1 if permissions are granted, 0 otherwise
 int checkAccessibilityPermissions(void) {
 	@autoreleasepool {
+		Boolean trusted = AXIsProcessTrusted();
+		return trusted ? 1 : 0;
+	}
+}
+
+/// Request accessibility permissions from macOS
+/// @return 1 if permissions are granted after the request, 0 otherwise
+int requestAccessibilityPermissions(void) {
+	@autoreleasepool {
+		if (!resetAccessibilityPermissionDecision()) {
+			NSLog(@"Neru: continuing with Accessibility permission request after reset failure");
+		}
+
 		NSDictionary *options = @{(__bridge id)kAXTrustedCheckOptionPrompt : @YES};
 		Boolean trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
 		return trusted ? 1 : 0;

@@ -101,6 +101,21 @@ type ElementFilter struct {
 	// On macOS this queries com.apple.WindowManager.
 	// Platform equivalents on Linux/Windows are not yet mapped.
 	IncludeStageManager bool
+
+	// TitleContains filters elements whose title contains this substring (case-insensitive).
+	TitleContains string
+
+	// DescriptionContains filters elements whose description contains this substring (case-insensitive).
+	DescriptionContains string
+
+	// ValueContains filters elements whose value contains this substring (case-insensitive).
+	ValueContains string
+
+	// TextContainsList is a list of additional text substrings to match against (OR logic).
+	// This is used when multiple text matches are needed - elements matching any of these
+	// will be included. The first string should be set in TitleContains, DescriptionContains,
+	// and ValueContains, with additional strings in this list.
+	TextContainsList []string
 }
 
 // DefaultElementFilter returns a filter with sensible defaults.

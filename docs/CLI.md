@@ -12,12 +12,13 @@ Neru provides a comprehensive command-line interface for controlling the daemon,
 - [Screen Sharing](#screen-sharing)
 - [Service Management](#service-management)
 - [Navigation Commands](#navigation-commands)
-  - [When to Use Which Mode](#when-to-use-which-mode)
-  - [Hints Mode](#hints-mode)
-  - [Grid Mode](#grid-mode)
-  - [Recursive-Grid Mode](#recursive-grid-mode)
-  - [Scroll Mode](#scroll-mode)
+    - [When to Use Which Mode](#when-to-use-which-mode)
+    - [Hints Mode](#hints-mode)
+    - [Grid Mode](#grid-mode)
+    - [Recursive-Grid Mode](#recursive-grid-mode)
+    - [Scroll Mode](#scroll-mode)
 - [Action Commands](#action-commands)
+    - [Feed Keys](#feed-keys)
 - [Configuration Management](#configuration-management)
 - [Status & Info](#status--info)
 - [Documentation](#documentation)
@@ -238,6 +239,31 @@ neru hints
 # Type the hint label (e.g. "as") to select an element
 ```
 
+#### Filtering flags
+
+Filter which elements are shown by role or text content:
+
+```
+# Show only buttons containing "submit"
+neru hints --role AXButton --text submit
+
+# Show only links with "docs" in title/description/value
+neru hints --role AXLink --text docs
+
+# Multiple roles/values - comma-separated for convenience
+neru hints --role AXButton,AXLink --text save,cancel
+
+# With repeat - filter persists on re-activation
+neru hints --text next --action left_click --repeat
+```
+
+| Flag | Description |
+|------|-------------|
+| `--role` | Filter by AX role. Comma-separated for multiple (e.g., `--role AXButton,AXLink`). |
+| `--text` | Filter elements by text content (title, description, or value). Case-insensitive substring match. Comma-separated for OR match (matches any). |
+
+The filter is preserved across repeat activations, making it easy to click multiple elements of the same type in succession.
+
 See [CONFIGURATION.md](CONFIGURATION.md) for customisation options.
 
 ---
@@ -342,6 +368,70 @@ neru action go_top              # Jump to top at cursor
 neru action go_bottom           # Jump to bottom at cursor
 ```
 
+### Feed Keys
+
+On macOS, `feed` posts one or more keys or key chords directly back to the
+system through the action IPC path. This means it works from CLI commands and
+config hotkey arrays while bypassing Neru's active mode/action pipeline:
+
+```
+neru action feed o
+neru action feed ctrl+c
+neru action feed Cmd+Shift+P
+neru action feed h e l l o return
+```
+
+Syntax:
+
+```
+neru action feed <key-or-chord> [key-or-chord...]
+```
+
+In config hotkey arrays, use the same action form:
+
+```
+"Cmd+Y" = ["action feed h e l l o return"]
+"Cmd+L" = ["action feed cmd+l h e l l o return"]
+```
+
+Each space-separated item is one key press or chord. Chords use `+` between
+modifiers and the key, for example `ctrl+c` or `Cmd+Shift+P`. To send a
+literal space key, use `space` as an item.
+
+Supported key names:
+
+- Letters: `a` through `z`
+- Numbers: `0` through `9`
+- Symbols: `=`, `-`, `[`, `]`, `'`, `;`, `\`, `,`, `/`, `.`, `` ` ``
+- Named keys: `space`, `return`, `enter`, `escape`, `esc`, `tab`, `delete`, `backspace`
+- Navigation keys: `left`, `right`, `up`, `down`, `pageup`, `pagedown`, `home`, `end`
+- Function keys: `f1` through `f20`
+- Chord modifiers: `cmd`, `command`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`, `control`, and left/right-prefixed forms such as `LeftCmd` or `RightShift`
+
+Linux and Windows currently return a not-supported error for this command.
+
+### Sleep
+
+The `sleep` action pauses action execution for a specified duration. This is useful in hotkey arrays to add delays between actions, allowing the target app time to process events:
+
+```
+neru action sleep 0.2          # Sleep for 0.2 seconds
+neru action sleep 500ms        # Sleep for 500 milliseconds
+neru action sleep 1.5s        # Sleep for 1.5 seconds
+```
+
+In config hotkey arrays:
+
+```
+"Return" = ["action left_click", "action sleep 0.2", "hints"]
+```
+
+Valid duration formats:
+- Plain numbers are seconds: `0.2`, `1`, `2.5`
+- Explicit unit: `100ms`, `500ms`, `1s`, `2s`
+
+This runs synchronously in Neru's action pipeline, unlike `exec sleep` which spawns a subprocess with unreliable timing.
+
 ### Mode-Aware Actions
 
 These actions depend on the current mode and are primarily useful inside `hotkeys` arrays.
@@ -376,6 +466,7 @@ neru action right_click --modifier alt         # Alt+right-click
 neru action move_mouse --x 500 --y 300
 neru action move_mouse                         # Move to the active mode selection
 neru action move_mouse --bare                  # Use current-cursor targeting explicitly
+neru action move_mouse --window                # Move to the center of the focused window
 ```
 
 **Screen center:**
@@ -384,6 +475,14 @@ neru action move_mouse --bare                  # Use current-cursor targeting ex
 neru action move_mouse --center
 neru action move_mouse --center --x 50 --y -30    # Center with offset
 neru action move_mouse --center --x 100            # Single-axis offset (y defaults to 0)
+```
+
+**Focused window:**
+
+```
+neru action move_mouse --window                  # Move to center of focused window
+neru action move_mouse --window --x -50 --y 50  # Offset from window center
+neru action move_mouse --window --x 100          # Single-axis offset (y defaults to 0)
 ```
 
 **Relative movement:**
@@ -396,9 +495,10 @@ neru action move_mouse_relative --dx 10 --dy -5
 
 | Flag          | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
-| `--x <px>`    | Absolute X coordinate, or X offset when used with `--center` |
-| `--y <px>`    | Absolute Y coordinate, or Y offset when used with `--center` |
+| `--x <px>`    | Absolute X coordinate, or X offset when used with `--center` or `--window` |
+| `--y <px>`    | Absolute Y coordinate, or Y offset when used with `--center` or `--window` |
 | `--center`    | Move to the center of the active screen                      |
+| `--window`    | Move to the center of the focused window                   |
 | `--selection` | Explicitly use the active mode selection                     |
 | `--bare`      | Force current-cursor targeting even when a selection exists  |
 

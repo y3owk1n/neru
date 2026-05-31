@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -253,6 +254,14 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	for key, value := range capabilities {
+		// Skip informational sibling fields (e.g. dark_mode_detection_detail).
+		// These are surfaced through the metadata header in `neru doctor`, not
+		// as component health rows, and their values are free-form prose that
+		// doesn't fit the supported/stub/headless/ok vocabulary.
+		if strings.HasSuffix(key, "_detail") {
+			continue
+		}
+
 		status, _ := value.(string)
 
 		components["capability."+key] = status
@@ -351,7 +360,7 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		return map[string]any{}
 	}
 
-	return map[string]any{
+	out := map[string]any{
 		"platform":            capabilities.Platform,
 		"process":             capabilityString(capabilities.Process),
 		"screen":              capabilityString(capabilities.Screen),
@@ -364,6 +373,17 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		"app_watcher":         capabilityString(capabilities.AppWatcher),
 		"dark_mode_detection": capabilityString(capabilities.DarkModeDetection),
 	}
+
+	// Surface dark-mode Detail as a sibling field so `neru doctor` can render
+	// the current live state (e.g. "current state: dark (source=xdg-portal)")
+	// without having to expand FeatureCapability into its own structured map.
+	// Adapters that don't populate Detail (currently Darwin/Windows) just won't
+	// include the key.
+	if detail := capabilities.DarkModeDetection.Detail; detail != "" {
+		out["dark_mode_detection_detail"] = detail
+	}
+
+	return out
 }
 
 func profileMap(profile platform.Profile) map[string]any {

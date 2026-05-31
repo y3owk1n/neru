@@ -52,6 +52,15 @@ const (
 	// DefaultSmoothCursorDurationPerPixel is the default ms per pixel for adaptive duration.
 	DefaultSmoothCursorDurationPerPixel = 0.1
 
+	// DefaultSmoothScrollSteps is the default smooth scroll steps.
+	DefaultSmoothScrollSteps = 20
+
+	// DefaultSmoothScrollMaxDuration is the default max duration for smooth scroll animation (ms).
+	DefaultSmoothScrollMaxDuration = 180
+
+	// DefaultSmoothScrollDurationPerPixel is the default ms per pixel for adaptive duration.
+	DefaultSmoothScrollDurationPerPixel = 1.0
+
 	// DefaultIPCTimeout is the default IPC timeout.
 	DefaultIPCTimeout = 5
 	// DefaultAppWatcherTimeout is the default app watcher timeout.
@@ -475,6 +484,12 @@ func newDefaultConfig() *Config {
 			Steps:            DefaultSmoothCursorSteps,
 			MaxDuration:      DefaultSmoothCursorMaxDuration,
 			DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
+		},
+		SmoothScroll: SmoothScrollConfig{
+			Enabled:          false,
+			Steps:            DefaultSmoothScrollSteps,
+			MaxDuration:      DefaultSmoothScrollMaxDuration,
+			DurationPerPixel: DefaultSmoothScrollDurationPerPixel,
 		},
 		Systray: SystrayConfig{
 			Enabled: true, // Enabled by default

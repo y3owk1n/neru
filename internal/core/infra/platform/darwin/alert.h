@@ -23,6 +23,11 @@ int showConfigValidationErrorAlert(const char *errorMessage, const char *configP
 /// @return 1 if user clicked Create Config, 2 if user clicked Use Defaults, 3 if user clicked Quit
 int showConfigOnboardingAlert(const char *configPath);
 
+/// Show the startup accessibility permission guidance alert.
+/// The alert lets the user request permission and then dismiss it with Done.
+/// @return 1 if permission is granted, 2 if the user chose Quit.
+int showAccessibilityPermissionStartupAlert(void);
+
 /// Show a macOS notification with a title and message.
 /// Uses UNUserNotificationCenter when running as an app bundle, logs to console otherwise.
 /// @note This function is asynchronous — it returns immediately before the

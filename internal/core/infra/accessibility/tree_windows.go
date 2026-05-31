@@ -58,6 +58,9 @@ func (o *TreeOptions) SetMaxDepth(depth int) {}
 // SetParallelThreshold is a Windows stub.
 func (o *TreeOptions) SetParallelThreshold(threshold int) {}
 
+// SetStrictFiltering is a Windows stub.
+func (o *TreeOptions) SetStrictFiltering(strict bool) {}
+
 // BuildTree builds the accessibility tree for the specified root element (Windows stub).
 func BuildTree(_ *Element, _ TreeOptions) (*TreeNode, error) {
 	return &TreeNode{}, nil

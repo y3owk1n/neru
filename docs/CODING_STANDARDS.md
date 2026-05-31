@@ -33,7 +33,6 @@ neru/
 │   └── ui/                # UI rendering
 ├── configs/               # Configuration examples
 ├── docs/                  # Documentation
-└── scripts/               # Build and utility scripts
 ```
 
 ### Naming Conventions

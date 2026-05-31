@@ -128,8 +128,6 @@ Full walkthrough: [Installation Guide →](docs/INSTALLATION.md)
 
 All hotkeys are remappable. See [Configuration Reference →](docs/CONFIGURATION.md#hotkeys)
 
-> **Note:** Adding any custom hotkey replaces all defaults. Re-declare every hotkey you want to keep.
-
 ---
 
 ## Configuration

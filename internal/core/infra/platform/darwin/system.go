@@ -91,6 +91,15 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	return ScreenNames(), nil
 }
 
+// FocusedWindowBounds returns the bounds of the currently focused window on macOS.
+func (s *SystemAdapter) FocusedWindowBounds(
+	ctx context.Context,
+) (image.Rectangle, bool, error) {
+	bounds, found := FocusedWindowBounds()
+
+	return bounds, found, nil
+}
+
 // MoveCursorToPoint moves the mouse cursor to the specified point on macOS.
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,

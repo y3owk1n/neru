@@ -31,6 +31,7 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		element.WithClickable(isClickable),
 		element.WithTitle(node.Title()),
 		element.WithDescription(node.Description()),
+		element.WithValue(node.Value()),
 	)
 	if elementErr != nil {
 		return nil, derrors.Wrap(

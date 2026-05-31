@@ -22,7 +22,6 @@ const (
 	RoleCheckBox           Role = "AXCheckBox"
 	RoleRadioButton        Role = "AXRadioButton"
 	RoleMenuItem           Role = "AXMenuItem"
-	RoleMenuButton         Role = "AXMenuButton"
 	RolePopUpButton        Role = "AXPopUpButton"
 	RoleTabButton          Role = "AXTabButton"
 	RoleSlider             Role = "AXSlider"
@@ -40,6 +39,7 @@ type Element struct {
 	isClickable bool
 	title       string
 	description string
+	value       string
 }
 
 // NewElement creates a new element with validation.
@@ -90,6 +90,13 @@ func WithDescription(desc string) Option {
 	}
 }
 
+// WithValue sets the element value.
+func WithValue(val string) Option {
+	return func(e *Element) {
+		e.value = val
+	}
+}
+
 // ID returns the element ID.
 func (e *Element) ID() ID {
 	return e.id
@@ -118,6 +125,11 @@ func (e *Element) Title() string {
 // Description returns the element description.
 func (e *Element) Description() string {
 	return e.description
+}
+
+// Value returns the element value.
+func (e *Element) Value() string {
+	return e.value
 }
 
 // Center returns the center point of the element.

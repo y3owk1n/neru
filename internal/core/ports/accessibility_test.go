@@ -198,6 +198,12 @@ func (m *mockScreenManager) ScreenNames(ctx context.Context) ([]string, error) {
 	return nil, nil
 }
 
+func (m *mockScreenManager) FocusedWindowBounds(
+	ctx context.Context,
+) (image.Rectangle, bool, error) {
+	return image.Rect(0, 0, 800, 600), true, nil
+}
+
 func (m *mockScreenManager) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,

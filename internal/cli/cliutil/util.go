@@ -178,6 +178,7 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 	}
 
 	printProfile(cmd, healthData["profile"])
+	printDarkMode(cmd, healthData["capabilities"])
 
 	cmd.Println()
 	// Print component checks
@@ -271,6 +272,24 @@ func isHealthyHealthStatus(componentKey, status string) bool {
 	}
 
 	return false
+}
+
+// printDarkMode renders a "Dark Mode:" metadata line when the platform
+// adapter populated dark_mode_detection_detail (currently Linux only).
+// On Linux this surfaces the live state ("dark" / "light" / "no preference"
+// + source), or the fix-it hint when no source is reachable.
+func printDarkMode(cmd *cobra.Command, rawCapabilities any) {
+	capabilities, ok := rawCapabilities.(map[string]any)
+	if !ok {
+		return
+	}
+
+	detail := stringValue(capabilities["dark_mode_detection_detail"])
+	if detail == "" {
+		return
+	}
+
+	cmd.Println("  Dark Mode: " + detail)
 }
 
 func printProfile(cmd *cobra.Command, rawProfile any) {

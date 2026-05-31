@@ -18,6 +18,7 @@ type SystemMock struct {
 	ScreenBoundsFunc                func(ctx context.Context) (image.Rectangle, error)
 	ScreenBoundsByNameFunc          func(ctx context.Context, name string) (image.Rectangle, bool, error)
 	ScreenNamesFunc                 func(ctx context.Context) ([]string, error)
+	FocusedWindowBoundsFunc         func(ctx context.Context) (image.Rectangle, bool, error)
 	MoveCursorToPointFunc           func(ctx context.Context, point image.Point, bypassSmooth bool) error
 	WaitForCursorIdleFunc           func(ctx context.Context) error
 	CursorPositionFunc              func(ctx context.Context) (image.Point, error)
@@ -113,6 +114,17 @@ func (m *SystemMock) ScreenNames(ctx context.Context) ([]string, error) {
 	}
 
 	return nil, nil
+}
+
+// FocusedWindowBounds is a mock implementation.
+func (m *SystemMock) FocusedWindowBounds(
+	ctx context.Context,
+) (image.Rectangle, bool, error) {
+	if m.FocusedWindowBoundsFunc != nil {
+		return m.FocusedWindowBoundsFunc(ctx)
+	}
+
+	return image.Rectangle{}, false, nil
 }
 
 // MoveCursorToPoint is a mock implementation.

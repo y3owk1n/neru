@@ -150,6 +150,67 @@ void *getFrontmostWindow(void) {
 	}
 }
 
+/// Get the frame (position + size) of the focused window
+/// @return Window frame rectangle, or CGRectZero if no window is found
+CGRect getFocusedWindowFrame(void) {
+	@autoreleasepool {
+		void *windowRef = getFrontmostWindow();
+		if (!windowRef)
+			return CGRectZero;
+
+		AXUIElementRef window = (AXUIElementRef)windowRef;
+
+		CFArrayRef attributes = CFArrayCreate(
+		    NULL,
+		    (const void **)(CFTypeRef[]){
+		        kAXPositionAttribute,
+		        kAXSizeAttribute,
+		    },
+		    2, &kCFTypeArrayCallBacks);
+
+		if (!attributes) {
+			CFRelease(window);
+			return CGRectZero;
+		}
+
+		CFArrayRef values = NULL;
+		AXError error = AXUIElementCopyMultipleAttributeValues(window, attributes, 0, &values);
+		CFRelease(attributes);
+
+		if (error != kAXErrorSuccess || !values) {
+			CFRelease(window);
+			return CGRectZero;
+		}
+
+		CGRect frame = CGRectZero;
+		CFIndex count = CFArrayGetCount(values);
+
+		if (count > 0) {
+			CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+			if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
+				CGPoint point;
+				if (AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point)) {
+					frame.origin = point;
+				}
+			}
+		}
+
+		if (count > 1) {
+			CFTypeRef sizeValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+			if (sizeValue && CFGetTypeID(sizeValue) == AXValueGetTypeID()) {
+				CGSize size;
+				if (AXValueGetValue((AXValueRef)sizeValue, kAXValueCGSizeType, &size)) {
+					frame.size = size;
+				}
+			}
+		}
+
+		CFRelease(values);
+		CFRelease(window);
+		return frame;
+	}
+}
+
 /// Get application name
 /// @param app Application reference
 /// @return Application name string

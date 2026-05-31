@@ -89,3 +89,22 @@ func ScreenBoundsByName(name string) (image.Rectangle, bool) {
 func IsMissionControlActive() bool {
 	return bool(C.isMissionControlActive())
 }
+
+// FocusedWindowBounds returns the bounds of the focused (frontmost) window.
+// Returns the bounds and true if a window was found, or a zero rectangle and
+// false if no focused window exists (e.g. the desktop is focused).
+func FocusedWindowBounds() (image.Rectangle, bool) {
+	rect := C.getFocusedWindowFrame()
+
+	// CGRectZero means no window was found.
+	if rect.size.width == 0 && rect.size.height == 0 {
+		return image.Rectangle{}, false
+	}
+
+	return image.Rect(
+		int(rect.origin.x),
+		int(rect.origin.y),
+		int(rect.origin.x+rect.size.width),
+		int(rect.origin.y+rect.size.height),
+	), true
+}

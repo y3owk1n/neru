@@ -70,7 +70,7 @@ void internalNativeLoop(void) {
 		[NSApplication sharedApplication];
 		appDelegate = [[AppDelegate alloc] init];
 		[NSApp setDelegate:appDelegate];
-		[NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited];
+		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 		[NSApp run];
 	}
 }

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -30,6 +31,25 @@ func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
 
 	if parsed.yVal != 200 {
 		t.Fatalf("parseActionArgs() expected yVal to be 200, got %d", parsed.yVal)
+	}
+}
+
+func TestParseActionArgs_MoveMouseWindowFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--window", "--x=50", "--y=50"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error")
+	}
+
+	if !parsed.hasWindow {
+		t.Fatal("parseActionArgs() expected hasWindow to be true")
+	}
+
+	if parsed.xVal != 50 {
+		t.Fatalf("parseActionArgs() expected xVal to be 50, got %d", parsed.xVal)
+	}
+
+	if parsed.yVal != 50 {
+		t.Fatalf("parseActionArgs() expected yVal to be 50, got %d", parsed.yVal)
 	}
 }
 
@@ -106,6 +126,97 @@ func TestParseActionArgs_BareFlag(t *testing.T) {
 	}
 }
 
+func TestParseActionArgs_ModifierCSV(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantModStr string
+	}{
+		{
+			name:       "single modifier",
+			args:       []string{"--modifier=cmd"},
+			wantModStr: "cmd",
+		},
+		{
+			name:       "comma-separated modifiers",
+			args:       []string{"--modifier=cmd,shift"},
+			wantModStr: "cmd,shift",
+		},
+		{
+			name:       "all modifiers",
+			args:       []string{"--modifier=cmd,shift,alt,ctrl"},
+			wantModStr: "cmd,shift,alt,ctrl",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			parsed, parseErr := parseActionArgs(testCase.args)
+			if parseErr {
+				t.Fatalf("parseActionArgs() unexpected parse error: %v", parseErr)
+			}
+
+			if parsed.modifierStr != testCase.wantModStr {
+				t.Fatalf(
+					"parseActionArgs() expected modifierStr %q, got %q",
+					testCase.wantModStr,
+					parsed.modifierStr,
+				)
+			}
+		})
+	}
+}
+
+func TestParseCSV(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "empty",
+			input: "",
+			want:  nil,
+		},
+		{
+			name:  "single value",
+			input: "foo",
+			want:  []string{"foo"},
+		},
+		{
+			name:  "comma-separated",
+			input: "foo,bar,baz",
+			want:  []string{"foo", "bar", "baz"},
+		},
+		{
+			name:  "trailing comma",
+			input: "foo,",
+			want:  []string{"foo", ""},
+		},
+		{
+			name:  "leading comma",
+			input: ",foo",
+			want:  []string{"", "foo"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := parseCSV(testCase.input)
+
+			if len(got) != len(testCase.want) {
+				t.Fatalf("parseCSV() returned %d elements, want %d", len(got), len(testCase.want))
+			}
+
+			for i := range got {
+				if got[i] != testCase.want[i] {
+					t.Fatalf("parseCSV()[%d] = %q, want %q", i, got[i], testCase.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),
@@ -121,7 +232,7 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 		t.Fatal("handleAction(move_mouse) expected failure without explicit target or selection")
 	}
 
-	if resp.Message != "move_mouse requires --x and --y flags, --center, active selection, or --bare" {
+	if resp.Message != "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -142,6 +253,46 @@ func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.
 	}
 
 	if resp.Message != "--selection requires an active mode selection" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_mouse", "--center", "--window"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_mouse --center --window) expected failure")
+	}
+
+	if resp.Message != "--center and --window cannot be used together" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_mouse", "--window", "--dx=10", "--dy=10"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(move_mouse --window --dx) expected failure")
+	}
+
+	if resp.Message != "use either --window or --dx/--dy, not both" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -304,6 +455,12 @@ func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
 			want:             true,
 		},
 		{
+			name:             "window move clears selection",
+			parsed:           parsedActionArgs{hasWindow: true},
+			targetsSelection: false,
+			want:             true,
+		},
+		{
 			name:             "bare move clears selection",
 			parsed:           parsedActionArgs{useBare: true},
 			targetsSelection: false,
@@ -330,6 +487,96 @@ func TestShouldClearSelectionAfterMoveMouse(t *testing.T) {
 			got := shouldClearSelectionAfterMoveMouse(testCase.parsed, testCase.targetsSelection)
 			if got != testCase.want {
 				t.Fatalf("shouldClearSelectionAfterMoveMouse() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestParseSleepDuration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		input     string
+		wantValid bool
+		wantNS    time.Duration
+	}{
+		{
+			name:      "bare number seconds",
+			input:     "0.2",
+			wantValid: true,
+			wantNS:    200 * time.Millisecond,
+		},
+		{
+			name:      "integer seconds",
+			input:     "1",
+			wantValid: true,
+			wantNS:    1 * time.Second,
+		},
+		{
+			name:      "float seconds",
+			input:     "1.5",
+			wantValid: true,
+			wantNS:    1500 * time.Millisecond,
+		},
+		{
+			name:      "milliseconds",
+			input:     "500ms",
+			wantValid: true,
+			wantNS:    500 * time.Millisecond,
+		},
+		{
+			name:      "seconds with s suffix",
+			input:     "2s",
+			wantValid: true,
+			wantNS:    2 * time.Second,
+		},
+		{
+			name:      "empty string",
+			input:     "",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "zero duration",
+			input:     "0",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "negative duration",
+			input:     "-1s",
+			wantValid: false,
+			wantNS:    0,
+		},
+		{
+			name:      "invalid string",
+			input:     "invalid",
+			wantValid: false,
+			wantNS:    0,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := parseSleepDuration(testCase.input)
+			if testCase.wantValid && err != nil {
+				t.Fatalf("parseSleepDuration(%q) unexpected error: %v", testCase.input, err)
+			}
+
+			if !testCase.wantValid && err == nil {
+				t.Fatalf("parseSleepDuration(%q) expected error, got nil", testCase.input)
+			}
+
+			if got != testCase.wantNS {
+				t.Fatalf(
+					"parseSleepDuration(%q) = %v, want %v",
+					testCase.input,
+					got,
+					testCase.wantNS,
+				)
 			}
 		})
 	}

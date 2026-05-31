@@ -73,49 +73,66 @@ CGRect getScrollBounds(void *element) {
 		return rect;
 
 	AXUIElementRef axElement = (AXUIElementRef)element;
-	CFTypeRef positionValue = NULL;
-	CFTypeRef sizeValue = NULL;
 
-	if (AXUIElementCopyAttributeValue(axElement, kAXPositionAttribute, &positionValue) == kAXErrorSuccess) {
-		CGPoint point;
-		if (AXValueGetValue(positionValue, kAXValueCGPointType, &point)) {
-			rect.origin = point;
-		}
-		CFRelease(positionValue);
+	CFArrayRef attributes = CFArrayCreate(
+	    NULL,
+	    (const void **)(CFTypeRef[]){
+	        kAXPositionAttribute,
+	        kAXSizeAttribute,
+	    },
+	    2, &kCFTypeArrayCallBacks);
+
+	if (!attributes)
+		return rect;
+
+	CFArrayRef values = NULL;
+	AXError error = AXUIElementCopyMultipleAttributeValues(axElement, attributes, 0, &values);
+	CFRelease(attributes);
+
+	if (error != kAXErrorSuccess || !values) {
+		return rect;
 	}
 
-	if (AXUIElementCopyAttributeValue(axElement, kAXSizeAttribute, &sizeValue) == kAXErrorSuccess) {
-		CGSize size;
-		if (AXValueGetValue(sizeValue, kAXValueCGSizeType, &size)) {
-			rect.size = size;
+	CFIndex count = CFArrayGetCount(values);
+
+	if (count > 0) {
+		CFTypeRef positionValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+		if (positionValue && CFGetTypeID(positionValue) == AXValueGetTypeID()) {
+			CGPoint point;
+			if (AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point)) {
+				rect.origin = point;
+			}
 		}
-		CFRelease(sizeValue);
 	}
 
+	if (count > 1) {
+		CFTypeRef sizeValue = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+		if (sizeValue && CFGetTypeID(sizeValue) == AXValueGetTypeID()) {
+			CGSize size;
+			if (AXValueGetValue((AXValueRef)sizeValue, kAXValueCGSizeType, &size)) {
+				rect.size = size;
+			}
+		}
+	}
+
+	CFRelease(values);
 	return rect;
 }
 
-/// Scroll at current cursor position only
+/// Scroll at a specific point
+/// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
-int scrollAtCursor(int deltaX, int deltaY) {
-	CGEventRef event = CGEventCreate(NULL);
-	if (!event)
+int scrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
+	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
+	if (!scrollEvent)
 		return 0;
 
-	CGPoint cursorPos = CGEventGetLocation(event);
-	CFRelease(event);
-
-	CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
-	if (scrollEvent) {
-		CGEventSetLocation(scrollEvent, cursorPos);
-		CGEventPost(kCGHIDEventTap, scrollEvent);
-		CFRelease(scrollEvent);
-		return 1;
-	}
-
-	return 0;
+	CGEventSetLocation(scrollEvent, pos);
+	CGEventPost(kCGHIDEventTap, scrollEvent);
+	CFRelease(scrollEvent);
+	return 1;
 }
 
 #pragma mark - Mission Control Detection Functions

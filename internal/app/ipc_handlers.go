@@ -13,6 +13,14 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
+func parseCSV(input string) []string {
+	if input == "" {
+		return nil
+	}
+
+	return strings.Split(input, ",")
+}
+
 // IPCControllerLifecycle handles lifecycle-related IPC commands.
 type IPCControllerLifecycle struct {
 	appState *state.AppState
@@ -139,6 +147,8 @@ type ModeActivationOptions struct {
 	Action                *string
 	Repeat                bool
 	CursorFollowSelection *bool
+	FilterRoles           []string
+	FilterTextContains    []string
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -233,6 +243,40 @@ func (h *IPCControllerModes) extractModeOptions(
 
 				return opts, &resp
 			}
+		case strings.HasPrefix(arg, "--role="):
+			opts.FilterRoles = append(
+				opts.FilterRoles,
+				parseCSV(strings.TrimPrefix(arg, "--role="))...)
+		case arg == "--role":
+			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--role" {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--role requires a value (use comma-separated: --role=AXButton,AXLink)",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			opts.FilterRoles = append(opts.FilterRoles, parseCSV(cmd.Args[startIdx])...)
+		case strings.HasPrefix(arg, "--text="):
+			texts := parseCSV(strings.TrimPrefix(arg, "--text="))
+			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
+		case arg == "--text":
+			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--text" {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--text requires a value (use comma-separated: --text=foo,bar)",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			texts := parseCSV(cmd.Args[startIdx])
+			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
@@ -316,6 +360,8 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		Action:                opts.Action,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
+		FilterRoles:           opts.FilterRoles,
+		FilterTextContains:    opts.FilterTextContains,
 	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}

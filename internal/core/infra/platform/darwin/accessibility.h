@@ -18,6 +18,8 @@ typedef struct {
 	CGPoint position;       ///< Element position
 	CGSize size;            ///< Element size
 	char *title;            ///< Element title
+	char *description;      ///< Element description
+	char *value;            ///< Element value
 	char *role;             ///< Element role
 	char *roleDescription;  ///< Element role description
 	bool isEnabled;         ///< Whether element is enabled
@@ -30,6 +32,10 @@ typedef struct {
 /// Check if accessibility permissions are granted
 /// @return 1 if permissions are granted, 0 otherwise
 int checkAccessibilityPermissions(void);
+
+/// Request accessibility permissions from macOS
+/// @return 1 if permissions are granted after the request, 0 otherwise
+int requestAccessibilityPermissions(void);
 
 #pragma mark - Application Functions
 
@@ -157,6 +163,10 @@ void **getAllWindows(int *count);
 /// @return Frontmost window reference
 void *getFrontmostWindow(void);
 
+/// Get the frame (position + size) of the focused window
+/// @return Window frame rectangle, or CGRectZero if no window is found
+CGRect getFocusedWindowFrame(void);
+
 /// Get application name
 /// @param app Application reference
 /// @return Application name string
@@ -181,11 +191,12 @@ int setApplicationAttribute(int pid, const char *attribute, int value);
 /// @return Scroll bounds rectangle
 CGRect getScrollBounds(void *element);
 
-/// Scroll at cursor position
+/// Scroll at a specific point
+/// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
 /// @return 1 on success, 0 on failure
-int scrollAtCursor(int deltaX, int deltaY);
+int scrollAtPoint(CGPoint pos, int deltaX, int deltaY);
 
 #pragma mark - Mouse Action Functions
 

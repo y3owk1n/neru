@@ -15,7 +15,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/systray"
@@ -325,23 +324,12 @@ func (a *App) handleHintScreenChange(
 		a.overlayManager.ResizeToActiveScreen()
 	}
 
-	domainHints, showHintsErr := a.hintService.ShowHints(ctx)
-	if showHintsErr != nil {
-		a.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
+	// RefreshHintsForScreenChange re-checks the mode under h.mu to guard
+	// against a concurrent mode exit (TOCTOU).
+	if !a.modes.RefreshHintsForScreenChange(ctx, a.hintService) {
+		a.logger.Debug("Hint mode exited during screen change; skipping show")
 
 		return true
-	}
-
-	if len(domainHints) > 0 {
-		hintCollection := domainHint.NewCollection(domainHints)
-
-		// RefreshHintsForScreenChange re-checks the mode under h.mu to guard
-		// against a concurrent mode exit (TOCTOU).
-		if !a.modes.RefreshHintsForScreenChange(hintCollection) {
-			a.logger.Debug("Hint mode exited during screen change; skipping show")
-
-			return true
-		}
 	}
 
 	a.logger.Info("Hint overlay resized and regenerated for new screen bounds")

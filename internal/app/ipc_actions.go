@@ -15,7 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
 )
 
 // IPCControllerActions handles action-related IPC commands.
@@ -70,6 +72,7 @@ type parsedActionArgs struct {
 	hasX, hasY     bool
 	hasDX, hasDY   bool
 	hasCenter      bool
+	hasWindow      bool
 	useSelection   bool
 	useBare        bool
 	monitorName    string
@@ -85,6 +88,7 @@ func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelectio
 
 	return (parsed.hasX && parsed.hasY) ||
 		parsed.hasCenter ||
+		parsed.hasWindow ||
 		(parsed.hasDX && parsed.hasDY) ||
 		parsed.useBare
 }
@@ -194,6 +198,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.hasDY = true
 		case arg == "--center":
 			parsed.hasCenter = true
+		case arg == "--window":
+			parsed.hasWindow = true
 		case arg == "--selection":
 			parsed.useSelection = true
 		case arg == "--bare":
@@ -232,6 +238,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	actionName := cmd.Args[0]
+
+	if action.IsFeedAction(actionName) {
+		return h.handleFeedAction(cmd.Args[1:])
+	}
+
+	if action.Name(actionName) == action.NameSleep {
+		return h.handleSleepAction(cmd.Args[1:])
+	}
 
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])
 	if parseErr {
@@ -350,10 +364,34 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if parsed.hasWindow && (parsed.hasDX || parsed.hasDY) {
+		return ipc.Response{
+			Success: false,
+			Message: "use either --window or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	if parsed.hasCenter && !isMoveMouse {
 		return ipc.Response{
 			Success: false,
 			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasWindow && !isMoveMouse {
+		return ipc.Response{
+			Success: false,
+			Message: "--window is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasCenter && parsed.hasWindow {
+		return ipc.Response{
+			Success: false,
+			Message: "--center and --window cannot be used together",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -383,15 +421,15 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if parsed.useSelection &&
-		(parsed.hasCenter || parsed.hasX || parsed.hasY) {
+		(parsed.hasCenter || parsed.hasWindow || parsed.hasX || parsed.hasY) {
 		return ipc.Response{
 			Success: false,
-			Message: "--selection cannot be combined with --x, --y, or --center",
+			Message: "--selection cannot be combined with --x, --y, --center, or --window",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
 
-	if isMoveMouse && !parsed.hasCenter &&
+	if isMoveMouse && !parsed.hasCenter && !parsed.hasWindow &&
 		!parsed.useSelection &&
 		((parsed.hasX && !parsed.hasY) || (!parsed.hasX && parsed.hasY)) {
 		return ipc.Response{
@@ -420,6 +458,45 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		err := h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
 		if err != nil {
 			h.logger.Error("Failed to move mouse to center", zap.Error(err))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform action: " + err.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		if h.modesHandler != nil &&
+			shouldClearSelectionAfterMoveMouse(parsed, false) {
+			h.modesHandler.ClearCurrentSelectionPoint()
+		}
+
+		return ipc.Response{
+			Success: true,
+			Message: actionName + " performed",
+			Code:    ipc.CodeOK,
+		}
+	}
+
+	if isMoveMouse && parsed.hasWindow {
+		if h.actionService == nil {
+			return ipc.Response{
+				Success: false,
+				Message: "action service not available",
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		offsetX, offsetY := parsed.xVal, parsed.yVal
+
+		h.logger.Info("Moving mouse to window center via IPC",
+			zap.Int("offsetX", offsetX),
+			zap.Int("offsetY", offsetY),
+		)
+
+		err := h.actionService.MoveMouseToCenterOfWindow(ctx, offsetX, offsetY)
+		if err != nil {
+			h.logger.Error("Failed to move mouse to window center", zap.Error(err))
 
 			return ipc.Response{
 				Success: false,
@@ -522,6 +599,137 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		Message: actionName + " performed",
 		Code:    ipc.CodeOK,
 	}
+}
+
+func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
+	if len(args) == 0 {
+		return ipc.Response{
+			Success: false,
+			Message: "feed requires at least one key (e.g., action feed o, action feed ctrl+c)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	keys := make([]string, 0, len(args))
+	for _, arg := range args {
+		key := strings.TrimSpace(arg)
+		if key == "" {
+			return ipc.Response{
+				Success: false,
+				Message: "feed keys cannot be empty",
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
+		keys = append(keys, key)
+	}
+
+	h.logger.Info("Feeding keys via IPC", zap.Strings("keys", keys))
+
+	for index, key := range keys {
+		err := keyfeed.Feed(key)
+		if err != nil {
+			code := ipc.CodeActionFailed
+			if derrors.IsCode(err, derrors.CodeInvalidInput) {
+				code = ipc.CodeInvalidInput
+			}
+
+			h.logger.Error("Failed to feed key",
+				zap.Error(err),
+				zap.String("key", key),
+				zap.Int("index", index))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to feed key " + key + ": " + err.Error(),
+				Code:    code,
+			}
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "feed performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
+	durationStr := ""
+	for idx := 0; idx < len(args); idx++ {
+		arg := strings.TrimSpace(args[idx])
+		if after, ok := strings.CutPrefix(arg, "--duration="); ok {
+			durationStr = after
+		} else if arg == "--duration" {
+			val, newIdx, ok := extractStringFlag(args, idx, "--duration")
+			idx = newIdx
+
+			if ok && val != "" {
+				durationStr = val
+			}
+		} else if !strings.HasPrefix(arg, "--") && arg != "" && durationStr == "" {
+			durationStr = arg
+		}
+	}
+
+	duration, err := parseSleepDuration(durationStr)
+	if err != nil {
+		return ipc.Response{
+			Success: false,
+			Message: err.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.logger.Debug("sleep action sleeping", zap.Duration("duration", duration))
+	time.Sleep(duration)
+
+	return ipc.Response{
+		Success: true,
+		Message: "sleep performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func parseSleepDuration(durationStr string) (time.Duration, error) {
+	if durationStr == "" {
+		return 0, derrors.New(
+			derrors.CodeInvalidInput,
+			"sleep requires a duration (e.g., 0.2s, 200ms)",
+		)
+	}
+
+	duration, err := time.ParseDuration(durationStr)
+	if err == nil {
+		if duration <= 0 {
+			return 0, derrors.Newf(
+				derrors.CodeInvalidInput,
+				"sleep duration must be positive, got %s",
+				durationStr,
+			)
+		}
+
+		return duration, nil
+	}
+
+	secs, err := strconv.ParseFloat(durationStr, 64)
+	if err != nil {
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"invalid sleep duration %q: expected a number (seconds) or a duration string such as 200ms or 1.5s",
+			durationStr,
+		)
+	}
+
+	if secs <= 0 {
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"sleep duration must be positive, got %s",
+			durationStr,
+		)
+	}
+
+	return time.Duration(secs * float64(time.Second)), nil
 }
 
 func (h *IPCControllerActions) handleMoveMouseAction(
@@ -647,7 +855,7 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 
 	return image.Point{}, &ipc.Response{
 		Success: false,
-		Message: "move_mouse requires --x and --y flags, --center, active selection, or --bare",
+		Message: "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare",
 		Code:    ipc.CodeInvalidInput,
 	}
 }

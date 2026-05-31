@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -13,6 +14,56 @@ import (
 	"github.com/y3owk1n/neru/internal/core"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
+
+// validateAppConfigsHotkeys validates hotkeys in app_configs sections from raw config.
+func validateAppConfigsHotkeys(
+	logger *zap.Logger,
+	modeName string,
+	raw map[string]any,
+) *LoadResult {
+	var appConfigsRaw []any
+	switch ac := raw["app_configs"].(type) {
+	case []any:
+		appConfigsRaw = ac
+	case []map[string]any:
+		for i := range ac {
+			appConfigsRaw = append(appConfigsRaw, ac[i])
+		}
+	default:
+		return nil
+	}
+
+	for idx, entry := range appConfigsRaw {
+		appMap, isMap := entry.(map[string]any)
+		if !isMap {
+			continue
+		}
+
+		hotkeysRaw, hasHotkeys := appMap["hotkeys"]
+		if !hasHotkeys {
+			continue
+		}
+
+		err := validateRawHotkeyTable(
+			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
+			hotkeysRaw,
+		)
+		if err != nil {
+			result := &LoadResult{
+				ValidationError: err,
+				Config:          DefaultConfig(),
+			}
+			logger.Warn("Duplicate normalized app hotkey in config",
+				zap.String("mode", modeName),
+				zap.Int("app_config_index", idx),
+				zap.Error(err))
+
+			return result
+		}
+	}
+
+	return nil
+}
 
 // findNormalizedMapKey returns the existing map key in m whose normalized form
 // matches the normalized form of rawKey. If no match is found it returns rawKey
@@ -26,6 +77,65 @@ func findNormalizedMapKey[V any](m map[string]V, rawKey string) string {
 	}
 
 	return rawKey
+}
+
+// isBuiltInGlobalModeAction matches single built-in global mode commands.
+func isBuiltInGlobalModeAction(actions []string) (string, bool) {
+	if len(actions) != 1 {
+		return "", false
+	}
+
+	parts := strings.Fields(strings.TrimSpace(actions[0]))
+	if len(parts) == 0 {
+		return "", false
+	}
+
+	switch parts[0] {
+	case modeNameHints, modeNameGrid, modeNameRecursiveGrid, modeNameScroll:
+		return parts[0], true
+	default:
+		return "", false
+	}
+}
+
+// removeBindingsForSingleAction removes bindings for one built-in mode action.
+func removeBindingsForSingleAction(bindings map[string][]string, action string) {
+	for key, existingActions := range bindings {
+		existingAction, ok := isBuiltInGlobalModeAction(existingActions)
+		if ok && existingAction == action {
+			delete(bindings, key)
+		}
+	}
+}
+
+// parseRawHotkeyActions parses a raw TOML hotkey value into actions.
+func parseRawHotkeyActions(fieldName string, value any) ([]string, error) {
+	switch val := value.(type) {
+	case string:
+		return []string{val}, nil
+	case []any:
+		actions := make([]string, 0, len(val))
+		for _, actionValue := range val {
+			actionStr, ok := actionValue.(string)
+			if !ok {
+				return nil, derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"%s must be a string or array of strings",
+					fieldName,
+				)
+			}
+
+			actions = append(actions, actionStr)
+		}
+
+		return actions, nil
+	default:
+		return nil, derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"%s must be a string or array of strings",
+			fieldName,
+		)
+	}
 }
 
 func validateRawHotkeyTable(fieldName string, rawTable any) error {
@@ -229,6 +339,32 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 				return configResult
 			}
 
+			// Rebinding a built-in mode action should replace its default
+			// launcher instead of adding an extra alias.
+			reboundDefaults := make(map[string]struct{})
+
+			parsedHotkeyActions := make(map[string][]string, len(hotMap))
+			for key, value := range hotMap {
+				actions, actionsErr := parseRawHotkeyActions("hotkeys."+key, value)
+				if actionsErr != nil {
+					continue
+				}
+
+				parsedHotkeyActions[key] = actions
+
+				if len(actions) == 1 && actions[0] == DisabledSentinel {
+					continue
+				}
+
+				if action, ok := isBuiltInGlobalModeAction(actions); ok {
+					reboundDefaults[action] = struct{}{}
+				}
+			}
+
+			for action := range reboundDefaults {
+				removeBindingsForSingleAction(configResult.Config.Hotkeys.Bindings, action)
+			}
+
 			// Merge user entries on top of defaults (already populated by DefaultConfig).
 			for key, value := range hotMap {
 				// Find the existing default key that normalizes to the same value
@@ -237,59 +373,28 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 					configResult.Config.Hotkeys.Bindings, key,
 				)
 
-				switch _val := value.(type) {
-				case string:
-					if _val == DisabledSentinel {
-						if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
-							s.logger.Warn("__disabled__ used for key that is not a default binding",
-								zap.String("key", key))
-						}
-
-						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
-					} else {
-						// Remove old casing before inserting with user's casing.
-						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
-						configResult.Config.Hotkeys.Bindings[key] = []string{_val}
-					}
-				case []any:
-					actions := make([]string, 0, len(_val))
-					for _, a := range _val {
-						actionStr, ok := a.(string)
-						if !ok {
-							configResult.ValidationError = derrors.Newf(
-								derrors.CodeInvalidConfig,
-								"hotkeys.%s must be a string or array of strings",
-								key,
-							)
-							configResult.Config = DefaultConfig()
-							s.logger.Warn("Invalid hotkey configuration",
-								zap.String("key", key),
-								zap.Any("value", value),
-								zap.Error(configResult.ValidationError))
-
-							return configResult
-						}
-
-						actions = append(actions, actionStr)
-					}
-
-					// Handle __disabled__ sentinel in array form for consistency
-					// with per-mode hotkeys.
-					if len(actions) == 1 && actions[0] == DisabledSentinel {
-						if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
-							s.logger.Warn("__disabled__ used for key that is not a default binding",
-								zap.String("key", key))
-						}
-
-						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
-					} else {
-						delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
-						configResult.Config.Hotkeys.Bindings[key] = actions
-					}
-				default:
-					configResult.ValidationError = derrors.Newf(
+				actions, ok := parsedHotkeyActions[key]
+				if !ok {
+					actionsErr := derrors.Newf(
 						derrors.CodeInvalidConfig,
 						"hotkeys.%s must be a string or array of strings",
+						key,
+					)
+
+					configResult.ValidationError = actionsErr
+					configResult.Config = DefaultConfig()
+					s.logger.Warn("Invalid hotkey configuration",
+						zap.String("key", key),
+						zap.Any("value", value),
+						zap.Error(configResult.ValidationError))
+
+					return configResult
+				}
+
+				if len(actions) == 0 {
+					configResult.ValidationError = derrors.Newf(
+						derrors.CodeInvalidConfig,
+						"hotkeys.%s must not be empty",
 						key,
 					)
 					configResult.Config = DefaultConfig()
@@ -299,6 +404,20 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 						zap.Error(configResult.ValidationError))
 
 					return configResult
+				}
+
+				// Handle __disabled__ sentinel in array form for consistency
+				// with per-mode hotkeys.
+				if len(actions) == 1 && actions[0] == DisabledSentinel {
+					if _, exists := configResult.Config.Hotkeys.Bindings[canonicalKey]; !exists {
+						s.logger.Warn("__disabled__ used for key that is not a default binding",
+							zap.String("key", key))
+					}
+
+					delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
+				} else {
+					delete(configResult.Config.Hotkeys.Bindings, canonicalKey)
+					configResult.Config.Hotkeys.Bindings[key] = actions
 				}
 			}
 		}
@@ -402,56 +521,24 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	}
 
 	if hintsRaw, ok := raw["hints"].(map[string]any); ok {
-		switch appConfigsRaw := hintsRaw["app_configs"].(type) {
-		case []any:
-			for idx, entry := range appConfigsRaw {
-				appMap, isMap := entry.(map[string]any)
-				if !isMap {
-					continue
-				}
+		if result := validateAppConfigsHotkeys(s.logger, "hints", hintsRaw); result != nil {
+			return result
+		}
+	}
 
-				hotkeysRaw, hasHotkeys := appMap["hotkeys"]
-				if !hasHotkeys {
-					continue
-				}
+	if gridRaw, ok := raw["grid"].(map[string]any); ok {
+		if result := validateAppConfigsHotkeys(s.logger, "grid", gridRaw); result != nil {
+			return result
+		}
+	}
 
-				err = validateRawHotkeyTable(
-					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
-					hotkeysRaw,
-				)
-				if err != nil {
-					configResult.ValidationError = err
-					configResult.Config = DefaultConfig()
-
-					s.logger.Warn("Duplicate normalized app hotkey in config",
-						zap.Int("app_config_index", idx),
-						zap.Error(configResult.ValidationError))
-
-					return configResult
-				}
-			}
-		case []map[string]any:
-			for idx, appMap := range appConfigsRaw {
-				hotkeysRaw, ok := appMap["hotkeys"]
-				if !ok {
-					continue
-				}
-
-				err = validateRawHotkeyTable(
-					fmt.Sprintf("hints.app_configs[%d].hotkeys", idx),
-					hotkeysRaw,
-				)
-				if err != nil {
-					configResult.ValidationError = err
-					configResult.Config = DefaultConfig()
-
-					s.logger.Warn("Duplicate normalized app hotkey in config",
-						zap.Int("app_config_index", idx),
-						zap.Error(configResult.ValidationError))
-
-					return configResult
-				}
-			}
+	if recursiveGridRaw, ok := raw["recursive_grid"].(map[string]any); ok {
+		if result := validateAppConfigsHotkeys(
+			s.logger,
+			"recursive_grid",
+			recursiveGridRaw,
+		); result != nil {
+			return result
 		}
 	}
 

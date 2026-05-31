@@ -174,6 +174,100 @@ bundle_id = "com.apple.Safari"
 		}
 	})
 
+	t.Run("Global Hotkey Rebind Replaces Default Launcher", func(t *testing.T) {
+		configContent := `
+[hotkeys]
+"Cmd+Shift+Option+Ctrl+G" = "grid"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+G"]; exists {
+			t.Fatal("expected default grid hotkey to be removed when grid is rebound")
+		}
+
+		actions, exists := loadResult.Config.Hotkeys.Bindings["Cmd+Shift+Option+Ctrl+G"]
+		if !exists || len(actions) != 1 || actions[0] != "grid" {
+			t.Fatalf("expected rebound grid hotkey, got %v", loadResult.Config.Hotkeys.Bindings)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]; !exists {
+			t.Fatal("expected unrelated default hotkeys to remain")
+		}
+	})
+
+	t.Run("Global Hotkey Rebind With Flags Replaces Default Launcher", func(t *testing.T) {
+		configContent := `
+[hotkeys]
+"Cmd+Shift+Option+Ctrl+X" = "recursive_grid --cursor-selection-mode hold"
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		if _, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+C"]; exists {
+			t.Fatal(
+				"expected default recursive_grid hotkey to be removed when recursively rebound with flags",
+			)
+		}
+
+		actions, exists := loadResult.Config.Hotkeys.Bindings["Cmd+Shift+Option+Ctrl+X"]
+		if !exists || len(actions) != 1 ||
+			actions[0] != "recursive_grid --cursor-selection-mode hold" {
+			t.Fatalf(
+				"expected flagged recursive_grid hotkey, got %v",
+				loadResult.Config.Hotkeys.Bindings,
+			)
+		}
+	})
+
+	t.Run("Global Multi Action Hotkey Keeps Default Launcher", func(t *testing.T) {
+		configContent := `
+[hotkeys]
+"Cmd+Shift+Option+Ctrl+T" = ["action save_cursor_pos", "hints"]
+`
+
+		writeConfigFile(t, configPath, configContent, 0o644)
+
+		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+		loadResult := service.LoadWithValidation(configPath)
+		if loadResult.ValidationError != nil {
+			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
+		}
+
+		actions, exists := loadResult.Config.Hotkeys.Bindings["Cmd+Shift+Option+Ctrl+T"]
+		if !exists || len(actions) != 2 ||
+			actions[0] != "action save_cursor_pos" ||
+			actions[1] != hintsCommand {
+			t.Fatalf(
+				"expected multi-action hotkey to be added, got %v",
+				loadResult.Config.Hotkeys.Bindings,
+			)
+		}
+
+		defaultActions, defaultExists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]
+		if !defaultExists || len(defaultActions) != 1 || defaultActions[0] != hintsCommand {
+			t.Fatalf(
+				"expected default hints hotkey to remain, got %v",
+				loadResult.Config.Hotkeys.Bindings,
+			)
+		}
+	})
+
 	t.Run("Config File Permissions", func(t *testing.T) {
 		// Test that config files with restrictive permissions can still be read
 		configContent := `

@@ -158,27 +158,71 @@ func (a *Adapter) ClickableElements(
 	}
 
 	if !missionControlActive {
-		// Query frontmost window
+		// Query frontmost window AND popover windows (not all windows)
+		// AXPopover windows are siblings to the main window, so we need to get them separately
 		waitGroup.Add(1)
 
 		go func() {
-			collectElements("frontmost window", func() ([]*element.Element, error) {
-				frontmostWindow, frontmostWindowErr := a.client.FrontmostWindow()
-				if frontmostWindowErr != nil {
-					return nil, frontmostWindowErr
-				}
-				defer frontmostWindow.Release()
-
-				clickableNodes, clickableNodesErr := a.client.ClickableNodes(
-					frontmostWindow,
-					filter.IncludeOffscreen,
-					stringRoles(filter.Roles),
-				)
-				if clickableNodesErr != nil {
-					return nil, clickableNodesErr
+			collectElements("windows", func() ([]*element.Element, error) {
+				// Get frontmost window (the main/focused window)
+				frontmost, frontmostErr := a.client.FrontmostWindow()
+				if frontmostErr != nil {
+					return nil, frontmostErr
 				}
 
-				return a.processClickableNodes(ctx, clickableNodes, filter)
+				// Get all windows to find popovers
+				allWindows, allWindowsErr := a.client.AllWindows()
+				if allWindowsErr != nil {
+					frontmost.Release()
+
+					return nil, allWindowsErr
+				}
+
+				// Collect windows to process: frontmost + any AXPopover
+				var windowsToProcess []AXWindow
+
+				windowsToProcess = append(windowsToProcess, frontmost)
+
+				// Add popover windows (siblings to the main window)
+				// Release non-popover windows to avoid leaks
+				for _, w := range allWindows {
+					if w.Role() == "AXPopover" {
+						windowsToProcess = append(windowsToProcess, w)
+					} else {
+						w.Release()
+					}
+				}
+
+				var allElements []*element.Element
+				for _, window := range windowsToProcess {
+					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+						window,
+						filter.IncludeOffscreen,
+						stringRoles(filter.Roles),
+					)
+					if clickableNodesErr != nil {
+						window.Release()
+
+						continue
+					}
+
+					windowElements, processErr := a.processClickableNodes(
+						ctx,
+						clickableNodes,
+						filter,
+					)
+					if processErr != nil {
+						window.Release()
+
+						continue
+					}
+
+					allElements = append(allElements, windowElements...)
+
+					window.Release()
+				}
+
+				return allElements, nil
 			})
 		}()
 	}

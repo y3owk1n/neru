@@ -13,6 +13,8 @@ type MockAXClient struct {
 
 	MockFrontmostWindow    AXWindow
 	MockFrontmostWindowErr error
+	MockAllWindows         []AXWindow
+	MockAllWindowsErr      error
 
 	MockFocusedApp    AXApp
 	MockFocusedAppErr error
@@ -40,12 +42,18 @@ type MockAXClient struct {
 	LastCalledBundleID         string
 	LastClickableNodesRoles    []string
 	LastBundleRoles            []string
+	LastMenuBarStrictFiltering bool
 	ClickableNodesRolesHistory [][]string
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
 func (m *MockAXClient) FrontmostWindow() (AXWindow, error) {
 	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
+}
+
+// AllWindows returns the configured windows or error.
+func (m *MockAXClient) AllWindows() ([]AXWindow, error) {
+	return m.MockAllWindows, m.MockAllWindowsErr
 }
 
 // FocusedApplication returns the configured focused application or error.
@@ -69,7 +77,11 @@ func (m *MockAXClient) ClickableNodes(_ AXElement, _ bool, roles []string) ([]AX
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(strictFiltering bool) ([]AXNode, error) {
+	m.mu.Lock()
+	m.LastMenuBarStrictFiltering = strictFiltering
+	m.mu.Unlock()
+
 	return m.MockMenuBarNodes, m.MockMenuBarNodesErr
 }
 
@@ -77,6 +89,7 @@ func (m *MockAXClient) MenuBarClickableElements() ([]AXNode, error) {
 func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
+	strictFiltering bool,
 ) ([]AXNode, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
@@ -153,6 +166,9 @@ type MockWindow struct{}
 
 // Release is a no-op.
 func (w *MockWindow) Release() {}
+
+// Role returns "AXWindow".
+func (w *MockWindow) Role() string { return "AXWindow" }
 
 // MockApp is a mock implementation of AXApp.
 type MockApp struct {

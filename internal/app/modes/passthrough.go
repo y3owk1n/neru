@@ -43,7 +43,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 			// so the event tap consumes them instead of passing them through.
 			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
 			for key := range hotkeys {
-				blacklist = append(blacklist, key)
+				blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(key))
 			}
 		}
 
@@ -90,14 +90,14 @@ func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 			return
 		}
 
-		normalized := configpkg.NormalizeKeyForComparison(trimmed)
+		normalized := configpkg.CanonicalHotkeyForPlatform(trimmed)
 		if _, exists := seen[normalized]; exists {
 			return
 		}
 
 		seen[normalized] = struct{}{}
 
-		keys = append(keys, trimmed)
+		keys = append(keys, normalized)
 	}
 
 	// Append hotkey keys for the current mode so the event tap
@@ -181,7 +181,9 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 
 		h.logger.Debug("Refreshing hints after modifier passthrough",
 			zap.Duration("delay", passthroughHintRefreshDelay))
-		h.activateHintModeInternal(false, nil, nil)
+		filterRoles := h.hints.Context.FilterRoles()
+		filterTextContains := h.hints.Context.FilterTextContains()
+		h.activateHintModeInternal(false, nil, nil, filterRoles, filterTextContains)
 	})
 	h.refreshHintsTimer = timer
 }

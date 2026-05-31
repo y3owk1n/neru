@@ -14,6 +14,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Hotkeys](#hotkeys)
 - [Per-Mode Custom Hotkeys](#per-mode-custom-hotkeys)
 - [Action Commands and Primitives](#action-commands-and-primitives)
+    - [Feed keys](#feed-keys)
 - [General Settings](#general-settings)
 - [Hint Mode](#hint-mode)
 - [Grid Mode](#grid-mode)
@@ -94,6 +95,7 @@ Global hotkeys trigger Neru navigation modes from anywhere on screen.
 
 > [!TIP]
 > User-defined hotkeys are **merged on top of defaults**. You only need to define the bindings you want to add or change — all other defaults are preserved.
+> When you rebind a built-in launcher action (`hints`, `grid`, `recursive_grid`, `scroll`) to a new single hotkey, Neru removes the default launcher for that action automatically.
 
 ### Merging behavior
 
@@ -107,8 +109,9 @@ To **remove** a single default binding without affecting the rest, use the `__di
 
 ```toml
 [hotkeys]
-"Primary+Shift+S" = "__disabled__"   # removes the default scroll hotkey
-"Ctrl+Space"      = "hints"          # adds a new binding; other defaults remain
+"Primary+Shift+S"         = "__disabled__"   # removes the default scroll hotkey
+"Ctrl+Space"              = "hints"          # adds a new binding; other defaults remain
+"Cmd+Shift+Option+Ctrl+G" = "grid"           # rebinds grid to Hyper+G: default Primary+Shift+G is removed
 ```
 
 ### Syntax
@@ -124,7 +127,7 @@ To **remove** a single default binding without affecting the rest, use the `__di
 **Actions can be:**
 
 - A mode command: `"hints"`, `"grid"`, `"scroll"`, `"recursive_grid"`, `"idle"`
-- An IPC action command: `"action left_click"`, `"action move_mouse_relative --dx=0 --dy=-10"`
+- An IPC action command: `"action left_click"`, `"action move_mouse_relative --dx=0 --dy=-10"`, `"action feed h e l l o return"`
 - A shell command: `"exec open -a Terminal"`
 
 ### Multiple actions per hotkey
@@ -182,27 +185,35 @@ To remove a single default binding, use `__disabled__`:
 All actions from `[hotkeys]` work here, plus these mode-specific ones:
 
 - Mode commands: `idle`, `hints`, `grid`, `recursive_grid`, `scroll`
-- Action subcommands: `action left_click`, `action scroll_down`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
+- Action subcommands: `action left_click`, `action scroll_down`, `action feed`, `action sleep`, `action reset`, `action backspace`, `action wait_for_mode_exit`, `action save_cursor_pos`, `action restore_cursor_pos`
 - Root toggle commands: `toggle-screen-share`, `toggle-cursor-follow-selection`
 - Shell commands: `exec ...`
 
-### Per-App Hint Hotkey Overrides
+### Per-App Hotkey Overrides
 
-`[[hints.app_configs]]` overrides `[hints.hotkeys]` bindings for a specific app bundle ID. App hotkeys are merged on top of `[hints.hotkeys]`; missing keys inherit the global binding; `__disabled__` removes an inherited binding for that app only.
+`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` bindings for a specific app bundle ID. App hotkeys are merged on top of global mode hotkeys; missing keys inherit the global binding; `__disabled__` removes an inherited binding for that app only.
+
+This works for `hints`, `grid`, and `recursive_grid` modes:
 
 ```toml
 [hints.hotkeys]
 "Return" = ["action left_click", "hints"]
 
 [[hints.app_configs]]
-bundle_id = "net.imput.helium"
+bundle_id = "com.brave.Browser"
+hotkeys = {
+	"Return" = "action left_click",
+	"Shift+L" = "__disabled__"
+}
 
-[hints.app_configs.hotkeys]
-"Return" = ["action left_click", "exec sleep 0.8", "hints"]
-"Shift+L" = "__disabled__"
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "u" = "action left_click" }
 ```
-
-This is useful for apps that need different hint follow-up behavior, such as browser-like shells that need a short pause before hints are refreshed.
 
 ### Priority order
 
@@ -237,6 +248,7 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 | Mouse       | `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative` |
 | Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`     |
 | Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                 |
+| Keyboard    | `feed`                                                        |
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
 
@@ -246,13 +258,33 @@ All one-shot actions are exposed through `action` subcommands and are valid in c
 > [!TIP]
 > Point-targeted actions prefer the current mode selection by default. Use the `--bare` flag (e.g. `"action left_click --bare"`) to ignore the selection and target the current cursor position instead.
 
+### Feed keys
+
+`action feed` can be used in config hotkeys because it runs through Neru's IPC
+action path. This is useful when a Neru hotkey should hand input back to the
+focused app instead of triggering a Neru-owned click, scroll, or mode action.
+
+```toml
+[hotkeys]
+"Primary+Y" = "action feed h e l l o return"
+"Primary+Shift+C" = "action feed ctrl+c"
+
+[hints.hotkeys]
+"o" = ["idle", "action feed o"]
+```
+
+See [CLI Usage: Feed Keys](CLI.md#feed-keys) for syntax, supported key names,
+multi-key sequences, and platform behavior.
+
 ### Composition example
 
 ```toml
 [hints.hotkeys]
 "Enter" = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
-"Return" = ["action left_click", "exec sleep 0.5", "hints"]
+"Return" = ["action left_click", "action sleep 0.5", "hints"]
 ```
+
+See [CLI Usage: Feed Keys](CLI.md#feed-keys) for syntax and supported actions.
 
 ---
 
@@ -292,6 +324,26 @@ Hint mode uses macOS Accessibility APIs to identify clickable UI elements and ov
 | `additional_menubar_hints_targets` | array  | see defaults  | Extra menubar bundle IDs                             |
 | `clickable_roles`                  | array  | see defaults  | AX roles that generate hints                         |
 | `ignore_clickable_check`           | bool   | `false`       | Skip clickability heuristic                          |
+
+### Per-App Config Overrides
+
+`[[hints.app_configs]]` allows you to override settings for specific apps:
+
+| Field                        | Type   | Description                              |
+| ---------------------------- | ------ | ---------------------------------------- |
+| `bundle_id`                  | string | App bundle ID (e.g. "com.apple.Safari")  |
+| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable     |
+| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app |
+| `hotkeys`                    | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[hints.app_configs]]
+bundle_id = "com.apple.Safari"
+additional_clickable_roles = ["AXLink"]
+ignore_clickable_check = true
+```
+
+See [Per-App Hotkey Overrides](#per-app-hint-hotkey-overrides) for how per-app hotkey overrides work.
 
 ### Additional Accessibility Support
 
@@ -370,6 +422,23 @@ Runtime cursor behavior is chosen per invocation rather than in config:
 
 Default grid hotkeys include ``"`" = "toggle-cursor-follow-selection"`` so you can flip cursor follow behavior mid-session.
 
+### Per-App Config Overrides
+
+`[[grid.app_configs]]` allows you to override hotkeys for specific apps:
+
+| Field       | Type   | Description                              |
+| ----------- | ------ | ---------------------------------------- |
+| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
+| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+```
+
+See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
+
 ### UI Options
 
 | Option                     | Type   | Default | Description                          |
@@ -417,6 +486,23 @@ Recursive grid narrows the active area with each keypress for precise cursor pla
 | `layers`          | array  | `[]`     | Optional per-depth layout overrides              |
 
 Like `grid`, recursive-grid uses `--cursor-selection-mode follow|hold` at launch time. Default hotkeys also include ``"`" = "toggle-cursor-follow-selection"``.
+
+### Per-App Config Overrides
+
+`[[recursive_grid.app_configs]]` allows you to override hotkeys for specific apps:
+
+| Field       | Type   | Description                              |
+| ----------- | ------ | ---------------------------------------- |
+| `bundle_id` | string | App bundle ID (e.g. "com.brave.Browser") |
+| `hotkeys`   | map    | Per-app hotkey overrides (see below)     |
+
+```toml
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+```
+
+See [Per-App Hotkey Overrides](#per-app-hotkey-overrides) for how per-app hotkey overrides work.
 
 ### Animation Options
 
@@ -734,6 +820,32 @@ steps = 10
 max_duration = 200
 duration_per_pixel = 0.1
 ```
+
+---
+
+## Smooth Scroll
+
+Smooth scroll animates scroll actions by splitting the total scroll delta into chunked events with an ease-out curve. This provides visual feedback during scrolling, making navigation feel more responsive.
+
+> [!NOTE]
+> Currently supported on **macOS only**. Other platforms fall back to instant scrolling.
+
+| Option               | Type  | Default | Description                        |
+| -------------------- | ----- | ------- | ---------------------------------- |
+| `enabled`            | bool  | `false` | Enable smooth scrolling            |
+| `steps`              | int   | `20`    | Number of animation steps          |
+| `max_duration`       | int   | `180`   | Max animation duration in ms       |
+| `duration_per_pixel` | float | `1.0`   | Ms per pixel for adaptive duration |
+
+```toml
+[smooth_scroll]
+enabled = false
+steps = 20
+max_duration = 180
+duration_per_pixel = 1.0
+```
+
+The animation adapts to scroll magnitude: a small `scroll_step` scroll completes quickly, while a `scroll_step_full` jump takes longer up to `max_duration`. The easing curve uses ease-out cubic for natural deceleration.
 
 ---
 
