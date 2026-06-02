@@ -328,6 +328,20 @@ void *NeruGetFrontmostWindow(void) {
 	}
 }
 
+static CGPoint getWindowPosition(AXUIElementRef window) {
+	CFTypeRef positionValue = NULL;
+	if (AXUIElementCopyAttributeValue(window, kAXPositionAttribute, &positionValue) == kAXErrorSuccess &&
+	    positionValue) {
+		CGPoint point = CGPointZero;
+		if (CFGetTypeID(positionValue) == AXValueGetTypeID()) {
+			AXValueGetValue((AXValueRef)positionValue, kAXValueCGPointType, &point);
+		}
+		CFRelease(positionValue);
+		return point;
+	}
+	return CGPointZero;
+}
+
 /// Get all focusable windows on the active space across all running applications.
 /// Filters out non-focusable windows (minimized, hidden, off-space, non-window roles).
 /// @param count Output parameter for number of windows
@@ -339,7 +353,15 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 	@autoreleasepool {
 		*count = 0;
 
-		NSArray *runningApps = [NSWorkspace sharedWorkspace].runningApplications;
+		NSArray *runningApps = [[NSWorkspace sharedWorkspace].runningApplications
+		    sortedArrayUsingComparator:^NSComparisonResult(NSRunningApplication *obj1, NSRunningApplication *obj2) {
+			    if (obj1.processIdentifier < obj2.processIdentifier) {
+				    return NSOrderedAscending;
+			    } else if (obj1.processIdentifier > obj2.processIdentifier) {
+				    return NSOrderedDescending;
+			    }
+			    return NSOrderedSame;
+		    }];
 		CFMutableArrayRef windowsCollector = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
 		if (!windowsCollector)
 			return NULL;
@@ -442,6 +464,35 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 			return NULL;
 		}
 
+		// Sort the collected windows stably by screen coordinates (y-coordinate first, then x-coordinate)
+		NSArray *sortedWindows =
+		    [(__bridge NSArray *)windowsCollector sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
+			    AXUIElementRef w1 = (__bridge AXUIElementRef)obj1;
+			    AXUIElementRef w2 = (__bridge AXUIElementRef)obj2;
+
+			    CGPoint p1 = getWindowPosition(w1);
+			    CGPoint p2 = getWindowPosition(w2);
+
+			    if (p1.y < p2.y)
+				    return NSOrderedAscending;
+			    if (p1.y > p2.y)
+				    return NSOrderedDescending;
+			    if (p1.x < p2.x)
+				    return NSOrderedAscending;
+			    if (p1.x > p2.x)
+				    return NSOrderedDescending;
+
+			    pid_t pid1 = 0, pid2 = 0;
+			    AXUIElementGetPid(w1, &pid1);
+			    AXUIElementGetPid(w2, &pid2);
+			    if (pid1 < pid2)
+				    return NSOrderedAscending;
+			    if (pid1 > pid2)
+				    return NSOrderedDescending;
+
+			    return NSOrderedSame;
+		    }];
+
 		void **result = (void **)malloc(total * sizeof(void *));
 		if (!result) {
 			CFRelease(windowsCollector);
@@ -449,7 +500,7 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 		}
 
 		for (CFIndex i = 0; i < total; i++) {
-			result[i] = (void *)CFArrayGetValueAtIndex(windowsCollector, i);
+			result[i] = (void *)(__bridge AXUIElementRef)sortedWindows[i];
 			CFRetain(result[i]);
 		}
 
@@ -480,7 +531,14 @@ int NeruActivateWindow(void *window) {
 
 		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 
+		// Set kAXMainAttribute to make it the main window of the application
+		AXUIElementSetAttributeValue(axWindow, kAXMainAttribute, kCFBooleanTrue);
+
+		// Set kAXFocusedAttribute to give it keyboard focus
 		AXError error = AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute, kCFBooleanTrue);
+
+		// Perform AXRaise action to bring the window to the front
+		AXUIElementPerformAction(axWindow, kAXRaiseAction);
 
 		return (error == kAXErrorSuccess) ? 1 : 0;
 	}
