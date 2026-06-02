@@ -409,12 +409,10 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 					continue;
 
 				CFArrayRef values = NULL;
-				AXError batchError = AXUIElementCopyMultipleAttributeValues(window, attrArray, 0, &values);
+				AXUIElementCopyMultipleAttributeValues(window, attrArray, 0, &values);
 				CFRelease(attrArray);
 
-				if (batchError != kAXErrorSuccess || !values) {
-					if (values)
-						CFRelease(values);
+				if (!values) {
 					continue;
 				}
 
@@ -551,13 +549,14 @@ int NeruActivateWindow(void *window) {
 		// Set kAXMainAttribute to make it the main window of the application
 		AXUIElementSetAttributeValue(axWindow, kAXMainAttribute, kCFBooleanTrue);
 
-		// Set kAXFocusedAttribute to give it keyboard focus
-		AXError error = AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute, kCFBooleanTrue);
+		// Set kAXFocusedAttribute to give it keyboard focus (best-effort; not
+		// all apps expose this as a writable attribute).
+		AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute, kCFBooleanTrue);
 
 		// Perform AXRaise action to bring the window to the front
-		AXUIElementPerformAction(axWindow, kAXRaiseAction);
+		AXError raiseError = AXUIElementPerformAction(axWindow, kAXRaiseAction);
 
-		return (error == kAXErrorSuccess) ? 1 : 0;
+		return (raiseError == kAXErrorSuccess) ? 1 : 0;
 	}
 }
 
