@@ -57,7 +57,7 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 	// is unreliable across applications.
 	frontmost := accessibility.FrontmostWindow()
 
-	var currentIndex int
+	currentIndex := -1
 	if frontmost != nil {
 		for i, w := range windows {
 			if w.Equal(frontmost) {
@@ -70,7 +70,6 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 		frontmost.Release()
 	}
 
-	// Default to the first window if none is detected as focused.
 	var targetIndex int
 	if parsed.useBackward {
 		targetIndex = currentIndex - 1
