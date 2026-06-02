@@ -150,7 +150,6 @@ func (s *ScrollService) calculateDelta(
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
-
 		// Only perform IPC lookup if there are app-specific overrides configured
 		if len(configSnapshot.AppConfigs) > 0 {
 			bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
