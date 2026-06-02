@@ -138,17 +138,18 @@ func (s *ScrollService) calculateDelta(
 		invertScroll   bool
 	)
 
+	// Snapshot config under lock, then release before IPC call
+	s.mu.RLock()
+	scrollStep := s.config.ScrollStep
+	scrollStepHalf := s.config.ScrollStepHalf
+	scrollStepFull := s.config.ScrollStepFull
+	invertScroll = s.config.InvertScroll
+	configSnapshot := s.config
+	s.mu.RUnlock()
+
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
-		// Snapshot config under lock, then release before IPC call
-		s.mu.RLock()
-		scrollStep := s.config.ScrollStep
-		scrollStepHalf := s.config.ScrollStepHalf
-		scrollStepFull := s.config.ScrollStepFull
-		invertScroll = s.config.InvertScroll
-		configSnapshot := s.config
-		s.mu.RUnlock()
 
 		// Only perform IPC lookup if there are app-specific overrides configured
 		if len(configSnapshot.AppConfigs) > 0 {
