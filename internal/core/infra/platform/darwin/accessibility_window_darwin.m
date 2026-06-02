@@ -347,6 +347,8 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 		for (NSRunningApplication *app in runningApps) {
 			if (app.activationPolicy != NSApplicationActivationPolicyRegular)
 				continue;
+			if (app.hidden)
+				continue;
 
 			pid_t pid = app.processIdentifier;
 			AXUIElementRef appElement = AXUIElementCreateApplication(pid);
@@ -378,10 +380,9 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 				CFStringRef attrs[] = {
 				    kAXRoleAttribute,
 				    kAXMinimizedAttribute,
-				    kAXHiddenAttribute,
 				    CFSTR("AXWindowIsOnActiveSpace"),
 				};
-				CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 4, &kCFTypeArrayCallBacks);
+				CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 3, &kCFTypeArrayCallBacks);
 				if (!attrArray)
 					continue;
 
@@ -415,18 +416,9 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 					}
 				}
 
-				// hidden: exclude if true
-				if (shouldInclude && CFArrayGetCount(values) > 2) {
-					CFTypeRef hiddenVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
-					if (hiddenVal && CFGetTypeID(hiddenVal) == CFBooleanGetTypeID() &&
-					    CFBooleanGetValue((CFBooleanRef)hiddenVal)) {
-						shouldInclude = false;
-					}
-				}
-
 				// on active space: exclude if false or unsupported
-				if (shouldInclude && CFArrayGetCount(values) > 3) {
-					CFTypeRef spaceVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+				if (shouldInclude && CFArrayGetCount(values) > 2) {
+					CFTypeRef spaceVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
 					if (spaceVal && CFGetTypeID(spaceVal) == CFBooleanGetTypeID() &&
 					    !CFBooleanGetValue((CFBooleanRef)spaceVal)) {
 						shouldInclude = false;
