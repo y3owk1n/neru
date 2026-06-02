@@ -16,7 +16,7 @@ type Manager struct {
 	domain.BaseManager
 
 	grid       *RecursiveGrid
-	keys       string            // Default key mapping (e.g., "uijk")
+	keys       string            // Default key mapping (e.g., "rtyfghvbn")
 	depthKeys  map[int]string    // Per-depth key overrides (sparse)
 	gridCols   int               // Default number of grid columns
 	gridRows   int               // Default number of grid rows
@@ -24,7 +24,7 @@ type Manager struct {
 	onComplete func(image.Point) // Callback when selection is complete
 }
 
-// NewManager creates a recursive-grid manager with default dimensions (2×2)
+// NewManager creates a recursive-grid manager with default dimensions (3×3)
 // and default size/depth limits. Used primarily in tests.
 func NewManager(
 	screenBounds image.Rectangle,
@@ -62,10 +62,10 @@ func NewManagerWithLayers(
 	logger *zap.Logger,
 ) *Manager {
 	// Use default grid dimensions if either is invalid (< 1) or if the grid
-	// is degenerate (1×1 cannot subdivide). Reset both to 2x2 for consistency.
+	// is degenerate (1×1 cannot subdivide). Reset both to default for consistency.
 	if gridCols < MinGridDimension || gridRows < MinGridDimension ||
 		gridCols*gridRows < 2 {
-		logger.Warn("Invalid grid dimensions, using default 2x2",
+		logger.Warn("Invalid grid dimensions, using default",
 			zap.Int("provided_cols", gridCols),
 			zap.Int("provided_rows", gridRows))
 		gridCols = DefaultGridCols

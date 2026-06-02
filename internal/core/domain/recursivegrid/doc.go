@@ -8,7 +8,7 @@
 //   - Configurable dimensions: Supports both square (NxN) and non-square (CxR) grids
 //   - Configurable limits: Minimum size and maximum depth constraints
 //   - Backtracking: Support for undoing selections via backspace
-//   - warpd-compatible: Uses u/i/j/k key mapping by default (top-left, top-right, bottom-left, bottom-right)
+//   - Configurable key mapping: 3×3 grid mapping by default ("rtyfghvbn")
 //
 // Basic Usage:
 //
@@ -27,7 +27,7 @@
 //	// Create a manager with callbacks
 //	manager := recursivegrid.NewManager(
 //	    bounds,
-//	    "uijk",                    // Key mapping
+//	    "rtyfghvbn",               // Key mapping (3×3 default)
 //	    func() { /* update overlay */ },
 //	    func(point) { /* selection complete */ },
 //	    logger,
@@ -37,7 +37,8 @@
 //	point, completed := manager.HandleInput("u")
 //
 // Key Mapping:
-//   - Default: u (top-left), i (top-right), j (bottom-left), k (bottom-right)
+//   - Default: r (top-left), t (top-mid), y (top-right), f (mid-left), g (center),
+//     h (mid-right), v (bottom-left), b (bottom-mid), n (bottom-right)
 //   - Customizable via N-character string (where N = grid_cols * grid_rows)
 //
 // Exit Conditions:

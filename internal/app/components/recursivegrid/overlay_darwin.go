@@ -267,7 +267,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		gridCols = recursivegrid.DefaultGridCols
 		gridRows = recursivegrid.DefaultGridRows
 		keyCount = gridCols * gridRows
-		keys = "uijk"
+		keys = recursivegrid.DefaultKeys
 	}
 
 	// Validate keys length matches grid dimensions

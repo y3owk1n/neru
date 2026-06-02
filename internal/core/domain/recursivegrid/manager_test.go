@@ -16,14 +16,14 @@ func TestNewManager(t *testing.T) {
 
 	manager := recursivegrid.NewManager(
 		bounds,
-		"uijk",
+		"rtyfghvbn",
 		func(image.Point) {},
 		func(point image.Point) {},
 		logger,
 	)
 
 	assert.NotNil(t, manager, "Manager should not be nil")
-	assert.Equal(t, "uijk", manager.Keys(), "Keys should be set")
+	assert.Equal(t, "rtyfghvbn", manager.Keys(), "Keys should be set")
 }
 
 func TestNewManagerDefaultKeys(t *testing.T) {
@@ -51,9 +51,15 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		func(image.Point) { updateCalled = true },
 		nil,
 		logger,
@@ -72,9 +78,15 @@ func TestManagerHandleInputEscapeKey(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		nil,
 		nil,
 		logger,
@@ -90,9 +102,15 @@ func TestManagerReset(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		nil,
 		nil,
 		logger,
@@ -115,9 +133,15 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		nil,
 		nil,
 		logger,
@@ -142,9 +166,15 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 	logger := zap.NewNop()
 
 	updateCalled := false
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		func(image.Point) { updateCalled = true },
 		nil,
 		logger,
@@ -281,8 +311,8 @@ func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 	// gridCols=0 is invalid (< MinGridDimension), so both dimensions are
-	// reset to DefaultGridCols×DefaultGridRows (2×2).
-	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
+	// reset to DefaultGridCols×DefaultGridRows (default).
+	// provided keys match default dimensions, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
@@ -296,9 +326,9 @@ func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 		nil,
 		logger,
 	)
-	// After fallback, should use default 2x2 with default keys
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
+	// After fallback, should use default dimensions with default keys
+	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
+	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
 	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
 }
 
@@ -327,8 +357,8 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// 1×1 is degenerate (cannot subdivide), so both dimensions fall back to 2×2.
-	// "a" has 1 key ≠ 2*2=4, so keys also fall back to DefaultKeys "uijk".
+	// 1×1 is degenerate (cannot subdivide), so both dimensions fall back to default.
+	// "a" has 1 key ≠ expected, so keys also fall back to DefaultKeys.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"a",
@@ -342,8 +372,8 @@ func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 		nil,
 		logger,
 	)
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
+	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
 	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
 }
 
@@ -351,8 +381,8 @@ func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 	// gridRows=0 is invalid (< MinGridDimension), so both dimensions are
-	// reset to DefaultGridCols×DefaultGridRows (2×2).
-	// "uijk" has 4 keys == 2*2, so no further fallback is needed.
+	// reset to DefaultGridCols×DefaultGridRows (default).
+	// provided keys match default dimensions, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
@@ -366,8 +396,8 @@ func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 		nil,
 		logger,
 	)
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
+	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
+	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
 	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
 }
 
@@ -502,9 +532,15 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 	// Use a key mapping that contains a literal space character (" ") as one of the 4 keys.
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"ui k", // keys: u=0, i=1, ' '=2, k=3
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		func(image.Point) {},
 		nil,
 		logger,
@@ -521,9 +557,15 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"uijk",
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		func(image.Point) {},
 		nil,
 		logger,
@@ -541,9 +583,15 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 	keys := "€abc" // 4 runes, valid length
 	logger := zap.NewNop()
 	screenBounds := image.Rect(0, 0, 100, 100)
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		screenBounds,
 		keys,
+		25,
+		25,
+		10,
+		2,
+		2,
+		nil, nil,
 		nil,
 		nil,
 		logger,

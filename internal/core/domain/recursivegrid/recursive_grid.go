@@ -8,13 +8,13 @@ const (
 	// MinGridDimension is the minimum allowed value for grid columns or rows.
 	MinGridDimension = 1
 	// DefaultGridCols is the default recursive-grid column count.
-	DefaultGridCols = 2
+	DefaultGridCols = 3
 	// DefaultGridRows is the default recursive-grid row count.
-	DefaultGridRows = 2
+	DefaultGridRows = 3
 )
 
 // Cell represents the index of a cell in the grid.
-// For 2x2 grids: 0=TL, 1=TR, 2=BL, 3=BR (named constants below).
+// For 3x3 grids: 0=TL, 1=TM, 2=TR, 3=ML, 4=MM, 5=MR, 6=BL, 7=BM, 8=BR (named constants below are only for 2x2).
 // For CxR grids: indices 0 to (C*R-1) are ordered left-to-right, top-to-bottom.
 // The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
 type Cell int
@@ -30,8 +30,8 @@ const (
 	BottomRight
 )
 
-// DefaultKeys is the default key mapping for cells (warpd convention).
-const DefaultKeys = "uijk"
+// DefaultKeys is the default key mapping for cells (3x3 grid, left-to-right top-to-bottom).
+const DefaultKeys = "rtyfghvbn"
 
 // DepthLayout defines the grid dimensions for a specific recursion depth.
 type DepthLayout struct {
@@ -54,7 +54,7 @@ type RecursiveGrid struct {
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds
-// using the default 2×2 grid dimensions and no per-depth overrides.
+// using the default 3×3 grid dimensions and no per-depth overrides.
 func NewRecursiveGrid(
 	screenBounds image.Rectangle,
 	minSizeWidth,

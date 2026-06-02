@@ -12,13 +12,13 @@ enabled = false
 
 [recursive_grid]
 enabled = true
-grid_cols = 2
-grid_rows = 2
-keys = "uijk"
+grid_cols = 3
+grid_rows = 3
+keys = "rtyfghvbn"
 
 [recursive_grid.animation]
-enabled = false
-duration_ms = 180
+enabled = true
+duration_ms = 50
 
 [recursive_grid.ui]
 # Add rounded label backgrounds behind recursive-grid letters

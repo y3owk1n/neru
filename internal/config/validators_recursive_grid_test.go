@@ -14,9 +14,9 @@ const (
 func TestConfigValidateRecursiveGrid_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.RecursiveGrid.Enabled = true
-	cfg.RecursiveGrid.GridCols = 2
-	cfg.RecursiveGrid.GridRows = 2
-	cfg.RecursiveGrid.Keys = "uijk"
+	cfg.RecursiveGrid.GridCols = 3
+	cfg.RecursiveGrid.GridRows = 3
+	cfg.RecursiveGrid.Keys = "rtyfghvbn"
 
 	err := cfg.ValidateRecursiveGrid()
 	if err != nil {
@@ -83,11 +83,11 @@ func TestConfigValidateRecursiveGrid_SmallMinSizeAllowed(t *testing.T) {
 	}
 }
 
-func TestDefaultConfigRecursiveGridAnimationDisabled(t *testing.T) {
+func TestDefaultConfigRecursiveGridAnimationEnabled(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	if cfg.RecursiveGrid.Animation.Enabled {
-		t.Fatal("DefaultConfig() recursive_grid.animation.enabled should default to false")
+	if !cfg.RecursiveGrid.Animation.Enabled {
+		t.Fatal("DefaultConfig() recursive_grid.animation.enabled should default to true")
 	}
 
 	if cfg.RecursiveGrid.Animation.DurationMS != config.DefaultRecursiveGridAnimationDurationMS {

@@ -232,7 +232,7 @@ const (
 	// DefaultRecursiveGridMinTotalCells is the minimum allowed total cells.
 	DefaultRecursiveGridMinTotalCells = 2
 	// DefaultRecursiveGridAnimationDurationMS is the default native recursive-grid transition duration in milliseconds.
-	DefaultRecursiveGridAnimationDurationMS = 180
+	DefaultRecursiveGridAnimationDurationMS = 50
 	// DefaultRecursiveGridLineWidth is the default line width for grid lines.
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridFontSize is the default font size for cell labels.
@@ -456,13 +456,13 @@ func newDefaultConfig() *Config {
 		RecursiveGrid: RecursiveGridConfig{
 			Enabled: true,
 			Animation: RecursiveGridAnimationConfig{
-				Enabled:    false,
+				Enabled:    true,
 				DurationMS: DefaultRecursiveGridAnimationDurationMS,
 			},
-			GridCols: 2, //nolint:mnd
-			GridRows: 2, //nolint:mnd
+			GridCols: 3, //nolint:mnd
+			GridRows: 3, //nolint:mnd
 
-			Keys: "uijk", // warpd convention: u=TL, i=TR, j=BL, k=BR
+			Keys: "rtyfghvbn", // 3x3 grid: left-to-right, top-to-bottom
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":    {"idle"},
 				"`":         {"toggle-cursor-follow-selection"},

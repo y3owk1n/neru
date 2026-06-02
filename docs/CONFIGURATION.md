@@ -553,9 +553,9 @@ Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see 
 | Option            | Type   | Default  | Description                                                      |
 | ----------------- | ------ | -------- | ---------------------------------------------------------------- |
 | `enabled`         | bool   | `true`   | Enable/disable mode                                              |
-| `grid_cols`       | int    | `2`      | Columns (≥ 1; total cells ≥ 2)                                   |
-| `grid_rows`       | int    | `2`      | Rows (≥ 1; total cells ≥ 2)                                      |
-| `keys`            | string | `"uijk"` | Cell selection keys (must be `grid_cols × grid_rows` characters) |
+| `grid_cols`       | int    | `3`      | Columns (≥ 1; total cells ≥ 2)                                   |
+| `grid_rows`       | int    | `3`      | Rows (≥ 1; total cells ≥ 2)                                      |
+| `keys`            | string | `"rtyfghvbn"` | Cell selection keys (must be `grid_cols × grid_rows` characters) |
 | `min_size_width`  | int    | `25`     | Minimum cell width in pixels                                     |
 | `min_size_height` | int    | `25`     | Minimum cell height in pixels                                    |
 | `max_depth`       | int    | `10`     | Maximum recursion levels (1–20)                                  |
@@ -584,8 +584,8 @@ layers = [
 
 | Option        | Type | Default | Description                                     |
 | ------------- | ---- | ------- | ----------------------------------------------- |
-| `enabled`     | bool | `false` | Native depth transitions on supported platforms |
-| `duration_ms` | int  | `180`   | Transition duration in milliseconds             |
+| `enabled`     | bool | `true` | Native depth transitions on supported platforms |
+| `duration_ms` | int  | `50`   | Transition duration in milliseconds             |
 
 ### UI
 
