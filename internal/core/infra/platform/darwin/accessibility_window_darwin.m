@@ -464,14 +464,32 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 			return NULL;
 		}
 
+		// Pre-compute window positions and PIDs to avoid O(N log N) IPC calls during sorting
+		NSMutableDictionary<NSValue *, NSValue *> *positions = [NSMutableDictionary dictionaryWithCapacity:total];
+		NSMutableDictionary<NSValue *, NSNumber *> *pids = [NSMutableDictionary dictionaryWithCapacity:total];
+		for (CFIndex i = 0; i < total; i++) {
+			AXUIElementRef w = (AXUIElementRef)CFArrayGetValueAtIndex(windowsCollector, i);
+			CGPoint pos = getWindowPosition(w);
+			positions[[NSValue valueWithPointer:w]] = [NSValue valueWithBytes:&pos objCType:@encode(CGPoint)];
+
+			pid_t pid = 0;
+			AXUIElementGetPid(w, &pid);
+			pids[[NSValue valueWithPointer:w]] = @(pid);
+		}
+
 		// Sort the collected windows stably by screen coordinates (y-coordinate first, then x-coordinate)
 		NSArray *sortedWindows =
 		    [(__bridge NSArray *)windowsCollector sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
 			    AXUIElementRef w1 = (__bridge AXUIElementRef)obj1;
 			    AXUIElementRef w2 = (__bridge AXUIElementRef)obj2;
 
-			    CGPoint p1 = getWindowPosition(w1);
-			    CGPoint p2 = getWindowPosition(w2);
+			    NSValue *key1 = [NSValue valueWithPointer:w1];
+			    NSValue *key2 = [NSValue valueWithPointer:w2];
+
+			    CGPoint p1 = CGPointZero;
+			    CGPoint p2 = CGPointZero;
+			    [positions[key1] getValue:&p1];
+			    [positions[key2] getValue:&p2];
 
 			    if (p1.y < p2.y)
 				    return NSOrderedAscending;
@@ -482,9 +500,8 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 			    if (p1.x > p2.x)
 				    return NSOrderedDescending;
 
-			    pid_t pid1 = 0, pid2 = 0;
-			    AXUIElementGetPid(w1, &pid1);
-			    AXUIElementGetPid(w2, &pid2);
+			    int pid1 = [pids[key1] intValue];
+			    int pid2 = [pids[key2] intValue];
 			    if (pid1 < pid2)
 				    return NSOrderedAscending;
 			    if (pid1 > pid2)
