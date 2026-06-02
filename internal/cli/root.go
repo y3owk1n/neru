@@ -512,6 +512,39 @@ Positive values move right/down, negative values move left/up.`,
 	return cmd
 }
 
+// BuildFocusWindowCommand creates a focus_window cobra command that cycles
+// window focus through all focusable windows on the active space.
+func BuildFocusWindowCommand() *cobra.Command {
+	var backward bool
+
+	cmd := &cobra.Command{
+		Use:   "focus_window",
+		Short: "Cycle focus through windows on the active space",
+		Long: `Cycle keyboard focus through all focusable windows on the current space.
+
+Cycles forward through windows (or backward with --backward), wrapping at the
+end. Only windows that are focusable (not minimized, not hidden) and on the
+current space are included.`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			actionArgs := []string{"focus_window"}
+
+			if backward {
+				actionArgs = append(actionArgs, "--backward")
+			}
+
+			return sendCommand(cmd, "action", actionArgs)
+		},
+	}
+
+	cmd.Flags().
+		BoolVar(&backward, "backward", false, "Cycle to the previous window instead of the next one")
+
+	return cmd
+}
+
 // BuildCycleHintCommand creates a cycle_hint cobra command that cycles through visible hints.
 func BuildCycleHintCommand() *cobra.Command {
 	var backward bool

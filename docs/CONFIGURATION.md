@@ -231,10 +231,11 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s` |
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
+| Focus       | `focus_window`, `focus_window --backward`                     |
 
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))
-- `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor_pos` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
+- `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, and `restore_cursor_pos` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 
 #### Feed Keys
 

@@ -22,6 +22,7 @@ Available subcommands:
                     go_top, go_bottom, page_up, page_down
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor
   Mode control:     reset, backspace, wait_for_mode_exit, cycle_hint
+  Window control:   focus_window
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Key injection:    feed
 
@@ -246,6 +247,9 @@ at the current cursor location.`,
 	false,
 )
 
+// ActionFocusWindowCmd cycles window focus on the active space.
+var ActionFocusWindowCmd = BuildFocusWindowCommand()
+
 // ActionCycleHintCmd cycles through visible hints in hints mode.
 var ActionCycleHintCmd = BuildCycleHintCommand()
 
@@ -273,6 +277,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageUpCmd)
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
+	ActionCmd.AddCommand(ActionFocusWindowCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

@@ -328,6 +328,172 @@ void *NeruGetFrontmostWindow(void) {
 	}
 }
 
+/// Get all focusable windows on the active space across all running applications.
+/// Filters out non-focusable windows (minimized, hidden, off-space, non-window roles).
+/// @param count Output parameter for number of windows
+/// @return Array of window element references
+void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
+	if (!count)
+		return NULL;
+
+	@autoreleasepool {
+		*count = 0;
+
+		NSArray *runningApps = [NSWorkspace sharedWorkspace].runningApplications;
+		CFMutableArrayRef windowsCollector = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+		if (!windowsCollector)
+			return NULL;
+
+		for (NSRunningApplication *app in runningApps) {
+			if (app.activationPolicy != NSApplicationActivationPolicyRegular)
+				continue;
+
+			pid_t pid = app.processIdentifier;
+			AXUIElementRef appElement = AXUIElementCreateApplication(pid);
+			if (!appElement)
+				continue;
+
+			CFTypeRef windowsValue = NULL;
+			AXError error = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute, &windowsValue);
+			if (error != kAXErrorSuccess || !windowsValue) {
+				CFRelease(appElement);
+				continue;
+			}
+
+			if (CFGetTypeID(windowsValue) != CFArrayGetTypeID()) {
+				CFRelease(windowsValue);
+				CFRelease(appElement);
+				continue;
+			}
+
+			CFArrayRef windows = (CFArrayRef)windowsValue;
+			CFIndex windowCount = CFArrayGetCount(windows);
+
+			for (CFIndex i = 0; i < windowCount; i++) {
+				AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
+				if (!window)
+					continue;
+
+				// Batch-fetch attributes for efficiency
+				CFStringRef attrs[] = {
+				    kAXRoleAttribute,
+				    kAXMinimizedAttribute,
+				    kAXHiddenAttribute,
+				    CFSTR("AXWindowIsOnActiveSpace"),
+				};
+				CFArrayRef attrArray = CFArrayCreate(NULL, (const void **)attrs, 4, &kCFTypeArrayCallBacks);
+				if (!attrArray)
+					continue;
+
+				CFArrayRef values = NULL;
+				AXError batchError = AXUIElementCopyMultipleAttributeValues(window, attrArray, 0, &values);
+				CFRelease(attrArray);
+
+				if (batchError != kAXErrorSuccess || !values) {
+					if (values)
+						CFRelease(values);
+					continue;
+				}
+
+				bool shouldInclude = false;
+
+				// role: must be AXWindow
+				if (CFArrayGetCount(values) > 0) {
+					CFTypeRef roleVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 0);
+					if (roleVal && CFGetTypeID(roleVal) == CFStringGetTypeID() &&
+					    CFStringCompare((CFStringRef)roleVal, CFSTR("AXWindow"), 0) == kCFCompareEqualTo) {
+						shouldInclude = true;
+					}
+				}
+
+				// minimized: exclude if true
+				if (shouldInclude && CFArrayGetCount(values) > 1) {
+					CFTypeRef minVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 1);
+					if (minVal && CFGetTypeID(minVal) == CFBooleanGetTypeID() &&
+					    CFBooleanGetValue((CFBooleanRef)minVal)) {
+						shouldInclude = false;
+					}
+				}
+
+				// hidden: exclude if true
+				if (shouldInclude && CFArrayGetCount(values) > 2) {
+					CFTypeRef hiddenVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
+					if (hiddenVal && CFGetTypeID(hiddenVal) == CFBooleanGetTypeID() &&
+					    CFBooleanGetValue((CFBooleanRef)hiddenVal)) {
+						shouldInclude = false;
+					}
+				}
+
+				// on active space: exclude if false or unsupported
+				if (shouldInclude && CFArrayGetCount(values) > 3) {
+					CFTypeRef spaceVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 3);
+					if (spaceVal && CFGetTypeID(spaceVal) == CFBooleanGetTypeID() &&
+					    !CFBooleanGetValue((CFBooleanRef)spaceVal)) {
+						shouldInclude = false;
+					}
+				}
+
+				CFRelease(values);
+
+				if (shouldInclude) {
+					CFArrayAppendValue(windowsCollector, window);
+				}
+			}
+
+			CFRelease(windowsValue);
+			CFRelease(appElement);
+		}
+
+		CFIndex total = CFArrayGetCount(windowsCollector);
+		if (total == 0) {
+			CFRelease(windowsCollector);
+			return NULL;
+		}
+
+		void **result = (void **)malloc(total * sizeof(void *));
+		if (!result) {
+			CFRelease(windowsCollector);
+			return NULL;
+		}
+
+		for (CFIndex i = 0; i < total; i++) {
+			result[i] = (void *)CFArrayGetValueAtIndex(windowsCollector, i);
+			CFRetain(result[i]);
+		}
+
+		CFRelease(windowsCollector);
+		*count = (int)total;
+		return result;
+	}
+}
+
+/// Activate a window: brings its application to the foreground and sets
+/// keyboard focus on the window.
+/// @param window Window element reference
+/// @return 1 on success, 0 on failure
+int NeruActivateWindow(void *window) {
+	if (!window)
+		return 0;
+
+	@autoreleasepool {
+		AXUIElementRef axWindow = (AXUIElementRef)window;
+
+		pid_t pid;
+		if (AXUIElementGetPid(axWindow, &pid) != kAXErrorSuccess)
+			return 0;
+
+		NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+		if (!app)
+			return 0;
+
+		[app activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+
+		AXError error = AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute, kCFBooleanTrue);
+
+		return (error == kAXErrorSuccess) ? 1 : 0;
+	}
+}
+
 /// Get the frame (position + size) of the focused window
 /// @return Window frame rectangle, or CGRectZero if no window is found
 CGRect NeruGetFocusedWindowFrame(void) {

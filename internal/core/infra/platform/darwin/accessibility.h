@@ -178,6 +178,12 @@ int NeruAreElementsEqual(void *element1, void *element2);
 
 #pragma mark - Window Functions
 
+/// Get all focusable windows on the active space across all running applications.
+/// Filters out non-focusable windows (minimized, hidden, off-space, non-window roles).
+/// @param count Output parameter for number of windows
+/// @return Array of window element references. Caller frees the array and releases refs.
+void **NeruGetAllFocusableWindowsOnActiveSpace(int *count);
+
 /// Get all windows of focused application
 /// @param count Output parameter for number of windows
 /// @return Array of window references
@@ -191,6 +197,11 @@ void **NeruGetFrontmostAndPopoverWindows(int *count);
 /// Get frontmost window
 /// @return Frontmost window reference
 void *NeruGetFrontmostWindow(void);
+
+/// Activate a window: brings its application to the foreground and sets focus.
+/// @param window Window element reference
+/// @return 1 on success, 0 on failure
+int NeruActivateWindow(void *window);
 
 /// Get the frame (position + size) of the focused window
 /// @return Window frame rectangle, or CGRectZero if no window is found

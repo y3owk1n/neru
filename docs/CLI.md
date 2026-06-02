@@ -72,7 +72,7 @@ neru idle                                  # Cancel active navigation mode
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
 
-Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
+Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
 
 > The `--action` flag is most useful in hints mode (Vimium-style). In grid/recursive-grid, prefer composing behavior in per-mode hotkeys: `["action left_click", "idle"]`.
 
@@ -363,6 +363,29 @@ neru action move_monitor --name "DELL U2720Q" # Move to named monitor
 | `--previous` | Cycle to previous monitor      |
 
 Find monitor names in **System Settings → Displays**.
+
+### Window Focus
+
+Cycles keyboard focus through all focusable windows on the current Space. Filters out minimized, hidden, and off-space windows.
+
+```bash
+neru action focus_window                        # Focus next window
+neru action focus_window --backward             # Focus previous window
+```
+
+| Flag         | Description                              |
+| ------------ | ---------------------------------------- |
+| `--backward` | Cycle to the previous window instead of next |
+
+Windows are enumerated across all running applications. Only windows with role `AXWindow` that are visible, not minimized, and on the active space are included.
+
+Bind to hotkeys for quick window switching:
+
+```toml
+[global.hotkeys]
+"Primary+Tab"       = "action focus_window"
+"Primary+Shift+Tab" = "action focus_window --backward"
+```
 
 ### Delay
 

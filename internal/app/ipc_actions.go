@@ -312,6 +312,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleSearchHintsAction(parsed)
 	}
 
+	if action.IsFocusWindowAction(actionName) {
+		return h.handleFocusWindowAction(ctx, parsed)
+	}
+
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return ipc.Response{
