@@ -17,6 +17,7 @@ type mockApp struct {
 	recursiveGridEnabled bool
 	isEnabled            bool
 	hiddenForScreenShare bool
+	scrollInverted       bool
 	activatedMode        domain.Mode
 	configPath           string
 	reloadCalled         bool
@@ -63,7 +64,17 @@ func (m *mockApp) OnScreenShareStateChanged(callback func(bool)) uint64 {
 	return 0
 }
 func (m *mockApp) OffScreenShareStateChanged(id uint64) {}
-func (m *mockApp) Quit()                                {}
+func (m *mockApp) IsScrollInverted() bool               { return m.scrollInverted }
+func (m *mockApp) SetScrollInverted(inverted bool)      { m.scrollInverted = inverted }
+func (m *mockApp) ToggleScrollInvert() bool {
+	newState := !m.scrollInverted
+	m.scrollInverted = newState
+
+	return newState
+}
+func (m *mockApp) OnScrollInvertStateChanged(callback func(bool)) uint64 { return 0 }
+func (m *mockApp) OffScrollInvertStateChanged(id uint64)                 {}
+func (m *mockApp) Quit()                                                 {}
 
 func TestNewComponent(t *testing.T) {
 	logger := zaptest.NewLogger(t)

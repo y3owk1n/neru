@@ -107,6 +107,23 @@ func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 		zap.Int("scroll_step_full", config.ScrollStepFull))
 }
 
+// IsScrollInverted returns whether scroll direction inversion is currently enabled.
+func (s *ScrollService) IsScrollInverted() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.config.InvertScroll
+}
+
+// SetInvertScroll sets the scroll direction inversion state.
+func (s *ScrollService) SetInvertScroll(inverted bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.config.InvertScroll = inverted
+	s.logger.Debug("Scroll invert set", zap.Bool("invert_scroll", s.config.InvertScroll))
+}
+
 // calculateDelta computes the scroll delta values based on direction and magnitude.
 // If stepOverride is > 0, it takes precedence over the configured value.
 func (s *ScrollService) calculateDelta(
@@ -118,19 +135,21 @@ func (s *ScrollService) calculateDelta(
 	var (
 		deltaX, deltaY int
 		baseScroll     int
+		invertScroll   bool
 	)
+
+	// Snapshot config under lock, then release before IPC call
+	s.mu.RLock()
+	scrollStep := s.config.ScrollStep
+	scrollStepHalf := s.config.ScrollStepHalf
+	scrollStepFull := s.config.ScrollStepFull
+	invertScroll = s.config.InvertScroll
+	configSnapshot := s.config
+	s.mu.RUnlock()
 
 	if stepOverride > 0 {
 		baseScroll = stepOverride
 	} else {
-		// Snapshot config under lock, then release before IPC call
-		s.mu.RLock()
-		scrollStep := s.config.ScrollStep
-		scrollStepHalf := s.config.ScrollStepHalf
-		scrollStepFull := s.config.ScrollStepFull
-		configSnapshot := s.config
-		s.mu.RUnlock()
-
 		// Only perform IPC lookup if there are app-specific overrides configured
 		if len(configSnapshot.AppConfigs) > 0 {
 			bundleID, err := s.accessibility.FocusedAppBundleID(ctx)
@@ -171,6 +190,11 @@ func (s *ScrollService) calculateDelta(
 		deltaX = baseScroll
 	case ScrollDirectionRight:
 		deltaX = -baseScroll
+	}
+
+	if invertScroll {
+		deltaX = -deltaX
+		deltaY = -deltaY
 	}
 
 	return deltaX, deltaY

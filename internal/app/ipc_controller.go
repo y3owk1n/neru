@@ -161,4 +161,8 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Register overlay handler
 	overlayHandler := NewIPCControllerOverlay(c.AppState, c.Logger)
 	overlayHandler.RegisterHandlers(c.Handlers)
+
+	// Register scroll handler
+	scrollHandler := NewIPCControllerScroll(c.AppState, c.ScrollService, c.Logger)
+	scrollHandler.RegisterHandlers(c.Handlers)
 }

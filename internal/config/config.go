@@ -521,6 +521,8 @@ type ScrollConfig struct {
 	ScrollStepHalf int `json:"scrollStepHalf" toml:"scroll_step_half"`
 	ScrollStepFull int `json:"scrollStepFull" toml:"scroll_step_full"`
 
+	InvertScroll bool `json:"invertScroll" toml:"invert_scroll"`
+
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`

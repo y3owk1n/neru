@@ -1269,7 +1269,8 @@ func validateHotkeyActionString(actionStr string) error {
 
 	switch cmd {
 	case "idle", "hints", "grid", "scroll", "recursive_grid",
-		"toggle-screen-share", "toggle-cursor-follow-selection":
+		"toggle-screen-share", "toggle-cursor-follow-selection",
+		"toggle-scroll-invert":
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

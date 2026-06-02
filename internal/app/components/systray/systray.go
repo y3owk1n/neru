@@ -36,6 +36,12 @@ type AppInterface interface {
 	ToggleOverlayHiddenForScreenShare() bool
 	OnScreenShareStateChanged(callback func(bool)) uint64
 	OffScreenShareStateChanged(id uint64)
+	// Scroll invert toggle
+	IsScrollInverted() bool
+	SetScrollInverted(inverted bool)
+	ToggleScrollInvert() bool
+	OnScrollInvertStateChanged(callback func(bool)) uint64
+	OffScrollInvertStateChanged(id uint64)
 	// Quit triggers a graceful shutdown of the application.
 	Quit()
 }
@@ -51,45 +57,50 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersionCopy       *systray.MenuItem
-	mToggleDisable     *systray.MenuItem
-	mToggleEnable      *systray.MenuItem
-	mToggleScreenShare *systray.MenuItem
-	mModes             *systray.MenuItem
-	mHints             *systray.MenuItem
-	mGrid              *systray.MenuItem
-	mRecursiveGrid     *systray.MenuItem
-	mReloadConfig      *systray.MenuItem
-	mHelp              *systray.MenuItem
-	mSourceCode        *systray.MenuItem
-	mDocsConfig        *systray.MenuItem
-	mDocsCLI           *systray.MenuItem
-	mReportBug         *systray.MenuItem
-	mFeatureRequest    *systray.MenuItem
-	mDiscuss           *systray.MenuItem
-	mQuit              *systray.MenuItem
+	mVersionCopy        *systray.MenuItem
+	mToggleDisable      *systray.MenuItem
+	mToggleEnable       *systray.MenuItem
+	mToggleScreenShare  *systray.MenuItem
+	mToggleScrollInvert *systray.MenuItem
+	mModes              *systray.MenuItem
+	mHints              *systray.MenuItem
+	mGrid               *systray.MenuItem
+	mRecursiveGrid      *systray.MenuItem
+	mReloadConfig       *systray.MenuItem
+	mHelp               *systray.MenuItem
+	mSourceCode         *systray.MenuItem
+	mDocsConfig         *systray.MenuItem
+	mDocsCLI            *systray.MenuItem
+	mReportBug          *systray.MenuItem
+	mFeatureRequest     *systray.MenuItem
+	mDiscuss            *systray.MenuItem
+	mQuit               *systray.MenuItem
 
 	// State update signaling (thread-safe communication)
-	stateUpdateSignal              chan struct{} // Signal that state changed
-	latestState                    atomic.Bool   // Latest enabled state
-	screenShareUpdateSignal        chan struct{} // Signal for screen share state changes
-	latestScreenShareState         atomic.Bool   // Latest screen share hide state
-	chanClosed                     atomic.Bool
-	enabledStateSubscriptionID     uint64 // ID for unsubscribing on cleanup
-	screenShareStateSubscriptionID uint64 // ID for screen share state unsubscription
+	stateUpdateSignal               chan struct{} // Signal that state changed
+	latestState                     atomic.Bool   // Latest enabled state
+	screenShareUpdateSignal         chan struct{} // Signal for screen share state changes
+	latestScreenShareState          atomic.Bool   // Latest screen share hide state
+	scrollInvertUpdateSignal        chan struct{} // Signal for scroll invert state changes
+	latestScrollInvertState         atomic.Bool   // Latest scroll invert state
+	chanClosed                      atomic.Bool
+	enabledStateSubscriptionID      uint64 // ID for unsubscribing on cleanup
+	screenShareStateSubscriptionID  uint64 // ID for screen share state unsubscription
+	scrollInvertStateSubscriptionID uint64 // ID for scroll invert state unsubscription
 }
 
 // NewComponent creates a new systray component.
 func NewComponent(app AppInterface, system ports.SystemPort, logger *zap.Logger) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
-		app:                     app,
-		system:                  system,
-		logger:                  logger,
-		ctx:                     ctx,
-		cancel:                  cancel,
-		stateUpdateSignal:       make(chan struct{}, 1),
-		screenShareUpdateSignal: make(chan struct{}, 1),
+		app:                      app,
+		system:                   system,
+		logger:                   logger,
+		ctx:                      ctx,
+		cancel:                   cancel,
+		stateUpdateSignal:        make(chan struct{}, 1),
+		screenShareUpdateSignal:  make(chan struct{}, 1),
+		scrollInvertUpdateSignal: make(chan struct{}, 1),
 	}
 
 	// Register callback immediately for enabled state changes
@@ -119,6 +130,22 @@ func NewComponent(app AppInterface, system ports.SystemPort, logger *zap.Logger)
 
 		select {
 		case component.screenShareUpdateSignal <- struct{}{}:
+		default:
+			// Signal already pending, state will be read when processed
+		}
+	})
+
+	// Register callback for scroll invert state changes
+	component.scrollInvertStateSubscriptionID = app.OnScrollInvertStateChanged(func(inverted bool) {
+		// Don't send if channel is closed
+		if component.chanClosed.Load() {
+			return
+		}
+		// Store latest state and signal update
+		component.latestScrollInvertState.Store(inverted)
+
+		select {
+		case component.scrollInvertUpdateSignal <- struct{}{}:
 		default:
 			// Signal already pending, state will be read when processed
 		}
@@ -173,6 +200,9 @@ func (c *Component) OnReady() {
 	systray.AddSeparator()
 
 	c.mToggleScreenShare = systray.AddMenuItem("Screen Share: Visible")
+	c.mToggleScrollInvert = systray.AddMenuItem("Scroll Invert: Off")
+
+	systray.AddSeparator()
 
 	c.mQuit = systray.AddMenuItem("Quit")
 
@@ -196,6 +226,7 @@ func (c *Component) OnExit() {
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
+	c.app.OffScrollInvertStateChanged(c.scrollInvertStateSubscriptionID)
 }
 
 // Close cleans up systray component resources.
@@ -206,6 +237,7 @@ func (c *Component) Close() {
 	c.cancel()               // Signal event goroutine to stop
 	c.app.OffEnabledStateChanged(c.enabledStateSubscriptionID)
 	c.app.OffScreenShareStateChanged(c.screenShareStateSubscriptionID)
+	c.app.OffScrollInvertStateChanged(c.scrollInvertStateSubscriptionID)
 }
 
 // updateMenuItems updates the systray menu items based on the current enabled state.
@@ -294,6 +326,8 @@ func (c *Component) handleEvents() {
 			}()
 		case <-c.mToggleScreenShare.ClickedCh:
 			c.handleToggleScreenShare()
+		case <-c.mToggleScrollInvert.ClickedCh:
+			c.handleToggleScrollInvert()
 		case <-c.mQuit.ClickedCh:
 			c.app.Quit()
 
@@ -302,6 +336,8 @@ func (c *Component) handleEvents() {
 			c.updateMenuItems(c.latestState.Load())
 		case <-c.screenShareUpdateSignal:
 			c.updateScreenShareMenuItem(c.latestScreenShareState.Load())
+		case <-c.scrollInvertUpdateSignal:
+			c.updateScrollInvertMenuItem(c.latestScrollInvertState.Load())
 		}
 	}
 }
@@ -355,5 +391,29 @@ func (c *Component) updateScreenShareMenuItem(hidden bool) {
 		c.mToggleScreenShare.SetTitle("Screen Share: Hidden")
 	} else {
 		c.mToggleScreenShare.SetTitle("Screen Share: Visible")
+	}
+}
+
+// handleToggleScrollInvert toggles the scroll direction inversion.
+func (c *Component) handleToggleScrollInvert() {
+	// Atomically toggle - the callback will update the menu item
+	newState := c.app.ToggleScrollInvert()
+
+	status := "off"
+	if newState {
+		status = "on"
+	}
+
+	if c.system != nil {
+		c.system.ShowNotification("Neru", "Scroll invert: "+status)
+	}
+}
+
+// updateScrollInvertMenuItem updates the scroll invert menu item text based on state.
+func (c *Component) updateScrollInvertMenuItem(inverted bool) {
+	if inverted {
+		c.mToggleScrollInvert.SetTitle("Scroll Invert: On")
+	} else {
+		c.mToggleScrollInvert.SetTitle("Scroll Invert: Off")
 	}
 }

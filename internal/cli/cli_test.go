@@ -114,6 +114,7 @@ func TestCommandInitialization(t *testing.T) {
 		"services":                       false,
 		"toggle-screen-share":            false,
 		"toggle-cursor-follow-selection": false,
+		"toggle-scroll-invert":           false,
 		"recursive_grid":                 false,
 	}
 

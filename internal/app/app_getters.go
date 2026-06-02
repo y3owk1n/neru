@@ -170,3 +170,39 @@ func (a *App) OnScreenShareStateChanged(callback func(bool)) uint64 {
 func (a *App) OffScreenShareStateChanged(id uint64) {
 	a.appState.OffScreenShareStateChanged(id)
 }
+
+// IsScrollInverted returns whether scroll direction inversion is enabled.
+func (a *App) IsScrollInverted() bool {
+	return a.appState.IsScrollInverted()
+}
+
+// SetScrollInverted sets whether scroll direction inversion is enabled.
+func (a *App) SetScrollInverted(inverted bool) {
+	a.appState.SetScrollInverted(inverted)
+	a.syncScrollInvertToService(inverted)
+}
+
+// ToggleScrollInvert toggles the scroll direction inversion and returns the new state.
+func (a *App) ToggleScrollInvert() bool {
+	newState := a.appState.ToggleScrollInverted()
+	a.syncScrollInvertToService(newState)
+
+	return newState
+}
+
+// OnScrollInvertStateChanged registers a callback for when the scroll invert state changes.
+func (a *App) OnScrollInvertStateChanged(callback func(bool)) uint64 {
+	return a.appState.OnScrollInvertStateChanged(callback)
+}
+
+// OffScrollInvertStateChanged unsubscribes a callback by ID.
+func (a *App) OffScrollInvertStateChanged(id uint64) {
+	a.appState.OffScrollInvertStateChanged(id)
+}
+
+// syncScrollInvertToService syncs the scroll invert state from AppState to the scroll service.
+func (a *App) syncScrollInvertToService(inverted bool) {
+	if a.scrollService != nil {
+		a.scrollService.SetInvertScroll(inverted)
+	}
+}
