@@ -438,7 +438,7 @@ void **NeruGetAllFocusableWindowsOnActiveSpace(int *count) {
 					}
 				}
 
-				// on active space: exclude if false or unsupported
+				// on active space: exclude if false (gracefully include if unsupported)
 				if (shouldInclude && CFArrayGetCount(values) > 2) {
 					CFTypeRef spaceVal = (CFTypeRef)CFArrayGetValueAtIndex(values, 2);
 					if (spaceVal && CFGetTypeID(spaceVal) == CFBooleanGetTypeID() &&
