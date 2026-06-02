@@ -68,6 +68,9 @@ const (
 	// DefaultGridFontSize is the default font size for grid.
 	DefaultGridFontSize = 10
 
+	// DefaultScrollInvert is the default scroll inversion setting.
+	DefaultScrollInvert = false
+
 	// DefaultScrollStep is the default scroll step.
 	DefaultScrollStep = 50
 	// DefaultScrollStepHalf is the default scroll step half.
@@ -586,6 +589,7 @@ func newDefaultConfig() *Config {
 			ScrollStep:     DefaultScrollStep,
 			ScrollStepHalf: DefaultScrollStepHalf,
 			ScrollStepFull: DefaultScrollStepFull,
+			InvertScroll:   DefaultScrollInvert,
 			AppConfigs:     []AppConfig{},
 			Hotkeys: map[string]StringOrStringArray{
 				"Escape":   {"idle"},

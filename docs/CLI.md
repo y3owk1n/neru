@@ -179,7 +179,17 @@ neru scroll
 ```bash
 neru toggle-screen-share                  # Toggle overlay visibility during screen sharing
 neru toggle-cursor-follow-selection       # Toggle cursor-follow-selection in active hints/grid/recursive-grid session
+neru toggle-scroll-invert                 # Toggle scroll direction inversion
 ```
+
+### Scroll Invert
+
+Toggles whether vertical and horizontal scroll deltas are inverted at runtime.
+Useful when using tools like [Mos](https://github.com/Caldis/Mos) that reverse
+synthetic scroll events. Also configurable via `invert_scroll` in
+[CONFIGURATION.md](CONFIGURATION.md#scroll) and accessible via systray menu.
+
+- State resets to the configured `invert_scroll` value on daemon restart
 
 ### Screen Sharing
 

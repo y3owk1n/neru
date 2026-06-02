@@ -98,6 +98,9 @@ func initializeApp(app *App) (*App, error) {
 	initializeApplicationState(app)
 	// Application state doesn't need cleanup as it's just in-memory objects
 
+	// Sync initial config values to AppState
+	syncInitialConfigToAppState(app)
+
 	// Phase 4: Initialize UI components
 	err = initializeUIComponents(app)
 	if err != nil {

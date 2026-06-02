@@ -93,6 +93,7 @@ func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.updateServiceConfigs(cfg)
 	a.updateControllerConfigs(cfg)
 	a.syncScreenShareConfig(cfg)
+	a.syncScrollInvertConfig(cfg)
 }
 
 func (a *App) updateComponentConfigs(cfg *config.Config) {
@@ -155,5 +156,26 @@ func (a *App) updateControllerConfigs(cfg *config.Config) {
 func (a *App) syncScreenShareConfig(cfg *config.Config) {
 	if a.appState.IsHiddenForScreenShare() != cfg.General.HideOverlayInScreenShare {
 		a.appState.SetHiddenForScreenShare(cfg.General.HideOverlayInScreenShare)
+	}
+}
+
+func (a *App) syncScrollInvertConfig(cfg *config.Config) {
+	if a.appState.IsScrollInverted() != cfg.Scroll.InvertScroll {
+		a.appState.SetScrollInverted(cfg.Scroll.InvertScroll)
+		a.syncScrollInvertToService(cfg.Scroll.InvertScroll)
+	}
+}
+
+// syncInitialConfigToAppState syncs configuration values to AppState during startup.
+// This ensures AppState reflects the config file values before any runtime toggles.
+func syncInitialConfigToAppState(app *App) {
+	cfg := app.configSnapshot()
+
+	if app.appState.IsHiddenForScreenShare() != cfg.General.HideOverlayInScreenShare {
+		app.appState.SetHiddenForScreenShare(cfg.General.HideOverlayInScreenShare)
+	}
+
+	if app.appState.IsScrollInverted() != cfg.Scroll.InvertScroll {
+		app.appState.SetScrollInverted(cfg.Scroll.InvertScroll)
 	}
 }

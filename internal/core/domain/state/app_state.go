@@ -15,14 +15,16 @@ type AppState struct {
 	enabled              bool
 	currentMode          domain.Mode
 	hiddenForScreenShare bool
+	scrollInverted       bool
 
 	// Callbacks - stored as map for O(1) unsubscribe
-	// Note: Both callback maps share a single nextCallbackID counter to ensure
+	// Note: All callback maps share a single nextCallbackID counter to ensure
 	// globally unique subscription IDs. Each Off* method only unsubscribes from
 	// its corresponding map, so misdirected unsubscribes are safely ignored.
-	enabledStateCallbacks     map[uint64]func(bool)
-	screenShareStateCallbacks map[uint64]func(bool)
-	nextCallbackID            uint64
+	enabledStateCallbacks      map[uint64]func(bool)
+	screenShareStateCallbacks  map[uint64]func(bool)
+	scrollInvertStateCallbacks map[uint64]func(bool)
+	nextCallbackID             uint64
 
 	// Operational flags
 	hotkeysRegistered                bool
@@ -37,12 +39,14 @@ type AppState struct {
 // NewAppState creates a new AppState with default values.
 func NewAppState() *AppState {
 	return &AppState{
-		enabled:                   true,
-		currentMode:               domain.ModeIdle,
-		hiddenForScreenShare:      false,
-		enabledStateCallbacks:     make(map[uint64]func(bool)),
-		screenShareStateCallbacks: make(map[uint64]func(bool)),
-		nextCallbackID:            1, // Start at 1 so 0 can be used as nil sentinel
+		enabled:                    true,
+		currentMode:                domain.ModeIdle,
+		hiddenForScreenShare:       false,
+		scrollInverted:             false,
+		enabledStateCallbacks:      make(map[uint64]func(bool)),
+		screenShareStateCallbacks:  make(map[uint64]func(bool)),
+		scrollInvertStateCallbacks: make(map[uint64]func(bool)),
+		nextCallbackID:             1, // Start at 1 so 0 can be used as nil sentinel
 	}
 }
 
@@ -230,6 +234,91 @@ func (s *AppState) OnScreenShareStateChanged(callback func(bool)) uint64 {
 func (s *AppState) OffScreenShareStateChanged(id uint64) {
 	s.mu.Lock()
 	delete(s.screenShareStateCallbacks, id)
+	s.mu.Unlock()
+}
+
+// IsScrollInverted returns whether scroll direction inversion is enabled.
+func (s *AppState) IsScrollInverted() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.scrollInverted
+}
+
+// SetScrollInverted sets whether scroll direction inversion is enabled.
+func (s *AppState) SetScrollInverted(inverted bool) {
+	s.mu.Lock()
+	oldInverted := s.scrollInverted
+	s.scrollInverted = inverted
+
+	callbacks := make([]func(bool), 0, len(s.scrollInvertStateCallbacks))
+	for _, cb := range s.scrollInvertStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
+	s.mu.Unlock()
+
+	if oldInverted != inverted {
+		for _, callback := range callbacks {
+			if callback != nil {
+				go callback(inverted)
+			}
+		}
+	}
+}
+
+// ToggleScrollInverted atomically toggles the scroll invert state and notifies callbacks.
+// This avoids the check-then-act race of calling IsScrollInverted() + SetScrollInverted().
+func (s *AppState) ToggleScrollInverted() bool {
+	s.mu.Lock()
+	oldInverted := s.scrollInverted
+	s.scrollInverted = !oldInverted
+	newInverted := s.scrollInverted
+
+	// Copy callbacks to slice for iteration outside lock
+	callbacks := make([]func(bool), 0, len(s.scrollInvertStateCallbacks))
+	for _, cb := range s.scrollInvertStateCallbacks {
+		callbacks = append(callbacks, cb)
+	}
+
+	s.mu.Unlock()
+
+	// State always changes in a toggle, notify all callbacks
+	for _, callback := range callbacks {
+		if callback != nil {
+			go callback(newInverted)
+		}
+	}
+
+	return newInverted
+}
+
+// OnScrollInvertStateChanged registers a callback for when the scroll invert state changes.
+// Returns a subscription ID that can be used to unsubscribe later.
+func (s *AppState) OnScrollInvertStateChanged(callback func(bool)) uint64 {
+	if callback == nil {
+		return 0
+	}
+
+	s.mu.Lock()
+
+	nextCallbackID := s.nextCallbackID
+	s.nextCallbackID++
+	s.scrollInvertStateCallbacks[nextCallbackID] = callback
+	currentState := s.scrollInverted
+
+	s.mu.Unlock()
+
+	// Fire initial callback via goroutine for consistency with SetScrollInverted
+	go callback(currentState)
+
+	return nextCallbackID
+}
+
+// OffScrollInvertStateChanged unsubscribes a callback using the ID returned by OnScrollInvertStateChanged.
+func (s *AppState) OffScrollInvertStateChanged(id uint64) {
+	s.mu.Lock()
+	delete(s.scrollInvertStateCallbacks, id)
 	s.mu.Unlock()
 }
 

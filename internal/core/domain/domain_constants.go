@@ -34,6 +34,7 @@ const (
 	CommandHealth                      = "health"
 	CommandToggleScreenShare           = "toggle-screen-share"
 	CommandToggleCursorFollowSelection = "toggle-cursor-follow-selection"
+	CommandToggleScrollInvert          = "toggle-scroll-invert"
 )
 
 // Mode-related constants.

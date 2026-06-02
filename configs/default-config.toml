@@ -258,6 +258,7 @@ easing = "ease_out"                         # linear, ease_in, ease_out, ease_in
 scroll_step = 50                            # Pixels per j/k press
 scroll_step_half = 500                      # Pixels for d/u (half page)
 scroll_step_full = 1000000                  # Pixels for gg/G (top/bottom)
+invert_scroll = false                       # Invert scroll direction (for tools like Mos)
 
 [scroll.hotkeys]
 "Escape" = "idle"

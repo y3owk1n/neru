@@ -228,6 +228,78 @@ func TestScrollService_Scroll(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:      "invert scroll down becomes up",
+			direction: services.ScrollDirectionDown,
+			amount:    services.ScrollAmountChar,
+			setupConfig: func(c *config.ScrollConfig) {
+				c.InvertScroll = true
+			},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+					if deltaY <= 0 {
+						t.Errorf("Expected positive deltaY (inverted from down), got %d", deltaY)
+					}
+
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "invert scroll up becomes down",
+			direction: services.ScrollDirectionUp,
+			amount:    services.ScrollAmountChar,
+			setupConfig: func(c *config.ScrollConfig) {
+				c.InvertScroll = true
+			},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+					if deltaY >= 0 {
+						t.Errorf("Expected negative deltaY (inverted from up), got %d", deltaY)
+					}
+
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "invert scroll left becomes right",
+			direction: services.ScrollDirectionLeft,
+			amount:    services.ScrollAmountChar,
+			setupConfig: func(c *config.ScrollConfig) {
+				c.InvertScroll = true
+			},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+					if deltaX >= 0 {
+						t.Errorf("Expected negative deltaX (inverted from left), got %d", deltaX)
+					}
+
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name:      "invert scroll right becomes left",
+			direction: services.ScrollDirectionRight,
+			amount:    services.ScrollAmountChar,
+			setupConfig: func(c *config.ScrollConfig) {
+				c.InvertScroll = true
+			},
+			setupMocks: func(acc *mocks.MockAccessibilityPort) {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+					if deltaX <= 0 {
+						t.Errorf("Expected positive deltaX (inverted from right), got %d", deltaX)
+					}
+
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
 			name:      "scroll down with app override",
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,

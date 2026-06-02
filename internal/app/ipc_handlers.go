@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -558,5 +559,56 @@ func (h *IPCControllerOverlay) handleToggleScreenShare(
 		Message: "screen share visibility: " + status,
 		Code:    ipc.CodeOK,
 		Data:    map[string]bool{"hidden": newState},
+	}
+}
+
+// IPCControllerScroll handles scroll-related IPC commands.
+type IPCControllerScroll struct {
+	appState      *state.AppState
+	scrollService *services.ScrollService
+	logger        *zap.Logger
+}
+
+// NewIPCControllerScroll creates a new scroll command handler.
+func NewIPCControllerScroll(
+	appState *state.AppState,
+	scrollService *services.ScrollService,
+	logger *zap.Logger,
+) *IPCControllerScroll {
+	return &IPCControllerScroll{
+		appState:      appState,
+		scrollService: scrollService,
+		logger:        logger,
+	}
+}
+
+// RegisterHandlers registers scroll command handlers.
+func (h *IPCControllerScroll) RegisterHandlers(
+	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
+) {
+	handlers[domain.CommandToggleScrollInvert] = h.handleToggleScrollInvert
+}
+
+func (h *IPCControllerScroll) handleToggleScrollInvert(
+	_ context.Context,
+	_ ipc.Command,
+) ipc.Response {
+	// Atomically toggle to avoid check-then-act race
+	newState := h.appState.ToggleScrollInverted()
+
+	if h.scrollService != nil {
+		h.scrollService.SetInvertScroll(newState)
+	}
+
+	status := "off"
+	if newState {
+		status = "on"
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "scroll invert: " + status,
+		Code:    ipc.CodeOK,
+		Data:    map[string]bool{"inverted": newState},
 	}
 }

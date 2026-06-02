@@ -639,6 +639,7 @@ Keyboard-driven scrolling.
 | `scroll_step`      | int  | `50`      | Pixels per line scroll action      |
 | `scroll_step_half` | int  | `500`     | Pixels per half-page action        |
 | `scroll_step_full` | int  | `1000000` | Pixels for top/bottom jump actions |
+| `invert_scroll`    | bool | `false`   | Invert scroll direction (useful when using tools like Mos that reverse synthetic scroll events) |
 
 ### Default Hotkeys
 
