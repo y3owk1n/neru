@@ -272,13 +272,4 @@ void NeruHideCursorIndicator(OverlayWindow window);
 /// @param style Indicator style
 void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle style);
 
-/// Position and resize overlay window to a specific rect centered on a point.
-/// Uses absolute Quartz coordinates for the center point.
-/// @param window Overlay window handle
-/// @param absoluteX Absolute Quartz X coordinate
-/// @param absoluteY Absolute Quartz Y coordinate
-/// @param width Window width in points
-/// @param height Window height in points
-void NeruPositionOverlayRelative(OverlayWindow window, double absoluteX, double absoluteY, double width, double height);
-
 #endif  // OVERLAY_H

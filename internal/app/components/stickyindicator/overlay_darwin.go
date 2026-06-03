@@ -27,11 +27,6 @@ const (
 	stickyIndicatorWidth  = 60
 	stickyIndicatorHeight = 20
 
-	// stickyWindowWidth is the width of the small overlay window for the sticky indicator.
-	stickyWindowWidth = 300
-	// stickyWindowHeight is the height of the small overlay window for the sticky indicator.
-	stickyWindowHeight = 150
-
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
@@ -126,18 +121,23 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// ResizeToActiveScreen is a no-op for sticky indicator overlays.
-// Sticky indicator windows are small and positioned dynamically by Draw
-// using NeruPositionOverlay, so full-screen resizing is unnecessary.
-// This avoids allocating a full-screen backing store (~47MB on Retina).
+// ResizeToActiveScreen adjusts the overlay window size with callback notification.
+// Falls back to a non-callback resize if the callback ID pool is exhausted.
 func (o *Overlay) ResizeToActiveScreen() {
-	// No-op: positioning is handled dynamically in Draw.
+	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.resizeStickyIndicatorCompletionCallback),
+			contextPtr,
+		)
+	})
+	if !started {
+		C.NeruResizeOverlayToActiveScreen(o.window)
+	}
 }
 
 // Draw draws the sticky modifier symbols near the specified cursor position.
-// xCoordinate and yCoordinate are absolute Quartz screen coordinates.
-// The overlay positions a small window around the indicator badge
-// instead of using a full-screen window, saving ~47MB of backing store.
 // X/Y offsets from uiConfig are applied internally (under configMu) to match
 // the mode indicator pattern. The caller must call Show() before Draw() for
 // the content to be visible.
@@ -201,24 +201,11 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		)
 	})
 
-	// Position the small window centered on the indicator's absolute position.
-	// This avoids a full-screen backing store (~47MB on Retina).
-	indicatorAbsX := xCoordinate + xOffset
-	indicatorAbsY := yCoordinate + yOffset
-	C.NeruPositionOverlayRelative(
-		o.window,
-		C.double(indicatorAbsX),
-		C.double(indicatorAbsY),
-		C.double(stickyWindowWidth),
-		C.double(stickyWindowHeight),
-	)
-
-	// Position is at the center of the small window (in Quartz top-left coords).
 	hint := C.HintData{
 		label: label,
 		position: C.CGPoint{
-			x: C.double(stickyWindowWidth / 2),  //nolint:mnd
-			y: C.double(stickyWindowHeight / 2), //nolint:mnd
+			x: C.double(xCoordinate + xOffset),
+			y: C.double(yCoordinate + yOffset),
 		},
 		size: C.CGSize{
 			width:  stickyIndicatorWidth,

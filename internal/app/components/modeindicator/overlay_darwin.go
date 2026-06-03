@@ -30,12 +30,6 @@ const (
 	// defaultIndicatorHeight is the default height for the mode indicator.
 	defaultIndicatorHeight = 20
 
-	// indicatorWindowWidth is the width of the small overlay window for the mode indicator.
-	// Generous enough to accommodate the badge with any reasonable offset.
-	indicatorWindowWidth = 300
-	// indicatorWindowHeight is the height of the small overlay window for the mode indicator.
-	indicatorWindowHeight = 150
-
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
@@ -155,12 +149,25 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// ResizeToActiveScreen is a no-op for mode indicator overlays.
-// Mode indicator windows are small and positioned dynamically by DrawModeIndicator
-// using NeruPositionOverlay, so full-screen resizing is unnecessary.
-// This avoids allocating a full-screen backing store (~47MB on Retina).
+// ResizeToActiveScreen adjusts the overlay window size with callback notification.
+// Falls back to a non-callback resize if the callback ID pool is exhausted.
 func (o *Overlay) ResizeToActiveScreen() {
-	// No-op: positioning is handled dynamically in DrawModeIndicator.
+	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
+		// Pass callback ID and generation as opaque pointer context for C callback.
+		// Uses CallbackIDToPointer to convert in a way that go vet accepts.
+		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
+
+		C.NeruResizeOverlayToActiveScreenWithCallback(
+			o.window,
+			(C.ResizeCompletionCallback)(C.resizeModeIndicatorCompletionCallback),
+			contextPtr,
+		)
+	})
+	if !started {
+		// Pool exhausted — fall back to non-callback resize so the overlay
+		// is still moved to the correct screen.
+		C.NeruResizeOverlayToActiveScreen(o.window)
+	}
 }
 
 // DrawModeIndicator draws a mode label at the specified position.
@@ -170,10 +177,6 @@ func (o *Overlay) ResizeToActiveScreen() {
 // allowing users to customize (or hide) each mode's indicator text.
 // The caller is responsible for calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
-//
-// xCoordinate and yCoordinate are absolute Quartz screen coordinates.
-// The overlay positions a small window around the indicator badge
-// instead of using a full-screen window, saving ~47MB of backing store.
 //
 // IMPORTANT: This method must only be called from a single goroutine at a
 // time. The shared styleCache is invalidated and repopulated based on the
@@ -214,25 +217,12 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 
 	label := o.getOrCacheLabel(labelText)
 
-	// Position the small window centered on the indicator's absolute position.
-	// This avoids a full-screen backing store (~47MB on Retina).
-	indicatorAbsX := xCoordinate + xOffset
-	indicatorAbsY := yCoordinate + yOffset
-	C.NeruPositionOverlayRelative(
-		o.window,
-		C.double(indicatorAbsX),
-		C.double(indicatorAbsY),
-		C.double(indicatorWindowWidth),
-		C.double(indicatorWindowHeight),
-	)
-
-	// Create a single hint for the indicator.
-	// Position is at the center of the small window (in Quartz top-left coords).
+	// Create a single hint for the indicator
 	hint := C.HintData{
 		label: label,
 		position: C.CGPoint{
-			x: C.double(indicatorWindowWidth / 2),  //nolint:mnd
-			y: C.double(indicatorWindowHeight / 2), //nolint:mnd
+			x: C.double(xCoordinate + xOffset),
+			y: C.double(yCoordinate + yOffset),
 		},
 		size: C.CGSize{
 			// Size is not strictly needed for just drawing the label, but providing reasonable defaults
