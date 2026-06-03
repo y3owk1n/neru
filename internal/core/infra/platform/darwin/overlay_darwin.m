@@ -1783,12 +1783,18 @@ void NeruDestroyOverlayWindow(OverlayWindow window) {
 	if (!window)
 		return;
 
-	dispatch_async(dispatch_get_main_queue(), ^{
+	void (^destroyBlock)(void) = ^{
 		@autoreleasepool {
 			OverlayWindowController *controller = CFBridgingRelease(window);
 			[controller.window close];
 		}
-	});
+	};
+
+	if ([NSThread isMainThread]) {
+		destroyBlock();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), destroyBlock);
+	}
 }
 
 /// Show overlay window
