@@ -54,9 +54,11 @@ func TestDefaultConfig(t *testing.T) {
 			)
 		}
 
-		if len(cfg.General.ExecShellArgs) != 1 || cfg.General.ExecShellArgs[0] != "-lc" {
+		if len(cfg.General.ExecShellArgs) != 1 ||
+			cfg.General.ExecShellArgs[0] != config.DefaultExecShellFlag {
 			t.Errorf(
-				"Expected General.ExecShellArgs to be [\"-lc\"], got %v",
+				"Expected General.ExecShellArgs to be [%q], got %v",
+				config.DefaultExecShellFlag,
 				cfg.General.ExecShellArgs,
 			)
 		}

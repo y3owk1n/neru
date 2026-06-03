@@ -1053,6 +1053,13 @@ func (c *Config) ValidateGeneral() error {
 		)
 	}
 
+	if len(c.General.ExecShellArgs) == 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"general.exec_shell_args cannot be empty",
+		)
+	}
+
 	return nil
 }
 
