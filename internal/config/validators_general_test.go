@@ -17,6 +17,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					KBLayoutToUse: "com.apple.keylayout.ABC",
+					ExecShell:     "/bin/bash",
 				},
 			},
 			wantErr: false,
@@ -26,6 +27,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					KBLayoutToUse: "   ",
+					ExecShell:     "/bin/bash",
 				},
 			},
 			wantErr: true,
@@ -35,6 +37,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
+					ExecShell:                         "/bin/bash",
 				},
 			},
 			wantErr: false,
@@ -44,9 +47,37 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
+					ExecShell:                         "/bin/bash",
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "exec_shell is empty - invalid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					ExecShell: "",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "exec_shell is relative path - invalid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					ExecShell: "bash",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "exec_shell is absolute path - valid",
+			config: config.Config{
+				General: config.GeneralConfig{
+					ExecShell: "/usr/local/bin/fish",
+				},
+			},
+			wantErr: false,
 		},
 	}
 

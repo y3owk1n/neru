@@ -45,6 +45,23 @@ func TestDefaultConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("General Exec Shell Defaults", func(t *testing.T) {
+		if cfg.General.ExecShell != config.DefaultExecShell {
+			t.Errorf(
+				"Expected General.ExecShell to be %q, got %q",
+				config.DefaultExecShell,
+				cfg.General.ExecShell,
+			)
+		}
+
+		if len(cfg.General.ExecShellArgs) != 1 || cfg.General.ExecShellArgs[0] != "-lc" {
+			t.Errorf(
+				"Expected General.ExecShellArgs to be [\"-lc\"], got %v",
+				cfg.General.ExecShellArgs,
+			)
+		}
+	})
+
 	t.Run("Grid Defaults", func(t *testing.T) {
 		if got := cfg.Grid.Hotkeys["`"]; len(got) != 1 ||
 			got[0] != "toggle-cursor-follow-selection" {

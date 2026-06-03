@@ -352,7 +352,15 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 	ctx, cancel := context.WithTimeout(a.ctx, domain.ShellCommandTimeout)
 	defer cancel()
 
-	command := exec.CommandContext(ctx, "/bin/bash", "-lc", cmdString) //nolint:gosec
+	cfg := a.configSnapshot()
+	shell := cfg.General.ExecShell
+	shellArgs := cfg.General.ExecShellArgs
+
+	args := make([]string, 0, len(shellArgs)+1)
+	args = append(args, shellArgs...)
+	args = append(args, cmdString)
+
+	command := exec.CommandContext(ctx, shell, args...) //nolint:gosec
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {

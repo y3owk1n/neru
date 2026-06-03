@@ -427,6 +427,8 @@ type GeneralConfig struct {
 	PassthroughUnboundedKeysBlacklist []string `json:"passthroughUnboundedKeysBlacklist" toml:"passthrough_unbounded_keys_blacklist"`
 	HideOverlayInScreenShare          bool     `json:"hideOverlayInScreenShare"          toml:"hide_overlay_in_screen_share"`
 	KBLayoutToUse                     string   `json:"kbLayoutToUse"                     toml:"kb_layout_to_use"`
+	ExecShell                         string   `json:"execShell"                         toml:"exec_shell"`
+	ExecShellArgs                     []string `json:"execShellArgs"                     toml:"exec_shell_args"`
 }
 
 // ModeIndicatorUI defines the visual/appearance settings for the mode indicator.
@@ -1034,6 +1036,21 @@ func (c *Config) ValidateGeneral() error {
 				key,
 			)
 		}
+	}
+
+	if c.General.ExecShell == "" {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"general.exec_shell cannot be empty",
+		)
+	}
+
+	if !strings.HasPrefix(c.General.ExecShell, "/") {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"general.exec_shell must be an absolute path (got: %q)",
+			c.General.ExecShell,
+		)
 	}
 
 	return nil
