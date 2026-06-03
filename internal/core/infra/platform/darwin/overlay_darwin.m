@@ -1693,6 +1693,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, strong) OverlayView *overlayView;  ///< Overlay view instance
 @property(nonatomic, assign) NSInteger sharingType;     ///< Current window sharing type
 @property(nonatomic, assign) BOOL sharingTypeExplicit;  ///< Whether sharingType was explicitly configured
+@property(nonatomic, assign) BOOL shouldBeVisible;      ///< Whether the window should currently be visible on screen
 @end
 
 #pragma mark - Overlay Window Controller Implementation
@@ -1704,6 +1705,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 - (instancetype)init {
 	self = [super init];
 	if (self) {
+		_shouldBeVisible = NO;
 		[self createWindow];
 	}
 	return self;
@@ -1799,6 +1801,8 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
+			controller.shouldBeVisible = YES;
+
 			[controller.window setLevel:kCGMaximumWindowLevel];
 			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
 			                                         NSWindowCollectionBehaviorStationary |
@@ -1823,10 +1827,14 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
+		controller.shouldBeVisible = NO;
 		[controller.window orderOut:nil];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
-			[controller.window orderOut:nil];
+			@autoreleasepool {
+				controller.shouldBeVisible = NO;
+				[controller.window orderOut:nil];
+			}
 		});
 	}
 }
@@ -1846,6 +1854,12 @@ void NeruClearOverlay(OverlayWindow window) {
 		[controller.overlayView.gridCells removeAllObjects];
 		controller.overlayView.searchInput = nil;
 		controller.overlayView.cursorIndicatorVisible = NO;
+		[controller.overlayView.colorCache removeAllObjects];
+		[[controller.overlayView.cachedHintAttributedString mutableString] setString:@""];
+		[[controller.overlayView.cachedHintMeasureString mutableString] setString:@""];
+		[[controller.overlayView.cachedSearchInputAttributedString mutableString] setString:@""];
+		[[controller.overlayView.cachedGridCellAttributedString mutableString] setString:@""];
+		[[controller.overlayView.cachedGridSubKeyAttributedString mutableString] setString:@""];
 		[controller.overlayView setNeedsDisplay:YES];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -1856,6 +1870,12 @@ void NeruClearOverlay(OverlayWindow window) {
 				[controller.overlayView.gridCells removeAllObjects];
 				controller.overlayView.searchInput = nil;
 				controller.overlayView.cursorIndicatorVisible = NO;
+				[controller.overlayView.colorCache removeAllObjects];
+				[[controller.overlayView.cachedHintAttributedString mutableString] setString:@""];
+				[[controller.overlayView.cachedHintMeasureString mutableString] setString:@""];
+				[[controller.overlayView.cachedSearchInputAttributedString mutableString] setString:@""];
+				[[controller.overlayView.cachedGridCellAttributedString mutableString] setString:@""];
+				[[controller.overlayView.cachedGridSubKeyAttributedString mutableString] setString:@""];
 				[controller.overlayView setNeedsDisplay:YES];
 			}
 		});
@@ -1895,8 +1915,10 @@ void NeruResizeOverlayToMainScreen(OverlayWindow window) {
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 				}
 			});
 		}
@@ -1945,8 +1967,10 @@ void NeruResizeOverlayToActiveScreen(OverlayWindow window) {
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 				}
 			});
 		}
@@ -2004,8 +2028,10 @@ void NeruResizeOverlayToActiveScreenWithCallback(
 					                                         NSWindowCollectionBehaviorStationary |
 					                                         NSWindowCollectionBehaviorIgnoresCycle |
 					                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
-					[controller.window setIsVisible:YES];
-					[controller.window orderFrontRegardless];
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+					}
 
 					if (callback)
 						callback(context);
