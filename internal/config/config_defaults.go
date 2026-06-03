@@ -99,6 +99,13 @@ const (
 	// DefaultMaxAge is the default max age for logs (30 days).
 	DefaultMaxAge = 30
 
+	// DefaultExecShell is the default shell used for exec commands.
+	DefaultExecShell = "/bin/bash"
+
+	// DefaultExecShellFlag is the shell flag that causes the shell to read
+	// commands from the following string argument (e.g. "-c" or "-lc").
+	DefaultExecShellFlag = "-lc"
+
 	// DefaultSmoothCursorSteps is the default smooth cursor steps.
 	DefaultSmoothCursorSteps = 10
 
@@ -303,6 +310,8 @@ func newDefaultConfig() *Config {
 			PassthroughUnboundedKeysBlacklist: []string{},
 			HideOverlayInScreenShare:          false,
 			KBLayoutToUse:                     "",
+			ExecShell:                         DefaultExecShell,
+			ExecShellArgs:                     []string{DefaultExecShellFlag},
 		},
 		Theme: defaultThemeConfig(),
 		Hotkeys: HotkeysConfig{

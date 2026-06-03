@@ -270,6 +270,8 @@ See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform beh
 | `passthrough_unbounded_keys`           | bool   | `false` | Let unbound Cmd/Ctrl/Alt shortcuts pass through     |
 | `should_exit_after_passthrough`        | bool   | `false` | Exit mode after a passthrough shortcut              |
 | `passthrough_unbounded_keys_blacklist` | array  | `[]`    | Shortcuts to keep consumed when passthrough is on   |
+| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands |
+| `exec_shell_args`                      | array  | `["-lc"]` | Shell arguments; command string is appended last |
 
 Find available `kb_layout_to_use` IDs on macOS:
 
