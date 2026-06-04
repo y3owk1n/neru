@@ -2166,6 +2166,11 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			[controller.overlayView applyStyle:style];
 			[controller.overlayView.hints addObjectsFromArray:hintItems];
 			[controller.overlayView setNeedsDisplay:YES];
+			if (controller.shouldBeVisible) {
+				[controller.window setIsVisible:YES];
+				[controller.window orderFrontRegardless];
+				[controller.window display];
+			}
 		} else {
 			// Copy style strings before crossing the thread boundary
 			HintStyle styleCopy = {
@@ -2193,6 +2198,12 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 					[controller.overlayView applyStyle:styleCopy];
 					[controller.overlayView.hints addObjectsFromArray:hintItems];
 					[controller.overlayView setNeedsDisplay:YES];
+
+					if (controller.shouldBeVisible) {
+						[controller.window setIsVisible:YES];
+						[controller.window orderFrontRegardless];
+						[controller.window display];
+					}
 
 					free_hint_style_strings(&styleCopy);
 				}
@@ -3337,13 +3348,6 @@ void NeruPositionAndSizeOverlayToFitHint(
 			[controller.window setFrame:frame display:NO];
 			NSRect viewFrame = NSMakeRect(0, 0, windowWidth, windowHeight);
 			[controller.overlayView setFrame:viewFrame];
-
-			if (controller.shouldBeVisible) {
-				[controller.window setIsVisible:YES];
-				[controller.window orderFrontRegardless];
-				[controller.window display];
-				[controller.overlayView setNeedsDisplay:YES];
-			}
 
 			if (outWidth)
 				*outWidth = (double)windowWidth;
