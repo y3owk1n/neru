@@ -272,4 +272,23 @@ void NeruHideCursorIndicator(OverlayWindow window);
 /// @param style Indicator style
 void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle style);
 
+/// Position and resize overlay window to a specific rect centered on a point.
+/// Uses absolute Quartz coordinates for the desired hint center.
+///
+/// The window frame is clamped to the screen containing the center point so the
+/// entire window stays within a single display. This is required to prevent a
+/// regression on multi-monitor setups where a window straddling two displays
+/// causes the window's `screen` (and therefore the layer's contentsScale) to
+/// oscillate between displays as the cursor moves near the boundary.
+///
+
+/// Position and resize overlay window dynamically to fit a hint badge.
+/// Calculates the hint size using the provided label text and style configuration,
+/// sizes the window accordingly (with a small margin), and centers it on the target absolute position.
+/// Clamps the window frame to the containing display bounds.
+/// Returns the calculated window width and height via outWidth and outHeight pointers.
+void NeruPositionAndSizeOverlayToFitHint(
+    OverlayWindow window, double absoluteX, double absoluteY, const char *label, HintStyle style, double *outWidth,
+    double *outHeight);
+
 #endif  // OVERLAY_H

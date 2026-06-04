@@ -124,21 +124,22 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 						if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 							stickyInd.ResizeToActiveScreen()
 						}
-						// Skip the draw this tick — the async resize hasn't
-						// completed yet, so drawing now would target the old
-						// window frame. The next tick will draw correctly.
+						// Skip the draw this tick so the next tick draws with
+						// a fully-updated h.screenBounds. The mode indicator
+						// and sticky modifier overlays use small windows that
+						// are positioned dynamically each tick, so this skip
+						// is mostly defensive against the display change
+						// coinciding with a draw dispatch.
 						continue
 					}
 				}
 
-				screenOrigin := h.screenBounds.Min
-
 				h.mu.Unlock()
 
-				localCursorX := cursorX - screenOrigin.X
-				localCursorY := cursorY - screenOrigin.Y
-				localStickyX := stickyPoint.X - screenOrigin.X
-				localStickyY := stickyPoint.Y - screenOrigin.Y
+				// The small indicator overlays (mode indicator, sticky modifiers)
+				// take absolute Quartz coordinates. The native side clamps the
+				// window frame to the active display to prevent the
+				// multi-monitor flicker.
 
 				// Mode indicator: show and draw when enabled, hide otherwise.
 				if showModeInd {
@@ -146,7 +147,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 						ind.Show()
 					}
 
-					h.modeIndicatorService.UpdateIndicatorPosition(localCursorX, localCursorY)
+					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
 				} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 					ind.Clear()
 					ind.Hide()
@@ -160,12 +161,12 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 							stickyInd.Show()
 						}
 
-						h.drawStickyModifiersIndicator(localStickyX, localStickyY)
+						h.drawStickyModifiersIndicator(stickyPoint.X, stickyPoint.Y)
 					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 						if h.stickyIndicatorService != nil {
 							h.stickyIndicatorService.UpdateIndicatorPosition(
-								localStickyX,
-								localStickyY,
+								stickyPoint.X,
+								stickyPoint.Y,
 								"",
 							)
 						}

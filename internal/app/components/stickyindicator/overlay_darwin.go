@@ -121,23 +121,21 @@ func (o *Overlay) Clear() {
 	C.NeruClearOverlay(o.window)
 }
 
-// ResizeToActiveScreen adjusts the overlay window size with callback notification.
-// Falls back to a non-callback resize if the callback ID pool is exhausted.
+// ResizeToActiveScreen is a no-op for sticky indicator overlays.
+// The sticky indicator uses a small window positioned dynamically by Draw via
+// NeruPositionAndSizeOverlayToFitHint, so full-screen resizing is unnecessary and
+// would defeat the small-window memory optimization.
 func (o *Overlay) ResizeToActiveScreen() {
-	started := o.callbackManager.StartResizeOperation(func(callbackID uint64, generation uint64) {
-		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
-		C.NeruResizeOverlayToActiveScreenWithCallback(
-			o.window,
-			(C.ResizeCompletionCallback)(C.resizeStickyIndicatorCompletionCallback),
-			contextPtr,
-		)
-	})
-	if !started {
-		C.NeruResizeOverlayToActiveScreen(o.window)
-	}
+	// No-op: positioning is handled dynamically in Draw.
 }
 
 // Draw draws the sticky modifier symbols near the specified cursor position.
+// xCoordinate and yCoordinate are absolute Quartz screen coordinates. The
+// overlay positions a small window around the indicator badge instead of
+// using a full-screen window, saving some memory of backing store per Retina
+// display. The native side clamps the window to a single display to prevent
+// the multi-monitor flicker regression.
+//
 // X/Y offsets from uiConfig are applied internally (under configMu) to match
 // the mode indicator pattern. The caller must call Show() before Draw() for
 // the content to be visible.
@@ -201,19 +199,6 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		)
 	})
 
-	hint := C.HintData{
-		label: label,
-		position: C.CGPoint{
-			x: C.double(xCoordinate + xOffset),
-			y: C.double(yCoordinate + yOffset),
-		},
-		size: C.CGSize{
-			width:  stickyIndicatorWidth,
-			height: stickyIndicatorHeight,
-		},
-		matchedPrefixLength: 0,
-	}
-
 	style := C.HintStyle{
 		fontSize:         C.int(o.uiConfig.FontSize),
 		fontFamily:       (*C.char)(cachedStyle.FontFamily),
@@ -226,6 +211,35 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		paddingX:         C.int(o.uiConfig.PaddingX),
 		paddingY:         C.int(o.uiConfig.PaddingY),
 		showArrow:        0,
+	}
+
+	// Position the small window centered on the indicator's absolute position.
+	// We calculate the hint size dynamically and size/position the window accordingly,
+	// returning the calculated width and height.
+	indicatorAbsX := xCoordinate + xOffset
+	indicatorAbsY := yCoordinate + yOffset
+	var windowWidth, windowHeight C.double
+	C.NeruPositionAndSizeOverlayToFitHint(
+		o.window,
+		C.double(indicatorAbsX),
+		C.double(indicatorAbsY),
+		label,
+		style,
+		&windowWidth,
+		&windowHeight,
+	)
+
+	hint := C.HintData{
+		label: label,
+		position: C.CGPoint{
+			x: C.double(windowWidth / 2),  //nolint:mnd
+			y: C.double(windowHeight / 2), //nolint:mnd
+		},
+		size: C.CGSize{
+			width:  windowWidth,
+			height: windowHeight,
+		},
+		matchedPrefixLength: 0,
 	}
 
 	C.NeruDrawHints(o.window, &hint, 1, style)

@@ -221,6 +221,8 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 /// Cached parsed colors keyed by normalized hex string
 @property(nonatomic, strong) NSCache *colorCache;
 
+- (void)clearContent;
+
 /// When YES, drawLayer:inContext: clears the full bounds and redraws everything.
 /// When NO, only the dirty region (clip box) is cleared and items intersecting it are redrawn.
 /// Defaults to YES; set to NO by match-prefix-only updates that use setNeedsDisplayInRect:.
@@ -370,6 +372,22 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	self.gridTransitionTimer = nil;
 }
 
+- (void)clearContent {
+	[self cancelGridTransition];
+	[self cancelCursorIndicatorTransition];
+	[self.hints removeAllObjects];
+	[self.gridCells removeAllObjects];
+	self.searchInput = nil;
+	self.cursorIndicatorVisible = NO;
+	[self.colorCache removeAllObjects];
+	[[self.cachedHintAttributedString mutableString] setString:@""];
+	[[self.cachedHintMeasureString mutableString] setString:@""];
+	[[self.cachedSearchInputAttributedString mutableString] setString:@""];
+	[[self.cachedGridCellAttributedString mutableString] setString:@""];
+	[[self.cachedGridSubKeyAttributedString mutableString] setString:@""];
+	[self setNeedsDisplay:YES];
+}
+
 /// Return the backing scale factor for the current screen, with fallbacks.
 /// Uses the window's actual screen (not mainScreen) to ensure correct rendering
 /// when the overlay moves between displays with different scale factors
@@ -398,6 +416,11 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[super viewDidChangeBackingProperties];
 	if (self.layer) {
 		self.layer.contentsScale = [self currentBackingScaleFactor];
+		// Force a redraw so the layer's cached content is re-rendered at the
+		// new scale. Without this, the view can briefly show stale content at
+		// the previous scale factor when the window moves between displays
+		// with different backing properties (e.g. Retina to non-Retina).
+		[self setNeedsDisplay:YES];
 	}
 }
 
@@ -1713,13 +1736,17 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 /// Create window
 - (void)createWindow {
-	NSScreen *mainScreen = [NSScreen mainScreen];
-	NSRect screenFrame = [mainScreen frame];
+	// Start at 1x1 so the backing store is minimal until a resize is applied.
+	// Full-screen overlays call NeruResizeOverlayToActiveScreen before Show, and
+	// small indicator overlays (mode indicator, sticky modifiers) use
+	// NeruPositionOverlayRelative to set a small frame centered on the cursor.
+	// This saves some memory of backing store per hidden Retina overlay.
+	NSRect initialRect = NSMakeRect(0, 0, 1, 1);
 
 	// Use NSPanel for better floating overlay behavior.
 	// Non-activating panel won't steal focus from other apps.
 	NSPanel *panel =
-	    [[NSPanel alloc] initWithContentRect:screenFrame
+	    [[NSPanel alloc] initWithContentRect:initialRect
 	                               styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
 	                                 backing:NSBackingStoreBuffered
 	                                   defer:NO];
@@ -1753,7 +1780,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[self.window setSharingType:self.sharingType];
 
 	// Create and attach overlay view
-	NSRect viewFrame = NSMakeRect(0, 0, screenFrame.size.width, screenFrame.size.height);
+	NSRect viewFrame = NSMakeRect(0, 0, 1, 1);
 	self.overlayView = [[OverlayView alloc] initWithFrame:viewFrame];
 	[self.window setContentView:self.overlayView];
 }
@@ -1815,11 +1842,19 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorIgnoresCycle |
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 
-			[controller.window setIsVisible:YES];
-			[controller.window orderFrontRegardless];
-			[controller.window display];
+			NSRect frame = controller.window.frame;
+			// Only display/order front if the window frame is larger than 1x1.
+			// This prevents a brief 1x1 pixel flash at the top-left screen origin
+			// when reactivating shrunken overlays. Callers that show a freshly
+			// created overlay (full-screen or small indicator) must first call a
+			// resize/position function so the frame is non-trivial.
+			if (frame.size.width > 1.0 || frame.size.height > 1.0) {
+				[controller.window setIsVisible:YES];
+				[controller.window orderFrontRegardless];
+				[controller.window display];
 
-			[controller.overlayView setNeedsDisplay:YES];
+				[controller.overlayView setNeedsDisplay:YES];
+			}
 		}
 	});
 }
@@ -1835,11 +1870,18 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
 		[controller.window orderOut:nil];
+		// Shrink to 1x1 to release the large backing store (saves ~47MB per
+		// Retina-resolution full-screen window). The next resize/show call
+		// will restore the proper frame before the window becomes visible.
+		[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
+		[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
 				[controller.window orderOut:nil];
+				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
+				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
 			}
 		});
 	}
@@ -1854,35 +1896,11 @@ void NeruClearOverlay(OverlayWindow window) {
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
 	if ([NSThread isMainThread]) {
-		[controller.overlayView cancelGridTransition];
-		[controller.overlayView cancelCursorIndicatorTransition];
-		[controller.overlayView.hints removeAllObjects];
-		[controller.overlayView.gridCells removeAllObjects];
-		controller.overlayView.searchInput = nil;
-		controller.overlayView.cursorIndicatorVisible = NO;
-		[controller.overlayView.colorCache removeAllObjects];
-		[[controller.overlayView.cachedHintAttributedString mutableString] setString:@""];
-		[[controller.overlayView.cachedHintMeasureString mutableString] setString:@""];
-		[[controller.overlayView.cachedSearchInputAttributedString mutableString] setString:@""];
-		[[controller.overlayView.cachedGridCellAttributedString mutableString] setString:@""];
-		[[controller.overlayView.cachedGridSubKeyAttributedString mutableString] setString:@""];
-		[controller.overlayView setNeedsDisplay:YES];
+		[controller.overlayView clearContent];
 	} else {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				[controller.overlayView cancelGridTransition];
-				[controller.overlayView cancelCursorIndicatorTransition];
-				[controller.overlayView.hints removeAllObjects];
-				[controller.overlayView.gridCells removeAllObjects];
-				controller.overlayView.searchInput = nil;
-				controller.overlayView.cursorIndicatorVisible = NO;
-				[controller.overlayView.colorCache removeAllObjects];
-				[[controller.overlayView.cachedHintAttributedString mutableString] setString:@""];
-				[[controller.overlayView.cachedHintMeasureString mutableString] setString:@""];
-				[[controller.overlayView.cachedSearchInputAttributedString mutableString] setString:@""];
-				[[controller.overlayView.cachedGridCellAttributedString mutableString] setString:@""];
-				[[controller.overlayView.cachedGridSubKeyAttributedString mutableString] setString:@""];
-				[controller.overlayView setNeedsDisplay:YES];
+				[controller.overlayView clearContent];
 			}
 		});
 	}
@@ -3222,6 +3240,123 @@ static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point) {
 
 	NSRect mainFrame = [NSScreen mainScreen].frame;
 	return NSMakePoint(point.x, NSMaxY(mainFrame) - point.y);
+}
+
+/// Resolve the NSScreen that contains the given Quartz point.
+/// Falls back to mainScreen, then the first available screen.
+/// Returns nil only if no screens are attached.
+static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point) {
+	CGDirectDisplayID displayID = 0;
+	uint32_t displayCount = 0;
+	CGGetDisplaysWithPoint(point, 1, &displayID, &displayCount);
+
+	if (displayCount > 0) {
+		for (NSScreen *screen in [NSScreen screens]) {
+			NSNumber *screenNumber = screen.deviceDescription[@"NSScreenNumber"];
+			if (screenNumber.unsignedIntValue == displayID)
+				return screen;
+		}
+	}
+
+	return [NSScreen mainScreen] ?: [NSScreen.screens firstObject];
+}
+
+/// Position and resize overlay window to a specific rect centered on a point.
+/// Converts absolute Quartz coordinates to AppKit (bottom-left origin) and
+/// clamps the resulting frame to the screen containing the desired center so
+/// the entire window stays within a single display.
+///
+/// Clamping is critical: without it, a window straddling two displays causes
+/// AppKit to oscillate the window's `screen` (and therefore the layer's
+/// contentsScale) as the cursor moves near the boundary. That oscillation
+/// triggers `viewDidChangeBackingProperties` redraws at different scales and
+/// is perceived as a flicker on multi-monitor setups.
+///
+
+void NeruPositionAndSizeOverlayToFitHint(
+    OverlayWindow window, double absoluteX, double absoluteY, const char *label, HintStyle style, double *outWidth,
+    double *outHeight) {
+	if (!window || !label)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	void (^positionBlock)(void) = ^{
+		@autoreleasepool {
+			NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : @"";
+			CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
+			NSFont *font = nil;
+			if ([fontFamily length] > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
+			}
+			if (!font) {
+				font = [NSFont boldSystemFontOfSize:fontSize];
+			}
+
+			NSMutableAttributedString *attrString = [[NSMutableAttributedString alloc] initWithString:@(label)];
+			NSRange fullRange = NSMakeRange(0, attrString.length);
+			[attrString setAttributes:@{NSFontAttributeName : font} range:fullRange];
+			NSSize textSize = [attrString size];
+
+			CGFloat paddingX = style.paddingX >= 0.0 ? style.paddingX : MAX(4.0, round(fontSize * 0.4));
+			CGFloat paddingY = style.paddingY >= 0.0 ? style.paddingY : MAX(2.0, round(fontSize * 0.25));
+			CGFloat borderWidth = style.borderWidth >= 0 ? style.borderWidth : 1.0;
+
+			CGFloat contentWidth = textSize.width + (paddingX * 2);
+			CGFloat contentHeight = textSize.height + (paddingY * 2);
+			CGFloat boxWidth = MAX(contentWidth, contentHeight);
+			CGFloat boxHeight = contentHeight;
+
+			// Add small margin for border anti-aliasing
+			CGFloat windowWidth = boxWidth + borderWidth * 2.0 + 4.0;
+			CGFloat windowHeight = boxHeight + borderWidth * 2.0 + 4.0;
+
+			CGPoint desiredCenter = CGPointMake(absoluteX, absoluteY);
+			NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(desiredCenter);
+
+			NSScreen *cursorScreen = NeruScreenContainingQuartzPoint(desiredCenter);
+			if (cursorScreen != nil) {
+				NSRect screenFrame = cursorScreen.frame;
+				CGFloat halfW = windowWidth / 2.0;
+				CGFloat halfH = windowHeight / 2.0;
+				CGFloat minX = screenFrame.origin.x + halfW;
+				CGFloat maxX = NSMaxX(screenFrame) - halfW;
+				CGFloat minY = screenFrame.origin.y + halfH;
+				CGFloat maxY = NSMaxY(screenFrame) - halfH;
+				if (minX <= maxX) {
+					appKitCenter.x = MAX(minX, MIN(appKitCenter.x, maxX));
+				}
+				if (minY <= maxY) {
+					appKitCenter.y = MAX(minY, MIN(appKitCenter.y, maxY));
+				}
+			}
+
+			NSRect frame = NSMakeRect(
+			    appKitCenter.x - windowWidth / 2.0, appKitCenter.y - windowHeight / 2.0, windowWidth, windowHeight);
+
+			[controller.window setFrame:frame display:NO];
+			NSRect viewFrame = NSMakeRect(0, 0, windowWidth, windowHeight);
+			[controller.overlayView setFrame:viewFrame];
+
+			if (controller.shouldBeVisible) {
+				[controller.window setIsVisible:YES];
+				[controller.window orderFrontRegardless];
+				[controller.window display];
+				[controller.overlayView setNeedsDisplay:YES];
+			}
+
+			if (outWidth)
+				*outWidth = (double)windowWidth;
+			if (outHeight)
+				*outHeight = (double)windowHeight;
+		}
+	};
+
+	if ([NSThread isMainThread]) {
+		positionBlock();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), positionBlock);
+	}
 }
 
 /// Show a transient mouse action indicator in its own overlay window.
