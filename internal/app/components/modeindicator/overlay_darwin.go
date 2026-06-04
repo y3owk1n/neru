@@ -249,6 +249,7 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		paddingX:         C.int(o.indicatorConfig.UI.PaddingX),
 		paddingY:         C.int(o.indicatorConfig.UI.PaddingY),
 		showArrow:        0, // No arrow for mode indicator
+		forceFlush:       1, // Indicator must flush synchronously to avoid first-show empty-badge flash
 	}
 
 	// Position the small window centered on the indicator's absolute position.

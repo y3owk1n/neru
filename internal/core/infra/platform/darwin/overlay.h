@@ -35,6 +35,7 @@ typedef struct {
 	int paddingY;                   ///< Vertical padding (-1 = auto)
 	int showArrow;                  ///< Show arrow (0 = no arrow, 1 = show arrow)
 	int placement;                  ///< Label placement relative to target
+	int forceFlush;                 ///< Force synchronous display flush after draw (0 = coalesce, 1 = flush)
 	int boundaryHighlightEnabled;   ///< Draw target boundary highlight (0 = off, 1 = on)
 	int boundaryBorderWidth;        ///< Target boundary border width
 	int boundaryBorderRadius;       ///< Target boundary corner radius

@@ -2169,7 +2169,9 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			if (controller.shouldBeVisible) {
 				[controller.window setIsVisible:YES];
 				[controller.window orderFrontRegardless];
-				[controller.window display];
+				if (style.forceFlush) {
+					[controller.window display];
+				}
 			}
 		} else {
 			// Copy style strings before crossing the thread boundary
@@ -2181,6 +2183,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			    .paddingY = style.paddingY,
 			    .showArrow = style.showArrow,
 			    .placement = style.placement,
+			    .forceFlush = style.forceFlush,
 			    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
 			    .boundaryBorderWidth = style.boundaryBorderWidth,
 			    .boundaryBorderRadius = style.boundaryBorderRadius,
@@ -2202,7 +2205,9 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 					if (controller.shouldBeVisible) {
 						[controller.window setIsVisible:YES];
 						[controller.window orderFrontRegardless];
-						[controller.window display];
+						if (styleCopy.forceFlush) {
+							[controller.window display];
+						}
 					}
 
 					free_hint_style_strings(&styleCopy);
@@ -3287,8 +3292,14 @@ static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point) {
 void NeruPositionAndSizeOverlayToFitHint(
     OverlayWindow window, double absoluteX, double absoluteY, const char *label, HintStyle style, double *outWidth,
     double *outHeight) {
-	if (!window || !label)
+	if (!window || !label) {
+		if (outWidth)
+			*outWidth = 0;
+		if (outHeight)
+			*outHeight = 0;
+
 		return;
+	}
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 

@@ -190,6 +190,7 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		paddingX:         C.int(o.uiConfig.PaddingX),
 		paddingY:         C.int(o.uiConfig.PaddingY),
 		showArrow:        0,
+		forceFlush:       1, // Indicator must flush synchronously to avoid first-show empty-badge flash
 	}
 
 	// Position the small window centered on the indicator's absolute position.
