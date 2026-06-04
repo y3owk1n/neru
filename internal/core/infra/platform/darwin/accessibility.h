@@ -355,9 +355,14 @@ uint64_t NeruActiveSpaceID(void);
 int NeruFocusSpaceUsingGesture(uint32_t new_did, uint64_t new_sid);
 
 /// Move a window to a specific space ID using dynamic SkyLight class.
+/// On the primary path the move is dispatched asynchronously via
+/// SLSBridgedMoveWindowsToManagedSpaceOperation; 1 means the operation
+/// was queued, not that the window has already moved. The synchronous
+/// SLSMoveWindowsToManagedSpace fallback provides a stronger completion
+/// guarantee but is only used when the primary path is unavailable.
 /// @param windowElement AXUIElementRef of the window to move
 /// @param spaceID Target Mission Control Space ID
-/// @return 1 on success, 0 on failure
+/// @return 1 on success (dispatched or synchronous), 0 on failure
 int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID);
 
 #endif  // ACCESSIBILITY_H
