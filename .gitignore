@@ -22,7 +22,6 @@ coverage.html
 go.work
 
 # IDE
-.cursor/
 .vscode/
 .idea/
 *.swp
