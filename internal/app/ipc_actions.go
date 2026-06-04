@@ -767,7 +767,7 @@ func parseSpaceActionArgs(args []string) (int, *ipc.Response) {
 	if parseErr != nil || index < 1 {
 		return 0, &ipc.Response{
 			Success: false,
-			Message: "space number must be a positive integer, got " + args[0],
+			Message: "space number must be a positive integer, got " + raw,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
