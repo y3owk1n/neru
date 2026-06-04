@@ -474,8 +474,7 @@ int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID) {
 	if (SLSPerformAsynchronousBridgedWindowManagementOperation) {
 		Class cls = objc_getClass("SLSBridgedMoveWindowsToManagedSpaceOperation");
 		if (cls) {
-			id opAlloc = [cls alloc];
-			id operation = [(id<SLSBridgedMoveWindowsToManagedSpaceOperationProtocol>)opAlloc
+			id operation = [(id<SLSBridgedMoveWindowsToManagedSpaceOperationProtocol>)[cls alloc]
 			    initWithWindows:(__bridge id)windowList
 			            spaceID:spaceID];
 			if (operation) {
