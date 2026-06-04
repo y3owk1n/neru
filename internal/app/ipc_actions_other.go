@@ -25,7 +25,7 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 
 func (h *IPCControllerActions) handleSpaceAction(
 	_ context.Context,
-	_ []string,
+	_ int,
 ) ipc.Response {
 	return ipc.Response{
 		Success: false,

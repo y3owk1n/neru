@@ -435,6 +435,115 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 	}
 }
 
+func TestParseSpaceActionArgs(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantIndex int
+		wantErr   bool
+		wantMsg   string
+	}{
+		{
+			name:    "no args",
+			args:    []string{},
+			wantErr: true,
+			wantMsg: "space requires exactly one positional argument: the 1-based space number",
+		},
+		{
+			name:    "too many args",
+			args:    []string{"1", "2"},
+			wantErr: true,
+			wantMsg: "space requires exactly one positional argument: the 1-based space number",
+		},
+		{
+			name:    "empty string",
+			args:    []string{""},
+			wantErr: true,
+			wantMsg: "space number cannot be empty",
+		},
+		{
+			name:    "whitespace only",
+			args:    []string{"   "},
+			wantErr: true,
+			wantMsg: "space number cannot be empty",
+		},
+		{
+			name:    "non-numeric",
+			args:    []string{"abc"},
+			wantErr: true,
+			wantMsg: "space number must be a positive integer, got abc",
+		},
+		{
+			name:    "zero",
+			args:    []string{"0"},
+			wantErr: true,
+			wantMsg: "space number must be a positive integer, got 0",
+		},
+		{
+			name:    "negative",
+			args:    []string{"-3"},
+			wantErr: true,
+			wantMsg: "space number must be a positive integer, got -3",
+		},
+		{
+			name:      "one",
+			args:      []string{"1"},
+			wantIndex: 1,
+		},
+		{
+			name:      "large value",
+			args:      []string{"42"},
+			wantIndex: 42,
+		},
+		{
+			name:      "value with surrounding whitespace",
+			args:      []string{"  7  "},
+			wantIndex: 7,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			index, resp := parseSpaceActionArgs(testCase.args)
+			if testCase.wantErr {
+				if resp == nil {
+					t.Fatal("parseSpaceActionArgs() expected error response, got nil")
+				}
+
+				if index != 0 {
+					t.Fatalf("parseSpaceActionArgs() expected zero index on error, got %d", index)
+				}
+
+				if resp.Message != testCase.wantMsg {
+					t.Fatalf(
+						"parseSpaceActionArgs() message = %q, want %q",
+						resp.Message,
+						testCase.wantMsg,
+					)
+				}
+
+				return
+			}
+
+			if resp != nil {
+				t.Fatalf("parseSpaceActionArgs() unexpected error response: %v", *resp)
+			}
+
+			if index != testCase.wantIndex {
+				t.Fatalf(
+					"parseSpaceActionArgs() index = %d, want %d",
+					index,
+					testCase.wantIndex,
+				)
+			}
+		})
+	}
+}
+
 func TestHandleAction_SpaceRequiresOneArg(t *testing.T) {
 	controller := &IPCControllerActions{
 		appState: state.NewAppState(),

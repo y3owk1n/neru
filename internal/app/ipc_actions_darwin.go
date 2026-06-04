@@ -4,8 +4,6 @@ package app
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -111,37 +109,13 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 }
 
 // handleSpaceAction focuses the Mission Control space at the given 1-based
-// index using a synthetic high-velocity dock swipe gesture.
+// index using a synthetic high-velocity dock swipe gesture. The caller is
+// expected to have already validated the index via parseSpaceActionArgs,
+// so this handler is macOS-specific implementation only.
 func (h *IPCControllerActions) handleSpaceAction(
 	_ context.Context,
-	args []string,
+	index int,
 ) ipc.Response {
-	if len(args) != 1 {
-		return ipc.Response{
-			Success: false,
-			Message: "space requires exactly one positional argument: the 1-based space number",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	raw := strings.TrimSpace(args[0])
-	if raw == "" {
-		return ipc.Response{
-			Success: false,
-			Message: "space number cannot be empty",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	index, parseErr := strconv.Atoi(raw)
-	if parseErr != nil || index < 1 {
-		return ipc.Response{
-			Success: false,
-			Message: "space number must be a positive integer, got " + args[0],
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if accessibility.IsMissionControlActive() {
 		return ipc.Response{
 			Success: false,
