@@ -18,6 +18,7 @@ func FocusByIndex(_ int) error {
 	)
 }
 
+// Count returns the number of Mission Control spaces. Not supported outside macOS.
 func Count() int {
 	return 0
 }
