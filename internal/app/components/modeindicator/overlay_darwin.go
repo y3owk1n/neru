@@ -7,9 +7,6 @@ package modeindicator
 #cgo CFLAGS: -x objective-c
 #include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
-
-// Callback function that Go can reference.
-extern void resizeModeIndicatorCompletionCallback(void* context);
 */
 import "C"
 
@@ -25,28 +22,11 @@ import (
 )
 
 const (
-	// defaultIndicatorWidth is the default width for the mode indicator.
-	defaultIndicatorWidth = 60
-	// defaultIndicatorHeight is the default height for the mode indicator.
-	defaultIndicatorHeight = 20
-
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
-
-//export resizeModeIndicatorCompletionCallback
-func resizeModeIndicatorCompletionCallback(context unsafe.Pointer) {
-	// Read callback context from the C-heap-allocated CallbackContext
-	ctx := *(*overlayutil.CallbackContext)(context)
-
-	// Free the C-allocated context now that we've copied the values
-	overlayutil.FreeCallbackContext(context)
-
-	// Delegate to global callback manager
-	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
-}
 
 // Overlay manages the rendering of mode indicator overlays using native platform APIs.
 type Overlay struct {
@@ -54,7 +34,6 @@ type Overlay struct {
 	indicatorConfig config.ModeIndicatorConfig
 	theme           config.ThemeProvider
 	logger          *zap.Logger
-	callbackManager *overlayutil.CallbackManager
 
 	// styleCache holds cached C style strings for the currently drawn mode.
 	// It is shared across all modes and invalidated on mode change via
@@ -90,14 +69,12 @@ func NewOverlay(
 	if err != nil {
 		return nil, err
 	}
-	base.CallbackManager.SetComponent("modeindicator")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
 		theme:           theme,
 		logger:          logger,
-		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
 		cachedLabels:    make(map[string]*C.char),
 	}, nil
@@ -111,14 +88,12 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
-	base.CallbackManager.SetComponent("modeindicator")
 
 	return &Overlay{
 		window:          (C.OverlayWindow)(base.Window),
 		indicatorConfig: indicatorCfg,
 		theme:           theme,
 		logger:          logger,
-		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
 		cachedLabels:    make(map[string]*C.char),
 	}, nil
@@ -329,18 +304,9 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
-// without destroying the native window.
-func (o *Overlay) Cleanup() {
-	if o.callbackManager != nil {
-		o.callbackManager.Cleanup()
-	}
-	o.freeAllCaches()
-}
-
 // Destroy releases the overlay window resources.
 func (o *Overlay) Destroy() {
-	o.Cleanup()
+	o.freeAllCaches()
 
 	if o.window != nil {
 		C.NeruDestroyOverlayWindow(o.window)

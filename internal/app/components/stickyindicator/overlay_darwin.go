@@ -7,9 +7,6 @@ package stickyindicator
 #cgo CFLAGS: -x objective-c
 #include "../../../core/infra/platform/darwin/overlay.h"
 #include <stdlib.h>
-
-// Callback function that Go can reference.
-extern void resizeStickyIndicatorCompletionCallback(void* context);
 */
 import "C"
 
@@ -24,33 +21,19 @@ import (
 )
 
 const (
-	stickyIndicatorWidth  = 60
-	stickyIndicatorHeight = 20
-
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
 	NSWindowSharingReadOnly = 1
 )
 
-//export resizeStickyIndicatorCompletionCallback
-func resizeStickyIndicatorCompletionCallback(context unsafe.Pointer) {
-	// Read callback context from the C-heap-allocated CallbackContext
-	ctx := *(*overlayutil.CallbackContext)(context)
-	// Free the C-allocated context now that we've copied the values
-	overlayutil.FreeCallbackContext(context)
-	// Delegate to global callback manager
-	overlayutil.CompleteGlobalCallback(ctx.CallbackID, ctx.Generation)
-}
-
 // Overlay manages the rendering of sticky modifiers indicator overlay.
 type Overlay struct {
-	window          C.OverlayWindow
-	uiConfig        config.StickyModifiersUI
-	theme           config.ThemeProvider
-	logger          *zap.Logger
-	callbackManager *overlayutil.CallbackManager
-	styleCache      *overlayutil.StyleCache
+	window     C.OverlayWindow
+	uiConfig   config.StickyModifiersUI
+	theme      config.ThemeProvider
+	logger     *zap.Logger
+	styleCache *overlayutil.StyleCache
 
 	configMu sync.RWMutex
 
@@ -72,16 +55,14 @@ func NewOverlay(
 	if err != nil {
 		return nil, err
 	}
-	base.CallbackManager.SetComponent("stickyindicator")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
-		uiConfig:        uiConfig,
-		theme:           theme,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
+		window:       (C.OverlayWindow)(base.Window),
+		uiConfig:     uiConfig,
+		theme:        theme,
+		logger:       logger,
+		styleCache:   base.StyleCache,
+		cachedLabels: make(map[string]*C.char),
 	}, nil
 }
 
@@ -93,16 +74,14 @@ func NewOverlayWithWindow(
 	windowPtr unsafe.Pointer,
 ) (*Overlay, error) {
 	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
-	base.CallbackManager.SetComponent("stickyindicator")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
-		uiConfig:        uiConfig,
-		theme:           theme,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
+		window:       (C.OverlayWindow)(base.Window),
+		uiConfig:     uiConfig,
+		theme:        theme,
+		logger:       logger,
+		styleCache:   base.StyleCache,
+		cachedLabels: make(map[string]*C.char),
 	}, nil
 }
 
@@ -264,18 +243,9 @@ func (o *Overlay) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
-// without destroying the native window.
-func (o *Overlay) Cleanup() {
-	if o.callbackManager != nil {
-		o.callbackManager.Cleanup()
-	}
-	o.freeAllCaches()
-}
-
 // Destroy releases the overlay window resources.
 func (o *Overlay) Destroy() {
-	o.Cleanup()
+	o.freeAllCaches()
 	if o.window != nil {
 		C.NeruDestroyOverlayWindow(o.window)
 		o.window = nil
