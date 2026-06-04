@@ -432,6 +432,10 @@ static void *neru_macho_find_symbol(const char *target_image, const char *target
 
 #pragma mark - Window-to-Space Movement
 
+@protocol SLSBridgedMoveWindowsToManagedSpaceOperationProtocol <NSObject>
+- (instancetype)initWithWindows:(id)windows spaceID:(uint64_t)spaceID;
+@end
+
 int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID) {
 	if (!windowElement) {
 		return 0;
@@ -470,9 +474,10 @@ int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID) {
 	if (SLSPerformAsynchronousBridgedWindowManagementOperation) {
 		Class cls = objc_getClass("SLSBridgedMoveWindowsToManagedSpaceOperation");
 		if (cls) {
-			SEL sel = sel_registerName("initWithWindows:spaceID:");
-			id operation =
-			    ((id (*)(id, SEL, id, uint64_t))objc_msgSend)([cls alloc], sel, (__bridge id)windowList, spaceID);
+			id opAlloc = [cls alloc];
+			id operation = [(id<SLSBridgedMoveWindowsToManagedSpaceOperationProtocol>)opAlloc
+			    initWithWindows:(__bridge id)windowList
+			            spaceID:spaceID];
 			if (operation) {
 				SLSPerformAsynchronousBridgedWindowManagementOperation((__bridge void *)operation);
 				success = 1;
