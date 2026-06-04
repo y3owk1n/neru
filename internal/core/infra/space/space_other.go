@@ -18,8 +18,15 @@ func FocusByIndex(_ int) error {
 	)
 }
 
-// Count returns the total number of Mission Control spaces. Not
-// supported outside macOS.
 func Count() int {
 	return 0
+}
+
+// MoveWindowToSpaceByIndex moves the current focused window to the Mission Control space
+// at the given 1-based index. Not supported outside macOS.
+func MoveWindowToSpaceByIndex(_ int) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"moving windows to spaces is only supported on macOS",
+	)
 }

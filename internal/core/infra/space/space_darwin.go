@@ -78,3 +78,46 @@ func FocusByIndex(index int) error {
 func Count() int {
 	return int(C.NeruCountMissionControlSpaces())
 }
+
+// MoveWindowToSpaceByIndex moves the current focused window to the Mission Control space
+// at the given 1-based index.
+func MoveWindowToSpaceByIndex(index int) error {
+	count := int(C.NeruCountMissionControlSpaces())
+	if count == 0 {
+		return derrors.New(derrors.CodeActionFailed, "failed to enumerate Mission Control spaces")
+	}
+
+	if index < 1 || index > count {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"space number %d is out of range; valid range is 1..%d",
+			index,
+			count,
+		)
+	}
+
+	sid := uint64(C.NeruMissionControlSpaceID(C.int(index)))
+	if sid == 0 {
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to resolve Mission Control space at index %d",
+			index,
+		)
+	}
+
+	frontmost := C.NeruGetFrontmostWindow()
+	if frontmost == nil {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"no active window found to move",
+		)
+	}
+
+	defer C.NeruReleaseElement(frontmost) //nolint:nlreturn
+
+	if C.NeruMoveWindowToSpace(frontmost, C.uint64_t(sid)) == 0 { //nolint:nlreturn
+		return derrors.New(derrors.CodeActionFailed, "failed to move window to space")
+	}
+
+	return nil
+}

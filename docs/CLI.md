@@ -72,7 +72,7 @@ neru idle                                  # Cancel active navigation mode
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
 
-Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `space`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
+Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `space`, `move_window_to_space`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
 
 > The `--action` flag is most useful in hints mode (Vimium-style). In grid/recursive-grid, prefer composing behavior in per-mode hotkeys: `["action left_click", "idle"]`.
 
@@ -397,6 +397,19 @@ neru action space 3     # Focus the third
 ```
 
 The index is 1-based and counted in Mission Control ordering across all connected displays. Index `1` is typically the leftmost space on the primary display. Returns a clear error if Mission Control is already active (swipe gestures are ignored there).
+
+> **Note:** This action is macOS only.
+
+### Moving Windows to Spaces
+
+Moves the current focused window to a Mission Control space by its 1-based index. This action is implemented on macOS without requiring scripting additions (no need to disable SIP).
+
+```bash
+neru action move_window_to_space 1     # Move focused window to the first Mission Control space
+neru action move_window_to_space 3     # Move focused window to the third
+```
+
+The index is 1-based and counted in Mission Control ordering across all connected displays. Returns an error if no active window is found or if the space index is out of range.
 
 > **Note:** This action is macOS only.
 

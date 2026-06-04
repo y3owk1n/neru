@@ -354,4 +354,10 @@ uint64_t NeruActiveSpaceID(void);
 /// @return 1 on success, 0 on failure (e.g. CGEventCreate returned NULL)
 int NeruFocusSpaceUsingGesture(uint32_t new_did, uint64_t new_sid);
 
+/// Move a window to a specific space ID using dynamic SkyLight class.
+/// @param windowElement AXUIElementRef of the window to move
+/// @param spaceID Target Mission Control Space ID
+/// @return 1 on success, 0 on failure
+int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID);
+
 #endif  // ACCESSIBILITY_H

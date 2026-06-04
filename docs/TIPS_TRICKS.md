@@ -255,15 +255,23 @@ Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Co
 
 ## Moving windows to other macOS native spaces
 
-The snippet is ugly but it works fine, feel free to improvise it. Things to note:
-
-- `feed <key>` should be your native macOS hotkey for switching spaces
-- `yabai` is just something that I uses and not required
-- restore cursor is also optional
+Neru supports moving the active window to another Mission Control space natively on macOS. This does not require disabling SIP or installing scripting additions (unlike Yabai):
 
 ```toml
-"Alt+Shift+1" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+1", "action sleep 0.2", "action mouse_up", "exec yabai -m space --balance", "action restore_cursor_pos"]
-"Alt+Shift+2" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+2", "action sleep 0.2", "action mouse_up", "exec yabai -m space --balance", "action restore_cursor_pos"]
+[hotkeys]
+"Alt+Shift+1" = "action move_window_to_space 1"
+"Alt+Shift+2" = "action move_window_to_space 2"
+```
+
+### Legacy Workaround (Synthetic Dragging)
+
+If you need a highly custom workflow or want to chain native gestures with third-party tools, the historical drag-and-swipe method can be composed using action primitives:
+
+- `feed <key>` should be your native macOS hotkey for switching spaces.
+
+```toml
+"Alt+Shift+1" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+1", "action sleep 0.2", "action mouse_up", "action restore_cursor_pos"]
+"Alt+Shift+2" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+2", "action sleep 0.2", "action mouse_up", "action restore_cursor_pos"]
 ```
 
 ---

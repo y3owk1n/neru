@@ -269,6 +269,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.dispatchSpaceAction(ctx, cmd.Args[1:])
 	}
 
+	if action.IsMoveWindowToSpaceAction(actionName) {
+		return h.dispatchMoveWindowToSpaceAction(ctx, cmd.Args[1:])
+	}
+
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])
 	if parseErr {
 		return ipc.Response{
@@ -750,6 +754,54 @@ func parseSpaceActionArgs(args []string) (int, *ipc.Response) {
 		return 0, &ipc.Response{
 			Success: false,
 			Message: "space requires exactly one positional argument: the 1-based space number",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	raw := strings.TrimSpace(args[0])
+	if raw == "" {
+		return 0, &ipc.Response{
+			Success: false,
+			Message: "space number cannot be empty",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	index, parseErr := strconv.Atoi(raw)
+	if parseErr != nil || index < 1 {
+		return 0, &ipc.Response{
+			Success: false,
+			Message: "space number must be a positive integer, got " + raw,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return index, nil
+}
+
+// dispatchMoveWindowToSpaceAction validates the args and hands off to the
+// platform-specific handleMoveWindowToSpaceAction. Extracted from handleAction to
+// keep the dispatcher's statement count under the funlen budget.
+func (h *IPCControllerActions) dispatchMoveWindowToSpaceAction(
+	ctx context.Context,
+	args []string,
+) ipc.Response {
+	index, validationResp := parseMoveWindowToSpaceActionArgs(args)
+	if validationResp != nil {
+		return *validationResp
+	}
+
+	return h.handleMoveWindowToSpaceAction(ctx, index)
+}
+
+// parseMoveWindowToSpaceActionArgs validates the positional arguments for the `move_window_to_space`
+// action and returns the 1-based index on success. On failure it returns
+// a non-nil *ipc.Response describing the error.
+func parseMoveWindowToSpaceActionArgs(args []string) (int, *ipc.Response) {
+	if len(args) != 1 {
+		return 0, &ipc.Response{
+			Success: false,
+			Message: "move_window_to_space requires exactly one positional argument: the 1-based space number",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

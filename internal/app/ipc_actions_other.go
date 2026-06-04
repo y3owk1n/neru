@@ -36,3 +36,17 @@ func (h *IPCControllerActions) handleSpaceAction(
 		Code: ipc.CodeActionFailed,
 	}
 }
+
+func (h *IPCControllerActions) handleMoveWindowToSpaceAction(
+	_ context.Context,
+	_ int,
+) ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: derrors.New(
+			derrors.CodeNotSupported,
+			"move_window_to_space is only supported on macOS",
+		).Error(),
+		Code: ipc.CodeActionFailed,
+	}
+}

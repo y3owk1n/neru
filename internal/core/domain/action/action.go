@@ -173,6 +173,8 @@ const (
 	NameFocusWindow Name = "focus_window"
 	// NameSpace focuses a Mission Control space by its 1-based index.
 	NameSpace Name = "space"
+	// NameMoveWindowToSpace moves the frontmost window to a space by its 1-based index.
+	NameMoveWindowToSpace Name = "move_window_to_space"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -263,6 +265,11 @@ func IsSpaceAction(name string) bool {
 	return Name(name) == NameSpace
 }
 
+// IsMoveWindowToSpaceAction reports whether the given action is move_window_to_space.
+func IsMoveWindowToSpaceAction(name string) bool {
+	return Name(name) == NameMoveWindowToSpace
+}
+
 // IsKnownName determines whether the specified action name is recognized by the
 // application. This is a superset of the names in knownNames — it also includes
 // scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
@@ -282,7 +289,7 @@ func IsKnownName(name Name) bool {
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameFocusWindow, NameSpace:
+		NameFocusWindow, NameSpace, NameMoveWindowToSpace:
 		return true
 	default:
 		return false
@@ -306,7 +313,7 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameFocusWindow, NameSpace:
+		NameFocusWindow, NameSpace, NameMoveWindowToSpace:
 		return false
 	default:
 		return false
@@ -386,7 +393,8 @@ func (n Name) ToType() (Type, error) {
 		NameCycleHint,
 		NameSearchHints,
 		NameFocusWindow,
-		NameSpace:
+		NameSpace,
+		NameMoveWindowToSpace:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

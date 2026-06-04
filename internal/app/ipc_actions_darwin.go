@@ -147,3 +147,40 @@ func (h *IPCControllerActions) handleSpaceAction(
 		Code:    ipc.CodeOK,
 	}
 }
+
+// handleMoveWindowToSpaceAction moves the frontmost window to a space by its 1-based index.
+func (h *IPCControllerActions) handleMoveWindowToSpaceAction(
+	_ context.Context,
+	index int,
+) ipc.Response {
+	if accessibility.IsMissionControlActive() {
+		return ipc.Response{
+			Success: false,
+			Message: "cannot move window while Mission Control is active",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.logger.Debug("Moving window to Mission Control space via IPC", zap.Int("index", index))
+
+	moveErr := space.MoveWindowToSpaceByIndex(index)
+	if moveErr != nil {
+		h.logger.Error(
+			"Failed to move window to Mission Control space",
+			zap.Error(moveErr),
+			zap.Int("index", index),
+		)
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to move window: " + moveErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "move_window_to_space performed",
+		Code:    ipc.CodeOK,
+	}
+}
