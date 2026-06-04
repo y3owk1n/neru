@@ -1,9 +1,11 @@
-package logger
+package logger_test
 
 import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 func TestDefaultLogFilePath(t *testing.T) {
@@ -17,9 +19,9 @@ func TestDefaultLogFilePath(t *testing.T) {
 		t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	}
 
-	got, err := defaultLogFilePath()
+	got, err := logger.DefaultLogFilePath()
 	if err != nil {
-		t.Fatalf("defaultLogFilePath() error = %v", err)
+		t.Fatalf("DefaultLogFilePath() error = %v", err)
 	}
 
 	var want string
@@ -34,6 +36,6 @@ func TestDefaultLogFilePath(t *testing.T) {
 	}
 
 	if got != want {
-		t.Fatalf("defaultLogFilePath() = %q, want %q", got, want)
+		t.Fatalf("DefaultLogFilePath() = %q, want %q", got, want)
 	}
 }

@@ -42,13 +42,6 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	return &SystemAdapter{backend: backend}
 }
 
-// waylandUsesWlrClientStack is true when the session uses the same Wayland
-// client protocols as wlroots (layer shell, xdg-output, virtual pointer, etc.).
-// KDE Plasma's KWin implements these for third-party clients; GNOME does not.
-func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
-	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
-}
-
 // Health checks the health of the Linux system adapter.
 func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
@@ -281,6 +274,13 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // ShowNotification displays a lightweight notification on Linux.
 // TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
+
+// waylandUsesWlrClientStack is true when the session uses the same Wayland
+// client protocols as wlroots (layer shell, xdg-output, virtual pointer, etc.).
+// KDE Plasma's KWin implements these for third-party clients; GNOME does not.
+func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
+	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
+}
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)

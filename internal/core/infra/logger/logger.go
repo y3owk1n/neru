@@ -104,7 +104,11 @@ func Init(
 
 			logFilePath, pathErr = defaultLogFilePath()
 			if pathErr != nil {
-				return derrors.Wrap(pathErr, derrors.CodeLoggingFailed, "failed to resolve default log file path")
+				return derrors.Wrap(
+					pathErr,
+					derrors.CodeLoggingFailed,
+					"failed to resolve default log file path",
+				)
 			}
 		}
 
