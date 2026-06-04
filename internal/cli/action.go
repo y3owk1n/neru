@@ -23,6 +23,7 @@ Available subcommands:
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor
   Mode control:     reset, backspace, wait_for_mode_exit, cycle_hint
   Window control:   focus_window
+  Space control:    space
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Key injection:    feed
 
@@ -253,6 +254,9 @@ var ActionFocusWindowCmd = BuildFocusWindowCommand()
 // ActionCycleHintCmd cycles through visible hints in hints mode.
 var ActionCycleHintCmd = BuildCycleHintCommand()
 
+// ActionSpaceCmd focuses a Mission Control space by 1-based index.
+var ActionSpaceCmd = BuildSpaceCommand()
+
 func init() {
 	ActionCmd.AddCommand(ActionLeftClickCmd)
 	ActionCmd.AddCommand(ActionRightClickCmd)
@@ -278,6 +282,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
 	ActionCmd.AddCommand(ActionFocusWindowCmd)
+	ActionCmd.AddCommand(ActionSpaceCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

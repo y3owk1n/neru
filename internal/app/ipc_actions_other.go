@@ -22,3 +22,17 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 		Code: ipc.CodeActionFailed,
 	}
 }
+
+func (h *IPCControllerActions) handleSpaceAction(
+	_ context.Context,
+	_ []string,
+) ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: derrors.New(
+			derrors.CodeNotSupported,
+			"space is only supported on macOS",
+		).Error(),
+		Code: ipc.CodeActionFailed,
+	}
+}

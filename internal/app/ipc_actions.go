@@ -265,6 +265,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleSleepAction(cmd.Args[1:])
 	}
 
+	if action.IsSpaceAction(actionName) {
+		return h.handleSpaceAction(ctx, cmd.Args[1:])
+	}
+
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])
 	if parseErr {
 		return ipc.Response{

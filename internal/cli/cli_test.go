@@ -161,6 +161,7 @@ func TestCommandInitialization(t *testing.T) {
 		"move_monitor":        false,
 		"cycle_hint":          false,
 		"focus_window":        false,
+		"space <number>":      false,
 	}
 
 	for _, cmd := range cli.ActionCmd.Commands() {
@@ -219,6 +220,7 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_page_down", getActionCmd("page_down"), true},
 		{"action_move_monitor", getActionCmd("move_monitor"), true},
 		{"action_focus_window", getActionCmd("focus_window"), true},
+		{"action_space", getActionCmd("space <number>"), true},
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},

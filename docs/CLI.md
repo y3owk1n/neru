@@ -72,7 +72,7 @@ neru idle                                  # Cancel active navigation mode
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
 
-Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
+Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `space`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
 
 > The `--action` flag is most useful in hints mode (Vimium-style). In grid/recursive-grid, prefer composing behavior in per-mode hotkeys: `["action left_click", "idle"]`.
 
@@ -386,6 +386,19 @@ Bind to hotkeys for quick window switching:
 "Primary+Tab"       = "action focus_window"
 "Primary+Shift+Tab" = "action focus_window --backward"
 ```
+
+### Switching Spaces
+
+Focuses a Mission Control space by its 1-based index. macOS exposes no public API to activate a space, so Neru synthesizes a high-velocity horizontal dock swipe gesture to fast-forward to the destination space without the standard swipe animation. When the destination sits on a different display, the cursor is warped to its center first so the gesture is attributed to the correct screen.
+
+```bash
+neru action space 1     # Focus the first Mission Control space
+neru action space 3     # Focus the third
+```
+
+The index is 1-based and counted in Mission Control ordering across all connected displays. Index `1` is typically the leftmost space on the primary display. Returns a clear error if Mission Control is already active (swipe gestures are ignored there).
+
+> **Note:** This action is macOS only.
 
 ### Delay
 

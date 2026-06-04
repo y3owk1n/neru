@@ -320,4 +320,38 @@ CGRect NeruGetScreenBoundsByName(const char *name, int *found);
 /// @return Current cursor position
 CGPoint NeruGetCurrentCursorPosition(void);
 
+#pragma mark - Space Functions
+
+/// Get the total number of Mission Control spaces across all displays
+/// in their current ordering. This is the 1-based maximum valid value for
+/// NeruMissionControlSpaceID.
+/// @return Number of Mission Control spaces, or 0 on failure
+int NeruCountMissionControlSpaces(void);
+
+/// Get the space ID at the given 1-based Mission Control index.
+/// @param index 1-based index in Mission Control ordering
+/// @return Space ID, or 0 if the index is out of range or unavailable
+uint64_t NeruMissionControlSpaceID(int index);
+
+/// Get the display ID that owns a given space.
+/// @param sid Space identifier
+/// @return Display ID, or 0 if the space is invalid
+uint32_t NeruSpaceDisplayID(uint64_t sid);
+
+/// Get the space ID currently active on the cursor's display.
+/// @return Active space ID, or 0 on failure
+uint64_t NeruActiveSpaceID(void);
+
+/// Focus a space using a synthetic high-velocity horizontal dock swipe gesture.
+///
+/// Pre-conditions: the caller must have already checked that Mission Control
+/// is not active and that the destination space is different from the current
+/// one. When focus crosses displays, the cursor is warped to the destination
+/// display first so the swipe is attributed to the correct screen.
+///
+/// @param new_did Display ID owning the destination space
+/// @param new_sid Destination space ID
+/// @return 1 on success, 0 on failure (e.g. CGEventCreate returned NULL)
+int NeruFocusSpaceUsingGesture(uint32_t new_did, uint64_t new_sid);
+
 #endif  // ACCESSIBILITY_H

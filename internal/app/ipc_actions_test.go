@@ -435,6 +435,126 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 	}
 }
 
+func TestHandleAction_SpaceRequiresOneArg(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space) expected failure with no args")
+	}
+
+	if resp.Message != "space requires exactly one positional argument: the 1-based space number" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_SpaceRejectsExtraArgs(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space", "1", "2"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space 1 2) expected failure with too many args")
+	}
+
+	if resp.Message != "space requires exactly one positional argument: the 1-based space number" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_SpaceRejectsEmpty(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space", "   "},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space <whitespace>) expected failure with empty arg")
+	}
+
+	if resp.Message != "space number cannot be empty" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_SpaceRejectsNonNumeric(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space", "abc"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space abc) expected failure with non-numeric arg")
+	}
+
+	if resp.Message != "space number must be a positive integer, got abc" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_SpaceRejectsZero(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space", "0"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space 0) expected failure with zero arg")
+	}
+
+	if resp.Message != "space number must be a positive integer, got 0" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_SpaceRejectsNegative(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"space", "-3"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(space -3) expected failure with negative arg")
+	}
+
+	if resp.Message != "space number must be a positive integer, got -3" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
 func TestParseActionArgs_NameFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--name=DELL U2720Q"})
 	if parseErr {

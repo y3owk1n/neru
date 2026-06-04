@@ -4,11 +4,14 @@ package app
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/space"
 )
 
 func (h *IPCControllerActions) handleFocusWindowAction(
@@ -103,6 +106,70 @@ func (h *IPCControllerActions) handleFocusWindowAction(
 	return ipc.Response{
 		Success: true,
 		Message: "focus_window performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+// handleSpaceAction focuses the Mission Control space at the given 1-based
+// index using a synthetic high-velocity dock swipe gesture.
+func (h *IPCControllerActions) handleSpaceAction(
+	_ context.Context,
+	args []string,
+) ipc.Response {
+	if len(args) != 1 {
+		return ipc.Response{
+			Success: false,
+			Message: "space requires exactly one positional argument: the 1-based space number",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	raw := strings.TrimSpace(args[0])
+	if raw == "" {
+		return ipc.Response{
+			Success: false,
+			Message: "space number cannot be empty",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	index, parseErr := strconv.Atoi(raw)
+	if parseErr != nil || index < 1 {
+		return ipc.Response{
+			Success: false,
+			Message: "space number must be a positive integer, got " + args[0],
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if accessibility.IsMissionControlActive() {
+		return ipc.Response{
+			Success: false,
+			Message: "cannot switch spaces while Mission Control is active",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.logger.Debug("Focusing Mission Control space via IPC", zap.Int("index", index))
+
+	focusErr := space.FocusByIndex(index)
+	if focusErr != nil {
+		h.logger.Error(
+			"Failed to focus Mission Control space",
+			zap.Error(focusErr),
+			zap.Int("index", index),
+		)
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to focus space: " + focusErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "space performed",
 		Code:    ipc.CodeOK,
 	}
 }
