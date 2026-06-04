@@ -750,33 +750,7 @@ func (h *IPCControllerActions) dispatchSpaceAction(
 // directly). The helper is platform-agnostic so validation messages stay
 // consistent across macOS and stub platforms.
 func parseSpaceActionArgs(args []string) (int, *ipc.Response) {
-	if len(args) != 1 {
-		return 0, &ipc.Response{
-			Success: false,
-			Message: "space requires exactly one positional argument: the 1-based space number",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	raw := strings.TrimSpace(args[0])
-	if raw == "" {
-		return 0, &ipc.Response{
-			Success: false,
-			Message: "space number cannot be empty",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	index, parseErr := strconv.Atoi(raw)
-	if parseErr != nil || index < 1 {
-		return 0, &ipc.Response{
-			Success: false,
-			Message: "space number must be a positive integer, got " + raw,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	return index, nil
+	return parseIndexArg(args, "space")
 }
 
 // dispatchMoveWindowToSpaceAction validates the args and hands off to the
@@ -798,10 +772,15 @@ func (h *IPCControllerActions) dispatchMoveWindowToSpaceAction(
 // action and returns the 1-based index on success. On failure it returns
 // a non-nil *ipc.Response describing the error.
 func parseMoveWindowToSpaceActionArgs(args []string) (int, *ipc.Response) {
+	return parseIndexArg(args, "move_window_to_space")
+}
+
+// parseIndexArg parses a single 1-based index argument for space-related actions.
+func parseIndexArg(args []string, actionName string) (int, *ipc.Response) {
 	if len(args) != 1 {
 		return 0, &ipc.Response{
 			Success: false,
-			Message: "move_window_to_space requires exactly one positional argument: the 1-based space number",
+			Message: actionName + " requires exactly one positional argument: the 1-based space number",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

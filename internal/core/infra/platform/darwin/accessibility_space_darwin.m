@@ -10,6 +10,7 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import <Foundation/Foundation.h>
+#import <dispatch/dispatch.h>
 #import <mach-o/dyld.h>
 #import <mach-o/loader.h>
 #import <mach-o/nlist.h>
@@ -457,15 +458,14 @@ int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID) {
 
 	// Resolve SLSPerformAsynchronousBridgedWindowManagementOperation dynamically
 	static int64_t (*SLSPerformAsynchronousBridgedWindowManagementOperation)(void *) = NULL;
-	static bool resolved = false;
-	if (!resolved) {
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
 		SLSPerformAsynchronousBridgedWindowManagementOperation = (int64_t (*)(void *))neru_macho_find_symbol(
 		    "/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight",
 		    "__"
 		    "ZL54SLSPerformAsynchronousBridgedWindowManagementOperationP47SLSAsynchronousBridgedWindowManagementOperati"
 		    "on");
-		resolved = true;
-	}
+	});
 
 	if (SLSPerformAsynchronousBridgedWindowManagementOperation) {
 		Class cls = objc_getClass("SLSBridgedMoveWindowsToManagedSpaceOperation");
