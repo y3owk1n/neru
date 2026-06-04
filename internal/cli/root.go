@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -574,4 +575,75 @@ Requires hints mode to be active.`,
 		BoolVar(&backward, "backward", false, "Cycle to the previous hint instead of the next one")
 
 	return cmd
+}
+
+// BuildSpaceCommand creates a space cobra command that focuses a Mission
+// Control space by its 1-based index using a synthetic dock swipe gesture
+// since macOS exposes no public API to directly activate a space).
+//
+// Warning, fragile!!
+func BuildSpaceCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "space <number>",
+		Short: "Focus a Mission Control space by 1-based index",
+		Long: `Focus a Mission Control space by its 1-based index.
+
+Spaces are enumerated in Mission Control ordering across all connected
+displays. Index 1 is the first space (typically the leftmost on the
+primary display), index 2 the second, and so on.
+
+macOS does not provide a public API to activate a space, so the daemon
+synthesizes a high-velocity horizontal dock swipe gesture to fast-forward
+to the destination space without the standard swipe animation. When the
+destination sits on a different display, the cursor is warped to its
+center first so the gesture is attributed to the correct screen.
+
+Examples:
+  neru action space 1     Focus the first Mission Control space
+  neru action space 3     Focus the third`,
+		Args: validateActionSpaceArgs,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"space requires exactly one positional argument: the 1-based space number (e.g., neru action space 1)",
+				)
+			}
+
+			actionArgs := []string{"space", strings.TrimSpace(args[0])}
+
+			return sendCommand(cmd, "action", actionArgs)
+		},
+	}
+}
+
+func validateActionSpaceArgs(_ *cobra.Command, args []string) error {
+	if len(args) != 1 {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"space requires exactly one positional argument: the 1-based space number (e.g., neru action space 1)",
+		)
+	}
+
+	raw := strings.TrimSpace(args[0])
+	if raw == "" {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"space number cannot be empty",
+		)
+	}
+
+	index, parseErr := strconv.Atoi(raw)
+	if parseErr != nil || index < 1 {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"space number must be a positive integer, got %q",
+			args[0],
+		)
+	}
+
+	return nil
 }
