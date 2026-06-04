@@ -3310,7 +3310,7 @@ void NeruPositionAndSizeOverlayToFitHint(
 			NSSize textSize = [attrString size];
 
 			CGFloat paddingX = style.paddingX >= 0.0 ? style.paddingX : MAX(4.0, round(fontSize * 0.4));
-			CGFloat paddingY = style.paddingY >= 0.0 ? style.paddingY : MAX(2.0, round(fontSize * 0.25));
+			CGFloat paddingY = style.paddingY >= 0.0 ? style.paddingY : MAX(2.0, round(fontSize * 0.2));
 			CGFloat borderWidth = style.borderWidth >= 0 ? style.borderWidth : 1.0;
 
 			CGFloat contentWidth = textSize.width + (paddingX * 2);
