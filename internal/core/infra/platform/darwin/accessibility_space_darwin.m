@@ -296,8 +296,8 @@ int NeruFocusSpaceUsingGesture(uint32_t new_did, uint64_t new_sid) {
 	int newIndex = 0;
 	if (!neruResolveMCIndices(curSid, new_sid, &curIndex, &newIndex)) {
 		// Could not resolve Mission Control indices (e.g. transient state).
-		// Best-effort fallback: ensure the right display is active and click
-		// to nudge focus. The OS will pick the closest matching space.
+		// Best-effort fallback: ensure the right display is active so the OS
+		// picks the closest matching space on that display.
 		neruSetActiveMenuBarDisplay(new_did);
 
 		return 1;
