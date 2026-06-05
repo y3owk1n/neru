@@ -255,6 +255,8 @@ Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Co
 
 ## Moving windows to other macOS native spaces
 
+> **Caveat emptor:** This feature uses private SkyLight APIs (`SLSPerformAsynchronousBridgedWindowManagementOperation` / `SLSMoveWindowsToManagedSpace`). These are undocumented, unsupported, and may break on any macOS update. The `space` action also uses a synthetic swipe heuristic rather than a public API. Use at your own risk. These were built for my personal use case — reducing dependency on tiling window managers in favour of macOS-native space management.
+
 Neru supports moving the active window to another Mission Control space natively on macOS. This does not require disabling SIP or installing scripting additions (unlike Yabai):
 
 ```toml
