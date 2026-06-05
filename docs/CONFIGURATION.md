@@ -232,8 +232,8 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Mode        | `reset`, `backspace`                                          |
 | Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos` |
 | Focus       | `focus_window`, `focus_window --backward`                     |
-| Space       | `space <number>` — 1-based Mission Control index (macOS only) |
-| Space       | `move_window_to_space <number>` — Move active window to space (macOS only) |
+| Space       | `space <number>` — 1-based Mission Control index (macOS only) — **uses synthetic swipe gesture, not a public API** |
+| Space       | `move_window_to_space <number>` — Move active window to space (macOS only) — **uses private SkyLight APIs, may break on OS update** |
 
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))

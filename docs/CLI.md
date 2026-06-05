@@ -389,6 +389,8 @@ Bind to hotkeys for quick window switching:
 
 ### Switching Spaces
 
+> **Caveat emptor:** This action relies on a synthetic dock swipe gesture — a heuristic, not a public API. It is not guaranteed to work across macOS updates. Use at your own risk.
+
 Focuses a Mission Control space by its 1-based index. macOS exposes no public API to activate a space, so Neru synthesizes a high-velocity horizontal dock swipe gesture to fast-forward to the destination space without the standard swipe animation. When the destination sits on a different display, the cursor is warped to its center first so the gesture is attributed to the correct screen.
 
 ```bash
@@ -401,6 +403,8 @@ The index is 1-based and counted in Mission Control ordering across all connecte
 > **Note:** This action is macOS only.
 
 ### Moving Windows to Spaces
+
+> **Caveat emptor:** This action uses private SkyLight APIs (`SLSPerformAsynchronousBridgedWindowManagementOperation` / `SLSMoveWindowsToManagedSpace`). These are undocumented, unsupported, and may break on any macOS update. Use at your own risk. Implemented for my personal use case — reducing dependency on tiling window managers in favour of macOS-native space management.
 
 Moves the current focused window to a Mission Control space by its 1-based index. This action is implemented on macOS without requiring scripting additions (no need to disable SIP).
 

@@ -2,13 +2,24 @@
 
 // Package space provides functions for focusing Mission Control spaces
 // on macOS using the synthetic high-velocity horizontal dock swipe gesture
-// technique.
+// technique, and for moving windows between spaces using private SkyLight
+// APIs.
 //
 // macOS does not expose a public API to directly activate a Mission Control
 // space, so the implementation synthesizes a series of fast horizontal
 // swipes (Began -> Ended, repeated) that the Dock treats as a real
 // multi-finger gesture and uses to fast-forward to the destination space
 // without the standard animation.
+//
+// The move-window-to-space feature relies on undocumented private APIs in
+// the SkyLight framework (SLSPerformAsynchronousBridgedWindowManagementOperation
+// / SLSMoveWindowsToManagedSpace). These are unsupported by Apple, may
+// break on any macOS update, and are provided as-is.
+//
+// Both features were initially implemented for the author's personal use
+// case: reducing dependency on third-party tiling window managers (e.g.
+// yabai) in favor of macOS-native window and space management. They
+// worked at the time of writing but come with no guarantees.
 package space
 
 /*

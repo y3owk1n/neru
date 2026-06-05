@@ -432,6 +432,9 @@ static void *neru_macho_find_symbol(const char *target_image, const char *target
 
 #pragma mark - Window-to-Space Movement
 
+// Private SkyLight API — undocumented, unsupported, may break on any
+// macOS update. Dynamically resolved so the tool degrades gracefully, but
+// no guarantees are made about future compatibility.
 @protocol SLSBridgedMoveWindowsToManagedSpaceOperationProtocol <NSObject>
 - (instancetype)initWithWindows:(id)windows spaceID:(uint64_t)spaceID;
 @end
