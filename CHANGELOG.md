@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.43.0](https://github.com/y3owk1n/neru/compare/v1.42.0...v1.43.0) (2026-06-05)
+
+
+### Features
+
+* **cli:** add `focus_window` action to cycle window on active space ([#884](https://github.com/y3owk1n/neru/issues/884)) ([ead9855](https://github.com/y3owk1n/neru/commit/ead9855afc0fbdba4395e54081b5e703a88f5755))
+* **cli:** add action to move focused window to a workspace ([#895](https://github.com/y3owk1n/neru/issues/895)) ([245cfc6](https://github.com/y3owk1n/neru/commit/245cfc60ecbce6fa62427346bccbec8b79752013))
+* **cli:** add action to switch native workspace by index ([#894](https://github.com/y3owk1n/neru/issues/894)) ([1eb97a5](https://github.com/y3owk1n/neru/commit/1eb97a58d2c4730c5ab1caa6b309605509270cc9))
+* **config,hotkey,cli:** make `exec` shell configurable ([#890](https://github.com/y3owk1n/neru/issues/890)) ([d07ce38](https://github.com/y3owk1n/neru/commit/d07ce383d941a40a39ca8648f98da10ac6a2297c))
+* **default-config:** promote 3x3 recursive grid to default grid ([#882](https://github.com/y3owk1n/neru/issues/882)) ([3e0e581](https://github.com/y3owk1n/neru/commit/3e0e58156b84ba08ae991ab459ef2b601d2da79e))
+* **scroll,systray,cli:** add `invert_scroll` for direction inversion ([#883](https://github.com/y3owk1n/neru/issues/883)) ([e7d622b](https://github.com/y3owk1n/neru/commit/e7d622bb36bd6accdb82d332b78bce94ca198607))
+
+
+### Bug Fixes
+
+* **overlay,indicator:** revert [#832](https://github.com/y3owk1n/neru/issues/832) optimisation that causes regression ([#887](https://github.com/y3owk1n/neru/issues/887)) ([1ade137](https://github.com/y3owk1n/neru/commit/1ade1373f992a769cc83ae542c1359b2f14f3222))
+* **overlay:** use dispatch_sync with main thread check for window destruction ([#888](https://github.com/y3owk1n/neru/issues/888)) ([115c27a](https://github.com/y3owk1n/neru/commit/115c27a9eee9f92a81ea01f6e94d0498bd2635b4))
+* prevent memory leak during window space transitions ([#896](https://github.com/y3owk1n/neru/issues/896)) ([dc3e284](https://github.com/y3owk1n/neru/commit/dc3e28431062cd7dfd9c198a91e09be3f78e4812))
+
+
+### Performance Improvements
+
+* **overlay,indicator:** dynamically size indicator badge to save memory ([#893](https://github.com/y3owk1n/neru/issues/893)) ([e38e5ef](https://github.com/y3owk1n/neru/commit/e38e5ef9e5b482339769b9d8af35d88c5f8b395b))
+
+
+### Documentation
+
+* add disclaimer on `space` and `move_window_to_space` implementation ([#897](https://github.com/y3owk1n/neru/issues/897)) ([10304e4](https://github.com/y3owk1n/neru/commit/10304e42664c09d0420a083921692fff754605d1))
+* update installation requirement for macOS to be 14.0 sonoma or later ([1f86955](https://github.com/y3owk1n/neru/commit/1f8695582db9708cb04654aadd32fccb355c74f3))
+
 ## [1.42.0](https://github.com/y3owk1n/neru/compare/v1.41.0...v1.42.0) (2026-05-30)
 
 
