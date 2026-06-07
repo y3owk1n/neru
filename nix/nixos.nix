@@ -90,7 +90,7 @@ in
           ExecStart =
             "${cfg.package}/bin/neru launch"
             + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
-          Environment = effectiveEnv;
+          Environment = lib.mapAttrsToList (k: v: "${k}=${v}") effectiveEnv;
           Restart = cfg.systemd.restart;
           RestartSec = cfg.systemd.restartSec;
           Nice = -10;

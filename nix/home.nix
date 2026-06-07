@@ -173,7 +173,7 @@ in
       };
       Service = {
         ExecStart = "${cfg.package}/bin/neru launch --config ${config.xdg.configHome}/neru/config.toml";
-        Environment = effectiveEnv;
+        Environment = lib.mapAttrsToList (k: v: "${k}=${v}") effectiveEnv;
         Restart = cfg.systemd.restart;
         RestartSec = cfg.systemd.restartSec;
         Nice = "-10";
