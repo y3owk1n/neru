@@ -6,6 +6,22 @@
 }:
 let
   cfg = config.services.neru;
+  defaultPath = lib.concatStringsSep ":" (
+    [
+      "${config.home.homeDirectory}/.nix-profile/bin"
+      "/etc/profiles/per-user/${config.home.username}/bin"
+      "/run/current-system/sw/bin"
+      "/nix/var/nix/profiles/default/bin"
+      "/usr/local/bin"
+      "/usr/bin"
+      "/bin"
+    ]
+    ++ lib.optionals pkgs.stdenv.isDarwin [ "/opt/homebrew/bin" ]
+  );
+  effectiveEnv = {
+    PATH = defaultPath;
+  }
+  // cfg.extraEnvironment;
 in
 {
   options = {
@@ -73,6 +89,27 @@ in
         };
       };
 
+      extraEnvironment = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = {
+          PATH = "/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin";
+        };
+        description = ''
+          Additional environment variables to set in the launchd (macOS) or systemd (Linux) service.
+          These are merged with defaults such as a {env}`PATH`
+          that includes common Nix binary directories and the user's Nix profile.
+          Setting {env}`PATH` here will override the default entirely.
+
+          To extend the default PATH with additional directories:
+          ```nix
+          services.neru.extraEnvironment = {
+            PATH = "/Users/me/.cargo/bin:/Users/me/.nix-profile/bin:/etc/profiles/per-user/me/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin";
+          };
+          ```
+        '';
+      };
+
       systemd = {
         enable = lib.mkOption {
           type = lib.types.bool;
@@ -115,6 +152,7 @@ in
           "--config"
           "${config.xdg.configHome}/neru/config.toml"
         ];
+        EnvironmentVariables = effectiveEnv;
         RunAtLoad = true;
         KeepAlive = cfg.launchd.keepAlive;
         StandardOutPath = "/tmp/neru.log";
@@ -135,6 +173,7 @@ in
       };
       Service = {
         ExecStart = "${cfg.package}/bin/neru launch --config ${config.xdg.configHome}/neru/config.toml";
+        Environment = effectiveEnv;
         Restart = cfg.systemd.restart;
         RestartSec = cfg.systemd.restartSec;
         Nice = "-10";

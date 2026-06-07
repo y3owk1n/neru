@@ -132,12 +132,15 @@ Use the nix-darwin module for system-wide installation:
 - `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.launchd.enable` - Enable the launchd agent (default: `true`)
+- `services.neru.launchd.keepAlive` - Keep the launchd service alive (default: `true`)
+- `services.neru.extraEnvironment` - Additional environment variables for the launchd service (default: `{}`; includes a sensible `PATH` with Nix binary directories)
 
 The module automatically:
 
 - Installs Neru system-wide
-- Creates a launchd user agent
-- Configures the agent to run at login with `KeepAlive = true` and `RunAtLoad = true`
+- Creates a launchd user agent with the configured environment
+- Configures the agent to run at login with `KeepAlive` and `RunAtLoad = true`
 - Installs shell completions for bash, fish, and zsh
 
 > [!NOTE]
@@ -207,12 +210,14 @@ Use the NixOS module for system-wide installation on Linux:
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
 - `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
 - `services.neru.systemd.restartSec` - Seconds to wait before restarting (default: `5`)
+- `services.neru.extraEnvironment` - Additional environment variables for the systemd service (default: `{}`; includes a sensible `PATH` with Nix binary directories)
 
 The module automatically:
 
 - Installs Neru system-wide
 - Creates a systemd user service tied to `graphical-session.target`
 - Configures automatic restart on failure
+- Sets the configured environment variables in the service
 
 > [!IMPORTANT]
 > On Linux, `pkgs.neru` uses the release artifact when available. Use `pkgs.neru-source` to build from source. If your nixpkgs doesn't ship a recent enough Go version, see [Patch Go Version](#patch-go-version) below.
@@ -319,13 +324,14 @@ Use the home-manager module for user-specific installation on macOS or Linux:
 - `services.neru.systemd.enable` - Enable the systemd user service on Linux (default: `true`)
 - `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
 - `services.neru.systemd.restartSec` - Seconds to wait before restarting (default: `5`)
+- `services.neru.extraEnvironment` - Additional environment variables for the launchd or systemd service (default: `{}`; includes a sensible `PATH` with Nix binary directories and the user's Nix profile)
 
 The module automatically:
 
 - Installs Neru in user environment
 - Creates `~/.config/neru/config.toml` (or uses your `configFile`)
-- **macOS:** Creates a launchd user agent (if `launchd.enable` is `true`) with `KeepAlive` and `RunAtLoad = true`
-- **Linux:** Creates a systemd user service tied to `graphical-session.target` (if `systemd.enable` is `true`)
+- **macOS:** Creates a launchd user agent (if `launchd.enable` is `true`) with `KeepAlive`, `RunAtLoad = true`, and the configured environment
+- **Linux:** Creates a systemd user service tied to `graphical-session.target` (if `systemd.enable` is `true`) with the configured environment
 - Installs shell completions for bash, fish, and zsh
 
 > [!NOTE]

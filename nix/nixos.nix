@@ -8,6 +8,10 @@ let
   cfg = config.services.neru;
   configFile =
     if cfg.configFile != null then cfg.configFile else pkgs.writeText "config.toml" cfg.config;
+  effectiveEnv = {
+    PATH = "/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin";
+  }
+  // cfg.extraEnvironment;
 in
 {
   options = {
@@ -51,6 +55,26 @@ in
           description = "Seconds to wait before restarting the Neru service.";
         };
       };
+      extraEnvironment = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = {
+          PATH = "/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin";
+        };
+        description = ''
+          Additional environment variables to set in the systemd service.
+          These are merged with defaults such as a {env}`PATH`
+          that includes common Nix binary directories.
+          Setting {env}`PATH` here will override the default entirely.
+
+          To extend the default PATH with additional directories:
+          ```nix
+          services.neru.extraEnvironment = {
+            PATH = "/home/me/.local/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin";
+          };
+          ```
+        '';
+      };
     };
   };
   config = (
@@ -66,6 +90,7 @@ in
           ExecStart =
             "${cfg.package}/bin/neru launch"
             + (lib.optionalString (cfg.configFile != null || cfg.config != "") " --config ${configFile}");
+          Environment = effectiveEnv;
           Restart = cfg.systemd.restart;
           RestartSec = cfg.systemd.restartSec;
           Nice = -10;
