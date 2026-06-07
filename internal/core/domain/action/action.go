@@ -169,12 +169,6 @@ const (
 	NameCycleHint Name = "cycle_hint"
 	// NameSearchHints starts text filtering in hints mode.
 	NameSearchHints Name = "search_hints"
-	// NameFocusWindow cycles focus to the next/previous window on the active space.
-	NameFocusWindow Name = "focus_window"
-	// NameSpace focuses a Mission Control space by its 1-based index.
-	NameSpace Name = "space"
-	// NameMoveWindowToSpace moves the frontmost window to a space by its 1-based index.
-	NameMoveWindowToSpace Name = "move_window_to_space"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -255,21 +249,6 @@ func IsSearchHintsAction(name string) bool {
 	return Name(name) == NameSearchHints
 }
 
-// IsFocusWindowAction reports whether the given action is focus_window.
-func IsFocusWindowAction(name string) bool {
-	return Name(name) == NameFocusWindow
-}
-
-// IsSpaceAction reports whether the given action is space.
-func IsSpaceAction(name string) bool {
-	return Name(name) == NameSpace
-}
-
-// IsMoveWindowToSpaceAction reports whether the given action is move_window_to_space.
-func IsMoveWindowToSpaceAction(name string) bool {
-	return Name(name) == NameMoveWindowToSpace
-}
-
 // IsKnownName determines whether the specified action name is recognized by the
 // application. This is a superset of the names in knownNames — it also includes
 // scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
@@ -288,8 +267,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameFocusWindow, NameSpace, NameMoveWindowToSpace:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
 		return true
 	default:
 		return false
@@ -312,8 +290,7 @@ func IsScrollSubAction(name string) bool {
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameFocusWindow, NameSpace, NameMoveWindowToSpace:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
 		return false
 	default:
 		return false
@@ -391,10 +368,7 @@ func (n Name) ToType() (Type, error) {
 		NameFeed,
 		NameSleep,
 		NameCycleHint,
-		NameSearchHints,
-		NameFocusWindow,
-		NameSpace,
-		NameMoveWindowToSpace:
+		NameSearchHints:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

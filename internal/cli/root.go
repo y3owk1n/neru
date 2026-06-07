@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -513,39 +512,6 @@ Positive values move right/down, negative values move left/up.`,
 	return cmd
 }
 
-// BuildFocusWindowCommand creates a focus_window cobra command that cycles
-// window focus through all focusable windows on the active space.
-func BuildFocusWindowCommand() *cobra.Command {
-	var backward bool
-
-	cmd := &cobra.Command{
-		Use:   "focus_window",
-		Short: "Cycle focus through windows on the active space",
-		Long: `Cycle keyboard focus through all focusable windows on the current space.
-
-Cycles forward through windows (or backward with --backward), wrapping at the
-end. Only windows that are focusable (not minimized, not hidden) and on the
-current space are included.`,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return requiresRunningInstance()
-		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			actionArgs := []string{"focus_window"}
-
-			if backward {
-				actionArgs = append(actionArgs, "--backward")
-			}
-
-			return sendCommand(cmd, "action", actionArgs)
-		},
-	}
-
-	cmd.Flags().
-		BoolVar(&backward, "backward", false, "Cycle to the previous window instead of the next one")
-
-	return cmd
-}
-
 // BuildCycleHintCommand creates a cycle_hint cobra command that cycles through visible hints.
 func BuildCycleHintCommand() *cobra.Command {
 	var backward bool
@@ -575,139 +541,4 @@ Requires hints mode to be active.`,
 		BoolVar(&backward, "backward", false, "Cycle to the previous hint instead of the next one")
 
 	return cmd
-}
-
-// BuildSpaceCommand creates a space cobra command that focuses a Mission
-// Control space by its 1-based index using a synthetic dock swipe gesture
-// since macOS exposes no public API to directly activate a space).
-//
-// Warning, fragile!!
-func BuildSpaceCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "space <number>",
-		Short: "Focus a Mission Control space by 1-based index",
-		Long: `Focus a Mission Control space by its 1-based index.
-
-Spaces are enumerated in Mission Control ordering across all connected
-displays. Index 1 is the first space (typically the leftmost on the
-primary display), index 2 the second, and so on.
-
-macOS does not provide a public API to activate a space, so the daemon
-synthesizes a high-velocity horizontal dock swipe gesture to fast-forward
-to the destination space without the standard swipe animation. When the
-destination sits on a different display, the cursor is warped to its
-center first so the gesture is attributed to the correct screen.
-
-Examples:
-  neru action space 1     Focus the first Mission Control space
-  neru action space 3     Focus the third`,
-		Args: validateActionSpaceArgs,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return requiresRunningInstance()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"space requires exactly one positional argument: the 1-based space number (e.g., neru action space 1)",
-				)
-			}
-
-			actionArgs := []string{"space", strings.TrimSpace(args[0])}
-
-			return sendCommand(cmd, "action", actionArgs)
-		},
-	}
-}
-
-func validateActionSpaceArgs(_ *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return derrors.New(
-			derrors.CodeInvalidInput,
-			"space requires exactly one positional argument: the 1-based space number (e.g., neru action space 1)",
-		)
-	}
-
-	raw := strings.TrimSpace(args[0])
-	if raw == "" {
-		return derrors.New(
-			derrors.CodeInvalidInput,
-			"space number cannot be empty",
-		)
-	}
-
-	index, parseErr := strconv.Atoi(raw)
-	if parseErr != nil || index < 1 {
-		return derrors.Newf(
-			derrors.CodeInvalidInput,
-			"space number must be a positive integer, got %q",
-			args[0],
-		)
-	}
-
-	return nil
-}
-
-// BuildMoveWindowToSpaceCommand creates a command that moves the current focused window
-// to a Mission Control space by its 1-based index.
-func BuildMoveWindowToSpaceCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "move_window_to_space <number>",
-		Short: "Move current focused window to a Mission Control space by 1-based index",
-		Long: `Move the currently focused window to a Mission Control space by its 1-based index.
-
-Spaces are enumerated in Mission Control ordering across all connected
-displays. Index 1 is the first space, index 2 the second, and so on.
-
-This command uses private APIs (SkyLight) to move the window instantly
-without scripting additions or disabling SIP on macOS.
-
-Examples:
-  neru action move_window_to_space 2     Move current window to space 2
-  neru action move_window_to_space 4     Move current window to space 4`,
-		Args: validateActionMoveWindowToSpaceArgs,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
-			return requiresRunningInstance()
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"move_window_to_space requires exactly one positional argument: the 1-based space number (e.g., neru action move_window_to_space 1)",
-				)
-			}
-
-			actionArgs := []string{"move_window_to_space", strings.TrimSpace(args[0])}
-
-			return sendCommand(cmd, "action", actionArgs)
-		},
-	}
-}
-
-func validateActionMoveWindowToSpaceArgs(_ *cobra.Command, args []string) error {
-	if len(args) != 1 {
-		return derrors.New(
-			derrors.CodeInvalidInput,
-			"move_window_to_space requires exactly one positional argument: the 1-based space number (e.g., neru action move_window_to_space 1)",
-		)
-	}
-
-	raw := strings.TrimSpace(args[0])
-	if raw == "" {
-		return derrors.New(
-			derrors.CodeInvalidInput,
-			"space number cannot be empty",
-		)
-	}
-
-	index, parseErr := strconv.Atoi(raw)
-	if parseErr != nil || index < 1 {
-		return derrors.Newf(
-			derrors.CodeInvalidInput,
-			"space number must be a positive integer, got %q",
-			args[0],
-		)
-	}
-
-	return nil
 }

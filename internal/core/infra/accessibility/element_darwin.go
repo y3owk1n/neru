@@ -365,21 +365,6 @@ func (e *Element) Children(role string) ([]*Element, error) {
 	return children, nil
 }
 
-// ActivateWindow brings the window's application to the foreground and sets
-// keyboard focus on the window.
-func (e *Element) ActivateWindow() error {
-	if e.ref == nil {
-		return errSetFocusNil
-	}
-
-	result := C.NeruActivateWindow(e.ref) //nolint:nlreturn
-	if result == 0 {
-		return errSetFocusFailed
-	}
-
-	return nil
-}
-
 // SetFocus sets focus to the element.
 func (e *Element) SetFocus() error {
 	if e.ref == nil {
@@ -488,32 +473,6 @@ func (e *Element) Clone() (*Element, error) {
 func AllWindows() ([]*Element, error) {
 	var count C.int
 	windows := C.NeruGetAllWindows(&count)
-	if windows == nil || count == 0 {
-		if windows != nil {
-			C.free(unsafe.Pointer(windows))
-		}
-
-		return []*Element{}, nil
-	}
-	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
-
-	countInt := int(count)
-	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
-	result := make([]*Element, countInt)
-
-	for index := range result {
-		result[index] = &Element{ref: windowSlice[index]}
-	}
-
-	return result, nil
-}
-
-// AllFocusableWindowsOnActiveSpace returns all focusable windows on the active
-// space across all running applications. Filters out minimized, hidden, and
-// off-space windows.
-func AllFocusableWindowsOnActiveSpace() ([]*Element, error) {
-	var count C.int
-	windows := C.NeruGetAllFocusableWindowsOnActiveSpace(&count)
 	if windows == nil || count == 0 {
 		if windows != nil {
 			C.free(unsafe.Pointer(windows))

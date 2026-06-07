@@ -178,12 +178,6 @@ int NeruAreElementsEqual(void *element1, void *element2);
 
 #pragma mark - Window Functions
 
-/// Get all focusable windows on the active space across all running applications.
-/// Filters out non-focusable windows (minimized, hidden, off-space, non-window roles).
-/// @param count Output parameter for number of windows
-/// @return Array of window element references. Caller frees the array and releases refs.
-void **NeruGetAllFocusableWindowsOnActiveSpace(int *count);
-
 /// Get all windows of focused application
 /// @param count Output parameter for number of windows
 /// @return Array of window references
@@ -197,11 +191,6 @@ void **NeruGetFrontmostAndPopoverWindows(int *count);
 /// Get frontmost window
 /// @return Frontmost window reference
 void *NeruGetFrontmostWindow(void);
-
-/// Activate a window: brings its application to the foreground and sets focus.
-/// @param window Window element reference
-/// @return 1 on success, 0 on failure
-int NeruActivateWindow(void *window);
 
 /// Get the frame (position + size) of the focused window
 /// @return Window frame rectangle, or CGRectZero if no window is found
@@ -319,50 +308,5 @@ CGRect NeruGetScreenBoundsByName(const char *name, int *found);
 /// Get current cursor position
 /// @return Current cursor position
 CGPoint NeruGetCurrentCursorPosition(void);
-
-#pragma mark - Space Functions
-
-/// Get the total number of Mission Control spaces across all displays
-/// in their current ordering. This is the 1-based maximum valid value for
-/// NeruMissionControlSpaceID.
-/// @return Number of Mission Control spaces, or 0 on failure
-int NeruCountMissionControlSpaces(void);
-
-/// Get the space ID at the given 1-based Mission Control index.
-/// @param index 1-based index in Mission Control ordering
-/// @return Space ID, or 0 if the index is out of range or unavailable
-uint64_t NeruMissionControlSpaceID(int index);
-
-/// Get the display ID that owns a given space.
-/// @param sid Space identifier
-/// @return Display ID, or 0 if the space is invalid
-uint32_t NeruSpaceDisplayID(uint64_t sid);
-
-/// Get the space ID currently active on the cursor's display.
-/// @return Active space ID, or 0 on failure
-uint64_t NeruActiveSpaceID(void);
-
-/// Focus a space using a synthetic high-velocity horizontal dock swipe gesture.
-///
-/// Pre-conditions: the caller must have already checked that Mission Control
-/// is not active and that the destination space is different from the current
-/// one. When focus crosses displays, the cursor is warped to the destination
-/// display first so the swipe is attributed to the correct screen.
-///
-/// @param new_did Display ID owning the destination space
-/// @param new_sid Destination space ID
-/// @return 1 on success, 0 on failure (e.g. CGEventCreate returned NULL)
-int NeruFocusSpaceUsingGesture(uint32_t new_did, uint64_t new_sid);
-
-/// Move a window to a specific space ID using dynamic SkyLight class.
-/// On the primary path the move is dispatched asynchronously via
-/// SLSBridgedMoveWindowsToManagedSpaceOperation; 1 means the operation
-/// was queued, not that the window has already moved. The synchronous
-/// SLSMoveWindowsToManagedSpace fallback provides a stronger completion
-/// guarantee but is only used when the primary path is unavailable.
-/// @param windowElement AXUIElementRef of the window to move
-/// @param spaceID Target Mission Control Space ID
-/// @return 1 on success (dispatched or synchronous), 0 on failure
-int NeruMoveWindowToSpace(void *windowElement, uint64_t spaceID);
 
 #endif  // ACCESSIBILITY_H

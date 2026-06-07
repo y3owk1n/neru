@@ -18,7 +18,6 @@
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
 - [Combining Hints with Other Actions](#combining-hints-with-other-actions)
-- [Moving windows to other macOS native spaces](#moving-windows-to-other-macos-native-spaces)
 - [Further Reading](#further-reading)
 
 ---
@@ -252,29 +251,6 @@ The `--action` flag on hints mode is not limited to `left_click`. You can pass o
 ```
 
 Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Code file tree) without moving your hands to the mouse.
-
-## Moving windows to other macOS native spaces
-
-> **Caveat emptor:** This feature uses private SkyLight APIs (`SLSPerformAsynchronousBridgedWindowManagementOperation` / `SLSMoveWindowsToManagedSpace`). These are undocumented, unsupported, and may break on any macOS update. The `space` action also uses a synthetic swipe heuristic rather than a public API. Use at your own risk. These were built for my personal use case — reducing dependency on tiling window managers in favour of macOS-native space management.
-
-Neru supports moving the active window to another Mission Control space natively on macOS. This does not require disabling SIP or installing scripting additions (unlike Yabai):
-
-```toml
-[hotkeys]
-"Alt+Shift+1" = "action move_window_to_space 1"
-"Alt+Shift+2" = "action move_window_to_space 2"
-```
-
-### Legacy Workaround (Synthetic Dragging)
-
-If you need a highly custom workflow or want to chain native gestures with third-party tools, the historical drag-and-swipe method can be composed using action primitives:
-
-- `feed <key>` should be your native macOS hotkey for switching spaces.
-
-```toml
-"Alt+Shift+1" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+1", "action sleep 0.2", "action mouse_up", "action restore_cursor_pos"]
-"Alt+Shift+2" = ["action save_cursor_pos", "action move_mouse --window --y -1000 --x -1000", "action sleep 0.05", "action move_mouse_relative --dx 100 --dy 2", "action sleep 0.05", "action mouse_down", "action sleep 0.1", "action move_mouse_relative --dx 5 --dy 5", "action sleep 0.1", "action feed cmd+shift+ctrl+alt+2", "action sleep 0.2", "action mouse_up", "action restore_cursor_pos"]
-```
 
 ---
 

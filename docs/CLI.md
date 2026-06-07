@@ -72,7 +72,7 @@ neru idle                                  # Cancel active navigation mode
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
 
-Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `focus_window`, `space`, `move_window_to_space`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
+Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
 
 > The `--action` flag is most useful in hints mode (Vimium-style). In grid/recursive-grid, prefer composing behavior in per-mode hotkeys: `["action left_click", "idle"]`.
 
@@ -103,14 +103,14 @@ neru hints --role AXButton,AXLink --text save,cancel  # Multiple roles/texts (co
 neru hints --text next --action left_click --repeat   # Filter persists across repeats
 ```
 
-| Flag                      | Type   | Description                                                                                                                  |
-| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                           |
-| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                         |
-| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                             |
-| `--search, -s`            | bool   | Start with search input active.                                                                                              |
-| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                             |
-| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match. |
+| Flag                      | Type   | Description                                                                                                                        |
+| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                 |
+| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                               |
+| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                   |
+| `--search, -s`            | bool   | Start with search input active.                                                                                                    |
+| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                   |
+| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.       |
 | `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation. |
 
 The filter is preserved across repeat activations.
@@ -283,11 +283,11 @@ neru action go_top                            # Jump to top
 neru action go_bottom                         # Jump to bottom
 ```
 
-| Flag          | Description                                                           |
-| ------------- | --------------------------------------------------------------------- |
+| Flag          | Description                                                                                                             |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `--steps`     | Override scroll step (pixels); `scroll_up`/`down`/`left`/`right` only (see [CONFIGURATION.md](CONFIGURATION.md#scroll)) |
-| `--selection` | Target mode selection                                                 |
-| `--bare`      | Target cursor position instead of mode selection                      |
+| `--selection` | Target mode selection                                                                                                   |
+| `--bare`      | Target cursor position instead of mode selection                                                                        |
 
 ### Mode Commands
 
@@ -363,59 +363,6 @@ neru action move_monitor --name "DELL U2720Q" # Move to named monitor
 | `--previous` | Cycle to previous monitor      |
 
 Find monitor names in **System Settings → Displays**.
-
-### Window Focus
-
-Cycles keyboard focus through all focusable windows on the current Space. Filters out minimized, hidden, and off-space windows.
-
-```bash
-neru action focus_window                        # Focus next window
-neru action focus_window --backward             # Focus previous window
-```
-
-| Flag         | Description                              |
-| ------------ | ---------------------------------------- |
-| `--backward` | Cycle to the previous window instead of next |
-
-Windows are enumerated across all running applications. Only windows with role `AXWindow` that are visible, not minimized, and on the active space are included.
-
-Bind to hotkeys for quick window switching:
-
-```toml
-[global.hotkeys]
-"Primary+Tab"       = "action focus_window"
-"Primary+Shift+Tab" = "action focus_window --backward"
-```
-
-### Switching Spaces
-
-> **Caveat emptor:** This action relies on a synthetic dock swipe gesture — a heuristic, not a public API. It is not guaranteed to work across macOS updates. Use at your own risk.
-
-Focuses a Mission Control space by its 1-based index. macOS exposes no public API to activate a space, so Neru synthesizes a high-velocity horizontal dock swipe gesture to fast-forward to the destination space without the standard swipe animation. When the destination sits on a different display, the cursor is warped to its center first so the gesture is attributed to the correct screen.
-
-```bash
-neru action space 1     # Focus the first Mission Control space
-neru action space 3     # Focus the third
-```
-
-The index is 1-based and counted in Mission Control ordering across all connected displays. Index `1` is typically the leftmost space on the primary display. Returns a clear error if Mission Control is already active (swipe gestures are ignored there).
-
-> **Note:** This action is macOS only.
-
-### Moving Windows to Spaces
-
-> **Caveat emptor:** This action uses private SkyLight APIs (`SLSPerformAsynchronousBridgedWindowManagementOperation` / `SLSMoveWindowsToManagedSpace`). These are undocumented, unsupported, and may break on any macOS update. Use at your own risk. Implemented for my personal use case — reducing dependency on tiling window managers in favour of macOS-native space management.
-
-Moves the current focused window to a Mission Control space by its 1-based index. This action is implemented on macOS without requiring scripting additions (no need to disable SIP).
-
-```bash
-neru action move_window_to_space 1     # Move focused window to the first Mission Control space
-neru action move_window_to_space 3     # Move focused window to the third
-```
-
-The index is 1-based and counted in Mission Control ordering across all connected displays. Returns an error if no active window is found or if the space index is out of range.
-
-> **Note:** This action is macOS only.
 
 ### Delay
 
