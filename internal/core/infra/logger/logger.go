@@ -107,12 +107,12 @@ func Init(
 	if !disableFileLogging {
 		// Determine log file path
 		if logFilePath == "" {
-			homeDir, err := os.UserHomeDir()
+			defaultLogFilePath, err := defaultLogFilePath()
 			if err != nil {
 				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to get home directory")
 			}
 
-			logFilePath = filepath.Join(homeDir, "Library", "Logs", "neru", "app.log")
+			logFilePath = defaultLogFilePath
 		}
 
 		// Create log directory

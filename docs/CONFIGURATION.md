@@ -261,16 +261,16 @@ See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform beh
 
 ## [general]
 
-| Option                                 | Type   | Default       | Description                                         |
-| -------------------------------------- | ------ | ------------- | --------------------------------------------------- |
-| `excluded_apps`                        | array  | `[]`          | Bundle IDs where Neru won't activate                |
+| Option                                 | Type   | Default       | Description                                                                                       |
+| -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------------- |
+| `excluded_apps`                        | array  | `[]`          | Bundle IDs where Neru won't activate                                                              |
 | `kb_layout_to_use`                     | string | `""`          | Force keyboard layout InputSourceID bundle ID (auto if empty). E.g. `com.apple.keylayout.Colemak` |
-| `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                 |
-| `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through     |
-| `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut              |
-| `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on   |
-| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands        |
-| `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments; command string is appended last    |
+| `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                                                               |
+| `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through                                                   |
+| `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut                                                            |
+| `passthrough_unbounded_keys_blacklist` | array  | `[]`          | Shortcuts to keep consumed when passthrough is on                                                 |
+| `exec_shell`                           | string | `"/bin/bash"` | Shell binary used for `exec` hotkey commands                                                      |
+| `exec_shell_args`                      | array  | `["-lc"]`     | Shell arguments; command string is appended last                                                  |
 
 Find available `kb_layout_to_use` IDs on macOS:
 
@@ -914,6 +914,14 @@ duration_per_pixel = 1.0
 | `max_file_size`        | int    | `10`     | MB before rotation                                |
 | `max_backups`          | int    | `5`      | Old log files to keep                             |
 | `max_age`              | int    | `30`     | Days to retain old logs                           |
+
+When `log_file` is empty, Neru writes to a platform default location:
+
+| Platform | Default log file                  |
+| -------- | --------------------------------- |
+| macOS    | `~/Library/Logs/neru/app.log`     |
+| Linux    | `~/.local/state/neru/log/app.log` |
+| Windows  | `%LOCALAPPDATA%\neru\log\app.log` |
 
 At the default `info` level, logs focus on lifecycle, configuration, mode activation, and actionable operational events. Use `debug` temporarily when investigating key routing, hint generation, accessibility collection, overlay redraws, or IPC action flow. Debug logs intentionally avoid typed UI text, feed-key payloads, exec output, and full configuration values.
 
