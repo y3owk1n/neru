@@ -109,7 +109,11 @@ func Init(
 		if logFilePath == "" {
 			defaultLogFilePath, err := defaultLogFilePath()
 			if err != nil {
-				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to get home directory")
+				return derrors.Wrap(
+					err,
+					derrors.CodeLoggingFailed,
+					"failed to determine default log file path",
+				)
 			}
 
 			logFilePath = defaultLogFilePath
