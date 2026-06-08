@@ -215,6 +215,7 @@ The [factory.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/fa
 2. **Infrastructure Level**: [adapter.go](file:///Users/kylewong/Dev/neru/internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
 3. **Application Level**: [handler.go](file:///Users/kylewong/Dev/neru/internal/app/modes/handler.go) receives the key and routes it to the active [Mode](file:///Users/kylewong/Dev/neru/internal/app/modes/base.go).
 4. **Service Level**: The mode calls into services like [hint_service.go](file:///Users/kylewong/Dev/neru/internal/app/services/hint_service.go) to perform business logic.
+5. **Keyboard Layout Changes**: On macOS, Carbon global hotkeys are registered with raw keycodes. When the user switches keyboard layout at runtime (e.g., US → Dvorak → Colemak), the [layout_change_darwin.go](file:///Users/kylewong/Dev/neru/internal/app/layout_change_darwin.go) handler unregisters all existing hotkeys and re-registers them with the new layout's keycodes. This is driven by a second callback slot in [keymap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/keymap_darwin.m) (`NeruSetKeymapLayoutChangeCallback2`). On Linux and Windows, this is a no-op.
 
 ---
 

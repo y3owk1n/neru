@@ -39,6 +39,9 @@ func (a *App) prepareForConfigUpdate() {
 		a.ExitMode()
 	}
 
+	a.hotkeyRegistrationMu.Lock()
+	defer a.hotkeyRegistrationMu.Unlock()
+
 	if a.appState.HotkeysRegistered() {
 		a.logger.Debug("Unregistering current hotkeys before reload")
 		a.stopAllHotkeyRepeats()
@@ -73,6 +76,9 @@ func (a *App) restoreHotkeysAfterFailedReload() {
 	// Guard with HotkeysRegistered() because the blocking native alert
 	// shown by ReloadWithAppContext can trigger a focus-change notification,
 	// which may already have re-registered hotkeys on another path.
+	a.hotkeyRegistrationMu.Lock()
+	defer a.hotkeyRegistrationMu.Unlock()
+
 	if a.appState.IsEnabled() && !a.appState.HotkeysRegistered() {
 		a.registerHotkeys()
 		a.appState.SetHotkeysRegistered(true)

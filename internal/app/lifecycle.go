@@ -615,8 +615,12 @@ func (a *App) Cleanup() {
 		}
 
 		if a.hotkeyManager != nil {
+			a.hotkeyRegistrationMu.Lock()
+			defer a.hotkeyRegistrationMu.Unlock()
+
 			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()
+			a.appState.SetHotkeysRegistered(false)
 		}
 
 		if a.overlayManager != nil {

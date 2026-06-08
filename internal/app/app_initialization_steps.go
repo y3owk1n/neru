@@ -421,6 +421,10 @@ func initializeEventTapAndIPC(app *App) error {
 		app.configureEventTapHotkeys(cfg, logger)
 	}
 
+	// Register Go-level keyboard layout change handler so Carbon hotkeys
+	// (registered with raw keycodes) are re-registered when the layout changes.
+	app.registerLayoutChangeHandler()
+
 	// Initialize IPC server if not provided
 	if app.ipcServer == nil {
 		server, err := ipcadapter.NewServer(app.ipcController.HandleCommand, logger)
@@ -453,8 +457,11 @@ func initializeShutdownChannel(app *App) {
 func cleanupInfrastructure(app *App) {
 	// Clean up hotkey service
 	if app.hotkeyManager != nil {
+		app.hotkeyRegistrationMu.Lock()
 		app.stopAllHotkeyRepeats()
 		app.hotkeyManager.UnregisterAll()
+		app.appState.SetHotkeysRegistered(false)
+		app.hotkeyRegistrationMu.Unlock()
 		app.hotkeyManager = nil
 	}
 

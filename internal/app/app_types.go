@@ -68,8 +68,9 @@ type App struct {
 	// concurrent writers (theme change observer, IPC config reload, systray reload).
 	configMu sync.RWMutex
 
-	hotkeyRepeatMu      sync.Mutex
-	hotkeyRepeatCancels map[string]context.CancelFunc
+	hotkeyRepeatMu       sync.Mutex
+	hotkeyRepeatCancels  map[string]context.CancelFunc
+	hotkeyRegistrationMu sync.Mutex
 
 	// New Architecture Services
 	hintService            *services.HintService

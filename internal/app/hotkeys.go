@@ -388,6 +388,9 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 // refreshHotkeysForAppOrCurrent manages hotkey registration based on Neru's enabled state
 // and whether the currently focused application is excluded.
 func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
+	a.hotkeyRegistrationMu.Lock()
+	defer a.hotkeyRegistrationMu.Unlock()
+
 	if !a.appState.IsEnabled() {
 		if a.appState.HotkeysRegistered() {
 			a.logger.Debug("Neru disabled; unregistering hotkeys")

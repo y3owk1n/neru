@@ -264,7 +264,7 @@ See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform beh
 | Option                                 | Type   | Default       | Description                                         |
 | -------------------------------------- | ------ | ------------- | --------------------------------------------------- |
 | `excluded_apps`                        | array  | `[]`          | Bundle IDs where Neru won't activate                |
-| `kb_layout_to_use`                     | string | `""`          | Force keyboard layout InputSourceID (auto if empty) |
+| `kb_layout_to_use`                     | string | `""`          | Force keyboard layout InputSourceID bundle ID (auto if empty). E.g. `com.apple.keylayout.Colemak` |
 | `hide_overlay_in_screen_share`         | bool   | `false`       | Hide overlay in screen sharing apps                 |
 | `passthrough_unbounded_keys`           | bool   | `false`       | Let unbound Cmd/Ctrl/Alt shortcuts pass through     |
 | `should_exit_after_passthrough`        | bool   | `false`       | Exit mode after a passthrough shortcut              |
