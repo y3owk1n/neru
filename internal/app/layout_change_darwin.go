@@ -43,3 +43,9 @@ func (a *App) registerLayoutChangeHandler() {
 	a.logger.Debug("Registered keyboard layout change handler for hotkey re-registration",
 		zap.Bool("hotkeys_registered", a.appState.HotkeysRegistered()))
 }
+
+// unregisterLayoutChangeHandler clears the keyboard layout change handler
+// so a stale callback cannot fire after the App is torn down.
+func (a *App) unregisterLayoutChangeHandler() {
+	darwin.SetKeymapLayoutChangeHandler(nil)
+}

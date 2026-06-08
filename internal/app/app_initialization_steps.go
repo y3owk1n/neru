@@ -455,6 +455,10 @@ func initializeShutdownChannel(app *App) {
 
 // cleanupInfrastructure cleans up resources allocated during infrastructure initialization.
 func cleanupInfrastructure(app *App) {
+	// Unregister layout change handler so a stale callback cannot fire
+	// after the App is torn down.
+	app.unregisterLayoutChangeHandler()
+
 	// Clean up hotkey service
 	if app.hotkeyManager != nil {
 		app.hotkeyRegistrationMu.Lock()

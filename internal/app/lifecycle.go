@@ -598,6 +598,9 @@ func (a *App) Cleanup() {
 		// Stop theme observer: nil the handler first so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()
+		// Unregister layout change handler so a stale callback cannot fire
+		// after the App is torn down.
+		a.unregisterLayoutChangeHandler()
 		// Stop IPC server first to prevent new requests.
 		// Use a fresh context instead of a.ctx since the root context was
 		// canceled above; a canceled context would cause Stop() to fail
@@ -616,11 +619,10 @@ func (a *App) Cleanup() {
 
 		if a.hotkeyManager != nil {
 			a.hotkeyRegistrationMu.Lock()
-			defer a.hotkeyRegistrationMu.Unlock()
-
 			a.stopAllHotkeyRepeats()
 			a.hotkeyManager.UnregisterAll()
 			a.appState.SetHotkeysRegistered(false)
+			a.hotkeyRegistrationMu.Unlock()
 		}
 
 		if a.overlayManager != nil {
