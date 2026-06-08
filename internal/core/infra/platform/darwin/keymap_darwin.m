@@ -144,8 +144,9 @@ static TISInputSourceRef copyKeyboardLayoutInputSourceByID(NSString *inputSource
 			CFStringRef srcIDRef = (CFStringRef)TISGetInputSourceProperty(candidate, kTISPropertyInputSourceID);
 			if (srcIDRef) {
 				NSString *srcID = (__bridge NSString *)srcIDRef;
+				NSString *suffix = [NSString stringWithFormat:@".%@", inputSourceID];
 				if ([srcID caseInsensitiveCompare:inputSourceID] == NSOrderedSame ||
-				    [srcID hasSuffix:[NSString stringWithFormat:@".%@", inputSourceID]]) {
+				    [srcID.lowercaseString hasSuffix:suffix.lowercaseString]) {
 					CFRetain(candidate);
 					matched = candidate;
 					break;
@@ -812,13 +813,16 @@ static void handleKeyboardLayoutChanged(
     CFDictionaryRef userInfo) {
 	[gKeymapLock lock];
 	BOOL hasConfiguredLayout = (gConfiguredInputSourceID != nil && gConfiguredInputSourceID.length > 0);
+	BOOL configuredResolved = gConfiguredInputSourceResolved;
 	BOOL usesCurrentFallback = gUsesCurrentLayoutFallback;
 	[gKeymapLock unlock];
 
-	// When the user has explicitly configured a layout via kb_layout_to_use,
-	// layout switches should not affect key interpretation.
+	// When the user has explicitly configured a layout via kb_layout_to_use
+	// AND it resolved successfully, layout switches should not affect key
+	// interpretation. If the configured ID failed to resolve, Neru falls
+	// through to auto-detection and must follow system changes.
 	// Otherwise, always rebuild so Neru follows the active system layout.
-	BOOL shouldRebuild = !hasConfiguredLayout || usesCurrentFallback;
+	BOOL shouldRebuild = !hasConfiguredLayout || !configuredResolved || usesCurrentFallback;
 
 	if (!shouldRebuild) {
 		return;
