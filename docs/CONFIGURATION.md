@@ -275,7 +275,11 @@ See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform beh
 Find available `kb_layout_to_use` IDs on macOS:
 
 ```bash
+# get all enabled input sources
 defaults read com.apple.HIToolbox AppleEnabledInputSources
+
+# get the current keyboard layout that is active (e.g. if you use dvorak, it should be `com.apple.keylayout.Dvorak`)
+defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
 ```
 
 ---
