@@ -66,7 +66,9 @@ type Component struct {
 	mHints              *systray.MenuItem
 	mGrid               *systray.MenuItem
 	mRecursiveGrid      *systray.MenuItem
+	mConfig             *systray.MenuItem
 	mReloadConfig       *systray.MenuItem
+	mOpenConfig         *systray.MenuItem
 	mHelp               *systray.MenuItem
 	mSourceCode         *systray.MenuItem
 	mDocsConfig         *systray.MenuItem
@@ -191,7 +193,9 @@ func (c *Component) OnReady() {
 
 	systray.AddSeparator()
 
-	c.mReloadConfig = systray.AddMenuItem("Reload Config")
+	c.mConfig = systray.AddMenuItem("Config")
+	c.mReloadConfig = c.mConfig.AddSubMenuItem("Reload")
+	c.mOpenConfig = c.mConfig.AddSubMenuItem("Open in Editor")
 
 	c.mToggleDisable = systray.AddMenuItem("Pause Neru")
 	c.mToggleEnable = systray.AddMenuItem("Resume Neru")
@@ -276,6 +280,18 @@ func (c *Component) handleEvents() {
 			c.app.ActivateMode(domain.ModeRecursiveGrid)
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
+		case <-c.mOpenConfig.ClickedCh:
+			go func() {
+				configPath := c.app.GetConfigPath()
+				if configPath == "" {
+					return
+				}
+
+				err := exec.CommandContext(c.ctx, "/usr/bin/open", configPath).Run()
+				if err != nil {
+					c.logger.Error("Failed to open config file", zap.Error(err))
+				}
+			}()
 		case <-c.mSourceCode.ClickedCh:
 			go func() {
 				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru").
