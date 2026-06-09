@@ -208,7 +208,9 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		return wlrootsMoveCursorToPoint(point)
+		// Route through the Wayland input dispatcher so KDE (no virtual
+		// pointer) uses libei while wlroots compositors use the native path.
+		return waylandMoveCursorToPoint(point)
 	}
 
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
@@ -227,7 +229,7 @@ func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error)
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		return wlrootsCursorPosition()
+		return waylandCursorPosition()
 	}
 
 	return image.Point{}, derrors.New(

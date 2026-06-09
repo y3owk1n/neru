@@ -4,7 +4,7 @@ Neru provides native Linux support through these display server backends:
 
 - **X11** — works with any X11-based session (XOrg, i3, etc.)
 - **Wayland (wlroots)** — works with wlroots-based compositors (Sway, Hyprland, niri, River)
-- **Wayland (KDE Plasma)** — partial. KWin exposes `zwlr_layer_shell_v1` and `zxdg_output_manager_v1` (so overlays and screen geometry work) but **not** `zwlr_virtual_pointer_v1`, so pointer move/click do not work through the shared wlroots path. See [Measured Compositor Protocol Support](#measured-compositor-protocol-support).
+- **Wayland (KDE Plasma)** — KWin exposes `zwlr_layer_shell_v1` and `zxdg_output_manager_v1` (overlays and screen geometry use the shared wlroots client) but **not** `zwlr_virtual_pointer_v1`. Input (move/click/scroll/modifier) is injected through `libei` via the `org.freedesktop.portal.RemoteDesktop` portal instead, which requires approving a one-time "Remote Control" consent prompt per session. See [Measured Compositor Protocol Support](#measured-compositor-protocol-support).
 
 > **GNOME Wayland** is not yet supported. GNOME Shell uses its own private protocols instead of the wlr protocols. See the placeholder files in `internal/core/infra/platform/linux/wayland_gnome/` for contribution guidance.
 
@@ -35,17 +35,19 @@ Neru provides native Linux support through these display server backends:
 | River      | wayland-wlroots | ✅ Supported     | Full virtual-pointer and layer-shell support            |
 | X11 / XOrg | x11             | ✅ Supported     | XTest for input, XRandR for screens                     |
 | i3         | x11             | ✅ Supported     | Runs under X11                                          |
-| KDE Plasma | wayland-kde     | Partial          | Overlay + screen geometry work; pointer move/click do not (KWin lacks `zwlr_virtual_pointer_v1`) |
+| KDE Plasma | wayland-kde     | ✅ Supported     | Overlay + screen geometry via the wlroots client; input via `libei` (RemoteDesktop portal). Needs a one-time per-session consent prompt |
 | GNOME      | wayland-gnome   | 🔲 Not Supported | Needs libei + GNOME Shell extension; see PLACEHOLDER.md |
 
-> **KDE pointer injection does not work through the current backend (confirmed,
-> not assumed).** Neru's Wayland pointer path hard-requires
-> `zwlr_virtual_pointer_v1`, but KWin 6.6.4 does not expose it (measured directly
-> with `wayland-info`; see
-> [Measured Compositor Protocol Support](#measured-compositor-protocol-support)).
-> The overlay renders because `zwlr_layer_shell_v1` is present, but the cursor
-> cannot move or click. KDE needs a desktop-specific input path, not the shared
-> wlroots path.
+> **KDE input goes through `libei`, not the wlroots virtual pointer (confirmed,
+> not assumed).** KWin 6.6.4 does not expose `zwlr_virtual_pointer_v1` (measured
+> directly with `wayland-info`; see
+> [Measured Compositor Protocol Support](#measured-compositor-protocol-support)),
+> so Neru injects input through `libei` via the
+> `org.freedesktop.portal.RemoteDesktop` portal. The overlay and screen geometry
+> still use the shared wlroots client because `zwlr_layer_shell_v1` and
+> `zxdg_output_manager_v1` are present. The portal shows a one-time "Remote
+> Control" consent prompt that must be approved before the cursor can move or
+> click.
 
 ---
 
@@ -76,13 +78,13 @@ Notes:
 Some requirements are properties of the **compositor**, not the host, so no install
 step can add them:
 
-- **`zwlr_virtual_pointer_v1`** — required for pointer move/click. Neru's wlroots
-  backend fails at init with `CodeActionFailed` if the compositor does not advertise
-  it, and there is no fallback to KWin's native `org_kde_kwin_fake_input`. wlroots
-  compositors (Sway, Hyprland, niri, River) provide it; **KWin 6.6.4 does not**
-  (confirmed below).
-- **`zwp_virtual_keyboard_manager_v1`** — required for sticky-modifier key injection
-  on Wayland; same all-or-nothing behavior.
+- **`zwlr_virtual_pointer_v1`** — used for pointer move/click on wlroots
+  compositors (Sway, Hyprland, niri, River). **KWin 6.6.4 does not advertise it**
+  (confirmed below); on KDE, Neru injects input through `libei` via the
+  RemoteDesktop portal instead, so a missing virtual pointer is not fatal there.
+- **`zwp_virtual_keyboard_manager_v1`** — used for sticky-modifier key injection
+  on wlroots compositors; on KDE the same modifiers go through the libei keyboard
+  device when the portal grants one.
 
 ### Measured Compositor Protocol Support
 
@@ -107,11 +109,14 @@ desktop-specific input path instead.
 | `zwp_virtual_keyboard_manager_v1`   | sticky-modifier key injection | yes                                | **no**                  |
 | `org_kde_kwin_fake_input`           | KWin-native input emulation   | n/a                                | **no** (not advertised) |
 
-**Conclusion for KDE:** the overlay half works, the input half does not. A future
-KDE input path would have to go through something KWin actually exposes (the
-`org.freedesktop.portal.RemoteDesktop` / libei route is the likely candidate,
-which is also the planned GNOME path), gated on the `wayland-kde` backend so it
-never touches the shared wlroots implementation.
+**Conclusion for KDE:** the overlay and screen-geometry half uses the shared
+wlroots client (both protocols are present); the input half goes through
+something KWin actually exposes — `libei` via the
+`org.freedesktop.portal.RemoteDesktop` portal. The backend choice is made at the
+Wayland input dispatcher (`system_linux_wayland_input.go`): if the compositor
+advertises `zwlr_virtual_pointer_v1` it uses the wlroots virtual pointer,
+otherwise it uses libei. The two input mechanisms never overlap, and libei never
+touches the wlroots input implementation.
 
 > **Reusing this for other desktops (e.g. COSMIC):** run the same `wayland-info`
 > check in that session. If it lists both `zwlr_layer_shell_v1` and
@@ -222,6 +227,12 @@ Below is a minimal single flake with home manager setup.
 
 ## Build Dependencies
 
+`libei` and `liboeffis` provide the KDE Plasma input path (input injection
+through the `org.freedesktop.portal.RemoteDesktop` portal, since KWin does not
+implement `zwlr_virtual_pointer_v1`). The CGO build links them via
+`pkg-config libei-1.0 liboeffis-1.0`, so the `-devel`/`-dev` packages are
+required at build time and the runtime shared libs at run time.
+
 ### Debian / Ubuntu
 
 ```bash
@@ -234,6 +245,8 @@ sudo apt-get install -y \
   libxinerama-dev \
   libxfixes-dev \
   libxkbcommon-dev \
+  libei-dev \
+  liboeffis-dev \
   wayland-protocols
 ```
 
@@ -249,6 +262,8 @@ sudo dnf install -y \
   libXinerama-devel \
   libXfixes-devel \
   libxkbcommon-devel \
+  libei-devel \
+  liboeffis-devel \
   wayland-protocols-devel
 ```
 
@@ -264,6 +279,7 @@ sudo pacman -S \
   libxinerama \
   libxfixes \
   libxkbcommon \
+  libei \
   wayland-protocols
 ```
 
@@ -436,6 +452,18 @@ systemctl --user enable --now neru
    modified pointer actions depend on the `evdev` keyboard-capture path described
    above. Without `/dev/input/event*` access, Neru falls back to a less capable
    overlay-focused path.
+6. **KDE input needs RemoteDesktop consent**: On KDE Plasma, input goes through
+   `libei` via the RemoteDesktop portal, which shows a one-time "Remote Control"
+   consent prompt the first time Neru injects input in a session. Approve it (you
+   can tick "remember" where offered) or input will fail with `CodeActionFailed`.
+   Modifier keys require the portal to grant a keyboard device; if it grants only
+   a pointer, modified clicks degrade.
+7. **Screen resolution is read once at startup**: Neru enumerates output geometry
+   (`xdg_output` logical size) when the daemon starts and caches it. If the
+   resolution changes afterward — common when resizing a VM window, and also on
+   monitor hotplug / docking — the overlay and hint coordinates stay at the old
+   size. Relaunch Neru after changing resolution to pick up the new geometry.
+   Tracking resolution changes live is a planned follow-up.
 
 ---
 
@@ -447,7 +475,24 @@ You're running under X11 or a TTY. Neru will automatically use the X11 backend w
 
 ### "compositor does not support zwlr_virtual_pointer_v1"
 
-Your Wayland compositor does not currently implement `wlr` unstable protocols. This typically occurs under GNOME Shell, which uses its own private protocols. Check the placeholder docs to learn how libei implementations will govern GNOME support in the future.
+Your Wayland compositor does not currently implement `wlr` unstable protocols. This typically occurs under GNOME Shell, which uses its own private protocols. Check the placeholder docs to learn how libei implementations will govern GNOME support in the future. On KDE Plasma this is expected — KWin does not advertise the protocol and Neru routes input through `libei` instead (see below).
+
+### KDE: "could not establish a libei input session via the RemoteDesktop portal"
+
+On KDE Plasma, Neru injects input through `libei` via the
+`org.freedesktop.portal.RemoteDesktop` portal. The first input action in a
+session pops a "Remote Control" consent dialog; approve it before the connect
+times out. If you denied it, revoke/re-grant the permission in System Settings
+(Apps & Window Management / portal permissions) and retry. The session also
+needs the portal services running (`xdg-desktop-portal` and
+`xdg-desktop-portal-kde`).
+
+### Overlay or hints are the wrong size / offset after resizing
+
+Neru reads screen geometry once when the daemon starts. If you resized a VM
+window, changed display scaling, or hotplugged a monitor after launch, the
+overlay still uses the old logical size. Relaunch Neru (`neru stop` then
+`neru launch`) to pick up the new resolution.
 
 ### "failed to connect to Wayland compositor"
 
