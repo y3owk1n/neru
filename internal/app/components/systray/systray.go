@@ -281,17 +281,7 @@ func (c *Component) handleEvents() {
 		case <-c.mReloadConfig.ClickedCh:
 			c.handleReloadConfig()
 		case <-c.mOpenConfig.ClickedCh:
-			go func() {
-				configPath := c.app.GetConfigPath()
-				if configPath == "" {
-					return
-				}
-
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", configPath).Run()
-				if err != nil {
-					c.logger.Error("Failed to open config file", zap.Error(err))
-				}
-			}()
+			go c.handleOpenConfig()
 		case <-c.mSourceCode.ClickedCh:
 			go func() {
 				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru").
@@ -375,6 +365,18 @@ func (c *Component) handleToggleEnable() {
 }
 
 // handleReloadConfig reloads the configuration from disk.
+func (c *Component) handleOpenConfig() {
+	configPath := c.app.GetConfigPath()
+	if configPath == "" {
+		return
+	}
+
+	err := exec.CommandContext(c.ctx, "/usr/bin/open", configPath).Run()
+	if err != nil {
+		c.logger.Error("Failed to open config file", zap.Error(err))
+	}
+}
+
 func (c *Component) handleReloadConfig() {
 	configPath := c.app.GetConfigPath()
 
