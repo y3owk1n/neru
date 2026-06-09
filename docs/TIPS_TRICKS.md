@@ -150,6 +150,19 @@ Grid and recursive-grid now include this toggle in the default config, bound to 
 
 This keeps the real pointer still while you navigate. Point-targeted actions now prefer the current selection by default, so `"Return" = "action left_click"` and scroll actions will commit against the selection unless you opt out with `--bare`.
 
+## Mode Toggle (On/Off)
+
+Use `--toggle` to turn a single hotkey into a mode toggle — pressing it once activates the mode, pressing it again returns to idle:
+
+```toml
+[hotkeys]
+"Ctrl+F" = "grid --toggle"
+"Ctrl+G" = "recursive_grid --toggle"
+"Ctrl+H" = "hints --toggle"
+```
+
+This is especially useful when you want a single key to both enter and exit a mode, avoiding the need for a separate `Escape` press or a dedicated exit keybinding.
+
 ## Disabling All Built-In Hotkeys
 
 To disable all built-in hotkeys (e.g. when using an external hotkey daemon like skhd), provide an empty `[hotkeys]` section:

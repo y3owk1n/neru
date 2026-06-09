@@ -43,6 +43,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
+			toggleFlag, err := cmd.Flags().GetBool("toggle")
+			if err != nil {
+				return err
+			}
+
 			var searchFlag bool
 			if config.SupportSearch {
 				searchFlag, err = cmd.Flags().GetBool("search")
@@ -133,6 +138,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--repeat")
 			}
 
+			if toggleFlag {
+				params = append(params, "--toggle")
+			}
+
 			if searchFlag {
 				params = append(params, "--search")
 			}
@@ -170,6 +179,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"a",
 		"",
 		fmt.Sprintf("Action to perform on %s (%s)", config.ActionDesc, action.SupportedNamesString()),
+	)
+
+	cmd.Flags().BoolP(
+		"toggle",
+		"t",
+		false,
+		"Toggle mode on/off (exit to idle if already active)",
 	)
 
 	cmd.Flags().BoolP(

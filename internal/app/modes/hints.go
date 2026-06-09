@@ -31,6 +31,7 @@ type ModeActivationOptions struct {
 	FilterTextContains    []string
 	Search                *bool
 	Strategy              *string
+	Toggle                *bool
 }
 
 const (
@@ -53,6 +54,14 @@ func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
 func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationOptions) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Toggle: if the mode is already active and --toggle was specified,
+	// exit to idle instead of re-activating
+	if opts.Toggle != nil && *opts.Toggle && h.appState.CurrentMode() == mode {
+		h.exitModeLocked()
+
+		return
+	}
 
 	if mode == domain.ModeIdle {
 		h.exitModeLocked()

@@ -19,13 +19,33 @@ Once in scroll mode, use vim-style keys to scroll:
 Press Escape to exit scroll mode and return to idle.
 
 Examples:
-  neru scroll      Activate scroll mode at the current cursor position`,
+  neru scroll           Activate scroll mode at the current cursor position
+  neru scroll --toggle  Toggle scroll mode on/off`,
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return sendCommand(cmd, "scroll", []string{})
+		toggleFlag, err := cmd.Flags().GetBool("toggle")
+		if err != nil {
+			return err
+		}
+
+		params := []string{}
+		if toggleFlag {
+			params = append(params, "--toggle")
+		}
+
+		return sendCommand(cmd, "scroll", params)
 	},
+}
+
+func init() {
+	ScrollCmd.Flags().BoolP(
+		"toggle", "t", false,
+		"Toggle scroll mode on/off (exit to idle if already active)",
+	)
+
+	RootCmd.AddCommand(ScrollCmd)
 }
 
 func init() {

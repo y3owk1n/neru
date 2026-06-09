@@ -180,6 +180,8 @@ Use `__disabled__` to remove individual defaults:
 
 When a mode is disabled (`enabled = false`), its default launcher hotkey is removed automatically.
 
+**Mode toggling:** Append `--toggle` to turn a hotkey into a toggle — activates the mode on first press, exits to idle on the second. Works with any mode: `"Ctrl+F" = "grid --toggle"`.
+
 ### Per-Mode Hotkeys
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
