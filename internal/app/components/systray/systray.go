@@ -364,7 +364,7 @@ func (c *Component) handleToggleEnable() {
 	c.app.ToggleEnabled()
 }
 
-// handleReloadConfig reloads the configuration from disk.
+// handleOpenConfig opens the configuration file in the default editor.
 func (c *Component) handleOpenConfig() {
 	configPath := c.app.GetConfigPath()
 	if configPath == "" {
@@ -377,6 +377,7 @@ func (c *Component) handleOpenConfig() {
 	}
 }
 
+// handleReloadConfig reloads the configuration from disk.
 func (c *Component) handleReloadConfig() {
 	configPath := c.app.GetConfigPath()
 
