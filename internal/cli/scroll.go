@@ -47,7 +47,3 @@ func init() {
 
 	RootCmd.AddCommand(ScrollCmd)
 }
-
-func init() {
-	RootCmd.AddCommand(ScrollCmd)
-}
