@@ -232,7 +232,7 @@ func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions, cfg)
-			if got != false {
+			if got {
 				t.Fatalf(
 					"hotkeyActionsRepeatWhileHeld(%v) with Enabled=false = %v, want false",
 					testCase.actions,

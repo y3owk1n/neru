@@ -136,6 +136,9 @@ func (a *App) dispatchHotkeyActions(key string, actions []string) {
 
 func (a *App) startHotkeyRepeat(key string, actions []string) {
 	cfg := a.configSnapshot().HeldRepeat
+	if !cfg.Enabled {
+		return
+	}
 
 	ctx, cancel := context.WithCancel(a.ctx)
 
