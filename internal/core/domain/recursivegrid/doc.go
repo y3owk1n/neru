@@ -14,7 +14,7 @@
 //
 //	// Create a new recursive grid for a 1920x1080 screen
 //	bounds := image.Rect(0, 0, 1920, 1080)
-//	grid := recursivegrid.NewRecursiveGrid(bounds, 25, 25, 10) // 25px min width, 25px min height, 10 max depth
+//	grid := recursivegrid.NewRecursiveGrid(bounds, 1, 1, 10) // 1px min width, 1px min height, 10 max depth
 //
 //	// Select top-left cell (key 'u')
 //	center, complete := grid.SelectCell(recursivegrid.TopLeft)
