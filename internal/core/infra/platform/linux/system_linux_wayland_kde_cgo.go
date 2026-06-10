@@ -25,10 +25,14 @@ import (
 // system_linux_wayland_input.go via the LinuxBackend family.
 
 // libeiConnectTimeoutMs bounds how long a lazy (mid-action) input op waits for
-// the libei/RemoteDesktop session. Kept short: if warm-up did not already
-// establish the session, the hints/grid overlay is on screen and would hide the
-// consent dialog, so blocking long here just stalls the UI.
-const libeiConnectTimeoutMs = 30000
+// the libei/RemoteDesktop session. It MUST stay short: mid-action calls run on
+// the eventtap goroutine that holds the keyboard grab, so any blocking here
+// freezes the global hotkey listener and buffers the user's keystrokes until it
+// unblocks. If warm-up did not already establish the session the overlay is on
+// screen and hides the consent dialog anyway, so a long wait only stalls the UI.
+// Establishing the session is warm-up's job (libeiWarmupTimeoutMs); the lazy
+// path just fails fast so the mode can exit and release the grab.
+const libeiConnectTimeoutMs = 1500
 
 // libeiWarmupTimeoutMs bounds the startup warm-up wait. It is long because the
 // consent dialog appears while no overlay is up, giving the user a comfortable
@@ -80,7 +84,8 @@ func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 // libeiEnsure establishes the portal session without injecting input. The
 // daemon calls this at startup (via WarmWaylandInput) so the one-time consent
 // prompt is handled before any action, instead of blocking the first action
-// past the IPC timeout.
+// past the IPC timeout. This is the only path allowed to hold mu across the
+// long consent wait; mid-action input uses tryAcquire so it never blocks here.
 func libeiEnsure() error {
 	globalLibeiState.mu.Lock()
 	defer globalLibeiState.mu.Unlock()
@@ -88,13 +93,35 @@ func libeiEnsure() error {
 	return globalLibeiState.ensureLockedTimeout(libeiWarmupTimeoutMs)
 }
 
-func libeiMoveAbs(x, y int) error {
-	globalLibeiState.mu.Lock()
-	defer globalLibeiState.mu.Unlock()
+// tryAcquire grabs mu without blocking and guarantees the session is ready.
+// It exists so mid-action input calls never stall the eventtap goroutine (which
+// holds the keyboard grab) behind warm-up's long-held lock: if warm-up is still
+// waiting on the consent prompt, TryLock fails immediately and the action fails
+// fast instead of freezing every hotkey. On success the caller owns mu and must
+// Unlock; on any error mu is already released.
+func (s *libeiState) tryAcquire() error {
+	if !s.mu.TryLock() {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"libei input session busy (RemoteDesktop warm-up in progress); "+
+				"approve the one-time \"Remote Control\" consent prompt, then retry",
+		)
+	}
 
-	if err := globalLibeiState.ensureLocked(); err != nil {
+	if err := s.ensureLocked(); err != nil {
+		s.mu.Unlock()
+
 		return err
 	}
+
+	return nil
+}
+
+func libeiMoveAbs(x, y int) error {
+	if err := globalLibeiState.tryAcquire(); err != nil {
+		return err
+	}
+	defer globalLibeiState.mu.Unlock()
 
 	if C.neru_ei_move_abs(globalLibeiState.client, C.int(x), C.int(y)) == 0 {
 		return derrors.Newf(
@@ -108,12 +135,10 @@ func libeiMoveAbs(x, y int) error {
 }
 
 func libeiButton(button int, pressed bool) error {
-	globalLibeiState.mu.Lock()
-	defer globalLibeiState.mu.Unlock()
-
-	if err := globalLibeiState.ensureLocked(); err != nil {
+	if err := globalLibeiState.tryAcquire(); err != nil {
 		return err
 	}
+	defer globalLibeiState.mu.Unlock()
 
 	pressedInt := C.int(0)
 	if pressed {
@@ -128,12 +153,10 @@ func libeiButton(button int, pressed bool) error {
 }
 
 func libeiScroll(axis, delta int) error {
-	globalLibeiState.mu.Lock()
-	defer globalLibeiState.mu.Unlock()
-
-	if err := globalLibeiState.ensureLocked(); err != nil {
+	if err := globalLibeiState.tryAcquire(); err != nil {
 		return err
 	}
+	defer globalLibeiState.mu.Unlock()
 
 	if C.neru_ei_scroll(globalLibeiState.client, C.int(axis), C.int(delta)) == 0 {
 		return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
@@ -143,12 +166,10 @@ func libeiScroll(axis, delta int) error {
 }
 
 func libeiKey(keycode int, pressed bool) error {
-	globalLibeiState.mu.Lock()
-	defer globalLibeiState.mu.Unlock()
-
-	if err := globalLibeiState.ensureLocked(); err != nil {
+	if err := globalLibeiState.tryAcquire(); err != nil {
 		return err
 	}
+	defer globalLibeiState.mu.Unlock()
 
 	pressedInt := C.int(0)
 	if pressed {

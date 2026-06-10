@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -43,6 +44,12 @@ type EventTap struct {
 
 	stopCh chan struct{}
 	doneCh chan struct{}
+
+	// inHandler is true while the run-loop goroutine is executing the key
+	// callback. A mode exit triggered by an in-mode key runs the whole cleanup
+	// (including Disable) synchronously on that goroutine, so Disable must not
+	// block on doneCh in that case or the loop would wait for itself to finish.
+	inHandler atomic.Bool
 }
 
 // NewEventTap creates a new EventTap instance.
@@ -99,6 +106,17 @@ func (et *EventTap) Disable() {
 	et.mu.Unlock()
 
 	close(stopCh)
+
+	// If Disable was called from within this tap's own key handler (a mode exit
+	// triggered by an in-mode keypress), the run-loop goroutine is sitting in
+	// this call stack. Waiting on doneCh would deadlock it against itself. The
+	// loop will observe the closed stopCh and return once the handler unwinds,
+	// releasing the keyboard grab then. Only join when called from another
+	// goroutine (e.g. the global-hotkey listener or app shutdown).
+	if et.inHandler.Load() {
+		return
+	}
+
 	<-doneCh
 }
 
@@ -186,6 +204,9 @@ func (et *EventTap) dispatchKey(key string) {
 	et.mu.RUnlock()
 
 	if callback != nil && key != "" {
+		et.inHandler.Store(true)
+		defer et.inHandler.Store(false)
+
 		callback(key)
 	}
 }

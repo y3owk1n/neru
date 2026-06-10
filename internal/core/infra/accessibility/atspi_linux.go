@@ -311,6 +311,41 @@ func isVirtualKeyboardApp(name string) bool {
 	}
 }
 
+// isDesktopShellApp reports whether an AT-SPI application is the KDE desktop
+// shell (plasmashell: the panel, taskbar, widgets and desktop background).
+// KWin marks plasmashell ACTIVE the instant the pointer moves over the desktop
+// — which happens immediately after a hint selection moves the cursor — so it
+// would otherwise hijack the active frame on re-activation and yield no app
+// hints. It is deprioritised to a last resort rather than skipped entirely so
+// its own UI (panel/widgets) can still be hinted when the desktop is genuinely
+// the focused surface.
+func isDesktopShellApp(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "plasmashell", "org.kde.plasmashell":
+		return true
+	default:
+		return false
+	}
+}
+
+// isNonTargetSurfaceApp reports whether an AT-SPI application is a system
+// surface that is never a valid hint target and must never be picked as the
+// focused window — even as a last resort. The XWayland video bridge
+// ("xwaylandvideobridge") and the KDE portal consent dialog briefly steal the
+// ACTIVE state the moment we inject a cursor move via libei, which on
+// re-activation makes findActiveFrame select an empty surface and tears the
+// hints overlay down. This mirrors the KWin geometry bridge blocklist in
+// kwin_geometry_linux.go so both code paths ignore the same noise.
+func isNonTargetSurfaceApp(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "xwaylandvideobridge",
+		"org.freedesktop.impl.portal.desktop.kde":
+		return true
+	default:
+		return false
+	}
+}
+
 // findActiveFrame locates the focused top-level window across all registered
 // applications by looking for a frame with the ACTIVE state.
 // On KDE several frames can report the ACTIVE state at once (e.g. the maliit
@@ -327,17 +362,27 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		haveAA        bool
 		showingAny    accRef
 		haveSA        bool
+		// Desktop-shell (plasmashell) frames are only used as a last resort —
+		// see isDesktopShellApp — so a desktop that goes ACTIVE right after a
+		// cursor move cannot hijack a still-showing real application window.
+		shellShowing accRef
+		haveShell    bool
 	)
 
 	for _, app := range c.children(conn, root) {
-		// Skip on-screen virtual keyboards. While hints mode is active and the
-		// user types a label, the maliit keyboard ("plasma-keyboard") can
-		// momentarily become ACTIVE+SHOWING and, being iterated before the real
-		// app, would otherwise be picked as the focused window, killing the
-		// overlay on re-activation. It is never a valid hint target.
-		if isVirtualKeyboardApp(c.name(conn, app)) {
+		appName := c.name(conn, app)
+
+		// Skip surfaces that are never valid hint targets and that steal the
+		// ACTIVE state right after a libei cursor move: on-screen virtual
+		// keyboards (e.g. the maliit "plasma-keyboard"), the XWayland video
+		// bridge, and the portal consent dialog. Being iterated before the real
+		// app, any of these would otherwise be picked as the focused window and
+		// kill the overlay on re-activation.
+		if isVirtualKeyboardApp(appName) || isNonTargetSurfaceApp(appName) {
 			continue
 		}
+
+		isShell := isDesktopShellApp(appName)
 
 		for _, frame := range c.children(conn, app) {
 			role := c.roleName(conn, frame)
@@ -347,6 +392,17 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 
 			active := c.stateHas(conn, frame, atspiStateActive)
 			showing := c.stateHas(conn, frame, atspiStateShowing)
+
+			// The desktop shell never wins the active-frame race; it is kept
+			// aside and only used if no real application frame is found.
+			if isShell {
+				if showing && !haveShell {
+					shellShowing = frame
+					haveShell = true
+				}
+
+				continue
+			}
 
 			if active && showing && !haveAS {
 				activeShowing = frame
@@ -372,6 +428,8 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		return activeAny, true
 	case haveSA:
 		return showingAny, true
+	case haveShell:
+		return shellShowing, true
 	default:
 		return accRef{}, false
 	}
