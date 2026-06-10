@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	hotkeySequenceTimeout  = 500 * time.Millisecond
-	heldRepeatInitialDelay = 50 * time.Millisecond
-	heldRepeatInterval     = 50 * time.Millisecond
+	hotkeySequenceTimeout = 500 * time.Millisecond
 )
 
 const keyUpPrefix = "__keyup_"
@@ -373,7 +371,8 @@ func (h *Handler) dispatchHotkeyActions(
 }
 
 // maybeStartHeldRepeatLocked starts a custom repeat goroutine if the given
-// actions are held-repeatable (scroll, page, mouse move).
+// actions are held-repeatable (scroll, page, mouse move) and held-key
+// repeat is enabled in config.
 // actions is the already-resolved action list from handleHotkey.
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
@@ -382,9 +381,11 @@ func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []stri
 		return
 	}
 
-	if isHeldRepeatAction(actions) {
-		h.startHeldRepeatLocked(key, bindKey, actions)
+	if !h.config.HeldRepeat.Enabled || !isHeldRepeatAction(actions) {
+		return
 	}
+
+	h.startHeldRepeatLocked(key, bindKey, actions)
 }
 
 // startHeldRepeatLocked launches a goroutine that dispatches the held-key
@@ -392,6 +393,8 @@ func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []stri
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
 func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
+	cfg := h.config.HeldRepeat
+
 	ctx, cancel := context.WithCancel(h.ctx)
 	h.heldRepeatingKey = key
 	h.heldRepeatingCancel = cancel
@@ -407,7 +410,7 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 			}
 		}()
 
-		initialTimer := time.NewTimer(heldRepeatInitialDelay)
+		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
 		defer initialTimer.Stop()
 
 		select {
@@ -416,7 +419,7 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 		case <-initialTimer.C:
 		}
 
-		ticker := time.NewTicker(heldRepeatInterval)
+		ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Millisecond)
 		defer ticker.Stop()
 
 		for {

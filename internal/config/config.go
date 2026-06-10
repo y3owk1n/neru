@@ -400,6 +400,7 @@ type Config struct {
 	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
 	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
 	SmoothScroll    SmoothScrollConfig    `json:"smoothScroll"    toml:"smooth_scroll"`
+	HeldRepeat      HeldRepeatConfig      `json:"heldRepeat"      toml:"held_repeat"`
 	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
 }
 
@@ -819,6 +820,13 @@ type SmoothScrollConfig struct {
 	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"`
 }
 
+// HeldRepeatConfig defines held-key repeat settings for scroll, page, and mouse-move actions.
+type HeldRepeatConfig struct {
+	Enabled      bool `json:"enabled"      toml:"enabled"`          // Master toggle for held-key repeat
+	InitialDelay int  `json:"initialDelay" toml:"initial_delay_ms"` // Delay before first repeat fires (ms)
+	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
+}
+
 // AdditionalAXSupport defines accessibility support for specific application frameworks.
 type AdditionalAXSupport struct {
 	Enable                    bool     `json:"enable"                    toml:"enable"`
@@ -924,6 +932,12 @@ func (c *Config) Validate() error {
 
 	// Validate smooth scroll settings
 	err = c.ValidateSmoothScroll()
+	if err != nil {
+		return err
+	}
+
+	// Validate held-key repeat settings
+	err = c.ValidateHeldRepeat()
 	if err != nil {
 		return err
 	}

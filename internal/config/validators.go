@@ -754,6 +754,19 @@ func (c *Config) ValidateSmoothScroll() error {
 	return nil
 }
 
+// ValidateHeldRepeat validates held-key repeat settings.
+func (c *Config) ValidateHeldRepeat() error {
+	if c.HeldRepeat.InitialDelay < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.initial_delay_ms must be >= 0")
+	}
+
+	if c.HeldRepeat.Interval < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.interval_ms must be >= 1")
+	}
+
+	return nil
+}
+
 // ValidateHotkeys validates per-mode hotkey syntax and actions.
 func (c *Config) ValidateHotkeys() error {
 	modeHotkeys := []struct {

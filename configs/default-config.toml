@@ -346,6 +346,13 @@ steps = 20                                  # Number of animation steps
 max_duration = 180                          # Maximum animation duration in ms
 duration_per_pixel = 1.00                   # Ms per pixel for adaptive duration
 
+# Held-key repeat (fires scroll/page/mouse-move actions repeatedly while held)
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#held_repeat
+[held_repeat]
+enabled = false                         # Master toggle for held-key repeat
+initial_delay_ms = 50                   # Delay before first repeat fires (ms)
+interval_ms = 50                        # Interval between subsequent repeats (ms)
+
 # Systray
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#systray
 [systray]
