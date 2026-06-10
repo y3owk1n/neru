@@ -15,11 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-const (
-	globalHotkeyRepeatInitialDelay = 50 * time.Millisecond
-	globalHotkeyRepeatInterval     = 50 * time.Millisecond
-)
-
 // actionsReferenceDisabledMode reports whether any action in the list
 // activates a mode that is currently disabled in the configuration.
 // This ensures that multi-action bindings like ["exec echo test", "hints"]
@@ -77,7 +72,7 @@ func (a *App) registerHotkeys() {
 		var registerHotkeyErr error
 
 		if releaseManager, ok := a.hotkeyManager.(HotkeyReleaseService); ok &&
-			a.hotkeyActionsRepeatWhileHeld(bindActions) {
+			a.hotkeyActionsRepeatWhileHeld(bindActions, cfg) {
 			_, registerHotkeyErr = releaseManager.RegisterWithRelease(
 				bindKey,
 				func() {
@@ -140,6 +135,8 @@ func (a *App) dispatchHotkeyActions(key string, actions []string) {
 }
 
 func (a *App) startHotkeyRepeat(key string, actions []string) {
+	cfg := a.configSnapshot().HeldRepeat
+
 	ctx, cancel := context.WithCancel(a.ctx)
 
 	a.hotkeyRepeatMu.Lock()
@@ -173,7 +170,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 
 		a.dispatchHotkeyActions(key, actions)
 
-		initialTimer := time.NewTimer(globalHotkeyRepeatInitialDelay)
+		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
 		defer initialTimer.Stop()
 
 		select {
@@ -182,7 +179,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 		case <-initialTimer.C:
 		}
 
-		ticker := time.NewTicker(globalHotkeyRepeatInterval)
+		ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Millisecond)
 		defer ticker.Stop()
 
 		for {
@@ -221,7 +218,11 @@ func (a *App) stopAllHotkeyRepeats() {
 	}
 }
 
-func (a *App) hotkeyActionsRepeatWhileHeld(actions []string) bool {
+func (a *App) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config) bool {
+	if !cfg.HeldRepeat.Enabled {
+		return false
+	}
+
 	if len(actions) != 1 {
 		return false
 	}

@@ -123,6 +123,10 @@ const (
 
 	// DefaultSmoothScrollDurationPerPixel is the default ms per pixel for adaptive duration.
 	DefaultSmoothScrollDurationPerPixel = 1.0
+	// DefaultHeldRepeatInitialDelay is the default held-key initial delay in ms.
+	DefaultHeldRepeatInitialDelay = 50
+	// DefaultHeldRepeatInterval is the default held-key repeat interval in ms.
+	DefaultHeldRepeatInterval = 50
 
 	// DefaultIPCTimeout is the default IPC timeout.
 	DefaultIPCTimeout = 5
@@ -642,6 +646,11 @@ func newDefaultConfig() *Config {
 			Steps:            DefaultSmoothScrollSteps,
 			MaxDuration:      DefaultSmoothScrollMaxDuration,
 			DurationPerPixel: DefaultSmoothScrollDurationPerPixel,
+		},
+		HeldRepeat: HeldRepeatConfig{
+			Enabled:      false,
+			InitialDelay: DefaultHeldRepeatInitialDelay,
+			Interval:     DefaultHeldRepeatInterval,
 		},
 		Systray: SystrayConfig{
 			Enabled: true, // Enabled by default

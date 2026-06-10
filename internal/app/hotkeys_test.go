@@ -4,6 +4,7 @@ package app
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -144,6 +145,9 @@ func TestSplitArgs(t *testing.T) {
 func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 	app := &App{}
 
+	cfg := config.DefaultConfig()
+	cfg.HeldRepeat.Enabled = true
+
 	tests := []struct {
 		name    string
 		actions []string
@@ -193,13 +197,46 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions)
+			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions, cfg)
 			if got != testCase.want {
 				t.Fatalf(
 					"hotkeyActionsRepeatWhileHeld(%v) = %v, want %v",
 					testCase.actions,
 					got,
 					testCase.want,
+				)
+			}
+		})
+	}
+}
+
+func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
+	app := &App{}
+
+	cfg := config.DefaultConfig()
+
+	tests := []struct {
+		name    string
+		actions []string
+	}{
+		{
+			name:    "scroll down does not repeat when disabled",
+			actions: []string{"action scroll_down"},
+		},
+		{
+			name:    "relative mouse movement does not repeat when disabled",
+			actions: []string{"action move_mouse_relative --dx=0 --dy=10"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions, cfg)
+			if got != false {
+				t.Fatalf(
+					"hotkeyActionsRepeatWhileHeld(%v) with Enabled=false = %v, want false",
+					testCase.actions,
+					got,
 				)
 			}
 		})

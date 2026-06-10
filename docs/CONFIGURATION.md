@@ -25,6 +25,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Sticky Modifiers](#sticky_modifiers)
 - [Smooth Cursor](#smooth_cursor)
 - [Smooth Scroll](#smooth_scroll)
+- [Held Repeat](#held_repeat)
 - [Systray](#systray)
 - [Logging](#logging)
 
@@ -892,6 +893,25 @@ enabled = false
 steps = 20
 max_duration = 180
 duration_per_pixel = 1.0
+```
+
+---
+
+## [held_repeat]
+
+Repeatedly dispatches scroll, page, and relative-mouse-move actions while the key is held, with a configurable initial delay and repeat interval. Disable held-key repeat entirely by setting `enabled = false`.
+
+| Option             | Type | Default | Description                              |
+| ------------------ | ---- | ------- | ---------------------------------------- |
+| `enabled`          | bool | `false` | Master toggle for held-key repeat        |
+| `initial_delay_ms` | int  | `50`    | Delay before first repeat fires (ms)     |
+| `interval_ms`      | int  | `50`    | Interval between subsequent repeats (ms) |
+
+```toml
+[held_repeat]
+enabled = false
+initial_delay_ms = 50
+interval_ms = 50
 ```
 
 ---
