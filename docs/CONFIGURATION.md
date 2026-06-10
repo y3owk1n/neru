@@ -564,8 +564,8 @@ Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see 
 | `grid_cols`       | int    | `3`           | Columns (≥ 1; total cells ≥ 2)                                   |
 | `grid_rows`       | int    | `3`           | Rows (≥ 1; total cells ≥ 2)                                      |
 | `keys`            | string | `"rtyfghvbn"` | Cell selection keys (must be `grid_cols × grid_rows` characters) |
-| `min_size_width`  | int    | `25`          | Minimum cell width in pixels                                     |
-| `min_size_height` | int    | `25`          | Minimum cell height in pixels                                    |
+| `min_size_width`  | int    | `1`           | Minimum cell width in pixels                                     |
+| `min_size_height` | int    | `1`           | Minimum cell height in pixels                                    |
 | `max_depth`       | int    | `10`          | Maximum recursion levels (1–20)                                  |
 | `layers`          | array  | `[]`          | Per-depth layout overrides (see below)                           |
 

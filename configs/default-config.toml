@@ -191,8 +191,8 @@ enabled = true
 grid_cols = 3                               # Number of columns (>= 1)
 grid_rows = 3                               # Number of rows (>= 1)
 keys = "rtyfghvbn"                          # Cell selection keys (must be grid_cols * grid_rows chars)
-min_size_width = 25                         # Stop subdividing below this width (px)
-min_size_height = 25                        # Stop subdividing below this height (px)
+min_size_width = 1                          # Stop subdividing below this width (px)
+min_size_height = 1                         # Stop subdividing below this height (px)
 max_depth = 10                              # Maximum recursion levels (1–20)
 
 [recursive_grid.animation]
