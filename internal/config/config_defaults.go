@@ -230,9 +230,9 @@ const (
 	IPCTimeoutSeconds = 5
 
 	// DefaultRecursiveGridMinSizeWidth is the default minimum cell width in pixels.
-	DefaultRecursiveGridMinSizeWidth = 25
+	DefaultRecursiveGridMinSizeWidth = 1
 	// DefaultRecursiveGridMinSizeHeight is the default minimum cell height in pixels.
-	DefaultRecursiveGridMinSizeHeight = 25
+	DefaultRecursiveGridMinSizeHeight = 1
 	// DefaultRecursiveGridMaxDepth is the default maximum recursion depth.
 	DefaultRecursiveGridMaxDepth = 10
 	// DefaultRecursiveGridMinGridCols is the minimum allowed grid columns.

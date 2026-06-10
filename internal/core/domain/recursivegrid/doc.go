@@ -42,7 +42,7 @@
 //   - Customizable via N-character string (where N = grid_cols * grid_rows)
 //
 // Exit Conditions:
-//   - Cell width < min_size_width (default 25px) OR cell height < min_size_height (default 25px)
+//   - Cell width < min_size_width (default 1px) OR cell height < min_size_height (default 1px)
 //   - Maximum recursion depth reached (default 10)
 //   - User presses exit key (handled by hotkeys, not the manager)
 //
