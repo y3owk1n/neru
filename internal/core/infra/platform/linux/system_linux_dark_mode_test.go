@@ -4,6 +4,8 @@
 package linux
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -129,41 +131,121 @@ func TestDarkModeCapabilityDowngradesToStubWhenUnreachable(t *testing.T) {
 	}
 }
 
-func TestReadKDEColorSchemeIsDarkWhenSchemeNameContainsDark(t *testing.T) {
-	t.Parallel()
+// writeKDEGlobals writes a minimal kdeglobals fixture with the given
+// ColorScheme into dir, creating parent directories as needed. An empty
+// scheme writes a file without the key, to exercise the "present but no key"
+// fall-through.
+func writeKDEGlobals(t *testing.T, path, scheme string) {
+	t.Helper()
 
-	// Pure scheme-name → dark/light inference, exercising the case-insensitive
-	// "dark" substring rule that protects vanilla KDE installs without
-	// xdg-desktop-portal-kde from silently reporting the wrong state.
-	cases := map[string]int{
-		"BreezeDark":   colorSchemeDark,
-		"OXYGEN-DARK":  colorSchemeDark,
-		"BreezeLight":  colorSchemeLight,
-		"Custom":       colorSchemeLight,
-		"DarkMatter":   colorSchemeDark,
-		"NotApplied!?": colorSchemeLight,
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(path), err)
 	}
 
-	for scheme, want := range cases {
-		t.Run(scheme, func(t *testing.T) {
-			t.Parallel()
+	body := "[General]\n"
+	if scheme != "" {
+		body += "ColorScheme=" + scheme + "\n"
+	}
 
-			body := "[General]\nColorScheme=" + scheme + "\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q): %v", path, err)
+	}
+}
 
-			got := scanINIValue(strings.NewReader(body), "General", "ColorScheme")
-			if got != scheme {
-				t.Fatalf("scanINIValue() = %q, want %q", got, scheme)
+// TestReadKDEColorScheme exercises readKDEColorScheme directly through a
+// fake HOME, covering the case-insensitive "dark" inference, candidate
+// ordering (~/.config/kdeglobals wins over ~/.config/kdedefaults/kdeglobals),
+// the no-file and no-HOME fall-throughs, and first-hit-wins semantics.
+//
+// Not parallel: t.Setenv (HOME) is incompatible with t.Parallel.
+func TestReadKDEColorScheme(t *testing.T) {
+	primary := func(home string) string {
+		return filepath.Join(home, ".config", "kdeglobals")
+	}
+	defaults := func(home string) string {
+		return filepath.Join(home, ".config", "kdedefaults", "kdeglobals")
+	}
+
+	cases := []struct {
+		name   string
+		setup  func(t *testing.T, home string)
+		noHome bool
+		want   int
+		wantOK bool
+	}{
+		{
+			name: "primary BreezeDark is dark",
+			setup: func(t *testing.T, home string) {
+				writeKDEGlobals(t, primary(home), "BreezeDark")
+			},
+			want:   colorSchemeDark,
+			wantOK: true,
+		},
+		{
+			name: "primary case-insensitive dark match",
+			setup: func(t *testing.T, home string) {
+				writeKDEGlobals(t, primary(home), "OXYGEN-DARK")
+			},
+			want:   colorSchemeDark,
+			wantOK: true,
+		},
+		{
+			name: "primary BreezeLight is light",
+			setup: func(t *testing.T, home string) {
+				writeKDEGlobals(t, primary(home), "BreezeLight")
+			},
+			want:   colorSchemeLight,
+			wantOK: true,
+		},
+		{
+			name: "falls back to kdedefaults when primary absent",
+			setup: func(t *testing.T, home string) {
+				writeKDEGlobals(t, defaults(home), "BreezeDark")
+			},
+			want:   colorSchemeDark,
+			wantOK: true,
+		},
+		{
+			name: "primary wins over kdedefaults (first hit)",
+			setup: func(t *testing.T, home string) {
+				writeKDEGlobals(t, primary(home), "BreezeLight")
+				writeKDEGlobals(t, defaults(home), "BreezeDark")
+			},
+			want:   colorSchemeLight,
+			wantOK: true,
+		},
+		{
+			name:   "no files yields unknown",
+			setup:  nil, // empty HOME dir, no kdeglobals written
+			wantOK: false,
+		},
+		{
+			name:   "no HOME yields unknown",
+			noHome: true,
+			wantOK: false,
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			home := t.TempDir()
+			if testCase.noHome {
+				t.Setenv("HOME", "")
+			} else {
+				t.Setenv("HOME", home)
 			}
 
-			isDark := strings.Contains(strings.ToLower(got), "dark")
-
-			gotValue := colorSchemeLight
-			if isDark {
-				gotValue = colorSchemeDark
+			if testCase.setup != nil {
+				testCase.setup(t, home)
 			}
 
-			if gotValue != want {
-				t.Fatalf("derived color-scheme = %d, want %d", gotValue, want)
+			got, ok := readKDEColorScheme()
+			if ok != testCase.wantOK {
+				t.Fatalf("readKDEColorScheme() ok = %v, want %v", ok, testCase.wantOK)
+			}
+
+			if ok && got != testCase.want {
+				t.Fatalf("readKDEColorScheme() = %d, want %d", got, testCase.want)
 			}
 		})
 	}

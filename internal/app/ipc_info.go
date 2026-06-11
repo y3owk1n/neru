@@ -22,6 +22,13 @@ import (
 // healthNotInitialized is the status string for components that were not initialized.
 const healthNotInitialized = "not initialized"
 
+// detailSuffix marks informational sibling keys in capabilitiesMap (e.g.
+// "dark_mode_detection_detail"). Any key ending in this suffix carries
+// free-form prose for the `neru doctor` metadata header and is deliberately
+// excluded from the component health-row loop, which only understands the
+// supported/stub/headless/ok vocabulary.
+const detailSuffix = "_detail"
+
 // IPCControllerInfo handles info and config-related IPC commands.
 type IPCControllerInfo struct {
 	configService *config.Service
@@ -254,11 +261,9 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	for key, value := range capabilities {
-		// Skip informational sibling fields (e.g. dark_mode_detection_detail).
-		// These are surfaced through the metadata header in `neru doctor`, not
-		// as component health rows, and their values are free-form prose that
-		// doesn't fit the supported/stub/headless/ok vocabulary.
-		if strings.HasSuffix(key, "_detail") {
+		// Skip informational sibling fields (e.g. dark_mode_detection_detail);
+		// see detailSuffix for the contract.
+		if strings.HasSuffix(key, detailSuffix) {
 			continue
 		}
 
@@ -381,7 +386,7 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 	// description there, so gate on platform to keep it out of their output.
 	if detail := capabilities.DarkModeDetection.Detail; detail != "" &&
 		strings.HasPrefix(capabilities.Platform, "linux") {
-		out["dark_mode_detection_detail"] = detail
+		out["dark_mode_detection"+detailSuffix] = detail
 	}
 
 	return out

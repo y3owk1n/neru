@@ -340,7 +340,11 @@ func readPortalColorScheme() (int, bool) {
 	}
 
 	fields := strings.Fields(string(out))
-	if len(fields) == 0 {
+	// Expected busctl format: "v v u N" — at least 4 tokens with the uint32
+	// value as the last field. Fewer tokens means something unexpected was
+	// returned (busctl exited 0 with prose we don't recognise), so we must
+	// not treat the trailing token as a color-scheme value.
+	if len(fields) < 4 {
 		return 0, false
 	}
 
