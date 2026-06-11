@@ -353,7 +353,7 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				xBreaks[col+1],
 				yBreaks[row+1],
 			)
-			o.drawRect(cell, subgridBackground, style.LineColor, subgridLineWidth)
+			o.drawRect(cell, style.BackgroundColor, style.LineColor, style.LineWidth)
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,

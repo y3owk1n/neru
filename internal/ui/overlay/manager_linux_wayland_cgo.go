@@ -490,7 +490,7 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 				yBreaks[row+1],
 			)
 			// Use a visible semi-opaque fill so subgrid cells are clearly distinct
-			o.drawRect(cell, subgridBackground, style.LineColor, subgridLineWidth)
+			o.drawRect(cell, style.BackgroundColor, style.LineColor, style.LineWidth)
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,

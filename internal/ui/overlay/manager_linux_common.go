@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	subgridBackground               uint32 = 0x40000000
 	subgridCellBackground           uint32 = 0x10000000
 	hexColorOpaque                  uint32 = 0xFFFFFFFF
 	hexColorRepeatCount                    = 2
