@@ -19,7 +19,7 @@ func TestValidateHotkey(t *testing.T) {
 	}{
 		{
 			name:      "valid single modifier",
-			hotkey:    "Cmd+Space",
+			hotkey:    KeyCmdSpace,
 			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
@@ -79,7 +79,7 @@ func TestValidateHotkey(t *testing.T) {
 		},
 		{
 			name:      "valid Super modifier",
-			hotkey:    "Super+Space",
+			hotkey:    KeySuperSpace,
 			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},

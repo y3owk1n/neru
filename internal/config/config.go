@@ -91,12 +91,6 @@ const (
 	KeyComboShiftU = "Shift+U"
 )
 
-// Common key combo constants used in tests.
-const (
-	KeyCmdSpace   = "Cmd+Space"
-	KeySuperSpace = "Super+Space"
-)
-
 // Common action strings.
 const (
 	CmdIdle           = "idle"

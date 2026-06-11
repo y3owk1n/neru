@@ -23,8 +23,8 @@ const (
 	testKeyEscape       = "escape"
 	testKeySpace        = "space"
 	testKeyShiftReturn  = "shift+return"
-	testKeyCmdSpace     = "Cmd+Space"
-	testKeySuperSpace   = "Super+Space"
+	testKeyCmdSpace     = KeyCmdSpace
+	testKeySuperSpace   = KeySuperSpace
 )
 
 func TestConfig_IsAppExcluded(t *testing.T) {
@@ -785,7 +785,7 @@ func TestCanonicalHotkeyForPlatform(t *testing.T) {
 		},
 		{
 			name:     "super alias becomes platform cmd token",
-			input:    "Super+Space",
+			input:    KeySuperSpace,
 			expected: map[bool]string{true: testKeyCmdSpace, false: testKeySuperSpace}[isDarwinRuntime],
 		},
 		{
