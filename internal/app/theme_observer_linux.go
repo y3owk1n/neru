@@ -3,6 +3,7 @@
 package app
 
 import (
+	"sync"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -26,6 +27,7 @@ const (
 var (
 	themeStopChan  chan struct{}
 	themeDBusClose func() error
+	themeWG        sync.WaitGroup
 )
 
 // setupThemeObserver subscribes to xdg-desktop-portal SettingChanged
@@ -39,6 +41,7 @@ func (a *App) setupThemeObserver() {
 		a.logger.Warn("D-Bus unavailable, falling back to polling for theme changes",
 			zap.Error(err))
 
+		themeWG.Add(1)
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
@@ -54,6 +57,7 @@ func (a *App) setupThemeObserver() {
 
 		_ = conn.Close()
 
+		themeWG.Add(1)
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
@@ -63,7 +67,10 @@ func (a *App) setupThemeObserver() {
 	conn.Signal(signalCh)
 	themeDBusClose = conn.Close
 
+	themeWG.Add(1)
 	go func() {
+		defer themeWG.Done()
+
 		for {
 			select {
 			case <-themeStopChan:
@@ -109,12 +116,16 @@ func (a *App) stopThemeObserver() {
 	if themeDBusClose != nil {
 		_ = themeDBusClose()
 	}
+
+	themeWG.Wait()
 }
 
 // pollThemeChanges periodically checks IsDarkMode and calls
 // handleThemeChange when the value transitions. Acts as a fallback
 // when the D-Bus portal signal path is unavailable.
 func (a *App) pollThemeChanges(lastIsDark bool) {
+	defer themeWG.Done()
+
 	ticker := time.NewTicker(pollFallbackInterval)
 	defer ticker.Stop()
 
