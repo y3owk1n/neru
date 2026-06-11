@@ -14,6 +14,8 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
+const leftClickAction = "left_click"
+
 func newTestActionService(
 	acc *portmocks.MockAccessibilityPort,
 	sys *portmocks.MockSystemPort,
@@ -49,7 +51,7 @@ func TestPerformActionAtPoint_ParsesAndDispatches(t *testing.T) {
 
 	err := service.PerformActionAtPoint(
 		ctx,
-		"left_click",
+		leftClickAction,
 		image.Point{X: 10, Y: 20},
 		0,
 	)
@@ -96,12 +98,12 @@ func TestPerformActionAtPoint_DrawsMouseActionIndicatorWhenEnabled(t *testing.T)
 	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = true
-	cfg.Actions = []string{"left_click"}
+	cfg.Actions = []string{leftClickAction}
 	service.UpdateConfig(cfg)
 
 	point := image.Point{X: 10, Y: 20}
 
-	err := service.PerformActionAtPoint(ctx, "left_click", point, 0)
+	err := service.PerformActionAtPoint(ctx, leftClickAction, point, 0)
 	if err != nil {
 		t.Fatalf("PerformActionAtPoint() error = %v", err)
 	}
@@ -146,10 +148,10 @@ func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorWhenDisabled(t *tes
 	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = false
-	cfg.Actions = []string{"left_click"}
+	cfg.Actions = []string{leftClickAction}
 	service.UpdateConfig(cfg)
 
-	err := service.PerformActionAtPoint(ctx, "left_click", image.Point{X: 10, Y: 20}, 0)
+	err := service.PerformActionAtPoint(ctx, leftClickAction, image.Point{X: 10, Y: 20}, 0)
 	if err != nil {
 		t.Fatalf("PerformActionAtPoint() error = %v", err)
 	}
@@ -186,7 +188,7 @@ func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorForUnlistedAction(t
 	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
 	cfg := config.DefaultConfig().MouseAction
 	cfg.Enabled = true
-	cfg.Actions = []string{"left_click"}
+	cfg.Actions = []string{leftClickAction}
 	service.UpdateConfig(cfg)
 
 	err := service.PerformActionAtPoint(ctx, "right_click", image.Point{X: 10, Y: 20}, 0)

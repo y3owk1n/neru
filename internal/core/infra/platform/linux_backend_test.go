@@ -5,6 +5,8 @@ package platform
 
 import "testing"
 
+const waylandDisplay = "wayland-1"
+
 func TestDetectLinuxBackendFromEnv(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -16,31 +18,31 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 		{
 			name:           "wayland wlroots desktop",
 			currentDesktop: "sway",
-			waylandDisplay: "wayland-1",
+			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
 		{
 			name:           "wayland hyprland desktop",
 			currentDesktop: "Hyprland",
-			waylandDisplay: "wayland-1",
+			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandWlroots,
 		},
 		{
 			name:           "wayland gnome desktop",
 			currentDesktop: "ubuntu:GNOME",
-			waylandDisplay: "wayland-1",
+			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandGNOME,
 		},
 		{
 			name:           "wayland kde desktop",
 			currentDesktop: "KDE",
-			waylandDisplay: "wayland-1",
+			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandKDE,
 		},
 		{
 			name:           "wayland unknown desktop",
 			currentDesktop: "COSMIC",
-			waylandDisplay: "wayland-1",
+			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandOther,
 		},
 		{

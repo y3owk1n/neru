@@ -17,8 +17,8 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					KBLayoutToUse: "com.apple.keylayout.ABC",
-					ExecShell:     "/bin/bash",
-					ExecShellArgs: []string{"-lc"},
+					ExecShell:     config.DefaultExecShell,
+					ExecShellArgs: []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: false,
@@ -28,8 +28,8 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					KBLayoutToUse: "   ",
-					ExecShell:     "/bin/bash",
-					ExecShellArgs: []string{"-lc"},
+					ExecShell:     config.DefaultExecShell,
+					ExecShellArgs: []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: true,
@@ -39,8 +39,8 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
-					ExecShell:                         "/bin/bash",
-					ExecShellArgs:                     []string{"-lc"},
+					ExecShell:                         config.DefaultExecShell,
+					ExecShellArgs:                     []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: false,
@@ -50,8 +50,8 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
-					ExecShell:                         "/bin/bash",
-					ExecShellArgs:                     []string{"-lc"},
+					ExecShell:                         config.DefaultExecShell,
+					ExecShellArgs:                     []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: true,
@@ -61,7 +61,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					ExecShell:     "",
-					ExecShellArgs: []string{"-lc"},
+					ExecShellArgs: []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: true,
@@ -71,7 +71,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					ExecShell:     "bash",
-					ExecShellArgs: []string{"-lc"},
+					ExecShellArgs: []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: true,
@@ -81,7 +81,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			config: config.Config{
 				General: config.GeneralConfig{
 					ExecShell:     "/usr/local/bin/fish",
-					ExecShellArgs: []string{"-lc"},
+					ExecShellArgs: []string{config.DefaultExecShellFlag},
 				},
 			},
 			wantErr: false,
@@ -90,7 +90,7 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 			name: "exec_shell_args is empty - invalid",
 			config: config.Config{
 				General: config.GeneralConfig{
-					ExecShell:     "/bin/bash",
+					ExecShell:     config.DefaultExecShell,
 					ExecShellArgs: []string{},
 				},
 			},

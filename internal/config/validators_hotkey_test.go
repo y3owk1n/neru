@@ -7,6 +7,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+const testHotkeyFieldName = "test_hotkey"
+
 // TestValidateHotkey tests the ValidateHotkey function.
 func TestValidateHotkey(t *testing.T) {
 	tests := []struct {
@@ -18,145 +20,145 @@ func TestValidateHotkey(t *testing.T) {
 		{
 			name:      "valid single modifier",
 			hotkey:    "Cmd+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid multiple modifiers",
 			hotkey:    "Cmd+Shift+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid all modifiers",
 			hotkey:    "Cmd+Ctrl+Alt+Shift+A",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid function key",
 			hotkey:    "F1",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid Option modifier",
 			hotkey:    "Option+D",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid Primary modifier",
 			hotkey:    "Primary+D",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid RightCmd modifier",
 			hotkey:    "RightCmd+Q",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid LeftShift modifier",
 			hotkey:    "LeftShift+W",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid multiple right-prefixed modifiers",
 			hotkey:    "RightCmd+RightCtrl+RightShift+RightOption+R",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "empty hotkey allowed",
 			hotkey:    "",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "valid Super modifier",
 			hotkey:    "Super+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "valid Meta modifier",
 			hotkey:    "Meta+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false,
 		},
 		{
 			name:      "empty key",
 			hotkey:    "Cmd+",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "just modifiers",
 			hotkey:    "Cmd+Shift",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "duplicate modifiers",
 			hotkey:    "Cmd+Cmd+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false, // Duplicates not checked
 		},
 		{
 			name:      "any key allowed",
 			hotkey:    "Cmd+InvalidKey",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "single key without modifiers",
 			hotkey:    "Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false, // Single keys allowed
 		},
 		{
 			name:      "just plus",
 			hotkey:    "+",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "multiple pluses",
 			hotkey:    "Cmd++Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "leading plus",
 			hotkey:    "+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "trailing plus",
 			hotkey:    "Space+",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true,
 		},
 		{
 			name:      "spaces in hotkey trimmed",
 			hotkey:    "Cmd + Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   false, // TrimSpace handles spaces
 		},
 		{
 			name:      "lowercase modifiers",
 			hotkey:    "cmd+space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true, // Must be exact case
 		},
 		{
 			name:      "mixed case modifiers",
 			hotkey:    "CMD+shift+Space",
-			fieldName: "test_hotkey",
+			fieldName: testHotkeyFieldName,
 			wantErr:   true, // Must be exact case
 		},
 	}
@@ -186,7 +188,7 @@ func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
 				_config := config.DefaultConfig()
 				_config.Hotkeys.Bindings = map[string][]string{
 					"Cmd+Shift+S": {"scroll"},
-					"Cmd+Shift+G": {"grid"},
+					"Cmd+Shift+G": {config.ModeNameGrid},
 				}
 
 				return _config
@@ -200,8 +202,8 @@ func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
 				// Both pass ValidateHotkey (IsValidNamedKey is case-insensitive)
 				// but normalize to the same key.
 				_config.Hotkeys.Bindings = map[string][]string{
-					"Escape": {"idle"},
-					"escape": {"hints"},
+					config.KeyDisplayEscape: {config.CmdIdle},
+					config.KeyNameEscape:    {config.ModeNameHints},
 				}
 
 				return _config
@@ -216,8 +218,8 @@ func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
 				// "Enter" and "Return" are both valid named keys that
 				// normalize to the same canonical form "return".
 				_config.Hotkeys.Bindings = map[string][]string{
-					"Enter":  {"hints"},
-					"Return": {"grid"},
+					"Enter":          {"hints"},
+					config.KeyReturn: {config.ModeNameGrid},
 				}
 
 				return _config

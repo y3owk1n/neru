@@ -6,20 +6,31 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
+const (
+	testLeftClick         = "left_click"
+	testRightClick        = "right_click"
+	testMiddleClick       = "middle_click"
+	testMouseDown         = "mouse_down"
+	testMouseUp           = "mouse_up"
+	testMoveMouse         = "move_mouse"
+	testMoveMouseRelative = "move_mouse_relative"
+	testScroll            = "scroll"
+)
+
 func TestParseType(t *testing.T) {
 	tests := []struct {
 		input   string
 		want    action.Type
 		wantErr bool
 	}{
-		{"left_click", action.TypeLeftClick, false},
-		{"right_click", action.TypeRightClick, false},
-		{"middle_click", action.TypeMiddleClick, false},
-		{"mouse_down", action.TypeMouseDown, false},
-		{"mouse_up", action.TypeMouseUp, false},
-		{"move_mouse", action.TypeMoveMouse, false},
-		{"move_mouse_relative", action.TypeMoveMouseRelative, false},
-		{"scroll", action.TypeScroll, false},
+		{testLeftClick, action.TypeLeftClick, false},
+		{testRightClick, action.TypeRightClick, false},
+		{testMiddleClick, action.TypeMiddleClick, false},
+		{testMouseDown, action.TypeMouseDown, false},
+		{testMouseUp, action.TypeMouseUp, false},
+		{testMoveMouse, action.TypeMoveMouse, false},
+		{testMoveMouseRelative, action.TypeMoveMouseRelative, false},
+		{testScroll, action.TypeScroll, false},
 		{"invalid", 0, true},
 		{"", 0, true},
 	}
@@ -54,14 +65,14 @@ func TestType_String(t *testing.T) {
 		actionType action.Type
 		want       string
 	}{
-		{action.TypeLeftClick, "left_click"},
-		{action.TypeRightClick, "right_click"},
-		{action.TypeMiddleClick, "middle_click"},
-		{action.TypeMouseDown, "mouse_down"},
-		{action.TypeMouseUp, "mouse_up"},
-		{action.TypeMoveMouse, "move_mouse"},
-		{action.TypeMoveMouseRelative, "move_mouse_relative"},
-		{action.TypeScroll, "scroll"},
+		{action.TypeLeftClick, testLeftClick},
+		{action.TypeRightClick, testRightClick},
+		{action.TypeMiddleClick, testMiddleClick},
+		{action.TypeMouseDown, testMouseDown},
+		{action.TypeMouseUp, testMouseUp},
+		{action.TypeMoveMouse, testMoveMouse},
+		{action.TypeMoveMouseRelative, testMoveMouseRelative},
+		{action.TypeScroll, testScroll},
 		{action.Type(999), "unknown"},
 	}
 
@@ -207,14 +218,14 @@ func TestName_String(t *testing.T) {
 		name action.Name
 		want string
 	}{
-		{action.NameLeftClick, "left_click"},
-		{action.NameRightClick, "right_click"},
-		{action.NameMiddleClick, "middle_click"},
-		{action.NameMouseDown, "mouse_down"},
-		{action.NameMouseUp, "mouse_up"},
-		{action.NameMoveMouse, "move_mouse"},
-		{action.NameMoveMouseRelative, "move_mouse_relative"},
-		{action.NameScroll, "scroll"},
+		{action.NameLeftClick, testLeftClick},
+		{action.NameRightClick, testRightClick},
+		{action.NameMiddleClick, testMiddleClick},
+		{action.NameMouseDown, testMouseDown},
+		{action.NameMouseUp, testMouseUp},
+		{action.NameMoveMouse, testMoveMouse},
+		{action.NameMoveMouseRelative, testMoveMouseRelative},
+		{action.NameScroll, testScroll},
 		{action.NameFeed, "feed"},
 	}
 
@@ -286,14 +297,14 @@ func TestIsScrollSubAction(t *testing.T) {
 		{"page_up", true},
 		{"page_down", true},
 		// Non-scroll actions return false.
-		{"left_click", false},
-		{"right_click", false},
-		{"middle_click", false},
-		{"mouse_down", false},
-		{"mouse_up", false},
-		{"move_mouse", false},
-		{"move_mouse_relative", false},
-		{"scroll", false},
+		{testLeftClick, false},
+		{testRightClick, false},
+		{testMiddleClick, false},
+		{testMouseDown, false},
+		{testMouseUp, false},
+		{testMoveMouse, false},
+		{testMoveMouseRelative, false},
+		{testScroll, false},
 		{"reset", false},
 		{"backspace", false},
 		{"wait_for_mode_exit", false},
@@ -355,14 +366,14 @@ func TestSupportedNamesString(t *testing.T) {
 
 	// Should contain all action names
 	expectedNames := []string{
-		"left_click",
-		"right_click",
-		"middle_click",
-		"mouse_down",
-		"mouse_up",
-		"move_mouse",
-		"move_mouse_relative",
-		"scroll",
+		testLeftClick,
+		testRightClick,
+		testMiddleClick,
+		testMouseDown,
+		testMouseUp,
+		testMoveMouse,
+		testMoveMouseRelative,
+		testScroll,
 	}
 
 	for _, name := range expectedNames {

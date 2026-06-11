@@ -201,10 +201,11 @@ scroll_step_full = 1000
 		cfg := loadResult.Config
 
 		appCfg := cfg.Scroll.AppConfigForBundleID("com.apple.Safari")
-		if appCfg == nil {
+		if appCfg == nil { //nolint:staticcheck
 			t.Fatal("expected Safari app config to be present")
 		}
 
+		//nolint:staticcheck
 		if appCfg.ScrollStep == nil || *appCfg.ScrollStep != 25 {
 			t.Errorf("expected app scroll_step override 25, got %v", appCfg.ScrollStep)
 		}
@@ -247,7 +248,7 @@ scroll_step_full = 1000
 		}
 
 		actions, exists := loadResult.Config.Hotkeys.Bindings["Cmd+Shift+Option+Ctrl+G"]
-		if !exists || len(actions) != 1 || actions[0] != "grid" {
+		if !exists || len(actions) != 1 || actions[0] != config.ModeNameGrid {
 			t.Fatalf("expected rebound grid hotkey, got %v", loadResult.Config.Hotkeys.Bindings)
 		}
 
@@ -395,7 +396,7 @@ enabled = false
 		}
 
 		actions, exists := loadResult.Config.Hotkeys.Bindings["Primary+Shift+Space"]
-		if !exists || len(actions) != 1 || actions[0] != "grid" {
+		if !exists || len(actions) != 1 || actions[0] != config.ModeNameGrid {
 			t.Fatalf(
 				"expected rebound launcher to replace disabled mode launcher, got %v",
 				loadResult.Config.Hotkeys.Bindings,

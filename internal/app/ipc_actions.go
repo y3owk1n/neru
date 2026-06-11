@@ -42,6 +42,21 @@ const modeExitPollInterval = 10 * time.Millisecond
 // mode session.
 const modeExitTimeout = 5 * time.Minute
 
+const (
+	actionCmd     = "action"
+	flagCenter    = "--center"
+	flagWindow    = "--window"
+	flagSelection = "--selection"
+	flagPrevious  = "--previous"
+	flagName      = "--name"
+	flagBare      = "--bare"
+
+	msgActionServiceNotAvailable           = "action service not available"
+	msgModesHandlerNotAvailable            = "modes handler not available"
+	msgSelectionRequiresActiveSelection    = "--selection requires an active mode selection"
+	msgMoveMonitorDoesNotSupportTheseFlags = "move_monitor does not support these flags"
+)
+
 // NewIPCControllerActions creates a new action command handler.
 func NewIPCControllerActions(
 	actionService *services.ActionService,
@@ -63,7 +78,7 @@ func NewIPCControllerActions(
 func (h *IPCControllerActions) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
-	handlers["action"] = h.handleAction
+	handlers[actionCmd] = h.handleAction
 }
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.
@@ -200,20 +215,20 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 
 			parsed.deltaY = val
 			parsed.hasDY = true
-		case arg == "--center":
+		case arg == flagCenter:
 			parsed.hasCenter = true
-		case arg == "--window":
+		case arg == flagWindow:
 			parsed.hasWindow = true
-		case arg == "--selection":
+		case arg == flagSelection:
 			parsed.useSelection = true
-		case arg == "--bare":
+		case arg == flagBare:
 			parsed.useBare = true
-		case arg == "--previous":
+		case arg == flagPrevious:
 			parsed.usePrevious = true
 		case arg == "--backward":
 			parsed.useBackward = true
-		case strings.HasPrefix(arg, "--name") && (arg == "--name" || arg[len("--name")] == '='):
-			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--name")
+		case strings.HasPrefix(arg, flagName) && (arg == flagName || arg[len(flagName)] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, flagName)
 			idx = newIdx
 
 			if !ok || val == "" {
@@ -469,7 +484,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		if h.actionService == nil {
 			return ipc.Response{
 				Success: false,
-				Message: "action service not available",
+				Message: msgActionServiceNotAvailable,
 				Code:    ipc.CodeActionFailed,
 			}
 		}
@@ -508,7 +523,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		if h.actionService == nil {
 			return ipc.Response{
 				Success: false,
-				Message: "action service not available",
+				Message: msgActionServiceNotAvailable,
 				Code:    ipc.CodeActionFailed,
 			}
 		}
@@ -547,7 +562,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		if h.actionService == nil {
 			return ipc.Response{
 				Success: false,
-				Message: "action service not available",
+				Message: msgActionServiceNotAvailable,
 				Code:    ipc.CodeActionFailed,
 			}
 		}
@@ -766,7 +781,7 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 		if h.actionService == nil {
 			return &ipc.Response{
 				Success: false,
-				Message: "action service not available",
+				Message: msgActionServiceNotAvailable,
 				Code:    ipc.CodeActionFailed,
 			}, nil
 		}
@@ -784,7 +799,7 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 	if parsed.useBare && h.actionService == nil {
 		return &ipc.Response{
 			Success: false,
-			Message: "action service not available",
+			Message: msgActionServiceNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}, nil
 	}
@@ -805,7 +820,7 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 	if h.actionService == nil {
 		return &ipc.Response{
 			Success: false,
-			Message: "action service not available",
+			Message: msgActionServiceNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}, nil
 	}
@@ -829,7 +844,7 @@ func (h *IPCControllerActions) handlePointTargetedAction(
 	if h.actionService == nil {
 		return &ipc.Response{
 			Success: false,
-			Message: "action service not available",
+			Message: msgActionServiceNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}, nil
 	}
@@ -898,7 +913,7 @@ func (h *IPCControllerActions) handleResetAction(parsed parsedActionArgs) ipc.Re
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "modes handler not available",
+			Message: msgModesHandlerNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -920,7 +935,7 @@ func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ip
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "modes handler not available",
+			Message: msgModesHandlerNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -974,7 +989,7 @@ func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Respon
 	if h.modesHandler == nil {
 		return image.Point{}, &ipc.Response{
 			Success: false,
-			Message: "--selection requires an active mode selection",
+			Message: msgSelectionRequiresActiveSelection,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -983,7 +998,7 @@ func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Respon
 	if !ok {
 		return image.Point{}, &ipc.Response{
 			Success: false,
-			Message: "--selection requires an active mode selection",
+			Message: msgSelectionRequiresActiveSelection,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1139,7 +1154,7 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 		parsed.useSelection || parsed.useBare {
 		return ipc.Response{
 			Success: false,
-			Message: "move_monitor does not support these flags",
+			Message: msgMoveMonitorDoesNotSupportTheseFlags,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1157,7 +1172,7 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "modes handler not available",
+			Message: msgModesHandlerNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -1231,7 +1246,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "modes handler not available",
+			Message: msgModesHandlerNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -1271,7 +1286,7 @@ func (h *IPCControllerActions) handleSearchHintsAction(parsed parsedActionArgs) 
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "modes handler not available",
+			Message: msgModesHandlerNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -1372,7 +1387,7 @@ func (h *IPCControllerActions) handleScrollAction(
 		if h.actionService == nil {
 			return ipc.Response{
 				Success: false,
-				Message: "action service not available",
+				Message: msgActionServiceNotAvailable,
 				Code:    ipc.CodeActionFailed,
 			}
 		}

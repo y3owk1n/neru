@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const testCgoRequired = "cgo_required"
+
 func TestIsHealthyHealthStatus(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -64,15 +66,15 @@ func TestPrintProfile(t *testing.T) {
 		"primary_modifier":            "cmd",
 		"display_server":              "cocoa",
 		"accessibility_backend":       "axuielement",
-		"accessibility_build_mode":    "cgo_required",
+		"accessibility_build_mode":    testCgoRequired,
 		"hotkeys_backend":             "carbon-hotkeys",
-		"hotkeys_build_mode":          "cgo_required",
+		"hotkeys_build_mode":          testCgoRequired,
 		"keyboard_capture_backend":    "quartz-event-tap",
-		"keyboard_capture_build_mode": "cgo_required",
+		"keyboard_capture_build_mode": testCgoRequired,
 		"overlay_backend":             "cocoa-overlay-window",
-		"overlay_build_mode":          "cgo_required",
+		"overlay_build_mode":          testCgoRequired,
 		"notifications_backend":       "usernotifications/nsalert",
-		"notifications_build_mode":    "cgo_required",
+		"notifications_build_mode":    testCgoRequired,
 	})
 
 	got := output.String()
@@ -80,11 +82,11 @@ func TestPrintProfile(t *testing.T) {
 	expectedLines := []string{
 		"  Primary:  cmd",
 		"  Display:  cocoa",
-		"  Accessibility: axuielement (cgo_required)",
-		"  Hotkeys: carbon-hotkeys (cgo_required)",
-		"  Keyboard: quartz-event-tap (cgo_required)",
-		"  Overlay: cocoa-overlay-window (cgo_required)",
-		"  Notifications: usernotifications/nsalert (cgo_required)",
+		"  Accessibility: axuielement (" + testCgoRequired + ")",
+		"  Hotkeys: carbon-hotkeys (" + testCgoRequired + ")",
+		"  Keyboard: quartz-event-tap (" + testCgoRequired + ")",
+		"  Overlay: cocoa-overlay-window (" + testCgoRequired + ")",
+		"  Notifications: usernotifications/nsalert (" + testCgoRequired + ")",
 	}
 
 	for _, expectedLine := range expectedLines {

@@ -231,7 +231,7 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config)
 	}
 
 	parts := splitArgs(strings.TrimSpace(actions[0]))
-	if len(parts) < 2 || parts[0] != "action" {
+	if len(parts) < 2 || parts[0] != actionCmd {
 		return false
 	}
 

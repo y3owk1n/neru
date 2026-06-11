@@ -62,7 +62,7 @@ func TestLinuxKeyUpEvent(t *testing.T) {
 		{"j", "__keyup_j"},
 		{"Shift+j", "__keyup_j"},
 		{"k", "__keyup_k"},
-		{"Return", "__keyup_Return"},
+		{evdevKeyNameReturn, "__keyup_Return"},
 	}
 
 	for _, tc := range tests {

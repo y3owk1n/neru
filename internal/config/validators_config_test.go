@@ -8,12 +8,14 @@ import (
 
 func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action page_up", "idle"}
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
-	cfg.RecursiveGrid.Hotkeys["`"] = config.StringOrStringArray{"toggle-cursor-follow-selection"}
+	cfg.Hints.Hotkeys["PageUp"] = config.StringOrStringArray{"action page_up", config.CmdIdle}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{config.CmdGoTop}
+	cfg.RecursiveGrid.Hotkeys["`"] = config.StringOrStringArray{
+		config.CmdToggleCursorFollowSelection,
+	}
 	cfg.Grid.Hotkeys["Enter"] = config.StringOrStringArray{
 		"action save_cursor_pos",
-		"idle",
+		config.CmdIdle,
 		"action wait_for_mode_exit",
 		"action restore_cursor_pos",
 	}
@@ -26,12 +28,12 @@ func TestConfigValidateHotkeys_Valid(t *testing.T) {
 
 func TestConfigValidateHotkeys_AppOverridePrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys["gg"] = config.StringOrStringArray{"action left_click"}
+	cfg.Hints.Hotkeys["gg"] = config.StringOrStringArray{config.CmdLeftClick}
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID: "com.apple.Safari",
+			BundleID: config.TestBundleIDSafari,
 			Hotkeys: map[string]config.StringOrStringArray{
-				"g": {"action left_click"},
+				"g": {config.CmdLeftClick},
 			},
 		},
 	}
@@ -55,7 +57,7 @@ func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
 func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Scroll.Hotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{config.CmdGoTop}
 
 	err := cfg.ValidateHotkeys()
 	if err == nil {
@@ -66,7 +68,7 @@ func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
 func TestConfigValidateHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
 	// "gg" sequence with no single-key "g" binding should be fine
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{"action go_top"}
+	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{config.CmdGoTop}
 	cfg.Scroll.Hotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
 
 	err := cfg.ValidateHotkeys()
@@ -98,7 +100,7 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	// Valid scroll app configs
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID: "com.apple.Safari",
+			BundleID: config.TestBundleIDSafari,
 			Hotkeys: map[string]config.StringOrStringArray{
 				"k": {"action scroll_up"},
 			},
@@ -125,10 +127,10 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	// Invalid: Duplicate BundleID
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID: "com.apple.Safari",
+			BundleID: config.TestBundleIDSafari,
 		},
 		{
-			BundleID: "com.apple.Safari",
+			BundleID: config.TestBundleIDSafari,
 		},
 	}
 
@@ -141,7 +143,7 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	zero := 0
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID:   "com.apple.Safari",
+			BundleID:   config.TestBundleIDSafari,
 			ScrollStep: &zero,
 		},
 	}

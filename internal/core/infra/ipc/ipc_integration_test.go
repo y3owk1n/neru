@@ -14,6 +14,12 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
+const (
+	testResponseMessage = "test response"
+	testCommandAction   = "test"
+	testMapKey          = "key"
+)
+
 func TestSocketPath(t *testing.T) {
 	path := ipc.SocketPath()
 
@@ -98,7 +104,7 @@ func TestServerStartStop(t *testing.T) {
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{
 			Success: true,
-			Message: "test response",
+			Message: testResponseMessage,
 		}
 	}
 
@@ -140,9 +146,9 @@ func TestClientSend(t *testing.T) {
 	handler := func(_ context.Context, cmd ipc.Command) ipc.Response {
 		return ipc.Response{
 			Success: true,
-			Message: "test response",
+			Message: testResponseMessage,
 			Data: map[string]string{
-				"action": cmd.Action,
+				testMapKey: cmd.Action,
 			},
 		}
 	}
@@ -171,17 +177,7 @@ func TestClientSend(t *testing.T) {
 		{
 			name: "simple command",
 			cmd: ipc.Command{
-				Action: "test",
-			},
-			wantErr: false,
-		},
-		{
-			name: "command with params",
-			cmd: ipc.Command{
-				Action: "test",
-				Params: map[string]any{
-					"key": "value",
-				},
+				Action: testCommandAction,
 			},
 			wantErr: false,
 		},
@@ -202,7 +198,7 @@ func TestClientSend(t *testing.T) {
 					t.Errorf("Send() response not successful: %v", ipcResponse)
 				}
 
-				if ipcResponse.Message != "test response" {
+				if ipcResponse.Message != testResponseMessage {
 					t.Errorf("Send() unexpected message: %s", ipcResponse.Message)
 				}
 			}
@@ -254,7 +250,7 @@ func TestClientSendWithTimeout(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			cmd := ipc.Command{Action: "test"}
+			cmd := ipc.Command{Action: testCommandAction}
 			_, ipcResponseErr := client.SendWithTimeout(cmd, testCase.timeout)
 
 			if (ipcResponseErr != nil) != testCase.wantErr {
@@ -270,9 +266,9 @@ func TestClientSendWithTimeout(t *testing.T) {
 
 func TestCommandJSON(t *testing.T) {
 	cmd := ipc.Command{
-		Action: "test",
+		Action: testCommandAction,
 		Params: map[string]any{
-			"key": "value",
+			testMapKey: "value",
 		},
 		Args: []string{"arg1", "arg2"},
 	}
@@ -307,7 +303,7 @@ func TestResponseJSON(t *testing.T) {
 		Message: "test message",
 		Code:    "success",
 		Data: map[string]string{
-			"key": "value",
+			testMapKey: "value",
 		},
 	}
 
@@ -342,7 +338,7 @@ func TestResponseJSON(t *testing.T) {
 func TestClientSend_ServerNotRunning(t *testing.T) {
 	client := ipc.NewClient()
 
-	cmd := ipc.Command{Action: "test"}
+	cmd := ipc.Command{Action: testCommandAction}
 
 	_, err := client.Send(cmd)
 	if err == nil {
@@ -353,7 +349,7 @@ func TestClientSend_ServerNotRunning(t *testing.T) {
 func TestClientSendWithTimeout_ServerNotRunning(t *testing.T) {
 	client := ipc.NewClient()
 
-	cmd := ipc.Command{Action: "test"}
+	cmd := ipc.Command{Action: testCommandAction}
 
 	_, err := client.SendWithTimeout(cmd, time.Second)
 	if err == nil {

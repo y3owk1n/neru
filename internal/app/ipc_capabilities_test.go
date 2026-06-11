@@ -15,6 +15,8 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
+const testOS = "testos"
+
 func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
@@ -23,7 +25,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{
-				Platform: "testos",
+				Platform: testOS,
 				Overlay: ports.FeatureCapability{
 					Status: ports.FeatureStatusStub,
 					Detail: "not implemented",
@@ -71,7 +73,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		t.Fatalf("profile type = %T, want map[string]any", statusData["profile"])
 	}
 
-	if capabilities["platform"] != "testos" {
+	if capabilities["platform"] != testOS {
 		t.Fatalf("platform = %v, want testos", capabilities["platform"])
 	}
 
@@ -106,7 +108,7 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{
-				Platform: "testos",
+				Platform: testOS,
 				Process: ports.FeatureCapability{
 					Status: ports.FeatureStatusStub,
 					Detail: "not implemented",

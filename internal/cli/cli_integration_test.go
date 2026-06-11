@@ -13,10 +13,17 @@ import (
 )
 
 const (
+	cmdPing          = "ping"
+	cmdStatus        = "status"
+	cmdStart         = "start"
+	cmdStop          = "stop"
+	cmdAction        = "action"
+	cmdLeftClick     = "left_click"
 	modeHints        = "hints"
 	modeGrid         = "grid"
 	modeIdle         = "idle"
 	appNotRunningMsg = "app not running"
+	modeKey          = "mode"
 )
 
 // waitForServerReady polls the IPC server until it's ready or times out.
@@ -27,7 +34,7 @@ func waitForServerReady(t *testing.T, timeout time.Duration) {
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
-		_, err := client.Send(ipc.Command{Action: "ping"})
+		_, err := client.Send(ipc.Command{Action: cmdPing})
 		if err == nil {
 			return // Server is ready
 		}
@@ -49,7 +56,7 @@ type mockAppState struct {
 func newMockAppState() *mockAppState {
 	return &mockAppState{
 		running: true, // Start in running state to match test expectations
-		mode:    "idle",
+		mode:    modeIdle,
 		started: false,
 	}
 }
@@ -66,22 +73,22 @@ func TestCLIIntegration(t *testing.T) {
 	// Create a real IPC server with handlers that simulate app behavior
 	handler := func(ctx context.Context, cmd ipc.Command) ipc.Response {
 		switch cmd.Action {
-		case "ping":
-			return ipc.Response{Success: true, Data: map[string]any{"status": "ok"}}
-		case "start":
+		case cmdPing:
+			return ipc.Response{Success: true, Data: map[string]any{cmdStatus: "ok"}}
+		case cmdStart:
 			appState.mu.Lock()
 			appState.started = true
 			appState.running = true
 			appState.mu.Unlock()
 
 			return ipc.Response{Success: true, Data: map[string]any{"message": "started"}}
-		case "stop":
+		case cmdStop:
 			appState.mu.Lock()
 			appState.running = false
 			appState.mu.Unlock()
 
 			return ipc.Response{Success: true, Data: map[string]any{"message": "stopped"}}
-		case "status":
+		case cmdStatus:
 			appState.mu.RLock()
 			running := appState.running
 			mode := appState.mode
@@ -89,7 +96,7 @@ func TestCLIIntegration(t *testing.T) {
 
 			return ipc.Response{Success: true, Data: map[string]any{
 				"running": running,
-				"mode":    mode,
+				modeKey:   mode,
 				"config":  "using default config",
 			}}
 		case modeHints:
@@ -105,7 +112,7 @@ func TestCLIIntegration(t *testing.T) {
 			appState.mode = modeHints
 			appState.mu.Unlock()
 
-			return ipc.Response{Success: true, Data: map[string]any{"mode": modeHints}}
+			return ipc.Response{Success: true, Data: map[string]any{modeKey: modeHints}}
 		case modeGrid:
 			appState.mu.RLock()
 			running := appState.running
@@ -119,8 +126,8 @@ func TestCLIIntegration(t *testing.T) {
 			appState.mode = modeGrid
 			appState.mu.Unlock()
 
-			return ipc.Response{Success: true, Data: map[string]any{"mode": modeGrid}}
-		case "action":
+			return ipc.Response{Success: true, Data: map[string]any{modeKey: modeGrid}}
+		case cmdAction:
 			appState.mu.RLock()
 			running := appState.running
 			appState.mu.RUnlock()
@@ -129,7 +136,7 @@ func TestCLIIntegration(t *testing.T) {
 				return ipc.Response{Success: false, Message: appNotRunningMsg}
 			}
 
-			if len(cmd.Args) >= 3 && cmd.Args[0] == "left_click" {
+			if len(cmd.Args) >= 3 && cmd.Args[0] == cmdLeftClick {
 				return ipc.Response{Success: true, Message: "action performed"}
 			}
 
@@ -147,7 +154,7 @@ func TestCLIIntegration(t *testing.T) {
 			appState.mode = modeIdle
 			appState.mu.Unlock()
 
-			return ipc.Response{Success: true, Data: map[string]any{"mode": modeIdle}}
+			return ipc.Response{Success: true, Data: map[string]any{modeKey: modeIdle}}
 		default:
 			return ipc.Response{Success: false, Message: "unknown command"}
 		}
@@ -167,7 +174,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI ping command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		response, err := client.Send(ipc.Command{Action: "ping"})
+		response, err := client.Send(ipc.Command{Action: cmdPing})
 		if err != nil {
 			t.Fatalf("Failed to send ping: %v", err)
 		}
@@ -183,7 +190,7 @@ func TestCLIIntegration(t *testing.T) {
 			return
 		}
 
-		if status, ok := data["status"]; !ok || status != "ok" {
+		if status, ok := data[cmdStatus]; !ok || status != "ok" {
 			t.Errorf("Expected status 'ok', got %v", status)
 		}
 	})
@@ -191,7 +198,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI status command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		response, err := client.Send(ipc.Command{Action: "status"})
+		response, err := client.Send(ipc.Command{Action: cmdStatus})
 		if err != nil {
 			t.Fatalf("Failed to send status: %v", err)
 		}
@@ -211,7 +218,7 @@ func TestCLIIntegration(t *testing.T) {
 			t.Errorf("Expected running=true, got %v", running)
 		}
 
-		if mode, ok := data["mode"]; !ok || mode != "idle" {
+		if mode, ok := data[modeKey]; !ok || mode != modeIdle {
 			t.Errorf("Expected mode='idle', got %v", mode)
 		}
 
@@ -223,7 +230,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI hints command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		response, err := client.Send(ipc.Command{Action: "hints"})
+		response, err := client.Send(ipc.Command{Action: modeHints})
 		if err != nil {
 			t.Fatalf("Failed to send hints: %v", err)
 		}
@@ -239,7 +246,7 @@ func TestCLIIntegration(t *testing.T) {
 			return
 		}
 
-		if mode, ok := data["mode"]; !ok || mode != "hints" {
+		if mode, ok := data[modeKey]; !ok || mode != modeHints {
 			t.Errorf("Expected mode='hints', got %v", mode)
 		}
 	})
@@ -247,7 +254,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI grid command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		response, err := client.Send(ipc.Command{Action: "grid"})
+		response, err := client.Send(ipc.Command{Action: modeGrid})
 		if err != nil {
 			t.Fatalf("Failed to send grid: %v", err)
 		}
@@ -263,7 +270,7 @@ func TestCLIIntegration(t *testing.T) {
 			return
 		}
 
-		if mode, ok := data["mode"]; !ok || mode != "grid" {
+		if mode, ok := data[modeKey]; !ok || mode != modeGrid {
 			t.Errorf("Expected mode='grid', got %v", mode)
 		}
 	})
@@ -273,8 +280,8 @@ func TestCLIIntegration(t *testing.T) {
 
 		// Test left click action
 		response, err := client.Send(ipc.Command{
-			Action: "action",
-			Args:   []string{"left_click", "100", "100"},
+			Action: cmdAction,
+			Args:   []string{cmdLeftClick, "100", "100"},
 		})
 		if err != nil {
 			t.Fatalf("Failed to send action: %v", err)
@@ -292,7 +299,7 @@ func TestCLIIntegration(t *testing.T) {
 	t.Run("CLI stop command", func(t *testing.T) {
 		client := ipc.NewClient()
 
-		response, err := client.Send(ipc.Command{Action: "stop"})
+		response, err := client.Send(ipc.Command{Action: cmdStop})
 		if err != nil {
 			t.Fatalf("Failed to send stop: %v", err)
 		}
@@ -306,7 +313,7 @@ func TestCLIIntegration(t *testing.T) {
 		client := ipc.NewClient()
 
 		// Test that hints command fails after app is stopped
-		response, err := client.Send(ipc.Command{Action: "hints"})
+		response, err := client.Send(ipc.Command{Action: modeHints})
 		if err != nil {
 			t.Fatalf("Failed to send hints command: %v", err)
 		}
@@ -320,7 +327,7 @@ func TestCLIIntegration(t *testing.T) {
 		}
 
 		// Test that grid command fails after app is stopped
-		response, err = client.Send(ipc.Command{Action: "grid"})
+		response, err = client.Send(ipc.Command{Action: modeGrid})
 		if err != nil {
 			t.Fatalf("Failed to send grid command: %v", err)
 		}
@@ -335,8 +342,8 @@ func TestCLIIntegration(t *testing.T) {
 
 		// Test that action command fails after app is stopped
 		response, err = client.Send(ipc.Command{
-			Action: "action",
-			Args:   []string{"left_click", "100", "100"},
+			Action: cmdAction,
+			Args:   []string{cmdLeftClick, "100", "100"},
 		})
 		if err != nil {
 			t.Fatalf("Failed to send action command: %v", err)

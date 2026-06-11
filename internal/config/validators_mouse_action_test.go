@@ -6,10 +6,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+const testMouseActionLeftClick = "left_click"
+
 func TestValidateMouseAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.MouseAction.Enabled = true
-	cfg.MouseAction.Actions = []string{"left_click", "mouse_down"}
+	cfg.MouseAction.Actions = []string{testMouseActionLeftClick, "mouse_down"}
 
 	err := cfg.ValidateMouseAction()
 	if err != nil {
@@ -37,7 +39,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "size too small",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.UI.Size = 0
 			},
 		},
@@ -45,7 +47,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "duration too small",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.Animation.DurationMS = 0
 			},
 		},
@@ -53,7 +55,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "invalid easing",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.Animation.Easing = "bogus"
 			},
 		},
@@ -61,7 +63,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "invalid shape",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.UI.Shape = "hexagon"
 			},
 		},
@@ -69,7 +71,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "negative start scale",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.Animation.StartScale = -1
 			},
 		},
@@ -77,7 +79,7 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 			name: "invalid opacity",
 			setup: func(c *config.Config) {
 				c.MouseAction.Enabled = false
-				c.MouseAction.Actions = []string{"left_click"}
+				c.MouseAction.Actions = []string{testMouseActionLeftClick}
 				c.MouseAction.Animation.StartOpacity = 1.5
 			},
 		},

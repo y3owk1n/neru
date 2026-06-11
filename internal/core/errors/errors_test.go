@@ -7,6 +7,8 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+const testOtherError = "other error"
+
 func TestNew(t *testing.T) {
 	err := derrors.New(derrors.CodeInvalidInput, "test error")
 	if err == nil {
@@ -249,7 +251,7 @@ func TestIsAccessibilityError(t *testing.T) {
 	}{
 		{"accessibility denied", derrors.CodeAccessibilityDenied, true},
 		{"accessibility failed", derrors.CodeAccessibilityFailed, true},
-		{"other error", derrors.CodeInvalidInput, false},
+		{testOtherError, derrors.CodeInvalidInput, false},
 	}
 
 	for _, testCase := range tests {
@@ -278,7 +280,7 @@ func TestIsUserError(t *testing.T) {
 	}{
 		{"invalid config", derrors.CodeInvalidConfig, true},
 		{"invalid input", derrors.CodeInvalidInput, true},
-		{"other error", derrors.CodeIPCFailed, false},
+		{testOtherError, derrors.CodeIPCFailed, false},
 	}
 
 	for _, testCase := range tests {
@@ -307,7 +309,7 @@ func TestIsTransient(t *testing.T) {
 	}{
 		{"timeout", derrors.CodeTimeout, true},
 		{"ipc failed", derrors.CodeIPCFailed, true},
-		{"other error", derrors.CodeInvalidInput, false},
+		{testOtherError, derrors.CodeInvalidInput, false},
 	}
 
 	for _, testCase := range tests {

@@ -6,6 +6,16 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/electron"
 )
 
+const (
+	testNameUnknownBundle                   = "unknown bundle"
+	bundleIDSafari                          = "com.apple.Safari"
+	testNameEmptyBundle                     = "empty bundle"
+	testNameAdditionalBundle                = "additional bundle"
+	bundleIDMyApp                           = "com.example.MyApp"
+	testNameCaseInsensitiveAdditionalBundle = "case insensitive additional bundle"
+	bundleIDMyAppUpper                      = "COM.EXAMPLE.MYAPP"
+)
+
 func TestIsLikelyElectronBundle(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -23,12 +33,12 @@ func TestIsLikelyElectronBundle(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "unknown bundle",
-			bundleID: "com.apple.Safari",
+			name:     testNameUnknownBundle,
+			bundleID: bundleIDSafari,
 			want:     false,
 		},
 		{
-			name:     "empty bundle",
+			name:     testNameEmptyBundle,
 			bundleID: "",
 			want:     false,
 		},
@@ -71,12 +81,12 @@ func TestIsLikelyChromiumBundle(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "unknown bundle",
-			bundleID: "com.apple.Safari",
+			name:     testNameUnknownBundle,
+			bundleID: bundleIDSafari,
 			want:     false,
 		},
 		{
-			name:     "empty bundle",
+			name:     testNameEmptyBundle,
 			bundleID: "",
 			want:     false,
 		},
@@ -116,27 +126,27 @@ func TestShouldEnableElectronSupport(t *testing.T) {
 			want:              true,
 		},
 		{
-			name:              "additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"com.example.MyApp"},
+			name:              testNameAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyApp},
 			want:              true,
 		},
 		{
-			name:              "unknown bundle",
-			bundleID:          "com.apple.Safari",
+			name:              testNameUnknownBundle,
+			bundleID:          bundleIDSafari,
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "empty bundle",
+			name:              testNameEmptyBundle,
 			bundleID:          "",
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "case insensitive additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			name:              testNameCaseInsensitiveAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyAppUpper},
 			want:              true,
 		},
 	}
@@ -174,27 +184,27 @@ func TestShouldEnableChromiumSupport(t *testing.T) {
 			want:              true,
 		},
 		{
-			name:              "additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"com.example.MyApp"},
+			name:              testNameAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyApp},
 			want:              true,
 		},
 		{
-			name:              "unknown bundle",
-			bundleID:          "com.apple.Safari",
+			name:              testNameUnknownBundle,
+			bundleID:          bundleIDSafari,
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "empty bundle",
+			name:              testNameEmptyBundle,
 			bundleID:          "",
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "case insensitive additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			name:              testNameCaseInsensitiveAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyAppUpper},
 			want:              true,
 		},
 	}
@@ -232,27 +242,27 @@ func TestShouldEnableFirefoxSupport(t *testing.T) {
 			want:              true,
 		},
 		{
-			name:              "additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"com.example.MyApp"},
+			name:              testNameAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyApp},
 			want:              true,
 		},
 		{
-			name:              "unknown bundle",
-			bundleID:          "com.apple.Safari",
+			name:              testNameUnknownBundle,
+			bundleID:          bundleIDSafari,
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "empty bundle",
+			name:              testNameEmptyBundle,
 			bundleID:          "",
 			additionalBundles: []string{},
 			want:              false,
 		},
 		{
-			name:              "case insensitive additional bundle",
-			bundleID:          "com.example.MyApp",
-			additionalBundles: []string{"COM.EXAMPLE.MYAPP"},
+			name:              testNameCaseInsensitiveAdditionalBundle,
+			bundleID:          bundleIDMyApp,
+			additionalBundles: []string{bundleIDMyAppUpper},
 			want:              true,
 		},
 	}

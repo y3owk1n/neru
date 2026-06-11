@@ -24,10 +24,10 @@ const (
 )
 
 var modifierToggleMap = map[string]action.Modifiers{
-	"cmd":   action.ModCmd,
-	"shift": action.ModShift,
-	"alt":   action.ModAlt,
-	"ctrl":  action.ModCtrl,
+	keyPartCmd:   action.ModCmd,
+	keyPartShift: action.ModShift,
+	keyPartAlt:   action.ModAlt,
+	keyPartCtrl:  action.ModCtrl,
 }
 
 var allStickyModifiers = []action.Modifiers{
@@ -229,13 +229,13 @@ func (h *Handler) scheduleModifierToggle(mod action.Modifiers, downTime time.Tim
 		modName := ""
 		switch mod {
 		case action.ModCmd:
-			modName = "cmd"
+			modName = keyPartCmd
 		case action.ModShift:
-			modName = "shift"
+			modName = keyPartShift
 		case action.ModAlt:
-			modName = "alt"
+			modName = keyPartAlt
 		case action.ModCtrl:
-			modName = "ctrl"
+			modName = keyPartCtrl
 		}
 
 		if modName != "" && h.postModifierEvent != nil {
@@ -271,19 +271,19 @@ func (h *Handler) clearStickyModifiers() {
 	mods := h.modifierState.Current()
 	if h.postModifierEvent != nil {
 		if mods.Has(action.ModCmd) {
-			h.postModifierEvent("cmd", false)
+			h.postModifierEvent(keyPartCmd, false)
 		}
 
 		if mods.Has(action.ModShift) {
-			h.postModifierEvent("shift", false)
+			h.postModifierEvent(keyPartShift, false)
 		}
 
 		if mods.Has(action.ModAlt) {
-			h.postModifierEvent("alt", false)
+			h.postModifierEvent(keyPartAlt, false)
 		}
 
 		if mods.Has(action.ModCtrl) {
-			h.postModifierEvent("ctrl", false)
+			h.postModifierEvent(keyPartCtrl, false)
 		}
 	}
 

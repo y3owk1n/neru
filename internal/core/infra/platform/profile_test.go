@@ -39,13 +39,13 @@ func TestProfileFor(t *testing.T) {
 		{
 			name:              "linux",
 			target:            Linux,
-			wantPrimary:       "ctrl",
+			wantPrimary:       defaultPrimaryModifier,
 			wantDisplay:       DisplayServerUnknown,
 			wantAccess:        "at-spi",
 			wantAccessBuild:   BuildModePureGo,
-			wantHotkeys:       "x11 or compositor-specific backend",
+			wantHotkeys:       backendPlanNameX11OrCompositorSpecific,
 			wantHotkeysBuild:  BuildModeBackendDependent,
-			wantKeyboard:      "x11 or compositor-specific backend",
+			wantKeyboard:      backendPlanNameX11OrCompositorSpecific,
 			wantKeyboardBuild: BuildModeBackendDependent,
 			wantOverlay:       "x11 window or wayland layer-shell",
 			wantOverlayBuild:  BuildModeBackendDependent,
@@ -55,7 +55,7 @@ func TestProfileFor(t *testing.T) {
 		{
 			name:              "windows",
 			target:            Windows,
-			wantPrimary:       "ctrl",
+			wantPrimary:       defaultPrimaryModifier,
 			wantDisplay:       DisplayServerWin32,
 			wantAccess:        "uia",
 			wantAccessBuild:   BuildModePureGo,
@@ -181,7 +181,7 @@ func TestDetectLinuxDisplayServer(t *testing.T) {
 		{name: "wayland from env", waylandEnv: "wayland-0", wantDisplay: DisplayServerWayland},
 		{name: "x11 from session type", sessionType: "x11", wantDisplay: DisplayServerX11},
 		{name: "x11 from display env", xDisplayEnv: ":0", wantDisplay: DisplayServerX11},
-		{name: "unknown", wantDisplay: DisplayServerUnknown},
+		{name: string(Unknown), wantDisplay: DisplayServerUnknown},
 	}
 
 	for _, testCase := range tests {

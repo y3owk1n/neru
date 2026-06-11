@@ -8,6 +8,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
+const (
+	actionScrollDown     = "action scroll_down"
+	builtInRetinaDisplay = "Built-in Retina Display"
+)
+
 func TestHotkeyModifiersFromKey(t *testing.T) {
 	tests := []struct {
 		name string
@@ -65,37 +70,37 @@ func TestSplitArgs(t *testing.T) {
 		{
 			name:  "plain split, no quotes",
 			input: `action move_monitor --previous`,
-			want:  []string{"action", "move_monitor", "--previous"},
+			want:  []string{actionCmd, moveMonitor, flagPrevious},
 		},
 		{
 			name:  "double-quoted monitor name with space",
 			input: `action move_monitor --name "DELL U2720Q"`,
-			want:  []string{"action", "move_monitor", "--name", "DELL U2720Q"},
+			want:  []string{actionCmd, moveMonitor, flagName, "DELL U2720Q"},
 		},
 		{
 			name:  "single-quoted monitor name",
 			input: `action move_monitor --name 'Built-in Retina Display'`,
-			want:  []string{"action", "move_monitor", "--name", "Built-in Retina Display"},
+			want:  []string{actionCmd, moveMonitor, flagName, builtInRetinaDisplay},
 		},
 		{
 			name:  "equals form with double quotes",
 			input: `action move_monitor --name="DELL U2720Q"`,
-			want:  []string{"action", "move_monitor", "--name=DELL U2720Q"},
+			want:  []string{actionCmd, moveMonitor, "--name=DELL U2720Q"},
 		},
 		{
 			name:  "single quote literal inside double quotes",
 			input: `action move_monitor --name "It's a Monitor"`,
-			want:  []string{"action", "move_monitor", "--name", "It's a Monitor"},
+			want:  []string{actionCmd, moveMonitor, flagName, "It's a Monitor"},
 		},
 		{
 			name:  "unclosed single quote is treated as closed token",
 			input: `action move_monitor --name 'DELL`,
-			want:  []string{"action", "move_monitor", "--name", "DELL"},
+			want:  []string{actionCmd, moveMonitor, flagName, "DELL"},
 		},
 		{
 			name:  "unclosed double quote is treated as closed token",
 			input: `action move_monitor --name "DELL`,
-			want:  []string{"action", "move_monitor", "--name", "DELL"},
+			want:  []string{actionCmd, moveMonitor, flagName, "DELL"},
 		},
 		{
 			name:  "empty string returns empty slice",
@@ -105,12 +110,12 @@ func TestSplitArgs(t *testing.T) {
 		{
 			name:  "multiple spaces are collapsed",
 			input: `action   move_monitor   --previous`,
-			want:  []string{"action", "move_monitor", "--previous"},
+			want:  []string{actionCmd, moveMonitor, flagPrevious},
 		},
 		{
 			name:  "trailing space produces trailing empty token ignored",
 			input: `action move_monitor --previous `,
-			want:  []string{"action", "move_monitor", "--previous"},
+			want:  []string{actionCmd, moveMonitor, flagPrevious},
 		},
 	}
 
@@ -155,7 +160,7 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 	}{
 		{
 			name:    "scroll down repeats",
-			actions: []string{"action scroll_down"},
+			actions: []string{actionScrollDown},
 			want:    true,
 		},
 		{
@@ -221,7 +226,7 @@ func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
 	}{
 		{
 			name:    "scroll down does not repeat when disabled",
-			actions: []string{"action scroll_down"},
+			actions: []string{actionScrollDown},
 		},
 		{
 			name:    "relative mouse movement does not repeat when disabled",

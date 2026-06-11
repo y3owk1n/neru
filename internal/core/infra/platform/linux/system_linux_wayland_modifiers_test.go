@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const ctrlModifier = "ctrl"
+
 var errReleaseFailed = errors.New("release failed")
 
 func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
@@ -26,17 +28,17 @@ func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
 		return nil
 	})
 
-	err := dispatcher.event("ctrl", true)
+	err := dispatcher.event(ctrlModifier, true)
 	if err != nil {
 		t.Fatalf("first down error = %v", err)
 	}
 
-	err = dispatcher.event("ctrl", true)
+	err = dispatcher.event(ctrlModifier, true)
 	if err != nil {
 		t.Fatalf("nested down error = %v", err)
 	}
 
-	err = dispatcher.event("ctrl", false)
+	err = dispatcher.event(ctrlModifier, false)
 	if err != nil {
 		t.Fatalf("nested up error = %v", err)
 	}
@@ -45,14 +47,14 @@ func TestWlrootsModifierDispatcherDeduplicatesNestedUsage(t *testing.T) {
 		t.Fatalf("event count after nested release = %d, want 1", len(events))
 	}
 
-	err = dispatcher.event("ctrl", false)
+	err = dispatcher.event(ctrlModifier, false)
 	if err != nil {
 		t.Fatalf("final up error = %v", err)
 	}
 
 	want := []event{
-		{modifier: "ctrl", isDown: true},
-		{modifier: "ctrl", isDown: false},
+		{modifier: ctrlModifier, isDown: true},
+		{modifier: ctrlModifier, isDown: false},
 	}
 
 	if len(events) != len(want) {
@@ -73,7 +75,7 @@ func TestWlrootsModifierDispatcherRetriesFailedFinalRelease(t *testing.T) {
 	releaseAttempts := 0
 
 	dispatcher := newWlrootsModifierDispatcher(func(modifier string, isDown bool) error {
-		if modifier != "ctrl" {
+		if modifier != ctrlModifier {
 			t.Fatalf("modifier = %q, want ctrl", modifier)
 		}
 
@@ -90,17 +92,17 @@ func TestWlrootsModifierDispatcherRetriesFailedFinalRelease(t *testing.T) {
 		return nil
 	})
 
-	err := dispatcher.event("ctrl", true)
+	err := dispatcher.event(ctrlModifier, true)
 	if err != nil {
 		t.Fatalf("down error = %v", err)
 	}
 
-	err = dispatcher.event("ctrl", false)
+	err = dispatcher.event(ctrlModifier, false)
 	if err == nil {
 		t.Fatal("first up error = nil, want failure")
 	}
 
-	err = dispatcher.event("ctrl", false)
+	err = dispatcher.event(ctrlModifier, false)
 	if err != nil {
 		t.Fatalf("retry up error = %v", err)
 	}
@@ -118,7 +120,7 @@ func TestWlrootsModifierDispatcherAllowsCleanupReleaseWithoutTrackedDown(t *test
 	dispatcher := newWlrootsModifierDispatcher(func(modifier string, isDown bool) error {
 		calls++
 
-		if modifier != "ctrl" {
+		if modifier != ctrlModifier {
 			t.Fatalf("modifier = %q, want ctrl", modifier)
 		}
 
@@ -129,7 +131,7 @@ func TestWlrootsModifierDispatcherAllowsCleanupReleaseWithoutTrackedDown(t *test
 		return nil
 	})
 
-	err := dispatcher.event("ctrl", false)
+	err := dispatcher.event(ctrlModifier, false)
 	if err != nil {
 		t.Fatalf("cleanup release error = %v", err)
 	}

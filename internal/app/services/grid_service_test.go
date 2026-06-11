@@ -10,6 +10,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
+const (
+	successfulHide   = "successful hide"
+	overlayHideError = "overlay hide error"
+)
+
 func TestGridService_ShowGrid(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -67,7 +72,7 @@ func TestGridService_HideGrid(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "successful hide",
+			name: successfulHide,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
 					return nil
@@ -76,7 +81,7 @@ func TestGridService_HideGrid(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "overlay hide error",
+			name: overlayHideError,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
 					return derrors.New(

@@ -5,11 +5,13 @@ import (
 	"testing"
 )
 
+const testKeyCmdShiftS = "Cmd+Shift+S"
+
 func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 	bindings := map[string][]string{
-		"Cmd+Shift+S":     {"scroll"},
-		"Cmd+Shift+Space": {"hints"},
-		"Cmd+Shift+G":     {"grid"},
+		testKeyCmdShiftS:  {ModeNameScroll},
+		"Cmd+Shift+Space": {ModeNameHints},
+		"Cmd+Shift+G":     {ModeNameGrid},
 	}
 
 	tests := []struct {
@@ -19,18 +21,18 @@ func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 	}{
 		{
 			name:     "exact match",
-			rawKey:   "Cmd+Shift+S",
-			expected: "Cmd+Shift+S",
+			rawKey:   testKeyCmdShiftS,
+			expected: testKeyCmdShiftS,
 		},
 		{
 			name:     "lowercase matches canonical",
 			rawKey:   "cmd+shift+s",
-			expected: "Cmd+Shift+S",
+			expected: testKeyCmdShiftS,
 		},
 		{
 			name:     "mixed case matches canonical",
 			rawKey:   "CMD+SHIFT+S",
-			expected: "Cmd+Shift+S",
+			expected: testKeyCmdShiftS,
 		},
 		{
 			name:     "no match returns rawKey",
@@ -51,11 +53,11 @@ func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 
 func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 	_map := map[string]StringOrStringArray{
-		"Escape":    {"idle"},
-		"Shift+L":   {"action left_click"},
-		"Up":        {"action move_mouse_relative --dx=0 --dy=-10"},
-		"Backspace": {"action backspace"},
-		"j":         {"action scroll_down"},
+		KeyDisplayEscape:    {CmdIdle},
+		KeyComboShiftL:      {CmdLeftClick},
+		"Up":                {CmdMoveMouseUp},
+		KeyDisplayBackspace: {CmdBackspace},
+		"j":                 {"action scroll_down"},
 	}
 
 	tests := []struct {
@@ -71,7 +73,7 @@ func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 		{
 			name:     "lowercase escape matches Escape",
 			rawKey:   "escape",
-			expected: "Escape",
+			expected: KeyDisplayEscape,
 		},
 		{
 			name:     "lowercase up matches Up",

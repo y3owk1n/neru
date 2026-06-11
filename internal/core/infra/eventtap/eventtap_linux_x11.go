@@ -122,7 +122,7 @@ func x11KeyFromLookup(length C.int, buffer []C.char, keysym C.KeySym) string {
 func x11KeysymName(keysym C.KeySym) string {
 	switch keysym {
 	case C.XK_Return:
-		return "Return"
+		return evdevKeyNameReturn
 	case C.XK_space:
 		return "Space"
 	case C.XK_Tab:
@@ -132,7 +132,7 @@ func x11KeysymName(keysym C.KeySym) string {
 	case C.XK_BackSpace:
 		return "Backspace"
 	case C.XK_Left:
-		return "Left"
+		return evdevKeyNameLeft
 	case C.XK_Right:
 		return "Right"
 	case C.XK_Up:

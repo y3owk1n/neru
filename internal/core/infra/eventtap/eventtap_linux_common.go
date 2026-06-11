@@ -305,7 +305,7 @@ func normalizeLinuxKey(key string) string {
 
 	switch strings.ToLower(baseKey) {
 	case "return":
-		baseKey = "Return"
+		baseKey = evdevKeyNameReturn
 	case "space":
 		baseKey = "Space"
 	case "tab":
@@ -315,7 +315,7 @@ func normalizeLinuxKey(key string) string {
 	case "backspace":
 		baseKey = "Delete"
 	case "left":
-		baseKey = "Left"
+		baseKey = evdevKeyNameLeft
 	case "right":
 		baseKey = "Right"
 	case "up":

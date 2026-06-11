@@ -14,6 +14,13 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
+const (
+	logLevelDebug = "debug"
+	logLevelInfo  = "info"
+	logLevelWarn  = "warn"
+	logLevelError = "error"
+)
+
 func TestInitIntegration(t *testing.T) {
 	// Create temp directory for test logs
 	tempDir := t.TempDir()
@@ -31,7 +38,7 @@ func TestInitIntegration(t *testing.T) {
 	}{
 		{
 			name:               "debug level with file logging",
-			logLevel:           "debug",
+			logLevel:           logLevelDebug,
 			logFilePath:        logPath,
 			disableFileLogging: false,
 			maxFileSize:        10,
@@ -41,7 +48,7 @@ func TestInitIntegration(t *testing.T) {
 		},
 		{
 			name:               "info level with file logging",
-			logLevel:           "info",
+			logLevel:           logLevelInfo,
 			logFilePath:        logPath,
 			disableFileLogging: false,
 			maxFileSize:        10,
@@ -51,7 +58,7 @@ func TestInitIntegration(t *testing.T) {
 		},
 		{
 			name:               "warn level no file",
-			logLevel:           "warn",
+			logLevel:           logLevelWarn,
 			logFilePath:        "",
 			disableFileLogging: true,
 			maxFileSize:        10,
@@ -61,7 +68,7 @@ func TestInitIntegration(t *testing.T) {
 		},
 		{
 			name:               "error level",
-			logLevel:           "error",
+			logLevel:           logLevelError,
 			logFilePath:        logPath,
 			disableFileLogging: false,
 			maxFileSize:        10,
@@ -118,7 +125,7 @@ func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("debug", logPath, false, 10, 3, 7, nil)
+	initErr := logger.Init(logLevelDebug, logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -174,7 +181,7 @@ func TestLoggingFunctions(t *testing.T) {
 
 func TestWithIntegration(t *testing.T) {
 	// Initialize logger
-	err := logger.Init("info", "", true, 10, 3, 7, nil)
+	err := logger.Init(logLevelInfo, "", true, 10, 3, 7, nil)
 	if err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
@@ -198,7 +205,7 @@ func TestSyncIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, 10, 3, 7, nil)
+	initErr := logger.Init(logLevelInfo, logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -218,7 +225,7 @@ func TestCloseIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	logPath := filepath.Join(tempDir, "test.log")
 
-	initErr := logger.Init("info", logPath, false, 10, 3, 7, nil)
+	initErr := logger.Init(logLevelInfo, logPath, false, 10, 3, 7, nil)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}
@@ -239,10 +246,10 @@ func TestLogLevels(t *testing.T) {
 		logLevel  string
 		wantLevel zapcore.Level
 	}{
-		{"debug", "debug", zapcore.DebugLevel},
-		{"info", "info", zapcore.InfoLevel},
-		{"warn", "warn", zapcore.WarnLevel},
-		{"error", "error", zapcore.ErrorLevel},
+		{logLevelDebug, logLevelDebug, zapcore.DebugLevel},
+		{logLevelInfo, logLevelInfo, zapcore.InfoLevel},
+		{logLevelWarn, logLevelWarn, zapcore.WarnLevel},
+		{logLevelError, logLevelError, zapcore.ErrorLevel},
 		{"unknown defaults to info", "unknown", zapcore.InfoLevel},
 	}
 
@@ -274,7 +281,7 @@ func TestFileRotation(t *testing.T) {
 	logPath := filepath.Join(tempDir, "test.log")
 
 	// Initialize with small max size for testing
-	initErr := logger.Init("info", logPath, false, 1, 2, 1, io.Discard)
+	initErr := logger.Init(logLevelInfo, logPath, false, 1, 2, 1, io.Discard)
 	if initErr != nil {
 		t.Fatalf("Init() failed: %v", initErr)
 	}

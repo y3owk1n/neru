@@ -18,6 +18,7 @@ const (
 	colorSchemeDark       = 1
 
 	pollFallbackInterval = 5 * time.Second
+	minSignalBodyLength  = 3
 )
 
 // setupThemeObserver subscribes to xdg-desktop-portal SettingChanged
@@ -33,42 +34,46 @@ func (a *App) setupThemeObserver() {
 		return
 	}
 
-	if err := conn.AddMatchSignal(
+	err = conn.AddMatchSignal(
 		dbus.WithMatchInterface(portalSignalInterface),
 		dbus.WithMatchMember(portalSignalMember),
-	); err != nil {
+	)
+	if err != nil {
 		a.logger.Warn("Failed to subscribe to portal theme signals, falling back to polling",
 			zap.Error(err))
-		conn.Close()
+
+		_ = conn.Close()
+
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
 	}
 
-	ch := make(chan *dbus.Signal, portalSignalBuffer)
-	conn.Signal(ch)
+	signalCh := make(chan *dbus.Signal, portalSignalBuffer)
+	conn.Signal(signalCh)
 
 	go func() {
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
-		for signal := range ch {
-			if len(signal.Body) < 3 {
+		for signal := range signalCh {
+			if len(signal.Body) < minSignalBodyLength {
 				continue
 			}
 
 			ns, _ := signal.Body[0].(string)
+
 			key, _ := signal.Body[1].(string)
 			if ns != portalSettingsNS || key != portalSettingsKey {
 				continue
 			}
 
-			variant, ok := signal.Body[2].(dbus.Variant)
-			if !ok {
+			variant, parsedOK := signal.Body[2].(dbus.Variant)
+			if !parsedOK {
 				continue
 			}
 
-			colorScheme, ok := variant.Value().(uint32)
-			if !ok {
+			colorScheme, csOK := variant.Value().(uint32)
+			if !csOK {
 				continue
 			}
 

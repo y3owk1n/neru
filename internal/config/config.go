@@ -59,11 +59,73 @@ const (
 // Mode name constants used in config lookups (HotkeysForMode, validation).
 // These mirror domain.ModeName* but are defined here to avoid a circular import.
 const (
-	modeNameHints         = "hints"
-	modeNameGrid          = "grid"
-	modeNameRecursiveGrid = "recursive_grid"
-	modeNameScroll        = "scroll"
+	ModeNameHints         = "hints"
+	ModeNameGrid          = "grid"
+	ModeNameRecursiveGrid = "recursive_grid"
+	ModeNameScroll        = "scroll"
 )
+
+// Display-form key name constants used in config files and maps.
+const (
+	KeyDisplaySpace     = "Space"
+	KeyDisplayEscape    = "Escape"
+	KeyDisplayBackspace = "Backspace"
+	KeyDisplayDown      = "Down"
+	KeyDisplayLeft      = "Left"
+	KeyDisplayRight     = "Right"
+	KeyReturn           = "Return"
+)
+
+// Common action command constants.
+const (
+	CmdToggleCursorFollowSelection = "toggle-cursor-follow-selection"
+	CmdMoveMouseUp                 = "action move_mouse_relative --dx=0 --dy=-10"
+)
+
+// Hotkey modifier combo key names.
+const (
+	KeyComboShiftL = "Shift+L"
+	KeyComboShiftR = "Shift+R"
+	KeyComboShiftM = "Shift+M"
+	KeyComboShiftI = "Shift+I"
+	KeyComboShiftU = "Shift+U"
+)
+
+// Frequently used accessibility role and test constants.
+const (
+	TestRoleButton    = "AXButton"
+	TestRoleTextField = "AXTextField"
+	TestRoleLink      = "AXLink"
+)
+
+// Common key combo constants used in tests.
+const (
+	KeyCmdSpace   = "Cmd+Space"
+	KeySuperSpace = "Super+Space"
+)
+
+// Common action strings.
+const (
+	CmdIdle           = "idle"
+	CmdLeftClick      = "action left_click"
+	CmdRightClick     = "action right_click"
+	CmdMiddleClick    = "action middle_click"
+	CmdMouseDown      = "action mouse_down"
+	CmdMouseUp        = "action mouse_up"
+	CmdGoTop          = "action go_top"
+	CmdBackspace      = "action backspace"
+	CmdMoveMouseDown  = "action move_mouse_relative --dx=0 --dy=10"
+	CmdMoveMouseLeft  = "action move_mouse_relative --dx=-10 --dy=0"
+	CmdMoveMouseRight = "action move_mouse_relative --dx=10 --dy=0"
+)
+
+// Common test bundle IDs.
+const (
+	TestBundleIDSafari = "com.apple.Safari"
+)
+
+// Placement strings for UI configuration.
+const placementBottom = "bottom"
 
 // DisabledSentinel is a special action value that removes a default hotkey binding.
 // Use it in [hotkeys] or [<mode>.hotkeys] to disable a specific default:
@@ -105,22 +167,22 @@ const (
 // The variable is unexported to prevent accidental mutation by other packages.
 var validNamedKeys = map[string]bool{
 	// Special keys
-	"Space":     true,
-	"Return":    true,
-	"Enter":     true, // alias for Return
-	"Escape":    true,
-	"Tab":       true,
-	"Delete":    true,
-	"Backspace": true, // alias for Delete on macOS
+	KeyDisplaySpace:     true,
+	"Return":            true, // No constant - only 1 occurrence
+	"Enter":             true, // alias for Return
+	KeyDisplayEscape:    true,
+	"Tab":               true,
+	"Delete":            true,
+	KeyDisplayBackspace: true, // alias for Delete on macOS
 	// Navigation keys
-	"Up":       true,
-	"Down":     true,
-	"Left":     true,
-	"Right":    true,
-	"Home":     true,
-	"End":      true,
-	"PageUp":   true,
-	"PageDown": true,
+	"Up":            true,
+	KeyDisplayDown:  true,
+	KeyDisplayLeft:  true,
+	KeyDisplayRight: true,
+	"Home":          true,
+	"End":           true,
+	"PageUp":        true,
+	"PageDown":      true,
 	// Function keys
 	"F1":  true,
 	"F2":  true,
@@ -1118,10 +1180,10 @@ func (c *Config) ValidateModeIndicator() error {
 		cfg  ModeIndicatorModeConfig
 		name string
 	}{
-		{c.ModeIndicator.Scroll, "scroll"},
-		{c.ModeIndicator.Hints, "hints"},
-		{c.ModeIndicator.Grid, "grid"},
-		{c.ModeIndicator.RecursiveGrid, "recursive_grid"},
+		{c.ModeIndicator.Scroll, ModeNameScroll},
+		{c.ModeIndicator.Hints, ModeNameHints},
+		{c.ModeIndicator.Grid, ModeNameGrid},
+		{c.ModeIndicator.RecursiveGrid, ModeNameRecursiveGrid},
 	}
 
 	for _, mode := range modes {
@@ -1338,13 +1400,13 @@ func (c *Config) HotkeysForModeAndApp(
 
 	var appConfig *AppConfig
 	switch modeName {
-	case modeNameHints:
+	case ModeNameHints:
 		appConfig = c.Hints.AppConfigForBundleID(bundleID)
-	case modeNameGrid:
+	case ModeNameGrid:
 		appConfig = c.Grid.AppConfigForBundleID(bundleID)
-	case modeNameRecursiveGrid:
+	case ModeNameRecursiveGrid:
 		appConfig = c.RecursiveGrid.AppConfigForBundleID(bundleID)
-	case modeNameScroll:
+	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
 	}
 
@@ -1600,13 +1662,13 @@ func (c *Config) ValidateScroll() error {
 
 func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringArray {
 	switch modeName {
-	case modeNameHints:
+	case ModeNameHints:
 		return c.Hints.Hotkeys
-	case modeNameGrid:
+	case ModeNameGrid:
 		return c.Grid.Hotkeys
-	case modeNameRecursiveGrid:
+	case ModeNameRecursiveGrid:
 		return c.RecursiveGrid.Hotkeys
-	case modeNameScroll:
+	case ModeNameScroll:
 		return c.Scroll.Hotkeys
 	default:
 		return nil

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"slices"
 
 	"go.uber.org/zap"
 
@@ -60,8 +61,8 @@ func initializeApp(app *App) (*App, error) {
 				zap.String("phase", failurePhase),
 				zap.Error(failureErr))
 			// Run cleanup functions in reverse order (LIFO)
-			for i := len(initializedPhases) - 1; i >= 0; i-- {
-				initializedPhases[i]()
+			for _, v := range slices.Backward(initializedPhases) {
+				v()
 			}
 		}
 	}()

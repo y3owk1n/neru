@@ -90,7 +90,7 @@ func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 	}
 
 	switch parts[0] {
-	case modeNameHints, modeNameGrid, modeNameRecursiveGrid, modeNameScroll:
+	case ModeNameHints, ModeNameGrid, ModeNameRecursiveGrid, ModeNameScroll:
 		return parts[0], true
 	default:
 		return "", false
@@ -111,9 +111,9 @@ func removeBindingsForSingleAction(bindings map[string][]string, action string) 
 // that are explicitly disabled in the config.
 func removeLauncherBindingsForDisabledModes(cfg *Config) {
 	modeActions := map[string]bool{
-		modeNameHints:         cfg.Hints.Enabled,
-		modeNameGrid:          cfg.Grid.Enabled,
-		modeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
+		ModeNameHints:         cfg.Hints.Enabled,
+		ModeNameGrid:          cfg.Grid.Enabled,
+		ModeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
 	}
 
 	for key, actions := range cfg.Hotkeys.Bindings {
@@ -457,10 +457,10 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	}
 
 	modeHotkeyList := []modeHotkeys{
-		{"scroll", &configResult.Config.Scroll.Hotkeys},
-		{"hints", &configResult.Config.Hints.Hotkeys},
-		{"grid", &configResult.Config.Grid.Hotkeys},
-		{"recursive_grid", &configResult.Config.RecursiveGrid.Hotkeys},
+		{ModeNameScroll, &configResult.Config.Scroll.Hotkeys},
+		{ModeNameHints, &configResult.Config.Hints.Hotkeys},
+		{ModeNameGrid, &configResult.Config.Grid.Hotkeys},
+		{ModeNameRecursiveGrid, &configResult.Config.RecursiveGrid.Hotkeys},
 	}
 
 	for _, modeHotkey := range modeHotkeyList {

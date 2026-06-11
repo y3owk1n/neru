@@ -7,6 +7,11 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
+const (
+	docsCLIPath       = "docs/CLI.md"
+	mainDocsCLISuffix = "/main/docs/CLI.md"
+)
+
 func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -17,19 +22,19 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 		{
 			name:       "empty version falls back to main",
 			version:    "",
-			path:       "docs/CLI.md",
-			wantSuffix: "/main/docs/CLI.md",
+			path:       docsCLIPath,
+			wantSuffix: mainDocsCLISuffix,
 		},
 		{
 			name:       "non semver falls back to main",
 			version:    "dev",
-			path:       "docs/CLI.md",
-			wantSuffix: "/main/docs/CLI.md",
+			path:       docsCLIPath,
+			wantSuffix: mainDocsCLISuffix,
 		},
 		{
 			name:       "valid release tag",
 			version:    "v1.19.0",
-			path:       "docs/CLI.md",
+			path:       docsCLIPath,
 			wantSuffix: "/v1.19.0/docs/CLI.md",
 		},
 		{
@@ -41,20 +46,20 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 		{
 			name:       "git describe dirty state",
 			version:    "v1.19.0-dirty",
-			path:       "docs/CLI.md",
+			path:       docsCLIPath,
 			wantSuffix: "/v1.19.0/docs/CLI.md",
 		},
 		{
 			name:       "invalid semver segments",
 			version:    "v1.2",
-			path:       "docs/CLI.md",
-			wantSuffix: "/main/docs/CLI.md",
+			path:       docsCLIPath,
+			wantSuffix: mainDocsCLISuffix,
 		},
 		{
 			name:       "non numeric segment",
 			version:    "v1.2.x",
-			path:       "docs/CLI.md",
-			wantSuffix: "/main/docs/CLI.md",
+			path:       docsCLIPath,
+			wantSuffix: mainDocsCLISuffix,
 		},
 	}
 	for _, testCase := range testCases {

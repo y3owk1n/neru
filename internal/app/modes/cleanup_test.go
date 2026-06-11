@@ -45,7 +45,7 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 		t.Fatalf("expected modifier release and disable callbacks, got %v", callOrder)
 	}
 
-	if callOrder[0] != "ctrl" || callOrder[1] != "disable" {
+	if callOrder[0] != keyPartCtrl || callOrder[1] != "disable" {
 		t.Fatalf("cleanup order = %v, want [ctrl disable ...]", callOrder)
 	}
 

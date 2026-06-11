@@ -10,7 +10,22 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-const isDarwinRuntime = runtime.GOOS == "darwin"
+const (
+	isDarwinRuntime = runtime.GOOS == "darwin"
+
+	testBundleIDA       = "com.example.app"
+	testBundleIDB       = "com.other.app"
+	testBundleIDSafari  = "com.apple.Safari"
+	testRoleButton      = config.TestRoleButton
+	testRoleTextField   = config.TestRoleTextField
+	testActionLeftClick = "action left_click"
+	testKeyReturn       = "Return"
+	testKeyEscape       = "escape"
+	testKeySpace        = "space"
+	testKeyShiftReturn  = "shift+return"
+	testKeyCmdSpace     = "Cmd+Space"
+	testKeySuperSpace   = "Super+Space"
+)
 
 func TestConfig_IsAppExcluded(t *testing.T) {
 	tests := []struct {
@@ -22,25 +37,25 @@ func TestConfig_IsAppExcluded(t *testing.T) {
 		{
 			name:     "empty excluded list",
 			excluded: []string{},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
 			name:     "exact match",
-			excluded: []string{"com.example.app"},
-			bundleID: "com.example.app",
+			excluded: []string{testBundleIDA},
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
 			name:     "case insensitive match",
 			excluded: []string{"COM.EXAMPLE.APP"},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
 			name:     "partial match",
 			excluded: []string{"com.example"},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -51,20 +66,20 @@ func TestConfig_IsAppExcluded(t *testing.T) {
 		},
 		{
 			name:     "empty bundle ID",
-			excluded: []string{"com.example.app"},
+			excluded: []string{testBundleIDA},
 			bundleID: "",
 			want:     false,
 		},
 		{
 			name:     "whitespace in bundle ID",
-			excluded: []string{"com.example.app"},
+			excluded: []string{testBundleIDA},
 			bundleID: " com.example.app ",
 			want:     true,
 		},
 		{
 			name:     "whitespace in excluded list",
 			excluded: []string{" com.example.app "},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 	}
@@ -96,96 +111,100 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 			name: "default roles only",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{"AXButton", "AXLink"},
+					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXLink"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton, config.TestRoleLink},
 		},
 		{
 			name: "with app-specific roles",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{"AXButton", "AXLink"},
+					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID: "com.example.app",
+							BundleID: testBundleIDA,
 							AdditionalClickable: []string{
-								"AXTextField",
-								"AXButton",
+								config.TestRoleTextField,
+								config.TestRoleButton,
 							}, // Button is duplicate
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXLink", "AXTextField"}, // Should be deduplicated
+			bundleID: testBundleIDA,
+			want: []string{
+				config.TestRoleButton,
+				config.TestRoleLink,
+				config.TestRoleTextField,
+			}, // Should be deduplicated
 		},
 		{
 			name: "with menubar hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:      []string{"AXButton"},
+					ClickableRoles:      []string{config.TestRoleButton},
 					IncludeMenubarHints: true,
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXMenuBarItem"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton, "AXMenuBarItem"},
 		},
 		{
 			name: "with dock hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:   []string{"AXButton"},
+					ClickableRoles:   []string{config.TestRoleButton},
 					IncludeDockHints: true,
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXDockItem"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton, "AXDockItem"},
 		},
 		{
 			name: "with both menubar and dock hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:      []string{"AXButton"},
+					ClickableRoles:      []string{config.TestRoleButton},
 					IncludeMenubarHints: true,
 					IncludeDockHints:    true,
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXMenuBarItem", "AXDockItem"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton, "AXMenuBarItem", "AXDockItem"},
 		},
 		{
 			name: "empty roles filtered out",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{"AXButton", "", "AXLink", " "},
+					ClickableRoles: []string{config.TestRoleButton, "", config.TestRoleLink, " "},
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton", "AXLink"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton, config.TestRoleLink},
 		},
 		{
 			name: "non-matching app config",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{"AXButton"},
+					ClickableRoles: []string{config.TestRoleButton},
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.other.app",
-							AdditionalClickable: []string{"AXTextField"},
+							BundleID:            testBundleIDB,
+							AdditionalClickable: []string{config.TestRoleTextField},
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
-			want:     []string{"AXButton"},
+			bundleID: testBundleIDA,
+			want:     []string{config.TestRoleButton},
 		},
 		{
 			name: "multiple apps with different configs",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{"AXButton", "AXLink"},
+					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.chrome.app",
@@ -199,7 +218,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				},
 			},
 			bundleID: "com.chrome.app",
-			want:     []string{"AXButton", "AXLink", "AXTabGroup"},
+			want:     []string{config.TestRoleButton, config.TestRoleLink, "AXTabGroup"},
 		},
 	}
 
@@ -251,7 +270,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 			config: &config.Config{
 				Hints: config.HintsConfig{},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -260,13 +279,13 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:             "com.example.app",
+							BundleID:             testBundleIDA,
 							IgnoreClickableCheck: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -275,13 +294,13 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:             "com.example.app",
+							BundleID:             testBundleIDA,
 							IgnoreClickableCheck: false,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -290,13 +309,13 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:             "com.other.app",
+							BundleID:             testBundleIDB,
 							IgnoreClickableCheck: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -305,17 +324,17 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:             "com.other.app",
+							BundleID:             testBundleIDB,
 							IgnoreClickableCheck: true,
 						},
 						{
-							BundleID:             "com.example.app",
+							BundleID:             testBundleIDA,
 							IgnoreClickableCheck: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -325,7 +344,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					IgnoreClickableCheck: true,
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -335,13 +354,13 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					IgnoreClickableCheck: true, // global true
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:             "com.example.app",
+							BundleID:             testBundleIDA,
 							IgnoreClickableCheck: false, // app-specific false
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false, // app-specific should take precedence
 		},
 	}
@@ -368,7 +387,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 			config: &config.Config{
 				Hints: config.HintsConfig{},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -377,13 +396,13 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.example.app",
+							BundleID:            testBundleIDA,
 							VisibleCheckEnabled: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -392,13 +411,13 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.example.app",
+							BundleID:            testBundleIDA,
 							VisibleCheckEnabled: false,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -407,13 +426,13 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.other.app",
+							BundleID:            testBundleIDB,
 							VisibleCheckEnabled: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false,
 		},
 		{
@@ -422,17 +441,17 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 				Hints: config.HintsConfig{
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.other.app",
+							BundleID:            testBundleIDB,
 							VisibleCheckEnabled: true,
 						},
 						{
-							BundleID:            "com.example.app",
+							BundleID:            testBundleIDA,
 							VisibleCheckEnabled: true,
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -442,7 +461,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					VisibleCheckEnabled: true,
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     true,
 		},
 		{
@@ -452,13 +471,13 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					VisibleCheckEnabled: true, // global true
 					AppConfigs: []config.AppConfig{
 						{
-							BundleID:            "com.example.app",
+							BundleID:            testBundleIDA,
 							VisibleCheckEnabled: false, // app-specific false
 						},
 					},
 				},
 			},
-			bundleID: "com.example.app",
+			bundleID: testBundleIDA,
 			want:     false, // app-specific should take precedence
 		},
 	}
@@ -475,22 +494,24 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 
 func TestConfig_HotkeysForModeAndApp(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys["Return"] = config.StringOrStringArray{"action left_click", "hints"}
-	cfg.Hints.Hotkeys["g"] = config.StringOrStringArray{"action left_click"}
+	cfg.Hints.Hotkeys[testKeyReturn] = config.StringOrStringArray{
+		testActionLeftClick, config.ModeNameHints,
+	}
+	cfg.Hints.Hotkeys["g"] = config.StringOrStringArray{testActionLeftClick}
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID: "com.apple.Safari",
+			BundleID: testBundleIDSafari,
 			Hotkeys: map[string]config.StringOrStringArray{
-				"Return": {"action left_click", "hints"},
-				"g":      {config.DisabledSentinel},
-				"x":      {"action right_click"},
+				testKeyReturn: {testActionLeftClick, config.ModeNameHints},
+				"g":           {config.DisabledSentinel},
+				"x":           {"action right_click"},
 			},
 		},
 	}
 
-	got := cfg.HotkeysForModeAndApp("hints", "com.apple.Safari")
+	got := cfg.HotkeysForModeAndApp(config.ModeNameHints, testBundleIDSafari)
 
-	if actions := got["Return"]; len(actions) != 2 || actions[1] != "hints" {
+	if actions := got[testKeyReturn]; len(actions) != 2 || actions[1] != config.ModeNameHints {
 		t.Fatalf("HotkeysForModeAndApp() did not apply app override for Return: %v", actions)
 	}
 
@@ -502,8 +523,8 @@ func TestConfig_HotkeysForModeAndApp(t *testing.T) {
 		t.Fatalf("HotkeysForModeAndApp() did not include app-specific binding: %v", actions)
 	}
 
-	base := cfg.HotkeysForMode("hints")
-	if actions := base["Return"]; len(actions) != 2 || actions[1] != "hints" {
+	base := cfg.HotkeysForMode(config.ModeNameHints)
+	if actions := base[testKeyReturn]; len(actions) != 2 || actions[1] != config.ModeNameHints {
 		t.Fatalf("HotkeysForMode() unexpectedly mutated base bindings: %v", actions)
 	}
 }
@@ -550,13 +571,13 @@ func TestNormalizeKeyForComparison_FullwidthChars(t *testing.T) {
 		{
 			name:     "fullwidth space U+3000",
 			input:    "\u3000",
-			expected: "space",
+			expected: testKeySpace,
 		},
 		// Regular space (should also normalize to "space")
 		{
 			name:     "regular space",
 			input:    " ",
-			expected: "space",
+			expected: testKeySpace,
 		},
 		// Other fullwidth punctuation
 		{
@@ -614,14 +635,14 @@ func TestNormalizeKeyForComparison_FullwidthChars(t *testing.T) {
 		},
 		// Special keys (should use canonical forms)
 		{
-			name:     "escape",
-			input:    "escape",
-			expected: "escape",
+			name:     testKeyEscape,
+			input:    testKeyEscape,
+			expected: testKeyEscape,
 		},
 		{
 			name:     "fullwidth escape letters normalize to canonical escape",
 			input:    "\uFF25\uFF33\uFF23\uFF21\uFF30\uFF25",
-			expected: "escape",
+			expected: testKeyEscape,
 		},
 		// Edge cases
 		{
@@ -657,12 +678,12 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 		{
 			name:     "Shift+Enter normalizes to shift+return",
 			input:    "Shift+Enter",
-			expected: "shift+return",
+			expected: testKeyShiftReturn,
 		},
 		{
 			name:     "Shift+Return normalizes to shift+return",
 			input:    "Shift+Return",
-			expected: "shift+return",
+			expected: testKeyShiftReturn,
 		},
 		{
 			name:     "Cmd+Enter normalizes to cmd+return",
@@ -682,7 +703,7 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 		},
 		{
 			name:     "bare Return normalizes to return",
-			input:    "Return",
+			input:    testKeyReturn,
 			expected: "return",
 		},
 		// Backspace/Delete aliases in modifier combos
@@ -722,7 +743,7 @@ func TestNormalizeKeyForComparison_ModifierComboAliases(t *testing.T) {
 		{
 			name:     "Shift+Return stays shift+return",
 			input:    "Shift+Return",
-			expected: "shift+return",
+			expected: testKeyShiftReturn,
 		},
 		{
 			name:     "Cmd+Delete stays cmd+delete",
@@ -755,7 +776,7 @@ func TestCanonicalHotkeyForPlatform(t *testing.T) {
 		{
 			name:     "primary modifier becomes current platform token",
 			input:    "Primary+Space",
-			expected: map[bool]string{true: "Cmd+Space", false: "Ctrl+Space"}[isDarwinRuntime],
+			expected: map[bool]string{true: testKeyCmdSpace, false: "Ctrl+Space"}[isDarwinRuntime],
 		},
 		{
 			name:     "named key is canonicalized",
@@ -765,12 +786,12 @@ func TestCanonicalHotkeyForPlatform(t *testing.T) {
 		{
 			name:     "super alias becomes platform cmd token",
 			input:    "Super+Space",
-			expected: map[bool]string{true: "Cmd+Space", false: "Super+Space"}[isDarwinRuntime],
+			expected: map[bool]string{true: testKeyCmdSpace, false: testKeySuperSpace}[isDarwinRuntime],
 		},
 		{
 			name:     "meta alias becomes platform cmd token",
 			input:    "Meta+Space",
-			expected: map[bool]string{true: "Cmd+Space", false: "Super+Space"}[isDarwinRuntime],
+			expected: map[bool]string{true: testKeyCmdSpace, false: testKeySuperSpace}[isDarwinRuntime],
 		},
 	}
 
@@ -840,7 +861,7 @@ func TestNormalizeKeyForComparison_CJKInputMethodScenarios(t *testing.T) {
 		{
 			name:     "Chinese input space key",
 			input:    "　",
-			expected: "space",
+			expected: testKeySpace,
 			desc:     "User presses space key with Chinese IM active",
 		},
 		{

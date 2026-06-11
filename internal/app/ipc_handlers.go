@@ -136,11 +136,13 @@ func (h *IPCControllerModes) RegisterHandlers(
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 
+const msgCursorSelectionModeRequires = "--cursor-selection-mode requires follow or hold"
+
 // modesUnavailableResponse returns a standardized response when modes handler is not available.
 func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 	return ipc.Response{
 		Success: false,
-		Message: "modes handler not available",
+		Message: msgModesHandlerNotAvailable,
 		Code:    ipc.CodeActionFailed,
 	}
 }
@@ -222,7 +224,7 @@ func (h *IPCControllerModes) extractModeOptions(
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
 			resp := ipc.Response{
 				Success: false,
-				Message: "--cursor-selection-mode requires follow or hold",
+				Message: msgCursorSelectionModeRequires,
 				Code:    ipc.CodeInvalidInput,
 			}
 
@@ -231,7 +233,7 @@ func (h *IPCControllerModes) extractModeOptions(
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
 					Success: false,
-					Message: "--cursor-selection-mode requires follow or hold",
+					Message: msgCursorSelectionModeRequires,
 					Code:    ipc.CodeInvalidInput,
 				}
 
@@ -250,7 +252,7 @@ func (h *IPCControllerModes) extractModeOptions(
 			default:
 				resp := ipc.Response{
 					Success: false,
-					Message: "--cursor-selection-mode requires follow or hold",
+					Message: msgCursorSelectionModeRequires,
 					Code:    ipc.CodeInvalidInput,
 				}
 

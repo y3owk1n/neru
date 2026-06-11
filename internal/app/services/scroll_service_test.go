@@ -382,7 +382,7 @@ func TestScrollService_Hide(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "successful hide",
+			name: successfulHide,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
 					return nil
@@ -391,7 +391,7 @@ func TestScrollService_Hide(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "overlay hide error",
+			name: overlayHideError,
 			setupMocks: func(ov *mocks.MockOverlayPort) {
 				ov.HideFunc = func(_ context.Context) error {
 					return derrors.New(

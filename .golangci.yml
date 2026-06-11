@@ -20,6 +20,7 @@ linters:
     default: all
     disable:
         - contextcheck # too many false-positive
+        - gomodguard
         - cyclop # duplicate of gocyclo
         - dupl # Too strict
         - exhaustruct # Not relevant

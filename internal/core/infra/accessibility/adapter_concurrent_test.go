@@ -14,6 +14,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
+const (
+	testID       = "test-id"
+	axButtonRole = "AXButton"
+)
+
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
 }
@@ -27,9 +32,9 @@ func TestProcessClickableNodesConcurrent_CancelledBeforeStart(t *testing.T) {
 	nodes := make([]AXNode, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
-			MockID:     "test-id",
+			MockID:     testID,
 			MockBounds: image.Rect(0, 0, 100, 100),
-			MockRole:   "AXButton",
+			MockRole:   axButtonRole,
 		}
 	}
 
@@ -85,9 +90,9 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	nodes[0] = &holdNode{MockNode: *baseNode, started: started, release: release}
 	for i := 1; i < nodeCount; i++ {
 		nodes[i] = &MockNode{
-			MockID:     "test-id",
+			MockID:     testID,
 			MockBounds: image.Rect(0, 0, 100, 100),
-			MockRole:   "AXButton",
+			MockRole:   axButtonRole,
 		}
 	}
 
@@ -133,9 +138,9 @@ func TestProcessClickableNodesConcurrent_HappyPath(t *testing.T) {
 	nodes := make([]AXNode, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
-			MockID:     "test-id",
+			MockID:     testID,
 			MockBounds: image.Rect(0, 0, 100, 100),
-			MockRole:   "AXButton",
+			MockRole:   axButtonRole,
 		}
 	}
 
@@ -161,9 +166,9 @@ func TestProcessClickableNodesConcurrent_BelowThreshold(t *testing.T) {
 	nodes := make([]AXNode, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
-			MockID:     "test-id",
+			MockID:     testID,
 			MockBounds: image.Rect(0, 0, 100, 100),
-			MockRole:   "AXButton",
+			MockRole:   axButtonRole,
 		}
 	}
 

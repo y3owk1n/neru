@@ -168,13 +168,13 @@ func (c *Config) ValidateHints() error {
 	}
 
 	switch c.Hints.UI.Placement {
-	case "top", "center", "bottom":
+	case "top", "center", placementBottom:
 	case "":
-		c.Hints.UI.Placement = "bottom"
+		c.Hints.UI.Placement = placementBottom
 	default:
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"hints.ui.placement must be one of top, center, bottom",
+			"hints.ui.placement must be one of top, center, "+placementBottom,
 		)
 	}
 
@@ -788,10 +788,10 @@ func (c *Config) ValidateHotkeys() error {
 		modeName string
 		table    map[string]StringOrStringArray
 	}{
-		{modeNameHints, c.Hints.Hotkeys},
-		{modeNameGrid, c.Grid.Hotkeys},
-		{modeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		{modeNameScroll, c.Scroll.Hotkeys},
+		{ModeNameHints, c.Hints.Hotkeys},
+		{ModeNameGrid, c.Grid.Hotkeys},
+		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameScroll, c.Scroll.Hotkeys},
 	}
 
 	for _, mode := range modeHotkeys {
@@ -853,10 +853,10 @@ func (c *Config) checkHotkeysConflicts() error {
 		modeName string
 		table    map[string]StringOrStringArray
 	}{
-		{modeNameHints, c.Hints.Hotkeys},
-		{modeNameGrid, c.Grid.Hotkeys},
-		{modeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
-		{modeNameScroll, c.Scroll.Hotkeys},
+		{ModeNameHints, c.Hints.Hotkeys},
+		{ModeNameGrid, c.Grid.Hotkeys},
+		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
+		{ModeNameScroll, c.Scroll.Hotkeys},
 	}
 
 	for _, mode := range modes {
@@ -873,7 +873,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				idx,
 				appConfig.BundleID,
 			),
-			c.HotkeysForModeAndApp(modeNameHints, appConfig.BundleID),
+			c.HotkeysForModeAndApp(ModeNameHints, appConfig.BundleID),
 		)
 		if err != nil {
 			return err
@@ -887,7 +887,7 @@ func (c *Config) checkHotkeysConflicts() error {
 				idx,
 				appConfig.BundleID,
 			),
-			c.HotkeysForModeAndApp(modeNameScroll, appConfig.BundleID),
+			c.HotkeysForModeAndApp(ModeNameScroll, appConfig.BundleID),
 		)
 		if err != nil {
 			return err
@@ -1296,8 +1296,8 @@ func validateHotkeyActionString(actionStr string) error {
 	cmd := strings.Fields(trimmed)[0]
 
 	switch cmd {
-	case "idle", "hints", "grid", "scroll", "recursive_grid",
-		"toggle-screen-share", "toggle-cursor-follow-selection",
+	case "idle", ModeNameHints, ModeNameGrid, ModeNameScroll, ModeNameRecursiveGrid,
+		"toggle-screen-share", CmdToggleCursorFollowSelection,
 		"toggle-scroll-invert":
 		return nil
 	default:

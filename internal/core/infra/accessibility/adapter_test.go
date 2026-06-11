@@ -16,6 +16,14 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
+const (
+	bundleIDAppleDock    = "com.apple.dock"
+	bundleIDAppleFinder  = "com.apple.finder"
+	bundleIDGoogleChrome = "com.google.Chrome"
+	axButtonRole         = "AXButton"
+	axLinkRole           = "AXLink"
+)
+
 // errTestAccessibility is a static error for testing accessibility failures.
 var errTestAccessibility = derrors.New(derrors.CodeAccessibilityDenied, "accessibility denied")
 
@@ -30,8 +38,8 @@ func TestNewAdapter(t *testing.T) {
 	}{
 		{
 			name:            "with excluded bundles",
-			excludedBundles: []string{"com.apple.finder", "com.apple.dock"},
-			clickableRoles:  []string{"AXButton", "AXLink"},
+			excludedBundles: []string{bundleIDAppleFinder, bundleIDAppleDock},
+			clickableRoles:  []string{axButtonRole, axLinkRole},
 		},
 		{
 			name:            "empty configuration",
@@ -63,7 +71,7 @@ func TestNewAdapter(t *testing.T) {
 
 func TestAdapter_IsAppExcluded(t *testing.T) {
 	logger := zap.NewNop()
-	excludedBundles := []string{"com.apple.finder", "com.apple.dock"}
+	excludedBundles := []string{bundleIDAppleFinder, bundleIDAppleDock}
 	mockClient := &accessibility.MockAXClient{}
 
 	adapter := accessibility.NewAdapter(logger, excludedBundles, []string{}, mockClient, false)
@@ -76,12 +84,12 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 	}{
 		{
 			name:     "excluded bundle",
-			bundleID: "com.apple.finder",
+			bundleID: bundleIDAppleFinder,
 			want:     true,
 		},
 		{
 			name:     "not excluded bundle",
-			bundleID: "com.google.Chrome",
+			bundleID: bundleIDGoogleChrome,
 			want:     false,
 		},
 		{
@@ -104,9 +112,15 @@ func TestAdapter_IsAppExcluded(t *testing.T) {
 func TestAdapter_UpdateClickableRoles(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, []string{}, []string{"AXButton"}, mockClient, false)
+	adapter := accessibility.NewAdapter(
+		logger,
+		[]string{},
+		[]string{axButtonRole},
+		mockClient,
+		false,
+	)
 
-	newRoles := []string{"AXButton", "AXLink", "AXMenuItem"}
+	newRoles := []string{axButtonRole, axLinkRole, "AXMenuItem"}
 	adapter.UpdateClickableRoles(newRoles)
 
 	// Verify roles were updated (internal state)
@@ -129,24 +143,24 @@ func TestAdapter_UpdateExcludedBundles(t *testing.T) {
 	mockClient := &accessibility.MockAXClient{}
 	adapter := accessibility.NewAdapter(
 		logger,
-		[]string{"com.apple.finder"},
+		[]string{bundleIDAppleFinder},
 		[]string{},
 		mockClient,
 		false,
 	)
 
-	newBundles := []string{"com.apple.dock", "com.apple.systempreferences"}
+	newBundles := []string{bundleIDAppleDock, "com.apple.systempreferences"}
 	adapter.UpdateExcludedBundles(newBundles)
 
 	ctx := context.Background()
 
 	// Verify new bundles are excluded
-	if !adapter.IsAppExcluded(ctx, "com.apple.dock") {
+	if !adapter.IsAppExcluded(ctx, bundleIDAppleDock) {
 		t.Error("Expected com.apple.dock to be excluded")
 	}
 
 	// Verify old bundles are no longer excluded
-	if adapter.IsAppExcluded(ctx, "com.apple.finder") {
+	if adapter.IsAppExcluded(ctx, bundleIDAppleFinder) {
 		t.Error("Expected com.apple.finder to not be excluded after update")
 	}
 }
@@ -336,9 +350,9 @@ func TestAdapter_FocusedAppBundleID(t *testing.T) {
 	}{
 		{
 			name:       "success",
-			mockApp:    &mockAXApp{bundleID: "com.google.Chrome"},
+			mockApp:    &mockAXApp{bundleID: bundleIDGoogleChrome},
 			mockErr:    nil,
-			wantBundle: "com.google.Chrome",
+			wantBundle: bundleIDGoogleChrome,
 			wantErr:    false,
 		},
 		{
@@ -404,7 +418,7 @@ func TestAdapter_Logger(t *testing.T) {
 func TestAdapter_ClickableRoles(t *testing.T) {
 	logger := zap.NewNop()
 	mockClient := &accessibility.MockAXClient{}
-	roles := []string{"AXButton", "AXLink"}
+	roles := []string{axButtonRole, axLinkRole}
 	adapter := accessibility.NewAdapter(logger, []string{}, roles, mockClient, false)
 
 	result := adapter.ClickableRoles()
@@ -439,7 +453,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 		MockAllWindows:      []accessibility.AXWindow{mockWindow},
 	}
 
-	initialRoles := []string{"AXButton"}
+	initialRoles := []string{axButtonRole}
 	mockClient.SetClickableRoles(initialRoles) // Initialize mock state
 
 	adapter := accessibility.NewAdapter(logger, []string{}, initialRoles, mockClient, false)
@@ -455,7 +469,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		_, _ = adapter.ClickableElements(ctx, filter)
 
-		if !slices.Equal(mockClient.LastClickableNodesRoles, []string{"AXButton", "AXTabGroup"}) {
+		if !slices.Equal(mockClient.LastClickableNodesRoles, []string{axButtonRole, "AXTabGroup"}) {
 			t.Errorf(
 				"Expected LastClickableNodesRoles to use filter roles, got: %v",
 				mockClient.LastClickableNodesRoles,
@@ -499,7 +513,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 		mockClient.ClickableNodesRolesHistory = nil
 
 		// Setup mock dock app
-		mockClient.MockFocusedApp = &mockAXApp{bundleID: "com.apple.dock"}
+		mockClient.MockFocusedApp = &mockAXApp{bundleID: bundleIDAppleDock}
 		// Need ApplicationByBundleID to return something for "com.apple.dock"
 		// The mock implementation returns MockFocusedApp for ApplicationByBundleID too.
 

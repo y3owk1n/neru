@@ -8,6 +8,17 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
+const (
+	cliTestStart     = "start"
+	cliTestStop      = "stop"
+	cliTestIdle      = "idle"
+	cliTestHints     = "hints"
+	cliTestGrid      = "grid"
+	cliTestAction    = "action"
+	cliTestStatus    = "status"
+	cliTestLeftClick = "left_click"
+)
+
 // Helper to get command by name from RootCmd.
 func getCmd(name string) *cobra.Command {
 	for _, cmd := range cli.RootCmd.Commands() {
@@ -47,7 +58,7 @@ func getSubCmd(parentName, childName string) *cobra.Command {
 }
 
 func TestBuildSimpleCommand(t *testing.T) {
-	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", "action")
+	cmd := cli.BuildSimpleCommand("test", "short desc", "long desc", cliTestAction)
 
 	if cmd.Use != "test" {
 		t.Errorf("expected Use='test', got %q", cmd.Use)
@@ -99,14 +110,14 @@ func TestBuildActionCommand(t *testing.T) {
 func TestCommandInitialization(t *testing.T) {
 	// Test that global commands are properly initialized
 	expectedCommands := map[string]bool{
-		"start":                          false,
-		"stop":                           false,
-		"idle":                           false,
-		"hints":                          false,
-		"grid":                           false,
+		cliTestStart:                     false,
+		cliTestStop:                      false,
+		cliTestIdle:                      false,
+		cliTestHints:                     false,
+		cliTestGrid:                      false,
 		"scroll":                         false,
-		"action":                         false,
-		"status":                         false,
+		cliTestAction:                    false,
+		cliTestStatus:                    false,
 		"doctor":                         false,
 		"launch":                         false,
 		"docs":                           false,
@@ -137,7 +148,7 @@ func TestCommandInitialization(t *testing.T) {
 
 	// Test action subcommands
 	expectedActionSubcommands := map[string]bool{
-		"left_click":          false,
+		cliTestLeftClick:      false,
 		"right_click":         false,
 		"mouse_up":            false,
 		"mouse_down":          false,
@@ -188,14 +199,14 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		cmd       *cobra.Command
 		expectErr bool
 	}{
-		{"start", getCmd("start"), true},
-		{"stop", getCmd("stop"), true},
-		{"idle", getCmd("idle"), true},
-		{"hints", getCmd("hints"), true},
-		{"grid", getCmd("grid"), true},
+		{cliTestStart, getCmd(cliTestStart), true},
+		{cliTestStop, getCmd(cliTestStop), true},
+		{cliTestIdle, getCmd(cliTestIdle), true},
+		{cliTestHints, getCmd(cliTestHints), true},
+		{cliTestGrid, getCmd(cliTestGrid), true},
 		{"scroll", getCmd("scroll"), true},
-		{"action", getCmd("action"), true},
-		{"action_left_click", getActionCmd("left_click"), true},
+		{cliTestAction, getCmd(cliTestAction), true},
+		{"action_left_click", getActionCmd(cliTestLeftClick), true},
 		{"action_right_click", getActionCmd("right_click"), true},
 		{"action_mouse_up", getActionCmd("mouse_up"), true},
 		{"action_mouse_down", getActionCmd("mouse_down"), true},
@@ -217,7 +228,7 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_page_up", getActionCmd("page_up"), true},
 		{"action_page_down", getActionCmd("page_down"), true},
 		{"action_move_monitor", getActionCmd("move_monitor"), true},
-		{"status", getCmd("status"), true},
+		{cliTestStatus, getCmd(cliTestStatus), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
 		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},

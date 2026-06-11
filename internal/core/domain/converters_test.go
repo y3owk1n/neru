@@ -8,6 +8,16 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
+const (
+	testConvLeftClick   = "left_click"
+	testConvRightClick  = "right_click"
+	testConvMiddleClick = "middle_click"
+	testConvMouseDown   = "mouse_down"
+	testConvMouseUp     = "mouse_up"
+	testConvMoveMouse   = "move_mouse"
+	testConvScroll      = "scroll"
+)
+
 func TestModeString(t *testing.T) {
 	tests := []struct {
 		name string
@@ -32,7 +42,7 @@ func TestModeString(t *testing.T) {
 		{
 			name: "scroll mode",
 			mode: app.ModeScroll,
-			want: "scroll",
+			want: domain.ModeNameScroll,
 		},
 		{
 			name: "unknown mode",
@@ -60,37 +70,37 @@ func TestActionString(t *testing.T) {
 		{
 			name:   "left click",
 			action: action.TypeLeftClick,
-			want:   "left_click",
+			want:   testConvLeftClick,
 		},
 		{
 			name:   "right click",
 			action: action.TypeRightClick,
-			want:   "right_click",
+			want:   testConvRightClick,
 		},
 		{
 			name:   "mouse up",
 			action: action.TypeMouseUp,
-			want:   "mouse_up",
+			want:   testConvMouseUp,
 		},
 		{
 			name:   "mouse down",
 			action: action.TypeMouseDown,
-			want:   "mouse_down",
+			want:   testConvMouseDown,
 		},
 		{
 			name:   "middle click",
 			action: action.TypeMiddleClick,
-			want:   "middle_click",
+			want:   testConvMiddleClick,
 		},
 		{
 			name:   "move mouse",
 			action: action.TypeMoveMouse,
-			want:   "move_mouse",
+			want:   testConvMoveMouse,
 		},
 		{
 			name:   "scroll",
 			action: action.TypeScroll,
-			want:   "scroll",
+			want:   testConvScroll,
 		},
 		{
 			name:   "unknown action",
@@ -117,44 +127,44 @@ func TestActionFromString(t *testing.T) {
 		wantOk     bool
 	}{
 		{
-			name:       "left_click",
-			actionStr:  "left_click",
+			name:       testConvLeftClick,
+			actionStr:  testConvLeftClick,
 			wantAction: action.TypeLeftClick,
 			wantOk:     true,
 		},
 		{
-			name:       "right_click",
-			actionStr:  "right_click",
+			name:       testConvRightClick,
+			actionStr:  testConvRightClick,
 			wantAction: action.TypeRightClick,
 			wantOk:     true,
 		},
 		{
-			name:       "mouse_up",
-			actionStr:  "mouse_up",
+			name:       testConvMouseUp,
+			actionStr:  testConvMouseUp,
 			wantAction: action.TypeMouseUp,
 			wantOk:     true,
 		},
 		{
-			name:       "mouse_down",
-			actionStr:  "mouse_down",
+			name:       testConvMouseDown,
+			actionStr:  testConvMouseDown,
 			wantAction: action.TypeMouseDown,
 			wantOk:     true,
 		},
 		{
-			name:       "middle_click",
-			actionStr:  "middle_click",
+			name:       testConvMiddleClick,
+			actionStr:  testConvMiddleClick,
 			wantAction: action.TypeMiddleClick,
 			wantOk:     true,
 		},
 		{
-			name:       "move_mouse",
-			actionStr:  "move_mouse",
+			name:       testConvMoveMouse,
+			actionStr:  testConvMoveMouse,
 			wantAction: action.TypeMoveMouse,
 			wantOk:     true,
 		},
 		{
-			name:       "scroll",
-			actionStr:  "scroll",
+			name:       testConvScroll,
+			actionStr:  testConvScroll,
 			wantAction: action.TypeScroll,
 			wantOk:     true,
 		},

@@ -9,7 +9,10 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
-const testCharacters = "ABC"
+const (
+	testCharacters = "ABC"
+	alphabet       = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
 
 func TestGrid_Initialization(t *testing.T) {
 	log := logger.Get()
@@ -21,7 +24,7 @@ func TestGrid_Initialization(t *testing.T) {
 	}{
 		{
 			name:      "standard 1080p",
-			chars:     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+			chars:     alphabet,
 			bounds:    image.Rect(0, 0, 1920, 1080),
 			wantCells: 26 * 26, // 2 chars depth
 		},
@@ -152,7 +155,7 @@ func TestCalculateOptimalGrid(t *testing.T) {
 		{"normal characters", testCharacters, 3, 3},
 		{"empty string", "", 9, 9},
 		{"single character", "A", 9, 9},
-		{"long string", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 26},
+		{"long string", alphabet, 26, 26},
 	}
 
 	for _, testCase := range tests {
@@ -198,7 +201,7 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 
 	// Empty characters should default to alphabet
 	gridInstance := grid.NewGrid("", bounds, logger)
-	if gridInstance.Characters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+	if gridInstance.Characters() != alphabet {
 		t.Errorf(
 			"Empty characters should default to alphabet, got %q",
 			gridInstance.Characters(),
@@ -207,7 +210,7 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 
 	// Single character should also default
 	gridInstance = grid.NewGrid("A", bounds, logger)
-	if gridInstance.Characters() != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+	if gridInstance.Characters() != alphabet {
 		t.Errorf(
 			"Single character should default to alphabet, got %q",
 			gridInstance.Characters(),

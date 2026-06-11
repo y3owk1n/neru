@@ -45,7 +45,7 @@ clickable_roles = ["AXButton"]
 		t.Errorf("Reload() did not load correct HintCharacters, got %v", cfg.Hints.HintCharacters)
 	}
 
-	if len(cfg.Hints.ClickableRoles) != 1 || cfg.Hints.ClickableRoles[0] != "AXButton" {
+	if len(cfg.Hints.ClickableRoles) != 1 || cfg.Hints.ClickableRoles[0] != config.TestRoleButton {
 		t.Errorf("Reload() did not load correct ClickableRoles, got %v", cfg.Hints.ClickableRoles)
 	}
 

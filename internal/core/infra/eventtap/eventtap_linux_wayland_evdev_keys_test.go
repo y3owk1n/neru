@@ -35,9 +35,9 @@ func TestEvdevKeyName(t *testing.T) {
 	}{
 		{code: evdevKeyA, want: "a"},
 		{code: evdevKeySlash, want: "/"},
-		{code: evdevKeyEnter, want: "Return"},
+		{code: evdevKeyEnter, want: evdevKeyNameReturn},
 		{code: evdevKeyBackspace, want: "Backspace"},
-		{code: evdevKeyLeft, want: "Left"},
+		{code: evdevKeyLeft, want: evdevKeyNameLeft},
 		{code: evdevKeyF1, want: "F1"},
 	}
 

@@ -7,6 +7,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
+const testNegativeOffsetScreen = "negative offset screen"
+
 func TestComputeRestoredPosition(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -113,7 +115,7 @@ func TestComputeCenteredPosition(t *testing.T) {
 			expected: image.Point{X: 960, Y: 540},
 		},
 		{
-			name:     "negative offset screen",
+			name:     testNegativeOffsetScreen,
 			bounds:   image.Rect(-1920, -1080, 0, 0),
 			expected: image.Point{X: -960, Y: -540},
 		},
@@ -183,7 +185,7 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 			expected:     image.Point{X: 2020, Y: 200},
 		},
 		{
-			name:         "negative offset screen",
+			name:         testNegativeOffsetScreen,
 			localPoint:   image.Point{X: 50, Y: 75},
 			screenBounds: image.Rect(-1920, -1080, 0, 0),
 			expected:     image.Point{X: -1870, Y: -1005},
@@ -362,7 +364,7 @@ func TestConvertToLocalCoordinates(t *testing.T) {
 			expected:     image.Point{X: 100, Y: 200},
 		},
 		{
-			name:         "negative offset screen",
+			name:         testNegativeOffsetScreen,
 			screenPoint:  image.Point{X: -1870, Y: -1005},
 			screenBounds: image.Rect(-1920, -1080, 0, 0),
 			expected:     image.Point{X: 50, Y: 75},

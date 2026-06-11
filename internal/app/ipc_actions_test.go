@@ -15,8 +15,14 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
+const (
+	moveMonitor = "move_monitor"
+	moveMouse   = "move_mouse"
+	fooStr      = "foo"
+)
+
 func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--center", "--x=100", "--y=200"})
+	parsed, parseErr := parseActionArgs([]string{flagCenter, "--x=100", "--y=200"})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error")
 	}
@@ -35,7 +41,7 @@ func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
 }
 
 func TestParseActionArgs_MoveMouseWindowFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--window", "--x=50", "--y=50"})
+	parsed, parseErr := parseActionArgs([]string{flagWindow, "--x=50", "--y=50"})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error")
 	}
@@ -54,7 +60,7 @@ func TestParseActionArgs_MoveMouseWindowFlag(t *testing.T) {
 }
 
 func TestParseActionArgs_SelectionFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--selection"})
+	parsed, parseErr := parseActionArgs([]string{flagSelection})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error for --selection")
 	}
@@ -65,7 +71,7 @@ func TestParseActionArgs_SelectionFlag(t *testing.T) {
 }
 
 func TestParseActionArgs_PreviousFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--previous"})
+	parsed, parseErr := parseActionArgs([]string{flagPrevious})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error for --previous")
 	}
@@ -82,15 +88,15 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_monitor", "--x=100"},
+		Action: actionCmd,
+		Args:   []string{moveMonitor, "--x=100"},
 	})
 
 	if resp.Success {
 		t.Fatal("handleAction(move_monitor --x) expected failure")
 	}
 
-	if resp.Message != "move_monitor does not support these flags" {
+	if resp.Message != msgMoveMonitorDoesNotSupportTheseFlags {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -102,15 +108,15 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_monitor", "--selection"},
+		Action: actionCmd,
+		Args:   []string{moveMonitor, "--selection"},
 	})
 
 	if resp.Success {
 		t.Fatal("handleAction(move_monitor --selection) expected failure")
 	}
 
-	if resp.Message != "move_monitor does not support these flags" {
+	if resp.Message != msgMoveMonitorDoesNotSupportTheseFlags {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -224,23 +230,23 @@ func TestParseCSV(t *testing.T) {
 		},
 		{
 			name:  "single value",
-			input: "foo",
-			want:  []string{"foo"},
+			input: fooStr,
+			want:  []string{fooStr},
 		},
 		{
 			name:  "comma-separated",
-			input: "foo,bar,baz",
-			want:  []string{"foo", "bar", "baz"},
+			input: fooStr + ",bar,baz",
+			want:  []string{fooStr, "bar", "baz"},
 		},
 		{
 			name:  "trailing comma",
-			input: "foo,",
-			want:  []string{"foo", ""},
+			input: fooStr + ",",
+			want:  []string{fooStr, ""},
 		},
 		{
 			name:  "leading comma",
 			input: ",foo",
-			want:  []string{"", "foo"},
+			want:  []string{"", fooStr},
 		},
 	}
 
@@ -268,8 +274,8 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_mouse"},
+		Action: actionCmd,
+		Args:   []string{moveMouse},
 	})
 
 	if resp.Success {
@@ -288,15 +294,15 @@ func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_mouse", "--selection"},
+		Action: actionCmd,
+		Args:   []string{moveMouse, flagSelection},
 	})
 
 	if resp.Success {
 		t.Fatal("handleAction(move_mouse --selection) expected failure without active selection")
 	}
 
-	if resp.Message != "--selection requires an active mode selection" {
+	if resp.Message != msgSelectionRequiresActiveSelection {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -308,8 +314,8 @@ func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_mouse", "--center", "--window"},
+		Action: actionCmd,
+		Args:   []string{moveMouse, flagCenter, flagWindow},
 	})
 
 	if resp.Success {
@@ -328,8 +334,8 @@ func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"move_mouse", "--window", "--dx=10", "--dy=10"},
+		Action: actionCmd,
+		Args:   []string{moveMouse, flagWindow, "--dx=10", "--dy=10"},
 	})
 
 	if resp.Success {
@@ -355,15 +361,15 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"scroll_down", "--selection"},
+		Action: actionCmd,
+		Args:   []string{"scroll_down", flagSelection},
 	})
 
 	if resp.Success {
 		t.Fatal("handleAction(scroll_down --selection) expected failure without active selection")
 	}
 
-	if resp.Message != "--selection requires an active mode selection" {
+	if resp.Message != msgSelectionRequiresActiveSelection {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -375,8 +381,8 @@ func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"left_click", "--previous"},
+		Action: actionCmd,
+		Args:   []string{"left_click", flagPrevious},
 	})
 
 	if resp.Success {
@@ -395,7 +401,7 @@ func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
+		Action: actionCmd,
 		Args:   []string{"reset", "--name=DELL"},
 	})
 
@@ -422,8 +428,8 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: "action",
-		Args:   []string{"scroll_down", "--previous"},
+		Action: actionCmd,
+		Args:   []string{"scroll_down", flagPrevious},
 	})
 
 	if resp.Success {
@@ -436,7 +442,7 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 }
 
 func TestParseActionArgs_NameFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--name=DELL U2720Q"})
+	parsed, parseErr := parseActionArgs([]string{flagName + "=DELL U2720Q"})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error for --name")
 	}
@@ -454,7 +460,7 @@ func TestParseActionArgs_NameFlag(t *testing.T) {
 }
 
 func TestParseActionArgs_NameFlagSpaceForm(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--name", "Built-in Retina Display"})
+	parsed, parseErr := parseActionArgs([]string{flagName, builtInRetinaDisplay})
 	if parseErr {
 		t.Fatal("parseActionArgs() unexpected parse error for --name space form")
 	}
@@ -463,7 +469,7 @@ func TestParseActionArgs_NameFlagSpaceForm(t *testing.T) {
 		t.Fatal("parseActionArgs() expected hasMonitorName to be true")
 	}
 
-	if parsed.monitorName != "Built-in Retina Display" {
+	if parsed.monitorName != builtInRetinaDisplay {
 		t.Fatalf(
 			"parseActionArgs() expected monitorName to be 'Built-in Retina Display', got %q",
 			parsed.monitorName,
