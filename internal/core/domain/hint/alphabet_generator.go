@@ -63,19 +63,28 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 		)
 	}
 
-	// Build uppercase mapping
+	// Build uppercase mapping and deduplicate characters
 	uppercaseRuneMap := make(map[rune]rune)
 
-	var uppercaseBuilder strings.Builder
+	var (
+		uppercaseBuilder strings.Builder
+		seen             = make(map[rune]struct{}, len(characters))
+	)
 
 	for _, rune := range characters {
 		upper := unicode.ToUpper(rune)
 		uppercaseRuneMap[rune] = upper
+
+		if _, ok := seen[upper]; ok {
+			continue
+		}
+
+		seen[upper] = struct{}{}
 		uppercaseBuilder.WriteRune(upper)
 	}
 
 	uppercaseChars := uppercaseBuilder.String()
-	charCount := len(characters)
+	charCount := len(uppercaseChars)
 
 	// Calculate max hints: up to 3 chars
 	// Max capacity for fixed-length 3-char base-N encoding is N^3
@@ -182,19 +191,28 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 		)
 	}
 
-	// Build uppercase mapping
+	// Build uppercase mapping and deduplicate characters
 	uppercaseRuneMap := make(map[rune]rune)
 
-	var uppercaseBuilder strings.Builder
+	var (
+		uppercaseBuilder strings.Builder
+		seen             = make(map[rune]struct{}, len(characters))
+	)
 
 	for _, rune := range characters {
 		upper := unicode.ToUpper(rune)
 		uppercaseRuneMap[rune] = upper
+
+		if _, ok := seen[upper]; ok {
+			continue
+		}
+
+		seen[upper] = struct{}{}
 		uppercaseBuilder.WriteRune(upper)
 	}
 
 	uppercaseChars := uppercaseBuilder.String()
-	charCount := len(characters)
+	charCount := len(uppercaseChars)
 	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
 	maxHints := n * n * n

@@ -256,6 +256,72 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 	}
 }
 
+func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
+	tests := []struct {
+		name       string
+		characters string
+		wantMax    int
+	}{
+		{"dedup duplicate chars", "aab", 8},
+		{"no dedup needed", "abc", 27},
+		{"dedup case insensitive", "aA", 1},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			generator, generatorErr := hint.NewAlphabetGenerator(testCase.characters)
+			if generatorErr != nil {
+				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
+			}
+
+			got := generator.MaxHints()
+			if got != testCase.wantMax {
+				t.Errorf(
+					"MaxHints() = %d, want %d (deduped from %q)",
+					got, testCase.wantMax, testCase.characters,
+				)
+			}
+		})
+	}
+}
+
+func TestAlphabetGenerator_DeduplicateProducesUniqueLabels(t *testing.T) {
+	// With "aabc", deduped unique chars are "abc" (3 chars).
+	// 3^3 = 27 max hints, so 10 elements should get unique 2-char labels.
+	generator, err := hint.NewAlphabetGenerator("aabc")
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	elements := make([]*element.Element, 10)
+	for i := range elements {
+		elements[i], _ = element.NewElement(
+			element.ID(string(rune('0'+i))),
+			image.Rect(i*10, i*10, i*10+50, i*10+50),
+			element.RoleButton,
+		)
+	}
+
+	hints, err := generator.Generate(context.Background(), elements)
+	if err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+
+	seen := make(map[string]struct{}, len(hints))
+	for _, h := range hints {
+		label := h.Label()
+		if _, ok := seen[label]; ok {
+			t.Errorf("Duplicate label generated: %q (characters=%q)", label, "aabc")
+		}
+
+		seen[label] = struct{}{}
+	}
+
+	if len(seen) != len(hints) {
+		t.Errorf("Got %d unique labels for %d hints", len(seen), len(hints))
+	}
+}
+
 func TestAlphabetGenerator_MaxHints(t *testing.T) {
 	tests := []struct {
 		characters string

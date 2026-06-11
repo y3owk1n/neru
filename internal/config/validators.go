@@ -114,6 +114,21 @@ func (c *Config) ValidateHints() error {
 		}
 	}
 
+	seen := make(map[rune]struct{}, len(c.Hints.HintCharacters))
+	for _, char := range c.Hints.HintCharacters {
+		upper := unicode.ToUpper(char)
+
+		if _, ok := seen[upper]; ok {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"hint_characters contains duplicate character %q",
+				char,
+			)
+		}
+
+		seen[upper] = struct{}{}
+	}
+
 	err := validateColors([]colorField{
 		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
