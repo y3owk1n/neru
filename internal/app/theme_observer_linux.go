@@ -29,6 +29,7 @@ func (a *App) setupThemeObserver() {
 	if err != nil {
 		a.logger.Warn("D-Bus unavailable, falling back to polling for theme changes",
 			zap.Error(err))
+
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
