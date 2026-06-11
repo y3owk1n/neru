@@ -437,7 +437,15 @@ additional_webkit_bundles = []
 Find bundle IDs: `osascript -e 'id of app "Safari"'`
 
 > [!TIP]
-> To support installed PWA apps, use a wildcard suffix: `"com.brave.Browser.app.*"` (Brave) — adapt the pattern for other browsers.
+> To support installed PWA apps, add a wildcard bundle ID to the appropriate browser array. For example, to support Brave-installed PWAs, add `"com.brave.Browser.app.*"` to `additional_chromium_bundles`:
+>
+> ```toml
+> [hints.additional_ax_support]
+> enable = true
+> additional_chromium_bundles = ["com.brave.Browser.app.*"]
+> ```
+>
+> Adapt the bundle ID prefix for other browsers (e.g. `"com.google.Chrome.app.*"` for Chrome).
 
 ### Vision
 
