@@ -201,11 +201,10 @@ scroll_step_full = 1000
 		cfg := loadResult.Config
 
 		appCfg := cfg.Scroll.AppConfigForBundleID("com.apple.Safari")
-		if appCfg == nil { //nolint:staticcheck
+		if appCfg == nil {
 			t.Fatal("expected Safari app config to be present")
 		}
 
-		//nolint:staticcheck
 		if appCfg.ScrollStep == nil || *appCfg.ScrollStep != 25 {
 			t.Errorf("expected app scroll_step override 25, got %v", appCfg.ScrollStep)
 		}
