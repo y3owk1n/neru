@@ -42,6 +42,7 @@ func (a *App) setupThemeObserver() {
 			zap.Error(err))
 
 		themeWG.Add(1)
+
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
@@ -58,6 +59,7 @@ func (a *App) setupThemeObserver() {
 		_ = conn.Close()
 
 		themeWG.Add(1)
+
 		go a.pollThemeChanges(a.systemPort != nil && a.systemPort.IsDarkMode())
 
 		return
@@ -67,10 +69,7 @@ func (a *App) setupThemeObserver() {
 	conn.Signal(signalCh)
 	themeDBusClose = conn.Close
 
-	themeWG.Add(1)
-	go func() {
-		defer themeWG.Done()
-
+	themeWG.Go(func() {
 		for {
 			select {
 			case <-themeStopChan:
@@ -104,7 +103,7 @@ func (a *App) setupThemeObserver() {
 				a.handleThemeChange(colorScheme == colorSchemeDark)
 			}
 		}
-	}()
+	})
 }
 
 // stopThemeObserver shuts down the D-Bus connection and signal goroutine
