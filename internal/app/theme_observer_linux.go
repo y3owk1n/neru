@@ -21,11 +21,18 @@ const (
 	minSignalBodyLength  = 3
 )
 
+// Package-level resources for theme observer cleanup. Stored here (rather than
+// on App) so that non-Linux builds never reference the D-Bus types or fields.
+var (
+	themeStopChan  chan struct{}
+	themeDBusClose func() error
+)
+
 // setupThemeObserver subscribes to xdg-desktop-portal SettingChanged
 // D-Bus signals and refreshes theme-aware styles when the color scheme
 // changes. Falls back to polling if D-Bus is unavailable.
 func (a *App) setupThemeObserver() {
-	a.themeStopChan = make(chan struct{})
+	themeStopChan = make(chan struct{})
 
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
@@ -54,12 +61,12 @@ func (a *App) setupThemeObserver() {
 
 	signalCh := make(chan *dbus.Signal, portalSignalBuffer)
 	conn.Signal(signalCh)
-	a.themeDBusClose = conn.Close
+	themeDBusClose = conn.Close
 
 	go func() {
 		for {
 			select {
-			case <-a.themeStopChan:
+			case <-themeStopChan:
 				return
 			case signal, ok := <-signalCh:
 				if !ok {
@@ -97,10 +104,10 @@ func (a *App) setupThemeObserver() {
 // by closing the D-Bus connection and signalling the stop channel, which
 // also terminates the polling fallback if it is running.
 func (a *App) stopThemeObserver() {
-	close(a.themeStopChan)
+	close(themeStopChan)
 
-	if a.themeDBusClose != nil {
-		_ = a.themeDBusClose()
+	if themeDBusClose != nil {
+		_ = themeDBusClose()
 	}
 }
 
@@ -113,7 +120,7 @@ func (a *App) pollThemeChanges(lastIsDark bool) {
 
 	for {
 		select {
-		case <-a.themeStopChan:
+		case <-themeStopChan:
 			return
 		case <-ticker.C:
 			if a.systemPort == nil {
