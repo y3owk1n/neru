@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.44.0](https://github.com/y3owk1n/neru/compare/v1.43.0...v1.44.0) (2026-06-11)
+
+
+### Features
+
+* add `--toggle` flag for all modes ([#910](https://github.com/y3owk1n/neru/issues/910)) ([80725a4](https://github.com/y3owk1n/neru/commit/80725a435fbcc82e648e1fa7ed66b5337f0e8bbd))
+* **cli:** remove actions `space`, `move_window_to_space` and `focus_window` ([#902](https://github.com/y3owk1n/neru/issues/902)) ([088f535](https://github.com/y3owk1n/neru/commit/088f535c208897edde57c67aee03782395effa5c))
+* **config:** make held-key repeat configurable ([#914](https://github.com/y3owk1n/neru/issues/914)) ([0230a63](https://github.com/y3owk1n/neru/commit/0230a63f8f10412ee4388d4bb4b69655a9409095))
+* **default-config:** tweak `recursive_grid.min_size_*` to 1px ([#913](https://github.com/y3owk1n/neru/issues/913)) ([219015c](https://github.com/y3owk1n/neru/commit/219015c3b2f9bb16d38a118c092d614a60b6b392))
+* **linux,overlay:** hook grid colors into theme ([8b5df46](https://github.com/y3owk1n/neru/commit/8b5df462410bdfc53da435ed780814a7a895fe04))
+* **linux:** detect dark mode via xdg portal + kdeglobals ([#892](https://github.com/y3owk1n/neru/issues/892)) ([34d9db4](https://github.com/y3owk1n/neru/commit/34d9db4230b0206a9dd85409dfdbfc547addecd8))
+* **linux:** proper theme observer for mode changes ([#918](https://github.com/y3owk1n/neru/issues/918)) ([8b5df46](https://github.com/y3owk1n/neru/commit/8b5df462410bdfc53da435ed780814a7a895fe04))
+* **systray:** add `Open in Editor` for config ([#911](https://github.com/y3owk1n/neru/issues/911)) ([c8e12f7](https://github.com/y3owk1n/neru/commit/c8e12f7a4634989e23ace891c0ed80354ecd5981))
+
+
+### Bug Fixes
+
+* ensure cross platform log file path ([#908](https://github.com/y3owk1n/neru/issues/908)) ([4aaf9df](https://github.com/y3owk1n/neru/commit/4aaf9df1f324122dfc6a304e0e2e66cc99c36cb1))
+* **hints:** validate and dedupe hint characters ([#916](https://github.com/y3owk1n/neru/issues/916)) ([c3e5169](https://github.com/y3owk1n/neru/commit/c3e5169894f47f46e62de2bced053c394bb507ce))
+* **linux:** ensure `devbox` works with proper `png-config` initialisation ([8b5df46](https://github.com/y3owk1n/neru/commit/8b5df462410bdfc53da435ed780814a7a895fe04))
+* properly resolve keyboard layouts on layout switch ([#907](https://github.com/y3owk1n/neru/issues/907)) ([b9e4c6f](https://github.com/y3owk1n/neru/commit/b9e4c6f6a5f61aab6ed9195b5b80aee66179fc83))
+
+
+### Documentation
+
+* **config:** add PWA related docs ([#917](https://github.com/y3owk1n/neru/issues/917)) ([3904ea0](https://github.com/y3owk1n/neru/commit/3904ea0a6d1b588722e21434cdbf8965ece680d0))
+* **config:** clarify more about keyboard layout ([#905](https://github.com/y3owk1n/neru/issues/905)) ([d9b3c90](https://github.com/y3owk1n/neru/commit/d9b3c90311f83d340dea5a646e01419bf3a9278f))
+
 ## [1.43.0](https://github.com/y3owk1n/neru/compare/v1.42.0...v1.43.0) (2026-06-05)
 
 
