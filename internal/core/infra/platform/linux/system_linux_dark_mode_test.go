@@ -138,7 +138,8 @@ func TestDarkModeCapabilityDowngradesToStubWhenUnreachable(t *testing.T) {
 func writeKDEGlobals(t *testing.T, path, scheme string) {
 	t.Helper()
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	err := os.MkdirAll(filepath.Dir(path), 0o755)
+	if err != nil {
 		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(path), err)
 	}
 
@@ -147,7 +148,8 @@ func writeKDEGlobals(t *testing.T, path, scheme string) {
 		body += "ColorScheme=" + scheme + "\n"
 	}
 
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+	err = os.WriteFile(path, []byte(body), 0o600)
+	if err != nil {
 		t.Fatalf("WriteFile(%q): %v", path, err)
 	}
 }
@@ -176,6 +178,7 @@ func TestReadKDEColorScheme(t *testing.T) {
 		{
 			name: "primary BreezeDark is dark",
 			setup: func(t *testing.T, home string) {
+				t.Helper()
 				writeKDEGlobals(t, primary(home), "BreezeDark")
 			},
 			want:   colorSchemeDark,
@@ -184,6 +187,7 @@ func TestReadKDEColorScheme(t *testing.T) {
 		{
 			name: "primary case-insensitive dark match",
 			setup: func(t *testing.T, home string) {
+				t.Helper()
 				writeKDEGlobals(t, primary(home), "OXYGEN-DARK")
 			},
 			want:   colorSchemeDark,
@@ -192,6 +196,7 @@ func TestReadKDEColorScheme(t *testing.T) {
 		{
 			name: "primary BreezeLight is light",
 			setup: func(t *testing.T, home string) {
+				t.Helper()
 				writeKDEGlobals(t, primary(home), "BreezeLight")
 			},
 			want:   colorSchemeLight,
@@ -200,6 +205,7 @@ func TestReadKDEColorScheme(t *testing.T) {
 		{
 			name: "falls back to kdedefaults when primary absent",
 			setup: func(t *testing.T, home string) {
+				t.Helper()
 				writeKDEGlobals(t, defaults(home), "BreezeDark")
 			},
 			want:   colorSchemeDark,
@@ -208,6 +214,7 @@ func TestReadKDEColorScheme(t *testing.T) {
 		{
 			name: "primary wins over kdedefaults (first hit)",
 			setup: func(t *testing.T, home string) {
+				t.Helper()
 				writeKDEGlobals(t, primary(home), "BreezeLight")
 				writeKDEGlobals(t, defaults(home), "BreezeDark")
 			},

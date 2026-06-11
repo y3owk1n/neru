@@ -290,6 +290,10 @@ const (
 // without blocking `neru doctor` if the portal is wedged.
 const darkModePortalTimeout = 250 * time.Millisecond
 
+// portalBusctlMinFields is the minimum token count in a successful busctl
+// Settings.Read response ("v v u N").
+const portalBusctlMinFields = 4
+
 // darkModePreference returns the active freedesktop color-scheme preference.
 //
 // Sources are tried in order:
@@ -342,9 +346,9 @@ func readPortalColorScheme() (int, bool) {
 	fields := strings.Fields(string(out))
 	// Expected busctl format: "v v u N" — at least 4 tokens with the uint32
 	// value as the last field. Fewer tokens means something unexpected was
-	// returned (busctl exited 0 with prose we don't recognise), so we must
+	// returned (busctl exited 0 with prose we don't recognize), so we must
 	// not treat the trailing token as a color-scheme value.
-	if len(fields) < 4 {
+	if len(fields) < portalBusctlMinFields {
 		return 0, false
 	}
 
@@ -405,8 +409,6 @@ func readKDEColorScheme() (int, bool) {
 // Kept generic on (section, key) rather than hardcoding "General" /
 // "ColorScheme" to keep the parsing logic and the dark-mode policy decoupled
 // (the tests exercise both axes).
-//
-//nolint:unparam // section is parameterised on purpose; see comment above.
 func scanINIValue(r io.Reader, section, key string) string {
 	scanner := bufio.NewScanner(r)
 	sectionHeader := "[" + section + "]"
