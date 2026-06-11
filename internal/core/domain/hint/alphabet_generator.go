@@ -86,6 +86,15 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	uppercaseChars := uppercaseBuilder.String()
 	charCount := len(uppercaseChars)
 
+	if charCount < MinCharactersLength {
+		return nil, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"characters must have at least %d unique characters after deduplication, got %d",
+			MinCharactersLength,
+			charCount,
+		)
+	}
+
 	// Calculate max hints: up to 3 chars
 	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
@@ -99,7 +108,7 @@ func NewAlphabetGenerator(characters string) (*AlphabetGenerator, error) {
 	}
 
 	return &AlphabetGenerator{
-		characters:       characters,
+		characters:       uppercaseChars,
 		uppercaseChars:   uppercaseChars,
 		maxHints:         maxHints,
 		uppercaseRuneMap: uppercaseRuneMap,
@@ -213,11 +222,21 @@ func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
 
 	uppercaseChars := uppercaseBuilder.String()
 	charCount := len(uppercaseChars)
+
+	if charCount < MinCharactersLength {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"characters must have at least %d unique characters after deduplication, got %d",
+			MinCharactersLength,
+			charCount,
+		)
+	}
+
 	// Max capacity for fixed-length 3-char base-N encoding is N^3
 	n := charCount
 	maxHints := n * n * n
 
-	g.characters = characters
+	g.characters = uppercaseChars
 	g.uppercaseChars = uppercaseChars
 	g.maxHints = maxHints
 	g.uppercaseRuneMap = uppercaseRuneMap

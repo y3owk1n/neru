@@ -257,32 +257,34 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 }
 
 func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
-	tests := []struct {
-		name       string
-		characters string
-		wantMax    int
-	}{
-		{"dedup duplicate chars", "aab", 8},
-		{"no dedup needed", "abc", 27},
-		{"dedup case insensitive", "aA", 1},
-	}
+	t.Run("dedup duplicate chars", func(t *testing.T) {
+		generator, err := hint.NewAlphabetGenerator("aab")
+		if err != nil {
+			t.Fatalf("NewAlphabetGenerator() error: %v", err)
+		}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			generator, generatorErr := hint.NewAlphabetGenerator(testCase.characters)
-			if generatorErr != nil {
-				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
-			}
+		if got := generator.MaxHints(); got != 8 {
+			t.Errorf("MaxHints() = %d, want 8 (deduped from \"aab\")", got)
+		}
+	})
 
-			got := generator.MaxHints()
-			if got != testCase.wantMax {
-				t.Errorf(
-					"MaxHints() = %d, want %d (deduped from %q)",
-					got, testCase.wantMax, testCase.characters,
-				)
-			}
-		})
-	}
+	t.Run("no dedup needed", func(t *testing.T) {
+		generator, err := hint.NewAlphabetGenerator("abc")
+		if err != nil {
+			t.Fatalf("NewAlphabetGenerator() error: %v", err)
+		}
+
+		if got := generator.MaxHints(); got != 27 {
+			t.Errorf("MaxHints() = %d, want 27", got)
+		}
+	})
+
+	t.Run("rejects below minimum after dedup", func(t *testing.T) {
+		_, err := hint.NewAlphabetGenerator("aA")
+		if err == nil {
+			t.Fatal("NewAlphabetGenerator() expected error for \"aA\" (1 unique char after dedup)")
+		}
+	})
 }
 
 func TestAlphabetGenerator_DeduplicateProducesUniqueLabels(t *testing.T) {
@@ -291,6 +293,10 @@ func TestAlphabetGenerator_DeduplicateProducesUniqueLabels(t *testing.T) {
 	generator, err := hint.NewAlphabetGenerator("aabc")
 	if err != nil {
 		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	if got := generator.Characters(); got != "ABC" {
+		t.Fatalf("Characters() = %q, want %q (deduped)", got, "ABC")
 	}
 
 	elements := make([]*element.Element, 10)
