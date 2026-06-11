@@ -31,7 +31,7 @@ func TestConfigValidateHotkeys_AppOverridePrefixConflict(t *testing.T) {
 	cfg.Hints.Hotkeys["gg"] = config.StringOrStringArray{config.CmdLeftClick}
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID: config.TestBundleIDSafari,
+			BundleID: TestBundleIDSafari,
 			Hotkeys: map[string]config.StringOrStringArray{
 				"g": {config.CmdLeftClick},
 			},
@@ -100,7 +100,7 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	// Valid scroll app configs
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID: config.TestBundleIDSafari,
+			BundleID: TestBundleIDSafari,
 			Hotkeys: map[string]config.StringOrStringArray{
 				"k": {"action scroll_up"},
 			},
@@ -127,10 +127,10 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	// Invalid: Duplicate BundleID
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID: config.TestBundleIDSafari,
+			BundleID: TestBundleIDSafari,
 		},
 		{
-			BundleID: config.TestBundleIDSafari,
+			BundleID: TestBundleIDSafari,
 		},
 	}
 
@@ -143,7 +143,7 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	zero := 0
 	cfg.Scroll.AppConfigs = []config.AppConfig{
 		{
-			BundleID:   config.TestBundleIDSafari,
+			BundleID:   TestBundleIDSafari,
 			ScrollStep: &zero,
 		},
 	}

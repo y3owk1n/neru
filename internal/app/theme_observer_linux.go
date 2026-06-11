@@ -25,6 +25,8 @@ const (
 // D-Bus signals and refreshes theme-aware styles when the color scheme
 // changes. Falls back to polling if D-Bus is unavailable.
 func (a *App) setupThemeObserver() {
+	a.themeStopChan = make(chan struct{})
+
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		a.logger.Warn("D-Bus unavailable, falling back to polling for theme changes",
@@ -52,40 +54,55 @@ func (a *App) setupThemeObserver() {
 
 	signalCh := make(chan *dbus.Signal, portalSignalBuffer)
 	conn.Signal(signalCh)
+	a.themeDBusClose = conn.Close
 
 	go func() {
-		defer func() { _ = conn.Close() }()
+		for {
+			select {
+			case <-a.themeStopChan:
+				return
+			case signal, ok := <-signalCh:
+				if !ok {
+					return
+				}
 
-		for signal := range signalCh {
-			if len(signal.Body) < minSignalBodyLength {
-				continue
+				if len(signal.Body) < minSignalBodyLength {
+					continue
+				}
+
+				ns, _ := signal.Body[0].(string)
+
+				key, _ := signal.Body[1].(string)
+				if ns != portalSettingsNS || key != portalSettingsKey {
+					continue
+				}
+
+				variant, parsedOK := signal.Body[2].(dbus.Variant)
+				if !parsedOK {
+					continue
+				}
+
+				colorScheme, csOK := variant.Value().(uint32)
+				if !csOK {
+					continue
+				}
+
+				a.handleThemeChange(colorScheme == colorSchemeDark)
 			}
-
-			ns, _ := signal.Body[0].(string)
-
-			key, _ := signal.Body[1].(string)
-			if ns != portalSettingsNS || key != portalSettingsKey {
-				continue
-			}
-
-			variant, parsedOK := signal.Body[2].(dbus.Variant)
-			if !parsedOK {
-				continue
-			}
-
-			colorScheme, csOK := variant.Value().(uint32)
-			if !csOK {
-				continue
-			}
-
-			a.handleThemeChange(colorScheme == colorSchemeDark)
 		}
 	}()
 }
 
-// stopThemeObserver is a no-op on Linux. The D-Bus connection and
-// signal goroutine are abandoned on process exit.
-func (a *App) stopThemeObserver() {}
+// stopThemeObserver shuts down the D-Bus connection and signal goroutine
+// by closing the D-Bus connection and signalling the stop channel, which
+// also terminates the polling fallback if it is running.
+func (a *App) stopThemeObserver() {
+	close(a.themeStopChan)
+
+	if a.themeDBusClose != nil {
+		_ = a.themeDBusClose()
+	}
+}
 
 // pollThemeChanges periodically checks IsDarkMode and calls
 // handleThemeChange when the value transitions. Acts as a fallback
@@ -94,17 +111,22 @@ func (a *App) pollThemeChanges(lastIsDark bool) {
 	ticker := time.NewTicker(pollFallbackInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		if a.systemPort == nil {
-			continue
-		}
+	for {
+		select {
+		case <-a.themeStopChan:
+			return
+		case <-ticker.C:
+			if a.systemPort == nil {
+				continue
+			}
 
-		currentIsDark := a.systemPort.IsDarkMode()
-		if currentIsDark != lastIsDark {
-			a.logger.Info("System theme detected change",
-				zap.Bool("is_dark", currentIsDark))
-			lastIsDark = currentIsDark
-			a.handleThemeChange(currentIsDark)
+			currentIsDark := a.systemPort.IsDarkMode()
+			if currentIsDark != lastIsDark {
+				a.logger.Info("System theme detected change",
+					zap.Bool("is_dark", currentIsDark))
+				lastIsDark = currentIsDark
+				a.handleThemeChange(currentIsDark)
+			}
 		}
 	}
 }

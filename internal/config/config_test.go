@@ -16,8 +16,8 @@ const (
 	testBundleIDA       = "com.example.app"
 	testBundleIDB       = "com.other.app"
 	testBundleIDSafari  = "com.apple.Safari"
-	testRoleButton      = config.TestRoleButton
-	testRoleTextField   = config.TestRoleTextField
+	testRoleButton      = TestRoleButton
+	testRoleTextField   = TestRoleTextField
 	testActionLeftClick = "action left_click"
 	testKeyReturn       = "Return"
 	testKeyEscape       = "escape"
@@ -111,23 +111,23 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 			name: "default roles only",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
+					ClickableRoles: []string{TestRoleButton, TestRoleLink},
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton, config.TestRoleLink},
+			want:     []string{TestRoleButton, TestRoleLink},
 		},
 		{
 			name: "with app-specific roles",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
+					ClickableRoles: []string{TestRoleButton, TestRoleLink},
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID: testBundleIDA,
 							AdditionalClickable: []string{
-								config.TestRoleTextField,
-								config.TestRoleButton,
+								TestRoleTextField,
+								TestRoleButton,
 							}, // Button is duplicate
 						},
 					},
@@ -135,76 +135,76 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 			},
 			bundleID: testBundleIDA,
 			want: []string{
-				config.TestRoleButton,
-				config.TestRoleLink,
-				config.TestRoleTextField,
+				TestRoleButton,
+				TestRoleLink,
+				TestRoleTextField,
 			}, // Should be deduplicated
 		},
 		{
 			name: "with menubar hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:      []string{config.TestRoleButton},
+					ClickableRoles:      []string{TestRoleButton},
 					IncludeMenubarHints: true,
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton, "AXMenuBarItem"},
+			want:     []string{TestRoleButton, "AXMenuBarItem"},
 		},
 		{
 			name: "with dock hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:   []string{config.TestRoleButton},
+					ClickableRoles:   []string{TestRoleButton},
 					IncludeDockHints: true,
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton, "AXDockItem"},
+			want:     []string{TestRoleButton, "AXDockItem"},
 		},
 		{
 			name: "with both menubar and dock hints",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles:      []string{config.TestRoleButton},
+					ClickableRoles:      []string{TestRoleButton},
 					IncludeMenubarHints: true,
 					IncludeDockHints:    true,
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton, "AXMenuBarItem", "AXDockItem"},
+			want:     []string{TestRoleButton, "AXMenuBarItem", "AXDockItem"},
 		},
 		{
 			name: "empty roles filtered out",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{config.TestRoleButton, "", config.TestRoleLink, " "},
+					ClickableRoles: []string{TestRoleButton, "", TestRoleLink, " "},
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton, config.TestRoleLink},
+			want:     []string{TestRoleButton, TestRoleLink},
 		},
 		{
 			name: "non-matching app config",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{config.TestRoleButton},
+					ClickableRoles: []string{TestRoleButton},
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDB,
-							AdditionalClickable: []string{config.TestRoleTextField},
+							AdditionalClickable: []string{TestRoleTextField},
 						},
 					},
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{config.TestRoleButton},
+			want:     []string{TestRoleButton},
 		},
 		{
 			name: "multiple apps with different configs",
 			config: config.Config{
 				Hints: config.HintsConfig{
-					ClickableRoles: []string{config.TestRoleButton, config.TestRoleLink},
+					ClickableRoles: []string{TestRoleButton, TestRoleLink},
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.chrome.app",
@@ -218,7 +218,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				},
 			},
 			bundleID: "com.chrome.app",
-			want:     []string{config.TestRoleButton, config.TestRoleLink, "AXTabGroup"},
+			want:     []string{TestRoleButton, TestRoleLink, "AXTabGroup"},
 		},
 	}
 

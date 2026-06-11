@@ -102,4 +102,11 @@ type App struct {
 
 	// IPC Controller
 	ipcController *IPCController
+
+	// Linux theme observer cleanup (see theme_observer_linux.go)
+	// These fields are only used on linux; suppress the unused warning on other platforms.
+	//nolint:unused
+	themeStopChan chan struct{}
+	//nolint:unused
+	themeDBusClose func() error
 }

@@ -91,13 +91,6 @@ const (
 	KeyComboShiftU = "Shift+U"
 )
 
-// Frequently used accessibility role and test constants.
-const (
-	TestRoleButton    = "AXButton"
-	TestRoleTextField = "AXTextField"
-	TestRoleLink      = "AXLink"
-)
-
 // Common key combo constants used in tests.
 const (
 	KeyCmdSpace   = "Cmd+Space"
@@ -117,11 +110,6 @@ const (
 	CmdMoveMouseDown  = "action move_mouse_relative --dx=0 --dy=10"
 	CmdMoveMouseLeft  = "action move_mouse_relative --dx=-10 --dy=0"
 	CmdMoveMouseRight = "action move_mouse_relative --dx=10 --dy=0"
-)
-
-// Common test bundle IDs.
-const (
-	TestBundleIDSafari = "com.apple.Safari"
 )
 
 // Placement strings for UI configuration.
@@ -168,7 +156,7 @@ const (
 var validNamedKeys = map[string]bool{
 	// Special keys
 	KeyDisplaySpace:     true,
-	"Return":            true, // No constant - only 1 occurrence
+	KeyReturn:           true,
 	"Enter":             true, // alias for Return
 	KeyDisplayEscape:    true,
 	"Tab":               true,
