@@ -417,16 +417,27 @@ width = 320
 
 Framework-specific accessibility improvements for Electron, Chromium, Firefox, and WebKit apps:
 
+| Option                        | Type  | Default | Description                  |
+| ----------------------------- | ----- | ------- | ---------------------------- |
+| `enable`                      | bool  | `false` | Enable additional AX support |
+| `additional_electron_bundles` | array | `[]`    | Bundle IDs of Electron apps  |
+| `additional_chromium_bundles` | array | `[]`    | Bundle IDs of Chromium apps  |
+| `additional_firefox_bundles`  | array | `[]`    | Bundle IDs of Firefox apps   |
+| `additional_webkit_bundles`   | array | `[]`    | Bundle IDs of WebKit apps    |
+
 ```toml
 [hints.additional_ax_support]
 enable = false
-additional_electron_bundles  = []
-additional_chromium_bundles  = []
-additional_firefox_bundles   = []
-additional_webkit_bundles    = []
+additional_electron_bundles = []
+additional_chromium_bundles = []
+additional_firefox_bundles = []
+additional_webkit_bundles = []
 ```
 
 Find bundle IDs: `osascript -e 'id of app "Safari"'`
+
+> [!TIP]
+> To support installed PWA apps, use a wildcard suffix: `"com.brave.Browser.app.*"` (Brave) — adapt the pattern for other browsers.
 
 ### Vision
 
