@@ -101,7 +101,7 @@ func (a *App) setupThemeObserver() {
 }
 
 // stopThemeObserver shuts down the D-Bus connection and signal goroutine
-// by closing the D-Bus connection and signalling the stop channel, which
+// by closing the D-Bus connection and signaling the stop channel, which
 // also terminates the polling fallback if it is running.
 func (a *App) stopThemeObserver() {
 	close(themeStopChan)
