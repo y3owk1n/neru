@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -32,17 +31,15 @@ can use it to verify accessibility permissions before launching.`,
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
 		// --- client-side checks (no daemon needed) --------------------------
-		// Check IPC socket exists
-		socketPath := ipc.SocketPath()
+		endpointPath := ipc.SocketPath()
 
-		_, statErr := os.Stat(socketPath)
-		if statErr != nil {
-			cmd.Printf("  ❌ %-24s %s\n", "ipc_socket", "not found: "+socketPath)
+		if !ipc.IsServerRunning() {
+			cmd.Printf("  ❌ %-24s %s\n", "ipc_endpoint", "not reachable: "+endpointPath)
 
 			return printClientDoctorWithoutDaemon(cmd)
 		}
 
-		cmd.Printf("  ✅ %-24s %s\n", "ipc_socket", socketPath)
+		cmd.Printf("  ✅ %-24s %s\n", "ipc_endpoint", endpointPath)
 		cmd.Println()
 		// --- daemon-side checks (via IPC) -----------------------------------
 		cmd.Println("Querying daemon...")
@@ -54,7 +51,7 @@ can use it to verify accessibility permissions before launching.`,
 		if err != nil {
 			cmd.Printf("  ❌ %-24s %s\n", "daemon", "unreachable")
 			cmd.Println()
-			cmd.Println("The daemon socket exists but is not responding.")
+			cmd.Println("The daemon endpoint exists but is not responding.")
 			cmd.Println("Try restarting: neru launch")
 
 			return &silentError{err: errDaemonUnreachable}

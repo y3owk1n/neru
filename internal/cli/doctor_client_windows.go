@@ -54,7 +54,7 @@ func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {
 	cmd.Printf("  Primary:  %s\n", profile.PrimaryModifier)
 	cmd.Printf("  Display:  %s\n", profile.DisplayServer)
 	cmd.Println()
-	cmd.Println("Navigation modes need the daemon (neru launch). IPC is not implemented on Windows yet.")
+	cmd.Println("Start the daemon with: neru launch")
 
 	return nil
 }
