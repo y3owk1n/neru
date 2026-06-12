@@ -32,7 +32,7 @@ in
 
       config = lib.mkOption {
         type = lib.types.lines;
-        default = builtins.readFile ./configs/default-config.toml;
+        default = builtins.readFile ../configs/default-config.toml;
         description = ''
           Configuration for {file} `neru/config.toml`.
 

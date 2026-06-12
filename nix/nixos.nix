@@ -20,7 +20,7 @@ in
       package = lib.mkPackageOption pkgs "neru" { };
       config = lib.mkOption {
         type = lib.types.lines;
-        default = builtins.readFile ./configs/default-config.toml;
+        default = builtins.readFile ../configs/default-config.toml;
         description = ''
           Config to use for {file} `neru/config.toml`.
 
