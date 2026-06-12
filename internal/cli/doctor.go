@@ -38,11 +38,8 @@ can use it to verify accessibility permissions before launching.`,
 		_, statErr := os.Stat(socketPath)
 		if statErr != nil {
 			cmd.Printf("  ❌ %-24s %s\n", "ipc_socket", "not found: "+socketPath)
-			cmd.Println()
-			cmd.Println("The neru daemon does not appear to be running.")
-			cmd.Println("Start it with: neru launch")
 
-			return &silentError{err: errDaemonNotRunning}
+			return printClientDoctorWithoutDaemon(cmd)
 		}
 
 		cmd.Printf("  ✅ %-24s %s\n", "ipc_socket", socketPath)
