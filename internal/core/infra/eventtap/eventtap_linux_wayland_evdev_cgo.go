@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -612,10 +611,15 @@ func ScrollDeviceScrollBatch(axis int, values []int) error {
 		return err
 	}
 
+	cValues := make([]C.int, len(values))
+	for i, v := range values {
+		cValues[i] = C.int(v)
+	}
+
 	if C.neru_uinput_scroll_batch(
 		C.int(ufd),
 		C.int(axis),
-		(*C.int)(unsafe.Pointer(&values[0])),
+		&cValues[0],
 		C.int(len(values)),
 	) == 0 { //nolint:lll
 		return fmt.Errorf("%w", errUinputScrollSend)
