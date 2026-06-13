@@ -606,6 +606,26 @@ int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
 	return 1;
 }
 
+int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count) {
+	if (!c || !c->vptr || !deltas || !discretes || count <= 0)
+		return 0;
+
+	pthread_mutex_lock(&c->display_mutex);
+	for (int i = 0; i < count; i++) {
+		zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);
+		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(deltas[i]), discretes[i]);
+		zwlr_virtual_pointer_v1_frame(c->vptr);
+	}
+	// Ignore flush return value — the events are queued in the client
+	// output buffer and will be flushed by the dispatch loop.  Returning 0
+	// on EAGAIN (transient buffer-full) is worse than ignoring it:
+	// it would cause the entire batch to be reported as failed even though
+	// delivery is guaranteed.
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+	return 1;
+}
+
 static uint32_t neru_wlr_modifier_mask(NeruWlrootsClient *c, const char *modifier) {
 	if (strcmp(modifier, "shift") == 0)
 		return c->mod_shift;

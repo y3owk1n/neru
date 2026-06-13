@@ -162,9 +162,8 @@ func x11ScrollAtCursor(deltaX, deltaY int) error {
 	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
 	// Incoming deltas are pixel-level values from the scroll service config
 	// (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
-	// We scale them to a reasonable number of discrete clicks and cap the
-	// maximum to avoid flooding X11 with tens of thousands of button events
-	// when ScrollStepFull (scroll-to-end) sends very large deltas.
+	// We scale them to a capped number of clicks to avoid flooding X11
+	// with tens of thousands of button events on large scrolls.
 	const (
 		scale     = 30
 		maxClicks = 50

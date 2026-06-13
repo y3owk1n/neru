@@ -599,3 +599,31 @@ func ScrollDeviceScroll(axis, value int) error {
 
 	return nil
 }
+
+// ScrollDeviceScrollBatch sends multiple scroll events in a single write.
+func ScrollDeviceScrollBatch(axis int, values []int) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	ufd, err := getUinputScrollFd()
+	if err != nil {
+		return err
+	}
+
+	cValues := make([]C.int, len(values))
+	for i, v := range values {
+		cValues[i] = C.int(v)
+	}
+
+	if C.neru_uinput_scroll_batch(
+		C.int(ufd),
+		C.int(axis),
+		&cValues[0],
+		C.int(len(values)),
+	) == 0 { //nolint:lll
+		return fmt.Errorf("%w", errUinputScrollSend)
+	}
+
+	return nil
+}

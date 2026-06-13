@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -124,4 +125,42 @@ int neru_uinput_scroll(int fd, int axis, int value) {
 	ssize_t w3 = write(fd, &ev, sizeof(ev));
 
 	return (w1 == sizeof(ev) && w2 == sizeof(ev) && w3 == sizeof(ev)) ? 1 : 0;
+}
+
+int neru_uinput_scroll_batch(int fd, int axis, int *values, int count) {
+	if (fd < 0 || !values || count <= 0)
+		return 0;
+
+	size_t event_size = sizeof(struct input_event);
+	size_t total = (size_t)count * 3 * event_size;
+	struct input_event *events = (struct input_event *)malloc(total);
+	if (!events)
+		return 0;
+
+	int rel_code = (axis == 0) ? REL_WHEEL : REL_HWHEEL;
+	int rel_hi_code = (axis == 0) ? REL_WHEEL_HI_RES : REL_HWHEEL_HI_RES;
+
+	for (int i = 0; i < count; i++) {
+		int base = i * 3;
+		int v = values[i];
+
+		memset(&events[base], 0, event_size);
+		events[base].type = EV_REL;
+		events[base].code = rel_hi_code;
+		events[base].value = v * 120;
+
+		memset(&events[base + 1], 0, event_size);
+		events[base + 1].type = EV_REL;
+		events[base + 1].code = rel_code;
+		events[base + 1].value = v;
+
+		memset(&events[base + 2], 0, event_size);
+		events[base + 2].type = EV_SYN;
+		events[base + 2].code = SYN_REPORT;
+		events[base + 2].value = 0;
+	}
+
+	ssize_t written = write(fd, events, total);
+	free(events);
+	return (written == (ssize_t)total) ? 1 : 0;
 }

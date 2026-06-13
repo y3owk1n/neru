@@ -424,91 +424,67 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		// Scale factor: similar to X11 backend's scaling.
-		// Each uinput event scrolls ~1 line, so we scale delta to
-		// get number of scroll events.
-		const (
-			scrollScale     = 30
-			maxScrollEvents = 50
-		)
+		// Scale factor: each uinput scroll event approximates ~1 line.
+		const scrollScale = 30
 
-		yDone, xDone := false, false
+		// maxBatchEvents caps the number of uinput events sent per
+		// write/flush to avoid overflowing the kernel evdev buffer (~8192
+		// bytes) or the Wayland socket buffer.  Each batch is kept small so
+		// the compositor and client can process events incrementally.
+		const maxBatchEvents = 50
 
-		if deltaY != 0 {
-			numEvents := abs(deltaY) / scrollScale
-			if numEvents == 0 {
-				numEvents = 1
+		sendScaledScroll := func(axis int, delta int) int {
+			if delta == 0 {
+				return 0
 			}
 
-			if numEvents > maxScrollEvents {
-				numEvents = maxScrollEvents
+			totalNotches := abs(delta) / scrollScale
+			if totalNotches == 0 {
+				totalNotches = 1
 			}
 
-			axis := 0
+			remainingNotches := totalNotches
+			batch := make([]int, 0, maxBatchEvents)
 
 			value := 1
-			if deltaY < 0 {
+			if delta < 0 {
 				value = -1
 			}
 
-			err := func() error {
-				for range numEvents {
-					err := eventtap.ScrollDeviceScroll(axis, value)
-					if err != nil {
-						return err
-					}
-				}
+			for remainingNotches > 0 {
+				batch = append(batch, value)
+				remainingNotches--
 
-				return nil
-			}()
-			if err == nil {
-				yDone = true
+				if len(batch) >= maxBatchEvents || remainingNotches == 0 {
+					err := eventtap.ScrollDeviceScrollBatch(axis, batch)
+					if err != nil {
+						// uinput unavailable — add back unsent notches so the
+						// remaining delta is retried via wlroots virtual pointer
+						// fallback without double-counting already-sent notches.
+						remainingNotches += len(batch)
+
+						break
+					}
+
+					batch = batch[:0]
+				}
 			}
+
+			notchesSent := totalNotches - remainingNotches
+
+			pixelsSent := notchesSent * scrollScale
+			if delta > 0 {
+				return max(delta-pixelsSent, 0)
+			}
+
+			return min(delta+pixelsSent, 0)
 		}
 
-		if deltaX != 0 {
-			numEvents := abs(deltaX) / scrollScale
-			if numEvents == 0 {
-				numEvents = 1
-			}
+		remainY := sendScaledScroll(0, deltaY)
+		remainX := sendScaledScroll(1, deltaX)
 
-			if numEvents > maxScrollEvents {
-				numEvents = maxScrollEvents
-			}
-
-			axis := 1
-
-			value := 1
-			if deltaX < 0 {
-				value = -1
-			}
-
-			err := func() error {
-				for range numEvents {
-					err := eventtap.ScrollDeviceScroll(axis, value)
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}()
-			if err == nil {
-				xDone = true
-			}
-		}
-
-		if (deltaY == 0 || yDone) && (deltaX == 0 || xDone) {
+		if remainY == 0 && remainX == 0 {
 			return nil
-		}
-
-		remainX, remainY := deltaX, deltaY
-		if yDone {
-			remainY = 0
-		}
-
-		if xDone {
-			remainX = 0
 		}
 
 		return wlrootsScrollAtCursor(remainX, remainY)
@@ -558,10 +534,10 @@ func currentLinuxBackend() linuxBackend {
 	switch platform.DetectLinuxBackend() {
 	case platform.BackendX11:
 		return linuxBackendX11
-	case platform.BackendWaylandWlroots:
-		return linuxBackendWayland
-	case platform.BackendUnknown, platform.BackendWaylandGNOME,
+	case platform.BackendWaylandWlroots, platform.BackendWaylandGNOME,
 		platform.BackendWaylandKDE, platform.BackendWaylandOther:
+		return linuxBackendWayland
+	case platform.BackendUnknown:
 		return linuxBackendUnknown
 	}
 

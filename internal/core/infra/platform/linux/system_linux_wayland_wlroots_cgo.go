@@ -377,7 +377,11 @@ func wlrootsScroll(axis, delta, discrete int) error {
 	return nil
 }
 
-func wlrootsModifierEvent(modifier string, isDown bool) error {
+func wlrootsScrollBatch(axis int, deltas, discretes []int) error {
+	if len(deltas) == 0 {
+		return nil
+	}
+
 	err := ensureWlrootsState()
 	if err != nil {
 		return err
@@ -387,13 +391,39 @@ func wlrootsModifierEvent(modifier string, isDown bool) error {
 	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
 
-	if C.neru_wlr_has_virtual_keyboard(client) == 0 { //nolint:nlreturn
+	cDeltas := make([]C.int, len(deltas))
+	cDiscretes := make([]C.int, len(discretes))
+	for i := range deltas {
+		cDeltas[i] = C.int(deltas[i])
+		cDiscretes[i] = C.int(discretes[i])
+	}
+
+	res := C.neru_wlr_scroll_batch(
+		client,
+		C.int(axis),
+		&cDeltas[0],
+		&cDiscretes[0],
+		C.int(len(deltas)), //nolint:nlreturn
+	)
+	if res == 0 {
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"Wayland compositor does not support zwp_virtual_keyboard_manager_v1 protocol; "+
-				"this protocol is required for sticky modifier key injection on Wayland",
+			"failed to perform wlroots batch scroll",
 		)
 	}
+
+	return nil
+}
+
+func wlrootsModifierEvent(modifier string, isDown bool) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	client := globalWlrootsState.client
+	defer globalWlrootsState.mu.Unlock()
 
 	cModifier := C.CString(modifier)
 	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
