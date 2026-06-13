@@ -325,7 +325,10 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 // devices. Keys that are physically held are also recorded in pressed so that
 // the event-loop press handler can avoid double-counting when the
 // corresponding evdev press event is processed from the buffer.
-func queryEvdevModifierState(capture *waylandEvdevCapture, pressed map[uint16]bool) linuxModifierState {
+func queryEvdevModifierState(
+	capture *waylandEvdevCapture,
+	pressed map[uint16]bool,
+) linuxModifierState {
 	if capture == nil {
 		return linuxModifierState{}
 	}
@@ -426,8 +429,10 @@ func (et *EventTap) runWaylandEvdev() bool {
 
 	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed:   pressed,
-		modifiers: evdevModifierState{linuxModifierState: queryEvdevModifierState(capture, pressed)},
+		pressed: pressed,
+		modifiers: evdevModifierState{
+			linuxModifierState: queryEvdevModifierState(capture, pressed),
+		},
 	}
 
 	for {
