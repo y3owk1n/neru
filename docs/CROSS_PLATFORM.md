@@ -198,9 +198,9 @@ Use this table as the default routing guide.
 
 Examples:
 
-- X11 hotkeys belong in [manager_linux_x11.go](Users/kylewong/Dev/neru/internal/core/infra/hotkeys/manager_linux_x11.go)
-- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](Users/kylewong/Dev/neru/internal/core/infra/eventtap/eventtap_linux_wayland.go)
-- shared Linux system fallbacks belong in [system_linux_common.go](Users/kylewong/Dev/neru/internal/core/infra/platform/linux/system_linux_common.go)
+- X11 hotkeys belong in [manager_linux_x11.go](../internal/core/infra/hotkeys/manager_linux_x11.go)
+- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](../internal/core/infra/eventtap/eventtap_linux_wayland.go)
+- shared Linux system fallbacks belong in [system_linux_common.go](../internal/core/infra/platform/linux/system_linux_common.go)
 
 ---
 
@@ -260,7 +260,7 @@ Do not introduce additional Windows backend naming until there is a real reason.
 
 Do not decide CGO usage by OS alone.
 
-Use [profile.go](Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
+Use [profile.go](../internal/core/infra/platform/profile.go)
 as the source of truth for the current backend plan.
 
 Current intent:
@@ -278,8 +278,8 @@ Good default instincts:
 
 If you introduce a backend that changes the build story, update:
 
-- [profile.go](Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
-- [justfile](Users/kylewong/Dev/neru/justfile)
+- [profile.go](../internal/core/infra/platform/profile.go)
+- [justfile](../justfile)
 - this document
 
 When in doubt, make the build assumption explicit in your PR description and in
@@ -402,7 +402,7 @@ When you land platform work, update docs in the same PR.
 
 Usually that means checking these files:
 
-- [README.md](Users/kylewong/Dev/neru/README.md)
+- [README.md](../README.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [DEVELOPMENT.md](./DEVELOPMENT.md)
 - [CONVENTIONS.md](./go/CONVENTIONS.md)
