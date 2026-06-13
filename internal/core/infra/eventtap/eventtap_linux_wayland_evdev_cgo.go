@@ -322,8 +322,10 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 
 // queryEvdevModifierState queries the current evdev key state and returns
 // a linuxModifierState counting any held modifier keys across all captured
-// devices. This mirrors x11QueryModifierState for the X11 path.
-func queryEvdevModifierState(capture *waylandEvdevCapture) linuxModifierState {
+// devices. Keys that are physically held are also recorded in pressed so that
+// the event-loop press handler can avoid double-counting when the
+// corresponding evdev press event is processed from the buffer.
+func queryEvdevModifierState(capture *waylandEvdevCapture, pressed map[uint16]bool) linuxModifierState {
 	if capture == nil {
 		return linuxModifierState{}
 	}
@@ -351,6 +353,7 @@ func queryEvdevModifierState(capture *waylandEvdevCapture) linuxModifierState {
 		for _, mk := range modifierKeys {
 			if C.neru_evdev_key_down(fd, C.uint(mk.code)) != 0 {
 				state.update(mk.modifier, true)
+				pressed[mk.code] = true
 			}
 		}
 	}
@@ -421,9 +424,10 @@ func (et *EventTap) runWaylandEvdev() bool {
 		)
 	}
 
+	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed:   make(map[uint16]bool),
-		modifiers: evdevModifierState{linuxModifierState: queryEvdevModifierState(capture)},
+		pressed:   pressed,
+		modifiers: evdevModifierState{linuxModifierState: queryEvdevModifierState(capture, pressed)},
 	}
 
 	for {
@@ -457,8 +461,11 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 		switch {
 		case isDown:
+			alreadyTracked := state.pressed[event.code]
 			state.trackKey(event.code, true)
-			state.modifiers.update(modifier, true)
+			if !alreadyTracked {
+				state.modifiers.update(modifier, true)
+			}
 		case state.pressed[event.code]:
 			state.trackKey(event.code, false)
 			state.modifiers.update(modifier, false)
