@@ -611,8 +611,8 @@ int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *disc
 		return 0;
 
 	pthread_mutex_lock(&c->display_mutex);
-	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);
 	for (int i = 0; i < count; i++) {
+		zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);
 		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(deltas[i]), discretes[i]);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 	}
