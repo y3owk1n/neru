@@ -23,13 +23,13 @@
 static void neru_wlr_pointer_enter(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->cursor_initialized == 0) {
+	if (c && atomic_load(&c->cursor_initialized) == 0) {
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (surface != NULL && surface == scr->discovery_surface) {
 				atomic_store(&c->cursor_x, scr->x + wl_fixed_to_int(sx));
 				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
-				c->cursor_initialized = 1;
+				atomic_store(&c->cursor_initialized, 1);
 				break;
 			}
 		}
@@ -90,7 +90,7 @@ static void neru_wlr_relative_motion(
 	if (idx != 0 || idy != 0) {
 		atomic_fetch_add(&c->cursor_x, idx);
 		atomic_fetch_add(&c->cursor_y, idy);
-		c->cursor_initialized = 1;
+		atomic_store(&c->cursor_initialized, 1);
 	}
 	(void)zwp_relative_pointer_v1;
 	(void)utime_hi;
@@ -434,7 +434,7 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 // position purely client-side via neru_wlr_move_absolute (matching
 // warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
 void neru_wlr_init_cursor(NeruWlrootsClient *c) {
-	if (!c || c->cursor_initialized)
+	if (!c || atomic_load(&c->cursor_initialized))
 		return;
 
 	// Use Warpd's cursor discovery trick: create invisible full-screen layer-shell surfaces
@@ -442,7 +442,7 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	if (!c->layer_shell || !c->compositor || !c->pointer || !c->vptr || c->nr_screens == 0) {
 		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
 		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
-		c->cursor_initialized = 1;
+		atomic_store(&c->cursor_initialized, 1);
 		return;
 	}
 
@@ -489,10 +489,10 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	pthread_mutex_unlock(&c->display_mutex);
 
 	// Fallback if discovery failed
-	if (c->cursor_initialized == 0) {
+	if (atomic_load(&c->cursor_initialized) == 0) {
 		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
 		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
-		c->cursor_initialized = 1;
+		atomic_store(&c->cursor_initialized, 1);
 	}
 }
 
@@ -528,7 +528,7 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y) {
 
 	atomic_store(&c->cursor_x, x);
 	atomic_store(&c->cursor_y, y);
-	c->cursor_initialized = 1;
+	atomic_store(&c->cursor_initialized, 1);
 
 	return 1;
 }
@@ -619,7 +619,7 @@ int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y) {
 		return 0;
 	*x = atomic_load(&c->cursor_x);
 	*y = atomic_load(&c->cursor_y);
-	return c->cursor_initialized;
+	return atomic_load(&c->cursor_initialized);
 }
 
 int neru_wlr_screen_count(NeruWlrootsClient *c) {

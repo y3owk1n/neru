@@ -54,7 +54,7 @@ typedef struct NeruWlrootsClient {
 
 	atomic_int cursor_x;
 	atomic_int cursor_y;
-	int cursor_initialized;
+	_Atomic int cursor_initialized;
 
 	pthread_t dispatch_thread;
 	pthread_mutex_t display_mutex;
