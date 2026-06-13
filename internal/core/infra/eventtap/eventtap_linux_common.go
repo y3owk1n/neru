@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -95,6 +96,12 @@ type EventTap struct {
 	dispatchWg      sync.WaitGroup
 	dispatchStarted bool
 	destroyed       bool
+
+	// dispatchEpoch is incremented on every Disable(). dispatchLoop
+	// snapshots the epoch before processing a key and verifies it
+	// hasn't changed before invoking the callback. This prevents
+	// stale buffered events from leaking across enable/disable cycles.
+	dispatchEpoch atomic.Uint64
 }
 
 // NewEventTap creates a new EventTap instance.
@@ -160,8 +167,13 @@ func (et *EventTap) Disable() {
 	close(stopCh)
 	<-doneCh
 
-	// Drain any stale events from the dispatch channel. Afte the evdev
-	// go routine has exited, no new events are being enqueued, so whatever
+	// Bump the dispatch epoch so any in-flight event that dispatchLoop
+	// picked up before we drained will be discarded rather than delivered
+	// to the callback.
+	et.dispatchEpoch.Add(1)
+
+	// Drain any stale events from the dispatch channel. After the evdev
+	// goroutine has exited, no new events are being enqueued, so whatever
 	// remains in the buffer was enqueued before the stop signal landed.
 	// These stale events must be discarded to prevent them from being
 	// misinterpreted by the next mode's handler after the event tap is
@@ -340,11 +352,13 @@ func (et *EventTap) dispatchLoop() {
 	defer et.dispatchWg.Done()
 
 	for key := range et.dispatchCh {
+		epoch := et.dispatchEpoch.Load()
+
 		et.mu.RLock()
 		cb := et.callback
 		et.mu.RUnlock()
 
-		if cb != nil {
+		if cb != nil && et.dispatchEpoch.Load() == epoch {
 			cb(key)
 		}
 	}
