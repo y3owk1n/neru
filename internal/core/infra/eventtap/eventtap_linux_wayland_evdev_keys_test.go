@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var asyncTimeout = time.Second
+const asyncTimeout = time.Second
 
 func TestEvdevModifierName(t *testing.T) {
 	t.Parallel()

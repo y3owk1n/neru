@@ -92,10 +92,9 @@ type EventTap struct {
 	// The event-tap goroutine enqueues keys here; the dispatch goroutine
 	// reads from this channel and invokes the callback. This matches the
 	// macOS eventtap design.
-	dispatchCh      chan string
-	dispatchWg      sync.WaitGroup
-	dispatchStarted bool
-	destroyed       bool
+	dispatchCh chan string
+	dispatchWg sync.WaitGroup
+	destroyed  bool
 
 	// dispatchEpoch is incremented on every Disable(). dispatchLoop
 	// snapshots the epoch before processing a key and verifies it
@@ -113,7 +112,6 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	tap.dispatchCh = make(chan string, dispatchChBufferSize)
 	tap.dispatchWg.Add(1)
 
-	tap.dispatchStarted = true
 	go tap.dispatchLoop()
 
 	return tap
