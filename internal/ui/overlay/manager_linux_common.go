@@ -89,6 +89,9 @@ type Manager struct {
 
 	stickyBadgeRect    image.Rectangle
 	stickyBadgeVisible bool
+
+	modeIndicatorBadgeRect    image.Rectangle
+	modeIndicatorBadgeVisible bool
 }
 
 var (
@@ -173,6 +176,8 @@ func (m *Manager) Hide() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+	m.modeIndicatorBadgeVisible = false
+	m.modeIndicatorBadgeRect = image.Rectangle{}
 }
 
 // SetKeyboardCaptureEnabled controls whether the Wayland overlay requests
@@ -205,6 +210,8 @@ func (m *Manager) Clear() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+	m.modeIndicatorBadgeVisible = false
+	m.modeIndicatorBadgeRect = image.Rectangle{}
 }
 
 // ResizeToActiveScreen resizes the overlay to the active screen.
@@ -434,6 +441,12 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	m.clearModeIndicatorBadgeLocked()
+
+	rect := badgeBounds(posX, posY, label, style)
+	m.modeIndicatorBadgeRect = expandRect(rect, stickyBadgeClearPadding)
+	m.modeIndicatorBadgeVisible = true
+
 	if m.x11 != nil {
 		m.x11.DrawBadge(posX, posY, label, colors, style)
 	} else if m.wlroots != nil {
@@ -616,6 +629,18 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 // SetSharingType is a no-op on Linux.
 func (m *Manager) SetSharingType(_ bool) {}
 
+// Flush commits all pending drawing operations to the display.
+func (m *Manager) Flush() {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.Flush()
+	} else if m.wlroots != nil {
+		m.wlroots.Flush()
+	}
+}
+
 // detectLinuxOverlayBackend delegates to the canonical
 // platform.DetectLinuxBackend so that compositor-family detection (GNOME, KDE,
 // wlroots, etc.) is consistent across all layers.
@@ -665,6 +690,21 @@ func (m *Manager) clearStickyBadgeLocked() {
 
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
+}
+
+func (m *Manager) clearModeIndicatorBadgeLocked() {
+	if !m.modeIndicatorBadgeVisible {
+		return
+	}
+
+	if m.x11 != nil {
+		m.x11.ClearRect(m.modeIndicatorBadgeRect)
+	} else if m.wlroots != nil {
+		m.wlroots.ClearRect(m.modeIndicatorBadgeRect)
+	}
+
+	m.modeIndicatorBadgeVisible = false
+	m.modeIndicatorBadgeRect = image.Rectangle{}
 }
 
 func (m *Manager) publish(change StateChange) {

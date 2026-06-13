@@ -175,6 +175,14 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 						stickyInd.Hide()
 					}
 				}
+
+				// Flush both indicator draws atomically to avoid intermediate
+				// buffer states appearing between the mode indicator and sticky
+				// modifiers draws. The overlay backend batches the buffer
+				// modifications and only sends them on Flush().
+				if showModeInd || (stickyEnabled && h.stickyModifiers() != 0) {
+					h.overlayManager.Flush()
+				}
 			}
 		}
 	}()

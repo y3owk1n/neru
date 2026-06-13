@@ -495,6 +495,10 @@ func (m *Manager) SetHideUnmatched(hide bool) {
 	m.gridOverlay.SetHideUnmatched(hide)
 }
 
+// Flush is a no-op on macOS — indicator overlays use independent windows
+// that are positioned dynamically per draw call.
+func (m *Manager) Flush() {}
+
 // SetSharingType sets the window sharing type for screen sharing visibility.
 // When hide is true, sets NSWindowSharingNone (hidden from screen share).
 // When hide is false, sets NSWindowSharingReadOnly (visible in screen share).

@@ -228,6 +228,12 @@ func (o *x11Overlay) DrawBadge(
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
 	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
+}
+
+func (o *x11Overlay) Flush() {
+	if o == nil || o.raw == nil {
+		return
+	}
 	C.neru_x11_overlay_flush(o.raw)
 }
 

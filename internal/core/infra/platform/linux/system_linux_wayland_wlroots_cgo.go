@@ -82,6 +82,10 @@ func ensureWlrootsState() error {
 	// client-side via move_absolute only (matching warpd's pattern).
 	C.neru_wlr_init_cursor(client)
 
+	// Start dispatch thread after init_cursor to avoid reader_count
+	// conflicts with roundtrip calls during cursor discovery.
+	C.neru_wlr_start_dispatch(client) //nolint:nlreturn
+
 	// Populate screen list from the client.
 	count := int(C.neru_wlr_screen_count(client)) //nolint:nlreturn
 	screens := make([]wlrootsScreen, 0, count)

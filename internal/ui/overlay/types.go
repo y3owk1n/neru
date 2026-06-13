@@ -186,6 +186,9 @@ func (n *NoOpManager) SetHideUnmatched(hide bool) {}
 // SetSharingType is a no-op implementation.
 func (n *NoOpManager) SetSharingType(hide bool) {}
 
+// Flush is a no-op implementation.
+func (n *NoOpManager) Flush() {}
+
 // OverlayCapabilities reports that NoOpManager does not render overlays.
 func (n *NoOpManager) OverlayCapabilities() ports.FeatureCapability {
 	return ports.FeatureCapability{
@@ -252,5 +255,6 @@ type ManagerInterface interface {
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
 	SetHideUnmatched(hide bool)
+	Flush()
 	SetSharingType(hide bool)
 }

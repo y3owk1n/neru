@@ -3,6 +3,8 @@
 
 #include "common_defs.h"
 
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
@@ -29,6 +31,9 @@ typedef struct NeruWlrootsClient {
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
 
+	struct zwp_relative_pointer_manager_v1 *rel_ptr_mgr;
+	struct zwp_relative_pointer_v1 *rel_ptr;
+
 	struct zwlr_virtual_pointer_manager_v1 *vptr_mgr;
 	struct zwlr_virtual_pointer_v1 *vptr;
 	struct zwp_virtual_keyboard_manager_v1 *vkeyboard_mgr;
@@ -47,15 +52,20 @@ typedef struct NeruWlrootsClient {
 	NeruWaylandScreen screens[NERU_MAX_OUTPUTS];
 	int nr_screens;
 
-	int cursor_x;
-	int cursor_y;
+	atomic_int cursor_x;
+	atomic_int cursor_y;
 	int cursor_initialized;
+
+	pthread_t dispatch_thread;
+	pthread_mutex_t display_mutex;
+	volatile int dispatch_running;
 
 	int connected;
 } NeruWlrootsClient;
 
 NeruWlrootsClient *neru_wlr_connect(void);
 void neru_wlr_disconnect(NeruWlrootsClient *c);
+int neru_wlr_start_dispatch(NeruWlrootsClient *c);
 void neru_wlr_init_cursor(NeruWlrootsClient *c);
 int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y);
 int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
