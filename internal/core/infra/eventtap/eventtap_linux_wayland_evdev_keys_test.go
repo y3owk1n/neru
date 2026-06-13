@@ -124,8 +124,19 @@ func TestHandleWaylandEvdevEvent_AllowsRepeatAfterPress(t *testing.T) {
 		value:     evdevValueRepeat,
 	})
 
-	got1 := <-keyCh
-	got2 := <-keyCh
+	var got1, got2 string
+
+	select {
+	case got1 = <-keyCh:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timeout waiting for first key event")
+	}
+
+	select {
+	case got2 = <-keyCh:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timeout waiting for second key event")
+	}
 
 	if got1 != "u" || got2 != "u" {
 		t.Fatalf("got keys [%s %s], want [u u]", got1, got2)
