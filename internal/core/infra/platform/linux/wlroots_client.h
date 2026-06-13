@@ -58,7 +58,7 @@ typedef struct NeruWlrootsClient {
 
 	pthread_t dispatch_thread;
 	pthread_mutex_t display_mutex;
-	volatile int dispatch_running;
+	_Atomic int dispatch_running;
 
 	int connected;
 } NeruWlrootsClient;

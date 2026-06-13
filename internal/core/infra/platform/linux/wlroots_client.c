@@ -88,8 +88,8 @@ static void neru_wlr_relative_motion(
 	int idx = wl_fixed_to_int(dx);
 	int idy = wl_fixed_to_int(dy);
 	if (idx != 0 || idy != 0) {
-		atomic_store(&c->cursor_x, atomic_load(&c->cursor_x) + idx);
-		atomic_store(&c->cursor_y, atomic_load(&c->cursor_y) + idy);
+		atomic_fetch_add(&c->cursor_x, idx);
+		atomic_fetch_add(&c->cursor_y, idy);
 		c->cursor_initialized = 1;
 	}
 	(void)zwp_relative_pointer_v1;
@@ -388,6 +388,7 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		return;
 
 	// Stop the dispatch thread.
+	int had_dispatch = c->dispatch_running;
 	c->dispatch_running = 0;
 	// Wake it up by sending a sync request so it exits the poll.
 	pthread_mutex_lock(&c->display_mutex);
@@ -397,7 +398,8 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		wl_callback_destroy(cb);
 	}
 	pthread_mutex_unlock(&c->display_mutex);
-	pthread_join(c->dispatch_thread, NULL);
+	if (had_dispatch)
+		pthread_join(c->dispatch_thread, NULL);
 	pthread_mutex_destroy(&c->display_mutex);
 
 	if (c->vptr) {
@@ -468,13 +470,10 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
 
-	// Give the dispatch thread time to process the enter event.
-	int waited = 0;
-	while (c->cursor_initialized == 0 && waited < 5) {
-		struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000000};  // 10ms
-		nanosleep(&ts, NULL);
-		waited++;
-	}
+	// Process the enter event synchronously (dispatch thread not started yet).
+	pthread_mutex_lock(&c->display_mutex);
+	wl_display_roundtrip(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 
 	// Destroy discovery surfaces
 	pthread_mutex_lock(&c->display_mutex);
