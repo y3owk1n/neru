@@ -39,16 +39,15 @@
       <description summary="keyboard mapping">
         Provide a file descriptor to the compositor which can be
         memory-mapped to provide a keyboard mapping description.
-
-        Format carries a value from the keymap_format enumeration.
       </description>
-      <arg name="format" type="uint" summary="keymap format"/>
+      <arg name="format" type="uint" enum="wl_keyboard.keymap_format" summary="keymap format"/>
       <arg name="fd" type="fd" summary="keymap file descriptor"/>
       <arg name="size" type="uint" summary="keymap size, in bytes"/>
     </request>
 
     <enum name="error">
       <entry name="no_keymap" value="0" summary="No keymap was set"/>
+      <entry name="invalid_keymap_format" value="1" summary="Invalid keymap format"/>
     </enum>
 
     <request name="key">
