@@ -28,6 +28,8 @@ type pendingSyntheticModifierEvent struct {
 
 const syntheticModifierSuppressionWindow = 250 * time.Millisecond
 
+const dispatchChBufferSize = 256
+
 // EventTap intercepts keyboard events on Linux.
 type EventTap struct {
 	logger *zap.Logger
@@ -39,18 +41,41 @@ type EventTap struct {
 	stickyModifierToggle bool
 	enabled              bool
 
+	// Detection arming: sticky modifier events are only dispatched once all
+	// initially-held modifiers have been released (matching macOS behavior).
+	// SetStickyModifierToggle(true) disarms; the platform handler re-arms when
+	// the modifier state reaches a clean slate.
+	stickyModifierDetectionArmed bool
+
 	syntheticModifierEvents []pendingSyntheticModifierEvent
 
 	stopCh chan struct{}
 	doneCh chan struct{}
+
+	// dispatchCh decouples the event-tap goroutine from the callback
+	// goroutine, preventing a deadlock when a key dispatch triggers a mode
+	// exit that waits for the event-tap goroutine to stop.
+	// The event-tap goroutine enqueues keys here; the dispatch goroutine
+	// reads from this channel and invokes the callback. This matches the
+	// macOS eventtap design.
+	dispatchCh      chan string
+	dispatchWg      sync.WaitGroup
+	dispatchStarted bool
 }
 
 // NewEventTap creates a new EventTap instance.
 func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
-	return &EventTap{
+	tap := &EventTap{
 		logger:   logger,
 		callback: callback,
 	}
+	tap.dispatchCh = make(chan string, dispatchChBufferSize)
+	tap.dispatchWg.Add(1)
+
+	tap.dispatchStarted = true
+	go tap.dispatchLoop()
+
+	return tap
 }
 
 // Enable starts intercepting keyboard events.
@@ -105,6 +130,15 @@ func (et *EventTap) Disable() {
 // Destroy stops and cleans up the EventTap.
 func (et *EventTap) Destroy() {
 	et.Disable()
+
+	// Stop the dispatch goroutine and wait for it to finish.
+	// The dispatchCh is created once in NewEventTap and lives for the
+	// entire lifetime of the EventTap, so we close the channel to signal
+	// the dispatch goroutine to exit.
+	if et.dispatchStarted {
+		close(et.dispatchCh)
+		et.dispatchWg.Wait()
+	}
 }
 
 // SetHandler sets the callback for key events.
@@ -143,6 +177,15 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 	defer et.mu.Unlock()
 
 	et.stickyModifierToggle = enabled
+	if enabled {
+		// Disarm detection: the platform handler will re-arm once the
+		// modifier state reaches a clean slate (all pre-held modifiers
+		// released). This matches macOS behavior where modifier events
+		// from the activation chord are not interpreted as sticky toggles.
+		et.stickyModifierDetectionArmed = false
+	} else {
+		et.stickyModifierDetectionArmed = true
+	}
 }
 
 // PostModifierEvent posts a modifier key event.
@@ -152,10 +195,21 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 		return
 	}
 
-	et.rememberSyntheticModifierEvent(modifier, isDown)
+	// On X11, synthetic modifier events (from XTest) re-enter the event tap
+	// loop and must be suppressed so they don't trigger __modifier_ events.
+	// On Wayland, zwp_virtual_keyboard_v1_modifiers does not generate evdev
+	// or wl_keyboard events, so the synthetic event never re-enters.
+	// Remembering it would falsely suppress a genuine physical modifier
+	// press within the suppression window.
+	onWayland := os.Getenv("WAYLAND_DISPLAY") != ""
+	if !onWayland {
+		et.rememberSyntheticModifierEvent(modifier, isDown)
+	}
 
 	if !postLinuxModifierEvent(modifier, isDown) {
-		et.consumeSyntheticModifierEvent(modifier, isDown)
+		if !onWayland {
+			et.consumeSyntheticModifierEvent(modifier, isDown)
+		}
 	}
 }
 
@@ -170,6 +224,23 @@ func (et *EventTap) IsEnabled() bool {
 	return et.enabled
 }
 
+// stickyArmDetection arms sticky modifier detection. The platform handler
+// calls this when it determines all pre-held modifiers have been released.
+func (et *EventTap) stickyArmDetection() {
+	et.mu.Lock()
+	defer et.mu.Unlock()
+
+	et.stickyModifierDetectionArmed = true
+}
+
+// stickyDetectionArmed returns whether sticky detection is armed.
+func (et *EventTap) stickyDetectionArmed() bool {
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	return et.stickyModifierDetectionArmed
+}
+
 // run starts the event interception loop.
 func (et *EventTap) run() {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
@@ -179,14 +250,38 @@ func (et *EventTap) run() {
 	}
 }
 
-// dispatchKey dispatches a key event to the callback.
+// dispatchKey enqueues a key event for dispatch. The callback is invoked
+// from a dedicated dispatch goroutine so that the event-tap goroutine never
+// blocks on the callback (preventing a deadlock when the callback triggers
+// a mode exit that waits for the event-tap goroutine to stop).
 func (et *EventTap) dispatchKey(key string) {
-	et.mu.RLock()
-	callback := et.callback
-	et.mu.RUnlock()
+	if key == "" {
+		return
+	}
 
-	if callback != nil && key != "" {
-		callback(key)
+	select {
+	case et.dispatchCh <- key:
+	default:
+		if et.logger != nil {
+			et.logger.Warn("Dispatch channel full, dropping key", zap.String("key", key))
+		}
+	}
+}
+
+// dispatchLoop reads key events from the dispatch channel and invokes the
+// registered callback. It runs in a dedicated goroutine that lives for the
+// entire lifetime of the EventTap.
+func (et *EventTap) dispatchLoop() {
+	defer et.dispatchWg.Done()
+
+	for key := range et.dispatchCh {
+		et.mu.RLock()
+		cb := et.callback
+		et.mu.RUnlock()
+
+		if cb != nil {
+			cb(key)
+		}
 	}
 }
 

@@ -22,6 +22,35 @@ const (
 	x11KeyBufferSize   = 64
 )
 
+type x11ModifierState struct {
+	shift int
+	ctrl  int
+	alt   int
+	cmd   int
+}
+
+func (s *x11ModifierState) update(modifier string, isDown bool) {
+	delta := 1
+	if !isDown {
+		delta = -1
+	}
+
+	switch modifier {
+	case evdevModifierShift:
+		s.shift += delta
+	case evdevModifierCtrl:
+		s.ctrl += delta
+	case evdevModifierAlt:
+		s.alt += delta
+	case evdevModifierCmd:
+		s.cmd += delta
+	}
+}
+
+func (s *x11ModifierState) allZero() bool {
+	return s.shift <= 0 && s.ctrl <= 0 && s.alt <= 0 && s.cmd <= 0
+}
+
 func (et *EventTap) runX11() {
 	defer close(et.doneCh)
 
@@ -47,6 +76,14 @@ func (et *EventTap) runX11() {
 		return
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display) //nolint:nlreturn
+
+	// Track held modifier state for detection arming. Starts at zero because
+	// the grab captures the keyboard from scratch; any modifier that was
+	// pressed before the grab will produce a KeyRelease first (without a
+	// matching KeyPress), causing the count to go transiently negative.
+	// allZero() handles this with <= 0 checks, and the evdev path mitigates
+	// the same issue by polling modifierKeysHeld() before grabbing.
+	var modState x11ModifierState
 
 	for {
 		select {
@@ -80,12 +117,20 @@ func (et *EventTap) runX11() {
 
 		if modifier := x11ModifierName(keysym); modifier != "" {
 			isDown := eventType == C.KeyPress
+			modState.update(modifier, isDown)
+
 			if et.consumeSyntheticModifierEvent(modifier, isDown) {
 				continue
 			}
 
-			if et.stickyToggleEnabled() {
+			if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
 				et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+			}
+
+			// Re-arm when the modifier state reaches a clean slate, so
+			// activation-chord releases are not interpreted as sticky toggles.
+			if !isDown && !et.stickyDetectionArmed() && modState.allZero() {
+				et.stickyArmDetection()
 			}
 
 			continue

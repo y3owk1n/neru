@@ -247,6 +247,12 @@ func (s *evdevModifierState) update(modifier string, isDown bool) {
 	}
 }
 
+// allZero reports whether all modifier reference counts are zero, meaning no
+// physical modifier key is logically held.
+func (s *evdevModifierState) allZero() bool {
+	return s.shift <= 0 && s.ctrl <= 0 && s.alt <= 0 && s.cmd <= 0
+}
+
 func (s *evdevModifierState) prefix() string {
 	if s == nil {
 		return ""

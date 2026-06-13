@@ -422,8 +422,15 @@ func (et *EventTap) handleWaylandEvdevEvent(
 			return
 		}
 
-		if et.stickyToggleEnabled() {
+		if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
 			et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+		}
+
+		// Re-arm detection when the modifier state reaches a clean slate,
+		// matching macOS behavior where initial held-modifier releases from
+		// an activation chord are not interpreted as sticky toggles.
+		if !isDown && !et.stickyDetectionArmed() && state.modifiers.allZero() {
+			et.stickyArmDetection()
 		}
 
 		return
