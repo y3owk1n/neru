@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -117,11 +115,9 @@ type Server struct {
 // CommandHandler defines the interface for processing IPC commands.
 type CommandHandler func(ctx context.Context, cmd Command) Response
 
-// SocketPath returns the filesystem path to the IPC Unix socket.
+// SocketPath returns the platform IPC endpoint path (Unix socket or named pipe).
 func SocketPath() string {
-	tmpDir := os.TempDir()
-
-	return filepath.Join(tmpDir, SocketName)
+	return endpointPath()
 }
 
 // NewServer initializes a new IPC server instance with the specified handler.
@@ -133,36 +129,16 @@ func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	logger = logger.Named("ipc")
 	socketPath := SocketPath()
 
-	// Remove existing socket if it exists
-	removeSocketErr := os.Remove(socketPath)
-	if removeSocketErr != nil && !os.IsNotExist(removeSocketErr) {
-		return nil, derrors.Wrap(
-			removeSocketErr,
-			derrors.CodeIPCFailed,
-			"failed to remove existing socket",
-		)
-	}
-
-	// Create a ListenConfig with context support
-	listenConfig := &net.ListenConfig{}
-
-	listener, listenerErr := listenConfig.Listen(context.Background(), "unix", socketPath)
+	listener, listenerErr := listenEndpoint(context.Background(), socketPath)
 	if listenerErr != nil {
-		return nil, derrors.Wrap(listenerErr, derrors.CodeIPCFailed, "failed to create socket")
-	}
-
-	updateSocketPermissionsErr := os.Chmod(socketPath, DefaultSocketPerms)
-	if updateSocketPermissionsErr != nil {
-		_ = listener.Close()
-
 		return nil, derrors.Wrap(
-			updateSocketPermissionsErr,
+			listenerErr,
 			derrors.CodeIPCFailed,
-			"failed to set socket permissions",
+			"failed to create IPC endpoint",
 		)
 	}
 
-	logger.Info("IPC server created", zap.String("socket", socketPath))
+	logger.Info("IPC server created", zap.String("endpoint", socketPath))
 
 	return &Server{
 		listener:   listener,
@@ -225,14 +201,8 @@ func (s *Server) Stop() error {
 		s.logger.Warn("IPC server: timeout waiting for connections to close")
 	}
 
-	// Clean up socket file
-	removeSocketFileErr := os.Remove(s.socketPath)
-	if removeSocketFileErr != nil && !os.IsNotExist(removeSocketFileErr) {
-		return derrors.Wrap(
-			removeSocketFileErr,
-			derrors.CodeIPCFailed,
-			"failed to remove socket file",
-		)
+	if cleanupErr := cleanupEndpoint(s.socketPath); cleanupErr != nil {
+		return derrors.Wrap(cleanupErr, derrors.CodeIPCFailed, "failed to clean up IPC endpoint")
 	}
 
 	return nil
@@ -357,7 +327,7 @@ func (c *Client) SendWithTimeout(cmd Command, timeout time.Duration) (Response, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	connection, connectionErr := dialer.DialContext(ctx, "unix", c.socketPath)
+	connection, connectionErr := dialEndpoint(ctx, dialer, c.socketPath)
 	if connectionErr != nil {
 		if derrors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return Response{}, derrors.New(

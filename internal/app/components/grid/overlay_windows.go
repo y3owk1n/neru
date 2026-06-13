@@ -4,6 +4,8 @@ package grid
 
 import (
 	"image"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -12,14 +14,28 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 )
 
+const (
+	minFontSize  = 12
+	minLineWidth = 1
+	invalidColor = 0xFFFFFFFF
+	hexPairCount = 2
+	colorLen3    = 3
+	colorLen6    = 6
+	colorLen8    = 8
+)
+
 // Style holds the styling information for a grid.
 type Style struct {
-	LineWidth      float64
-	LineColor      uint32
-	LabelFontColor uint32
-	LabelFontSize  float64
-	LabelFontName  string
-	ShowLabels     bool
+	LineWidth              float64
+	LineColor              uint32
+	BackgroundColor        uint32
+	LabelFontColor         uint32
+	LabelFontSize          float64
+	LabelFontName          string
+	MatchedTextColor       uint32
+	MatchedBackgroundColor uint32
+	MatchedBorderColor     uint32
+	ShowLabels             bool
 }
 
 // Overlay manages the rendering of grid overlays using native platform APIs (Windows stub).
@@ -85,7 +101,72 @@ func (o *Overlay) Window() unsafe.Pointer {
 	return o.window
 }
 
-// BuildStyle builds the grid style from the configuration (Windows stub).
+// BuildStyle builds the grid style from the configuration.
 func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
-	return Style{}
+	return Style{
+		LineWidth: float64(max(cfg.UI.BorderWidth, minLineWidth)),
+		LineColor: parseWindowsColor(
+			cfg.UI.BorderColor.ForTheme(
+				theme,
+				config.GridBorderColorLight,
+				config.GridBorderColorDark,
+			),
+		),
+		BackgroundColor: parseWindowsColor(
+			cfg.UI.BackgroundColor.ForTheme(
+				theme,
+				config.GridBackgroundColorLight,
+				config.GridBackgroundColorDark,
+			),
+		),
+		LabelFontColor: parseWindowsColor(
+			cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark),
+		),
+		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
+		LabelFontName: cfg.UI.FontFamily,
+		MatchedTextColor: parseWindowsColor(
+			cfg.UI.MatchedTextColor.ForTheme(
+				theme,
+				config.GridMatchedTextColorLight,
+				config.GridMatchedTextColorDark,
+			),
+		),
+		MatchedBackgroundColor: parseWindowsColor(
+			cfg.UI.MatchedBackgroundColor.ForTheme(
+				theme,
+				config.GridMatchedBackgroundColorLight,
+				config.GridMatchedBackgroundColorDark,
+			),
+		),
+		MatchedBorderColor: parseWindowsColor(
+			cfg.UI.MatchedBorderColor.ForTheme(
+				theme,
+				config.GridMatchedBorderColorLight,
+				config.GridMatchedBorderColorDark,
+			),
+		),
+		ShowLabels: true,
+	}
+}
+
+func parseWindowsColor(value string) uint32 {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	switch len(value) {
+	case colorLen3:
+		value = "FF" + strings.Repeat(string(value[0]), hexPairCount) +
+			strings.Repeat(string(value[1]), hexPairCount) +
+			strings.Repeat(string(value[2]), hexPairCount)
+	case colorLen6:
+		value = "FF" + value
+	case colorLen8:
+	default:
+		return invalidColor
+	}
+
+	parsed, err := strconv.ParseUint(value, 16, 32)
+	if err != nil {
+		return invalidColor
+	}
+
+	return uint32(parsed)
 }

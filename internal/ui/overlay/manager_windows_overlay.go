@@ -1,0 +1,431 @@
+//go:build windows
+
+// internal/ui/overlay/manager_windows_overlay.go
+// Win32 overlay backend used by the Windows overlay manager for grid rendering.
+// Does not manage singleton lifecycle or mode subscriptions.
+
+package overlay
+
+import (
+	"image"
+	"strings"
+	"unsafe"
+
+	"go.uber.org/zap"
+
+	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
+)
+
+const (
+	winSubgridCols      = 3
+	winSubgridRows      = 3
+	winSubgridHalfPixel = 0.5
+	winSubgridFontScale = 0.7
+)
+
+type winOverlay struct {
+	window         *winplatform.OverlayWindow
+	logger         *zap.Logger
+	currentPrefix  string
+	hideUnmatched  bool
+	currentSubgrid *domainGrid.Cell
+	sublayerKeys   string
+	cachedGrid     *domainGrid.Grid
+	cachedStyle    gridcomponent.Style
+	suppressDraw   bool
+}
+
+func newWinOverlay(logger *zap.Logger) *winOverlay {
+	window, err := winplatform.NewOverlayWindow()
+	if err != nil {
+		if logger != nil {
+			logger.Error("failed to create Windows overlay window", zap.Error(err))
+		}
+
+		return nil
+	}
+
+	if logger != nil {
+		bounds := window.Bounds()
+		logger.Info(
+			"Windows overlay window ready",
+			zap.Int("x", bounds.Min.X),
+			zap.Int("y", bounds.Min.Y),
+			zap.Int("width", bounds.Dx()),
+			zap.Int("height", bounds.Dy()),
+		)
+	}
+
+	return &winOverlay{window: window, logger: logger}
+}
+
+func (o *winOverlay) recreateWindow() {
+	if o == nil {
+		return
+	}
+
+	if o.window != nil {
+		o.window.Destroy()
+		o.window = nil
+	}
+
+	window, err := winplatform.NewOverlayWindow()
+	if err != nil {
+		if o.logger != nil {
+			o.logger.Error("failed to recreate overlay window", zap.Error(err))
+		}
+
+		return
+	}
+
+	o.window = window
+
+	if o.logger != nil {
+		bounds := window.Bounds()
+		o.logger.Debug(
+			"recreated overlay window",
+			zap.Uintptr("hwnd", uintptr(window.HWND())),
+			zap.Int("width", bounds.Dx()),
+			zap.Int("height", bounds.Dy()),
+		)
+	}
+}
+
+func (o *winOverlay) ensureWindowForDraw() {
+	if o == nil {
+		return
+	}
+
+	// HWND may be hidden between grid sessions; recreate only when invalid.
+	if o.window == nil || !o.window.Healthy() {
+		o.recreateWindow()
+	}
+}
+
+func (o *winOverlay) Healthy() bool {
+	return o != nil && o.window != nil && o.window.Healthy()
+}
+
+func (o *winOverlay) screenBounds() (image.Rectangle, bool) {
+	if o == nil || o.window == nil {
+		return image.Rectangle{}, false
+	}
+
+	bounds := o.window.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return image.Rectangle{}, false
+	}
+
+	return bounds, true
+}
+
+func (o *winOverlay) WindowPtr() unsafe.Pointer {
+	if o == nil || o.window == nil {
+		return nil
+	}
+
+	return unsafe.Pointer(o.window.HWND())
+}
+
+func (o *winOverlay) Show() {
+	if o == nil {
+		return
+	}
+
+	o.ensureWindowForDraw()
+	if o.window == nil {
+		if o.logger != nil {
+			o.logger.Error("Show aborted, overlay window is nil")
+		}
+
+		return
+	}
+
+	o.suppressDraw = false
+
+	if o.logger != nil {
+		bounds := o.window.Bounds()
+		o.logger.Debug("Show overlay window",
+			zap.Uintptr("hwnd", uintptr(o.window.HWND())),
+			zap.Int("x", bounds.Min.X),
+			zap.Int("y", bounds.Min.Y),
+			zap.Int("width", bounds.Dx()),
+			zap.Int("height", bounds.Dy()),
+		)
+	}
+
+	// Reopen after Esc: redraw from cache once the HWND is about to be shown.
+	if o.cachedGrid != nil {
+		o.redrawGridWithoutFlush()
+	}
+
+	o.window.Show()
+	o.flushOverlay("show")
+
+	if o.logger != nil {
+		o.logger.Debug("Show overlay window done")
+	}
+}
+
+func (o *winOverlay) Hide() {
+	if o == nil {
+		return
+	}
+
+	o.suppressDraw = true
+	o.currentSubgrid = nil
+
+	if o.window != nil {
+		o.window.Hide()
+	}
+}
+
+func (o *winOverlay) Clear() {
+	if o != nil && o.window != nil {
+		o.window.Clear()
+	}
+}
+
+func (o *winOverlay) Resize() {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	if err := o.window.ResizeToActiveScreen(); err != nil && o.logger != nil {
+		o.logger.Warn("failed to resize Windows overlay", zap.Error(err))
+	}
+}
+
+func (o *winOverlay) Destroy() {
+	if o != nil && o.window != nil {
+		o.window.Destroy()
+		o.window = nil
+	}
+}
+
+func (o *winOverlay) UpdateGridMatches(prefix string) {
+	if o == nil || o.cachedGrid == nil || o.suppressDraw {
+		return
+	}
+
+	if o.window != nil && !o.window.Visible() {
+		o.currentPrefix = strings.ToUpper(prefix)
+
+		return
+	}
+
+	o.currentPrefix = strings.ToUpper(prefix)
+	o.redrawGrid()
+}
+
+func (o *winOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
+	if o == nil || o.window == nil || cell == nil {
+		return
+	}
+
+	o.currentSubgrid = cell
+	o.Clear()
+	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
+	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
+	o.flushOverlay("subgrid")
+}
+
+func (o *winOverlay) SetHideUnmatched(hide bool) {
+	o.hideUnmatched = hide
+}
+
+func (o *winOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
+	if o == nil {
+		return
+	}
+
+	o.ensureWindowForDraw()
+
+	if o.window == nil {
+		if o.logger != nil {
+			o.logger.Error("DrawGrid aborted, overlay window is nil")
+		}
+
+		return
+	}
+
+	if g == nil {
+		if o.logger != nil {
+			o.logger.Error("DrawGrid aborted, grid is nil")
+		}
+
+		return
+	}
+
+	o.cachedGrid = g
+	o.cachedStyle = style
+	o.currentPrefix = strings.ToUpper(input)
+	o.currentSubgrid = nil
+	o.suppressDraw = false
+	o.redrawGrid()
+}
+
+func (o *winOverlay) redrawGrid() {
+	o.redrawGridWithoutFlush()
+	o.flushOverlay("grid")
+}
+
+func (o *winOverlay) redrawGridWithoutFlush() {
+	if o == nil {
+		return
+	}
+
+	if o.window == nil {
+		if o.logger != nil {
+			o.logger.Error("redrawGrid aborted, overlay window is nil")
+		}
+
+		return
+	}
+
+	if o.cachedGrid == nil {
+		if o.logger != nil {
+			o.logger.Error("redrawGrid aborted, cached grid is nil")
+		}
+
+		return
+	}
+
+	o.Clear()
+	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
+
+	style := o.cachedStyle
+	prefix := o.currentPrefix
+
+	for _, cell := range o.cachedGrid.AllCells() {
+		label := strings.ToUpper(cell.Coordinate())
+		matched := strings.HasPrefix(label, prefix)
+		if o.hideUnmatched && prefix != "" && !matched {
+			continue
+		}
+
+		text := style.LabelFontColor
+		border := style.LineColor
+		if matched && prefix != "" {
+			text = style.MatchedTextColor
+			border = style.MatchedBorderColor
+		}
+
+		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
+		if style.ShowLabels {
+			o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
+		}
+	}
+
+	if o.currentSubgrid != nil {
+		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
+	}
+
+	if o.logger != nil {
+		o.logger.Debug(
+			"redraw complete",
+			zap.Int("cells", len(o.cachedGrid.AllCells())),
+			zap.Bool("healthy", o.window.Healthy()),
+		)
+	}
+}
+
+func (o *winOverlay) flushOverlay(context string) {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	if err := o.window.Flush(); err != nil {
+		if o.logger != nil {
+			o.logger.Error(
+				"overlay paint failed",
+				zap.String("context", context),
+				zap.Error(err),
+			)
+		}
+
+		return
+	}
+
+	if o.logger != nil {
+		o.logger.Debug("overlay paint ok", zap.String("context", context))
+	}
+}
+
+func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
+	keyRunes := []rune("ASDFGHJKL")
+	if o.sublayerKeys != "" {
+		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
+	}
+	maxKeys := min(len(keyRunes), winSubgridCols*winSubgridRows)
+
+	xBreaks := make([]int, winSubgridCols+1)
+	yBreaks := make([]int, winSubgridRows+1)
+	xBreaks[0] = bounds.Min.X
+	yBreaks[0] = bounds.Min.Y
+	for i := 1; i <= winSubgridCols; i++ {
+		xBreaks[i] = bounds.Min.X + int(
+			float64(i)*float64(bounds.Dx())/float64(winSubgridCols)+winSubgridHalfPixel,
+		)
+	}
+	for i := 1; i <= winSubgridRows; i++ {
+		yBreaks[i] = bounds.Min.Y + int(
+			float64(i)*float64(bounds.Dy())/float64(winSubgridRows)+winSubgridHalfPixel,
+		)
+	}
+	xBreaks[winSubgridCols] = bounds.Max.X
+	yBreaks[winSubgridRows] = bounds.Max.Y
+
+	index := 0
+	for row := range winSubgridRows {
+		for col := range winSubgridCols {
+			if index >= maxKeys {
+				break
+			}
+			cell := image.Rect(
+				xBreaks[col],
+				yBreaks[row],
+				xBreaks[col+1],
+				yBreaks[row+1],
+			)
+			o.drawCellBorder(cell, style.LineColor, style.LineWidth)
+			o.drawTextCentered(
+				string(keyRunes[index]),
+				cell,
+				style.LabelFontName,
+				style.LabelFontSize*winSubgridFontScale,
+				style.LabelFontColor,
+			)
+			index++
+		}
+	}
+}
+
+// drawCellBorder draws only the grid outline; cell interiors stay color-key transparent.
+func (o *winOverlay) drawCellBorder(
+	bounds image.Rectangle,
+	border uint32,
+	lineWidth float64,
+) {
+	if o == nil || o.window == nil || lineWidth <= 0 {
+		return
+	}
+
+	o.window.StrokeRect(bounds, border, lineWidth)
+}
+
+func (o *winOverlay) drawTextCentered(
+	text string,
+	bounds image.Rectangle,
+	fontFamily string,
+	fontSize float64,
+	color uint32,
+) {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	o.window.DrawTextCentered(text, bounds, fontFamily, fontSize, color)
+}

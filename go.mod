@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/atotto/clipboard v0.1.4
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/uuid v1.6.0
@@ -11,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -27,7 +29,6 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sys v0.45.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
