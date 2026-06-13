@@ -184,6 +184,7 @@ func (et *EventTap) Destroy() {
 
 		return
 	}
+
 	et.destroyed = true
 	et.mu.Unlock()
 
@@ -318,6 +319,7 @@ func (et *EventTap) dispatchKey(key string) {
 	et.mu.RLock()
 	destroyed := et.destroyed
 	et.mu.RUnlock()
+
 	if destroyed {
 		return
 	}
