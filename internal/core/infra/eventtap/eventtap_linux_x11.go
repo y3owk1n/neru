@@ -20,6 +20,7 @@ import (
 const (
 	x11PollingInterval = 10 * time.Millisecond
 	x11KeyBufferSize   = 64
+	x11BitsPerByte     = 8
 )
 
 // x11QueryModifierState queries the X11 server for the current keyboard
@@ -31,7 +32,7 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	var state linuxModifierState
 
 	var keymap [32]C.char
-	C.XQueryKeymap(display, &keymap[0])
+	C.XQueryKeymap(display, &keymap[0]) //nolint:nlreturn
 
 	// Map X11 modifier keysyms → our canonical modifier names.
 	type modifierKeysym struct {
@@ -51,15 +52,15 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 		{C.XK_Meta_R, evdevModifierCmd},
 	}
 
-	for _, mk := range modifierKeysyms {
-		keycode := C.XKeysymToKeycode(display, mk.keysym)
+	for _, modKey := range modifierKeysyms {
+		keycode := C.XKeysymToKeycode(display, modKey.keysym) //nolint:nlreturn
 		if keycode == 0 {
 			continue
 		}
-		idx := int(keycode) / 8
-		bit := int(keycode) % 8
+		idx := int(keycode) / x11BitsPerByte
+		bit := int(keycode) % x11BitsPerByte
 		if idx < 32 && (keymap[idx]>>uint(bit))&1 != 0 {
-			state.update(mk.modifier, true)
+			state.update(modKey.modifier, true)
 		}
 	}
 
