@@ -20,7 +20,52 @@ import (
 const (
 	x11PollingInterval = 10 * time.Millisecond
 	x11KeyBufferSize   = 64
+	x11BitsPerByte     = 8
 )
+
+// x11QueryModifierState queries the X11 server for the current keyboard
+// state and returns a linuxModifierState counting any held modifier keys.
+// This avoids premature detection arming when modifiers were held at grab
+// time — their initial KeyRelease events drive counts from positive toward
+// zero rather than from zero into negative territory.
+func x11QueryModifierState(display *C.Display) linuxModifierState {
+	var state linuxModifierState
+
+	var keymap [32]C.char
+	C.XQueryKeymap(display, &keymap[0]) //nolint:nlreturn
+
+	// Map X11 modifier keysyms → our canonical modifier names.
+	type modifierKeysym struct {
+		keysym   C.KeySym
+		modifier string
+	}
+	modifierKeysyms := []modifierKeysym{
+		{C.XK_Shift_L, evdevModifierShift},
+		{C.XK_Shift_R, evdevModifierShift},
+		{C.XK_Control_L, evdevModifierCtrl},
+		{C.XK_Control_R, evdevModifierCtrl},
+		{C.XK_Alt_L, evdevModifierAlt},
+		{C.XK_Alt_R, evdevModifierAlt},
+		{C.XK_Super_L, evdevModifierCmd},
+		{C.XK_Super_R, evdevModifierCmd},
+		{C.XK_Meta_L, evdevModifierCmd},
+		{C.XK_Meta_R, evdevModifierCmd},
+	}
+
+	for _, modKey := range modifierKeysyms {
+		keycode := C.XKeysymToKeycode(display, modKey.keysym) //nolint:nlreturn
+		if keycode == 0 {
+			continue
+		}
+		idx := int(keycode) / x11BitsPerByte
+		bit := int(keycode) % x11BitsPerByte
+		if idx < 32 && (keymap[idx]>>uint(bit))&1 != 0 {
+			state.update(modKey.modifier, true)
+		}
+	}
+
+	return state
+}
 
 func (et *EventTap) runX11() {
 	defer close(et.doneCh)
@@ -47,6 +92,13 @@ func (et *EventTap) runX11() {
 		return
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display) //nolint:nlreturn
+
+	// Query the actual keyboard state after the grab so that modifiers
+	// held at grab time are counted in modState. Without this, initial
+	// KeyRelease events would drive counts negative, and allZero() would
+	// return true prematurely when only some of the held modifiers have
+	// been released — arming detection while others are still held.
+	modState := x11QueryModifierState(display)
 
 	for {
 		select {
@@ -80,12 +132,20 @@ func (et *EventTap) runX11() {
 
 		if modifier := x11ModifierName(keysym); modifier != "" {
 			isDown := eventType == C.KeyPress
+			modState.update(modifier, isDown)
+
 			if et.consumeSyntheticModifierEvent(modifier, isDown) {
 				continue
 			}
 
-			if et.stickyToggleEnabled() {
+			if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
 				et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+			}
+
+			// Re-arm when the modifier state reaches a clean slate, so
+			// activation-chord releases are not interpreted as sticky toggles.
+			if !isDown && !et.stickyDetectionArmed() && modState.allZero() {
+				et.stickyArmDetection()
 			}
 
 			continue

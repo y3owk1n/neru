@@ -3,7 +3,12 @@
 //nolint:testpackage // These tests validate unexported evdev translation helpers directly.
 package eventtap
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+const asyncTimeout = time.Second
 
 func TestEvdevModifierName(t *testing.T) {
 	t.Parallel()
@@ -70,11 +75,12 @@ func TestEvdevModifierStatePrefix(t *testing.T) {
 func TestHandleWaylandEvdevEvent_IgnoresRepeatWithoutPress(t *testing.T) {
 	t.Parallel()
 
-	var got []string
+	keyCh := make(chan string, 1)
 
 	eventTap := NewEventTap(func(key string) {
-		got = append(got, key)
+		keyCh <- key
 	}, nil)
+	t.Cleanup(func() { eventTap.Destroy() })
 
 	state := waylandEvdevKeyState{
 		pressed: make(map[uint16]bool),
@@ -86,19 +92,22 @@ func TestHandleWaylandEvdevEvent_IgnoresRepeatWithoutPress(t *testing.T) {
 		value:     evdevValueRepeat,
 	})
 
-	if len(got) != 0 {
-		t.Fatalf("got keys %v, want none", got)
+	select {
+	case <-keyCh:
+		t.Fatal("expected no events, got one")
+	case <-time.After(asyncTimeout):
 	}
 }
 
 func TestHandleWaylandEvdevEvent_AllowsRepeatAfterPress(t *testing.T) {
 	t.Parallel()
 
-	var got []string
+	keyCh := make(chan string, 2)
 
 	eventTap := NewEventTap(func(key string) {
-		got = append(got, key)
+		keyCh <- key
 	}, nil)
+	t.Cleanup(func() { eventTap.Destroy() })
 
 	state := waylandEvdevKeyState{
 		pressed: make(map[uint16]bool),
@@ -115,7 +124,21 @@ func TestHandleWaylandEvdevEvent_AllowsRepeatAfterPress(t *testing.T) {
 		value:     evdevValueRepeat,
 	})
 
-	if len(got) != 2 || got[0] != "u" || got[1] != "u" {
-		t.Fatalf("got keys %v, want [u u]", got)
+	var got1, got2 string
+
+	select {
+	case got1 = <-keyCh:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timeout waiting for first key event")
+	}
+
+	select {
+	case got2 = <-keyCh:
+	case <-time.After(asyncTimeout):
+		t.Fatal("timeout waiting for second key event")
+	}
+
+	if got1 != "u" || got2 != "u" {
+		t.Fatalf("got keys [%s %s], want [u u]", got1, got2)
 	}
 }

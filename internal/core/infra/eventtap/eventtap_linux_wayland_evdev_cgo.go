@@ -320,6 +320,50 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	return false
 }
 
+// queryEvdevModifierState queries the current evdev key state and returns
+// a linuxModifierState counting any held modifier keys across all captured
+// devices. Keys that are physically held are also recorded in pressed so that
+// the event-loop press handler can avoid double-counting when the
+// corresponding evdev press event is processed from the buffer.
+func queryEvdevModifierState(
+	capture *waylandEvdevCapture,
+	pressed map[uint16]bool,
+) linuxModifierState {
+	if capture == nil {
+		return linuxModifierState{}
+	}
+
+	var state linuxModifierState
+
+	type modifierKey struct {
+		code     uint16
+		modifier string
+	}
+	modifierKeys := []modifierKey{
+		{evdevKeyLeftShift, evdevModifierShift},
+		{evdevKeyRightShift, evdevModifierShift},
+		{evdevKeyLeftCtrl, evdevModifierCtrl},
+		{evdevKeyRightCtrl, evdevModifierCtrl},
+		{evdevKeyLeftAlt, evdevModifierAlt},
+		{evdevKeyRightAlt, evdevModifierAlt},
+		{evdevKeyLeftMeta, evdevModifierCmd},
+		{evdevKeyRightMeta, evdevModifierCmd},
+	}
+
+	for _, file := range capture.files {
+		fd := C.int(file.Fd())
+
+		for _, mk := range modifierKeys {
+			if C.neru_evdev_key_down(fd, C.uint(mk.code)) != 0 {
+				state.update(mk.modifier, true)
+				pressed[mk.code] = true
+			}
+		}
+	}
+
+	return state
+}
+
 func (et *EventTap) runWaylandEvdev() bool {
 	capture, err := newWaylandEvdevCapture(et.logger)
 	if err != nil {
@@ -383,8 +427,12 @@ func (et *EventTap) runWaylandEvdev() bool {
 		)
 	}
 
+	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed: make(map[uint16]bool),
+		pressed: pressed,
+		modifiers: evdevModifierState{
+			linuxModifierState: queryEvdevModifierState(capture, pressed),
+		},
 	}
 
 	for {
@@ -415,15 +463,38 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 
 		isDown := event.value == evdevValuePress
-		state.trackKey(event.code, isDown)
-		state.modifiers.update(modifier, isDown)
+
+		switch {
+		case isDown:
+			alreadyTracked := state.pressed[event.code]
+			state.trackKey(event.code, true)
+			if !alreadyTracked {
+				state.modifiers.update(modifier, true)
+			}
+		case state.pressed[event.code]:
+			state.trackKey(event.code, false)
+			state.modifiers.update(modifier, false)
+		default:
+			// Release without a matching press (press happened before
+			// fd was opened). Don't decrement — the count was never
+			// incremented for this key, and doing so would drive it
+			// negative, causing allZero() to return true prematurely.
+			return
+		}
 
 		if et.consumeSyntheticModifierEvent(modifier, isDown) {
 			return
 		}
 
-		if et.stickyToggleEnabled() {
+		if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
 			et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+		}
+
+		// Re-arm detection when the modifier state reaches a clean slate,
+		// matching macOS behavior where initial held-modifier releases from
+		// an activation chord are not interpreted as sticky toggles.
+		if !isDown && !et.stickyDetectionArmed() && state.modifiers.allZero() {
+			et.stickyArmDetection()
 		}
 
 		return
