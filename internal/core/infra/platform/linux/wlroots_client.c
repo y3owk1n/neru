@@ -309,6 +309,7 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		if (pfd.revents & POLLIN) {
 			if (wl_display_read_events(c->display) < 0) {
 				c->dispatch_running = 0;
+				pthread_mutex_unlock(&c->display_mutex);
 				break;
 			}
 			wl_display_dispatch_pending(c->display);
