@@ -320,6 +320,44 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	return false
 }
 
+// queryEvdevModifierState queries the current evdev key state and returns
+// a linuxModifierState counting any held modifier keys across all captured
+// devices. This mirrors x11QueryModifierState for the X11 path.
+func queryEvdevModifierState(capture *waylandEvdevCapture) linuxModifierState {
+	if capture == nil {
+		return linuxModifierState{}
+	}
+
+	var state linuxModifierState
+
+	type modifierKey struct {
+		code     uint16
+		modifier string
+	}
+	modifierKeys := []modifierKey{
+		{evdevKeyLeftShift, evdevModifierShift},
+		{evdevKeyRightShift, evdevModifierShift},
+		{evdevKeyLeftCtrl, evdevModifierCtrl},
+		{evdevKeyRightCtrl, evdevModifierCtrl},
+		{evdevKeyLeftAlt, evdevModifierAlt},
+		{evdevKeyRightAlt, evdevModifierAlt},
+		{evdevKeyLeftMeta, evdevModifierCmd},
+		{evdevKeyRightMeta, evdevModifierCmd},
+	}
+
+	for _, file := range capture.files {
+		fd := C.int(file.Fd())
+
+		for _, mk := range modifierKeys {
+			if C.neru_evdev_key_down(fd, C.uint(mk.code)) != 0 {
+				state.update(mk.modifier, true)
+			}
+		}
+	}
+
+	return state
+}
+
 func (et *EventTap) runWaylandEvdev() bool {
 	capture, err := newWaylandEvdevCapture(et.logger)
 	if err != nil {
@@ -384,7 +422,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 	}
 
 	state := waylandEvdevKeyState{
-		pressed: make(map[uint16]bool),
+		pressed:   make(map[uint16]bool),
+		modifiers: evdevModifierState{linuxModifierState: queryEvdevModifierState(capture)},
 	}
 
 	for {
@@ -415,8 +454,20 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 
 		isDown := event.value == evdevValuePress
-		state.trackKey(event.code, isDown)
-		state.modifiers.update(modifier, isDown)
+
+		if isDown {
+			state.trackKey(event.code, true)
+			state.modifiers.update(modifier, true)
+		} else if state.pressed[event.code] {
+			state.trackKey(event.code, false)
+			state.modifiers.update(modifier, false)
+		} else {
+			// Release without a matching press (press happened before
+			// fd was opened). Don't decrement — the count was never
+			// incremented for this key, and doing so would drive it
+			// negative, causing allZero() to return true prematurely.
+			return
+		}
 
 		if et.consumeSyntheticModifierEvent(modifier, isDown) {
 			return
