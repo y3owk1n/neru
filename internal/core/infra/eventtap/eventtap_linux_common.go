@@ -61,6 +61,7 @@ type EventTap struct {
 	dispatchCh      chan string
 	dispatchWg      sync.WaitGroup
 	dispatchStarted bool
+	destroyed       bool
 }
 
 // NewEventTap creates a new EventTap instance.
@@ -81,7 +82,7 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 // Enable starts intercepting keyboard events.
 func (et *EventTap) Enable() {
 	et.mu.Lock()
-	if et.enabled {
+	if et.enabled || et.destroyed {
 		et.mu.Unlock()
 
 		return
@@ -128,17 +129,25 @@ func (et *EventTap) Disable() {
 }
 
 // Destroy stops and cleans up the EventTap.
+// It is safe to call multiple times — subsequent calls are no-ops.
 func (et *EventTap) Destroy() {
+	et.mu.Lock()
+	if et.destroyed {
+		et.mu.Unlock()
+
+		return
+	}
+	et.destroyed = true
+	et.mu.Unlock()
+
 	et.Disable()
 
 	// Stop the dispatch goroutine and wait for it to finish.
 	// The dispatchCh is created once in NewEventTap and lives for the
 	// entire lifetime of the EventTap, so we close the channel to signal
 	// the dispatch goroutine to exit.
-	if et.dispatchStarted {
-		close(et.dispatchCh)
-		et.dispatchWg.Wait()
-	}
+	close(et.dispatchCh)
+	et.dispatchWg.Wait()
 }
 
 // SetHandler sets the callback for key events.
@@ -256,6 +265,13 @@ func (et *EventTap) run() {
 // a mode exit that waits for the event-tap goroutine to stop).
 func (et *EventTap) dispatchKey(key string) {
 	if key == "" {
+		return
+	}
+
+	et.mu.RLock()
+	destroyed := et.destroyed
+	et.mu.RUnlock()
+	if destroyed {
 		return
 	}
 
