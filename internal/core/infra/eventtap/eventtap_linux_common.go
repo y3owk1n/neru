@@ -159,6 +159,20 @@ func (et *EventTap) Disable() {
 
 	close(stopCh)
 	<-doneCh
+
+	// Drain any stale events from the dispatch channel. Afte the evdev
+	// go routine has exited, no new events are being enqueued, so whatever
+	// remains in the buffer was enqueued before the stop signal landed.
+	// These stale events must be discarded to prevent them from being
+	// misinterpreted by the next mode's handler after the event tap is
+	// re-enabled.
+	for {
+		select {
+		case <-et.dispatchCh:
+		default:
+			return
+		}
+	}
 }
 
 // Destroy stops and cleans up the EventTap.
