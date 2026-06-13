@@ -59,11 +59,6 @@ func (h *Handler) activateGridModeWithAction(
 		h.exitModeLocked()
 	}
 
-	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
-	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
-	h.logger.Info("win-grid: step 3 clear overlay")
-	h.overlayManager.Clear()
-
 	h.appState.SetGridOverlayNeedsRefresh(false)
 
 	gridInstance := h.createGridInstance()
@@ -81,14 +76,27 @@ func (h *Handler) activateGridModeWithAction(
 
 	h.grid.Router = domainGrid.NewRouter(h.grid.Manager, h.logger)
 
-	// Resize before draw so the backing bitmap matches the active monitor.
-	// Do not resize after draw: createBitmap() discards painted pixels.
-	h.logger.Info("win-grid: step 5 resize overlay to active screen")
-	h.overlayManager.ResizeToActiveScreen()
+	// Overlay draw/show marshals to the Win32 UI thread and must not run under h.mu.
+	var drawGridErr error
 
-	// Draw first so layered content exists, then show the HWND.
-	h.logger.Info("win-grid: step 6 draw grid")
-	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
+	h.logger.Info("win-grid: step 5-8 overlay draw resize show")
+	h.runOverlayWork(func() {
+		h.logger.Info("win-grid: step 3 clear overlay")
+		h.overlayManager.Clear()
+
+		h.logger.Info("win-grid: step 6 draw grid")
+		drawGridErr = h.renderer.DrawGrid(gridInstance, "")
+		if drawGridErr != nil {
+			return
+		}
+
+		h.logger.Info("win-grid: step 7 resize overlay to active screen")
+		h.overlayManager.ResizeToActiveScreen()
+
+		h.logger.Info("win-grid: step 8 show overlay hwnd")
+		h.overlayManager.Show()
+	})
+
 	if drawGridErr != nil {
 		h.logger.Error("win-grid: step 6 failed draw grid", zap.Error(drawGridErr))
 
@@ -98,9 +106,6 @@ func (h *Handler) activateGridModeWithAction(
 
 		return
 	}
-
-	h.logger.Info("win-grid: step 7 show overlay hwnd")
-	h.overlayManager.Show()
 
 	// Store pending action and repeat flag if provided
 	if isRefresh {

@@ -60,6 +60,49 @@ func newWinOverlay(logger *zap.Logger) *winOverlay {
 	return &winOverlay{window: window, logger: logger}
 }
 
+func (o *winOverlay) recreateWindow() {
+	if o == nil {
+		return
+	}
+
+	if o.window != nil {
+		o.window.Destroy()
+		o.window = nil
+	}
+
+	window, err := winplatform.NewOverlayWindow()
+	if err != nil {
+		if o.logger != nil {
+			o.logger.Error("win-grid: failed to recreate overlay window", zap.Error(err))
+		}
+
+		return
+	}
+
+	o.window = window
+
+	if o.logger != nil {
+		bounds := window.Bounds()
+		o.logger.Info(
+			"win-grid: recreated overlay window",
+			zap.Uintptr("hwnd", uintptr(window.HWND())),
+			zap.Int("width", bounds.Dx()),
+			zap.Int("height", bounds.Dy()),
+		)
+	}
+}
+
+func (o *winOverlay) ensureWindowForDraw() {
+	if o == nil {
+		return
+	}
+
+	// HWND is destroyed on Hide; recreate whenever the backing window is gone.
+	if o.window == nil || !o.window.Healthy() {
+		o.recreateWindow()
+	}
+}
+
 func (o *winOverlay) Healthy() bool {
 	return o != nil && o.window != nil && o.window.Healthy()
 }
@@ -110,6 +153,7 @@ func (o *winOverlay) Show() {
 	}
 
 	o.window.Show()
+	o.flushOverlay("show")
 
 	if o.logger != nil {
 		o.logger.Info("win-grid: Show overlay window done")
@@ -174,6 +218,8 @@ func (o *winOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 	if o == nil {
 		return
 	}
+
+	o.ensureWindowForDraw()
 
 	if o.window == nil {
 		if o.logger != nil {
@@ -257,6 +303,7 @@ func (o *winOverlay) redrawGrid() {
 		)
 	}
 
+	// Paint while hidden when possible; Show() flushes again after the HWND is visible.
 	o.flushOverlay("grid")
 }
 

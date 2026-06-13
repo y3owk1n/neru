@@ -52,6 +52,11 @@ type winPoint struct {
 	y int32
 }
 
+type winSize struct {
+	cx int32
+	cy int32
+}
+
 var (
 	user32 = windows.NewLazySystemDLL("user32.dll")
 

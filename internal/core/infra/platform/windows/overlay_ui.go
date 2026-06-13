@@ -9,12 +9,14 @@ package windows
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
 var (
 	overlayUIOnce sync.Once
 	overlayUIOps  chan func()
+	overlayUIGID  atomic.Uint64
 )
 
 type winMsg struct {
@@ -36,6 +38,7 @@ func startOverlayUIThread() {
 
 		go func() {
 			runtime.LockOSThread()
+			overlayUIGID.Store(curGoroutineID())
 			close(ready)
 
 			for fn := range overlayUIOps {
@@ -51,12 +54,36 @@ func startOverlayUIThread() {
 func runOnOverlayUI(fn func()) {
 	startOverlayUIThread()
 
+	if overlayUIGID.Load() == curGoroutineID() {
+		fn()
+		pumpOverlayMessages()
+
+		return
+	}
+
 	done := make(chan struct{})
 	overlayUIOps <- func() {
 		fn()
 		close(done)
 	}
 	<-done
+}
+
+func curGoroutineID() uint64 {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	// "goroutine 123 ["
+	i := 10
+	for i < n && buf[i] >= '0' && buf[i] <= '9' {
+		i++
+	}
+
+	var id uint64
+	for j := 10; j < i; j++ {
+		id = id*10 + uint64(buf[j]-'0')
+	}
+
+	return id
 }
 
 func pumpOverlayMessages() {

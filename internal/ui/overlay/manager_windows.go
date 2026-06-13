@@ -149,6 +149,11 @@ func (m *Manager) ensureWinOverlayLocked() {
 		return
 	}
 
+	if m.win != nil {
+		m.win.Destroy()
+		m.win = nil
+	}
+
 	m.win = newWinOverlay(m.logger)
 	if m.win == nil && m.logger != nil {
 		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")

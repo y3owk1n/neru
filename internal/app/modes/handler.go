@@ -902,6 +902,15 @@ func (h *Handler) focusedBundleID() string {
 	return bundleID
 }
 
+// runOverlayWork runs fn without holding h.mu. Caller must hold h.mu on entry;
+// the lock is re-acquired before return. Use for Win32 overlay marshaling and
+// other main-thread work that can block and would otherwise stall IPC/commands.
+func (h *Handler) runOverlayWork(fn func()) {
+	h.mu.Unlock()
+	fn()
+	h.mu.Lock()
+}
+
 // stopHeldRepeatLocked cancels any running held-key repeat goroutine.
 // Caller must hold h.mu.
 func (h *Handler) stopHeldRepeatLocked() {

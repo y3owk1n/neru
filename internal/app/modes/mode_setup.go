@@ -101,9 +101,11 @@ func (h *Handler) activateModeBase(
 	actionString := domain.ActionString(actionEnum)
 	h.logger.Debug("Activating "+modeName+" mode", zap.String("action", actionString))
 
-	// Always resize overlay to the active screen
+	// Resize on the overlay/UI thread without holding h.mu (see runOverlayWork).
 	if h.overlayManager != nil {
-		h.overlayManager.ResizeToActiveScreen()
+		h.runOverlayWork(func() {
+			h.overlayManager.ResizeToActiveScreen()
+		})
 	}
 
 	return actionEnum, true
