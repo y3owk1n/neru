@@ -471,7 +471,7 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	// Give the dispatch thread time to process the enter event.
 	int waited = 0;
 	while (c->cursor_initialized == 0 && waited < 5) {
-		struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000000}; // 10ms
+		struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000000};  // 10ms
 		nanosleep(&ts, NULL);
 		waited++;
 	}

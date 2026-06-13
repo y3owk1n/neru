@@ -3,11 +3,12 @@
 #ifndef RELATIVE_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
 #define RELATIVE_POINTER_UNSTABLE_V1_CLIENT_PROTOCOL_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "wayland-client.h"
 
-#ifdef  __cplusplus
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -119,7 +120,6 @@ extern const struct wl_interface zwp_relative_pointer_v1_interface;
 #define ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY 0
 #define ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER 1
 
-
 /**
  * @ingroup iface_zwp_relative_pointer_manager_v1
  */
@@ -130,23 +130,20 @@ extern const struct wl_interface zwp_relative_pointer_v1_interface;
 #define ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_relative_pointer_manager_v1 */
-static inline void
-zwp_relative_pointer_manager_v1_set_user_data(struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_relative_pointer_manager_v1, user_data);
+static inline void zwp_relative_pointer_manager_v1_set_user_data(
+    struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_relative_pointer_manager_v1, user_data);
 }
 
 /** @ingroup iface_zwp_relative_pointer_manager_v1 */
-static inline void *
-zwp_relative_pointer_manager_v1_get_user_data(struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_relative_pointer_manager_v1);
+static inline void *zwp_relative_pointer_manager_v1_get_user_data(
+    struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwp_relative_pointer_manager_v1);
 }
 
-static inline uint32_t
-zwp_relative_pointer_manager_v1_get_version(struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_relative_pointer_manager_v1);
+static inline uint32_t zwp_relative_pointer_manager_v1_get_version(
+    struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1) {
+	return wl_proxy_get_version((struct wl_proxy *)zwp_relative_pointer_manager_v1);
 }
 
 /**
@@ -155,11 +152,11 @@ zwp_relative_pointer_manager_v1_get_version(struct zwp_relative_pointer_manager_
  * Used by the client to notify the server that it will no longer use this
  * relative pointer manager object.
  */
-static inline void
-zwp_relative_pointer_manager_v1_destroy(struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_relative_pointer_manager_v1,
-			 ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_relative_pointer_manager_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_relative_pointer_manager_v1_destroy(
+    struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_relative_pointer_manager_v1, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_relative_pointer_manager_v1), WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -168,15 +165,16 @@ zwp_relative_pointer_manager_v1_destroy(struct zwp_relative_pointer_manager_v1 *
  * Create a relative pointer interface given a wl_pointer object. See the
  * wp_relative_pointer interface for more details.
  */
-static inline struct zwp_relative_pointer_v1 *
-zwp_relative_pointer_manager_v1_get_relative_pointer(struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1, struct wl_pointer *pointer)
-{
+static inline struct zwp_relative_pointer_v1 *zwp_relative_pointer_manager_v1_get_relative_pointer(
+    struct zwp_relative_pointer_manager_v1 *zwp_relative_pointer_manager_v1, struct wl_pointer *pointer) {
 	struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwp_relative_pointer_manager_v1,
-			 ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER, &zwp_relative_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwp_relative_pointer_manager_v1), 0, NULL, pointer);
+	id = wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_relative_pointer_manager_v1, ZWP_RELATIVE_POINTER_MANAGER_V1_GET_RELATIVE_POINTER,
+	    &zwp_relative_pointer_v1_interface, wl_proxy_get_version((struct wl_proxy *)zwp_relative_pointer_manager_v1), 0,
+	    NULL, pointer);
 
-	return (struct zwp_relative_pointer_v1 *) id;
+	return (struct zwp_relative_pointer_v1 *)id;
 }
 
 /**
@@ -227,25 +225,18 @@ struct zwp_relative_pointer_v1_listener {
 	 * @param dx_unaccel the x component of the unaccelerated motion vector
 	 * @param dy_unaccel the y component of the unaccelerated motion vector
 	 */
-	void (*relative_motion)(void *data,
-				struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
-				uint32_t utime_hi,
-				uint32_t utime_lo,
-				wl_fixed_t dx,
-				wl_fixed_t dy,
-				wl_fixed_t dx_unaccel,
-				wl_fixed_t dy_unaccel);
+	void (*relative_motion)(
+	    void *data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, uint32_t utime_hi, uint32_t utime_lo,
+	    wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel);
 };
 
 /**
  * @ingroup iface_zwp_relative_pointer_v1
  */
-static inline int
-zwp_relative_pointer_v1_add_listener(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1,
-				     const struct zwp_relative_pointer_v1_listener *listener, void *data)
-{
-	return wl_proxy_add_listener((struct wl_proxy *) zwp_relative_pointer_v1,
-				     (void (**)(void)) listener, data);
+static inline int zwp_relative_pointer_v1_add_listener(
+    struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, const struct zwp_relative_pointer_v1_listener *listener,
+    void *data) {
+	return wl_proxy_add_listener((struct wl_proxy *)zwp_relative_pointer_v1, (void (**)(void))listener, data);
 }
 
 #define ZWP_RELATIVE_POINTER_V1_DESTROY 0
@@ -261,36 +252,30 @@ zwp_relative_pointer_v1_add_listener(struct zwp_relative_pointer_v1 *zwp_relativ
 #define ZWP_RELATIVE_POINTER_V1_DESTROY_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_relative_pointer_v1 */
-static inline void
-zwp_relative_pointer_v1_set_user_data(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_relative_pointer_v1, user_data);
+static inline void zwp_relative_pointer_v1_set_user_data(
+    struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, void *user_data) {
+	wl_proxy_set_user_data((struct wl_proxy *)zwp_relative_pointer_v1, user_data);
 }
 
 /** @ingroup iface_zwp_relative_pointer_v1 */
-static inline void *
-zwp_relative_pointer_v1_get_user_data(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_relative_pointer_v1);
+static inline void *zwp_relative_pointer_v1_get_user_data(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1) {
+	return wl_proxy_get_user_data((struct wl_proxy *)zwp_relative_pointer_v1);
 }
 
-static inline uint32_t
-zwp_relative_pointer_v1_get_version(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_relative_pointer_v1);
+static inline uint32_t zwp_relative_pointer_v1_get_version(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1) {
+	return wl_proxy_get_version((struct wl_proxy *)zwp_relative_pointer_v1);
 }
 
 /**
  * @ingroup iface_zwp_relative_pointer_v1
  */
-static inline void
-zwp_relative_pointer_v1_destroy(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_relative_pointer_v1,
-			 ZWP_RELATIVE_POINTER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_relative_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_relative_pointer_v1_destroy(struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1) {
+	wl_proxy_marshal_flags(
+	    (struct wl_proxy *)zwp_relative_pointer_v1, ZWP_RELATIVE_POINTER_V1_DESTROY, NULL,
+	    wl_proxy_get_version((struct wl_proxy *)zwp_relative_pointer_v1), WL_MARSHAL_FLAG_DESTROY);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 
