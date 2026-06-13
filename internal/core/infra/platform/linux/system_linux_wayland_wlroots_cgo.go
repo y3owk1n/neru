@@ -391,11 +391,18 @@ func wlrootsScrollBatch(axis int, deltas, discretes []int) error {
 	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
 
+	cDeltas := make([]C.int, len(deltas))
+	cDiscretes := make([]C.int, len(discretes))
+	for i := range deltas {
+		cDeltas[i] = C.int(deltas[i])
+		cDiscretes[i] = C.int(discretes[i])
+	}
+
 	res := C.neru_wlr_scroll_batch(
 		client,
 		C.int(axis),
-		(*C.int)(unsafe.Pointer(&deltas[0])),
-		(*C.int)(unsafe.Pointer(&discretes[0])),
+		&cDeltas[0],
+		&cDiscretes[0],
 		C.int(len(deltas)), //nolint:nlreturn
 	)
 	if res == 0 {
