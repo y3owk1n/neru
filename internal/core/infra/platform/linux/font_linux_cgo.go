@@ -106,9 +106,6 @@ func (r *fontconfigResolver) Resolve(family string, bold bool) string {
 // cannot match the family at all, it falls back to a hardcoded default.
 func (r *fontconfigResolver) resolve(family string) string {
 	mapped := mapGenericAlias(family)
-	if mapped == "" {
-		return defaultLinuxSans
-	}
 
 	cFamily := C.CString(mapped)
 	defer C.free(unsafe.Pointer(cFamily)) //nolint:nlreturn
