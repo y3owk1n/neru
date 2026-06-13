@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.44.1](https://github.com/y3owk1n/neru/compare/v1.44.0...v1.44.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **linux,wayland:** send 1-notch scroll events to prevent clipping ([#927](https://github.com/y3owk1n/neru/issues/927)) ([0a12df9](https://github.com/y3owk1n/neru/commit/0a12df94358f2f3f16d9c08dfc9309e581bff154))
+* **linux:** badge overlay to follow cursor pointer ([#920](https://github.com/y3owk1n/neru/issues/920)) ([5288eee](https://github.com/y3owk1n/neru/commit/5288eee91023b45ca5c0399e618b38adde2dbf02))
+* **linux:** improve sticky modifier detection ([#926](https://github.com/y3owk1n/neru/issues/926)) ([8c685dd](https://github.com/y3owk1n/neru/commit/8c685ddfdfdaec3af7d6b2f6d08bf012fd7c5ce8))
+* resolve fonts via ports on all platforms ([#928](https://github.com/y3owk1n/neru/issues/928)) ([e807897](https://github.com/y3owk1n/neru/commit/e807897417b51db1b5ce14789a8a0ed98a43a3a8))
+
 ## [1.44.0](https://github.com/y3owk1n/neru/compare/v1.43.0...v1.44.0) (2026-06-11)
 
 
