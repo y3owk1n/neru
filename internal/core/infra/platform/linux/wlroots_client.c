@@ -1,14 +1,18 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 
 // Include wlroots protocol headers relative to this package.
 #include "wlr_protocol/layer-shell.h"
+#include "wlr_protocol/relative-pointer-unstable-v1.h"
 #include "wlr_protocol/virtual-keyboard.h"
 #include "wlr_protocol/virtual-pointer.h"
 #include "wlr_protocol/xdg-output.h"
@@ -19,19 +23,19 @@
 static void neru_wlr_pointer_enter(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->cursor_initialized == 0) {
-		// During discovery phase, record the global pointer location based on
-		// which screen triggered the enter event and surface-local coordinates.
+	if (c && atomic_load(&c->cursor_initialized) == 0) {
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (surface != NULL && surface == scr->discovery_surface) {
-				c->cursor_x = scr->x + wl_fixed_to_int(sx);
-				c->cursor_y = scr->y + wl_fixed_to_int(sy);
-				c->cursor_initialized = 1;
+				atomic_store(&c->cursor_x, scr->x + wl_fixed_to_int(sx));
+				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
+				atomic_store(&c->cursor_initialized, 1);
 				break;
 			}
 		}
 	}
+	(void)pointer;
+	(void)serial;
 }
 
 static void neru_wlr_pointer_leave(
@@ -41,11 +45,6 @@ static void neru_wlr_pointer_leave(
 
 static void neru_wlr_pointer_motion(
     void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-	// No-op. Motion events give surface-local coords which would corrupt
-	// the global cursor position tracked via neru_wlr_move_absolute.
-	// This was the root cause of the "stale cache" bug: poll_cursor()
-	// dispatched events which triggered this handler, overwriting the
-	// correctly-set global position with meaningless surface-local coords.
 	(void)data;
 	(void)pointer;
 	(void)time;
@@ -64,7 +63,8 @@ static void neru_wlr_pointer_axis(
 }
 
 static void neru_wlr_pointer_frame(void *data, struct wl_pointer *pointer) {
-	// No-op.
+	(void)data;
+	(void)pointer;
 }
 
 static void neru_wlr_pointer_axis_source(void *data, struct wl_pointer *pointer, uint32_t axis_source) {
@@ -78,6 +78,37 @@ static void neru_wlr_pointer_axis_stop(void *data, struct wl_pointer *pointer, u
 static void neru_wlr_pointer_axis_discrete(void *data, struct wl_pointer *pointer, uint32_t axis, int32_t discrete) {
 	// No-op.
 }
+
+// ---------- Relative pointer listener ----------
+
+static void neru_wlr_relative_motion(
+    void *data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, uint32_t utime_hi, uint32_t utime_lo,
+    wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	// Accumulate sub-pixel deltas and only commit whole pixels, preventing
+	// drift on HiDPI or accelerated pointer setups where fractional motion
+	// is common.
+	c->cursor_x_frac += dx;
+	c->cursor_y_frac += dy;
+	int idx = wl_fixed_to_int(c->cursor_x_frac);
+	int idy = wl_fixed_to_int(c->cursor_y_frac);
+	if (idx != 0 || idy != 0) {
+		c->cursor_x_frac -= wl_fixed_from_int(idx);
+		c->cursor_y_frac -= wl_fixed_from_int(idy);
+		atomic_fetch_add(&c->cursor_x, idx);
+		atomic_fetch_add(&c->cursor_y, idy);
+		atomic_store(&c->cursor_initialized, 1);
+	}
+	(void)zwp_relative_pointer_v1;
+	(void)utime_hi;
+	(void)utime_lo;
+	(void)dx_unaccel;
+	(void)dy_unaccel;
+}
+
+static const struct zwp_relative_pointer_v1_listener neru_wlr_relative_pointer_listener = {
+    .relative_motion = neru_wlr_relative_motion,
+};
 
 static const struct wl_pointer_listener neru_wlr_pointer_listener = {
     .enter = neru_wlr_pointer_enter,
@@ -234,6 +265,8 @@ static void neru_wlr_registry_global(
 		c->layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
 	} else if (strcmp(interface, "wl_shm") == 0) {
 		c->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
+	} else if (strcmp(interface, "zwp_relative_pointer_manager_v1") == 0) {
+		c->rel_ptr_mgr = wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		c->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7 < version ? 7 : version);
 		c->pointer = wl_seat_get_pointer(c->seat);
@@ -259,6 +292,64 @@ static const struct wl_registry_listener neru_wlr_registry_listener = {
     .global = neru_wlr_registry_global,
     .global_remove = neru_wlr_registry_global_remove,
 };
+
+// ---------- Dispatch thread ----------
+
+static void *neru_wlr_dispatch_loop(void *arg) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)arg;
+	while (c->dispatch_running) {
+		// Non-blocking prepare-read under lock
+		pthread_mutex_lock(&c->display_mutex);
+		if (wl_display_prepare_read(c->display) < 0) {
+			wl_display_dispatch_pending(c->display);
+			pthread_mutex_unlock(&c->display_mutex);
+			continue;
+		}
+		pthread_mutex_unlock(&c->display_mutex);
+
+		// Flush pending outgoing requests before blocking on poll
+		// (libwayland-client protocol requirement).
+		wl_display_flush(c->display);
+
+		// Poll without lock (may block)
+		struct pollfd pfd = {.fd = wl_display_get_fd(c->display), .events = POLLIN, .revents = 0};
+		poll(&pfd, 1, -1);
+
+		// Read and dispatch under lock
+		pthread_mutex_lock(&c->display_mutex);
+		if (pfd.revents & (POLLERR | POLLHUP)) {
+			// Compositor connection broken (e.g. compositor killed).
+			// Cancel the prepared read and exit the loop cleanly.
+			// Do NOT clear dispatch_running — neru_wlr_disconnect
+			// still needs to pthread_join this thread.
+			wl_display_cancel_read(c->display);
+			pthread_mutex_unlock(&c->display_mutex);
+			break;
+		}
+		if (pfd.revents & POLLIN) {
+			if (wl_display_read_events(c->display) < 0) {
+				pthread_mutex_unlock(&c->display_mutex);
+				break;
+			}
+			wl_display_dispatch_pending(c->display);
+		} else {
+			wl_display_cancel_read(c->display);
+		}
+		pthread_mutex_unlock(&c->display_mutex);
+	}
+	return NULL;
+}
+
+int neru_wlr_start_dispatch(NeruWlrootsClient *c) {
+	if (!c || c->dispatch_running)
+		return 0;
+	c->dispatch_running = 1;
+	if (pthread_create(&c->dispatch_thread, NULL, neru_wlr_dispatch_loop, c) != 0) {
+		c->dispatch_running = 0;
+		return 0;
+	}
+	return 1;
+}
 
 // ---------- Connect & initialize ----------
 
@@ -289,6 +380,12 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		neru_wlr_setup_virtual_keyboard(c);
 	}
 
+	// Create relative pointer for tracking physical cursor motion.
+	if (c->rel_ptr_mgr && c->pointer) {
+		c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
+		zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
+	}
+
 	// Initialize xdg_output for each screen.
 	if (c->xdg_output_mgr) {
 		for (int i = 0; i < c->nr_screens; i++) {
@@ -300,6 +397,11 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		wl_display_roundtrip(c->display);
 	}
 
+	// Initialize display mutex. Dispatch thread is started later
+	// via neru_wlr_start_dispatch() to avoid reader_count conflicts
+	// with neru_wlr_init_cursor() which also does roundtrips.
+	pthread_mutex_init(&c->display_mutex, NULL);
+
 	c->connected = 1;
 	return c;
 }
@@ -308,11 +410,30 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	if (!c)
 		return;
 
+	// Stop the dispatch thread.
+	int had_dispatch = c->dispatch_running;
+	c->dispatch_running = 0;
+	// Wake it up by sending a sync request so it exits the poll.
+	pthread_mutex_lock(&c->display_mutex);
+	if (c->display) {
+		struct wl_callback *cb = wl_display_sync(c->display);
+		wl_display_flush(c->display);
+		if (cb)
+			wl_callback_destroy(cb);
+	}
+	pthread_mutex_unlock(&c->display_mutex);
+	if (had_dispatch)
+		pthread_join(c->dispatch_thread, NULL);
+	pthread_mutex_destroy(&c->display_mutex);
+
 	if (c->vptr) {
 		zwlr_virtual_pointer_v1_destroy(c->vptr);
 	}
 	if (c->vkeyboard) {
 		zwp_virtual_keyboard_v1_destroy(c->vkeyboard);
+	}
+	if (c->rel_ptr) {
+		zwp_relative_pointer_v1_destroy(c->rel_ptr);
 	}
 	if (c->xkb_keymap) {
 		xkb_keymap_unref(c->xkb_keymap);
@@ -337,16 +458,15 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 // position purely client-side via neru_wlr_move_absolute (matching
 // warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
 void neru_wlr_init_cursor(NeruWlrootsClient *c) {
-	if (!c || c->cursor_initialized)
+	if (!c || atomic_load(&c->cursor_initialized))
 		return;
 
 	// Use Warpd's cursor discovery trick: create invisible full-screen layer-shell surfaces
 	// across all outputs, wiggle the virtual pointer, and capture the pointer_enter event.
 	if (!c->layer_shell || !c->compositor || !c->pointer || !c->vptr || c->nr_screens == 0) {
-		// Fallback to screen center
-		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
-		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
-		c->cursor_initialized = 1;
+		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
+		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
+		atomic_store(&c->cursor_initialized, 1);
 		return;
 	}
 
@@ -354,7 +474,6 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 
 	for (int i = 0; i < c->nr_screens; i++) {
 		c->screens[i].discovery_surface = wl_compositor_create_surface(c->compositor);
-		// Do not set input region, allowing it to intercept pointer events
 		layer_surfaces[i] = zwlr_layer_shell_v1_get_layer_surface(
 		    c->layer_shell, c->screens[i].discovery_surface, c->screens[i].wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
 		    "neru_discovery");
@@ -366,24 +485,22 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 		wl_surface_commit(c->screens[i].discovery_surface);
 	}
 
+	pthread_mutex_lock(&c->display_mutex);
 	wl_display_roundtrip(c->display);
 
-	// Animate the pointer to force an enter event
+	// Wiggle the virtual pointer to force a pointer enter event
 	zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(1), wl_fixed_from_int(1));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 
-	// Poll until initialized or timeout (~50ms)
-	struct pollfd pfd = {.fd = wl_display_get_fd(c->display), .events = POLLIN};
-	for (int attempts = 0; attempts < 5 && c->cursor_initialized == 0; attempts++) {
-		if (poll(&pfd, 1, 10) > 0) {
-			wl_display_dispatch(c->display);
-		} else {
-			wl_display_dispatch_pending(c->display);
-		}
-	}
+	// Process the enter event synchronously (dispatch thread not started yet).
+	pthread_mutex_lock(&c->display_mutex);
+	wl_display_roundtrip(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 
 	// Destroy discovery surfaces
+	pthread_mutex_lock(&c->display_mutex);
 	for (int i = 0; i < c->nr_screens; i++) {
 		if (layer_surfaces[i])
 			zwlr_layer_surface_v1_destroy(layer_surfaces[i]);
@@ -393,12 +510,13 @@ void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 		}
 	}
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 
 	// Fallback if discovery failed
-	if (c->cursor_initialized == 0) {
-		c->cursor_x = c->screens[0].x + c->screens[0].w / 2;
-		c->cursor_y = c->screens[0].y + c->screens[0].h / 2;
-		c->cursor_initialized = 1;
+	if (atomic_load(&c->cursor_initialized) == 0) {
+		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
+		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
+		atomic_store(&c->cursor_initialized, 1);
 	}
 }
 
@@ -424,17 +542,19 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y) {
 			maxy = bottom;
 	}
 
-	// Virtual pointer space starts at 0,0 even if compositor space has
-	// negative origins (same workaround as warpd).
+	pthread_mutex_lock(&c->display_mutex);
 	zwlr_virtual_pointer_v1_motion_absolute(
 	    c->vptr, 0, wl_fixed_from_int(x - minx), wl_fixed_from_int(y - miny), wl_fixed_from_int(maxx - minx),
 	    wl_fixed_from_int(maxy - miny));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	c->cursor_x_frac = 0;
+	c->cursor_y_frac = 0;
+	pthread_mutex_unlock(&c->display_mutex);
 
-	c->cursor_x = x;
-	c->cursor_y = y;
-	c->cursor_initialized = 1;
+	atomic_store(&c->cursor_x, x);
+	atomic_store(&c->cursor_y, y);
+	atomic_store(&c->cursor_initialized, 1);
 
 	return 1;
 }
@@ -448,9 +568,11 @@ int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed) {
 	if (!c || !c->vptr)
 		return 0;
 
+	pthread_mutex_lock(&c->display_mutex);
 	zwlr_virtual_pointer_v1_button(c->vptr, 0, (uint32_t)button, pressed ? 1 : 0);
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 	return 1;
 }
 
@@ -458,10 +580,12 @@ int neru_wlr_click(NeruWlrootsClient *c, int button) {
 	if (!c || !c->vptr)
 		return 0;
 
+	pthread_mutex_lock(&c->display_mutex);
 	zwlr_virtual_pointer_v1_button(c->vptr, 0, (uint32_t)button, 1);
 	zwlr_virtual_pointer_v1_button(c->vptr, 0, (uint32_t)button, 0);
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 	return 1;
 }
 
@@ -469,10 +593,8 @@ int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
 	if (!c || !c->vptr)
 		return 0;
 
-	// axis: 0 = vertical, 1 = horizontal
-	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);  // WL_POINTER_AXIS_SOURCE_WHEEL
-	// Send axis_discrete instead of axis when discrete is available, as per Wayland spec.
-	// Sending both may cause compositors to accumulate both values (double-scroll).
+	pthread_mutex_lock(&c->display_mutex);
+	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);
 	if (discrete != 0) {
 		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta), discrete);
 	} else {
@@ -480,6 +602,7 @@ int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
 	}
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 	return 1;
 }
 
@@ -509,12 +632,10 @@ int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_d
 		c->depressed_mods &= ~mask;
 	}
 
+	pthread_mutex_lock(&c->display_mutex);
 	zwp_virtual_keyboard_v1_modifiers(c->vkeyboard, c->depressed_mods, 0, 0, 0);
-	// Use flush instead of roundtrip: fire-and-forget is sufficient because
-	// Wayland message ordering guarantees the modifier state is applied before
-	// the next pointer button event from the same client. A roundtrip blocks
-	// concurrent cursor position queries waiting on the global mutex.
 	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
 
 	return 1;
 }
@@ -522,9 +643,9 @@ int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_d
 int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y) {
 	if (!c)
 		return 0;
-	*x = c->cursor_x;
-	*y = c->cursor_y;
-	return c->cursor_initialized;
+	*x = atomic_load(&c->cursor_x);
+	*y = atomic_load(&c->cursor_y);
+	return atomic_load(&c->cursor_initialized);
 }
 
 int neru_wlr_screen_count(NeruWlrootsClient *c) {

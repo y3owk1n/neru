@@ -425,6 +425,8 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 }
 
 void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
+	int new_surfaces = 0;
+
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 
@@ -459,10 +461,14 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
 		zwlr_layer_surface_v1_add_listener(scr->layer_surface, &layer_surface_listener, overlay);
 		wl_surface_commit(scr->wl_surface);
+
+		new_surfaces = 1;
 	}
 
-	// Wait for configure events
-	wl_display_roundtrip(overlay->display);
+	// Only roundtrip when new surfaces were created (avoids sync delay on every draw).
+	if (new_surfaces) {
+		wl_display_roundtrip(overlay->display);
+	}
 
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
