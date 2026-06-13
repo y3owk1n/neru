@@ -21,7 +21,7 @@ const (
 // can ask fontconfig to verify them.
 func mapGenericAlias(family string) string {
 	switch strings.ToLower(strings.TrimSpace(family)) {
-	case "", "sans", "sans-serif", "sansserif":
+	case "", "sans", "sans-serif", "sans serif", "sansserif":
 		return defaultLinuxSans
 	case "serif":
 		return defaultLinuxSerif
