@@ -43,6 +43,12 @@ func WlrootsScroll(axis, delta, discrete int) error {
 	return wlrootsScroll(axis, delta, discrete)
 }
 
+// WlrootsScrollBatch sends multiple scroll events in a single flush.
+// deltas and discretes must have the same length.
+func WlrootsScrollBatch(axis int, deltas, discretes []int) error {
+	return wlrootsScrollBatch(axis, deltas, discretes)
+}
+
 // WlrootsModifierEvent presses or releases a virtual keyboard modifier.
 func WlrootsModifierEvent(modifier string, isDown bool) error {
 	return globalWlrootsModifierDispatcher.event(modifier, isDown)

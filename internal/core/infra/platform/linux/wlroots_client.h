@@ -73,6 +73,7 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y);
 int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
 int neru_wlr_click(NeruWlrootsClient *c, int button);
 int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete);
+int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
 int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y);
 int neru_wlr_screen_count(NeruWlrootsClient *c);

@@ -248,15 +248,14 @@ func wlrootsMouseDownModifiers() (action.Modifiers, bool) {
 	return globalWlrootsPointerState.mouseDownModifiers, globalWlrootsPointerState.mouseDown
 }
 
-// wlrootsScrollScale and wlrootsScrollMaxEvents mirror the X11 scroll
-// scaling constants so that both backends produce comparable scroll
-// behavior from the same pixel-level delta values supplied by the
-// scroll service (e.g. ScrollStep=50, ScrollStepHalf=500,
-// ScrollStepFull=1000000).
+// wlrootsScrollScale mirrors the uinput scroll scaling constant so
+// that both backends produce comparable scroll behavior from the same
+// pixel-level delta values supplied by the scroll service
+// (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
 const (
 	wlrootsScrollScale     = 30
 	wlrootsScrollMaxEvents = 50
-	wlrootsScrollStep      = 15 // pixels per Wayland axis event
+	wlrootsScrollStep      = 30 // pixels per notch (matches uinput scrollScale)
 )
 
 func wlrootsScrollAtCursor(deltaX, deltaY int) error {
@@ -267,74 +266,70 @@ func wlrootsScrollAtCursor(deltaX, deltaY int) error {
 		)
 	}
 
-	// Vertical scroll (axis 0).
-	// Incoming deltas are pixel-level values from the scroll service config.
-	// We scale them to a bounded number of small Wayland axis events, just
-	// like the X11 backend converts them to discrete button clicks, to
-	// avoid sending a single enormous axis event for ScrollStepFull.
 	if deltaY != 0 {
-		events := wlrootsScrollEvents(deltaY)
-
-		// Wayland axis convention: positive = scroll down.
-		// Application convention: positive deltaY = scroll up.
-		// Negate to convert between the two conventions.
-		step := -wlrootsScrollStep
-
-		discreteStep := 1
-		if deltaY < 0 {
-			step = wlrootsScrollStep
-			discreteStep = -1
-		}
-
-		for range events {
-			err := linux.WlrootsScroll(0, step, discreteStep)
-			if err != nil {
-				return err
-			}
+		err := wlrootsScrollAxis(0, deltaY)
+		if err != nil {
+			return err
 		}
 	}
 
-	// Horizontal scroll (axis 1).
-	// Wayland axis convention: positive = scroll right.
-	// Application convention: positive deltaX = scroll right.
-	// No negation needed.
 	if deltaX != 0 {
-		events := wlrootsScrollEvents(deltaX)
-
-		step := wlrootsScrollStep
-
-		discreteStep := 1
-		if deltaX < 0 {
-			step = -wlrootsScrollStep
-			discreteStep = -1
-		}
-
-		for range events {
-			err := linux.WlrootsScroll(1, step, discreteStep)
-			if err != nil {
-				return err
-			}
+		err := wlrootsScrollAxis(1, deltaX)
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-// wlrootsScrollEvents converts a raw pixel delta to a bounded number of
-// scroll events, matching the X11 backend's scaling logic.
-func wlrootsScrollEvents(delta int) int {
+// wlrootsScrollAxis sends Wayland axis events for one axis.
+// Each event carries 1 notch (axis_discrete=±1, axis_value120=±120) to
+// match what a physical mouse wheel produces — no toolkit clipping.
+// Events are sent in batches of wlrootsScrollMaxEvents to avoid flooding
+// the compositor socket.
+//
+// Wayland axis convention: positive = scroll down (axis 0) / right (axis 1).
+// Application  convention: positive delta = scroll up (axis 0) / right (axis 1).
+// Vertical axis sign is negated to convert between the two.
+func wlrootsScrollAxis(axis int, delta int) error {
+	totalNotches := abs(delta) / wlrootsScrollScale
+	if totalNotches == 0 {
+		totalNotches = 1
+	}
+
+	negate := axis == 0
+
+	step := wlrootsScrollStep
+	if negate {
+		step = -step
+	}
+
+	disc := 1
 	if delta < 0 {
-		delta = -delta
+		step = -step
+		disc = -disc
 	}
 
-	events := delta / wlrootsScrollScale
-	if events == 0 {
-		events = 1
+	deltas := make([]int, 0, wlrootsScrollMaxEvents)
+	discretes := make([]int, 0, wlrootsScrollMaxEvents)
+	remaining := totalNotches
+
+	for remaining > 0 {
+		deltas = append(deltas, step)
+		discretes = append(discretes, disc)
+		remaining--
+
+		if len(deltas) >= wlrootsScrollMaxEvents || remaining == 0 {
+			err := linux.WlrootsScrollBatch(axis, deltas, discretes)
+			if err != nil {
+				return err
+			}
+
+			deltas = deltas[:0]
+			discretes = discretes[:0]
+		}
 	}
 
-	if events > wlrootsScrollMaxEvents {
-		events = wlrootsScrollMaxEvents
-	}
-
-	return events
+	return nil
 }

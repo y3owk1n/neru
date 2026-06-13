@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -594,6 +595,29 @@ func ScrollDeviceScroll(axis, value int) error {
 		return err
 	}
 	if C.neru_uinput_scroll(C.int(fd), C.int(axis), C.int(value)) == 0 {
+		return fmt.Errorf("%w", errUinputScrollSend)
+	}
+
+	return nil
+}
+
+// ScrollDeviceScrollBatch sends multiple scroll events in a single write.
+func ScrollDeviceScrollBatch(axis int, values []int) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	ufd, err := getUinputScrollFd()
+	if err != nil {
+		return err
+	}
+
+	if C.neru_uinput_scroll_batch(
+		C.int(ufd),
+		C.int(axis),
+		(*C.int)(unsafe.Pointer(&values[0])),
+		C.int(len(values)),
+	) == 0 { //nolint:lll
 		return fmt.Errorf("%w", errUinputScrollSend)
 	}
 
