@@ -85,9 +85,16 @@ static void neru_wlr_relative_motion(
     void *data, struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1, uint32_t utime_hi, uint32_t utime_lo,
     wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t dx_unaccel, wl_fixed_t dy_unaccel) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	int idx = wl_fixed_to_int(dx);
-	int idy = wl_fixed_to_int(dy);
+	// Accumulate sub-pixel deltas and only commit whole pixels, preventing
+	// drift on HiDPI or accelerated pointer setups where fractional motion
+	// is common.
+	c->cursor_x_frac += dx;
+	c->cursor_y_frac += dy;
+	int idx = wl_fixed_to_int(c->cursor_x_frac);
+	int idy = wl_fixed_to_int(c->cursor_y_frac);
 	if (idx != 0 || idy != 0) {
+		c->cursor_x_frac -= wl_fixed_from_int(idx);
+		c->cursor_y_frac -= wl_fixed_from_int(idy);
 		atomic_fetch_add(&c->cursor_x, idx);
 		atomic_fetch_add(&c->cursor_y, idy);
 		atomic_store(&c->cursor_initialized, 1);
@@ -306,9 +313,17 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 
 		// Read and dispatch under lock
 		pthread_mutex_lock(&c->display_mutex);
+		if (pfd.revents & (POLLERR | POLLHUP)) {
+			// Compositor connection broken (e.g. compositor killed).
+			// Cancel the prepared read and exit the loop cleanly.
+			// Do NOT clear dispatch_running — neru_wlr_disconnect
+			// still needs to pthread_join this thread.
+			wl_display_cancel_read(c->display);
+			pthread_mutex_unlock(&c->display_mutex);
+			break;
+		}
 		if (pfd.revents & POLLIN) {
 			if (wl_display_read_events(c->display) < 0) {
-				c->dispatch_running = 0;
 				pthread_mutex_unlock(&c->display_mutex);
 				break;
 			}
@@ -529,6 +544,8 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y) {
 	    wl_fixed_from_int(maxy - miny));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
+	c->cursor_x_frac = 0;
+	c->cursor_y_frac = 0;
 	pthread_mutex_unlock(&c->display_mutex);
 
 	atomic_store(&c->cursor_x, x);
