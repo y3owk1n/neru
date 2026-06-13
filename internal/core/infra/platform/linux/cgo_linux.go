@@ -6,6 +6,6 @@
 package linux
 
 /*
-#cgo linux pkg-config: x11 xtst xrandr wayland-client xkbcommon cairo xrender xfixes xext
+#cgo linux pkg-config: x11 xtst xrandr wayland-client xkbcommon cairo xrender xfixes xext fontconfig
 */
 import "C"

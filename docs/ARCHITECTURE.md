@@ -94,7 +94,7 @@ It is intentionally high-level. For the contributor playbook, see
 
 The main architecture-level source of truth for platform expectations is:
 
-- [profile.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
+- [profile.go](../internal/core/infra/platform/profile.go)
 
 It describes:
 
@@ -197,25 +197,25 @@ To understand how Neru works, follow the path of an event from the OS to the use
 
 ### 1. Entry Points
 
-- [main_darwin.go](file:///Users/kylewong/Dev/neru/cmd/neru/main_darwin.go): Bootstraps the application, locking the main thread for Cocoa.
-- [root.go](file:///Users/kylewong/Dev/neru/internal/cli/root.go): The Cobra root command for the CLI.
+- [main_darwin.go](../cmd/neru/main_darwin.go): Bootstraps the application, locking the main thread for Cocoa.
+- [root.go](../internal/cli/root.go): The Cobra root command for the CLI.
 
 ### 2. Application Wiring
 
-- [app_initialization.go](file:///Users/kylewong/Dev/neru/internal/app/app_initialization.go): Orchestrates the startup phases.
-- [app_initialization_steps.go](file:///Users/kylewong/Dev/neru/internal/app/app_initialization_steps.go): Detailed steps for initializing infrastructure, services, and UI.
+- [app_initialization.go](../internal/app/app_initialization.go): Orchestrates the startup phases.
+- [app_initialization_steps.go](../internal/app/app_initialization_steps.go): Detailed steps for initializing infrastructure, services, and UI.
 
 ### 3. The Platform Factory
 
-The [factory.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory.go) and its build-tagged siblings (e.g., [factory_darwin.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory_darwin.go)) are the gatekeepers for OS-specific code. They return the correct `ports.SystemPort` implementation without polluting shared code with OS-specific imports.
+The [factory.go](../internal/core/infra/platform/factory.go) and its build-tagged siblings (e.g., [factory_darwin.go](../internal/core/infra/platform/factory_darwin.go)) are the gatekeepers for OS-specific code. They return the correct `ports.SystemPort` implementation without polluting shared code with OS-specific imports.
 
 ### 4. Input Processing Flow
 
-1. **OS Level**: [eventtap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/eventtap_darwin.m) captures low-level keyboard events.
-2. **Infrastructure Level**: [adapter.go](file:///Users/kylewong/Dev/neru/internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
-3. **Application Level**: [handler.go](file:///Users/kylewong/Dev/neru/internal/app/modes/handler.go) receives the key and routes it to the active [Mode](file:///Users/kylewong/Dev/neru/internal/app/modes/base.go).
-4. **Service Level**: The mode calls into services like [hint_service.go](file:///Users/kylewong/Dev/neru/internal/app/services/hint_service.go) to perform business logic.
-5. **Keyboard Layout Changes**: On macOS, Carbon global hotkeys are registered with raw keycodes. When the user switches keyboard layout at runtime (e.g., US → Dvorak → Colemak), the [layout_change_darwin.go](file:///Users/kylewong/Dev/neru/internal/app/layout_change_darwin.go) handler unregisters all existing hotkeys and re-registers them with the new layout's keycodes. This is driven by a second callback slot in [keymap_darwin.m](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/keymap_darwin.m) (`NeruSetKeymapLayoutChangeCallback2`). On Linux and Windows, this is a no-op.
+1. **OS Level**: [eventtap_darwin.m](../internal/core/infra/platform/darwin/eventtap_darwin.m) captures low-level keyboard events.
+2. **Infrastructure Level**: [adapter.go](../internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
+3. **Application Level**: [handler.go](../internal/app/modes/handler.go) receives the key and routes it to the active [Mode](../internal/app/modes/base.go).
+4. **Service Level**: The mode calls into services like [hint_service.go](../internal/app/services/hint_service.go) to perform business logic.
+5. **Keyboard Layout Changes**: On macOS, Carbon global hotkeys are registered with raw keycodes. When the user switches keyboard layout at runtime (e.g., US → Dvorak → Colemak), the [layout_change_darwin.go](../internal/app/layout_change_darwin.go) handler unregisters all existing hotkeys and re-registers them with the new layout's keycodes. This is driven by a second callback slot in [keymap_darwin.m](../internal/core/infra/platform/darwin/keymap_darwin.m) (`NeruSetKeymapLayoutChangeCallback2`). On Linux and Windows, this is a no-op.
 
 ---
 
@@ -242,13 +242,13 @@ Neru uses a **global top-left (0,0) coordinate system** for all shared logic.
 
 ### macOS Coordinate Inversion
 
-macOS Cocoa APIs use a bottom-left (0,0) coordinate system where Y increases upwards. The [darwin platform adapter](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/accessibility_screen_darwin.m) is responsible for inverting the Y coordinate before passing it to shared Go code.
+macOS Cocoa APIs use a bottom-left (0,0) coordinate system where Y increases upwards. The [darwin platform adapter](../internal/core/infra/platform/darwin/accessibility_screen_darwin.m) is responsible for inverting the Y coordinate before passing it to shared Go code.
 
 ---
 
 ## Error Handling and Graceful Degradation
 
-Neru uses a custom error package [derrors](file:///Users/kylewong/Dev/neru/internal/core/errors/errors.go) for structured error handling.
+Neru uses a custom error package [derrors](../internal/core/errors/errors.go) for structured error handling.
 
 ### The `CodeNotSupported` Policy
 
@@ -317,10 +317,10 @@ graph TD
 
 ### Layer Responsibilities
 
-- **Domain (`internal/core/domain`)**: Pure business logic and entities (e.g., [hint.go](file:///Users/kylewong/Dev/neru/internal/core/domain/hint/hint.go), [grid.go](file:///Users/kylewong/Dev/neru/internal/core/domain/grid/grid.go)). No external dependencies.
-- **Ports (`internal/core/ports`)**: Interface contracts defining system capabilities (e.g., [accessibility.go](file:///Users/kylewong/Dev/neru/internal/core/ports/accessibility.go), [overlay.go](file:///Users/kylewong/Dev/neru/internal/core/ports/overlay.go)).
-- **Application (`internal/app`)**: Orchestrates domain entities and services. Manages application lifecycle and navigation modes (e.g., [hints.go](file:///Users/kylewong/Dev/neru/internal/app/modes/hints.go)).
-- **Infrastructure (`internal/core/infra`)**: Concrete implementations of ports using platform-specific APIs (e.g., [accessibility/adapter.go](file:///Users/kylewong/Dev/neru/internal/core/infra/accessibility/adapter.go)).
+- **Domain (`internal/core/domain`)**: Pure business logic and entities (e.g., [hint.go](../internal/core/domain/hint/hint.go), [grid.go](../internal/core/domain/grid/grid.go)). No external dependencies.
+- **Ports (`internal/core/ports`)**: Interface contracts defining system capabilities (e.g., [accessibility.go](../internal/core/ports/accessibility.go), [overlay.go](../internal/core/ports/overlay.go), [font.go](../internal/core/ports/font.go)).
+- **Application (`internal/app`)**: Orchestrates domain entities and services. Manages application lifecycle and navigation modes (e.g., [hints.go](../internal/app/modes/hints.go)).
+- **Infrastructure (`internal/core/infra`)**: Concrete implementations of ports using platform-specific APIs (e.g., [accessibility/adapter.go](../internal/core/infra/accessibility/adapter.go)).
 - **UI (`internal/ui`)**: Handles coordinate transformations and abstract rendering logic.
 - **CLI (`internal/cli`)**: Handles user commands, configuration loading, and IPC communication with the daemon.
 
@@ -393,7 +393,7 @@ Neru uses a sophisticated bridge between Go and Objective-C. Native macOS classe
 
 ### IPC Controller
 
-The CLI communicates with the background daemon using Unix Domain Sockets. The [ipc_controller.go](file:///Users/kylewong/Dev/neru/internal/app/ipc_controller.go) manages this communication, routing commands like `neru hints` or `neru stop` to the running application instance.
+The CLI communicates with the background daemon using Unix Domain Sockets. The [ipc_controller.go](../internal/app/ipc_controller.go) manages this communication, routing commands like `neru hints` or `neru stop` to the running application instance.
 
 ---
 
@@ -418,7 +418,7 @@ Neru uses `just` for build automation.
 ## Performance Considerations
 
 1. **Event Tap Latency**: The event tap callback is kept extremely lean to prevent system-wide keyboard lag. Heavy processing is deferred to Go routines.
-2. **Accessibility Caching**: Querying the macOS Accessibility API is expensive. Neru implements intelligent caching in the [accessibility/cache.go](file:///Users/kylewong/Dev/neru/internal/core/infra/accessibility/cache.go) to minimize IPC overhead.
+2. **Accessibility Caching**: Querying the macOS Accessibility API is expensive. Neru implements intelligent caching in the [accessibility/cache.go](../internal/core/infra/accessibility/cache.go) to minimize IPC overhead.
 3. **Native Rendering**: Overlays are rendered using native Cocoa APIs for GPU-accelerated, flicker-free UI.
 
 ---

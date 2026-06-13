@@ -138,7 +138,9 @@ sudo apt-get install -y \
   libxinerama-dev \
   libxfixes-dev \
   libxkbcommon-dev \
-  wayland-protocols
+  libfontconfig-dev \
+  wayland-protocols \
+  fonts-dejavu-core
 ```
 
 ### Fedora
@@ -153,7 +155,9 @@ sudo dnf install -y \
   libXinerama-devel \
   libXfixes-devel \
   libxkbcommon-devel \
-  wayland-protocols-devel
+  fontconfig-devel \
+  wayland-protocols-devel \
+  dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
 ```
 
 ### Arch Linux
@@ -168,8 +172,17 @@ sudo pacman -S \
   libxinerama \
   libxfixes \
   libxkbcommon \
-  wayland-protocols
+  fontconfig \
+  wayland-protocols \
+  ttf-dejavu
 ```
+
+`fontconfig` is required at build time (the Linux CGo overlay links against
+it for font resolution). `fonts-dejavu-core` / `dejavu-sans-fonts` /
+`ttf-dejavu` are only recommended — Neru falls back to them when no explicit
+`font_family` is set or when fontconfig cannot match a configured name, but
+any font that covers your required glyphs (especially `❖⇧⌥⌃` for the sticky
+modifier indicator) works equally well.
 
 ---
 
@@ -368,6 +381,29 @@ Set a font explicitly in your config:
 font_family = "Your installed symbol-capable font"
 ```
 
-An empty `font_family` uses the system default, which may not have the required
-symbol coverage. A quick way to verify a candidate font is to paste `❖⇧⌥⌃` into
+When `font_family` is empty, Neru resolves a Linux-quality default via
+fontconfig: `"Sans"` / `"Sans Serif"` → `DejaVu Sans`, `"Monospace"` →
+`DejaVu Sans Mono`, `"Serif"` → `DejaVu Serif`. A user-supplied family
+that fontconfig cannot match falls back to the same defaults, so the
+indicator never falls back to a low-quality system generic.
+
+Useful fontconfig snippets for verifying what Neru will use:
+
+```bash
+# List installed families whose name contains "Inter"
+fc-list | awk -F: '{print $2}' | sort -u | grep -i inter
+
+# See which font fontconfig will actually use for a given family
+fc-match "Inter"
+
+# See the top alternates fontconfig will try, in order
+fc-match -s "Inter" | head -5
+
+# See what the generic aliases resolve to on this system
+fc-match "sans-serif"
+fc-match "monospace"
+fc-match "serif"
+```
+
+A quick way to verify a candidate font is to paste `❖⇧⌥⌃` into
 a text editor and confirm the symbols render there first.

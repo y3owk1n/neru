@@ -7,7 +7,7 @@ Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-
 - **Mode**: Navigation context (hints, grid, scroll, action)
 - **Bridge**: Objective-C macOS integration layer
 - **Adapter**: Port implementation for external systems
-- **Port**: Interface definition for system capabilities (e.g., [accessibility.go](file:///Users/kylewong/Dev/neru/internal/core/ports/accessibility.go))
+- **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/core/ports/accessibility.go))
 
 ## Architecture & Cross-Platform
 
@@ -19,20 +19,20 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 
 ### File Organization for Platforms
 
-- **Ports**: [internal/core/ports/](file:///Users/kylewong/Dev/neru/internal/core/ports/)
-- **Infrastructure**: [internal/core/infra/](file:///Users/kylewong/Dev/neru/internal/core/infra/)
-- **Platform Factory**: [internal/core/infra/platform/factory.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/factory.go) and build-tagged siblings.
-- **Platform Implementations**: [internal/core/infra/platform/darwin/](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/), `linux/`, `windows/`.
+- **Ports**: [internal/core/ports/](internal/core/ports/)
+- **Infrastructure**: [internal/core/infra/](internal/core/infra/)
+- **Platform Factory**: [internal/core/infra/platform/factory.go](internal/core/infra/platform/factory.go) and build-tagged siblings.
+- **Platform Implementations**: [internal/core/infra/platform/darwin/](internal/core/infra/platform/darwin/), `linux/`, `windows/`.
 
 ## AI Assistant Exploration Tips
 
 ### Finding the "Source of Truth"
 
-- **App Startup**: [app_initialization.go](file:///Users/kylewong/Dev/neru/internal/app/app_initialization.go)
-- **Navigation Logic**: [internal/app/modes/](file:///Users/kylewong/Dev/neru/internal/app/modes/)
-- **Coordinate Conversion**: [conversion.go](file:///Users/kylewong/Dev/neru/internal/ui/coordinates/conversion.go)
-- **Error Definitions**: [errors.go](file:///Users/kylewong/Dev/neru/internal/core/errors/errors.go)
-- **Native macOS Logic**: [internal/core/infra/platform/darwin/](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/darwin/)
+- **App Startup**: [app_initialization.go](internal/app/app_initialization.go)
+- **Navigation Logic**: [internal/app/modes/](internal/app/modes/)
+- **Coordinate Conversion**: [conversion.go](internal/ui/coordinates/conversion.go)
+- **Error Definitions**: [errors.go](internal/core/errors/errors.go)
+- **Native macOS Logic**: [internal/core/infra/platform/darwin/](internal/core/infra/platform/darwin/)
 
 ### Contextual Shortcuts
 

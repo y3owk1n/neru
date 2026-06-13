@@ -12,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -123,7 +124,7 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 			cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark),
 		),
 		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
-		LabelFontName: cfg.UI.FontFamily,
+		LabelFontName: ports.ResolveFont(cfg.UI.FontFamily, true),
 		MatchedTextColor: parseLinuxColor(
 			cfg.UI.MatchedTextColor.ForTheme(
 				theme,

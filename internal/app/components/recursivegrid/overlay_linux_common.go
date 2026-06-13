@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -135,7 +136,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			),
 		),
 		LabelFontSize:   float64(max(cfg.UI.FontSize, minFontSize)),
-		LabelFontName:   cfg.UI.FontFamily,
+		LabelFontName:   ports.ResolveFont(cfg.UI.FontFamily, true),
 		LabelBackground: cfg.UI.LabelBackground,
 		LabelBackgroundColor: parseLinuxColor(
 			cfg.UI.LabelBackgroundColor.ForTheme(

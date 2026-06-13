@@ -22,6 +22,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 //export resizeHintCompletionCallback
@@ -355,7 +356,7 @@ func (o *Overlay) HideSearchInput() {
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	style := StyleMode{
 		fontSize:     cfg.UI.FontSize,
-		fontFamily:   cfg.UI.FontFamily,
+		fontFamily:   ports.ResolveFont(cfg.UI.FontFamily, true),
 		borderRadius: cfg.UI.BorderRadius,
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,

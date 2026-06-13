@@ -599,7 +599,7 @@ The key project directories and their roles at a glance:
 | Directory                  | Role                                         |
 | -------------------------- | -------------------------------------------- |
 | `internal/core/domain/`    | Pure business logic, entities, value objects |
-| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay) |
+| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay, Font) |
 | `internal/core/infra/`     | Platform-specific adapter implementations    |
 | `internal/app/`            | Application orchestration, services, modes   |
 | `internal/app/components/` | Mode-specific overlay rendering              |

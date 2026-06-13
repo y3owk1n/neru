@@ -12,6 +12,13 @@ func NewSystemPort() (ports.SystemPort, error) {
 	return windows.NewSystemAdapter(), nil
 }
 
+// NewFontResolver returns the process-wide no-op FontResolver on Windows.
+// Windows builds do not yet have a font resolver; the value is returned
+// unchanged so the existing C paths continue to work.
+func NewFontResolver() ports.FontResolver {
+	return nil
+}
+
 // ShowConfigOnboardingAlert is a stub on Windows.
 func ShowConfigOnboardingAlert(_ string) int {
 	return ConfigOnboardingDefaults

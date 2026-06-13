@@ -21,6 +21,7 @@ import (
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	textinputadapter "github.com/y3owk1n/neru/internal/core/infra/textinput"
+	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 )
 
@@ -63,6 +64,14 @@ func initializeInfrastructure(app *App) error {
 
 	if app.textInput == nil {
 		app.textInput = textinputadapter.NewAdapter(textinputadapter.NewTextInput(logger), logger)
+	}
+
+	// Install the platform font resolver. SetFontResolver makes the
+	// resolver available globally to every call site that builds an
+	// overlay style, so they do not have to thread the port through
+	// their own signatures.
+	if resolver := platform.NewFontResolver(); resolver != nil {
+		ports.SetFontResolver(resolver)
 	}
 
 	return nil

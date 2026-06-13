@@ -56,10 +56,11 @@ The guiding principles are:
 
 Before changing code, read these files first:
 
-- [internal/core/infra/platform/profile.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
-- [internal/core/ports/system.go](file:///Users/kylewong/Dev/neru/internal/core/ports/system.go)
-- [internal/core/ports/capabilities.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capability_presets.go)
+- [internal/core/infra/platform/profile.go](../internal/core/infra/platform/profile.go)
+- [internal/core/ports/system.go](../internal/core/ports/system.go)
+- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
+- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
+- [internal/core/ports/font.go](../internal/core/ports/font.go) — FontResolver port (fontconfig on Linux, NSFont on macOS)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [CONVENTIONS.md](./go/CONVENTIONS.md)
 
@@ -78,7 +79,7 @@ If you are new to the codebase, this is the recommended startup path.
 
 ### Any platform
 
-1. Read [profile.go](file:///Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
+1. Read [profile.go](../internal/core/infra/platform/profile.go)
 2. Read the relevant port in `internal/core/ports/`
 3. Find the implementation slot you expect to touch
 4. Run:
@@ -144,11 +145,11 @@ Use these suffixes:
 - `*_other.go`: non-target fallback for dispatch-style packages
 
 App-level platform dispatch also follows this pattern. For example,
-[layout_change_darwin.go](file:///Users/kylewong/Dev/neru/internal/app/layout_change_darwin.go)
+[layout_change_darwin.go](../internal/app/layout_change_darwin.go)
 re-registers Carbon hotkeys when the keyboard layout changes at runtime, while
-[layout_change_linux.go](file:///Users/kylewong/Dev/neru/internal/app/layout_change_linux.go)
+[layout_change_linux.go](../internal/app/layout_change_linux.go)
 and
-[layout_change_windows.go](file:///Users/kylewong/Dev/neru/internal/app/layout_change_windows.go)
+[layout_change_windows.go](../internal/app/layout_change_windows.go)
 are no-ops.
 
 Do not create new ad hoc platform filenames if an existing slot already exists.
@@ -197,9 +198,9 @@ Use this table as the default routing guide.
 
 Examples:
 
-- X11 hotkeys belong in [manager_linux_x11.go](/Users/kylewong/Dev/neru/internal/core/infra/hotkeys/manager_linux_x11.go)
-- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](/Users/kylewong/Dev/neru/internal/core/infra/eventtap/eventtap_linux_wayland.go)
-- shared Linux system fallbacks belong in [system_linux_common.go](/Users/kylewong/Dev/neru/internal/core/infra/platform/linux/system_linux_common.go)
+- X11 hotkeys belong in [manager_linux_x11.go](Users/kylewong/Dev/neru/internal/core/infra/hotkeys/manager_linux_x11.go)
+- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](Users/kylewong/Dev/neru/internal/core/infra/eventtap/eventtap_linux_wayland.go)
+- shared Linux system fallbacks belong in [system_linux_common.go](Users/kylewong/Dev/neru/internal/core/infra/platform/linux/system_linux_common.go)
 
 ---
 
@@ -259,7 +260,7 @@ Do not introduce additional Windows backend naming until there is a real reason.
 
 Do not decide CGO usage by OS alone.
 
-Use [profile.go](/Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
+Use [profile.go](Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
 as the source of truth for the current backend plan.
 
 Current intent:
@@ -277,8 +278,8 @@ Good default instincts:
 
 If you introduce a backend that changes the build story, update:
 
-- [profile.go](/Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
-- [justfile](/Users/kylewong/Dev/neru/justfile)
+- [profile.go](Users/kylewong/Dev/neru/internal/core/infra/platform/profile.go)
+- [justfile](Users/kylewong/Dev/neru/justfile)
 - this document
 
 When in doubt, make the build assumption explicit in your PR description and in
@@ -299,9 +300,9 @@ Use these rules:
 
 Relevant files:
 
-- [internal/config/config.go](file:///Users/kylewong/Dev/neru/internal/config/config.go)
-- [internal/core/domain/action/modifiers.go](file:///Users/kylewong/Dev/neru/internal/core/domain/action/modifiers.go)
-- [internal/app/hotkeys.go](file:///Users/kylewong/Dev/neru/internal/app/hotkeys.go)
+- [internal/config/config.go](../internal/config/config.go)
+- [internal/core/domain/action/modifiers.go](../internal/core/domain/action/modifiers.go)
+- [internal/app/hotkeys.go](../internal/app/hotkeys.go)
 
 ---
 
@@ -313,7 +314,7 @@ Use this flow.
 
 If multiple services or app layers will need the capability:
 
-1. Add it to [internal/core/ports/system.go](file:///Users/kylewong/Dev/neru/internal/core/ports/system.go)
+1. Add it to [internal/core/ports/system.go](../internal/core/ports/system.go)
 2. Implement it in the darwin adapter
 3. Add Linux common fallback behavior in `system_linux_common.go`
 4. Add Windows fallback behavior in `system.go` under the Windows platform package
@@ -358,9 +359,9 @@ Capability reporting is part of the contributor contract, not just a user nicety
 
 When you implement or partially implement a feature, review:
 
-- [internal/core/ports/capabilities.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](file:///Users/kylewong/Dev/neru/internal/core/ports/capability_presets.go)
-- [internal/app/ipc_info.go](file:///Users/kylewong/Dev/neru/internal/app/ipc_info.go)
+- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
+- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
+- [internal/app/ipc_info.go](../internal/app/ipc_info.go)
 
 `neru doctor` should help contributors and users understand what is actually
 available on the current platform.
@@ -401,7 +402,7 @@ When you land platform work, update docs in the same PR.
 
 Usually that means checking these files:
 
-- [README.md](/Users/kylewong/Dev/neru/README.md)
+- [README.md](Users/kylewong/Dev/neru/README.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [DEVELOPMENT.md](./DEVELOPMENT.md)
 - [CONVENTIONS.md](./go/CONVENTIONS.md)

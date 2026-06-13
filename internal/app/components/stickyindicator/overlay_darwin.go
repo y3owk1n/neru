@@ -18,6 +18,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -138,7 +139,9 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	label := o.getOrCacheLabel(symbols)
 
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(o.uiConfig.FontFamily))
+		cached.FontFamily = unsafe.Pointer(
+			C.CString(ports.ResolveFont(o.uiConfig.FontFamily, false)),
+		)
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
 				o.uiConfig.BackgroundColor.ForTheme(

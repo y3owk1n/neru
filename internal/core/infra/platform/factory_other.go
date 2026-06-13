@@ -14,6 +14,11 @@ func NewSystemPort() (ports.SystemPort, error) {
 	return nil, fmt.Errorf("%w: %s", ErrUnsupportedPlatform, runtime.GOOS)
 }
 
+// NewFontResolver returns the no-op FontResolver on unsupported platforms.
+func NewFontResolver() ports.FontResolver {
+	return nil
+}
+
 // ShowConfigOnboardingAlert is a stub on non-darwin platforms.
 func ShowConfigOnboardingAlert(_ string) int {
 	return ConfigOnboardingDefaults

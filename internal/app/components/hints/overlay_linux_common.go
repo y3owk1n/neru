@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // StyleMode represents the visual styling configuration for hint overlays.
@@ -137,7 +138,7 @@ func (o *Overlay) Config() config.HintsConfig {
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	return StyleMode{
 		fontSize:     cfg.UI.FontSize,
-		fontFamily:   cfg.UI.FontFamily,
+		fontFamily:   ports.ResolveFont(cfg.UI.FontFamily, true),
 		borderRadius: cfg.UI.BorderRadius,
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,

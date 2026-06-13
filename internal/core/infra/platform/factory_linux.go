@@ -19,6 +19,12 @@ func NewSystemPort() (ports.SystemPort, error) {
 	}
 }
 
+// NewFontResolver returns a Linux-backed FontResolver backed by fontconfig
+// (CGO builds) or a no-CGO passthrough that still maps generic aliases.
+func NewFontResolver() ports.FontResolver {
+	return linux.NewFontResolver()
+}
+
 // ShowConfigOnboardingAlert is a stub on Linux.
 func ShowConfigOnboardingAlert(_ string) int {
 	return ConfigOnboardingDefaults

@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 //export recursiveGridResizeCompletionCallback
@@ -607,7 +608,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridTextColorDark,
 		),
 		fontSize:        cfg.UI.FontSize,
-		fontFamily:      cfg.UI.FontFamily,
+		fontFamily:      ports.ResolveFont(cfg.UI.FontFamily, true),
 		labelBackground: cfg.UI.LabelBackground,
 		labelBackgroundColor: cfg.UI.LabelBackgroundColor.ForTheme(
 			theme,

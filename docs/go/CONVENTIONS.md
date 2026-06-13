@@ -182,8 +182,8 @@ package platform
 ### Platform Isolation
 
 - **The One Rule**: Non-darwin-tagged code must **never** import `internal/core/infra/platform/darwin`.
-- Use **Ports** ([internal/core/ports/](file:///Users/kylewong/Dev/neru/internal/core/ports/)) to define platform-agnostic interfaces.
-- Use **Adapters** ([internal/core/infra/](file:///Users/kylewong/Dev/neru/internal/core/infra/)) to implement those interfaces for specific platforms.
+- Use **Ports** ([internal/core/ports/](../../internal/core/ports/)) to define platform-agnostic interfaces.
+- Use **Adapters** ([internal/core/infra/](../../internal/core/infra/)) to implement those interfaces for specific platforms.
 
 ### OS-Specific File Naming
 

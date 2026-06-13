@@ -165,8 +165,7 @@ void neru_x11_overlay_text(
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	cairo_save(cr);
-	cairo_select_font_face(
-	    cr, font_family && font_family[0] ? font_family : "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+	cairo_select_font_face(cr, font_family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
 	neru_x11_overlay_color(cr, color);

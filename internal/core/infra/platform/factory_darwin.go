@@ -12,6 +12,11 @@ func NewSystemPort() (ports.SystemPort, error) {
 	return darwin.NewSystemAdapter(), nil
 }
 
+// NewFontResolver returns a macOS-backed FontResolver.
+func NewFontResolver() ports.FontResolver {
+	return darwin.NewFontResolver()
+}
+
 // ShowConfigOnboardingAlert displays a native macOS alert for new users without a config file.
 func ShowConfigOnboardingAlert(configPath string) int {
 	return int(darwin.ShowConfigOnboardingAlert(configPath))

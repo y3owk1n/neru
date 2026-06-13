@@ -25,6 +25,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -1054,7 +1055,7 @@ func (s Style) BorderColor() string {
 func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 	style := Style{
 		fontSize:    cfg.UI.FontSize,
-		fontFamily:  cfg.UI.FontFamily,
+		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily, true),
 		borderWidth: cfg.UI.BorderWidth,
 		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,

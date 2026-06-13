@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // Hint represents a hint to be displayed on the overlay.
@@ -136,7 +137,7 @@ func (s SearchInputStyle) BorderColor() string { return s.borderColor }
 func BuildSearchInputStyle(cfg config.HintsConfig, theme config.ThemeProvider) SearchInputStyle {
 	return SearchInputStyle{
 		fontSize:     cfg.SearchInputUI.FontSize,
-		fontFamily:   cfg.SearchInputUI.FontFamily,
+		fontFamily:   ports.ResolveFont(cfg.SearchInputUI.FontFamily, false),
 		borderRadius: cfg.SearchInputUI.BorderRadius,
 		paddingX:     cfg.SearchInputUI.PaddingX,
 		paddingY:     cfg.SearchInputUI.PaddingY,

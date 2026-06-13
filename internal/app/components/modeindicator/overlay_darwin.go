@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -194,7 +195,9 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 
 	// Use cached style strings to avoid repeated allocations and fix use-after-free
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
-		cached.FontFamily = unsafe.Pointer(C.CString(o.indicatorConfig.UI.FontFamily))
+		cached.FontFamily = unsafe.Pointer(
+			C.CString(ports.ResolveFont(o.indicatorConfig.UI.FontFamily, true)),
+		)
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
 				modeConfig.BackgroundColor.ForThemeWithOverride(
