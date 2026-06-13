@@ -30,6 +30,39 @@ const syntheticModifierSuppressionWindow = 250 * time.Millisecond
 
 const dispatchChBufferSize = 256
 
+// linuxModifierState tracks the reference count of each modifier key group.
+// Counts may go transiently negative when a grab captures the keyboard after
+// some modifiers were already held (the release arrives without a matching
+// press). The <= 0 sentinel in allZero() handles this gracefully.
+type linuxModifierState struct {
+	shift int
+	ctrl  int
+	alt   int
+	cmd   int
+}
+
+func (s *linuxModifierState) update(modifier string, isDown bool) {
+	delta := 1
+	if !isDown {
+		delta = -1
+	}
+
+	switch modifier {
+	case evdevModifierShift:
+		s.shift += delta
+	case evdevModifierCtrl:
+		s.ctrl += delta
+	case evdevModifierAlt:
+		s.alt += delta
+	case evdevModifierCmd:
+		s.cmd += delta
+	}
+}
+
+func (s *linuxModifierState) allZero() bool {
+	return s.shift <= 0 && s.ctrl <= 0 && s.alt <= 0 && s.cmd <= 0
+}
+
 // EventTap intercepts keyboard events on Linux.
 type EventTap struct {
 	logger *zap.Logger
