@@ -458,9 +458,10 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 				if len(batch) >= maxBatchEvents || remainingNotches == 0 {
 					err := eventtap.ScrollDeviceScrollBatch(axis, batch)
 					if err != nil {
-						// uinput unavailable — reset so the full delta is
-						// retried via wlroots virtual pointer fallback.
-						remainingNotches = totalNotches
+						// uinput unavailable — add back unsent notches so the
+						// remaining delta is retried via wlroots virtual pointer
+						// fallback without double-counting already-sent notches.
+						remainingNotches += len(batch)
 
 						break
 					}
