@@ -22,6 +22,50 @@ const (
 	x11KeyBufferSize   = 64
 )
 
+// x11QueryModifierState queries the X11 server for the current keyboard
+// state and returns a linuxModifierState counting any held modifier keys.
+// This avoids premature detection arming when modifiers were held at grab
+// time — their initial KeyRelease events drive counts from positive toward
+// zero rather than from zero into negative territory.
+func x11QueryModifierState(display *C.Display) linuxModifierState {
+	var state linuxModifierState
+
+	var keymap [32]C.char
+	C.XQueryKeymap(display, &keymap[0])
+
+	// Map X11 modifier keysyms → our canonical modifier names.
+	type modifierKeysym struct {
+		keysym   C.KeySym
+		modifier string
+	}
+	modifierKeysyms := []modifierKeysym{
+		{C.XK_Shift_L, evdevModifierShift},
+		{C.XK_Shift_R, evdevModifierShift},
+		{C.XK_Control_L, evdevModifierCtrl},
+		{C.XK_Control_R, evdevModifierCtrl},
+		{C.XK_Alt_L, evdevModifierAlt},
+		{C.XK_Alt_R, evdevModifierAlt},
+		{C.XK_Super_L, evdevModifierCmd},
+		{C.XK_Super_R, evdevModifierCmd},
+		{C.XK_Meta_L, evdevModifierCmd},
+		{C.XK_Meta_R, evdevModifierCmd},
+	}
+
+	for _, mk := range modifierKeysyms {
+		keycode := C.XKeysymToKeycode(display, mk.keysym)
+		if keycode == 0 {
+			continue
+		}
+		idx := int(keycode) / 8
+		bit := int(keycode) % 8
+		if idx < 32 && (keymap[idx]>>uint(bit))&1 != 0 {
+			state.update(mk.modifier, true)
+		}
+	}
+
+	return state
+}
+
 func (et *EventTap) runX11() {
 	defer close(et.doneCh)
 
@@ -48,13 +92,12 @@ func (et *EventTap) runX11() {
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display) //nolint:nlreturn
 
-	// Track held modifier state for detection arming. Starts at zero because
-	// the grab captures the keyboard from scratch; any modifier that was
-	// pressed before the grab will produce a KeyRelease first (without a
-	// matching KeyPress), causing the count to go transiently negative.
-	// allZero() handles this with <= 0 checks, and the evdev path mitigates
-	// the same issue by polling modifierKeysHeld() before grabbing.
-	var modState linuxModifierState
+	// Query the actual keyboard state after the grab so that modifiers
+	// held at grab time are counted in modState. Without this, initial
+	// KeyRelease events would drive counts negative, and allZero() would
+	// return true prematurely when only some of the held modifiers have
+	// been released — arming detection while others are still held.
+	modState := x11QueryModifierState(display)
 
 	for {
 		select {
