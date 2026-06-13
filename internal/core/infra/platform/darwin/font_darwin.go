@@ -46,11 +46,13 @@ func (r *nsFontResolver) Resolve(family string, bold bool) string {
 	key := strings.ToLower(strings.TrimSpace(family))
 
 	r.mu.RLock()
+
 	if cached, ok := r.cache[key]; ok {
 		r.mu.RUnlock()
 
 		return cached
 	}
+
 	r.mu.RUnlock()
 
 	resolved := mapDarwinGenericAlias(family)
@@ -63,12 +65,16 @@ func (r *nsFontResolver) Resolve(family string, bold bool) string {
 }
 
 // mapDarwinGenericAlias translates fontconfig-style generic names (and
-// empty input) to a concrete macOS family. Case- and whitespace-
-// insensitive. Non-generic names are returned unchanged so the C layer
-// can verify them via NSFontManager.
+// empty input) to a concrete macOS family. Case-, whitespace-, and
+// separator-insensitive (spaces, hyphens, and underscores all
+// normalize to the same key). Non-generic names are returned unchanged
+// so the C layer can verify them via NSFontManager.
 func mapDarwinGenericAlias(family string) string {
-	switch strings.ToLower(strings.TrimSpace(family)) {
-	case "", "sans", "sans-serif", "sansserif":
+	normalized := strings.NewReplacer(" ", "", "-", "", "_", "").Replace(
+		strings.ToLower(strings.TrimSpace(family)),
+	)
+	switch normalized {
+	case "", "sans", "sansserif":
 		return defaultDarwinSans
 	case "serif":
 		return defaultDarwinSerif

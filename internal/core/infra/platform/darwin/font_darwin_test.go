@@ -1,5 +1,6 @@
 //go:build darwin
 
+//nolint:testpackage
 package darwin
 
 import "testing"
@@ -45,26 +46,26 @@ func TestMapDarwinGenericAlias_NonGenericPassesThrough(t *testing.T) {
 }
 
 func TestNSFontResolver_CachesByFamily(t *testing.T) {
-	r := &nsFontResolver{cache: make(map[string]string)}
+	fontResolver := &nsFontResolver{cache: make(map[string]string)}
 
 	for range 3 {
-		if got := r.Resolve("sans", true); got != defaultDarwinSans {
+		if got := fontResolver.Resolve("sans", true); got != defaultDarwinSans {
 			t.Fatalf("expected generic alias to resolve to %q, got %q", defaultDarwinSans, got)
 		}
 	}
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	fontResolver.mu.RLock()
+	defer fontResolver.mu.RUnlock()
 
-	if len(r.cache) != 1 {
-		t.Fatalf("expected exactly one cache entry, got %d", len(r.cache))
+	if len(fontResolver.cache) != 1 {
+		t.Fatalf("expected exactly one cache entry, got %d", len(fontResolver.cache))
 	}
 }
 
 func TestNSFontResolver_EmptyDefaultsToSans(t *testing.T) {
-	r := &nsFontResolver{cache: make(map[string]string)}
+	fontResolver := &nsFontResolver{cache: make(map[string]string)}
 
-	if got := r.Resolve("", false); got != defaultDarwinSans {
+	if got := fontResolver.Resolve("", false); got != defaultDarwinSans {
 		t.Fatalf("expected empty input to resolve to %q, got %q", defaultDarwinSans, got)
 	}
 }
