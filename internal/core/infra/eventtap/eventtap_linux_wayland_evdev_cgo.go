@@ -455,13 +455,14 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 		isDown := event.value == evdevValuePress
 
-		if isDown {
+		switch {
+		case isDown:
 			state.trackKey(event.code, true)
 			state.modifiers.update(modifier, true)
-		} else if state.pressed[event.code] {
+		case state.pressed[event.code]:
 			state.trackKey(event.code, false)
 			state.modifiers.update(modifier, false)
-		} else {
+		default:
 			// Release without a matching press (press happened before
 			// fd was opened). Don't decrement — the count was never
 			// incremented for this key, and doing so would drive it
