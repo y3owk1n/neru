@@ -307,7 +307,10 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		// Read and dispatch under lock
 		pthread_mutex_lock(&c->display_mutex);
 		if (pfd.revents & POLLIN) {
-			wl_display_read_events(c->display);
+			if (wl_display_read_events(c->display) < 0) {
+				c->dispatch_running = 0;
+				break;
+			}
 			wl_display_dispatch_pending(c->display);
 		} else {
 			wl_display_cancel_read(c->display);
@@ -395,7 +398,8 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	if (c->display) {
 		struct wl_callback *cb = wl_display_sync(c->display);
 		wl_display_flush(c->display);
-		wl_callback_destroy(cb);
+		if (cb)
+			wl_callback_destroy(cb);
 	}
 	pthread_mutex_unlock(&c->display_mutex);
 	if (had_dispatch)
