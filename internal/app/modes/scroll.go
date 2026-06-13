@@ -1,7 +1,12 @@
 package modes
 
 import (
+	"time"
+
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -10,11 +15,43 @@ import (
 func (h *Handler) StartInteractiveScroll() {
 	h.cursorState.SkipNextRestore()
 
-	// Defensively reset scroll context before exiting the current mode.
-	// exitModeLocked returns early when already idle without running cleanup.
 	h.scroll.Context.Reset()
 
-	h.exitModeLocked()
+	if h.appState.CurrentMode() != domain.ModeIdle {
+		// Mode-to-mode transition: clean up the current mode but keep the
+		// event tap enabled. Skipping disableEventTap avoids a brief dead
+		// window where CGEventTap silently drops key events between the
+		// disable and subsequent re-enable (the root cause of missed
+		// scrolling keys when activating from grid mode).
+		h.performModeSpecificCleanup()
+		h.stopHeldRepeatLocked()
+		h.overlayManager.Clear()
+
+		if h.refreshHintsTimer != nil {
+			h.refreshHintsTimer.Stop()
+			h.refreshHintsTimer = nil
+		}
+
+		h.hotkeyLastKey = ""
+		h.hotkeyLastKeyTime = 0
+		h.clearStickyModifiers()
+		accessibility.EnsureMouseUp()
+
+		h.suppressedModifiers = 0
+		h.suppressedUntil = time.Time{}
+		h.cursorState.Reset()
+
+		if h.appState.HotkeyRefreshPending() {
+			h.appState.SetHotkeyRefreshPending(false)
+
+			if h.refreshHotkeys != nil {
+				go h.refreshHotkeys()
+			}
+		}
+
+		h.logger.Debug("Transitioned to scroll mode",
+			zap.String("from", h.CurrModeString()))
+	}
 
 	h.scroll.Context.SetIsActive(true)
 
