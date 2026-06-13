@@ -55,8 +55,8 @@ typedef struct NeruWlrootsClient {
 	atomic_int cursor_x;
 	atomic_int cursor_y;
 	_Atomic int cursor_initialized;
-	wl_fixed_t cursor_x_frac;
-	wl_fixed_t cursor_y_frac;
+	wl_fixed_t cursor_x_frac;  // guarded by display_mutex — fractional
+	wl_fixed_t cursor_y_frac;  // remainder for sub-pixel accumulation
 
 	pthread_t dispatch_thread;
 	pthread_mutex_t display_mutex;

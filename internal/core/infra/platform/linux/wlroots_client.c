@@ -307,6 +307,10 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		}
 		pthread_mutex_unlock(&c->display_mutex);
 
+		// Flush pending outgoing requests before blocking on poll
+		// (libwayland-client protocol requirement).
+		wl_display_flush(c->display);
+
 		// Poll without lock (may block)
 		struct pollfd pfd = {.fd = wl_display_get_fd(c->display), .events = POLLIN, .revents = 0};
 		poll(&pfd, 1, -1);
