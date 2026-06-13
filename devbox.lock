@@ -89,6 +89,54 @@
         }
       }
     },
+    "clang-tools@21.1.8": {
+      "last_modified": "2026-05-21T08:15:18Z",
+      "resolved": "github:NixOS/nixpkgs/4a29d733e8a7d5b824c3d8c958a946a9867b3eb2#clang-tools",
+      "source": "devbox-search",
+      "version": "21.1.8",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/j6rw6rmqj0gpck8ydrm8phz64kkfrzk9-clang-tools-21.1.8",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/j6rw6rmqj0gpck8ydrm8phz64kkfrzk9-clang-tools-21.1.8"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/fmn4m5di82ywfd39jfdwv7x5jc3a5n4r-clang-tools-21.1.8",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/fmn4m5di82ywfd39jfdwv7x5jc3a5n4r-clang-tools-21.1.8"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ybml25vvlvsbp3fn657wwqmki6ggk8hb-clang-tools-21.1.8",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ybml25vvlvsbp3fn657wwqmki6ggk8hb-clang-tools-21.1.8"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/kvpilgp8anmfppznpvczb34y3wfdbhaj-clang-tools-21.1.8",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/kvpilgp8anmfppznpvczb34y3wfdbhaj-clang-tools-21.1.8"
+        }
+      }
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-03-18T13:30:56Z",
       "resolved": "github:NixOS/nixpkgs/9cf7092bdd603554bd8b63c216e8943cf9b12512?lastModified=1773840656"

@@ -24,7 +24,8 @@
     "xorg.libXfixes@6.0.1",
     "libxkbcommon@1.13.1",
     "wayland-protocols@1.33",
-    "xorg.libXi@1.8.2"
+    "xorg.libXi@1.8.2",
+    "clang-tools@21.1.8"
   ],
   "shell": {
     "init_hook": [
