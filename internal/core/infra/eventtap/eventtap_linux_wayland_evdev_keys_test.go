@@ -80,6 +80,7 @@ func TestHandleWaylandEvdevEvent_IgnoresRepeatWithoutPress(t *testing.T) {
 	eventTap := NewEventTap(func(key string) {
 		keyCh <- key
 	}, nil)
+	t.Cleanup(func() { eventTap.Destroy() })
 
 	state := waylandEvdevKeyState{
 		pressed: make(map[uint16]bool),
@@ -106,6 +107,7 @@ func TestHandleWaylandEvdevEvent_AllowsRepeatAfterPress(t *testing.T) {
 	eventTap := NewEventTap(func(key string) {
 		keyCh <- key
 	}, nil)
+	t.Cleanup(func() { eventTap.Destroy() })
 
 	state := waylandEvdevKeyState{
 		pressed: make(map[uint16]bool),
