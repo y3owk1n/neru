@@ -321,8 +321,11 @@ func (s *HintService) Generator(direction string) hint.Generator {
 }
 
 // UpdateGenerator registers a hint generator for a specific label direction.
-// The first registration becomes the default fallback. A nil generator is
-// ignored to avoid replacing a live generator with nothing.
+// The first registration becomes the default fallback; subsequent
+// registrations for the *same* direction also replace the default so a
+// config reload that changes `hint_characters` keeps the empty/unknown
+// direction fallback in sync with the configured generator. A nil
+// generator is ignored to avoid replacing a live generator with nothing.
 func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generator) {
 	if generator == nil {
 		s.logger.Warn("Attempted to set nil generator, ignoring")
@@ -335,7 +338,8 @@ func (s *HintService) UpdateGenerator(_ context.Context, generator hint.Generato
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.defaultGenerator == nil {
+	if s.defaultGenerator == nil ||
+		s.defaultGenerator.LabelDirection() == generator.LabelDirection() {
 		s.defaultGenerator = generator
 	}
 
