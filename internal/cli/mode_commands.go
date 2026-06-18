@@ -247,7 +247,7 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		cmd.Flags().String(
 			"label-direction",
 			"",
-			"Hint label enumeration: reverse (default, spreads labels across the alphabet) or normal (prefix-avoidance, prefers shorter labels)",
+			"Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)",
 		)
 	}
 

@@ -116,7 +116,7 @@ neru hints --text next --action left_click --repeat   # Filter persists across r
 | `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                                         |
 | `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.                             |
 | `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation.                       |
-| `--label-direction`       | string | Hint label algorithm: `reverse` (default) or `normal` (prefix-avoidance). Overrides `[hints].label_direction` and per-app overrides for this invocation. |
+| `--label-direction`       | string | Hint label algorithm: `normal` (default, prefix-avoidance) or `reverse` (spread). Overrides `[hints].label_direction` and per-app overrides for this invocation. |
 
 The filter is preserved across repeat activations.
 

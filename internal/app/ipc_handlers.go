@@ -583,7 +583,7 @@ func parseStrategyValue(val string) (*string, *ipc.Response) {
 }
 
 // isValidLabelDirection checks that the given label direction value is one of
-// the accepted values: "reverse" (default) or "normal".
+// the accepted values: "normal" (default) or "reverse".
 func isValidLabelDirection(v string) bool {
 	return v == config.LabelDirectionReverse || v == config.LabelDirectionNormal
 }

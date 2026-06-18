@@ -35,14 +35,14 @@ const (
 	// LabelDirectionReverse spreads labels across the alphabet by varying the
 	// first character (e.g. "AAA", "BAA", "CAA", ...). Labels within the same
 	// length tier are interleaved so prefix clusters do not collapse into a
-	// single section of the screen. This is the default.
+	// single section of the screen.
 	LabelDirectionReverse LabelDirection = iota
 
 	// LabelDirectionNormal uses a prefix-avoidance greedy algorithm that
 	// prefers shorter labels (e.g. "AAA", "AAB", "AAC", ...). Shorter labels
 	// are kept at lower tiers when possible, but same-prefix labels cluster
 	// near each other which can hide the label hint key when many elements
-	// share a prefix.
+	// share a prefix. This is the default.
 	LabelDirectionNormal
 )
 
@@ -54,26 +54,26 @@ func (d LabelDirection) String() string {
 	case LabelDirectionNormal:
 		return "normal"
 	default:
-		return "reverse"
+		return "normal"
 	}
 }
 
 // LabelDirectionFromString parses a config-style label direction string.
-// Unknown values resolve to LabelDirectionReverse so we never refuse to
+// Unknown values resolve to LabelDirectionNormal so we never refuse to
 // generate hints for a user with a typo in their config.
 func LabelDirectionFromString(s string) LabelDirection {
 	switch s {
-	case "normal":
-		return LabelDirectionNormal
-	default:
+	case "reverse":
 		return LabelDirectionReverse
+	default:
+		return LabelDirectionNormal
 	}
 }
 
 // Opposite returns the other label direction. It is safe to call on any
 // direction value (including unknown ones), where it falls back to
-// LabelDirectionNormal (the opposite of the user-facing default
-// LabelDirectionReverse).
+// LabelDirectionReverse (the opposite of the user-facing default
+// LabelDirectionNormal).
 func (d LabelDirection) Opposite() LabelDirection {
 	switch d {
 	case LabelDirectionReverse:
@@ -81,7 +81,7 @@ func (d LabelDirection) Opposite() LabelDirection {
 	case LabelDirectionNormal:
 		return LabelDirectionReverse
 	default:
-		return LabelDirectionNormal
+		return LabelDirectionReverse
 	}
 }
 
@@ -112,10 +112,10 @@ var stringBuilderPool = sync.Pool{
 //
 // Two label directions are supported:
 //
-//   - LabelDirectionReverse (default) emits fixed-length base-N labels so
-//     labels within a tier are interleaved (e.g. "AAA", "BAA", "CAA").
-//   - LabelDirectionNormal uses a prefix-avoidance greedy algorithm so
-//     shorter labels are preferred (e.g. "AAA", "AAB", "AAC").
+//   - LabelDirectionReverse emits fixed-length base-N labels so labels within
+//     a tier are interleaved (e.g. "AAA", "BAA", "CAA").
+//   - LabelDirectionNormal (default) uses a prefix-avoidance greedy
+//     algorithm so shorter labels are preferred (e.g. "AAA", "AAB", "AAC").
 type AlphabetGenerator struct {
 	characters       string
 	uppercaseChars   string

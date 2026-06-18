@@ -581,9 +581,9 @@ func TestLabelDirectionFromString(t *testing.T) {
 	}{
 		{"reverse", hint.LabelDirectionReverse},
 		{"normal", hint.LabelDirectionNormal},
-		{"", hint.LabelDirectionReverse},        // empty defaults to reverse
-		{"typo", hint.LabelDirectionReverse},    // unknown defaults to reverse
-		{"REVERSE", hint.LabelDirectionReverse}, // case-sensitive: unknown → default
+		{"", hint.LabelDirectionNormal},       // empty defaults to normal
+		{"typo", hint.LabelDirectionNormal},   // unknown defaults to normal
+		{"NORMAL", hint.LabelDirectionNormal}, // case-sensitive: unknown → default
 	}
 
 	for _, testCase := range tests {
@@ -610,8 +610,8 @@ func TestLabelDirection_String(t *testing.T) {
 	}
 
 	// Unknown values fall back to the default.
-	if got := hint.LabelDirection(99).String(); got != "reverse" {
-		t.Errorf("LabelDirection(99).String() = %q, want %q", got, "reverse")
+	if got := hint.LabelDirection(99).String(); got != "normal" {
+		t.Errorf("LabelDirection(99).String() = %q, want %q", got, "normal")
 	}
 }
 
@@ -632,13 +632,13 @@ func TestLabelDirection_Opposite(t *testing.T) {
 		)
 	}
 
-	// Unknown values fall back to LabelDirectionReverse (the default), and
-	// its opposite is LabelDirectionNormal.
-	if got := hint.LabelDirection(99).Opposite(); got != hint.LabelDirectionNormal {
+	// Unknown values fall back to LabelDirectionNormal (the default), and
+	// its opposite is LabelDirectionReverse.
+	if got := hint.LabelDirection(99).Opposite(); got != hint.LabelDirectionReverse {
 		t.Errorf(
 			"LabelDirection(99).Opposite() = %v, want %v",
 			got,
-			hint.LabelDirectionNormal,
+			hint.LabelDirectionReverse,
 		)
 	}
 }

@@ -722,13 +722,13 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	mockOverlay := &mocks.MockOverlayPort{}
 	logger := logger.Get()
 
-	reverseGen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	normalGen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	reverseGen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 	// Five elements force both algorithms into the two-character tier, where
 	// reverse and normal produce *different* label sequences. The exact
-	// reverse sequence is [A S D F AA]; the exact normal sequence is
-	// [A S D F AS]. The 5th label exposes the difference.
+	// normal sequence is [A S D FA FS]; the exact reverse sequence is
+	// [AA SA DA FA AS]. The 4th and 5th labels expose the difference.
 	mockAcc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
 		return []*element.Element{
 			mustNewElement("e1", image.Rect(0, 0, 10, 10)),
@@ -743,19 +743,19 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 		mockAcc,
 		mockOverlay,
 		&mocks.MockSystemPort{},
-		reverseGen,
+		normalGen,
 		config.HintsConfig{},
 		logger,
 		nil,
 	)
 
 	ctx := context.Background()
-	service.UpdateGenerator(ctx, normalGen)
+	service.UpdateGenerator(ctx, reverseGen)
 
 	// Without an override, the configured (empty) label direction resolves
-	// to the default reverse generator. With 5 elements and a 4-char
-	// alphabet, the reverse algorithm fills all 4 single-char slots
-	// ([AA SA DA FA]) before yielding a 2-char label ([AS]).
+	// to the default normal generator. The normal algorithm keeps 3
+	// single-char slots ([A S D]) and expands the 4th alphabet slot (F)
+	// into 2-char labels starting at [FA].
 	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "")
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -765,35 +765,35 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 		t.Fatalf("GenerateHints() returned %d hints, want 5", len(hints))
 	}
 
-	wantReverseLabels := []string{"AA", "SA", "DA", "FA", "AS"}
-	for i, want := range wantReverseLabels {
+	wantNormalLabels := []string{"A", "S", "D", "FA", "FS"}
+	for i, want := range wantNormalLabels {
 		if got := hints[i].Label(); got != want {
 			t.Errorf("default-direction hint[%d].Label() = %q, want %q", i, got, want)
 		}
 	}
 
-	// With a normal override, the override must resolve to the registered
-	// normal generator — not silently fall back to the default reverse one.
-	// The normal algorithm keeps 3 single-char slots ([A S D]) and expands
-	// the 4th alphabet slot (F) into 2-char labels starting at [FA]. The
-	// 4th and 5th labels (FA, FS) prove the override actually engaged.
-	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionNormal)
+	// With a reverse override, the override must resolve to the registered
+	// reverse generator — not silently fall back to the default normal one.
+	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
+	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
+	// prove the override actually engaged.
+	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionReverse)
 	if err != nil {
-		t.Fatalf("GenerateHints() with normal override unexpected error: %v", err)
+		t.Fatalf("GenerateHints() with reverse override unexpected error: %v", err)
 	}
 
 	if len(hints) != 5 {
 		t.Fatalf(
-			"GenerateHints() with normal override returned %d hints, want 5",
+			"GenerateHints() with reverse override returned %d hints, want 5",
 			len(hints),
 		)
 	}
 
-	wantNormalLabels := []string{"A", "S", "D", "FA", "FS"}
-	for i, want := range wantNormalLabels {
+	wantReverseLabels := []string{"AA", "SA", "DA", "FA", "AS"}
+	for i, want := range wantReverseLabels {
 		if got := hints[i].Label(); got != want {
 			t.Errorf(
-				"normal-override hint[%d].Label() = %q, want %q",
+				"reverse-override hint[%d].Label() = %q, want %q",
 				i,
 				got,
 				want,

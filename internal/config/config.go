@@ -650,12 +650,11 @@ const (
 // Label direction constants for hint label enumeration.
 const (
 	// LabelDirectionReverse spreads labels across the alphabet by varying the
-	// first character so same-prefix labels never cluster together. This is
-	// the default.
+	// first character so same-prefix labels never cluster together.
 	LabelDirectionReverse = "reverse"
 
 	// LabelDirectionNormal uses the original prefix-avoidance algorithm that
-	// prefers shorter labels.
+	// prefers shorter labels. This is the default.
 	LabelDirectionNormal = "normal"
 )
 
@@ -1692,7 +1691,7 @@ func (c *HintsConfig) StrategyForApp(bundleID string) string {
 // LabelDirectionForApp returns the label direction for the given bundle ID.
 // Falls back to the global `HintsConfig.LabelDirection` if no app-specific
 // override is set. An empty global value is normalized to the default
-// `reverse` so callers can always treat the result as a fully-qualified direction.
+// `normal` so callers can always treat the result as a fully-qualified direction.
 func (c *HintsConfig) LabelDirectionForApp(bundleID string) string {
 	appConfig := c.AppConfigForBundleID(bundleID)
 	if appConfig != nil && appConfig.LabelDirection != "" {
@@ -1700,7 +1699,7 @@ func (c *HintsConfig) LabelDirectionForApp(bundleID string) string {
 	}
 
 	if c.LabelDirection == "" {
-		return LabelDirectionReverse
+		return LabelDirectionNormal
 	}
 
 	return c.LabelDirection

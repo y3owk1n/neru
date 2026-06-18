@@ -27,22 +27,22 @@ func TestRegisterOppositeLabelDirectionGenerator_PreSeedsBothDirections(t *testi
 		expectedOpposite hint.LabelDirection
 	}{
 		{
-			name:             "default (reverse) -> opposite is normal",
+			name:             "default (normal) -> opposite is reverse",
 			configuredRaw:    "",
-			expectedPrimary:  hint.LabelDirectionReverse,
-			expectedOpposite: hint.LabelDirectionNormal,
-		},
-		{
-			name:             "explicit reverse -> opposite is normal",
-			configuredRaw:    "reverse",
-			expectedPrimary:  hint.LabelDirectionReverse,
-			expectedOpposite: hint.LabelDirectionNormal,
+			expectedPrimary:  hint.LabelDirectionNormal,
+			expectedOpposite: hint.LabelDirectionReverse,
 		},
 		{
 			name:             "explicit normal -> opposite is reverse",
 			configuredRaw:    "normal",
 			expectedPrimary:  hint.LabelDirectionNormal,
 			expectedOpposite: hint.LabelDirectionReverse,
+		},
+		{
+			name:             "explicit reverse -> opposite is normal",
+			configuredRaw:    "reverse",
+			expectedPrimary:  hint.LabelDirectionReverse,
+			expectedOpposite: hint.LabelDirectionNormal,
 		},
 	}
 
@@ -124,7 +124,7 @@ func TestRegisterOppositeLabelDirectionGenerator_PreSeedsBothDirections(t *testi
 // `registerOppositeLabelDirectionGenerator` helper exists to prevent.
 func TestHintService_OverrideWithoutOppositeRegistrationFallsBack(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.LabelDirection = "reverse"
+	cfg.Hints.LabelDirection = "normal"
 
 	primaryGen, primaryGenErr := hint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,
@@ -147,26 +147,26 @@ func TestHintService_OverrideWithoutOppositeRegistrationFallsBack(t *testing.T) 
 	// No `UpdateGenerator` call here — the helper is intentionally NOT
 	// invoked. This mirrors the buggy state where only the configured
 	// direction is registered.
-	gotNormal := hintService.Generator(hint.LabelDirectionNormal.String())
-	if gotNormal == nil {
-		t.Fatal("Generator(normal) returned nil (expected default fallback)")
+	gotReverse := hintService.Generator(hint.LabelDirectionReverse.String())
+	if gotReverse == nil {
+		t.Fatal("Generator(reverse) returned nil (expected default fallback)")
 	}
 
-	if gotNormal.LabelDirection() != hint.LabelDirectionReverse {
+	if gotReverse.LabelDirection() != hint.LabelDirectionNormal {
 		t.Errorf(
-			"Generator(normal) without opposite registration returned direction %v, want reverse (default fallback)",
-			gotNormal.LabelDirection(),
+			"Generator(reverse) without opposite registration returned direction %v, want normal (default fallback)",
+			gotReverse.LabelDirection(),
 		)
 	}
 }
 
 // TestRegisterOppositeLabelDirectionGenerator_FixesUserBugScenario is the
 // end-to-end regression test: with the helper invoked, the per-activation
-// override (`hints --label-direction normal`) must resolve to a real
-// `normal`-direction generator, not the configured `reverse` one.
+// override (`hints --label-direction reverse`) must resolve to a real
+// `reverse`-direction generator, not the configured `normal` one.
 func TestRegisterOppositeLabelDirectionGenerator_FixesUserBugScenario(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.LabelDirection = "reverse"
+	cfg.Hints.LabelDirection = "normal"
 
 	primaryGen, primaryGenErr := hint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,
@@ -194,18 +194,18 @@ func TestRegisterOppositeLabelDirectionGenerator_FixesUserBugScenario(t *testing
 	// Simulate the production initialization path.
 	registerOppositeLabelDirectionGenerator(app, hintService, cfg)
 
-	// The per-activation `hints --label-direction normal` override must
-	// resolve to a generator with direction Normal.
-	gotNormal := hintService.Generator(hint.LabelDirectionNormal.String())
-	if gotNormal == nil {
-		t.Fatal("Generator(normal) returned nil after registration")
+	// The per-activation `hints --label-direction reverse` override must
+	// resolve to a generator with direction Reverse.
+	gotReverse := hintService.Generator(hint.LabelDirectionReverse.String())
+	if gotReverse == nil {
+		t.Fatal("Generator(reverse) returned nil after registration")
 	}
 
-	if gotNormal.LabelDirection() != hint.LabelDirectionNormal {
+	if gotReverse.LabelDirection() != hint.LabelDirectionReverse {
 		t.Errorf(
-			"Generator(normal) after registration has direction %v, want %v (this is the user-reported bug)",
-			gotNormal.LabelDirection(),
-			hint.LabelDirectionNormal,
+			"Generator(reverse) after registration has direction %v, want %v (this is the user-reported bug)",
+			gotReverse.LabelDirection(),
+			hint.LabelDirectionReverse,
 		)
 	}
 }

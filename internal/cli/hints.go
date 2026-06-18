@@ -25,9 +25,9 @@ Use --strategy vision to use the Vision Framework (macOS) for element
 detection instead of the default AX API.
 
 Use --label-direction to override the configured hint label enumeration
-for this activation. "reverse" (default) spreads labels across the
-alphabet so same-prefix labels never cluster; "normal" uses the
-prefix-avoidance algorithm and prefers shorter labels.
+for this activation. "normal" (default) uses the prefix-avoidance
+algorithm and prefers shorter labels; "reverse" spreads labels across
+the alphabet so same-prefix labels never cluster.
 
 Examples:
   neru hints                               Activate hints mode
@@ -36,7 +36,7 @@ Examples:
   neru hints --search                      Start with search input shown
   neru hints --role AXButton               Hint only buttons
   neru hints --strategy vision             Use Vision Framework detection
-  neru hints --label-direction normal      Use prefix-avoidance labels for this run`,
+  neru hints --label-direction reverse     Use spread labels for this run`,
 	ActionDesc:            "hint selection",
 	SupportSearch:         true,
 	SupportFiltering:      true,
