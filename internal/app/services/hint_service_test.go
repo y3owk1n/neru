@@ -774,9 +774,9 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 
 	// With a normal override, the override must resolve to the registered
 	// normal generator — not silently fall back to the default reverse one.
-	// The normal algorithm keeps the 4 single-char slots ([A S D F]) and
-	// then extends with 2-char labels starting at [FA]. The 4th and 5th
-	// labels (FA, FS) prove the override actually engaged.
+	// The normal algorithm keeps 3 single-char slots ([A S D]) and expands
+	// the 4th alphabet slot (F) into 2-char labels starting at [FA]. The
+	// 4th and 5th labels (FA, FS) prove the override actually engaged.
 	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionNormal)
 	if err != nil {
 		t.Fatalf("GenerateHints() with normal override unexpected error: %v", err)
