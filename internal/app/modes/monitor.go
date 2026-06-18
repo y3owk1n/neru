@@ -376,6 +376,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 	strategyOverride := h.hints.Context.StrategyOverride()
+	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 
 	domainHints, err := h.hintService.GenerateHints(
 		ctx,
@@ -383,6 +384,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 		filterTextContains,
 		"",
 		strategyOverride,
+		labelDirectionOverride,
 	)
 	if err != nil {
 		h.logger.Error(

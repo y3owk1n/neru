@@ -47,7 +47,10 @@ func TestHintServiceIntegration(t *testing.T) {
 	accAdapter, overlay, systemPort := initializeRealAdapters(t, cfg, logger)
 
 	// Create hint generator
-	hintGen, err := hint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
+	hintGen, err := hint.NewAlphabetGenerator(
+		cfg.Hints.HintCharacters,
+		hint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
+	)
 	if err != nil {
 		t.Fatalf("Failed to create hint generator: %v", err)
 	}

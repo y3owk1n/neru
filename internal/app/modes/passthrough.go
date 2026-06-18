@@ -185,6 +185,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
+		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		h.activateHintModeInternal(
 			nil,
 			nil,
@@ -192,6 +193,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 			filterTextContains,
 			&startWithSearch,
 			&strategyOverride,
+			&labelDirectionOverride,
 		)
 	})
 	h.refreshHintsTimer = timer

@@ -209,7 +209,7 @@ func TestCollection_FilterByText_SearchesAdditionalText(t *testing.T) {
 }
 
 func TestAlphabetGenerator_Generate(t *testing.T) {
-	generator, generatorErr := hint.NewAlphabetGenerator("asdf")
+	generator, generatorErr := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	if generatorErr != nil {
 		t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 	}
@@ -258,7 +258,7 @@ func TestAlphabetGenerator_Generate(t *testing.T) {
 
 func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 	t.Run("dedup duplicate chars", func(t *testing.T) {
-		generator, err := hint.NewAlphabetGenerator("aab")
+		generator, err := hint.NewAlphabetGenerator("aab", hint.LabelDirectionReverse)
 		if err != nil {
 			t.Fatalf("NewAlphabetGenerator() error: %v", err)
 		}
@@ -269,7 +269,7 @@ func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 	})
 
 	t.Run("no dedup needed", func(t *testing.T) {
-		generator, err := hint.NewAlphabetGenerator("abc")
+		generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
 		if err != nil {
 			t.Fatalf("NewAlphabetGenerator() error: %v", err)
 		}
@@ -280,7 +280,7 @@ func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 	})
 
 	t.Run("rejects below minimum after dedup", func(t *testing.T) {
-		_, err := hint.NewAlphabetGenerator("aA")
+		_, err := hint.NewAlphabetGenerator("aA", hint.LabelDirectionReverse)
 		if err == nil {
 			t.Fatal("NewAlphabetGenerator() expected error for \"aA\" (1 unique char after dedup)")
 		}
@@ -290,7 +290,7 @@ func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 func TestAlphabetGenerator_DeduplicateProducesUniqueLabels(t *testing.T) {
 	// With "aabc", deduped unique chars are "abc" (3 chars).
 	// 3^3 = 27 max hints, so 10 elements should get unique 2-char labels.
-	generator, err := hint.NewAlphabetGenerator("aabc")
+	generator, err := hint.NewAlphabetGenerator("aabc", hint.LabelDirectionReverse)
 	if err != nil {
 		t.Fatalf("NewAlphabetGenerator() error: %v", err)
 	}
@@ -340,7 +340,10 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.characters, func(t *testing.T) {
-			generator, generatorErr := hint.NewAlphabetGenerator(testCase.characters)
+			generator, generatorErr := hint.NewAlphabetGenerator(
+				testCase.characters,
+				hint.LabelDirectionReverse,
+			)
 			if generatorErr != nil {
 				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
 			}
@@ -357,7 +360,7 @@ func TestAlphabetGenerator_MaxHints(t *testing.T) {
 }
 
 func TestAlphabetGenerator_TooManyElements(t *testing.T) {
-	generator, _ := hint.NewAlphabetGenerator("as") // Max 8 hints (2^3)
+	generator, _ := hint.NewAlphabetGenerator("as", hint.LabelDirectionReverse) // Max 8 hints (2^3)
 
 	// Try to generate more hints than the key combinations can label.
 	elements := make([]*element.Element, 10)
@@ -388,6 +391,270 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestAlphabetGenerator_ReverseDirection(t *testing.T) {
+	// Reverse direction emits fixed-length base-N labels. For "abc" with 9
+	// labels (3 single-char capacity is exceeded) every label is 2 chars
+	// and the output interleaves by leading character: AA, BA, CA, AB, BB,
+	// CB, AC, BC, CC.
+	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(9)
+	want := []string{
+		"AA", "BA", "CA",
+		"AB", "BB", "CB",
+		"AC", "BC", "CC",
+	}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(9) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_ReverseDirection_SingleCharTier(t *testing.T) {
+	// When the count fits within the alphabet, reverse returns single-char
+	// labels in alphabetical order.
+	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(3)
+	want := []string{"A", "B", "C"}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(3) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_NormalDirection(t *testing.T) {
+	// Normal direction uses the prefix-avoidance algorithm. For "abc" with 9
+	// labels it expands all 3 single-char slots into 9 two-char labels.
+	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(9)
+	want := []string{
+		"AA", "AB", "AC",
+		"BA", "BB", "BC",
+		"CA", "CB", "CC",
+	}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(9) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_NormalDirection_MixedTiers(t *testing.T) {
+	// For "abcd" with 10 labels the algorithm keeps 2 single-char slots
+	// (A, B) and emits the remaining 8 two-char labels starting from "C".
+	generator, err := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(10)
+	want := []string{
+		"A", "B",
+		"CA", "CB", "CC", "CD",
+		"DA", "DB", "DC", "DD",
+	}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(10) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_NormalDirection_ExpandsToThreeChars(t *testing.T) {
+	// For "abc" with 15 labels: tier 1 holds 0 (capacity 3 < 15), tier 2
+	// holds 6 (capacity 9 >= 15 needs 6 of them), tier 3 holds 9. The 9
+	// three-char labels continue from the base-N cursor [6,0,0] -> CAA,
+	// CAB, CAC, CBA, CBB, CBC, CCA, CCB, CCC.
+	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(15)
+	want := []string{
+		"AA", "AB", "AC",
+		"BA", "BB", "BC",
+		"CAA", "CAB", "CAC",
+		"CBA", "CBB", "CBC",
+		"CCA", "CCB", "CCC",
+	}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(15) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_NormalDirection_SingleCharTier(t *testing.T) {
+	// When the count fits within the alphabet, normal returns single-char
+	// labels in alphabetical order.
+	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	got := generator.LabelsForTesting(3)
+	want := []string{"A", "B", "C"}
+
+	if !equalStringSlices(got, want) {
+		t.Errorf("LabelsForTesting(3) = %v, want %v", got, want)
+	}
+}
+
+func TestAlphabetGenerator_DirectionsShareCacheKeys(t *testing.T) {
+	// The cache key must include the direction so reverse and normal results
+	// for the same (chars, count) never collide.
+	reverseGen, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() reverse: %v", err)
+	}
+
+	normalGen, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() normal: %v", err)
+	}
+
+	reverseLabels := reverseGen.LabelsForTesting(9)
+	normalLabels := normalGen.LabelsForTesting(9)
+
+	if equalStringSlices(reverseLabels, normalLabels) {
+		t.Fatalf(
+			"reverse and normal directions produced identical labels: %v",
+			reverseLabels,
+		)
+	}
+
+	// Switching direction in place should yield the new direction's labels
+	// without rebuilding the generator.
+	reverseGen.UpdateLabelDirection(hint.LabelDirectionNormal)
+
+	if got := reverseGen.LabelsForTesting(9); !equalStringSlices(got, normalLabels) {
+		t.Errorf(
+			"after UpdateLabelDirection(normal) LabelsForTesting(9) = %v, want %v",
+			got, normalLabels,
+		)
+	}
+
+	// And back again.
+	reverseGen.UpdateLabelDirection(hint.LabelDirectionReverse)
+
+	if got := reverseGen.LabelsForTesting(9); !equalStringSlices(got, reverseLabels) {
+		t.Errorf(
+			"after UpdateLabelDirection(reverse) LabelsForTesting(9) = %v, want %v",
+			got, reverseLabels,
+		)
+	}
+}
+
+func TestAlphabetGenerator_UpdatePreservesDirection(t *testing.T) {
+	// UpdateCharacters (the legacy call) must preserve the configured
+	// direction rather than reset it.
+	generator, err := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	}
+
+	err = generator.UpdateCharacters("qwer")
+	if err != nil {
+		t.Fatalf("UpdateCharacters() error: %v", err)
+	}
+
+	if got := generator.LabelDirection(); got != hint.LabelDirectionNormal {
+		t.Errorf("LabelDirection() = %v, want %v", got, hint.LabelDirectionNormal)
+	}
+}
+
+func TestLabelDirectionFromString(t *testing.T) {
+	tests := []struct {
+		input string
+		want  hint.LabelDirection
+	}{
+		{"reverse", hint.LabelDirectionReverse},
+		{"normal", hint.LabelDirectionNormal},
+		{"", hint.LabelDirectionReverse},        // empty defaults to reverse
+		{"typo", hint.LabelDirectionReverse},    // unknown defaults to reverse
+		{"REVERSE", hint.LabelDirectionReverse}, // case-sensitive: unknown → default
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.input, func(t *testing.T) {
+			if got := hint.LabelDirectionFromString(testCase.input); got != testCase.want {
+				t.Errorf(
+					"LabelDirectionFromString(%q) = %v, want %v",
+					testCase.input,
+					got,
+					testCase.want,
+				)
+			}
+		})
+	}
+}
+
+func TestLabelDirection_String(t *testing.T) {
+	if got := hint.LabelDirectionReverse.String(); got != "reverse" {
+		t.Errorf("LabelDirectionReverse.String() = %q, want %q", got, "reverse")
+	}
+
+	if got := hint.LabelDirectionNormal.String(); got != "normal" {
+		t.Errorf("LabelDirectionNormal.String() = %q, want %q", got, "normal")
+	}
+
+	// Unknown values fall back to the default.
+	if got := hint.LabelDirection(99).String(); got != "reverse" {
+		t.Errorf("LabelDirection(99).String() = %q, want %q", got, "reverse")
+	}
+}
+
+func TestLabelDirection_Opposite(t *testing.T) {
+	if got := hint.LabelDirectionReverse.Opposite(); got != hint.LabelDirectionNormal {
+		t.Errorf(
+			"LabelDirectionReverse.Opposite() = %v, want %v",
+			got,
+			hint.LabelDirectionNormal,
+		)
+	}
+
+	if got := hint.LabelDirectionNormal.Opposite(); got != hint.LabelDirectionReverse {
+		t.Errorf(
+			"LabelDirectionNormal.Opposite() = %v, want %v",
+			got,
+			hint.LabelDirectionReverse,
+		)
+	}
+
+	// Unknown values fall back to LabelDirectionReverse (the default), and
+	// its opposite is LabelDirectionNormal.
+	if got := hint.LabelDirection(99).Opposite(); got != hint.LabelDirectionNormal {
+		t.Errorf(
+			"LabelDirection(99).Opposite() = %v, want %v",
+			got,
+			hint.LabelDirectionNormal,
+		)
+	}
+}
+
+func equalStringSlices(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func TestNewCollection(t *testing.T) {

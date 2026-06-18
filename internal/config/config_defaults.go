@@ -330,6 +330,7 @@ func newDefaultConfig() *Config {
 			Enabled:        true,
 			Strategy:       StrategyAXTree,
 			HintCharacters: "asdfghjkl",
+			LabelDirection: LabelDirectionReverse,
 			MaxDepth:       DefaultMaxDepth,
 			Hotkeys: map[string]StringOrStringArray{
 				KeyDisplayEscape:    {CmdIdle},

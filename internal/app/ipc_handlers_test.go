@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -45,6 +46,42 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 	}
 
 	if resp.Message != "--cursor-selection-mode requires follow or hold" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
+	cfg := config.DefaultConfig()
+	appState := state.NewAppState()
+	logger := zap.NewNop()
+	configService := config.NewService(cfg, "", logger, nil)
+
+	controller := app.NewIPCController(
+		nil,
+		nil,
+		nil,
+		nil,
+		configService,
+		appState,
+		cfg,
+		&modes.Handler{},
+		nil,
+		nil,
+		nil,
+		nil,
+		logger,
+	)
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{
+		Action: "hints",
+		Args:   []string{"hints", "--label-direction=sideways"},
+	})
+
+	if resp.Success {
+		t.Fatal("HandleCommand() expected error response")
+	}
+
+	if !strings.Contains(resp.Message, "--label-direction") {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }

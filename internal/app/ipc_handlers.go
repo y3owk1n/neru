@@ -156,6 +156,7 @@ type ModeActivationOptions struct {
 	FilterTextContains    []string
 	Search                *bool
 	Strategy              *string
+	LabelDirection        *string
 	Toggle                *bool
 }
 
@@ -293,18 +294,12 @@ func (h *IPCControllerModes) extractModeOptions(
 			texts := parseCSV(cmd.Args[startIdx])
 			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
 		case strings.HasPrefix(arg, "--strategy="):
-			strategyVal := strings.TrimPrefix(arg, "--strategy=")
-			if !isValidStrategy(strategyVal) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "invalid --strategy value: must be 'axtree' or 'vision'",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
+			val, resp := parseStrategyEqual(arg)
+			if resp != nil {
+				return opts, resp
 			}
 
-			opts.Strategy = &strategyVal
+			opts.Strategy = val
 		case arg == "--strategy":
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
@@ -318,18 +313,38 @@ func (h *IPCControllerModes) extractModeOptions(
 
 			startIdx++
 
-			strategyVal := cmd.Args[startIdx]
-			if !isValidStrategy(strategyVal) {
+			val, resp := parseStrategyValue(cmd.Args[startIdx])
+			if resp != nil {
+				return opts, resp
+			}
+
+			opts.Strategy = val
+		case strings.HasPrefix(arg, "--label-direction="):
+			val, resp := parseLabelDirectionEqual(arg)
+			if resp != nil {
+				return opts, resp
+			}
+
+			opts.LabelDirection = val
+		case arg == "--label-direction":
+			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
 					Success: false,
-					Message: "invalid --strategy value: must be 'axtree' or 'vision'",
+					Message: "--label-direction requires a value: reverse or normal",
 					Code:    ipc.CodeInvalidInput,
 				}
 
 				return opts, &resp
 			}
 
-			opts.Strategy = &strategyVal
+			startIdx++
+
+			val, resp := parseLabelDirectionValue(cmd.Args[startIdx])
+			if resp != nil {
+				return opts, resp
+			}
+
+			opts.LabelDirection = val
 		case opts.Action == nil:
 			actionArg := arg
 			opts.Action = &actionArg
@@ -429,6 +444,7 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 		FilterTextContains:    opts.FilterTextContains,
 		Search:                opts.Search,
 		Strategy:              opts.Strategy,
+		LabelDirection:        opts.LabelDirection,
 		Toggle:                opts.Toggle,
 	})
 
@@ -535,6 +551,70 @@ func (h *IPCControllerModes) handleToggleCursorFollowSelection(
 // values: "axtree" (default), "vision".
 func isValidStrategy(v string) bool {
 	return v == config.StrategyAXTree || v == config.StrategyVision
+}
+
+func parseStrategyEqual(arg string) (*string, *ipc.Response) {
+	val := strings.TrimPrefix(arg, "--strategy=")
+	if !isValidStrategy(val) {
+		resp := ipc.Response{
+			Success: false,
+			Message: "invalid --strategy value: must be 'axtree' or 'vision'",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return nil, &resp
+	}
+
+	return &val, nil
+}
+
+func parseStrategyValue(val string) (*string, *ipc.Response) {
+	if !isValidStrategy(val) {
+		resp := ipc.Response{
+			Success: false,
+			Message: "invalid --strategy value: must be 'axtree' or 'vision'",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return nil, &resp
+	}
+
+	return &val, nil
+}
+
+// isValidLabelDirection checks that the given label direction value is one of
+// the accepted values: "reverse" (default) or "normal".
+func isValidLabelDirection(v string) bool {
+	return v == config.LabelDirectionReverse || v == config.LabelDirectionNormal
+}
+
+func parseLabelDirectionEqual(arg string) (*string, *ipc.Response) {
+	val := strings.TrimPrefix(arg, "--label-direction=")
+	if !isValidLabelDirection(val) {
+		resp := ipc.Response{
+			Success: false,
+			Message: "invalid --label-direction value: must be 'reverse' or 'normal'",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return nil, &resp
+	}
+
+	return &val, nil
+}
+
+func parseLabelDirectionValue(val string) (*string, *ipc.Response) {
+	if !isValidLabelDirection(val) {
+		resp := ipc.Response{
+			Success: false,
+			Message: "invalid --label-direction value: must be 'reverse' or 'normal'",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return nil, &resp
+	}
+
+	return &val, nil
 }
 
 // IPCControllerOverlay handles overlay-related IPC commands.

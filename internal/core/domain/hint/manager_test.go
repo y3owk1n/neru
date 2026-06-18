@@ -169,7 +169,7 @@ func TestHintManager_RouterIntegration(t *testing.T) {
 	testElements := []*element.Element{elem1, elem2, elem3}
 
 	// Create hint generator
-	gen, err := hint.NewAlphabetGenerator("asdf")
+	gen, err := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	if err != nil {
 		t.Fatalf("Failed to create hint generator: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestManager_AcceptsNonLetterCharacters(t *testing.T) {
 	testElements := []*element.Element{elem1, elem2, elem3}
 
 	// Create hint generator with numbers and symbols
-	gen, err := hint.NewAlphabetGenerator("a1!")
+	gen, err := hint.NewAlphabetGenerator("a1!", hint.LabelDirectionReverse)
 	if err != nil {
 		t.Fatalf("Failed to create hint generator: %v", err)
 	}

@@ -7,13 +7,14 @@ import (
 // baseContext provides common functionality for mode component contexts.
 // It contains shared state fields used across different mode contexts.
 type baseContext struct {
-	pendingAction         *string
-	repeat                bool
-	cursorFollowSelection bool
-	filterRoles           []string
-	filterTextContains    []string
-	startWithSearch       bool
-	strategyOverride      string
+	pendingAction          *string
+	repeat                 bool
+	cursorFollowSelection  bool
+	filterRoles            []string
+	filterTextContains     []string
+	startWithSearch        bool
+	strategyOverride       string
+	labelDirectionOverride string
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -62,6 +63,7 @@ func (c *baseContext) Reset() {
 	c.filterTextContains = nil
 	c.startWithSearch = false
 	c.strategyOverride = ""
+	c.labelDirectionOverride = ""
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -102,6 +104,17 @@ func (c *baseContext) SetStrategyOverride(strategy string) {
 // StrategyOverride returns the session hint collection strategy override.
 func (c *baseContext) StrategyOverride() string {
 	return c.strategyOverride
+}
+
+// SetLabelDirectionOverride stores the session hint label direction override.
+// An empty string clears the override so the configured direction is used.
+func (c *baseContext) SetLabelDirectionOverride(direction string) {
+	c.labelDirectionOverride = direction
+}
+
+// LabelDirectionOverride returns the session hint label direction override.
+func (c *baseContext) LabelDirectionOverride() string {
+	return c.labelDirectionOverride
 }
 
 // Context holds the state and context for hint mode operations.
