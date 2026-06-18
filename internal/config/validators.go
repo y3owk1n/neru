@@ -316,6 +316,16 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	switch c.Hints.LabelDirection {
+	case LabelDirectionReverse, LabelDirectionNormal, "":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.label_direction must be %q or %q",
+			LabelDirectionReverse, LabelDirectionNormal,
+		)
+	}
+
 	err = validateHintsVisionConfig(c.Hints.Vision)
 	if err != nil {
 		return err
@@ -639,6 +649,16 @@ func (c *Config) ValidateAppConfigs() error {
 					derrors.CodeInvalidConfig,
 					"hints.app_configs[%d].strategy must be %q or %q",
 					idx, StrategyAXTree, StrategyVision,
+				)
+			}
+
+			switch appConfig.LabelDirection {
+			case LabelDirectionReverse, LabelDirectionNormal, "":
+			default:
+				return derrors.Newf(
+					derrors.CodeInvalidConfig,
+					"hints.app_configs[%d].label_direction must be %q or %q",
+					idx, LabelDirectionReverse, LabelDirectionNormal,
 				)
 			}
 

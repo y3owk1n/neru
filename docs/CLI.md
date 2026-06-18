@@ -98,23 +98,25 @@ neru hints
 neru hints --search                                # Start with search input active
 neru hints --action left_click --repeat            # Click multiple elements in succession
 neru hints --strategy vision                       # Use Vision Framework for element detection
+neru hints --label-direction normal                # Use prefix-avoidance label algorithm for this activation
 
 # Filtering
-neru hints --role AXButton --text submit           # Show only buttons containing "submit"
+neru hints --role AXButton --text submit              # Show only buttons containing "submit"
 neru hints --role AXButton,AXLink --text save,cancel  # Multiple roles/texts (comma-separated)
 neru hints --text next --action left_click --repeat   # Filter persists across repeats
 ```
 
-| Flag                      | Type   | Description                                                                                                                        |
-| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                 |
-| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                               |
-| `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                |
-| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                   |
-| `--search, -s`            | bool   | Start with search input active.                                                                                                    |
-| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                   |
-| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.       |
-| `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation. |
+| Flag                      | Type   | Description                                                                                                                                              |
+| ------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                                       |
+| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                                                     |
+| `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                                      |
+| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                                         |
+| `--search, -s`            | bool   | Start with search input active.                                                                                                                          |
+| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                                         |
+| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.                             |
+| `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation.                       |
+| `--label-direction`       | string | Hint label algorithm: `normal` (default, prefix-avoidance) or `reverse` (spread). Overrides `[hints].label_direction` and per-app overrides for this invocation. |
 
 The filter is preserved across repeat activations.
 

@@ -53,6 +53,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.FilterTextContains,
 				opts.Search,
 				opts.Strategy,
+				opts.LabelDirection,
 			)
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(

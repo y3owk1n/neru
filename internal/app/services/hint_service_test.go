@@ -42,7 +42,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
+				gen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -77,7 +77,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
+				gen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -102,7 +102,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
+				gen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -130,7 +130,10 @@ func TestHintService_ShowHints(t *testing.T) {
 			},
 			setupGen: func() hint.Generator {
 				// Use larger character set for more hints
-				gen, _ := hint.NewAlphabetGenerator("abcdefghijklmnopqrstuvwxyz")
+				gen, _ := hint.NewAlphabetGenerator(
+					"abcdefghijklmnopqrstuvwxyz",
+					hint.LabelDirectionReverse,
+				)
 
 				return gen
 			},
@@ -152,7 +155,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("ab")
+				gen, _ := hint.NewAlphabetGenerator("ab", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -199,7 +202,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
+				gen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -242,7 +245,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("asdf")
+				gen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -275,7 +278,7 @@ func TestHintService_ShowHints(t *testing.T) {
 				}
 			},
 			setupGen: func() hint.Generator {
-				gen, _ := hint.NewAlphabetGenerator("as")
+				gen, _ := hint.NewAlphabetGenerator("as", hint.LabelDirectionReverse)
 
 				return gen
 			},
@@ -371,7 +374,7 @@ func TestHintService_HideHints(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockOverlay := &mocks.MockOverlayPort{}
-			generator, _ := hint.NewAlphabetGenerator("asdf")
+			generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 			logger := logger.Get()
 
 			if testCase.setupMocks != nil {
@@ -449,7 +452,7 @@ func TestHintService_RefreshHints(t *testing.T) {
 				return testCase.refreshError
 			}
 
-			generator, _ := hint.NewAlphabetGenerator("asdf")
+			generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 			logger := logger.Get()
 
 			service := services.NewHintService(
@@ -501,7 +504,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		return image.Rect(0, 0, 200, 200), true, nil
 	}
 
-	generator, _ := hint.NewAlphabetGenerator("asdf")
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	service := services.NewHintService(
 		mockAcc,
 		&mocks.MockOverlayPort{},
@@ -529,6 +532,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		nil,
 		"com.example.app",
 		config.StrategyVision,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -569,7 +573,7 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 		return []*element.Element{supplementElement}, nil
 	}
 
-	generator, _ := hint.NewAlphabetGenerator("asdf")
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
 	service := services.NewHintService(
 		mockAcc,
 		&mocks.MockOverlayPort{},
@@ -588,6 +592,7 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 		nil,
 		"com.example.app",
 		config.StrategyVision,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -608,7 +613,7 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 	logger := logger.Get()
 
 	// Initial generator
-	initialGen, _ := hint.NewAlphabetGenerator("abcd")
+	initialGen, _ := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionReverse)
 
 	service := services.NewHintService(
 		mockAcc,
@@ -621,7 +626,7 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 	)
 
 	// Update with new generator
-	newGen, _ := hint.NewAlphabetGenerator("efgh")
+	newGen, _ := hint.NewAlphabetGenerator("efgh", hint.LabelDirectionReverse)
 	ctx := context.Background()
 	service.UpdateGenerator(ctx, newGen)
 
@@ -629,10 +634,178 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 	service.UpdateGenerator(ctx, nil)
 }
 
+func TestHintService_GeneratorReturnsDirectionSpecificInstance(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	reverseGen, _ := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionReverse)
+	normalGen, _ := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionNormal)
+
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		&mocks.MockSystemPort{},
+		reverseGen,
+		config.HintsConfig{},
+		logger,
+		nil,
+	)
+
+	// Register a normal-direction generator on top of the reverse default.
+	ctx := context.Background()
+	service.UpdateGenerator(ctx, normalGen)
+
+	// Each direction must resolve to its own generator instance, not the
+	// shared default.
+	gotReverse := service.Generator(config.LabelDirectionReverse)
+	if gotReverse == nil {
+		t.Fatal("Generator(reverse) returned nil")
+	}
+
+	if gotReverse.LabelDirection() != hint.LabelDirectionReverse {
+		t.Errorf(
+			"Generator(reverse).LabelDirection() = %v, want %v",
+			gotReverse.LabelDirection(),
+			hint.LabelDirectionReverse,
+		)
+	}
+
+	gotNormal := service.Generator(config.LabelDirectionNormal)
+	if gotNormal == nil {
+		t.Fatal("Generator(normal) returned nil")
+	}
+
+	if gotNormal.LabelDirection() != hint.LabelDirectionNormal {
+		t.Errorf(
+			"Generator(normal).LabelDirection() = %v, want %v",
+			gotNormal.LabelDirection(),
+			hint.LabelDirectionNormal,
+		)
+	}
+
+	if gotReverse == gotNormal {
+		t.Error("reverse and normal resolved to the same generator instance")
+	}
+
+	// Empty direction falls back to the default (reverse) generator.
+	gotDefault := service.Generator("")
+	if gotDefault == nil {
+		t.Fatal("Generator(\"\") returned nil")
+	}
+
+	if gotDefault.LabelDirection() != hint.LabelDirectionReverse {
+		t.Errorf(
+			"Generator(\"\").LabelDirection() = %v, want %v",
+			gotDefault.LabelDirection(),
+			hint.LabelDirectionReverse,
+		)
+	}
+
+	// Unknown direction falls back to the default rather than failing.
+	gotUnknown := service.Generator("made-up")
+	if gotUnknown == nil {
+		t.Fatal("Generator(\"made-up\") returned nil")
+	}
+
+	if gotUnknown.LabelDirection() != hint.LabelDirectionReverse {
+		t.Errorf(
+			"Generator(\"made-up\").LabelDirection() = %v, want %v",
+			gotUnknown.LabelDirection(),
+			hint.LabelDirectionReverse,
+		)
+	}
+}
+
+func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockOverlay := &mocks.MockOverlayPort{}
+	logger := logger.Get()
+
+	normalGen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	reverseGen, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+
+	// Five elements force both algorithms into the two-character tier, where
+	// reverse and normal produce *different* label sequences. The exact
+	// normal sequence is [A S D FA FS]; the exact reverse sequence is
+	// [AA SA DA FA AS]. The 4th and 5th labels expose the difference.
+	mockAcc.ClickableElementsFunc = func(_ context.Context, _ ports.ElementFilter) ([]*element.Element, error) {
+		return []*element.Element{
+			mustNewElement("e1", image.Rect(0, 0, 10, 10)),
+			mustNewElement("e2", image.Rect(20, 20, 30, 30)),
+			mustNewElement("e3", image.Rect(40, 40, 50, 50)),
+			mustNewElement("e4", image.Rect(60, 60, 70, 70)),
+			mustNewElement("e5", image.Rect(80, 80, 90, 90)),
+		}, nil
+	}
+
+	service := services.NewHintService(
+		mockAcc,
+		mockOverlay,
+		&mocks.MockSystemPort{},
+		normalGen,
+		config.HintsConfig{},
+		logger,
+		nil,
+	)
+
+	ctx := context.Background()
+	service.UpdateGenerator(ctx, reverseGen)
+
+	// Without an override, the configured (empty) label direction resolves
+	// to the default normal generator. The normal algorithm keeps 3
+	// single-char slots ([A S D]) and expands the 4th alphabet slot (F)
+	// into 2-char labels starting at [FA].
+	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "")
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	if len(hints) != 5 {
+		t.Fatalf("GenerateHints() returned %d hints, want 5", len(hints))
+	}
+
+	wantNormalLabels := []string{"A", "S", "D", "FA", "FS"}
+	for i, want := range wantNormalLabels {
+		if got := hints[i].Label(); got != want {
+			t.Errorf("default-direction hint[%d].Label() = %q, want %q", i, got, want)
+		}
+	}
+
+	// With a reverse override, the override must resolve to the registered
+	// reverse generator — not silently fall back to the default normal one.
+	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
+	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
+	// prove the override actually engaged.
+	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionReverse)
+	if err != nil {
+		t.Fatalf("GenerateHints() with reverse override unexpected error: %v", err)
+	}
+
+	if len(hints) != 5 {
+		t.Fatalf(
+			"GenerateHints() with reverse override returned %d hints, want 5",
+			len(hints),
+		)
+	}
+
+	wantReverseLabels := []string{"AA", "SA", "DA", "FA", "AS"}
+	for i, want := range wantReverseLabels {
+		if got := hints[i].Label(); got != want {
+			t.Errorf(
+				"reverse-override hint[%d].Label() = %q, want %q",
+				i,
+				got,
+				want,
+			)
+		}
+	}
+}
+
 func TestHintService_Health(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}
-	generator, _ := hint.NewAlphabetGenerator("abcd")
+	generator, _ := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionReverse)
 	logger := logger.Get()
 
 	service := services.NewHintService(

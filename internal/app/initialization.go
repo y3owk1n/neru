@@ -115,7 +115,10 @@ func initializeServices(
 	logger *zap.Logger,
 ) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, *stickyindicator.Service, error) {
 	// Hint Generator - creates unique labels for UI elements
-	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters)
+	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(
+		cfg.Hints.HintCharacters,
+		domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
+	)
 	if hintGenErr != nil {
 		return nil, nil, nil, nil, nil, nil, derrors.Wrap(
 			hintGenErr,
