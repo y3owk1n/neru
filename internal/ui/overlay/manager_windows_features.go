@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	winRecursiveCellBackground = 0x10000000
-	winSubgridLineWidth        = 1
+	winSubgridLineWidth = 1
 
 	winHexColorOpaque     = 0xFFFFFFFF
 	winHexRepeatCount     = 2
@@ -180,12 +179,14 @@ func (o *winOverlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
-			fill := style.HighlightColor
-			if fill == 0 {
-				fill = winRecursiveCellBackground
+			// Stroke the cell border only; leave the interior transparent (the
+			// layered color-key) so the content being navigated to stays visible.
+			// The Windows overlay has no real alpha, so any interior fill blends
+			// to an opaque tint that hides what is underneath. Grid mode draws
+			// borders + labels for the same reason; recursive-grid matches it.
+			if style.LineWidth > 0 {
+				o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
 			}
-
-			o.drawFilledRect(cell, fill, style.LineColor, style.LineWidth)
 
 			if index < len(keyRunes) {
 				label := string(keyRunes[index])
@@ -226,8 +227,9 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.flushOverlay("recursive-grid")
 }
 
-// drawFilledRect fills bounds then strokes its border. Unlike the grid path,
-// hints and recursive-grid cells render a filled interior.
+// drawFilledRect fills bounds then strokes its border. Used by hint badges,
+// label backgrounds, and the recursive virtual pointer; recursive-grid cells
+// themselves are stroked only (transparent interior) so content stays visible.
 func (o *winOverlay) drawFilledRect(
 	bounds image.Rectangle,
 	fill uint32,

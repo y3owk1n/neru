@@ -10,8 +10,15 @@ import (
 	"fmt"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
+
+// keyboardHookStopJoinTimeout bounds how long Stop waits for the hook goroutine
+// to exit before reaping it in the background. The normal teardown completes in
+// well under a millisecond (WM_QUIT wakes GetMessage), so this only ever trips
+// in the lock-inversion race described in Stop.
+const keyboardHookStopJoinTimeout = 250 * time.Millisecond
 
 const (
 	whKeyboardLL = 13
@@ -213,5 +220,20 @@ func (h *KeyboardHook) Stop() {
 			)
 		}
 	})
-	<-h.doneCh
+
+	// Wait for the hook goroutine to exit, but never block the caller forever.
+	// The hook's key callback acquires the handler mutex (HandleKeyPress), and
+	// mode-exit calls Stop while holding that same mutex. If a key event is
+	// in-flight (e.g. a modifier key-up after a Shift+click), the callback is
+	// parked on the mutex and the goroutine cannot finish until the caller
+	// returns and releases it. Joining synchronously here would deadlock, so
+	// fall back to reaping in the background: the caller returns, releases the
+	// mutex, the callback drains, and the goroutine then observes stopCh/WM_QUIT
+	// and exits. Human-scale latency before the next mode re-enable makes a
+	// double-hook overlap during that window effectively impossible.
+	select {
+	case <-h.doneCh:
+	case <-time.After(keyboardHookStopJoinTimeout):
+		go func() { <-h.doneCh }()
+	}
 }
