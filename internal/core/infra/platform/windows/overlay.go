@@ -10,26 +10,11 @@ import (
 	"fmt"
 	"image"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
-
-// Overlay UI-thread health counters. A failed BeginPaint that does not validate
-// the update region makes WM_PAINT regenerate forever, which would spin the
-// message pump and wedge the overlay UI thread (every later overlay op hangs).
-// These let the manager log when that path is hit.
-var (
-	overlayBeginPaintFails atomic.Int64
-	overlayPumpCapHits     atomic.Int64
-)
-
-// OverlayDiag returns (beginPaintFailures, pumpCapHits) for debug logging.
-func OverlayDiag() (int64, int64) {
-	return overlayBeginPaintFails.Load(), overlayPumpCapHits.Load()
-}
 
 const (
 	overlayClassName = "NeruOverlayWindow"
@@ -171,7 +156,6 @@ func overlayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 			// update region. WM_PAINT is a generated message that PeekMessage
 			// keeps returning until the region is validated, so without this
 			// the pump would spin forever and wedge the overlay UI thread.
-			overlayBeginPaintFails.Add(1)
 			procValidateRect.Call(hwnd, 0)
 		}
 
@@ -564,9 +548,25 @@ func (o *OverlayWindow) DrawTextCentered(
 }
 
 // Flush presents queued draw commands via WM_PAINT.
+//
+// It is a no-op when nothing changed since the last paint. The shared
+// indicator-polling loop calls Flush every ~16ms; without this guard each tick
+// forces a full-screen grid repaint (thousands of GDI calls), which on a slow
+// GPU outlasts the tick interval and saturates the single overlay UI thread.
+// That backlog starves mode-exit ops and makes the daemon look unresponsive
+// (idle/escape time out). Show and resize repaint directly, so they are
+// unaffected by this guard.
 func (o *OverlayWindow) Flush() error {
 	if o == nil || o.hwnd == 0 {
 		return fmt.Errorf("overlay window is not initialized")
+	}
+
+	o.mu.Lock()
+	dirty := o.dirty
+	o.mu.Unlock()
+
+	if !dirty {
+		return nil
 	}
 
 	runOnOverlayUI(func() {

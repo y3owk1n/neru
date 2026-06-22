@@ -348,15 +348,6 @@ func (o *winOverlay) flushOverlay(context string) {
 
 		return
 	}
-
-	if o.logger != nil {
-		beginFails, pumpCaps := winplatform.OverlayDiag()
-		o.logger.Debug("overlay paint ok",
-			zap.String("context", context),
-			zap.Int64("begin_paint_fails", beginFails),
-			zap.Int64("pump_cap_hits", pumpCaps),
-		)
-	}
 }
 
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {

@@ -110,6 +110,4 @@ func pumpOverlayMessages() {
 		procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
 	}
-
-	overlayPumpCapHits.Add(1)
 }

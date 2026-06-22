@@ -85,12 +85,22 @@ func (o *winOverlay) DrawHints(
 			)
 		}
 
-		bounds := image.Rect(
-			hint.Position().X,
-			hint.Position().Y,
-			hint.Position().X+hint.Size().X,
-			hint.Position().Y+hint.Size().Y,
-		)
+		// Size the badge to the label text, not the element. hint.Size() is the
+		// element's bounding box (hint.Bounds().Size()), so using it makes the
+		// badge as large as the element (e.g. oversized boxes over big buttons).
+		fontSize := float64(max(style.FontSize(), 1))
+		paddingX := resolveWinAutoPadding(fontSize, style.PaddingX(), true)
+		paddingY := resolveWinAutoPadding(fontSize, style.PaddingY(), false)
+		badgeWidth := estimateWinTextWidth(hint.Label(), fontSize) + paddingX*winPaddingMultiplier
+		badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+
+		// Anchor the badge at the element's top-left corner rather than its
+		// center so it does not cover the element's own content (e.g. the digit
+		// on a calculator button). hint.Position() is the element center and
+		// hint.Size() its bounds, so the top-left is center minus half-size.
+		originX := hint.Position().X - hint.Size().X/winCenteredRectDivisor
+		originY := hint.Position().Y - hint.Size().Y/winCenteredRectDivisor
+		bounds := image.Rect(originX, originY, originX+badgeWidth, originY+badgeHeight)
 
 		textColor := style.TextColor()
 		if hint.MatchedPrefix() != "" {
@@ -107,7 +117,7 @@ func (o *winOverlay) DrawHints(
 			hint.Label(),
 			bounds,
 			style.FontFamily(),
-			float64(max(style.FontSize(), 1)),
+			fontSize,
 			parseHexColorARGB(textColor),
 		)
 	}

@@ -2,7 +2,9 @@
 
 package main
 
-import "github.com/y3owk1n/neru/internal/app"
+import (
+	"github.com/y3owk1n/neru/internal/app"
+)
 
 type windowsDaemonHost struct{}
 

@@ -191,6 +191,27 @@ func (h *KeyboardHook) Stop() {
 
 	h.stopOnce.Do(func() {
 		close(h.stopCh)
+
+		// Wake the hook thread's GetMessage pump. GetMessage blocks until a
+		// message arrives, so once the run goroutine is parked inside it,
+		// closing stopCh alone never returns control to the loop. Posting
+		// WM_QUIT to the hook thread makes GetMessage return 0 and end the
+		// loop. Without this, Stop deadlocks on doneCh (the loop's own
+		// stopCh check only runs between GetMessage calls, which it never
+		// reaches while blocked). The in-loop check still covers the race
+		// where Stop fires before the first GetMessage.
+		h.mu.Lock()
+		threadID := h.threadID
+		h.mu.Unlock()
+
+		if threadID != 0 {
+			procPostThreadMessageW.Call(
+				uintptr(threadID),
+				wmQuit,
+				0,
+				0,
+			)
+		}
 	})
 	<-h.doneCh
 }
