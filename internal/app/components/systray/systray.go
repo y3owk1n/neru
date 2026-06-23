@@ -2,7 +2,6 @@ package systray
 
 import (
 	"context"
-	"os/exec"
 	"sync/atomic"
 
 	"github.com/atotto/clipboard"
@@ -284,48 +283,42 @@ func (c *Component) handleEvents() {
 			go c.handleOpenConfig()
 		case <-c.mSourceCode.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru").
-					Run()
+				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru")
 				if err != nil {
 					c.logger.Error("Failed to open repository", zap.Error(err))
 				}
 			}()
 		case <-c.mDocsConfig.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", cli.DocsURL("docs/CONFIGURATION.md", cli.Version)).
-					Run()
+				err := openExternal(c.ctx, cli.DocsURL("docs/CONFIGURATION.md", cli.Version))
 				if err != nil {
 					c.logger.Error("Failed to open configuration docs", zap.Error(err))
 				}
 			}()
 		case <-c.mDocsCLI.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", cli.DocsURL("docs/CLI.md", cli.Version)).
-					Run()
+				err := openExternal(c.ctx, cli.DocsURL("docs/CLI.md", cli.Version))
 				if err != nil {
 					c.logger.Error("Failed to open CLI docs", zap.Error(err))
 				}
 			}()
 		case <-c.mFeatureRequest.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new?template=feature_request.yml").
-					Run()
+				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/issues/new?template=feature_request.yml")
 				if err != nil {
 					c.logger.Error("Failed to open feature request", zap.Error(err))
 				}
 			}()
 		case <-c.mReportBug.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/issues/new?template=bug_report.yml").
-					Run()
+				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/issues/new?template=bug_report.yml")
 				if err != nil {
 					c.logger.Error("Failed to open bug report", zap.Error(err))
 				}
 			}()
 		case <-c.mDiscuss.ClickedCh:
 			go func() {
-				err := exec.CommandContext(c.ctx, "/usr/bin/open", "https://github.com/y3owk1n/neru/discussions").
-					Run()
+				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/discussions")
 				if err != nil {
 					c.logger.Error("Failed to open community discussion", zap.Error(err))
 				}
@@ -371,7 +364,7 @@ func (c *Component) handleOpenConfig() {
 		return
 	}
 
-	err := exec.CommandContext(c.ctx, "/usr/bin/open", configPath).Run()
+	err := openExternal(c.ctx, configPath)
 	if err != nil {
 		c.logger.Error("Failed to open config file", zap.Error(err))
 	}
