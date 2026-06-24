@@ -1789,6 +1789,29 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 #pragma mark - C Interface Implementation
 
+/// Order an overlay window front once it has a drawable frame.
+/// Hidden overlays are shrunk to 1x1 to release backing memory; callers may
+/// request Show before the small indicator window has been resized. In that
+/// case Show records shouldBeVisible but intentionally does not order the tiny
+/// window. The resize path calls this helper again after it has a real frame.
+static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller, BOOL displayNow) {
+	if (!controller || !controller.shouldBeVisible)
+		return;
+
+	NSRect frame = controller.window.frame;
+	if (frame.size.width <= 1.0 && frame.size.height <= 1.0)
+		return;
+
+	[controller.window setIsVisible:YES];
+	[controller.window orderFrontRegardless];
+
+	if (displayNow) {
+		[controller.window display];
+	}
+
+	[controller.overlayView setNeedsDisplay:YES];
+}
+
 /// Create overlay window
 /// @return Overlay window handle
 OverlayWindow NeruCreateOverlayWindow(void) {
@@ -1842,19 +1865,7 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 			                                         NSWindowCollectionBehaviorIgnoresCycle |
 			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
 
-			NSRect frame = controller.window.frame;
-			// Only display/order front if the window frame is larger than 1x1.
-			// This prevents a brief 1x1 pixel flash at the top-left screen origin
-			// when reactivating shrunken overlays. Callers that show a freshly
-			// created overlay (full-screen or small indicator) must first call a
-			// resize/position function so the frame is non-trivial.
-			if (frame.size.width > 1.0 || frame.size.height > 1.0) {
-				[controller.window setIsVisible:YES];
-				[controller.window orderFrontRegardless];
-				[controller.window display];
-
-				[controller.overlayView setNeedsDisplay:YES];
-			}
+			NeruOrderOverlayWindowIfDrawable(controller, YES);
 		}
 	});
 }
@@ -3359,6 +3370,7 @@ void NeruPositionAndSizeOverlayToFitHint(
 			[controller.window setFrame:frame display:NO];
 			NSRect viewFrame = NSMakeRect(0, 0, windowWidth, windowHeight);
 			[controller.overlayView setFrame:viewFrame];
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
 
 			if (outWidth)
 				*outWidth = (double)windowWidth;
