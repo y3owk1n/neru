@@ -114,6 +114,11 @@ type Generator interface {
 
 	// Characters returns the character set used for hint generation.
 	Characters() string
+
+	// LabelDirection returns the label enumeration direction the generator
+	// is configured to use. Implementations expose this so the hint service
+	// can multiplex generators by direction.
+	LabelDirection() LabelDirection
 }
 
 // TrieNode represents a node in the hint trie for efficient prefix matching.

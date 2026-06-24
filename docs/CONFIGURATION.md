@@ -334,6 +334,7 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode
 | `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                        |
 | `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`. |
 | `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                       |
+| `label_direction`                  | string       | `"normal"`              | Hint label algorithm: `"normal"` (default, prefix-avoidance greedy) or `"reverse"` (reverse-order tiers). Empty value defaults to `"normal"`. Overridable per-app via `[hints.app_configs]` and per-activation via the `neru hints --label-direction` CLI flag. See [Choosing a label direction](#choosing-a-label-direction) below. |
 | `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)                                                                                                                                                                                                                                                                     |
 | `include_menubar_hints`            | bool         | `false`                 | Show hints on menubar items                                                                                                                                                                                                                                                                                      |
 | `include_dock_hints`               | bool         | `false`                 | Show hints on Dock items                                                                                                                                                                                                                                                                                         |
@@ -496,21 +497,42 @@ checkbox_max_size = 32
 generic_clickable_min_confidence = 0.5
 ```
 
+### Choosing a label direction
+
+The `label_direction` setting controls how multi-character hint labels are enumerated once the single-character pool is exhausted. With a 4-character alphabet (`asdf`) and 5 hinted elements, the two algorithms produce visibly different label sequences:
+
+| Direction | Sequence | Notes |
+| --------- | -------- | ----- |
+| `normal` (default) | `A S D FA FS` | Keeps 3 single-char labels, then expands the 4th alphabet slot into 2-char labels. |
+| `reverse` | `AA SA DA FA AS` | Fills the 2-char tier uniformly from the first alphabet character. |
+
+**When to prefer `normal` (default):**
+- Most workflows — fewer keystrokes for the common case where 1- or 2-character labels are enough.
+- Hint characters are scarce (e.g. a 2- or 3-character alphabet), so single-char labels stay usable longer.
+
+**When to prefer `reverse`:**
+- Many hints clustered in one region of the screen. `reverse` spreads the *first* character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
+- Workflows that consistently need more than `len(hint_characters)` hints.
+
+You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#hints-mode).
+
 ### Per-App Config
 
 | Field                        | Type   | Description                                                                                                              |
 | ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
 | `bundle_id`                  | string | App bundle ID                                                                                                            |
 | `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`. |
+| `label_direction`            | string | Override hint label algorithm for this app (`"normal"` or `"reverse"`). Empty string = use global `hints.label_direction`. See [Choosing a label direction](#choosing-a-label-direction). |
 | `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                                                                                     |
 | `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                                                 |
-| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                                                  |
+| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                                                 |
 | `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                                                    |
 
 ```toml
 [[hints.app_configs]]
 bundle_id = "com.apple.Safari"
 strategy = "vision"
+label_direction = "reverse"
 additional_clickable_roles = ["AXLink"]
 ignore_clickable_check = true
 visible_check_enabled = true

@@ -31,6 +31,7 @@ type ModeActivationOptions struct {
 	FilterTextContains    []string
 	Search                *bool
 	Strategy              *string
+	LabelDirection        *string
 	Toggle                *bool
 }
 
@@ -122,6 +123,7 @@ func (h *Handler) activateHintModeWithAction(
 	filterTextContains []string,
 	search *bool,
 	strategy *string,
+	labelDirection *string,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -130,6 +132,7 @@ func (h *Handler) activateHintModeWithAction(
 		filterTextContains,
 		search,
 		strategy,
+		labelDirection,
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
@@ -149,6 +152,7 @@ func (h *Handler) activateHintModeInternal(
 	filterTextContains []string,
 	search *bool,
 	strategyOverride *string,
+	labelDirectionOverride *string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -256,6 +260,10 @@ func (h *Handler) activateHintModeInternal(
 			if strategyOverride != nil {
 				h.hints.Context.SetStrategyOverride(*strategyOverride)
 			}
+
+			if labelDirectionOverride != nil {
+				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
+			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
 			h.hints.Context.SetRepeat(false)
@@ -271,6 +279,12 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetStrategyOverride(*strategyOverride)
 			} else {
 				h.hints.Context.SetStrategyOverride("")
+			}
+
+			if labelDirectionOverride != nil {
+				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
+			} else {
+				h.hints.Context.SetLabelDirectionOverride("")
 			}
 		}
 	}
@@ -307,6 +321,13 @@ func (h *Handler) activateHintModeInternal(
 		strategy = strategyVal
 	}
 
+	labelDirectionVal := ""
+	if h.hints != nil && h.hints.Context != nil {
+		labelDirectionVal = h.hints.Context.LabelDirectionOverride()
+	} else if labelDirectionOverride != nil {
+		labelDirectionVal = *labelDirectionOverride
+	}
+
 	var permissionOk bool
 
 	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissionsLocked(
@@ -325,6 +346,7 @@ func (h *Handler) activateHintModeInternal(
 		filterTextContains,
 		bundleID,
 		strategyVal,
+		labelDirectionVal,
 	)
 	if domainHintsErr != nil {
 		h.logger.Error(

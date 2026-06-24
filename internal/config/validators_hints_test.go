@@ -99,3 +99,97 @@ func TestValidateHints_PositiveUnitFloat(t *testing.T) {
 		t.Fatalf("ValidateHints() expected no error for 0.0 minimum_confidence, got %v", err)
 	}
 }
+
+func TestValidateHints_LabelDirection(t *testing.T) {
+	tests := []struct {
+		name      string
+		direction string
+		wantErr   bool
+	}{
+		{name: "reverse is valid", direction: "reverse", wantErr: false},
+		{name: "normal is valid", direction: "normal", wantErr: false},
+		{name: "empty defaults to normal (no error)", direction: "", wantErr: false},
+		{name: "unknown value is rejected", direction: "sideways", wantErr: true},
+		{name: "uppercase is rejected (case sensitive)", direction: "NORMAL", wantErr: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.Hints.LabelDirection = testCase.direction
+
+			err := cfg.ValidateHints()
+			if testCase.wantErr && err == nil {
+				t.Fatalf(
+					"ValidateHints() expected error for label_direction=%q, got nil",
+					testCase.direction,
+				)
+			}
+
+			if !testCase.wantErr && err != nil {
+				t.Fatalf(
+					"ValidateHints() unexpected error for label_direction=%q: %v",
+					testCase.direction,
+					err,
+				)
+			}
+		})
+	}
+}
+
+func TestValidateAppConfigs_LabelDirection(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		{
+			BundleID:       "com.example",
+			LabelDirection: "normal",
+		},
+	}
+
+	err := cfg.ValidateAppConfigs()
+	if err != nil {
+		t.Fatalf("ValidateAppConfigs() unexpected error for valid app config: %v", err)
+	}
+
+	cfg = config.DefaultConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		{
+			BundleID:       "com.example",
+			LabelDirection: "diagonal",
+		},
+	}
+
+	err = cfg.ValidateAppConfigs()
+	if err == nil {
+		t.Fatal("ValidateAppConfigs() expected error for invalid app label_direction")
+	}
+}
+
+func TestLabelDirectionForApp(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.LabelDirection = "reverse"
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		{
+			BundleID:       "com.example",
+			LabelDirection: "normal",
+		},
+	}
+
+	// App override takes precedence.
+	if got := cfg.Hints.LabelDirectionForApp("com.example"); got != "normal" {
+		t.Errorf("LabelDirectionForApp(app with override) = %q, want %q", got, "normal")
+	}
+
+	// Fallback to global config.
+	if got := cfg.Hints.LabelDirectionForApp("com.other"); got != "reverse" {
+		t.Errorf("LabelDirectionForApp(app without override) = %q, want %q", got, "reverse")
+	}
+
+	// Empty global value normalizes to the default (normal).
+	cfg = config.DefaultConfig()
+	cfg.Hints.LabelDirection = ""
+
+	if got := cfg.Hints.LabelDirectionForApp("com.example"); got != "normal" {
+		t.Errorf("LabelDirectionForApp(empty global) = %q, want %q", got, "normal")
+	}
+}

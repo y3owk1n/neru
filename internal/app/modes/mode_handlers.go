@@ -129,6 +129,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 		filterTextContains := h.hints.Context.FilterTextContains()
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
+		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -143,6 +144,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					filterTextContains,
 					&startWithSearch,
 					&strategyOverride,
+					&labelDirectionOverride,
 				)
 				// Restore repeat and action on the fresh context so subsequent
 				// selections continue the repeat cycle.
@@ -156,6 +158,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.hints.Context.SetFilterTextContains(filterTextContains)
 					h.hints.Context.SetStartWithSearch(startWithSearch)
 					h.hints.Context.SetStrategyOverride(strategyOverride)
+					h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
 				}
 			},
 		)

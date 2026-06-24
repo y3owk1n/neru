@@ -12,15 +12,16 @@ import (
 
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
-	Name             string
-	Short            string
-	Long             string
-	ActionDesc       string   // Description for the action flag (e.g., "hint selection" or "grid selection")
-	Aliases          []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
-	SupportSearch    bool     // Whether this mode supports the --search flag
-	SupportFiltering bool     // Whether this mode supports --role and --text filter flags
-	SupportStrategy  bool     // Whether this mode supports the --strategy flag
-	SupportDebug     bool     // Whether this mode supports the --debug probe flag
+	Name                  string
+	Short                 string
+	Long                  string
+	ActionDesc            string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases               []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	SupportSearch         bool     // Whether this mode supports the --search flag
+	SupportFiltering      bool     // Whether this mode supports --role and --text filter flags
+	SupportStrategy       bool     // Whether this mode supports the --strategy flag
+	SupportLabelDirection bool     // Whether this mode supports the --label-direction flag
+  SupportDebug     bool     // Whether this mode supports the --debug probe flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -81,6 +82,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			var debugFlag bool
 			if config.SupportDebug {
 				debugFlag, err = cmd.Flags().GetBool("debug")
+				if err != nil {
+					return err
+				}
+      }
+      
+			var labelDirectionFlag string
+			if config.SupportLabelDirection {
+				labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
 				if err != nil {
 					return err
 				}
@@ -181,6 +190,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 
 			if debugFlag {
 				params = append(params, "--debug")
+      }
+        
+			if labelDirectionFlag != "" {
+				params = append(params, "--label-direction="+labelDirectionFlag)
 			}
 
 			return sendCommand(cmd, config.Name, params)
@@ -249,6 +262,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"d",
 			false,
 			"Probe the focused window and print detected clickable elements without showing the overlay",
+		)
+	}
+      
+	if config.SupportLabelDirection {
+		cmd.Flags().String(
+			"label-direction",
+			"",
+			"Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)",
 		)
 	}
 
