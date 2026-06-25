@@ -14,6 +14,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
+const labelDirNormal = "normal"
+
 // TestRegisterOppositeLabelDirectionGenerator_PreSeedsBothDirections verifies
 // that the app initializer registers a generator for the direction opposite
 // to the configured one, so the per-activation override path
@@ -34,7 +36,7 @@ func TestRegisterOppositeLabelDirectionGenerator_PreSeedsBothDirections(t *testi
 		},
 		{
 			name:             "explicit normal -> opposite is reverse",
-			configuredRaw:    "normal",
+			configuredRaw:    labelDirNormal,
 			expectedPrimary:  hint.LabelDirectionNormal,
 			expectedOpposite: hint.LabelDirectionReverse,
 		},
@@ -124,7 +126,7 @@ func TestRegisterOppositeLabelDirectionGenerator_PreSeedsBothDirections(t *testi
 // `registerOppositeLabelDirectionGenerator` helper exists to prevent.
 func TestHintService_OverrideWithoutOppositeRegistrationFallsBack(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.LabelDirection = "normal"
+	cfg.Hints.LabelDirection = labelDirNormal
 
 	primaryGen, primaryGenErr := hint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,
@@ -166,7 +168,7 @@ func TestHintService_OverrideWithoutOppositeRegistrationFallsBack(t *testing.T) 
 // `reverse`-direction generator, not the configured `normal` one.
 func TestRegisterOppositeLabelDirectionGenerator_FixesUserBugScenario(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.LabelDirection = "normal"
+	cfg.Hints.LabelDirection = labelDirNormal
 
 	primaryGen, primaryGenErr := hint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,

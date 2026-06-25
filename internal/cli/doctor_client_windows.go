@@ -25,6 +25,7 @@ func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
+
 	ctx := context.Background()
 	caps := adapter.Capabilities()
 	profile := platform.CurrentProfile()

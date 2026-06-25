@@ -21,7 +21,7 @@ type ModeConfig struct {
 	SupportFiltering      bool     // Whether this mode supports --role and --text filter flags
 	SupportStrategy       bool     // Whether this mode supports the --strategy flag
 	SupportLabelDirection bool     // Whether this mode supports the --label-direction flag
-  SupportDebug     bool     // Whether this mode supports the --debug probe flag
+	SupportDebug          bool     // Whether this mode supports the --debug probe flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -85,8 +85,8 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				if err != nil {
 					return err
 				}
-      }
-      
+			}
+
 			var labelDirectionFlag string
 			if config.SupportLabelDirection {
 				labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
@@ -190,8 +190,8 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 
 			if debugFlag {
 				params = append(params, "--debug")
-      }
-        
+			}
+
 			if labelDirectionFlag != "" {
 				params = append(params, "--label-direction="+labelDirectionFlag)
 			}
@@ -264,7 +264,7 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"Probe the focused window and print detected clickable elements without showing the overlay",
 		)
 	}
-      
+
 	if config.SupportLabelDirection {
 		cmd.Flags().String(
 			"label-direction",

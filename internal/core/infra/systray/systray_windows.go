@@ -311,6 +311,7 @@ func RunHeadless(onReadyFunc, onExitFunc func()) {
 
 func runTray(withIcon bool, onReadyFunc, onExitFunc func()) {
 	runtime.LockOSThread()
+
 	defer runtime.UnlockOSThread()
 
 	trayMu.Lock()
@@ -323,11 +324,13 @@ func runTray(withIcon bool, onReadyFunc, onExitFunc func()) {
 
 		return
 	}
+
 	trayThreadID = currentThreadID()
 	trayMu.Unlock()
 
 	if withIcon {
-		if err := createTrayWindow(); err != nil {
+		err := createTrayWindow()
+		if err != nil {
 			if onExitFunc != nil {
 				onExitFunc()
 			}
@@ -364,7 +367,7 @@ func Quit() {
 	if tid != 0 {
 		// WM_QUIT delivered via the thread queue unblocks GetMessageW even
 		// when no window has focus.
-		procPostThreadMessageW.Call(uintptr(tid), wmQuit, 0, 0)
+		discardCall(procPostThreadMessageW.Call(uintptr(tid), wmQuit, 0, 0))
 	}
 }
 
@@ -397,6 +400,7 @@ func AddMenuItem(title string) *MenuItem {
 	item := newMenuItem(title)
 
 	menuItemsLock.Lock()
+
 	topNodes = append(topNodes, &menuNode{item: item})
 	menuItemsLock.Unlock()
 
@@ -406,6 +410,7 @@ func AddMenuItem(title string) *MenuItem {
 // AddSeparator adds a separator to the top-level tray menu.
 func AddSeparator() {
 	menuItemsLock.Lock()
+
 	topNodes = append(topNodes, &menuNode{separator: true})
 	menuItemsLock.Unlock()
 }
@@ -441,12 +446,23 @@ func ResetForTesting() {
 	topNodes = nil
 }
 
+const (
+	loWordMask    = 0xFFFF
+	bitsPerPixel  = 32
+	bytesPerPixel = 4
+)
+
+// discardCall consumes a fire-and-forget user32/shell32/gdi32 syscall result.
+// These tray calls have no actionable failure path here; the sink keeps
+// errcheck satisfied without a `_, _, _ =` assignment (which trips dogsled).
+func discardCall(uintptr, uintptr, error) {}
+
 func createTrayWindow() error {
 	hInstance, _, _ := procGetModuleHandleW.Call(0)
 	className := utf16Ptr("NeruTrayWindow")
 	cursor, _, _ := procLoadCursorW.Call(0, uintptr(idcArrow))
 
-	wc := wndClassExW{
+	windowClass := wndClassExW{
 		cbSize:        uint32(unsafe.Sizeof(wndClassExW{})),
 		lpfnWndProc:   wndProcCallback,
 		hInstance:     hInstance,
@@ -455,7 +471,7 @@ func createTrayWindow() error {
 	}
 
 	// Ignore RegisterClassExW failure: a re-run reuses the existing class.
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
+	discardCall(procRegisterClassExW.Call(uintptr(unsafe.Pointer(&windowClass))))
 
 	hwnd, _, err := procCreateWindowExW.Call(
 		0,
@@ -476,7 +492,9 @@ func createTrayWindow() error {
 	}
 
 	if taskbarCreated == 0 {
-		ret, _, _ := procRegisterWindowMsgW.Call(uintptr(unsafe.Pointer(utf16Ptr("TaskbarCreated"))))
+		ret, _, _ := procRegisterWindowMsgW.Call(
+			uintptr(unsafe.Pointer(utf16Ptr("TaskbarCreated"))),
+		)
 		taskbarCreated = uint32(ret)
 	}
 
@@ -496,11 +514,11 @@ func destroyTrayWindow() {
 	trayMu.Unlock()
 
 	if hwnd != 0 {
-		procDestroyWindow.Call(hwnd)
+		discardCall(procDestroyWindow.Call(hwnd))
 	}
 
 	if icon != 0 {
-		procDestroyIcon.Call(icon)
+		discardCall(procDestroyIcon.Call(icon))
 	}
 }
 
@@ -553,21 +571,21 @@ func loadBrandIcon() uintptr {
 }
 
 func shellNotify(message uint32, nid *notifyIconData) {
-	procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid)))
+	discardCall(procShellNotifyIconW.Call(uintptr(message), uintptr(unsafe.Pointer(nid))))
 }
 
 func pumpMessages() {
-	var m winMsg
+	var msg winMsg
 	for {
-		ret, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
+		ret, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&msg)), 0, 0, 0)
 		switch int32(ret) {
 		case 0: // WM_QUIT
 			return
 		case -1: // error
 			return
 		default:
-			procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
-			procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
+			discardCall(procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg))))
+			discardCall(procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg))))
 		}
 	}
 }
@@ -575,7 +593,7 @@ func pumpMessages() {
 func trayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch {
 	case msg == wmTrayicon:
-		event := uint32(lParam & 0xFFFF)
+		event := uint32(lParam & loWordMask)
 		if event == wmRButtonUp || event == wmLButtonUp || event == wmContextMenu {
 			showTrayMenu(hwnd)
 		}
@@ -587,7 +605,7 @@ func trayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 		return 0
 	case msg == wmDestroy:
-		procPostQuitMessage.Call(0)
+		discardCall(procPostQuitMessage.Call(0))
 
 		return 0
 	default:
@@ -599,7 +617,9 @@ func trayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 
 func showTrayMenu(hwnd uintptr) {
 	menuItemsLock.RLock()
+
 	nodes := append([]*menuNode(nil), topNodes...)
+
 	menuItemsLock.RUnlock()
 
 	hmenu := buildMenu(nodes)
@@ -607,25 +627,26 @@ func showTrayMenu(hwnd uintptr) {
 		return
 	}
 
-	defer procDestroyMenu.Call(hmenu)
+	defer func() { discardCall(procDestroyMenu.Call(hmenu)) }()
 
-	var pt point
-	procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
+	var cursorPos point
+
+	discardCall(procGetCursorPos.Call(uintptr(unsafe.Pointer(&cursorPos))))
 
 	// Required so the menu dismisses when the user clicks elsewhere.
-	procSetForegroundWindow.Call(hwnd)
+	discardCall(procSetForegroundWindow.Call(hwnd))
 
 	cmd, _, _ := procTrackPopupMenu.Call(
 		hmenu,
 		tpmRightButton|tpmReturnCmd,
-		uintptr(pt.x),
-		uintptr(pt.y),
+		uintptr(cursorPos.x),
+		uintptr(cursorPos.y),
 		0,
 		hwnd,
 		0,
 	)
 
-	procPostMessageW.Call(hwnd, wmNull, 0, 0)
+	discardCall(procPostMessageW.Call(hwnd, wmNull, 0, 0))
 
 	if cmd != 0 {
 		dispatchClick(int(cmd))
@@ -640,7 +661,7 @@ func buildMenu(nodes []*menuNode) uintptr {
 
 	for _, node := range nodes {
 		if node.separator {
-			procAppendMenuW.Call(hmenu, mfSeparator, 0, 0)
+			discardCall(procAppendMenuW.Call(hmenu, mfSeparator, 0, 0))
 
 			continue
 		}
@@ -652,7 +673,7 @@ func buildMenu(nodes []*menuNode) uintptr {
 		checked := item.checked
 		title := item.title
 		children := append([]*menuNode(nil), item.children...)
-		id := item.id
+		itemID := item.id
 		item.mu.RUnlock()
 
 		if hidden {
@@ -663,12 +684,13 @@ func buildMenu(nodes []*menuNode) uintptr {
 
 		if len(children) > 0 {
 			sub := buildMenu(children)
+
 			flags := uintptr(mfString | mfPopup)
 			if disabled {
 				flags |= mfGrayed
 			}
 
-			procAppendMenuW.Call(hmenu, flags, sub, uintptr(unsafe.Pointer(text)))
+			discardCall(procAppendMenuW.Call(hmenu, flags, sub, uintptr(unsafe.Pointer(text))))
 
 			continue
 		}
@@ -682,7 +704,9 @@ func buildMenu(nodes []*menuNode) uintptr {
 			flags |= mfChecked
 		}
 
-		procAppendMenuW.Call(hmenu, flags, uintptr(id), uintptr(unsafe.Pointer(text)))
+		discardCall(
+			procAppendMenuW.Call(hmenu, flags, uintptr(itemID), uintptr(unsafe.Pointer(text))),
+		)
 	}
 
 	return hmenu
@@ -690,7 +714,9 @@ func buildMenu(nodes []*menuNode) uintptr {
 
 func dispatchClick(id int) {
 	menuItemsLock.RLock()
+
 	item := menuItems[id]
+
 	menuItemsLock.RUnlock()
 
 	if item == nil {
@@ -717,6 +743,7 @@ func iconFromPNG(data []byte) uintptr {
 
 	bounds := src.Bounds()
 	width := bounds.Dx()
+
 	height := bounds.Dy()
 	if width <= 0 || height <= 0 {
 		return 0
@@ -725,19 +752,20 @@ func iconFromPNG(data []byte) uintptr {
 	rgba := image.NewNRGBA(image.Rect(0, 0, width, height))
 	draw.Draw(rgba, rgba.Bounds(), src, bounds.Min, draw.Src)
 
-	bi := bitmapInfoHeader{
+	bmpInfo := bitmapInfoHeader{
 		biSize:        uint32(unsafe.Sizeof(bitmapInfoHeader{})),
 		biWidth:       int32(width),
 		biHeight:      -int32(height), // top-down
 		biPlanes:      1,
-		biBitCount:    32,
+		biBitCount:    bitsPerPixel,
 		biCompression: biRGB,
 	}
 
 	var bits unsafe.Pointer
+
 	hbmColor, _, _ := procCreateDIBSection.Call(
 		0,
-		uintptr(unsafe.Pointer(&bi)),
+		uintptr(unsafe.Pointer(&bmpInfo)),
 		diRgbColors,
 		uintptr(unsafe.Pointer(&bits)),
 		0,
@@ -747,20 +775,20 @@ func iconFromPNG(data []byte) uintptr {
 		return 0
 	}
 
-	pixels := unsafe.Slice((*byte)(bits), width*height*4)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	pixels := unsafe.Slice((*byte)(bits), width*height*bytesPerPixel)
+	for y := range height {
+		for x := range width {
 			srcIdx := rgba.PixOffset(x, y)
-			dstIdx := (y*width + x) * 4
-			r := rgba.Pix[srcIdx]
-			g := rgba.Pix[srcIdx+1]
-			b := rgba.Pix[srcIdx+2]
-			a := rgba.Pix[srcIdx+3]
+			dstIdx := (y*width + x) * bytesPerPixel
+			red := rgba.Pix[srcIdx]
+			green := rgba.Pix[srcIdx+1]
+			blue := rgba.Pix[srcIdx+2]
+			alpha := rgba.Pix[srcIdx+3]
 			// DIB is BGRA byte order.
-			pixels[dstIdx] = b
-			pixels[dstIdx+1] = g
-			pixels[dstIdx+2] = r
-			pixels[dstIdx+3] = a
+			pixels[dstIdx] = blue
+			pixels[dstIdx+1] = green
+			pixels[dstIdx+2] = red
+			pixels[dstIdx+3] = alpha
 		}
 	}
 
@@ -775,9 +803,10 @@ func iconFromPNG(data []byte) uintptr {
 	hicon, _, _ := procCreateIconIndirect.Call(uintptr(unsafe.Pointer(&info)))
 
 	// CreateIconIndirect copies the bitmaps; release ours.
-	procDeleteObject.Call(hbmColor)
+	discardCall(procDeleteObject.Call(hbmColor))
+
 	if hbmMask != 0 {
-		procDeleteObject.Call(hbmMask)
+		discardCall(procDeleteObject.Call(hbmMask))
 	}
 
 	return hicon
@@ -785,14 +814,12 @@ func iconFromPNG(data []byte) uintptr {
 
 func copyTip(nid *notifyIconData, tip string) {
 	runes := utf16FromString(tip)
+
 	for i := range nid.szTip {
 		nid.szTip[i] = 0
 	}
 
-	limit := len(nid.szTip) - 1
-	if len(runes) < limit {
-		limit = len(runes)
-	}
+	limit := min(len(runes), len(nid.szTip)-1)
 
 	copy(nid.szTip[:limit], runes[:limit])
 }

@@ -61,72 +61,16 @@ func newWinOverlay(logger *zap.Logger) *winOverlay {
 	return &winOverlay{window: window, logger: logger}
 }
 
-func (o *winOverlay) recreateWindow() {
-	if o == nil {
-		return
-	}
-
-	if o.window != nil {
-		o.window.Destroy()
-		o.window = nil
-	}
-
-	window, err := winplatform.NewOverlayWindow()
-	if err != nil {
-		if o.logger != nil {
-			o.logger.Error("failed to recreate overlay window", zap.Error(err))
-		}
-
-		return
-	}
-
-	o.window = window
-
-	if o.logger != nil {
-		bounds := window.Bounds()
-		o.logger.Debug(
-			"recreated overlay window",
-			zap.Uintptr("hwnd", uintptr(window.HWND())),
-			zap.Int("width", bounds.Dx()),
-			zap.Int("height", bounds.Dy()),
-		)
-	}
-}
-
-func (o *winOverlay) ensureWindowForDraw() {
-	if o == nil {
-		return
-	}
-
-	// HWND may be hidden between grid sessions; recreate only when invalid.
-	if o.window == nil || !o.window.Healthy() {
-		o.recreateWindow()
-	}
-}
-
 func (o *winOverlay) Healthy() bool {
 	return o != nil && o.window != nil && o.window.Healthy()
 }
 
-func (o *winOverlay) screenBounds() (image.Rectangle, bool) {
-	if o == nil || o.window == nil {
-		return image.Rectangle{}, false
-	}
-
-	bounds := o.window.Bounds()
-	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		return image.Rectangle{}, false
-	}
-
-	return bounds, true
-}
-
+// WindowPtr returns nil on Windows. The native HWND is not a memory pointer,
+// and no consumer dereferences this value, so the overlay window handle stays
+// internal (reachable via the platform window) instead of being smuggled
+// through an unsafe.Pointer.
 func (o *winOverlay) WindowPtr() unsafe.Pointer {
-	if o == nil || o.window == nil {
-		return nil
-	}
-
-	return unsafe.Pointer(o.window.HWND())
+	return nil
 }
 
 func (o *winOverlay) Show() {
@@ -135,6 +79,7 @@ func (o *winOverlay) Show() {
 	}
 
 	o.ensureWindowForDraw()
+
 	if o.window == nil {
 		if o.logger != nil {
 			o.logger.Error("Show aborted, overlay window is nil")
@@ -193,7 +138,8 @@ func (o *winOverlay) Resize() {
 		return
 	}
 
-	if err := o.window.ResizeToActiveScreen(); err != nil && o.logger != nil {
+	err := o.window.ResizeToActiveScreen()
+	if err != nil && o.logger != nil {
 		o.logger.Warn("failed to resize Windows overlay", zap.Error(err))
 	}
 }
@@ -236,7 +182,7 @@ func (o *winOverlay) SetHideUnmatched(hide bool) {
 	o.hideUnmatched = hide
 }
 
-func (o *winOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
+func (o *winOverlay) DrawGrid(gridValue *domainGrid.Grid, input string, style gridcomponent.Style) {
 	if o == nil {
 		return
 	}
@@ -251,7 +197,7 @@ func (o *winOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 		return
 	}
 
-	if g == nil {
+	if gridValue == nil {
 		if o.logger != nil {
 			o.logger.Error("DrawGrid aborted, grid is nil")
 		}
@@ -259,12 +205,68 @@ func (o *winOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 		return
 	}
 
-	o.cachedGrid = g
+	o.cachedGrid = gridValue
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)
 	o.currentSubgrid = nil
 	o.suppressDraw = false
 	o.redrawGrid()
+}
+
+func (o *winOverlay) recreateWindow() {
+	if o == nil {
+		return
+	}
+
+	if o.window != nil {
+		o.window.Destroy()
+		o.window = nil
+	}
+
+	window, err := winplatform.NewOverlayWindow()
+	if err != nil {
+		if o.logger != nil {
+			o.logger.Error("failed to recreate overlay window", zap.Error(err))
+		}
+
+		return
+	}
+
+	o.window = window
+
+	if o.logger != nil {
+		bounds := window.Bounds()
+		o.logger.Debug(
+			"recreated overlay window",
+			zap.Uintptr("hwnd", uintptr(window.HWND())),
+			zap.Int("width", bounds.Dx()),
+			zap.Int("height", bounds.Dy()),
+		)
+	}
+}
+
+func (o *winOverlay) ensureWindowForDraw() {
+	if o == nil {
+		return
+	}
+
+	// HWND may be hidden between grid sessions; recreate only when invalid.
+	if o.window == nil || !o.window.Healthy() {
+		o.recreateWindow()
+	}
+}
+
+func (o *winOverlay) screenBounds() (image.Rectangle, bool) {
+	if o == nil || o.window == nil {
+		return image.Rectangle{}, false
+	}
+
+	bounds := o.window.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return image.Rectangle{}, false
+	}
+
+	return bounds, true
 }
 
 func (o *winOverlay) redrawGrid() {
@@ -301,12 +303,14 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 	for _, cell := range o.cachedGrid.AllCells() {
 		label := strings.ToUpper(cell.Coordinate())
+
 		matched := strings.HasPrefix(label, prefix)
 		if o.hideUnmatched && prefix != "" && !matched {
 			continue
 		}
 
 		text := style.LabelFontColor
+
 		border := style.LineColor
 		if matched && prefix != "" {
 			text = style.MatchedTextColor
@@ -314,6 +318,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 		}
 
 		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
+
 		if style.ShowLabels {
 			o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
 		}
@@ -337,7 +342,8 @@ func (o *winOverlay) flushOverlay(context string) {
 		return
 	}
 
-	if err := o.window.Flush(); err != nil {
+	err := o.window.Flush()
+	if err != nil {
 		if o.logger != nil {
 			o.logger.Error(
 				"overlay paint failed",
@@ -355,22 +361,26 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
+
 	maxKeys := min(len(keyRunes), winSubgridCols*winSubgridRows)
 
 	xBreaks := make([]int, winSubgridCols+1)
 	yBreaks := make([]int, winSubgridRows+1)
 	xBreaks[0] = bounds.Min.X
+
 	yBreaks[0] = bounds.Min.Y
 	for i := 1; i <= winSubgridCols; i++ {
 		xBreaks[i] = bounds.Min.X + int(
 			float64(i)*float64(bounds.Dx())/float64(winSubgridCols)+winSubgridHalfPixel,
 		)
 	}
+
 	for i := 1; i <= winSubgridRows; i++ {
 		yBreaks[i] = bounds.Min.Y + int(
 			float64(i)*float64(bounds.Dy())/float64(winSubgridRows)+winSubgridHalfPixel,
 		)
 	}
+
 	xBreaks[winSubgridCols] = bounds.Max.X
 	yBreaks[winSubgridRows] = bounds.Max.Y
 
@@ -380,6 +390,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			if index >= maxKeys {
 				break
 			}
+
 			cell := image.Rect(
 				xBreaks[col],
 				yBreaks[row],

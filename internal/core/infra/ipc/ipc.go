@@ -201,7 +201,8 @@ func (s *Server) Stop() error {
 		s.logger.Warn("IPC server: timeout waiting for connections to close")
 	}
 
-	if cleanupErr := cleanupEndpoint(s.socketPath); cleanupErr != nil {
+	cleanupErr := cleanupEndpoint(s.socketPath)
+	if cleanupErr != nil {
 		return derrors.Wrap(cleanupErr, derrors.CodeIPCFailed, "failed to clean up IPC endpoint")
 	}
 

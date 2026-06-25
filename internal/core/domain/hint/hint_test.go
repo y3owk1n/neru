@@ -9,6 +9,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 )
 
+const (
+	dirNormalStr  = "normal"
+	dirReverseStr = "reverse"
+)
+
 func TestNewHint(t *testing.T) {
 	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
 
@@ -579,8 +584,8 @@ func TestLabelDirectionFromString(t *testing.T) {
 		input string
 		want  hint.LabelDirection
 	}{
-		{"reverse", hint.LabelDirectionReverse},
-		{"normal", hint.LabelDirectionNormal},
+		{dirReverseStr, hint.LabelDirectionReverse},
+		{dirNormalStr, hint.LabelDirectionNormal},
 		{"", hint.LabelDirectionNormal},       // empty defaults to normal
 		{"typo", hint.LabelDirectionNormal},   // unknown defaults to normal
 		{"NORMAL", hint.LabelDirectionNormal}, // case-sensitive: unknown → default
@@ -601,17 +606,17 @@ func TestLabelDirectionFromString(t *testing.T) {
 }
 
 func TestLabelDirection_String(t *testing.T) {
-	if got := hint.LabelDirectionReverse.String(); got != "reverse" {
-		t.Errorf("LabelDirectionReverse.String() = %q, want %q", got, "reverse")
+	if got := hint.LabelDirectionReverse.String(); got != dirReverseStr {
+		t.Errorf("LabelDirectionReverse.String() = %q, want %q", got, dirReverseStr)
 	}
 
-	if got := hint.LabelDirectionNormal.String(); got != "normal" {
-		t.Errorf("LabelDirectionNormal.String() = %q, want %q", got, "normal")
+	if got := hint.LabelDirectionNormal.String(); got != dirNormalStr {
+		t.Errorf("LabelDirectionNormal.String() = %q, want %q", got, dirNormalStr)
 	}
 
 	// Unknown values fall back to the default.
-	if got := hint.LabelDirection(99).String(); got != "normal" {
-		t.Errorf("LabelDirection(99).String() = %q, want %q", got, "normal")
+	if got := hint.LabelDirection(99).String(); got != dirNormalStr {
+		t.Errorf("LabelDirection(99).String() = %q, want %q", got, dirNormalStr)
 	}
 }
 

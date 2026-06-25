@@ -304,14 +304,20 @@ func (c *Component) handleEvents() {
 			}()
 		case <-c.mFeatureRequest.ClickedCh:
 			go func() {
-				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/issues/new?template=feature_request.yml")
+				err := openExternal(
+					c.ctx,
+					"https://github.com/y3owk1n/neru/issues/new?template=feature_request.yml",
+				)
 				if err != nil {
 					c.logger.Error("Failed to open feature request", zap.Error(err))
 				}
 			}()
 		case <-c.mReportBug.ClickedCh:
 			go func() {
-				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/issues/new?template=bug_report.yml")
+				err := openExternal(
+					c.ctx,
+					"https://github.com/y3owk1n/neru/issues/new?template=bug_report.yml",
+				)
 				if err != nil {
 					c.logger.Error("Failed to open bug report", zap.Error(err))
 				}

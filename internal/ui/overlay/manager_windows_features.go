@@ -48,6 +48,7 @@ func (o *winOverlay) DrawHints(
 	}
 
 	o.ensureWindowForDraw()
+
 	if o.window == nil {
 		if o.logger != nil {
 			o.logger.Error("DrawHints aborted, overlay window is nil")
@@ -140,6 +141,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 	}
 
 	o.ensureWindowForDraw()
+
 	if o.window == nil {
 		if o.logger != nil {
 			o.logger.Error("DrawRecursiveGrid aborted, overlay window is nil")
@@ -175,6 +177,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 			if col == gridCols-1 {
 				cell.Max.X = bounds.Max.X
 			}
+
 			if row == gridRows-1 {
 				cell.Max.Y = bounds.Max.Y
 			}
@@ -193,6 +196,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 				if style.LabelBackground {
 					o.drawRecursiveLabelBackground(label, cell, style)
 				}
+
 				o.drawTextCentered(
 					label,
 					cell,
@@ -205,6 +209,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 					o.drawRecursiveSubKeyPreview(label, cell, style)
 				}
 			}
+
 			index++
 		}
 	}
@@ -241,6 +246,7 @@ func (o *winOverlay) drawFilledRect(
 	}
 
 	o.window.FillRect(bounds, fill)
+
 	if lineWidth > 0 {
 		o.window.StrokeRect(bounds, border, lineWidth)
 	}

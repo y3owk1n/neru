@@ -4,9 +4,13 @@
 // Unit tests for the pure UIA control-type mapping used by hint enumeration.
 // Does not exercise live UIA (see accessibility integration tests on WIN-VM).
 
-package accessibility
+package accessibility //nolint:testpackage // exercises unexported mapControlType directly
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+)
 
 func TestMapControlType(t *testing.T) {
 	t.Parallel()
@@ -17,7 +21,7 @@ func TestMapControlType(t *testing.T) {
 		wantRole      string
 		wantClickable bool
 	}{
-		{"button", 50000, "AXButton", true},
+		{"button", 50000, string(element.RoleButton), true},
 		{"checkbox", 50002, "AXCheckBox", true},
 		{"combobox", 50003, "AXComboBox", true},
 		{"edit", 50004, "AXTextField", true},
@@ -25,20 +29,26 @@ func TestMapControlType(t *testing.T) {
 		{"menu item", 50011, "AXMenuItem", true},
 		{"radio button", 50013, "AXRadioButton", true},
 		{"tab item", 50019, "AXTabButton", true},
-		{"split button", 50031, "AXButton", true},
-		{"text is not clickable", 50020, "AXUnknown", false},
-		{"unknown control type", 99999, "AXUnknown", false},
-		{"zero control type", 0, "AXUnknown", false},
+		{"split button", 50031, string(element.RoleButton), true},
+		{"text is not clickable", 50020, roleUnknown, false},
+		{"unknown control type", 99999, roleUnknown, false},
+		{"zero control type", 0, roleUnknown, false},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			role, clickable := mapControlType(tt.controlType)
-			if role != tt.wantRole || clickable != tt.wantClickable {
-				t.Fatalf("mapControlType(%d) = (%q, %v), want (%q, %v)",
-					tt.controlType, role, clickable, tt.wantRole, tt.wantClickable)
+			role, clickable := mapControlType(testCase.controlType)
+			if role != testCase.wantRole || clickable != testCase.wantClickable {
+				t.Fatalf(
+					"mapControlType(%d) = (%q, %v), want (%q, %v)",
+					testCase.controlType,
+					role,
+					clickable,
+					testCase.wantRole,
+					testCase.wantClickable,
+				)
 			}
 		})
 	}

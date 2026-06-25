@@ -5,7 +5,7 @@
 // Does not run in default CI; execute on WIN-VM with a GUI app focused:
 // go test -tags=integration ./internal/core/infra/accessibility/...
 
-package accessibility
+package accessibility //nolint:testpackage // exercises unexported enumerateClickableElements directly
 
 import (
 	"testing"
@@ -28,23 +28,30 @@ func TestEnumerateClickableElementsIntegration(t *testing.T) {
 	}
 
 	clickableCount := 0
-	for i, el := range elements {
-		if el.role == "" {
-			t.Errorf("element %d has empty role", i)
+	for idx, elem := range elements {
+		if elem.role == "" {
+			t.Errorf("element %d has empty role", idx)
 		}
 
-		if el.bounds.Dx() <= 0 || el.bounds.Dy() <= 0 {
-			t.Errorf("element %d has non-positive bounds %v", i, el.bounds)
+		if elem.bounds.Dx() <= 0 || elem.bounds.Dy() <= 0 {
+			t.Errorf("element %d has non-positive bounds %v", idx, elem.bounds)
 		}
 
-		if el.clickable {
+		if elem.clickable {
 			clickableCount++
 		}
 	}
 
 	if clickableCount == 0 {
-		t.Fatalf("enumerateClickableElements returned %d elements but none clickable", len(elements))
+		t.Fatalf(
+			"enumerateClickableElements returned %d elements but none clickable",
+			len(elements),
+		)
 	}
 
-	t.Logf("enumerated %d elements (%d clickable) from foreground window", len(elements), clickableCount)
+	t.Logf(
+		"enumerated %d elements (%d clickable) from foreground window",
+		len(elements),
+		clickableCount,
+	)
 }

@@ -84,13 +84,13 @@ func (s *SystemAdapter) LogDir() (string, error) {
 }
 
 // FocusedApplicationIdentity returns the foreground app executable path and PID.
-func FocusedApplicationIdentity() (bundleID string, pid int, err error) {
-	pid, err = focusedApplicationPID()
+func FocusedApplicationIdentity() (string, int, error) {
+	pid, err := focusedApplicationPID()
 	if err != nil {
 		return "", 0, err
 	}
 
-	bundleID, err = applicationBundleIDByPID(pid)
+	bundleID, err := applicationBundleIDByPID(pid)
 	if err != nil {
 		return "", pid, err
 	}
@@ -100,7 +100,8 @@ func FocusedApplicationIdentity() (bundleID string, pid int, err error) {
 
 // FocusedApplicationPID returns the PID of the currently focused application on Windows.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return 0, err
 	}
 
@@ -109,7 +110,8 @@ func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) 
 
 // ApplicationNameByPID returns the name of the application with the given PID on Windows.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return "", err
 	}
 
@@ -118,7 +120,8 @@ func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (stri
 
 // ApplicationBundleIDByPID returns the executable path for the given PID on Windows.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return "", err
 	}
 
@@ -127,7 +130,8 @@ func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (
 
 // ScreenBounds returns the bounds of the active screen on Windows.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return image.Rectangle{}, err
 	}
 
@@ -139,7 +143,8 @@ func (s *SystemAdapter) ScreenBoundsByName(
 	ctx context.Context,
 	name string,
 ) (image.Rectangle, bool, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return image.Rectangle{}, false, err
 	}
 
@@ -148,7 +153,8 @@ func (s *SystemAdapter) ScreenBoundsByName(
 
 // ScreenNames returns the display names of all connected screens on Windows.
 func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return nil, err
 	}
 
@@ -159,7 +165,8 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return image.Rectangle{}, false, err
 	}
 
@@ -172,7 +179,8 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	point image.Point,
 	_ bool,
 ) error {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return err
 	}
 
@@ -186,7 +194,8 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 
 // CursorPosition returns the current cursor position on Windows.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return image.Point{}, err
 	}
 

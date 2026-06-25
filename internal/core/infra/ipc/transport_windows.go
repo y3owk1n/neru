@@ -20,7 +20,8 @@ func endpointPath() string {
 }
 
 func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
-	if err := ctx.Err(); err != nil {
+	err := ctx.Err()
+	if err != nil {
 		return nil, err
 	}
 
@@ -30,6 +31,7 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 func dialEndpoint(ctx context.Context, dialer net.Dialer, path string) (net.Conn, error) {
 	if dialer.Timeout > 0 {
 		var cancel context.CancelFunc
+
 		ctx, cancel = context.WithTimeout(ctx, dialer.Timeout)
 		defer cancel()
 	}

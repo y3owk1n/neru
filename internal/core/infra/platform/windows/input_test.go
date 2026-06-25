@@ -1,6 +1,6 @@
 //go:build windows && (amd64 || arm64)
 
-package windows
+package windows //nolint:testpackage // exercises unexported input/mouseInput struct layout
 
 import (
 	"testing"

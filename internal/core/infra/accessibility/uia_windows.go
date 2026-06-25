@@ -14,7 +14,18 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
+
+// roleUnknown is the AX-style role returned for UIA control types that neru
+// does not treat as clickable hint targets.
+const roleUnknown = "AXUnknown"
+
+// discardCall consumes a fire-and-forget COM/oleaut32 syscall result. These
+// release calls have no actionable failure path; the sink keeps errcheck happy
+// without a `_, _, _ =` assignment (which trips dogsled).
+func discardCall(uintptr, uintptr, error) {}
 
 // CGO is disabled on Windows (see justfile), so UI Automation is driven
 // through raw COM vtable calls rather than a C wrapper. All COM work for a
@@ -43,43 +54,66 @@ const (
 
 	// TreeScope_Descendants: every element below the root, at any depth.
 	treeScopeDescendants = 0x4
+
+	// COM HRESULT success codes returned by CoInitializeEx when this call owns
+	// initialization on the thread (and therefore must balance CoUninitialize).
+	hresultSOK    = 0
+	hresultSFalse = 1
 )
 
 // COM GUIDs for the default UI Automation client object and interface.
 var (
-	clsidCUIAutomation = windows.GUID{
-		Data1: 0xff48dba4,
-		Data2: 0x60ef,
-		Data3: 0x4201,
-		Data4: [8]byte{0xaa, 0x87, 0x54, 0x10, 0x3e, 0xef, 0x59, 0x4e},
-	}
-	iidIUIAutomation = windows.GUID{
-		Data1: 0x30cbe57d,
-		Data2: 0xd9d0,
-		Data3: 0x452a,
-		Data4: [8]byte{0xab, 0x13, 0x7a, 0xc5, 0xac, 0x48, 0x25, 0xee},
-	}
+	clsidCUIAutomation = guidMust("{FF48DBA4-60EF-4201-AA87-54103EEF594E}")
+	iidIUIAutomation   = guidMust("{30CBE57D-D9D0-452A-AB13-7AC5AC4825EE}")
 )
+
+func guidMust(value string) windows.GUID {
+	guid, err := windows.GUIDFromString(value)
+	if err != nil {
+		panic(err)
+	}
+
+	return guid
+}
 
 // Vtable slot indices (IUnknown occupies 0,1,2). These match the public
 // UIAutomationClient IDL and have been stable since Windows 7.
 const (
 	vtRelease = 2
 
-	// IUIAutomation
+	// IUIAutomation.
 	vtElementFromHandle   = 6
 	vtCreateTrueCondition = 21
 
-	// IUIAutomationElement
+	// IUIAutomationElement.
 	vtFindAll                     = 6
 	vtGetCurrentControlType       = 21
 	vtGetCurrentName              = 23
 	vtGetCurrentIsOffscreen       = 38
 	vtGetCurrentBoundingRectangle = 43
 
-	// IUIAutomationElementArray
-	vtArrayGetLength = 3
+	// IUIAutomationElementArray.
+	vtArrayGetLength  = 3
 	vtArrayGetElement = 4
+)
+
+// UI Automation CONTROLTYPEID values for the controls neru treats as
+// clickable hint targets.
+const (
+	ctButton      = 50000
+	ctCheckBox    = 50002
+	ctComboBox    = 50003
+	ctEdit        = 50004
+	ctHyperlink   = 50005
+	ctListItem    = 50007
+	ctMenuItem    = 50011
+	ctRadioButton = 50013
+	ctSlider      = 50015
+	ctSpinner     = 50016
+	ctTabItem     = 50019
+	ctTreeItem    = 50024
+	ctDataItem    = 50029
+	ctSplitButton = 50031
 )
 
 // winRect mirrors the Win32 RECT returned by get_CurrentBoundingRectangle.
@@ -100,22 +134,22 @@ type winElement struct {
 
 // comCall invokes the method at vtable slot index on the COM object this.
 // It returns the HRESULT (or boolean/handle) in the low bits of the result.
-func comCall(this uintptr, index int, args ...uintptr) uintptr {
-	vtbl := *(*uintptr)(unsafe.Pointer(this))
-	fn := *(*uintptr)(unsafe.Pointer(vtbl + uintptr(index)*unsafe.Sizeof(uintptr(0))))
+func comCall(this unsafe.Pointer, index int, args ...uintptr) uintptr {
+	vtbl := *(*unsafe.Pointer)(this)
+	method := *(*uintptr)(unsafe.Add(vtbl, uintptr(index)*unsafe.Sizeof(uintptr(0))))
 
 	full := make([]uintptr, 0, len(args)+1)
-	full = append(full, this)
+	full = append(full, uintptr(this))
 	full = append(full, args...)
 
-	ret, _, _ := syscall.SyscallN(fn, full...)
+	ret, _, _ := syscall.SyscallN(method, full...)
 
 	return ret
 }
 
 // failed reports whether an HRESULT indicates failure (high bit set).
-func failed(hr uintptr) bool {
-	return int32(hr) < 0
+func failed(hresult uintptr) bool {
+	return int32(hresult) < 0
 }
 
 // enumerateClickableElements returns the on-screen, clickable controls of the
@@ -127,54 +161,55 @@ func enumerateClickableElements(hwnd uintptr) []winElement {
 	}
 
 	runtime.LockOSThread()
+
 	defer runtime.UnlockOSThread()
 
-	hr, _, _ := procCoInitializeEx.Call(0, coinitMultithreaded)
+	hresult, _, _ := procCoInitializeEx.Call(0, coinitMultithreaded)
 
-	// S_OK (0) and S_FALSE (1) mean this call owns initialization on the
-	// thread and must balance it with CoUninitialize. RPC_E_CHANGED_MODE
-	// means COM is already up in another mode; leave it alone.
-	if uint32(hr) == 0 || uint32(hr) == 1 {
-		defer procCoUninitialize.Call()
+	// S_OK and S_FALSE mean this call owns initialization on the thread and
+	// must balance it with CoUninitialize. RPC_E_CHANGED_MODE means COM is
+	// already up in another mode; leave it alone.
+	if uint32(hresult) == hresultSOK || uint32(hresult) == hresultSFalse {
+		defer func() { discardCall(procCoUninitialize.Call()) }()
 	}
 
 	automation := createAutomation()
-	if automation == 0 {
+	if automation == nil {
 		return nil
 	}
 	defer comCall(automation, vtRelease)
 
-	var root uintptr
+	var root unsafe.Pointer
 
-	hr = comCall(
+	hresult = comCall(
 		automation,
 		vtElementFromHandle,
 		hwnd,
 		uintptr(unsafe.Pointer(&root)),
 	)
-	if failed(hr) || root == 0 {
+	if failed(hresult) || root == nil {
 		return nil
 	}
 	defer comCall(root, vtRelease)
 
-	var condition uintptr
+	var condition unsafe.Pointer
 
-	hr = comCall(automation, vtCreateTrueCondition, uintptr(unsafe.Pointer(&condition)))
-	if failed(hr) || condition == 0 {
+	hresult = comCall(automation, vtCreateTrueCondition, uintptr(unsafe.Pointer(&condition)))
+	if failed(hresult) || condition == nil {
 		return nil
 	}
 	defer comCall(condition, vtRelease)
 
-	var array uintptr
+	var array unsafe.Pointer
 
-	hr = comCall(
+	hresult = comCall(
 		root,
 		vtFindAll,
 		uintptr(treeScopeDescendants),
-		condition,
+		uintptr(condition),
 		uintptr(unsafe.Pointer(&array)),
 	)
-	if failed(hr) || array == 0 {
+	if failed(hresult) || array == nil {
 		return nil
 	}
 	defer comCall(array, vtRelease)
@@ -183,18 +218,18 @@ func enumerateClickableElements(hwnd uintptr) []winElement {
 }
 
 // createAutomation creates the default IUIAutomation instance.
-func createAutomation() uintptr {
-	var automation uintptr
+func createAutomation() unsafe.Pointer {
+	var automation unsafe.Pointer
 
-	hr, _, _ := procCoCreateInstance.Call(
+	hresult, _, _ := procCoCreateInstance.Call(
 		uintptr(unsafe.Pointer(&clsidCUIAutomation)),
 		0,
 		clsctxInprocServer,
 		uintptr(unsafe.Pointer(&iidIUIAutomation)),
 		uintptr(unsafe.Pointer(&automation)),
 	)
-	if failed(hr) {
-		return 0
+	if failed(hresult) {
+		return nil
 	}
 
 	return automation
@@ -202,21 +237,21 @@ func createAutomation() uintptr {
 
 // collectArray walks an IUIAutomationElementArray and extracts the clickable
 // controls. Each element is released as soon as its data is copied out.
-func collectArray(array uintptr) []winElement {
+func collectArray(array unsafe.Pointer) []winElement {
 	var length int32
 
-	hr := comCall(array, vtArrayGetLength, uintptr(unsafe.Pointer(&length)))
-	if failed(hr) || length <= 0 {
+	hresult := comCall(array, vtArrayGetLength, uintptr(unsafe.Pointer(&length)))
+	if failed(hresult) || length <= 0 {
 		return nil
 	}
 
 	result := make([]winElement, 0, length)
 
-	for i := int32(0); i < length; i++ {
-		var element uintptr
+	for i := range length {
+		var element unsafe.Pointer
 
-		hr = comCall(array, vtArrayGetElement, uintptr(i), uintptr(unsafe.Pointer(&element)))
-		if failed(hr) || element == 0 {
+		hresult = comCall(array, vtArrayGetElement, uintptr(i), uintptr(unsafe.Pointer(&element)))
+		if failed(hresult) || element == nil {
 			continue
 		}
 
@@ -234,7 +269,7 @@ func collectArray(array uintptr) []winElement {
 
 // extractWinElement copies the relevant properties from a single UIA element.
 // It returns ok=false for non-clickable, offscreen, or zero-size controls.
-func extractWinElement(element uintptr) (winElement, bool) {
+func extractWinElement(element unsafe.Pointer) (winElement, bool) {
 	var controlType int32
 	if failed(comCall(element, vtGetCurrentControlType, uintptr(unsafe.Pointer(&controlType)))) {
 		return winElement{}, false
@@ -270,52 +305,52 @@ func extractWinElement(element uintptr) (winElement, bool) {
 }
 
 // currentName reads the element's name (BSTR) and frees it.
-func currentName(element uintptr) string {
-	var bstr uintptr
-	if failed(comCall(element, vtGetCurrentName, uintptr(unsafe.Pointer(&bstr)))) || bstr == 0 {
+func currentName(element unsafe.Pointer) string {
+	var bstr *uint16
+	if failed(comCall(element, vtGetCurrentName, uintptr(unsafe.Pointer(&bstr)))) || bstr == nil {
 		return ""
 	}
 
-	name := windows.UTF16PtrToString((*uint16)(unsafe.Pointer(bstr)))
+	name := windows.UTF16PtrToString(bstr)
 
-	procSysFreeString.Call(bstr)
+	discardCall(procSysFreeString.Call(uintptr(unsafe.Pointer(bstr))))
 
 	return name
 }
 
-// UI Automation CONTROLTYPEID values for the controls neru treats as
-// clickable hint targets, mapped onto the shared AX-style role names.
-func mapControlType(controlType int32) (role string, clickable bool) {
+// mapControlType maps UI Automation CONTROLTYPEID values onto the shared
+// AX-style role names for the controls neru treats as clickable hint targets.
+func mapControlType(controlType int32) (string, bool) {
 	switch controlType {
-	case 50000: // Button
-		return "AXButton", true
-	case 50002: // CheckBox
+	case ctButton:
+		return string(element.RoleButton), true
+	case ctCheckBox:
 		return "AXCheckBox", true
-	case 50003: // ComboBox
+	case ctComboBox:
 		return "AXComboBox", true
-	case 50004: // Edit
+	case ctEdit:
 		return "AXTextField", true
-	case 50005: // Hyperlink
+	case ctHyperlink:
 		return "AXLink", true
-	case 50007: // ListItem
+	case ctListItem:
 		return "AXCell", true
-	case 50011: // MenuItem
+	case ctMenuItem:
 		return "AXMenuItem", true
-	case 50013: // RadioButton
+	case ctRadioButton:
 		return "AXRadioButton", true
-	case 50015: // Slider
+	case ctSlider:
 		return "AXSlider", true
-	case 50016: // Spinner
+	case ctSpinner:
 		return "AXIncrementor", true
-	case 50019: // TabItem
+	case ctTabItem:
 		return "AXTabButton", true
-	case 50024: // TreeItem
+	case ctTreeItem:
 		return "AXRow", true
-	case 50029: // DataItem
+	case ctDataItem:
 		return "AXCell", true
-	case 50031: // SplitButton
-		return "AXButton", true
+	case ctSplitButton:
+		return string(element.RoleButton), true
 	default:
-		return "AXUnknown", false
+		return roleUnknown, false
 	}
 }

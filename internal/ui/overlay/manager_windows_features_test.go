@@ -4,7 +4,7 @@
 // Unit tests for the pure Win32 hint/recursive-grid rendering helpers.
 // Does not cover GDI drawing (see overlay integration tests on WIN-VM).
 
-package overlay
+package overlay //nolint:testpackage // tests exercise unexported Win32 rendering helpers directly
 
 import (
 	"image"
@@ -28,12 +28,18 @@ func TestEstimateWinTextWidth(t *testing.T) {
 		{"single char", "A", 10, 7},         // 1 * 10 * 0.7 = 7
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := estimateWinTextWidth(tt.text, tt.fontSize); got != tt.want {
-				t.Fatalf("estimateWinTextWidth(%q, %v) = %d, want %d", tt.text, tt.fontSize, got, tt.want)
+			if got := estimateWinTextWidth(testCase.text, testCase.fontSize); got != testCase.want {
+				t.Fatalf(
+					"estimateWinTextWidth(%q, %v) = %d, want %d",
+					testCase.text,
+					testCase.fontSize,
+					got,
+					testCase.want,
+				)
 			}
 		})
 	}
@@ -52,12 +58,17 @@ func TestEstimateWinTextHeight(t *testing.T) {
 		{"font 20", 20, 28}, // 20 * 1.4 = 28
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := estimateWinTextHeight(tt.fontSize); got != tt.want {
-				t.Fatalf("estimateWinTextHeight(%v) = %d, want %d", tt.fontSize, got, tt.want)
+			if got := estimateWinTextHeight(testCase.fontSize); got != testCase.want {
+				t.Fatalf(
+					"estimateWinTextHeight(%v) = %d, want %d",
+					testCase.fontSize,
+					got,
+					testCase.want,
+				)
 			}
 		})
 	}
@@ -81,14 +92,14 @@ func TestResolveWinAutoPadding(t *testing.T) {
 		{"auto vertical min floor", 5, -1, false, 4},    // int(5*0.35)=1 -> min 4
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := resolveWinAutoPadding(tt.fontSize, tt.padding, tt.horizontal)
-			if got != tt.want {
+			got := resolveWinAutoPadding(testCase.fontSize, testCase.padding, testCase.horizontal)
+			if got != testCase.want {
 				t.Fatalf("resolveWinAutoPadding(%v, %d, %v) = %d, want %d",
-					tt.fontSize, tt.padding, tt.horizontal, got, tt.want)
+					testCase.fontSize, testCase.padding, testCase.horizontal, got, testCase.want)
 			}
 		})
 	}
@@ -127,12 +138,17 @@ func TestParseHexColorARGB(t *testing.T) {
 		{"unparseable is opaque white", "GGGGGG", 0xFFFFFFFF},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := parseHexColorARGB(tt.value); got != tt.want {
-				t.Fatalf("parseHexColorARGB(%q) = 0x%08X, want 0x%08X", tt.value, got, tt.want)
+			if got := parseHexColorARGB(testCase.value); got != testCase.want {
+				t.Fatalf(
+					"parseHexColorARGB(%q) = 0x%08X, want 0x%08X",
+					testCase.value,
+					got,
+					testCase.want,
+				)
 			}
 		})
 	}
@@ -154,9 +170,12 @@ func TestShouldShowWinSubKeyPreview(t *testing.T) {
 			want:  false,
 		},
 		{
-			name:  "enabled without autohide",
-			style: recursivegridcomponent.Style{SubKeyPreview: true, SubKeyPreviewAutohideMultiplier: 0},
-			want:  true,
+			name: "enabled without autohide",
+			style: recursivegridcomponent.Style{
+				SubKeyPreview:                   true,
+				SubKeyPreviewAutohideMultiplier: 0,
+			},
+			want: true,
 		},
 		{
 			name: "enabled cell above threshold",
@@ -178,12 +197,12 @@ func TestShouldShowWinSubKeyPreview(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := shouldShowWinSubKeyPreview(cell, tt.style); got != tt.want {
-				t.Fatalf("shouldShowWinSubKeyPreview = %v, want %v", got, tt.want)
+			if got := shouldShowWinSubKeyPreview(cell, testCase.style); got != testCase.want {
+				t.Fatalf("shouldShowWinSubKeyPreview = %v, want %v", got, testCase.want)
 			}
 		})
 	}

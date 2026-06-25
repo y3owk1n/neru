@@ -47,7 +47,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 	SupportSearch:         true,
 	SupportFiltering:      true,
 	SupportStrategy:       true,
-  SupportDebug:          true,
+	SupportDebug:          true,
 	SupportLabelDirection: true,
 })
 

@@ -75,18 +75,13 @@ func Init(logger *zap.Logger) *Manager {
 	return windowsManager
 }
 
-func (m *Manager) publish(change StateChange) {
-	for _, sub := range m.subs {
-		sub(change)
-	}
-}
-
 // Show displays the overlay.
 func (m *Manager) Show() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	m.ensureWinOverlayLocked()
+
 	if m.win == nil {
 		if m.logger != nil {
 			m.logger.Error("manager Show aborted, overlay backend is nil")
@@ -124,6 +119,7 @@ func (m *Manager) ResizeToActiveScreen() {
 	defer m.renderMu.Unlock()
 
 	m.ensureWinOverlayLocked()
+
 	if m.win != nil {
 		m.win.Resize()
 	}
@@ -139,22 +135,6 @@ func (m *Manager) ActiveScreenBounds() (image.Rectangle, bool) {
 	}
 
 	return m.win.screenBounds()
-}
-
-func (m *Manager) ensureWinOverlayLocked() {
-	if m.win != nil && m.win.Healthy() {
-		return
-	}
-
-	if m.win != nil {
-		m.win.Destroy()
-		m.win = nil
-	}
-
-	m.win = newWinOverlay(m.logger)
-	if m.win == nil && m.logger != nil {
-		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")
-	}
 }
 
 // SwitchTo switches overlay mode and notifies subscribers.
@@ -173,6 +153,7 @@ func (m *Manager) SwitchTo(next Mode) {
 func (m *Manager) Subscribe(subFn func(StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	m.nextID++
 	id := m.nextID
 	m.subs[id] = subFn
@@ -220,30 +201,44 @@ func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil
 }
 
+// UseHintOverlay sets the hints overlay component.
 func (m *Manager) UseHintOverlay(o *hints.Overlay) { m.hintOverlay = o }
-func (m *Manager) UseGridOverlay(o *grid.Overlay)  { m.gridOverlay = o }
+
+// UseGridOverlay sets the grid overlay component.
+func (m *Manager) UseGridOverlay(o *grid.Overlay) { m.gridOverlay = o }
+
+// UseModeIndicatorOverlay sets the mode-indicator overlay component.
 func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
 	m.modeIndicatorOverlay = o
 }
 
+// UseStickyModifiersOverlay sets the sticky-modifiers overlay component.
 func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
 	m.stickyModifiersOverlay = o
 }
 
+// UseRecursiveGridOverlay sets the recursive-grid overlay component.
 func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
 }
 
+// HintOverlay returns the hints overlay component.
 func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
-func (m *Manager) GridOverlay() *grid.Overlay  { return m.gridOverlay }
+
+// GridOverlay returns the grid overlay component.
+func (m *Manager) GridOverlay() *grid.Overlay { return m.gridOverlay }
+
+// ModeIndicatorOverlay returns the mode-indicator overlay component.
 func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay {
 	return m.modeIndicatorOverlay
 }
 
+// StickyModifiersOverlay returns the sticky-modifiers overlay component.
 func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
 	return m.stickyModifiersOverlay
 }
 
+// RecursiveGridOverlay returns the recursive-grid overlay component.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return m.recursiveGridOverlay
 }
@@ -269,6 +264,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	defer m.renderMu.Unlock()
 
 	m.ensureWinOverlayLocked()
+
 	if m.win == nil {
 		return derrors.New(
 			derrors.CodeNotSupported,
@@ -283,6 +279,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return nil
 }
 
+// DrawHintSearchInput is a no-op on Windows; the hint search box is not rendered.
 func (m *Manager) DrawHintSearchInput(
 	_ string,
 	_ int,
@@ -292,12 +289,16 @@ func (m *Manager) DrawHintSearchInput(
 	return nil
 }
 
+// HideHintSearchInput is a no-op on Windows.
 func (m *Manager) HideHintSearchInput() {}
 
+// DrawModeIndicator is a no-op on Windows.
 func (m *Manager) DrawModeIndicator(_, _ int) {}
 
+// DrawStickyModifiersIndicator is a no-op on Windows.
 func (m *Manager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
 
+// DrawMouseActionIndicator is a no-op on Windows.
 func (m *Manager) DrawMouseActionIndicator(_ image.Point, _ ports.MouseActionIndicatorStyle) {}
 
 // DrawGrid draws the grid overlay.
@@ -306,6 +307,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 	defer m.renderMu.Unlock()
 
 	m.ensureWinOverlayLocked()
+
 	if m.win == nil {
 		if m.logger != nil {
 			m.logger.Error("manager DrawGrid aborted, overlay backend is nil")
@@ -331,10 +333,12 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 
 	if m.gridOverlay != nil {
 		cfg := m.gridOverlay.Config()
+
 		keys := strings.TrimSpace(cfg.SublayerKeys)
 		if keys == "" {
 			keys = cfg.Characters
 		}
+
 		m.win.sublayerKeys = strings.ToUpper(keys)
 	}
 
@@ -362,6 +366,7 @@ func (m *Manager) DrawRecursiveGrid(
 	defer m.renderMu.Unlock()
 
 	m.ensureWinOverlayLocked()
+
 	if m.win == nil {
 		return derrors.New(
 			derrors.CodeNotSupported,
@@ -419,3 +424,25 @@ func (m *Manager) Flush() {
 // SetKeyboardCaptureEnabled is a no-op on Windows; the low-level keyboard hook
 // manages capture directly and has no scroll-passthrough toggle.
 func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
+
+func (m *Manager) publish(change StateChange) {
+	for _, sub := range m.subs {
+		sub(change)
+	}
+}
+
+func (m *Manager) ensureWinOverlayLocked() {
+	if m.win != nil && m.win.Healthy() {
+		return
+	}
+
+	if m.win != nil {
+		m.win.Destroy()
+		m.win = nil
+	}
+
+	m.win = newWinOverlay(m.logger)
+	if m.win == nil && m.logger != nil {
+		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")
+	}
+}

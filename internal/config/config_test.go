@@ -54,7 +54,7 @@ func TestConfig_IsAppExcluded(t *testing.T) {
 		},
 		{
 			name:     "partial match",
-			excluded: []string{"com.example"},
+			excluded: []string{bundleExample},
 			bundleID: testBundleIDA,
 			want:     false,
 		},

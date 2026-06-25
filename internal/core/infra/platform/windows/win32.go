@@ -7,6 +7,7 @@
 package windows
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"path/filepath"
@@ -53,11 +54,6 @@ type winPoint struct {
 	y int32
 }
 
-type winSize struct {
-	cx int32
-	cy int32
-}
-
 var (
 	user32 = windows.NewLazySystemDLL("user32.dll")
 
@@ -70,9 +66,11 @@ var (
 	procEnumDisplayDevicesW = user32.NewProc("EnumDisplayDevicesW")
 )
 
+var errNoMonitors = errors.New("EnumDisplayMonitors: no monitors found")
+
 func win32Bool(ret uintptr, err error) error {
 	if ret == 0 {
-		if err != nil && err != syscall.Errno(0) {
+		if err != nil && !errors.Is(err, syscall.Errno(0)) {
 			return err
 		}
 
@@ -92,18 +90,23 @@ func rectToImage(rect windows.Rect) image.Rectangle {
 }
 
 func cursorPosition() (image.Point, error) {
-	var pt winPoint
-	ret, _, err := procGetCursorPos.Call(uintptr(unsafe.Pointer(&pt)))
-	if callErr := win32Bool(ret, err); callErr != nil {
+	var position winPoint
+
+	ret, _, err := procGetCursorPos.Call(uintptr(unsafe.Pointer(&position)))
+
+	callErr := win32Bool(ret, err)
+	if callErr != nil {
 		return image.Point{}, fmt.Errorf("GetCursorPos: %w", callErr)
 	}
 
-	return image.Point{X: int(pt.x), Y: int(pt.y)}, nil
+	return image.Point{X: int(position.x), Y: int(position.y)}, nil
 }
 
 func moveCursorTo(point image.Point) error {
 	ret, _, err := procSetCursorPos.Call(uintptr(point.X), uintptr(point.Y))
-	if callErr := win32Bool(ret, err); callErr != nil {
+
+	callErr := win32Bool(ret, err)
+	if callErr != nil {
 		return fmt.Errorf("SetCursorPos: %w", callErr)
 	}
 
@@ -112,13 +115,16 @@ func moveCursorTo(point image.Point) error {
 
 func getMonitorInfo(hMonitor windows.Handle) (monitorInfoEx, error) {
 	var info monitorInfoEx
+
 	info.cbSize = uint32(unsafe.Sizeof(info))
 
 	ret, _, err := procGetMonitorInfoW.Call(
 		uintptr(hMonitor),
 		uintptr(unsafe.Pointer(&info)),
 	)
-	if callErr := win32Bool(ret, err); callErr != nil {
+
+	callErr := win32Bool(ret, err)
+	if callErr != nil {
 		return monitorInfoEx{}, fmt.Errorf("GetMonitorInfoW: %w", callErr)
 	}
 
@@ -127,6 +133,7 @@ func getMonitorInfo(hMonitor windows.Handle) (monitorInfoEx, error) {
 
 func monitorFriendlyName(deviceName string) string {
 	var adapter displayDevice
+
 	adapter.cb = uint32(unsafe.Sizeof(adapter))
 
 	adapterName, err := windows.UTF16PtrFromString(deviceName)
@@ -136,6 +143,7 @@ func monitorFriendlyName(deviceName string) string {
 
 	for monitorIndex := uint32(0); ; monitorIndex++ {
 		var monitor displayDevice
+
 		monitor.cb = uint32(unsafe.Sizeof(monitor))
 
 		ret, _, _ := procEnumDisplayDevicesW.Call(
@@ -159,6 +167,7 @@ func monitorFriendlyName(deviceName string) string {
 	}
 
 	var device displayDevice
+
 	device.cb = uint32(unsafe.Sizeof(device))
 
 	ret, _, _ := procEnumDisplayDevicesW.Call(
@@ -183,21 +192,21 @@ type monitorEnumState struct {
 func enumerateMonitors() ([]displayMonitor, error) {
 	state := &monitorEnumState{}
 
+	// The callback captures state directly, so there is no need to round-trip a
+	// pointer through dwData (which would trip govet's unsafeptr check).
 	callback := syscall.NewCallback(func(
 		hMonitor uintptr,
 		_ uintptr,
 		_ uintptr,
-		dwData uintptr,
+		_ uintptr,
 	) uintptr {
-		enumState := (*monitorEnumState)(unsafe.Pointer(dwData))
-
 		info, err := getMonitorInfo(windows.Handle(hMonitor))
 		if err != nil {
 			return 1
 		}
 
 		deviceName := windows.UTF16ToString(info.szDevice[:])
-		enumState.monitors = append(enumState.monitors, displayMonitor{
+		state.monitors = append(state.monitors, displayMonitor{
 			name:   monitorFriendlyName(deviceName),
 			bounds: rectToImage(info.rcMonitor),
 		})
@@ -209,14 +218,16 @@ func enumerateMonitors() ([]displayMonitor, error) {
 		0,
 		0,
 		callback,
-		uintptr(unsafe.Pointer(state)),
+		0,
 	)
-	if callErr := win32Bool(ret, err); callErr != nil {
+
+	callErr := win32Bool(ret, err)
+	if callErr != nil {
 		return nil, fmt.Errorf("EnumDisplayMonitors: %w", callErr)
 	}
 
 	if len(state.monitors) == 0 {
-		return nil, fmt.Errorf("EnumDisplayMonitors: no monitors found")
+		return nil, errNoMonitors
 	}
 
 	return state.monitors, nil
@@ -226,6 +237,7 @@ func activeScreenBounds() (image.Rectangle, error) {
 	cursor, err := cursorPosition()
 	if err == nil {
 		pt := winPoint{x: int32(cursor.X), y: int32(cursor.Y)}
+
 		ret, _, pointErr := procMonitorFromPoint.Call(
 			uintptr(unsafe.Pointer(&pt)),
 			uintptr(monitorDefaultToNearest),
@@ -235,7 +247,7 @@ func activeScreenBounds() (image.Rectangle, error) {
 			if infoErr == nil {
 				return rectToImage(info.rcMonitor), nil
 			}
-		} else if pointErr != nil && pointErr != syscall.Errno(0) {
+		} else if pointErr != nil && !errors.Is(pointErr, syscall.Errno(0)) {
 			return image.Rectangle{}, fmt.Errorf("MonitorFromPoint: %w", pointErr)
 		}
 	}
@@ -310,11 +322,14 @@ func focusedWindowBounds() (image.Rectangle, bool, error) {
 	}
 
 	var rect windows.Rect
+
 	ret, _, err := procGetWindowRect.Call(
 		uintptr(hwnd),
 		uintptr(unsafe.Pointer(&rect)),
 	)
-	if callErr := win32Bool(ret, err); callErr != nil {
+
+	callErr := win32Bool(ret, err)
+	if callErr != nil {
 		return image.Rectangle{}, false, fmt.Errorf("GetWindowRect: %w", callErr)
 	}
 
@@ -340,7 +355,9 @@ func focusedApplicationPID() (int, error) {
 	}
 
 	var pid uint32
-	if _, err := windows.GetWindowThreadProcessId(hwnd, &pid); err != nil {
+
+	_, err = windows.GetWindowThreadProcessId(hwnd, &pid)
+	if err != nil {
 		return 0, fmt.Errorf("GetWindowThreadProcessId: %w", err)
 	}
 
@@ -360,16 +377,19 @@ func processImagePath(pid int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("OpenProcess: %w", err)
 	}
-	defer windows.CloseHandle(handle)
+	defer func() { _ = windows.CloseHandle(handle) }()
 
 	buf := make([]uint16, windows.MAX_PATH)
+
 	size := uint32(len(buf))
-	if err := windows.QueryFullProcessImageName(
+
+	err = windows.QueryFullProcessImageName(
 		handle,
 		processNameWin32,
 		&buf[0],
 		&size,
-	); err != nil {
+	)
+	if err != nil {
 		return "", fmt.Errorf("QueryFullProcessImageName: %w", err)
 	}
 

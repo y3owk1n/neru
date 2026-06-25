@@ -7,6 +7,7 @@
 package windows
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"unsafe"
@@ -52,8 +53,11 @@ var _ [40 - unsafe.Sizeof(input{})]byte
 
 var procSendInput = user32.NewProc("SendInput")
 
+var errSendInputFailed = errors.New("SendInput failed")
+
 func sendMouseInput(flags uint32, data uint32) error {
 	var event input
+
 	event.inputType = inputMouse
 	event.mi.dwFlags = flags
 	event.mi.mouseData = data
@@ -68,7 +72,7 @@ func sendMouseInput(flags uint32, data uint32) error {
 			return fmt.Errorf("SendInput: %w", err)
 		}
 
-		return fmt.Errorf("SendInput failed")
+		return errSendInputFailed
 	}
 
 	return nil
@@ -81,11 +85,13 @@ func MoveMouseTo(point image.Point) error {
 
 // LeftClickAt performs a left click at the given point.
 func LeftClickAt(point image.Point) error {
-	if err := moveCursorTo(point); err != nil {
+	err := moveCursorTo(point)
+	if err != nil {
 		return err
 	}
 
-	if err := sendMouseInput(mouseeventfLeftDown, 0); err != nil {
+	err = sendMouseInput(mouseeventfLeftDown, 0)
+	if err != nil {
 		return err
 	}
 
@@ -94,11 +100,13 @@ func LeftClickAt(point image.Point) error {
 
 // RightClickAt performs a right click at the given point.
 func RightClickAt(point image.Point) error {
-	if err := moveCursorTo(point); err != nil {
+	err := moveCursorTo(point)
+	if err != nil {
 		return err
 	}
 
-	if err := sendMouseInput(mouseeventfRightDown, 0); err != nil {
+	err = sendMouseInput(mouseeventfRightDown, 0)
+	if err != nil {
 		return err
 	}
 
@@ -107,11 +115,13 @@ func RightClickAt(point image.Point) error {
 
 // MiddleClickAt performs a middle click at the given point.
 func MiddleClickAt(point image.Point) error {
-	if err := moveCursorTo(point); err != nil {
+	err := moveCursorTo(point)
+	if err != nil {
 		return err
 	}
 
-	if err := sendMouseInput(mouseeventfMiddleDown, 0); err != nil {
+	err = sendMouseInput(mouseeventfMiddleDown, 0)
+	if err != nil {
 		return err
 	}
 
@@ -120,7 +130,8 @@ func MiddleClickAt(point image.Point) error {
 
 // LeftMouseDown presses the left button at the given point.
 func LeftMouseDown(point image.Point) error {
-	if err := moveCursorTo(point); err != nil {
+	err := moveCursorTo(point)
+	if err != nil {
 		return err
 	}
 
@@ -129,7 +140,8 @@ func LeftMouseDown(point image.Point) error {
 
 // LeftMouseUp releases the left button at the given point.
 func LeftMouseUp(point image.Point) error {
-	if err := moveCursorTo(point); err != nil {
+	err := moveCursorTo(point)
+	if err != nil {
 		return err
 	}
 

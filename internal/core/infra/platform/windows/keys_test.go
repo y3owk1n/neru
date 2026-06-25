@@ -1,6 +1,6 @@
 //go:build windows
 
-package windows
+package windows //nolint:testpackage // exercises unexported key translation helpers directly
 
 import "testing"
 
@@ -16,13 +16,13 @@ func TestKeyComboFromBaseAndModifiers(t *testing.T) {
 		{
 			name: "shift left click binding",
 			base: "l",
-			mods: []string{"shift"},
+			mods: []string{modNameShift},
 			want: "shift+l",
 		},
 		{
 			name: "shift right click binding",
 			base: "r",
-			mods: []string{"shift"},
+			mods: []string{modNameShift},
 			want: "shift+r",
 		},
 		{
@@ -39,13 +39,13 @@ func TestKeyComboFromBaseAndModifiers(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := KeyComboFromBaseAndModifiers(tt.base, tt.mods)
-			if got != tt.want {
-				t.Fatalf("KeyComboFromBaseAndModifiers() = %q, want %q", got, tt.want)
+			got := KeyComboFromBaseAndModifiers(testCase.base, testCase.mods)
+			if got != testCase.want {
+				t.Fatalf("KeyComboFromBaseAndModifiers() = %q, want %q", got, testCase.want)
 			}
 		})
 	}
@@ -58,7 +58,7 @@ func TestKeyNameFromVirtualKeyLetters(t *testing.T) {
 		t.Fatalf("KeyNameFromVirtualKey(0x4C) = %q, want l", got)
 	}
 
-	if got := ModifierNameFromVirtualKey(vkLShift); got != "shift" {
+	if got := ModifierNameFromVirtualKey(vkLShift); got != modNameShift {
 		t.Fatalf("ModifierNameFromVirtualKey(vkLShift) = %q, want shift", got)
 	}
 }
@@ -71,15 +71,15 @@ func TestOEMPunctuationRoundTripLayoutAware(t *testing.T) {
 	// the layout-aware translation round-trips: the VK that produces a char must
 	// map back to that same char. This keeps hotkeys like "`" and "/" working on
 	// any layout. Chars that need shift on this layout are skipped.
-	for _, ch := range []rune{'`', '/', '-', '=', ';', '[', ']', '\''} {
-		vk, ok := virtualKeyFromChar(ch)
+	for _, keyChar := range []rune{'`', '/', '-', '=', ';', '[', ']', '\''} {
+		virtualKey, ok := virtualKeyFromChar(keyChar)
 		if !ok {
 			continue
 		}
 
-		if got := KeyNameFromVirtualKey(vk); got != string(ch) {
+		if got := KeyNameFromVirtualKey(virtualKey); got != string(keyChar) {
 			t.Fatalf("round-trip for %q: KeyNameFromVirtualKey(%#x) = %q, want %q",
-				ch, vk, got, string(ch))
+				keyChar, virtualKey, got, string(keyChar))
 		}
 	}
 }
@@ -90,14 +90,14 @@ func TestNameToVirtualKeyPunctuationResolves(t *testing.T) {
 	// The literal hotkey strings used by the default config must resolve to a
 	// virtual key on the active layout so ParseHotkeyString and the hook agree.
 	for _, name := range []string{"`", "/"} {
-		vk, ok := nameToVirtualKey(name)
-		if !ok || vk == 0 {
-			t.Fatalf("nameToVirtualKey(%q) = %#x ok=%v, want a non-zero VK", name, vk, ok)
+		virtualKey, ok := nameToVirtualKey(name)
+		if !ok || virtualKey == 0 {
+			t.Fatalf("nameToVirtualKey(%q) = %#x ok=%v, want a non-zero VK", name, virtualKey, ok)
 		}
 
-		if got := KeyNameFromVirtualKey(vk); got != name {
+		if got := KeyNameFromVirtualKey(virtualKey); got != name {
 			t.Fatalf("nameToVirtualKey(%q) -> %#x -> KeyNameFromVirtualKey = %q, want %q",
-				name, vk, got, name)
+				name, virtualKey, got, name)
 		}
 	}
 }

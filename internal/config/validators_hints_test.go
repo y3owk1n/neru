@@ -6,6 +6,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+const (
+	dirNormal     = "normal"
+	dirReverse    = "reverse"
+	bundleExample = "com.example"
+)
+
 func TestValidateHints_EnabledRequiresClickableRoles(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Enabled = true
@@ -106,8 +112,8 @@ func TestValidateHints_LabelDirection(t *testing.T) {
 		direction string
 		wantErr   bool
 	}{
-		{name: "reverse is valid", direction: "reverse", wantErr: false},
-		{name: "normal is valid", direction: "normal", wantErr: false},
+		{name: "reverse is valid", direction: dirReverse, wantErr: false},
+		{name: "normal is valid", direction: dirNormal, wantErr: false},
 		{name: "empty defaults to normal (no error)", direction: "", wantErr: false},
 		{name: "unknown value is rejected", direction: "sideways", wantErr: true},
 		{name: "uppercase is rejected (case sensitive)", direction: "NORMAL", wantErr: true},
@@ -141,8 +147,8 @@ func TestValidateAppConfigs_LabelDirection(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID:       "com.example",
-			LabelDirection: "normal",
+			BundleID:       bundleExample,
+			LabelDirection: dirNormal,
 		},
 	}
 
@@ -154,7 +160,7 @@ func TestValidateAppConfigs_LabelDirection(t *testing.T) {
 	cfg = config.DefaultConfig()
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID:       "com.example",
+			BundleID:       bundleExample,
 			LabelDirection: "diagonal",
 		},
 	}
@@ -167,29 +173,29 @@ func TestValidateAppConfigs_LabelDirection(t *testing.T) {
 
 func TestLabelDirectionForApp(t *testing.T) {
 	cfg := config.DefaultConfig()
-	cfg.Hints.LabelDirection = "reverse"
+	cfg.Hints.LabelDirection = dirReverse
 	cfg.Hints.AppConfigs = []config.AppConfig{
 		{
-			BundleID:       "com.example",
-			LabelDirection: "normal",
+			BundleID:       bundleExample,
+			LabelDirection: dirNormal,
 		},
 	}
 
 	// App override takes precedence.
-	if got := cfg.Hints.LabelDirectionForApp("com.example"); got != "normal" {
-		t.Errorf("LabelDirectionForApp(app with override) = %q, want %q", got, "normal")
+	if got := cfg.Hints.LabelDirectionForApp(bundleExample); got != dirNormal {
+		t.Errorf("LabelDirectionForApp(app with override) = %q, want %q", got, dirNormal)
 	}
 
 	// Fallback to global config.
-	if got := cfg.Hints.LabelDirectionForApp("com.other"); got != "reverse" {
-		t.Errorf("LabelDirectionForApp(app without override) = %q, want %q", got, "reverse")
+	if got := cfg.Hints.LabelDirectionForApp("com.other"); got != dirReverse {
+		t.Errorf("LabelDirectionForApp(app without override) = %q, want %q", got, dirReverse)
 	}
 
 	// Empty global value normalizes to the default (normal).
 	cfg = config.DefaultConfig()
 	cfg.Hints.LabelDirection = ""
 
-	if got := cfg.Hints.LabelDirectionForApp("com.example"); got != "normal" {
-		t.Errorf("LabelDirectionForApp(empty global) = %q, want %q", got, "normal")
+	if got := cfg.Hints.LabelDirectionForApp(bundleExample); got != dirNormal {
+		t.Errorf("LabelDirectionForApp(empty global) = %q, want %q", got, dirNormal)
 	}
 }

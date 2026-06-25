@@ -19,6 +19,12 @@ var (
 	overlayUIGID  atomic.Uint64
 )
 
+const (
+	overlayUIOpsBuffer = 256
+	goroutinePrefixLen = len("goroutine ")
+	decimalBase        = 10
+)
+
 type winMsg struct {
 	hwnd    uintptr
 	message uint32
@@ -33,7 +39,7 @@ type winMsg struct {
 
 func startOverlayUIThread() {
 	overlayUIOnce.Do(func() {
-		overlayUIOps = make(chan func(), 256)
+		overlayUIOps = make(chan func(), overlayUIOpsBuffer)
 		ready := make(chan struct{})
 
 		go func() {
@@ -51,11 +57,11 @@ func startOverlayUIThread() {
 	})
 }
 
-func runOnOverlayUI(fn func()) {
+func runOnOverlayUI(callback func()) {
 	startOverlayUIThread()
 
 	if overlayUIGID.Load() == curGoroutineID() {
-		fn()
+		callback()
 		pumpOverlayMessages()
 
 		return
@@ -63,24 +69,26 @@ func runOnOverlayUI(fn func()) {
 
 	done := make(chan struct{})
 	overlayUIOps <- func() {
-		fn()
+		callback()
 		close(done)
 	}
+
 	<-done
 }
 
 func curGoroutineID() uint64 {
 	var buf [64]byte
+
 	n := runtime.Stack(buf[:], false)
 	// "goroutine 123 ["
-	i := 10
-	for i < n && buf[i] >= '0' && buf[i] <= '9' {
-		i++
+	idx := goroutinePrefixLen
+	for idx < n && buf[idx] >= '0' && buf[idx] <= '9' {
+		idx++
 	}
 
 	var id uint64
-	for j := 10; j < i; j++ {
-		id = id*10 + uint64(buf[j]-'0')
+	for j := goroutinePrefixLen; j < idx; j++ {
+		id = id*decimalBase + uint64(buf[j]-'0')
 	}
 
 	return id
@@ -95,7 +103,7 @@ const maxMessagesPerPump = 512
 func pumpOverlayMessages() {
 	var msg winMsg
 
-	for i := 0; i < maxMessagesPerPump; i++ {
+	for range maxMessagesPerPump {
 		ret, _, _ := procPeekMessageW.Call(
 			uintptr(unsafe.Pointer(&msg)),
 			0,
@@ -107,7 +115,7 @@ func pumpOverlayMessages() {
 			return
 		}
 
-		procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
-		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
+		_, _, _ = procTranslateMessage.Call(uintptr(unsafe.Pointer(&msg)))
+		_, _, _ = procDispatchMessageW.Call(uintptr(unsafe.Pointer(&msg)))
 	}
 }

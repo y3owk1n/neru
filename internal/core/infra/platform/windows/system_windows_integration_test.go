@@ -69,11 +69,13 @@ func TestSystemAdapterScreenAndCursorIntegration(t *testing.T) {
 
 	cursor, err := adapter.CursorPosition(ctx)
 	skipIfHeadlessSession(t, err)
+
 	if err != nil {
 		t.Fatalf("CursorPosition: %v", err)
 	}
 
-	if err := adapter.MoveCursorToPoint(ctx, cursor, true); err != nil {
+	err = adapter.MoveCursorToPoint(ctx, cursor, true)
+	if err != nil {
 		t.Fatalf("MoveCursorToPoint: %v", err)
 	}
 }
@@ -86,6 +88,7 @@ func TestSystemAdapterProcessIntegration(t *testing.T) {
 
 	pid, err := adapter.FocusedApplicationPID(ctx)
 	skipIfHeadlessSession(t, err)
+
 	if err != nil {
 		t.Fatalf("FocusedApplicationPID: %v", err)
 	}

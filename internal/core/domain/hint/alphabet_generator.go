@@ -2,6 +2,7 @@ package hint
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -590,7 +591,7 @@ func (g *AlphabetGenerator) computeLabelsNormal(
 				stringBuilderPool.Put(stringBuilder)
 
 				// Increment cursor like adding 1 in base-N.
-				for pos := len(current) - 1; pos >= 0; pos-- {
+				for pos := range slices.Backward(current) {
 					current[pos]++
 					if current[pos] < numChars {
 						break

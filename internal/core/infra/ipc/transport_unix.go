@@ -27,7 +27,8 @@ func prepareEndpoint(path string) error {
 }
 
 func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
-	if err := prepareEndpoint(path); err != nil {
+	err := prepareEndpoint(path)
+	if err != nil {
 		return nil, err
 	}
 
@@ -36,7 +37,8 @@ func listenEndpoint(ctx context.Context, path string) (net.Listener, error) {
 		return nil, err
 	}
 
-	if chmodErr := os.Chmod(path, DefaultSocketPerms); chmodErr != nil {
+	chmodErr := os.Chmod(path, DefaultSocketPerms)
+	if chmodErr != nil {
 		_ = listener.Close()
 
 		return nil, chmodErr

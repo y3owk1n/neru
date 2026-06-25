@@ -2,6 +2,7 @@
 // Read-only diagnostic that runs the hint-generation pipeline once and reports
 // what would be hinted for the focused window, backing `neru hints --debug`.
 // It does not draw any overlay, activate a mode, or mutate Handler state.
+
 package modes
 
 import (
@@ -45,6 +46,7 @@ func (h *Handler) DebugProbeHints(
 		filterTextContains,
 		bundleID,
 		strategy,
+		"", // labelDirectionOverride: probe uses the configured default
 	)
 	if genErr != nil {
 		return "", genErr
@@ -52,18 +54,18 @@ func (h *Handler) DebugProbeHints(
 
 	onScreen := filterHintsForScreen(generated, screenBounds)
 
-	var b strings.Builder
+	var builder strings.Builder
 
 	focused := bundleID
 	if focused == "" {
 		focused = "(unknown)"
 	}
 
-	fmt.Fprintf(&b, "hints debug probe\n")
-	fmt.Fprintf(&b, "  focused app:   %s\n", focused)
-	fmt.Fprintf(&b, "  screen bounds: %s\n", screenBounds.String())
+	fmt.Fprintf(&builder, "hints debug probe\n")
+	fmt.Fprintf(&builder, "  focused app:   %s\n", focused)
+	fmt.Fprintf(&builder, "  screen bounds: %s\n", screenBounds.String())
 	fmt.Fprintf(
-		&b,
+		&builder,
 		"  clickable elements: %d detected, %d on active screen\n",
 		len(generated),
 		len(onScreen),
@@ -79,16 +81,16 @@ func (h *Handler) DebugProbeHints(
 	}
 
 	for i, hintItem := range sample {
-		el := hintItem.Element()
+		elem := hintItem.Element()
 		fmt.Fprintf(
-			&b,
+			&builder,
 			"  [%2d] role=%s title=%q bounds=%s\n",
 			i+1,
-			el.Role(),
-			el.Title(),
-			el.Bounds().String(),
+			elem.Role(),
+			elem.Title(),
+			elem.Bounds().String(),
 		)
 	}
 
-	return strings.TrimRight(b.String(), "\n"), nil
+	return strings.TrimRight(builder.String(), "\n"), nil
 }

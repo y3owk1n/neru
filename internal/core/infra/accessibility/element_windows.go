@@ -311,7 +311,8 @@ func MiddleClickAtPoint(
 
 // LeftMouseDownAtPoint presses the mouse.
 func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error {
-	if err := winplatform.LeftMouseDown(point); err != nil {
+	err := winplatform.LeftMouseDown(point)
+	if err != nil {
 		return err
 	}
 
@@ -322,7 +323,8 @@ func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error {
 
 // LeftMouseUpAtPoint releases the mouse.
 func LeftMouseUpAtPoint(point image.Point, _ action.Modifiers) error {
-	if err := winplatform.LeftMouseUp(point); err != nil {
+	err := winplatform.LeftMouseUp(point)
+	if err != nil {
 		return err
 	}
 

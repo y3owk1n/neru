@@ -7,7 +7,7 @@
 package windows
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 	"syscall"
 	"time"
@@ -70,15 +70,17 @@ var (
 	procTranslateMessage    = user32.NewProc("TranslateMessage")
 	procDispatchMessageW    = user32.NewProc("DispatchMessageW")
 	procPostThreadMessageW  = user32.NewProc("PostThreadMessageW")
-	procGetCurrentThreadId  = kernel32.NewProc("GetCurrentThreadId")
+	procGetCurrentThreadID  = kernel32.NewProc("GetCurrentThreadId")
 
 	activeKeyboardHook *KeyboardHook
 )
 
+var errKeyboardHookCallbackNil = errors.New("keyboard hook callback is nil")
+
 // StartKeyboardHook installs a WH_KEYBOARD_LL hook and begins dispatching events.
 func StartKeyboardHook(callback func(key string, isUp bool)) (*KeyboardHook, error) {
 	if callback == nil {
-		return nil, fmt.Errorf("keyboard hook callback is nil")
+		return nil, errKeyboardHookCallbackNil
 	}
 
 	hook := &KeyboardHook{
@@ -90,96 +92,6 @@ func StartKeyboardHook(callback func(key string, isUp bool)) (*KeyboardHook, err
 	go hook.run()
 
 	return hook, nil
-}
-
-func (h *KeyboardHook) run() {
-	defer close(h.doneCh)
-
-	hookProc := syscall.NewCallback(func(code int, wParam uintptr, lParam uintptr) uintptr {
-		if code < 0 {
-			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, lParam)
-
-			return ret
-		}
-
-		current := activeKeyboardHook
-		if current == nil || current.callback == nil {
-			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, lParam)
-
-			return ret
-		}
-
-		kbd := (*kbdLLHookStruct)(unsafe.Pointer(lParam))
-		isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
-		key := hookKeyName(kbd.vkCode, isUp)
-		if key != "" {
-			current.callback(key, isUp)
-		}
-
-		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, lParam)
-
-		return ret
-	})
-
-	handle, _, _ := procSetWindowsHookExW.Call(
-		whKeyboardLL,
-		hookProc,
-		moduleHandle(),
-		0,
-	)
-	if handle == 0 {
-		return
-	}
-
-	h.mu.Lock()
-	h.hook = handle
-	threadID, _, _ := procGetCurrentThreadId.Call()
-	h.threadID = uint32(threadID)
-	activeKeyboardHook = h
-	h.mu.Unlock()
-
-	defer func() {
-		h.mu.Lock()
-		if h.hook != 0 {
-			procUnhookWindowsHookEx.Call(h.hook)
-			h.hook = 0
-		}
-		if activeKeyboardHook == h {
-			activeKeyboardHook = nil
-		}
-		h.mu.Unlock()
-	}()
-
-	var message msg
-	for {
-		select {
-		case <-h.stopCh:
-			if h.threadID != 0 {
-				procPostThreadMessageW.Call(
-					uintptr(h.threadID),
-					wmQuit,
-					0,
-					0,
-				)
-			}
-
-			return
-		default:
-		}
-
-		ret, _, _ := procGetMessageW.Call(
-			uintptr(unsafe.Pointer(&message)),
-			0,
-			0,
-			0,
-		)
-		if ret == 0 || int32(ret) == -1 {
-			return
-		}
-
-		procTranslateMessage.Call(uintptr(unsafe.Pointer(&message)))
-		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&message)))
-	}
 }
 
 func hookKeyName(vk uint32, isUp bool) string {
@@ -212,7 +124,7 @@ func (h *KeyboardHook) Stop() {
 		h.mu.Unlock()
 
 		if threadID != 0 {
-			procPostThreadMessageW.Call(
+			_, _, _ = procPostThreadMessageW.Call(
 				uintptr(threadID),
 				wmQuit,
 				0,
@@ -235,5 +147,100 @@ func (h *KeyboardHook) Stop() {
 	case <-h.doneCh:
 	case <-time.After(keyboardHookStopJoinTimeout):
 		go func() { <-h.doneCh }()
+	}
+}
+
+func (h *KeyboardHook) run() {
+	defer close(h.doneCh)
+
+	// lParam is typed unsafe.Pointer (not uintptr) so the KBDLLHOOKSTRUCT
+	// dereference is a Pointer->*T conversion, which keeps go vet's unsafeptr
+	// check happy. syscall.NewCallback accepts pointer-kind parameters.
+	hookProc := syscall.NewCallback(func(code int, wParam uintptr, lParam unsafe.Pointer) uintptr {
+		if code < 0 {
+			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+			return ret
+		}
+
+		current := activeKeyboardHook
+		if current == nil || current.callback == nil {
+			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+			return ret
+		}
+
+		kbd := (*kbdLLHookStruct)(lParam)
+		isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
+
+		key := hookKeyName(kbd.vkCode, isUp)
+		if key != "" {
+			current.callback(key, isUp)
+		}
+
+		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+		return ret
+	})
+
+	handle, _, _ := procSetWindowsHookExW.Call(
+		whKeyboardLL,
+		hookProc,
+		moduleHandle(),
+		0,
+	)
+	if handle == 0 {
+		return
+	}
+
+	h.mu.Lock()
+	h.hook = handle
+	threadID, _, _ := procGetCurrentThreadID.Call()
+	h.threadID = uint32(threadID)
+	activeKeyboardHook = h
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		if h.hook != 0 {
+			_, _, _ = procUnhookWindowsHookEx.Call(h.hook)
+			h.hook = 0
+		}
+
+		if activeKeyboardHook == h {
+			activeKeyboardHook = nil
+		}
+		h.mu.Unlock()
+	}()
+
+	var message msg
+	for {
+		select {
+		case <-h.stopCh:
+			if h.threadID != 0 {
+				_, _, _ = procPostThreadMessageW.Call(
+					uintptr(h.threadID),
+					wmQuit,
+					0,
+					0,
+				)
+			}
+
+			return
+		default:
+		}
+
+		ret, _, _ := procGetMessageW.Call(
+			uintptr(unsafe.Pointer(&message)),
+			0,
+			0,
+			0,
+		)
+		if ret == 0 || int32(ret) == -1 {
+			return
+		}
+
+		_, _, _ = procTranslateMessage.Call(uintptr(unsafe.Pointer(&message)))
+		_, _, _ = procDispatchMessageW.Call(uintptr(unsafe.Pointer(&message)))
 	}
 }

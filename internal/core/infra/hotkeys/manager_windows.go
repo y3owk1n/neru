@@ -28,8 +28,6 @@ type Manager struct {
 	mu        sync.RWMutex
 }
 
-var globalManager *Manager
-
 // NewManager creates and initializes a new hotkey manager instance.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
@@ -114,7 +112,6 @@ func (m *Manager) UnregisterAll() {
 	m.nativeIDs = make(map[HotkeyID]int)
 }
 
-// SetGlobalManager sets the global hotkey manager.
-func SetGlobalManager(manager *Manager) {
-	globalManager = manager
-}
+// SetGlobalManager assigns the global manager instance (no-op on Windows; the
+// native hotkey registry dispatches callbacks directly).
+func SetGlobalManager(_ *Manager) {}

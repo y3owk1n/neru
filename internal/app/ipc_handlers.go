@@ -161,6 +161,27 @@ type ModeActivationOptions struct {
 	Debug                 *bool
 }
 
+// parseCursorSelectionModeValue resolves a --cursor-selection-mode value into a
+// cursor-follow override, or returns an error response for invalid input.
+func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
+	switch value {
+	case "follow":
+		follow := true
+
+		return &follow, nil
+	case "hold":
+		follow := false
+
+		return &follow, nil
+	default:
+		return nil, &ipc.Response{
+			Success: false,
+			Message: msgCursorSelectionModeRequires,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+}
+
 // extractModeOptions extracts and validates the optional action and repeat
 // parameters from a mode IPC command. It returns the options and an optional
 // error response. If the response is non-nil the caller should return it
@@ -220,49 +241,31 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			actionArg := cmd.Args[startIdx]
 			opts.Action = &actionArg
-		case arg == "--cursor-selection-mode=follow":
-			cursorFollowSelection := true
-			opts.CursorFollowSelection = &cursorFollowSelection
-		case arg == "--cursor-selection-mode=hold":
-			cursorFollowSelection := false
-			opts.CursorFollowSelection = &cursorFollowSelection
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
-			resp := ipc.Response{
-				Success: false,
-				Message: msgCursorSelectionModeRequires,
-				Code:    ipc.CodeInvalidInput,
+			val, resp := parseCursorSelectionModeValue(
+				strings.TrimPrefix(arg, "--cursor-selection-mode="))
+			if resp != nil {
+				return opts, resp
 			}
 
-			return opts, &resp
+			opts.CursorFollowSelection = val
 		case arg == "--cursor-selection-mode":
 			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
+				return opts, &ipc.Response{
 					Success: false,
 					Message: msgCursorSelectionModeRequires,
 					Code:    ipc.CodeInvalidInput,
 				}
-
-				return opts, &resp
 			}
 
 			startIdx++
 
-			switch cmd.Args[startIdx] {
-			case "follow":
-				cursorFollowSelection := true
-				opts.CursorFollowSelection = &cursorFollowSelection
-			case "hold":
-				cursorFollowSelection := false
-				opts.CursorFollowSelection = &cursorFollowSelection
-			default:
-				resp := ipc.Response{
-					Success: false,
-					Message: msgCursorSelectionModeRequires,
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
+			val, resp := parseCursorSelectionModeValue(cmd.Args[startIdx])
+			if resp != nil {
+				return opts, resp
 			}
+
+			opts.CursorFollowSelection = val
 		case strings.HasPrefix(arg, "--role="):
 			opts.FilterRoles = append(
 				opts.FilterRoles,

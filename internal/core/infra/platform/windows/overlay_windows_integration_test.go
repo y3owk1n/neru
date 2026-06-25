@@ -35,9 +35,11 @@ func TestOverlayWindowLifecycleIntegration(t *testing.T) {
 
 	overlay, err := winplatform.NewOverlayWindow()
 	skipIfOverlayUnavailable(t, err)
+
 	if err != nil {
 		t.Fatalf("NewOverlayWindow: %v", err)
 	}
+
 	defer overlay.Destroy()
 
 	if !overlay.Healthy() {
@@ -52,11 +54,12 @@ func TestOverlayWindowLifecycleIntegration(t *testing.T) {
 	overlay.Clear()
 	overlay.FillRect(bounds, 0x8000FF00)
 	overlay.DrawTextCentered("FF", bounds, "Segoe UI", 48, 0xFFFFFFFF)
-	overlay.Flush()
+	_ = overlay.Flush()
 	overlay.Show()
 	overlay.Hide()
 
-	if err := overlay.ResizeToActiveScreen(); err != nil {
+	err = overlay.ResizeToActiveScreen()
+	if err != nil {
 		t.Fatalf("ResizeToActiveScreen: %v", err)
 	}
 }
@@ -66,14 +69,17 @@ func TestOverlayRectDrawingIntegration(t *testing.T) {
 
 	overlay, err := winplatform.NewOverlayWindow()
 	skipIfOverlayUnavailable(t, err)
+
 	if err != nil {
 		t.Fatalf("NewOverlayWindow: %v", err)
 	}
+
 	defer overlay.Destroy()
 
 	cell := image.Rect(10, 10, 110, 60)
+
 	overlay.Clear()
 	overlay.FillRect(cell, 0xCC3366FF)
 	overlay.StrokeRect(cell, 0xFFFFFFFF, 2)
-	overlay.Flush()
+	_ = overlay.Flush()
 }

@@ -7,6 +7,7 @@
 package windows
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -44,6 +45,16 @@ const (
 	// virtual-key code to its unshifted character for the active keyboard
 	// layout. The high bit of the result flags a dead key.
 	mapvkVkToChar = 2
+
+	// loWordMask isolates the low 16 bits; byteMask isolates the low 8 bits.
+	loWordMask = 0xFFFF
+	byteMask   = 0xFF
+
+	// Neru modifier names, shared across parsing and name lookup.
+	modNameCtrl  = "ctrl"
+	modNameAlt   = "alt"
+	modNameShift = "shift"
+	modNameCmd   = "cmd"
 )
 
 var (
@@ -52,45 +63,52 @@ var (
 	procVkKeyScanW       = user32.NewProc("VkKeyScanW")
 )
 
+var (
+	errEmptyHotkeyString    = errors.New("empty hotkey string")
+	errEmptyHotkeyKey       = errors.New("empty hotkey key")
+	errUnsupportedHotkeyKey = errors.New("unsupported hotkey key")
+	errUnsupportedModifier  = errors.New("unsupported hotkey modifier")
+)
+
 // ParseHotkeyString parses a Neru hotkey string into RegisterHotKey modifiers and VK.
-func ParseHotkeyString(keyString string) (modifiers uint32, virtualKey uint32, err error) {
+func ParseHotkeyString(keyString string) (uint32, uint32, error) {
 	parts := strings.Split(keyString, "+")
 	if len(parts) == 0 {
-		return 0, 0, fmt.Errorf("empty hotkey string")
+		return 0, 0, errEmptyHotkeyString
 	}
 
 	base := strings.TrimSpace(parts[len(parts)-1])
 	if base == "" {
-		return 0, 0, fmt.Errorf("empty hotkey key")
+		return 0, 0, errEmptyHotkeyKey
 	}
 
-	vk, ok := nameToVirtualKey(base)
+	virtualKey, ok := nameToVirtualKey(base)
 	if !ok {
-		return 0, 0, fmt.Errorf("unsupported hotkey key: %s", base)
+		return 0, 0, fmt.Errorf("%w: %s", errUnsupportedHotkeyKey, base)
 	}
 
 	var mods uint32
 	for _, part := range parts[:len(parts)-1] {
 		switch strings.ToLower(strings.TrimSpace(part)) {
-		case "ctrl", "control":
+		case modNameCtrl, "control":
 			mods |= modControl
-		case "alt", "option":
+		case modNameAlt, "option":
 			mods |= modAlt
-		case "shift":
+		case modNameShift:
 			mods |= modShift
-		case "cmd", "command", "win", "super", "meta":
+		case modNameCmd, "command", "win", "super", "meta":
 			mods |= modWin
 		default:
-			return 0, 0, fmt.Errorf("unsupported hotkey modifier: %s", part)
+			return 0, 0, fmt.Errorf("%w: %s", errUnsupportedModifier, part)
 		}
 	}
 
-	return mods, vk, nil
+	return mods, virtualKey, nil
 }
 
 // KeyNameFromVirtualKey maps a virtual-key code to Neru key strings.
-func KeyNameFromVirtualKey(vk uint32) string {
-	switch vk {
+func KeyNameFromVirtualKey(virtualKey uint32) string {
+	switch virtualKey {
 	case vkBack:
 		return "Delete"
 	case vkTab:
@@ -112,25 +130,26 @@ func KeyNameFromVirtualKey(vk uint32) string {
 	case vkDelete:
 		return "Delete"
 	case vkLShift, vkRShift:
-		return "shift"
+		return modNameShift
 	case vkLControl, vkRControl:
-		return "ctrl"
+		return modNameCtrl
 	case vkLMenu, vkRMenu:
-		return "alt"
+		return modNameAlt
 	case vkLWin, vkRWin:
-		return "cmd"
+		return modNameCmd
 	default:
-		if vk >= 0x30 && vk <= 0x39 {
-			return string(rune(vk))
+		if virtualKey >= 0x30 && virtualKey <= 0x39 {
+			return string(rune(virtualKey))
 		}
-		if vk >= 0x41 && vk <= 0x5A {
-			return strings.ToLower(string(rune(vk)))
+
+		if virtualKey >= 0x41 && virtualKey <= 0x5A {
+			return strings.ToLower(string(rune(virtualKey)))
 		}
 		// OEM/punctuation keys (e.g. "`", "/", "-") are layout-dependent: the
 		// same character lives on different VK codes across keyboard layouts.
 		// Translate via the active layout so hotkeys like "`" match regardless
 		// of whether the user is on a US, UK, or other layout.
-		if name := charNameFromVirtualKey(vk); name != "" {
+		if name := charNameFromVirtualKey(virtualKey); name != "" {
 			return name
 		}
 	}
@@ -147,16 +166,16 @@ func charNameFromVirtualKey(vk uint32) string {
 		return ""
 	}
 
-	ch := rune(ret & 0xFFFF)
-	if ch < 0x20 || ch > 0x7E {
+	keyChar := rune(ret & loWordMask)
+	if keyChar < 0x20 || keyChar > 0x7E {
 		return ""
 	}
 
-	if unicode.IsLetter(ch) {
-		return strings.ToLower(string(ch))
+	if unicode.IsLetter(keyChar) {
+		return strings.ToLower(string(keyChar))
 	}
 
-	return string(ch)
+	return string(keyChar)
 }
 
 // virtualKeyFromChar resolves a single character to its virtual-key code on the
@@ -164,12 +183,13 @@ func charNameFromVirtualKey(vk uint32) string {
 // the character is not reachable on the current layout.
 func virtualKeyFromChar(r rune) (uint32, bool) {
 	ret, _, _ := procVkKeyScanW.Call(uintptr(r))
+
 	scan := int16(ret)
 	if scan == -1 {
 		return 0, false
 	}
 
-	vk := uint32(scan) & 0xFF
+	vk := uint32(scan) & byteMask
 	if vk == 0 {
 		return 0, false
 	}
@@ -179,13 +199,13 @@ func virtualKeyFromChar(r rune) (uint32, bool) {
 
 // KeyComboFromVirtualKey maps a virtual-key code to a Neru combo string (e.g. shift+l).
 // Modifier-only keys return the modifier name alone.
-func KeyComboFromVirtualKey(vk uint32) string {
-	base := KeyNameFromVirtualKey(vk)
+func KeyComboFromVirtualKey(virtualKey uint32) string {
+	base := KeyNameFromVirtualKey(virtualKey)
 	if base == "" {
 		return ""
 	}
 
-	if ModifierNameFromVirtualKey(vk) != "" {
+	if ModifierNameFromVirtualKey(virtualKey) != "" {
 		return base
 	}
 
@@ -211,19 +231,19 @@ func pressedModifierNames() []string {
 	var mods []string
 
 	if isVirtualKeyDown(vkControl) {
-		mods = append(mods, "ctrl")
+		mods = append(mods, modNameCtrl)
 	}
 
 	if isVirtualKeyDown(vkMenu) {
-		mods = append(mods, "alt")
+		mods = append(mods, modNameAlt)
 	}
 
 	if isVirtualKeyDown(vkShift) {
-		mods = append(mods, "shift")
+		mods = append(mods, modNameShift)
 	}
 
 	if isVirtualKeyDown(vkLWin) || isVirtualKeyDown(vkRWin) {
-		mods = append(mods, "cmd")
+		mods = append(mods, modNameCmd)
 	}
 
 	return mods
@@ -236,10 +256,10 @@ func isVirtualKeyDown(vk uint32) bool {
 }
 
 // ModifierNameFromVirtualKey returns modifier names for dedicated modifier VK codes.
-func ModifierNameFromVirtualKey(vk uint32) string {
-	name := KeyNameFromVirtualKey(vk)
+func ModifierNameFromVirtualKey(virtualKey uint32) string {
+	name := KeyNameFromVirtualKey(virtualKey)
 	switch name {
-	case "shift", "ctrl", "alt", "cmd":
+	case modNameShift, modNameCtrl, modNameAlt, modNameCmd:
 		return name
 	default:
 		return ""
@@ -268,14 +288,16 @@ func nameToVirtualKey(name string) (uint32, bool) {
 		return vkDown, true
 	default:
 		if len(name) == 1 {
-			r := rune(name[0])
-			if unicode.IsLetter(r) {
-				return uint32(unicode.ToUpper(r)), true
+			keyRune := rune(name[0])
+			if unicode.IsLetter(keyRune) {
+				return uint32(unicode.ToUpper(keyRune)), true
 			}
-			if unicode.IsDigit(r) {
-				return uint32(r), true
+
+			if unicode.IsDigit(keyRune) {
+				return uint32(keyRune), true
 			}
-			if vk, ok := virtualKeyFromChar(r); ok {
+
+			if vk, ok := virtualKeyFromChar(keyRune); ok {
 				return vk, true
 			}
 		}

@@ -10,28 +10,37 @@ package windows
 // Use a rare RGB value so grid theme colors are not punched through as holes.
 const overlayColorKey = 0x00010101 // RGB(1, 1, 1)
 
+// Bit offsets for the channels of an AARRGGBB / 0xRRGGBB packed color, and the
+// maximum value of a single 8-bit channel.
+const (
+	greenShift = 8
+	redShift   = 16
+	alphaShift = 24
+	maxChannel = 255
+)
+
 func rgbToColorRef(red, green, blue uint8) uint32 {
-	return uint32(blue) | (uint32(green) << 8) | (uint32(red) << 16)
+	return uint32(blue) | (uint32(green) << greenShift) | (uint32(red) << redShift)
 }
 
 // argbToGDIColorRef converts AARRGGBB to an opaque COLORREF for GDI.
 // Semi-transparent theme colors are alpha-blended over blendRGB, matching how
 // cairo composites grid strokes and labels on Linux/macOS.
 func argbToGDIColorRef(argb uint32, blendRGB uint32) uint32 {
-	alpha := uint8(argb >> 24)
-	red := uint8(argb >> 16)
-	green := uint8(argb >> 8)
+	alpha := uint8(argb >> alphaShift)
+	red := uint8(argb >> redShift)
+	green := uint8(argb >> greenShift)
 	blue := uint8(argb)
 
-	if alpha < 255 {
-		blendR := uint8(blendRGB >> 16)
-		blendG := uint8(blendRGB >> 8)
+	if alpha < maxChannel {
+		blendR := uint8(blendRGB >> redShift)
+		blendG := uint8(blendRGB >> greenShift)
 		blendB := uint8(blendRGB)
 
-		inv := 255 - uint16(alpha)
-		red = uint8((uint16(red)*uint16(alpha) + uint16(blendR)*inv) / 255)
-		green = uint8((uint16(green)*uint16(alpha) + uint16(blendG)*inv) / 255)
-		blue = uint8((uint16(blue)*uint16(alpha) + uint16(blendB)*inv) / 255)
+		inv := maxChannel - uint16(alpha)
+		red = uint8((uint16(red)*uint16(alpha) + uint16(blendR)*inv) / maxChannel)
+		green = uint8((uint16(green)*uint16(alpha) + uint16(blendG)*inv) / maxChannel)
+		blue = uint8((uint16(blue)*uint16(alpha) + uint16(blendB)*inv) / maxChannel)
 	}
 
 	return avoidColorKey(rgbToColorRef(red, green, blue))
