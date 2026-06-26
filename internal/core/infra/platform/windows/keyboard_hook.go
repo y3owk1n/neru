@@ -56,7 +56,7 @@ type KeyboardHook struct {
 	mu       sync.Mutex
 	hook     uintptr
 	threadID uint32
-	callback func(key string, isUp bool)
+	callback func(key string, isUp bool) bool
 	stopCh   chan struct{}
 	doneCh   chan struct{}
 	startErr chan error
@@ -84,7 +84,7 @@ var (
 )
 
 // StartKeyboardHook installs a WH_KEYBOARD_LL hook and begins dispatching events.
-func StartKeyboardHook(callback func(key string, isUp bool)) (*KeyboardHook, error) {
+func StartKeyboardHook(callback func(key string, isUp bool) bool) (*KeyboardHook, error) {
 	if callback == nil {
 		return nil, errKeyboardHookCallbackNil
 	}
@@ -194,8 +194,8 @@ func (h *KeyboardHook) run() {
 		isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
 
 		key := hookKeyName(kbd.vkCode, isUp)
-		if key != "" {
-			current.callback(key, isUp)
+		if key != "" && current.callback(key, isUp) {
+			return 1
 		}
 
 		ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))

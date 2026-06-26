@@ -168,9 +168,9 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
-func (et *EventTap) handleKey(key string, isUp bool) {
+func (et *EventTap) handleKey(key string, isUp bool) bool {
 	if key == "" {
-		return
+		return false
 	}
 
 	if mod := normalizeWindowsModifier(key); mod != "" {
@@ -178,7 +178,7 @@ func (et *EventTap) handleKey(key string, isUp bool) {
 			et.dispatchKey(windowsModifierToggleEvent(mod, !isUp))
 		}
 
-		return
+		return false
 	}
 
 	if isUp {
@@ -186,10 +186,26 @@ func (et *EventTap) handleKey(key string, isUp bool) {
 			et.dispatchKey(keyUp)
 		}
 
-		return
+		return false
 	}
 
-	et.dispatchKey(normalizeWindowsKey(key))
+	// Key-down with system-level modifiers (ctrl, alt, cmd) should pass through
+	// to the application so system shortcuts like Ctrl+C, Alt+Tab, Win+D still
+	// work while a mode is active. The mode handler still receives the key for
+	// hotkey matching.
+	normalized := normalizeWindowsKey(key)
+	lower := strings.ToLower(normalized)
+	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") || strings.Contains(lower, "cmd+") {
+		et.dispatchKey(normalized)
+		return false
+	}
+
+	// Non-modifier key-down (single character, Shift+letter, named key like
+	// Return/Space/arrows): consume the key so it does not reach the
+	// application behind the overlay. This matches macOS behavior where all
+	// non-modifier keys are consumed by the event tap.
+	et.dispatchKey(normalized)
+	return true
 }
 
 func (et *EventTap) dispatchKey(key string) {
