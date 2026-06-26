@@ -9,11 +9,8 @@ import (
 
 func applyPlatformDefaults(cfg *Config) {
 	// Windows-specific exec shell defaults (absolute path required for validation)
-	systemRoot := os.Getenv("SystemRoot")
-	if systemRoot == "" {
-		systemRoot = "C:\\Windows"
-	}
-	cfg.General.ExecShell = filepath.Join(systemRoot, "System32", "cmd.exe")
+	// %SystemRoot% is always set on Windows (e.g. C:\Windows).
+	cfg.General.ExecShell = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
 	cfg.General.ExecShellArgs = []string{"/c"}
 
 	// UIA control type roles for clickable elements
