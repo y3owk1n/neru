@@ -195,7 +195,8 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	// hotkey matching.
 	normalized := normalizeWindowsKey(key)
 	lower := strings.ToLower(normalized)
-	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") || strings.Contains(lower, "cmd+") {
+	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") ||
+		strings.Contains(lower, "cmd+") {
 		et.dispatchKey(normalized)
 		return false
 	}
