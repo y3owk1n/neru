@@ -157,7 +157,7 @@ For the best development experience, we recommend:
 | Build  | `just build`            | Compile the application            |
 | Build  | `just build-darwin`     | Build a macOS binary on macOS      |
 | Build  | `just build-linux`      | Build a Linux foundations binary   |
-| Build  | `just build-windows`    | Build a Windows foundations binary |
+| Build  | `just build-windows`    | Build a Windows binary  |
 | Test   | `just test`             | Run unit and integration tests     |
 | Test   | `just test-foundation`  | Run cross-platform-safe core tests |
 | Test   | `just test-unit`        | Run unit tests                     |
@@ -325,6 +325,7 @@ Neru has a comprehensive test suite with clear separation between unit tests and
 package_test.go                          # Unit tests (logic, mocks)
 package_integration_darwin_test.go       # macOS integration tests //go:build integration && darwin
 package_integration_linux_test.go        # Linux integration tests  //go:build integration && linux
+package_integration_windows_test.go      # Windows integration tests //go:build integration && windows
 ```
 
 ### Run Tests
@@ -730,6 +731,7 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 package_test.go                        # Unit tests (logic, mocks)
 package_integration_darwin_test.go     # macOS integration tests //go:build integration && darwin
 package_integration_linux_test.go      # Linux integration tests  //go:build integration && linux
+package_integration_windows_test.go    # Windows integration tests //go:build integration && windows
 ```
 
 ### Documentation

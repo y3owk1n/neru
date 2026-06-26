@@ -249,3 +249,87 @@ jobs:
                   GH_TOKEN: ${{ secrets.upload_token || github.token }}
               run: |
                   gh release upload "${{ inputs.release_tag }}" neru-linux-arm64.zip neru-linux-arm64.zip.sha256 --clobber
+
+    build-windows-amd64-artifacts:
+        runs-on: windows-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v4
+              with:
+                  just-version: "1.46.0"
+
+            - name: Build neru windows amd64 artifact
+              run: just release-ci-windows amd64 ${{ inputs.version_override }}
+
+            - name: Generate man pages
+              run: go run ./cmd/genman build/man
+
+            - name: Bundle neru-windows-amd64
+              shell: pwsh
+              run: |
+                  New-Item -ItemType Directory -Force -Path build/windows-amd64/bin
+                  Copy-Item bin/neru-windows-amd64.exe build/windows-amd64/bin/neru.exe
+                  New-Item -ItemType Directory -Force -Path build/windows-amd64/share/man/man1
+                  Copy-Item build/man/*.1 build/windows-amd64/share/man/man1/
+                  Compress-Archive -Path build/windows-amd64/* -DestinationPath neru-windows-amd64.zip
+
+            - name: Generate windows amd64 checksum
+              shell: pwsh
+              run: |
+                  $hash = (Get-FileHash neru-windows-amd64.zip -Algorithm SHA256).Hash.ToLower()
+                  Set-Content -Path neru-windows-amd64.zip.sha256 -Value $hash
+
+            - name: Upload windows amd64 release artifacts
+              env:
+                  GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-windows-amd64.zip neru-windows-amd64.zip.sha256 --clobber
+
+    build-windows-arm64-artifacts:
+        runs-on: windows-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-go@v6
+              with:
+                  go-version: "1.26.1"
+
+            - uses: extractions/setup-just@v4
+              with:
+                  just-version: "1.46.0"
+
+            - name: Build neru windows arm64 artifact
+              run: just release-ci-windows arm64 ${{ inputs.version_override }}
+
+            - name: Generate man pages
+              run: go run ./cmd/genman build/man
+
+            - name: Bundle neru-windows-arm64
+              shell: pwsh
+              run: |
+                  New-Item -ItemType Directory -Force -Path build/windows-arm64/bin
+                  Copy-Item bin/neru-windows-arm64.exe build/windows-arm64/bin/neru.exe
+                  New-Item -ItemType Directory -Force -Path build/windows-arm64/share/man/man1
+                  Copy-Item build/man/*.1 build/windows-arm64/share/man/man1/
+                  Compress-Archive -Path build/windows-arm64/* -DestinationPath neru-windows-arm64.zip
+
+            - name: Generate windows arm64 checksum
+              shell: pwsh
+              run: |
+                  $hash = (Get-FileHash neru-windows-arm64.zip -Algorithm SHA256).Hash.ToLower()
+                  Set-Content -Path neru-windows-arm64.zip.sha256 -Value $hash
+
+            - name: Upload windows arm64 release artifacts
+              env:
+                  GH_TOKEN: ${{ secrets.upload_token || github.token }}
+              run: |
+                  gh release upload "${{ inputs.release_tag }}" neru-windows-arm64.zip neru-windows-arm64.zip.sha256 --clobber

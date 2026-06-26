@@ -175,8 +175,10 @@ These are the main contributor commands:
 
 Notes:
 
-- `just build-linux` and `just build-windows` are currently best viewed as
-  foundations smoke tests while those platforms are still mostly scaffolding.
+- `just build-linux` is currently best viewed as a
+  foundations smoke test while that platform is still mostly scaffolding.
+- `just build-windows` produces a binary with grid, recursive grid,
+  scroll, global hotkeys, mouse injection, IPC, and initial UIA accessibility.
 - `just release-ci-linux <version>` and `just release-ci-windows <version>` to release a version tagged binary in ci.
 - macOS remains the only fully native product path today.
 
@@ -245,12 +247,27 @@ shared around AT-SPI, even when other capabilities split by backend.
 
 ## Windows Model
 
-Windows is currently treated as one backend family.
+Windows is currently treated as one backend family with basic support.
 
 For now, prefer:
 
 - `*_windows.go` for the implementation slot
 - pure Go Win32 / COM bindings where practical
+
+Supported capabilities:
+
+- **grid, recursive grid, scroll** modes — layered GDI overlay, keyboard navigation
+- **direct mouse injection** — via `SendInput` / `SetCursorPos`
+- **global hotkeys** — via `RegisterHotKey`
+- **keyboard event capture** — via `WH_KEYBOARD_LL` hook
+- **accessibility** — UI Automation (UIA) COM-based integration (initial coverage)
+- **named-pipe IPC** — daemon CLI commands over `\\.\pipe\neru`
+
+Stubbed (not yet implemented):
+
+- notifications (Windows toast notifications)
+- app watcher (Win32 foreground-window notifications)
+- dark mode detection (personalization APIs)
 
 Do not introduce additional Windows backend naming until there is a real reason.
 

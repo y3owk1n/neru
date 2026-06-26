@@ -29,10 +29,9 @@ build-linux ARCH="amd64":
     CGO_ENABLED=1 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
     @echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
 
-# Build a Windows foundations binary from any host.
-# This is useful for contributor smoke tests while Windows backends are still
-
-# mostly scaffolding.
+# Build a Windows binary from any host.
+# This produces a binary with grid, recursive grid, scroll, global hotkeys,
+# mouse injection, IPC, and initial UIA accessibility.
 build-windows ARCH="amd64":
     @echo "Building Neru for windows/{{ ARCH }}..."
     mkdir -p bin

@@ -59,6 +59,8 @@ jobs:
                   - \`neru-darwin-amd64.zip\` for macOS on Intel
                   - \`neru-linux-amd64.zip\` for Linux x86_64
                   - \`neru-linux-arm64.zip\` for Linux ARM64
+                  - \`neru-windows-amd64.zip\` for Windows x86_64
+                  - \`neru-windows-arm64.zip\` for Windows ARM64
 
                   ### Feedback
 

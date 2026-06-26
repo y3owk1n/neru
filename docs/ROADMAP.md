@@ -44,10 +44,10 @@ separate "stable on macOS today" from "portable by design, still incomplete".
     - [ ] native overlay rendering
     - [ ] global hotkeys & event capture
 - Windows:
-    - [ ] UI Automation integration
-    - [ ] screen and cursor management
-    - [ ] global hotkeys and keyboard event capture
-    - [ ] native overlay rendering
+    - [x] UI Automation integration — initial coverage
+    - [x] screen and cursor management
+    - [x] global hotkeys and keyboard event capture
+    - [x] native overlay rendering — layered Win32 window + GDI
     - [ ] notifications and app watching
 
 ## Contributor Priorities

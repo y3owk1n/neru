@@ -15,9 +15,9 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|      macOS       |      Linux       |       Windows        |
-| :--------------: | :--------------: | :------------------: |
-| Full featured ✅ | Basic support 🔵 | Not yet supported 🔲 |
+|      macOS       |      Linux       |        Windows         |
+| :--------------: | :--------------: | :--------------------: |
+| Full featured ✅ | Basic support 🔵 | Basic support 🔵       |
 
 **練る** _(neru)_ — "to refine through practice." The more you use it, the faster you get.
 
@@ -161,14 +161,14 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 
 | Capability                | macOS | Linux | Windows |
 | :------------------------ | :---: | :---: | :-----: |
-| Recursive Grid            |  ✅   |  ✅   |   🔲    |
-| Grid                      |  ✅   |  ✅   |   🔲    |
-| Vim-Style Scroll          |  ✅   |  ✅   |   🔲    |
-| Hints (Accessibility API) |  ✅   |  🔲   |   🔲    |
+| Recursive Grid            |  ✅   |  ✅   |   ✅    |
+| Grid                      |  ✅   |  ✅   |   ✅    |
+| Vim-Style Scroll          |  ✅   |  ✅   |   ✅    |
+| Hints (Accessibility API) |  ✅   |  🔲   |   ✅    |
 | Hints (Vision OCR)        |  ✅   |  🔲   |   🔲    |
-| Direct Mouse Injection    |  ✅   |  ✅   |   🔲    |
-| Global Hotkeys            |  ✅   |  ✅   |   🔲    |
-| Native Overlays           |  ✅   |  ✅   |   🔲    |
+| Direct Mouse Injection    |  ✅   |  ✅   |   ✅    |
+| Global Hotkeys            |  ✅   |  ✅   |   ✅    |
+| Native Overlays           |  ✅   |  ✅   |   ✅    |
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 
