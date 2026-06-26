@@ -1,10 +1,14 @@
 package config_test
 
 import (
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
+
+const goosWindows = "windows"
 
 func TestConfig_ValidateGeneral(t *testing.T) {
 	tests := []struct {
@@ -78,12 +82,22 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 		},
 		{
 			name: "exec_shell is absolute path - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					ExecShell:     "/usr/local/bin/fish",
-					ExecShellArgs: []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				shell := "/usr/local/bin/fish"
+
+				args := []string{config.DefaultExecShellFlag}
+				if runtime.GOOS == goosWindows {
+					shell = filepath.Join("C:", "Windows", "System32", "cmd.exe")
+					args = []string{"/c"}
+				}
+
+				return config.Config{
+					General: config.GeneralConfig{
+						ExecShell:     shell,
+						ExecShellArgs: args,
+					},
+				}
+			}(),
 			wantErr: false,
 		},
 		{

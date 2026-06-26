@@ -11,8 +11,8 @@ var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create a default configuration file",
 	Long: `Create a default configuration file.
-The config is written to $XDG_CONFIG_HOME/neru/config.toml when
-XDG_CONFIG_HOME is set, otherwise ~/.config/neru/config.toml.
+The config is written to the default config directory for your platform
+(%APPDATA%/neru on Windows, $XDG_CONFIG_HOME/neru or ~/.config/neru on Unix).
 Use the global --config flag to write to a custom path instead.
 This copies the fully-commented default configuration to get you started.
 If a config file already exists, use --force to overwrite it.

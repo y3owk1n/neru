@@ -23,7 +23,7 @@ func TestWriteDefaultConfig(t *testing.T) {
 	require.NoError(t, statErr)
 
 	// Windows does not support Unix file permissions, so skip the perm check.
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != goosWindows {
 		assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
 	}
 
@@ -85,13 +85,22 @@ func TestDefaultConfigPath_NoXDG(t *testing.T) {
 
 	// On Windows os.UserHomeDir reads USERPROFILE, on Unix it reads HOME.
 	homeDir := t.TempDir()
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		t.Setenv("USERPROFILE", homeDir)
+		t.Setenv("APPDATA", "")
 	} else {
 		t.Setenv("HOME", homeDir)
 	}
 
 	path, err := config.DefaultConfigPath()
 	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(homeDir, ".config", "neru", "config.toml"), path)
+
+	var expected string
+	if runtime.GOOS == goosWindows {
+		expected = filepath.Join(homeDir, "AppData", "Roaming", "neru", "config.toml")
+	} else {
+		expected = filepath.Join(homeDir, ".config", "neru", "config.toml")
+	}
+
+	assert.Equal(t, expected, path)
 }

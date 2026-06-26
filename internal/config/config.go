@@ -1116,7 +1116,7 @@ func (c *Config) ValidateGeneral() error {
 		)
 	}
 
-	if !strings.HasPrefix(c.General.ExecShell, "/") {
+	if !filepath.IsAbs(c.General.ExecShell) {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"general.exec_shell must be an absolute path (got: %q)",

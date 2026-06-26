@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -592,12 +593,29 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 }
 
 // DefaultConfigDir returns the preferred directory for the Neru config file.
-// It checks $XDG_CONFIG_HOME first, falling back to ~/.config/neru.
+// On Windows it uses %APPDATA%/neru (falling back to ~/AppData/Roaming/neru);
+// on Unix it checks $XDG_CONFIG_HOME/neru first, falling back to ~/.config/neru.
+// The $XDG_CONFIG_HOME environment variable is also respected on Windows when set,
+// for users of cross-platform shell environments.
 // This is the single source of truth for the primary config location,
 // used by both FindConfigFile and config init.
 func DefaultConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "neru"), nil
+	}
+
+	if runtime.GOOS == "windows" {
+		appData := os.Getenv("APPDATA")
+		if appData == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", err
+			}
+
+			appData = filepath.Join(home, "AppData", "Roaming")
+		}
+
+		return filepath.Join(appData, "neru"), nil
 	}
 
 	homeDir, err := os.UserHomeDir()
