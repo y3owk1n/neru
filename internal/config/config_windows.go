@@ -2,9 +2,18 @@
 
 package config
 
+import (
+	"os"
+	"path/filepath"
+)
+
 func applyPlatformDefaults(cfg *Config) {
-	// Windows-specific exec shell defaults
-	cfg.General.ExecShell = "cmd.exe"
+	// Windows-specific exec shell defaults (absolute path required for validation)
+	systemRoot := os.Getenv("SystemRoot")
+	if systemRoot == "" {
+		systemRoot = "C:\\Windows"
+	}
+	cfg.General.ExecShell = filepath.Join(systemRoot, "System32", "cmd.exe")
 	cfg.General.ExecShellArgs = []string{"/c"}
 
 	// UIA control type roles for clickable elements

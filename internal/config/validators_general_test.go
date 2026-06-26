@@ -10,6 +10,14 @@ import (
 
 const goosWindows = "windows"
 
+func validExecShell() (string, []string) {
+	if runtime.GOOS == goosWindows {
+		return filepath.Join("C:\\", "Windows", "System32", "cmd.exe"), []string{"/c"}
+	}
+
+	return config.DefaultExecShell, []string{config.DefaultExecShellFlag}
+}
+
 func TestConfig_ValidateGeneral(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -18,78 +26,96 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 	}{
 		{
 			name: "kb layout id set - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					KBLayoutToUse: "com.apple.keylayout.ABC",
-					ExecShell:     config.DefaultExecShell,
-					ExecShellArgs: []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				shell, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						KBLayoutToUse: "com.apple.keylayout.ABC",
+						ExecShell:     shell,
+						ExecShellArgs: args,
+					},
+				}
+			}(),
 			wantErr: false,
 		},
 		{
 			name: "kb layout id whitespace-only - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					KBLayoutToUse: "   ",
-					ExecShell:     config.DefaultExecShell,
-					ExecShellArgs: []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				shell, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						KBLayoutToUse: "   ",
+						ExecShell:     shell,
+						ExecShellArgs: args,
+					},
+				}
+			}(),
 			wantErr: true,
 		},
 		{
 			name: "passthrough blacklist with modifier combo - valid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
-					ExecShell:                         config.DefaultExecShell,
-					ExecShellArgs:                     []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				shell, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						PassthroughUnboundedKeysBlacklist: []string{"Cmd+W", "Ctrl+Space"},
+						ExecShell:                         shell,
+						ExecShellArgs:                     args,
+					},
+				}
+			}(),
 			wantErr: false,
 		},
 		{
 			name: "passthrough blacklist without passthrough modifier - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
-					ExecShell:                         config.DefaultExecShell,
-					ExecShellArgs:                     []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				shell, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						PassthroughUnboundedKeysBlacklist: []string{"Shift+Tab"},
+						ExecShell:                         shell,
+						ExecShellArgs:                     args,
+					},
+				}
+			}(),
 			wantErr: true,
 		},
 		{
 			name: "exec_shell is empty - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					ExecShell:     "",
-					ExecShellArgs: []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				_, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						ExecShell:     "",
+						ExecShellArgs: args,
+					},
+				}
+			}(),
 			wantErr: true,
 		},
 		{
 			name: "exec_shell is relative path - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					ExecShell:     "bash",
-					ExecShellArgs: []string{config.DefaultExecShellFlag},
-				},
-			},
+			config: func() config.Config {
+				_, args := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						ExecShell:     "bash",
+						ExecShellArgs: args,
+					},
+				}
+			}(),
 			wantErr: true,
 		},
 		{
 			name: "exec_shell is absolute path - valid",
 			config: func() config.Config {
-				shell := "/usr/local/bin/fish"
-
-				args := []string{config.DefaultExecShellFlag}
-				if runtime.GOOS == goosWindows {
-					shell = filepath.Join("C:", "Windows", "System32", "cmd.exe")
-					args = []string{"/c"}
-				}
+				shell, args := validExecShell()
 
 				return config.Config{
 					General: config.GeneralConfig{
@@ -102,12 +128,16 @@ func TestConfig_ValidateGeneral(t *testing.T) {
 		},
 		{
 			name: "exec_shell_args is empty - invalid",
-			config: config.Config{
-				General: config.GeneralConfig{
-					ExecShell:     config.DefaultExecShell,
-					ExecShellArgs: []string{},
-				},
-			},
+			config: func() config.Config {
+				shell, _ := validExecShell()
+
+				return config.Config{
+					General: config.GeneralConfig{
+						ExecShell:     shell,
+						ExecShellArgs: []string{},
+					},
+				}
+			}(),
 			wantErr: true,
 		},
 	}

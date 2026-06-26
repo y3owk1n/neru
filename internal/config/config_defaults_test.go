@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -48,10 +49,9 @@ func TestDefaultConfig(t *testing.T) {
 
 	t.Run("General Exec Shell Defaults", func(t *testing.T) {
 		if runtime.GOOS == goosWindows {
-			if cfg.General.ExecShell != "cmd.exe" {
+			if !filepath.IsAbs(cfg.General.ExecShell) {
 				t.Errorf(
-					"Expected General.ExecShell to be %q, got %q",
-					"cmd.exe",
+					"Expected General.ExecShell to be an absolute path, got %q",
 					cfg.General.ExecShell,
 				)
 			}
