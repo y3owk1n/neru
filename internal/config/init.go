@@ -48,17 +48,18 @@ func WriteDefaultConfig(cfgPath string, force bool) error {
 func platformDefaultConfig() []byte {
 	cfg := configs.DefaultConfig
 	if runtime.GOOS == "windows" {
-		s := string(cfg)
-		s = strings.ReplaceAll(s,
+		content := string(cfg)
+		content = strings.ReplaceAll(content,
 			`exec_shell = "/bin/bash"`,
 			`exec_shell = "C:\\Windows\\System32\\cmd.exe"`,
 		)
-		s = strings.ReplaceAll(s,
+		content = strings.ReplaceAll(content,
 			`exec_shell_args = ["-lc"]`,
 			`exec_shell_args = ["/c"]`,
 		)
-		cfg = []byte(s)
+		cfg = []byte(content)
 	}
+
 	return cfg
 }
 
