@@ -267,6 +267,7 @@ jobs:
 
             - name: Build neru windows amd64 artifact
               run: just release-ci-windows amd64 ${{ inputs.version_override }}
+              shell: bash
 
             - name: Generate man pages
               run: go run ./cmd/genman build/man
@@ -309,6 +310,7 @@ jobs:
 
             - name: Build neru windows arm64 artifact
               run: just release-ci-windows arm64 ${{ inputs.version_override }}
+              shell: bash
 
             - name: Generate man pages
               run: go run ./cmd/genman build/man
