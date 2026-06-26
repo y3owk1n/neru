@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/y3owk1n/neru/configs"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -33,12 +35,31 @@ func WriteDefaultConfig(cfgPath string, force bool) error {
 		)
 	}
 
-	writeErr := os.WriteFile(cfgPath, configs.DefaultConfig, DefaultFilePerms)
+	writeErr := os.WriteFile(cfgPath, platformDefaultConfig(), DefaultFilePerms)
 	if writeErr != nil {
 		return derrors.Wrap(writeErr, derrors.CodeConfigIOFailed, "failed to write config file")
 	}
 
 	return nil
+}
+
+// platformDefaultConfig returns the embedded default config with platform-specific
+// adjustments applied (e.g. exec_shell path on Windows).
+func platformDefaultConfig() []byte {
+	cfg := configs.DefaultConfig
+	if runtime.GOOS == "windows" {
+		s := string(cfg)
+		s = strings.ReplaceAll(s,
+			`exec_shell = "/bin/bash"`,
+			`exec_shell = "C:\\Windows\\System32\\cmd.exe"`,
+		)
+		s = strings.ReplaceAll(s,
+			`exec_shell_args = ["-lc"]`,
+			`exec_shell_args = ["/c"]`,
+		)
+		cfg = []byte(s)
+	}
+	return cfg
 }
 
 // DefaultConfigPath returns the default configuration file path.
