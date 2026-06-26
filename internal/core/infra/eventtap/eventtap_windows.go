@@ -194,10 +194,12 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	// work while a mode is active. The mode handler still receives the key for
 	// hotkey matching.
 	normalized := normalizeWindowsKey(key)
+
 	lower := strings.ToLower(normalized)
 	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") ||
 		strings.Contains(lower, "cmd+") {
 		et.dispatchKey(normalized)
+
 		return false
 	}
 
@@ -206,6 +208,7 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	// application behind the overlay. This matches macOS behavior where all
 	// non-modifier keys are consumed by the event tap.
 	et.dispatchKey(normalized)
+
 	return true
 }
 
