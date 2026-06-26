@@ -11,66 +11,165 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// TreeNode represents a node in the accessibility element hierarchy (Windows stub).
-type TreeNode struct{}
-
-// Element returns the node's element (Windows stub).
-func (n *TreeNode) Element() *Element { return nil }
-
-// Info returns the node's info (Windows stub).
-func (n *TreeNode) Info() *ElementInfo { return nil }
-
-// Children returns the node's children (Windows stub).
-func (n *TreeNode) Children() []*TreeNode { return nil }
-
-// Parent returns the node's parent (Windows stub).
-func (n *TreeNode) Parent() *TreeNode { return nil }
-
-// FindClickableElements is a Windows stub.
-func (n *TreeNode) FindClickableElements(
-	keptRoles map[string]struct{},
-	configProvider config.Provider,
-	ignoreClickableCheck bool,
-) []*TreeNode {
-	return nil
+// TreeNode represents a node in the accessibility element hierarchy. On Windows
+// the tree is shallow: a root window node whose children are the flat list of
+// clickable controls discovered via UI Automation. Each node owns a unique
+// *Element so callers can use the pointer identity as a stable element ID.
+type TreeNode struct {
+	element  *Element
+	info     *ElementInfo
+	children []*TreeNode
 }
 
-// Release is a Windows stub.
-func (n *TreeNode) Release(keep map[*Element]struct{}) {}
+// Element returns the node's element.
+func (n *TreeNode) Element() *Element {
+	if n == nil {
+		return nil
+	}
 
-// TreeOptions defines options for tree building (Windows stub).
+	return n.element
+}
+
+// Info returns the node's info.
+func (n *TreeNode) Info() *ElementInfo {
+	if n == nil {
+		return nil
+	}
+
+	return n.info
+}
+
+// Children returns the node's children.
+func (n *TreeNode) Children() []*TreeNode {
+	if n == nil {
+		return nil
+	}
+
+	return n.children
+}
+
+// Parent returns the node's parent. The Windows tree is not back-linked.
+func (n *TreeNode) Parent() *TreeNode { return nil }
+
+// FindClickableElements returns the clickable descendant nodes. When keptRoles
+// is non-empty, only nodes whose role is in the set are returned.
+func (n *TreeNode) FindClickableElements(
+	keptRoles map[string]struct{},
+	_ config.Provider,
+	_ bool,
+) []*TreeNode {
+	if n == nil {
+		return nil
+	}
+
+	var out []*TreeNode
+
+	var walk func(node *TreeNode)
+
+	walk = func(node *TreeNode) {
+		if node == nil {
+			return
+		}
+
+		if node.info != nil && node.info.clickable {
+			if len(keptRoles) == 0 {
+				out = append(out, node)
+			} else if _, ok := keptRoles[node.info.role]; ok {
+				out = append(out, node)
+			}
+		}
+
+		for _, child := range node.children {
+			walk(child)
+		}
+	}
+
+	for _, child := range n.children {
+		walk(child)
+	}
+
+	return out
+}
+
+// Release is a no-op: Windows nodes hold no live COM references.
+func (n *TreeNode) Release(_ map[*Element]struct{}) {}
+
+// TreeOptions defines options for tree building.
 type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
 }
 
-// DefaultTreeOptions returns the default tree options (Windows stub).
-func DefaultTreeOptions(logger *zap.Logger) TreeOptions { return TreeOptions{} }
+// DefaultTreeOptions returns the default tree options.
+func DefaultTreeOptions(_ *zap.Logger) TreeOptions { return TreeOptions{} }
 
-// SetCache is a Windows stub.
-func (o *TreeOptions) SetCache(cache any) {}
+// SetCache is a no-op on Windows (no native cache request).
+func (o *TreeOptions) SetCache(_ any) {}
 
-// SetMaxDepth is a Windows stub.
-func (o *TreeOptions) SetMaxDepth(depth int) {}
+// SetMaxDepth records the maximum tree depth.
+func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
 
-// SetBundleID is a Windows stub.
-func (o *TreeOptions) SetBundleID(bundleID string) {}
+// SetBundleID is a no-op on Windows.
+func (o *TreeOptions) SetBundleID(_ string) {}
 
-// SetConfigProvider is a Windows stub.
-func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
+// SetConfigProvider is a no-op on Windows.
+func (o *TreeOptions) SetConfigProvider(_ config.Provider) {}
 
-// SetFilterFunc is a Windows stub.
-func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
+// SetFilterFunc is a no-op on Windows.
+func (o *TreeOptions) SetFilterFunc(_ func(*ElementInfo) bool) {}
 
-// BuildTree builds the accessibility tree for the specified root element (Windows stub).
-func BuildTree(_ context.Context, _ *Element, _ TreeOptions) (*TreeNode, error) {
-	return &TreeNode{}, nil
+// BuildTree enumerates the clickable controls under the given window element
+// via UI Automation and returns a root node with one child per control. For
+// non-window elements (no HWND) it returns an empty root.
+func BuildTree(_ context.Context, root *Element, _ TreeOptions) (*TreeNode, error) {
+	if root == nil {
+		return &TreeNode{}, nil
+	}
+
+	rootInfo, _ := root.Info()
+
+	rootNode := &TreeNode{
+		element: root,
+		info:    rootInfo,
+	}
+
+	if root.hwnd == 0 {
+		return rootNode, nil
+	}
+
+	controls := enumerateClickableElements(root.hwnd)
+
+	children := make([]*TreeNode, 0, len(controls))
+
+	for _, control := range controls {
+		info := &ElementInfo{
+			position:  control.bounds.Min,
+			size:      image.Pt(control.bounds.Dx(), control.bounds.Dy()),
+			title:     control.name,
+			role:      control.role,
+			isEnabled: true,
+			clickable: true,
+		}
+
+		children = append(children, &TreeNode{
+			element: &Element{info: info},
+			info:    info,
+		})
+	}
+
+	rootNode.children = children
+
+	return rootNode, nil
 }
 
-// ProcessClickableNodes processes the clickable nodes in the tree (Windows stub).
-func ProcessClickableNodes(root *TreeNode, cfg config.HintsConfig) []*TreeNode {
-	return nil
+// ProcessClickableNodes returns the clickable nodes in the tree.
+func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
+	if root == nil {
+		return nil
+	}
+
+	return root.FindClickableElements(nil, nil, false)
 }
 
-// ReleaseTree releases the tree and its nodes to the pool (Windows stub).
-func ReleaseTree(root *TreeNode) {}
+// ReleaseTree is a no-op: Windows nodes hold no live COM references.
+func ReleaseTree(_ *TreeNode) {}

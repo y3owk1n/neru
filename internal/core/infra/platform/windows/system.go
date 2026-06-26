@@ -83,82 +83,108 @@ func (s *SystemAdapter) LogDir() (string, error) {
 	return filepath.Join(localAppData, "neru", "log"), nil
 }
 
+// FocusedApplicationIdentity returns the foreground app executable path and PID.
+func FocusedApplicationIdentity() (string, int, error) {
+	pid, err := focusedApplicationPID()
+	if err != nil {
+		return "", 0, err
+	}
+
+	bundleID, err := applicationBundleIDByPID(pid)
+	if err != nil {
+		return "", pid, err
+	}
+
+	return bundleID, pid, nil
+}
+
 // FocusedApplicationPID returns the PID of the currently focused application on Windows.
-// TODO(windows): implement using GetForegroundWindow + GetWindowThreadProcessId.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
-	return 0, derrors.New(
-		derrors.CodeNotSupported,
-		"FocusedApplicationPID not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return 0, err
+	}
+
+	return focusedApplicationPID()
 }
 
 // ApplicationNameByPID returns the name of the application with the given PID on Windows.
-// TODO(windows): implement using OpenProcess + QueryFullProcessImageName.
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	return "", derrors.New(
-		derrors.CodeNotSupported,
-		"ApplicationNameByPID not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return "", err
+	}
+
+	return applicationNameByPID(pid)
 }
 
-// ApplicationBundleIDByPID returns the application identifier for Windows.
-// TODO(windows): Windows does not have bundle IDs; use executable path or AppUserModelID.
+// ApplicationBundleIDByPID returns the executable path for the given PID on Windows.
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	return "", derrors.New(
-		derrors.CodeNotSupported,
-		"ApplicationBundleIDByPID not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return "", err
+	}
+
+	return applicationBundleIDByPID(pid)
 }
 
 // ScreenBounds returns the bounds of the active screen on Windows.
-// TODO(windows): implement using MonitorFromPoint + GetMonitorInfo.
 func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, error) {
-	return image.Rectangle{}, derrors.New(
-		derrors.CodeNotSupported,
-		"ScreenBounds not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return image.Rectangle{}, err
+	}
+
+	return activeScreenBounds()
 }
 
 // ScreenBoundsByName returns the bounds of the screen with the given name on Windows.
-// TODO(windows): implement using EnumDisplayDevices + GetMonitorInfo.
 func (s *SystemAdapter) ScreenBoundsByName(
 	ctx context.Context,
 	name string,
 ) (image.Rectangle, bool, error) {
-	return image.Rectangle{}, false, derrors.New(
-		derrors.CodeNotSupported,
-		"ScreenBoundsByName not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+
+	return screenBoundsByName(name)
 }
 
 // ScreenNames returns the display names of all connected screens on Windows.
-// TODO(windows): implement using EnumDisplayDevices.
 func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
-	return nil, derrors.New(
-		derrors.CodeNotSupported,
-		"ScreenNames not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return screenNames()
 }
 
 // FocusedWindowBounds returns the bounds of the currently focused window on Windows.
-// TODO(windows): implement using GetForegroundWindow + GetWindowRect.
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
-	return image.Rectangle{}, false, derrors.New(
-		derrors.CodeNotSupported,
-		"FocusedWindowBounds not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+
+	return focusedWindowBounds()
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point on Windows.
-// TODO(windows): implement using SetCursorPos (user32.dll).
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
-	bypassSmooth bool,
+	_ bool,
 ) error {
-	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on windows")
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
+
+	return moveCursorTo(point)
 }
 
 // WaitForCursorIdle returns immediately on Windows until smooth cursor support exists.
@@ -167,19 +193,18 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 }
 
 // CursorPosition returns the current cursor position on Windows.
-// TODO(windows): implement using GetCursorPos (user32.dll).
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
-	return image.Point{}, derrors.New(
-		derrors.CodeNotSupported,
-		"CursorPosition not yet implemented on windows",
-	)
+	err := ctx.Err()
+	if err != nil {
+		return image.Point{}, err
+	}
+
+	return cursorPosition()
 }
 
-// IsDarkMode returns true if Windows dark mode is currently active.
-// TODO(windows): implement using registry key
-// HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme.
+// IsDarkMode returns true if Windows app dark mode is currently active.
 func (s *SystemAdapter) IsDarkMode() bool {
-	return false
+	return AppsUseDarkTheme()
 }
 
 // CheckPermissions verifies accessibility permissions on Windows.

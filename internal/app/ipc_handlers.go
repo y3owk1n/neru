@@ -158,6 +158,28 @@ type ModeActivationOptions struct {
 	Strategy              *string
 	LabelDirection        *string
 	Toggle                *bool
+	Debug                 *bool
+}
+
+// parseCursorSelectionModeValue resolves a --cursor-selection-mode value into a
+// cursor-follow override, or returns an error response for invalid input.
+func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
+	switch value {
+	case "follow":
+		follow := true
+
+		return &follow, nil
+	case "hold":
+		follow := false
+
+		return &follow, nil
+	default:
+		return nil, &ipc.Response{
+			Success: false,
+			Message: msgCursorSelectionModeRequires,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
 }
 
 // extractModeOptions extracts and validates the optional action and repeat
@@ -199,6 +221,9 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--search" || arg == "-s":
 			searchTrue := true
 			opts.Search = &searchTrue
+		case arg == "--debug" || arg == "-d":
+			debugTrue := true
+			opts.Debug = &debugTrue
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg
@@ -216,49 +241,31 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			actionArg := cmd.Args[startIdx]
 			opts.Action = &actionArg
-		case arg == "--cursor-selection-mode=follow":
-			cursorFollowSelection := true
-			opts.CursorFollowSelection = &cursorFollowSelection
-		case arg == "--cursor-selection-mode=hold":
-			cursorFollowSelection := false
-			opts.CursorFollowSelection = &cursorFollowSelection
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
-			resp := ipc.Response{
-				Success: false,
-				Message: msgCursorSelectionModeRequires,
-				Code:    ipc.CodeInvalidInput,
+			val, resp := parseCursorSelectionModeValue(
+				strings.TrimPrefix(arg, "--cursor-selection-mode="))
+			if resp != nil {
+				return opts, resp
 			}
 
-			return opts, &resp
+			opts.CursorFollowSelection = val
 		case arg == "--cursor-selection-mode":
 			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
+				return opts, &ipc.Response{
 					Success: false,
 					Message: msgCursorSelectionModeRequires,
 					Code:    ipc.CodeInvalidInput,
 				}
-
-				return opts, &resp
 			}
 
 			startIdx++
 
-			switch cmd.Args[startIdx] {
-			case "follow":
-				cursorFollowSelection := true
-				opts.CursorFollowSelection = &cursorFollowSelection
-			case "hold":
-				cursorFollowSelection := false
-				opts.CursorFollowSelection = &cursorFollowSelection
-			default:
-				resp := ipc.Response{
-					Success: false,
-					Message: msgCursorSelectionModeRequires,
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
+			val, resp := parseCursorSelectionModeValue(cmd.Args[startIdx])
+			if resp != nil {
+				return opts, resp
 			}
+
+			opts.CursorFollowSelection = val
 		case strings.HasPrefix(arg, "--role="):
 			opts.FilterRoles = append(
 				opts.FilterRoles,
@@ -426,7 +433,7 @@ func (h *IPCControllerModes) extractModeOptions(
 	return opts, nil
 }
 
-func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -434,6 +441,31 @@ func (h *IPCControllerModes) handleHints(_ context.Context, cmd ipc.Command) ipc
 	opts, errResp := h.extractModeOptions(cmd)
 	if errResp != nil {
 		return *errResp
+	}
+
+	// --debug short-circuits to a read-only probe: report what would be hinted
+	// for the focused window (count + sample) without drawing the overlay.
+	if opts.Debug != nil && *opts.Debug {
+		strategy := ""
+		if opts.Strategy != nil {
+			strategy = *opts.Strategy
+		}
+
+		summary, probeErr := h.modes.DebugProbeHints(
+			ctx,
+			opts.FilterRoles,
+			opts.FilterTextContains,
+			strategy,
+		)
+		if probeErr != nil {
+			return ipc.Response{
+				Success: false,
+				Message: "hints debug probe failed: " + probeErr.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		return ipc.Response{Success: true, Message: summary, Code: ipc.CodeOK}
 	}
 
 	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{

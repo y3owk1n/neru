@@ -4,21 +4,44 @@ package recursivegrid
 
 import (
 	"image"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/ports"
+)
+
+const (
+	minFontSize   = 14
+	hexDigitCount = 2
+	invalidColor  = 0xFFFFFFFF
+	colorLen3     = 3
+	colorLen6     = 6
+	colorLen8     = 8
 )
 
 // Style holds the styling information for a recursive grid.
 type Style struct {
-	LineWidth      float64
-	LineColor      uint32
-	LabelFontColor uint32
-	LabelFontSize  float64
-	LabelFontName  string
-	ShowLabels     bool
+	LineWidth                       float64
+	LineColor                       uint32
+	HighlightColor                  uint32
+	LabelFontColor                  uint32
+	LabelFontSize                   float64
+	LabelFontName                   string
+	LabelBackground                 bool
+	LabelBackgroundColor            uint32
+	LabelBackgroundPaddingX         int
+	LabelBackgroundPaddingY         int
+	LabelBackgroundBorderRadius     int
+	LabelBackgroundBorderWidth      float64
+	SubKeyPreview                   bool
+	SubKeyPreviewFontSize           float64
+	SubKeyPreviewAutohideMultiplier float64
+	SubKeyPreviewTextColor          uint32
+	ShowLabels                      bool
 }
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs (Windows stub).
@@ -87,7 +110,77 @@ func (o *Overlay) ShowVirtualPointer(_ image.Point, _ int, _ string) {}
 // HideVirtualPointer is a Windows stub.
 func (o *Overlay) HideVirtualPointer() {}
 
-// BuildStyle builds the recursive grid style from the configuration (Windows stub).
+// BuildStyle builds the recursive grid style from the configuration.
 func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Style {
-	return Style{}
+	return Style{
+		LineWidth: float64(max(cfg.UI.LineWidth, 1)),
+		LineColor: parseWindowsColor(
+			cfg.UI.LineColor.ForTheme(
+				theme,
+				config.RecursiveGridLineColorLight,
+				config.RecursiveGridLineColorDark,
+			),
+		),
+		HighlightColor: parseWindowsColor(
+			cfg.UI.HighlightColor.ForTheme(
+				theme,
+				config.RecursiveGridHighlightColorLight,
+				config.RecursiveGridHighlightColorDark,
+			),
+		),
+		LabelFontColor: parseWindowsColor(
+			cfg.UI.TextColor.ForTheme(
+				theme,
+				config.RecursiveGridTextColorLight,
+				config.RecursiveGridTextColorDark,
+			),
+		),
+		LabelFontSize:   float64(max(cfg.UI.FontSize, minFontSize)),
+		LabelFontName:   ports.ResolveFont(cfg.UI.FontFamily, true),
+		LabelBackground: cfg.UI.LabelBackground,
+		LabelBackgroundColor: parseWindowsColor(
+			cfg.UI.LabelBackgroundColor.ForTheme(
+				theme,
+				config.RecursiveGridLabelBackgroundColorLight,
+				config.RecursiveGridLabelBackgroundColorDark,
+			),
+		),
+		LabelBackgroundPaddingX:         cfg.UI.LabelBackgroundPaddingX,
+		LabelBackgroundPaddingY:         cfg.UI.LabelBackgroundPaddingY,
+		LabelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
+		LabelBackgroundBorderWidth:      float64(max(cfg.UI.LabelBackgroundBorderWidth, 0)),
+		SubKeyPreview:                   cfg.UI.SubKeyPreview,
+		SubKeyPreviewFontSize:           float64(max(cfg.UI.SubKeyPreviewFontSize, 1)),
+		SubKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,
+		SubKeyPreviewTextColor: parseWindowsColor(
+			cfg.UI.SubKeyPreviewTextColor.ForTheme(
+				theme,
+				config.RecursiveGridSubKeyPreviewTextColorLight,
+				config.RecursiveGridSubKeyPreviewTextColorDark,
+			),
+		),
+		ShowLabels: true,
+	}
+}
+
+func parseWindowsColor(value string) uint32 {
+	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	switch len(value) {
+	case colorLen3:
+		value = "FF" + strings.Repeat(string(value[0]), hexDigitCount) +
+			strings.Repeat(string(value[1]), hexDigitCount) +
+			strings.Repeat(string(value[2]), hexDigitCount)
+	case colorLen6:
+		value = "FF" + value
+	case colorLen8:
+	default:
+		return invalidColor
+	}
+
+	parsed, err := strconv.ParseUint(value, 16, 32)
+	if err != nil {
+		return invalidColor
+	}
+
+	return uint32(parsed)
 }

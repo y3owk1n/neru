@@ -14,6 +14,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
+const (
+	actionGrid  = "grid"
+	actionHints = "hints"
+)
+
 func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
@@ -37,8 +42,8 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 	)
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
-		Action: "grid",
-		Args:   []string{"grid", "--cursor-selection-mode=invalid"},
+		Action: actionGrid,
+		Args:   []string{actionGrid, "--cursor-selection-mode=invalid"},
 	})
 
 	if resp.Success {
@@ -73,8 +78,8 @@ func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
 	)
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
-		Action: "hints",
-		Args:   []string{"hints", "--label-direction=sideways"},
+		Action: actionHints,
+		Args:   []string{actionHints, "--label-direction=sideways"},
 	})
 
 	if resp.Success {

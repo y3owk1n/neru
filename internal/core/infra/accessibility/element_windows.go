@@ -4,15 +4,33 @@ package accessibility
 
 import (
 	"image"
+	"sync"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 )
 
-// Element represents a UI element for Windows (stub).
-type Element struct{}
+var (
+	windowsMouseDownMu  sync.RWMutex
+	windowsMouseDown    bool
+	windowsMouseDownPos image.Point
+)
+
+// Element represents a UI element for Windows.
+//
+// A window element carries the top-level HWND used to seed UI Automation
+// enumeration. Leaf elements (discovered controls) carry pre-extracted info
+// and hold no live COM reference, so Release is a no-op.
+type Element struct {
+	bundleIdentifier string
+	pid              int
+	hwnd             uintptr
+	info             *ElementInfo
+}
 
 // Children returns the element's children.
 func (e *Element) Children(role string) ([]*Element, error) { return nil, nil }
@@ -30,30 +48,65 @@ func (e *Element) Clone() (*Element, error) { return &Element{}, nil }
 func (e *Element) Release() {}
 
 // Info retrieves metadata and positioning information for the element.
-func (e *Element) Info() (*ElementInfo, error) { return &ElementInfo{}, nil }
+func (e *Element) Info() (*ElementInfo, error) {
+	if e == nil || e.info == nil {
+		return &ElementInfo{}, nil
+	}
 
-// BundleIdentifier returns the bundle identifier (stub).
-func (e *Element) BundleIdentifier() string { return "" }
+	return e.info, nil
+}
+
+// BundleIdentifier returns the bundle identifier (exe path on Windows).
+func (e *Element) BundleIdentifier() string {
+	if e == nil {
+		return ""
+	}
+
+	return e.bundleIdentifier
+}
 
 // MenuBar returns the menu bar element (stub).
 func (e *Element) MenuBar() *Element { return nil }
 
-// IsClickable checks if the element is clickable (stub).
+// IsClickable reports whether the element is a clickable control. Clickability
+// is decided during UI Automation extraction (see mapControlType) and stored on
+// the element info, so this just reads the cached flag.
 func (e *Element) IsClickable(
-	_ *ElementInfo,
+	info *ElementInfo,
 	_ map[string]struct{},
 	_ config.Provider,
 	_ bool,
 ) bool {
+	if info != nil {
+		return info.clickable
+	}
+
+	if e != nil && e.info != nil {
+		return e.info.clickable
+	}
+
 	return false
 }
 
+var (
+	windowsClickableRolesMu sync.RWMutex
+	windowsClickableRoles   []string
+)
+
 // SetClickableRoles configures which accessibility roles are treated as clickable.
-func SetClickableRoles(roles []string, logger *zap.Logger) {}
+func SetClickableRoles(roles []string, _ *zap.Logger) {
+	windowsClickableRolesMu.Lock()
+	defer windowsClickableRolesMu.Unlock()
+
+	windowsClickableRoles = append(windowsClickableRoles[:0:0], roles...)
+}
 
 // ClickableRoles returns the configured clickable roles.
 func ClickableRoles() []string {
-	return nil
+	windowsClickableRolesMu.RLock()
+	defer windowsClickableRolesMu.RUnlock()
+
+	return append([]string(nil), windowsClickableRoles...)
 }
 
 // ElementInfo contains metadata and positioning information for a UI element.
@@ -69,6 +122,7 @@ type ElementInfo struct {
 	roleDescription string
 	isEnabled       bool
 	isFocused       bool
+	clickable       bool
 	pid             int
 }
 
@@ -116,8 +170,18 @@ func CheckAccessibilityPermissions() bool {
 // SystemWideElement returns the system-wide element (stub).
 func SystemWideElement() *Element { return nil }
 
-// FocusedApplication returns the focused application (stub).
-func FocusedApplication() *Element { return nil }
+// FocusedApplication returns the focused application via Win32 foreground window APIs.
+func FocusedApplication() *Element {
+	bundleID, pid, err := winplatform.FocusedApplicationIdentity()
+	if err != nil || (bundleID == "" && pid == 0) {
+		return nil
+	}
+
+	return &Element{
+		bundleIdentifier: bundleID,
+		pid:              pid,
+	}
+}
 
 // ApplicationByPID returns an application by PID (stub).
 func ApplicationByPID(pid int) *Element { return nil }
@@ -128,74 +192,171 @@ func ApplicationByBundleID(bundleID string) *Element { return nil }
 // ElementAtPosition returns the element at a position (stub).
 func ElementAtPosition(x, y int) *Element { return nil }
 
-// AllWindows returns all windows (stub).
-func AllWindows() ([]*Element, error) { return []*Element{}, nil }
+// AllWindows returns the windows of the focused application. Windows
+// enumeration is limited to the foreground top-level window for now.
+func AllWindows() ([]*Element, error) {
+	window := FrontmostWindow()
+	if window == nil {
+		return []*Element{}, nil
+	}
 
-// FrontmostAndPopoverWindows returns frontmost/popover windows (Windows stub).
-func FrontmostAndPopoverWindows() ([]*Element, error) { return []*Element{}, nil }
+	return []*Element{window}, nil
+}
 
-// FrontmostWindow returns the frontmost window (stub).
-func FrontmostWindow() *Element { return nil }
+// FrontmostAndPopoverWindows returns the foreground window. Popover tracking is
+// not modeled on Windows; UI Automation enumerates popups under the same root.
+func FrontmostAndPopoverWindows() ([]*Element, error) {
+	window := FrontmostWindow()
+	if window == nil {
+		return []*Element{}, nil
+	}
 
-// SetLeftMouseDown sets the left mouse down state (stub).
-func SetLeftMouseDown(down bool, position image.Point) {}
+	return []*Element{window}, nil
+}
 
-// IsLeftMouseDown returns whether the left mouse button is down (stub).
-func IsLeftMouseDown() bool { return false }
+// FrontmostWindow returns the foreground top-level window as an Element seeded
+// with its HWND. BuildTree uses that handle to enumerate clickable controls.
+func FrontmostWindow() *Element {
+	hwnd, ok := winplatform.ForegroundWindowHandle()
+	if !ok {
+		return nil
+	}
 
-// GetLastMouseDownPosition returns the last mouse down position (stub).
-func GetLastMouseDownPosition() image.Point { return image.Point{} }
+	bundleID, pid, _ := winplatform.FocusedApplicationIdentity()
 
-// ClearLeftMouseDownState clears the mouse down state (stub).
-func ClearLeftMouseDownState() {}
+	return &Element{
+		bundleIdentifier: bundleID,
+		pid:              pid,
+		hwnd:             hwnd,
+		info: &ElementInfo{
+			role:      string(element.RoleWindow),
+			isEnabled: true,
+			pid:       pid,
+		},
+	}
+}
 
-// EnsureMouseUp ensures the mouse is up (stub).
-func EnsureMouseUp() {}
+// SetLeftMouseDown sets the left mouse down state.
+func SetLeftMouseDown(down bool, position image.Point) {
+	windowsMouseDownMu.Lock()
+	defer windowsMouseDownMu.Unlock()
 
-// MoveMouseToPoint moves the mouse (stub).
-func MoveMouseToPoint(point image.Point, bypassSmooth bool) {}
+	windowsMouseDown = down
+	windowsMouseDownPos = position
+}
 
-// LeftClickAtPoint clicks the mouse (stub).
+// IsLeftMouseDown returns whether the left mouse button is down.
+func IsLeftMouseDown() bool {
+	windowsMouseDownMu.RLock()
+	defer windowsMouseDownMu.RUnlock()
+
+	return windowsMouseDown
+}
+
+// GetLastMouseDownPosition returns the last mouse down position.
+func GetLastMouseDownPosition() image.Point {
+	windowsMouseDownMu.RLock()
+	defer windowsMouseDownMu.RUnlock()
+
+	return windowsMouseDownPos
+}
+
+// ClearLeftMouseDownState clears the mouse down state.
+func ClearLeftMouseDownState() {
+	windowsMouseDownMu.Lock()
+	defer windowsMouseDownMu.Unlock()
+
+	windowsMouseDown = false
+	windowsMouseDownPos = image.Point{}
+}
+
+// EnsureMouseUp ensures the mouse is up.
+func EnsureMouseUp() {
+	if IsLeftMouseDown() {
+		_ = LeftMouseUp()
+	}
+}
+
+// MoveMouseToPoint moves the mouse.
+func MoveMouseToPoint(point image.Point, _ bool) {
+	_ = winplatform.MoveMouseTo(point)
+}
+
+// LeftClickAtPoint clicks the mouse.
 func LeftClickAtPoint(
 	point image.Point,
-	restoreCursor bool,
+	_ bool,
 	_ action.Modifiers,
 ) error {
-	return nil
+	return winplatform.LeftClickAt(point)
 }
 
-// RightClickAtPoint clicks the mouse (stub).
+// RightClickAtPoint clicks the mouse.
 func RightClickAtPoint(
 	point image.Point,
-	restoreCursor bool,
+	_ bool,
 	_ action.Modifiers,
 ) error {
-	return nil
+	return winplatform.RightClickAt(point)
 }
 
-// MiddleClickAtPoint clicks the mouse (stub).
+// MiddleClickAtPoint clicks the mouse.
 func MiddleClickAtPoint(
 	point image.Point,
-	restoreCursor bool,
+	_ bool,
 	_ action.Modifiers,
 ) error {
+	return winplatform.MiddleClickAt(point)
+}
+
+// LeftMouseDownAtPoint presses the mouse.
+func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error {
+	err := winplatform.LeftMouseDown(point)
+	if err != nil {
+		return err
+	}
+
+	SetLeftMouseDown(true, point)
+
 	return nil
 }
 
-// LeftMouseDownAtPoint presses the mouse (stub).
-func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error { return nil }
+// LeftMouseUpAtPoint releases the mouse.
+func LeftMouseUpAtPoint(point image.Point, _ action.Modifiers) error {
+	err := winplatform.LeftMouseUp(point)
+	if err != nil {
+		return err
+	}
 
-// LeftMouseUpAtPoint releases the mouse (stub).
-func LeftMouseUpAtPoint(point image.Point, _ action.Modifiers) error { return nil }
+	ClearLeftMouseDownState()
 
-// LeftMouseUp releases the mouse (stub).
-func LeftMouseUp() error { return nil }
+	return nil
+}
 
-// ScrollAtCursor scrolls the mouse (stub).
-func ScrollAtCursor(deltaX, deltaY int) error { return nil }
+// LeftMouseUp releases the mouse.
+func LeftMouseUp() error {
+	pos, err := winplatform.CurrentCursorPosition()
+	if err != nil {
+		return err
+	}
 
-// CurrentCursorPosition returns the cursor position (stub).
-func CurrentCursorPosition() image.Point { return image.Point{} }
+	return LeftMouseUpAtPoint(pos, 0)
+}
+
+// ScrollAtCursor scrolls the mouse.
+func ScrollAtCursor(_ int, deltaY int) error {
+	return winplatform.ScrollWheel(deltaY)
+}
+
+// CurrentCursorPosition returns the cursor position.
+func CurrentCursorPosition() image.Point {
+	pos, err := winplatform.CurrentCursorPosition()
+	if err != nil {
+		return image.Point{}
+	}
+
+	return pos
+}
 
 // IsMissionControlActive returns whether Mission Control is active (stub).
 func IsMissionControlActive() bool { return false }

@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -229,7 +230,11 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_page_down", getActionCmd("page_down"), true},
 		{"action_move_monitor", getActionCmd("move_monitor"), true},
 		{cliTestStatus, getCmd(cliTestStatus), true},
-		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
+		{
+			"doctor",
+			getCmd("doctor"),
+			runtime.GOOS != "windows",
+		}, // Windows runs client-side doctor when daemon is down
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
 		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},
 		{"recursive_grid", getCmd("recursive_grid"), true},

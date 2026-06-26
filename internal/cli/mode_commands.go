@@ -21,6 +21,7 @@ type ModeConfig struct {
 	SupportFiltering      bool     // Whether this mode supports --role and --text filter flags
 	SupportStrategy       bool     // Whether this mode supports the --strategy flag
 	SupportLabelDirection bool     // Whether this mode supports the --label-direction flag
+	SupportDebug          bool     // Whether this mode supports the --debug probe flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -73,6 +74,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			var strategyFlag string
 			if config.SupportStrategy {
 				strategyFlag, err = cmd.Flags().GetString("strategy")
+				if err != nil {
+					return err
+				}
+			}
+
+			var debugFlag bool
+			if config.SupportDebug {
+				debugFlag, err = cmd.Flags().GetBool("debug")
 				if err != nil {
 					return err
 				}
@@ -179,6 +188,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--strategy="+strategyFlag)
 			}
 
+			if debugFlag {
+				params = append(params, "--debug")
+			}
+
 			if labelDirectionFlag != "" {
 				params = append(params, "--label-direction="+labelDirectionFlag)
 			}
@@ -240,6 +253,15 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"strategy",
 			"",
 			"Element detection strategy: axtree (macOS AX API) or vision (Vision Framework)",
+		)
+	}
+
+	if config.SupportDebug {
+		cmd.Flags().BoolP(
+			"debug",
+			"d",
+			false,
+			"Probe the focused window and print detected clickable elements without showing the overlay",
 		)
 	}
 

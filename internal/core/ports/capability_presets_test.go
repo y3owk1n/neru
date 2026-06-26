@@ -28,11 +28,22 @@ func TestDarwinCapabilities_ReportSupportedFeatures(t *testing.T) {
 
 func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 	tests := []struct {
-		name         string
-		capabilities ports.PlatformCapabilities
+		name                string
+		capabilities        ports.PlatformCapabilities
+		accessibilityStatus ports.FeatureStatus
 	}{
-		{name: "linux", capabilities: ports.LinuxCapabilities()},
-		{name: "windows", capabilities: ports.WindowsCapabilities()},
+		// Linux accessibility (AT-SPI) is still a stub; Windows now discovers
+		// clickable elements via UI Automation.
+		{
+			name:                "linux",
+			capabilities:        ports.LinuxCapabilities(),
+			accessibilityStatus: ports.FeatureStatusStub,
+		},
+		{
+			name:                "windows",
+			capabilities:        ports.WindowsCapabilities(),
+			accessibilityStatus: ports.FeatureStatusSupported,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -41,10 +52,11 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 				t.Fatalf("Platform = %q, want %s", testCase.capabilities.Platform, testCase.name)
 			}
 
-			if testCase.capabilities.Accessibility.Status != ports.FeatureStatusStub {
+			if testCase.capabilities.Accessibility.Status != testCase.accessibilityStatus {
 				t.Fatalf(
-					"Accessibility status = %q, want stub",
+					"Accessibility status = %q, want %q",
 					testCase.capabilities.Accessibility.Status,
+					testCase.accessibilityStatus,
 				)
 			}
 

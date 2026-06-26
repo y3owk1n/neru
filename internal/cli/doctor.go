@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -11,10 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-var (
-	errDaemonNotRunning  = errors.New("daemon not running")
-	errDaemonUnreachable = errors.New("daemon unreachable")
-)
+var errDaemonUnreachable = errors.New("daemon unreachable")
 
 // DoctorCmd is the CLI doctor command.
 var DoctorCmd = &cobra.Command{
@@ -32,20 +28,15 @@ can use it to verify accessibility permissions before launching.`,
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
 		// --- client-side checks (no daemon needed) --------------------------
-		// Check IPC socket exists
-		socketPath := ipc.SocketPath()
+		endpointPath := ipc.SocketPath()
 
-		_, statErr := os.Stat(socketPath)
-		if statErr != nil {
-			cmd.Printf("  ❌ %-24s %s\n", "ipc_socket", "not found: "+socketPath)
-			cmd.Println()
-			cmd.Println("The neru daemon does not appear to be running.")
-			cmd.Println("Start it with: neru launch")
+		if !ipc.IsServerRunning() {
+			cmd.Printf("  ❌ %-24s %s\n", "ipc_endpoint", "not reachable: "+endpointPath)
 
-			return &silentError{err: errDaemonNotRunning}
+			return printClientDoctorWithoutDaemon(cmd)
 		}
 
-		cmd.Printf("  ✅ %-24s %s\n", "ipc_socket", socketPath)
+		cmd.Printf("  ✅ %-24s %s\n", "ipc_endpoint", endpointPath)
 		cmd.Println()
 		// --- daemon-side checks (via IPC) -----------------------------------
 		cmd.Println("Querying daemon...")
@@ -57,7 +48,7 @@ can use it to verify accessibility permissions before launching.`,
 		if err != nil {
 			cmd.Printf("  ❌ %-24s %s\n", "daemon", "unreachable")
 			cmd.Println()
-			cmd.Println("The daemon socket exists but is not responding.")
+			cmd.Println("The daemon endpoint exists but is not responding.")
 			cmd.Println("Try restarting: neru launch")
 
 			return &silentError{err: errDaemonUnreachable}
