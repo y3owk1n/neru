@@ -8,10 +8,12 @@
 package overlay
 
 import (
+	"context"
 	"image"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -52,6 +54,11 @@ type Manager struct {
 	// stickyWin is a small dedicated layered window for the sticky modifiers
 	// indicator badge, same pattern as indicatorWin.
 	stickyWin *winplatform.OverlayWindow
+
+	// mouseWin is a small dedicated layered window for mouse action indicators.
+	mouseWin *winplatform.OverlayWindow
+	// mouseActionCancel cancels any running mouse action animation.
+	mouseActionCancel context.CancelFunc
 
 	hintOverlay            *hints.Overlay
 	gridOverlay            *grid.Overlay
@@ -112,6 +119,11 @@ func (m *Manager) Hide() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	if m.mouseActionCancel != nil {
+		m.mouseActionCancel()
+		m.mouseActionCancel = nil
+	}
+
 	if m.win != nil {
 		m.win.Hide()
 	}
@@ -122,6 +134,10 @@ func (m *Manager) Hide() {
 
 	if m.stickyWin != nil {
 		m.stickyWin.Hide()
+	}
+
+	if m.mouseWin != nil {
+		m.mouseWin.Hide()
 	}
 }
 
@@ -207,6 +223,11 @@ func (m *Manager) Destroy() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	if m.mouseActionCancel != nil {
+		m.mouseActionCancel()
+		m.mouseActionCancel = nil
+	}
+
 	if m.win != nil {
 		m.win.Destroy()
 		m.win = nil
@@ -220,6 +241,11 @@ func (m *Manager) Destroy() {
 	if m.stickyWin != nil {
 		m.stickyWin.Destroy()
 		m.stickyWin = nil
+	}
+
+	if m.mouseWin != nil {
+		m.mouseWin.Destroy()
+		m.mouseWin = nil
 	}
 }
 
@@ -632,41 +658,55 @@ func (m *Manager) DrawMouseActionIndicator(
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	m.ensureWinOverlayLocked()
-
-	if m.win == nil {
-		return
+	// Cancel any running mouse action animation.
+	if m.mouseActionCancel != nil {
+		m.mouseActionCancel()
+		m.mouseActionCancel = nil
 	}
 
-	m.win.Clear()
+	maxScale := max(style.StartScale, style.EndScale)
+	if maxScale <= 0 {
+		maxScale = 1.0
+	}
 
-	size := max(style.Size, 1)
-	half := size / 2 //nolint:mnd // simple arithmetic
-	bounds := image.Rect(point.X-half, point.Y-half, point.X+half, point.Y+half)
+	baseSize := float64(max(style.Size, 1))
+	maxIndicatorSize := baseSize * maxScale
+	borderWidth := float64(max(style.BorderWidth, 0))
 
-	bgColor := parseHexColorARGB(style.BackgroundColor)
-	borderColor := parseHexColorARGB(style.BorderColor)
+	// Create window bounds to fit the maximum indicator size plus border.
+	const paddingFactor = 4
 
-	var mouseRadius float64
-	if style.Shape == "circle" {
-		mouseRadius = float64(size) / 2 //nolint:mnd // half-size for fully round circle
+	winSize := int(maxIndicatorSize) + int(borderWidth)*2 + paddingFactor
+	halfWinSize := winSize / 2 //nolint:mnd // divide by 2
+
+	posX := point.X - halfWinSize
+	posY := point.Y - halfWinSize
+
+	if m.mouseWin == nil || !m.mouseWin.Healthy() {
+		if m.mouseWin != nil {
+			m.mouseWin.Destroy()
+		}
+
+		win, err := winplatform.NewOverlayWindowAt(posX, posY, winSize, winSize)
+		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("failed to create mouse action overlay window", zap.Error(err))
+			}
+
+			return
+		}
+
+		m.mouseWin = win
 	} else {
-		mouseRadius = max(
-			float64(size)*winMouseActionSquareRadiusScale,
-			winMouseActionMinSquareRadius,
-		)
+		_ = m.mouseWin.ResizeTo(posX, posY, winSize, winSize)
 	}
 
-	m.win.drawFilledRect(
-		bounds,
-		bgColor,
-		borderColor,
-		float64(max(style.BorderWidth, 0)),
-		mouseRadius,
-	)
+	m.mouseWin.Clear()
 
-	m.win.flushOverlay("mouse-action")
-	m.win.Show()
+	ctx, cancel := context.WithCancel(context.Background())
+	m.mouseActionCancel = cancel
+
+	go m.animateMouseAction(ctx, winSize, style)
 }
 
 // modeIndicatorLabel returns the configured label for the given mode string.
@@ -808,6 +848,147 @@ func (m *Manager) Flush() {
 // SetKeyboardCaptureEnabled is a no-op on Windows; the low-level keyboard hook
 // manages capture directly and has no scroll-passthrough toggle.
 func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
+
+func (m *Manager) animateMouseAction(
+	ctx context.Context,
+	winSize int,
+	style ports.MouseActionIndicatorStyle,
+) {
+	duration := time.Duration(style.DurationMS) * time.Millisecond
+	if duration <= 0 {
+		duration = 260 * time.Millisecond //nolint:mnd // default duration
+	}
+
+	startTime := time.Now()
+
+	ticker := time.NewTicker(16 * time.Millisecond) //nolint:mnd // ~60 FPS
+	defer ticker.Stop()
+
+	halfWinSize := float64(winSize) / 2.0 //nolint:mnd // divide by 2
+	borderWidth := float64(max(style.BorderWidth, 0))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-ticker.C:
+			elapsed := time.Since(startTime)
+
+			progressFraction := float64(elapsed) / float64(duration)
+			if progressFraction >= 1.0 {
+				progressFraction = 1.0
+			}
+
+			progress := ease(progressFraction, style.Easing)
+			scale := style.StartScale + progress*(style.EndScale-style.StartScale)
+			opacity := style.StartOpacity + progress*(style.EndOpacity-style.StartOpacity)
+
+			baseSize := float64(max(style.Size, 1))
+			currentSize := baseSize * scale
+			halfSize := currentSize / 2.0 //nolint:mnd // divide by 2
+
+			bounds := image.Rect(
+				int(halfWinSize-halfSize),
+				int(halfWinSize-halfSize),
+				int(halfWinSize+halfSize),
+				int(halfWinSize+halfSize),
+			)
+
+			bgColor := scaleColorAlpha(style.BackgroundColor, opacity)
+			borderColor := scaleColorAlpha(style.BorderColor, opacity)
+
+			var radius float64
+			if style.Shape == "circle" {
+				radius = halfSize
+			} else {
+				radius = max(
+					currentSize*winMouseActionSquareRadiusScale,
+					winMouseActionMinSquareRadius,
+				)
+			}
+
+			m.renderMu.Lock()
+			select {
+			case <-ctx.Done():
+				m.renderMu.Unlock()
+
+				return
+			default:
+			}
+
+			if m.mouseWin != nil && m.mouseWin.Healthy() {
+				m.mouseWin.Clear()
+				m.mouseWin.FillRoundedRect(bounds, radius, bgColor)
+
+				if borderWidth > 0 {
+					m.mouseWin.StrokeRoundedRect(bounds, radius, borderColor, borderWidth)
+				}
+
+				_ = m.mouseWin.Flush()
+				m.mouseWin.Show()
+			}
+			m.renderMu.Unlock()
+
+			if progressFraction >= 1.0 {
+				m.renderMu.Lock()
+				if m.mouseWin != nil {
+					m.mouseWin.Hide()
+				}
+				m.renderMu.Unlock()
+
+				return
+			}
+		}
+	}
+}
+
+func ease(progressFraction float64, easing string) float64 {
+	switch easing {
+	case "ease_in":
+		res := progressFraction * progressFraction * progressFraction
+
+		return res
+
+	case "ease_out":
+		invT := 1.0 - progressFraction
+		res := 1.0 - invT*invT*invT
+
+		return res
+
+	case "ease_in_out":
+		if progressFraction < 0.5 { //nolint:mnd
+			res := 4.0 * progressFraction * progressFraction * progressFraction
+
+			return res
+		}
+
+		invT := 1.0 - progressFraction
+		res := 1.0 - 4.0*invT*invT*invT
+
+		return res
+
+	case "linear":
+		fallthrough
+	default:
+		return progressFraction
+	}
+}
+
+func scaleColorAlpha(hexColor string, opacity float64) uint32 {
+	colorVal := parseHexColorARGB(hexColor)
+	alphaVal := float64((colorVal >> 24) & 0xFF) //nolint:mnd
+	redVal := (colorVal >> 16) & 0xFF            //nolint:mnd
+	greenVal := (colorVal >> 8) & 0xFF           //nolint:mnd
+	blueVal := colorVal & 0xFF                   //nolint:mnd
+
+	const maxAlpha = 255
+
+	newA := uint32(max(0, min(maxAlpha, alphaVal*opacity)))
+	res := (newA << 24) | (redVal << 16) | (greenVal << 8) | blueVal //nolint:mnd
+
+	return res
+}
 
 func (m *Manager) publish(change StateChange) {
 	for _, sub := range m.subs {
