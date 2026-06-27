@@ -488,6 +488,10 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 		parseHexColorARGB(textColor),
 	)
 
+	// Flush composites fills/strokes/texts into the pixel buffer and sends
+	// the frame to the HWND via UpdateLayeredWindow. Must be called before
+	// Show() so the window appears with the badge already rendered.
+	m.indicatorWin.Flush()
 	m.indicatorWin.Show()
 }
 
@@ -571,6 +575,7 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		parseHexColorARGB(textColor),
 	)
 
+	m.stickyWin.Flush()
 	m.stickyWin.Show()
 }
 
