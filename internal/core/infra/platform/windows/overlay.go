@@ -700,6 +700,38 @@ func (o *OverlayWindow) flushPixels() {
 }
 
 func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
+	// Clamp text rect to overlay bounds.
+	textRect := t.rect.Intersect(image.Rect(0, 0, w, h))
+	if textRect.Empty() {
+		return
+	}
+
+	// Add 1px padding around text rect for anti-aliasing at edges.
+	pad := 1
+	tw := textRect.Dx() + pad*2
+	th := textRect.Dy() + pad*2
+	textX := textRect.Min.X - pad
+	textY := textRect.Min.Y - pad
+
+	// Clamp to overlay.
+	if textX < 0 {
+		tw += textX
+		textX = 0
+	}
+	if textY < 0 {
+		th += textY
+		textY = 0
+	}
+	if textX+tw > w {
+		tw = w - textX
+	}
+	if textY+th > h {
+		th = h - textY
+	}
+	if tw <= 0 || th <= 0 {
+		return
+	}
+
 	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
 	if hdcMem == 0 {
 		return
@@ -708,12 +740,12 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 
 	bih := bitmapV4Header{
 		Size:        bmpV4Size,
-		Width:       int32(w),
-		Height:      -int32(h),
+		Width:       int32(tw),
+		Height:      -int32(th),
 		Planes:      1,
 		BitCount:    32,
 		Compression: biBitfields,
-		SizeImage:   uint32(w * h * bytesPerPixel),
+		SizeImage:   uint32(tw * th * bytesPerPixel),
 		RedMask:     0x00FF0000,
 		GreenMask:   0x0000FF00,
 		BlueMask:    0x000000FF,
@@ -741,7 +773,7 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 	}
 	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
 
-	tmpPixels := (*[1 << 30]byte)(bits)[: w*h*bytesPerPixel : w*h*bytesPerPixel]
+	tmpPixels := (*[1 << 30]byte)(bits)[: tw*th*bytesPerPixel : tw*th*bytesPerPixel]
 	for i := range tmpPixels {
 		tmpPixels[i] = 0
 	}
@@ -779,11 +811,12 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 		return
 	}
 
-	rect := windows.Rect{
-		Left:   int32(t.rect.Min.X),
-		Top:    int32(t.rect.Min.Y),
-		Right:  int32(t.rect.Max.X),
-		Bottom: int32(t.rect.Max.Y),
+	// Draw text centered inside the text bounding box, offset by padding.
+	drawRect := windows.Rect{
+		Left:   int32(pad),
+		Top:    int32(pad),
+		Right:  int32(pad + textRect.Dx()),
+		Bottom: int32(pad + textRect.Dy()),
 	}
 
 	var procDrawTextW = user32.NewProc("DrawTextW")
@@ -791,11 +824,12 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 		hdcMem,
 		uintptr(unsafe.Pointer(&utf16Text[0])),
 		uintptr(^uint32(0)),
-		uintptr(unsafe.Pointer(&rect)),
+		uintptr(unsafe.Pointer(&drawRect)),
 		dtCenter|dtVCenter|dtSingleLine,
 	))
 
-	alphaCompositeText(pixels, w, h, tmpPixels, t.color)
+	// Composite the small text bitmap into the main pixel buffer at the correct offset.
+	alphaCompositeTextAt(pixels, w, h, tmpPixels, tw, th, textX, textY, t.color)
 }
 
 // alphaFillRect composites a semi-transparent ARGB fill over the pixel buffer.
@@ -832,7 +866,7 @@ func alphaFillRect(pixels []byte, w, h int, rect image.Rectangle, color uint32) 
 			pixels[idx] = byte((sb + dstB*ia) / 255)
 			pixels[idx+1] = byte((sg + dstG*ia) / 255)
 			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte((a + dstA*ia) / 255)
+			pixels[idx+3] = byte(a + (dstA*ia)/255)
 		}
 	}
 }
@@ -898,10 +932,40 @@ func alphaFillRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius 
 	x0 := clamp(rect.Min.X, 0, w)
 	x1 := clamp(rect.Max.X, 0, w)
 
+	// Inner region is fully inside the rounded rect (no SDF needed).
+	innerMinX := float64(rect.Min.X) + radius
+	innerMaxX := float64(rect.Max.X) - radius
+	innerMinY := float64(rect.Min.Y) + radius
+	innerMaxY := float64(rect.Max.Y) - radius
+
+	sr := r * a
+	sg := g * a
+	sb := b * a
+
 	for y := y0; y < y1; y++ {
 		row := y * w * bytesPerPixel
+		fy := float64(y)
+
 		for x := x0; x < x1; x++ {
-			d := sdRoundedBox(float64(x)-centerX, float64(y)-centerY, halfW, halfH, radius)
+			fx := float64(x)
+
+			// Fast path: pixel is well inside the rounded rect.
+			if fx >= innerMinX && fx <= innerMaxX && fy >= innerMinY && fy <= innerMaxY {
+				idx := row + x*bytesPerPixel
+				dstB := uint32(pixels[idx])
+				dstG := uint32(pixels[idx+1])
+				dstR := uint32(pixels[idx+2])
+				dstA := uint32(pixels[idx+3])
+
+				pixels[idx] = byte((sb + dstB*(255-a)) / 255)
+				pixels[idx+1] = byte((sg + dstG*(255-a)) / 255)
+				pixels[idx+2] = byte((sr + dstR*(255-a)) / 255)
+				pixels[idx+3] = byte(a + (dstA*(255-a))/255)
+
+				continue
+			}
+
+			d := sdRoundedBox(fx-centerX, fy-centerY, halfW, halfH, radius)
 			if d > 1 {
 				continue
 			}
@@ -912,20 +976,16 @@ func alphaFillRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius 
 			}
 
 			ia := 255 - pixelAlpha
-			sr := r * pixelAlpha
-			sg := g * pixelAlpha
-			sb := b * pixelAlpha
-
 			idx := row + x*bytesPerPixel
 			dstB := uint32(pixels[idx])
 			dstG := uint32(pixels[idx+1])
 			dstR := uint32(pixels[idx+2])
 			dstA := uint32(pixels[idx+3])
 
-			pixels[idx] = byte((sb + dstB*ia) / 255)
-			pixels[idx+1] = byte((sg + dstG*ia) / 255)
-			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte((pixelAlpha + dstA*ia) / 255)
+			pixels[idx] = byte((r*pixelAlpha + dstB*ia) / 255)
+			pixels[idx+1] = byte((g*pixelAlpha + dstG*ia) / 255)
+			pixels[idx+2] = byte((b*pixelAlpha + dstR*ia) / 255)
+			pixels[idx+3] = byte(pixelAlpha + (dstA*ia)/255)
 		}
 	}
 }
@@ -973,6 +1033,9 @@ func alphaStrokeRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radiu
 			}
 
 			dInner := sdRoundedBox(px, py, innerHalfW, innerHalfH, innerRadius)
+			if dInner < -1 {
+				continue // inside inner hole, not part of stroke
+			}
 
 			outerAlpha := math.Max(0, math.Min(1, 1.0-dOuter))
 			innerAlpha := math.Max(0, math.Min(1, 1.0-dInner))
@@ -995,7 +1058,7 @@ func alphaStrokeRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radiu
 			pixels[idx] = byte((sb + dstB*ia) / 255)
 			pixels[idx+1] = byte((sg + dstG*ia) / 255)
 			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte((pixelAlpha + dstA*ia) / 255)
+			pixels[idx+3] = byte(pixelAlpha + (dstA*ia)/255)
 		}
 	}
 }
@@ -1003,6 +1066,12 @@ func alphaStrokeRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radiu
 // alphaCompositeText composites a GDI-rendered white-on-transparent text bitmap
 // over the main pixel buffer using the given ARGB color.
 func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32) {
+	alphaCompositeTextAt(pixels, w, h, textPixels, w, h, 0, 0, color)
+}
+
+// alphaCompositeTextAt composites a text bitmap of size (tw x th) at position
+// (offX, offY) in the main pixel buffer using the given ARGB color.
+func alphaCompositeTextAt(pixels []byte, w, h int, textPixels []byte, tw, th, offX, offY int, color uint32) {
 	ta := (color >> 24) & 0xFF
 	if ta == 0 {
 		return
@@ -1011,12 +1080,23 @@ func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32
 	tg := (color >> 8) & 0xFF
 	tb := color & 0xFF
 
-	for y := 0; y < h; y++ {
-		row := y * w * bytesPerPixel
-		for x := 0; x < w; x++ {
-			idx := row + x*bytesPerPixel
-			// Extract coverage from the rendered white pixel (R channel).
-			coverage := uint32(textPixels[idx+2])
+	for ty := 0; ty < th; ty++ {
+		dstY := offY + ty
+		if dstY < 0 || dstY >= h {
+			continue
+		}
+
+		srcRow := ty * tw * bytesPerPixel
+		dstRow := dstY * w * bytesPerPixel
+
+		for tx := 0; tx < tw; tx++ {
+			dstX := offX + tx
+			if dstX < 0 || dstX >= w {
+				continue
+			}
+
+			srcIdx := srcRow + tx*bytesPerPixel
+			coverage := uint32(textPixels[srcIdx+2])
 			if coverage == 0 {
 				continue
 			}
@@ -1027,15 +1107,16 @@ func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32
 			sb := tb * srcA
 			ia := 255 - srcA
 
-			dstB := uint32(pixels[idx])
-			dstG := uint32(pixels[idx+1])
-			dstR := uint32(pixels[idx+2])
-			dstA := uint32(pixels[idx+3])
+			dstIdx := dstRow + dstX*bytesPerPixel
+			dstB := uint32(pixels[dstIdx])
+			dstG := uint32(pixels[dstIdx+1])
+			dstR := uint32(pixels[dstIdx+2])
+			dstA := uint32(pixels[dstIdx+3])
 
-			pixels[idx] = byte((sb + dstB*ia) / 255)
-			pixels[idx+1] = byte((sg + dstG*ia) / 255)
-			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte((srcA + dstA*ia) / 255)
+			pixels[dstIdx] = byte((sb + dstB*ia) / 255)
+			pixels[dstIdx+1] = byte((sg + dstG*ia) / 255)
+			pixels[dstIdx+2] = byte((sr + dstR*ia) / 255)
+			pixels[dstIdx+3] = byte(srcA + (dstA*ia)/255)
 		}
 	}
 }
