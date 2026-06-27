@@ -391,9 +391,11 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 
 	m.win.Resize()
 
-	// Ensure the overlay is visible before drawing the indicator.
-	// Show() redraws from cache if needed and flushes, so the indicator
-	// drawn below will appear on top of the current content.
+	// Clear stale indicator badges from the pixel buffer before drawing the
+	// new one. In grid/hints mode the buffer already contains the rendered
+	// content, so clearForIndicator() is a no-op and the badge draws on top.
+	// In scroll mode the buffer is cleared so only the current badge is shown.
+	m.win.clearForIndicator()
 	m.win.Show()
 
 	offsetX := cfg.UI.IndicatorXOffset
@@ -478,7 +480,8 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		return
 	}
 
-	// Ensure the overlay is visible before drawing on it.
+	// Clear stale indicator badges before drawing the new one.
+	m.win.clearForIndicator()
 	m.win.Show()
 
 	bgColor := ui.BackgroundColor.ForTheme(

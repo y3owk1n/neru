@@ -138,6 +138,25 @@ func (o *winOverlay) Clear() {
 	}
 }
 
+// clearForIndicator clears the pixel buffer before drawing a transient
+// indicator badge so that old badges at previous cursor positions are
+// erased. When cached grid or hints content exists (grid/hints mode),
+// the buffer is left untouched so the indicator draws on top of the
+// existing content.
+func (o *winOverlay) clearForIndicator() {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	// In grid or hints mode, the cached content is already rendered in the
+	// pixel buffer. Do not clear — the indicator badge is drawn on top.
+	if o.cachedGrid != nil || len(o.lastHints) > 0 {
+		return
+	}
+
+	o.window.Clear()
+}
+
 // ClearCache invalidates cached grid and hints state so that a subsequent
 // Show() does not redraw stale content from a previous mode. This must be
 // called when modes exit to prevent ghost artifacts (e.g. the old grid
