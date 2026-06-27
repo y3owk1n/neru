@@ -396,7 +396,10 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	// content, so clearForIndicator() is a no-op and the badge draws on top.
 	// In scroll mode the buffer is cleared so only the current badge is shown.
 	m.win.clearForIndicator()
-	m.win.Show()
+	// EnsureVisible makes the HWND visible without flushing, avoiding the
+	// blink that Show()'s intermediate flush would cause. The single
+	// flushOverlay() below composites the badge and sends the frame.
+	m.win.EnsureVisible()
 
 	offsetX := cfg.UI.IndicatorXOffset
 	offsetY := cfg.UI.IndicatorYOffset
@@ -482,7 +485,7 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 
 	// Clear stale indicator badges before drawing the new one.
 	m.win.clearForIndicator()
-	m.win.Show()
+	m.win.EnsureVisible()
 
 	bgColor := ui.BackgroundColor.ForTheme(
 		m.stickyModifiersOverlay.Theme(),

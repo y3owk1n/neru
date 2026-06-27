@@ -119,6 +119,25 @@ func (o *winOverlay) Show() {
 	}
 }
 
+// EnsureVisible makes the overlay HWND visible without flushing the pixel
+// buffer. Used by indicator draw paths that need the window to be on-screen
+// before composing a new frame, avoiding the blink that Show()'s intermediate
+// flush would cause.
+func (o *winOverlay) EnsureVisible() {
+	if o == nil {
+		return
+	}
+
+	o.ensureWindowForDraw()
+
+	if o.window == nil {
+		return
+	}
+
+	o.suppressDraw = false
+	o.window.Show()
+}
+
 func (o *winOverlay) Hide() {
 	if o == nil {
 		return
