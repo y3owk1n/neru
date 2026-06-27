@@ -223,6 +223,7 @@ func (s *SystemAdapter) ShowSecureInputNotification() {}
 // ShowAlert displays a native system alert on Windows using MessageBoxW.
 func (s *SystemAdapter) ShowAlert(_ context.Context, title, message string) error {
 	ShowAlert(title, message)
+
 	return nil
 }
 

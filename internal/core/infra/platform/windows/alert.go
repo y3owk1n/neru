@@ -12,14 +12,23 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Alert choice constants that mirror the platform/factory.go values.
+// These must match exactly so factory_windows.go can pass them through.
+const (
+	ConfigOnboardingCreate   = 1
+	ConfigOnboardingDefaults = 2
+	ConfigOnboardingQuit     = 3
+
+	ConfigValidationOK       = 1
+	ConfigValidationCopyPath = 2
+)
+
 const (
 	mbOK            = 0x00000000
 	mbOKCancel      = 0x00000001
 	mbYesNoCancel   = 0x00000003
 	mbIconWarning   = 0x00000030
 	mbIconInfo      = 0x00000040
-	mbDefButton2    = 0x00000100
-	mbDefButton3    = 0x00000200
 	mbTopmost       = 0x00040000
 	mbSetForeground = 0x00010000
 
@@ -36,9 +45,9 @@ var (
 
 // showMessageBox displays a Win32 MessageBoxW and returns the button ID.
 func showMessageBox(title, message string, mbType uintptr) int {
-	t, _ := syscall.UTF16PtrFromString(title)
-	m, _ := syscall.UTF16PtrFromString(message)
-	if t == nil || m == nil {
+	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	messagePtr, _ := syscall.UTF16PtrFromString(message)
+	if titlePtr == nil || messagePtr == nil {
 		return 0
 	}
 
@@ -47,10 +56,11 @@ func showMessageBox(title, message string, mbType uintptr) int {
 
 	ret, _, _ := procMessageBox.Call(
 		0,
-		uintptr(unsafe.Pointer(m)),
-		uintptr(unsafe.Pointer(t)),
+		uintptr(unsafe.Pointer(messagePtr)),
+		uintptr(unsafe.Pointer(titlePtr)),
 		flags,
 	)
+
 	return int(ret)
 }
 
@@ -64,11 +74,11 @@ func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
 	result := showMessageBox(title, message, mbOKCancel|mbIconWarning)
 	switch result {
 	case idOK:
-		return 1
+		return ConfigValidationOK
 	case idCancel:
-		return 2
+		return ConfigValidationCopyPath
 	default:
-		return 1
+		return ConfigValidationOK
 	}
 }
 
@@ -85,13 +95,13 @@ func ShowConfigOnboardingAlert(configPath string) int {
 	result := showMessageBox(title, message, mbYesNoCancel|mbIconInfo)
 	switch result {
 	case idYes:
-		return 1
+		return ConfigOnboardingCreate
 	case idNo:
-		return 2
+		return ConfigOnboardingDefaults
 	case idCancel:
-		return 3
+		return ConfigOnboardingQuit
 	default:
-		return 2
+		return ConfigOnboardingDefaults
 	}
 }
 
