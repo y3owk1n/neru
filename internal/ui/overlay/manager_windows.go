@@ -24,7 +24,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -319,7 +318,6 @@ func (m *Manager) DrawHintSearchInput(
 	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	bounds := image.Rect(pos.X, pos.Y, pos.X+max(badgeWidth, width), pos.Y+badgeHeight)
 
-	m.win.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	m.win.drawFilledRect(
 		bounds,
 		parseHexColorARGB(style.BackgroundColor()),
@@ -379,6 +377,8 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 		return
 	}
 
+	m.win.Resize()
+
 	offsetX := cfg.UI.IndicatorXOffset
 	offsetY := cfg.UI.IndicatorYOffset
 	fontSize := float64(max(cfg.UI.FontSize, 1))
@@ -414,7 +414,6 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	)
 	borderWidth := cfg.UI.BorderWidth
 
-	m.win.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	m.win.drawFilledRect(
 		bounds,
 		parseHexColorARGB(bgColor),
@@ -482,7 +481,6 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		config.StickyModifiersBorderColorDark,
 	)
 
-	m.win.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	m.win.drawFilledRect(
 		bounds,
 		parseHexColorARGB(bgColor),
@@ -524,7 +522,6 @@ func (m *Manager) DrawMouseActionIndicator(
 	bgColor := parseHexColorARGB(style.BackgroundColor)
 	borderColor := parseHexColorARGB(style.BorderColor)
 
-	m.win.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	m.win.drawFilledRect(
 		bounds,
 		bgColor,

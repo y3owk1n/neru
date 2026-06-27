@@ -1,15 +1,12 @@
 //go:build windows
 
-// internal/core/infra/platform/windows/overlay.go
-// Layered Win32 overlay using color-key transparency and WM_PAINT GDI drawing.
-// Does not implement grid logic or ports; ui/overlay consumes this surface.
-
 package windows
 
 import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -20,9 +17,6 @@ import (
 const (
 	overlayClassName = "NeruOverlayWindow"
 
-	csHRedraw = 0x0002
-	csVRedraw = 0x0001
-
 	wsPopup          = 0x80000000
 	wsExLayered      = 0x00080000
 	wsExTransparent  = 0x00000020
@@ -31,55 +25,56 @@ const (
 	wsExNoActivate   = 0x08000000
 	swHide           = 0
 	swShowNoActivate = 4
-	transparentBk    = 1
-	dtCenter         = 0x00000001
-	dtVCenter        = 0x00000004
-	dtSingleLine     = 0x00000020
 	hwndTopMost      = ^uintptr(0)
 	swpNoActivate    = 0x0010
 	swpShowWindow    = 0x0040
-	lwaColorKey      = 0x00000001
-	wmPaint          = 0x000F
 
 	defaultOverlayFont = "Segoe UI"
 	fwBold             = 700
+	dtCenter           = 0x00000001
+	dtVCenter          = 0x00000004
+	dtSingleLine       = 0x00000020
+	transparentBk      = 1
 
-	rgbMask           = 0xFFFFFF
-	defaultFontHeight = -14
+	bmpV4Size     = 108
+	biBitfields   = 3
+	ulwAlpha      = 2
+	bytesPerPixel = 4
+	acSrcOver     = 0
+	acSrcAlpha    = 1
 )
 
 var (
-	errCreateSolidBrush      = errors.New("CreateSolidBrush failed")
-	errInvalidOverlayBounds  = errors.New("invalid overlay bounds")
-	errOverlayNil            = errors.New("overlay is nil")
-	errOverlayNotInitialized = errors.New("overlay window is not initialized")
+	errInvalidOverlayBounds = errors.New("invalid overlay bounds")
+	errOverlayNil           = errors.New("overlay is nil")
+	errOverlayNotInit       = errors.New("overlay window is not initialized")
 )
 
 var (
 	gdi32 = windows.NewLazySystemDLL("gdi32.dll")
 
-	procCreateSolidBrush           = gdi32.NewProc("CreateSolidBrush")
-	procDeleteObject               = gdi32.NewProc("DeleteObject")
-	procCreateFontW                = gdi32.NewProc("CreateFontW")
-	procSetBkMode                  = gdi32.NewProc("SetBkMode")
-	procSetTextColor               = gdi32.NewProc("SetTextColor")
-	procRegisterClassExW           = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW            = user32.NewProc("CreateWindowExW")
-	procDestroyWindow              = user32.NewProc("DestroyWindow")
-	procShowWindow                 = user32.NewProc("ShowWindow")
-	procSetWindowPos               = user32.NewProc("SetWindowPos")
-	procDefWindowProcW             = user32.NewProc("DefWindowProcW")
-	procSetLayeredWindowAttributes = user32.NewProc("SetLayeredWindowAttributes")
-	procInvalidateRect             = user32.NewProc("InvalidateRect")
-	procUpdateWindow               = user32.NewProc("UpdateWindow")
-	procIsWindow                   = user32.NewProc("IsWindow")
-	procBeginPaint                 = user32.NewProc("BeginPaint")
-	procEndPaint                   = user32.NewProc("EndPaint")
-	procValidateRect               = user32.NewProc("ValidateRect")
-	procFillRect                   = user32.NewProc("FillRect")
-	procDrawTextW                  = user32.NewProc("DrawTextW")
-	kernel32                       = windows.NewLazySystemDLL("kernel32.dll")
-	procGetModuleHandleW           = kernel32.NewProc("GetModuleHandleW")
+	procCreateCompatibleDC = gdi32.NewProc("CreateCompatibleDC")
+	procDeleteDC           = gdi32.NewProc("DeleteDC")
+	procCreateDIBSection   = gdi32.NewProc("CreateDIBSection")
+	procSelectObject       = gdi32.NewProc("SelectObject")
+	procDeleteObject       = gdi32.NewProc("DeleteObject")
+	procSetBkMode          = gdi32.NewProc("SetBkMode")
+	procSetTextColor       = gdi32.NewProc("SetTextColor")
+	procCreateFontW        = gdi32.NewProc("CreateFontW")
+
+	procRegisterClassExW = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW  = user32.NewProc("CreateWindowExW")
+	procDestroyWindow    = user32.NewProc("DestroyWindow")
+	procShowWindow       = user32.NewProc("ShowWindow")
+	procSetWindowPos     = user32.NewProc("SetWindowPos")
+	procDefWindowProcW   = user32.NewProc("DefWindowProcW")
+	procIsWindow         = user32.NewProc("IsWindow")
+	procUpdateLayeredWindow = user32.NewProc("UpdateLayeredWindow")
+
+	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
+
+	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
+	procRtlMoveMemory    = kernel32.NewProc("RtlMoveMemory")
 
 	overlayClassOnce  sync.Once
 	errOverlayClass   error
@@ -103,24 +98,17 @@ type wndClassEx struct {
 	hIconSm       windows.Handle
 }
 
-type paintStruct struct {
-	hdc         windows.Handle
-	fErase      int32
-	rcPaint     windows.Rect
-	fRestore    int32
-	fIncUpdate  int32
-	rgbReserved [32]byte
-}
-
 type rectFill struct {
-	rect  image.Rectangle
-	color uint32
+	rect   image.Rectangle
+	color  uint32
+	radius float64
 }
 
 type rectStroke struct {
-	rect  image.Rectangle
-	color uint32
-	width int
+	rect   image.Rectangle
+	color  uint32
+	width  int
+	radius float64
 }
 
 type textDraw struct {
@@ -131,7 +119,45 @@ type textDraw struct {
 	color      uint32
 }
 
-// OverlayWindow is a fullscreen click-through layered HWND painted via WM_PAINT.
+type bitmapV4Header struct {
+	Size            uint32
+	Width           int32
+	Height          int32
+	Planes          uint16
+	BitCount        uint16
+	Compression     uint32
+	SizeImage       uint32
+	XPelsPerMeter   int32
+	YPelsPerMeter   int32
+	ClrUsed         uint32
+	ClrImportant    uint32
+	RedMask         uint32
+	GreenMask       uint32
+	BlueMask        uint32
+	AlphaMask       uint32
+	CSType          uint32
+	Endpoints       [9]uint32
+	GammaRed        uint32
+	GammaGreen      uint32
+	GammaBlue       uint32
+}
+
+type blendFunction struct {
+	BlendOp             byte
+	BlendFlags          byte
+	SourceConstantAlpha byte
+	AlphaFormat         byte
+}
+
+type point struct {
+	X, Y int32
+}
+
+type size struct {
+	CX, CY int32
+}
+
+// OverlayWindow is a fullscreen click-through layered HWND with per-pixel alpha.
 type OverlayWindow struct {
 	mu      sync.Mutex
 	hwnd    windows.HWND
@@ -145,37 +171,12 @@ type OverlayWindow struct {
 	strokes []rectStroke
 	texts   []textDraw
 
-	colorBlendRGB uint32
+	pixels []byte
 }
 
 func overlayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
-	switch msg {
-	case wmPaint:
-		var paintData paintStruct
-
-		hdc, _, _ := procBeginPaint.Call(hwnd, uintptr(unsafe.Pointer(&paintData)))
-		if hdc != 0 {
-			if raw, ok := overlayRegistry.Load(windows.HWND(hwnd)); ok {
-				if overlay, ok := raw.(*OverlayWindow); ok {
-					overlay.paintLocked(windows.Handle(hdc))
-				}
-			}
-
-			discardCall(procEndPaint.Call(hwnd, uintptr(unsafe.Pointer(&paintData))))
-		} else {
-			// BeginPaint failed, so EndPaint will not run to validate the
-			// update region. WM_PAINT is a generated message that PeekMessage
-			// keeps returning until the region is validated, so without this
-			// the pump would spin forever and wedge the overlay UI thread.
-			discardCall(procValidateRect.Call(hwnd, 0))
-		}
-
-		return 0
-	default:
-		ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
-
-		return ret
-	}
+	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	return ret
 }
 
 func registerOverlayWindowClass() error {
@@ -183,26 +184,17 @@ func registerOverlayWindowClass() error {
 		className, err := windows.UTF16PtrFromString(overlayClassName)
 		if err != nil {
 			errOverlayClass = err
-
 			return
 		}
 
 		overlayWndProcPtr = syscall.NewCallback(overlayWndProc)
 		instance, _, _ := procGetModuleHandleW.Call(0)
 
-		bgBrush, _, _ := procCreateSolidBrush.Call(overlayColorKey)
-		if bgBrush == 0 {
-			errOverlayClass = errCreateSolidBrush
-
-			return
-		}
-
 		class := wndClassEx{
 			cbSize:        uint32(unsafe.Sizeof(wndClassEx{})),
-			style:         csHRedraw | csVRedraw,
+			style:         0,
 			lpfnWndProc:   overlayWndProcPtr,
 			hInstance:     windows.Handle(instance),
-			hbrBackground: windows.Handle(bgBrush),
 			lpszClassName: className,
 		}
 
@@ -228,8 +220,7 @@ func NewOverlayWindow() (*OverlayWindow, error) {
 	}
 
 	overlay := &OverlayWindow{
-		bounds:        bounds,
-		colorBlendRGB: ThemeSurfaceRGB(),
+		bounds: bounds,
 	}
 
 	var createErr error
@@ -245,6 +236,76 @@ func NewOverlayWindow() (*OverlayWindow, error) {
 	return overlay, nil
 }
 
+func (o *OverlayWindow) createHWNDLocked() error {
+	className, err := windows.UTF16PtrFromString(overlayClassName)
+	if err != nil {
+		return err
+	}
+
+	width := o.bounds.Dx()
+	height := o.bounds.Dy()
+	if width <= 0 || height <= 0 {
+		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
+	}
+
+	hwnd, _, err := procCreateWindowExW.Call(
+		wsExLayered|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
+		uintptr(unsafe.Pointer(className)),
+		0,
+		wsPopup,
+		uintptr(o.bounds.Min.X),
+		uintptr(o.bounds.Min.Y),
+		uintptr(width),
+		uintptr(height),
+		0,
+		0,
+		moduleHandle(),
+		0,
+	)
+	if hwnd == 0 {
+		return fmt.Errorf("CreateWindowExW: %w", err)
+	}
+
+	o.hwnd = windows.HWND(hwnd)
+	o.width = width
+	o.height = height
+	o.pixels = make([]byte, width*height*bytesPerPixel)
+	overlayRegistry.Store(o.hwnd, o)
+
+	const (
+		swpNomove = 0x0002
+		swpNosize = 0x0001
+	)
+
+	discardCall(procSetWindowPos.Call(
+		hwnd,
+		hwndTopMost,
+		0,
+		0,
+		0,
+		0,
+		swpNoActivate|swpNomove|swpNosize,
+	))
+	discardCall(procShowWindow.Call(hwnd, swHide))
+
+	o.visible = false
+
+	return nil
+}
+
+func (o *OverlayWindow) destroyHWNDLocked() {
+	if o.hwnd != 0 {
+		overlayRegistry.Delete(o.hwnd)
+		discardCall(procDestroyWindow.Call(uintptr(o.hwnd)))
+		o.hwnd = 0
+		o.pixels = nil
+	}
+}
+
+func (o *OverlayWindow) localBounds() image.Rectangle {
+	return image.Rect(0, 0, o.width, o.height)
+}
+
 // HWND returns the native window handle.
 func (o *OverlayWindow) HWND() windows.HWND {
 	return o.hwnd
@@ -257,7 +318,6 @@ func (o *OverlayWindow) Healthy() bool {
 	}
 
 	ret, _, _ := procIsWindow.Call(uintptr(o.hwnd))
-
 	return ret != 0
 }
 
@@ -279,17 +339,8 @@ func (o *OverlayWindow) Bounds() image.Rectangle {
 	return o.bounds
 }
 
-// SetColorBlendRGB sets the opaque RGB backdrop used to approximate semi-transparent
-// theme colors on the GDI overlay (see argbToGDIColorRef).
-func (o *OverlayWindow) SetColorBlendRGB(rgb uint32) {
-	if o == nil {
-		return
-	}
-
-	o.mu.Lock()
-	o.colorBlendRGB = rgb & rgbMask
-	o.mu.Unlock()
-}
+// SetColorBlendRGB is a no-op since the overlay now uses per-pixel alpha.
+func (o *OverlayWindow) SetColorBlendRGB(uint32) {}
 
 // Show displays the overlay without taking focus.
 func (o *OverlayWindow) Show() {
@@ -305,7 +356,6 @@ func (o *OverlayWindow) Show() {
 			}
 		}
 
-		o.prepareForDisplayLocked()
 		discardCall(procShowWindow.Call(uintptr(o.hwnd), swShowNoActivate))
 
 		const (
@@ -323,7 +373,9 @@ func (o *OverlayWindow) Show() {
 			swpNoActivate|swpShowWindow|swpNomove|swpNosize,
 		))
 		o.visible = true
-		o.requestPaintLocked()
+
+		// Force a flush on show so content is visible immediately.
+		o.flushPixels()
 	})
 }
 
@@ -339,7 +391,7 @@ func (o *OverlayWindow) Hide() {
 	})
 }
 
-// Clear resets queued draw commands.
+// Clear resets queued draw commands and clears the pixel buffer.
 func (o *OverlayWindow) Clear() {
 	if o == nil {
 		return
@@ -351,6 +403,10 @@ func (o *OverlayWindow) Clear() {
 	o.fills = o.fills[:0]
 	o.strokes = o.strokes[:0]
 	o.texts = o.texts[:0]
+	// Clear pixel buffer to transparent black (all zeros).
+	for i := range o.pixels {
+		o.pixels[i] = 0
+	}
 	o.dirty = true
 }
 
@@ -381,6 +437,10 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 	}
 
 	runOnOverlayUI(func() {
+		o.mu.Lock()
+		o.pixels = make([]byte, o.width*o.height*bytesPerPixel)
+		o.mu.Unlock()
+
 		flags := uintptr(swpNoActivate)
 		if o.visible {
 			flags |= swpShowWindow
@@ -395,10 +455,6 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 			uintptr(o.height),
 			flags,
 		))
-
-		if o.visible {
-			o.requestPaintLocked()
-		}
 	})
 
 	return nil
@@ -415,8 +471,7 @@ func (o *OverlayWindow) Destroy() {
 	})
 }
 
-// FillRect fills a rectangle with an ARGB color.
-// Bounds are window-local coordinates (0,0 at the overlay top-left).
+// FillRect fills a rectangle with an ARGB color (uses per-pixel alpha).
 func (o *OverlayWindow) FillRect(bounds image.Rectangle, color uint32) {
 	if o == nil || bounds.Empty() {
 		return
@@ -428,7 +483,7 @@ func (o *OverlayWindow) FillRect(bounds image.Rectangle, color uint32) {
 	}
 
 	o.mu.Lock()
-	o.fills = append(o.fills, rectFill{rect: rect, color: color})
+	o.fills = append(o.fills, rectFill{rect: rect, color: color, radius: 0})
 	o.dirty = true
 	o.mu.Unlock()
 }
@@ -442,12 +497,48 @@ func (o *OverlayWindow) StrokeRect(bounds image.Rectangle, color uint32, lineWid
 	width := max(int(lineWidth), 1)
 
 	o.mu.Lock()
-	o.strokes = append(o.strokes, rectStroke{rect: bounds, color: color, width: width})
+	o.strokes = append(o.strokes, rectStroke{rect: bounds, color: color, width: width, radius: 0})
 	o.dirty = true
 	o.mu.Unlock()
 }
 
-// DrawTextCentered renders centered text inside bounds using GDI.
+// FillRoundedRect fills a rounded rectangle with an ARGB color using
+// signed-distance-function anti-aliasing.
+func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, color uint32) {
+	if o == nil || bounds.Empty() || radius <= 0 {
+		o.FillRect(bounds, color)
+		return
+	}
+
+	rect := bounds.Intersect(o.localBounds())
+	if rect.Empty() {
+		return
+	}
+
+	o.mu.Lock()
+	o.fills = append(o.fills, rectFill{rect: rect, color: color, radius: radius})
+	o.dirty = true
+	o.mu.Unlock()
+}
+
+// StrokeRoundedRect draws a rounded rectangular border with the given ARGB
+// color, width, and corner radius, using signed-distance-function anti-aliasing.
+func (o *OverlayWindow) StrokeRoundedRect(bounds image.Rectangle, radius float64, color uint32, lineWidth float64) {
+	if o == nil || bounds.Empty() || lineWidth <= 0 || radius <= 0 {
+		o.StrokeRect(bounds, color, lineWidth)
+		return
+	}
+
+	width := max(int(lineWidth), 1)
+
+	o.mu.Lock()
+	o.strokes = append(o.strokes, rectStroke{rect: bounds, color: color, width: width, radius: radius})
+	o.dirty = true
+	o.mu.Unlock()
+}
+
+// DrawTextCentered renders centered text inside bounds using GDI onto the
+// pixel buffer with alpha compositing.
 func (o *OverlayWindow) DrawTextCentered(
 	text string,
 	bounds image.Rectangle,
@@ -475,307 +566,493 @@ func (o *OverlayWindow) DrawTextCentered(
 	o.mu.Unlock()
 }
 
-// Flush presents queued draw commands via WM_PAINT.
-//
-// It is a no-op when nothing changed since the last paint. The shared
-// indicator-polling loop calls Flush every ~16ms; without this guard each tick
-// forces a full-screen grid repaint (thousands of GDI calls), which on a slow
-// GPU outlasts the tick interval and saturates the single overlay UI thread.
-// That backlog starves mode-exit ops and makes the daemon look unresponsive
-// (idle/escape time out). Show and resize repaint directly, so they are
-// unaffected by this guard.
+// Flush composites all queued draw commands into the pixel buffer and presents
+// them via UpdateLayeredWindow.
 func (o *OverlayWindow) Flush() error {
 	if o == nil || o.hwnd == 0 {
-		return errOverlayNotInitialized
+		return errOverlayNotInit
 	}
 
 	o.mu.Lock()
 	dirty := o.dirty
+	if !dirty {
+		o.mu.Unlock()
+		return nil
+	}
+	o.dirty = false
+
+	fills := append([]rectFill(nil), o.fills...)
+	strokes := append([]rectStroke(nil), o.strokes...)
+	texts := append([]textDraw(nil), o.texts...)
+
+	o.fills = o.fills[:0]
+	o.strokes = o.strokes[:0]
+	o.texts = o.texts[:0]
+	// Copy pixels under the lock so compositing outside the lock is safe.
+	pixels := make([]byte, len(o.pixels))
+	copy(pixels, o.pixels)
 	o.mu.Unlock()
 
-	if !dirty {
-		return nil
+	// Render fills with alpha compositing.
+	for _, f := range fills {
+		if f.radius > 0 {
+			alphaFillRoundedRect(pixels, o.width, o.height, f.rect, f.radius, f.color)
+		} else {
+			alphaFillRect(pixels, o.width, o.height, f.rect, f.color)
+		}
+	}
+
+	// Render strokes with alpha compositing.
+	for _, s := range strokes {
+		if s.radius > 0 {
+			alphaStrokeRoundedRect(pixels, o.width, o.height, s.rect, s.radius, s.color, s.width)
+		} else {
+			alphaStrokeRect(pixels, o.width, o.height, s.rect, s.color, s.width)
+		}
+	}
+
+	// Render text via GDI onto a temporary bitmap, then composite.
+	for _, t := range texts {
+		renderTextAlphaInto(pixels, o.width, o.height, t)
 	}
 
 	runOnOverlayUI(func() {
-		o.requestPaintLocked()
+		// Swap rendered pixels under the lock.
+		o.mu.Lock()
+		o.pixels = pixels
+		o.mu.Unlock()
+		o.flushPixels()
 	})
 
 	return nil
 }
 
-func (o *OverlayWindow) createHWNDLocked() error {
-	className, err := windows.UTF16PtrFromString(overlayClassName)
-	if err != nil {
-		return err
-	}
-
-	width := o.bounds.Dx()
-
-	height := o.bounds.Dy()
-	if width <= 0 || height <= 0 {
-		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
-	}
-
-	hwnd, _, err := procCreateWindowExW.Call(
-		wsExLayered|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
-		uintptr(unsafe.Pointer(className)),
-		0,
-		wsPopup,
-		uintptr(o.bounds.Min.X),
-		uintptr(o.bounds.Min.Y),
-		uintptr(width),
-		uintptr(height),
-		0,
-		0,
-		moduleHandle(),
-		0,
-	)
-	if hwnd == 0 {
-		return fmt.Errorf("CreateWindowExW: %w", err)
-	}
-
-	o.hwnd = windows.HWND(hwnd)
-	o.width = width
-	o.height = height
-	overlayRegistry.Store(o.hwnd, o)
-
-	ret, _, err := procSetLayeredWindowAttributes.Call(
-		hwnd,
-		overlayColorKey,
-		0,
-		lwaColorKey,
-	)
-	if ret == 0 {
-		return fmt.Errorf("SetLayeredWindowAttributes: %w", err)
-	}
-
-	const (
-		swpNomove = 0x0002
-		swpNosize = 0x0001
-	)
-
-	discardCall(procSetWindowPos.Call(
-		hwnd,
-		hwndTopMost,
-		0,
-		0,
-		0,
-		0,
-		swpNoActivate|swpNomove|swpNosize,
-	))
-	discardCall(procShowWindow.Call(hwnd, swHide))
-
-	o.visible = false
-
-	return nil
-}
-
-func (o *OverlayWindow) destroyHWNDLocked() {
-	if o.hwnd != 0 {
-		overlayRegistry.Delete(o.hwnd)
-		discardCall(procDestroyWindow.Call(uintptr(o.hwnd)))
-		o.hwnd = 0
-	}
-}
-
-func (o *OverlayWindow) prepareForDisplayLocked() {
+func (o *OverlayWindow) flushPixels() {
 	if o == nil || o.hwnd == 0 {
 		return
 	}
 
-	// Reapply after SW_HIDE; layered color-key can be lost across hide/show cycles.
-	discardCall(procSetLayeredWindowAttributes.Call(
+	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
+	if hdcMem == 0 {
+		return
+	}
+	defer func() { discardCall(procDeleteDC.Call(hdcMem)) }()
+
+	bih := bitmapV4Header{
+		Size:        bmpV4Size,
+		Width:       int32(o.width),
+		Height:      -int32(o.height), // negative = top-down bitmap
+		Planes:      1,
+		BitCount:    32,
+		Compression: biBitfields,
+		SizeImage:   uint32(o.width * o.height * bytesPerPixel),
+		RedMask:     0x00FF0000,
+		GreenMask:   0x0000FF00,
+		BlueMask:    0x000000FF,
+		AlphaMask:   0xFF000000,
+		CSType:      0x206E6957, // 'Win '
+	}
+
+	var bits unsafe.Pointer
+	hDib, _, _ := procCreateDIBSection.Call(
+		hdcMem,
+		uintptr(unsafe.Pointer(&bih)),
+		0, // DIB_RGB_COLORS
+		uintptr(unsafe.Pointer(&bits)),
+		0,
+		0,
+	)
+	if hDib == 0 {
+		return
+	}
+	defer func() { discardCall(procDeleteObject.Call(hDib)) }()
+
+	// Copy pre-multiplied pixel data into the DIBSection.
+	discardCall(procRtlMoveMemory.Call(
+		uintptr(bits),
+		uintptr(unsafe.Pointer(&o.pixels[0])),
+		uintptr(len(o.pixels)),
+	))
+
+	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
+	if prevObj == 0 {
+		return
+	}
+	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
+
+	blend := blendFunction{
+		BlendOp:             acSrcOver,
+		AlphaFormat:         acSrcAlpha,
+		SourceConstantAlpha: 255,
+	}
+
+	discardCall(procUpdateLayeredWindow.Call(
 		uintptr(o.hwnd),
-		overlayColorKey,
+		hdcMem,
+		uintptr(unsafe.Pointer(&point{X: int32(o.bounds.Min.X), Y: int32(o.bounds.Min.Y)})),
+		uintptr(unsafe.Pointer(&size{CX: int32(o.width), CY: int32(o.height)})),
+		hdcMem,
+		uintptr(unsafe.Pointer(&point{})),
 		0,
-		lwaColorKey,
+		uintptr(unsafe.Pointer(&blend)),
+		ulwAlpha,
 	))
 }
 
-func (o *OverlayWindow) localBounds() image.Rectangle {
-	return image.Rect(0, 0, o.width, o.height)
-}
-
-func (o *OverlayWindow) requestPaintLocked() {
-	if o == nil || o.hwnd == 0 {
+func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
+	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
+	if hdcMem == 0 {
 		return
 	}
+	defer func() { discardCall(procDeleteDC.Call(hdcMem)) }()
 
-	discardCall(procInvalidateRect.Call(uintptr(o.hwnd), 0, 1))
-	discardCall(procUpdateWindow.Call(uintptr(o.hwnd)))
-}
+	bih := bitmapV4Header{
+		Size:        bmpV4Size,
+		Width:       int32(w),
+		Height:      -int32(h),
+		Planes:      1,
+		BitCount:    32,
+		Compression: biBitfields,
+		SizeImage:   uint32(w * h * bytesPerPixel),
+		RedMask:     0x00FF0000,
+		GreenMask:   0x0000FF00,
+		BlueMask:    0x000000FF,
+		AlphaMask:   0xFF000000,
+		CSType:      0x206E6957,
+	}
 
-func (o *OverlayWindow) paintLocked(hdc windows.Handle) {
-	if o == nil {
+	var bits unsafe.Pointer
+	hDib, _, _ := procCreateDIBSection.Call(
+		hdcMem,
+		uintptr(unsafe.Pointer(&bih)),
+		0,
+		uintptr(unsafe.Pointer(&bits)),
+		0,
+		0,
+	)
+	if hDib == 0 {
 		return
 	}
+	defer func() { discardCall(procDeleteObject.Call(hDib)) }()
 
-	o.mu.Lock()
-	fills := append([]rectFill(nil), o.fills...)
-	strokes := append([]rectStroke(nil), o.strokes...)
-	texts := append([]textDraw(nil), o.texts...)
-	o.dirty = false
-	o.mu.Unlock()
-
-	// Paint straight onto the BeginPaint DC. DWM redirects the whole WM_PAINT
-	// batch to an offscreen surface and composites it atomically, so a manual
-	// memory-DC double buffer adds no flicker protection here. It also breaks on
-	// virtual GPUs where the compositing BitBlt silently no-ops (reports success
-	// but copies nothing), leaving the overlay blank.
-	o.renderCommands(hdc, fills, strokes, texts)
-}
-
-func (o *OverlayWindow) renderCommands(
-	hdc windows.Handle,
-	fills []rectFill,
-	strokes []rectStroke,
-	texts []textDraw,
-) {
-	client := windows.Rect{
-		Left:   0,
-		Top:    0,
-		Right:  int32(o.width),
-		Bottom: int32(o.height),
-	}
-
-	bgBrush, _, _ := procCreateSolidBrush.Call(overlayColorKey)
-	if bgBrush != 0 {
-		discardCall(procFillRect.Call(uintptr(hdc), uintptr(unsafe.Pointer(&client)), bgBrush))
-		discardCall(procDeleteObject.Call(bgBrush))
-	}
-
-	for _, fill := range fills {
-		o.fillRectGDI(hdc, fill.rect, fill.color)
-	}
-
-	for _, stroke := range strokes {
-		o.strokeRectGDI(hdc, stroke.rect, stroke.color, stroke.width)
-	}
-
-	for _, text := range texts {
-		o.drawTextGDI(hdc, text)
-	}
-}
-
-func (o *OverlayWindow) fillRectGDI(hdc windows.Handle, rect image.Rectangle, color uint32) {
-	if rect.Empty() {
+	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
+	if prevObj == 0 {
 		return
 	}
+	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
 
-	brush, _, _ := procCreateSolidBrush.Call(uintptr(o.argbToGDI(color)))
-	if brush == 0 {
-		return
+	tmpPixels := (*[1 << 30]byte)(bits)[: w*h*bytesPerPixel : w*h*bytesPerPixel]
+	for i := range tmpPixels {
+		tmpPixels[i] = 0
 	}
 
-	defer func() { discardCall(procDeleteObject.Call(brush)) }()
-
-	winRect := windows.Rect{
-		Left:   int32(rect.Min.X),
-		Top:    int32(rect.Min.Y),
-		Right:  int32(rect.Max.X),
-		Bottom: int32(rect.Max.Y),
-	}
-	discardCall(procFillRect.Call(uintptr(hdc), uintptr(unsafe.Pointer(&winRect)), brush))
-}
-
-func (o *OverlayWindow) strokeRectGDI(
-	hdc windows.Handle,
-	bounds image.Rectangle,
-	color uint32,
-	width int,
-) {
-	if bounds.Empty() || width < 1 {
-		return
-	}
-
-	for i := range width {
-		inset := bounds.Inset(i)
-		o.fillRectGDI(hdc, image.Rect(inset.Min.X, inset.Min.Y, inset.Max.X, inset.Min.Y+1), color)
-		o.fillRectGDI(hdc, image.Rect(inset.Min.X, inset.Max.Y-1, inset.Max.X, inset.Max.Y), color)
-		o.fillRectGDI(hdc, image.Rect(inset.Min.X, inset.Min.Y, inset.Min.X+1, inset.Max.Y), color)
-		o.fillRectGDI(hdc, image.Rect(inset.Max.X-1, inset.Min.Y, inset.Max.X, inset.Max.Y), color)
-	}
-}
-
-func (o *OverlayWindow) drawTextGDI(hdc windows.Handle, text textDraw) {
-	size := int(-text.fontSize)
+	size := int(-t.fontSize)
 	if size == 0 {
-		size = defaultFontHeight
+		size = -14
 	}
 
-	fontName, err := windows.UTF16PtrFromString(text.fontFamily)
+	fontName, err := windows.UTF16PtrFromString(t.fontFamily)
 	if err != nil {
 		return
 	}
 
 	hFont, _, _ := procCreateFontW.Call(
-		uintptr(size),
-		0,
-		0,
-		0,
-		fwBold,
-		0,
-		0,
-		0,
-		1,
-		0,
-		0,
-		0,
-		0,
+		uintptr(size), 0, 0, 0, fwBold, 0, 0, 0, 1, 0, 0, 0, 0,
 		uintptr(unsafe.Pointer(fontName)),
 	)
 	if hFont == 0 {
 		return
 	}
-
 	defer func() { discardCall(procDeleteObject.Call(hFont)) }()
 
-	discardCall(procSetBkMode.Call(uintptr(hdc), transparentBk))
-	discardCall(procSetTextColor.Call(uintptr(hdc), uintptr(o.argbToGDI(text.color))))
+	prevFont, _, _ := procSelectObject.Call(hdcMem, hFont)
+	if prevFont == 0 {
+		return
+	}
+	defer func() { discardCall(procSelectObject.Call(hdcMem, prevFont)) }()
 
-	utf16Text, err := windows.UTF16FromString(text.text)
+	discardCall(procSetBkMode.Call(hdcMem, transparentBk))
+	discardCall(procSetTextColor.Call(hdcMem, 0x00FFFFFF))
+
+	utf16Text, err := windows.UTF16FromString(t.text)
 	if err != nil {
 		return
 	}
 
 	rect := windows.Rect{
-		Left:   int32(text.rect.Min.X),
-		Top:    int32(text.rect.Min.Y),
-		Right:  int32(text.rect.Max.X),
-		Bottom: int32(text.rect.Max.Y),
+		Left:   int32(t.rect.Min.X),
+		Top:    int32(t.rect.Min.Y),
+		Right:  int32(t.rect.Max.X),
+		Bottom: int32(t.rect.Max.Y),
 	}
 
+	var procDrawTextW = user32.NewProc("DrawTextW")
 	discardCall(procDrawTextW.Call(
-		uintptr(hdc),
+		hdcMem,
 		uintptr(unsafe.Pointer(&utf16Text[0])),
 		uintptr(^uint32(0)),
 		uintptr(unsafe.Pointer(&rect)),
 		dtCenter|dtVCenter|dtSingleLine,
 	))
+
+	alphaCompositeText(pixels, w, h, tmpPixels, t.color)
 }
 
-func (o *OverlayWindow) argbToGDI(argb uint32) uint32 {
-	blend := ThemeSurfaceRGB()
-	if o != nil {
-		o.mu.Lock()
-		if o.colorBlendRGB != 0 {
-			blend = o.colorBlendRGB
-		}
-		o.mu.Unlock()
+// alphaFillRect composites a semi-transparent ARGB fill over the pixel buffer.
+func alphaFillRect(pixels []byte, w, h int, rect image.Rectangle, color uint32) {
+	a := uint32(color >> 24)
+	if a == 0 {
+		return
 	}
 
-	return argbToGDIColorRef(argb, blend)
+	r := (color >> 16) & 0xFF
+	g := (color >> 8) & 0xFF
+	b := color & 0xFF
+
+	// Pre-multiply the source color by its alpha.
+	sr := r * a
+	sg := g * a
+	sb := b * a
+
+	ia := 255 - a
+	y0 := clamp(rect.Min.Y, 0, h)
+	y1 := clamp(rect.Max.Y, 0, h)
+	x0 := clamp(rect.Min.X, 0, w)
+	x1 := clamp(rect.Max.X, 0, w)
+
+	for y := y0; y < y1; y++ {
+		row := y * w * bytesPerPixel
+		for x := x0; x < x1; x++ {
+			idx := row + x*bytesPerPixel
+			dstB := uint32(pixels[idx])
+			dstG := uint32(pixels[idx+1])
+			dstR := uint32(pixels[idx+2])
+			dstA := uint32(pixels[idx+3])
+
+			pixels[idx] = byte((sb + dstB*ia) / 255)
+			pixels[idx+1] = byte((sg + dstG*ia) / 255)
+			pixels[idx+2] = byte((sr + dstR*ia) / 255)
+			pixels[idx+3] = byte((a + dstA*ia) / 255)
+		}
+	}
+}
+
+// alphaStrokeRect composites a stroked rectangle border over the pixel buffer.
+func alphaStrokeRect(pixels []byte, w, h int, rect image.Rectangle, color uint32, width int) {
+	if width < 1 {
+		return
+	}
+
+	for i := range width {
+		inset := rect.Inset(i)
+		// Top edge
+		alphaFillRect(pixels, w, h,
+			image.Rect(inset.Min.X, inset.Min.Y, inset.Max.X, inset.Min.Y+1), color)
+		// Bottom edge
+		alphaFillRect(pixels, w, h,
+			image.Rect(inset.Min.X, inset.Max.Y-1, inset.Max.X, inset.Max.Y), color)
+		// Left edge
+		alphaFillRect(pixels, w, h,
+			image.Rect(inset.Min.X, inset.Min.Y, inset.Min.X+1, inset.Max.Y), color)
+		// Right edge
+		alphaFillRect(pixels, w, h,
+			image.Rect(inset.Max.X-1, inset.Min.Y, inset.Max.X, inset.Max.Y), color)
+	}
+}
+
+// sdRoundedBox computes the signed distance from a point (px, py) to a rounded
+// rectangle centered at the origin with half-extents (halfW, halfH) and corner
+// radius r.  Negative inside, positive outside, zero at the boundary.
+func sdRoundedBox(px, py, halfW, halfH, r float64) float64 {
+	qx := math.Abs(px) - halfW + r
+	qy := math.Abs(py) - halfH + r
+
+	insideX := math.Max(qx, 0)
+	insideY := math.Max(qy, 0)
+	outside := math.Sqrt(insideX*insideX+insideY*insideY) - r
+
+	inside := math.Min(math.Max(qx, qy), 0)
+
+	return outside + inside
+}
+
+// alphaFillRoundedRect composites an anti-aliased rounded rectangle fill
+// using signed-distance-function edge smoothing.
+func alphaFillRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius float64, color uint32) {
+	a := uint32(color >> 24)
+	if a == 0 {
+		return
+	}
+
+	r := (color >> 16) & 0xFF
+	g := (color >> 8) & 0xFF
+	b := color & 0xFF
+
+	halfW := float64(rect.Dx()) / 2.0
+	halfH := float64(rect.Dy()) / 2.0
+	centerX := float64(rect.Min.X) + halfW
+	centerY := float64(rect.Min.Y) + halfH
+
+	y0 := clamp(rect.Min.Y, 0, h)
+	y1 := clamp(rect.Max.Y, 0, h)
+	x0 := clamp(rect.Min.X, 0, w)
+	x1 := clamp(rect.Max.X, 0, w)
+
+	for y := y0; y < y1; y++ {
+		row := y * w * bytesPerPixel
+		for x := x0; x < x1; x++ {
+			d := sdRoundedBox(float64(x)-centerX, float64(y)-centerY, halfW, halfH, radius)
+			if d > 1 {
+				continue
+			}
+
+			pixelAlpha := uint32(math.Max(0, math.Min(1, 1.0-d)) * float64(a))
+			if pixelAlpha == 0 {
+				continue
+			}
+
+			ia := 255 - pixelAlpha
+			sr := r * pixelAlpha
+			sg := g * pixelAlpha
+			sb := b * pixelAlpha
+
+			idx := row + x*bytesPerPixel
+			dstB := uint32(pixels[idx])
+			dstG := uint32(pixels[idx+1])
+			dstR := uint32(pixels[idx+2])
+			dstA := uint32(pixels[idx+3])
+
+			pixels[idx] = byte((sb + dstB*ia) / 255)
+			pixels[idx+1] = byte((sg + dstG*ia) / 255)
+			pixels[idx+2] = byte((sr + dstR*ia) / 255)
+			pixels[idx+3] = byte((pixelAlpha + dstA*ia) / 255)
+		}
+	}
+}
+
+// alphaStrokeRoundedRect composites an anti-aliased rounded rectangle stroke
+// using signed-distance-function edge smoothing at both outer and inner edges.
+func alphaStrokeRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius float64, color uint32, width int) {
+	if width < 1 {
+		return
+	}
+
+	a := uint32(color >> 24)
+	if a == 0 {
+		return
+	}
+
+	r := (color >> 16) & 0xFF
+	g := (color >> 8) & 0xFF
+	b := color & 0xFF
+
+	halfW := float64(rect.Dx()) / 2.0
+	halfH := float64(rect.Dy()) / 2.0
+	centerX := float64(rect.Min.X) + halfW
+	centerY := float64(rect.Min.Y) + halfH
+
+	strokeW := float64(width)
+	innerRadius := math.Max(radius-strokeW, 0)
+	innerHalfW := math.Max(halfW-strokeW, 0)
+	innerHalfH := math.Max(halfH-strokeW, 0)
+
+	y0 := clamp(rect.Min.Y, 0, h)
+	y1 := clamp(rect.Max.Y, 0, h)
+	x0 := clamp(rect.Min.X, 0, w)
+	x1 := clamp(rect.Max.X, 0, w)
+
+	for y := y0; y < y1; y++ {
+		row := y * w * bytesPerPixel
+		for x := x0; x < x1; x++ {
+			px := float64(x) - centerX
+			py := float64(y) - centerY
+
+			dOuter := sdRoundedBox(px, py, halfW, halfH, radius)
+			if dOuter > 1 {
+				continue
+			}
+
+			dInner := sdRoundedBox(px, py, innerHalfW, innerHalfH, innerRadius)
+
+			outerAlpha := math.Max(0, math.Min(1, 1.0-dOuter))
+			innerAlpha := math.Max(0, math.Min(1, 1.0-dInner))
+			pixelAlpha := uint32(outerAlpha * (1.0 - innerAlpha) * float64(a))
+			if pixelAlpha == 0 {
+				continue
+			}
+
+			ia := 255 - pixelAlpha
+			sr := r * pixelAlpha
+			sg := g * pixelAlpha
+			sb := b * pixelAlpha
+
+			idx := row + x*bytesPerPixel
+			dstB := uint32(pixels[idx])
+			dstG := uint32(pixels[idx+1])
+			dstR := uint32(pixels[idx+2])
+			dstA := uint32(pixels[idx+3])
+
+			pixels[idx] = byte((sb + dstB*ia) / 255)
+			pixels[idx+1] = byte((sg + dstG*ia) / 255)
+			pixels[idx+2] = byte((sr + dstR*ia) / 255)
+			pixels[idx+3] = byte((pixelAlpha + dstA*ia) / 255)
+		}
+	}
+}
+
+// alphaCompositeText composites a GDI-rendered white-on-transparent text bitmap
+// over the main pixel buffer using the given ARGB color.
+func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32) {
+	ta := (color >> 24) & 0xFF
+	if ta == 0 {
+		return
+	}
+	tr := (color >> 16) & 0xFF
+	tg := (color >> 8) & 0xFF
+	tb := color & 0xFF
+
+	for y := 0; y < h; y++ {
+		row := y * w * bytesPerPixel
+		for x := 0; x < w; x++ {
+			idx := row + x*bytesPerPixel
+			// Extract coverage from the rendered white pixel (R channel).
+			coverage := uint32(textPixels[idx+2])
+			if coverage == 0 {
+				continue
+			}
+
+			srcA := coverage * ta / 255
+			sr := tr * srcA
+			sg := tg * srcA
+			sb := tb * srcA
+			ia := 255 - srcA
+
+			dstB := uint32(pixels[idx])
+			dstG := uint32(pixels[idx+1])
+			dstR := uint32(pixels[idx+2])
+			dstA := uint32(pixels[idx+3])
+
+			pixels[idx] = byte((sb + dstB*ia) / 255)
+			pixels[idx+1] = byte((sg + dstG*ia) / 255)
+			pixels[idx+2] = byte((sr + dstR*ia) / 255)
+			pixels[idx+3] = byte((srcA + dstA*ia) / 255)
+		}
+	}
+}
+
+func clamp(val, min, max int) int {
+	if val < min {
+		return min
+	}
+	if val > max {
+		return max
+	}
+	return val
 }
 
 func moduleHandle() uintptr {
 	handle, _, _ := procGetModuleHandleW.Call(0)
-
 	return handle
 }
 
-// discardCall consumes the result of a fire-and-forget user32/gdi32 syscall.
-// These draw and window-management calls have no actionable failure path here,
-// and routing them through a sink keeps errcheck satisfied without a bare
-// `_, _, _ =` assignment (which trips the dogsled blank-identifier linter).
 func discardCall(uintptr, uintptr, error) {}

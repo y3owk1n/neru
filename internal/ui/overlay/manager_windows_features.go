@@ -14,7 +14,6 @@ import (
 
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
-	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 )
 
 const (
@@ -63,7 +62,6 @@ func (o *winOverlay) DrawHints(
 	o.suppressDraw = false
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 
 	o.lastHints = hintsSlice
 	o.lastHintStyle = style
@@ -162,7 +160,6 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.suppressDraw = false
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 
 	keyRunes := []rune(strings.ToUpper(keys))
 	cellWidth := bounds.Dx() / gridCols
@@ -184,8 +181,6 @@ func (o *winOverlay) DrawRecursiveGrid(
 			if row == gridRows-1 {
 				cell.Max.Y = bounds.Max.Y
 			}
-
-			o.window.FillRect(cell, style.HighlightColor)
 
 			if style.LineWidth > 0 {
 				o.window.StrokeRect(cell, style.LineColor, style.LineWidth)

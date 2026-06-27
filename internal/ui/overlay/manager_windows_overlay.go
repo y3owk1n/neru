@@ -177,7 +177,6 @@ func (o *winOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
 
 	o.currentSubgrid = cell
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
 	o.flushOverlay("subgrid")
 }
@@ -300,7 +299,6 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 	}
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 
 	style := o.cachedStyle
 	prefix := o.currentPrefix
@@ -313,16 +311,16 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			continue
 		}
 
-		bg := style.BackgroundColor
+		fill := style.BackgroundColor
 		text := style.LabelFontColor
 		border := style.LineColor
 		if matched && prefix != "" {
-			bg = style.MatchedBackgroundColor
+			fill = style.MatchedBackgroundColor
 			text = style.MatchedTextColor
 			border = style.MatchedBorderColor
 		}
 
-		o.window.FillRect(cell.Bounds(), bg)
+		o.drawCellFill(cell.Bounds(), fill)
 		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
 
 		if style.ShowLabels {
@@ -403,7 +401,6 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				xBreaks[col+1],
 				yBreaks[row+1],
 			)
-			o.window.FillRect(cell, style.BackgroundColor)
 			o.drawCellBorder(cell, style.LineColor, style.LineWidth)
 			o.drawTextCentered(
 				string(keyRunes[index]),
@@ -415,6 +412,14 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			index++
 		}
 	}
+}
+
+func (o *winOverlay) drawCellFill(bounds image.Rectangle, fill uint32) {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	o.window.FillRect(bounds, fill)
 }
 
 // drawCellBorder draws only the grid outline; cell interiors stay color-key transparent.
