@@ -622,6 +622,8 @@ func (m *Manager) DrawMouseActionIndicator(
 		return
 	}
 
+	m.win.Clear()
+
 	size := max(style.Size, 1)
 	half := size / 2 //nolint:mnd // simple arithmetic
 	bounds := image.Rect(point.X-half, point.Y-half, point.X+half, point.Y+half)
