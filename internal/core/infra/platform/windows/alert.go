@@ -6,6 +6,7 @@
 package windows
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -49,6 +50,7 @@ var (
 func showMessageBox(title, message string, mbType uintptr) int {
 	titlePtr, _ := syscall.UTF16PtrFromString(title)
 	messagePtr, _ := syscall.UTF16PtrFromString(message)
+
 	if titlePtr == nil || messagePtr == nil {
 		return 0
 	}
@@ -68,7 +70,8 @@ func showMessageBox(title, message string, mbType uintptr) int {
 
 // copyToClipboard copies text to the Windows clipboard via the clip.exe utility.
 func copyToClipboard(text string) {
-	cmd := exec.Command("clip")
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, "clip")
 	cmd.Stdin = strings.NewReader(text)
 	_ = cmd.Run()
 }
