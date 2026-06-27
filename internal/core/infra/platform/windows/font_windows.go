@@ -34,10 +34,13 @@ func (r *winFontResolver) Resolve(family string, bold bool) string {
 	key := strings.ToLower(strings.TrimSpace(family))
 
 	r.mu.RLock()
+
 	if cached, ok := r.cache[key]; ok {
 		r.mu.RUnlock()
+
 		return cached
 	}
+
 	r.mu.RUnlock()
 
 	resolved := mapWindowsGenericAlias(family)

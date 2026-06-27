@@ -331,6 +331,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 
 		fill := style.BackgroundColor
 		text := style.LabelFontColor
+
 		border := style.LineColor
 		if matched && prefix != "" {
 			fill = style.MatchedBackgroundColor

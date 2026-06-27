@@ -397,7 +397,7 @@ func (m *Manager) HideHintSearchInput() {
 // layered window that repositions every tick to follow the cursor. This
 // avoids the clear-then-flush blink that occurs when drawing transient
 // badges into the shared full-screen overlay pixel buffer.
-func (m *Manager) DrawModeIndicator(x, y int) {
+func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	if m.modeIndicatorOverlay == nil {
 		return
 	}
@@ -408,6 +408,7 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	}
 
 	cfg := m.modeIndicatorOverlay.IndicatorConfig()
+
 	label := modeIndicatorLabel(cfg, string(mode))
 	if label == "" {
 		return
@@ -426,10 +427,10 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	borderWidth := max(cfg.UI.BorderWidth, 0)
 
-	posX := x + offsetX - borderWidth
-	posY := y + offsetY - borderWidth
-	sizeX := badgeWidth + borderWidth*2
-	sizeY := badgeHeight + borderWidth*2
+	posX := cursorX + offsetX - borderWidth
+	posY := cursorY + offsetY - borderWidth
+	sizeX := badgeWidth + borderWidth*2  //nolint:mnd // simple arithmetic
+	sizeY := badgeHeight + borderWidth*2 //nolint:mnd // simple arithmetic
 
 	// Lazily create the small indicator overlay window.
 	if m.indicatorWin == nil || !m.indicatorWin.Healthy() {
@@ -482,9 +483,11 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	)
 
 	m.indicatorWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+
 	if borderWidth > 0 {
 		m.indicatorWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
 	}
+
 	m.indicatorWin.DrawTextCentered(
 		label,
 		badgeBounds,
@@ -496,34 +499,40 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	// Flush composites fills/strokes/texts into the pixel buffer and sends
 	// the frame to the HWND via UpdateLayeredWindow. Must be called before
 	// Show() so the window appears with the badge already rendered.
-	m.indicatorWin.Flush()
+	err := m.indicatorWin.Flush()
+	if err != nil {
+		if m.logger != nil {
+			m.logger.Error("indicator flush failed", zap.Error(err))
+		}
+	}
+
 	m.indicatorWin.Show()
 }
 
 // DrawStickyModifiersIndicator renders a sticky modifiers indicator badge in
 // its own dedicated layered window, following the cursor without touching the
 // shared overlay.
-func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
+func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols string) {
 	if m.stickyModifiersOverlay == nil || symbols == "" {
 		return
 	}
 
-	ui := m.stickyModifiersOverlay.UI()
-	fontSize := float64(max(ui.FontSize, 1))
+	indicatorUI := m.stickyModifiersOverlay.UI()
+	fontSize := float64(max(indicatorUI.FontSize, 1))
 
-	paddingX := resolveWinAutoPadding(fontSize, ui.PaddingX, true)
-	paddingY := resolveWinAutoPadding(fontSize, ui.PaddingY, false)
+	paddingX := resolveWinAutoPadding(fontSize, indicatorUI.PaddingX, true)
+	paddingY := resolveWinAutoPadding(fontSize, indicatorUI.PaddingY, false)
 	badgeWidth := estimateWinTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
 	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
-	borderWidth := max(ui.BorderWidth, 0)
+	borderWidth := max(indicatorUI.BorderWidth, 0)
 
-	offsetX := ui.IndicatorXOffset
-	offsetY := ui.IndicatorYOffset
+	offsetX := indicatorUI.IndicatorXOffset
+	offsetY := indicatorUI.IndicatorYOffset
 
-	posX := x + offsetX - borderWidth
-	posY := y + offsetY - borderWidth
-	sizeX := badgeWidth + borderWidth*2
-	sizeY := badgeHeight + borderWidth*2
+	posX := cursorX + offsetX - borderWidth
+	posY := cursorY + offsetY - borderWidth
+	sizeX := badgeWidth + borderWidth*2  //nolint:mnd // simple arithmetic
+	sizeY := badgeHeight + borderWidth*2 //nolint:mnd // simple arithmetic
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -550,17 +559,17 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 
 	m.stickyWin.Clear()
 
-	bgColor := ui.BackgroundColor.ForTheme(
+	bgColor := indicatorUI.BackgroundColor.ForTheme(
 		m.stickyModifiersOverlay.Theme(),
 		config.StickyModifiersBackgroundColorLight,
 		config.StickyModifiersBackgroundColorDark,
 	)
-	textColor := ui.TextColor.ForTheme(
+	textColor := indicatorUI.TextColor.ForTheme(
 		m.stickyModifiersOverlay.Theme(),
 		config.StickyModifiersTextColorLight,
 		config.StickyModifiersTextColorDark,
 	)
-	borderColor := ui.BorderColor.ForTheme(
+	borderColor := indicatorUI.BorderColor.ForTheme(
 		m.stickyModifiersOverlay.Theme(),
 		config.StickyModifiersBorderColorLight,
 		config.StickyModifiersBorderColorDark,
@@ -574,18 +583,26 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	)
 
 	m.stickyWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+
 	if borderWidth > 0 {
 		m.stickyWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
 	}
+
 	m.stickyWin.DrawTextCentered(
 		symbols,
 		badgeBounds,
-		ports.ResolveFont(ui.FontFamily, false),
+		ports.ResolveFont(indicatorUI.FontFamily, false),
 		fontSize,
 		parseHexColorARGB(textColor),
 	)
 
-	m.stickyWin.Flush()
+	err := m.stickyWin.Flush()
+	if err != nil {
+		if m.logger != nil {
+			m.logger.Error("sticky flush failed", zap.Error(err))
+		}
+	}
+
 	m.stickyWin.Show()
 }
 
@@ -604,7 +621,7 @@ func (m *Manager) DrawMouseActionIndicator(
 	}
 
 	size := max(style.Size, 1)
-	half := size / 2
+	half := size / 2 //nolint:mnd // simple arithmetic
 	bounds := image.Rect(point.X-half, point.Y-half, point.X+half, point.Y+half)
 
 	bgColor := parseHexColorARGB(style.BackgroundColor)

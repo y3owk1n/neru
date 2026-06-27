@@ -42,6 +42,25 @@ const (
 	bytesPerPixel = 4
 	acSrcOver     = 0
 	acSrcAlpha    = 1
+
+	// DIB section bit depth for ARGB overlay rendering.
+	dibBitCount = 32
+
+	// Channel masks for BITMAPV4HEADER in BGRA pixel layout.
+	maskRed   = 0x00FF0000
+	maskGreen = 0x0000FF00
+	maskBlue  = 0x000000FF
+	maskAlpha = 0xFF000000
+
+	// Windows sRGB color space identifier ('Win ').
+	colorSpaceWinRGB = 0x206E6957
+
+	// ARGB compositing constants.
+	alphaMax = 255
+
+	// GDI text rendering defaults.
+	defaultFontSize = 14
+	gdiWhiteText    = 0x00FFFFFF
 )
 
 var (
@@ -176,6 +195,7 @@ type OverlayWindow struct {
 
 func overlayWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	ret, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+
 	return ret
 }
 
@@ -184,6 +204,7 @@ func registerOverlayWindowClass() error {
 		className, err := windows.UTF16PtrFromString(overlayClassName)
 		if err != nil {
 			errOverlayClass = err
+
 			return
 		}
 
@@ -236,74 +257,33 @@ func NewOverlayWindow() (*OverlayWindow, error) {
 	return overlay, nil
 }
 
-func (o *OverlayWindow) createHWNDLocked() error {
-	className, err := windows.UTF16PtrFromString(overlayClassName)
-	if err != nil {
-		return err
-	}
-
-	width := o.bounds.Dx()
-	height := o.bounds.Dy()
+// NewOverlayWindowAt creates a layered overlay at the given screen position and
+// size. Used for small transient windows like the mode indicator badge.
+func NewOverlayWindowAt(posX, posY, width, height int) (*OverlayWindow, error) {
 	if width <= 0 || height <= 0 {
-		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
+		return nil, fmt.Errorf("%w: %dx%d", errInvalidOverlayBounds, width, height)
 	}
 
-	hwnd, _, err := procCreateWindowExW.Call(
-		wsExLayered|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
-		uintptr(unsafe.Pointer(className)),
-		0,
-		wsPopup,
-		uintptr(o.bounds.Min.X),
-		uintptr(o.bounds.Min.Y),
-		uintptr(width),
-		uintptr(height),
-		0,
-		0,
-		moduleHandle(),
-		0,
-	)
-	if hwnd == 0 {
-		return fmt.Errorf("CreateWindowExW: %w", err)
+	err := registerOverlayWindowClass()
+	if err != nil {
+		return nil, err
 	}
 
-	o.hwnd = windows.HWND(hwnd)
-	o.width = width
-	o.height = height
-	o.pixels = make([]byte, width*height*bytesPerPixel)
-	overlayRegistry.Store(o.hwnd, o)
-
-	const (
-		swpNomove = 0x0002
-		swpNosize = 0x0001
-	)
-
-	discardCall(procSetWindowPos.Call(
-		hwnd,
-		hwndTopMost,
-		0,
-		0,
-		0,
-		0,
-		swpNoActivate|swpNomove|swpNosize,
-	))
-	discardCall(procShowWindow.Call(hwnd, swHide))
-
-	o.visible = false
-
-	return nil
-}
-
-func (o *OverlayWindow) destroyHWNDLocked() {
-	if o.hwnd != 0 {
-		overlayRegistry.Delete(o.hwnd)
-		discardCall(procDestroyWindow.Call(uintptr(o.hwnd)))
-		o.hwnd = 0
-		o.pixels = nil
+	overlay := &OverlayWindow{
+		bounds: image.Rect(posX, posY, posX+width, posY+height),
 	}
-}
 
-func (o *OverlayWindow) localBounds() image.Rectangle {
-	return image.Rect(0, 0, o.width, o.height)
+	var createErr error
+
+	runOnOverlayUI(func() {
+		createErr = overlay.createHWNDLocked()
+	})
+
+	if createErr != nil {
+		return nil, createErr
+	}
+
+	return overlay, nil
 }
 
 // HWND returns the native window handle.
@@ -318,6 +298,7 @@ func (o *OverlayWindow) Healthy() bool {
 	}
 
 	ret, _, _ := procIsWindow.Call(uintptr(o.hwnd))
+
 	return ret != 0
 }
 
@@ -407,6 +388,7 @@ func (o *OverlayWindow) Clear() {
 	for i := range o.pixels {
 		o.pixels[i] = 0
 	}
+
 	o.dirty = true
 }
 
@@ -460,38 +442,9 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 	return nil
 }
 
-// NewOverlayWindowAt creates a layered overlay at the given screen position and
-// size. Used for small transient windows like the mode indicator badge.
-func NewOverlayWindowAt(x, y, width, height int) (*OverlayWindow, error) {
-	if width <= 0 || height <= 0 {
-		return nil, fmt.Errorf("%w: %dx%d", errInvalidOverlayBounds, width, height)
-	}
-
-	err := registerOverlayWindowClass()
-	if err != nil {
-		return nil, err
-	}
-
-	overlay := &OverlayWindow{
-		bounds: image.Rect(x, y, x+width, y+height),
-	}
-
-	var createErr error
-
-	runOnOverlayUI(func() {
-		createErr = overlay.createHWNDLocked()
-	})
-
-	if createErr != nil {
-		return nil, createErr
-	}
-
-	return overlay, nil
-}
-
 // ResizeTo repositions and resizes the overlay window to the given screen
 // coordinates and dimensions, reallocating the pixel buffer as needed.
-func (o *OverlayWindow) ResizeTo(x, y, width, height int) error {
+func (o *OverlayWindow) ResizeTo(posX, posY, width, height int) error {
 	if o == nil {
 		return errOverlayNil
 	}
@@ -501,7 +454,7 @@ func (o *OverlayWindow) ResizeTo(x, y, width, height int) error {
 	}
 
 	o.mu.Lock()
-	o.bounds = image.Rect(x, y, x+width, y+height)
+	o.bounds = image.Rect(posX, posY, posX+width, posY+height)
 	o.width = width
 	o.height = height
 	o.dirty = true
@@ -524,8 +477,8 @@ func (o *OverlayWindow) ResizeTo(x, y, width, height int) error {
 		discardCall(procSetWindowPos.Call(
 			uintptr(o.hwnd),
 			hwndTopMost,
-			uintptr(x),
-			uintptr(y),
+			uintptr(posX),
+			uintptr(posY),
 			uintptr(width),
 			uintptr(height),
 			flags,
@@ -582,6 +535,7 @@ func (o *OverlayWindow) StrokeRect(bounds image.Rectangle, color uint32, lineWid
 func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, color uint32) {
 	if o == nil || bounds.Empty() || radius <= 0 {
 		o.FillRect(bounds, color)
+
 		return
 	}
 
@@ -606,6 +560,7 @@ func (o *OverlayWindow) StrokeRoundedRect(
 ) {
 	if o == nil || bounds.Empty() || lineWidth <= 0 || radius <= 0 {
 		o.StrokeRect(bounds, color, lineWidth)
+
 		return
 	}
 
@@ -657,11 +612,14 @@ func (o *OverlayWindow) Flush() error {
 	}
 
 	o.mu.Lock()
+
 	dirty := o.dirty
 	if !dirty {
 		o.mu.Unlock()
+
 		return nil
 	}
+
 	o.dirty = false
 
 	fills := append([]rectFill(nil), o.fills...)
@@ -710,12 +668,84 @@ func (o *OverlayWindow) Flush() error {
 	return nil
 }
 
+func (o *OverlayWindow) createHWNDLocked() error {
+	className, err := windows.UTF16PtrFromString(overlayClassName)
+	if err != nil {
+		return err
+	}
+
+	width := o.bounds.Dx()
+
+	height := o.bounds.Dy()
+	if width <= 0 || height <= 0 {
+		return fmt.Errorf("%w: %v", errInvalidOverlayBounds, o.bounds)
+	}
+
+	hwnd, _, err := procCreateWindowExW.Call(
+		wsExLayered|wsExTransparent|wsExTopmost|wsExToolWindow|wsExNoActivate,
+		uintptr(unsafe.Pointer(className)),
+		0,
+		wsPopup,
+		uintptr(o.bounds.Min.X),
+		uintptr(o.bounds.Min.Y),
+		uintptr(width),
+		uintptr(height),
+		0,
+		0,
+		moduleHandle(),
+		0,
+	)
+	if hwnd == 0 {
+		return fmt.Errorf("CreateWindowExW: %w", err)
+	}
+
+	o.hwnd = windows.HWND(hwnd)
+	o.width = width
+	o.height = height
+	o.pixels = make([]byte, width*height*bytesPerPixel)
+	overlayRegistry.Store(o.hwnd, o)
+
+	const (
+		swpNomove = 0x0002
+		swpNosize = 0x0001
+	)
+
+	discardCall(procSetWindowPos.Call(
+		hwnd,
+		hwndTopMost,
+		0,
+		0,
+		0,
+		0,
+		swpNoActivate|swpNomove|swpNosize,
+	))
+	discardCall(procShowWindow.Call(hwnd, swHide))
+
+	o.visible = false
+
+	return nil
+}
+
+func (o *OverlayWindow) destroyHWNDLocked() {
+	if o.hwnd != 0 {
+		overlayRegistry.Delete(o.hwnd)
+		discardCall(procDestroyWindow.Call(uintptr(o.hwnd)))
+		o.hwnd = 0
+		o.pixels = nil
+	}
+}
+
+func (o *OverlayWindow) localBounds() image.Rectangle {
+	return image.Rect(0, 0, o.width, o.height)
+}
+
 func (o *OverlayWindow) flushPixels() {
 	if o == nil || o.hwnd == 0 {
 		return
 	}
 
 	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
+
 	if hdcMem == 0 {
 		return
 	}
@@ -726,17 +756,18 @@ func (o *OverlayWindow) flushPixels() {
 		Width:       int32(o.width),
 		Height:      -int32(o.height), // negative = top-down bitmap
 		Planes:      1,
-		BitCount:    32,
+		BitCount:    dibBitCount,
 		Compression: biBitfields,
 		SizeImage:   uint32(o.width * o.height * bytesPerPixel),
-		RedMask:     0x00FF0000,
-		GreenMask:   0x0000FF00,
-		BlueMask:    0x000000FF,
-		AlphaMask:   0xFF000000,
-		CSType:      0x206E6957, // 'Win '
+		RedMask:     maskRed,
+		GreenMask:   maskGreen,
+		BlueMask:    maskBlue,
+		AlphaMask:   maskAlpha,
+		CSType:      colorSpaceWinRGB,
 	}
 
 	var bits unsafe.Pointer
+
 	hDib, _, _ := procCreateDIBSection.Call(
 		hdcMem,
 		uintptr(unsafe.Pointer(&bih)),
@@ -745,6 +776,7 @@ func (o *OverlayWindow) flushPixels() {
 		0,
 		0,
 	)
+
 	if hDib == 0 {
 		return
 	}
@@ -758,6 +790,7 @@ func (o *OverlayWindow) flushPixels() {
 	))
 
 	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
+
 	if prevObj == 0 {
 		return
 	}
@@ -766,7 +799,7 @@ func (o *OverlayWindow) flushPixels() {
 	blend := blendFunction{
 		BlendOp:             acSrcOver,
 		AlphaFormat:         acSrcAlpha,
-		SourceConstantAlpha: 255,
+		SourceConstantAlpha: alphaMax,
 	}
 
 	discardCall(procUpdateLayeredWindow.Call(
@@ -782,40 +815,45 @@ func (o *OverlayWindow) flushPixels() {
 	))
 }
 
-func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
+func renderTextAlphaInto(pixels []byte, bufW, bufH int, textCmd textDraw) {
 	// Clamp text rect to overlay bounds.
-	textRect := t.rect.Intersect(image.Rect(0, 0, w, h))
+	textRect := textCmd.rect.Intersect(image.Rect(0, 0, bufW, bufH))
 	if textRect.Empty() {
 		return
 	}
 
 	// Add 1px padding around text rect for anti-aliasing at edges.
 	pad := 1
-	tw := textRect.Dx() + pad*2
-	th := textRect.Dy() + pad*2
+	texW := textRect.Dx() + pad*2 //nolint:mnd
+	texH := textRect.Dy() + pad*2 //nolint:mnd
 	textX := textRect.Min.X - pad
 	textY := textRect.Min.Y - pad
 
 	// Clamp to overlay.
 	if textX < 0 {
-		tw += textX
+		texW += textX
 		textX = 0
 	}
+
 	if textY < 0 {
-		th += textY
+		texH += textY
 		textY = 0
 	}
-	if textX+tw > w {
-		tw = w - textX
+
+	if textX+texW > bufW {
+		texW = bufW - textX
 	}
-	if textY+th > h {
-		th = h - textY
+
+	if textY+texH > bufH {
+		texH = bufH - textY
 	}
-	if tw <= 0 || th <= 0 {
+
+	if texW <= 0 || texH <= 0 {
 		return
 	}
 
 	hdcMem, _, _ := procCreateCompatibleDC.Call(0)
+
 	if hdcMem == 0 {
 		return
 	}
@@ -823,20 +861,21 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 
 	bih := bitmapV4Header{
 		Size:        bmpV4Size,
-		Width:       int32(tw),
-		Height:      -int32(th),
+		Width:       int32(texW),
+		Height:      -int32(texH),
 		Planes:      1,
-		BitCount:    32,
+		BitCount:    dibBitCount,
 		Compression: biBitfields,
-		SizeImage:   uint32(tw * th * bytesPerPixel),
-		RedMask:     0x00FF0000,
-		GreenMask:   0x0000FF00,
-		BlueMask:    0x000000FF,
-		AlphaMask:   0xFF000000,
-		CSType:      0x206E6957,
+		SizeImage:   uint32(texW * texH * bytesPerPixel),
+		RedMask:     maskRed,
+		GreenMask:   maskGreen,
+		BlueMask:    maskBlue,
+		AlphaMask:   maskAlpha,
+		CSType:      colorSpaceWinRGB,
 	}
 
 	var bits unsafe.Pointer
+
 	hDib, _, _ := procCreateDIBSection.Call(
 		hdcMem,
 		uintptr(unsafe.Pointer(&bih)),
@@ -845,28 +884,30 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 		0,
 		0,
 	)
+
 	if hDib == 0 {
 		return
 	}
 	defer func() { discardCall(procDeleteObject.Call(hDib)) }()
 
 	prevObj, _, _ := procSelectObject.Call(hdcMem, hDib)
+
 	if prevObj == 0 {
 		return
 	}
 	defer func() { discardCall(procSelectObject.Call(hdcMem, prevObj)) }()
 
-	tmpPixels := (*[1 << 30]byte)(bits)[: tw*th*bytesPerPixel : tw*th*bytesPerPixel]
+	tmpPixels := (*[1 << 30]byte)(bits)[: texW*texH*bytesPerPixel : texW*texH*bytesPerPixel]
 	for i := range tmpPixels {
 		tmpPixels[i] = 0
 	}
 
-	size := int(-t.fontSize)
+	size := int(-textCmd.fontSize)
 	if size == 0 {
-		size = -14
+		size = -defaultFontSize
 	}
 
-	fontName, err := windows.UTF16PtrFromString(t.fontFamily)
+	fontName, err := windows.UTF16PtrFromString(textCmd.fontFamily)
 	if err != nil {
 		return
 	}
@@ -875,21 +916,23 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 		uintptr(size), 0, 0, 0, fwBold, 0, 0, 0, 1, 0, 0, 0, 0,
 		uintptr(unsafe.Pointer(fontName)),
 	)
+
 	if hFont == 0 {
 		return
 	}
 	defer func() { discardCall(procDeleteObject.Call(hFont)) }()
 
 	prevFont, _, _ := procSelectObject.Call(hdcMem, hFont)
+
 	if prevFont == 0 {
 		return
 	}
 	defer func() { discardCall(procSelectObject.Call(hdcMem, prevFont)) }()
 
 	discardCall(procSetBkMode.Call(hdcMem, transparentBk))
-	discardCall(procSetTextColor.Call(hdcMem, 0x00FFFFFF))
+	discardCall(procSetTextColor.Call(hdcMem, gdiWhiteText))
 
-	utf16Text, err := windows.UTF16FromString(t.text)
+	utf16Text, err := windows.UTF16FromString(textCmd.text)
 	if err != nil {
 		return
 	}
@@ -912,67 +955,73 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 	))
 
 	// Composite the small text bitmap into the main pixel buffer at the correct offset.
-	alphaCompositeTextAt(pixels, w, h, tmpPixels, tw, th, textX, textY, t.color)
+	alphaCompositeTextAt(pixels, bufW, bufH, tmpPixels, texW, texH, textX, textY, textCmd.color)
 }
 
 // alphaFillRect composites a semi-transparent ARGB fill over the pixel buffer.
-func alphaFillRect(pixels []byte, w, h int, rect image.Rectangle, color uint32) {
-	a := uint32(color >> 24)
-	if a == 0 {
+func alphaFillRect(pixels []byte, bufW, bufH int, rect image.Rectangle, color uint32) {
+	colA := color >> alphaShift
+	if colA == 0 {
 		return
 	}
 
-	r := (color >> 16) & 0xFF
-	g := (color >> 8) & 0xFF
-	b := color & 0xFF
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
 
 	// Pre-multiply the source color by its alpha.
-	sr := r * a
-	sg := g * a
-	sb := b * a
+	srcR := colR * colA
+	srcG := colG * colA
+	srcB := colB * colA
 
-	ia := 255 - a
-	y0 := clamp(rect.Min.Y, 0, h)
-	y1 := clamp(rect.Max.Y, 0, h)
-	x0 := clamp(rect.Min.X, 0, w)
-	x1 := clamp(rect.Max.X, 0, w)
+	invA := alphaMax - colA
+	startY := clamp(rect.Min.Y, bufH)
+	endY := clamp(rect.Max.Y, bufH)
+	startX := clamp(rect.Min.X, bufW)
+	endX := clamp(rect.Max.X, bufW)
 
-	for y := y0; y < y1; y++ {
-		row := y * w * bytesPerPixel
-		for x := x0; x < x1; x++ {
+	for y := startY; y < endY; y++ {
+		row := y * bufW * bytesPerPixel
+		for x := startX; x < endX; x++ {
 			idx := row + x*bytesPerPixel
 			dstB := uint32(pixels[idx])
 			dstG := uint32(pixels[idx+1])
 			dstR := uint32(pixels[idx+2])
 			dstA := uint32(pixels[idx+3])
 
-			pixels[idx] = byte((sb + dstB*ia) / 255)
-			pixels[idx+1] = byte((sg + dstG*ia) / 255)
-			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte(a + (dstA*ia)/255)
+			pixels[idx] = byte((srcB + dstB*invA) / alphaMax)
+			pixels[idx+1] = byte((srcG + dstG*invA) / alphaMax)
+			pixels[idx+2] = byte((srcR + dstR*invA) / alphaMax)
+			pixels[idx+3] = byte(colA + (dstA*invA)/alphaMax)
 		}
 	}
 }
 
 // alphaStrokeRect composites a stroked rectangle border over the pixel buffer.
-func alphaStrokeRect(pixels []byte, w, h int, rect image.Rectangle, color uint32, width int) {
-	if width < 1 {
+func alphaStrokeRect(
+	pixels []byte,
+	bufW, bufH int,
+	rect image.Rectangle,
+	color uint32,
+	lineWidth int,
+) {
+	if lineWidth < 1 {
 		return
 	}
 
-	for i := range width {
+	for i := range lineWidth {
 		inset := rect.Inset(i)
 		// Top edge
-		alphaFillRect(pixels, w, h,
+		alphaFillRect(pixels, bufW, bufH,
 			image.Rect(inset.Min.X, inset.Min.Y, inset.Max.X, inset.Min.Y+1), color)
 		// Bottom edge
-		alphaFillRect(pixels, w, h,
+		alphaFillRect(pixels, bufW, bufH,
 			image.Rect(inset.Min.X, inset.Max.Y-1, inset.Max.X, inset.Max.Y), color)
 		// Left edge
-		alphaFillRect(pixels, w, h,
+		alphaFillRect(pixels, bufW, bufH,
 			image.Rect(inset.Min.X, inset.Min.Y, inset.Min.X+1, inset.Max.Y), color)
 		// Right edge
-		alphaFillRect(pixels, w, h,
+		alphaFillRect(pixels, bufW, bufH,
 			image.Rect(inset.Max.X-1, inset.Min.Y, inset.Max.X, inset.Max.Y), color)
 	}
 }
@@ -980,15 +1029,15 @@ func alphaStrokeRect(pixels []byte, w, h int, rect image.Rectangle, color uint32
 // sdRoundedBox computes the signed distance from a point (px, py) to a rounded
 // rectangle centered at the origin with half-extents (halfW, halfH) and corner
 // radius r.  Negative inside, positive outside, zero at the boundary.
-func sdRoundedBox(px, py, halfW, halfH, r float64) float64 {
-	qx := math.Abs(px) - halfW + r
-	qy := math.Abs(py) - halfH + r
+func sdRoundedBox(ptX, ptY, halfW, halfH, radius float64) float64 {
+	distX := math.Abs(ptX) - halfW + radius
+	distY := math.Abs(ptY) - halfH + radius
 
-	insideX := math.Max(qx, 0)
-	insideY := math.Max(qy, 0)
-	outside := math.Sqrt(insideX*insideX+insideY*insideY) - r
+	insideX := math.Max(distX, 0)
+	insideY := math.Max(distY, 0)
+	outside := math.Sqrt(insideX*insideX+insideY*insideY) - radius
 
-	inside := math.Min(math.Max(qx, qy), 0)
+	inside := math.Min(math.Max(distX, distY), 0)
 
 	return outside + inside
 }
@@ -997,29 +1046,29 @@ func sdRoundedBox(px, py, halfW, halfH, r float64) float64 {
 // using signed-distance-function edge smoothing.
 func alphaFillRoundedRect(
 	pixels []byte,
-	w, h int,
+	bufW, bufH int,
 	rect image.Rectangle,
 	radius float64,
 	color uint32,
 ) {
-	a := uint32(color >> 24)
-	if a == 0 {
+	colA := color >> alphaShift
+	if colA == 0 {
 		return
 	}
 
-	r := (color >> 16) & 0xFF
-	g := (color >> 8) & 0xFF
-	b := color & 0xFF
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
 
-	halfW := float64(rect.Dx()) / 2.0
-	halfH := float64(rect.Dy()) / 2.0
+	halfW := float64(rect.Dx()) / 2.0 //nolint:mnd // simple arithmetic
+	halfH := float64(rect.Dy()) / 2.0 //nolint:mnd // simple arithmetic
 	centerX := float64(rect.Min.X) + halfW
 	centerY := float64(rect.Min.Y) + halfH
 
-	y0 := clamp(rect.Min.Y, 0, h)
-	y1 := clamp(rect.Max.Y, 0, h)
-	x0 := clamp(rect.Min.X, 0, w)
-	x1 := clamp(rect.Max.X, 0, w)
+	startY := clamp(rect.Min.Y, bufH)
+	endY := clamp(rect.Max.Y, bufH)
+	startX := clamp(rect.Min.X, bufW)
+	endX := clamp(rect.Max.X, bufW)
 
 	// Inner region is fully inside the rounded rect (no SDF needed).
 	innerMinX := float64(rect.Min.X) + radius
@@ -1027,54 +1076,55 @@ func alphaFillRoundedRect(
 	innerMinY := float64(rect.Min.Y) + radius
 	innerMaxY := float64(rect.Max.Y) - radius
 
-	sr := r * a
-	sg := g * a
-	sb := b * a
+	srcR := colR * colA
+	srcG := colG * colA
+	srcB := colB * colA
 
-	for y := y0; y < y1; y++ {
-		row := y * w * bytesPerPixel
-		fy := float64(y)
+	for y := startY; y < endY; y++ {
+		row := y * bufW * bytesPerPixel
+		floatY := float64(y)
 
-		for x := x0; x < x1; x++ {
-			fx := float64(x)
+		for col := startX; col < endX; col++ {
+			floatX := float64(col)
 
 			// Fast path: pixel is well inside the rounded rect.
-			if fx >= innerMinX && fx <= innerMaxX && fy >= innerMinY && fy <= innerMaxY {
-				idx := row + x*bytesPerPixel
+			if floatX >= innerMinX && floatX <= innerMaxX && floatY >= innerMinY &&
+				floatY <= innerMaxY {
+				idx := row + col*bytesPerPixel
 				dstB := uint32(pixels[idx])
 				dstG := uint32(pixels[idx+1])
 				dstR := uint32(pixels[idx+2])
 				dstA := uint32(pixels[idx+3])
 
-				pixels[idx] = byte((sb + dstB*(255-a)) / 255)
-				pixels[idx+1] = byte((sg + dstG*(255-a)) / 255)
-				pixels[idx+2] = byte((sr + dstR*(255-a)) / 255)
-				pixels[idx+3] = byte(a + (dstA*(255-a))/255)
+				pixels[idx] = byte((srcB + dstB*(alphaMax-colA)) / alphaMax)
+				pixels[idx+1] = byte((srcG + dstG*(alphaMax-colA)) / alphaMax)
+				pixels[idx+2] = byte((srcR + dstR*(alphaMax-colA)) / alphaMax)
+				pixels[idx+3] = byte(colA + (dstA*(alphaMax-colA))/alphaMax)
 
 				continue
 			}
 
-			d := sdRoundedBox(fx-centerX, fy-centerY, halfW, halfH, radius)
-			if d > 1 {
+			dist := sdRoundedBox(floatX-centerX, floatY-centerY, halfW, halfH, radius)
+			if dist > 1 {
 				continue
 			}
 
-			pixelAlpha := uint32(math.Max(0, math.Min(1, 1.0-d)) * float64(a))
+			pixelAlpha := uint32(math.Max(0, math.Min(1, 1.0-dist)) * float64(colA))
 			if pixelAlpha == 0 {
 				continue
 			}
 
-			ia := 255 - pixelAlpha
-			idx := row + x*bytesPerPixel
+			invA := alphaMax - pixelAlpha
+			idx := row + col*bytesPerPixel
 			dstB := uint32(pixels[idx])
 			dstG := uint32(pixels[idx+1])
 			dstR := uint32(pixels[idx+2])
 			dstA := uint32(pixels[idx+3])
 
-			pixels[idx] = byte((r*pixelAlpha + dstB*ia) / 255)
-			pixels[idx+1] = byte((g*pixelAlpha + dstG*ia) / 255)
-			pixels[idx+2] = byte((b*pixelAlpha + dstR*ia) / 255)
-			pixels[idx+3] = byte(pixelAlpha + (dstA*ia)/255)
+			pixels[idx] = byte((colR*pixelAlpha + dstB*invA) / alphaMax)
+			pixels[idx+1] = byte((colG*pixelAlpha + dstG*invA) / alphaMax)
+			pixels[idx+2] = byte((colB*pixelAlpha + dstR*invA) / alphaMax)
+			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
 		}
 	}
 }
@@ -1083,131 +1133,128 @@ func alphaFillRoundedRect(
 // using signed-distance-function edge smoothing at both outer and inner edges.
 func alphaStrokeRoundedRect(
 	pixels []byte,
-	w, h int,
+	bufW, bufH int,
 	rect image.Rectangle,
 	radius float64,
 	color uint32,
-	width int,
+	lineWidth int,
 ) {
-	if width < 1 {
+	if lineWidth < 1 {
 		return
 	}
 
-	a := uint32(color >> 24)
-	if a == 0 {
+	colA := color >> alphaShift
+	if colA == 0 {
 		return
 	}
 
-	r := (color >> 16) & 0xFF
-	g := (color >> 8) & 0xFF
-	b := color & 0xFF
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
 
-	halfW := float64(rect.Dx()) / 2.0
-	halfH := float64(rect.Dy()) / 2.0
+	halfW := float64(rect.Dx()) / 2.0 //nolint:mnd // simple arithmetic
+	halfH := float64(rect.Dy()) / 2.0 //nolint:mnd // simple arithmetic
 	centerX := float64(rect.Min.X) + halfW
 	centerY := float64(rect.Min.Y) + halfH
 
-	strokeW := float64(width)
+	strokeW := float64(lineWidth)
 	innerRadius := math.Max(radius-strokeW, 0)
 	innerHalfW := math.Max(halfW-strokeW, 0)
 	innerHalfH := math.Max(halfH-strokeW, 0)
 
-	y0 := clamp(rect.Min.Y, 0, h)
-	y1 := clamp(rect.Max.Y, 0, h)
-	x0 := clamp(rect.Min.X, 0, w)
-	x1 := clamp(rect.Max.X, 0, w)
+	startY := clamp(rect.Min.Y, bufH)
+	endY := clamp(rect.Max.Y, bufH)
+	startX := clamp(rect.Min.X, bufW)
+	endX := clamp(rect.Max.X, bufW)
 
-	for y := y0; y < y1; y++ {
-		row := y * w * bytesPerPixel
-		for x := x0; x < x1; x++ {
-			px := float64(x) - centerX
-			py := float64(y) - centerY
+	for y := startY; y < endY; y++ {
+		row := y * bufW * bytesPerPixel
+		for col := startX; col < endX; col++ {
+			relX := float64(col) - centerX
+			relY := float64(y) - centerY
 
-			dOuter := sdRoundedBox(px, py, halfW, halfH, radius)
+			dOuter := sdRoundedBox(relX, relY, halfW, halfH, radius)
 			if dOuter > 1 {
 				continue
 			}
 
-			dInner := sdRoundedBox(px, py, innerHalfW, innerHalfH, innerRadius)
+			dInner := sdRoundedBox(relX, relY, innerHalfW, innerHalfH, innerRadius)
 			if dInner < -1 {
 				continue // inside inner hole, not part of stroke
 			}
 
 			outerAlpha := math.Max(0, math.Min(1, 1.0-dOuter))
 			innerAlpha := math.Max(0, math.Min(1, 1.0-dInner))
-			pixelAlpha := uint32(outerAlpha * (1.0 - innerAlpha) * float64(a))
+
+			pixelAlpha := uint32(outerAlpha * (1.0 - innerAlpha) * float64(colA))
 			if pixelAlpha == 0 {
 				continue
 			}
 
-			ia := 255 - pixelAlpha
-			sr := r * pixelAlpha
-			sg := g * pixelAlpha
-			sb := b * pixelAlpha
+			invA := alphaMax - pixelAlpha
+			srcR := colR * pixelAlpha
+			srcG := colG * pixelAlpha
+			srcB := colB * pixelAlpha
 
-			idx := row + x*bytesPerPixel
+			idx := row + col*bytesPerPixel
 			dstB := uint32(pixels[idx])
 			dstG := uint32(pixels[idx+1])
 			dstR := uint32(pixels[idx+2])
 			dstA := uint32(pixels[idx+3])
 
-			pixels[idx] = byte((sb + dstB*ia) / 255)
-			pixels[idx+1] = byte((sg + dstG*ia) / 255)
-			pixels[idx+2] = byte((sr + dstR*ia) / 255)
-			pixels[idx+3] = byte(pixelAlpha + (dstA*ia)/255)
+			pixels[idx] = byte((srcB + dstB*invA) / alphaMax)
+			pixels[idx+1] = byte((srcG + dstG*invA) / alphaMax)
+			pixels[idx+2] = byte((srcR + dstR*invA) / alphaMax)
+			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
 		}
 	}
-}
-
-// alphaCompositeText composites a GDI-rendered white-on-transparent text bitmap
-// over the main pixel buffer using the given ARGB color.
-func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32) {
-	alphaCompositeTextAt(pixels, w, h, textPixels, w, h, 0, 0, color)
 }
 
 // alphaCompositeTextAt composites a text bitmap of size (tw x th) at position
 // (offX, offY) in the main pixel buffer using the given ARGB color.
 func alphaCompositeTextAt(
 	pixels []byte,
-	w, h int,
+	bufW, bufH int,
 	textPixels []byte,
-	tw, th, offX, offY int,
+	texW, texH, offX, offY int,
 	color uint32,
 ) {
-	ta := (color >> 24) & 0xFF
-	if ta == 0 {
+	textA := (color >> alphaShift) & byteMask
+	if textA == 0 {
 		return
 	}
-	tr := (color >> 16) & 0xFF
-	tg := (color >> 8) & 0xFF
-	tb := color & 0xFF
 
-	for ty := 0; ty < th; ty++ {
-		dstY := offY + ty
-		if dstY < 0 || dstY >= h {
+	textR := (color >> redShift) & byteMask
+	textG := (color >> greenShift) & byteMask
+	textB := color & byteMask
+
+	for texY := range texH {
+		dstY := offY + texY
+		if dstY < 0 || dstY >= bufH {
 			continue
 		}
 
-		srcRow := ty * tw * bytesPerPixel
-		dstRow := dstY * w * bytesPerPixel
+		srcRow := texY * texW * bytesPerPixel
+		dstRow := dstY * bufW * bytesPerPixel
 
-		for tx := 0; tx < tw; tx++ {
-			dstX := offX + tx
-			if dstX < 0 || dstX >= w {
+		for texX := range texW {
+			dstX := offX + texX
+			if dstX < 0 || dstX >= bufW {
 				continue
 			}
 
-			srcIdx := srcRow + tx*bytesPerPixel
+			srcIdx := srcRow + texX*bytesPerPixel
+
 			coverage := uint32(textPixels[srcIdx+2])
 			if coverage == 0 {
 				continue
 			}
 
-			srcA := coverage * ta / 255
-			sr := tr * srcA
-			sg := tg * srcA
-			sb := tb * srcA
-			ia := 255 - srcA
+			srcA := coverage * textA / alphaMax
+			srcR := textR * srcA
+			srcG := textG * srcA
+			srcB := textB * srcA
+			invA := alphaMax - srcA
 
 			dstIdx := dstRow + dstX*bytesPerPixel
 			dstB := uint32(pixels[dstIdx])
@@ -1215,26 +1262,29 @@ func alphaCompositeTextAt(
 			dstR := uint32(pixels[dstIdx+2])
 			dstA := uint32(pixels[dstIdx+3])
 
-			pixels[dstIdx] = byte((sb + dstB*ia) / 255)
-			pixels[dstIdx+1] = byte((sg + dstG*ia) / 255)
-			pixels[dstIdx+2] = byte((sr + dstR*ia) / 255)
-			pixels[dstIdx+3] = byte(srcA + (dstA*ia)/255)
+			pixels[dstIdx] = byte((srcB + dstB*invA) / alphaMax)
+			pixels[dstIdx+1] = byte((srcG + dstG*invA) / alphaMax)
+			pixels[dstIdx+2] = byte((srcR + dstR*invA) / alphaMax)
+			pixels[dstIdx+3] = byte(srcA + (dstA*invA)/alphaMax)
 		}
 	}
 }
 
-func clamp(val, min, max int) int {
-	if val < min {
-		return min
+func clamp(val, maxVal int) int {
+	if val < 0 {
+		return 0
 	}
-	if val > max {
-		return max
+
+	if val > maxVal {
+		return maxVal
 	}
+
 	return val
 }
 
 func moduleHandle() uintptr {
 	handle, _, _ := procGetModuleHandleW.Call(0)
+
 	return handle
 }
 

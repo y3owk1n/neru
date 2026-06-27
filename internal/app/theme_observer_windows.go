@@ -16,7 +16,7 @@ const themePollInterval = 2 * time.Second
 // Windows does not fire a notification when AppsUseLightTheme changes, so we
 // poll the registry every themePollInterval and fire handleThemeChange when
 // the dark/light state flips. The goroutine exits when the app context is
-// cancelled, so no separate stop mechanism is needed.
+// canceled, so no separate stop mechanism is needed.
 func (a *App) setupThemeObserver() {
 	wasDark := windows.AppsUseDarkTheme()
 
