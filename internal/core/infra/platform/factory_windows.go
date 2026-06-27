@@ -19,14 +19,14 @@ func NewFontResolver() ports.FontResolver {
 	return nil
 }
 
-// ShowConfigOnboardingAlert is a stub on Windows.
-func ShowConfigOnboardingAlert(_ string) int {
-	return ConfigOnboardingDefaults
+// ShowConfigOnboardingAlert displays a native Windows dialog for new users without a config file.
+func ShowConfigOnboardingAlert(configPath string) int {
+	return windows.ShowConfigOnboardingAlert(configPath)
 }
 
-// ShowConfigValidationErrorAlert is a stub on Windows.
-func ShowConfigValidationErrorAlert(_, _ string) int {
-	return ConfigValidationOK
+// ShowConfigValidationErrorAlert displays a native Windows dialog for config validation errors.
+func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
+	return windows.ShowConfigValidationErrorAlert(errorMessage, configPath)
 }
 
 // CheckAccessibilityPermissions is always true on Windows for startup gating.

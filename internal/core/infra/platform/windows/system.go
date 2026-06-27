@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -221,10 +220,10 @@ func (s *SystemAdapter) IsSecureInputEnabled() bool {
 // ShowSecureInputNotification is a no-op on Windows — secure input is a macOS-only concept.
 func (s *SystemAdapter) ShowSecureInputNotification() {}
 
-// ShowAlert displays a native system alert on Windows.
-// TODO(windows): implement using MessageBox (user32.dll) or Windows Toast Notifications.
-func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
-	return derrors.New(derrors.CodeNotSupported, "ShowAlert not yet implemented on windows")
+// ShowAlert displays a native system alert on Windows using MessageBoxW.
+func (s *SystemAdapter) ShowAlert(_ context.Context, title, message string) error {
+	ShowAlert(title, message)
+	return nil
 }
 
 // ShowNotification displays a lightweight notification on Windows.
