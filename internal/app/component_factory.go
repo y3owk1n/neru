@@ -327,6 +327,10 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
 		}
 
+		if f.headless() {
+			return nil, nil //nolint:nilnil
+		}
+
 		return modeindicator.NewOverlay(
 			indicatorConfig,
 			f.themeProvider,
@@ -354,6 +358,10 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 				derrors.CodeInvalidInput,
 				"invalid sticky modifiers config type",
 			)
+		}
+
+		if f.headless() {
+			return nil, nil //nolint:nilnil
 		}
 
 		return stickyindicator.NewOverlay(
