@@ -365,6 +365,7 @@ func (m *Manager) DrawHintSearchInput(
 		parseHexColorARGB(style.BackgroundColor()),
 		parseHexColorARGB(style.BorderColor()),
 		float64(max(style.BorderWidth(), 0)),
+		resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap),
 	)
 	m.win.drawTextCentered(
 		label,
@@ -484,10 +485,15 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 		badgeHeight+borderWidth,
 	)
 
-	m.indicatorWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+	indicatorRadius := resolveWinBorderRadius(
+		cfg.UI.BorderRadius, badgeBounds, winAutoRadiusBadgeCap,
+	)
+	m.indicatorWin.FillRoundedRect(badgeBounds, indicatorRadius, parseHexColorARGB(bgColor))
 
 	if borderWidth > 0 {
-		m.indicatorWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
+		m.indicatorWin.StrokeRoundedRect(
+			badgeBounds, indicatorRadius, parseHexColorARGB(borderColor), float64(borderWidth),
+		)
 	}
 
 	m.indicatorWin.DrawTextCentered(
@@ -584,10 +590,20 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 		badgeHeight+borderWidth,
 	)
 
-	m.stickyWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+	stickyRadius := resolveWinBorderRadius(
+		indicatorUI.BorderRadius,
+		badgeBounds,
+		winAutoRadiusBadgeCap,
+	)
+	m.stickyWin.FillRoundedRect(badgeBounds, stickyRadius, parseHexColorARGB(bgColor))
 
 	if borderWidth > 0 {
-		m.stickyWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
+		m.stickyWin.StrokeRoundedRect(
+			badgeBounds,
+			stickyRadius,
+			parseHexColorARGB(borderColor),
+			float64(borderWidth),
+		)
 	}
 
 	m.stickyWin.DrawTextCentered(
@@ -631,11 +647,22 @@ func (m *Manager) DrawMouseActionIndicator(
 	bgColor := parseHexColorARGB(style.BackgroundColor)
 	borderColor := parseHexColorARGB(style.BorderColor)
 
+	var mouseRadius float64
+	if style.Shape == "circle" {
+		mouseRadius = float64(size) / 2 //nolint:mnd // half-size for fully round circle
+	} else {
+		mouseRadius = max(
+			float64(size)*winMouseActionSquareRadiusScale,
+			winMouseActionMinSquareRadius,
+		)
+	}
+
 	m.win.drawFilledRect(
 		bounds,
 		bgColor,
 		borderColor,
 		float64(max(style.BorderWidth, 0)),
+		mouseRadius,
 	)
 
 	m.win.flushOverlay("mouse-action")
