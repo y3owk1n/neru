@@ -374,6 +374,8 @@ func (m *Manager) DrawHintSearchInput(
 		parseHexColorARGB(style.TextColor()),
 	)
 
+	m.win.flushOverlay("search-input")
+
 	return nil
 }
 
@@ -633,6 +635,9 @@ func (m *Manager) DrawMouseActionIndicator(
 		borderColor,
 		float64(max(style.BorderWidth, 0)),
 	)
+
+	m.win.flushOverlay("mouse-action")
+	m.win.Show()
 }
 
 // modeIndicatorLabel returns the configured label for the given mode string.
