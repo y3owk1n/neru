@@ -367,6 +367,12 @@ func (m *Manager) DrawHintSearchInput(
 
 	m.win.Resize()
 
+	if m.win.lastHints != nil {
+		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle)
+	} else {
+		m.win.Clear()
+	}
+
 	pos := frame.Position()
 	width := frame.Width()
 
