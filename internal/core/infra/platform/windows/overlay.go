@@ -62,13 +62,13 @@ var (
 	procSetTextColor       = gdi32.NewProc("SetTextColor")
 	procCreateFontW        = gdi32.NewProc("CreateFontW")
 
-	procRegisterClassExW = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW  = user32.NewProc("CreateWindowExW")
-	procDestroyWindow    = user32.NewProc("DestroyWindow")
-	procShowWindow       = user32.NewProc("ShowWindow")
-	procSetWindowPos     = user32.NewProc("SetWindowPos")
-	procDefWindowProcW   = user32.NewProc("DefWindowProcW")
-	procIsWindow         = user32.NewProc("IsWindow")
+	procRegisterClassExW    = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW     = user32.NewProc("CreateWindowExW")
+	procDestroyWindow       = user32.NewProc("DestroyWindow")
+	procShowWindow          = user32.NewProc("ShowWindow")
+	procSetWindowPos        = user32.NewProc("SetWindowPos")
+	procDefWindowProcW      = user32.NewProc("DefWindowProcW")
+	procIsWindow            = user32.NewProc("IsWindow")
 	procUpdateLayeredWindow = user32.NewProc("UpdateLayeredWindow")
 
 	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
@@ -120,26 +120,26 @@ type textDraw struct {
 }
 
 type bitmapV4Header struct {
-	Size            uint32
-	Width           int32
-	Height          int32
-	Planes          uint16
-	BitCount        uint16
-	Compression     uint32
-	SizeImage       uint32
-	XPelsPerMeter   int32
-	YPelsPerMeter   int32
-	ClrUsed         uint32
-	ClrImportant    uint32
-	RedMask         uint32
-	GreenMask       uint32
-	BlueMask        uint32
-	AlphaMask       uint32
-	CSType          uint32
-	Endpoints       [9]uint32
-	GammaRed        uint32
-	GammaGreen      uint32
-	GammaBlue       uint32
+	Size          uint32
+	Width         int32
+	Height        int32
+	Planes        uint16
+	BitCount      uint16
+	Compression   uint32
+	SizeImage     uint32
+	XPelsPerMeter int32
+	YPelsPerMeter int32
+	ClrUsed       uint32
+	ClrImportant  uint32
+	RedMask       uint32
+	GreenMask     uint32
+	BlueMask      uint32
+	AlphaMask     uint32
+	CSType        uint32
+	Endpoints     [9]uint32
+	GammaRed      uint32
+	GammaGreen    uint32
+	GammaBlue     uint32
 }
 
 type blendFunction struct {
@@ -598,7 +598,12 @@ func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, 
 
 // StrokeRoundedRect draws a rounded rectangular border with the given ARGB
 // color, width, and corner radius, using signed-distance-function anti-aliasing.
-func (o *OverlayWindow) StrokeRoundedRect(bounds image.Rectangle, radius float64, color uint32, lineWidth float64) {
+func (o *OverlayWindow) StrokeRoundedRect(
+	bounds image.Rectangle,
+	radius float64,
+	color uint32,
+	lineWidth float64,
+) {
 	if o == nil || bounds.Empty() || lineWidth <= 0 || radius <= 0 {
 		o.StrokeRect(bounds, color, lineWidth)
 		return
@@ -607,7 +612,10 @@ func (o *OverlayWindow) StrokeRoundedRect(bounds image.Rectangle, radius float64
 	width := max(int(lineWidth), 1)
 
 	o.mu.Lock()
-	o.strokes = append(o.strokes, rectStroke{rect: bounds, color: color, width: width, radius: radius})
+	o.strokes = append(
+		o.strokes,
+		rectStroke{rect: bounds, color: color, width: width, radius: radius},
+	)
 	o.dirty = true
 	o.mu.Unlock()
 }
@@ -894,7 +902,7 @@ func renderTextAlphaInto(pixels []byte, w, h int, t textDraw) {
 		Bottom: int32(pad + textRect.Dy()),
 	}
 
-	var procDrawTextW = user32.NewProc("DrawTextW")
+	procDrawTextW := user32.NewProc("DrawTextW")
 	discardCall(procDrawTextW.Call(
 		hdcMem,
 		uintptr(unsafe.Pointer(&utf16Text[0])),
@@ -987,7 +995,13 @@ func sdRoundedBox(px, py, halfW, halfH, r float64) float64 {
 
 // alphaFillRoundedRect composites an anti-aliased rounded rectangle fill
 // using signed-distance-function edge smoothing.
-func alphaFillRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius float64, color uint32) {
+func alphaFillRoundedRect(
+	pixels []byte,
+	w, h int,
+	rect image.Rectangle,
+	radius float64,
+	color uint32,
+) {
 	a := uint32(color >> 24)
 	if a == 0 {
 		return
@@ -1067,7 +1081,14 @@ func alphaFillRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius 
 
 // alphaStrokeRoundedRect composites an anti-aliased rounded rectangle stroke
 // using signed-distance-function edge smoothing at both outer and inner edges.
-func alphaStrokeRoundedRect(pixels []byte, w, h int, rect image.Rectangle, radius float64, color uint32, width int) {
+func alphaStrokeRoundedRect(
+	pixels []byte,
+	w, h int,
+	rect image.Rectangle,
+	radius float64,
+	color uint32,
+	width int,
+) {
 	if width < 1 {
 		return
 	}
@@ -1146,7 +1167,13 @@ func alphaCompositeText(pixels []byte, w, h int, textPixels []byte, color uint32
 
 // alphaCompositeTextAt composites a text bitmap of size (tw x th) at position
 // (offX, offY) in the main pixel buffer using the given ARGB color.
-func alphaCompositeTextAt(pixels []byte, w, h int, textPixels []byte, tw, th, offX, offY int, color uint32) {
+func alphaCompositeTextAt(
+	pixels []byte,
+	w, h int,
+	textPixels []byte,
+	tw, th, offX, offY int,
+	color uint32,
+) {
 	ta := (color >> 24) & 0xFF
 	if ta == 0 {
 		return

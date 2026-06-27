@@ -474,7 +474,12 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 		config.ModeIndicatorBorderColorDark,
 	)
 
-	badgeBounds := image.Rect(borderWidth, borderWidth, badgeWidth+borderWidth, badgeHeight+borderWidth)
+	badgeBounds := image.Rect(
+		borderWidth,
+		borderWidth,
+		badgeWidth+borderWidth,
+		badgeHeight+borderWidth,
+	)
 
 	m.indicatorWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
 	if borderWidth > 0 {
@@ -561,7 +566,12 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		config.StickyModifiersBorderColorDark,
 	)
 
-	badgeBounds := image.Rect(borderWidth, borderWidth, badgeWidth+borderWidth, badgeHeight+borderWidth)
+	badgeBounds := image.Rect(
+		borderWidth,
+		borderWidth,
+		badgeWidth+borderWidth,
+		badgeHeight+borderWidth,
+	)
 
 	m.stickyWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
 	if borderWidth > 0 {

@@ -342,7 +342,13 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
 
 		if style.ShowLabels {
-			o.drawTextCentered(label, cell.Bounds(), ports.ResolveFont(style.LabelFontName, false), style.LabelFontSize, text)
+			o.drawTextCentered(
+				label,
+				cell.Bounds(),
+				ports.ResolveFont(style.LabelFontName, false),
+				style.LabelFontSize,
+				text,
+			)
 		}
 	}
 

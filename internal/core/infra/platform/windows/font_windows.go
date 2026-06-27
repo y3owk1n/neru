@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	defaultWindowsSans = "Segoe UI"
-	defaultWindowsMono = "Consolas"
+	defaultWindowsSans  = "Segoe UI"
+	defaultWindowsMono  = "Consolas"
 	defaultWindowsSerif = "Cambria"
 )
 
