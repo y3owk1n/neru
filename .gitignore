@@ -15,6 +15,7 @@ build/
 *.dll
 *.so
 *.dylib
+*.syso
 *.test
 *.out
 coverage.txt
