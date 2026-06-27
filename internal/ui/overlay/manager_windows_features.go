@@ -182,6 +182,10 @@ func (o *winOverlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
+			if style.HighlightColor != 0 {
+				o.window.FillRect(cell, style.HighlightColor)
+			}
+
 			if style.LineWidth > 0 {
 				o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
 			}

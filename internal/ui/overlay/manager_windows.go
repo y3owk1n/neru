@@ -379,6 +379,11 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 
 	m.win.Resize()
 
+	// Ensure the overlay is visible before drawing the indicator.
+	// Show() redraws from cache if needed and flushes, so the indicator
+	// drawn below will appear on top of the current content.
+	m.win.Show()
+
 	offsetX := cfg.UI.IndicatorXOffset
 	offsetY := cfg.UI.IndicatorYOffset
 	fontSize := float64(max(cfg.UI.FontSize, 1))
@@ -428,10 +433,9 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 		parseHexColorARGB(textColor),
 	)
 
-	// Ensure the overlay is visible (especially for modes like scroll that
-	// do not call Show themselves). Show() flushes the buffer, so we call it
-	// after drawing so content is visible immediately.
-	m.win.Show()
+	// Flush the indicator onto the pixel buffer. Show() was already called
+	// above if needed; now we just flush so the indicator is visible.
+	m.win.flushOverlay("mode-indicator")
 }
 
 // DrawStickyModifiersIndicator renders a sticky modifiers indicator badge on the Windows overlay.
@@ -495,10 +499,10 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		parseHexColorARGB(textColor),
 	)
 
-	// Ensure the overlay is visible (especially for modes like scroll that
-	// do not call Show themselves). Show() flushes the buffer, so we call it
-	// after drawing so content is visible immediately.
-	m.win.Show()
+	// Flush the indicator onto the pixel buffer. Show() was already called
+	// above to make the window visible; now we just flush so the indicator
+	// is visible immediately.
+	m.win.flushOverlay("sticky-indicator")
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator on the Windows overlay.
