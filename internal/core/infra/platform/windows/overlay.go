@@ -756,10 +756,12 @@ func (o *OverlayWindow) drawTextGDI(hdc windows.Handle, text textDraw) {
 }
 
 func (o *OverlayWindow) argbToGDI(argb uint32) uint32 {
-	blend := themeSurfaceLight
+	blend := ThemeSurfaceRGB()
 	if o != nil {
 		o.mu.Lock()
-		blend = o.colorBlendRGB
+		if o.colorBlendRGB != 0 {
+			blend = o.colorBlendRGB
+		}
 		o.mu.Unlock()
 	}
 
