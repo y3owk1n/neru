@@ -40,7 +40,7 @@ generate-winres ARCH="amd64":
     cd cmd/neru
     echo "Generating Windows resources for {{ ARCH }}..."
     go run github.com/tc-hib/go-winres@v0.3.3 simply \
-        --icon ../../resources/neru-appicon.png \
+        --icon ../../assets/neru-appicon.png \
         --manifest gui \
         --arch {{ ARCH }} \
         --file-description "Neru keyboard-driven navigation tool" \
