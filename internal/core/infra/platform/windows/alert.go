@@ -6,6 +6,8 @@
 package windows
 
 import (
+	"os/exec"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -64,6 +66,13 @@ func showMessageBox(title, message string, mbType uintptr) int {
 	return int(ret)
 }
 
+// copyToClipboard copies text to the Windows clipboard via the clip.exe utility.
+func copyToClipboard(text string) {
+	cmd := exec.Command("clip")
+	cmd.Stdin = strings.NewReader(text)
+	_ = cmd.Run()
+}
+
 // ShowConfigValidationErrorAlert displays a config validation error dialog.
 func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
 	title := "Neru - Configuration Validation Failed"
@@ -72,14 +81,13 @@ func ShowConfigValidationErrorAlert(errorMessage, configPath string) int {
 		"\n\nClick OK to exit, or Cancel to copy the path."
 
 	result := showMessageBox(title, message, mbOKCancel|mbIconWarning)
-	switch result {
-	case idOK:
-		return ConfigValidationOK
-	case idCancel:
+	if result == idCancel {
+		copyToClipboard(configPath)
+
 		return ConfigValidationCopyPath
-	default:
-		return ConfigValidationOK
 	}
+
+	return ConfigValidationOK
 }
 
 // ShowConfigOnboardingAlert displays a config onboarding dialog for new users.
