@@ -119,25 +119,6 @@ func (o *winOverlay) Show() {
 	}
 }
 
-// EnsureVisible makes the overlay HWND visible without flushing the pixel
-// buffer. Used by indicator draw paths that need the window to be on-screen
-// before composing a new frame, avoiding the blink that Show()'s intermediate
-// flush would cause.
-func (o *winOverlay) EnsureVisible() {
-	if o == nil {
-		return
-	}
-
-	o.ensureWindowForDraw()
-
-	if o.window == nil {
-		return
-	}
-
-	o.suppressDraw = false
-	o.window.Show()
-}
-
 func (o *winOverlay) Hide() {
 	if o == nil {
 		return
@@ -155,25 +136,6 @@ func (o *winOverlay) Clear() {
 	if o != nil && o.window != nil {
 		o.window.Clear()
 	}
-}
-
-// clearForIndicator clears the pixel buffer before drawing a transient
-// indicator badge so that old badges at previous cursor positions are
-// erased. When cached grid or hints content exists (grid/hints mode),
-// the buffer is left untouched so the indicator draws on top of the
-// existing content.
-func (o *winOverlay) clearForIndicator() {
-	if o == nil || o.window == nil {
-		return
-	}
-
-	// In grid or hints mode, the cached content is already rendered in the
-	// pixel buffer. Do not clear — the indicator badge is drawn on top.
-	if o.cachedGrid != nil || len(o.lastHints) > 0 {
-		return
-	}
-
-	o.window.Clear()
 }
 
 // ClearCache invalidates cached grid and hints state so that a subsequent

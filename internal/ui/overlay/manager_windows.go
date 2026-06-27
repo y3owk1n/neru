@@ -24,6 +24,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -40,6 +41,17 @@ type Manager struct {
 
 	renderMu sync.Mutex
 	win      *winOverlay
+
+	// indicatorWin is a small dedicated layered window for the mode
+	// indicator badge. It is created lazily on first use and repositioned
+	// every tick. Keeping it separate from the main overlay avoids the
+	// clear-then-flush blink caused by drawing transient badges into the
+	// shared full-screen pixel buffer.
+	indicatorWin *winplatform.OverlayWindow
+
+	// stickyWin is a small dedicated layered window for the sticky modifiers
+	// indicator badge, same pattern as indicatorWin.
+	stickyWin *winplatform.OverlayWindow
 
 	hintOverlay            *hints.Overlay
 	gridOverlay            *grid.Overlay
@@ -102,6 +114,14 @@ func (m *Manager) Hide() {
 
 	if m.win != nil {
 		m.win.Hide()
+	}
+
+	if m.indicatorWin != nil {
+		m.indicatorWin.Hide()
+	}
+
+	if m.stickyWin != nil {
+		m.stickyWin.Hide()
 	}
 }
 
@@ -190,6 +210,16 @@ func (m *Manager) Destroy() {
 	if m.win != nil {
 		m.win.Destroy()
 		m.win = nil
+	}
+
+	if m.indicatorWin != nil {
+		m.indicatorWin.Destroy()
+		m.indicatorWin = nil
+	}
+
+	if m.stickyWin != nil {
+		m.stickyWin.Destroy()
+		m.stickyWin = nil
 	}
 }
 
@@ -363,7 +393,10 @@ func (m *Manager) HideHintSearchInput() {
 	}
 }
 
-// DrawModeIndicator renders a mode indicator badge on the Windows overlay.
+// DrawModeIndicator renders a mode indicator badge in its own dedicated
+// layered window that repositions every tick to follow the cursor. This
+// avoids the clear-then-flush blink that occurs when drawing transient
+// badges into the shared full-screen overlay pixel buffer.
 func (m *Manager) DrawModeIndicator(x, y int) {
 	if m.modeIndicatorOverlay == nil {
 		return
@@ -383,24 +416,6 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	m.ensureWinOverlayLocked()
-
-	if m.win == nil {
-		return
-	}
-
-	m.win.Resize()
-
-	// Clear stale indicator badges from the pixel buffer before drawing the
-	// new one. In grid/hints mode the buffer already contains the rendered
-	// content, so clearForIndicator() is a no-op and the badge draws on top.
-	// In scroll mode the buffer is cleared so only the current badge is shown.
-	m.win.clearForIndicator()
-	// EnsureVisible makes the HWND visible without flushing, avoiding the
-	// blink that Show()'s intermediate flush would cause. The single
-	// flushOverlay() below composites the badge and sends the frame.
-	m.win.EnsureVisible()
-
 	offsetX := cfg.UI.IndicatorXOffset
 	offsetY := cfg.UI.IndicatorYOffset
 	fontSize := float64(max(cfg.UI.FontSize, 1))
@@ -409,11 +424,35 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 	paddingY := resolveWinAutoPadding(fontSize, cfg.UI.PaddingY, false)
 	badgeWidth := estimateWinTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
 	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	borderWidth := max(cfg.UI.BorderWidth, 0)
 
-	bounds := image.Rect(
-		x+offsetX, y+offsetY,
-		x+offsetX+badgeWidth, y+offsetY+badgeHeight,
-	)
+	posX := x + offsetX - borderWidth
+	posY := y + offsetY - borderWidth
+	sizeX := badgeWidth + borderWidth*2
+	sizeY := badgeHeight + borderWidth*2
+
+	// Lazily create the small indicator overlay window.
+	if m.indicatorWin == nil || !m.indicatorWin.Healthy() {
+		if m.indicatorWin != nil {
+			m.indicatorWin.Destroy()
+		}
+
+		win, err := winplatform.NewOverlayWindowAt(posX, posY, sizeX, sizeY)
+		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("failed to create indicator overlay window", zap.Error(err))
+			}
+
+			return
+		}
+
+		m.indicatorWin = win
+	} else {
+		_ = m.indicatorWin.ResizeTo(posX, posY, sizeX, sizeY)
+	}
+
+	// Clear and draw the badge into the small window.
+	m.indicatorWin.Clear()
 
 	modeCfg := m.modeIndicatorOverlay.ModeConfig(string(mode))
 	bgColor := modeCfg.BackgroundColor.ForThemeWithOverride(
@@ -434,28 +473,27 @@ func (m *Manager) DrawModeIndicator(x, y int) {
 		config.ModeIndicatorBorderColorLight,
 		config.ModeIndicatorBorderColorDark,
 	)
-	borderWidth := cfg.UI.BorderWidth
 
-	m.win.drawFilledRect(
-		bounds,
-		parseHexColorARGB(bgColor),
-		parseHexColorARGB(borderColor),
-		float64(max(borderWidth, 0)),
-	)
-	m.win.drawTextCentered(
+	badgeBounds := image.Rect(borderWidth, borderWidth, badgeWidth+borderWidth, badgeHeight+borderWidth)
+
+	m.indicatorWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+	if borderWidth > 0 {
+		m.indicatorWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
+	}
+	m.indicatorWin.DrawTextCentered(
 		label,
-		bounds,
+		badgeBounds,
 		ports.ResolveFont(cfg.UI.FontFamily, true),
 		fontSize,
 		parseHexColorARGB(textColor),
 	)
 
-	// Flush the indicator onto the pixel buffer. Show() was already called
-	// above if needed; now we just flush so the indicator is visible.
-	m.win.flushOverlay("mode-indicator")
+	m.indicatorWin.Show()
 }
 
-// DrawStickyModifiersIndicator renders a sticky modifiers indicator badge on the Windows overlay.
+// DrawStickyModifiersIndicator renders a sticky modifiers indicator badge in
+// its own dedicated layered window, following the cursor without touching the
+// shared overlay.
 func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	if m.stickyModifiersOverlay == nil || symbols == "" {
 		return
@@ -468,24 +506,40 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	paddingY := resolveWinAutoPadding(fontSize, ui.PaddingY, false)
 	badgeWidth := estimateWinTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
 	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	borderWidth := max(ui.BorderWidth, 0)
 
-	bounds := image.Rect(
-		x+ui.IndicatorXOffset, y+ui.IndicatorYOffset,
-		x+ui.IndicatorXOffset+badgeWidth, y+ui.IndicatorYOffset+badgeHeight,
-	)
+	offsetX := ui.IndicatorXOffset
+	offsetY := ui.IndicatorYOffset
+
+	posX := x + offsetX - borderWidth
+	posY := y + offsetY - borderWidth
+	sizeX := badgeWidth + borderWidth*2
+	sizeY := badgeHeight + borderWidth*2
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	m.ensureWinOverlayLocked()
+	// Lazily create the small sticky overlay window.
+	if m.stickyWin == nil || !m.stickyWin.Healthy() {
+		if m.stickyWin != nil {
+			m.stickyWin.Destroy()
+		}
 
-	if m.win == nil {
-		return
+		win, err := winplatform.NewOverlayWindowAt(posX, posY, sizeX, sizeY)
+		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("failed to create sticky overlay window", zap.Error(err))
+			}
+
+			return
+		}
+
+		m.stickyWin = win
+	} else {
+		_ = m.stickyWin.ResizeTo(posX, posY, sizeX, sizeY)
 	}
 
-	// Clear stale indicator badges before drawing the new one.
-	m.win.clearForIndicator()
-	m.win.EnsureVisible()
+	m.stickyWin.Clear()
 
 	bgColor := ui.BackgroundColor.ForTheme(
 		m.stickyModifiersOverlay.Theme(),
@@ -503,24 +557,21 @@ func (m *Manager) DrawStickyModifiersIndicator(x, y int, symbols string) {
 		config.StickyModifiersBorderColorDark,
 	)
 
-	m.win.drawFilledRect(
-		bounds,
-		parseHexColorARGB(bgColor),
-		parseHexColorARGB(borderColor),
-		float64(max(ui.BorderWidth, 0)),
-	)
-	m.win.drawTextCentered(
+	badgeBounds := image.Rect(borderWidth, borderWidth, badgeWidth+borderWidth, badgeHeight+borderWidth)
+
+	m.stickyWin.FillRect(badgeBounds, parseHexColorARGB(bgColor))
+	if borderWidth > 0 {
+		m.stickyWin.StrokeRect(badgeBounds, parseHexColorARGB(borderColor), float64(borderWidth))
+	}
+	m.stickyWin.DrawTextCentered(
 		symbols,
-		bounds,
+		badgeBounds,
 		ports.ResolveFont(ui.FontFamily, false),
 		fontSize,
 		parseHexColorARGB(textColor),
 	)
 
-	// Flush the indicator onto the pixel buffer. Show() was already called
-	// above to make the window visible; now we just flush so the indicator
-	// is visible immediately.
-	m.win.flushOverlay("sticky-indicator")
+	m.stickyWin.Show()
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator on the Windows overlay.

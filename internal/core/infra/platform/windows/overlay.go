@@ -460,6 +460,81 @@ func (o *OverlayWindow) ResizeToActiveScreen() error {
 	return nil
 }
 
+// NewOverlayWindowAt creates a layered overlay at the given screen position and
+// size. Used for small transient windows like the mode indicator badge.
+func NewOverlayWindowAt(x, y, width, height int) (*OverlayWindow, error) {
+	if width <= 0 || height <= 0 {
+		return nil, fmt.Errorf("%w: %dx%d", errInvalidOverlayBounds, width, height)
+	}
+
+	err := registerOverlayWindowClass()
+	if err != nil {
+		return nil, err
+	}
+
+	overlay := &OverlayWindow{
+		bounds: image.Rect(x, y, x+width, y+height),
+	}
+
+	var createErr error
+
+	runOnOverlayUI(func() {
+		createErr = overlay.createHWNDLocked()
+	})
+
+	if createErr != nil {
+		return nil, createErr
+	}
+
+	return overlay, nil
+}
+
+// ResizeTo repositions and resizes the overlay window to the given screen
+// coordinates and dimensions, reallocating the pixel buffer as needed.
+func (o *OverlayWindow) ResizeTo(x, y, width, height int) error {
+	if o == nil {
+		return errOverlayNil
+	}
+
+	if width <= 0 || height <= 0 {
+		return fmt.Errorf("%w: %dx%d", errInvalidOverlayBounds, width, height)
+	}
+
+	o.mu.Lock()
+	o.bounds = image.Rect(x, y, x+width, y+height)
+	o.width = width
+	o.height = height
+	o.dirty = true
+	o.mu.Unlock()
+
+	if o.hwnd == 0 {
+		return nil
+	}
+
+	runOnOverlayUI(func() {
+		o.mu.Lock()
+		o.pixels = make([]byte, o.width*o.height*bytesPerPixel)
+		o.mu.Unlock()
+
+		flags := uintptr(swpNoActivate)
+		if o.visible {
+			flags |= swpShowWindow
+		}
+
+		discardCall(procSetWindowPos.Call(
+			uintptr(o.hwnd),
+			hwndTopMost,
+			uintptr(x),
+			uintptr(y),
+			uintptr(width),
+			uintptr(height),
+			flags,
+		))
+	})
+
+	return nil
+}
+
 // Destroy releases native overlay resources.
 func (o *OverlayWindow) Destroy() {
 	if o == nil {
