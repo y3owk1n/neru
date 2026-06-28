@@ -669,14 +669,24 @@ int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay) {
 	if (!overlay || !overlay->display)
 		return -1;
 
-	struct pollfd pfd = {.fd = wl_display_get_fd(overlay->display), .events = POLLIN, .revents = 0};
+	struct wl_display *display = overlay->display;
+
+	while (wl_display_prepare_read(display) != 0) {
+		wl_display_dispatch_pending(display);
+	}
+
+	wl_display_flush(display);
+
+	struct pollfd pfd = {.fd = wl_display_get_fd(display), .events = POLLIN, .revents = 0};
 
 	int ret = poll(&pfd, 1, 0);
 	if (ret > 0 && (pfd.revents & POLLIN)) {
-		wl_display_dispatch(overlay->display);
+		wl_display_read_events(display);
 	} else {
-		wl_display_dispatch_pending(overlay->display);
+		wl_display_cancel_read(display);
 	}
+
+	wl_display_dispatch_pending(display);
 	return ret;
 }
 
