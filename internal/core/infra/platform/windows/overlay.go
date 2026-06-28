@@ -1066,9 +1066,9 @@ func alphaFillRoundedRect(
 	centerY := float64(rect.Min.Y) + halfH
 
 	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y+1, bufH)
+	endY := clamp(rect.Max.Y, bufH)
 	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X+1, bufW)
+	endX := clamp(rect.Max.X, bufW)
 
 	// Inner region is fully inside the rounded rect (no SDF needed).
 	innerMinX := float64(rect.Min.X) + radius
@@ -1082,10 +1082,10 @@ func alphaFillRoundedRect(
 
 	for y := startY; y < endY; y++ {
 		row := y * bufW * bytesPerPixel
-		floatY := float64(y)
+		floatY := float64(y) + 0.5
 
 		for col := startX; col < endX; col++ {
-			floatX := float64(col)
+			floatX := float64(col) + 0.5
 
 			// Fast path: pixel is well inside the rounded rect.
 			if floatX >= innerMinX && floatX <= innerMaxX && floatY >= innerMinY &&
@@ -1163,15 +1163,15 @@ func alphaStrokeRoundedRect(
 	innerHalfH := math.Max(halfH-strokeW, 0)
 
 	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y+1, bufH)
+	endY := clamp(rect.Max.Y, bufH)
 	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X+1, bufW)
+	endX := clamp(rect.Max.X, bufW)
 
 	for y := startY; y < endY; y++ {
 		row := y * bufW * bytesPerPixel
 		for col := startX; col < endX; col++ {
-			relX := float64(col) - centerX
-			relY := float64(y) - centerY
+			relX := float64(col) + 0.5 - centerX
+			relY := float64(y) + 0.5 - centerY
 
 			dOuter := sdRoundedBox(relX, relY, halfW, halfH, radius)
 			if dOuter > 1 {
