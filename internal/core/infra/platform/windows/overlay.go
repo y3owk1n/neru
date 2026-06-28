@@ -1121,9 +1121,9 @@ func alphaFillRoundedRect(
 			dstR := uint32(pixels[idx+2])
 			dstA := uint32(pixels[idx+3])
 
-			pixels[idx] = byte((colR*pixelAlpha + dstB*invA) / alphaMax)
+			pixels[idx] = byte((colB*pixelAlpha + dstB*invA) / alphaMax)
 			pixels[idx+1] = byte((colG*pixelAlpha + dstG*invA) / alphaMax)
-			pixels[idx+2] = byte((colB*pixelAlpha + dstR*invA) / alphaMax)
+			pixels[idx+2] = byte((colR*pixelAlpha + dstR*invA) / alphaMax)
 			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
 		}
 	}
