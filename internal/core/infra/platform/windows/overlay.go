@@ -607,6 +607,46 @@ func (o *OverlayWindow) DrawTextCentered(
 	o.mu.Unlock()
 }
 
+// CompositeCurrent composites all queued draw commands into the pixel buffer
+// in-place and clears the command queues. Use this when you need to render
+// each object as an atomic unit (e.g. per-hint) so that later objects render
+// fully on top of earlier ones, avoiding fill/stroke/text batching across
+// objects. Call Flush() at the end to present the final buffer.
+func (o *OverlayWindow) CompositeCurrent() {
+	if o == nil {
+		return
+	}
+
+	o.mu.Lock()
+	fills := append([]rectFill(nil), o.fills...)
+	strokes := append([]rectStroke(nil), o.strokes...)
+	texts := append([]textDraw(nil), o.texts...)
+	o.fills = o.fills[:0]
+	o.strokes = o.strokes[:0]
+	o.texts = o.texts[:0]
+	o.mu.Unlock()
+
+	for _, f := range fills {
+		if f.radius > 0 {
+			alphaFillRoundedRect(o.pixels, o.width, o.height, f.rect, f.radius, f.color)
+		} else {
+			alphaFillRect(o.pixels, o.width, o.height, f.rect, f.color)
+		}
+	}
+
+	for _, s := range strokes {
+		if s.radius > 0 {
+			alphaStrokeRoundedRect(o.pixels, o.width, o.height, s.rect, s.radius, s.color, s.width)
+		} else {
+			alphaStrokeRect(o.pixels, o.width, o.height, s.rect, s.color, s.width)
+		}
+	}
+
+	for _, t := range texts {
+		renderTextAlphaInto(o.pixels, o.width, o.height, t)
+	}
+}
+
 // Flush composites all queued draw commands into the pixel buffer and presents
 // them via UpdateLayeredWindow.
 func (o *OverlayWindow) Flush() error {

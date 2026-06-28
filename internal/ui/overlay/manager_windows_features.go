@@ -44,6 +44,9 @@ const (
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
 // software renderer: an element-sized box per hint with a centered label.
+// Each hint is rendered as an atomic unit (fill + stroke + text) so that
+// overlapping hints have correct Z-ordering — later hints are fully on top of
+// earlier ones, matching macOS behavior.
 func (o *winOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
@@ -84,15 +87,18 @@ func (o *winOverlay) DrawHints(
 				hint.Position().X+hint.Size().X/2,
 				hint.Position().Y+hint.Size().Y/2,
 			)
-			o.drawFilledRect(
-				boundary,
-				parseHexColorARGB(style.BoundaryBackgroundColor()),
-				parseHexColorARGB(style.BoundaryBorderColor()),
-				float64(max(style.BoundaryBorderWidth(), 0)),
-				resolveWinBorderRadius(
-					style.BoundaryBorderRadius(), boundary, winAutoRadiusBoundaryCap,
-				),
+			bdr := resolveWinBorderRadius(
+				style.BoundaryBorderRadius(), boundary, winAutoRadiusBoundaryCap,
 			)
+			o.window.FillRoundedRect(
+				boundary, bdr, parseHexColorARGB(style.BoundaryBackgroundColor()),
+			)
+
+			if bw := float64(max(style.BoundaryBorderWidth(), 0)); bw > 0 {
+				o.window.StrokeRoundedRect(
+					boundary, bdr, parseHexColorARGB(style.BoundaryBorderColor()), bw,
+				)
+			}
 		}
 
 		// Size the badge to the label text, not the element. hint.Size() is the
@@ -117,20 +123,28 @@ func (o *winOverlay) DrawHints(
 			textColor = style.MatchedTextColor()
 		}
 
-		o.drawFilledRect(
-			bounds,
-			parseHexColorARGB(style.BackgroundColor()),
-			parseHexColorARGB(style.BorderColor()),
-			float64(max(style.BorderWidth(), 0)),
-			resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap),
+		bdr := resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap)
+		o.window.FillRoundedRect(
+			bounds, bdr, parseHexColorARGB(style.BackgroundColor()),
 		)
-		o.drawTextCentered(
+
+		if bw := float64(max(style.BorderWidth(), 0)); bw > 0 {
+			o.window.StrokeRoundedRect(
+				bounds, bdr, parseHexColorARGB(style.BorderColor()), bw,
+			)
+		}
+
+		o.window.DrawTextCentered(
 			hint.Label(),
 			bounds,
 			ports.ResolveFont(style.FontFamily(), false),
 			fontSize,
 			parseHexColorARGB(textColor),
 		)
+
+		// Composite this hint atomically so its content lands as a unit,
+		// giving correct Z-ordering with overlapping hints.
+		o.window.CompositeCurrent()
 	}
 
 	o.flushOverlay("hints")
