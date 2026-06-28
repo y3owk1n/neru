@@ -49,24 +49,24 @@ jobs:
                     libei-dev \
                     liboeffis-dev
 
-            # Install Devbox on macOS and Linux only
+            # Install Devbox on macOS only
             - name: Install Devbox
-              if: runner.os != 'Windows'
+              if: runner.os == 'macOS'
               uses: jetify-com/devbox-install-action@v0.15.0
               with:
                   enable-cache: true
 
-            # Install Go directly on Windows
-            - name: Setup Go (Windows)
-              if: runner.os == 'Windows'
+            # Install Go directly on Windows & Linux
+            - name: Setup Go
+              if: runner.os == 'Windows' || runner.os == 'Linux'
               uses: actions/setup-go@v6
               with:
                   go-version-file: "go.mod"
                   cache: true
 
-            # Install Golangci directly on Windows (install only, lint step runs it)
-            - name: Setup Golangci (Windows)
-              if: matrix.check == 'lint' && runner.os == 'Windows'
+            # Install Golangci directly on Windows & Linux (install only, lint step runs it)
+            - name: Setup Golangci
+              if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
               uses: golangci/golangci-lint-action@v9
               with:
                   version: v2.11.3
@@ -79,42 +79,47 @@ jobs:
                   choco install just -y
               shell: pwsh
 
-            # Run checks with Devbox on macOS and Linux
+            # Install just on Linux
+            - name: Install just (Linux)
+              if: runner.os == 'Linux'
+              uses: extractions/setup-just@v4
+
+            # Run checks with Devbox on macOS
             - name: Run just lint
-              if: matrix.check == 'lint' && runner.os != 'Windows'
+              if: matrix.check == 'lint' && runner.os == 'macOS'
               run: devbox run -- just lint
 
             - name: Run just fmt-check
-              if: matrix.check == 'formatting' && runner.os != 'Windows'
+              if: matrix.check == 'formatting' && runner.os == 'macOS'
               run: devbox run -- just fmt-check
 
             - name: Run just vet
-              if: matrix.check == 'vet' && runner.os != 'Windows'
+              if: matrix.check == 'vet' && runner.os == 'macOS'
               run: devbox run -- just vet
 
             - name: Run just build
-              if: matrix.check == 'build' && runner.os != 'Windows'
+              if: matrix.check == 'build' && runner.os == 'macOS'
               run: devbox run -- just build
 
             - name: Run just test-all
-              if: matrix.check == 'test' && runner.os != 'Windows'
+              if: matrix.check == 'test' && runner.os == 'macOS'
               run: devbox run -- just test-all
 
-            # Run checks directly on Windows
-            - name: Run just lint (Windows)
-              if: matrix.check == 'lint' && runner.os == 'Windows'
+            # Run checks directly on Windows & Linux
+            - name: Run just lint (native)
+              if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just lint
 
-            - name: Run just vet (Windows)
-              if: matrix.check == 'vet' && runner.os == 'Windows'
+            - name: Run just vet (native)
+              if: matrix.check == 'vet' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just vet
 
-            - name: Run just build (Windows)
-              if: matrix.check == 'build' && runner.os == 'Windows'
+            - name: Run just build (native)
+              if: matrix.check == 'build' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just build
               shell: bash
 
-            - name: Run just test-all (Windows)
-              if: matrix.check == 'test' && runner.os == 'Windows'
+            - name: Run just test-all (native)
+              if: matrix.check == 'test' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just test-all
               shell: bash
