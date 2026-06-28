@@ -55,6 +55,9 @@ const (
 	// Windows sRGB color space identifier ('Win ').
 	colorSpaceWinRGB = 0x206E6957
 
+	// Half-pixel offset for SDF sample points to match the pixel-as-area model.
+	pixelHalf = 0.5
+
 	// ARGB compositing constants.
 	alphaMax = 255
 
@@ -1082,10 +1085,10 @@ func alphaFillRoundedRect(
 
 	for y := startY; y < endY; y++ {
 		row := y * bufW * bytesPerPixel
-		floatY := float64(y) + 0.5
+		floatY := float64(y) + pixelHalf
 
 		for col := startX; col < endX; col++ {
-			floatX := float64(col) + 0.5
+			floatX := float64(col) + pixelHalf
 
 			// Fast path: pixel is well inside the rounded rect.
 			if floatX >= innerMinX && floatX <= innerMaxX && floatY >= innerMinY &&
@@ -1170,8 +1173,8 @@ func alphaStrokeRoundedRect(
 	for y := startY; y < endY; y++ {
 		row := y * bufW * bytesPerPixel
 		for col := startX; col < endX; col++ {
-			relX := float64(col) + 0.5 - centerX
-			relY := float64(y) + 0.5 - centerY
+			relX := float64(col) + pixelHalf - centerX
+			relY := float64(y) + pixelHalf - centerY
 
 			dOuter := sdRoundedBox(relX, relY, halfW, halfH, radius)
 			if dOuter > 1 {
