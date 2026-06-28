@@ -1066,9 +1066,9 @@ func alphaFillRoundedRect(
 	centerY := float64(rect.Min.Y) + halfH
 
 	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y, bufH)
+	endY := clamp(rect.Max.Y+1, bufH)
 	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X, bufW)
+	endX := clamp(rect.Max.X+1, bufW)
 
 	// Inner region is fully inside the rounded rect (no SDF needed).
 	innerMinX := float64(rect.Min.X) + radius
@@ -1163,9 +1163,9 @@ func alphaStrokeRoundedRect(
 	innerHalfH := math.Max(halfH-strokeW, 0)
 
 	startY := clamp(rect.Min.Y, bufH)
-	endY := clamp(rect.Max.Y, bufH)
+	endY := clamp(rect.Max.Y+1, bufH)
 	startX := clamp(rect.Min.X, bufW)
-	endX := clamp(rect.Max.X, bufW)
+	endX := clamp(rect.Max.X+1, bufW)
 
 	for y := startY; y < endY; y++ {
 		row := y * bufW * bytesPerPixel
