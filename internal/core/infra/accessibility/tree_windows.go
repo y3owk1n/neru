@@ -72,9 +72,7 @@ func (n *TreeNode) FindClickableElements(
 		}
 
 		if node.info != nil && node.info.clickable {
-			if len(keptRoles) == 0 {
-				out = append(out, node)
-			} else if _, ok := keptRoles[node.info.role]; ok {
+			if windowsRoleMatchesFilter(node.info.role, keptRoles) {
 				out = append(out, node)
 			}
 		}
@@ -173,3 +171,43 @@ func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
 
 // ReleaseTree is a no-op: Windows nodes hold no live COM references.
 func ReleaseTree(_ *TreeNode) {}
+
+// windowsUIAToAXRole maps legacy UIA control-type names that may still appear
+// in user configs to the AX-style roles assigned during enumeration.
+var windowsUIAToAXRole = map[string]string{
+	"Button":      "AXButton",
+	"CheckBox":    "AXCheckBox",
+	"RadioButton": "AXRadioButton",
+	"Hyperlink":   "AXLink",
+	"ComboBox":    "AXComboBox",
+	"Edit":        "AXTextField",
+	"Slider":      "AXSlider",
+	"TabItem":     "AXTabButton",
+	"MenuItem":    "AXMenuItem",
+	"DataItem":    "AXCell",
+	"ListItem":    "AXCell",
+	"TreeItem":    "AXRow",
+	"Spinner":     "AXIncrementor",
+	"SplitButton": "AXButton",
+}
+
+// windowsRoleMatchesFilter reports whether elementRole satisfies keptRoles.
+// An empty keptRoles set accepts every clickable element. Configured roles
+// may use either AX-style names or legacy UIA control-type names.
+func windowsRoleMatchesFilter(elementRole string, keptRoles map[string]struct{}) bool {
+	if len(keptRoles) == 0 {
+		return true
+	}
+
+	if _, ok := keptRoles[elementRole]; ok {
+		return true
+	}
+
+	for configRole := range keptRoles {
+		if axRole, ok := windowsUIAToAXRole[configRole]; ok && axRole == elementRole {
+			return true
+		}
+	}
+
+	return false
+}

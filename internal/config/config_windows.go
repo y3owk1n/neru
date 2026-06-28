@@ -13,17 +13,21 @@ func applyPlatformDefaults(cfg *Config) {
 	cfg.General.ExecShell = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
 	cfg.General.ExecShellArgs = []string{"/c"}
 
-	// UIA control type roles for clickable elements
+	// AX-style roles produced by the Windows UI Automation enumerator
+	// (see mapControlType in uia_windows.go). These must match the roles
+	// assigned during element discovery, not the raw UIA control type names.
 	cfg.Hints.ClickableRoles = append(cfg.Hints.ClickableRoles,
-		"Button",
-		"CheckBox",
-		"RadioButton",
-		"Hyperlink",
-		"ComboBox",
-		"Edit",
-		"Slider",
-		"TabItem",
-		"MenuItem",
-		"DataItem",
+		"AXButton",
+		"AXCheckBox",
+		"AXRadioButton",
+		"AXLink",
+		"AXComboBox",
+		"AXTextField",
+		"AXSlider",
+		"AXTabButton",
+		"AXMenuItem",
+		"AXCell",
+		"AXRow",
+		"AXIncrementor",
 	)
 }
