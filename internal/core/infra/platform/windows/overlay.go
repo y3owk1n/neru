@@ -618,13 +618,14 @@ func (o *OverlayWindow) CompositeCurrent() {
 	}
 
 	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	fills := append([]rectFill(nil), o.fills...)
 	strokes := append([]rectStroke(nil), o.strokes...)
 	texts := append([]textDraw(nil), o.texts...)
 	o.fills = o.fills[:0]
 	o.strokes = o.strokes[:0]
 	o.texts = o.texts[:0]
-	o.mu.Unlock()
 
 	for _, f := range fills {
 		if f.radius > 0 {
