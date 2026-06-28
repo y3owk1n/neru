@@ -32,13 +32,13 @@ jobs:
 
             # Install Devbox on macOS and Linux only
             - name: Install Devbox
-              if: runner.os != 'macOS'
+              if: runner.os != 'Windows'
               uses: jetify-com/devbox-install-action@v0.15.0
               with:
                   enable-cache: true
 
             # Install Go directly on Windows
-            - name: Setup Go
+            - name: Setup Go (Windows)
               if: runner.os == 'Windows'
               uses: actions/setup-go@v6
               with:
@@ -46,8 +46,8 @@ jobs:
                   cache: true
 
             # Install Golangci directly on Windows (install only, lint step runs it)
-            - name: Setup Golangci
-              if: matrix.check == 'lint' && (runner.os == 'Windows')
+            - name: Setup Golangci (Windows)
+              if: matrix.check == 'lint' && runner.os == 'Windows'
               uses: golangci/golangci-lint-action@v9
               with:
                   version: v2.11.3
