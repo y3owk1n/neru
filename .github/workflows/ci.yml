@@ -30,6 +30,25 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
 
+            # Install Linux system dependencies (Wayland, X11, Cairo, etc.)
+            # Devbox doesn't pull *-dev outputs (https://github.com/jetify-com/devbox/issues/2761)
+            - name: Install Linux system dependencies
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libcairo2-dev \
+                    libwayland-dev \
+                    libx11-dev \
+                    libxtst-dev \
+                    libxrandr-dev \
+                    libxinerama-dev \
+                    libxfixes-dev \
+                    libxkbcommon-dev \
+                    wayland-protocols \
+                    libei-dev \
+                    liboeffis-dev
+
             # Install Devbox on macOS and Linux only
             - name: Install Devbox
               if: runner.os != 'Windows'
