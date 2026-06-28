@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 func TestEstimateWinTextWidth(t *testing.T) {
@@ -130,6 +131,8 @@ func TestParseHexColorARGB(t *testing.T) {
 		want  uint32
 	}{
 		{"full argb", "80FF0000", 0x80FF0000},
+		{"hints light background", config.HintsBackgroundColorLight, 0xF2EEF2FF},
+		{"hints dark background", config.HintsBackgroundColorDark, 0xF20A1338},
 		{"rgb no alpha gets opaque", "#FF0000", 0xFFFF0000},
 		{"short form expands", "#F00", 0xFFFF0000},
 		{"short form mixed", "#abc", 0xFFAABBCC},

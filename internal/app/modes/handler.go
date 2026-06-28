@@ -473,7 +473,10 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 		)
 	}
 
-	drawHintsErr := h.renderer.DrawHints(overlayHints)
+	drawHintsErr := h.overlayManager.DrawHintsWithStyle(
+		overlayHints,
+		h.currentHintStyleLocked(),
+	)
 	if drawHintsErr != nil {
 		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
 

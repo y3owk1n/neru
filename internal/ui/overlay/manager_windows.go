@@ -342,6 +342,12 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		)
 	}
 
+	// Match the infra adapter and mode-indicator paths: rebuild from the hints
+	// overlay config when the caller passed an empty style (e.g. stale cache).
+	if style.BackgroundColor() == "" && m.hintOverlay != nil {
+		style = hints.BuildStyle(m.hintOverlay.Config(), nil)
+	}
+
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
 	m.win.DrawHints(hintsSlice, style)
