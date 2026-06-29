@@ -414,9 +414,17 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 		bundleID, bundleIDErr = a.actionService.FocusedAppBundleID(ctx)
 		if bundleIDErr != nil {
-			a.logger.Warn("Failed to get focused app bundle ID", zap.Error(bundleIDErr))
+			// Fail open: when the focused app can't be determined (always the
+			// case on Linux, where there is no accessibility focus API), fall
+			// through with an empty bundle ID so global hotkeys still register.
+			// An empty bundle ID is never excluded, and the next focus event
+			// re-evaluates per-app exclusion on platforms that support it.
+			a.logger.Warn(
+				"Failed to get focused app bundle ID; registering global hotkeys without per-app exclusion",
+				zap.Error(bundleIDErr),
+			)
 
-			return
+			bundleID = ""
 		}
 	}
 

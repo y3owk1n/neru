@@ -163,6 +163,7 @@ func (et *EventTap) Disable() {
 	et.mu.Unlock()
 
 	close(stopCh)
+
 	<-doneCh
 
 	// Bump the dispatch epoch so any in-flight event that dispatchLoop

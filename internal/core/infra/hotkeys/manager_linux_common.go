@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
 
@@ -24,6 +25,11 @@ type Manager struct {
 	nextID    HotkeyID
 	backend   platform.LinuxBackend
 	mu        sync.RWMutex
+
+	// waylandHotkeys honors config keybindings on Wayland via passive evdev
+	// reads, since compositors do not expose global hotkeys to clients.
+	waylandHotkeys *eventtap.GlobalHotkeyListener
+	waylandStarted bool
 }
 
 // NewManager creates and initializes a new hotkey manager instance.
@@ -32,12 +38,30 @@ func NewManager(logger *zap.Logger) *Manager {
 		logger = zap.NewNop()
 	}
 
-	return &Manager{
+	mgr := &Manager{
 		callbacks: make(map[HotkeyID]Callback),
 		keys:      make(map[HotkeyID]string),
 		logger:    logger.Named("hotkeys"),
 		nextID:    1,
 		backend:   platformBackend(),
+	}
+
+	if isWaylandBackend(mgr.backend) {
+		mgr.waylandHotkeys = eventtap.NewGlobalHotkeyListener(logger)
+	}
+
+	return mgr
+}
+
+func isWaylandBackend(backend platform.LinuxBackend) bool {
+	switch backend {
+	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE,
+		platform.BackendWaylandGNOME, platform.BackendWaylandOther:
+		return true
+	case platform.BackendUnknown, platform.BackendX11:
+		return false
+	default:
+		return false
 	}
 }
 
@@ -60,17 +84,10 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 
 			return 0, err
 		}
-	case platform.BackendWaylandWlroots:
-		m.logger.Info(
-			"Running on Wayland: global hotkeys are unavailable inside Neru. Bind `neru <mode>` in your compositor config instead.",
-			zap.String("key", keyString),
-		)
-	case platform.BackendWaylandGNOME, platform.BackendWaylandKDE, platform.BackendWaylandOther:
-		m.logger.Info(
-			"Linux hotkey registration stored, but native Wayland global hotkeys are not implemented for this compositor.",
-			zap.String("key", keyString),
-			zap.String("backend", m.backend.String()),
-		)
+	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE,
+		platform.BackendWaylandGNOME, platform.BackendWaylandOther:
+		m.rebuildWaylandBindings()
+		m.ensureWaylandStarted()
 	case platform.BackendUnknown:
 		m.logger.Debug(
 			"Registering hotkey in Linux manager",
@@ -99,6 +116,14 @@ func (m *Manager) Unregister(hotkeyID HotkeyID) {
 
 	delete(m.callbacks, hotkeyID)
 	delete(m.keys, hotkeyID)
+
+	if isWaylandBackend(m.backend) {
+		m.rebuildWaylandBindings()
+
+		if len(m.callbacks) == 0 {
+			m.stopWayland()
+		}
+	}
 }
 
 // UnregisterAll removes all currently registered hotkeys (Linux stub).
@@ -112,6 +137,56 @@ func (m *Manager) UnregisterAll() {
 
 	m.callbacks = make(map[HotkeyID]Callback)
 	m.keys = make(map[HotkeyID]string)
+
+	if isWaylandBackend(m.backend) {
+		m.stopWayland()
+	}
+}
+
+// rebuildWaylandBindings re-syncs the evdev listener with the current set of
+// registered hotkeys. Callers must hold m.mu.
+func (m *Manager) rebuildWaylandBindings() {
+	if m.waylandHotkeys == nil {
+		return
+	}
+
+	m.waylandHotkeys.ClearBindings()
+
+	for id, key := range m.keys {
+		m.waylandHotkeys.SetBinding(key, m.callbacks[id])
+	}
+}
+
+// ensureWaylandStarted lazily starts the evdev listener on first registration.
+// Callers must hold m.mu.
+func (m *Manager) ensureWaylandStarted() {
+	if m.waylandHotkeys == nil || m.waylandStarted {
+		return
+	}
+
+	err := m.waylandHotkeys.Start()
+	if err != nil {
+		m.logger.Warn(
+			"Wayland global hotkeys unavailable; grant read access to /dev/input "+
+				"(add your user to the `input` group) or bind `neru <mode>` in your compositor instead",
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	m.waylandStarted = true
+
+	m.logger.Info("Wayland global hotkeys enabled via evdev; config keybindings are active")
+}
+
+func (m *Manager) stopWayland() {
+	if m.waylandHotkeys == nil || !m.waylandStarted {
+		return
+	}
+
+	m.waylandHotkeys.Stop()
+	m.waylandStarted = false
 }
 
 // SetGlobalManager assigns the global manager instance (Linux stub).

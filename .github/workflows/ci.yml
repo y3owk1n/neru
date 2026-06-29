@@ -30,8 +30,9 @@ jobs:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
 
-            # Install Linux-only build dependencies for CGo backends
-            - name: Install Linux build dependencies
+            # Install Linux system dependencies (Wayland, X11, Cairo, etc.)
+            # Devbox doesn't pull *-dev outputs (https://github.com/jetify-com/devbox/issues/2761)
+            - name: Install Linux system dependencies
               if: runner.os == 'Linux'
               run: |
                   sudo apt-get update
@@ -44,7 +45,9 @@ jobs:
                     libxinerama-dev \
                     libxfixes-dev \
                     libxkbcommon-dev \
-                    wayland-protocols
+                    wayland-protocols \
+                    libei-dev \
+                    liboeffis-dev
 
             # Install Devbox on macOS only
             - name: Install Devbox
@@ -82,23 +85,23 @@ jobs:
               uses: extractions/setup-just@v4
 
             # Run checks with Devbox on macOS
-            - name: Run just lint (macOS)
+            - name: Run just lint
               if: matrix.check == 'lint' && runner.os == 'macOS'
               run: devbox run -- just lint
 
-            - name: Run just fmt-check (macOS)
+            - name: Run just fmt-check
               if: matrix.check == 'formatting' && runner.os == 'macOS'
               run: devbox run -- just fmt-check
 
-            - name: Run just vet (macOS)
+            - name: Run just vet
               if: matrix.check == 'vet' && runner.os == 'macOS'
               run: devbox run -- just vet
 
-            - name: Run just build (macOS)
+            - name: Run just build
               if: matrix.check == 'build' && runner.os == 'macOS'
               run: devbox run -- just build
 
-            - name: Run just test-all (macOS)
+            - name: Run just test-all
               if: matrix.check == 'test' && runner.os == 'macOS'
               run: devbox run -- just test-all
 

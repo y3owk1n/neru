@@ -37,11 +37,11 @@ func wlrootsApplicationBundleIdentifier(pid int) string {
 }
 
 func wlrootsMoveMouseToPoint(point image.Point) error {
-	return linux.WlrootsMoveCursorToPoint(point)
+	return linux.WaylandMoveCursorToPoint(point)
 }
 
 func wlrootsCurrentCursorPosition() image.Point {
-	pos, err := linux.WlrootsCursorPosition()
+	pos, err := linux.WaylandCursorPosition()
 	if err != nil {
 		return image.Point{}
 	}
@@ -79,7 +79,7 @@ func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) 
 		return err
 	}
 
-	err = linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, true)
+	err = linux.WaylandButtonEvent(point, linux.WlrBtnLeft, true)
 	if err != nil {
 		_ = wlrootsReleaseModifiers(modifiers)
 
@@ -109,7 +109,7 @@ func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) er
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
 
-	err := linux.WlrootsButtonEvent(point, linux.WlrBtnLeft, false)
+	err := linux.WaylandButtonEvent(point, linux.WlrBtnLeft, false)
 	if err != nil {
 		return err
 	}
@@ -139,13 +139,13 @@ func wlrootsClickButtonAtPoint(
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
 
-	err = linux.WlrootsClick(point, button)
+	err = linux.WaylandClick(point, button)
 	if err != nil {
 		return err
 	}
 
 	if restoreCursor {
-		_ = linux.WlrootsMoveCursorToPoint(original)
+		_ = linux.WaylandMoveCursorToPoint(original)
 	}
 
 	return nil
@@ -153,37 +153,37 @@ func wlrootsClickButtonAtPoint(
 
 func wlrootsPressModifiers(modifiers action.Modifiers) error {
 	if modifiers.Has(action.ModShift) {
-		err := linux.WlrootsModifierEvent("shift", true)
+		err := linux.WaylandModifierEvent("shift", true)
 		if err != nil {
 			return err
 		}
 	}
 
 	if modifiers.Has(action.ModCtrl) {
-		err := linux.WlrootsModifierEvent("ctrl", true)
+		err := linux.WaylandModifierEvent("ctrl", true)
 		if err != nil {
-			_ = linux.WlrootsModifierEvent("shift", false)
+			_ = linux.WaylandModifierEvent("shift", false)
 
 			return err
 		}
 	}
 
 	if modifiers.Has(action.ModAlt) {
-		err := linux.WlrootsModifierEvent("alt", true)
+		err := linux.WaylandModifierEvent("alt", true)
 		if err != nil {
-			_ = linux.WlrootsModifierEvent("ctrl", false)
-			_ = linux.WlrootsModifierEvent("shift", false)
+			_ = linux.WaylandModifierEvent("ctrl", false)
+			_ = linux.WaylandModifierEvent("shift", false)
 
 			return err
 		}
 	}
 
 	if modifiers.Has(action.ModCmd) {
-		err := linux.WlrootsModifierEvent("cmd", true)
+		err := linux.WaylandModifierEvent("cmd", true)
 		if err != nil {
-			_ = linux.WlrootsModifierEvent("alt", false)
-			_ = linux.WlrootsModifierEvent("ctrl", false)
-			_ = linux.WlrootsModifierEvent("shift", false)
+			_ = linux.WaylandModifierEvent("alt", false)
+			_ = linux.WaylandModifierEvent("ctrl", false)
+			_ = linux.WaylandModifierEvent("shift", false)
 
 			return err
 		}
@@ -196,7 +196,7 @@ func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	var firstErr error
 
 	release := func(modifier string) {
-		err := linux.WlrootsModifierEvent(modifier, false)
+		err := linux.WaylandModifierEvent(modifier, false)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -224,7 +224,7 @@ func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 func wlrootsLeftMouseUp() error {
 	modifiers, hadMouseDown := wlrootsMouseDownModifiers()
 
-	err := linux.WlrootsButtonRelease(linux.WlrBtnLeft)
+	err := linux.WaylandButtonRelease(linux.WlrBtnLeft)
 	if err != nil {
 		return err
 	}

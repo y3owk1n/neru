@@ -10,9 +10,9 @@ import (
 // NewSystemPort returns a Linux SystemPort implementation.
 func NewSystemPort() (ports.SystemPort, error) {
 	switch backend := detectLinuxBackend(); backend {
-	case BackendX11, BackendWaylandWlroots:
+	case BackendX11, BackendWaylandWlroots, BackendWaylandKDE:
 		return linux.NewSystemAdapter(backend.String()), nil
-	case BackendUnknown, BackendWaylandGNOME, BackendWaylandKDE, BackendWaylandOther:
+	case BackendUnknown, BackendWaylandGNOME, BackendWaylandOther:
 		return nil, unsupportedLinuxBackendError(backend)
 	default:
 		return nil, unsupportedLinuxBackendError(backend)

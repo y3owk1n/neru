@@ -668,6 +668,17 @@ int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y) {
 	return atomic_load(&c->cursor_initialized);
 }
 
+// Update the cached cursor position when input is injected outside the
+// virtual-pointer protocol (e.g. libei on KDE) so neru_wlr_get_cursor stays
+// consistent with the last known compositor coordinates.
+void neru_wlr_set_cursor(NeruWlrootsClient *c, int x, int y) {
+	if (!c)
+		return;
+	atomic_store(&c->cursor_x, x);
+	atomic_store(&c->cursor_y, y);
+	atomic_store(&c->cursor_initialized, 1);
+}
+
 int neru_wlr_screen_count(NeruWlrootsClient *c) {
 	if (!c)
 		return 0;

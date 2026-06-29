@@ -70,6 +70,9 @@ void neru_wayland_overlay_flush(NeruWaylandOverlay *overlay);
 void neru_wayland_overlay_rect(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, unsigned int fill,
     unsigned int stroke, double stroke_width);
+void neru_wayland_overlay_rounded_rect(
+    NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
+    unsigned int stroke, double stroke_width);
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color);

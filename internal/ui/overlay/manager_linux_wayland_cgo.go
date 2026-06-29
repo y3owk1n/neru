@@ -305,11 +305,11 @@ func (o *wlrootsOverlay) DrawHints(
 			)
 		}
 
-		bounds := image.Rect(
+		bounds := hintLabelBounds(
 			hint.Position().X,
 			hint.Position().Y,
-			hint.Position().X+hint.Size().X,
-			hint.Position().Y+hint.Size().Y,
+			hint.Label(),
+			style,
 		)
 
 		textColor := style.TextColor()
@@ -317,8 +317,9 @@ func (o *wlrootsOverlay) DrawHints(
 			textColor = style.MatchedTextColor()
 		}
 
-		o.drawRect(
+		o.drawRoundedRect(
 			bounds,
+			hintCornerRadius(style.BorderRadius(), bounds.Dy()),
 			parseHexColor(style.BackgroundColor()),
 			parseHexColor(style.BorderColor()),
 			float64(max(style.BorderWidth(), 0)),
@@ -526,6 +527,26 @@ func (o *wlrootsOverlay) drawRect(
 		C.double(bounds.Min.Y),
 		C.double(bounds.Dx()),
 		C.double(bounds.Dy()),
+		C.uint(fill),
+		C.uint(border),
+		C.double(lineWidth),
+	)
+}
+
+func (o *wlrootsOverlay) drawRoundedRect(
+	bounds image.Rectangle,
+	radius float64,
+	fill uint32,
+	border uint32,
+	lineWidth float64,
+) {
+	C.neru_wayland_overlay_rounded_rect(
+		o.raw,
+		C.double(bounds.Min.X),
+		C.double(bounds.Min.Y),
+		C.double(bounds.Dx()),
+		C.double(bounds.Dy()),
+		C.double(radius),
 		C.uint(fill),
 		C.uint(border),
 		C.double(lineWidth),

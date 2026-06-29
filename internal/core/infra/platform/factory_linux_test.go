@@ -29,7 +29,7 @@ func TestNewSystemPort_GNOMEWaylandReturnsHelpfulError(t *testing.T) {
 	}
 }
 
-func TestNewSystemPort_KDEWaylandReturnsHelpfulError(t *testing.T) {
+func TestNewSystemPort_KDEWaylandReturnsSystemPort(t *testing.T) {
 	resetLinuxBackendCache()
 
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
@@ -37,16 +37,16 @@ func TestNewSystemPort_KDEWaylandReturnsHelpfulError(t *testing.T) {
 	t.Setenv("XDG_CURRENT_DESKTOP", "KDE")
 
 	systemPort, err := NewSystemPort()
-	if err == nil {
-		t.Fatal("NewSystemPort() error = nil, want error")
+	if err != nil {
+		t.Fatalf("NewSystemPort() error = %v, want nil", err)
 	}
 
-	if systemPort != nil {
-		t.Fatal("NewSystemPort() systemPort != nil, want nil")
+	if systemPort == nil {
+		t.Fatal("NewSystemPort() systemPort = nil, want non-nil")
 	}
 
-	if !strings.Contains(err.Error(), "KDE") {
-		t.Fatalf("NewSystemPort() error = %q, want mention of KDE", err.Error())
+	if got := systemPort.Capabilities().Platform; got != "linux/wayland-kde" {
+		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-kde")
 	}
 }
 

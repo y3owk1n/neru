@@ -20,7 +20,8 @@ const (
 	BackendWaylandWlroots
 	// BackendWaylandGNOME targets GNOME Wayland, which is not implemented yet.
 	BackendWaylandGNOME
-	// BackendWaylandKDE targets KDE Plasma Wayland, which is not implemented yet.
+	// BackendWaylandKDE targets KDE Plasma Wayland (KWin exposes the same
+	// wlr-style layer-shell and virtual-pointer protocols Neru uses on wlroots).
 	BackendWaylandKDE
 	// BackendWaylandOther means a non-wlroots Wayland compositor was detected.
 	BackendWaylandOther

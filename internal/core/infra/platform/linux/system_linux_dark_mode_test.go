@@ -203,6 +203,24 @@ func TestReadKDEColorScheme(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name: "dark substring in custom scheme name",
+			setup: func(t *testing.T, home string) {
+				t.Helper()
+				writeKDEGlobals(t, primary(home), "DarkMatter")
+			},
+			want:   colorSchemeDark,
+			wantOK: true,
+		},
+		{
+			name: "scheme without dark substring is light",
+			setup: func(t *testing.T, home string) {
+				t.Helper()
+				writeKDEGlobals(t, primary(home), "Custom")
+			},
+			want:   colorSchemeLight,
+			wantOK: true,
+		},
+		{
 			name: "falls back to kdedefaults when primary absent",
 			setup: func(t *testing.T, home string) {
 				t.Helper()

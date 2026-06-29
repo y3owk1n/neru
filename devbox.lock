@@ -609,6 +609,34 @@
         }
       }
     },
+    "libei@1.5.0": {
+      "last_modified": "2026-06-14T16:21:05Z",
+      "resolved": "github:NixOS/nixpkgs/9eac87a12312b8f60dd52e1c6e1a265f6fc7f5fc#libei",
+      "source": "devbox-search",
+      "version": "1.5.0",
+      "systems": {
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ikdd45f9mdzgqqajif1525dpk8fyi9h5-libei-1.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ikdd45f9mdzgqqajif1525dpk8fyi9h5-libei-1.5.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/yk4f9g8y7kyy4schrci5kbvbwbr07jz0-libei-1.5.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/yk4f9g8y7kyy4schrci5kbvbwbr07jz0-libei-1.5.0"
+        }
+      }
+    },
     "libxkbcommon@1.13.1": {
       "last_modified": "2026-04-05T15:42:39Z",
       "resolved": "github:NixOS/nixpkgs/5e11f7acce6c3469bef9df154d78534fa7ae8b6c#libxkbcommon",

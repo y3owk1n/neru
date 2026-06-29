@@ -129,6 +129,16 @@ At the architecture level, the expected split is:
 - `*_linux_common.go`: shared wrapper/fallback layer
 - `*_linux_x11.go`: X11 implementation slot
 - `*_linux_wayland.go`: Wayland/compositor implementation slot
+- `*_linux_wayland_<compositor>.go`: per-compositor sub-slot (e.g. `_wlroots`,
+  `_kde`) when one Wayland family needs a distinct path
+
+Wayland is multi-compositor, so it carries a second, runtime axis on top of the
+compile-time build tags: the `LinuxBackend` family (`linux_backend.go`) detects
+the live compositor (wlroots/KDE/GNOME/other) and the factory + dispatch seams
+route to it. Prefer organizing files by mechanism (shared across DEs) and use a
+compositor sub-slot only for genuinely DE-specific paths. See
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md) for contributor file layout and
+[LINUX-DESKTOPS.md](LINUX-DESKTOPS.md) for per-DE behavior and known issues.
 
 This keeps backend choice out of shared app code and makes implementation slots
 obvious before real Linux work lands.

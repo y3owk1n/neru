@@ -40,6 +40,12 @@ type wlrootsState struct {
 	client  *C.NeruWlrootsClient
 	screens []wlrootsScreen
 	ready   bool
+
+	// hasVirtualPointer reports whether the compositor advertises
+	// zwlr_virtual_pointer_v1. When false (notably KWin/KDE), pointer moves,
+	// clicks, and scrolls are injected through libei / the RemoteDesktop portal
+	// instead (see system_linux_wayland_kde_cgo.go).
+	hasVirtualPointer bool
 }
 
 var globalWlrootsState = &wlrootsState{}
@@ -67,15 +73,12 @@ func ensureWlrootsState() error {
 		)
 	}
 
-	if C.neru_wlr_has_virtual_pointer(client) == 0 { //nolint:nlreturn
-		C.neru_wlr_disconnect(client)
-
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"Wayland compositor does not support zwlr_virtual_pointer_v1 protocol; "+
-				"this protocol is required and is provided by wlroots-based compositors (Sway, Hyprland, niri, River)",
-		)
-	}
+	// zwlr_virtual_pointer_v1 is the native injection path (Sway, Hyprland,
+	// niri, River). KWin/KDE intentionally does not implement it, so its
+	// absence is no longer fatal: screen bounds and the overlay still come up
+	// via xdg_output + zwlr_layer_shell_v1, and pointer moves/clicks are routed
+	// through libei / the RemoteDesktop portal (connected lazily on first use).
+	hasVirtualPointer := C.neru_wlr_has_virtual_pointer(client) != 0 //nolint:nlreturn
 
 	// Initialize cursor position to screen center. Wayland has no
 	// protocol to query global pointer position, so we track it
@@ -132,7 +135,41 @@ func ensureWlrootsState() error {
 
 	globalWlrootsState.client = client
 	globalWlrootsState.screens = screens
+	globalWlrootsState.hasVirtualPointer = hasVirtualPointer
+
 	globalWlrootsState.ready = true
+
+	return nil
+}
+
+// wlrootsHasVirtualPointer reports whether the connected compositor advertises
+// zwlr_virtual_pointer_v1. The Wayland input dispatcher uses this to choose
+// between the native virtual-pointer path (wlroots) and libei (KWin/KDE).
+func wlrootsHasVirtualPointer() (bool, error) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return false, err
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	return globalWlrootsState.hasVirtualPointer, nil
+}
+
+// wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
+// libei move on KDE) into the wlroots client's client-side cursor cache so
+// CursorPosition and screen resolution stay accurate.
+func wlrootsSetCursor(point image.Point) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
+
+	C.neru_wlr_set_cursor(globalWlrootsState.client, C.int(point.X), C.int(point.Y))
 
 	return nil
 }
@@ -246,8 +283,9 @@ func wlrootsMoveCursorToPoint(point image.Point) error {
 	}
 
 	globalWlrootsState.mu.Lock()
-	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
+
+	client := globalWlrootsState.client
 
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
 		return derrors.Newf(
@@ -269,8 +307,9 @@ func wlrootsClick(point image.Point, button int) error {
 	}
 
 	globalWlrootsState.mu.Lock()
-	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
+
+	client := globalWlrootsState.client
 
 	// Move to target.
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
@@ -303,8 +342,9 @@ func wlrootsButtonEvent(point image.Point, button int, pressed bool) error {
 	}
 
 	globalWlrootsState.mu.Lock()
-	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
+
+	client := globalWlrootsState.client
 
 	// Move to target.
 	if C.neru_wlr_move_absolute(client, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
@@ -339,8 +379,9 @@ func wlrootsButtonRelease(button int) error {
 	}
 
 	globalWlrootsState.mu.Lock()
-	client := globalWlrootsState.client
 	defer globalWlrootsState.mu.Unlock()
+
+	client := globalWlrootsState.client
 
 	if C.neru_wlr_button(client, C.int(button), 0) == 0 { //nolint:nlreturn
 		return derrors.New(
