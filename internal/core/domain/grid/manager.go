@@ -118,16 +118,21 @@ func (m *Manager) CurrentGrid() *Grid {
 	return m.grid
 }
 
-// Reset resets the input state.
+// Reset resets the input state and triggers a redraw via the onUpdate callback.
 func (m *Manager) Reset() {
-	m.SetCurrentInput("")
-	m.mainGridInput = ""
-	m.inSubgrid = false
-	m.selectedCell = nil
+	m.ResetSilent()
 
 	if m.onUpdate != nil {
 		m.onUpdate(false)
 	}
+}
+
+// ResetSilent resets the input state without triggering the onUpdate callback.
+func (m *Manager) ResetSilent() {
+	m.SetCurrentInput("")
+	m.mainGridInput = ""
+	m.inSubgrid = false
+	m.selectedCell = nil
 }
 
 // Grid returns the grid.

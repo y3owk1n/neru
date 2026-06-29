@@ -56,7 +56,6 @@ func (h *Handler) performModeSpecificCleanup() {
 func (h *Handler) clearAndHideOverlay() {
 	h.stopIndicatorPolling()
 
-	h.overlayManager.Clear()
 	h.overlayManager.ClearCache()
 	h.overlayManager.Hide()
 }
@@ -97,8 +96,15 @@ func (h *Handler) cleanupGridMode() {
 	h.grid.Context.SetRepeat(false)
 
 	if h.grid.Manager != nil {
-		h.grid.Manager.Reset()
+		h.grid.Manager.ResetSilent()
 	}
+
+	// Reset renderer match state so the native hideUnmatched flag and
+	// stale cell-match data do not persist across activations. Normally
+	// the update callback (fired by Reset()) would do this, but
+	// ResetSilent() deliberately skips it.
+	h.renderer.SetHideUnmatched(false)
+	h.renderer.UpdateGridMatches("")
 
 	// Explicitly hide the virtual pointer before clearing the overlay.
 	// NeruClearOverlay also resets cursorIndicatorVisible, but we do this
