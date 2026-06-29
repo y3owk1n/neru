@@ -671,8 +671,12 @@ int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay) {
 
 	struct wl_display *display = overlay->display;
 
+	int prepare_retries = 0;
 	while (wl_display_prepare_read(display) != 0) {
-		wl_display_dispatch_pending(display);
+		if (wl_display_dispatch_pending(display) < 0)
+			return -1;
+		if (++prepare_retries > 100)
+			return -1;
 	}
 
 	wl_display_flush(display);
