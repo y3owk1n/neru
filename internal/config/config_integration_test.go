@@ -203,6 +203,8 @@ scroll_step_full = 1000
 		appCfg := cfg.Scroll.AppConfigForBundleID("com.apple.Safari")
 		if appCfg == nil {
 			t.Fatal("expected Safari app config to be present")
+
+			return
 		}
 
 		if appCfg.ScrollStep == nil || *appCfg.ScrollStep != 25 {

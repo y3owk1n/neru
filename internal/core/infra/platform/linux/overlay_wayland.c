@@ -519,8 +519,8 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		wl_shm_pool_destroy(pool);
 		close(fd);
 
-		scr->cairo_surface = cairo_image_surface_create_for_data(
-		    scr->shm_data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, (int)stride);
+		scr->cairo_surface =
+		    cairo_image_surface_create_for_data(scr->shm_data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, (int)stride);
 		scr->cr = cairo_create(scr->cairo_surface);
 		cairo_scale(scr->cr, scale, scale);
 
