@@ -1757,10 +1757,15 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 	[self.window orderOut:nil];
 	[self.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
-	[self applyOverlayCollectionBehavior];
-	[self.window setIsVisible:YES];
-	[self.window orderFrontRegardless];
-	[self.overlayView setNeedsDisplay:YES];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!self.shouldBeVisible || ![self hasDrawableFrame])
+			return;
+
+		[self applyOverlayCollectionBehavior];
+		[self.window setIsVisible:YES];
+		[self.window orderFrontRegardless];
+		[self.overlayView setNeedsDisplay:YES];
+	});
 }
 
 - (void)handleActiveSpaceDidChange:(NSNotification *)notification {
