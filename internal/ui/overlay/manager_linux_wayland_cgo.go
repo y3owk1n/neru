@@ -360,7 +360,13 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			o.displayMu.Lock()
 		}
 
-		C.neru_wayland_overlay_poll(o.raw) //nolint:nlreturn
+		if C.neru_wayland_overlay_poll(o.raw) < 0 { //nolint:nlreturn
+			if o.displayMu != nil {
+				o.displayMu.Unlock()
+			}
+
+			return
+		}
 
 		for {
 			key := C.neru_wayland_overlay_get_key(o.raw) //nolint:nlreturn
