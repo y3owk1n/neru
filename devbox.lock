@@ -2,8 +2,8 @@
   "lockfile_version": "1",
   "packages": {
     "cairo@1.18.4": {
-      "last_modified": "2026-04-06T08:39:25Z",
-      "resolved": "github:NixOS/nixpkgs/83e29f2b8791f6dec20804382fcd9a666d744c07#cairo",
+      "last_modified": "2026-06-13T14:05:44Z",
+      "resolved": "github:NixOS/nixpkgs/9f11f828c213641c2369a9f1fa31fe31557e3156#cairo",
       "source": "devbox-search",
       "version": "1.18.4",
       "systems": {
@@ -11,81 +11,81 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/kdmw64k0bjwi9ylcvk85i08g6zpxhlv5-cairo-1.18.4",
+              "path": "/nix/store/hsaqfx5xh7fr2kggyissk4ikc022np0k-cairo-1.18.4",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/1d2m0g42md5cb4dkxpp9365y46sh9pn6-cairo-1.18.4-dev"
+              "path": "/nix/store/03ali8w12km019vrc4sdhmmwpnamw8nv-cairo-1.18.4-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/sg6z26hacb772xzz2za3jqj1dpb8mfdw-cairo-1.18.4-devdoc"
+              "path": "/nix/store/lrd37xf1a5l7s8gkra3fdqiirrxiqwrh-cairo-1.18.4-devdoc"
             }
           ],
-          "store_path": "/nix/store/kdmw64k0bjwi9ylcvk85i08g6zpxhlv5-cairo-1.18.4"
+          "store_path": "/nix/store/hsaqfx5xh7fr2kggyissk4ikc022np0k-cairo-1.18.4"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/4158b4vjlym04v24brdz63fpry8w8wfb-cairo-1.18.4",
+              "path": "/nix/store/xz0sq0vmkjpw8wlkp6mq9bv0vybzllvb-cairo-1.18.4",
               "default": true
             },
             {
+              "name": "debug",
+              "path": "/nix/store/n539hz01bcw3nf2jrn2p426qj3zbd408-cairo-1.18.4-debug"
+            },
+            {
               "name": "dev",
-              "path": "/nix/store/9q77sv0mdkc3frikw4yc8v4s4qxaq722-cairo-1.18.4-dev"
+              "path": "/nix/store/xq09ladym1wf93xv0h2srdacbxkxvrgp-cairo-1.18.4-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/wnnfbv5ylbgf2rc0dr2w575rsrq6lhxp-cairo-1.18.4-devdoc"
-            },
-            {
-              "name": "debug",
-              "path": "/nix/store/mg9g0f2pl5hb28gjjyvfanaafyl1m94x-cairo-1.18.4-debug"
+              "path": "/nix/store/3rp602p0js89mpmxs956fwqgkfp755k3-cairo-1.18.4-devdoc"
             }
           ],
-          "store_path": "/nix/store/4158b4vjlym04v24brdz63fpry8w8wfb-cairo-1.18.4"
+          "store_path": "/nix/store/xz0sq0vmkjpw8wlkp6mq9bv0vybzllvb-cairo-1.18.4"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/wwhl53ypb0m796h3c8gdavzlx04a71in-cairo-1.18.4",
+              "path": "/nix/store/fl5274mq894d1zsv1k77fq9zqmk58xa1-cairo-1.18.4",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/pq9qvg6gqry61z5icvns7ysp2qgi2j96-cairo-1.18.4-dev"
+              "path": "/nix/store/p7gpy2s3vs0dx6vwd7ph9wgrd2z97hpk-cairo-1.18.4-dev"
             },
             {
               "name": "devdoc",
-              "path": "/nix/store/avjfq1m39bd582g0qxmjclkjbh9w36ji-cairo-1.18.4-devdoc"
+              "path": "/nix/store/dyy36bsw35vh1az6fd93mqyaa314dk3v-cairo-1.18.4-devdoc"
             }
           ],
-          "store_path": "/nix/store/wwhl53ypb0m796h3c8gdavzlx04a71in-cairo-1.18.4"
+          "store_path": "/nix/store/fl5274mq894d1zsv1k77fq9zqmk58xa1-cairo-1.18.4"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/hz7j03fzmdw1mpvhbysnjx6f7h4qq77j-cairo-1.18.4",
+              "path": "/nix/store/dydyb18hkw3aqmap8apa3708ws440nxd-cairo-1.18.4",
               "default": true
             },
             {
-              "name": "devdoc",
-              "path": "/nix/store/58z61h8fnx0v4xhj6khn7s073z786c5i-cairo-1.18.4-devdoc"
-            },
-            {
               "name": "debug",
-              "path": "/nix/store/qfwvidfy8b2pzbr847k7gh21i704z9ri-cairo-1.18.4-debug"
+              "path": "/nix/store/m0xkyqqd0bqj571wivxvfyz928bw3pml-cairo-1.18.4-debug"
             },
             {
               "name": "dev",
-              "path": "/nix/store/xzag246knkmldq4x4g1gkd2nz0baa6mi-cairo-1.18.4-dev"
+              "path": "/nix/store/rjadd507fdm0mxb5gy8xbygnszg22mg8-cairo-1.18.4-dev"
+            },
+            {
+              "name": "devdoc",
+              "path": "/nix/store/czjk76iic802v906nk3yiww6y0j2p298-cairo-1.18.4-devdoc"
             }
           ],
-          "store_path": "/nix/store/hz7j03fzmdw1mpvhbysnjx6f7h4qq77j-cairo-1.18.4"
+          "store_path": "/nix/store/dydyb18hkw3aqmap8apa3708ws440nxd-cairo-1.18.4"
         }
       }
     },
@@ -138,8 +138,8 @@
       }
     },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "last_modified": "2026-03-18T13:30:56Z",
-      "resolved": "github:NixOS/nixpkgs/9cf7092bdd603554bd8b63c216e8943cf9b12512?lastModified=1773840656"
+      "last_modified": "2026-06-29T19:19:24Z",
+      "resolved": "github:NixOS/nixpkgs/7a1a64774a5fd0b0cd39ac95d0e170ace8b266a0?lastModified=1782760764"
     },
     "go@1.26.3": {
       "last_modified": "2026-05-21T08:15:18Z",
@@ -238,8 +238,8 @@
       }
     },
     "golangci-lint-langserver@0.0.12": {
-      "last_modified": "2026-04-16T08:46:55Z",
-      "resolved": "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b#golangci-lint-langserver",
+      "last_modified": "2026-05-21T08:15:18Z",
+      "resolved": "github:NixOS/nixpkgs/4a29d733e8a7d5b824c3d8c958a946a9867b3eb2#golangci-lint-langserver",
       "source": "devbox-search",
       "version": "0.0.12",
       "systems": {
@@ -247,41 +247,41 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/3pvafavm2nxqklxbr11f00ps5facijab-golangci-lint-langserver-0.0.12",
+              "path": "/nix/store/aydyhrxnh6bvnfcj6r197jc79jr6ny4n-golangci-lint-langserver-0.0.12",
               "default": true
             }
           ],
-          "store_path": "/nix/store/3pvafavm2nxqklxbr11f00ps5facijab-golangci-lint-langserver-0.0.12"
+          "store_path": "/nix/store/aydyhrxnh6bvnfcj6r197jc79jr6ny4n-golangci-lint-langserver-0.0.12"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/szfpb1grfl35difcm56sxkf6nik0r7wc-golangci-lint-langserver-0.0.12",
+              "path": "/nix/store/zhv1hmdp6gxsxw1cr5w5c475fm6q5jmc-golangci-lint-langserver-0.0.12",
               "default": true
             }
           ],
-          "store_path": "/nix/store/szfpb1grfl35difcm56sxkf6nik0r7wc-golangci-lint-langserver-0.0.12"
+          "store_path": "/nix/store/zhv1hmdp6gxsxw1cr5w5c475fm6q5jmc-golangci-lint-langserver-0.0.12"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/sfc6j0645cssp4a0287nx8k5a65770iq-golangci-lint-langserver-0.0.12",
+              "path": "/nix/store/f4phrhp15w69vxyq9x08hxd99jw4pa5p-golangci-lint-langserver-0.0.12",
               "default": true
             }
           ],
-          "store_path": "/nix/store/sfc6j0645cssp4a0287nx8k5a65770iq-golangci-lint-langserver-0.0.12"
+          "store_path": "/nix/store/f4phrhp15w69vxyq9x08hxd99jw4pa5p-golangci-lint-langserver-0.0.12"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/ddbxv76idkjcbpvy7agiirq9mlqci6kk-golangci-lint-langserver-0.0.12",
+              "path": "/nix/store/ybqd06cl7d09vvgbrsaysa74h0cvzfib-golangci-lint-langserver-0.0.12",
               "default": true
             }
           ],
-          "store_path": "/nix/store/ddbxv76idkjcbpvy7agiirq9mlqci6kk-golangci-lint-langserver-0.0.12"
+          "store_path": "/nix/store/ybqd06cl7d09vvgbrsaysa74h0cvzfib-golangci-lint-langserver-0.0.12"
         }
       }
     },
@@ -610,8 +610,8 @@
       }
     },
     "libxkbcommon@1.13.1": {
-      "last_modified": "2026-04-05T15:42:39Z",
-      "resolved": "github:NixOS/nixpkgs/5e11f7acce6c3469bef9df154d78534fa7ae8b6c#libxkbcommon",
+      "last_modified": "2026-06-22T09:00:13Z",
+      "resolved": "github:NixOS/nixpkgs/b3c092d3c36d91e2f61f3dfb39a159f180a56659#libxkbcommon",
       "source": "devbox-search",
       "version": "1.13.1",
       "systems": {
@@ -619,73 +619,73 @@
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/6hy73frknb2xzxan69ln38bx41s65mkl-libxkbcommon-1.13.1",
+              "path": "/nix/store/wpldj607lsdxld42krh0hjz8ny58b7vp-libxkbcommon-1.13.1",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/7yd54wx6jv25c2q457vw6978qvpr6spz-libxkbcommon-1.13.1-dev"
+              "path": "/nix/store/nh7pmcsl0dgyl6fqvwqyl3s99afsyjjw-libxkbcommon-1.13.1-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/3h7mxyasc4yh18c29jjh08vzwjg2j0yr-libxkbcommon-1.13.1-doc"
+              "path": "/nix/store/kkfhv7r0zjgnjid0f1drvlzw3h38dbrk-libxkbcommon-1.13.1-doc"
             }
           ],
-          "store_path": "/nix/store/6hy73frknb2xzxan69ln38bx41s65mkl-libxkbcommon-1.13.1"
+          "store_path": "/nix/store/wpldj607lsdxld42krh0hjz8ny58b7vp-libxkbcommon-1.13.1"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/q41gsy82nh33cnb680znafx7vqz092ac-libxkbcommon-1.13.1",
+              "path": "/nix/store/3dqapxiga0m4k0wksrh91bg7jnqklspi-libxkbcommon-1.13.1",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/bzrdfyb5fw3kzzgr9xd7hgz4a1i4v5di-libxkbcommon-1.13.1-dev"
+              "path": "/nix/store/irh2inlf7gwryd360yy8kpnlmxy5q67b-libxkbcommon-1.13.1-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/a4d6kgfv848h75mw4d7dk9v7gljjah9r-libxkbcommon-1.13.1-doc"
+              "path": "/nix/store/kx6l5ks931g7fwc3mis8il367gzagxxm-libxkbcommon-1.13.1-doc"
             }
           ],
-          "store_path": "/nix/store/q41gsy82nh33cnb680znafx7vqz092ac-libxkbcommon-1.13.1"
+          "store_path": "/nix/store/3dqapxiga0m4k0wksrh91bg7jnqklspi-libxkbcommon-1.13.1"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/sg45y4qmys1gcvz261zfj229xnb4ik90-libxkbcommon-1.13.1",
+              "path": "/nix/store/aa1v0l8whc383x77dbbfah898b5n3xjy-libxkbcommon-1.13.1",
               "default": true
             },
             {
               "name": "dev",
-              "path": "/nix/store/66gmfgvwwgy5w1yzh1j401fdafwrlk7s-libxkbcommon-1.13.1-dev"
+              "path": "/nix/store/q348ms0j162gq02ffrp720mx3vxcvb96-libxkbcommon-1.13.1-dev"
             },
             {
               "name": "doc",
-              "path": "/nix/store/jbni53s6kd6w8xz3pnbhh6yp7b5j8wh7-libxkbcommon-1.13.1-doc"
+              "path": "/nix/store/bwhzn6qbvrydqr9844rqp2hvh0vbfnq7-libxkbcommon-1.13.1-doc"
             }
           ],
-          "store_path": "/nix/store/sg45y4qmys1gcvz261zfj229xnb4ik90-libxkbcommon-1.13.1"
+          "store_path": "/nix/store/aa1v0l8whc383x77dbbfah898b5n3xjy-libxkbcommon-1.13.1"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/vcf7irc4an6ffxi1qin2kwv7qdggnfcr-libxkbcommon-1.13.1",
+              "path": "/nix/store/x0gx9xj0xdg5n9vixwn4p5awi2h613r6-libxkbcommon-1.13.1",
               "default": true
             },
             {
-              "name": "dev",
-              "path": "/nix/store/zx63hp3fkaznmi35hcpc2kkbhp2pq5hz-libxkbcommon-1.13.1-dev"
+              "name": "doc",
+              "path": "/nix/store/4whqzc9iqdqc4i8zh2nhdasqylxdpdh9-libxkbcommon-1.13.1-doc"
             },
             {
-              "name": "doc",
-              "path": "/nix/store/ksrmkd9vv43zniqi1a6l44famgq3k6l9-libxkbcommon-1.13.1-doc"
+              "name": "dev",
+              "path": "/nix/store/rlzm88ay9s27biynqbypdsjb64lypacy-libxkbcommon-1.13.1-dev"
             }
           ],
-          "store_path": "/nix/store/vcf7irc4an6ffxi1qin2kwv7qdggnfcr-libxkbcommon-1.13.1"
+          "store_path": "/nix/store/x0gx9xj0xdg5n9vixwn4p5awi2h613r6-libxkbcommon-1.13.1"
         }
       }
     },
