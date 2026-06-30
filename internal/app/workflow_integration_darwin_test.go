@@ -11,6 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
+const modeIdle = "idle"
+
 // TestFullUserWorkflowIntegration simulates a complete real user workflow:
 // 1. Start the application
 // 2. Activate hints mode and interact with elements
@@ -115,11 +117,11 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
 			{"scroll", domain.ModeScroll, func() { application.SetModeScroll() }},
-			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
+			{modeIdle, domain.ModeIdle, func() { application.SetModeIdle() }},
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
-			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
+			{modeIdle, domain.ModeIdle, func() { application.SetModeIdle() }},
 			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
-			{"idle", domain.ModeIdle, func() { application.SetModeIdle() }},
+			{modeIdle, domain.ModeIdle, func() { application.SetModeIdle() }},
 		}
 
 		for _, mode := range modes {

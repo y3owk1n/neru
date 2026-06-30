@@ -325,29 +325,29 @@ func mapControlType(controlType int32) (string, bool) {
 	case ctButton:
 		return string(element.RoleButton), true
 	case ctCheckBox:
-		return "AXCheckBox", true
+		return string(element.RoleCheckBox), true
 	case ctComboBox:
-		return "AXComboBox", true
+		return string(element.RoleComboBox), true
 	case ctEdit:
-		return "AXTextField", true
+		return string(element.RoleTextField), true
 	case ctHyperlink:
-		return "AXLink", true
+		return string(element.RoleLink), true
 	case ctListItem:
-		return "AXCell", true
+		return string(element.RoleCell), true
 	case ctMenuItem:
-		return "AXMenuItem", true
+		return string(element.RoleMenuItem), true
 	case ctRadioButton:
-		return "AXRadioButton", true
+		return string(element.RoleRadioButton), true
 	case ctSlider:
-		return "AXSlider", true
+		return string(element.RoleSlider), true
 	case ctSpinner:
-		return "AXIncrementor", true
+		return string(element.RoleIncrementor), true
 	case ctTabItem:
-		return "AXTabButton", true
+		return string(element.RoleTabButton), true
 	case ctTreeItem:
-		return "AXRow", true
+		return string(element.RoleRow), true
 	case ctDataItem:
-		return "AXCell", true
+		return string(element.RoleCell), true
 	case ctSplitButton:
 		return string(element.RoleButton), true
 	default:

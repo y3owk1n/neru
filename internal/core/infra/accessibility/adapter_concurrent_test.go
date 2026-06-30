@@ -82,7 +82,7 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	baseNode := &MockNode{
 		MockID:     "test-id",
 		MockBounds: image.Rect(0, 0, 100, 100),
-		MockRole:   "AXButton",
+		MockRole:   axButtonRole,
 	}
 
 	nodes := make([]AXNode, nodeCount)
