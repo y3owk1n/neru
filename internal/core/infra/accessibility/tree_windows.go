@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 // TreeNode represents a node in the accessibility element hierarchy. On Windows
@@ -175,20 +176,20 @@ func ReleaseTree(_ *TreeNode) {}
 // windowsUIAToAXRole maps legacy UIA control-type names that may still appear
 // in user configs to the AX-style roles assigned during enumeration.
 var windowsUIAToAXRole = map[string]string{
-	"Button":      "AXButton",
-	"CheckBox":    "AXCheckBox",
-	"RadioButton": "AXRadioButton",
-	"Hyperlink":   "AXLink",
-	"ComboBox":    "AXComboBox",
-	"Edit":        "AXTextField",
-	"Slider":      "AXSlider",
-	"TabItem":     "AXTabButton",
-	"MenuItem":    "AXMenuItem",
-	"DataItem":    "AXCell",
-	"ListItem":    "AXCell",
-	"TreeItem":    "AXRow",
-	"Spinner":     "AXIncrementor",
-	"SplitButton": "AXButton",
+	"Button":      string(element.RoleButton),
+	"CheckBox":    string(element.RoleCheckBox),
+	"RadioButton": string(element.RoleRadioButton),
+	"Hyperlink":   string(element.RoleLink),
+	"ComboBox":    string(element.RoleComboBox),
+	"Edit":        string(element.RoleTextField),
+	"Slider":      string(element.RoleSlider),
+	"TabItem":     string(element.RoleTabButton),
+	"MenuItem":    string(element.RoleMenuItem),
+	"DataItem":    string(element.RoleCell),
+	"ListItem":    string(element.RoleCell),
+	"TreeItem":    string(element.RoleRow),
+	"Spinner":     string(element.RoleIncrementor),
+	"SplitButton": string(element.RoleButton),
 }
 
 // windowsRoleMatchesFilter reports whether elementRole satisfies keptRoles.

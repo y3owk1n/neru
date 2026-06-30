@@ -2,7 +2,11 @@
 
 package accessibility //nolint:testpackage // exercises unexported windowsRoleMatchesFilter
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+)
 
 func TestWindowsRoleMatchesFilter(t *testing.T) {
 	t.Parallel()
@@ -15,26 +19,26 @@ func TestWindowsRoleMatchesFilter(t *testing.T) {
 	}{
 		{
 			name:        "empty filter accepts all",
-			elementRole: "AXButton",
+			elementRole: string(element.RoleButton),
 			keptRoles:   nil,
 			want:        true,
 		},
 		{
 			name:        "direct AX match",
-			elementRole: "AXButton",
-			keptRoles:   map[string]struct{}{"AXButton": {}},
+			elementRole: string(element.RoleButton),
+			keptRoles:   map[string]struct{}{string(element.RoleButton): {}},
 			want:        true,
 		},
 		{
 			name:        "legacy UIA name matches AX role",
-			elementRole: "AXTextField",
+			elementRole: string(element.RoleTextField),
 			keptRoles:   map[string]struct{}{"Edit": {}},
 			want:        true,
 		},
 		{
 			name:        "unrelated roles do not match",
-			elementRole: "AXButton",
-			keptRoles:   map[string]struct{}{"AXLink": {}},
+			elementRole: string(element.RoleButton),
+			keptRoles:   map[string]struct{}{string(element.RoleLink): {}},
 			want:        false,
 		},
 	}
