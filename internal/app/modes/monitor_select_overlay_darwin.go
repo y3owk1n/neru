@@ -228,22 +228,12 @@ func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderSta
 		selectedName = selected.Name
 	}
 
-	if current := h.monitorSelect.Current(); current != nil {
-		state.Targets = append(state.Targets, monitorSelectRenderTarget{
-			Bounds:     current.Bounds,
-			Label:      "Current",
-			Subtitle:   current.Name,
-			IsCurrent:  true,
-			IsSelected: false,
-		})
-	}
-
 	for _, target := range h.monitorSelect.Targets() {
 		state.Targets = append(state.Targets, monitorSelectRenderTarget{
 			Bounds:           target.Bounds,
 			Label:            target.Label,
 			Subtitle:         target.Name,
-			IsCurrent:        false,
+			IsCurrent:        target.IsCurrent,
 			IsSelected:       target.Name == selectedName,
 			MatchedPrefixLen: matchedPrefixLength(target.Label, state.Input),
 		})

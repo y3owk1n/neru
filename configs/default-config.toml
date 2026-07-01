@@ -261,8 +261,6 @@ easing = "ease_out"                         # linear, ease_in, ease_out, ease_in
 enabled = false                                # Enable interactive monitor picking mode
 characters = "123456789"                       # Characters used for monitor labels
 
-show_current_monitor = true                    # Show current monitor marker with label
-
 [monitor_select.ui]
 font_size = 96                                 # Badge label font size
 font_family = ""                               # Badge label font family

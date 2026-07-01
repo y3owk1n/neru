@@ -51,32 +51,24 @@ func newMonitorSelectSession(
 	// Assign positional labels to ALL monitors based on the fixed spatial order.
 	assignMonitorLabels(monitors, cfg.Characters)
 
-	targets := make([]monitorSelectTarget, 0, len(monitors)-1)
+	targets := make([]monitorSelectTarget, len(monitors))
 
-	var current *monitorSelectTarget
+	var currentPtr *monitorSelectTarget
 
 	for idx := range monitors {
 		if idx == currentIndex {
 			monitors[idx].IsCurrent = true
-			if cfg.ShowCurrentMonitor {
-				currentCopy := monitors[idx]
-				current = &currentCopy
-			}
-
-			continue
+			currentCopy := monitors[idx]
+			currentPtr = &currentCopy
 		}
 
-		targets = append(targets, monitors[idx])
-	}
-
-	if len(targets) == 0 {
-		return nil
+		targets[idx] = monitors[idx]
 	}
 
 	return &monitorSelectSession{
 		characters:    []rune(cfg.Characters),
 		targets:       targets,
-		current:       current,
+		current:       currentPtr,
 		selectedIndex: 0,
 	}
 }
