@@ -8,6 +8,7 @@
 #import "overlay.h"
 
 #import <Cocoa/Cocoa.h>
+#import <CoreText/CoreText.h>
 #import <QuartzCore/QuartzCore.h>
 
 #pragma mark - Global State
