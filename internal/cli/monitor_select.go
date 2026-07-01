@@ -12,11 +12,6 @@ If only one monitor is available, the command is a no-op.
 
 Keys:
   Type label    Select monitor immediately when unique
-  Tab           Cycle forward through selectable monitors
-  Shift+Tab     Cycle backward through selectable monitors
-  Backspace     Remove the last typed label character
-  Enter         Confirm the currently highlighted monitor
-  Escape        Cancel and return to idle
 
 Examples:
   neru monitor_select
