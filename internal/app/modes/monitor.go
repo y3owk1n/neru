@@ -280,6 +280,8 @@ func (h *Handler) refreshActiveModeOnNewScreen(
 		h.overlayManager.Show()
 	case domain.ModeIdle:
 		return
+	case domain.ModeMonitorSelect:
+		return
 	}
 }
 

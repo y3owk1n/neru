@@ -255,6 +255,28 @@ start_opacity = 0.85
 end_opacity = 0.0
 easing = "ease_out"                         # linear, ease_in, ease_out, ease_in_out
 
+# Monitor select mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#monitor_select
+[monitor_select]
+enabled = false                                # Enable interactive monitor picking mode
+characters = "123456789"                       # Characters used for monitor labels
+
+show_current_monitor = true                    # Show current monitor marker with label
+
+[monitor_select.ui]
+font_size = 96                                 # Badge label font size
+font_family = ""                               # Badge label font family
+subtitle_font_size = 18                        # Monitor name subtitle font size
+subtitle_font_family = ""                      # Subtitle font family
+border_radius = -1                             # Badge corner radius (-1 = auto)
+padding_x = -1                                 # Badge horizontal padding (-1 = auto)
+padding_y = -1                                 # Badge vertical padding (-1 = auto)
+border_width = 0                               # Badge border width
+backdrop_color = ""                            # Per-monitor tint backdrop
+
+[monitor_select.hotkeys]
+"Escape" = "idle"
+
 # Scroll mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#scroll
 [scroll]
@@ -304,6 +326,10 @@ text = "Grid"
 [mode_indicator.recursive_grid]
 enabled = false
 text = "Recursive Grid"
+
+[mode_indicator.monitor_select]
+enabled = false
+text = "Monitor Select"
 
 [mode_indicator.ui]
 font_size = 10

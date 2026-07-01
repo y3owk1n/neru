@@ -282,4 +282,50 @@ void NeruPositionAndSizeOverlayToFitHint(
     OverlayWindow window, double absoluteX, double absoluteY, const char *label, HintStyle style, double *outWidth,
     double *outHeight);
 
+#pragma mark - Monitor Select Functions
+
+/// Monitor select target data for per-monitor overlay rendering.
+typedef struct {
+	int x;                 ///< Monitor origin X (screen coordinates)
+	int y;                 ///< Monitor origin Y (screen coordinates)
+	int width;             ///< Monitor width
+	int height;            ///< Monitor height
+	char *label;           ///< Display label (e.g. "1", "2")
+	char *subtitle;        ///< Monitor name subtitle
+	int isCurrent;         ///< This is the current monitor (1 = yes, 0 = no)
+	int isSelected;        ///< This target is currently selected (1 = yes, 0 = no)
+	int matchedPrefixLen;  ///< Number of matched characters at start of label
+} MonitorSelectTargetData;
+
+/// Monitor select visual style configuration.
+typedef struct {
+	int fontSize;                  ///< Label font size
+	int subtitleFontSize;          ///< Subtitle font size
+	char *fontFamily;              ///< Label font family
+	char *subtitleFontFamily;      ///< Subtitle font family
+	int borderRadius;              ///< Badge border radius (-1 = auto)
+	int paddingX;                  ///< Badge horizontal padding (-1 = auto)
+	int paddingY;                  ///< Badge vertical padding (-1 = auto)
+	int borderWidth;               ///< Badge border width
+	char *backgroundColor;         ///< Badge background color
+	char *textColor;               ///< Label text color
+	char *matchedTextColor;        ///< Matched prefix text color
+	char *borderColor;             ///< Badge border color
+	char *backdropColor;           ///< Monitor backdrop tint color
+	char *currentBackgroundColor;  ///< Current monitor badge background color
+	char *currentTextColor;        ///< Current monitor badge text color
+	char *currentBorderColor;      ///< Current monitor badge border color
+	char *subtitleTextColor;       ///< Subtitle text color
+	int hideInScreenShare;         ///< Hide panels from screen sharing (1 = hidden, 0 = visible)
+} MonitorSelectStyle;
+
+/// Show monitor select overlay panels on each target monitor.
+/// @param targets Array of monitor select target data
+/// @param count Number of targets
+/// @param style Visual style configuration
+void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, MonitorSelectStyle style);
+
+/// Hide all monitor select overlay panels.
+void NeruHideMonitorSelectPanels(void);
+
 #endif  // OVERLAY_H

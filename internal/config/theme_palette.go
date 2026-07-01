@@ -131,6 +131,43 @@ var (
 	StickyModifiersBorderColorLight = solidRGBHex(defaultThemeLightAccent)
 	// StickyModifiersBorderColorDark is the fallback dark border color for sticky modifiers.
 	StickyModifiersBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
+
+	// MonitorSelectBackgroundColorLight is the fallback light background color for monitor select badges.
+	MonitorSelectBackgroundColorLight = applyAlpha(defaultThemeLightSurface, "F2")
+	// MonitorSelectBackgroundColorDark is the fallback dark background color for monitor select badges.
+	MonitorSelectBackgroundColorDark = applyAlpha(defaultThemeDarkSurface, "F2")
+	// MonitorSelectTextColorLight is the fallback light text color for monitor select labels.
+	MonitorSelectTextColorLight = solidRGBHex(defaultThemeLightText)
+	// MonitorSelectTextColorDark is the fallback dark text color for monitor select labels.
+	MonitorSelectTextColorDark = solidRGBHex(defaultThemeDarkText)
+	// MonitorSelectMatchedTextColorLight is the fallback light matched-text color for monitor select labels.
+	MonitorSelectMatchedTextColorLight = solidRGBHex(defaultThemeLightAccentAlt)
+	// MonitorSelectMatchedTextColorDark is the fallback dark matched-text color for monitor select labels.
+	MonitorSelectMatchedTextColorDark = solidRGBHex(defaultThemeDarkAccentAlt)
+	// MonitorSelectBorderColorLight is the fallback light border color for monitor select badges.
+	MonitorSelectBorderColorLight = solidRGBHex(defaultThemeLightAccent)
+	// MonitorSelectBorderColorDark is the fallback dark border color for monitor select badges.
+	MonitorSelectBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
+	// MonitorSelectBackdropColorLight is the fallback light backdrop tint for monitor select panels.
+	MonitorSelectBackdropColorLight = applyAlpha("#000000", "33")
+	// MonitorSelectBackdropColorDark is the fallback dark backdrop tint for monitor select panels.
+	MonitorSelectBackdropColorDark = applyAlpha("#000000", "66")
+	// MonitorSelectCurrentBackgroundColorLight is the fallback light background for the current-monitor badge.
+	MonitorSelectCurrentBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "73")
+	// MonitorSelectCurrentBackgroundColorDark is the fallback dark background for the current-monitor badge.
+	MonitorSelectCurrentBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "B3")
+	// MonitorSelectCurrentTextColorLight is the fallback light text color for the current-monitor badge.
+	MonitorSelectCurrentTextColorLight = solidRGBHex(defaultThemeLightOnAccentAlt)
+	// MonitorSelectCurrentTextColorDark is the fallback dark text color for the current-monitor badge.
+	MonitorSelectCurrentTextColorDark = solidRGBHex(defaultThemeDarkOnAccentAlt)
+	// MonitorSelectCurrentBorderColorLight is the fallback light border color for the current-monitor badge.
+	MonitorSelectCurrentBorderColorLight = solidRGBHex(defaultThemeLightAccent)
+	// MonitorSelectCurrentBorderColorDark is the fallback dark border color for the current-monitor badge.
+	MonitorSelectCurrentBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
+	// MonitorSelectSubtitleTextColorLight is the fallback light subtitle text color for monitor select badges.
+	MonitorSelectSubtitleTextColorLight = applyAlpha(defaultThemeLightText, "B3")
+	// MonitorSelectSubtitleTextColorDark is the fallback dark subtitle text color for monitor select badges.
+	MonitorSelectSubtitleTextColorDark = applyAlpha(defaultThemeDarkText, "B3")
 )
 
 func defaultThemeConfig() ThemeConfig {

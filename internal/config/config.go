@@ -63,6 +63,7 @@ const (
 	ModeNameGrid          = "grid"
 	ModeNameRecursiveGrid = "recursive_grid"
 	ModeNameScroll        = "scroll"
+	ModeNameMonitorSelect = "monitor_select"
 )
 
 // Display-form key name constants used in config files and maps.
@@ -436,6 +437,7 @@ type Config struct {
 	Hints           HintsConfig           `json:"hints"           toml:"hints"`
 	Grid            GridConfig            `json:"grid"            toml:"grid"`
 	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
+	MonitorSelect   MonitorSelectConfig   `json:"monitorSelect"   toml:"monitor_select"`
 	VirtualPointer  VirtualPointerConfig  `json:"virtualPointer"  toml:"virtual_pointer"`
 	MouseAction     MouseActionConfig     `json:"mouseAction"     toml:"mouse_action_indicator"`
 	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
@@ -508,6 +510,7 @@ type ModeIndicatorConfig struct {
 	Hints         ModeIndicatorModeConfig `json:"hints"         toml:"hints"`
 	Grid          ModeIndicatorModeConfig `json:"grid"          toml:"grid"`
 	RecursiveGrid ModeIndicatorModeConfig `json:"recursiveGrid" toml:"recursive_grid"`
+	MonitorSelect ModeIndicatorModeConfig `json:"monitorSelect" toml:"monitor_select"`
 	UI            ModeIndicatorUI         `json:"ui"            toml:"ui"`
 }
 
@@ -574,6 +577,36 @@ type ScrollConfig struct {
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// MonitorSelectUI defines the visual/appearance settings for monitor_select mode.
+type MonitorSelectUI struct {
+	FontSize               int    `json:"fontSize"               toml:"font_size"`
+	FontFamily             string `json:"fontFamily"             toml:"font_family"`
+	BorderRadius           int    `json:"borderRadius"           toml:"border_radius"`
+	PaddingX               int    `json:"paddingX"               toml:"padding_x"`
+	PaddingY               int    `json:"paddingY"               toml:"padding_y"`
+	BorderWidth            int    `json:"borderWidth"            toml:"border_width"`
+	BackgroundColor        Color  `json:"backgroundColor"        toml:"background_color"`
+	TextColor              Color  `json:"textColor"              toml:"text_color"`
+	MatchedTextColor       Color  `json:"matchedTextColor"       toml:"matched_text_color"`
+	BorderColor            Color  `json:"borderColor"            toml:"border_color"`
+	BackdropColor          Color  `json:"backdropColor"          toml:"backdrop_color"`
+	CurrentBackgroundColor Color  `json:"currentBackgroundColor" toml:"current_background_color"`
+	CurrentTextColor       Color  `json:"currentTextColor"       toml:"current_text_color"`
+	CurrentBorderColor     Color  `json:"currentBorderColor"     toml:"current_border_color"`
+	SubtitleFontSize       int    `json:"subtitleFontSize"       toml:"subtitle_font_size"`
+	SubtitleFontFamily     string `json:"subtitleFontFamily"     toml:"subtitle_font_family"`
+	SubtitleTextColor      Color  `json:"subtitleTextColor"      toml:"subtitle_text_color"`
+}
+
+// MonitorSelectConfig defines behavior and appearance settings for monitor_select mode.
+type MonitorSelectConfig struct {
+	Enabled            bool                           `json:"enabled"            toml:"enabled"`
+	Characters         string                         `json:"characters"         toml:"characters"`
+	ShowCurrentMonitor bool                           `json:"showCurrentMonitor" toml:"show_current_monitor"`
+	UI                 MonitorSelectUI                `json:"ui"                 toml:"ui"`
+	Hotkeys            map[string]StringOrStringArray `json:"hotkeys"            toml:"-"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
@@ -922,6 +955,11 @@ func (c *Config) Validate() error {
 	}
 
 	err = c.ValidateModes()
+	if err != nil {
+		return err
+	}
+
+	err = c.ValidateMonitorSelect()
 	if err != nil {
 		return err
 	}
@@ -1403,6 +1441,8 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.RecursiveGrid.AppConfigForBundleID(bundleID)
 	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
+	case ModeNameMonitorSelect:
+		return base
 	}
 
 	if appConfig == nil || len(appConfig.Hotkeys) == 0 {
@@ -1593,7 +1633,7 @@ func (c *Config) ValidateModes() error {
 	if !c.Hints.Enabled && !c.Grid.Enabled && !c.RecursiveGrid.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled, grid.enabled, or recursive_grid.enabled",
+			"at least one mode must be enabled: hints.enabled, grid.enabled, recursive_grid.enabled, or monitor_select.enabled",
 		)
 	}
 
@@ -1665,6 +1705,8 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 		return c.RecursiveGrid.Hotkeys
 	case ModeNameScroll:
 		return c.Scroll.Hotkeys
+	case ModeNameMonitorSelect:
+		return c.MonitorSelect.Hotkeys
 	default:
 		return nil
 	}

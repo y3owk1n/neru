@@ -68,6 +68,8 @@ func (a *App) handleThemeChange(isDark bool) {
 			a.modes.RefreshGridForThemeChange()
 		case domain.ModeRecursiveGrid:
 			a.modes.RefreshRecursiveGridForThemeChange()
+		case domain.ModeMonitorSelect:
+			a.modes.RefreshMonitorSelectForThemeChange()
 		case domain.ModeIdle, domain.ModeScroll:
 			// No-op for idle and scroll modes as they don't have theme-dependent persistent overlays
 			// that need immediate refresh here. Scroll mode indicator is handled via its own component refresh above.

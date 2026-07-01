@@ -28,6 +28,8 @@ const (
 	ModeScroll Mode = Mode(domain.ModeNameScroll)
 	// ModeRecursiveGrid represents the recursive-grid mode.
 	ModeRecursiveGrid Mode = Mode(domain.ModeNameRecursiveGrid)
+	// ModeMonitorSelect represents the monitor_select mode.
+	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
 )
 
 // StateChange represents a change in overlay mode.

@@ -45,7 +45,8 @@ func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {
 	isNavMode := mode == domain.ModeHints ||
 		mode == domain.ModeGrid ||
 		mode == domain.ModeRecursiveGrid ||
-		mode == domain.ModeScroll
+		mode == domain.ModeScroll ||
+		mode == domain.ModeMonitorSelect
 
 	enabled := isNavMode && h.config != nil && h.config.StickyModifiers.Enabled
 
