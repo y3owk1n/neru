@@ -121,6 +121,8 @@ func (h *Handler) HandleKeyPress(key string) {
 		}
 	case domain.ModeIdle:
 		// No app hotkey overrides for these modes
+	case domain.ModeMonitorSelect:
+		// No app hotkey overrides for monitor select mode
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.

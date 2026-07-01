@@ -35,6 +35,8 @@ func (h *Handler) CurrentSelectionPoint() (image.Point, bool) {
 		return h.recursiveGrid.Context.SelectionPoint()
 	case domain.ModeScroll:
 		return image.Point{}, false
+	case domain.ModeMonitorSelect:
+		return image.Point{}, false
 	}
 
 	return image.Point{}, false
@@ -69,6 +71,8 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 	case domain.ModeIdle:
 		return false
 	case domain.ModeScroll:
+		return false
+	case domain.ModeMonitorSelect:
 		return false
 	}
 
@@ -129,6 +133,8 @@ func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
 	case domain.ModeIdle:
 		return false, false
 	case domain.ModeScroll:
+		return false, false
+	case domain.ModeMonitorSelect:
 		return false, false
 	}
 

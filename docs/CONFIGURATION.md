@@ -19,6 +19,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Grid](#grid)
 - [Recursive Grid](#recursive_grid)
 - [Scroll](#scroll)
+- [Monitor Select](#monitor_select)
 - [Virtual Pointer](#virtual_pointer)
 - [Mouse Action Indicator](#mouse_action_indicator)
 - [Mode Indicator](#mode_indicator)
@@ -329,26 +330,26 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode
 
 ### Options
 
-| Option                             | Type         | Default                 | Description                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | ------------ | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                        |
-| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`. |
-| `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                       |
+| Option                             | Type         | Default                 | Description                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                                            |
+| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`.                     |
+| `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                                           |
 | `label_direction`                  | string       | `"normal"`              | Hint label algorithm: `"normal"` (default, prefix-avoidance greedy) or `"reverse"` (reverse-order tiers). Empty value defaults to `"normal"`. Overridable per-app via `[hints.app_configs]` and per-activation via the `neru hints --label-direction` CLI flag. See [Choosing a label direction](#choosing-a-label-direction) below. |
-| `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)                                                                                                                                                                                                                                                                     |
-| `include_menubar_hints`            | bool         | `false`                 | Show hints on menubar items                                                                                                                                                                                                                                                                                      |
-| `include_dock_hints`               | bool         | `false`                 | Show hints on Dock items                                                                                                                                                                                                                                                                                         |
-| `include_nc_hints`                 | bool         | `false`                 | Show hints in Notification Center                                                                                                                                                                                                                                                                                |
-| `include_stage_manager_hints`      | bool         | `false`                 | Show hints in Stage Manager                                                                                                                                                                                                                                                                                      |
-| `include_pip_hints`                | bool         | `false`                 | Show hints on Picture in Picture controls                                                                                                                                                                                                                                                                        |
-| `include_screen_capture_hints`     | bool         | `false`                 | Show hints on Screen Capture controls                                                                                                                                                                                                                                                                            |
-| `detect_mission_control`           | bool         | `false`                 | Enable Mission Control state detection                                                                                                                                                                                                                                                                           |
-| `on_mission_control_activated`     | string/array | `nil`                   | Action(s) to execute when Mission Control opens                                                                                                                                                                                                                                                                  |
-| `on_mission_control_deactivated`   | string/array | `nil`                   | Action(s) to execute when Mission Control closes                                                                                                                                                                                                                                                                 |
-| `additional_menubar_hints_targets` | array        | macOS-specific defaults | Extra menubar bundle IDs                                                                                                                                                                                                                                                                                         |
-| `clickable_roles`                  | array        | macOS-specific defaults | AX roles that generate hints                                                                                                                                                                                                                                                                                     |
-| `ignore_clickable_check`           | bool         | `false`                 | Skip clickability heuristic                                                                                                                                                                                                                                                                                      |
-| `visible_check_enabled`            | bool         | `false`                 | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                                                                                                                                                                        |
+| `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)                                                                                                                                                                                                                                                                                         |
+| `include_menubar_hints`            | bool         | `false`                 | Show hints on menubar items                                                                                                                                                                                                                                                                                                          |
+| `include_dock_hints`               | bool         | `false`                 | Show hints on Dock items                                                                                                                                                                                                                                                                                                             |
+| `include_nc_hints`                 | bool         | `false`                 | Show hints in Notification Center                                                                                                                                                                                                                                                                                                    |
+| `include_stage_manager_hints`      | bool         | `false`                 | Show hints in Stage Manager                                                                                                                                                                                                                                                                                                          |
+| `include_pip_hints`                | bool         | `false`                 | Show hints on Picture in Picture controls                                                                                                                                                                                                                                                                                            |
+| `include_screen_capture_hints`     | bool         | `false`                 | Show hints on Screen Capture controls                                                                                                                                                                                                                                                                                                |
+| `detect_mission_control`           | bool         | `false`                 | Enable Mission Control state detection                                                                                                                                                                                                                                                                                               |
+| `on_mission_control_activated`     | string/array | `nil`                   | Action(s) to execute when Mission Control opens                                                                                                                                                                                                                                                                                      |
+| `on_mission_control_deactivated`   | string/array | `nil`                   | Action(s) to execute when Mission Control closes                                                                                                                                                                                                                                                                                     |
+| `additional_menubar_hints_targets` | array        | macOS-specific defaults | Extra menubar bundle IDs                                                                                                                                                                                                                                                                                                             |
+| `clickable_roles`                  | array        | macOS-specific defaults | AX roles that generate hints                                                                                                                                                                                                                                                                                                         |
+| `ignore_clickable_check`           | bool         | `false`                 | Skip clickability heuristic                                                                                                                                                                                                                                                                                                          |
+| `visible_check_enabled`            | bool         | `false`                 | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                                                                                                                                                                                            |
 
 ### UI
 
@@ -501,32 +502,34 @@ generic_clickable_min_confidence = 0.5
 
 The `label_direction` setting controls how multi-character hint labels are enumerated once the single-character pool is exhausted. With a 4-character alphabet (`asdf`) and 5 hinted elements, the two algorithms produce visibly different label sequences:
 
-| Direction | Sequence | Notes |
-| --------- | -------- | ----- |
-| `normal` (default) | `A S D FA FS` | Keeps 3 single-char labels, then expands the 4th alphabet slot into 2-char labels. |
-| `reverse` | `AA SA DA FA AS` | Fills the 2-char tier uniformly from the first alphabet character. |
+| Direction          | Sequence         | Notes                                                                              |
+| ------------------ | ---------------- | ---------------------------------------------------------------------------------- |
+| `normal` (default) | `A S D FA FS`    | Keeps 3 single-char labels, then expands the 4th alphabet slot into 2-char labels. |
+| `reverse`          | `AA SA DA FA AS` | Fills the 2-char tier uniformly from the first alphabet character.                 |
 
 **When to prefer `normal` (default):**
+
 - Most workflows — fewer keystrokes for the common case where 1- or 2-character labels are enough.
 - Hint characters are scarce (e.g. a 2- or 3-character alphabet), so single-char labels stay usable longer.
 
 **When to prefer `reverse`:**
-- Many hints clustered in one region of the screen. `reverse` spreads the *first* character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
+
+- Many hints clustered in one region of the screen. `reverse` spreads the _first_ character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
 - Workflows that consistently need more than `len(hint_characters)` hints.
 
 You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#hints-mode).
 
 ### Per-App Config
 
-| Field                        | Type   | Description                                                                                                              |
-| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `bundle_id`                  | string | App bundle ID                                                                                                            |
-| `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`. |
+| Field                        | Type   | Description                                                                                                                                                                               |
+| ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bundle_id`                  | string | App bundle ID                                                                                                                                                                             |
+| `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`.                                                                  |
 | `label_direction`            | string | Override hint label algorithm for this app (`"normal"` or `"reverse"`). Empty string = use global `hints.label_direction`. See [Choosing a label direction](#choosing-a-label-direction). |
-| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                                                                                     |
-| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                                                 |
-| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                                                 |
-| `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                                                    |
+| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                                                                                                                                                      |
+| `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                                                                                                                  |
+| `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                                                                                                                   |
+| `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                                                                                                                     |
 
 ```toml
 [[hints.app_configs]]
@@ -729,6 +732,67 @@ hotkeys = { "k" = "action scroll_up", "j" = "action scroll_down" }
 
 ---
 
+## [monitor_select]
+
+Interactive display picking mode. Shows per-monitor overlay badges labelled with selectable characters. Monitors are sorted in a fixed spatial order (top-to-bottom, left-to-right).
+
+| Option                 | Type   | Default       | Description                                         |
+| ---------------------- | ------ | ------------- | --------------------------------------------------- |
+| `enabled`              | bool   | `false`       | Enable interactive monitor picking                  |
+| `characters`           | string | `"123456789"` | Characters used for monitor labels                  |
+| `show_current_monitor` | bool   | `true`        | Show a "Current" marker on the active monitor badge |
+
+### UI
+
+| Key                        | Default       | Description                        |
+| -------------------------- | ------------- | ---------------------------------- |
+| `font_size`                | `96`          | Badge label font size              |
+| `font_family`              | `""` (system) | Badge label font family            |
+| `subtitle_font_size`       | `18`          | Monitor name subtitle font size    |
+| `subtitle_font_family`     | `""` (system) | Subtitle font family               |
+| `border_radius`            | `-1` (auto)   | Badge corner radius                |
+| `padding_x`                | `-1` (auto)   | Horizontal padding                 |
+| `padding_y`                | `-1` (auto)   | Vertical padding                   |
+| `border_width`             | `0`           | Badge border width                 |
+| `background_color`         | derived       | Badge fill color                   |
+| `text_color`               | derived       | Label text color                   |
+| `matched_text_color`       | derived       | Partially-typed label text color   |
+| `border_color`             | derived       | Badge border color                 |
+| `backdrop_color`           | `""` (none)   | Per-monitor overlay backdrop tint  |
+| `current_background_color` | derived       | Current monitor badge fill color   |
+| `current_text_color`       | derived       | Current monitor badge text color   |
+| `current_border_color`     | derived       | Current monitor badge border color |
+| `subtitle_text_color`      | derived       | Subtitle text color                |
+
+### Hotkeys
+
+| Key      | Default | Description               |
+| -------- | ------- | ------------------------- |
+| `Escape` | `idle`  | Cancel and return to idle |
+
+```toml
+[monitor_select]
+enabled = false
+characters = "123456789"
+show_current_monitor = true
+
+[monitor_select.ui]
+font_size = 96
+font_family = ""
+subtitle_font_size = 18
+subtitle_font_family = ""
+border_radius = -1
+padding_x = -1
+padding_y = -1
+border_width = 0
+backdrop_color = ""
+
+[monitor_select.hotkeys]
+"Escape" = "idle"
+```
+
+---
+
 ## [virtual_pointer]
 
 A small dot rendered at the active selection when grid or recursive-grid runs in `--cursor-selection-mode hold`.
@@ -825,6 +889,10 @@ text = "Grid"
 [mode_indicator.recursive_grid]
 enabled = false
 text = "Recursive Grid"
+
+[mode_indicator.monitor_select]
+enabled = false
+text = "Monitor Select"
 ```
 
 ### UI

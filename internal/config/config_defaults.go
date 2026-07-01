@@ -303,6 +303,19 @@ const (
 	DefaultStickyModifiersXOffset = -40
 	// DefaultStickyModifiersYOffset is the default Y offset for the sticky modifiers indicator.
 	DefaultStickyModifiersYOffset = 20
+
+	// DefaultMonitorSelectFontSize is the default font size for monitor select labels.
+	DefaultMonitorSelectFontSize = 96
+	// DefaultMonitorSelectSubtitleFontSize is the default font size for monitor select subtitles.
+	DefaultMonitorSelectSubtitleFontSize = 18
+	// DefaultMonitorSelectCharacters is the default characters for monitor select labels.
+	DefaultMonitorSelectCharacters = "123456789"
+	// DefaultMonitorSelectBorderRadius disables automatic radius for monitor select badges (-1 = auto).
+	DefaultMonitorSelectBorderRadius = -1
+	// DefaultMonitorSelectPaddingX disables automatic horizontal padding (-1 = auto).
+	DefaultMonitorSelectPaddingX = -1
+	// DefaultMonitorSelectPaddingY disables automatic vertical padding (-1 = auto).
+	DefaultMonitorSelectPaddingY = -1
 )
 
 func newDefaultConfig() *Config {
@@ -568,6 +581,10 @@ func newDefaultConfig() *Config {
 				Enabled: false,
 				Text:    "Recursive Grid",
 			},
+			MonitorSelect: ModeIndicatorModeConfig{
+				Enabled: false,
+				Text:    "Monitor Select",
+			},
 			UI: ModeIndicatorUI{
 				FontSize:         DefaultScrollFontSize,
 				FontFamily:       "",
@@ -597,6 +614,33 @@ func newDefaultConfig() *Config {
 				BorderRadius:     DefaultStickyModifiersBorderRadius,
 				IndicatorXOffset: DefaultStickyModifiersXOffset,
 				IndicatorYOffset: DefaultStickyModifiersYOffset,
+			},
+		},
+		MonitorSelect: MonitorSelectConfig{
+			Enabled:            false,
+			Characters:         DefaultMonitorSelectCharacters,
+			ShowCurrentMonitor: true,
+			Hotkeys: map[string]StringOrStringArray{
+				KeyDisplayEscape: {CmdIdle},
+			},
+			UI: MonitorSelectUI{
+				FontSize:               DefaultMonitorSelectFontSize,
+				FontFamily:             "",
+				BorderRadius:           DefaultMonitorSelectBorderRadius,
+				PaddingX:               DefaultMonitorSelectPaddingX,
+				PaddingY:               DefaultMonitorSelectPaddingY,
+				BorderWidth:            1,
+				BackgroundColor:        Color{},
+				TextColor:              Color{},
+				MatchedTextColor:       Color{},
+				BorderColor:            Color{},
+				BackdropColor:          Color{},
+				CurrentBackgroundColor: Color{},
+				CurrentTextColor:       Color{},
+				CurrentBorderColor:     Color{},
+				SubtitleFontSize:       DefaultMonitorSelectSubtitleFontSize,
+				SubtitleFontFamily:     "",
+				SubtitleTextColor:      Color{},
 			},
 		},
 		Scroll: ScrollConfig{

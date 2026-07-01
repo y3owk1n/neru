@@ -128,6 +128,7 @@ func TestCommandInitialization(t *testing.T) {
 		"toggle-cursor-follow-selection": false,
 		"toggle-scroll-invert":           false,
 		"recursive_grid":                 false,
+		"monitor_select":                 false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {

@@ -106,16 +106,16 @@ neru hints --role AXButton,AXLink --text save,cancel  # Multiple roles/texts (co
 neru hints --text next --action left_click --repeat   # Filter persists across repeats
 ```
 
-| Flag                      | Type   | Description                                                                                                                                              |
-| ------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                                       |
-| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                                                     |
-| `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                                      |
-| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                                         |
-| `--search, -s`            | bool   | Start with search input active.                                                                                                                          |
-| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                                         |
-| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.                             |
-| `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation.                       |
+| Flag                      | Type   | Description                                                                                                                                                      |
+| ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                                               |
+| `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                                                             |
+| `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                                              |
+| `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                                                 |
+| `--search, -s`            | bool   | Start with search input active.                                                                                                                                  |
+| `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                                                 |
+| `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.                                     |
+| `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation.                               |
 | `--label-direction`       | string | Hint label algorithm: `normal` (default, prefix-avoidance) or `reverse` (spread). Overrides `[hints].label_direction` and per-app overrides for this invocation. |
 
 The filter is preserved across repeat activations.
@@ -183,6 +183,24 @@ neru scroll
 neru scroll --toggle                              # Toggle scroll on/off
 # Use j/k to scroll, gg/G to jump, Esc to exit
 ```
+
+### Monitor Select Mode
+
+Opens per-display overlay panels showing labelled selection badges. Type a label to move the cursor to that monitor. The current monitor is excluded from selection.
+
+```bash
+neru monitor_select
+neru monitor_select --toggle              # Toggle monitor_select on/off
+```
+
+| Flag           | Type | Description                       |
+| -------------- | ---- | --------------------------------- |
+| `--toggle, -t` | bool | Toggle monitor_select mode on/off |
+
+| Key     | Action                       |
+| ------- | ---------------------------- |
+| `1`–`9` | Type label to select monitor |
+| `Esc`   | Cancel and return to idle    |
 
 ---
 

@@ -462,6 +462,7 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		{ModeNameHints, &configResult.Config.Hints.Hotkeys},
 		{ModeNameGrid, &configResult.Config.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, &configResult.Config.RecursiveGrid.Hotkeys},
+		{ModeNameMonitorSelect, &configResult.Config.MonitorSelect.Hotkeys},
 	}
 
 	for _, modeHotkey := range modeHotkeyList {

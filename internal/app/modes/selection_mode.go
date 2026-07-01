@@ -17,7 +17,7 @@ func resolveCursorFollowSelection(mode domain.Mode, override *bool) bool {
 	switch mode {
 	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid:
 		return true
-	case domain.ModeIdle, domain.ModeScroll:
+	case domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
 		return false
 	}
 

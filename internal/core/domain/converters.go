@@ -9,6 +9,7 @@ const (
 	ModeNameGrid          = "grid"
 	ModeNameScroll        = "scroll"
 	ModeNameRecursiveGrid = "recursive_grid"
+	ModeNameMonitorSelect = "monitor_select"
 )
 
 // ModeString converts a Mode to its string representation.
@@ -24,6 +25,8 @@ func ModeString(mode Mode) string {
 		return ModeNameScroll
 	case ModeRecursiveGrid:
 		return ModeNameRecursiveGrid
+	case ModeMonitorSelect:
+		return ModeNameMonitorSelect
 	default:
 		return UnknownMode
 	}

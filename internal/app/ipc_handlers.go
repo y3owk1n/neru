@@ -132,6 +132,7 @@ func (h *IPCControllerModes) RegisterHandlers(
 	handlers["grid"] = h.handleGrid
 	handlers["recursive_grid"] = h.handleRecursiveGrid
 	handlers["scroll"] = h.handleScroll
+	handlers["monitor_select"] = h.handleMonitorSelect
 	handlers["idle"] = h.handleIdle
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
@@ -538,6 +539,33 @@ func (h *IPCControllerModes) handleScroll(_ context.Context, cmd ipc.Command) ip
 	})
 
 	return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
+}
+
+func (h *IPCControllerModes) handleMonitorSelect(_ context.Context, cmd ipc.Command) ipc.Response {
+	if h.modes == nil {
+		return h.modesUnavailableResponse()
+	}
+
+	opts, errResp := h.extractModeOptions(cmd)
+	if errResp != nil {
+		return *errResp
+	}
+
+	if opts.Action != nil || opts.Repeat != nil || opts.CursorFollowSelection != nil ||
+		len(opts.FilterRoles) > 0 || len(opts.FilterTextContains) > 0 ||
+		opts.Search != nil || opts.Strategy != nil || opts.LabelDirection != nil || opts.Debug != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "monitor_select only supports --toggle",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.modes.ActivateModeWithOptions(domain.ModeMonitorSelect, modes.ModeActivationOptions{
+		Toggle: opts.Toggle,
+	})
+
+	return ipc.Response{Success: true, Message: "monitor_select mode activated", Code: ipc.CodeOK}
 }
 
 func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {

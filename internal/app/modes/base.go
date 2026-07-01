@@ -13,6 +13,8 @@ const (
 	ModeNameGrid = "Grid"
 	// ModeNameScroll is the name for scroll mode.
 	ModeNameScroll = "Scroll"
+	// ModeNameMonitorSelect is the name for monitor select mode.
+	ModeNameMonitorSelect = "MonitorSelect"
 )
 
 // baseMode provides common functionality for all mode implementations.
