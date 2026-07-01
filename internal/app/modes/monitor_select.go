@@ -110,12 +110,25 @@ func (h *Handler) confirmMonitorSelectLocked(target *monitorSelectTarget) {
 		return
 	}
 
-	targetName := target.Name
+	bounds := target.Bounds
+	center := image.Point{
+		X: bounds.Min.X + bounds.Dx()/2,
+		Y: bounds.Min.Y + bounds.Dy()/2,
+	}
 
 	h.exitModeLocked()
 
 	go func() {
-		_ = h.MoveMonitorByName(h.ctx, targetName)
+		if h.actionService == nil {
+			return
+		}
+
+		err := h.actionService.MoveCursorToPointAndWait(h.ctx, center, true)
+		if err != nil {
+			h.logger.Error("Failed to move cursor to selected monitor",
+				zap.Error(err),
+			)
+		}
 	}()
 }
 
