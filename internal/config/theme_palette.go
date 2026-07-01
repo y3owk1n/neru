@@ -351,4 +351,36 @@ func (c *Config) ResolveThemeDefaults() {
 	mergeColorWithDefault(&c.StickyModifiers.UI.BorderColor, solidThemedColor(
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
 	))
+
+	mergeColorWithDefault(&c.MonitorSelect.UI.BackgroundColor, themedColor(
+		c.Theme.Light.Surface, c.Theme.Dark.Surface, "F2",
+	))
+	mergeColorWithDefault(&c.MonitorSelect.UI.TextColor, solidThemedColor(
+		c.Theme.Light.Text, c.Theme.Dark.Text,
+	))
+	mergeColorWithDefault(&c.MonitorSelect.UI.MatchedTextColor, solidThemedColor(
+		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt,
+	))
+	mergeColorWithDefault(&c.MonitorSelect.UI.BorderColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+	mergeColorWithDefault(&c.MonitorSelect.UI.BackdropColor, Color{
+		Light: applyAlpha("#000000", "33"),
+		Dark:  applyAlpha("#000000", "66"),
+	})
+	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentBackgroundColor, Color{
+		Light: applyAlpha(c.Theme.Light.Accent, "73"),
+		Dark:  applyAlpha(c.Theme.Dark.AccentAlt, "B3"),
+	})
+	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentTextColor, Color{
+		Light: solidRGBHex(c.Theme.Light.OnAccentAlt),
+		Dark:  solidRGBHex(c.Theme.Dark.OnAccentAlt),
+	})
+	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentBorderColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.Accent,
+	))
+	mergeColorWithDefault(&c.MonitorSelect.UI.SubtitleTextColor, Color{
+		Light: applyAlpha(c.Theme.Light.Text, "B3"),
+		Dark:  applyAlpha(c.Theme.Dark.Text, "B3"),
+	})
 }
