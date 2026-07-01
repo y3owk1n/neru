@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
@@ -97,35 +96,7 @@ func (h *Handler) handleMonitorSelectKey(key string) {
 		return
 	}
 
-	normalized := configpkg.NormalizeKeyForComparison(key)
-
-	switch normalized {
-	case "escape":
-		h.exitModeLocked()
-
-		return
-	case "backspace":
-		h.monitorSelect.Backspace()
-		h.redrawMonitorSelectLocked()
-
-		return
-	case "tab":
-		h.monitorSelect.Cycle(false)
-		h.redrawMonitorSelectLocked()
-
-		return
-	case "shift+tab":
-		h.monitorSelect.Cycle(true)
-		h.redrawMonitorSelectLocked()
-
-		return
-	case "return", "enter":
-		h.confirmMonitorSelectLocked(h.monitorSelect.Confirm())
-
-		return
-	}
-
-	if target := h.monitorSelect.HandleCharacter(normalized); target != nil {
+	if target := h.monitorSelect.HandleCharacter(key); target != nil {
 		h.confirmMonitorSelectLocked(target)
 
 		return

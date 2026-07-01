@@ -1401,6 +1401,11 @@ func (c *Config) Save(path string) error {
 			c.RecursiveGrid.Hotkeys,
 			defaults.RecursiveGrid.Hotkeys,
 		},
+		{
+			"monitor_select.hotkeys",
+			c.MonitorSelect.Hotkeys,
+			defaults.MonitorSelect.Hotkeys,
+		},
 	}
 	for _, section := range hotkeysSections {
 		err = writeStringOrStringArrayMap(file, section.header, section.hotkeys, section.defaults)
@@ -1633,7 +1638,7 @@ func (c *Config) ValidateModes() error {
 	if !c.Hints.Enabled && !c.Grid.Enabled && !c.RecursiveGrid.Enabled {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"at least one mode must be enabled: hints.enabled, grid.enabled, recursive_grid.enabled, or monitor_select.enabled",
+			"at least one mode must be enabled: hints.enabled, grid.enabled, or recursive_grid.enabled",
 		)
 	}
 
