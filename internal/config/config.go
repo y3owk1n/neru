@@ -602,11 +602,10 @@ type MonitorSelectUI struct {
 
 // MonitorSelectConfig defines behavior and appearance settings for monitor_select mode.
 type MonitorSelectConfig struct {
-	Enabled            bool                           `json:"enabled"            toml:"enabled"`
-	Characters         string                         `json:"characters"         toml:"characters"`
-	ShowCurrentMonitor bool                           `json:"showCurrentMonitor" toml:"show_current_monitor"`
-	UI                 MonitorSelectUI                `json:"ui"                 toml:"ui"`
-	Hotkeys            map[string]StringOrStringArray `json:"hotkeys"            toml:"-"`
+	Enabled    bool                           `json:"enabled"    toml:"enabled"`
+	Characters string                         `json:"characters" toml:"characters"`
+	UI         MonitorSelectUI                `json:"ui"         toml:"ui"`
+	Hotkeys    map[string]StringOrStringArray `json:"hotkeys"    toml:"-"`
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.

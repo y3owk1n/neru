@@ -617,9 +617,8 @@ func newDefaultConfig() *Config {
 			},
 		},
 		MonitorSelect: MonitorSelectConfig{
-			Enabled:            false,
-			Characters:         DefaultMonitorSelectCharacters,
-			ShowCurrentMonitor: true,
+			Enabled:    false,
+			Characters: DefaultMonitorSelectCharacters,
 			Hotkeys: map[string]StringOrStringArray{
 				KeyDisplayEscape: {CmdIdle},
 			},

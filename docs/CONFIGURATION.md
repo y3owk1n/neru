@@ -740,7 +740,6 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | ---------------------- | ------ | ------------- | --------------------------------------------------- |
 | `enabled`              | bool   | `false`       | Enable interactive monitor picking                  |
 | `characters`           | string | `"123456789"` | Characters used for monitor labels                  |
-| `show_current_monitor` | bool   | `true`        | Show a "Current" marker on the active monitor badge |
 
 ### UI
 
@@ -774,7 +773,6 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 [monitor_select]
 enabled = false
 characters = "123456789"
-show_current_monitor = true
 
 [monitor_select.ui]
 font_size = 96
