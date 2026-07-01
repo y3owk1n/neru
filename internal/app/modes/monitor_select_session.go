@@ -226,7 +226,7 @@ func (s *monitorSelectSession) HandleCharacter(key string) *monitorSelectTarget 
 	s.input = nextInput
 
 	s.selectedIndex = matchIndices[0]
-	if len(matchIndices) == 1 {
+	if len(matchIndices) == 1 && strings.EqualFold(s.targets[s.selectedIndex].Label, s.input) {
 		return &s.targets[s.selectedIndex]
 	}
 
