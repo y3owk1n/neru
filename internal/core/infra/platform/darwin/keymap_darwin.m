@@ -55,7 +55,7 @@ static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback2 = NULL;
 /// Uses UCKeyTranslate to respect the active layout while bypassing input methods.
 /// @param keyboardLayout UCKeyboardLayout to translate against
 /// @param keyCode Virtual key code (0-127)
-/// @param modifierState Carbon-style modifier state ((EventRecord.modifiers >> 8) & 0xFF)
+/// @param modifierState UCKeyTranslate modifier state ((EventRecord.modifiers >> 8) & 0xFF)
 /// @return Character string, or nil if translation fails
 static NSString *translateKeyCodeViaLayout(
     const UCKeyboardLayout *keyboardLayout, CGKeyCode keyCode, UInt32 modifierState) {
@@ -1098,7 +1098,7 @@ NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 
 	// Live translation for modifier states not covered by the cached maps
 	if (layout) {
-		// Build Carbon-style modifier state for UCKeyTranslate
+		// Build modifier state for UCKeyTranslate
 		UInt32 modifierState = 0;
 		if (hasShift) {
 			modifierState |= (shiftKey >> 8) & 0xFF;
@@ -1143,6 +1143,10 @@ void NeruRefreshKeyboardLayoutMaps(void) {
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
 		if (cb)
 			cb();
+
+		KeymapLayoutChangeCallback cb2 = atomic_load(&gLayoutChangeCallback2);
+		if (cb2)
+			cb2();
 	};
 
 	if ([NSThread isMainThread]) {
@@ -1183,6 +1187,11 @@ int NeruSetReferenceKeyboardLayout(const char *inputSourceID) {
 		KeymapLayoutChangeCallback cb = atomic_load(&gLayoutChangeCallback);
 		if (cb) {
 			cb();
+		}
+
+		KeymapLayoutChangeCallback cb2 = atomic_load(&gLayoutChangeCallback2);
+		if (cb2) {
+			cb2();
 		}
 	};
 

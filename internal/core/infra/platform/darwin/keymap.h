@@ -192,7 +192,7 @@ typedef void (*KeymapLayoutChangeCallback)(void);
 void NeruSetKeymapLayoutChangeCallback(KeymapLayoutChangeCallback callback);
 
 /// Register a second callback to be invoked after keyboard layout maps are rebuilt.
-/// This is intended for Go-level notifications (e.g., re-registering Carbon hotkeys).
+/// This is intended for Go-level notifications (e.g., re-registering hotkeys).
 /// Only one callback is supported; subsequent calls replace the previous one.
 /// Pass NULL to unregister.
 void NeruSetKeymapLayoutChangeCallback2(KeymapLayoutChangeCallback callback);

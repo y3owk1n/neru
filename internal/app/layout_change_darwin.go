@@ -11,10 +11,10 @@ import (
 // registerLayoutChangeHandler registers a Go-level callback that fires after
 // keyboard layout maps are rebuilt at runtime (e.g. switching US → Dvorak).
 //
-// Carbon's RegisterEventHotKey stores raw keycodes at registration time, so
-// when the layout changes the keycodes for key names like "Space" or "H" may
-// change. This handler unregisters all global hotkeys and re-registers them
-// with the updated keycodes.
+// Global hotkeys use per-hotkey CGEventTaps that store raw keycodes at
+// registration time. When the layout changes, the keycodes for key names
+// like "Space" or "H" may change. This handler unregisters all global
+// hotkeys and re-registers them with the updated keycodes.
 func (a *App) registerLayoutChangeHandler() {
 	darwin.SetKeymapLayoutChangeHandler(func() {
 		a.logger.Info("Keyboard layout changed; re-registering global hotkeys")
@@ -28,7 +28,7 @@ func (a *App) registerLayoutChangeHandler() {
 			return
 		}
 
-		// Unregister all existing Carbon hotkeys
+		// Unregister all existing CGEventTap hotkeys
 		a.stopAllHotkeyRepeats()
 		a.hotkeyManager.UnregisterAll()
 		a.appState.SetHotkeysRegistered(false)

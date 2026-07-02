@@ -1,5 +1,5 @@
 // Package hotkeys provides comprehensive functionality for registering and handling global hotkeys
-// in the Neru application using the Carbon Event Manager API, enabling system-wide keyboard shortcuts.
+// in the Neru application using per-hotkey CGEventTaps, enabling system-wide keyboard shortcuts.
 //
 // This package implements a complete hotkey management system that allows users to define and
 // trigger global keyboard shortcuts for various Neru functions. It serves as the primary interface

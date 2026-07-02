@@ -40,6 +40,56 @@ type callbackEvent struct {
 	passthroughCallback PassthroughCallback
 }
 
+// unboundedQueue is an infinite-capacity event queue.
+// Producers always succeed (non-blocking); the consumer drains via next().
+type unboundedQueue struct {
+	mu    sync.Mutex
+	cond  *sync.Cond
+	queue []callbackEvent
+	done  bool
+}
+
+func newUnboundedQueue() *unboundedQueue {
+	q := &unboundedQueue{}
+	q.cond = sync.NewCond(&q.mu)
+
+	return q
+}
+
+func (q *unboundedQueue) push(event callbackEvent) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.done {
+		return
+	}
+	q.queue = append(q.queue, event)
+	q.cond.Signal()
+}
+
+func (q *unboundedQueue) next() (callbackEvent, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for len(q.queue) == 0 && !q.done {
+		q.cond.Wait()
+	}
+	if len(q.queue) > 0 {
+		event := q.queue[0]
+		q.queue[0] = callbackEvent{} // allow GC
+		q.queue = q.queue[1:]
+
+		return event, true
+	}
+
+	return callbackEvent{}, false
+}
+
+func (q *unboundedQueue) close() {
+	q.mu.Lock()
+	q.done = true
+	q.cond.Broadcast()
+	q.mu.Unlock()
+}
+
 // EventTap represents a keyboard event interceptor that captures global key presses.
 type EventTap struct {
 	handle C.EventTap
@@ -49,13 +99,11 @@ type EventTap struct {
 	callback            Callback
 	passthroughCallback PassthroughCallback
 
-	callbackQueue chan callbackEvent
-	stopDispatch  chan struct{}
-	stopOnce      sync.Once
-	dispatchWg    sync.WaitGroup
+	queue        *unboundedQueue
+	stopDispatch chan struct{}
+	stopOnce     sync.Once
+	dispatchWg   sync.WaitGroup
 }
-
-const callbackQueueSize = 256
 
 // NewEventTap initializes a new event tap for capturing global keyboard events.
 // Returns nil if the event tap cannot be created, typically due to missing Accessibility permissions.
@@ -67,10 +115,10 @@ func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
 	logger = logger.Named("eventtap")
 
 	eventTap := &EventTap{
-		callback:      callback,
-		logger:        logger,
-		callbackQueue: make(chan callbackEvent, callbackQueueSize),
-		stopDispatch:  make(chan struct{}),
+		callback:     callback,
+		logger:       logger,
+		queue:        newUnboundedQueue(),
+		stopDispatch: make(chan struct{}),
 	}
 
 	eventTap.handle = C.NeruCreateEventTap(C.EventTapCallback(C.eventTapCallbackBridge), nil)
@@ -343,15 +391,32 @@ func (et *EventTap) startDispatcher() {
 	et.dispatchWg.Go(func() {
 		for {
 			select {
-			case event := <-et.callbackQueue:
-				switch event.kind {
-				case callbackEventKey:
-					et.handleKeyCallback(event.key)
-				case callbackEventPassthrough:
-					et.handlePassthroughCallback(event.passthroughCallback)
-				}
 			case <-et.stopDispatch:
+				// Drain any remaining events before exit
+				for {
+					event, ok := et.queue.next()
+					if !ok {
+						return
+					}
+					switch event.kind {
+					case callbackEventKey:
+						et.handleKeyCallback(event.key)
+					case callbackEventPassthrough:
+						et.handlePassthroughCallback(event.passthroughCallback)
+					}
+				}
+			default:
+			}
+
+			event, ok := et.queue.next()
+			if !ok {
 				return
+			}
+			switch event.kind {
+			case callbackEventKey:
+				et.handleKeyCallback(event.key)
+			case callbackEventPassthrough:
+				et.handlePassthroughCallback(event.passthroughCallback)
 			}
 		}
 	})
@@ -359,6 +424,7 @@ func (et *EventTap) startDispatcher() {
 
 func (et *EventTap) stopDispatcher() {
 	et.stopOnce.Do(func() {
+		et.queue.close()
 		close(et.stopDispatch)
 	})
 
@@ -372,14 +438,10 @@ func (et *EventTap) enqueueKey(key string) {
 	default:
 	}
 
-	select {
-	case et.callbackQueue <- callbackEvent{
+	et.queue.push(callbackEvent{
 		kind: callbackEventKey,
 		key:  key,
-	}:
-	default:
-		et.logger.Warn("Event tap queue full, dropping key", zap.String("key", key))
-	}
+	})
 }
 
 func (et *EventTap) enqueuePassthrough(callback PassthroughCallback) {
@@ -393,14 +455,10 @@ func (et *EventTap) enqueuePassthrough(callback PassthroughCallback) {
 	default:
 	}
 
-	select {
-	case et.callbackQueue <- callbackEvent{
+	et.queue.push(callbackEvent{
 		kind:                callbackEventPassthrough,
 		passthroughCallback: callback,
-	}:
-	default:
-		et.logger.Warn("Event tap queue full, dropping passthrough callback")
-	}
+	})
 }
 
 // Global event tap instance for C callbacks with thread safety.

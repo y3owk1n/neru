@@ -10,6 +10,17 @@
 
 #import <Foundation/Foundation.h>
 
+#pragma mark - Modifier Key Constants
+
+/// Modifier key flags (must match across C, ObjC, and Go)
+typedef enum {
+	ModifierNone = 0,
+	ModifierCmd = 1 << 0,
+	ModifierShift = 1 << 1,
+	ModifierAlt = 1 << 2,
+	ModifierCtrl = 1 << 3,
+} ModifierKey;
+
 #pragma mark - Type Definitions
 
 /// Event tap callback type
@@ -21,6 +32,15 @@ typedef void (*EventTapCallback)(const char *key, void *userData);
 /// Invoked when a modifier shortcut passes through to macOS.
 /// @param userData User data pointer
 typedef void (*EventTapPassthroughCallback)(void *userData);
+
+/// Per-hotkey tap callback type.
+/// @param hotkeyID Registered hotkey identifier
+/// @param eventKind 1 = pressed, 2 = released
+/// @param userData User data pointer
+typedef void (*HotkeyTapCallback)(int hotkeyID, int eventKind, void *userData);
+
+/// Per-hotkey tap handle
+typedef void *HotkeyTapRef;
 
 /// Event tap handle
 typedef void *EventTap;
@@ -78,6 +98,32 @@ void NeruSetEventTapPassthroughCallback(EventTap tap, EventTapPassthroughCallbac
 /// @param tap Event tap handle
 /// @param enabled Non-zero to enable, zero to disable
 void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled);
+
+#pragma mark - Per-Hotkey CGEventTap
+
+/// Create a per-hotkey CGEventTap that captures a single key+modifier combo.
+/// The tap is always active and
+/// consumes the event when matched.
+/// @param hotkeyID Opaque identifier passed back in the callback
+/// @param keyCode CG keycode of the hotkey
+/// @param modifiers ModifierKey bitmask
+/// @param callback Callback invoked on press/release
+/// @param userData User data pointer
+/// @return Hotkey tap handle, or NULL on failure (e.g. no Accessibility permission)
+HotkeyTapRef NeruCreateHotkeyTap(int hotkeyID, int keyCode, int modifiers, HotkeyTapCallback callback, void *userData);
+
+/// Destroy a per-hotkey CGEventTap previously created by NeruCreateHotkeyTap.
+/// @param tap Hotkey tap handle (NULL-safe)
+void NeruDestroyHotkeyTap(HotkeyTapRef tap);
+
+#pragma mark - Key String Parsing
+
+/// Parse a key string (e.g., "Cmd+Shift+Space") into a key code and modifier bitmask.
+/// @param keyString Key string to parse
+/// @param keyCode Output parameter for key code
+/// @param modifiers Output parameter for modifier bitmask
+/// @return 1 on success, 0 on failure
+int NeruParseKeyString(const char *keyString, int *keyCode, int *modifiers);
 
 #pragma mark - Standalone Utilities
 

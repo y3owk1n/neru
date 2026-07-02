@@ -2,8 +2,9 @@
 
 package app
 
-// registerLayoutChangeHandler is a no-op on Windows.
-// Windows does not use Carbon hotkeys, so no re-registration is needed.
+// registerLayoutChangeHandler is a no-op on Windows — global hotkeys on
+// Windows use RegisterHotKey which re-parses key strings at registration
+// time, so no layout-change re-registration is needed.
 func (a *App) registerLayoutChangeHandler() {}
 
 // unregisterLayoutChangeHandler is a no-op on Windows.
