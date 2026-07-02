@@ -614,6 +614,10 @@ func (a *App) Cleanup() {
 			}
 		}
 
+		// Clear layout-change callback first so a stale closure can't
+		// re-register hotkeys after teardown.
+		a.unregisterLayoutChangeHandler()
+
 		if a.hotkeyManager != nil {
 			a.hotkeyRegistrationMu.Lock()
 			a.stopAllHotkeyRepeats()
