@@ -612,11 +612,12 @@ static CGEventRef hotkeyTapCallback(CGEventTapProxy proxy, CGEventType type, CGE
 		if ((int)keyCode != tap->keyCode)
 			return event;
 
-		if (tap->down) {
-			tap->down = 0;
-			tap->callback(tap->hotkeyID, 2, tap->userData);  // released
-		}
-		return NULL;  // consume
+		if (!tap->down)
+			return event;
+
+		tap->down = 0;
+		tap->callback(tap->hotkeyID, 2, tap->userData);  // released
+		return NULL;                                     // consume
 	}
 
 	return event;
