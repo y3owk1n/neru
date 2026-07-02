@@ -334,38 +334,6 @@ text = "#F2FBFF"
 		t.Fatalf("expected derived monitor select dark backdrop %q, got %q", "#66000000", got)
 	}
 
-	if got := result.Config.MonitorSelect.UI.CurrentBackgroundColor.Light; got != "#730A8F8A" {
-		t.Fatalf(
-			"expected derived monitor select light current background %q, got %q",
-			"#730A8F8A",
-			got,
-		)
-	}
-
-	if got := result.Config.MonitorSelect.UI.CurrentBackgroundColor.Dark; got != "#B37DB6FF" {
-		t.Fatalf(
-			"expected derived monitor select dark current background %q, got %q",
-			"#B37DB6FF",
-			got,
-		)
-	}
-
-	if got := result.Config.MonitorSelect.UI.CurrentTextColor.Light; got != "#F7FBFF" {
-		t.Fatalf("expected derived monitor select light current text %q, got %q", "#F7FBFF", got)
-	}
-
-	if got := result.Config.MonitorSelect.UI.CurrentTextColor.Dark; got != "#06101D" {
-		t.Fatalf("expected derived monitor select dark current text %q, got %q", "#06101D", got)
-	}
-
-	if got := result.Config.MonitorSelect.UI.CurrentBorderColor.Dark; got != testDarkAccent {
-		t.Fatalf(
-			"expected derived monitor select dark current border %q, got %q",
-			testDarkAccent,
-			got,
-		)
-	}
-
 	if got := result.Config.MonitorSelect.UI.SubtitleTextColor.Light; got != "#B3102A43" {
 		t.Fatalf("expected derived monitor select light subtitle text %q, got %q", "#B3102A43", got)
 	}

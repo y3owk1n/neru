@@ -21,30 +21,26 @@ type monitorSelectRenderTarget struct {
 	Bounds           image.Rectangle
 	Label            string
 	Subtitle         string
-	IsCurrent        bool
 	IsSelected       bool
 	MatchedPrefixLen int
 }
 
 type monitorSelectRenderStyle struct {
-	FontSize               int
-	SubtitleFontSize       int
-	FontFamily             string
-	SubtitleFontFamily     string
-	BorderRadius           int
-	PaddingX               int
-	PaddingY               int
-	BorderWidth            int
-	BackgroundColor        string
-	TextColor              string
-	MatchedTextColor       string
-	BorderColor            string
-	BackdropColor          string
-	CurrentBackgroundColor string
-	CurrentTextColor       string
-	CurrentBorderColor     string
-	SubtitleTextColor      string
-	HideInScreenShare      bool
+	FontSize           int
+	SubtitleFontSize   int
+	FontFamily         string
+	SubtitleFontFamily string
+	BorderRadius       int
+	PaddingX           int
+	PaddingY           int
+	BorderWidth        int
+	BackgroundColor    string
+	TextColor          string
+	MatchedTextColor   string
+	BorderColor        string
+	BackdropColor      string
+	SubtitleTextColor  string
+	HideInScreenShare  bool
 }
 
 type monitorSelectRenderState struct {
@@ -77,31 +73,27 @@ func (h *Handler) showMonitorSelectLocked() error {
 			height:           C.int(target.Bounds.Dy()),
 			label:            C.CString(target.Label),
 			subtitle:         C.CString(target.Subtitle),
-			isCurrent:        C.int(boolToCInt(target.IsCurrent)),
 			isSelected:       C.int(boolToCInt(target.IsSelected)),
 			matchedPrefixLen: C.int(target.MatchedPrefixLen),
 		}
 	}
 
 	cStyle := C.MonitorSelectStyle{
-		fontSize:               C.int(style.FontSize),
-		subtitleFontSize:       C.int(style.SubtitleFontSize),
-		fontFamily:             cStringOrNil(style.FontFamily),
-		subtitleFontFamily:     cStringOrNil(style.SubtitleFontFamily),
-		borderRadius:           C.int(style.BorderRadius),
-		paddingX:               C.int(style.PaddingX),
-		paddingY:               C.int(style.PaddingY),
-		borderWidth:            C.int(style.BorderWidth),
-		backgroundColor:        cStringOrNil(style.BackgroundColor),
-		textColor:              cStringOrNil(style.TextColor),
-		matchedTextColor:       cStringOrNil(style.MatchedTextColor),
-		borderColor:            cStringOrNil(style.BorderColor),
-		backdropColor:          cStringOrNil(style.BackdropColor),
-		currentBackgroundColor: cStringOrNil(style.CurrentBackgroundColor),
-		currentTextColor:       cStringOrNil(style.CurrentTextColor),
-		currentBorderColor:     cStringOrNil(style.CurrentBorderColor),
-		subtitleTextColor:      cStringOrNil(style.SubtitleTextColor),
-		hideInScreenShare:      C.int(boolToCInt(style.HideInScreenShare)),
+		fontSize:           C.int(style.FontSize),
+		subtitleFontSize:   C.int(style.SubtitleFontSize),
+		fontFamily:         cStringOrNil(style.FontFamily),
+		subtitleFontFamily: cStringOrNil(style.SubtitleFontFamily),
+		borderRadius:       C.int(style.BorderRadius),
+		paddingX:           C.int(style.PaddingX),
+		paddingY:           C.int(style.PaddingY),
+		borderWidth:        C.int(style.BorderWidth),
+		backgroundColor:    cStringOrNil(style.BackgroundColor),
+		textColor:          cStringOrNil(style.TextColor),
+		matchedTextColor:   cStringOrNil(style.MatchedTextColor),
+		borderColor:        cStringOrNil(style.BorderColor),
+		backdropColor:      cStringOrNil(style.BackdropColor),
+		subtitleTextColor:  cStringOrNil(style.SubtitleTextColor),
+		hideInScreenShare:  C.int(boolToCInt(style.HideInScreenShare)),
 	}
 
 	C.NeruShowMonitorSelectPanels(&cTargets[0], C.int(len(cTargets)), cStyle)
@@ -159,15 +151,6 @@ func freeMonitorSelectStyle(styl C.MonitorSelectStyle) {
 	if styl.backdropColor != nil {
 		C.free(unsafe.Pointer(styl.backdropColor))
 	}
-	if styl.currentBackgroundColor != nil {
-		C.free(unsafe.Pointer(styl.currentBackgroundColor))
-	}
-	if styl.currentTextColor != nil {
-		C.free(unsafe.Pointer(styl.currentTextColor))
-	}
-	if styl.currentBorderColor != nil {
-		C.free(unsafe.Pointer(styl.currentBorderColor))
-	}
 	if styl.subtitleTextColor != nil {
 		C.free(unsafe.Pointer(styl.subtitleTextColor))
 	}
@@ -205,15 +188,6 @@ func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderSta
 			BackdropColor: uiCfg.BackdropColor.ForTheme(theme,
 				configpkg.MonitorSelectBackdropColorLight,
 				configpkg.MonitorSelectBackdropColorDark),
-			CurrentBackgroundColor: uiCfg.CurrentBackgroundColor.ForTheme(theme,
-				configpkg.MonitorSelectCurrentBackgroundColorLight,
-				configpkg.MonitorSelectCurrentBackgroundColorDark),
-			CurrentTextColor: uiCfg.CurrentTextColor.ForTheme(theme,
-				configpkg.MonitorSelectCurrentTextColorLight,
-				configpkg.MonitorSelectCurrentTextColorDark),
-			CurrentBorderColor: uiCfg.CurrentBorderColor.ForTheme(theme,
-				configpkg.MonitorSelectCurrentBorderColorLight,
-				configpkg.MonitorSelectCurrentBorderColorDark),
 			SubtitleTextColor: uiCfg.SubtitleTextColor.ForTheme(theme,
 				configpkg.MonitorSelectSubtitleTextColorLight,
 				configpkg.MonitorSelectSubtitleTextColorDark),
@@ -233,7 +207,6 @@ func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderSta
 			Bounds:           target.Bounds,
 			Label:            target.Label,
 			Subtitle:         target.Name,
-			IsCurrent:        target.IsCurrent,
 			IsSelected:       target.Name == selectedName,
 			MatchedPrefixLen: matchedPrefixLength(target.Label, state.Input),
 		})

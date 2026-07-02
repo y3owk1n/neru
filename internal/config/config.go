@@ -581,23 +581,20 @@ type ScrollConfig struct {
 
 // MonitorSelectUI defines the visual/appearance settings for monitor_select mode.
 type MonitorSelectUI struct {
-	FontSize               int    `json:"fontSize"               toml:"font_size"`
-	FontFamily             string `json:"fontFamily"             toml:"font_family"`
-	BorderRadius           int    `json:"borderRadius"           toml:"border_radius"`
-	PaddingX               int    `json:"paddingX"               toml:"padding_x"`
-	PaddingY               int    `json:"paddingY"               toml:"padding_y"`
-	BorderWidth            int    `json:"borderWidth"            toml:"border_width"`
-	BackgroundColor        Color  `json:"backgroundColor"        toml:"background_color"`
-	TextColor              Color  `json:"textColor"              toml:"text_color"`
-	MatchedTextColor       Color  `json:"matchedTextColor"       toml:"matched_text_color"`
-	BorderColor            Color  `json:"borderColor"            toml:"border_color"`
-	BackdropColor          Color  `json:"backdropColor"          toml:"backdrop_color"`
-	CurrentBackgroundColor Color  `json:"currentBackgroundColor" toml:"current_background_color"`
-	CurrentTextColor       Color  `json:"currentTextColor"       toml:"current_text_color"`
-	CurrentBorderColor     Color  `json:"currentBorderColor"     toml:"current_border_color"`
-	SubtitleFontSize       int    `json:"subtitleFontSize"       toml:"subtitle_font_size"`
-	SubtitleFontFamily     string `json:"subtitleFontFamily"     toml:"subtitle_font_family"`
-	SubtitleTextColor      Color  `json:"subtitleTextColor"      toml:"subtitle_text_color"`
+	FontSize           int    `json:"fontSize"           toml:"font_size"`
+	FontFamily         string `json:"fontFamily"         toml:"font_family"`
+	BorderRadius       int    `json:"borderRadius"       toml:"border_radius"`
+	PaddingX           int    `json:"paddingX"           toml:"padding_x"`
+	PaddingY           int    `json:"paddingY"           toml:"padding_y"`
+	BorderWidth        int    `json:"borderWidth"        toml:"border_width"`
+	BackgroundColor    Color  `json:"backgroundColor"    toml:"background_color"`
+	TextColor          Color  `json:"textColor"          toml:"text_color"`
+	MatchedTextColor   Color  `json:"matchedTextColor"   toml:"matched_text_color"`
+	BorderColor        Color  `json:"borderColor"        toml:"border_color"`
+	BackdropColor      Color  `json:"backdropColor"      toml:"backdrop_color"`
+	SubtitleFontSize   int    `json:"subtitleFontSize"   toml:"subtitle_font_size"`
+	SubtitleFontFamily string `json:"subtitleFontFamily" toml:"subtitle_font_family"`
+	SubtitleTextColor  Color  `json:"subtitleTextColor"  toml:"subtitle_text_color"`
 }
 
 // MonitorSelectConfig defines behavior and appearance settings for monitor_select mode.

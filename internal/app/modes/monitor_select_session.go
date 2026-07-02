@@ -16,23 +16,20 @@ const (
 )
 
 type monitorSelectTarget struct {
-	Name      string
-	Bounds    image.Rectangle
-	Label     string
-	IsCurrent bool
+	Name   string
+	Bounds image.Rectangle
+	Label  string
 }
 
 type monitorSelectSession struct {
 	characters    []rune
 	input         string
 	targets       []monitorSelectTarget
-	current       *monitorSelectTarget
 	selectedIndex int
 }
 
 func newMonitorSelectSession(
 	monitors []monitorSelectTarget,
-	currentBounds image.Rectangle,
 	cfg configpkg.MonitorSelectConfig,
 ) *monitorSelectSession {
 	if len(monitors) <= 1 {
@@ -43,55 +40,13 @@ func newMonitorSelectSession(
 	// regardless of which monitor is current.
 	sortSpatially(monitors)
 
-	currentIndex := findCurrentMonitorIndex(monitors, currentBounds)
-	if currentIndex < 0 {
-		return nil
-	}
-
-	// Assign positional labels to ALL monitors based on the fixed spatial order.
 	assignMonitorLabels(monitors, cfg.Characters)
-
-	targets := make([]monitorSelectTarget, len(monitors))
-
-	var currentPtr *monitorSelectTarget
-
-	for idx := range monitors {
-		if idx == currentIndex {
-			monitors[idx].IsCurrent = true
-			currentCopy := monitors[idx]
-			currentPtr = &currentCopy
-		}
-
-		targets[idx] = monitors[idx]
-	}
 
 	return &monitorSelectSession{
 		characters:    []rune(cfg.Characters),
-		targets:       targets,
-		current:       currentPtr,
+		targets:       monitors,
 		selectedIndex: 0,
 	}
-}
-
-func findCurrentMonitorIndex(monitors []monitorSelectTarget, currentBounds image.Rectangle) int {
-	for idx, monitor := range monitors {
-		if monitor.Bounds == currentBounds {
-			return idx
-		}
-	}
-
-	center := image.Point{
-		X: currentBounds.Min.X + currentBounds.Dx()/2,
-		Y: currentBounds.Min.Y + currentBounds.Dy()/2,
-	}
-
-	for idx, monitor := range monitors {
-		if center.In(monitor.Bounds) {
-			return idx
-		}
-	}
-
-	return -1
 }
 
 func sortSpatially(monitors []monitorSelectTarget) {
@@ -153,10 +108,6 @@ func monitorSelectLabelForIndex(alphabet []rune, index int) string {
 	}
 
 	return string(label)
-}
-
-func (s *monitorSelectSession) Current() *monitorSelectTarget {
-	return s.current
 }
 
 func (s *monitorSelectSession) Input() string {

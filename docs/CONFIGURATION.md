@@ -758,9 +758,6 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | `matched_text_color`       | derived       | Partially-typed label text color   |
 | `border_color`             | derived       | Badge border color                 |
 | `backdrop_color`           | `""` (none)   | Per-monitor overlay backdrop tint  |
-| `current_background_color` | derived       | Current monitor badge fill color   |
-| `current_text_color`       | derived       | Current monitor badge text color   |
-| `current_border_color`     | derived       | Current monitor badge border color |
 | `subtitle_text_color`      | derived       | Subtitle text color                |
 
 ### Hotkeys

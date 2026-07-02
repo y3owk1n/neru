@@ -152,18 +152,6 @@ var (
 	MonitorSelectBackdropColorLight = applyAlpha("#000000", "33")
 	// MonitorSelectBackdropColorDark is the fallback dark backdrop tint for monitor select panels.
 	MonitorSelectBackdropColorDark = applyAlpha("#000000", "66")
-	// MonitorSelectCurrentBackgroundColorLight is the fallback light background for the current-monitor badge.
-	MonitorSelectCurrentBackgroundColorLight = applyAlpha(defaultThemeLightAccent, "73")
-	// MonitorSelectCurrentBackgroundColorDark is the fallback dark background for the current-monitor badge.
-	MonitorSelectCurrentBackgroundColorDark = applyAlpha(defaultThemeDarkAccentAlt, "B3")
-	// MonitorSelectCurrentTextColorLight is the fallback light text color for the current-monitor badge.
-	MonitorSelectCurrentTextColorLight = solidRGBHex(defaultThemeLightOnAccentAlt)
-	// MonitorSelectCurrentTextColorDark is the fallback dark text color for the current-monitor badge.
-	MonitorSelectCurrentTextColorDark = solidRGBHex(defaultThemeDarkOnAccentAlt)
-	// MonitorSelectCurrentBorderColorLight is the fallback light border color for the current-monitor badge.
-	MonitorSelectCurrentBorderColorLight = solidRGBHex(defaultThemeLightAccent)
-	// MonitorSelectCurrentBorderColorDark is the fallback dark border color for the current-monitor badge.
-	MonitorSelectCurrentBorderColorDark = solidRGBHex(defaultThemeDarkAccent)
 	// MonitorSelectSubtitleTextColorLight is the fallback light subtitle text color for monitor select badges.
 	MonitorSelectSubtitleTextColorLight = applyAlpha(defaultThemeLightText, "B3")
 	// MonitorSelectSubtitleTextColorDark is the fallback dark subtitle text color for monitor select badges.
@@ -368,17 +356,6 @@ func (c *Config) ResolveThemeDefaults() {
 		Light: applyAlpha("#000000", "33"),
 		Dark:  applyAlpha("#000000", "66"),
 	})
-	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentBackgroundColor, Color{
-		Light: applyAlpha(c.Theme.Light.Accent, "73"),
-		Dark:  applyAlpha(c.Theme.Dark.AccentAlt, "B3"),
-	})
-	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentTextColor, Color{
-		Light: solidRGBHex(c.Theme.Light.OnAccentAlt),
-		Dark:  solidRGBHex(c.Theme.Dark.OnAccentAlt),
-	})
-	mergeColorWithDefault(&c.MonitorSelect.UI.CurrentBorderColor, solidThemedColor(
-		c.Theme.Light.Accent, c.Theme.Dark.Accent,
-	))
 	mergeColorWithDefault(&c.MonitorSelect.UI.SubtitleTextColor, Color{
 		Light: applyAlpha(c.Theme.Light.Text, "B3"),
 		Dark:  applyAlpha(c.Theme.Dark.Text, "B3"),

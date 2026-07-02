@@ -752,9 +752,6 @@ func (c *Config) ValidateMonitorSelect() error {
 		{c.MonitorSelect.UI.MatchedTextColor, "monitor_select.ui.matched_text_color"},
 		{c.MonitorSelect.UI.BorderColor, "monitor_select.ui.border_color"},
 		{c.MonitorSelect.UI.BackdropColor, "monitor_select.ui.backdrop_color"},
-		{c.MonitorSelect.UI.CurrentBackgroundColor, "monitor_select.ui.current_background_color"},
-		{c.MonitorSelect.UI.CurrentTextColor, "monitor_select.ui.current_text_color"},
-		{c.MonitorSelect.UI.CurrentBorderColor, "monitor_select.ui.current_border_color"},
 		{c.MonitorSelect.UI.SubtitleTextColor, "monitor_select.ui.subtitle_text_color"},
 	})
 	if err != nil {

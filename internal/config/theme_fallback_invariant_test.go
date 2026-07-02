@@ -285,36 +285,6 @@ func TestDefaultThemeFallbacksMatchResolvedDefaults(t *testing.T) {
 			want: config.MonitorSelectBackdropColorDark,
 		},
 		{
-			name: "monitor select current background light",
-			got:  cfg.MonitorSelect.UI.CurrentBackgroundColor.Light,
-			want: config.MonitorSelectCurrentBackgroundColorLight,
-		},
-		{
-			name: "monitor select current background dark",
-			got:  cfg.MonitorSelect.UI.CurrentBackgroundColor.Dark,
-			want: config.MonitorSelectCurrentBackgroundColorDark,
-		},
-		{
-			name: "monitor select current text light",
-			got:  cfg.MonitorSelect.UI.CurrentTextColor.Light,
-			want: config.MonitorSelectCurrentTextColorLight,
-		},
-		{
-			name: "monitor select current text dark",
-			got:  cfg.MonitorSelect.UI.CurrentTextColor.Dark,
-			want: config.MonitorSelectCurrentTextColorDark,
-		},
-		{
-			name: "monitor select current border light",
-			got:  cfg.MonitorSelect.UI.CurrentBorderColor.Light,
-			want: config.MonitorSelectCurrentBorderColorLight,
-		},
-		{
-			name: "monitor select current border dark",
-			got:  cfg.MonitorSelect.UI.CurrentBorderColor.Dark,
-			want: config.MonitorSelectCurrentBorderColorDark,
-		},
-		{
 			name: "monitor select subtitle text light",
 			got:  cfg.MonitorSelect.UI.SubtitleTextColor.Light,
 			want: config.MonitorSelectSubtitleTextColorLight,

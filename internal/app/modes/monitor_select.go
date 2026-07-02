@@ -52,7 +52,7 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 
 	h.prepareForModeActivation()
 
-	monitors, currentBounds, err := h.discoverMonitorsForSelection()
+	monitors, err := h.discoverMonitorsForSelection()
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			h.reportMonitorSelectNotSupported()
@@ -63,7 +63,7 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 		return
 	}
 
-	session := newMonitorSelectSession(monitors, currentBounds, h.config.MonitorSelect)
+	session := newMonitorSelectSession(monitors, h.config.MonitorSelect)
 	if session == nil {
 		h.logger.Debug("Skipping monitor_select activation; no selectable monitors")
 
@@ -141,9 +141,9 @@ func (h *Handler) cleanupMonitorSelectMode() {
 	h.monitorSelect = nil
 }
 
-func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, image.Rectangle, error) {
+func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, error) {
 	if h.system == nil {
-		return nil, image.Rectangle{}, derrors.New(
+		return nil, derrors.New(
 			derrors.CodeNotSupported,
 			"system integration unavailable",
 		)
@@ -151,12 +151,7 @@ func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, image.R
 
 	names, err := h.system.ScreenNames(h.ctx)
 	if err != nil {
-		return nil, image.Rectangle{}, err
-	}
-
-	currentBounds, err := h.system.ScreenBounds(h.ctx)
-	if err != nil {
-		return nil, image.Rectangle{}, err
+		return nil, err
 	}
 
 	monitors := make([]monitorSelectTarget, 0, len(names))
@@ -169,7 +164,7 @@ func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, image.R
 		bounds, _, boundsErr := h.system.ScreenBoundsByName(h.ctx, name)
 		if boundsErr != nil {
 			if derrors.IsNotSupported(boundsErr) {
-				return nil, image.Rectangle{}, boundsErr
+				return nil, boundsErr
 			}
 
 			h.logger.Debug("Skipping monitor with unreadable bounds",
@@ -186,7 +181,7 @@ func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, image.R
 		})
 	}
 
-	return monitors, currentBounds, nil
+	return monitors, nil
 }
 
 func (h *Handler) reportMonitorSelectNotSupported() {

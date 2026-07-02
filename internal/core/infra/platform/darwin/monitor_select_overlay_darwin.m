@@ -144,15 +144,11 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 
 				NSString *label = target.label ? @(target.label) : @"";
 				NSString *subtitle = target.subtitle ? @(target.subtitle) : @"";
-				BOOL isCurrent = target.isCurrent ? YES : NO;
 
 				// Colors
-				NSString *bgHex = isCurrent ? (style.currentBackgroundColor ? @(style.currentBackgroundColor) : nil)
-				                            : (style.backgroundColor ? @(style.backgroundColor) : nil);
-				NSString *textHex = isCurrent ? (style.currentTextColor ? @(style.currentTextColor) : nil)
-				                              : (style.textColor ? @(style.textColor) : nil);
-				NSString *borderHex = isCurrent ? (style.currentBorderColor ? @(style.currentBorderColor) : nil)
-				                                : (style.borderColor ? @(style.borderColor) : nil);
+				NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+				NSString *textHex = style.textColor ? @(style.textColor) : nil;
+				NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 
 				NSColor *bgColor = monitorSelectColorFromHex(bgHex, [NSColor colorWithWhite:0.95 alpha:0.95]);
 				NSColor *textColor = monitorSelectColorFromHex(textHex, [NSColor blackColor]);
