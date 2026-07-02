@@ -137,6 +137,8 @@ The community built a browser-based training game to help you get fast with recu
 
 👉 **[Play Neru Dojo](https://bernatgene.github.io/neru-dojo/)** — no install, works in any browser.
 
+https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
+
 ---
 
 ## How Neru compares
