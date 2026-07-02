@@ -145,12 +145,9 @@ Use these suffixes:
 - `*_other.go`: non-target fallback for dispatch-style packages
 
 App-level platform dispatch also follows this pattern. For example,
-[layout_change_darwin.go](../internal/app/layout_change_darwin.go)
-re-registers Carbon hotkeys when the keyboard layout changes at runtime, while
-[layout_change_linux.go](../internal/app/layout_change_linux.go)
-and
-[layout_change_windows.go](../internal/app/layout_change_windows.go)
-are no-ops.
+per-hotkey CGEventTaps are re-registered on layout change (via
+`NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps
+key names to layout-aware keycodes.
 
 Do not create new ad hoc platform filenames if an existing slot already exists.
 

@@ -18,10 +18,10 @@ func TestEventTapEnqueueKey_NonBlockingWhenQueueBackedUp(t *testing.T) {
 	var callbackStarted atomic.Int32
 
 	eventTap := &EventTap{
-		logger:        zap.NewNop(),
-		callback:      func(string) { callbackStarted.Add(1); <-blockCh },
-		callbackQueue: make(chan callbackEvent, 1),
-		stopDispatch:  make(chan struct{}),
+		logger:       zap.NewNop(),
+		callback:     func(string) { callbackStarted.Add(1); <-blockCh },
+		queue:        newUnboundedQueue(),
+		stopDispatch: make(chan struct{}),
 	}
 	eventTap.startDispatcher()
 
@@ -39,8 +39,8 @@ func TestEventTapEnqueueKey_NonBlockingWhenQueueBackedUp(t *testing.T) {
 		t.Fatal("callback did not start in time")
 	}
 
-	// Queue one buffered event, then ensure additional enqueue returns quickly
-	// instead of blocking the caller.
+	// Verify that enqueueing into the unbounded queue never blocks the caller,
+	// even when the consumer is blocked.
 	eventTap.enqueueKey("second")
 
 	start := time.Now()
@@ -48,7 +48,7 @@ func TestEventTapEnqueueKey_NonBlockingWhenQueueBackedUp(t *testing.T) {
 	eventTap.enqueueKey("third")
 
 	if time.Since(start) > 25*time.Millisecond {
-		t.Fatal("enqueueKey blocked while queue was full")
+		t.Fatal("enqueueKey blocked")
 	}
 
 	close(blockCh)
@@ -78,8 +78,8 @@ func TestEventTapEnqueueKey_PreservesOrder(t *testing.T) {
 
 			receivedMu.Unlock()
 		},
-		callbackQueue: make(chan callbackEvent, 8),
-		stopDispatch:  make(chan struct{}),
+		queue:        newUnboundedQueue(),
+		stopDispatch: make(chan struct{}),
 	}
 	eventTap.startDispatcher()
 
@@ -124,9 +124,9 @@ func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 	)
 
 	eventTap := &EventTap{
-		logger:        zap.NewNop(),
-		callbackQueue: make(chan callbackEvent, 8),
-		stopDispatch:  make(chan struct{}),
+		logger:       zap.NewNop(),
+		queue:        newUnboundedQueue(),
+		stopDispatch: make(chan struct{}),
 	}
 	eventTap.startDispatcher()
 

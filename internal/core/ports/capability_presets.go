@@ -34,7 +34,7 @@ func DarwinCapabilities() PlatformCapabilities {
 		Notifications: supportedCapability(
 			"native alerts and notifications available via NSAlert/UserNotifications",
 		),
-		GlobalHotkeys: supportedCapability("global hotkeys available via Carbon hotkeys"),
+		GlobalHotkeys: supportedCapability("global hotkeys available via per-key CGEventTaps"),
 		KeyboardEventTap: supportedCapability(
 			"keyboard event tap available via Quartz event taps",
 		),
