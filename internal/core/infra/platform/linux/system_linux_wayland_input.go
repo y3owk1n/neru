@@ -5,6 +5,7 @@ package linux
 import (
 	"image"
 	"os"
+	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
@@ -43,6 +44,31 @@ var libeiModifierKeycodes = map[string]int{
 	"ctrl":  keycodeLeftCtrl,
 	"alt":   keycodeLeftAlt,
 	"cmd":   keycodeLeftMeta,
+}
+
+// Release-retry backoff for the libei click path. When KWin pauses the
+// RemoteDesktop device between a press and its release, the device needs a
+// moment to be resumed before a release can be emitted, so retries are spaced
+// out instead of fired back-to-back.
+const (
+	libeiReleaseRetries = 5
+	libeiReleaseBackoff = 100 * time.Millisecond
+)
+
+// libeiButtonRelease emits a button release, retrying with backoff while the
+// device is paused. A press without a matching release leaves the compositor
+// with the button logically held (the next pointer move becomes a drag), so
+// the release is worth several attempts across a pause/resume cycle.
+func libeiButtonRelease(button int) error {
+	err := libeiButton(button, false)
+
+	for attempt := 0; err != nil && attempt < libeiReleaseRetries; attempt++ {
+		time.Sleep(libeiReleaseBackoff)
+
+		err = libeiButton(button, false)
+	}
+
+	return err
 }
 
 // WarmWaylandInput pre-establishes the Wayland input backend at daemon startup.
@@ -113,16 +139,8 @@ func waylandClick(point image.Point, button int) error {
 		return err
 	}
 
-	// The press landed, so the release must not be lost or the compositor is
-	// left with the button logically held and the next pointer move becomes a
-	// drag. libeiButton re-validates the session on entry, so one retry covers
-	// a device pause/resume between the press and the release.
-	err = libeiButton(button, false)
-	if err != nil {
-		err = libeiButton(button, false)
-	}
-
-	return err
+	// The press landed, so the release must not be lost.
+	return libeiButtonRelease(button)
 }
 
 func waylandButtonEvent(point image.Point, button int, pressed bool) error {
@@ -153,7 +171,7 @@ func waylandButtonRelease(button int) error {
 		return wlrootsButtonRelease(button)
 	}
 
-	return libeiButton(button, false)
+	return libeiButtonRelease(button)
 }
 
 func waylandScroll(axis, delta, discrete int) error {

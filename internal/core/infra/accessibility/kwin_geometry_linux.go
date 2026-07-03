@@ -144,14 +144,6 @@ func (b *kwinBridge) UpdateActiveWindow(payload string) *dbus.Error {
 	return nil
 }
 
-// origin returns the cached focused-window screen origin.
-func (b *kwinBridge) origin() (int, int, bool) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
-	return b.x, b.y, b.valid
-}
-
 // originFor returns the cached origin only when the cached client size matches
 // the given AT-SPI frame size within kwinOriginSizeTolerance. The cache is fed
 // by KWin focus events; if KWin missed a transition (or deliberately ignored a
