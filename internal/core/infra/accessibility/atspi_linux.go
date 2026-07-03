@@ -225,7 +225,21 @@ func (c *ATSPIClient) ClickableNodes(
 
 	start := time.Now()
 
-	offX, offY, haveOrigin := c.kwin.origin()
+	// Validate the cached KWin origin against the frame actually being walked
+	// (by size): a stale origin from a previous window would offset every hint
+	// to the wrong screen position. When the frame extents are unavailable the
+	// unvalidated cache is still better than no offset at all.
+	var (
+		offX, offY int
+		haveOrigin bool
+	)
+
+	frameRect, frameOK := c.extents(conn, win.ref)
+	if frameOK {
+		offX, offY, haveOrigin = c.kwin.originFor(frameRect.Dx(), frameRect.Dy())
+	} else {
+		offX, offY, haveOrigin = c.kwin.origin()
+	}
 
 	out := make([]AXNode, 0, atspiClickableNodesCap)
 	visited := 0

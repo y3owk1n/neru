@@ -113,7 +113,16 @@ func waylandClick(point image.Point, button int) error {
 		return err
 	}
 
-	return libeiButton(button, false)
+	// The press landed, so the release must not be lost or the compositor is
+	// left with the button logically held and the next pointer move becomes a
+	// drag. libeiButton re-validates the session on entry, so one retry covers
+	// a device pause/resume between the press and the release.
+	err = libeiButton(button, false)
+	if err != nil {
+		err = libeiButton(button, false)
+	}
+
+	return err
 }
 
 func waylandButtonEvent(point image.Point, button int, pressed bool) error {
@@ -176,14 +185,20 @@ func waylandScrollBatch(axis int, deltas, discretes []int) error {
 		return wlrootsScrollBatch(axis, deltas, discretes)
 	}
 
+	// Attempt every delta even if one fails: a transient libei hiccup (device
+	// pause/resume) mid-batch would otherwise drop the remaining deltas and
+	// strand the user at a partial scroll position. The first error is still
+	// reported to the caller.
+	var firstErr error
+
 	for _, d := range deltas {
 		err = libeiScroll(axis, d)
-		if err != nil {
-			return err
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 
-	return nil
+	return firstErr
 }
 
 func waylandModifierEvent(modifier string, isDown bool) error {

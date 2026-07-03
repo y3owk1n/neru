@@ -39,6 +39,12 @@ const (
 
 	// KWin geometry script is only readable/writable by the owner.
 	kwinScriptFileMode = 0o600
+
+	// kwinOriginSizeTolerance is the max per-dimension difference (px) allowed
+	// between the cached KWin client geometry and the AT-SPI frame extents
+	// before the cached origin is considered stale. Qt apps match exactly;
+	// GTK client-side decorations can differ by a titlebar's worth of pixels.
+	kwinOriginSizeTolerance = 32
 )
 
 // kwinGeometryScript is loaded into KWin. It reports the focused window's
@@ -144,6 +150,43 @@ func (b *kwinBridge) origin() (int, int, bool) {
 	defer b.mu.RUnlock()
 
 	return b.x, b.y, b.valid
+}
+
+// originFor returns the cached origin only when the cached client size matches
+// the given AT-SPI frame size within kwinOriginSizeTolerance. The cache is fed
+// by KWin focus events; if KWin missed a transition (or deliberately ignored a
+// transient surface that became the active AT-SPI frame) the cached origin
+// belongs to a different window, and offsetting by it would land every hint at
+// the previous window's screen position. A size mismatch is the cheapest
+// reliable staleness signal, so callers then fall back to unoffset
+// (window-relative) coordinates.
+func (b *kwinBridge) originFor(frameW, frameH int) (int, int, bool) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	if !b.valid {
+		return 0, 0, false
+	}
+
+	if absInt(b.w-frameW) > kwinOriginSizeTolerance ||
+		absInt(b.h-frameH) > kwinOriginSizeTolerance {
+		b.logger.Debug("KWin origin rejected: cached size does not match AT-SPI frame",
+			zap.Int("cachedW", b.w), zap.Int("cachedH", b.h),
+			zap.Int("frameW", frameW), zap.Int("frameH", frameH),
+			zap.String("cachedClass", b.cls))
+
+		return 0, 0, false
+	}
+
+	return b.x, b.y, true
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+
+	return v
 }
 
 // start exports the D-Bus receiver and installs the KWin script. It is
