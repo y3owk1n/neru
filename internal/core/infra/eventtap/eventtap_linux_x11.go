@@ -188,7 +188,7 @@ func x11KeysymName(keysym C.KeySym) string {
 	case C.XK_Tab:
 		return "Tab"
 	case C.XK_Escape:
-		return "Escape"
+		return evdevKeyNameEscape
 	case C.XK_BackSpace:
 		return "Backspace"
 	case C.XK_Left:

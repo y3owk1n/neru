@@ -68,6 +68,14 @@ type atspiExtents struct {
 	H int32
 }
 
+// AX role names that appear in more than one place in the role maps below.
+const (
+	axRoleButton    = "AXButton"
+	axRoleMenuItem  = "AXMenuItem"
+	axRoleTextField = "AXTextField"
+	axRoleRow       = "AXRow"
+)
+
 // atspiToAXRole maps AT-SPI role names (lowercase, as returned by
 // Accessible.GetRoleName) to the macOS-style "AX*" role names that Neru's config
 // and the cross-platform filter pipeline speak. Neru's clickable_roles config is
@@ -77,44 +85,44 @@ type atspiExtents struct {
 // equivalent are intentionally absent so containers (section, heading, label)
 // are skipped.
 var atspiToAXRole = map[string]string{
-	"push button":     "AXButton",
-	"button":          "AXButton",
-	"toggle button":   "AXButton",
+	"push button":     axRoleButton,
+	"button":          axRoleButton,
+	"toggle button":   axRoleButton,
 	"menu button":     "AXMenuButton",
 	"combo box":       "AXComboBox",
 	"check box":       "AXCheckBox",
-	"check menu item": "AXMenuItem",
+	"check menu item": axRoleMenuItem,
 	"radio button":    "AXRadioButton",
-	"radio menu item": "AXMenuItem",
+	"radio menu item": axRoleMenuItem,
 	"link":            "AXLink",
-	"entry":           "AXTextField",
-	"password text":   "AXTextField",
+	"entry":           axRoleTextField,
+	"password text":   axRoleTextField,
 	"slider":          "AXSlider",
 	"page tab":        "AXTabButton",
-	"menu item":       "AXMenuItem",
-	"list item":       "AXRow",
+	"menu item":       axRoleMenuItem,
+	"list item":       axRoleRow,
 	"table cell":      "AXCell",
-	"table row":       "AXRow",
+	"table row":       axRoleRow,
 }
 
 // defaultClickableAXRoles is used when the caller passes no explicit role
 // filter. It mirrors the AX names in the shipped default config.
 var defaultClickableAXRoles = map[string]struct{}{
-	"AXButton":      {},
+	axRoleButton:    {},
 	"AXMenuButton":  {},
 	"AXComboBox":    {},
 	"AXCheckBox":    {},
 	"AXRadioButton": {},
 	"AXLink":        {},
 	"AXPopUpButton": {},
-	"AXTextField":   {},
+	axRoleTextField: {},
 	"AXSlider":      {},
 	"AXTabButton":   {},
 	"AXSwitch":      {},
 	"AXTextArea":    {},
-	"AXMenuItem":    {},
+	axRoleMenuItem:  {},
 	"AXCell":        {},
-	"AXRow":         {},
+	axRoleRow:       {},
 }
 
 // ATSPIClient is the Linux AXClient. It walks the AT-SPI tree for hints and

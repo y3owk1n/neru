@@ -70,14 +70,14 @@ func canonicalChordSignature(chord string) string {
 // ctrl here because it is already Ctrl on Linux by the time hotkeys register.
 func canonicalModifierToken(token string) string {
 	switch strings.ToLower(strings.TrimSpace(token)) {
-	case "shift":
-		return "shift"
-	case "ctrl", "control", "primary":
-		return "ctrl"
-	case "alt", "option", "opt":
-		return "alt"
-	case "cmd", "command", "super", "meta", "win", "windows":
-		return "cmd"
+	case evdevModifierShift:
+		return evdevModifierShift
+	case evdevModifierCtrl, evdevModifierAliasControl, "primary":
+		return evdevModifierCtrl
+	case evdevModifierAlt, evdevModifierAliasOption, "opt":
+		return evdevModifierAlt
+	case evdevModifierCmd, "command", evdevModifierAliasSuper, "meta", "win", "windows":
+		return evdevModifierCmd
 	default:
 		return ""
 	}

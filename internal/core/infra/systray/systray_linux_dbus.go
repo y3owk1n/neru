@@ -34,6 +34,9 @@ const (
 	dbusmenuVersion int32 = 2
 	// bytesPerPixel is the ARGB32 stride used when packing the tray icon pixmap.
 	bytesPerPixel = 4
+	// propStatus is the "Status" property name shared by the SNI and dbusmenu
+	// property interfaces.
+	propStatus = "Status"
 )
 
 // pixmap is one entry of the SNI IconPixmap signature a(iiay): width, height,
@@ -88,7 +91,7 @@ func (s *sniServer) Get(iface, prop string) (dbus.Variant, *dbus.Error) {
 		return dbus.MakeVariant(s.id), nil
 	case "Category":
 		return dbus.MakeVariant(s.category), nil
-	case "Status":
+	case propStatus:
 		return dbus.MakeVariant(s.status), nil
 	case "Title":
 		return dbus.MakeVariant(s.title), nil
@@ -124,7 +127,7 @@ func (s *sniServer) GetAll(iface string) (map[string]dbus.Variant, *dbus.Error) 
 	return map[string]dbus.Variant{
 		"Id":         dbus.MakeVariant(s.id),
 		"Category":   dbus.MakeVariant(s.category),
-		"Status":     dbus.MakeVariant(s.status),
+		propStatus:   dbus.MakeVariant(s.status),
 		"Title":      dbus.MakeVariant(s.title),
 		"IconName":   dbus.MakeVariant(s.iconName),
 		"IconPixmap": dbus.MakeVariant(s.iconPix),
@@ -304,7 +307,7 @@ func getMenuProperty(iface, prop string) (dbus.Variant, error) {
 	switch prop {
 	case "Version":
 		return dbus.MakeVariant(dbusmenuVersion), nil
-	case "Status":
+	case propStatus:
 		return dbus.MakeVariant("normal"), nil
 	case "TextDirection":
 		return dbus.MakeVariant("ltr"), nil

@@ -613,7 +613,7 @@ func (menuPropsServer) Get(iface, prop string) (dbus.Variant, *dbus.Error) {
 func (menuPropsServer) GetAll(iface string) (map[string]dbus.Variant, *dbus.Error) {
 	out := map[string]dbus.Variant{}
 
-	for _, p := range []string{"Version", "Status", "TextDirection"} {
+	for _, p := range []string{"Version", propStatus, "TextDirection"} {
 		v, err := getMenuProperty(iface, p)
 		if err == nil {
 			out[p] = v

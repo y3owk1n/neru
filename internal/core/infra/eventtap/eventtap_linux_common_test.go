@@ -14,10 +14,30 @@ func TestLinuxModifierToggleEventCanonicalizes(t *testing.T) {
 		isDown   bool
 		want     string
 	}{
-		{name: "shift down", modifier: "shift", isDown: true, want: "__modifier_shift_down"},
-		{name: "control alias up", modifier: "control", isDown: false, want: "__modifier_ctrl_up"},
-		{name: "super alias down", modifier: "super", isDown: true, want: "__modifier_cmd_down"},
-		{name: "option alias up", modifier: "option", isDown: false, want: "__modifier_alt_up"},
+		{
+			name:     "shift down",
+			modifier: evdevModifierShift,
+			isDown:   true,
+			want:     "__modifier_shift_down",
+		},
+		{
+			name:     "control alias up",
+			modifier: evdevModifierAliasControl,
+			isDown:   false,
+			want:     "__modifier_ctrl_up",
+		},
+		{
+			name:     "super alias down",
+			modifier: evdevModifierAliasSuper,
+			isDown:   true,
+			want:     "__modifier_cmd_down",
+		},
+		{
+			name:     "option alias up",
+			modifier: evdevModifierAliasOption,
+			isDown:   false,
+			want:     "__modifier_alt_up",
+		},
 		{name: "unknown", modifier: "fn", isDown: true, want: ""},
 	}
 
