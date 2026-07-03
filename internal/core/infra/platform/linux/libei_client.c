@@ -55,9 +55,13 @@ static void drain(NeruEiClient *c) {
 		switch (ei_event_get_type(e)) {
 		case EI_EVENT_SEAT_ADDED: {
 			struct ei_seat *seat = ei_event_get_seat(e);
+			// Bind relative pointer alongside absolute: after an absolute warp
+			// KWin updates the logical pointer (clicks land) but does not always
+			// repaint the visible cursor sprite. A zero-delta relative motion on
+			// the same device forces the sprite to snap to the warped position.
 			ei_seat_bind_capabilities(
-			    seat, EI_DEVICE_CAP_POINTER_ABSOLUTE, EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL,
-			    EI_DEVICE_CAP_KEYBOARD, NULL);
+			    seat, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE,
+			    EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL, EI_DEVICE_CAP_KEYBOARD, NULL);
 			break;
 		}
 		case EI_EVENT_DEVICE_ADDED: {
@@ -235,6 +239,15 @@ int neru_ei_move_abs(NeruEiClient *c, int x, int y) {
 	}
 	ei_device_pointer_motion_absolute(c->pointer, (double)x, (double)y);
 	ei_device_frame(c->pointer, ei_now(c->ei));
+
+	// Nudge with a zero-delta relative motion so KWin repaints the cursor sprite
+	// at the warped position. The absolute motion alone updates the logical
+	// pointer (clicks land) but the visible cursor can lag behind on KWin.
+	if (ei_device_has_capability(c->pointer, EI_DEVICE_CAP_POINTER)) {
+		ei_device_pointer_motion(c->pointer, 0.0, 0.0);
+		ei_device_frame(c->pointer, ei_now(c->ei));
+	}
+
 	ei_dispatch(c->ei);
 	return 1;
 }

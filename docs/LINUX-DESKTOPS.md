@@ -101,6 +101,21 @@ Confirm portal services are running.
 Expected. Neru routes input through libei on KDE; this message applies to
 compositors that lack both virtual pointer and a libei path.
 
+**Verifying injected input with the KWin Debug Console**
+
+KWin ships a built-in input inspector, useful for confirming that Neru's
+libei events actually reach the compositor:
+
+```bash
+qdbus org.kde.KWin /KWin org.kde.KWin.showDebugConsole
+```
+
+The Input Events tab logs every pointer motion, button, and key event with
+its source device. Neru's injected events appear with an "Unknown" input
+device (libei), while real hardware shows the physical device path:
+
+![KWin Debug Console input events](images/kde-kwin-debug-console-input-events.png)
+
 ---
 
 ## wlroots compositors

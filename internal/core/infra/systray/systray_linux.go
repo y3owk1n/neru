@@ -10,6 +10,7 @@
 package systray
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"sync"
@@ -17,6 +18,14 @@ import (
 
 	"github.com/godbus/dbus/v5"
 )
+
+// linuxTrayIconPNG is the colored brand tile shown in the KDE/GNOME system tray.
+// The macOS template glyph the shared menu passes is white-on-transparent with
+// alpha≈1 and is invisible when rendered as an SNI IconPixmap, so Linux uses
+// this asset instead (same approach as systray_windows.go).
+//
+//go:embed resources/tray-icon.png
+var linuxTrayIconPNG []byte
 
 var (
 	menuItemsLock sync.RWMutex
@@ -39,11 +48,22 @@ var (
 	}
 	menuInst = &menuServer{}
 
-	trayPath = dbus.ObjectPath("/org/y3owk1n/neru/sni")
+	// trayPath must be the canonical /StatusNotifierItem: the KDE watcher
+	// registers items as "<busname>/StatusNotifierItem" and plasmashell fetches
+	// all SNI properties at that fixed path. A custom path silently yields an
+	// invisible tray item.
+	trayPath = dbus.ObjectPath("/StatusNotifierItem")
 	menuPath = dbus.ObjectPath("/org/y3owk1n/neru/menu")
 
-	quitCh   chan struct{}
-	quitOnce sync.Once
+	// quitMu guards quitCh and quitRequested. Quit can race Run/RunHeadless:
+	// the daemon host starts app.Run in a goroutine before entering the systray
+	// loop, so a fast startup failure can call Quit before quitCh exists. The
+	// quitRequested flag records that early Quit so newQuitChannel returns an
+	// already-closed channel and the loop exits immediately instead of blocking
+	// forever.
+	quitMu        sync.Mutex
+	quitCh        chan struct{}
+	quitRequested bool
 )
 
 // MenuItem represents a menu item in the system tray (Linux).
@@ -281,17 +301,31 @@ func Run(onReadyFunc, onExitFunc func()) {
 
 	running.Store(true)
 
-	quitCh = make(chan struct{})
+	quit := newQuitChannel()
 
 	if onReadyFunc != nil {
 		onReadyFunc()
+	}
+
+	// Register with the watcher only after onReady populated IconPixmap and the
+	// menu. If we register earlier, plasmashell fetches an empty icon and never
+	// shows the item even after a later NewIcon signal.
+	err = registerStatusNotifier(conn)
+	if err != nil {
+		_ = conn.Close()
+		// onReady already ran; don't invoke it again in the headless fallback.
+		runHeadlessLoop(nil, onExitFunc)
+
+		return
 	}
 
 	// The host lazily fetches the menu on click, but emit a LayoutUpdated so a
 	// host that cached an empty tree refreshes after onReady populated it.
 	bumpMenu()
 
-	<-quitCh
+	emitSNI("NewIcon")
+
+	<-quit
 
 	running.Store(false)
 
@@ -311,13 +345,37 @@ func RunHeadless(onReadyFunc, onExitFunc func()) {
 	runHeadlessLoop(onReadyFunc, onExitFunc)
 }
 
-// Quit quits the application (Linux).
+// Quit quits the application (Linux). Safe to call before Run/RunHeadless has
+// created the quit channel: the request is recorded and the loop exits as soon
+// as it starts.
 func Quit() {
-	quitOnce.Do(func() {
-		if quitCh != nil {
-			close(quitCh)
-		}
-	})
+	quitMu.Lock()
+	defer quitMu.Unlock()
+
+	if quitRequested {
+		return
+	}
+
+	quitRequested = true
+
+	if quitCh != nil {
+		close(quitCh)
+	}
+}
+
+// newQuitChannel creates the quit channel for a starting loop. If Quit already
+// ran, the channel is returned pre-closed so the loop does not block.
+func newQuitChannel() chan struct{} {
+	quitMu.Lock()
+	defer quitMu.Unlock()
+
+	quitCh = make(chan struct{})
+
+	if quitRequested {
+		close(quitCh)
+	}
+
+	return quitCh
 }
 
 // SetTitle sets the title of the system tray icon (Linux).
@@ -338,15 +396,16 @@ func SetTooltip(tooltip string) {
 	emitSNI("NewToolTip")
 }
 
-// SetIcon sets the icon of the system tray icon (Linux).
+// SetIcon sets the icon of the system tray icon (Linux). The macOS PNG bytes
+// passed from the shared menu are ignored; see linuxTrayIconPNG.
 func SetIcon(icon []byte) {
-	setTrayIcon(icon)
+	setTrayIcon(linuxTrayIconPNG)
 }
 
-// SetTemplateIcon sets the icon of the system tray icon as a template icon
-// (Linux). Linux has no template-icon concept; the bytes are rendered as-is.
+// SetTemplateIcon is a no-op with respect to the passed bytes for the same
+// reason as SetIcon: the shared template glyph is invisible on Linux SNI hosts.
 func SetTemplateIcon(icon []byte, template bool) {
-	setTrayIcon(icon)
+	setTrayIcon(linuxTrayIconPNG)
 }
 
 // AddMenuItem adds a menu item to the system tray (Linux).
@@ -423,7 +482,10 @@ func ResetForTesting() {
 	menuInst.revision = 0
 	menuInst.mu.Unlock()
 
-	quitOnce = sync.Once{}
+	quitMu.Lock()
+	quitCh = nil
+	quitRequested = false
+	quitMu.Unlock()
 }
 
 // runHeadlessLoop invokes onReady then blocks until Quit, then invokes onExit.
@@ -432,13 +494,13 @@ func ResetForTesting() {
 func runHeadlessLoop(onReadyFunc, onExitFunc func()) {
 	running.Store(false)
 
-	quitCh = make(chan struct{})
+	quit := newQuitChannel()
 
 	if onReadyFunc != nil {
 		onReadyFunc()
 	}
 
-	<-quitCh
+	<-quit
 
 	if onExitFunc != nil {
 		onExitFunc()
@@ -471,9 +533,9 @@ func emitSNI(signal string) {
 	_ = busConn.Emit(trayPath, "org.kde.StatusNotifierItem."+signal)
 }
 
-// exportTray exports the SNI and menu objects on the connection, requests the
-// well-known item name, and registers it with the StatusNotifierWatcher. It
-// also wires the menu Properties interface (Version/Status/TextDirection).
+// exportTray exports the SNI and menu objects on the connection and requests
+// the well-known item name. Registration with StatusNotifierWatcher is deferred
+// until after onReady so the host's first IconPixmap fetch is not empty.
 func exportTray(conn *dbus.Conn) error {
 	sniInst.menuPath = menuPath
 
@@ -510,9 +572,17 @@ func exportTray(conn *dbus.Conn) error {
 		return fmt.Errorf("%s: reply %d: %w", name, reply, errCannotOwnSNIName)
 	}
 
+	return nil
+}
+
+// registerStatusNotifier tells StatusNotifierWatcher about this item so
+// plasmashell (or another host) begins displaying it.
+func registerStatusNotifier(conn *dbus.Conn) error {
+	name := fmt.Sprintf("org.kde.StatusNotifierItem-%d-1", os.Getpid())
+
 	obj := conn.Object("org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher")
 
-	err = obj.Call(
+	err := obj.Call(
 		"org.kde.StatusNotifierWatcher.RegisterStatusNotifierItem",
 		0,
 		name,
