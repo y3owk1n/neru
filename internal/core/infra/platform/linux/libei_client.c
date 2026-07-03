@@ -60,8 +60,8 @@ static void drain(NeruEiClient *c) {
 			// repaint the visible cursor sprite. A zero-delta relative motion on
 			// the same device forces the sprite to snap to the warped position.
 			ei_seat_bind_capabilities(
-			    seat, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE,
-			    EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL, EI_DEVICE_CAP_KEYBOARD, NULL);
+			    seat, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE, EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL,
+			    EI_DEVICE_CAP_KEYBOARD, NULL);
 			break;
 		}
 		case EI_EVENT_DEVICE_ADDED: {
