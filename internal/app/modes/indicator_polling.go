@@ -17,7 +17,7 @@ const (
 
 // startIndicatorPolling starts a goroutine that polls the cursor position and
 // updates the mode indicator and sticky modifiers indicator overlays.
-// It is shared by all navigation modes (hints, grid, recursive grid, scroll).
+// It is shared by all navigation modes.
 func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	// If polling is already active, do not start another goroutine.
 	if h.indicatorTicker != nil || h.indicatorStopCh != nil {
@@ -240,6 +240,8 @@ func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
 		return h.config.ModeIndicator.Grid.Enabled
 	case domain.ModeRecursiveGrid:
 		return h.config.ModeIndicator.RecursiveGrid.Enabled
+	case domain.ModeMonitorSelect:
+		return h.config.ModeIndicator.MonitorSelect.Enabled
 	default:
 		return false
 	}
@@ -270,6 +272,7 @@ func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Poi
 		}
 	case domain.ModeIdle:
 	case domain.ModeHints:
+	case domain.ModeMonitorSelect:
 	case domain.ModeScroll:
 	}
 

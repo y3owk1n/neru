@@ -30,12 +30,31 @@ build-linux ARCH="amd64":
     CGO_ENABLED=1 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
     @echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
 
+# Generate Windows resource files (.syso) for embedding the app icon and manifest.
+#
+# Must be run before go build on/for Windows.  The .syso files are written into
+# cmd/neru/ so go build picks them up automatically.
+generate-winres ARCH="amd64":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd cmd/neru
+    echo "Generating Windows resources for {{ ARCH }}..."
+    go run github.com/tc-hib/go-winres@v0.3.3 simply \
+        --icon ../../assets/neru-appicon.png \
+        --manifest gui \
+        --arch {{ ARCH }} \
+        --file-description "Neru keyboard-driven navigation tool" \
+        --product-name "Neru" \
+        --original-filename "neru.exe"
+    echo "✓ Windows resources generated"
+
 # Build a Windows binary from any host.
 # This produces a binary with grid, recursive grid, scroll, global hotkeys,
 # mouse injection, IPC, and initial UIA accessibility.
 build-windows ARCH="amd64":
     @echo "Building Neru for windows/{{ ARCH }}..."
     mkdir -p bin
+    just generate-winres {{ ARCH }}
     CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="{{ WIN_LDFLAGS }}" -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Build complete: bin/neru-windows-{{ ARCH }}.exe"
 
@@ -96,6 +115,7 @@ release-ci-windows ARCH VERSION_OVERRIDE:
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
+    just generate-winres {{ ARCH }}
     CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-H windowsgui -s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
@@ -192,6 +212,7 @@ clean:
     rm -rf bin/
     rm -rf build/
     rm -rf *.app
+    rm -f cmd/neru/rsrc_windows_*.syso
     @echo "✓ Clean complete"
 
 # Format code

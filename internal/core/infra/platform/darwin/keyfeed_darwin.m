@@ -5,11 +5,10 @@
 //  Copyright © 2025 Neru. All rights reserved.
 //
 
-#import "hotkeys.h"
+#import "eventtap.h"
 #import "keyfeed.h"
 
 #import <ApplicationServices/ApplicationServices.h>
-#import <Carbon/Carbon.h>
 #import <stdbool.h>
 
 static const int neruSyntheticEventMarker = 0x1337;
@@ -35,13 +34,13 @@ static CGEventFlags flagsForModifiers(int modifiers) {
 static CGKeyCode modifierKeyCode(int modifier) {
 	switch (modifier) {
 	case ModifierCmd:
-		return kVK_Command;
+		return 0x37;  // kVK_Command
 	case ModifierShift:
-		return kVK_Shift;
+		return 0x38;  // kVK_Shift
 	case ModifierAlt:
-		return kVK_Option;
+		return 0x3A;  // kVK_Option
 	case ModifierCtrl:
-		return kVK_Control;
+		return 0x3B;  // kVK_Control
 	default:
 		return 0xFFFF;
 	}

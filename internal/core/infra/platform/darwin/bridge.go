@@ -3,7 +3,7 @@
 package darwin
 
 /*
-#include "hotkeys.h"
+#include "eventtap.h"
 #include "theme.h"
 #include "appwatcher.h"
 #include "accessibility.h"
@@ -30,45 +30,60 @@ func AppWatcher() AppWatcherInterface {
 	return appWatcherSlot.Get()
 }
 
-// RegisterHotkey registers a global hotkey on macOS.
-func RegisterHotkey(
-	keyCode, modifiers, hotkeyID int,
-	callback unsafe.Pointer,
-	userData unsafe.Pointer,
-) bool {
-	log := getLogger()
-	log.Debug("Darwin: Registering hotkey",
-		zap.Int("key_code", keyCode),
-		zap.Int("modifiers", modifiers),
-		zap.Int("hotkey_id", hotkeyID))
+// HotkeyEventKind describes whether a global hotkey was pressed or released.
+type HotkeyEventKind int
 
-	result := C.NeruRegisterHotkey(
+const (
+	// HotkeyEventPressed is emitted when a registered hotkey is pressed.
+	HotkeyEventPressed HotkeyEventKind = 1
+	// HotkeyEventReleased is emitted when a registered hotkey is released.
+	HotkeyEventReleased HotkeyEventKind = 2
+)
+
+// HotkeyHandler defines the signature for hotkey event handlers.
+type HotkeyHandler func(hotkeyID int, eventKind HotkeyEventKind)
+
+var hotkeyHandlerSlot cgoSlot[HotkeyHandler]
+
+// SetHotkeyHandler sets the global hotkey event handler.
+func SetHotkeyHandler(handler HotkeyHandler) {
+	hotkeyHandlerSlot.Set(handler)
+}
+
+// CreateHotkeyTap creates a per-hotkey CGEventTap.
+// Returns an opaque handle (must be destroyed via DestroyHotkeyTap) or nil on failure.
+func CreateHotkeyTap(hotkeyID, keyCode, modifiers int) unsafe.Pointer {
+	log := getLogger()
+	log.Debug("Darwin: Creating hotkey tap",
+		zap.Int("hotkey_id", hotkeyID),
+		zap.Int("key_code", keyCode),
+		zap.Int("modifiers", modifiers))
+
+	tap := C.NeruCreateHotkeyTap(
+		C.int(hotkeyID),
 		C.int(keyCode),
 		C.int(modifiers),
-		C.int(hotkeyID),
-		(C.HotkeyCallback)(callback),
-		userData, //nolint:nlreturn
+		C.HotkeyTapCallback(C.hotkeyCallbackBridge),
+		nil,
 	)
 
-	log.Debug("Darwin: Register hotkey result",
-		zap.Bool("success", result == 1))
+	if tap == nil {
+		log.Warn("Darwin: Failed to create hotkey tap — check Accessibility permissions")
 
-	success := result == 1
+		return nil
+	}
 
-	return success
+	log.Debug("Darwin: Hotkey tap created", zap.Int("hotkey_id", hotkeyID))
+
+	return unsafe.Pointer(tap)
 }
 
-// UnregisterHotkey unregisters a global hotkey on macOS.
-func UnregisterHotkey(hotkeyID int) {
-	log := getLogger()
-	log.Debug("Darwin: Unregistering hotkey", zap.Int("hotkey_id", hotkeyID))
-
-	C.NeruUnregisterHotkey(C.int(hotkeyID))
-}
-
-// UnregisterAllHotkeys unregisters all global hotkeys on macOS.
-func UnregisterAllHotkeys() {
-	C.NeruUnregisterAllHotkeys()
+// DestroyHotkeyTap destroys a per-hotkey CGEventTap previously created by CreateHotkeyTap.
+func DestroyHotkeyTap(tap unsafe.Pointer) {
+	if tap == nil {
+		return
+	}
+	C.NeruDestroyHotkeyTap(C.HotkeyTapRef(tap))
 }
 
 // ParseKeyString parses a key string into a key code and modifiers on macOS.
@@ -91,33 +106,6 @@ func ParseKeyString(keyString string) (int, int, bool) {
 	success := result == 1
 
 	return int(keyCode), int(modifiers), success
-}
-
-// HotkeyEventKind describes whether a global hotkey was pressed or released.
-type HotkeyEventKind int
-
-const (
-	// HotkeyEventPressed is emitted when a registered hotkey is pressed.
-	HotkeyEventPressed HotkeyEventKind = 1
-	// HotkeyEventReleased is emitted when a registered hotkey is released.
-	HotkeyEventReleased HotkeyEventKind = 2
-)
-
-// HotkeyHandler defines the signature for hotkey event handlers.
-type HotkeyHandler func(hotkeyID int, eventKind HotkeyEventKind)
-
-var hotkeyHandlerSlot cgoSlot[HotkeyHandler]
-
-// SetHotkeyHandler sets the global hotkey event handler.
-func SetHotkeyHandler(handler HotkeyHandler) {
-	hotkeyHandlerSlot.Set(handler)
-}
-
-// GetHotkeyCallbackBridge returns a pointer to the C hotkey callback bridge function.
-func GetHotkeyCallbackBridge() unsafe.Pointer {
-	ptr := (unsafe.Pointer)(C.hotkeyCallbackBridge) //nolint:unconvert
-
-	return ptr
 }
 
 //export hotkeyCallbackBridge

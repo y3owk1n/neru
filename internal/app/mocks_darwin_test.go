@@ -163,6 +163,9 @@ func (m *mockOverlayManager) Clear() {
 	m.mu.Unlock()
 }
 
+// ClearCache implements OverlayManager.
+func (m *mockOverlayManager) ClearCache() {}
+
 // ResizeToActiveScreen implements OverlayManager.
 func (m *mockOverlayManager) ResizeToActiveScreen() {}
 

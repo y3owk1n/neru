@@ -20,6 +20,8 @@ const (
 	ModeScroll
 	// ModeRecursiveGrid represents the recursive-grid navigation mode.
 	ModeRecursiveGrid
+	// ModeMonitorSelect represents the interactive monitor selection mode.
+	ModeMonitorSelect
 )
 
 // IPC Commands.

@@ -225,7 +225,7 @@ The [factory.go](../internal/core/infra/platform/factory.go) and its build-tagge
 2. **Infrastructure Level**: [adapter.go](../internal/core/infra/eventtap/adapter.go) receives events and dispatches them to the app.
 3. **Application Level**: [handler.go](../internal/app/modes/handler.go) receives the key and routes it to the active [Mode](../internal/app/modes/base.go).
 4. **Service Level**: The mode calls into services like [hint_service.go](../internal/app/services/hint_service.go) to perform business logic.
-5. **Keyboard Layout Changes**: On macOS, Carbon global hotkeys are registered with raw keycodes. When the user switches keyboard layout at runtime (e.g., US → Dvorak → Colemak), the [layout_change_darwin.go](../internal/app/layout_change_darwin.go) handler unregisters all existing hotkeys and re-registers them with the new layout's keycodes. This is driven by a second callback slot in [keymap_darwin.m](../internal/core/infra/platform/darwin/keymap_darwin.m) (`NeruSetKeymapLayoutChangeCallback2`). On Linux and Windows, this is a no-op.
+5. **Keyboard Layout Changes**: On macOS, the mode-level CGEventTap rebuilds its key-name lookup tables at runtime (via `NeruSetKeymapLayoutChangeCallback` in [keymap_darwin.m](../internal/core/infra/platform/darwin/keymap_darwin.m)) so mode navigation keys continue to work across layout changes. Per-hotkey CGEventTaps for global hotkeys also re-register on layout change (via `NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps key names to layout-aware keycodes.
 
 ---
 

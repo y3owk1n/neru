@@ -22,6 +22,18 @@ func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
 }
 
+// currentHintStyleLocked resolves theme-aware hint overlay colors from the live
+// config, matching search-input and mode-indicator draw paths. Caller must
+// hold h.mu.
+func (h *Handler) currentHintStyleLocked() hints.StyleMode {
+	style := hints.BuildStyle(h.config.Hints, h.themeProvider)
+	if h.hints != nil {
+		h.hints.Style = style
+	}
+
+	return style
+}
+
 // ModeActivationOptions configures a mode activation request.
 type ModeActivationOptions struct {
 	Action                *string
@@ -423,7 +435,10 @@ func (h *Handler) activateHintModeInternal(
 				)
 			}
 
-			drawHintsErr := h.overlayManager.DrawHintsWithStyle(overlayHints, h.hints.Style)
+			drawHintsErr := h.overlayManager.DrawHintsWithStyle(
+				overlayHints,
+				h.currentHintStyleLocked(),
+			)
 			if drawHintsErr != nil {
 				h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 			}

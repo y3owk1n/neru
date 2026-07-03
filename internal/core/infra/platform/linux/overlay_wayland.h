@@ -12,6 +12,7 @@
 
 typedef struct {
 	int x, y, width, height;
+	int scale;
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
 

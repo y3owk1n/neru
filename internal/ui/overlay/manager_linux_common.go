@@ -215,6 +215,10 @@ func (m *Manager) Clear() {
 	m.modeIndicatorBadgeRect = image.Rectangle{}
 }
 
+// ClearCache is a no-op on Linux; the overlay backend does not retain stale
+// cross-mode cache state.
+func (m *Manager) ClearCache() {}
+
 // ResizeToActiveScreen resizes the overlay to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
 	m.renderMu.Lock()

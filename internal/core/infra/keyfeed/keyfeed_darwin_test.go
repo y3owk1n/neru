@@ -8,6 +8,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
 )
 
+const shiftA = "Shift+A"
+
 func TestNormalizeKeyForFeed(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -18,7 +20,7 @@ func TestNormalizeKeyForFeed(t *testing.T) {
 		{
 			name:    "single uppercase letter",
 			input:   "A",
-			want:    "Shift+A",
+			want:    shiftA,
 			wantErr: false,
 		},
 		{
@@ -29,8 +31,8 @@ func TestNormalizeKeyForFeed(t *testing.T) {
 		},
 		{
 			name:    "uppercase with explicit shift",
-			input:   "Shift+A",
-			want:    "Shift+A",
+			input:   shiftA,
+			want:    shiftA,
 			wantErr: false,
 		},
 		{

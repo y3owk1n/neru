@@ -14,7 +14,7 @@
 #pragma mark - Secure Input Detection
 
 /// Check if macOS secure input mode is currently enabled.
-/// Uses IsSecureEventInputEnabled() from the Carbon HIToolbox framework.
+/// Uses IsSecureEventInputEnabled() from HIToolbox.
 /// @return 1 if secure input is enabled, 0 otherwise
 int NeruIsSecureInputEnabled(void) {
 	// IsSecureEventInputEnabled() returns true when any application has enabled

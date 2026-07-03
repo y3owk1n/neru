@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.45.0](https://github.com/y3owk1n/neru/compare/v1.44.1...v1.45.0) (2026-06-29)
+
+
+### Features
+
+* **hints:** add `label_direction` with different algo ([#934](https://github.com/y3owk1n/neru/issues/934)) ([9cf45b7](https://github.com/y3owk1n/neru/commit/9cf45b76cda3c6da801271dd470f224b5ed0851a))
+* **linux,wayland:** render overlay at output buffer scale ([#955](https://github.com/y3owk1n/neru/issues/955)) ([8c8482a](https://github.com/y3owk1n/neru/commit/8c8482a6a67c1462a9ab8b12fb692e0a4260db9a))
+* **windows,overlay:** rewrite overlay renderenig with real per-pixel alpha and full theme support ([#950](https://github.com/y3owk1n/neru/issues/950)) ([8b1fa57](https://github.com/y3owk1n/neru/commit/8b1fa57d46bc067254174906f36511b78d6f3e4a))
+* **windows:** add native alert dialogs for validation and startup ([#948](https://github.com/y3owk1n/neru/issues/948)) ([1b52c02](https://github.com/y3owk1n/neru/commit/1b52c02cc0274a3c02698ab925107c20fc35febd))
+* **windows:** embed app icon in .exe ([#949](https://github.com/y3owk1n/neru/issues/949)) ([90850f0](https://github.com/y3owk1n/neru/commit/90850f00608a9dccd21f9436d54772d809269262))
+* **windows:** initial basic support implementation ([2b637ba](https://github.com/y3owk1n/neru/commit/2b637ba07bc43e91827ace74f4e4f6608bb8c9d1))
+
+
+### Bug Fixes
+
+* **darwin,overlay:** keep mode indicator visible after reactivation ([#936](https://github.com/y3owk1n/neru/issues/936)) ([c41f96f](https://github.com/y3owk1n/neru/commit/c41f96f083de0badf7df74b880e1e6583043c9b0))
+* **grid:** avoid overlay redraw flash on mode exit ([#954](https://github.com/y3owk1n/neru/issues/954)) ([5f07607](https://github.com/y3owk1n/neru/commit/5f076074485a8a26c523bb92861bcd5578c333e6))
+* **linux,wayland:** prevent keyboard grab leak from evdev EINTR and blocked poll ([#953](https://github.com/y3owk1n/neru/issues/953)) ([d1bea3d](https://github.com/y3owk1n/neru/commit/d1bea3d7ac6978b0f22d1b00abeefeff8331a423))
+* **windows,config:** use proper windows path for config, shell and path validation ([#943](https://github.com/y3owk1n/neru/issues/943)) ([c679e6f](https://github.com/y3owk1n/neru/commit/c679e6fd0708384907b49632d7e17d09707fb860))
+* **windows,hints:** render badges atomically for correct z index ([#952](https://github.com/y3owk1n/neru/issues/952)) ([208db03](https://github.com/y3owk1n/neru/commit/208db036f2eddb1999cf56263247be1a3d477b76))
+* **windows:** align roles for hints and fix styling ([#951](https://github.com/y3owk1n/neru/issues/951)) ([7677bb4](https://github.com/y3owk1n/neru/commit/7677bb4bca27d5ea73a41af2c9f9f75bc4e29529))
+* **windows:** auto launch daemon when running .exe ([#944](https://github.com/y3owk1n/neru/issues/944)) ([6d504ef](https://github.com/y3owk1n/neru/commit/6d504ef8b3bd922a7eed2dfda19855ab61224fef))
+* **windows:** consume non-modifier key-down events to prevent passthrough to apps ([#947](https://github.com/y3owk1n/neru/issues/947)) ([a10a27a](https://github.com/y3owk1n/neru/commit/a10a27a6bcf842ce6224f2b0066cef3a99e28b71))
+* **windows:** ensure exe launches and quit properly ([#946](https://github.com/y3owk1n/neru/issues/946)) ([f12d0cd](https://github.com/y3owk1n/neru/commit/f12d0cd3e1876eeff2d50696abac6ec49591602c))
+
 ## [1.44.1](https://github.com/y3owk1n/neru/compare/v1.44.0...v1.44.1) (2026-06-13)
 
 

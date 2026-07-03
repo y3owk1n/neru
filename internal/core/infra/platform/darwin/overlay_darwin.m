@@ -1717,11 +1717,20 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) NSInteger sharingType;     ///< Current window sharing type
 @property(nonatomic, assign) BOOL sharingTypeExplicit;  ///< Whether sharingType was explicitly configured
 @property(nonatomic, assign) BOOL shouldBeVisible;      ///< Whether the window should currently be visible on screen
+@property(nonatomic, assign) BOOL needsWindowServerReattach;
+@property(nonatomic, assign) BOOL windowServerReattachScheduled;
+- (void)applyOverlayCollectionBehavior;
+- (void)reattachToAllSpacesIfVisible;
 @end
 
 #pragma mark - Overlay Window Controller Implementation
 
 @implementation OverlayWindowController
+
+- (void)dealloc {
+	[[[NSWorkspace sharedWorkspace] notificationCenter] removeObserver:self];
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
+}
 
 /// Initialize
 /// @return Initialized instance
@@ -1729,9 +1738,69 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	self = [super init];
 	if (self) {
 		_shouldBeVisible = NO;
+		_needsWindowServerReattach = NO;
+		_windowServerReattachScheduled = NO;
 		[self createWindow];
 	}
 	return self;
+}
+
+- (void)applyOverlayCollectionBehavior {
+	[self.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
+	                                   NSWindowCollectionBehaviorStationary | NSWindowCollectionBehaviorIgnoresCycle |
+	                                   NSWindowCollectionBehaviorFullScreenAuxiliary];
+}
+
+- (BOOL)hasDrawableFrame {
+	NSRect frame = self.window.frame;
+	return frame.size.width > 1.0 || frame.size.height > 1.0;
+}
+
+- (void)reattachToAllSpacesIfVisible {
+	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
+		return;
+
+	self.windowServerReattachScheduled = YES;
+	[self.window orderOut:nil];
+	[self.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		self.windowServerReattachScheduled = NO;
+		if (!self.shouldBeVisible || ![self hasDrawableFrame])
+			return;
+
+		self.needsWindowServerReattach = NO;
+		[self applyOverlayCollectionBehavior];
+		[self.window setIsVisible:YES];
+		[self.window orderFrontRegardless];
+		[self.window display];
+		[self.overlayView setNeedsDisplay:YES];
+	});
+}
+
+- (void)handleWindowServerAttachmentInvalidated:(NSNotification *)notification {
+	(void)notification;
+	if ([NSThread isMainThread]) {
+		self.needsWindowServerReattach = YES;
+		[self reattachToAllSpacesIfVisible];
+		return;
+	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		self.needsWindowServerReattach = YES;
+		[self reattachToAllSpacesIfVisible];
+	});
+}
+
+- (void)handleWindowServerAttachmentWillInvalidate:(NSNotification *)notification {
+	(void)notification;
+	if ([NSThread isMainThread]) {
+		self.needsWindowServerReattach = YES;
+		return;
+	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		self.needsWindowServerReattach = YES;
+	});
 }
 
 /// Create window
@@ -1769,9 +1838,25 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[self.window setIgnoresMouseEvents:YES];
 	[self.window setAcceptsMouseMovedEvents:NO];
 	[self.window setHasShadow:NO];
-	[self.window
-	    setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary |
-	                          NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorIgnoresCycle];
+	[self applyOverlayCollectionBehavior];
+
+	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
+	                                                       selector:@selector(handleWindowServerAttachmentInvalidated:)
+	                                                           name:NSWorkspaceActiveSpaceDidChangeNotification
+	                                                         object:nil];
+	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
+	                                                       selector:@selector(handleWindowServerAttachmentInvalidated:)
+	                                                           name:NSWorkspaceDidWakeNotification
+	                                                         object:nil];
+	[[[NSWorkspace sharedWorkspace] notificationCenter]
+	    addObserver:self
+	       selector:@selector(handleWindowServerAttachmentWillInvalidate:)
+	           name:NSWorkspaceWillSleepNotification
+	         object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self
+	                                         selector:@selector(handleWindowServerAttachmentInvalidated:)
+	                                             name:NSApplicationDidChangeScreenParametersNotification
+	                                           object:nil];
 
 	// Set sharing type — default to visible (NSWindowSharingReadOnly = 1) unless explicitly configured
 	if (!self.sharingTypeExplicit) {
@@ -1802,6 +1887,12 @@ static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller
 	if (frame.size.width <= 1.0 && frame.size.height <= 1.0)
 		return;
 
+	if (controller.needsWindowServerReattach || controller.windowServerReattachScheduled) {
+		[controller reattachToAllSpacesIfVisible];
+		return;
+	}
+
+	[controller applyOverlayCollectionBehavior];
 	[controller.window setIsVisible:YES];
 	[controller.window orderFrontRegardless];
 
@@ -1860,10 +1951,7 @@ void NeruShowOverlayWindow(OverlayWindow window) {
 			controller.shouldBeVisible = YES;
 
 			[controller.window setLevel:kCGMaximumWindowLevel];
-			[controller.window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
-			                                         NSWindowCollectionBehaviorStationary |
-			                                         NSWindowCollectionBehaviorIgnoresCycle |
-			                                         NSWindowCollectionBehaviorFullScreenAuxiliary];
+			[controller applyOverlayCollectionBehavior];
 
 			NeruOrderOverlayWindowIfDrawable(controller, YES);
 		}
@@ -1880,6 +1968,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
+		controller.needsWindowServerReattach = YES;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -1890,6 +1979,7 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
+				controller.needsWindowServerReattach = YES;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
@@ -2177,13 +2267,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			[controller.overlayView applyStyle:style];
 			[controller.overlayView.hints addObjectsFromArray:hintItems];
 			[controller.overlayView setNeedsDisplay:YES];
-			if (controller.shouldBeVisible) {
-				[controller.window setIsVisible:YES];
-				[controller.window orderFrontRegardless];
-				if (style.forceFlush) {
-					[controller.window display];
-				}
-			}
+			NeruOrderOverlayWindowIfDrawable(controller, style.forceFlush ? YES : NO);
 		} else {
 			// Copy style strings before crossing the thread boundary
 			HintStyle styleCopy = {
@@ -2212,14 +2296,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 					[controller.overlayView applyStyle:styleCopy];
 					[controller.overlayView.hints addObjectsFromArray:hintItems];
 					[controller.overlayView setNeedsDisplay:YES];
-
-					if (controller.shouldBeVisible) {
-						[controller.window setIsVisible:YES];
-						[controller.window orderFrontRegardless];
-						if (styleCopy.forceFlush) {
-							[controller.window display];
-						}
-					}
+					NeruOrderOverlayWindowIfDrawable(controller, styleCopy.forceFlush ? YES : NO);
 
 					free_hint_style_strings(&styleCopy);
 				}

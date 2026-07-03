@@ -234,6 +234,66 @@ func TestDefaultThemeFallbacksMatchResolvedDefaults(t *testing.T) {
 			got:  cfg.StickyModifiers.UI.BorderColor.Dark,
 			want: config.StickyModifiersBorderColorDark,
 		},
+		{
+			name: "monitor select background light",
+			got:  cfg.MonitorSelect.UI.BackgroundColor.Light,
+			want: config.MonitorSelectBackgroundColorLight,
+		},
+		{
+			name: "monitor select background dark",
+			got:  cfg.MonitorSelect.UI.BackgroundColor.Dark,
+			want: config.MonitorSelectBackgroundColorDark,
+		},
+		{
+			name: "monitor select text light",
+			got:  cfg.MonitorSelect.UI.TextColor.Light,
+			want: config.MonitorSelectTextColorLight,
+		},
+		{
+			name: "monitor select text dark",
+			got:  cfg.MonitorSelect.UI.TextColor.Dark,
+			want: config.MonitorSelectTextColorDark,
+		},
+		{
+			name: "monitor select matched text light",
+			got:  cfg.MonitorSelect.UI.MatchedTextColor.Light,
+			want: config.MonitorSelectMatchedTextColorLight,
+		},
+		{
+			name: "monitor select matched text dark",
+			got:  cfg.MonitorSelect.UI.MatchedTextColor.Dark,
+			want: config.MonitorSelectMatchedTextColorDark,
+		},
+		{
+			name: "monitor select border light",
+			got:  cfg.MonitorSelect.UI.BorderColor.Light,
+			want: config.MonitorSelectBorderColorLight,
+		},
+		{
+			name: "monitor select border dark",
+			got:  cfg.MonitorSelect.UI.BorderColor.Dark,
+			want: config.MonitorSelectBorderColorDark,
+		},
+		{
+			name: "monitor select backdrop light",
+			got:  cfg.MonitorSelect.UI.BackdropColor.Light,
+			want: config.MonitorSelectBackdropColorLight,
+		},
+		{
+			name: "monitor select backdrop dark",
+			got:  cfg.MonitorSelect.UI.BackdropColor.Dark,
+			want: config.MonitorSelectBackdropColorDark,
+		},
+		{
+			name: "monitor select subtitle text light",
+			got:  cfg.MonitorSelect.UI.SubtitleTextColor.Light,
+			want: config.MonitorSelectSubtitleTextColorLight,
+		},
+		{
+			name: "monitor select subtitle text dark",
+			got:  cfg.MonitorSelect.UI.SubtitleTextColor.Dark,
+			want: config.MonitorSelectSubtitleTextColorDark,
+		},
 	}
 
 	for _, testCase := range cases {

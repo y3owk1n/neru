@@ -28,6 +28,8 @@ const (
 	ModeScroll Mode = Mode(domain.ModeNameScroll)
 	// ModeRecursiveGrid represents the recursive-grid mode.
 	ModeRecursiveGrid Mode = Mode(domain.ModeNameRecursiveGrid)
+	// ModeMonitorSelect represents the monitor_select mode.
+	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
 )
 
 // StateChange represents a change in overlay mode.
@@ -63,6 +65,9 @@ func (n *NoOpManager) Hide() {}
 
 // Clear is a no-op implementation.
 func (n *NoOpManager) Clear() {}
+
+// ClearCache is a no-op implementation.
+func (n *NoOpManager) ClearCache() {}
 
 // ResizeToActiveScreen is a no-op implementation.
 func (n *NoOpManager) ResizeToActiveScreen() {}
@@ -208,6 +213,7 @@ type ManagerInterface interface {
 	Show()
 	Hide()
 	Clear()
+	ClearCache()
 	ResizeToActiveScreen()
 	SwitchTo(next Mode)
 	Subscribe(fn func(StateChange)) uint64

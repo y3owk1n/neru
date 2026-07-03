@@ -271,6 +271,62 @@ func TestManager_CustomLabelsWithSymbols(t *testing.T) {
 	}
 }
 
+func TestGridManager_ResetSilentClearsInputWithoutCallback(t *testing.T) {
+	logger := logger.Get()
+
+	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 1000), logger)
+
+	var updates int
+
+	manager := grid.NewManager(
+		testGrid,
+		3, 3, "asdf",
+		func(_ bool) { updates++ },
+		func(_ *grid.Cell) {},
+		logger,
+	)
+
+	manager.SetCurrentInput("AB")
+
+	manager.ResetSilent()
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' after ResetSilent()", input)
+	}
+
+	if updates != 0 {
+		t.Errorf("ResetSilent() fired onUpdate %d times, want 0", updates)
+	}
+}
+
+func TestGridManager_ResetClearsInputAndFiresCallback(t *testing.T) {
+	logger := logger.Get()
+
+	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 1000), logger)
+
+	var redraws []bool
+
+	manager := grid.NewManager(
+		testGrid,
+		3, 3, "asdf",
+		func(redraw bool) { redraws = append(redraws, redraw) },
+		func(_ *grid.Cell) {},
+		logger,
+	)
+
+	manager.SetCurrentInput("AB")
+
+	manager.Reset()
+
+	if input := manager.CurrentInput(); input != "" {
+		t.Errorf("CurrentInput() = %q, want '' after Reset()", input)
+	}
+
+	if len(redraws) != 1 || redraws[0] {
+		t.Errorf("Reset() onUpdate calls = %v, want exactly one call with redraw=false", redraws)
+	}
+}
+
 func TestManager_InputValidation(t *testing.T) {
 	logger := logger.Get()
 

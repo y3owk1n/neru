@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// Overlay manages the rendering of sticky modifiers indicator overlay (Windows stub).
+// Overlay manages the rendering of sticky modifiers indicator overlay.
 type Overlay struct {
 	uiConfig config.StickyModifiersUI
 	theme    config.ThemeProvider
@@ -19,7 +19,7 @@ type Overlay struct {
 	configMu sync.RWMutex
 }
 
-// NewOverlay initializes a new sticky modifiers indicator overlay (Windows stub).
+// NewOverlay initializes a new sticky modifiers indicator overlay.
 func NewOverlay(
 	uiConfig config.StickyModifiersUI,
 	theme config.ThemeProvider,
@@ -32,34 +32,47 @@ func NewOverlay(
 	}, nil
 }
 
-// Draw draws the sticky modifiers indicator at the specified position (Windows stub).
+// Draw is unused on Windows; drawing is handled by the manager.
 func (o *Overlay) Draw(x, y int, symbols string) {}
 
-// Show shows the sticky modifiers indicator overlay (Windows stub).
+// Show is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Show() {}
 
-// Hide hides the sticky modifiers indicator overlay (Windows stub).
+// Hide is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Hide() {}
 
-// Clear clears the sticky modifiers indicator overlay (Windows stub).
+// Clear is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Clear() {}
 
-// ResizeToActiveScreen resizes the sticky modifiers indicator overlay to the active screen (Windows stub).
+// ResizeToActiveScreen is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) ResizeToActiveScreen() {}
 
-// Destroy destroys the sticky modifiers indicator overlay (Windows stub).
+// Destroy is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Destroy() {}
 
-// Cleanup frees Go-side resources (Windows stub).
+// Cleanup is unused on Windows.
 func (o *Overlay) Cleanup() {}
 
-// SetSharingType sets the window sharing type for screen sharing visibility (Windows stub).
+// SetSharingType is unused on Windows.
 func (o *Overlay) SetSharingType(_ bool) {}
 
-// SetConfig updates the overlay configuration (Windows stub).
+// SetConfig updates the overlay configuration.
 func (o *Overlay) SetConfig(cfg config.StickyModifiersUI) {
 	o.configMu.Lock()
 	defer o.configMu.Unlock()
 
 	o.uiConfig = cfg
+}
+
+// UI returns the indicator UI config.
+func (o *Overlay) UI() config.StickyModifiersUI {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	return o.uiConfig
+}
+
+// Theme returns the theme provider.
+func (o *Overlay) Theme() config.ThemeProvider {
+	return o.theme
 }

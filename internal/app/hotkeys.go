@@ -315,7 +315,8 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 		case domain.ModeString(domain.ModeHints),
 			domain.ModeString(domain.ModeGrid),
 			domain.ModeString(domain.ModeRecursiveGrid),
-			domain.ModeString(domain.ModeScroll):
+			domain.ModeString(domain.ModeScroll),
+			domain.ModeString(domain.ModeMonitorSelect):
 			hotkeyMods := hotkeyModifiersFromKey(key)
 			a.modes.SuppressModifiersUntilReleased(hotkeyMods)
 		}

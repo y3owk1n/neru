@@ -2,8 +2,9 @@
 
 package app
 
-// registerLayoutChangeHandler is a no-op on Linux.
-// Linux does not use Carbon hotkeys, so no re-registration is needed.
+// registerLayoutChangeHandler is a no-op on Linux — global hotkeys on Linux
+// use platform-specific backends that re-parse key strings each time, so no
+// layout-change re-registration is needed.
 func (a *App) registerLayoutChangeHandler() {}
 
 // unregisterLayoutChangeHandler is a no-op on Linux.

@@ -14,7 +14,7 @@ import (
 
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
-	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -35,10 +35,18 @@ const (
 	winCenteredRectDivisor             = 2
 	winPaddingMultiplier               = 2
 	winSubKeyPreviewPaddingBottom      = 4
+
+	winAutoRadiusBadgeCap           = 6.0
+	winAutoRadiusBoundaryCap        = 4.0
+	winMouseActionSquareRadiusScale = 0.18
+	winMouseActionMinSquareRadius   = 2.0
 )
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
 // software renderer: an element-sized box per hint with a centered label.
+// Each hint is rendered as an atomic unit (fill + stroke + text) so that
+// overlapping hints have correct Z-ordering — later hints are fully on top of
+// earlier ones, matching macOS behavior.
 func (o *winOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
@@ -63,7 +71,9 @@ func (o *winOverlay) DrawHints(
 	o.suppressDraw = false
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
+
+	o.lastHints = hintsSlice
+	o.lastHintStyle = style
 
 	for _, hint := range hintsSlice {
 		if hint == nil {
@@ -77,12 +87,18 @@ func (o *winOverlay) DrawHints(
 				hint.Position().X+hint.Size().X/2,
 				hint.Position().Y+hint.Size().Y/2,
 			)
-			o.drawFilledRect(
-				boundary,
-				parseHexColorARGB(style.BoundaryBackgroundColor()),
-				parseHexColorARGB(style.BoundaryBorderColor()),
-				float64(max(style.BoundaryBorderWidth(), 0)),
+			bdr := resolveWinBorderRadius(
+				style.BoundaryBorderRadius(), boundary, winAutoRadiusBoundaryCap,
 			)
+			o.window.FillRoundedRect(
+				boundary, bdr, parseHexColorARGB(style.BoundaryBackgroundColor()),
+			)
+
+			if bw := float64(max(style.BoundaryBorderWidth(), 0)); bw > 0 {
+				o.window.StrokeRoundedRect(
+					boundary, bdr, parseHexColorARGB(style.BoundaryBorderColor()), bw,
+				)
+			}
 		}
 
 		// Size the badge to the label text, not the element. hint.Size() is the
@@ -107,19 +123,28 @@ func (o *winOverlay) DrawHints(
 			textColor = style.MatchedTextColor()
 		}
 
-		o.drawFilledRect(
-			bounds,
-			parseHexColorARGB(style.BackgroundColor()),
-			parseHexColorARGB(style.BorderColor()),
-			float64(max(style.BorderWidth(), 0)),
+		bdr := resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap)
+		o.window.FillRoundedRect(
+			bounds, bdr, parseHexColorARGB(style.BackgroundColor()),
 		)
-		o.drawTextCentered(
+
+		if bw := float64(max(style.BorderWidth(), 0)); bw > 0 {
+			o.window.StrokeRoundedRect(
+				bounds, bdr, parseHexColorARGB(style.BorderColor()), bw,
+			)
+		}
+
+		o.window.DrawTextCentered(
 			hint.Label(),
 			bounds,
-			style.FontFamily(),
+			ports.ResolveFont(style.FontFamily(), false),
 			fontSize,
 			parseHexColorARGB(textColor),
 		)
+
+		// Composite this hint atomically so its content lands as a unit,
+		// giving correct Z-ordering with overlapping hints.
+		o.window.CompositeCurrent()
 	}
 
 	o.flushOverlay("hints")
@@ -159,7 +184,6 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.suppressDraw = false
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 
 	keyRunes := []rune(strings.ToUpper(keys))
 	cellWidth := bounds.Dx() / gridCols
@@ -182,11 +206,10 @@ func (o *winOverlay) DrawRecursiveGrid(
 				cell.Max.Y = bounds.Max.Y
 			}
 
-			// Stroke the cell border only; leave the interior transparent (the
-			// layered color-key) so the content being navigated to stays visible.
-			// The Windows overlay has no real alpha, so any interior fill blends
-			// to an opaque tint that hides what is underneath. Grid mode draws
-			// borders + labels for the same reason; recursive-grid matches it.
+			if style.HighlightColor != 0 {
+				o.window.FillRect(cell, style.HighlightColor)
+			}
+
 			if style.LineWidth > 0 {
 				o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
 			}
@@ -200,7 +223,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 				o.drawTextCentered(
 					label,
 					cell,
-					style.LabelFontName,
+					ports.ResolveFont(style.LabelFontName, false),
 					style.LabelFontSize,
 					style.LabelFontColor,
 				)
@@ -226,29 +249,31 @@ func (o *winOverlay) DrawRecursiveGrid(
 			parseHexColorARGB(virtualPointer.FillColor),
 			style.LineColor,
 			winSubgridLineWidth,
+			0,
 		)
 	}
 
 	o.flushOverlay("recursive-grid")
 }
 
-// drawFilledRect fills bounds then strokes its border. Used by hint badges,
-// label backgrounds, and the recursive virtual pointer; recursive-grid cells
-// themselves are stroked only (transparent interior) so content stays visible.
+// drawFilledRect fills bounds then strokes its border, optionally with rounded
+// corners. When radius > 0 the anti-aliased SDF rounded-rect primitives are
+// used; otherwise the faster axis-aligned FillRect/StrokeRect path is taken.
 func (o *winOverlay) drawFilledRect(
 	bounds image.Rectangle,
 	fill uint32,
 	border uint32,
 	lineWidth float64,
+	radius float64,
 ) {
 	if o == nil || o.window == nil {
 		return
 	}
 
-	o.window.FillRect(bounds, fill)
+	o.window.FillRoundedRect(bounds, radius, fill)
 
 	if lineWidth > 0 {
-		o.window.StrokeRect(bounds, border, lineWidth)
+		o.window.StrokeRoundedRect(bounds, radius, border, lineWidth)
 	}
 }
 
@@ -269,6 +294,7 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 		style.LabelBackgroundColor,
 		style.LineColor,
 		max(style.LabelBackgroundBorderWidth, 0),
+		resolveWinBorderRadius(style.LabelBackgroundBorderRadius, rect, 0),
 	)
 }
 
@@ -287,7 +313,7 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	o.drawTextCentered(
 		label,
 		previewRect,
-		style.LabelFontName,
+		ports.ResolveFont(style.LabelFontName, false),
 		style.SubKeyPreviewFontSize,
 		style.SubKeyPreviewTextColor,
 	)
@@ -317,6 +343,29 @@ func resolveWinAutoPadding(fontSize float64, padding int, horizontal bool) int {
 	}
 
 	return max(int(fontSize*winAutoPaddingVerticalMultiplier), winAutoPaddingMinVertical)
+}
+
+// resolveWinBorderRadius resolves a configured border-radius value for the
+// given rectangle. Negative values select an automatic radius: autoCap limits
+// the auto-radius for badge-style corners (e.g. 6 px for hint badges); pass 0
+// for a full pill shape (label backgrounds). Zero means sharp corners.
+// Positive values are clamped to half the smaller dimension.
+func resolveWinBorderRadius(configured int, bounds image.Rectangle, autoCap float64) float64 {
+	maxR := float64(min(bounds.Dx(), bounds.Dy())) / 2 //nolint:mnd // half the smaller dimension
+
+	if configured < 0 {
+		if autoCap > 0 {
+			return min(maxR, autoCap)
+		}
+
+		return maxR
+	}
+
+	if configured == 0 {
+		return 0
+	}
+
+	return min(float64(configured), maxR)
 }
 
 func estimateWinTextWidth(text string, fontSize float64) int {

@@ -26,6 +26,7 @@ func (h *Handler) StartInteractiveScroll() {
 		h.performModeSpecificCleanup()
 		h.stopHeldRepeatLocked()
 		h.overlayManager.Clear()
+		h.overlayManager.ClearCache()
 
 		if h.refreshHintsTimer != nil {
 			h.refreshHintsTimer.Stop()

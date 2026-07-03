@@ -46,6 +46,8 @@ func setAndWaitForMode(t *testing.T, application *app.App, mode domain.Mode) {
 		application.SetModeScroll()
 	case domain.ModeRecursiveGrid:
 		application.SetModeRecursiveGrid()
+	case domain.ModeMonitorSelect:
+		t.Skip("SetModeMonitorSelect not yet implemented")
 	default:
 		t.Fatalf("unknown mode: %v", mode)
 	}

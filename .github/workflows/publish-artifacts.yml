@@ -25,15 +25,15 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru darwin arm64 artifact
               run: just release-ci-darwin arm64 ${{ inputs.version_override }}
@@ -82,15 +82,15 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru darwin amd64 artifact
               run: just release-ci-darwin amd64 ${{ inputs.version_override }}
@@ -139,7 +139,7 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - name: Install Linux build dependencies
               run: |
@@ -159,11 +159,11 @@ jobs:
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru linux amd64 artifact
               run: just release-ci-linux amd64 ${{ inputs.version_override }}
@@ -199,7 +199,7 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - name: Install Linux build dependencies
               run: |
@@ -219,11 +219,11 @@ jobs:
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru linux arm64 artifact
               run: just release-ci-linux arm64 ${{ inputs.version_override }}
@@ -259,15 +259,15 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru windows amd64 artifact
               run: just release-ci-windows amd64 ${{ inputs.version_override }}
@@ -302,15 +302,15 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-go@v6
               with:
-                  go-version: "1.26.1"
+                  go-version: "1.26.4"
 
             - uses: extractions/setup-just@v4
               with:
-                  just-version: "1.46.0"
+                  just-version: "1.54.0"
 
             - name: Build neru windows arm64 artifact
               run: just release-ci-windows arm64 ${{ inputs.version_override }}

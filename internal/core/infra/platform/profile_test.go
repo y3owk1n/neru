@@ -27,7 +27,7 @@ func TestProfileFor(t *testing.T) {
 			wantDisplay:       DisplayServerCocoa,
 			wantAccess:        "axuielement",
 			wantAccessBuild:   BuildModeCGORequired,
-			wantHotkeys:       "carbon-hotkeys",
+			wantHotkeys:       "cgeventtap-hotkeys",
 			wantHotkeysBuild:  BuildModeCGORequired,
 			wantKeyboard:      "quartz-event-tap",
 			wantKeyboardBuild: BuildModeCGORequired,

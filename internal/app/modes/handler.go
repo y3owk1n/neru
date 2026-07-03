@@ -74,6 +74,7 @@ type Handler struct {
 	grid          *components.GridComponent
 	scroll        *components.ScrollComponent
 	recursiveGrid *components.RecursiveGridComponent
+	monitorSelect *monitorSelectSession
 
 	// Mode implementations
 	modes map[domain.Mode]Mode
@@ -230,6 +231,7 @@ func NewHandler(
 		domain.ModeGrid:          NewGridMode(handler),
 		domain.ModeScroll:        NewScrollMode(handler),
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
+		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
 	}
 
 	return handler
@@ -473,7 +475,10 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 		)
 	}
 
-	drawHintsErr := h.renderer.DrawHints(overlayHints)
+	drawHintsErr := h.overlayManager.DrawHintsWithStyle(
+		overlayHints,
+		h.currentHintStyleLocked(),
+	)
 	if drawHintsErr != nil {
 		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
 
@@ -612,6 +617,12 @@ func (h *Handler) ResetCurrentMode() {
 				h.logger.Error("Failed to move cursor after recursive-grid reset", zap.Error(err))
 			}
 		}
+	case domain.ModeMonitorSelect:
+		if h.monitorSelect != nil {
+			h.monitorSelect.input = ""
+			h.monitorSelect.selectedIndex = 0
+			h.redrawMonitorSelectLocked()
+		}
 	case domain.ModeIdle, domain.ModeHints, domain.ModeScroll:
 		// no-op
 	}
@@ -667,6 +678,11 @@ func (h *Handler) BackspaceCurrentMode() {
 					zap.Error(err),
 				)
 			}
+		}
+	case domain.ModeMonitorSelect:
+		if h.monitorSelect != nil {
+			h.monitorSelect.Backspace()
+			h.redrawMonitorSelectLocked()
 		}
 	case domain.ModeIdle, domain.ModeScroll:
 		// no-op

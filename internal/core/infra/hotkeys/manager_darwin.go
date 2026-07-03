@@ -3,7 +3,9 @@
 package hotkeys
 
 import (
+	"runtime"
 	"sync"
+	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -21,6 +23,7 @@ type Callback func()
 type callbackPair struct {
 	press   Callback
 	release Callback
+	tap     unsafe.Pointer // per-hotkey CGEventTap handle
 }
 
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
@@ -45,6 +48,18 @@ func NewManager(logger *zap.Logger) *Manager {
 		nextID:    1,
 	}
 
+	// Ensure C-allocated per-hotkey taps are destroyed if the manager is
+	// garbage collected without an explicit UnregisterAll call.
+	runtime.SetFinalizer(manager, func(manager *Manager) {
+		manager.mu.Lock()
+		for _, pair := range manager.callbacks {
+			darwin.DestroyHotkeyTap(pair.tap)
+		}
+
+		manager.callbacks = nil
+		manager.mu.Unlock()
+	})
+
 	return manager
 }
 
@@ -64,7 +79,7 @@ func (m *Manager) RegisterWithRelease(
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Parse key string
+	// Parse key string into key code and modifiers
 	keyCode, modifiers, ok := darwin.ParseKeyString(keyString)
 	if !ok {
 		m.logger.Error("Failed to parse key string", zap.String("key", keyString))
@@ -80,12 +95,10 @@ func (m *Manager) RegisterWithRelease(
 	hotkeyID := m.nextID
 	m.nextID++
 
-	// Register hotkey
-	success := darwin.RegisterHotkey(keyCode, modifiers, int(hotkeyID),
-		darwin.GetHotkeyCallbackBridge(), nil)
-
-	if !success {
-		m.logger.Error("Failed to register hotkey", zap.String("key", keyString))
+	// Create per-hotkey CGEventTap
+	tap := darwin.CreateHotkeyTap(int(hotkeyID), keyCode, modifiers)
+	if tap == nil {
+		m.logger.Error("Failed to create hotkey tap", zap.String("key", keyString))
 
 		return 0, derrors.Newf(
 			derrors.CodeHotkeyRegisterFailed,
@@ -94,10 +107,11 @@ func (m *Manager) RegisterWithRelease(
 		)
 	}
 
-	// Store callback
+	// Store callback and tap handle
 	m.callbacks[hotkeyID] = callbackPair{
 		press:   pressCallback,
 		release: releaseCallback,
+		tap:     tap,
 	}
 
 	m.logger.Debug("Registered hotkey",
@@ -117,8 +131,11 @@ func (m *Manager) Unregister(hotkeyID HotkeyID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	darwin.UnregisterHotkey(int(hotkeyID))
-	delete(m.callbacks, hotkeyID)
+	pair, ok := m.callbacks[hotkeyID]
+	if ok {
+		darwin.DestroyHotkeyTap(pair.tap)
+		delete(m.callbacks, hotkeyID)
+	}
 
 	m.logger.Debug("Unregistered hotkey", zap.Int("id", int(hotkeyID)))
 }
@@ -131,14 +148,16 @@ func (m *Manager) UnregisterAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	darwin.UnregisterAllHotkeys()
+	for _, pair := range m.callbacks {
+		darwin.DestroyHotkeyTap(pair.tap)
+	}
 
 	m.callbacks = make(map[HotkeyID]callbackPair)
 
 	m.logger.Debug("Unregistered all hotkeys")
 }
 
-// handleCallback processes hotkey events received from the C callback darwin.
+// handleCallback processes hotkey events received from the C callback.
 // It looks up the appropriate callback function and executes it in a goroutine.
 func (m *Manager) handleCallback(hotkeyID HotkeyID, eventKind darwin.HotkeyEventKind) {
 	m.logger.Debug("Handling hotkey callback", zap.Int("id", int(hotkeyID)))
@@ -171,7 +190,7 @@ func (m *Manager) handleCallback(hotkeyID HotkeyID, eventKind darwin.HotkeyEvent
 // This allows the C bridge function to forward events to the appropriate manager instance.
 var globalManager *Manager
 
-// SetGlobalManager assigns the global manager instance used by the C callback darwin.
+// SetGlobalManager assigns the global manager instance used by the C callback bridge.
 // This should be called once during application initialization with the main hotkey manager.
 func SetGlobalManager(manager *Manager) {
 	if manager != nil {

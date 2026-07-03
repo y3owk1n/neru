@@ -25,7 +25,7 @@ jobs:
                       check: formatting
         runs-on: ${{ matrix.os }}
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   repository: ${{ github.event.pull_request.head.repo.full_name }}
                   ref: ${{ github.head_ref }}
@@ -69,7 +69,7 @@ jobs:
               if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
               uses: golangci/golangci-lint-action@v9
               with:
-                  version: v2.11.3
+                  version: v2.12.2
                   install-only: true
 
             # Install just on Windows

@@ -19,8 +19,10 @@ const (
 	maxChannel = 255
 )
 
+// rgbToColorRef converts individual R/G/B channels into a Win32 COLORREF.
+// COLORREF format is 0x00BBGGRR: B in the highest byte, R in the lowest byte.
 func rgbToColorRef(red, green, blue uint8) uint32 {
-	return uint32(blue) | (uint32(green) << greenShift) | (uint32(red) << redShift)
+	return uint32(red) | (uint32(green) << greenShift) | (uint32(blue) << redShift)
 }
 
 // argbToGDIColorRef converts AARRGGBB to an opaque COLORREF for GDI.

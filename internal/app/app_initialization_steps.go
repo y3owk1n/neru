@@ -482,7 +482,7 @@ func initializeEventTapAndIPC(app *App) error {
 		app.configureEventTapHotkeys(cfg, logger)
 	}
 
-	// Register Go-level keyboard layout change handler so Carbon hotkeys
+	// Register Go-level keyboard layout change handler so CGEventTap hotkeys
 	// (registered with raw keycodes) are re-registered when the layout changes.
 	app.registerLayoutChangeHandler()
 

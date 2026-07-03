@@ -729,6 +729,38 @@ func (c *Config) ValidateGrid() error {
 	return nil
 }
 
+// ValidateMonitorSelect validates the monitor_select configuration.
+func (c *Config) ValidateMonitorSelect() error {
+	if !c.MonitorSelect.Enabled {
+		return nil
+	}
+
+	if c.MonitorSelect.Characters == "" {
+		return derrors.New(derrors.CodeInvalidConfig, "monitor_select.characters cannot be empty")
+	}
+
+	if utf8.RuneCountInString(c.MonitorSelect.Characters) < MinCharactersLength {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"monitor_select.characters must contain at least 2 characters",
+		)
+	}
+
+	err := validateColors([]colorField{
+		{c.MonitorSelect.UI.BackgroundColor, "monitor_select.ui.background_color"},
+		{c.MonitorSelect.UI.TextColor, "monitor_select.ui.text_color"},
+		{c.MonitorSelect.UI.MatchedTextColor, "monitor_select.ui.matched_text_color"},
+		{c.MonitorSelect.UI.BorderColor, "monitor_select.ui.border_color"},
+		{c.MonitorSelect.UI.BackdropColor, "monitor_select.ui.backdrop_color"},
+		{c.MonitorSelect.UI.SubtitleTextColor, "monitor_select.ui.subtitle_text_color"},
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ValidateStickyModifiers validates sticky modifier settings.
 func (c *Config) ValidateStickyModifiers() error {
 	if !c.StickyModifiers.Enabled {
@@ -1317,6 +1349,7 @@ func validateHotkeyActionString(actionStr string) error {
 
 	switch cmd {
 	case "idle", ModeNameHints, ModeNameGrid, ModeNameScroll, ModeNameRecursiveGrid,
+		ModeNameMonitorSelect,
 		"toggle-screen-share", CmdToggleCursorFollowSelection,
 		"toggle-scroll-invert":
 		return nil

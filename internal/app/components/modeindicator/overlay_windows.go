@@ -32,24 +32,24 @@ func NewOverlay(
 	}, nil
 }
 
-// DrawModeIndicator draws the mode indicator for the specified mode (Windows stub).
+// DrawModeIndicator is unused on Windows; drawing is handled by the manager.
 func (o *Overlay) DrawModeIndicator(mode string) error {
 	return nil
 }
 
-// Show shows the mode indicator overlay (Windows stub).
+// Show is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Show() {}
 
-// Hide hides the mode indicator overlay (Windows stub).
+// Hide is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Hide() {}
 
-// Clear clears the mode indicator overlay (Windows stub).
+// Clear is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Clear() {}
 
 // ResizeToActiveScreen resizes the mode indicator overlay to the active screen (Windows stub).
 func (o *Overlay) ResizeToActiveScreen() {}
 
-// Destroy destroys the mode indicator overlay (Windows stub).
+// Destroy is unused on Windows; the indicator is drawn on the shared overlay.
 func (o *Overlay) Destroy() {}
 
 // SetConfig updates the indicator configuration (Windows stub).
@@ -65,10 +65,34 @@ func (o *Overlay) SetIndicatorConfig(cfg config.ModeIndicatorConfig) {
 	o.SetConfig(cfg)
 }
 
-// IndicatorConfig returns the indicator configuration (Windows stub).
+// IndicatorConfig returns the indicator configuration.
 func (o *Overlay) IndicatorConfig() config.ModeIndicatorConfig {
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
 
 	return o.indicatorConfig
+}
+
+// ModeConfig returns the mode config for the given mode string.
+func (o *Overlay) ModeConfig(mode string) config.ModeIndicatorModeConfig {
+	o.configMu.RLock()
+	defer o.configMu.RUnlock()
+
+	switch mode {
+	case "hints":
+		return o.indicatorConfig.Hints
+	case "grid":
+		return o.indicatorConfig.Grid
+	case "scroll":
+		return o.indicatorConfig.Scroll
+	case "recursive_grid":
+		return o.indicatorConfig.RecursiveGrid
+	default:
+		return config.ModeIndicatorModeConfig{}
+	}
+}
+
+// Theme returns the theme provider.
+func (o *Overlay) Theme() config.ThemeProvider {
+	return o.theme
 }

@@ -8,7 +8,7 @@
 #import "eventtap.h"
 #import "keymap.h"
 
-#import <Carbon/Carbon.h>
+#import <CoreGraphics/CoreGraphics.h>
 #import <os/lock.h>
 
 #pragma mark - Type Definitions
@@ -553,6 +553,197 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 	}
 }
 
+#pragma mark - Per-Hotkey CGEventTap
+
+typedef struct {
+	int hotkeyID;
+	CGKeyCode keyCode;
+	uint8_t modifiers;
+	uint64_t cgFlags;  ///< Pre-computed CGEventFlags mask for modifier matching
+	CFMachPortRef eventTap;
+	CFRunLoopSourceRef runLoopSource;
+	HotkeyTapCallback callback;
+	void *userData;
+	int down;  ///< 1 while key is held (repeat suppression)
+} HotkeyTap;
+
+/// Convert Neru modifier bitmask to CGEventFlags.
+static uint64_t cgFlagsForModifiers(uint8_t modifiers) {
+	uint64_t flags = 0;
+	if (modifiers & ModifierCmd)
+		flags |= kCGEventFlagMaskCommand;
+	if (modifiers & ModifierShift)
+		flags |= kCGEventFlagMaskShift;
+	if (modifiers & ModifierAlt)
+		flags |= kCGEventFlagMaskAlternate;
+	if (modifiers & ModifierCtrl)
+		flags |= kCGEventFlagMaskControl;
+	return flags;
+}
+
+/// CGEventTap callback for a single per-hotkey tap.
+static CGEventRef hotkeyTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *userInfo) {
+	HotkeyTap *tap = (HotkeyTap *)userInfo;
+
+	if (type == kCGEventTapDisabledByTimeout) {
+		CGEventTapEnable(tap->eventTap, true);
+		return event;
+	}
+
+	if (type == kCGEventKeyDown) {
+		CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+		if ((int)keyCode != tap->keyCode)
+			return event;
+
+		CGEventFlags flags = CGEventGetFlags(event) & (kCGEventFlagMaskCommand | kCGEventFlagMaskShift |
+		                                               kCGEventFlagMaskAlternate | kCGEventFlagMaskControl);
+		if (flags != tap->cgFlags)
+			return event;
+
+		if (!tap->down) {
+			tap->down = 1;
+			tap->callback(tap->hotkeyID, 1, tap->userData);  // pressed
+		}
+		return NULL;  // consume
+	}
+
+	if (type == kCGEventKeyUp) {
+		CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
+		if ((int)keyCode != tap->keyCode)
+			return event;
+
+		if (!tap->down)
+			return event;
+
+		tap->down = 0;
+		tap->callback(tap->hotkeyID, 2, tap->userData);  // released
+		return NULL;                                     // consume
+	}
+
+	return event;
+}
+
+HotkeyTapRef NeruCreateHotkeyTap(int hotkeyID, int keyCode, int modifiers, HotkeyTapCallback callback, void *userData) {
+	if (!AXIsProcessTrusted())
+		return NULL;
+
+	HotkeyTap *tap = (HotkeyTap *)calloc(1, sizeof(HotkeyTap));
+	if (!tap)
+		return NULL;
+
+	tap->hotkeyID = hotkeyID;
+	tap->keyCode = (CGKeyCode)keyCode;
+	tap->modifiers = (uint8_t)modifiers;
+	tap->cgFlags = cgFlagsForModifiers((uint8_t)modifiers);
+	tap->callback = callback;
+	tap->userData = userData;
+	tap->down = 0;
+
+	__block BOOL success = NO;
+	void (^createTap)(void) = ^{
+		CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
+		tap->eventTap = CGEventTapCreate(
+		    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, mask, hotkeyTapCallback, tap);
+		if (!tap->eventTap)
+			return;
+
+		tap->runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap->eventTap, 0);
+		CFRunLoopAddSource(CFRunLoopGetMain(), tap->runLoopSource, kCFRunLoopCommonModes);
+		CGEventTapEnable(tap->eventTap, true);
+		success = YES;
+	};
+
+	if ([NSThread isMainThread]) {
+		createTap();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), createTap);
+	}
+
+	if (!success) {
+		free(tap);
+		return NULL;
+	}
+
+	return (HotkeyTapRef)tap;
+}
+
+void NeruDestroyHotkeyTap(HotkeyTapRef ref) {
+	if (!ref)
+		return;
+
+	HotkeyTap *tap = (HotkeyTap *)ref;
+
+	void (^cleanup)(void) = ^{
+		if (tap->eventTap) {
+			CGEventTapEnable(tap->eventTap, false);
+		}
+		if (tap->runLoopSource) {
+			CFRunLoopRemoveSource(CFRunLoopGetMain(), tap->runLoopSource, kCFRunLoopCommonModes);
+			CFRelease(tap->runLoopSource);
+		}
+		if (tap->eventTap) {
+			CFRelease(tap->eventTap);
+		}
+	};
+
+	if ([NSThread isMainThread]) {
+		cleanup();
+	} else {
+		dispatch_sync(dispatch_get_main_queue(), cleanup);
+	}
+
+	free(tap);
+}
+
+#pragma mark - Key String Parsing
+
+int NeruParseKeyString(const char *keyString, int *keyCode, int *modifiers) {
+	if (!keyString || !keyCode || !modifiers)
+		return 0;
+
+	@autoreleasepool {
+		NSString *keyStr = @(keyString);
+		NSArray *parts = [keyStr componentsSeparatedByString:@"+"];
+
+		*modifiers = ModifierNone;
+		NSString *mainKey = nil;
+
+		for (NSString *part in parts) {
+			NSString *trimmed = [part stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+
+			if ([trimmed isEqualToString:@"Cmd"] || [trimmed isEqualToString:@"RightCmd"] ||
+			    [trimmed isEqualToString:@"LeftCmd"]) {
+				*modifiers |= ModifierCmd;
+			} else if (
+			    [trimmed isEqualToString:@"Shift"] || [trimmed isEqualToString:@"RightShift"] ||
+			    [trimmed isEqualToString:@"LeftShift"]) {
+				*modifiers |= ModifierShift;
+			} else if (
+			    [trimmed isEqualToString:@"Alt"] || [trimmed isEqualToString:@"Option"] ||
+			    [trimmed isEqualToString:@"RightAlt"] || [trimmed isEqualToString:@"RightOption"] ||
+			    [trimmed isEqualToString:@"LeftAlt"] || [trimmed isEqualToString:@"LeftOption"]) {
+				*modifiers |= ModifierAlt;
+			} else if (
+			    [trimmed isEqualToString:@"Ctrl"] || [trimmed isEqualToString:@"RightCtrl"] ||
+			    [trimmed isEqualToString:@"LeftCtrl"]) {
+				*modifiers |= ModifierCtrl;
+			} else {
+				mainKey = trimmed;
+			}
+		}
+
+		if (!mainKey)
+			return 0;
+
+		CGKeyCode keyCodeValue = NeruKeyNameToCode(mainKey);
+		if (keyCodeValue == 0xFFFF)
+			return 0;
+
+		*keyCode = (int)keyCodeValue;
+		return 1;
+	}
+}
+
 #pragma mark - Event Tap Functions
 
 /// Create event tap
@@ -802,16 +993,16 @@ void NeruPostEventTapModifierEvent(const char *modifier, int isDown) {
 	CGKeyCode keyCode = 0;
 	CGEventFlags modMask = 0;
 	if (strcmp(modifier, "cmd") == 0) {
-		keyCode = kVK_Command;
+		keyCode = 0x37;  // kVK_Command
 		modMask = kCGEventFlagMaskCommand;
 	} else if (strcmp(modifier, "shift") == 0) {
-		keyCode = kVK_Shift;
+		keyCode = 0x38;  // kVK_Shift
 		modMask = kCGEventFlagMaskShift;
 	} else if (strcmp(modifier, "alt") == 0) {
-		keyCode = kVK_Option;
+		keyCode = 0x3A;  // kVK_Option
 		modMask = kCGEventFlagMaskAlternate;
 	} else if (strcmp(modifier, "ctrl") == 0) {
-		keyCode = kVK_Control;
+		keyCode = 0x3B;  // kVK_Control
 		modMask = kCGEventFlagMaskControl;
 	} else {
 		return;

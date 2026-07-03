@@ -14,8 +14,10 @@ import (
 	"go.uber.org/zap"
 
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -35,6 +37,9 @@ type winOverlay struct {
 	cachedGrid     *domainGrid.Grid
 	cachedStyle    gridcomponent.Style
 	suppressDraw   bool
+
+	lastHints     []*hintscomponent.Hint
+	lastHintStyle hintscomponent.StyleMode
 }
 
 func newWinOverlay(logger *zap.Logger) *winOverlay {
@@ -133,6 +138,23 @@ func (o *winOverlay) Clear() {
 	}
 }
 
+// ClearCache invalidates cached grid and hints state so that a subsequent
+// Show() does not redraw stale content from a previous mode. This must be
+// called when modes exit to prevent ghost artifacts (e.g. the old grid
+// reappearing when a mode indicator is drawn).
+func (o *winOverlay) ClearCache() {
+	if o == nil {
+		return
+	}
+
+	o.cachedGrid = nil
+	o.cachedStyle = gridcomponent.Style{}
+	o.currentPrefix = ""
+	o.currentSubgrid = nil
+	o.lastHints = nil
+	o.lastHintStyle = hintscomponent.StyleMode{}
+}
+
 func (o *winOverlay) Resize() {
 	if o == nil || o.window == nil {
 		return
@@ -173,7 +195,6 @@ func (o *winOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
 
 	o.currentSubgrid = cell
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
 	o.flushOverlay("subgrid")
 }
@@ -296,7 +317,6 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 	}
 
 	o.Clear()
-	o.window.SetColorBlendRGB(winplatform.ThemeSurfaceRGB())
 
 	style := o.cachedStyle
 	prefix := o.currentPrefix
@@ -309,18 +329,27 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			continue
 		}
 
+		fill := style.BackgroundColor
 		text := style.LabelFontColor
 
 		border := style.LineColor
 		if matched && prefix != "" {
+			fill = style.MatchedBackgroundColor
 			text = style.MatchedTextColor
 			border = style.MatchedBorderColor
 		}
 
+		o.drawCellFill(cell.Bounds(), fill)
 		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
 
 		if style.ShowLabels {
-			o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
+			o.drawTextCentered(
+				label,
+				cell.Bounds(),
+				ports.ResolveFont(style.LabelFontName, false),
+				style.LabelFontSize,
+				text,
+			)
 		}
 	}
 
@@ -401,13 +430,21 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,
-				style.LabelFontName,
+				ports.ResolveFont(style.LabelFontName, false),
 				style.LabelFontSize*winSubgridFontScale,
 				style.LabelFontColor,
 			)
 			index++
 		}
 	}
+}
+
+func (o *winOverlay) drawCellFill(bounds image.Rectangle, fill uint32) {
+	if o == nil || o.window == nil {
+		return
+	}
+
+	o.window.FillRect(bounds, fill)
 }
 
 // drawCellBorder draws only the grid outline; cell interiors stay color-key transparent.

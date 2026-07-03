@@ -21,7 +21,7 @@ jobs:
             macos_bundle_version: ${{ steps.meta.outputs.macos_bundle_version }}
             macos_short_version: ${{ steps.meta.outputs.macos_short_version }}
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 

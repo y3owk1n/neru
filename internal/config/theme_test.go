@@ -10,6 +10,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// testDarkAccent is the dark accent color used in theme test fixtures.
+const testDarkAccent = "#5BE4D8"
+
 // mockThemeProvider implements config.ThemeProvider for testing.
 type mockThemeProvider struct {
 	darkMode bool
@@ -306,6 +309,38 @@ text = "#F2FBFF"
 	if got := result.Config.Grid.UI.MatchedBackgroundColor.Light; got != "#730A8F8A" {
 		t.Fatalf("expected derived matched grid light background %q, got %q", "#730A8F8A", got)
 	}
+
+	if got := result.Config.MonitorSelect.UI.BackgroundColor.Light; got != "#F2F1F9FF" {
+		t.Fatalf("expected derived monitor select light background %q, got %q", "#F2F1F9FF", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.TextColor.Dark; got != "#F2FBFF" {
+		t.Fatalf("expected derived monitor select dark text %q, got %q", "#F2FBFF", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.MatchedTextColor.Light; got != "#2166F3" {
+		t.Fatalf("expected derived monitor select light matched text %q, got %q", "#2166F3", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.BorderColor.Dark; got != testDarkAccent {
+		t.Fatalf("expected derived monitor select dark border %q, got %q", testDarkAccent, got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.BackdropColor.Light; got != "#33000000" {
+		t.Fatalf("expected derived monitor select light backdrop %q, got %q", "#33000000", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.BackdropColor.Dark; got != "#66000000" {
+		t.Fatalf("expected derived monitor select dark backdrop %q, got %q", "#66000000", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.SubtitleTextColor.Light; got != "#B3102A43" {
+		t.Fatalf("expected derived monitor select light subtitle text %q, got %q", "#B3102A43", got)
+	}
+
+	if got := result.Config.MonitorSelect.UI.SubtitleTextColor.Dark; got != "#B3F2FBFF" {
+		t.Fatalf("expected derived monitor select dark subtitle text %q, got %q", "#B3F2FBFF", got)
+	}
 }
 
 func TestLoadWithValidation_ExplicitColorOverrideBeatsTheme(t *testing.T) {
@@ -347,7 +382,7 @@ border_color = { light = "#FF123456" }
 		t.Fatalf("expected explicit light override %q, got %q", "#FF123456", got)
 	}
 
-	if got := result.Config.Hints.UI.BorderColor.Dark; got != "#5BE4D8" {
-		t.Fatalf("expected dark fallback from theme %q, got %q", "#5BE4D8", got)
+	if got := result.Config.Hints.UI.BorderColor.Dark; got != testDarkAccent {
+		t.Fatalf("expected dark fallback from theme %q, got %q", testDarkAccent, got)
 	}
 }

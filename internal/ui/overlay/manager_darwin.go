@@ -166,6 +166,10 @@ func (m *Manager) Clear() {
 	}
 }
 
+// ClearCache is a no-op on Darwin; each overlay owns its own NSWindow and
+// does not retain stale cross-mode cache state.
+func (m *Manager) ClearCache() {}
+
 // ResizeToActiveScreen resizes the overlay window to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(m.window)

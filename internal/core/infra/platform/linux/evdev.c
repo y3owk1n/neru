@@ -52,7 +52,13 @@ int neru_evdev_get_bustype(int fd) {
 	return id.bustype;
 }
 
-ssize_t neru_evdev_read_event(int fd, struct input_event *event) { return read(fd, event, sizeof(struct input_event)); }
+ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
+	ssize_t n;
+	do {
+		n = read(fd, event, sizeof(struct input_event));
+	} while (n < 0 && errno == EINTR);
+	return n;
+}
 
 int neru_uinput_create_scroll(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);
