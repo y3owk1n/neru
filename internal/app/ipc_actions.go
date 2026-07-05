@@ -293,6 +293,14 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	if parsed.useBail && !action.IsWaitForModeExitAction(actionName) {
+		return ipc.Response{
+			Success: false,
+			Message: "--bail is only supported with wait_for_mode_exit",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
 	// These only require scrollService, so dispatch before the actionService nil check.
 	if action.IsScrollSubAction(actionName) {

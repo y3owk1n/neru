@@ -134,6 +134,27 @@ func TestParseActionArgs_BailFlag(t *testing.T) {
 	}
 }
 
+func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
+	controller := &IPCControllerActions{logger: zap.NewNop()}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"left_click", flagBail},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(left_click --bail) expected rejection, got success")
+	}
+
+	if resp.Code != ipc.CodeInvalidInput {
+		t.Fatalf(
+			"handleAction(left_click --bail) code = %q, want %q",
+			resp.Code,
+			ipc.CodeInvalidInput,
+		)
+	}
+}
+
 func TestParseActionArgs_BareFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--bare"})
 	if parseErr {
