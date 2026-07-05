@@ -83,6 +83,15 @@ func wlrootsScroll(axis, delta, discrete int) error {
 	)
 }
 
+func wlrootsScrollBatch(axis int, deltas, discretes []int) error {
+	_, _, _ = axis, deltas, discretes
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 func wlrootsModifierEvent(modifier string, isDown bool) error {
 	_, _ = modifier, isDown
 

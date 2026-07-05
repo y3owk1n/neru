@@ -183,6 +183,9 @@ sudo pacman -S \
   ttf-dejavu
 ```
 
+On Arch, `liboeffis` (required by the KDE/libei path) is bundled in the `libei`
+package, so no separate package is needed.
+
 `fontconfig` is required at build time. DejaVu fonts are recommended defaults
 when `font_family` is unset (sticky modifier symbols `❖⇧⌥⌃`).
 
@@ -218,7 +221,7 @@ just test
 just build
 ```
 
-On Linux CI, lint uses `golangci-lint v2.11.3` — match that version when
+On Linux CI, lint uses `golangci-lint v2.12.2` — match that version when
 validating locally on Linux.
 
 ---

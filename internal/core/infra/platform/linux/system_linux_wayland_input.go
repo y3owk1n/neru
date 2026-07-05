@@ -158,7 +158,14 @@ func waylandButtonEvent(point image.Point, button int, pressed bool) error {
 		return err
 	}
 
-	return libeiButton(button, pressed)
+	if !pressed {
+		// LeftMouseUpAtPoint and drag-release land here. A lost release
+		// leaves the compositor with the button held (the next move becomes
+		// a drag), so retry across a pause/resume cycle like waylandClick.
+		return libeiButtonRelease(button)
+	}
+
+	return libeiButton(button, true)
 }
 
 func waylandButtonRelease(button int) error {
