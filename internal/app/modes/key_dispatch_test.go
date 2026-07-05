@@ -3,6 +3,7 @@ package modes
 
 import (
 	"image"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -140,14 +141,15 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
 	t.Parallel()
 
-	var callCount int
+	var callCount atomic.Int64
 
 	handler := &Handler{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
 		executeHotkeyAction: func(_, actionStr string) error {
-			callCount++
-			if callCount == 1 {
+			callCount.Add(1)
+
+			if callCount.Load() == 1 {
 				return derrors.New(derrors.CodeChainBail, "bail")
 			}
 
@@ -157,13 +159,12 @@ func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
 
 	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", []string{"first", "second"})
 
-	// Give the goroutine time to execute
 	time.Sleep(50 * time.Millisecond)
 
-	if callCount != 1 {
+	if got := callCount.Load(); got != 1 {
 		t.Fatalf(
 			"executeHotkeyAction called %d times, want 1 (chain should abort on bail)",
-			callCount,
+			got,
 		)
 	}
 }
@@ -171,14 +172,15 @@ func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
 func TestDispatchHotkeyActions_ContinuesOnRegularError(t *testing.T) {
 	t.Parallel()
 
-	var callCount int
+	var callCount atomic.Int64
 
 	handler := &Handler{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
 		executeHotkeyAction: func(_, actionStr string) error {
-			callCount++
-			if callCount == 1 {
+			callCount.Add(1)
+
+			if callCount.Load() == 1 {
 				return derrors.New(derrors.CodeIPCFailed, "generic error")
 			}
 
@@ -190,10 +192,10 @@ func TestDispatchHotkeyActions_ContinuesOnRegularError(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	if callCount != 2 {
+	if got := callCount.Load(); got != 2 {
 		t.Fatalf(
 			"executeHotkeyAction called %d times, want 2 (chain should continue on regular error)",
-			callCount,
+			got,
 		)
 	}
 }
