@@ -234,7 +234,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`                                 |
 | Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s` |
 | Mode        | `reset`, `backspace`                                                                  |
-| Composition | `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`                         |
+| Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
 
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))
@@ -259,7 +259,12 @@ See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform beh
 [hints.hotkeys]
 "Enter"  = ["action save_cursor_pos", "idle", "action wait_for_mode_exit", "action restore_cursor_pos"]
 "Return" = ["action left_click", "action sleep 0.5", "hints"]
+
+# Bail: abort the chain if the user cancels (Escape) instead of making a selection
+"Ctrl+Z" = ["monitor_select", "action wait_for_mode_exit --bail", "recursive_grid"]
 ```
+
+Use `--bail` to abort the chain when the mode exits without a selection (e.g., user presses Escape). Without `--bail`, `wait_for_mode_exit` always succeeds and the chain continues.
 
 ---
 

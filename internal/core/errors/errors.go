@@ -85,6 +85,10 @@ const (
 	//           "screen bounds not yet implemented on linux")
 	//   }
 	CodeNotSupported Code = "NOT_SUPPORTED"
+
+	// CodeChainBail indicates a chain action should abort (e.g. user canceled
+	// a mode without making a selection).
+	CodeChainBail Code = "CHAIN_BAIL"
 )
 
 // Error represents a domain error with code, message, and optional cause.

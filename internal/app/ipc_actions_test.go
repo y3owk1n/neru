@@ -10,15 +10,17 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 const (
-	moveMonitor = "move_monitor"
-	moveMouse   = "move_mouse"
-	fooStr      = "foo"
+	moveMonitor     = "move_monitor"
+	moveMouse       = "move_mouse"
+	fooStr          = "foo"
+	waitForModeExit = "wait_for_mode_exit"
 )
 
 func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
@@ -118,6 +120,38 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
 
 	if resp.Message != msgMoveMonitorDoesNotSupportTheseFlags {
 		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestParseActionArgs_BailFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{flagBail})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --bail")
+	}
+
+	if !parsed.useBail {
+		t.Fatal("parseActionArgs() expected useBail to be true")
+	}
+}
+
+func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
+	controller := &IPCControllerActions{logger: zap.NewNop()}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"left_click", flagBail},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(left_click --bail) expected rejection, got success")
+	}
+
+	if resp.Code != ipc.CodeInvalidInput {
+		t.Fatalf(
+			"handleAction(left_click --bail) code = %q, want %q",
+			resp.Code,
+			ipc.CodeInvalidInput,
+		)
 	}
 }
 
@@ -629,5 +663,86 @@ func TestParseSleepDuration(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestHandleAction_WaitForModeExitBail_NoSelection(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeIdle)
+
+	controller := &IPCControllerActions{
+		appState: appState,
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{waitForModeExit, flagBail},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(wait_for_mode_exit --bail) expected bail when no selection was made")
+	}
+
+	if resp.Code != ipc.CodeChainBail {
+		t.Fatalf("response code = %q, want %q", resp.Code, ipc.CodeChainBail)
+	}
+}
+
+func TestHandleAction_WaitForModeExitBail_WithSelection(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeMonitorSelect)
+
+	controller := &IPCControllerActions{
+		appState: appState,
+		logger:   zap.NewNop(),
+	}
+
+	respCh := make(chan ipc.Response, 1)
+
+	go func() {
+		respCh <- controller.handleAction(context.Background(), ipc.Command{
+			Action: actionCmd,
+			Args:   []string{waitForModeExit, flagBail},
+		})
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	appState.SetModeExitReason(state.ModeExitReasonCompleted)
+	appState.SetMode(domain.ModeIdle)
+
+	select {
+	case resp := <-respCh:
+		if !resp.Success {
+			t.Fatalf("expected success after selection, got: %s", resp.Message)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for wait_for_mode_exit --bail")
+	}
+}
+
+func TestHandleAction_WaitForModeExitBail_StaleReasonCleared(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeIdle)
+	appState.SetModeExitReason(state.ModeExitReasonCompleted)
+	appState.ConsumeModeExitReason()
+
+	controller := &IPCControllerActions{
+		appState: appState,
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{waitForModeExit, flagBail},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(wait_for_mode_exit --bail) expected bail after stale reason consumed")
+	}
+
+	if resp.Code != ipc.CodeChainBail {
+		t.Fatalf("response code = %q, want %q", resp.Code, ipc.CodeChainBail)
 	}
 }

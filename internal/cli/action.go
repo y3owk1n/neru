@@ -132,13 +132,35 @@ var ActionBackspaceCmd = BuildActionCommand(
 )
 
 // ActionWaitForModeExitCmd blocks until the current mode exits.
-var ActionWaitForModeExitCmd = BuildActionCommand(
-	"wait_for_mode_exit",
-	"Wait until mode exits",
-	`Block until the current mode exits and Neru returns to idle.`,
-	[]string{"wait_for_mode_exit"},
-	false,
-)
+// Has its own builder to support the --bail flag.
+var ActionWaitForModeExitCmd = func() *cobra.Command {
+	var bail bool
+
+	cmd := &cobra.Command{
+		Use:   "wait_for_mode_exit",
+		Short: "Wait until mode exits",
+		Long: `Block until the current mode exits and Neru returns to idle.
+
+Use --bail in an action chain to abort the chain when the mode exits
+without a completed selection (e.g. user presses Escape).`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			args := []string{"wait_for_mode_exit"}
+			if bail {
+				args = append(args, "--bail")
+			}
+
+			return sendCommand(cmd, "action", args)
+		},
+	}
+
+	cmd.Flags().BoolVar(&bail, "bail", false,
+		"Abort the action chain if the mode exits without a selection")
+
+	return cmd
+}()
 
 // ActionSaveCursorPosCmd saves cursor position for later restoration.
 var ActionSaveCursorPosCmd = BuildActionCommand(

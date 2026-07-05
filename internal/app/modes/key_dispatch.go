@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 const (
@@ -363,6 +364,10 @@ func (h *Handler) dispatchHotkeyActions(
 
 			err := h.executeHotkeyAction(capturedKey, trimmedAction)
 			if err != nil {
+				if derrors.IsCode(err, derrors.CodeChainBail) {
+					return
+				}
+
 				h.logger.Error("Hotkey action failed",
 					zap.String("key", capturedKey),
 					zap.String("action", trimmedAction),

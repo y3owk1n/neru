@@ -325,9 +325,14 @@ neru action go_bottom                         # Jump to bottom
 neru action reset                             # Reset state in current mode
 neru action backspace                         # Mode-aware backspace
 neru action wait_for_mode_exit                # Block until mode exits to idle
+neru action wait_for_mode_exit --bail         # Block; abort chain if mode was cancelled (no selection)
 neru action save_cursor_pos                   # Save current cursor position
 neru action restore_cursor_pos                # Restore saved cursor position
 ```
+
+| Flag      | Description                                                                   |
+| --------- | ----------------------------------------------------------------------------- |
+| `--bail`  | Abort the action chain if the mode exits without a completed selection        |
 
 ### Feed Keys
 
@@ -566,6 +571,7 @@ Commands are queued by the daemon, so concurrent calls from scripts work safely.
 | --------------------- | ------------------------------------ |
 | `ERR_MODE_DISABLED`   | Requested mode is disabled in config |
 | `ERR_UNKNOWN_COMMAND` | Invalid command name                 |
+| `ERR_CHAIN_BAIL`      | Chain aborted (e.g. `--bail` on `wait_for_mode_exit` when user cancelled) |
 | _(connection error)_  | Daemon is not running                |
 
 ### Log Monitoring

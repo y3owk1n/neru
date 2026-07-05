@@ -10,6 +10,7 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
@@ -69,6 +70,7 @@ func (h *Handler) executeActionAtPoint(
 		return
 	}
 
+	h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
 	h.exitModeLocked()
 }
 
