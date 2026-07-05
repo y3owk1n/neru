@@ -126,6 +126,10 @@ func (a *App) dispatchHotkeyActions(key string, actions []string) {
 
 		executeHotkeyActionErr := a.executeHotkeyAction(key, trimmedAction)
 		if executeHotkeyActionErr != nil {
+			if derrors.IsCode(executeHotkeyActionErr, derrors.CodeChainBail) {
+				return
+			}
+
 			a.logger.Error("hotkey action failed",
 				zap.String("key", key),
 				zap.String("action", trimmedAction),
@@ -327,6 +331,10 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 		ipc.Command{Action: actionStr, Args: params},
 	)
 	if !ipcResponse.Success {
+		if ipcResponse.Code == ipc.CodeChainBail {
+			return derrors.New(derrors.CodeChainBail, ipcResponse.Message)
+		}
+
 		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 	}
 

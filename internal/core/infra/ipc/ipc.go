@@ -77,6 +77,10 @@ const (
 	CodeInvalidInput    = "ERR_INVALID_INPUT"
 	CodeActionFailed    = "ERR_ACTION_FAILED"
 	CodeVersionMismatch = "ERR_VERSION_MISMATCH"
+
+	// CodeChainBail indicates a chain action should abort (e.g. user canceled
+	// a mode without making a selection).
+	CodeChainBail = "ERR_CHAIN_BAIL"
 )
 
 // Command represents a command sent through the IPC interface.

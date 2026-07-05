@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	domainhint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -133,6 +134,67 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 
 	if got := handler.hints.Context.SearchQuery(); got != "/" {
 		t.Fatalf("search query = %q, want %q", got, "/")
+	}
+}
+
+func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
+	t.Parallel()
+
+	var callCount int
+
+	handler := &Handler{
+		logger:   zap.NewNop(),
+		appState: state.NewAppState(),
+		executeHotkeyAction: func(_, actionStr string) error {
+			callCount++
+			if callCount == 1 {
+				return derrors.New(derrors.CodeChainBail, "bail")
+			}
+
+			return nil
+		},
+	}
+
+	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", []string{"first", "second"})
+
+	// Give the goroutine time to execute
+	time.Sleep(50 * time.Millisecond)
+
+	if callCount != 1 {
+		t.Fatalf(
+			"executeHotkeyAction called %d times, want 1 (chain should abort on bail)",
+			callCount,
+		)
+	}
+}
+
+func TestDispatchHotkeyActions_ContinuesOnRegularError(t *testing.T) {
+	t.Parallel()
+
+	var callCount int
+
+	handler := &Handler{
+		logger:   zap.NewNop(),
+		appState: state.NewAppState(),
+		executeHotkeyAction: func(_, actionStr string) error {
+			callCount++
+			if callCount == 1 {
+				return derrors.New(derrors.CodeIPCFailed, "generic error")
+			}
+
+			return nil
+		},
+	}
+
+	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", []string{"first", "second"})
+
+	time.Sleep(50 * time.Millisecond)
+
+	if callCount != 2 {
+		t.Fatalf(
+			"executeHotkeyAction called %d times, want 2 (chain should continue on regular error)",
+			callCount,
+		)
 	}
 }
 

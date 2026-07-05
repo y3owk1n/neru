@@ -50,6 +50,7 @@ const (
 	flagPrevious  = "--previous"
 	flagName      = "--name"
 	flagBare      = "--bare"
+	flagBail      = "--bail"
 
 	msgActionServiceNotAvailable           = "action service not available"
 	msgModesHandlerNotAvailable            = "modes handler not available"
@@ -98,6 +99,7 @@ type parsedActionArgs struct {
 	modifierStr    string
 	stepsOverride  int
 	hasSteps       bool
+	useBail        bool
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -227,6 +229,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.usePrevious = true
 		case arg == "--backward":
 			parsed.useBackward = true
+		case arg == flagBail:
+			parsed.useBail = true
 		case strings.HasPrefix(arg, flagName) && (arg == flagName || arg[len(flagName)] == '='):
 			val, newIdx, ok := extractStringFlag(rawArgs, idx, flagName)
 			idx = newIdx
@@ -1021,7 +1025,7 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 	if hasUnsupportedFlags(parsed) {
 		return ipc.Response{
 			Success: false,
-			Message: "wait_for_mode_exit does not support action flags",
+			Message: "wait_for_mode_exit does not support these flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1054,6 +1058,17 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 				Code:    ipc.CodeActionFailed,
 			}
 		case <-ticker.C:
+		}
+	}
+
+	if parsed.useBail {
+		reason := h.appState.ConsumeModeExitReason()
+		if reason != state.ModeExitReasonCompleted {
+			return ipc.Response{
+				Success: false,
+				Message: "mode exited without selection",
+				Code:    ipc.CodeChainBail,
+			}
 		}
 	}
 

@@ -75,6 +75,46 @@ func TestAppState_Mode(t *testing.T) {
 	}
 }
 
+func TestAppState_ModeExitReason(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Initially should be None.
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("initial ConsumeModeExitReason() = %v, want ModeExitReasonNone", got)
+	}
+
+	// Set and consume Completed.
+	_state.SetModeExitReason(state.ModeExitReasonCompleted)
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonCompleted {
+		t.Fatalf("after Set(Completed) ConsumeModeExitReason() = %v, want Completed", got)
+	}
+
+	// Should be reset to None after consumption.
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("after consume ConsumeModeExitReason() = %v, want ModeExitReasonNone", got)
+	}
+
+	// Set and consume Canceled.
+	_state.SetModeExitReason(state.ModeExitReasonCancelled)
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonCancelled {
+		t.Fatalf(
+			"after Set(Canceled) ConsumeModeExitReason() = %v, want Canceled",
+			got,
+		)
+	}
+
+	// Double consume should return None (already reset).
+	_state.SetModeExitReason(state.ModeExitReasonCompleted)
+	_state.ConsumeModeExitReason() // consume once
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("double consume = %v, want ModeExitReasonNone", got)
+	}
+}
+
 func TestAppState_HotkeysRegistered(t *testing.T) {
 	_state := state.NewAppState()
 

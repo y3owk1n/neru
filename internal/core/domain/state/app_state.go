@@ -6,6 +6,18 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
+// ModeExitReason indicates how the most recent mode was exited.
+type ModeExitReason int
+
+const (
+	// ModeExitReasonNone is the initial state — no exit has been observed.
+	ModeExitReasonNone ModeExitReason = iota
+	// ModeExitReasonCompleted means the user made a deliberate selection.
+	ModeExitReasonCompleted
+	// ModeExitReasonCancelled means the user dismissed the mode without selecting.
+	ModeExitReasonCancelled
+)
+
 // AppState manages the core application state including enabled status,
 // current mode, and various operational flags.
 type AppState struct {
@@ -16,6 +28,8 @@ type AppState struct {
 	currentMode          domain.Mode
 	hiddenForScreenShare bool
 	scrollInverted       bool
+	modeExitReason       ModeExitReason
+	modeExitReasonValid  bool
 
 	// Callbacks - stored as map for O(1) unsubscribe
 	// Note: All callback maps share a single nextCallbackID counter to ensure
@@ -331,11 +345,46 @@ func (s *AppState) CurrentMode() domain.Mode {
 }
 
 // SetMode sets the current application mode.
+// When entering a non-idle mode, any stale exit reason is invalidated.
 func (s *AppState) SetMode(mode domain.Mode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if mode != domain.ModeIdle {
+		s.modeExitReason = ModeExitReasonNone
+		s.modeExitReasonValid = false
+	}
+
 	s.currentMode = mode
+}
+
+// SetModeExitReason records how the current mode session exited. Must be
+// called before the mode transitions to idle (before exitModeLocked).
+func (s *AppState) SetModeExitReason(reason ModeExitReason) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.modeExitReason = reason
+	s.modeExitReasonValid = true
+}
+
+// ConsumeModeExitReason atomically reads and resets the exit reason.
+// Returns ModeExitReasonNone if no valid reason was recorded.
+// This ensures each consumer (e.g. wait_for_mode_exit --bail) sees the
+// value exactly once and stale values don't leak between chains.
+func (s *AppState) ConsumeModeExitReason() ModeExitReason {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.modeExitReasonValid {
+		return ModeExitReasonNone
+	}
+
+	reason := s.modeExitReason
+	s.modeExitReason = ModeExitReasonNone
+	s.modeExitReasonValid = false
+
+	return reason
 }
 
 // HotkeysRegistered returns whether hotkeys are currently registered.

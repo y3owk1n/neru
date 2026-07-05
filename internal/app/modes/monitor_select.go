@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
@@ -65,7 +66,15 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 
 	session := newMonitorSelectSession(monitors, h.config.MonitorSelect)
 	if session == nil {
-		h.logger.Debug("Skipping monitor_select activation; no selectable monitors")
+		if len(monitors) == 1 {
+			// Single monitor: auto-confirm immediately so that
+			// wait_for_mode_exit --bail chains see a completed selection.
+			h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
+			h.exitModeLocked()
+			h.confirmMonitorSelectLocked(&monitors[0])
+		} else {
+			h.logger.Debug("Skipping monitor_select activation; no selectable monitors")
+		}
 
 		return
 	}
@@ -116,6 +125,7 @@ func (h *Handler) confirmMonitorSelectLocked(target *monitorSelectTarget) {
 		Y: bounds.Min.Y + bounds.Dy()/2,
 	}
 
+	h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
 	h.exitModeLocked()
 
 	go func() {
