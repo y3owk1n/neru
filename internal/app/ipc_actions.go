@@ -1069,14 +1069,15 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 		}
 	}
 
-	if parsed.useBail {
-		reason := h.appState.ConsumeModeExitReason()
-		if reason != state.ModeExitReasonCompleted {
-			return ipc.Response{
-				Success: false,
-				Message: "mode exited without selection",
-				Code:    ipc.CodeChainBail,
-			}
+	// Always consume the exit reason to prevent stale values from
+	// leaking into a subsequent wait_for_mode_exit --bail call.
+	reason := h.appState.ConsumeModeExitReason()
+
+	if parsed.useBail && reason != state.ModeExitReasonCompleted {
+		return ipc.Response{
+			Success: false,
+			Message: "mode exited without selection",
+			Code:    ipc.CodeChainBail,
 		}
 	}
 
