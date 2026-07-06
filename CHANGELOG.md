@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.46.0](https://github.com/y3owk1n/neru/compare/v1.45.0...v1.46.0) (2026-07-06)
+
+
+### Features
+
+* **cli:** add `--bail` flag to `wait_for_mode_exit` for chain abort-on-cancel ([#970](https://github.com/y3owk1n/neru/issues/970)) ([92289a2](https://github.com/y3owk1n/neru/commit/92289a225008f84b47a7803317d1ef7f25b34f27))
+* **darwin:** new `monitor_select` mode with overlay ([#963](https://github.com/y3owk1n/neru/issues/963)) ([6ba2aab](https://github.com/y3owk1n/neru/commit/6ba2aabc82f7712ec4d9b2f8ef78aa473c82588b))
+* **darwin:** replace Carbon hotkeys with per-hotkey CGEventTaps ([#967](https://github.com/y3owk1n/neru/issues/967)) ([fd77dd5](https://github.com/y3owk1n/neru/commit/fd77dd5e5299fb0a76ca2fcf761ed6579798b165))
+* **linux,kde:** add support for KDE linux ([#931](https://github.com/y3owk1n/neru/issues/931)) ([b7563a4](https://github.com/y3owk1n/neru/commit/b7563a4f9d2000e343e54fae8f6ff72e3a8da474))
+
+
+### Bug Fixes
+
+* **darwin,monitor_select:** allow current monitor to be selectable ([#964](https://github.com/y3owk1n/neru/issues/964)) ([ad2dcb5](https://github.com/y3owk1n/neru/commit/ad2dcb5c4c69c8b2e86634f9944c0e5d2d0877d7))
+* **darwin,monitor_select:** remove unneeded `isCurrent` theming ([#965](https://github.com/y3owk1n/neru/issues/965)) ([242e37b](https://github.com/y3owk1n/neru/commit/242e37b539c6e6050530bb100c3a27126e35e979))
+* **darwin:** keep indicators visible after wake changes ([#962](https://github.com/y3owk1n/neru/issues/962)) ([444ccf9](https://github.com/y3owk1n/neru/commit/444ccf907de4c8fb9193bec871fed864e2063216))
+* **darwin:** keep mode indicator visible across Spaces ([#956](https://github.com/y3owk1n/neru/issues/956)) ([34b9499](https://github.com/y3owk1n/neru/commit/34b94998015cb42a9edf48a22bf90a135c799495))
+* **windows:** correct active monitor detection ([#966](https://github.com/y3owk1n/neru/issues/966)) ([b7b03e1](https://github.com/y3owk1n/neru/commit/b7b03e1405158841ab38ce1b0017c8b2c7f785bf))
+
 ## [1.45.0](https://github.com/y3owk1n/neru/compare/v1.44.1...v1.45.0) (2026-06-29)
 
 
