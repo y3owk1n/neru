@@ -261,7 +261,7 @@ two axes separate:
   factory + dispatch seams (e.g. `system_linux_wayland_input.go`).
 
 Per-DE behavior, protocol measurements, and known issues live in
-[LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md). Host setup (deps, build, deploy) lives
+[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md). Host setup (deps, build, deploy) lives
 in [LINUX_SETUP.md](./LINUX_SETUP.md).
 
 Organize implementation by the axis that actually varies, which is usually the
@@ -467,7 +467,7 @@ Usually that means checking these files:
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [DEVELOPMENT.md](./DEVELOPMENT.md)
 - [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
-- [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md) — per-DE decisions and known issues
+- [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md) — per-DE decisions and known issues
 - [CONVENTIONS.md](./go/CONVENTIONS.md)
 
 Update them when:

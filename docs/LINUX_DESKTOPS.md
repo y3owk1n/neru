@@ -19,7 +19,7 @@ installing dependencies, and preparing a host to run Neru, see
 
 ## KDE Plasma (Wayland)
 
-**Backend:** `wayland-kde`  
+**Backend:** `wayland-kde`
 **Status:** Supported (Plasma 6 / KWin on Wayland)
 
 ### Architecture decisions
@@ -27,13 +27,13 @@ installing dependencies, and preparing a host to run Neru, see
 KWin does **not** implement `zwlr_virtual_pointer_v1` (confirmed on KWin 6.6.4 via
 `wayland-info`). Neru therefore splits responsibilities:
 
-| Concern | Mechanism | Why |
-| ------- | --------- | --- |
-| Overlay + screen geometry | Shared wlroots client (`zwlr_layer_shell_v1`, `zxdg_output_manager_v1`) | KWin exposes these; same path as Sway/Hyprland |
-| Pointer / click / scroll / keys | `libei` via `org.freedesktop.portal.RemoteDesktop` | Only input path KWin exposes for third-party automation |
-| Hints (AT-SPI) | AT-SPI D-Bus + KWin geometry bridge | AT-SPI coords are window-relative; bridge maps to global compositor space |
-| Global hotkeys | Compositor keybindings only | Wayland has no global-hotkey protocol; user binds `neru <mode>` in System Settings |
-| Systray | D-Bus StatusNotifierItem + `com.canonical.dbusmenu` | Matches KDE/GNOME tray hosts; no GTK dependency |
+| Concern                         | Mechanism                                                               | Why                                                                                |
+| ------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Overlay + screen geometry       | Shared wlroots client (`zwlr_layer_shell_v1`, `zxdg_output_manager_v1`) | KWin exposes these; same path as Sway/Hyprland                                     |
+| Pointer / click / scroll / keys | `libei` via `org.freedesktop.portal.RemoteDesktop`                      | Only input path KWin exposes for third-party automation                            |
+| Hints (AT-SPI)                  | AT-SPI D-Bus + KWin geometry bridge                                     | AT-SPI coords are window-relative; bridge maps to global compositor space          |
+| Global hotkeys                  | Compositor keybindings only                                             | Wayland has no global-hotkey protocol; user binds `neru <mode>` in System Settings |
+| Systray                         | D-Bus StatusNotifierItem + `com.canonical.dbusmenu`                     | Matches KDE/GNOME tray hosts; no GTK dependency                                    |
 
 Routing lives in `system_linux_wayland_input.go`: if the compositor advertises
 `zwlr_virtual_pointer_v1`, use the wlroots virtual pointer; otherwise use libei.
@@ -44,13 +44,13 @@ overlay, `accessibility/kwin_geometry_linux.go`, `accessibility/atspi_linux.go`.
 
 ### Protocol support (KWin 6.6.4, measured)
 
-| Protocol | Purpose | KWin 6.6.4 |
-| -------- | ------- | ---------- |
-| `zwlr_layer_shell_v1` | Overlay surfaces | yes (v5) |
-| `zxdg_output_manager_v1` | Screen geometry | yes (v3) |
-| `zwlr_virtual_pointer_v1` | Pointer move / click | **no** |
-| `zwp_virtual_keyboard_manager_v1` | Sticky-modifier injection | **no** |
-| `org_kde_kwin_fake_input` | KWin-native emulation | **no** |
+| Protocol                          | Purpose                   | KWin 6.6.4 |
+| --------------------------------- | ------------------------- | ---------- |
+| `zwlr_layer_shell_v1`             | Overlay surfaces          | yes (v5)   |
+| `zxdg_output_manager_v1`          | Screen geometry           | yes (v3)   |
+| `zwlr_virtual_pointer_v1`         | Pointer move / click      | **no**     |
+| `zwp_virtual_keyboard_manager_v1` | Sticky-modifier injection | **no**     |
+| `org_kde_kwin_fake_input`         | KWin-native emulation     | **no**     |
 
 See [Checking compositor protocols](#checking-compositor-protocols) for the
 `wayland-info` one-liner.
@@ -65,12 +65,12 @@ See [Checking compositor protocols](#checking-compositor-protocols) for the
 2. **Hotkeys** — Bind in **System Settings -> Shortcuts -> Custom Shortcuts**.
    Use the absolute path to the binary so KWin resolves it reliably:
 
-   | Action | Command |
-   | ------ | ------- |
-   | Hints | `/home/<you>/.local/bin/neru hints` |
-   | Grid | `/home/<you>/.local/bin/neru grid` |
-   | Recursive grid | `/home/<you>/.local/bin/neru recursive_grid` |
-   | Scroll | `/home/<you>/.local/bin/neru scroll` |
+    | Action         | Command                                      |
+    | -------------- | -------------------------------------------- |
+    | Hints          | `/home/<you>/.local/bin/neru hints`          |
+    | Grid           | `/home/<you>/.local/bin/neru grid`           |
+    | Recursive grid | `/home/<you>/.local/bin/neru recursive_grid` |
+    | Scroll         | `/home/<you>/.local/bin/neru scroll`         |
 
 3. **Portal services** — Input needs `xdg-desktop-portal` and
    `xdg-desktop-portal-kde` running in the session.
@@ -112,27 +112,25 @@ qdbus org.kde.KWin /KWin org.kde.KWin.showDebugConsole
 
 The Input Events tab logs every pointer motion, button, and key event with
 its source device. Neru's injected events appear with an "Unknown" input
-device (libei), while real hardware shows the physical device path:
-
-![KWin Debug Console input events](images/kde-kwin-debug-console-input-events.png)
+device (libei), while real hardware shows the physical device path.
 
 ---
 
 ## wlroots compositors
 
-**Backend:** `wayland-wlroots`  
+**Backend:** `wayland-wlroots`
 **Status:** Supported — Sway, Hyprland, niri, River
 
 ### Architecture decisions
 
-| Concern | Mechanism |
-| ------- | --------- |
-| Overlay | `zwlr_layer_shell_v1` with empty `input_region` for click-through |
-| Pointer / click / scroll | `zwlr_virtual_pointer_v1` |
-| Sticky modifiers | `zwp_virtual_keyboard_v1` when available |
-| Keyboard capture during modes | `evdev` on `/dev/input/event*` (requires `input` group) |
-| Global hotkeys | Compositor config (`bind` / `bindsym` / `spawn-sh`) |
-| Cursor position | Client-side cache (Wayland hides global pointer); "agitation" via layer-shell + virtual pointer wiggle at startup |
+| Concern                       | Mechanism                                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Overlay                       | `zwlr_layer_shell_v1` with empty `input_region` for click-through                                                 |
+| Pointer / click / scroll      | `zwlr_virtual_pointer_v1`                                                                                         |
+| Sticky modifiers              | `zwp_virtual_keyboard_v1` when available                                                                          |
+| Keyboard capture during modes | `evdev` on `/dev/input/event*` (requires `input` group)                                                           |
+| Global hotkeys                | Compositor config (`bind` / `bindsym` / `spawn-sh`)                                                               |
+| Cursor position               | Client-side cache (Wayland hides global pointer); "agitation" via layer-shell + virtual pointer wiggle at startup |
 
 Code slots: `system_linux_wayland_wlroots_*.go`, shared wlroots C client.
 
@@ -158,7 +156,7 @@ Code slots: `system_linux_wayland_wlroots_*.go`, shared wlroots C client.
 
 ## X11 sessions
 
-**Backend:** `x11`  
+**Backend:** `x11`
 **Status:** Supported — XOrg, i3, etc.
 
 Global hotkeys use `XGrabKey` from Neru's config. Input uses XTest. No compositor
@@ -169,7 +167,7 @@ and systemd deployment.
 
 ## GNOME (not supported)
 
-**Backend:** `wayland-gnome`  
+**Backend:** `wayland-gnome`
 **Status:** Not supported
 
 GNOME Shell uses private protocols instead of wlr layer-shell / virtual pointer.

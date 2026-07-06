@@ -28,4 +28,4 @@ for XWayland-hosted apps.
 The Linux platform factory detects GNOME through `XDG_CURRENT_DESKTOP`
 containing `"GNOME"` and returns a clear `CodeNotSupported` error.
 
-For more information, see [Linux Desktops](../../../../../../docs/LINUX-DESKTOPS.md).
+For more information, see [Linux Desktops](../../../../../../docs/LINUX_DESKTOPS.md).

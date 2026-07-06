@@ -138,7 +138,7 @@ the live compositor (wlroots/KDE/GNOME/other) and the factory + dispatch seams
 route to it. Prefer organizing files by mechanism (shared across DEs) and use a
 compositor sub-slot only for genuinely DE-specific paths. See
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md) for contributor file layout and
-[LINUX-DESKTOPS.md](LINUX-DESKTOPS.md) for per-DE behavior and known issues.
+[LINUX_DESKTOPS.md](LINUX_DESKTOPS.md) for per-DE behavior and known issues.
 
 This keeps backend choice out of shared app code and makes implementation slots
 obvious before real Linux work lands.

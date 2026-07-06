@@ -4,7 +4,7 @@ Prepare a Linux host to **build, test, and deploy** Neru. This guide covers
 dependencies, permissions, building, validation, and generic troubleshooting.
 
 For per-desktop-environment implementation details, design decisions, and
-DE-specific known issues, see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+DE-specific known issues, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 
 ---
 
@@ -24,12 +24,12 @@ DE-specific known issues, see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
 
 ## Supported backends
 
-| Compositor / session | Backend | Status |
-| -------------------- | ------- | ------ |
-| Sway, Hyprland, niri, River | wayland-wlroots | Supported |
-| KDE Plasma (Wayland) | wayland-kde | Supported — see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md#kde-plasma-wayland) |
-| X11 / XOrg, i3 | x11 | Supported |
-| GNOME (Wayland) | wayland-gnome | Not supported — see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md#gnome-not-supported) |
+| Compositor / session        | Backend         | Status                                                                           |
+| --------------------------- | --------------- | -------------------------------------------------------------------------------- |
+| Sway, Hyprland, niri, River | wayland-wlroots | Supported                                                                        |
+| KDE Plasma (Wayland)        | wayland-kde     | Supported — see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#kde-plasma-wayland)      |
+| X11 / XOrg, i3              | x11             | Supported                                                                        |
+| GNOME (Wayland)             | wayland-gnome   | Not supported — see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md#gnome-not-supported) |
 
 ---
 
@@ -37,11 +37,11 @@ DE-specific known issues, see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
 
 Host changes required before Neru runs correctly (not code changes):
 
-| # | Adjustment | Why | Backends | Persists? |
-| - | ---------- | --- | -------- | --------- |
-| 1 | Install [build dependencies](#build-dependencies) | CGO backends and runtime libs | All Linux | Yes |
-| 2 | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture on Wayland | Wayland | Yes (re-login required) |
-| 3 | Bind `neru <mode>` in compositor keybindings | Wayland has no global-hotkey protocol | Wayland | Yes (user config) |
+| #   | Adjustment                                                  | Why                                   | Backends  | Persists?               |
+| --- | ----------------------------------------------------------- | ------------------------------------- | --------- | ----------------------- |
+| 1   | Install [build dependencies](#build-dependencies)           | CGO backends and runtime libs         | All Linux | Yes                     |
+| 2   | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture on Wayland   | Wayland   | Yes (re-login required) |
+| 3   | Bind `neru <mode>` in compositor keybindings                | Wayland has no global-hotkey protocol | Wayland   | Yes (user config)       |
 
 Notes:
 
@@ -261,7 +261,7 @@ binds {
 }
 ```
 
-KDE Plasma and other desktops: see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+KDE Plasma and other desktops: see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 
 ### Application exclusions
 
@@ -300,13 +300,13 @@ systemctl --user enable --now neru
 
 1. **Wayland global hotkeys** — Configured in the compositor, not in Neru config.
 2. **Hints need AT-SPI** — Grid and scroll work without it; hints coverage varies
-   by app. DE-specific coordinate details: [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+   by app. DE-specific coordinate details: [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 3. **Dark mode** — Via `org.freedesktop.appearance` portal, with session-specific
    fallbacks where the portal is unavailable.
 4. **Notifications** — May log instead of using `org.freedesktop.Notifications`.
 5. **Wayland modified clicks** — Need `evdev` access (see [keyboard permissions](#wayland-keyboard-capture-permissions)).
 6. **Screen geometry at startup** — Relaunch after resolution or monitor changes.
-7. **DE-specific limits** (portal consent, protocol gaps): [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+7. **DE-specific limits** (portal consent, protocol gaps): [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 
 ---
 
@@ -319,7 +319,7 @@ Running under X11 or a TTY. Neru uses the X11 backend when `DISPLAY` is set.
 ### "compositor does not support zwlr_virtual_pointer_v1"
 
 Common on GNOME; on KDE this is expected and input uses another path. See
-[LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 
 ### Overlay or hints wrong size after display change
 
@@ -356,4 +356,4 @@ fc-match "monospace"
 Paste `❖⇧⌥⌃` into a text editor to confirm the font renders before relying on it
 in Neru.
 
-DE-specific troubleshooting: [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+DE-specific troubleshooting: [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).

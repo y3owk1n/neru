@@ -13,7 +13,7 @@ func unsupportedLinuxBackendError(backend LinuxBackend) error {
 	case BackendWaylandGNOME:
 		return derrors.New(
 			derrors.CodeNotSupported,
-			"neru does not yet support GNOME Wayland. See docs/LINUX-DESKTOPS.md and internal/core/infra/platform/linux/wayland_gnome/PLACEHOLDER.md.",
+			"neru does not yet support GNOME Wayland. See docs/LINUX_DESKTOPS.md and internal/core/infra/platform/linux/wayland_gnome/PLACEHOLDER.md.",
 		)
 	case BackendWaylandOther:
 		return derrors.Newf(
