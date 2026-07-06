@@ -83,8 +83,8 @@ func initializeAdapters(
 	excludedBundles := cfg.General.ExcludedApps
 	clickableRoles := cfg.Hints.ClickableRoles
 
-	// Create infrastructure client
-	axClient := accessibilityAdapter.NewInfraAXClient(logger, cfgService)
+	// Create infrastructure client.
+	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
 
 	// Create base accessibility adapter with core functionality
 	accAdapter := accessibilityAdapter.NewAdapter(

@@ -415,6 +415,8 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 		return
 	}
 
+	cfg := a.configSnapshot()
+
 	if bundleID == "" {
 		// Use ActionService to get focused bundle ID
 		ctx := a.ctx
@@ -423,13 +425,27 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 
 		bundleID, bundleIDErr = a.actionService.FocusedAppBundleID(ctx)
 		if bundleIDErr != nil {
-			a.logger.Warn("Failed to get focused app bundle ID", zap.Error(bundleIDErr))
+			// Fail open: when the focused app can't be determined (always the
+			// case on Linux Wayland, which has no focus-query API), fall
+			// through with an empty bundle ID so global hotkeys still register.
+			// Failing closed would permanently disable Neru on those platforms.
+			// The next focus event re-evaluates per-app exclusion on platforms
+			// that support it. When exclusions are configured but cannot be
+			// enforced, warn so the user knows; otherwise this is routine.
+			logFn := a.logger.Debug
+			if len(cfg.General.ExcludedApps) > 0 {
+				logFn = a.logger.Warn
+			}
 
-			return
+			logFn(
+				"Focused app unknown; registering global hotkeys without per-app exclusion (configured excluded_apps are not enforced)",
+				zap.Int("excluded_apps", len(cfg.General.ExcludedApps)),
+				zap.Error(bundleIDErr),
+			)
+
+			bundleID = ""
 		}
 	}
-
-	cfg := a.configSnapshot()
 
 	if cfg.IsAppExcluded(bundleID) {
 		if a.appState.HotkeysRegistered() {

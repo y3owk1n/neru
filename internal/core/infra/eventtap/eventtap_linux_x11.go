@@ -188,7 +188,7 @@ func x11KeysymName(keysym C.KeySym) string {
 	case C.XK_Tab:
 		return "Tab"
 	case C.XK_Escape:
-		return "Escape"
+		return evdevKeyNameEscape
 	case C.XK_BackSpace:
 		return "Backspace"
 	case C.XK_Left:
@@ -221,7 +221,7 @@ func x11ModifierName(keysym C.KeySym) string {
 
 func postLinuxModifierEvent(modifier string, isDown bool) bool {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
-		return linux.WlrootsModifierEvent(modifier, isDown) == nil
+		return linux.WaylandModifierEvent(modifier, isDown) == nil
 	}
 
 	if os.Getenv("DISPLAY") == "" {

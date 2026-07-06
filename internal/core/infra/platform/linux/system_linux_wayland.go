@@ -4,52 +4,57 @@ package linux
 
 import "image"
 
-// Exported wrappers for wlroots input injection.
-// These delegate to the build-tagged (cgo/nocgo) implementations.
+// Exported Wayland input entry points. These route to whichever injection
+// backend the running compositor supports (zwlr_virtual_pointer on wlroots, or
+// libei via the RemoteDesktop portal on KWin/KDE); see
+// system_linux_wayland_input.go for the dispatch.
 
-var globalWlrootsModifierDispatcher = newWlrootsModifierDispatcher(wlrootsModifierEvent)
+var globalWlrootsModifierDispatcher = newWlrootsModifierDispatcher(waylandModifierEvent)
 
-// WlrootsMoveCursorToPoint moves the virtual pointer to an absolute position.
-func WlrootsMoveCursorToPoint(point image.Point) error {
-	return wlrootsMoveCursorToPoint(point)
+// WaylandMoveCursorToPoint moves the pointer to an absolute position.
+func WaylandMoveCursorToPoint(point image.Point) error {
+	return waylandMoveCursorToPoint(point)
 }
 
-// WlrootsCursorPosition returns the cached cursor position.
-func WlrootsCursorPosition() (image.Point, error) {
-	return wlrootsCursorPosition()
+// WaylandCursorPosition returns the cached cursor position.
+func WaylandCursorPosition() (image.Point, error) {
+	return waylandCursorPosition()
 }
 
-// WlrootsClick performs a full click (press + release) at the given position.
-func WlrootsClick(point image.Point, button int) error {
-	return wlrootsClick(point, button)
+// WaylandClick performs a full click (press + release) at the given position.
+func WaylandClick(point image.Point, button int) error {
+	return waylandClick(point, button)
 }
 
-// WlrootsButtonEvent presses or releases a button at the given position.
-func WlrootsButtonEvent(point image.Point, button int, pressed bool) error {
-	return wlrootsButtonEvent(point, button, pressed)
+// WaylandButtonEvent presses or releases a button at the given position.
+func WaylandButtonEvent(point image.Point, button int, pressed bool) error {
+	return waylandButtonEvent(point, button, pressed)
 }
 
-// WlrootsButtonRelease releases a button at the current cursor position.
-func WlrootsButtonRelease(button int) error {
-	return wlrootsButtonRelease(button)
+// WaylandButtonRelease releases a button at the current cursor position.
+func WaylandButtonRelease(button int) error {
+	return waylandButtonRelease(button)
 }
 
-// WlrootsScroll sends a scroll event. axis: 0=vertical, 1=horizontal.
+// WaylandScroll sends a scroll event. axis: 0=vertical, 1=horizontal.
 // delta is in logical pixels (positive = down/right, negative = up/left).
-// discrete is the discrete step count (e.g., +/-1 per logical scroll click).
-// Each call emits a single Wayland axis event; callers should loop for
-// larger scroll distances.
-func WlrootsScroll(axis, delta, discrete int) error {
-	return wlrootsScroll(axis, delta, discrete)
+// discrete is the discrete step count (e.g. +/-1 per logical scroll click).
+// Each call emits a single scroll event; callers should loop for larger
+// scroll distances.
+func WaylandScroll(axis, delta, discrete int) error {
+	return waylandScroll(axis, delta, discrete)
 }
 
 // WlrootsScrollBatch sends multiple scroll events in a single flush.
-// deltas and discretes must have the same length.
+// deltas and discretes must have the same length. Routes through the
+// waylandScrollBatch seam so KDE (libei, no virtual pointer) emits one
+// libeiScroll event per delta instead of taking the wlroots-only batch path
+// (which fails on KWin with "failed to perform wlroots batch scroll").
 func WlrootsScrollBatch(axis int, deltas, discretes []int) error {
-	return wlrootsScrollBatch(axis, deltas, discretes)
+	return waylandScrollBatch(axis, deltas, discretes)
 }
 
-// WlrootsModifierEvent presses or releases a virtual keyboard modifier.
-func WlrootsModifierEvent(modifier string, isDown bool) error {
+// WaylandModifierEvent presses or releases a modifier key.
+func WaylandModifierEvent(modifier string, isDown bool) error {
 	return globalWlrootsModifierDispatcher.event(modifier, isDown)
 }

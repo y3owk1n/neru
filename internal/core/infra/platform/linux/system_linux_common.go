@@ -22,6 +22,7 @@ import (
 const (
 	backendX11            = "x11"
 	backendWaylandWlroots = "wayland-wlroots"
+	backendWaylandKDE     = "wayland-kde"
 )
 
 // SystemAdapter is a Linux system adapter.
@@ -137,7 +138,7 @@ func (s *SystemAdapter) ScreenBounds(ctx context.Context) (image.Rectangle, erro
 		return x11ActiveScreenBounds()
 	}
 
-	if s.backend == backendWaylandWlroots {
+	if s.waylandUsesWlrClientStack() {
 		return wlrootsScreenBounds()
 	}
 
@@ -157,7 +158,7 @@ func (s *SystemAdapter) ScreenBoundsByName(
 		return x11ScreenBoundsByName(name)
 	}
 
-	if s.backend == backendWaylandWlroots {
+	if s.waylandUsesWlrClientStack() {
 		return wlrootsScreenBoundsByName(name)
 	}
 
@@ -174,7 +175,7 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 		return x11ScreenNames()
 	}
 
-	if s.backend == backendWaylandWlroots {
+	if s.waylandUsesWlrClientStack() {
 		return wlrootsScreenNames()
 	}
 
@@ -206,8 +207,10 @@ func (s *SystemAdapter) MoveCursorToPoint(
 		return x11MoveCursorToPoint(point)
 	}
 
-	if s.backend == backendWaylandWlroots {
-		return wlrootsMoveCursorToPoint(point)
+	if s.waylandUsesWlrClientStack() {
+		// Route through the Wayland input dispatcher so KDE (no virtual
+		// pointer) uses libei while wlroots compositors use the native path.
+		return waylandMoveCursorToPoint(point)
 	}
 
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
@@ -225,8 +228,8 @@ func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error)
 		return x11CursorPosition()
 	}
 
-	if s.backend == backendWaylandWlroots {
-		return wlrootsCursorPosition()
+	if s.waylandUsesWlrClientStack() {
+		return waylandCursorPosition()
 	}
 
 	return image.Point{}, derrors.New(
@@ -266,6 +269,13 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // ShowNotification displays a lightweight notification on Linux.
 // TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
+
+// waylandUsesWlrClientStack is true when the session uses the same Wayland
+// client protocols as wlroots (layer shell, xdg-output, virtual pointer, etc.).
+// KDE Plasma's KWin implements these for third-party clients; GNOME does not.
+func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
+	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
+}
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)

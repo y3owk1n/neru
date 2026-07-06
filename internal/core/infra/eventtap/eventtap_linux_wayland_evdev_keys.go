@@ -100,6 +100,11 @@ const (
 	evdevModifierAlt   = "alt"
 	evdevModifierCmd   = "cmd"
 
+	// Alias spellings accepted in configs for the canonical modifier tokens.
+	evdevModifierAliasControl = "control"
+	evdevModifierAliasOption  = "option"
+	evdevModifierAliasSuper   = "super"
+
 	evdevPrefixShift = "Shift+"
 	evdevPrefixCtrl  = "Ctrl+"
 	evdevPrefixAlt   = "Alt+"

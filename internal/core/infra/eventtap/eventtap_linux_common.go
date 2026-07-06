@@ -163,6 +163,7 @@ func (et *EventTap) Disable() {
 	et.mu.Unlock()
 
 	close(stopCh)
+
 	<-doneCh
 
 	// Bump the dispatch epoch so any in-flight event that dispatchLoop
@@ -389,13 +390,13 @@ func (et *EventTap) stickyToggleEnabled() bool {
 
 func canonicalLinuxModifier(modifier string) string {
 	switch strings.ToLower(strings.TrimSpace(modifier)) {
-	case evdevModifierCmd, "command", "super", "meta":
+	case evdevModifierCmd, "command", evdevModifierAliasSuper, "meta":
 		return evdevModifierCmd
 	case evdevModifierShift:
 		return evdevModifierShift
-	case evdevModifierAlt, "option":
+	case evdevModifierAlt, evdevModifierAliasOption:
 		return evdevModifierAlt
-	case evdevModifierCtrl, "control":
+	case evdevModifierCtrl, evdevModifierAliasControl:
 		return evdevModifierCtrl
 	default:
 		return ""
@@ -483,7 +484,7 @@ func normalizeLinuxKey(key string) string {
 	case "tab":
 		baseKey = "Tab"
 	case "escape", "esc":
-		baseKey = "Escape"
+		baseKey = evdevKeyNameEscape
 	case "backspace":
 		baseKey = "Delete"
 	case "left":

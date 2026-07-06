@@ -74,8 +74,17 @@ func wlrootsButtonRelease(button int) error {
 	)
 }
 
-func wlrootsScroll(axis, direction int) error {
-	_, _ = axis, direction
+func wlrootsScroll(axis, delta, discrete int) error {
+	_, _, _ = axis, delta, discrete
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
+func wlrootsScrollBatch(axis int, deltas, discretes []int) error {
+	_, _, _ = axis, deltas, discretes
 
 	return derrors.New(
 		derrors.CodeNotSupported,
@@ -85,6 +94,22 @@ func wlrootsScroll(axis, direction int) error {
 
 func wlrootsModifierEvent(modifier string, isDown bool) error {
 	_, _ = modifier, isDown
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
+func wlrootsHasVirtualPointer() (bool, error) {
+	return false, derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
+func wlrootsSetCursor(point image.Point) error {
+	_ = point
 
 	return derrors.New(
 		derrors.CodeNotSupported,

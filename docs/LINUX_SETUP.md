@@ -1,84 +1,79 @@
 # Linux Setup & Testing Guide
 
-Neru provides native Linux support through two display server backends:
+Prepare a Linux host to **build, test, and deploy** Neru. This guide covers
+dependencies, permissions, building, validation, and generic troubleshooting.
 
-- **X11** — works with any X11-based session (XOrg, i3, etc.)
-- **Wayland (wlroots)** — works with wlroots-based compositors (Sway, Hyprland, niri, River)
-
-> **GNOME and KDE Wayland** are not yet supported. These compositors use their own private protocols instead of the wlroots protocols. See the placeholder files in `internal/core/infra/platform/linux/wayland_gnome/` and `wayland_kde/` for contribution guidance.
+For per-desktop-environment implementation details, design decisions, and
+DE-specific known issues, see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
 
 ---
 
 ## Table of Contents
 
-- [Supported Compositors & Backends](#supported-compositors--backends)
-- [Wayland Keyboard Capture Permissions](#wayland-keyboard-capture-permissions)
+- [Supported backends](#supported-backends)
+- [Install-time environment adjustments](#install-time-environment-adjustments)
+- [Wayland keyboard capture permissions](#wayland-keyboard-capture-permissions)
 - [Using nix home manager](#using-nix-home-manager)
-- [Build Dependencies](#build-dependencies)
+- [Build dependencies](#build-dependencies)
 - [Building](#building)
-- [Under The Hood: Wayland (wlroots) Architecture Details for Testers](#under-the-hood-wayland-wlroots-architecture-details-for-testers)
-- [Validation & Setup Guide](#validation--setup-guide)
-- [Known Limitations](#known-limitations)
+- [Validation & deployment](#validation--deployment)
+- [Known limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
 
 ---
 
-## Supported Compositors & Backends
+## Supported backends
 
-| Compositor | Backend         | Status           | Notes                                                   |
-| ---------- | --------------- | ---------------- | ------------------------------------------------------- |
-| Sway       | wayland-wlroots | ✅ Supported     | Full virtual-pointer and layer-shell support            |
-| Hyprland   | wayland-wlroots | ✅ Supported     | Full virtual-pointer and layer-shell support            |
-| niri       | wayland-wlroots | ✅ Supported     | Full virtual-pointer and layer-shell support            |
-| River      | wayland-wlroots | ✅ Supported     | Full virtual-pointer and layer-shell support            |
-| X11 / XOrg | x11             | ✅ Supported     | XTest for input, XRandR for screens                     |
-| i3         | x11             | ✅ Supported     | Runs under X11                                          |
-| GNOME      | wayland-gnome   | 🔲 Not Supported | Needs libei + GNOME Shell extension; see PLACEHOLDER.md |
-| KDE Plasma | wayland-kde     | 🔲 Not Supported | Needs KDE-specific protocols; see PLACEHOLDER.md        |
+| Compositor / session | Backend | Status |
+| -------------------- | ------- | ------ |
+| Sway, Hyprland, niri, River | wayland-wlroots | Supported |
+| KDE Plasma (Wayland) | wayland-kde | Supported — see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md#kde-plasma-wayland) |
+| X11 / XOrg, i3 | x11 | Supported |
+| GNOME (Wayland) | wayland-gnome | Not supported — see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md#gnome-not-supported) |
 
 ---
 
-## Wayland Keyboard Capture Permissions
+## Install-time environment adjustments
 
-On wlroots-based Wayland compositors, Neru uses direct `evdev` keyboard capture
-during active modes so modified clicks like `Ctrl+click` and sticky modifiers
-work reliably against the app underneath the overlay.
+Host changes required before Neru runs correctly (not code changes):
 
-This requires permission to open and grab `/dev/input/event*` keyboard devices.
-On many distros those devices are owned by `root:input` with mode `0660`, so
-your user must be in the `input` group.
+| # | Adjustment | Why | Backends | Persists? |
+| - | ---------- | --- | -------- | --------- |
+| 1 | Install [build dependencies](#build-dependencies) | CGO backends and runtime libs | All Linux | Yes |
+| 2 | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture on Wayland | Wayland | Yes (re-login required) |
+| 3 | Bind `neru <mode>` in compositor keybindings | Wayland has no global-hotkey protocol | Wayland | Yes (user config) |
+
+Notes:
+
+- X11 only needs item 1; global hotkeys work via `XGrabKey` from Neru config.
+- Item 2 takes effect after a full logout/login or reboot.
+- Item 3 cannot be automated by a package; ship example snippets where helpful.
+
+---
+
+## Wayland keyboard capture permissions
+
+On Wayland, Neru uses direct `evdev` keyboard capture during active modes so
+modified clicks and sticky modifiers work reliably.
 
 ```bash
 sudo usermod -aG input "$USER"
 ```
 
-Then fully log out and back in, or reboot, and confirm:
+Log out and back in, then confirm `id` lists the `input` group.
 
-```bash
-id
-```
+> Membership in `input` allows reading system-wide keyboard events. Use a tighter
+> distro-specific `udev`/ACL setup if the group is too broad for your environment.
 
-You should see `input` in the printed group list.
-
-> **Security note:** Membership in `input` allows reading system-wide keyboard
-> events. If that access is too broad for your environment, use a tighter
-> distro-specific `udev`/ACL setup instead of the group-based approach.
-
-When the backend is active, Neru logs:
-
-```text
-Using Wayland evdev keyboard capture
-```
-
-If Neru cannot access the devices, it falls back to overlay-focused keyboard
-capture. Basic mode navigation still works, but modified clicks and sticky
-modifier behavior may be degraded under Wayland.
+When capture works, Neru logs `Using Wayland evdev keyboard capture`. Without
+device access it falls back to overlay-focused capture; basic navigation still
+works but modified clicks may degrade.
 
 ---
 
 ## Using nix home manager
 
-Below is a minimal single flake with home manager setup.
+Minimal flake with Home Manager:
 
 ```nix
 {
@@ -124,7 +119,13 @@ Below is a minimal single flake with home manager setup.
 }
 ```
 
-## Build Dependencies
+---
+
+## Build dependencies
+
+Neru links `libei` and `liboeffis` at build time (KDE and future libei-based
+Wayland paths). Install the `-dev`/`-devel` packages below even if you only test
+on wlroots compositors today.
 
 ### Debian / Ubuntu
 
@@ -138,6 +139,8 @@ sudo apt-get install -y \
   libxinerama-dev \
   libxfixes-dev \
   libxkbcommon-dev \
+  libei-dev \
+  liboeffis-dev \
   libfontconfig-dev \
   wayland-protocols \
   fonts-dejavu-core
@@ -155,6 +158,8 @@ sudo dnf install -y \
   libXinerama-devel \
   libXfixes-devel \
   libxkbcommon-devel \
+  libei-devel \
+  liboeffis-devel \
   fontconfig-devel \
   wayland-protocols-devel \
   dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
@@ -172,105 +177,82 @@ sudo pacman -S \
   libxinerama \
   libxfixes \
   libxkbcommon \
+  libei \
   fontconfig \
   wayland-protocols \
   ttf-dejavu
 ```
 
-`fontconfig` is required at build time (the Linux CGo overlay links against
-it for font resolution). `fonts-dejavu-core` / `dejavu-sans-fonts` /
-`ttf-dejavu` are only recommended — Neru falls back to them when no explicit
-`font_family` is set or when fontconfig cannot match a configured name, but
-any font that covers your required glyphs (especially `❖⇧⌥⌃` for the sticky
-modifier indicator) works equally well.
+On Arch, `liboeffis` (required by the KDE/libei path) is bundled in the `libei`
+package, so no separate package is needed.
+
+`fontconfig` is required at build time. DejaVu fonts are recommended defaults
+when `font_family` is unset (sticky modifier symbols `❖⇧⌥⌃`).
 
 ---
 
 ## Building
 
 ```bash
-# Build for current platform
+# Native build on the host (recommended for local dev and testing)
 just build
 
-# Build specifically for Linux
-just build-linux
+# Cross-build for a named Linux GOARCH (recipe defaults to amd64)
+just build-linux          # amd64
+just build-linux arm64    # arm64
 
-# Cross-compilation from macOS is NOT supported for Linux targets
-# because the native backends require CGo and Linux system headers.
+# Cross-compilation from macOS to Linux is NOT supported (CGO + Linux headers)
 ```
 
----
+Verify the binary matches your target:
 
-## Under The Hood: Wayland (wlroots) Architecture Details for Testers
+```bash
+go env GOARCH
+file bin/neru
+```
 
-As a tester on Linux Wayland environments, here are key implementation details you should be aware of to effectively test edge cases.
+Run the standard checks before opening a PR:
 
-### Global Cursor Discovery ("Agitation" Trick)
+```bash
+just fmt
+just lint
+just vet
+just test
+just build
+```
 
-Unlike X11 or macOS, Wayland completely hides the global mouse coordinate from clients for security reasons. Before Neru can successfully navigate matrices or grids, it must learn the current mouse position.
-**How we solved it:** Upon startup, Neru spawns invisible full-screen `layer-shell` surfaces across all outputs. It then "wiggles" the virtual pointer natively. This forces the compositor to send a `pointer_enter` event to our transparent surface, allowing us to map local surface coordinates to global screen dimensions and capture exactly where your mouse is.
-
-> **Testing Tip:** Ensure the cursor accurately discovers its initial position across multi-monitor setups (especially asymmetric resolutions).
-
-### Proper Key Modifier Routing
-
-Wayland passes key codes independently of modifiers. Translating `Ctrl+K` relies entirely on your compositor's active XKB map.
-**How we solved it:** We leverage `xkb_state_mod_name_is_active` to explicitly inspect `Shift`, `Control`, `Mod1` (Alt), and `Mod4` (Super). Printable UTF-8 characters are correctly resolved utilizing `xkb_state_key_get_utf8` (fixing cases where `,` or `/` evaluate incorrectly to "comma").
-
-> **Testing Tip:** Rapidly tap modifiers alongside character keys (like `Shift`, `Ctrl`, and complex symbols like `+` or `,`) to verify hotkeys trigger successfully.
-
-### Click-Through Layer Shell Overlays
-
-To draw overlay UI (like Grid Mode) without stealing physical mouse clicks, Wayland requires precise protocol negotiations.
-**How we solved it:** Neru sets an explicit, empty `wl_region` as the `input_region` for its layer-shell surfaces. This forces the compositor to ignore the overlay for pointer intersection testing, enabling true click-through capability where your synthetic clicks land exactly on the app under the overlay grid.
-
-> **Testing Tip:** While in Recursive Grid mode, executing a synthetic click (e.g., `u` for left click) should seamlessly pass straight through the overlay into your browser or terminal underneath.
-
-### Wayland Smooth Scrolling
-
-Rather than sending redundant, chunky fractional scroll loops, Neru directly pipes raw pixel `deltaY` and `deltaX` into the standard Wayland continuous `axis` event without discretizing them. This affords ultra-smooth precise scrolling behaviors equivalent to macOS behavior.
-
-> **Testing Tip:** Enter Scroll mode and verify scrolling operates smoothly, cleanly maps to your configured scroll increments, and does not overwhelm/lag the compositor event queues.
-
-### Dynamic Rendering Buffer Lifecycles
-
-When UI modes rapidly open, exit, and re-open, the underlying Cairo buffers require clean state management so they don't unexpectedly disappear.
-**How we solved it:** Wayland buffers are dynamically and lazily initialized immediately prior to any stroke or draw commands—ensuring they reliably exist, even if a previous mode exit forcefully destroyed the window canvas.
+On Linux CI, lint uses `golangci-lint v2.12.2` — match that version when
+validating locally on Linux.
 
 ---
 
-## Validation & Setup Guide
+## Validation & deployment
 
-### 1. Hotkey Configuration
+### Hotkey configuration
 
-**X11:**
-On X11, Neru registers global hotkeys natively using `XGrabKey`. Hotkeys specified in your `config.toml` "just work".
+**X11:** Hotkeys in `config.toml` work via `XGrabKey`.
 
-**Wayland (wlroots):**
-Wayland does not have a standard protocol for global hotkey registration. You **must** bind `neru <mode>` via your compositor's own keybinding config!
+**Wayland:** Bind `neru <mode>` in the compositor. Examples:
 
-#### Sway Example
+Sway (`~/.config/sway/config`):
 
 ```sway
-# ~/.config/sway/config
 bindsym $mod+Shift+h exec neru hints
 bindsym $mod+Shift+g exec neru grid
 bindsym $mod+Shift+s exec neru scroll
 ```
 
-#### Hyprland Example
+Hyprland (`~/.config/hypr/hyprland.conf`):
 
 ```hyprlang
-# ~/.config/hypr/hyprland.conf
 bind = $mod SHIFT, H, exec, neru hints
 bind = $mod SHIFT, G, exec, neru grid
 bind = $mod SHIFT, S, exec, neru scroll
 ```
 
-#### niri Example
+niri (`~/.config/niri/config.kdl`):
 
 ```kdl
-// ~/.config/niri/config.kdl
 binds {
     Mod+Shift+H { spawn-sh "neru hints"; }
     Mod+Shift+G { spawn-sh "neru grid"; }
@@ -279,21 +261,22 @@ binds {
 }
 ```
 
-### 2. Application Exclusions
+KDE Plasma and other desktops: see [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
 
-On Linux, applications are identified by their X11 `WM_CLASS` (X11) or process name from `/proc/<pid>/cmdline` (Wayland). Use these exact identifiers in your `excluded_apps` list.
+### Application exclusions
+
+Linux uses X11 `WM_CLASS` or Wayland process name from `/proc/<pid>/cmdline`:
 
 ```toml
 [general]
 excluded_apps = ["firefox", "chromium-browser", "code"]
 ```
 
-### 3. Service Management
+### systemd user service
 
-`neru services install/start/stop` uses `launchctl` on macOS. For Linux, use standard `systemd`:
+`neru services install/start/stop` is macOS-only. On Linux, use systemd:
 
 ```bash
-# Create a systemd user service
 mkdir -p ~/.config/systemd/user
 cat > ~/.config/systemd/user/neru.service << EOF
 [Unit]
@@ -313,16 +296,17 @@ systemctl --user enable --now neru
 
 ---
 
-## Known Limitations
+## Known limitations
 
-1. **Wayland global hotkeys**: Must be configured in the compositor, not in Neru's config. See [Hotkey Configuration](#1-hotkey-configuration).
-2. **Accessibility (AT-SPI)**: Full AT-SPI integration for clickable element discovery (hints mode) is currently unavailable natively under Wayland without relying on experimental plugins. Grid mode and scroll mode both work perfectly without AT-SPI.
-3. **Dark mode detection**: Detected via the `org.freedesktop.appearance` xdg-desktop-portal interface, with a `~/.config/kdeglobals` fallback, so `neru doctor` reports the current color scheme on any desktop that ships a portal. Restyling overlays to match the detected theme is not yet wired up.
-4. **Notifications**: Desktop notifications (`org.freedesktop.Notifications`) will log to stdout/file instead of pushing to DBus.
-5. **Wayland modified clicks need evdev access**: On wlroots compositors, reliable
-   modified pointer actions depend on the `evdev` keyboard-capture path described
-   above. Without `/dev/input/event*` access, Neru falls back to a less capable
-   overlay-focused path.
+1. **Wayland global hotkeys** — Configured in the compositor, not in Neru config.
+2. **Hints need AT-SPI** — Grid and scroll work without it; hints coverage varies
+   by app. DE-specific coordinate details: [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+3. **Dark mode** — Via `org.freedesktop.appearance` portal, with session-specific
+   fallbacks where the portal is unavailable.
+4. **Notifications** — May log instead of using `org.freedesktop.Notifications`.
+5. **Wayland modified clicks** — Need `evdev` access (see [keyboard permissions](#wayland-keyboard-capture-permissions)).
+6. **Screen geometry at startup** — Relaunch after resolution or monitor changes.
+7. **DE-specific limits** (portal consent, protocol gaps): [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
 
 ---
 
@@ -330,80 +314,46 @@ systemctl --user enable --now neru
 
 ### "WAYLAND_DISPLAY is not set"
 
-You're running under X11 or a TTY. Neru will automatically use the X11 backend when `DISPLAY` is set. If you're in a purely headless TTY wrapper, Neru cannot hook inputs.
+Running under X11 or a TTY. Neru uses the X11 backend when `DISPLAY` is set.
 
 ### "compositor does not support zwlr_virtual_pointer_v1"
 
-Your Wayland compositor does not currently implement `wlr` unstable protocols. This typically occurs under strictly isolated GNOME or KDE sessions. Check the placeholder docs to learn how libei implementations will govern GNOME support in the future.
+Common on GNOME; on KDE this is expected and input uses another path. See
+[LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).
+
+### Overlay or hints wrong size after display change
+
+Geometry is read at daemon start. Relaunch: `neru stop` then `neru launch`.
 
 ### "failed to connect to Wayland compositor"
 
-Check that `WAYLAND_DISPLAY` is set correctly and the Wayland socket permissions map appropriately (especially useful if testing behind Flatpaks or tight sandbox boundaries).
-
 ```bash
 echo $WAYLAND_DISPLAY
-wl-info  # from wayland-utils package
+wl-info   # wayland-utils package
 ```
 
 ### "Wayland evdev capture unavailable; falling back to overlay keyboard focus"
 
-Neru could not open and grab the keyboard devices needed for reliable Wayland
-modifier handling.
-
-Common fix:
-
-```bash
-sudo usermod -aG input "$USER"
-```
-
-Then log out and back in, and confirm:
-
-```bash
-id
-```
-
-If the setup is correct, Neru should log:
-
-```text
-Using Wayland evdev keyboard capture
-```
+Add the user to `input`, re-login, confirm with `id`. See
+[keyboard permissions](#wayland-keyboard-capture-permissions).
 
 ### Sticky modifier indicator shows `[][][][]`
 
-The sticky modifier overlay uses Unicode modifier symbols on Linux:
-`❖⇧⌥⌃`. If you see square boxes instead, the configured font does not include
-those glyphs.
-
-Set a font explicitly in your config:
+Set a font with modifier glyphs:
 
 ```toml
 [sticky_modifiers.ui]
 font_family = "Your installed symbol-capable font"
 ```
 
-When `font_family` is empty, Neru resolves a Linux-quality default via
-fontconfig: `"Sans"` / `"Sans Serif"` → `DejaVu Sans`, `"Monospace"` →
-`DejaVu Sans Mono`, `"Serif"` → `DejaVu Serif`. A user-supplied family
-that fontconfig cannot match falls back to the same defaults, so the
-indicator never falls back to a low-quality system generic.
-
-Useful fontconfig snippets for verifying what Neru will use:
+Verify candidates with fontconfig:
 
 ```bash
-# List installed families whose name contains "Inter"
-fc-list | awk -F: '{print $2}' | sort -u | grep -i inter
-
-# See which font fontconfig will actually use for a given family
-fc-match "Inter"
-
-# See the top alternates fontconfig will try, in order
-fc-match -s "Inter" | head -5
-
-# See what the generic aliases resolve to on this system
 fc-match "sans-serif"
 fc-match "monospace"
-fc-match "serif"
 ```
 
-A quick way to verify a candidate font is to paste `❖⇧⌥⌃` into
-a text editor and confirm the symbols render there first.
+Paste `❖⇧⌥⌃` into a text editor to confirm the font renders before relying on it
+in Neru.
+
+DE-specific troubleshooting: [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md).

@@ -670,6 +670,49 @@ void neru_wayland_overlay_rect(
 	}
 }
 
+static void neru_wayland_overlay_rounded_path(
+    cairo_t *cr, double x, double y, double width, double height, double radius) {
+	double max_radius = (width < height ? width : height) / 2.0;
+	if (radius > max_radius)
+		radius = max_radius;
+	if (radius <= 0) {
+		cairo_rectangle(cr, x, y, width, height);
+		return;
+	}
+
+	// degrees-to-radians literal avoids depending on M_PI
+	const double deg = 0.0174532925199432957692;
+	cairo_new_sub_path(cr);
+	cairo_arc(cr, x + width - radius, y + radius, radius, -90.0 * deg, 0.0 * deg);
+	cairo_arc(cr, x + width - radius, y + height - radius, radius, 0.0 * deg, 90.0 * deg);
+	cairo_arc(cr, x + radius, y + height - radius, radius, 90.0 * deg, 180.0 * deg);
+	cairo_arc(cr, x + radius, y + radius, radius, 180.0 * deg, 270.0 * deg);
+	cairo_close_path(cr);
+}
+
+void neru_wayland_overlay_rounded_rect(
+    NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
+    unsigned int stroke, double stroke_width) {
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+		if (!scr->cr)
+			continue;
+
+		double scr_x = x - scr->x;
+		double scr_y = y - scr->y;
+
+		cairo_t *cr = scr->cr;
+		cairo_save(cr);
+		neru_wayland_overlay_rounded_path(cr, scr_x, scr_y, width, height, radius);
+		neru_wayland_overlay_color(cr, fill);
+		cairo_fill_preserve(cr);
+		neru_wayland_overlay_color(cr, stroke);
+		cairo_set_line_width(cr, stroke_width);
+		cairo_stroke(cr);
+		cairo_restore(cr);
+	}
+}
+
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color) {

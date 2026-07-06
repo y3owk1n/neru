@@ -142,6 +142,10 @@ Use these suffixes:
 - `*_linux_common.go`: shared Linux wrapper or current fallback behavior
 - `*_linux_x11.go`: Linux X11 implementation slot
 - `*_linux_wayland.go`: Linux Wayland implementation slot
+- `*_linux_wayland_<compositor>.go`: Wayland compositor sub-slot when one
+  compositor family needs a distinct implementation (e.g.
+  `*_linux_wayland_wlroots.go`, `*_linux_wayland_kde.go`). Still the same
+  package + build tags; selection is at runtime (see Linux Backend Model).
 - `*_other.go`: non-target fallback for dispatch-style packages
 
 App-level platform dispatch also follows this pattern. For example,
@@ -239,6 +243,49 @@ Use `wayland` for:
 
 Accessibility is the main exception: much of Linux accessibility can stay
 shared around AT-SPI, even when other capabilities split by backend.
+
+### Wayland compositor backends (two axes)
+
+Wayland is not one target. KDE/KWin, the wlroots family (Sway, Hyprland, niri,
+COSMIC), and GNOME/Mutter differ in input, overlay, and hotkey mechanisms. Keep
+two axes separate:
+
+- **Compile-time axis** — OS + CGO. Expressed by build tags and the file
+  suffixes above. Build tags cannot distinguish compositors (KDE and GNOME are
+  both `linux` + Wayland at compile time), so the suffix never encodes a single
+  DE on its own.
+- **Runtime axis** — which compositor is live. Expressed by the `LinuxBackend`
+  family in [linux_backend.go](../internal/core/infra/platform/linux_backend.go)
+  (`BackendWaylandWlroots`, `BackendWaylandKDE`, `BackendWaylandGNOME`,
+  `BackendWaylandOther`), detected from `XDG_CURRENT_DESKTOP` and routed by the
+  factory + dispatch seams (e.g. `system_linux_wayland_input.go`).
+
+Per-DE behavior, protocol measurements, and known issues live in
+[LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md). Host setup (deps, build, deploy) lives
+in [LINUX_SETUP.md](./LINUX_SETUP.md).
+
+Organize implementation by the axis that actually varies, which is usually the
+**mechanism**, not the DE, because DEs share mechanisms:
+
+- Input: KDE uses libei (RemoteDesktop portal); GNOME also uses libei; wlroots
+  and COSMIC use `zwlr_virtual_pointer`. So a libei backend can serve multiple
+  DEs — do not duplicate it per DE.
+- Overlay: layer-shell works on KDE, wlroots, and COSMIC; only GNOME/Mutter
+  lacks it.
+- Genuinely DE-specific: active-window geometry (KWin D-Bus vs Mutter D-Bus)
+  and hotkey registration. Put these in DE-named files (e.g.
+  `kwin_geometry_linux.go`).
+
+Use a `*_linux_wayland_<compositor>.go` sub-slot when a compositor family needs
+a distinct path that another family does not share. Current slots:
+`system_linux_wayland_wlroots_*.go` (virtual-pointer input) and
+`system_linux_wayland_kde_*.go` (libei input), with
+`system_linux_wayland_input.go` as the shared routing seam.
+
+To add a compositor (e.g. COSMIC): add a `LinuxBackend` value + detection in
+`linux_backend.go`, route it in the factory and the relevant dispatch seams,
+and only add a new `*_linux_wayland_<compositor>.go` slot if it cannot reuse an
+existing mechanism file.
 
 ---
 
@@ -419,6 +466,8 @@ Usually that means checking these files:
 - [README.md](../README.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [DEVELOPMENT.md](./DEVELOPMENT.md)
+- [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
+- [LINUX-DESKTOPS.md](./LINUX-DESKTOPS.md) — per-DE decisions and known issues
 - [CONVENTIONS.md](./go/CONVENTIONS.md)
 
 Update them when:

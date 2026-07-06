@@ -17,6 +17,8 @@ const (
 	DisplayServerX11 DisplayServer = "x11"
 	// DisplayServerWin32 is the Windows desktop/windowing stack.
 	DisplayServerWin32 DisplayServer = "win32"
+	// DisplayServerWaylandKDE is Wayland on KDE Plasma (doctor/runtime label).
+	DisplayServerWaylandKDE DisplayServer = "wayland (KDE Plasma)"
 	// DisplayServerUnknown means the display server could not be identified yet.
 	DisplayServerUnknown DisplayServer = "unknown"
 )
@@ -94,7 +96,7 @@ func ProfileFor(target OS) Profile {
 			},
 		}
 	case Linux:
-		return linuxProfile(DetectLinuxDisplayServer())
+		return linuxProfileForCurrentBackend()
 	case Windows:
 		return Profile{
 			OS:              Windows,

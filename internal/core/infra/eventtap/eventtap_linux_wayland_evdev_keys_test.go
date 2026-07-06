@@ -17,10 +17,10 @@ func TestEvdevModifierName(t *testing.T) {
 		code uint16
 		want string
 	}{
-		{code: evdevKeyLeftShift, want: "shift"},
-		{code: evdevKeyRightCtrl, want: "ctrl"},
-		{code: evdevKeyLeftAlt, want: "alt"},
-		{code: evdevKeyRightMeta, want: "cmd"},
+		{code: evdevKeyLeftShift, want: evdevModifierShift},
+		{code: evdevKeyRightCtrl, want: evdevModifierCtrl},
+		{code: evdevKeyLeftAlt, want: evdevModifierAlt},
+		{code: evdevKeyRightMeta, want: evdevModifierCmd},
 		{code: evdevKeyA, want: ""},
 	}
 
