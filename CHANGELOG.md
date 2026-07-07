@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.46.1](https://github.com/y3owk1n/neru/compare/v1.46.0...v1.46.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **darwin,ci:** pin arm64 CI runner & enforfe macos 14 minimum ([#990](https://github.com/y3owk1n/neru/issues/990)) ([e80285b](https://github.com/y3owk1n/neru/commit/e80285b93a44bc863035f04b6c653a8a46278a0b))
+
 ## [1.46.0](https://github.com/y3owk1n/neru/compare/v1.45.0...v1.46.0) (2026-07-06)
 
 
