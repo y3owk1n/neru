@@ -21,7 +21,7 @@ name: publish-artifacts
 
 jobs:
     build-darwin-arm64-artifacts:
-        runs-on: macos-latest
+        runs-on: macos-15
         permissions:
             contents: write
         steps:

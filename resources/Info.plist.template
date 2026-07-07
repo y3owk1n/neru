@@ -33,6 +33,9 @@
 	<key>CFBundleShortVersionString</key>
 	<string>SHORT_VERSION</string>
 
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+
 	<key>NeruBuildID</key>
 	<string>BUILD_ID</string>
 
