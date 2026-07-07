@@ -5,6 +5,9 @@ VERSION := `git describe --tags --always --dirty 2>/dev/null || echo "dev"`
 GIT_COMMIT := `git rev-parse --short HEAD 2>/dev/null || echo "unknown"`
 BUILD_DATE := `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 
+# macOS deployment target (used in CGO CFLAGS and as an env var for clang/ld).
+MACOSX_DEPLOYMENT_TARGET := "14.0"
+
 # Ldflags for version injection; Windows uses GUI subsystem (no console window).
 
 LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + " -X github.com/y3owk1n/neru/internal/cli.GitCommit=" + GIT_COMMIT + " -X github.com/y3owk1n/neru/internal/cli.BuildDate=" + BUILD_DATE
@@ -91,7 +94,7 @@ release-ci-darwin ARCH VERSION_OVERRIDE:
     @echo "Commit: {{ GIT_COMMIT }}"
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
-    CGO_ENABLED=1 GOOS=darwin GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-{{ ARCH }} ./cmd/neru
+    CGO_ENABLED=1 GOOS=darwin GOARCH={{ ARCH }} MACOSX_DEPLOYMENT_TARGET={{ MACOSX_DEPLOYMENT_TARGET }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-darwin-{{ ARCH }} ./cmd/neru
     @echo "✓ Release artifact for darwin/{{ ARCH }} built successfully"
 
 # Build a Linux release artifact for CI on a native Linux host.
