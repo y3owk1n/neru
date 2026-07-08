@@ -4,8 +4,8 @@
 
 ### Package Names
 
-- Use short, lowercase, single-word names when possible
-- Avoid underscores, hyphens, or mixed caps
+- Short, lowercase, single-word names when possible
+- No underscores, hyphens, or mixed caps
 
 ```go
 package hints
@@ -15,58 +15,64 @@ package config
 
 ### Package Documentation
 
-Every package should have a `doc.go` file with package-level documentation:
+Every package should have a `doc.go` file:
 
 ```go
 // Package hints provides hint generation and management for the Neru application.
 package hints
 ```
 
+---
+
 ## File Structure
 
 1. Package declaration
-2. Imports (organized by `goimports`)
+2. Imports (organized by `goimports` — stdlib, external, internal)
 3. Constants
 4. Type definitions
 5. Constructor functions
 6. Methods (grouped by receiver type)
 7. Helper functions
 
+---
+
 ## Imports
 
 Organized by `goimports` into three groups:
 
-1. Standard library
-2. External packages
-3. Internal packages
-
-Use aliases for packages with common names:
-
 ```go
 import (
-  "context"
+    "context"
 
-  "github.com/y3owk1n/neru/internal/core/domain"
-  "go.uber.org/zap"
+    "github.com/y3owk1n/neru/internal/core/domain"
+    "go.uber.org/zap"
 )
 ```
 
+---
+
 ## Naming
 
-- Packages: lowercase, short, descriptive
-- Variables: camelCase local, PascalCase exported
-- Constants: PascalCase exported, camelCase unexported
-- Receiver names: consistent single-letter (e.g., `a` for `App`, `c` for `Config`)
+| Scope          | Convention                                | Example                         |
+| :------------- | :---------------------------------------- | :------------------------------ |
+| Variables      | camelCase local, PascalCase exported      | `localVar`, `ExportedVar`       |
+| Constants      | PascalCase exported, camelCase unexported | `MaxSize`                       |
+| Receiver names | Consistent single-letter                  | `a` for `App`, `c` for `Config` |
+| Packages       | lowercase, short                          | `hints`, `grid`                 |
+
+---
 
 ## Function Parameters
 
-- `context.Context` first parameter (always if present)
+- `context.Context` first (always if present)
 - Required parameters
-- Optional parameters (or use functional options pattern)
+- Optional parameters (or functional options)
 
 ```go
 func (s *Service) Process(ctx context.Context, id string, opts ...Option) error
 ```
+
+---
 
 ## Return Values
 
@@ -75,13 +81,15 @@ func (s *Service) Process(ctx context.Context, id string, opts ...Option) error
 
 ```go
 func (s *Service) Get(id string) (*Item, error) {
-  item, err := s.fetch(id)
-  if err != nil {
-    return nil, err
-  }
-  return item, nil
+    item, err := s.fetch(id)
+    if err != nil {
+        return nil, err
+    }
+    return item, nil
 }
 ```
+
+---
 
 ## Error Handling
 
@@ -97,49 +105,48 @@ return derrors.New(derrors.CodeInvalidConfig, "config validation failed")
 return derrors.Wrap(err, derrors.CodeIPCFailed, "failed to start IPC server")
 ```
 
+---
+
 ## Context
 
 - Always accept `context.Context` as first parameter for cancellable operations
-- Pass context through the call stack
 - Don't store context in structs
 
 ```go
 func (s *Service) Process(ctx context.Context, data []byte) error {
-  select {
-  case <-ctx.Done():
-    return ctx.Err()
-  default:
-    return s.doProcess(ctx, data)
-  }
+    select {
+    case <-ctx.Done():
+        return ctx.Err()
+    default:
+        return s.doProcess(ctx, data)
+    }
 }
 ```
+
+---
 
 ## Concurrency
 
-### Mutex Usage
-
-- Use `sync.RWMutex` for read-heavy workloads
-- Use `sync.Mutex` for write-heavy or simple cases
-- Always defer unlock immediately after lock
+| Pattern                                    | When to Use                 |
+| :----------------------------------------- | :-------------------------- |
+| `sync.RWMutex`                             | Read-heavy workloads        |
+| `sync.Mutex`                               | Write-heavy or simple cases |
+| Always defer unlock immediately after lock |
 
 ```go
 func (s *Service) Get(id string) (*Item, error) {
-  s.mu.RLock()
-  defer s.mu.RUnlock()
-  return s.cache[id], nil
-}
-
-func (s *Service) Set(id string, item *Item) {
-  s.mu.Lock()
-  defer s.mu.Unlock()
-  s.cache[id] = item
+    s.mu.RLock()
+    defer s.mu.RUnlock()
+    return s.cache[id], nil
 }
 ```
+
+---
 
 ## Comments
 
 - Comment public APIs and exported symbols
-- Use complete sentences with proper punctuation
+- Complete sentences with proper punctuation
 - Explain _why_ for non-obvious code, not _what_
 
 ```go
@@ -148,30 +155,28 @@ func (s *Service) Set(id string, item *Item) {
 hints := make([]Hint, 0, 100)
 ```
 
-## Performance
+---
 
-### Pre-allocation
+## Performance Patterns
 
 ```go
+// Pre-allocate slices
 hints := make([]Hint, 0, expectedCount)
-cache := make(map[string]*Item, expectedSize)
-```
 
-### String Building
-
-```go
+// String building
 var b strings.Builder
 b.WriteString("prefix")
 b.WriteString(value)
-b.WriteString("suffix")
 return b.String()
 ```
+
+---
 
 ## Cross-Platform Conventions
 
 ### Build Tags
 
-Use Go build tags for OS-specific code. Always include a blank line after the tag.
+Always include a blank line after the tag:
 
 ```go
 //go:build darwin
@@ -181,25 +186,29 @@ package platform
 
 ### Platform Isolation
 
-- **The One Rule**: Non-darwin-tagged code must **never** import `internal/core/infra/platform/darwin`.
-- Use **Ports** ([internal/core/ports/](../../internal/core/ports/)) to define platform-agnostic interfaces.
-- Use **Adapters** ([internal/core/infra/](../../internal/core/infra/)) to implement those interfaces for specific platforms.
+- **The One Rule:** Non-darwin code must never import `internal/core/infra/platform/darwin`
+- Use **Ports** in `internal/core/ports/` for platform-agnostic interfaces
+- Use **Adapters** in `internal/core/infra/` for implementations
 
 ### OS-Specific File Naming
 
-- `*_darwin.go`: macOS-specific code
-- `*_linux.go`: Linux-specific code
-- `*_linux_common.go`: Shared Linux wrapper/fallback code
-- `*_linux_x11.go`: Linux X11 backend slot
-- `*_linux_wayland.go`: Linux Wayland backend slot
-- `*_windows.go`: Windows-specific code
-- `*_other.go`: No-op or unsupported implementations for non-target platforms.
+| Suffix               | Purpose              |
+| :------------------- | :------------------- |
+| `*_darwin.go`        | macOS-specific       |
+| `*_linux.go`         | Linux-specific       |
+| `*_linux_common.go`  | Shared Linux wrapper |
+| `*_linux_x11.go`     | X11 backend          |
+| `*_linux_wayland.go` | Wayland backend      |
+| `*_windows.go`       | Windows-specific     |
+| `*_other.go`         | Non-target fallback  |
 
 ### Platform Factory
 
-The `internal/core/infra/platform/` package uses build-tagged `factory_<os>.go` files to return the correct implementation of `ports.SystemPort`.
+`internal/core/infra/platform/factory.go` uses build-tagged `factory_<os>.go` files to return the correct `ports.SystemPort` implementation.
+
+---
 
 ## See Also
 
-- [TESTING_PATTERNS.md](../testing/TESTING_PATTERNS.md)
-- [OBJECTIVE_C.md](./OBJECTIVE_C.md)
+- [Contributing Guide](../../CONTRIBUTING.md)
+- [Objective-C Guidelines](OBJECTIVE_C.md)

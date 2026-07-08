@@ -15,9 +15,9 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|      macOS       |      Linux       |        Windows         |
-| :--------------: | :--------------: | :--------------------: |
-| Full featured ✅ | Basic support 🔵 | Basic support 🔵       |
+|      macOS       |     Linux     |    Windows    |
+| :--------------: | :-----------: | :-----------: |
+| Full featured ✅ | Core modes ✅ | Core modes ✅ |
 
 **練る** _(neru)_ — "to refine through practice." The more you use it, the faster you get.
 
@@ -25,46 +25,63 @@ _Built for the person who already remapped Caps Lock._
 
 ---
 
-If you use Vimium in the browser, you already know what this feels like. **Neru brings that to your entire operating system** — every app, every window, every menu bar item. Navigate with labels, grids, or vim-style keys. Click, right-click, drag, scroll, select text — all without leaving your keyboard.
-
-Here's the whole flow:
+If you use Vimium in the browser, you already know the feeling. **Neru brings keyboard-driven navigation to your entire operating system** — every app, every window, every menu bar item.
 
 ```
-Cmd+Shift+Space   →  labels appear on every clickable element
-type the label    →  cursor jumps there
-Shift+L           →  left click
+Cmd+Shift+Space  →  labels appear on every clickable element
+type the label   →  cursor jumps there
+Shift+L          →  left click
 ```
 
 The mouse is now optional.
 
-Unlike most tools in this space, Neru is **CLI-first** — every action is a command, every setting is a plain toml file, everything is scriptable. No settings panel. No GUI preferences window. It lives in your dotfiles like it was always supposed to be there.
+Unlike most tools in this space, Neru is **CLI-first** — every action is a shell command, every setting is a plain TOML file, everything is scriptable. No GUI preferences window. It lives in your dotfiles where it belongs.
 
 ---
 
-**See it in action — recursive grid mode in real use:**
+## Quick Start
 
-https://github.com/user-attachments/assets/6b5673e1-7131-4bc0-ad57-41678e9423b9
-
----
-
-## Install
+### 1. Install
 
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-Grant **Accessibility** in **System Settings → Privacy & Security → Accessibility**, then:
+Other methods: [Homebrew nightly](docs/INSTALLATION.md#homebrew-nightly), [Nix flake](docs/INSTALLATION.md#nix-flake), [build from source](docs/INSTALLATION.md#build-from-source).
 
-Press `Cmd+Shift+Space`. Labels appear. You're already using it.
+### 2. Grant Permissions
 
-Other options (Nix flake, build from source) → [Installation Guide](docs/INSTALLATION.md)
+Open **System Settings → Privacy & Security → Accessibility**, click **+**, and add `/Applications/Neru.app`.
+
+> Neru needs Accessibility access to read UI elements, simulate clicks, and capture keyboard events. All processing stays local — no data leaves your machine. See [Security](SECURITY.md).
+
+### 3. Start the Daemon
+
+```bash
+neru launch
+neru status      # Should show "running"
+```
+
+### 4. Use It
+
+```
+Cmd+Shift+Space        → labels appear on every clickable element
+as                     → cursor jumps to element labelled "as"
+l                      → left-click
+Shift+L                → right-click
+Escape                 → exit hints mode
+```
+
+### 5. Make It Auto-Start
+
+```bash
+neru services install
+```
 
 ---
 
-## Pick your mode
-
-Four modes, one tool — mix and match as the situation calls for it.
+## Pick Your Mode
 
 <table>
 <tr>
@@ -83,65 +100,41 @@ Four modes, one tool — mix and match as the situation calls for it.
 </tr>
 </table>
 
-| Mode                  | Hotkey            | How it works                                                       | Best for                                         |
-| :-------------------- | :---------------- | :----------------------------------------------------------------- | :----------------------------------------------- |
-| **Recursive Grid** ⭐ | `Cmd+Shift+C`     | Divides screen into cells; narrow down with home-row keys          | Everything — any app, canvas, or game            |
-| **Hints**             | `Cmd+Shift+Space` | Labels every clickable element via Accessibility API or Vision OCR | Native apps, Electron (VS Code, Slack), Figma    |
-| **Grid**              | `Cmd+Shift+G`     | Jump directly to a cell by row + column label                      | Fast coarse movement across large monitors       |
-| **Scroll**            | `Cmd+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages                | Reading docs and code without lifting your hands |
+| Mode                  | Hotkey            | How It Works                                            | Best For                                         |
+| :-------------------- | :---------------- | :------------------------------------------------------ | :----------------------------------------------- |
+| **Recursive Grid** ⭐ | `Cmd+Shift+C`     | Divides screen into cells; narrow with home-row keys    | Everything — any app, canvas, or game            |
+| **Hints**             | `Cmd+Shift+Space` | Labels every clickable element via AX API or Vision OCR | Native apps, Electron (VS Code, Slack), Figma    |
+| **Grid**              | `Cmd+Shift+G`     | Jump to a cell by row + column label                    | Fast coarse movement across large monitors       |
+| **Scroll**            | `Cmd+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages     | Reading docs and code without lifting your hands |
 
-All bindings are fully remappable — Colemak, Dvorak, whatever you're on. → [Configuration Guide](docs/CONFIGURATION.md#hotkeys)
+All bindings are fully remappable. → [Configuration Guide](docs/CONFIGURATION.md)
 
 ---
 
-## CLI-first, by design
-
-Most tools in this space are GUI apps with a settings panel. Neru is the opposite — the CLI is the interface, and config is a file you own.
+## CLI-First, By Design
 
 ```bash
-neru hints          # trigger hints mode
-neru grid           # trigger grid mode
-neru recursive_grid # trigger recursive grid mode
-neru scroll         # trigger scroll mode
-neru config reload  # hot-reload config without restarting
-neru status         # check daemon state and permissions
+neru hints             # trigger hints mode
+neru grid              # trigger grid mode
+neru recursive_grid    # trigger recursive grid mode
+neru scroll            # trigger scroll mode
+neru config reload     # hot-reload config without restarting
+neru status            # check daemon state and permissions
 ```
 
-Config lives at `~/.config/neru/config.toml` — plain text, version-controllable, and hot-reloadable. Every action is available over IPC, so Neru composes naturally with skhd, Raycast, Alfred, Hammerspoon, or any shell script. If it can run a command, it can drive Neru.
+Config lives at `~/.config/neru/config.toml` — plain text, version-controllable, hot-reloadable. Every action is available over IPC, so Neru composes naturally with skhd, Raycast, Alfred, Hammerspoon, or any shell script.
 
 ```bash
-neru config init      # generate a fully-commented starter config
-neru config validate  # check for errors before applying
-neru config reload    # apply changes without restarting
+neru config init       # generate a fully-commented starter config
+neru config validate   # check for errors before applying
+neru config reload     # apply changes without restarting
 ```
 
-→ [CLI Guide](docs/CLI.md) · [Configuration Guide](docs/CONFIGURATION.md) · [Config Showcases](docs/CONFIG_SHOWCASES.md)
+→ [CLI Guide](docs/CLI.md) · [Configuration Guide](docs/CONFIGURATION.md)
 
 ---
 
-## What people are saying
-
-> _"neru: the ACTUAL BEST app for ditching mouse"_
-
-[![Community YouTube Review](https://img.youtube.com/vi/OFnpYTDA2gY/maxresdefault.jpg)](https://www.youtube.com/watch?v=OFnpYTDA2gY)
-
-Watch the author run their entire daily workflow without touching the mouse → [HOW-I-USE-NERU.md](HOW-I-USE-NERU.md)
-
-Got questions or want to share your setup? [Join the Discord →](https://discord.gg/KZwnwr9dz6)
-
----
-
-## Neru Dojo — build your muscle memory 🥋
-
-The community built a browser-based training game to help you get fast with recursive grid and hints. Practice target acquisition, sharpen your reaction time, get reps in before it clicks.
-
-👉 **[Play Neru Dojo](https://bernatgene.github.io/neru-dojo/)** — no install, works in any browser.
-
-https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
-
----
-
-## How Neru compares
+## How Neru Compares
 
 | Tool                                            | Approach                                      |  Price   |    Open Source    |
 | :---------------------------------------------- | :-------------------------------------------- | :------: | :---------------: |
@@ -155,46 +148,102 @@ https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
 | [Vimac](https://github.com/dexterleng/vimac)    | AX Hints                                      |   Free   | ✅ (unmaintained) |
 | [warpd](https://github.com/rvaiya/warpd)        | Grid + Hints + Normal Pointer                 |   Free   |        ✅         |
 
-More modes, more engines, more platforms — and it's free. If you've been paying for any of the tools above, Neru is worth 10 minutes of your time.
+More modes, more engines, more platforms — and it's free.
 
 ---
 
-## Platform support
+## Platform Support
 
 | Capability                | macOS | Linux | Windows |
 | :------------------------ | :---: | :---: | :-----: |
 | Recursive Grid            |  ✅   |  ✅   |   ✅    |
 | Grid                      |  ✅   |  ✅   |   ✅    |
 | Vim-Style Scroll          |  ✅   |  ✅   |   ✅    |
-| Hints (Accessibility API) |  ✅   |  🔲   |   ✅    |
-| Hints (Vision OCR)        |  ✅   |  🔲   |   🔲    |
+| Hints (Accessibility API) |  ✅   |  ◻️   |   ✅    |
+| Hints (Vision OCR)        |  ✅   |  ◻️   |   ◻️    |
 | Direct Mouse Injection    |  ✅   |  ✅   |   ✅    |
 | Global Hotkeys            |  ✅   |  ✅   |   ✅    |
 | Native Overlays           |  ✅   |  ✅   |   ✅    |
 
-→ [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
+→ [Cross-Platform Details](docs/CROSS_PLATFORM.md)
 
 ---
 
-## Documentation
+## Community
 
-Everything you need to go deep:
+- **Neru Dojo** — browser-based training game: [bernatgene.github.io/neru-dojo](https://bernatgene.github.io/neru-dojo/)
+- **Discord** — share setups, ask questions: [discord.gg/KZwnwr9dz6](https://discord.gg/KZwnwr9dz6)
+- **Author's setup** — [HOW-I-USE-NERU.md](HOW-I-USE-NERU.md)
 
-| Guide                                      | What's in it                                |
-| :----------------------------------------- | :------------------------------------------ |
-| [Installation](docs/INSTALLATION.md)       | Homebrew, Nix, source, permissions, launchd |
-| [CLI](docs/CLI.md)                         | Every command and flag                      |
-| [Configuration](docs/CONFIGURATION.md)     | Keybindings, themes, overlays, all settings |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)       | Power-user patterns and setups              |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes                     |
-| [Roadmap](docs/ROADMAP.md)                 | What's coming                               |
-| [Contributing](CONTRIBUTING.md)            | PRs and bug reports                         |
+### Community Configs
+
+These community members share their Neru configs:
+
+| Author                                 | Config                                                                                                           |
+| :------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| [@y3owk1n](https://github.com/y3owk1n) | [nix-system-config-v2](https://github.com/y3owk1n/nix-system-config-v2/blob/main/home-manager/packages/neru.nix) |
+| [@y9san9](https://github.com/y9san9)   | [y9san9.neru](https://github.com/y9san9/y9san9.neru)                                                             |
+
+Add yours: submit a PR with a link to your config.
+
+---
+
+## Documentation Index
+
+| Guide                                          | What's Inside                                             |
+| :--------------------------------------------- | :-------------------------------------------------------- |
+| [Installation](docs/INSTALLATION.md)           | Homebrew, Nix, source build, Linux setup, permissions     |
+| [CLI](docs/CLI.md)                             | Every command and flag                                    |
+| [Configuration](docs/CONFIGURATION.md)         | Keybindings, themes, overlays, all settings + recipes     |
+| [Troubleshooting](docs/TROUBLESHOOTING.md)     | Common issues and fixes                                   |
+| [Contributing](CONTRIBUTING.md)                | Development setup, coding standards, testing, PR workflow |
+| [Architecture](docs/ARCHITECTURE.md)           | System design, ports/adapters, cross-platform model       |
+| [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | Linux/Windows contribution guide                          |
+
+---
+
+## What people are saying
+
+> _"neru: the ACTUAL BEST app for ditching mouse"_
+
+[![Community YouTube Review](https://img.youtube.com/vi/OFnpYTDA2gY/maxresdefault.jpg)](https://www.youtube.com/watch?v=OFnpYTDA2gY)
+
+https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
+
+---
+
+## Roadmap
+
+### Near Term
+
+- Strengthen macOS reliability around startup, config reloads, and mode transitions
+- Expand contract tests around ports, adapters, and reload behavior
+- Linux AT-SPI accessibility integration
+- Linux notifications and active app detection
+
+### Platform Status
+
+| Backend                 | Status        | Priority Gaps                          |
+| :---------------------- | :------------ | :------------------------------------- |
+| Linux X11               | Supported     | AT-SPI, notifications                  |
+| Linux Wayland (wlroots) | Supported     | AT-SPI, notifications                  |
+| Linux Wayland (KDE)     | Supported     | AT-SPI, notifications                  |
+| Linux Wayland (GNOME)   | Not supported | Input injection, overlay, hotkeys      |
+| Windows                 | Basic         | Notifications, dark mode, app watching |
+
+### Contributor Priorities
+
+1. Platform adapters in `internal/core/infra/platform/`
+2. Linux AT-SPI accessibility integration
+3. Notifications and app detection (Linux + Windows)
+4. Config reload regression coverage
+5. GNOME support (input injection + overlay)
 
 ---
 
 ## Contributing
 
-Neru is written in Go and Objective-C with a clean, modular structure — adding a new feature or platform adapter is straightforward. Pull requests are very welcome.
+Neru is written in Go and Objective-C with a clean, modular architecture. Pull requests are welcome.
 
 ```bash
 git checkout -b feature/your-feature
@@ -202,27 +251,25 @@ just test && just lint
 # open a pull request
 ```
 
-→ [Development Guide](docs/DEVELOPMENT.md) · [Coding Standards](docs/CODING_STANDARDS.md)
+→ [Contributing Guide](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md)
 
 ---
 
-## Support the project
+## Support the Project
 
-Neru is built and maintained by one person, entirely in spare time. If it's earned a place in your workflow, a sponsorship goes a long way:
+Built and maintained by one person, entirely in spare time.
 
 👉 [GitHub Sponsors](https://github.com/sponsors/y3owk1n)
 
 ---
 
-## Just need window management?
+## Just Need Window Management?
 
-mimi grew out of this project — it's the window and space management pieces extracted into a standalone tool, for when neru is more than you need.
+[mimi](https://github.com/y3owk1n/mimi) is the window and space management pieces extracted into a standalone tool.
 
 ```bash
 brew install --cask y3owk1n/tap/mimi
 ```
-
-→ [github.com/y3owk1n/mimi](https://github.com/y3owk1n/mimi)
 
 ---
 
@@ -240,7 +287,6 @@ brew install --cask y3owk1n/tap/neru
 ```
 
 <br/>
-
 Welcome to the mouseless life.<br/><br/>
 Made with ❤️ by <a href="https://github.com/y3owk1n">y3owk1n</a>
 

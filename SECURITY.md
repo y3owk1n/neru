@@ -4,10 +4,10 @@
 
 Only the **latest release** receives security fixes. We do not back-port patches to older versions.
 
-| Version        | Supported          |
-| -------------- | ------------------ |
-| Latest release | ✅ Yes             |
-| Older releases | ❌ No              |
+| Version        | Supported |
+| -------------- | --------- |
+| Latest release | ✅ Yes    |
+| Older releases | ❌ No     |
 
 ---
 
@@ -66,7 +66,7 @@ The CLI communicates with the running daemon via a local Unix socket using a JSO
 
 ### CGo / Objective-C Bridge
 
-Neru uses CGo to call macOS Objective-C APIs for accessibility, overlays, hotkeys, and event taps. The bridge code lives in `internal/core/infra/bridge/` and is the primary attack surface for memory-safety issues. If you find a vulnerability in this layer (buffer overflow, use-after-free, etc.), please report it.
+Neru uses CGo to call macOS Objective-C APIs for accessibility, overlays, hotkeys, and event taps. The bridge code lives in `internal/core/infra/platform/darwin/` and is the primary attack surface for memory-safety issues. If you find a vulnerability in this layer (buffer overflow, use-after-free, etc.), please report it.
 
 ### Dependencies
 

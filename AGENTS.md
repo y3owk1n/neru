@@ -45,8 +45,7 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 Documentation is progressively disclosed. Start here, then navigate to detailed docs:
 
 - [System Architecture](./docs/ARCHITECTURE.md) - Comprehensive architecture overview
-- [Development Guide](./docs/DEVELOPMENT.md) - Build, testing, architecture
-- [Coding Standards](./docs/CODING_STANDARDS.md) - Go & Objective-C conventions
+- [Contributing Guide](./CONTRIBUTING.md) - Build, testing, coding standards, PR workflow
 - [CLI Usage](./docs/CLI.md) - Command-line interface
 - [Configuration](./docs/CONFIGURATION.md) - Configuration reference
 

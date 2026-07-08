@@ -1,30 +1,12 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-Common issues and solutions for Neru.
-
----
-
-## Table of Contents
-
-- [Quick Diagnosis](#quick-diagnosis)
-- [Installation & Setup](#installation--setup)
-- [Permissions](#permissions)
-- [Hints & Grids](#hints--grids)
-- [Hotkeys Not Working](#hotkeys-not-working)
-- [Performance Issues](#performance-issues)
-- [Daemon Issues](#daemon-issues)
-- [App-Specific Issues](#app-specific-issues)
-- [Keyboard Layout Issues](#keyboard-layout-issues)
-- [Configuration Issues](#configuration-issues)
-- [Logging and Debugging](#logging-and-debugging)
-- [Getting Help](#getting-help)
-- [Emergency Reset](#emergency-reset)
+Common issues and their solutions.
 
 ---
 
 ## Quick Diagnosis
 
-**Not working at all?** Check these first:
+**Not working at all?** Run these first:
 
 ```bash
 # 1. Is daemon running?
@@ -33,105 +15,76 @@ neru status
 # 2. Run diagnostics (works even if daemon is down)
 neru doctor
 
-# 3. Test basic functionality
-neru hints  # Should show hints
-
-# 4. Check logs
+# 3. Check logs
 tail -20 ~/Library/Logs/neru/app.log
 ```
 
-**Common issues:**
+**Common issues at a glance:**
 
-- ❌ **"Failed to connect to Neru daemon"** → Daemon not running, run `neru launch`
-- ❌ **"Permission denied"** → Grant accessibility permissions
-- ❌ **No hints appear** → Check app exclusions, try different app
+| Symptom                             | Likely Cause                         |
+| :---------------------------------- | :----------------------------------- |
+| "Failed to connect to Neru daemon"  | Daemon not running → `neru launch`   |
+| No hints appear                     | Missing accessibility permissions    |
+| Hotkey does nothing                 | Conflict with another app            |
+| Hints don't appear in Electron apps | Need `additional_ax_support` enabled |
 
 ---
 
 ## Installation & Setup
 
-**"Cannot open Neru because the developer cannot be verified"**
-
-```bash
-xattr -cr /Applications/Neru.app  # Remove quarantine
-open -a Neru
-```
-
-**"Command not found: neru"**
-
-```bash
-# Add to PATH
-export PATH="/usr/local/bin:$PATH"
-# Add to ~/.zshrc or ~/.bashrc
-```
-
-**Homebrew fails**
-
-```bash
-brew update && brew reinstall --cask neru
-```
+| Problem                                                     | Solution                                    |
+| :---------------------------------------------------------- | :------------------------------------------ |
+| "Cannot open Neru because the developer cannot be verified" | `xattr -cr /Applications/Neru.app`          |
+| "Command not found: neru"                                   | Add `/usr/local/bin` to your PATH           |
+| Homebrew fails                                              | `brew update && brew reinstall --cask neru` |
+| App won't open (quarantine)                                 | `xattr -cr /Applications/Neru.app`          |
 
 ---
 
 ## Permissions
 
-### Accessibility Permissions
+### Neru Needs Accessibility Access
 
-**Required for Neru to function.**
+This is required for Neru to read UI elements and simulate input.
 
-**Grant permissions:**
+**To grant:**
 
-1. System Settings → Privacy & Security → Accessibility
-2. Add Neru and ensure checkbox is enabled
+1. Open **System Settings → Privacy & Security → Accessibility**
+2. Click **+** and add `/Applications/Neru.app`
+3. Ensure the checkbox is enabled
 
-**Reset if not working:**
+**To reset:**
 
-1. Remove Neru from list
+1. Remove Neru from the list
 2. Re-add Neru
 3. Restart: `pkill neru && neru launch`
 
-**Check health:** `neru doctor` — look for `accessibility: ok` in the component list. If accessibility is denied, the doctor output will show the specific error.
+**Verify:** `neru doctor` — look for `accessibility: ok`.
 
 ---
 
 ## Hints & Grids
 
-### No hints/grids appear
+### No Hints or Grids Appear
 
-**Check:**
+1. Check daemon: `neru status`
+2. Run diagnostics: `neru doctor`
+3. Test CLI: `neru hints`
+4. Check app exclusions in config
+5. Try a different app
 
-```bash
-neru doctor              # Full diagnostics (works even if daemon is down)
-neru status              # Daemon running?
-neru hints               # CLI works?
-```
-
-**Common fixes:**
-
-- Start daemon: `neru launch`
-- Grant permissions (see Permissions section)
-- Remove app from `excluded_apps` in config
-- Test in different app
-
-### Misaligned hints/grids
-
-**Rare issue.** Enable debug logging and check logs:
-
-```toml
-[logging]
-log_level = "debug"
-```
-
-### Electron/Chromium/Firefox issues
-
-**Enable additional AX support:**
+### Hints Don't Appear in Electron Apps
 
 ```toml
 [hints.additional_ax_support]
 enable = true
 ```
 
-### Menubar/Dock hints missing
+### Hints Don't Appear in Chrome/Firefox
+
+Same as Electron — enable `additional_ax_support`.
+
+### Menubar or Dock Hints Missing
 
 ```toml
 [hints]
@@ -139,120 +92,50 @@ include_menubar_hints = true
 include_dock_hints = true
 ```
 
-### Hints or grids appear but are misaligned
+### Hints Misaligned
 
-Hints or grids should always be accurate. This is rare.\*\*
-
-**Solution:**
-
-```bash
-# Enable debug logging
-# Edit ~/.config/neru/config.toml:
-[logging]
-log_level = "debug"
-
-# Restart and check logs
-pkill neru && neru launch
-tail -f ~/Library/Logs/neru/app.log
-
-# Report issue with:
-# - macOS version
-# - App name and version
-# - Screenshot
-```
-
-### Hints don't appear in Electron apps
-
-**Electron apps need additional AX support.**
-
-**Solution:**
-
-Edit `~/.config/neru/config.toml`:
+This is rare. Enable debug logging and check:
 
 ```toml
-[hints.additional_ax_support]
-enable = true
-
-# If your app isn't auto-detected, add it:
-additional_electron_bundles = [
-    "com.your.electronapp",
-]
+[logging]
+log_level = "debug"
 ```
-
-Restart Neru:
 
 ```bash
 pkill neru && neru launch
+tail -f ~/Library/Logs/neru/app.log
 ```
 
-**Check logs for:**
+Report issues with: macOS version, app name/version, screenshot.
 
-```
-App requires Electron support
-Enabled AXManualAccessibility for: com.your.app
-```
-
-### Hints don't appear in Chrome/Firefox content
-
-**Browser needs additional AX support.**
-
-### No hints in menubar/Dock
-
-**Disabled in config or not enabled.**
-
-**Solution:**
+### Mission Control: No Hints
 
 ```toml
 [hints]
-include_menubar_hints = true
 include_dock_hints = true
-
-# For specific menubar apps:
-additional_menubar_hints_targets = [
-    "com.apple.controlcenter",
-    "net.kovidgoyal.kitty",  # Example
-]
+detect_mission_control = true
 ```
 
 ---
 
-## Hotkeys Not Working
+## Hotkeys
 
-### Hotkey does nothing
-
-**Possible causes:**
-
-1. Hotkey conflict with another app
-2. Daemon not running
-3. App is excluded
-4. Incorrect hotkey syntax
-
-**Solutions:**
+### Hotkey Does Nothing
 
 ```bash
-# 1. Test with CLI to bypass hotkey system
+# Test with CLI to bypass hotkeys
 neru hints
 
 # If CLI works, it's a hotkey issue
-
-# 2. Check daemon status
+# Check daemon status
 neru status
 
-# 3. Try different hotkey combo
-# Edit ~/.config/neru/config.toml:
-[hotkeys]
-"Ctrl+F" = "hints"  # Try this instead
-
-# 4. Verify syntax is correct
-# Modifiers: Cmd, Ctrl, Alt/Option, Shift, Primary, Super, Meta
-# Format: "Mod1+Mod2+Key" = "action"
+# Try a different combo in config
 ```
 
-### Hotkey works in some apps but not others
+### Hotkey Works in Some Apps but Not Others
 
-**App is in excluded list.**
-
-**Solution:**
+App is in the exclusion list:
 
 ```toml
 [general]
@@ -261,194 +144,58 @@ excluded_apps = [
 ]
 ```
 
-Find bundle ID:
+Find bundle IDs: `osascript -e 'id of app "AppName"'`
 
-```bash
-osascript -e 'id of app "AppName"'
-```
-
-### Hotkey conflicts with system shortcuts
-
-**Solution:**
+### Hotkey Conflicts with System Shortcuts
 
 **Option 1: Change Neru hotkey**
 
 ```toml
 [hotkeys]
 "Primary+Shift+Space" = ""  # Disable default
-"Ctrl+Alt+Space" = "hints"  # Use different combo
+"Ctrl+Alt+Space" = "hints"
 ```
 
-**Option 2: Disable system shortcut**
+**Option 2: Disable system shortcut** in System Settings → Keyboard → Keyboard Shortcuts
 
-1. Open **System Settings → Keyboard → Keyboard Shortcuts**
-2. Find conflicting shortcut
-3. Disable or change it
-
-**Option 3: Use external hotkey manager**
-
-```bash
-# Use skhd or similar instead of Neru hotkeys
-# ~/.config/skhd/skhdrc
-ctrl - f : neru hints
-```
-
-Then disable Neru hotkeys:
+**Option 3: Use external hotkey manager** (skhd, Hammerspoon) and disable Neru's:
 
 ```toml
 [hotkeys]
-# Leave empty or comment out all hotkeys
+# Empty = all defaults cleared
 ```
 
 ---
 
-## Performance Issues
+## Performance
 
-### Hints appear slowly
-
-Possible causes:\*\*
-
-1. Too many depth levels in the accessibility tree of current activation
-2. Debug logging enabled
-3. System resource constraints
-
-**Solution:**
+| Problem             | Solution                                            |
+| :------------------ | :-------------------------------------------------- |
+| Hints appear slowly | Reduce AX tree depth, disable debug logging         |
+| High CPU usage      | Check with `top -pid $(pgrep neru)`, restart daemon |
 
 ```bash
-# 1. Remove unnecessary AXRoles in your config
-# 2. Disable debug logging
-[logging]
-log_level = "info"  # Not "debug"
-
-# 3. Check system resources
-top -o cpu
-```
-
-### High CPU usage
-
-**Neru should not use too much CPU.**
-
-**Solution:**
-
-```bash
-# Check Neru CPU usage
 top -pid $(pgrep neru)
-
-# Check logs for errors
 tail -f ~/Library/Logs/neru/app.log | grep ERROR
-
-# Restart daemon
 pkill neru && neru launch
 ```
 
 ---
 
-## Daemon Issues
+## Daemon
 
-### "Failed to connect to Neru daemon"
-
-**Daemon not running.**
-
-**Solution:**
-
-```bash
-# Run diagnostics first (works without daemon)
-neru doctor
-
-# Start daemon
-neru launch
-
-# Check status
-neru status
-
-# If still failing, check for stale socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
-neru launch
-```
-
-### Daemon crashes on startup
-
-**Configuration error or system issue.**
-
-**Solution:**
-
-```bash
-# Check logs
-cat ~/Library/Logs/neru/app.log
-
-# Try with default config
-neru launch  # Uses defaults if no config file
-
-# Try with minimal config
-mkdir -p ~/.config/neru
-cat > ~/.config/neru/config.toml << EOF
-[hotkeys]
-"Primary+Shift+Space" = "hints"
-
-[logging]
-log_level = "debug"
-EOF
-
-neru launch
-```
-
-### Daemon stops responding
-
-**IPC socket issue or daemon hung.**
-
-**Solution:**
-
-```bash
-# Force quit
-pkill -9 neru
-
-# Clean up socket (path is printed in logs; typically under /var/folders/.../T)
-rm -f /var/folders/*/*/T/neru.sock
-
-# Restart
-neru launch
-
-# Monitor logs
-tail -f ~/Library/Logs/neru/app.log
-```
-
-### Daemon won't quit
-
-**Force termination needed.**
-
-**Solution:**
-
-```bash
-# Force quit
-pkill -9 neru
-
-# Or use Activity Monitor:
-# 1. Open Activity Monitor
-# 2. Search "Neru"
-# 3. Select and click "Force Quit"
-```
+| Problem                            | Solution                                                             |
+| :--------------------------------- | :------------------------------------------------------------------- |
+| "Failed to connect to Neru daemon" | `neru launch`                                                        |
+| Daemon crashes on startup          | Check logs, try with default config                                  |
+| Daemon stops responding            | `pkill -9 neru && rm -f /var/folders/*/*/T/neru.sock && neru launch` |
+| Daemon won't quit                  | `pkill -9 neru`                                                      |
 
 ---
 
-## App-Specific Issues
+## App-Specific
 
-### VS Code: Hints don't appear in editor
-
-**Electron AX support needed.**
-
-**Solution:**
-
-```toml
-[hints.additional_ax_support]
-enable = true
-# VS Code is auto-detected
-```
-
-### Adobe apps: Hints misaligned or missing
-
-**Adobe apps may need custom roles.**
-
-**Solution:**
+### Adobe Apps
 
 ```toml
 [[hints.app_configs]]
@@ -457,202 +204,89 @@ additional_clickable_roles = ["AXStaticText", "AXImage"]
 ignore_clickable_check = true
 ```
 
-Find bundle ID:
-
-```bash
-osascript -e 'id of app "Adobe Illustrator"'
-```
-
-### Mission Control: No hints
-
-**Ensure Dock hints are enabled (Mission Control uses Dock).**
-
-**Solution:**
+### VS Code
 
 ```toml
-[hints]
-include_dock_hints = true
-detect_mission_control = true
-```
-
-> [!NOTE]
-> Mission Control detection uses `CGWindowListCopyWindowInfo` to check for Dock overlay windows. It works on macOS 14+ (Sonoma) and 15+ (Sequoia/Tahoe). On macOS 13 and earlier, it looks for a "Mission Control" app window instead.
-
----
-
-## Keyboard Layout Issues
-
-### Wrong characters produced when typing
-
-Neru supports most keyboard layouts including QWERTY, AZERTY, QWERTZ, Dvorak, and Colemak. Neru automatically detects your physical keyboard layout via macOS and translates keycodes accordingly.
-
-If you're still experiencing issues:
-
-1. **Check your keyboard layout is properly configured in macOS:**
-    - System Settings → Keyboard → Input Source
-    - Ensure your desired layout is added and selected
-
-2. **Layout not detected correctly:**
-    - Some custom layouts (e.g., Colemak, Dvorak) may not be resolved automatically
-    - Force the layout by setting `kb_layout_to_use` in your config to the full bundle ID:
-
-      ```bash
-      # First, switch to your desired layout in the menu bar, then:
-      defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
-      ```
-
-      Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
-
-      ```toml
-      [general]
-      kb_layout_to_use = "com.apple.keylayout.Colemak"
-      ```
-
-3. **Layout changes at runtime not picked up:**
-    - Neru now automatically re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)
-    - If hotkeys don't work after a layout switch, try toggling Neru off and on, or restart the daemon with `pkill neru && neru launch`
-
-### Input methods not working (CJK IME)
-
-Neru now supports CJK input methods (Pinyin, Wubi, etc.). When using an input method:
-
-- Hints work correctly
-- Key presses are translated through your physical keyboard layout
-- The input method receives keys as expected
-
-If input methods still don't work:
-
-- Ensure the input method is properly installed and active in macOS
-- Check that Accessibility permissions are granted to Neru
-
----
-
-## Configuration Issues
-
-### Config changes not taking effect
-
-**Daemon needs restart to reload config.**
-
-**Solution:**
-
-```bash
-# Restart daemon
-pkill neru && neru launch
-
-# Verify config location
-neru status
-# Check "Config:" line
-```
-
-### "Failed to parse config"
-
-**TOML syntax error.**
-
-**Solution:**
-
-```bash
-# Check logs
-cat ~/Library/Logs/neru/app.log | grep ERROR
-
-# Common issues:
-# - Missing quotes around keys/values
-# - Incorrect section headers
-# - Invalid TOML syntax
-
-# Validate TOML syntax online:
-# https://www.toml-lint.com/
-
-# Or use default config as reference:
-curl -o /tmp/default.toml \
-  https://raw.githubusercontent.com/y3owk1n/neru/main/configs/default-config.toml
-```
-
-### Colors not working
-
-**Check hex color format.**
-
-**Solution:**
-
-```toml
-# Correct:
-background_color = "#FFD700"
-
-# Incorrect:
-background_color = "FFD700"   # Missing #
-background_color = "#FFFGG"   # Invalid hex
-```
-
-### Hotkeys in wrong format
-
-**Check modifier syntax.**
-
-**Solution:**
-
-```toml
-# Correct:
-"Primary+Shift+Space" = "hints"
-
-# Incorrect:
-"Primary-Shift-Space" = "hints"  # Use +, not -
-"PRIMARY+SHIFT+SPACE" = "hints"  # Use proper case
+[hints.additional_ax_support]
+enable = true
+# VS Code is auto-detected
 ```
 
 ---
 
-## Logging and Debugging
+## Keyboard Layout
 
-### Enable debug logging
+| Problem                      | Solution                                                            |
+| :--------------------------- | :------------------------------------------------------------------ |
+| Wrong characters produced    | Neru auto-detects layout; try `kb_layout_to_use`                    |
+| Layout changes not picked up | Toggle Neru or restart: `pkill neru && neru launch`                 |
+| CJK IME not working          | Ensure input method is active and Accessibility permissions granted |
+
+Find your layout ID:
+
+```bash
+defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
+```
+
+Then set it:
+
+```toml
+[general]
+kb_layout_to_use = "com.apple.keylayout.Colemak"
+```
+
+---
+
+## Configuration
+
+| Problem                   | Solution                                            |
+| :------------------------ | :-------------------------------------------------- |
+| Changes not taking effect | Daemon needs restart: `pkill neru && neru launch`   |
+| "Failed to parse config"  | Check TOML syntax, missing quotes, invalid sections |
+| Colors not working        | Use correct hex format: `"#FFD700"` not `"FFD700"`  |
+| Hotkeys wrong format      | Use `+` not `-`: `"Primary+Shift+Space"`            |
+
+Validate syntax:
+
+```bash
+neru config validate
+```
+
+---
+
+## Logging & Debugging
+
+### Enable Debug Logging
 
 ```toml
 [logging]
 log_level = "debug"
 ```
 
-Restart:
+Restart: `pkill neru && neru launch`
+
+### View Logs
 
 ```bash
-pkill neru && neru launch
+tail -f ~/Library/Logs/neru/app.log          # Real-time
+tail -100 ~/Library/Logs/neru/app.log        # Last 100 lines
+grep ERROR ~/Library/Logs/neru/app.log       # Errors only
+grep "com.apple.Safari" ~/Library/Logs/neru/app.log  # Specific app
 ```
 
-### View logs
+### Common Log Messages
+
+| Message                                             | Meaning                                               |
+| :-------------------------------------------------- | :---------------------------------------------------- |
+| "App requires Electron support"                     | Electron app detected; enable `additional_ax_support` |
+| "Hints mode activated"                              | Hint overlay is active                                |
+| "Secure input is enabled, blocking mode activation" | Password field focused — Neru pauses                  |
+| "Clickable element collection was slow"             | AX scanning took longer than expected                 |
+
+### Clear Logs
 
 ```bash
-# Real-time monitoring
-tail -f ~/Library/Logs/neru/app.log
-
-# Last 100 lines
-tail -100 ~/Library/Logs/neru/app.log
-
-# Search for errors
-grep ERROR ~/Library/Logs/neru/app.log
-
-# Search for specific app
-grep "com.apple.Safari" ~/Library/Logs/neru/app.log
-```
-
-### Common log messages
-
-**"App requires Electron support"** - Electron app detected, needs AX support enabled
-
-**"Enabled AXManualAccessibility"** - Electron support activated successfully
-
-**"Hints mode activated"** - Hint overlay is active; includes hint count when available
-
-**"Clickable element collection was slow"** - Accessibility scanning completed but took longer than expected
-
-**"Failed to get clickable elements"** - Accessibility query failed; check macOS Accessibility permission and app-specific exclusions
-
-**"Secure input is enabled, blocking mode activation"** - macOS secure input is active, often because a password field is focused
-
-Most key routing, overlay redraw, and hint filtering details are logged only at `debug` to keep production logs quiet.
-
-### Clear logs
-
-```bash
-# Remove old logs
 rm ~/Library/Logs/neru/app.log
-
-# Restart daemon (creates fresh log)
 pkill neru && neru launch
 ```
 
@@ -663,52 +297,41 @@ pkill neru && neru launch
 If none of these solutions work:
 
 1. **Gather information:**
-    - Run `neru doctor` and include the full output
-    - macOS version: `sw_vers`
-    - Neru version: `neru --version`
-    - App name and version where issue occurs
-    - Config file (anonymize if needed)
+    - `neru doctor` full output
+    - `sw_vers` (macOS version)
+    - `neru --version`
+    - App name/version where issue occurs
+    - Config file (anonymized)
     - Relevant logs
 
-2. **Search existing issues:**
-    - <https://github.com/y3owk1n/neru/issues>
+2. **Search existing issues:** [github.com/y3owk1n/neru/issues](https://github.com/y3owk1n/neru/issues)
 
-3. **Open an issue:**
-    - Include all gathered information
-    - Describe expected vs actual behavior
-    - Steps to reproduce
-
-4. **Consider a PR:**
-    - Pull requests are more likely to be reviewed than issues
-    - Fix the problem yourself and contribute back
-    - See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines
+3. **Open an issue** with all gathered information.
 
 ---
 
 ## Emergency Reset
 
-If Neru is completely broken:
-
 ```bash
-# 1. Force quit
+# Force quit
 pkill -9 neru
 
-# 2. Remove all Neru files
+# Remove all Neru files
 rm -rf /Applications/Neru.app
 rm -f /usr/local/bin/neru
 rm -rf ~/.config/neru
-rm -rf ~/Library/Application\ Support/neru
+rm -rf "$HOME/Library/Application Support/neru"
+# or: rm -rf ~/Library/Application\ Support/neru
 rm -rf ~/Library/Logs/neru
-# IPC socket lives under the OS temp directory
 rm -f /var/folders/*/*/T/neru.sock
 
-# 3. Reinstall
+# Reinstall
 brew reinstall --cask neru
 # or build from source
 
-# 4. Fresh start (no config)
+# Fresh start
 neru launch
 
-# 5. Grant permissions again
+# Grant permissions again
 # System Settings → Privacy & Security → Accessibility
 ```

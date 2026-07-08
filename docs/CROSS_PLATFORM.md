@@ -1,513 +1,237 @@
-# Cross-Platform Contributor Guide
+# Cross-Platform Contribution Guide
 
-This guide is the practical entry point for contributors working on Linux,
-Windows, or platform-neutral infrastructure in Neru.
+Practical guidance for contributors working on Linux, Windows, or platform-neutral infrastructure in Neru.
 
-It explains:
-
-- where platform code lives
-- how to choose the right file before writing code
-- how Linux backend splits work
-- when to use CGO
-- how to add a new platform capability safely
-- what tests and docs to update when you are done
-
-For the higher-level design, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For the high-level design, see [Architecture](ARCHITECTURE.md).
 
 ---
 
-## Table of Contents
+## First Steps
 
-- [Goals](#goals)
-- [First Stops](#first-stops)
-- [First 15 Minutes](#first-15-minutes)
-- [File Layout Rules](#file-layout-rules)
-- [Build And Test Commands](#build-and-test-commands)
-- [Where To Implement What](#where-to-implement-what)
-- [Linux Backend Model](#linux-backend-model)
-- [Windows Model](#windows-model)
-- [CGO Guidance](#cgo-guidance)
-- [Hotkeys And Modifiers](#hotkeys-and-modifiers)
-- [Adding A New Capability](#adding-a-new-capability)
-- [Error Handling Rules](#error-handling-rules)
-- [Capability Reporting](#capability-reporting)
-- [Testing Checklist](#testing-checklist)
-- [Documentation Checklist](#documentation-checklist)
-- [Suggested First Contributions](#suggested-first-contributions)
-- [What "Done" Looks Like](#what-done-looks-like)
+Before changing code, read these files:
 
----
-
-## Goals
-
-Neru aims to make cross-platform work predictable and low-friction.
-
-The guiding principles are:
-
-- shared business logic stays in pure Go
-- platform-specific code is easy to locate
-- Linux backend differences are explicit
-- contributors implement in existing slots instead of inventing new file layout
-- unsupported features fail clearly with `CodeNotSupported`
-
----
-
-## First Stops
-
-Before changing code, read these files first:
-
-- [internal/core/infra/platform/profile.go](../internal/core/infra/platform/profile.go)
-- [internal/core/ports/system.go](../internal/core/ports/system.go)
-- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
-- [internal/core/ports/font.go](../internal/core/ports/font.go) — FontResolver port (fontconfig on Linux, NSFont on macOS)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [CONVENTIONS.md](./go/CONVENTIONS.md)
-
-If you are contributing Linux support, also inspect the reserved backend files in
-the package you plan to touch, such as:
-
-- `*_linux_common.go`
-- `*_linux_x11.go`
-- `*_linux_wayland.go`
-
----
-
-## First 15 Minutes
-
-If you are new to the codebase, this is the recommended startup path.
-
-### Any platform
-
-1. Read [profile.go](../internal/core/infra/platform/profile.go)
-2. Read the relevant port in `internal/core/ports/`
-3. Find the implementation slot you expect to touch
-4. Run:
+1. `internal/core/infra/platform/profile.go` — Build and backend plan
+2. `internal/core/ports/capabilities.go` — Capability definitions
+3. `internal/core/ports/system.go` — System port interface
 
 ```bash
+# Baseline
 just build
 just test-foundation
-```
 
-### Linux contributors
+# Linux contributors
+just build-linux      # Linux foundations binary
 
-1. Identify whether your work belongs in `common`, `x11`, or `wayland`
-2. Open the target file in that slot before writing code
-3. Build a Linux foundations binary from any host if needed:
-
-```bash
-just build-linux
-```
-
-4. If you are on Linux, also run:
-
-```bash
-just test
-```
-
-### Windows contributors
-
-1. Start in the `*_windows.go` slot for the package you are changing
-2. Build a Windows foundations binary from any host if needed:
-
-```bash
-just build-windows
-```
-
-3. If you are on Windows, run:
-
-```bash
-just test
-```
-
-### macOS contributors
-
-If your work touches the real native product path, run:
-
-```bash
-just build-darwin
-just test
+# Windows contributors
+just build-windows    # Windows foundations binary
 ```
 
 ---
 
-## File Layout Rules
+## File Layout
 
-Platform-specific files should make the intended implementation slot obvious.
+| Suffix                            | Purpose                       |
+| :-------------------------------- | :---------------------------- |
+| `*_darwin.go`                     | macOS implementation          |
+| `*_windows.go`                    | Windows implementation        |
+| `*_linux_common.go`               | Shared Linux wrapper/fallback |
+| `*_linux_x11.go`                  | Linux X11 implementation      |
+| `*_linux_wayland.go`              | Linux Wayland implementation  |
+| `*_linux_wayland_<compositor>.go` | Per-compositor sub-slot       |
+| `*_other.go`                      | Non-target fallback           |
 
-Use these suffixes:
-
-- `*_darwin.go`: macOS implementation
-- `*_windows.go`: Windows implementation
-- `*_linux_common.go`: shared Linux wrapper or current fallback behavior
-- `*_linux_x11.go`: Linux X11 implementation slot
-- `*_linux_wayland.go`: Linux Wayland implementation slot
-- `*_linux_wayland_<compositor>.go`: Wayland compositor sub-slot when one
-  compositor family needs a distinct implementation (e.g.
-  `*_linux_wayland_wlroots.go`, `*_linux_wayland_kde.go`). Still the same
-  package + build tags; selection is at runtime (see Linux Backend Model).
-- `*_other.go`: non-target fallback for dispatch-style packages
-
-App-level platform dispatch also follows this pattern. For example,
-per-hotkey CGEventTaps are re-registered on layout change (via
-`NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps
-key names to layout-aware keycodes.
-
-Do not create new ad hoc platform filenames if an existing slot already exists.
-
-Do not create fake empty `darwin` / `linux` / `windows` files just for symmetry.
-Only add a new file when there is a real new implementation slot.
+Don't create empty files for symmetry — only add a file for a real implementation.
 
 ---
 
-## Build And Test Commands
+## Where to Implement What
 
-These are the main contributor commands:
-
-| Goal                                            | Command                |
-| ----------------------------------------------- | ---------------------- |
-| build for current host                          | `just build`           |
-| build macOS binary on macOS                     | `just build-darwin`    |
-| build Linux foundations binary                  | `just build-linux`     |
-| build Windows foundations binary                | `just build-windows`   |
-| run focused cross-platform-safe tests           | `just test-foundation` |
-| run full unit + integration suite on current OS | `just test`            |
-| run lint checks                                 | `just lint`            |
-
-Notes:
-
-- `just build-linux` is currently best viewed as a
-  foundations smoke test while that platform is still mostly scaffolding.
-- `just build-windows` produces a binary with grid, recursive grid,
-  scroll, global hotkeys, mouse injection, IPC, and initial UIA accessibility.
-- `just release-ci-linux <version>` and `just release-ci-windows <version>` to release a version tagged binary in ci.
-- macOS remains the only fully native product path today.
-
----
-
-## Where To Implement What
-
-Use this table as the default routing guide.
-
-| Capability                                                   | Primary location                                             |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| screen bounds, cursor, dark mode, notifications, permissions | `internal/core/infra/platform/<os>/`                         |
-| global hotkeys                                               | `internal/core/infra/hotkeys/`                               |
-| keyboard event capture                                       | `internal/core/infra/eventtap/`                              |
-| accessibility integration                                    | `internal/core/infra/accessibility/`                         |
-| overlay window orchestration                                 | `internal/ui/overlay/`                                       |
-| overlay rendering by mode                                    | `internal/app/components/*/overlay_*.go`                     |
-| app watcher / isolated platform hooks                        | dispatch-style `platform_*.go` files in the relevant package |
-
-Examples:
-
-- X11 hotkeys belong in [manager_linux_x11.go](../internal/core/infra/hotkeys/manager_linux_x11.go)
-- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](../internal/core/infra/eventtap/eventtap_linux_wayland.go)
-- shared Linux system fallbacks belong in [system_linux_common.go](../internal/core/infra/platform/linux/system_linux_common.go)
+| Capability                                                   | Location                                 |
+| :----------------------------------------------------------- | :--------------------------------------- |
+| Screen bounds, cursor, dark mode, notifications, permissions | `internal/core/infra/platform/<os>/`     |
+| Global hotkeys                                               | `internal/core/infra/hotkeys/`           |
+| Keyboard event capture                                       | `internal/core/infra/eventtap/`          |
+| Accessibility integration                                    | `internal/core/infra/accessibility/`     |
+| Overlay window orchestration                                 | `internal/ui/overlay/`                   |
+| Overlay rendering by mode                                    | `internal/app/components/*/overlay_*.go` |
 
 ---
 
 ## Linux Backend Model
 
-Linux is treated as a backend family, not a single target.
+Linux is a **backend family**, not a single target. Runtime compositor is detected from `XDG_CURRENT_DESKTOP`.
 
-The expected split is:
+| Compositor           | Backend         | Input Mechanism           | File Slot                    |
+| :------------------- | :-------------- | :------------------------ | :--------------------------- |
+| Sway, Hyprland, niri | wayland-wlroots | `zwlr_virtual_pointer_v1` | `*_linux_wayland_wlroots.go` |
+| KDE Plasma           | wayland-kde     | libei (RemoteDesktop)     | `*_linux_wayland_kde.go`     |
+| X11/XOrg, i3         | x11             | XTest                     | `*_linux_x11.go`             |
+| GNOME                | wayland-gnome   | Not supported             | —                            |
 
-- `common`: Linux-shared wrapper behavior, current fallback behavior, or backend selection
-- `x11`: X11-specific implementation
-- `wayland`: Wayland or compositor-specific implementation
+### Wayland Compositor Guidance
 
-This does not mean every Linux package must fully implement both backends
-immediately. It means contributors should write code in the right slot from the
-start.
+Organize implementation by **mechanism**, not by desktop environment:
 
-Use `common` for:
+- **Shared mechanisms** — Overlay via `zwlr_layer_shell_v1` works on KDE, wlroots, and COSMIC. Put in shared wayland files.
+- **DE-specific** — Active-window geometry (KWin D-Bus vs Mutter D-Bus) and hotkey registration go in DE-named files.
 
-- shared Linux types
-- shared fallback behavior
-- backend detection or routing
-- helpers reused by both X11 and Wayland
+To add a new compositor: add a `LinuxBackend` value + detection in `linux_backend.go`, route it in the factory and dispatch seams, and only create a new file slot if it can't reuse an existing mechanism file.
 
-Use `x11` for:
+---
 
-- X11 display enumeration
-- X11 event capture
-- X11 overlays
-- X11 cursor movement or pointer queries
+## Per-Desktop Environment Details
 
-Use `wayland` for:
+### KDE Plasma (Wayland)
 
-- compositor-specific capture or overlay behavior
-- layer-shell integrations
-- Wayland-specific output enumeration or pointer behavior
+**Status:** Supported (Plasma 6 / KWin on Wayland)
 
-Accessibility is the main exception: much of Linux accessibility can stay
-shared around AT-SPI, even when other capabilities split by backend.
+KWin does not implement `zwlr_virtual_pointer_v1`. Neru uses **libei** (via `org.freedesktop.portal.RemoteDesktop`) for input injection.
 
-### Wayland compositor backends (two axes)
+| Concern                   | Mechanism                                                               |
+| :------------------------ | :---------------------------------------------------------------------- |
+| Overlay + screen geometry | Shared wlroots client (`zwlr_layer_shell_v1`, `zxdg_output_manager_v1`) |
+| Pointer/click/scroll/keys | libei via RemoteDesktop portal                                          |
+| Hints (AT-SPI)            | AT-SPI D-Bus + KWin geometry bridge                                     |
+| Global hotkeys            | System Settings → Shortcuts → Custom Shortcuts                          |
 
-Wayland is not one target. KDE/KWin, the wlroots family (Sway, Hyprland, niri,
-COSMIC), and GNOME/Mutter differ in input, overlay, and hotkey mechanisms. Keep
-two axes separate:
+**Setup notes:**
 
-- **Compile-time axis** — OS + CGO. Expressed by build tags and the file
-  suffixes above. Build tags cannot distinguish compositors (KDE and GNOME are
-  both `linux` + Wayland at compile time), so the suffix never encodes a single
-  DE on its own.
-- **Runtime axis** — which compositor is live. Expressed by the `LinuxBackend`
-  family in [linux_backend.go](../internal/core/infra/platform/linux_backend.go)
-  (`BackendWaylandWlroots`, `BackendWaylandKDE`, `BackendWaylandGNOME`,
-  `BackendWaylandOther`), detected from `XDG_CURRENT_DESKTOP` and routed by the
-  factory + dispatch seams (e.g. `system_linux_wayland_input.go`).
+1. Portal services `xdg-desktop-portal` and `xdg-desktop-portal-kde` must be running
+2. RemoteDesktop consent prompt appears on every daemon restart (not persisted)
+3. Use absolute binary paths in KDE custom shortcuts
 
-Per-DE behavior, protocol measurements, and known issues live in
-[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md). Host setup (deps, build, deploy) lives
-in [LINUX_SETUP.md](./LINUX_SETUP.md).
+**Known issues:**
 
-Organize implementation by the axis that actually varies, which is usually the
-**mechanism**, not the DE, because DEs share mechanisms:
+- Consent re-prompt on every daemon launch
+- Modifier keys need a keyboard device from the portal
+- Screen geometry cached at startup — relaunch after resolution changes
+- Hints coverage depends on AT-SPI exposure; grid/scroll work without it
 
-- Input: KDE uses libei (RemoteDesktop portal); GNOME also uses libei; wlroots
-  and COSMIC use `zwlr_virtual_pointer`. So a libei backend can serve multiple
-  DEs — do not duplicate it per DE.
-- Overlay: layer-shell works on KDE, wlroots, and COSMIC; only GNOME/Mutter
-  lacks it.
-- Genuinely DE-specific: active-window geometry (KWin D-Bus vs Mutter D-Bus)
-  and hotkey registration. Put these in DE-named files (e.g.
-  `kwin_geometry_linux.go`).
+**Troubleshooting:**
 
-Use a `*_linux_wayland_<compositor>.go` sub-slot when a compositor family needs
-a distinct path that another family does not share. Current slots:
-`system_linux_wayland_wlroots_*.go` (virtual-pointer input) and
-`system_linux_wayland_kde_*.go` (libei input), with
-`system_linux_wayland_input.go` as the shared routing seam.
+```
+qdbus org.kde.KWin /KWin org.kde.KWin.showDebugConsole   # KWin input inspector
+```
 
-To add a compositor (e.g. COSMIC): add a `LinuxBackend` value + detection in
-`linux_backend.go`, route it in the factory and the relevant dispatch seams,
-and only add a new `*_linux_wayland_<compositor>.go` slot if it cannot reuse an
-existing mechanism file.
+### wlroots Compositors (Sway, Hyprland, niri, River)
+
+**Status:** Supported
+
+| Concern              | Mechanism                                               |
+| :------------------- | :------------------------------------------------------ |
+| Overlay              | `zwlr_layer_shell_v1` with empty `input_region`         |
+| Pointer/click/scroll | `zwlr_virtual_pointer_v1`                               |
+| Sticky modifiers     | `zwp_virtual_keyboard_v1`                               |
+| Keyboard capture     | `evdev` on `/dev/input/event*` (requires `input` group) |
+| Global hotkeys       | Compositor config (`bindsym`/`bind`)                    |
+
+**Known issues:** Without `input` group membership, falls back to overlay-focused keyboard capture; modified clicks may degrade. Screen geometry cached at startup.
+
+### X11 Sessions
+
+**Status:** Supported
+
+Global hotkeys use `XGrabKey` from config. Input uses XTest. No compositor keybinding setup needed.
+
+### GNOME (Not Supported)
+
+GNOME Shell lacks `zwlr_layer_shell_v1` and `zwlr_virtual_pointer_v1`. Future work would target libei plus a GNOME Shell extension. The platform factory detects GNOME via `XDG_CURRENT_DESKTOP` and returns `CodeNotSupported`.
+
+### Checking Compositor Protocols
+
+```bash
+wayland-info | grep -E 'zwlr_layer_shell|zwlr_virtual_pointer|zwp_virtual_keyboard|xdg_output'
+```
+
+Neru's wlroots input path needs **both** `zwlr_layer_shell_v1` and `zwlr_virtual_pointer_v1`.
 
 ---
 
 ## Windows Model
 
-Windows is currently treated as one backend family with basic support.
+Single backend family. Prefer pure Go Win32/COM bindings.
 
-For now, prefer:
+**Supported:** grid/recursive-grid/scroll, mouse injection, global hotkeys, keyboard hooks, UIA accessibility (initial), named-pipe IPC, GDI overlay.
 
-- `*_windows.go` for the implementation slot
-- pure Go Win32 / COM bindings where practical
-
-Supported capabilities:
-
-- **grid, recursive grid, scroll** modes — layered GDI overlay, keyboard navigation
-- **direct mouse injection** — via `SendInput` / `SetCursorPos`
-- **global hotkeys** — via `RegisterHotKey`
-- **keyboard event capture** — via `WH_KEYBOARD_LL` hook
-- **accessibility** — UI Automation (UIA) COM-based integration (initial coverage)
-- **named-pipe IPC** — daemon CLI commands over `\\.\pipe\neru`
-
-Stubbed (not yet implemented):
-
-- notifications (Windows toast notifications)
-- app watcher (Win32 foreground-window notifications)
-- dark mode detection (personalization APIs)
-
-Do not introduce additional Windows backend naming until there is a real reason.
+**Stubbed:** notifications, app watcher, dark mode detection.
 
 ---
 
 ## CGO Guidance
 
-Do not decide CGO usage by OS alone.
+| Platform |   CGO Required?   | Notes                         |
+| :------- | :---------------: | :---------------------------- |
+| macOS    |        ✅         | Native bridge via Objective-C |
+| Linux    | Backend-dependent | Check `profile.go`            |
+| Windows  |        ❌         | Prefer pure Go first          |
 
-Use [profile.go](../internal/core/infra/platform/profile.go)
-as the source of truth for the current backend plan.
-
-Current intent:
-
-- macOS: CGO required
-- Linux: backend-dependent
-- Windows: prefer pure Go first
-
-Good default instincts:
-
-- AT-SPI and freedesktop notifications should prefer pure Go / D-Bus paths
-- X11 may be possible in pure Go depending on library choice
-- some Wayland/compositor integrations may require CGO or native helpers
-- Win32 hotkeys, hooks, monitor APIs, and UIA should prefer pure Go bindings first
-
-If you introduce a backend that changes the build story, update:
-
-- [profile.go](../internal/core/infra/platform/profile.go)
-- [justfile](../justfile)
-- this document
-
-When in doubt, make the build assumption explicit in your PR description and in
-the relevant backend comments.
+If you introduce a new CGO dependency, update `profile.go`, `justfile`, and this document.
 
 ---
 
-## Hotkeys And Modifiers
+## Hotkeys & Modifiers
 
-Shared code should avoid hard-coding macOS conventions.
-
-Use these rules:
-
-- Use `Primary` when you mean "main accelerator modifier"
-- `Primary` maps to `Cmd` on macOS and `Ctrl` on Linux/Windows
-- keep backend-specific key translation inside infra/platform code
-- do not spread X11, Wayland, Carbon, or Win32 naming into shared app logic
-
-Relevant files:
-
-- [internal/config/config.go](../internal/config/config.go)
-- [internal/core/domain/action/modifiers.go](../internal/core/domain/action/modifiers.go)
-- [internal/app/hotkeys.go](../internal/app/hotkeys.go)
+- **`Primary`** — main accelerator modifier (`Cmd` on macOS, `Ctrl` on Linux/Windows)
+- Keep backend-specific key translation inside infra/platform code
+- Relevant files: `internal/config/config.go`, `internal/core/domain/action/modifiers.go`, `internal/app/hotkeys.go`
 
 ---
 
-## Adding A New Capability
+## Adding a New Capability
 
-Use this flow.
+### Broad System Capability
 
-### Option A: Broad system capability
+1. Add to `internal/core/ports/system.go`
+2. Implement in darwin adapter
+3. Add Linux fallback in `system_linux_common.go`
+4. Add Windows fallback
+5. Add Linux backend-specific in `system_linux_x11.go` or `system_linux_wayland.go`
+6. Update capability reporting
 
-If multiple services or app layers will need the capability:
+### Isolated Package-Only Platform Behavior
 
-1. Add it to [internal/core/ports/system.go](../internal/core/ports/system.go)
-2. Implement it in the darwin adapter
-3. Add Linux common fallback behavior in `system_linux_common.go`
-4. Add Windows fallback behavior in `system.go` under the Windows platform package
-5. If Linux needs backend-specific behavior, push that implementation into `system_linux_x11.go` or `system_linux_wayland.go`
-6. Update capability reporting if the support surface changed
-
-### Option B: Isolated package-only platform behavior
-
-If only one infra package needs the capability:
-
-1. Keep the shared package code platform-agnostic
-2. Use `platform_darwin.go` and `platform_other.go` dispatch files when that pattern fits
-3. If Linux needs backend-specific behavior, add Linux backend files in that package instead of pushing the logic up into shared app code
+1. Keep shared code platform-agnostic
+2. Use `platform_darwin.go` + `platform_other.go` dispatch files
+3. Add Linux backend files in that package if needed
 
 ---
 
-## Error Handling Rules
+## Error Handling
 
-For unimplemented platform behavior, return `CodeNotSupported`.
-
-Example:
+For unimplemented platform behavior, return `CodeNotSupported`:
 
 ```go
 return derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented on linux")
 ```
 
-Use clear messages that name the missing operation and platform.
-
-Do not silently no-op unless the behavior is explicitly documented as best-effort.
-
-When a feature becomes real:
-
-- replace the `CodeNotSupported` return
-- update capability details
-- remove stale TODO wording if it no longer applies
-
 ---
 
 ## Capability Reporting
 
-Capability reporting is part of the contributor contract, not just a user nicety.
-
-When you implement or partially implement a feature, review:
-
-- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
-- [internal/app/ipc_info.go](../internal/app/ipc_info.go)
-
-`neru doctor` should help contributors and users understand what is actually
-available on the current platform.
-
-If a feature remains incomplete, keep the capability honest.
+When you implement a feature, update `internal/core/ports/capabilities.go`, `internal/core/ports/capability_presets.go`, and `internal/app/ipc_info.go`. `neru doctor` should accurately reflect platform state.
 
 ---
 
 ## Testing Checklist
 
-Every platform contribution should update tests at the right level.
-
-Use this checklist:
-
-- unit tests for shared parsing, normalization, routing, or config logic
-- contract tests for unsupported behavior and capability semantics
-- integration tests for real platform behavior on the target OS
-
-Typical test placement:
-
-- `*_test.go`: shared or mocked logic
-- `*_integration_linux_test.go`: real Linux behavior
-- `*_integration_darwin_test.go`: real macOS behavior
-- `*_integration_windows_test.go`: real Windows behavior when added
-
-Good questions to answer in tests:
-
-- does the adapter return the right error when unsupported?
-- does the capability matrix reflect the new state?
-- does backend selection route to the right Linux slot?
-- does shared logic stay platform-neutral?
+| Type        | File                         | Purpose                                    |
+| :---------- | :--------------------------- | :----------------------------------------- |
+| Unit        | `*_test.go`                  | Shared parsing, routing, config            |
+| Contract    | `*_test.go`                  | Unsupported behavior, capability semantics |
+| Integration | `*_integration_<os>_test.go` | Real platform behavior                     |
 
 ---
 
 ## Documentation Checklist
 
-When you land platform work, update docs in the same PR.
-
-Usually that means checking these files:
-
-- [README.md](../README.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [DEVELOPMENT.md](./DEVELOPMENT.md)
-- [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
-- [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md) — per-DE decisions and known issues
-- [CONVENTIONS.md](./go/CONVENTIONS.md)
-
-Update them when:
-
-- the capability matrix changed
-- the backend plan changed
-- the build or CGO story changed
-- a contributor-facing file naming pattern changed
-
----
-
-## Suggested First Contributions
-
-Good cross-platform starter tasks:
-
-- improve capability detail text for an existing platform slice
-- replace a Linux `CodeNotSupported` return with real X11 or AT-SPI behavior
-- add a contract test for a currently stubbed feature
-- add Linux or Windows integration test scaffolding
-- document missing backend assumptions in the package you are touching
-
-Higher-risk tasks:
-
-- changing shared input semantics
-- introducing CGO to a backend that was previously pure Go
-- moving shared logic into platform packages
-- mixing backend detection into app/service code
-
-If your change falls into the higher-risk group, open or link an issue first.
+Update when platform work lands: `README.md` (capability matrix), `ARCHITECTURE.md` (platform status), `INSTALLATION.md` (build deps), this guide.
 
 ---
 
 ## What "Done" Looks Like
 
-A good platform PR usually leaves the repo better in five ways:
-
-- the implementation lives in the intended file slot
-- unsupported paths remain explicit and honest
-- capability reporting is updated
-- tests cover the new behavior or contract
-- docs tell the next contributor what changed
-
-That is the bar to aim for, even for small slices.
+1. ✅ Implementation lives in the intended file slot
+2. ✅ Unsupported paths remain explicit (`CodeNotSupported`)
+3. ✅ Capability reporting is updated
+4. ✅ Tests cover new behavior or contract
+5. ✅ Docs tell the next contributor what changed
