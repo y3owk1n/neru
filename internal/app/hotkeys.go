@@ -71,18 +71,26 @@ func (a *App) registerHotkeys() {
 
 		var registerHotkeyErr error
 
-		if releaseManager, ok := a.hotkeyManager.(HotkeyReleaseService); ok &&
-			a.hotkeyActionsRepeatWhileHeld(bindActions, cfg) {
+		// When the backend can report key releases, register every hotkey through
+		// the release path and decide press-by-press whether to repeat. The
+		// repeat-vs-once choice depends on the effective binding (the per-mode
+		// override when the active mode binds this key, otherwise the global
+		// binding), which is only known at press time — so it cannot be made here,
+		// at registration, from the global action alone.
+		if releaseManager, ok := a.hotkeyManager.(HotkeyReleaseService); ok {
 			_, registerHotkeyErr = releaseManager.RegisterWithRelease(
 				bindKey,
 				func() {
-					a.startHotkeyRepeat(bindKey, bindActions)
+					a.dispatchModeAwareHeldHotkey(bindKey, bindActions)
 				},
 				func() {
 					a.stopHotkeyRepeat(bindKey)
 				},
 			)
 		} else {
+			// Backend without release events (currently Windows and Linux): held-key
+			// repeat is not possible, so a single mode-aware dispatch is the whole
+			// behavior.
 			_, registerHotkeyErr = a.hotkeyManager.Register(bindKey, func() {
 				a.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
 			})
@@ -101,17 +109,21 @@ func (a *App) registerHotkeys() {
 	}
 }
 
-// dispatchModeAwareHotkeyAsync dispatches a global hotkey, applying any per-mode
-// binding for the same key while a navigation mode is active.
+// dispatchModeAwareHotkeyAsync dispatches a global hotkey once, applying any
+// per-mode binding for the same key while a navigation mode is active.
 //
 // Global hotkeys fire through an always-on, per-hotkey event tap that is
 // separate from the event tap serving per-mode hotkeys. When a mode is active
 // and the pressed key is bound both globally and by that mode, the global tap
 // runs the global action and consumes the event before the mode tap can apply
 // the mode-specific binding. Resolving the mode binding here makes the more
-// specific per-mode binding win deterministically, regardless of which tap
-// observes the key first. Falls back to the global actions when the active mode
-// does not bind the key (or when idle).
+// specific per-mode binding win. Falls back to the global actions when the
+// active mode does not bind the key (or when idle).
+//
+// This is the single-dispatch path used by hotkey backends that cannot report
+// key releases (and therefore cannot repeat while held). Backends that can
+// report releases use dispatchModeAwareHeldHotkey, which applies the same
+// override resolution and additionally repeats held-repeatable actions.
 func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 	actions := globalActions
 
@@ -122,6 +134,51 @@ func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 	}
 
 	a.dispatchHotkeyActionsAsync(key, actions)
+}
+
+// dispatchModeAwareHeldHotkey handles a global hotkey press on backends that
+// report key releases. It resolves the effective binding (the per-mode override
+// when the active mode binds the key, otherwise the global binding) and
+// dispatches it, repeating while held only when that effective binding is a
+// single held-repeatable action and held-key repeat is enabled. The matching
+// release callback (stopHotkeyRepeat) cancels any repeat this started; it is a
+// no-op when nothing was started.
+func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
+	var (
+		override    []string
+		hasOverride bool
+	)
+
+	if a.modes != nil {
+		override, hasOverride = a.modes.ModeHotkeyOverride(key)
+	}
+
+	actions, repeat := a.effectiveHeldHotkey(hasOverride, override, globalActions, a.configSnapshot())
+	if repeat {
+		a.startHotkeyRepeat(key, actions)
+
+		return
+	}
+
+	a.dispatchHotkeyActionsAsync(key, actions)
+}
+
+// effectiveHeldHotkey resolves which actions a global hotkey press should run
+// and whether they should repeat while held. The per-mode override wins over
+// the global binding when present, and the repeat decision is then made from
+// the resolved actions — not from the global binding — so a per-mode override
+// takes precedence on the held-repeat path too.
+func (a *App) effectiveHeldHotkey(
+	hasOverride bool,
+	override, globalActions []string,
+	cfg *config.Config,
+) ([]string, bool) {
+	actions := globalActions
+	if hasOverride {
+		actions = override
+	}
+
+	return actions, a.hotkeyActionsRepeatWhileHeld(actions, cfg)
 }
 
 func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {
