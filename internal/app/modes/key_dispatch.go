@@ -99,31 +99,11 @@ func (h *Handler) HandleKeyPress(key string) {
 	}
 
 	// Resolve the focused app bundle ID once so that both handleHotkey calls
-	// (rawKey and stripped key) share the same snapshot.
+	// (rawKey and stripped key) share the same snapshot. Only needed when the
+	// active mode defines per-app hotkey overrides.
 	var bundleID string
-
-	currentMode := h.appState.CurrentMode()
-	switch currentMode {
-	case domain.ModeHints:
-		if h.config.Hints.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeGrid:
-		if h.config.Grid.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeRecursiveGrid:
-		if h.config.RecursiveGrid.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeScroll:
-		if h.config.Scroll.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeIdle:
-		// No app hotkey overrides for these modes
-	case domain.ModeMonitorSelect:
-		// No app hotkey overrides for monitor select mode
+	if h.modeHasAppHotkeyOverrides(h.appState.CurrentMode()) {
+		bundleID = h.focusedBundleID()
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.
@@ -157,6 +137,26 @@ func (h *Handler) handleModeSpecificKey(key string) {
 	}
 
 	mode.HandleKey(key)
+}
+
+// modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
+// hotkey overrides. That is the only situation requiring the focused app's
+// bundle ID to be resolved in order to select the correct per-mode hotkey table.
+func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
+	switch mode {
+	case domain.ModeHints:
+		return h.config.Hints.HasAppHotkeyOverrides()
+	case domain.ModeGrid:
+		return h.config.Grid.HasAppHotkeyOverrides()
+	case domain.ModeRecursiveGrid:
+		return h.config.RecursiveGrid.HasAppHotkeyOverrides()
+	case domain.ModeScroll:
+		return h.config.Scroll.HasAppHotkeyOverrides()
+	case domain.ModeIdle, domain.ModeMonitorSelect:
+		return false
+	default:
+		return false
+	}
 }
 
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
