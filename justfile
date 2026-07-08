@@ -137,6 +137,126 @@ bundle: release
 
     @echo "✓ Bundle complete: build/Neru.app"
 
+# Platform-specific installer; only macOS is implemented so far. Prompts for
+# confirmation before touching the system. Run `just bundle` first on macOS.
+# Install the packaged app and register the per-user login agent.
+install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ os() }}" in
+    macos)
+        app_dst="/Applications/Neru.app"
+        neru_bin="$app_dst/Contents/MacOS/neru"
+        cli="$neru_bin" # how the CLI is referred to in messages; becomes "neru" once linked onto PATH
+        # Safeguard: the app must be built first. Check for the actual binary,
+        # not just the .app directory, so a partial bundle does not slip through.
+        if [ ! -x "build/Neru.app/Contents/MacOS/neru" ]; then
+            echo "Neru has not been built yet (build/Neru.app is missing or incomplete)."
+            read -r -p "Build it now with 'just bundle'? [y/N] " build_reply
+            case "$build_reply" in
+                [Yy] | [Yy][Ee][Ss])
+                    just bundle
+                    ;;
+                *)
+                    echo "Aborted. Run 'just bundle' first, then 'just install'." >&2
+                    exit 1
+                    ;;
+            esac
+        fi
+        # If Neru is already installed, this is an update: a single overwrite
+        # prompt, then replace the bundle and refresh the service. Otherwise it
+        # is a fresh install with the standard confirmation.
+        if [ -e "$app_dst" ]; then
+            echo "Neru is already installed at $app_dst."
+            read -r -p "Overwrite it and update the service? [y/N] " reply
+        else
+            echo "This will install Neru on macOS:"
+            echo "  • copy build/Neru.app → /Applications"
+            echo "  • register the per-user login agent (neru services install)"
+            read -r -p "Continue? [y/N] " reply
+        fi
+        case "$reply" in
+            [Yy] | [Yy][Ee][Ss]) ;;
+            *)
+                echo "Aborted."
+                exit 1
+                ;;
+        esac
+        if [ -e "$app_dst" ]; then
+            # In-place update: the binary path does not change, so the launchd
+            # service stays registered. Replace the bundle, then restart the
+            # daemon so it runs the new binary.
+            rm -rf "$app_dst"
+            cp -r build/Neru.app "$app_dst"
+            echo "Restarting Neru onto the new build (neru services restart)..."
+            if "$neru_bin" services restart; then
+                echo "✓ Updated and restarted."
+            else
+                # restart only works when the service is already loaded; if it
+                # was not (app copied manually, or previously uninstalled),
+                # register it cleanly instead.
+                echo "Service was not loaded — registering it (neru services install)."
+                "$neru_bin" services uninstall || true
+                "$neru_bin" services install
+                echo "✓ Updated and service installed."
+            fi
+        else
+            cp -r build/Neru.app "$app_dst"
+            "$neru_bin" services install
+            echo "✓ Installed."
+        fi
+        # Put `neru` on PATH by symlinking to the binary inside the app bundle,
+        # so the command and the daemon are the exact same executable. Ask
+        # before creating the link; skip if it is already linked correctly.
+        link_dst="/usr/local/bin/neru"
+        if [ -L "$link_dst" ] && [ "$(readlink "$link_dst")" = "$neru_bin" ]; then
+            echo "  CLI already on PATH: $link_dst → $neru_bin"
+            cli="neru"
+        else
+            read -r -p "Symlink 'neru' onto your PATH at $link_dst → the app binary? [y/N] " link_reply
+            case "$link_reply" in
+                [Yy] | [Yy][Ee][Ss])
+                    link_dir="$(dirname "$link_dst")"
+                    if [ -w "$link_dir" ]; then
+                        ln -sf "$neru_bin" "$link_dst"
+                    else
+                        echo "  $link_dir is not writable; creating the link with sudo."
+                        sudo mkdir -p "$link_dir"
+                        sudo ln -sf "$neru_bin" "$link_dst"
+                    fi
+                    echo "✓ Linked 'neru' → $neru_bin"
+                    cli="neru"
+                    ;;
+                *)
+                    echo "  Skipped. 'neru' will not be on PATH; link it later with:"
+                    echo "    sudo ln -sf $neru_bin $link_dst"
+                    ;;
+            esac
+        fi
+        # The launchd agent sets RunAtLoad + KeepAlive, so Neru runs as soon as
+        # the service is loaded and relaunches at every login. It should be
+        # running now; no explicit start step is needed.
+        echo "  Neru runs as a login agent and should be running now."
+        echo "  Manage it with: $cli services status|stop|restart"
+        echo "  Grant Accessibility + Input Monitoring in System Settings →"
+        echo "  Privacy & Security for it to function."
+        ;;
+    linux)
+        # TODO: implement Linux install (copy binary + systemd --user unit).
+        echo "just install: not implemented on Linux yet" >&2
+        exit 1
+        ;;
+    windows)
+        # TODO: implement Windows install.
+        echo "just install: not implemented on Windows yet" >&2
+        exit 1
+        ;;
+    *)
+        echo "just install: unsupported platform '{{ os() }}'" >&2
+        exit 1
+        ;;
+    esac
+
 # Run tests
 
 # Run all tests (unit + integration)
