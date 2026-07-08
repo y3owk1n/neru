@@ -84,7 +84,7 @@ func (a *App) registerHotkeys() {
 			)
 		} else {
 			_, registerHotkeyErr = a.hotkeyManager.Register(bindKey, func() {
-				a.dispatchHotkeyActionsAsync(bindKey, bindActions)
+				a.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
 			})
 		}
 
@@ -99,6 +99,29 @@ func (a *App) registerHotkeys() {
 			continue
 		}
 	}
+}
+
+// dispatchModeAwareHotkeyAsync dispatches a global hotkey, applying any per-mode
+// binding for the same key while a navigation mode is active.
+//
+// Global hotkeys fire through an always-on, per-hotkey event tap that is
+// separate from the event tap serving per-mode hotkeys. When a mode is active
+// and the pressed key is bound both globally and by that mode, the global tap
+// runs the global action and consumes the event before the mode tap can apply
+// the mode-specific binding. Resolving the mode binding here makes the more
+// specific per-mode binding win deterministically, regardless of which tap
+// observes the key first. Falls back to the global actions when the active mode
+// does not bind the key (or when idle).
+func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
+	actions := globalActions
+
+	if a.modes != nil {
+		if overrideActions, ok := a.modes.ModeHotkeyOverride(key); ok {
+			actions = overrideActions
+		}
+	}
+
+	a.dispatchHotkeyActionsAsync(key, actions)
 }
 
 func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {

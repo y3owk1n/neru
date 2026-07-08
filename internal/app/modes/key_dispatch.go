@@ -159,6 +159,46 @@ func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
 	}
 }
 
+// ModeHotkeyOverride returns the per-mode hotkey actions bound to key in the
+// currently active navigation mode, with ok=true, when such a binding exists.
+// It returns nil, false in idle mode or when the active mode does not bind key.
+//
+// Global (idle-scope) hotkeys are delivered through an always-on, per-hotkey
+// event tap that is independent of the event tap used for per-mode hotkeys.
+// When a key is bound both globally and by the active mode, the global tap
+// consumes the event and runs the global action before the per-mode tap can
+// act, so the per-mode binding for that key would otherwise never take effect.
+// The global-hotkey dispatch path calls this so the more specific per-mode
+// binding wins while a mode is active — e.g. a global "Primary+Ctrl+F" = "hints"
+// launcher and a per-mode [hints.hotkeys] "Primary+Ctrl+F" = "recursive_grid"
+// can coexist, with the latter applied whenever hints mode is active.
+func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	mode := h.appState.CurrentMode()
+	if mode == domain.ModeIdle {
+		return nil, false
+	}
+
+	var bundleID string
+	if h.modeHasAppHotkeyOverrides(mode) {
+		bundleID = h.focusedBundleID()
+	}
+
+	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
+	if len(hotkeys) == 0 {
+		return nil, false
+	}
+
+	_, actions, ok := findHotkeyMatch(hotkeys, config.NormalizeKeyForComparison(key))
+	if !ok {
+		return nil, false
+	}
+
+	return actions, true
+}
+
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
 // incoming key string so that physical injections don't break expected key bindings.
 func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers) string {
