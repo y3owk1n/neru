@@ -200,6 +200,105 @@ func TestDispatchHotkeyActions_ContinuesOnRegularError(t *testing.T) {
 	}
 }
 
+func TestModeHotkeyOverride(t *testing.T) {
+	t.Parallel()
+
+	cfg := &configpkg.Config{
+		Hints: configpkg.HintsConfig{
+			Hotkeys: map[string]configpkg.StringOrStringArray{
+				"Primary+Ctrl+F": {"recursive_grid"},
+				"Escape":         {"idle"},
+			},
+		},
+		Grid: configpkg.GridConfig{
+			Hotkeys: map[string]configpkg.StringOrStringArray{
+				"Primary+Ctrl+F": {"scroll"},
+			},
+		},
+	}
+
+	// Global-hotkey dispatch passes the platform-canonical key (e.g. "Cmd+Ctrl+F"
+	// on macOS), while the config stores the shared "Primary+..." alias. Build the
+	// lookup keys exactly as registerHotkeys does so the test exercises the real
+	// normalization path on every platform.
+	overrideKey := configpkg.CanonicalHotkeyForPlatform("Primary+Ctrl+F")
+	unboundGlobalKey := configpkg.CanonicalHotkeyForPlatform("Primary+Shift+G")
+
+	tests := []struct {
+		name        string
+		mode        domain.Mode
+		key         string
+		wantActions []string
+		wantOK      bool
+	}{
+		{
+			name:        "active mode binds the key: per-mode action overrides the global binding",
+			mode:        domain.ModeHints,
+			key:         overrideKey,
+			wantActions: []string{"recursive_grid"},
+			wantOK:      true,
+		},
+		{
+			name:   "active mode does not bind the key: no override, global hotkey still fires (#21 preserved)",
+			mode:   domain.ModeHints,
+			key:    unboundGlobalKey,
+			wantOK: false,
+		},
+		{
+			name:   "idle: a global launcher is never overridden",
+			mode:   domain.ModeIdle,
+			key:    overrideKey,
+			wantOK: false,
+		},
+		{
+			name:        "override is scoped to the active mode's own hotkey table",
+			mode:        domain.ModeGrid,
+			key:         overrideKey,
+			wantActions: []string{"scroll"},
+			wantOK:      true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			appState := state.NewAppState()
+			appState.SetMode(testCase.mode)
+
+			handler := &Handler{
+				config:   cfg,
+				logger:   zap.NewNop(),
+				appState: appState,
+			}
+
+			actions, ok := handler.ModeHotkeyOverride(testCase.key)
+			if ok != testCase.wantOK {
+				t.Fatalf(
+					"ModeHotkeyOverride(%q) ok = %v, want %v",
+					testCase.key,
+					ok,
+					testCase.wantOK,
+				)
+			}
+
+			if !testCase.wantOK {
+				return
+			}
+
+			if len(actions) != len(testCase.wantActions) {
+				t.Fatalf("actions = %v, want %v", actions, testCase.wantActions)
+			}
+
+			for i := range actions {
+				if actions[i] != testCase.wantActions[i] {
+					t.Fatalf("actions = %v, want %v", actions, testCase.wantActions)
+				}
+			}
+		})
+	}
+}
+
 func mustNewModeHint(label string, elem *element.Element) *domainhint.Interface {
 	hint, err := domainhint.NewHint(label, elem, image.Point{})
 	if err != nil {

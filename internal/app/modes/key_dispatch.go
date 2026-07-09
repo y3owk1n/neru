@@ -99,31 +99,11 @@ func (h *Handler) HandleKeyPress(key string) {
 	}
 
 	// Resolve the focused app bundle ID once so that both handleHotkey calls
-	// (rawKey and stripped key) share the same snapshot.
+	// (rawKey and stripped key) share the same snapshot. Only needed when the
+	// active mode defines per-app hotkey overrides.
 	var bundleID string
-
-	currentMode := h.appState.CurrentMode()
-	switch currentMode {
-	case domain.ModeHints:
-		if h.config.Hints.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeGrid:
-		if h.config.Grid.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeRecursiveGrid:
-		if h.config.RecursiveGrid.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeScroll:
-		if h.config.Scroll.HasAppHotkeyOverrides() {
-			bundleID = h.focusedBundleID()
-		}
-	case domain.ModeIdle:
-		// No app hotkey overrides for these modes
-	case domain.ModeMonitorSelect:
-		// No app hotkey overrides for monitor select mode
+	if h.modeHasAppHotkeyOverrides(h.appState.CurrentMode()) {
+		bundleID = h.focusedBundleID()
 	}
 
 	// Check for per-mode hotkeys before mode-specific handling.
@@ -157,6 +137,66 @@ func (h *Handler) handleModeSpecificKey(key string) {
 	}
 
 	mode.HandleKey(key)
+}
+
+// modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
+// hotkey overrides. That is the only situation requiring the focused app's
+// bundle ID to be resolved in order to select the correct per-mode hotkey table.
+func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
+	switch mode {
+	case domain.ModeHints:
+		return h.config.Hints.HasAppHotkeyOverrides()
+	case domain.ModeGrid:
+		return h.config.Grid.HasAppHotkeyOverrides()
+	case domain.ModeRecursiveGrid:
+		return h.config.RecursiveGrid.HasAppHotkeyOverrides()
+	case domain.ModeScroll:
+		return h.config.Scroll.HasAppHotkeyOverrides()
+	case domain.ModeIdle, domain.ModeMonitorSelect:
+		return false
+	default:
+		return false
+	}
+}
+
+// ModeHotkeyOverride returns the per-mode hotkey actions bound to key in the
+// currently active navigation mode, with ok=true, when such a binding exists.
+// It returns nil, false in idle mode or when the active mode does not bind key.
+//
+// Global (idle-scope) hotkeys are delivered through an always-on, per-hotkey
+// event tap that is independent of the event tap used for per-mode hotkeys.
+// When a key is bound both globally and by the active mode, the global tap
+// consumes the event and runs the global action before the per-mode tap can
+// act, so the per-mode binding for that key would otherwise never take effect.
+// The global-hotkey dispatch path calls this so the more specific per-mode
+// binding wins while a mode is active — e.g. a global "Primary+Ctrl+F" = "hints"
+// launcher and a per-mode [hints.hotkeys] "Primary+Ctrl+F" = "recursive_grid"
+// can coexist, with the latter applied whenever hints mode is active.
+func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	mode := h.appState.CurrentMode()
+	if mode == domain.ModeIdle {
+		return nil, false
+	}
+
+	var bundleID string
+	if h.modeHasAppHotkeyOverrides(mode) {
+		bundleID = h.focusedBundleID()
+	}
+
+	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
+	if len(hotkeys) == 0 {
+		return nil, false
+	}
+
+	_, actions, ok := findHotkeyMatch(hotkeys, config.NormalizeKeyForComparison(key))
+	if !ok {
+		return nil, false
+	}
+
+	return actions, true
 }
 
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
