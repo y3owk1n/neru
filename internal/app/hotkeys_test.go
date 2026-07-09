@@ -195,7 +195,7 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 		},
 		{
 			name:    "chains do not repeat",
-			actions: []string{"action scroll_down", "action scroll_down"},
+			actions: []string{actionScrollDown, actionScrollDown},
 			want:    false,
 		},
 	}

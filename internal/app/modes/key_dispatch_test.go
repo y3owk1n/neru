@@ -259,12 +259,12 @@ func TestModeHotkeyOverride(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			appState := state.NewAppState()
-			appState.SetMode(tc.mode)
+			appState.SetMode(testCase.mode)
 
 			handler := &Handler{
 				config:   cfg,
@@ -272,22 +272,27 @@ func TestModeHotkeyOverride(t *testing.T) {
 				appState: appState,
 			}
 
-			actions, ok := handler.ModeHotkeyOverride(tc.key)
-			if ok != tc.wantOK {
-				t.Fatalf("ModeHotkeyOverride(%q) ok = %v, want %v", tc.key, ok, tc.wantOK)
+			actions, ok := handler.ModeHotkeyOverride(testCase.key)
+			if ok != testCase.wantOK {
+				t.Fatalf(
+					"ModeHotkeyOverride(%q) ok = %v, want %v",
+					testCase.key,
+					ok,
+					testCase.wantOK,
+				)
 			}
 
-			if !tc.wantOK {
+			if !testCase.wantOK {
 				return
 			}
 
-			if len(actions) != len(tc.wantActions) {
-				t.Fatalf("actions = %v, want %v", actions, tc.wantActions)
+			if len(actions) != len(testCase.wantActions) {
+				t.Fatalf("actions = %v, want %v", actions, testCase.wantActions)
 			}
 
 			for i := range actions {
-				if actions[i] != tc.wantActions[i] {
-					t.Fatalf("actions = %v, want %v", actions, tc.wantActions)
+				if actions[i] != testCase.wantActions[i] {
+					t.Fatalf("actions = %v, want %v", actions, testCase.wantActions)
 				}
 			}
 		})

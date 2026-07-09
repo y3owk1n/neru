@@ -153,7 +153,12 @@ func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 		override, hasOverride = a.modes.ModeHotkeyOverride(key)
 	}
 
-	actions, repeat := a.effectiveHeldHotkey(hasOverride, override, globalActions, a.configSnapshot())
+	actions, repeat := a.effectiveHeldHotkey(
+		hasOverride,
+		override,
+		globalActions,
+		a.configSnapshot(),
+	)
 	if repeat {
 		a.startHotkeyRepeat(key, actions)
 

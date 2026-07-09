@@ -197,23 +197,23 @@ func TestEffectiveHeldHotkey(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			cfg := config.DefaultConfig()
-			cfg.HeldRepeat.Enabled = tc.enabled
+			cfg.HeldRepeat.Enabled = testCase.enabled
 
 			actions, repeat := (&App{}).effectiveHeldHotkey(
-				tc.hasOverride, tc.override, tc.global, cfg,
+				testCase.hasOverride, testCase.override, testCase.global, cfg,
 			)
 
-			if !reflect.DeepEqual(actions, tc.wantActions) {
-				t.Fatalf("actions = %v, want %v", actions, tc.wantActions)
+			if !reflect.DeepEqual(actions, testCase.wantActions) {
+				t.Fatalf("actions = %v, want %v", actions, testCase.wantActions)
 			}
 
-			if repeat != tc.wantRepeat {
-				t.Fatalf("repeat = %v, want %v", repeat, tc.wantRepeat)
+			if repeat != testCase.wantRepeat {
+				t.Fatalf("repeat = %v, want %v", repeat, testCase.wantRepeat)
 			}
 		})
 	}
@@ -224,8 +224,8 @@ func TestRegisterHotkeysUsesReleasePathWhenSupported(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	cfg.Hotkeys.Bindings = map[string][]string{
-		"Ctrl+Alt+J": {"action scroll_down"}, // held-repeat action
-		"Ctrl+Alt+P": {"ping"},               // non-repeat command
+		"Ctrl+Alt+J": {actionScrollDown}, // held-repeat action
+		"Ctrl+Alt+P": {"ping"},           // non-repeat command
 	}
 
 	fake := newFakeReleaseHotkeyManager()
