@@ -137,9 +137,9 @@ bundle: release
 
     @echo "✓ Bundle complete: build/Neru.app"
 
-# Platform-specific installer; only macOS is implemented so far. Prompts for
-# confirmation before touching the system. Run `just bundle` first on macOS.
-# Install the packaged app and register the per-user login agent.
+# Platform-specific installer. Only macOS is implemented so far. Runs three
+# confirmed steps: copy the app bundle to /Applications, register the login
+# agent, and link the CLI onto PATH. Run `just bundle` first on macOS.
 install:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -163,54 +163,85 @@ install:
                     ;;
             esac
         fi
-        # If Neru is already installed, this is an update: a single overwrite
-        # prompt, then replace the bundle and refresh the service. Otherwise it
-        # is a fresh install with the standard confirmation.
-        if [ -e "$app_dst" ]; then
+        # Record whether Neru is already installed before step 1 possibly
+        # overwrites it. The service step uses this to choose between restarting
+        # an existing agent and registering a fresh one.
+        was_installed=0
+        [ -e "$app_dst" ] && was_installed=1
+        # Whether step 2 actually (re)loaded the login agent. The agent runs at
+        # load, so once it is installed Neru is already running and the final
+        # "run now" prompt is skipped.
+        service_installed=0
+
+        # Step 1: the app bundle. Overwriting an existing install is the only
+        # branch that differs; either way the bundle ends up at $app_dst.
+        echo "Step 1/3: App bundle"
+        if [ "$was_installed" -eq 1 ]; then
             echo "Neru is already installed at $app_dst."
-            read -r -p "Overwrite it and update the service? [y/N] " reply
+            read -r -p "Overwrite it with the freshly built bundle? [y/N] " reply
+            case "$reply" in
+                [Yy] | [Yy][Ee][Ss])
+                    rm -rf "$app_dst"
+                    cp -r build/Neru.app "$app_dst"
+                    echo "✓ Overwrote $app_dst"
+                    ;;
+                *)
+                    echo "Keeping the existing bundle"
+                    ;;
+            esac
         else
-            echo "This will install Neru on macOS:"
-            echo "  • copy build/Neru.app → /Applications"
-            echo "  • register the per-user login agent (neru services install)"
-            read -r -p "Continue? [y/N] " reply
+            read -r -p "Copy build/Neru.app → $app_dst? [y/N] " reply
+            case "$reply" in
+                [Yy] | [Yy][Ee][Ss])
+                    cp -r build/Neru.app "$app_dst"
+                    echo "✓ Installed $app_dst"
+                    ;;
+                *)
+                    # Without the bundle in place the later steps have nothing to
+                    # register or link, so there is no point continuing.
+                    echo "Aborted. Nothing installed." >&2
+                    exit 1
+                    ;;
+            esac
         fi
-        case "$reply" in
-            [Yy] | [Yy][Ee][Ss]) ;;
+
+        # Step 2: the login agent. Registering it makes Neru start now and at
+        # every login (RunAtLoad + KeepAlive).
+        echo "Step 2/3: Login agent"
+        read -r -p "Register the login agent so Neru starts now and at login? (neru services install) [y/N] " svc_reply
+        case "$svc_reply" in
+            [Yy] | [Yy][Ee][Ss])
+                if [ "$was_installed" -eq 1 ]; then
+                    # The agent may already be loaded from a previous install, so
+                    # restarting picks up the current binary. If it was never
+                    # loaded (app copied by hand, or previously uninstalled),
+                    # restart fails, so register it cleanly instead.
+                    if "$neru_bin" services restart; then
+                        echo "✓ Service restarted onto the current build"
+                    else
+                        echo "Service was not loaded, registering it..."
+                        "$neru_bin" services uninstall || true
+                        "$neru_bin" services install
+                        echo "✓ Service installed"
+                    fi
+                else
+                    "$neru_bin" services install
+                    echo "✓ Service installed"
+                fi
+                service_installed=1
+                ;;
             *)
-                echo "Aborted."
-                exit 1
+                echo "Skipped the login agent, so Neru will not start at login."
                 ;;
         esac
-        if [ -e "$app_dst" ]; then
-            # In-place update: the binary path does not change, so the launchd
-            # service stays registered. Replace the bundle, then restart the
-            # daemon so it runs the new binary.
-            rm -rf "$app_dst"
-            cp -r build/Neru.app "$app_dst"
-            echo "Restarting Neru onto the new build (neru services restart)..."
-            if "$neru_bin" services restart; then
-                echo "✓ Updated and restarted."
-            else
-                # restart only works when the service is already loaded; if it
-                # was not (app copied manually, or previously uninstalled),
-                # register it cleanly instead.
-                echo "Service was not loaded — registering it (neru services install)."
-                "$neru_bin" services uninstall || true
-                "$neru_bin" services install
-                echo "✓ Updated and service installed."
-            fi
-        else
-            cp -r build/Neru.app "$app_dst"
-            "$neru_bin" services install
-            echo "✓ Installed."
-        fi
-        # Put `neru` on PATH by symlinking to the binary inside the app bundle,
-        # so the command and the daemon are the exact same executable. Ask
-        # before creating the link; skip if it is already linked correctly.
+
+        # Step 3: put `neru` on PATH by symlinking to the binary inside the app
+        # bundle, so the command and the daemon are the exact same executable.
+        # Skip the prompt when it is already linked correctly.
+        echo "Step 3/3: CLI on PATH"
         link_dst="/usr/local/bin/neru"
         if [ -L "$link_dst" ] && [ "$(readlink "$link_dst")" = "$neru_bin" ]; then
-            echo "  CLI already on PATH: $link_dst → $neru_bin"
+            echo "Already linked: $link_dst → $neru_bin"
             cli="neru"
         else
             read -r -p "Symlink 'neru' onto your PATH at $link_dst → the app binary? [y/N] " link_reply
@@ -220,7 +251,7 @@ install:
                     if [ -w "$link_dir" ]; then
                         ln -sf "$neru_bin" "$link_dst"
                     else
-                        echo "  $link_dir is not writable; creating the link with sudo."
+                        echo "$link_dir is not writable, creating the link with sudo..."
                         sudo mkdir -p "$link_dir"
                         sudo ln -sf "$neru_bin" "$link_dst"
                     fi
@@ -228,18 +259,32 @@ install:
                     cli="neru"
                     ;;
                 *)
-                    echo "  Skipped. 'neru' will not be on PATH; link it later with:"
+                    echo "Skipped the symlink. Link it later with:"
                     echo "    sudo ln -sf $neru_bin $link_dst"
                     ;;
             esac
         fi
-        # The launchd agent sets RunAtLoad + KeepAlive, so Neru runs as soon as
-        # the service is loaded and relaunches at every login. It should be
-        # running now; no explicit start step is needed.
-        echo "  Neru runs as a login agent and should be running now."
-        echo "  Manage it with: $cli services status|stop|restart"
-        echo "  Grant Accessibility + Input Monitoring in System Settings →"
-        echo "  Privacy & Security for it to function."
+
+        # If the login agent was installed it is already running Neru. Otherwise
+        # nothing is running yet, so offer to launch the daemon once, detached so
+        # it survives this shell (logs mirror the launchd agent's paths).
+        if [ "$service_installed" -eq 1 ]; then
+            echo "Neru runs as a login agent and should be running now."
+        else
+            read -r -p "Run Neru now? [y/N] " run_reply
+            case "$run_reply" in
+                [Yy] | [Yy][Ee][Ss])
+                    nohup "$neru_bin" launch >/tmp/neru.log 2>/tmp/neru.err.log &
+                    echo "✓ Neru started (logs: /tmp/neru.log)"
+                    ;;
+                *)
+                    echo "Not started. Launch it later with: $cli launch"
+                    ;;
+            esac
+        fi
+        echo "Manage the service with: $cli services status|stop|restart"
+        echo "Grant Accessibility + Input Monitoring in System Settings →"
+        echo "Privacy & Security for it to function."
         ;;
     linux)
         # TODO: implement Linux install (copy binary + systemd --user unit).
