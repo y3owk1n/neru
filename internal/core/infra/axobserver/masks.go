@@ -16,6 +16,7 @@ const (
 	maskMenuOpened              uint32 = 1 << 7
 	maskMenuClosed              uint32 = 1 << 8
 	maskValueChanged            uint32 = 1 << 9
+	maskLoadComplete            uint32 = 1 << 10
 )
 
 // maskForSource returns the notification bits worth watching for a source. The
@@ -27,9 +28,13 @@ const (
 func maskForSource(src ports.ObservationSource, watchValueChanged bool) uint32 {
 	switch src {
 	case ports.ObservationFrontWindow:
+		// kAXFocusedUIElementChanged is deliberately excluded: it is noisy (it can
+		// fire on mere hover/focus shuffles) and is not needed to detect that the
+		// set of hintable elements changed. AXLoadComplete is included so browser
+		// page navigation triggers a refresh.
 		m := maskLayoutChanged | maskCreated | maskUIElementDestroyed |
 			maskWindowCreated | maskWindowMoved | maskWindowResized |
-			maskFocusedUIElementChanged
+			maskLoadComplete
 		if watchValueChanged {
 			m |= maskValueChanged
 		}

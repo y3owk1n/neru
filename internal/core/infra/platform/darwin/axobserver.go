@@ -23,6 +23,7 @@ const (
 	AXNotifMenuOpened              uint32 = C.NeruAXNotifMenuOpened
 	AXNotifMenuClosed              uint32 = C.NeruAXNotifMenuClosed
 	AXNotifValueChanged            uint32 = C.NeruAXNotifValueChanged
+	AXNotifLoadComplete            uint32 = C.NeruAXNotifLoadComplete
 )
 
 // ObserverSink receives AX notification signals from the observer run-loop

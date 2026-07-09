@@ -38,6 +38,7 @@ enum {
 	NeruAXNotifMenuOpened = 1u << 7,
 	NeruAXNotifMenuClosed = 1u << 8,
 	NeruAXNotifValueChanged = 1u << 9,
+	NeruAXNotifLoadComplete = 1u << 10,
 };
 
 #pragma mark - Observer run-loop thread

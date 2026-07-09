@@ -169,6 +169,16 @@ func (h *Handler) activateHintModeInternal(
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
+	// Mute observer-driven refreshes for the whole duration of this scan plus a
+	// short margin: scanning the AX tree makes some apps create/destroy their own
+	// elements throughout the scan, and those self-induced notifications must not
+	// feed back into another refresh (a flicker loop). A fixed window is not
+	// enough because a slow scan outlasts it, so gate on an explicit flag.
+	if h.autoRefreshEnabled() {
+		h.observerScanning.Store(true)
+		defer h.endObserverScanWindow()
+	}
+
 	// Reset cycle index on refresh since the hint list is regenerated
 	if isRefresh {
 		h.cycleHintIndex = -1

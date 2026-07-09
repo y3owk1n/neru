@@ -28,6 +28,7 @@ func TestMaskBitsMatchNativeHeader(t *testing.T) {
 		{"MenuOpened", maskMenuOpened, darwin.AXNotifMenuOpened},
 		{"MenuClosed", maskMenuClosed, darwin.AXNotifMenuClosed},
 		{"ValueChanged", maskValueChanged, darwin.AXNotifValueChanged},
+		{"LoadComplete", maskLoadComplete, darwin.AXNotifLoadComplete},
 	}
 
 	for _, c := range cases {

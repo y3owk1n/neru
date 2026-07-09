@@ -1,9 +1,16 @@
 package modes
 
 import (
+	"time"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
+
+// observerSelfScanSuppress is how long observer-driven refreshes are muted after
+// a scan starts, to swallow the create/destroy notifications a scan induces in
+// some apps (which would otherwise loop into another refresh).
+const observerSelfScanSuppress = 200 * time.Millisecond
 
 // ObserverController is the subset of the push-based AX observer manager that the
 // Handler drives. It is satisfied by *axobserver.Manager; the Handler depends on
@@ -33,9 +40,28 @@ func (h *Handler) autoRefreshEnabled() bool {
 // accessibility notification arrived, so ask the coordinator for a coalesced
 // refresh. Runs on the observer run-loop thread and must not block.
 func (h *Handler) RequestObserverRefresh() {
+	// Drop notifications while a scan is running, and for a short margin after it:
+	// a scan makes some apps churn their own AX elements throughout, and those
+	// self-induced notifications must not feed back into another refresh.
+	if h.observerScanning.Load() {
+		return
+	}
+
+	if until := h.observerSuppressUntil.Load(); until != 0 && time.Now().UnixNano() < until {
+		return
+	}
+
 	if h.refreshCoordinator != nil {
 		h.refreshCoordinator.Request()
 	}
+}
+
+// endObserverScanWindow ends scan suppression: it opens a short post-scan margin
+// (to catch notifications an app posts just after neru finishes reading) and
+// then clears the scanning flag. Deferred from activateHintModeInternal.
+func (h *Handler) endObserverScanWindow() {
+	h.observerSuppressUntil.Store(time.Now().Add(observerSelfScanSuppress).UnixNano())
+	h.observerScanning.Store(false)
 }
 
 // observerDrivenRefresh performs a coalesced, observer-triggered refresh. It runs

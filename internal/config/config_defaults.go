@@ -147,8 +147,12 @@ const (
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
 
-	// DefaultAutoRefreshDebounceMs is the default hint auto-refresh debounce.
-	DefaultAutoRefreshDebounceMs = 80
+	// DefaultAutoRefreshDebounceMs is the default hint auto-refresh debounce. It
+	// doubles as a settle delay: many apps post a change notification before their
+	// accessibility tree has finished updating, so scanning immediately reads a
+	// half-updated tree. Waiting this long after the last notification lets it
+	// settle. Tune higher for apps that update slowly.
+	DefaultAutoRefreshDebounceMs = 150
 
 	// DefaultChildrenCapacity is the default children capacity.
 	DefaultChildrenCapacity = 8

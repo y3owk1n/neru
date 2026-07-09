@@ -111,7 +111,8 @@ visible_check_enabled = false
 # accessibility notifications, which Chromium/WebKit do inconsistently (often
 # nothing on scroll). Native apps, menus, and Notification Center are reliable.
 enabled = false
-debounce_ms = 80             # trailing coalesce/floor; a burst collapses into one refresh
+debounce_ms = 150            # settle delay: wait this long after the last change before rescanning
+                             # (many apps post a notification before their tree finishes updating)
 watch_value_changed = false  # also observe kAXValueChanged on the front window (noisy)
 
 [hints.additional_ax_support]

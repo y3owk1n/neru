@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -101,6 +102,14 @@ type Handler struct {
 	// inert unless auto-refresh is configured on.
 	observers          ObserverController
 	refreshCoordinator *refreshCoordinator
+	// observerScanning is true while a hint scan is running, and observerSuppressUntil
+	// (unix nanos) opens a short margin after it. Together they mute observer-driven
+	// refreshes for the whole scan plus a tail: scanning an app's AX tree makes some
+	// apps create/destroy elements throughout the scan, and those self-induced
+	// notifications must not trigger another refresh (a flicker loop). A fixed window
+	// is not enough because a slow scan outlasts it.
+	observerScanning      atomic.Bool
+	observerSuppressUntil atomic.Int64
 
 	hotkeyLastKey     string
 	hotkeyLastKeyTime          int64

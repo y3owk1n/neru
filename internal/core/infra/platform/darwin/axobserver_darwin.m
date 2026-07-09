@@ -30,7 +30,7 @@ extern void handleAXNotification(int pid, unsigned long long epoch, const char *
 typedef struct {
 	AXObserverRef observer;
 	AXUIElementRef appElement;
-	CFStringRef notifs[10];
+	CFStringRef notifs[16];
 	int notifCount;
 } NeruObserverHandle;
 
@@ -216,7 +216,7 @@ typedef struct {
 } NeruNotifEntry;
 
 static const NeruNotifEntry *notifTable(int *count) {
-	static NeruNotifEntry table[10];
+	static NeruNotifEntry table[16];
 	table[0] = (NeruNotifEntry){NeruAXNotifLayoutChanged, kAXLayoutChangedNotification};
 	table[1] = (NeruNotifEntry){NeruAXNotifCreated, kAXCreatedNotification};
 	table[2] = (NeruNotifEntry){NeruAXNotifUIElementDestroyed, kAXUIElementDestroyedNotification};
@@ -228,7 +228,11 @@ static const NeruNotifEntry *notifTable(int *count) {
 	table[7] = (NeruNotifEntry){NeruAXNotifMenuOpened, kAXMenuOpenedNotification};
 	table[8] = (NeruNotifEntry){NeruAXNotifMenuClosed, kAXMenuClosedNotification};
 	table[9] = (NeruNotifEntry){NeruAXNotifValueChanged, kAXValueChangedNotification};
-	*count = 10;
+	// AXLoadComplete has no public kAX* constant; the notification name is the
+	// string below (NSAccessibilityLoadCompleteNotification). Web areas post it
+	// when a page finishes loading, which is the key signal for browser navigation.
+	table[10] = (NeruNotifEntry){NeruAXNotifLoadComplete, CFSTR("AXLoadComplete")};
+	*count = 11;
 
 	return table;
 }
