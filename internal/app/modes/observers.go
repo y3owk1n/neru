@@ -14,6 +14,14 @@ import (
 // some apps (which would otherwise loop into another refresh).
 const observerSelfScanSuppress = 200 * time.Millisecond
 
+// maxObserverSettleChecks bounds how many times in a row a changed scan may
+// proactively schedule a settle re-check before the fingerprint stabilizes. A
+// real multi-phase change (a menu being dismissed then rebuilt) settles within a
+// couple of checks; this cap stops content that changes on every frame (an
+// animation) from re-checking forever. Once the cap is hit, refreshes fall back
+// to being notification-driven. The counter resets whenever a scan settles.
+const maxObserverSettleChecks = 5
+
 // ObserverController is the subset of the push-based AX observer manager that the
 // Handler drives. It is satisfied by *axobserver.Manager; the Handler depends on
 // this interface so the modes package stays free of platform infrastructure.
@@ -60,10 +68,19 @@ func (h *Handler) RequestObserverRefresh() {
 
 // beginObserverScanWindow starts scan suppression: it raises the scanning flag
 // (which drops observer refreshes for the whole scan) and resets the per-scan
-// fingerprint state. Called at the top of activateHintModeInternal, under h.mu.
-func (h *Handler) beginObserverScanWindow() {
+// fingerprint state. isRefresh records whether this scan is a refresh of an
+// active hint session (versus a fresh activation), which gates the proactive
+// settle re-check in endObserverScanWindow. Called at the top of
+// activateHintModeInternal, under h.mu.
+func (h *Handler) beginObserverScanWindow(isRefresh bool) {
 	h.observerScanning.Store(true)
 	h.observerScanHasFingerprint = false
+	h.observerScanIsRefresh = isRefresh
+
+	// A fresh activation starts a new hint session, so reset the settle-check budget.
+	if !isRefresh {
+		h.observerSettleChecks = 0
+	}
 }
 
 // recordScanFingerprint stores the fingerprint of the hint set this scan
@@ -79,11 +96,18 @@ func (h *Handler) recordScanFingerprint(hints []*domainHint.Interface) {
 //
 // It opens the short post-scan margin only when the scan produced the same hint
 // set as the previous scan (self-induced churn, nothing really changed). A scan
-// that changed the hint set caught a real change, so it clears any lingering
-// margin and stays hot: the change is often still settling and will post more
-// notifications, and dropping those was what made roughly one refresh in five
-// miss the fresh hints. A scan that never reached a fingerprint (an early error
-// or empty result) leaves the stored fingerprint untouched and opens no margin.
+// that changed the hint set caught something mid-change, so it clears any
+// lingering margin and, on a refresh, proactively schedules one more refresh
+// after the debounce. That settle re-check is the important part: some changes
+// arrive in two phases (an old menu is dismissed, then a new one is built), and
+// the notification that the second phase finished often lands inside this scan's
+// own window and is dropped, so nothing else would re-trigger. Re-checking on any
+// change catches the settled state without depending on that dropped
+// notification. It self-terminates: the re-check keeps firing only while the
+// fingerprint keeps changing, and stops once it stabilizes (a real change
+// settles) or matches the prior scan (self-induced churn nets out). A scan that
+// never reached a fingerprint (an early error or empty result) leaves the stored
+// fingerprint untouched and opens no margin.
 func (h *Handler) endObserverScanWindow() {
 	defer h.observerScanning.Store(false)
 
@@ -97,9 +121,18 @@ func (h *Handler) endObserverScanWindow() {
 	if changed {
 		h.observerSuppressUntil.Store(0)
 
+		if h.observerScanIsRefresh && h.refreshCoordinator != nil &&
+			h.observerSettleChecks < maxObserverSettleChecks {
+			h.observerSettleChecks++
+			h.refreshCoordinator.Request()
+		}
+
 		return
 	}
 
+	// Settled: nothing changed since the previous scan. Reset the budget so the
+	// next change episode gets a full allowance of settle re-checks.
+	h.observerSettleChecks = 0
 	h.observerSuppressUntil.Store(time.Now().Add(observerSelfScanSuppress).UnixNano())
 }
 

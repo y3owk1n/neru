@@ -118,6 +118,8 @@ type Handler struct {
 	observerLastFingerprint    uint64
 	observerScanFingerprint    uint64
 	observerScanHasFingerprint bool
+	observerScanIsRefresh      bool
+	observerSettleChecks       int
 
 	hotkeyLastKey     string
 	hotkeyLastKeyTime          int64

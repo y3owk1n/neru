@@ -177,7 +177,7 @@ func (h *Handler) activateHintModeInternal(
 	// scan, so drop the churn tail) or stay hot (a real change, so keep catching
 	// the still-settling updates).
 	if h.autoRefreshEnabled() {
-		h.beginObserverScanWindow()
+		h.beginObserverScanWindow(isRefresh)
 		defer h.endObserverScanWindow()
 	}
 
