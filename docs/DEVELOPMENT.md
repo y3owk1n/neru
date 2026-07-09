@@ -158,6 +158,8 @@ For the best development experience, we recommend:
 | Build  | `just build-darwin`     | Build a macOS binary on macOS      |
 | Build  | `just build-linux`      | Build a Linux foundations binary   |
 | Build  | `just build-windows`    | Build a Windows binary  |
+| Bundle | `just bundle`           | Package the macOS app bundle       |
+| Install| `just install`          | Install an already-built Neru; add `-y` to auto-accept (macOS/Linux/Windows) |
 | Test   | `just test`             | Run unit and integration tests     |
 | Test   | `just test-foundation`  | Run cross-platform-safe core tests |
 | Test   | `just test-unit`        | Run unit tests                     |

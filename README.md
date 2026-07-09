@@ -58,7 +58,7 @@ Grant **Accessibility** in **System Settings → Privacy & Security → Accessib
 
 Press `Cmd+Shift+Space`. Labels appear. You're already using it.
 
-Other options (Nix flake, build from source) → [Installation Guide](docs/INSTALLATION.md)
+Other options (Nix flake, or build from source and run `just install`) → [Installation Guide](docs/INSTALLATION.md)
 
 ---
 

@@ -137,6 +137,20 @@ bundle: release
 
     @echo "✓ Bundle complete: build/Neru.app"
 
+# Install a built Neru. Dispatches to the per-platform script in scripts/. Build
+# first: `just bundle` (macOS), `just build` (Linux), `just build-windows`
+# (Windows). Pass -y to accept every prompt non-interactively (`just install -y`).
+# On Windows this runs under a bash such as Git Bash.
+install *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script="{{ justfile_directory() }}/scripts/install-{{ os() }}.sh"
+    if [ ! -f "$script" ]; then
+        echo "just install: unsupported platform '{{ os() }}'" >&2
+        exit 1
+    fi
+    exec bash "$script" {{ ARGS }}
+
 # Run tests
 
 # Run all tests (unit + integration)
