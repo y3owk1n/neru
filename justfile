@@ -137,10 +137,12 @@ bundle: release
 
     @echo "✓ Bundle complete: build/Neru.app"
 
-# Platform-specific installer. Only macOS is implemented so far. Runs five
-# confirmed steps: copy the app bundle to /Applications, register the login
-# agent, link the CLI onto PATH, install shell completions, and install man
-# pages. Run `just bundle` first on macOS.
+# Platform-specific installer, dispatched on the host OS. macOS installs the app
+# bundle, the login agent, a PATH symlink, shell completions, and man pages;
+# Linux installs a user binary, a systemd user service, completions, and man
+# pages; Windows installs the exe and an optional autostart entry. Build first:
+# `just bundle` (macOS), `just build` (Linux), `just build-windows` (Windows).
+# The Windows branch needs a bash such as Git Bash with cygpath on PATH.
 install:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -149,7 +151,6 @@ install:
         app_dst="/Applications/Neru.app"
         neru_bin="$app_dst/Contents/MacOS/neru"
         cli="$neru_bin" # how the CLI is referred to in messages; becomes "neru" once linked onto PATH
-        service_label="com.y3owk1n.neru"
         # Copy the freshly built bundle into place. Uses sudo when the target
         # directory is not writable (Step 3 does the same for the symlink) and
         # stages the new bundle fully before moving the old one aside, so a
@@ -479,15 +480,21 @@ install:
                     echo "ExecStart=$neru_bin launch"
                     echo "Restart=on-failure"
                     echo "RestartSec=5"
-                    echo "Nice=-10"
                     echo ""
                     echo "[Install]"
                     echo "WantedBy=graphical-session.target"
                 } > "$unit_dir/neru.service"
+                # Give the user manager the current session's display variables so
+                # the daemon can reach X11/Wayland. (Nice=-10 is intentionally not
+                # set: an unprivileged user service cannot lower nice and would
+                # fail to start with status 213/NICE.)
+                systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XAUTHORITY 2>/dev/null || true
                 systemctl --user daemon-reload || true
                 if systemctl --user enable --now neru.service; then
-                    echo "✓ Service installed and started"
+                    echo "✓ Service enabled and started"
                     echo "  Manage with: systemctl --user status|stop|restart neru"
+                    echo "  Auto-start at login needs your compositor to reach"
+                    echo "  graphical-session.target; see docs/LINUX_SETUP.md if it does not."
                 else
                     echo "Wrote the unit but could not start it (no systemd user session?)." >&2
                     echo "Enable it later with: systemctl --user enable --now neru" >&2
@@ -568,9 +575,11 @@ install:
         # Minimal Windows install: a per-user binary plus optional autostart via
         # the registry Run key. Windows has no launchd or systemd and `neru
         # services` is macOS-only, so autostart is authored here, not by Neru.
-        # This recipe needs a bash (e.g. Git Bash) to run. Windows support is
-        # partial (grid, recursive grid, scroll, hotkeys, mouse injection, UIA);
-        # see docs/CROSS_PLATFORM.md.
+        # Runs under a bash (e.g. Git Bash); `just` needs cygpath on PATH to
+        # translate the shebang, and reg is called with MSYS2_ARG_CONV_EXCL so
+        # its /flags are not path-mangled. Windows support is partial (grid,
+        # recursive grid, scroll, hotkeys, mouse injection, UIA); see
+        # docs/CROSS_PLATFORM.md.
         arch="$(uname -m)"
         case "$arch" in
             aarch64 | arm64) arch=arm64 ;;
@@ -603,9 +612,11 @@ install:
         case "$run_reply" in
             [Yy] | [Yy][Ee][Ss])
                 win_exe="$(cygpath -w "$dst_dir/neru.exe" 2>/dev/null || echo "$dst_dir/neru.exe")"
-                if reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v Neru /t REG_SZ /d "\"$win_exe\" launch" /f >/dev/null 2>&1; then
+                # MSYS2_ARG_CONV_EXCL='*' stops Git Bash from rewriting reg's
+                # /v /t /d /f flags (and the HKCU\... key) as POSIX paths.
+                if MSYS2_ARG_CONV_EXCL='*' reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v Neru /t REG_SZ /d "\"$win_exe\" launch" /f >/dev/null 2>&1; then
                     echo "✓ Neru will start at login"
-                    echo "  Remove later with: reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v Neru /f"
+                    echo "  Remove later with: MSYS2_ARG_CONV_EXCL='*' reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v Neru /f"
                 else
                     echo "Could not write the Run key; add autostart manually." >&2
                 fi

@@ -288,7 +288,6 @@ PartOf=graphical-session.target
 ExecStart=%h/.local/bin/neru launch
 Restart=on-failure
 RestartSec=5
-Nice=-10
 
 [Install]
 WantedBy=graphical-session.target

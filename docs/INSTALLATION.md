@@ -463,17 +463,43 @@ package = pkgs.neru-source.overrideAttrs (_: {
 - Xcode Command Line Tools
 - Just command runner
 
-### Build
+### Build and install
+
+The `just install` recipe builds nothing on its own, so build first, then run it.
+It walks you through the platform-appropriate steps, asking before each one.
 
 ```bash
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-# Build CLI
+# macOS: build the app bundle, then install it
+just bundle
+just install   # copies Neru.app to /Applications, registers the login agent,
+               # links `neru` onto PATH, and offers completions and man pages
+
+# Linux: build the native binary, then install it
+just build
+just install   # copies neru to ~/.local/bin, offers a systemd user service,
+               # the input group for Wayland, completions, and man pages
+
+# Windows (from Git Bash): build the exe, then install it
+just build-windows
+just install   # copies neru.exe under %LOCALAPPDATA% and offers a login autostart entry
+```
+
+`just install` refuses to run over a Homebrew or Nix-managed install and tells you
+to update it there instead. It is interactive; answer each prompt.
+
+### Build and install manually
+
+If you would rather place the files yourself:
+
+```bash
+# macOS CLI only
 just release
 mv ./bin/neru /usr/local/bin/neru
 
-# Or build app bundle
+# macOS app bundle
 just bundle
 mv ./build/Neru.app /Applications/Neru.app
 ```
