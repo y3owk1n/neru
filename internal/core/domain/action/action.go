@@ -155,8 +155,6 @@ const (
 	NameMoveMonitor Name = "move_monitor"
 	// NameFeed posts a key or key chord directly to the operating system.
 	NameFeed Name = "feed"
-	// NameFeedToMode posts a key or key chord to Neru's own mode system.
-	NameFeedToMode Name = "feed-mode"
 	// NameGoTop represents the go-to-top action.
 	NameGoTop Name = "go_top"
 	// NameGoBottom represents the go-to-bottom action.
@@ -269,7 +267,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameFeedToMode, NameSleep, NameCycleHint, NameSearchHints:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
 		return true
 	default:
 		return false
@@ -279,11 +277,6 @@ func IsKnownName(name Name) bool {
 // IsFeedAction reports whether the given action feeds a key to the operating system.
 func IsFeedAction(name string) bool {
 	return Name(name) == NameFeed
-}
-
-// IsFeedToModeAction reports whether the given action feeds a key to Neru's own mode system.
-func IsFeedToModeAction(name string) bool {
-	return Name(name) == NameFeedToMode
 }
 
 // IsScrollSubAction reports whether the given name is a scroll sub-action
@@ -297,7 +290,7 @@ func IsScrollSubAction(name string) bool {
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameFeedToMode, NameSleep, NameCycleHint, NameSearchHints:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
 		return false
 	default:
 		return false
@@ -373,7 +366,6 @@ func (n Name) ToType() (Type, error) {
 		NameRestoreCursorPos,
 		NameMoveMonitor,
 		NameFeed,
-		NameFeedToMode,
 		NameSleep,
 		NameCycleHint,
 		NameSearchHints:

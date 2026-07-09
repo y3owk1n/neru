@@ -277,10 +277,6 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	actionName := cmd.Args[0]
 
-	if action.IsFeedToModeAction(actionName) {
-		return h.handleFeedToModeAction(cmd.Args[1:])
-	}
-
 	if action.IsFeedAction(actionName) {
 		return h.handleFeedAction(cmd.Args[1:])
 	}

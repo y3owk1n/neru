@@ -33,14 +33,15 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		toMode, _ := cmd.Flags().GetBool("mode")
 
-		actionName := "feed"
+		capacity := len(args) + 2 //nolint:mnd // "feed" + optional "--mode" + keys
+
+		actionArgs := make([]string, 0, capacity)
+
+		actionArgs = append(actionArgs, "feed")
 		if toMode {
-			actionName = "feed-mode"
+			actionArgs = append(actionArgs, "--mode")
 		}
 
-		actionArgs := make([]string, 0, len(args)+1)
-
-		actionArgs = append(actionArgs, actionName)
 		for _, arg := range args {
 			actionArgs = append(actionArgs, strings.TrimSpace(arg))
 		}
