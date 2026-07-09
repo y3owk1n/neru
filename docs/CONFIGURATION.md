@@ -426,17 +426,37 @@ y_offset = 24
 width = 320
 ```
 
+### Auto Refresh
+
+Push-based auto-refresh of hints while hints mode is active (macOS). When enabled, neru watches the processes the hint scan targeted using accessibility change notifications (`AXObserver`) and re-scans when they actually change, instead of relying on a fixed post-action delay. Observers run only while hints mode is active, so an idle neru has no background cost.
+
+Coverage for web and Electron content is best effort: it depends on the app posting accessibility notifications, which Chromium and WebKit do inconsistently (for example, often nothing on scroll). Native apps, menus, and Notification Center are reliable.
+
+| Option                | Type | Default | Description                                                                      |
+| --------------------- | ---- | ------- | -------------------------------------------------------------------------------- |
+| `enabled`             | bool | `false` | Enable push-based auto-refresh while hints mode is active                         |
+| `debounce_ms`         | int  | `80`    | Trailing coalesce/floor interval; a burst of changes collapses into one refresh  |
+| `watch_value_changed` | bool | `false` | Also observe `kAXValueChanged` on the front window (noisy; off by default)        |
+
+```toml
+[hints.auto_refresh]
+enabled = false
+debounce_ms = 80
+watch_value_changed = false
+```
+
 ### Additional AX Support
 
-Framework-specific accessibility improvements for Electron, Chromium, Firefox, and WebKit apps:
+Wakes Electron, Chromium, and Firefox accessibility trees so their hints (and auto-refresh notifications) work. `AXManualAccessibility` is attempted for every activated app (a safe no-op on apps that do not implement it, so it also covers Electron apps that are not on any list). `AXEnhancedUserInterface`, which can relayout or move some apps, is only used according to `escalate_enhanced`.
 
-| Option                        | Type  | Default | Description                  |
-| ----------------------------- | ----- | ------- | ---------------------------- |
-| `enable`                      | bool  | `false` | Enable additional AX support |
-| `additional_electron_bundles` | array | `[]`    | Bundle IDs of Electron apps  |
-| `additional_chromium_bundles` | array | `[]`    | Bundle IDs of Chromium apps  |
-| `additional_firefox_bundles`  | array | `[]`    | Bundle IDs of Firefox apps   |
-| `additional_webkit_bundles`   | array | `[]`    | Bundle IDs of WebKit apps    |
+| Option                        | Type   | Default       | Description                                                                                     |
+| ----------------------------- | ------ | ------------- | ---------------------------------------------------------------------------------------------- |
+| `enable`                      | bool   | `false`       | Enable waking accessibility trees on app activation                                            |
+| `additional_electron_bundles` | array  | `[]`          | Bundle IDs of Electron apps                                                                     |
+| `additional_chromium_bundles` | array  | `[]`          | Bundle IDs of Chromium apps                                                                     |
+| `additional_firefox_bundles`  | array  | `[]`          | Bundle IDs of Firefox apps                                                                      |
+| `additional_webkit_bundles`   | array  | `[]`          | Bundle IDs of WebKit apps                                                                       |
+| `escalate_enhanced`           | string | `"whitelist"` | When `AXEnhancedUserInterface` is used: `"whitelist"` (browsers only), `"off"`, or `"all"`      |
 
 ```toml
 [hints.additional_ax_support]
@@ -445,6 +465,7 @@ additional_electron_bundles = []
 additional_chromium_bundles = []
 additional_firefox_bundles = []
 additional_webkit_bundles = []
+escalate_enhanced = "whitelist"
 ```
 
 Find bundle IDs: `osascript -e 'id of app "Safari"'`

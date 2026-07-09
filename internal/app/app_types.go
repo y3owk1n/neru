@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 )
@@ -58,6 +59,10 @@ type App struct {
 	appWatcher     Watcher
 
 	modes *modes.Handler
+
+	// observers watches the processes the hint scan targeted and drives push-based
+	// hint auto-refresh. Inert unless auto-refresh is configured on.
+	observers *axobserver.Manager
 
 	// Control channels
 	stopChan    chan struct{}

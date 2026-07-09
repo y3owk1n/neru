@@ -43,6 +43,12 @@ type ApplicationInfo interface {
 	// configured exclusion list. The identifier format is platform-dependent
 	// (see FocusedAppBundleID).
 	IsAppExcluded(ctx context.Context, bundleID string) bool
+
+	// PIDForBundleID returns the process id of a running application identified
+	// by bundleID, or an error if it is not running. Used to resolve the fixed
+	// system processes (dock, Notification Center, etc.) that hint sources scan,
+	// so a push observer can attach to exactly those processes.
+	PIDForBundleID(ctx context.Context, bundleID string) (int, error)
 }
 
 // AccessibilityPort defines the interface for interacting with the platform

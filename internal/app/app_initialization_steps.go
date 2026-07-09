@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"os"
 
 	"go.uber.org/zap"
 
@@ -18,6 +19,7 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
@@ -413,6 +415,18 @@ func initializeModeHandler(app *App) {
 		app.textInput,
 		app.systemPort,
 	)
+
+	// Wire push-based hint auto-refresh. The manager is inert until Reconcile is
+	// called (only while hints mode is active), so it is always constructed;
+	// disabling auto-refresh simply means Reconcile is never called. On non-darwin
+	// platforms the underlying observer is a no-op.
+	app.observers = axobserver.NewManager(deps.logger, axobserver.Config{
+		SelfPID:           os.Getpid(),
+		SelfBundleID:      config.BundleNeru,
+		WatchValueChanged: deps.config.Hints.AutoRefresh.WatchValueChanged,
+		OnChange:          app.modes.RequestObserverRefresh,
+	})
+	app.modes.SetObserverController(app.observers)
 }
 
 // initializeIPCController sets up the IPC controller for external communication.

@@ -100,12 +100,33 @@ visible_check_enabled = false
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
+[hints.auto_refresh]
+# Push-based auto-refresh of hints while hints mode is active (macOS). neru
+# watches the processes the hint scan targeted via accessibility change
+# notifications (AXObserver) and re-scans when they change, instead of relying on
+# a fixed post-action delay. Observers run only while hints mode is active, so an
+# idle neru has no background cost.
+#
+# Web/Electron coverage is best effort: it depends on the app posting
+# accessibility notifications, which Chromium/WebKit do inconsistently (often
+# nothing on scroll). Native apps, menus, and Notification Center are reliable.
+enabled = false
+debounce_ms = 80             # trailing coalesce/floor; a burst collapses into one refresh
+watch_value_changed = false  # also observe kAXValueChanged on the front window (noisy)
+
 [hints.additional_ax_support]
-enable = false                              # Enable enhanced AX for Electron/Chromium/Firefox/WebKit apps
+# Wakes Electron/Chromium/Firefox accessibility trees so their hints (and change
+# notifications) work. AXManualAccessibility is attempted for every activated app
+# (a safe no-op on apps that do not implement it).
+enable = false
 additional_electron_bundles = []
 additional_chromium_bundles = []
 additional_firefox_bundles = []
 additional_webkit_bundles = []
+# When AXEnhancedUserInterface (which can relayout/move some apps) is used:
+# "whitelist" (default) = known/added browsers only; "off" = never; "all" = any
+# app whose tree does not wake.
+escalate_enhanced = "whitelist"
 
 [hints.ui]
 font_size = 10

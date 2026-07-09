@@ -147,6 +147,9 @@ const (
 	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
 	DefaultMaxDepth = 50
 
+	// DefaultAutoRefreshDebounceMs is the default hint auto-refresh debounce.
+	DefaultAutoRefreshDebounceMs = 80
+
 	// DefaultChildrenCapacity is the default children capacity.
 	DefaultChildrenCapacity = 8
 
@@ -426,9 +429,14 @@ func newDefaultConfig() *Config {
 			IncludeStageManagerHints:      false,
 			IncludePIPHints:               false,
 			IncludeScreenCaptureHints:     false,
-			DetectMissionControl:          false,
-			OnMissionControlActivated:     nil,
-			OnMissionControlDeactivated:   nil,
+			AutoRefresh: AutoRefreshConfig{
+				Enabled:           false,
+				DebounceMs:        DefaultAutoRefreshDebounceMs,
+				WatchValueChanged: false,
+			},
+			DetectMissionControl:        false,
+			OnMissionControlActivated:   nil,
+			OnMissionControlDeactivated: nil,
 
 			ClickableRoles: []string{},
 
@@ -443,6 +451,7 @@ func newDefaultConfig() *Config {
 				AdditionalChromiumBundles: []string{},
 				AdditionalFirefoxBundles:  []string{},
 				AdditionalWebKitBundles:   []string{},
+				EscalateEnhanced:          EscalateEnhancedWhitelist,
 			},
 		},
 		Grid: GridConfig{

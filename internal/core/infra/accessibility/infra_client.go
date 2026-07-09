@@ -417,6 +417,7 @@ func (a *InfraApp) Info() (*AXAppInfo, error) {
 	return &AXAppInfo{
 		Role:  info.Role(),
 		Title: info.Title(),
+		PID:   info.PID(),
 	}, nil
 }
 
@@ -434,6 +435,33 @@ func (n *InfraNode) ID() string {
 	}
 
 	return fmt.Sprintf("elem_%p", n.node.Element())
+}
+
+// StableID returns a cross-scan identity for the node ("pid:cfhash" on macOS),
+// or "" when no stable identity is available (non-darwin, or the hash could not
+// be computed). Unlike ID, this is stable across separate scans for the same
+// underlying native element, so hint labels can persist across auto-refreshes.
+func (n *InfraNode) StableID() string {
+	if n.node == nil {
+		return ""
+	}
+
+	el := n.node.Element()
+	if el == nil {
+		return ""
+	}
+
+	hash, hashErr := el.Hash()
+	if hashErr != nil || hash == 0 {
+		return ""
+	}
+
+	pid := 0
+	if info := n.node.Info(); info != nil {
+		pid = info.PID()
+	}
+
+	return fmt.Sprintf("%d:%d", pid, hash)
 }
 
 // Bounds returns the node bounds.

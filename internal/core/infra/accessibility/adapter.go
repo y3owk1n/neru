@@ -488,6 +488,37 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 	return a.excludedBundles[bundleID]
 }
 
+// PIDForBundleID returns the process id of a running application by bundle ID,
+// or an error if it is not running.
+func (a *Adapter) PIDForBundleID(ctx context.Context, bundleID string) (int, error) {
+	if err := a.checkContext(ctx); err != nil {
+		return 0, err
+	}
+
+	app, appErr := a.client.ApplicationByBundleID(ctx, bundleID)
+	if appErr != nil {
+		return 0, appErr
+	}
+
+	if app == nil {
+		return 0, derrors.Newf(
+			derrors.CodeAccessibilityFailed, "application %q is not running", bundleID)
+	}
+	defer app.Release()
+
+	info, infoErr := app.Info()
+	if infoErr != nil {
+		return 0, infoErr
+	}
+
+	if info.PID <= 0 {
+		return 0, derrors.Newf(
+			derrors.CodeAccessibilityFailed, "no pid for application %q", bundleID)
+	}
+
+	return info.PID, nil
+}
+
 // Health checks if the accessibility permissions are granted.
 func (a *Adapter) Health(ctx context.Context) error {
 	// Check context

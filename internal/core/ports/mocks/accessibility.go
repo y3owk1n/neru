@@ -21,6 +21,7 @@ type MockAccessibilityPort struct {
 	ScrollFunc               func(context.Context, int, int) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
+	PIDForBundleIDFunc       func(context.Context, string) (int, error)
 }
 
 // Health implements ports.AccessibilityPort.
@@ -96,6 +97,15 @@ func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID stri
 	}
 
 	return false
+}
+
+// PIDForBundleID implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) PIDForBundleID(ctx context.Context, bundleID string) (int, error) {
+	if m.PIDForBundleIDFunc != nil {
+		return m.PIDForBundleIDFunc(ctx, bundleID)
+	}
+
+	return 0, nil
 }
 
 // Ensure MockAccessibilityPort implements ports.AccessibilityPort.

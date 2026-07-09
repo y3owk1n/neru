@@ -369,6 +369,76 @@ func (s *HintService) generateHintsAX(
 	return elements, nil
 }
 
+// ObservationTargets returns the set of processes the current hint scan targets,
+// for a push-based change observer to watch while hints mode is active.
+//
+// The frontmost application's pid is resolved live because it is the only
+// drift-sensitive target (it depends on which app is focused right now). The
+// fixed system sources are resolved by their constant bundle IDs, gated by the
+// same include settings the scan uses, so an absent process simply yields no
+// target. Under the vision strategy no front-window target is emitted: that
+// window is detected via the Vision framework rather than the accessibility
+// tree, so there is no accessibility notification that corresponds to it.
+func (s *HintService) ObservationTargets(
+	ctx context.Context,
+	bundleID string,
+	strategy string,
+) []ports.ObservationTarget {
+	s.mu.RLock()
+	cfg := s.config
+	s.mu.RUnlock()
+
+	targets := make([]ports.ObservationTarget, 0, 8)
+
+	frontPID, pidErr := s.system.FocusedApplicationPID(ctx)
+	if pidErr != nil {
+		s.logger.Debug("observation targets: no focused pid", zap.Error(pidErr))
+	} else if frontPID > 0 {
+		if strategy != config.StrategyVision {
+			targets = append(targets, ports.ObservationTarget{
+				PID:      frontPID,
+				BundleID: bundleID,
+				Source:   ports.ObservationFrontWindow,
+			})
+		}
+
+		if cfg.IncludeMenubarHints {
+			targets = append(targets, ports.ObservationTarget{
+				PID:      frontPID,
+				BundleID: bundleID,
+				Source:   ports.ObservationAppMenubar,
+			})
+		}
+	}
+
+	add := func(enabled bool, bundle string, src ports.ObservationSource) {
+		if !enabled || bundle == "" {
+			return
+		}
+
+		pid, err := s.accessibility.PIDForBundleID(ctx, bundle)
+		if err != nil || pid <= 0 {
+			return
+		}
+
+		targets = append(targets, ports.ObservationTarget{PID: pid, BundleID: bundle, Source: src})
+	}
+
+	add(cfg.IncludeNCHints, config.BundleNotificationCenter, ports.ObservationNotificationCenter)
+	add(cfg.IncludeDockHints, config.BundleDock, ports.ObservationDock)
+	add(cfg.IncludeStageManagerHints, config.BundleWindowManager, ports.ObservationStageManager)
+	add(cfg.IncludePIPHints, config.BundlePIPAgent, ports.ObservationPIP)
+	add(cfg.IncludeScreenCaptureHints, config.BundleScreenCaptureUI, ports.ObservationScreenCapture)
+
+	if cfg.IncludeMenubarHints {
+		for _, target := range cfg.AdditionalMenubarHintsTargets {
+			add(true, target, ports.ObservationAdditionalMenubar)
+		}
+	}
+
+	return targets
+}
+
 // generateHintsVision collects window elements via vision detection and
 // supplementary elements (menubar, dock, etc.) via AX. This hybrid approach
 // ensures system UI is always detected while the frontmost window content

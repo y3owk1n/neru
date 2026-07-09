@@ -706,6 +706,7 @@ type HintsConfig struct {
 	IncludeStageManagerHints      bool                `json:"includeStageManagerHints"      toml:"include_stage_manager_hints"`
 	IncludePIPHints               bool                `json:"includePipHints"               toml:"include_pip_hints"`
 	IncludeScreenCaptureHints     bool                `json:"includeScreenCaptureHints"     toml:"include_screen_capture_hints"`
+	AutoRefresh                   AutoRefreshConfig   `json:"autoRefresh"                   toml:"auto_refresh"`
 	DetectMissionControl          bool                `json:"detectMissionControl"          toml:"detect_mission_control"`
 	OnMissionControlActivated     StringOrStringArray `json:"onMissionControlActivated"     toml:"on_mission_control_activated"`
 	OnMissionControlDeactivated   StringOrStringArray `json:"onMissionControlDeactivated"   toml:"on_mission_control_deactivated"`
@@ -913,6 +914,36 @@ type HeldRepeatConfig struct {
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
 }
 
+// AutoRefreshConfig configures push-based auto-refresh of hints while hints mode
+// is active. On macOS this observes accessibility change notifications (AXObserver)
+// on the processes the hint scan targeted and re-scans when they change, instead
+// of relying on a fixed post-action delay. Observers run only while hints mode is
+// active, so an idle process has zero background cost.
+type AutoRefreshConfig struct {
+	// Enabled turns on push-based auto-refresh. Off by default.
+	Enabled bool `json:"enabled" toml:"enabled"`
+	// DebounceMs is the trailing coalesce/floor interval in milliseconds: a burst
+	// of notifications collapses into one refresh, and sustained churn is capped
+	// to roughly one refresh per interval. 0 uses a built-in default.
+	DebounceMs int `json:"debounceMs" toml:"debounce_ms"`
+	// WatchValueChanged also observes kAXValueChanged on the front window. It is
+	// the noisiest notification and off by default.
+	WatchValueChanged bool `json:"watchValueChanged" toml:"watch_value_changed"`
+}
+
+// Enhanced-attribute escalation modes for AdditionalAXSupport.EscalateEnhanced.
+const (
+	// EscalateEnhancedWhitelist escalates to AXEnhancedUserInterface only for
+	// apps matched by the browser bundle lists. Default and recommended.
+	EscalateEnhancedWhitelist = "whitelist"
+	// EscalateEnhancedOff never sets AXEnhancedUserInterface (AXManualAccessibility
+	// only). Safest, but Chrome/Firefox will not expose their tree.
+	EscalateEnhancedOff = "off"
+	// EscalateEnhancedAll escalates to AXEnhancedUserInterface on any app whose
+	// tree does not wake. Broadest coverage, but can relayout/move native apps.
+	EscalateEnhancedAll = "all"
+)
+
 // AdditionalAXSupport defines accessibility support for specific application frameworks.
 type AdditionalAXSupport struct {
 	Enable                    bool     `json:"enable"                    toml:"enable"`
@@ -920,6 +951,10 @@ type AdditionalAXSupport struct {
 	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
 	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`
 	AdditionalWebKitBundles   []string `json:"additionalWebKitBundles"   toml:"additional_webkit_bundles"`
+	// EscalateEnhanced controls when AXEnhancedUserInterface is set: "whitelist"
+	// (default; browsers only), "off", or "all". AXManualAccessibility is always
+	// attempted for every activated app regardless of this setting.
+	EscalateEnhanced string `json:"escalateEnhanced" toml:"escalate_enhanced"`
 }
 
 // SystrayConfig defines system tray settings.

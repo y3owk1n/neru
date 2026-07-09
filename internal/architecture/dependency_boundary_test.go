@@ -40,9 +40,13 @@ func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 		}
 
 		slashed := filepath.ToSlash(relPath)
+		// Files that are darwin-only by Go's build system may import the darwin
+		// platform package: they are never part of a non-darwin build. That
+		// covers the platform/darwin package itself, any *_darwin.go file, and any
+		// *_darwin_test.go file (the GOOS suffix applies to test files too).
 		if strings.Contains(slashed, "/platform/darwin/") ||
 			strings.HasSuffix(slashed, "_darwin.go") ||
-			strings.HasSuffix(slashed, "integration_darwin_test.go") {
+			strings.HasSuffix(slashed, "_darwin_test.go") {
 			return nil
 		}
 

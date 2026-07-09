@@ -94,7 +94,15 @@ type Handler struct {
 	shutdown                   func()
 	refreshHintsTimer          *time.Timer
 	modeSession                uint64
-	hotkeyLastKey              string
+
+	// Push-based hint auto-refresh (macOS). observers watches the processes the
+	// hint scan targeted; refreshCoordinator coalesces change notifications into
+	// refreshes and defers them while the user is mid-selection. Both are nil/
+	// inert unless auto-refresh is configured on.
+	observers          ObserverController
+	refreshCoordinator *refreshCoordinator
+
+	hotkeyLastKey     string
 	hotkeyLastKeyTime          int64
 
 	textInput                  ports.TextInputPort
@@ -233,6 +241,20 @@ func NewHandler(
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
 	}
+
+	// The refresh coordinator coalesces observer-driven refreshes. It is always
+	// constructed (cheap and inert until Request is called), so RequestObserverRefresh
+	// is safe even before an observer controller is wired.
+	debounce := time.Duration(0)
+	if config != nil && config.Hints.AutoRefresh.DebounceMs > 0 {
+		debounce = time.Duration(config.Hints.AutoRefresh.DebounceMs) * time.Millisecond
+	}
+
+	handler.refreshCoordinator = newRefreshCoordinator(refreshCoordinatorConfig{
+		debounce:    debounce,
+		onRefresh:   handler.observerDrivenRefresh,
+		shouldDefer: handler.isMidSelection,
+	})
 
 	return handler
 }

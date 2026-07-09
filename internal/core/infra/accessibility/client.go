@@ -63,6 +63,7 @@ type AXClient interface {
 type AXAppInfo struct {
 	Role  string
 	Title string
+	PID   int
 }
 
 // AXApp represents an application element.

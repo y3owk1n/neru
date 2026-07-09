@@ -35,6 +35,7 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
+	h.syncObservers(mode)
 }
 
 func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {

@@ -12,65 +12,58 @@ import (
 )
 
 const (
-	electronAttributeName = "AXManualAccessibility"
+	manualAttributeName   = "AXManualAccessibility"
 	enhancedAttributeName = "AXEnhancedUserInterface"
 )
 
+// axCacheEntry records the outcome of an enable attempt for one pid.
+type axCacheEntry struct {
+	bundle string
+	ok     bool
+	at     time.Time
+}
+
 var (
-	electronPIDsMu      sync.Mutex
-	electronEnabledPIDs = make(map[int]struct{})
-	chromiumPIDsMu      sync.Mutex
-	chromiumEnabledPIDs = make(map[int]struct{})
-	firefoxPIDsMu       sync.Mutex
-	firefoxEnabledPIDs  = make(map[int]struct{})
+	enabledPIDsMu sync.Mutex
+	// enabledPIDs caches the enable outcome per pid. Keying on the bundle id too
+	// means a recycled pid (same number, different app after a quit/relaunch) is
+	// treated as new. A positive result is cached permanently; a negative result
+	// is honored only for non-patient apps and only for negativeCacheTTL, so a
+	// native app is not re-probed on every activation while a classified app can
+	// still be retried as its tree boots.
+	enabledPIDs = make(map[int]axCacheEntry)
 )
 
 const (
-	accessibilityRetryCount = 10
-	accessibilityRetryDelay = 100 * time.Millisecond
-	maxAccessibilityDepth   = 10
+	accessibilityRetryCount   = 10
+	quickAccessibilityRetries = 3
+	accessibilityRetryDelay   = 100 * time.Millisecond
+	// negativeCacheTTL bounds how often a non-patient (unclassified) app that did
+	// not become usable is re-probed.
+	negativeCacheTTL = 30 * time.Second
+	// maxAccessibilityDepth and maxAccessibilityNodes bound the tree probe so it
+	// stays cheap even though EnsureAppAccessibility now runs for every activated
+	// app (not just a whitelist).
+	maxAccessibilityDepth = 8
+	maxAccessibilityNodes = 400
 )
 
-// EnsureElectronAccessibility ensures Electron accessibility is enabled for the provided bundle ID.
-func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&electronPIDsMu,
-		electronEnabledPIDs,
-		logger,
-		true,
-	)
-}
-
-// EnsureChromiumAccessibility ensures Chromium accessibility is enabled for the provided bundle ID.
-func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&chromiumPIDsMu,
-		chromiumEnabledPIDs,
-		logger,
-		false,
-	)
-}
-
-// EnsureFirefoxAccessibility ensures Firefox accessibility is enabled for the provided bundle ID.
-func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&firefoxPIDsMu,
-		firefoxEnabledPIDs,
-		logger,
-		false,
-	)
-}
-
-func ensureAccessibility(
-	bundleID string,
-	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
-	logger *zap.Logger,
-	isElectron bool,
-) bool {
+// EnsureAppAccessibility wakes an application's accessibility tree if it is not
+// already usable, caching the result per pid.
+//
+// AXManualAccessibility is always attempted first: it wakes Electron and
+// Chromium trees and is a harmless no-op on apps that do not implement it, with
+// no window side effects. AXEnhancedUserInterface — which some apps react to by
+// relaying out or moving their windows — is attempted only when allowEnhanced is
+// true, so it is never sprayed on native apps. Callers derive allowEnhanced from
+// AdditionalAXSupport.EscalateEnhanced (browsers only by default).
+//
+// patient controls how hard we wait and re-probe. Classified apps (browsers,
+// listed Electron) are patient: they get the full retry window and ignore the
+// negative cache, because their tree may still be booting. Unclassified apps are
+// impatient: a short wait and a negative cache, so a native app is not re-probed
+// (a bounded but non-trivial tree walk) on every activation.
+func EnsureAppAccessibility(bundleID string, allowEnhanced, patient bool, logger *zap.Logger) bool {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -90,74 +83,83 @@ func ensureAccessibility(
 	}
 
 	pid := info.PID()
-
 	if pid <= 0 {
 		return false
 	}
 
-	pidsMu.Lock()
+	enabledPIDsMu.Lock()
+	entry, cached := enabledPIDs[pid]
+	enabledPIDsMu.Unlock()
 
-	_, already := enabledPIDs[pid]
-
-	pidsMu.Unlock()
-
-	if already {
-		return true
-	}
-
-	if hasUsableAccessibilityTree(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
-
-		return true
-	}
-
-	if isElectron {
-		success := platformSetApplicationAttribute(pid, electronAttributeName, true)
-
-		if !success {
-			logger.Debug(
-				"Failed to set AXManualAccessibility",
-				zap.Int("pid", pid),
-				zap.String("bundle_id", bundleID),
-			)
+	if cached && entry.bundle == bundleID {
+		if entry.ok {
+			return true
+		}
+		// Recently probed and unusable. Impatient apps skip the re-probe; patient
+		// apps fall through and retry as their tree may still be coming up.
+		if !patient && time.Since(entry.at) < negativeCacheTTL {
+			return false
 		}
 	}
 
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
+	// Already usable (accessibility already on, or a native app with a scroll
+	// area): nothing to do, and no attribute is touched.
+	if hasUsableAccessibilityTree(app, logger) {
+		markPIDResult(pid, bundleID, true)
 
 		return true
 	}
 
-	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
+	// Safe listless step for every app.
+	if !platformSetApplicationAttribute(pid, manualAttributeName, true) {
+		logger.Debug("Failed to set AXManualAccessibility",
+			zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+	}
 
-	if !success {
-		logger.Debug(
-			"Failed to enable AXEnhancedUserInterface",
-			zap.Int("pid", pid),
-			zap.String("bundle_id", bundleID),
-		)
+	if waitForAccessibility(app, patient, logger) {
+		markPIDResult(pid, bundleID, true)
+
+		return true
+	}
+
+	// Gated escalation: only for apps the caller allows (browsers by default),
+	// never native apps.
+	if !allowEnhanced {
+		logger.Debug("Accessibility tree not usable; enhanced escalation not allowed",
+			zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+		markPIDResult(pid, bundleID, false)
 
 		return false
 	}
 
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
+	if !platformSetApplicationAttribute(pid, enhancedAttributeName, true) {
+		logger.Debug("Failed to enable AXEnhancedUserInterface",
+			zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+		markPIDResult(pid, bundleID, false)
+
+		return false
+	}
+
+	if waitForAccessibility(app, patient, logger) {
+		markPIDResult(pid, bundleID, true)
 
 		return true
 	}
 
-	logger.Warn(
-		"Accessibility could not be enabled",
-		zap.Int("pid", pid),
-		zap.String("bundle_id", bundleID),
-	)
+	logger.Warn("Accessibility could not be enabled",
+		zap.Int("pid", pid), zap.String("bundle_id", bundleID))
+	markPIDResult(pid, bundleID, false)
 
 	return false
 }
 
-func waitForAccessibility(app *accessibility.Element, logger *zap.Logger) bool {
-	for range accessibilityRetryCount {
+func waitForAccessibility(app *accessibility.Element, patient bool, logger *zap.Logger) bool {
+	retries := quickAccessibilityRetries
+	if patient {
+		retries = accessibilityRetryCount
+	}
+
+	for range retries {
 		if hasUsableAccessibilityTree(app, logger) {
 			return true
 		}
@@ -179,6 +181,7 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 	}
 
 	queue := []entry{{root, 0}}
+	visited := 0
 
 	for len(queue) > 0 {
 		cur := queue[0]
@@ -186,6 +189,11 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 
 		if cur.el == nil {
 			continue
+		}
+
+		visited++
+		if visited > maxAccessibilityNodes {
+			return false
 		}
 
 		info, err := cur.el.Info()
@@ -219,15 +227,11 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 	return false
 }
 
-func markPIDEnabled(
-	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
-	pid int,
-) {
-	pidsMu.Lock()
-	defer pidsMu.Unlock()
+func markPIDResult(pid int, bundleID string, ok bool) {
+	enabledPIDsMu.Lock()
+	defer enabledPIDsMu.Unlock()
 
-	enabledPIDs[pid] = struct{}{}
+	enabledPIDs[pid] = axCacheEntry{bundle: bundleID, ok: ok, at: time.Now()}
 }
 
 // ShouldEnableElectronSupport determines if the provided bundle identifier

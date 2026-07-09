@@ -78,6 +78,10 @@ type Element struct {
 	value       string
 	searchText  string
 	visionOnly  bool
+	// stableID is a cross-scan identity (e.g. "pid:cfhash" on macOS), used to
+	// carry a hint's label across auto-refreshes when the element persists. Empty
+	// when no stable identity is available (the element then gets a fresh label).
+	stableID string
 }
 
 // NewElement creates a new element with validation.
@@ -142,6 +146,13 @@ func WithSearchText(text string) Option {
 	}
 }
 
+// WithStableID sets a cross-scan identity used for stable hint labels.
+func WithStableID(id string) Option {
+	return func(e *Element) {
+		e.stableID = id
+	}
+}
+
 // WithVisionOnly marks the element as detected via vision rather than
 // the accessibility tree. Vision-only elements have no AX reference and
 // actions must always use coordinate-based clicks (PerformActionAtPoint).
@@ -196,6 +207,11 @@ func (e *Element) SearchText() string {
 // actions must use coordinate-based clicks (PerformActionAtPoint).
 func (e *Element) IsVisionOnly() bool {
 	return e.visionOnly
+}
+
+// StableID returns the cross-scan identity, or "" if none is available.
+func (e *Element) StableID() string {
+	return e.stableID
 }
 
 // Center returns the center point of the element.

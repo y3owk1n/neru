@@ -400,6 +400,16 @@ func (h *Handler) activateHintModeInternal(
 		return
 	}
 
+	// On a refresh, carry each persisting element's label over from the previous
+	// scan so hints do not reshuffle. Prefix-freeness is preserved because the set
+	// of labels is unchanged; only their assignment to elements is permuted.
+	if isRefresh && h.hints != nil && h.hints.Context != nil {
+		if prev := h.hints.Context.SourceHints(); prev != nil {
+			domainHints = domainHint.ReuseLabels(
+				domainHints, domainHint.LabelsByStableID(prev.All()))
+		}
+	}
+
 	// Create domain hint collection from generated hints
 	hintCollection := domainHint.NewCollection(domainHints)
 
@@ -492,6 +502,11 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.startIndicatorPolling(domain.ModeHints)
+
+	// Keep the push observer aimed at exactly the processes this scan targeted.
+	// Runs for the initial activation and every refresh, so a front-app switch
+	// re-targets. The observer arm/disarm itself happens off this lock.
+	h.reconcileObserversLocked(bundleID, strategy)
 }
 
 // ensureScreenCapturePermissionsLocked checks and requests screen capture permissions.

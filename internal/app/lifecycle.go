@@ -193,6 +193,14 @@ func (a *App) setupAppWatcherCallbacks() {
 		a.handleAppActivation(bundleID)
 	})
 
+	// Proactively disarm observers for a quit application (dead pid), so a
+	// terminated app's observer is torn down without waiting for the next scan.
+	a.appWatcher.OnTerminate(func(_, bundleID string) {
+		if a.observers != nil {
+			a.observers.HandleAppTerminated(bundleID)
+		}
+	})
+
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -427,23 +435,45 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 }
 
-// handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
+// handleAdditionalAccessibility wakes an application's accessibility tree so its
+// hints (and change notifications) work. AXManualAccessibility is attempted for
+// every activated app (a safe no-op on apps that do not implement it, so it
+// catches Electron apps that are not on any list), while AXEnhancedUserInterface
+// escalation — which can relayout/move native apps — is gated by the configured
+// EscalateEnhanced mode so it is never sprayed on native apps.
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
-	config := cfg.Hints.AdditionalAXSupport
+	axCfg := cfg.Hints.AdditionalAXSupport
 
-	isElectron := electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles)
-	isChromium := electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles)
-	isFirefox := electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles)
+	// Classification decides only whether AXEnhancedUserInterface may be used.
+	isElectron := electron.ShouldEnableElectronSupport(bundleID, axCfg.AdditionalElectronBundles)
+	isChromium := electron.ShouldEnableChromiumSupport(bundleID, axCfg.AdditionalChromiumBundles)
+	isFirefox := electron.ShouldEnableFirefoxSupport(bundleID, axCfg.AdditionalFirefoxBundles)
+	classified := isElectron || isChromium || isFirefox
 
-	if !isElectron && !isChromium && !isFirefox {
-		return
+	allowEnhanced := false
+
+	switch axCfg.EscalateEnhanced {
+	case config.EscalateEnhancedAll:
+		allowEnhanced = true
+	case config.EscalateEnhancedOff:
+		allowEnhanced = false
+	default: // whitelist (and any unrecognized value): classified browsers/electron only
+		allowEnhanced = classified
 	}
 
 	go func() {
-		// Apps may need time to initialize their accessibility tree after launch.
-		// We retry a few times to ensure the accessibility attributes are successfully set.
-		// Use exponential backoff to minimize latency for fast-booting apps while
-		// still accommodating slow-booting ones.
+		// Unclassified apps get a single cheap attempt (short wait, negative-cached
+		// in EnsureAppAccessibility), so a native app is not re-probed with a full
+		// retry storm on every activation.
+		if !classified {
+			electron.EnsureAppAccessibility(bundleID, allowEnhanced, false, a.logger)
+
+			return
+		}
+
+		// Classified apps (browsers, listed Electron) may need time to initialize
+		// their accessibility tree after launch. Retry with exponential backoff to
+		// minimize latency for fast-booting apps while accommodating slow ones.
 		const (
 			maxRetries    = 5
 			initialDelay  = 100 * time.Millisecond
@@ -452,31 +482,10 @@ func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config)
 
 		delay := initialDelay
 		for range maxRetries {
-			allSuccess := true
-
-			if isElectron {
-				if !electron.EnsureElectronAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isChromium {
-				if !electron.EnsureChromiumAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isFirefox {
-				if !electron.EnsureFirefoxAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if allSuccess {
+			if electron.EnsureAppAccessibility(bundleID, allowEnhanced, true, a.logger) {
 				return
 			}
 
-			// Wait before retrying
 			time.Sleep(delay)
 			delay *= backoffFactor
 		}
@@ -595,6 +604,13 @@ func (a *App) Cleanup() {
 		}
 
 		a.ExitMode()
+		// Tear down push auto-refresh: stop the coordinator and close the observer
+		// (disarm all, stop+join the run-loop thread). Done after ExitMode so no
+		// refresh is scheduled mid-teardown, and before appWatcher.Stop so a
+		// terminate callback cannot race it.
+		if a.modes != nil {
+			a.modes.ShutdownAutoRefresh()
+		}
 		// Stop theme observer: nil the handler first so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()

@@ -28,6 +28,14 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		searchText = provider.SearchText()
 	}
 
+	// Capture a cross-scan identity (macOS CFHash + pid) before the native ref is
+	// released, so hint labels can persist across auto-refreshes. Absent on
+	// platforms/elements without a stable identity.
+	stableID := ""
+	if provider, ok := node.(interface{ StableID() string }); ok {
+		stableID = provider.StableID()
+	}
+
 	// Create element with options
 	domElement, elementErr := element.NewElement(
 		elementID,
@@ -38,6 +46,7 @@ func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) 
 		element.WithDescription(node.Description()),
 		element.WithValue(node.Value()),
 		element.WithSearchText(searchText),
+		element.WithStableID(stableID),
 	)
 	if elementErr != nil {
 		return nil, derrors.Wrap(
