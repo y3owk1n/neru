@@ -103,13 +103,21 @@ type Handler struct {
 	observers          ObserverController
 	refreshCoordinator *refreshCoordinator
 	// observerScanning is true while a hint scan is running, and observerSuppressUntil
-	// (unix nanos) opens a short margin after it. Together they mute observer-driven
-	// refreshes for the whole scan plus a tail: scanning an app's AX tree makes some
-	// apps create/destroy elements throughout the scan, and those self-induced
-	// notifications must not trigger another refresh (a flicker loop). A fixed window
-	// is not enough because a slow scan outlasts it.
-	observerScanning      atomic.Bool
-	observerSuppressUntil atomic.Int64
+	// (unix nanos) opens a short margin after a scan that changed nothing. Together
+	// they mute observer-driven refreshes: scanning an app's AX tree makes some apps
+	// create/destroy elements throughout the scan, and those self-induced
+	// notifications must not trigger another refresh (a flicker loop). The scanning
+	// flag covers the whole scan (a slow scan outlasts any fixed window); the post-
+	// scan margin only opens when the scan produced the same hint set as the previous
+	// one, so a scan that caught a real change stays hot to converge on the settled
+	// state instead of dropping the follow-up notifications (the source of missed
+	// refreshes). The fingerprint fields below drive that decision; all four are
+	// touched only under h.mu (the scan path and its deferred cleanup both hold it).
+	observerScanning           atomic.Bool
+	observerSuppressUntil      atomic.Int64
+	observerLastFingerprint    uint64
+	observerScanFingerprint    uint64
+	observerScanHasFingerprint bool
 
 	hotkeyLastKey     string
 	hotkeyLastKeyTime          int64

@@ -169,13 +169,15 @@ func (h *Handler) activateHintModeInternal(
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
-	// Mute observer-driven refreshes for the whole duration of this scan plus a
-	// short margin: scanning the AX tree makes some apps create/destroy their own
-	// elements throughout the scan, and those self-induced notifications must not
-	// feed back into another refresh (a flicker loop). A fixed window is not
-	// enough because a slow scan outlasts it, so gate on an explicit flag.
+	// Mute observer-driven refreshes for the whole duration of this scan: scanning
+	// the AX tree makes some apps create/destroy their own elements throughout the
+	// scan, and those self-induced notifications must not feed back into another
+	// refresh (a flicker loop). endObserverScanWindow then decides, from the hint
+	// set this scan produced, whether to open a short post-scan margin (a no-op
+	// scan, so drop the churn tail) or stay hot (a real change, so keep catching
+	// the still-settling updates).
 	if h.autoRefreshEnabled() {
-		h.observerScanning.Store(true)
+		h.beginObserverScanWindow()
 		defer h.endObserverScanWindow()
 	}
 
@@ -408,6 +410,14 @@ func (h *Handler) activateHintModeInternal(
 		}
 
 		return
+	}
+
+	// Fingerprint the resolved hint set (before label reuse, which only permutes
+	// labels and leaves element identity and bounds unchanged). endObserverScanWindow
+	// compares this to the previous scan's fingerprint to decide whether this scan
+	// caught a real change (stay hot) or only self-induced churn (open the margin).
+	if h.autoRefreshEnabled() {
+		h.recordScanFingerprint(domainHints)
 	}
 
 	// On a refresh, carry each persisting element's label over from the previous

@@ -1,14 +1,16 @@
 package modes
 
 import (
+	"hash/fnv"
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // observerSelfScanSuppress is how long observer-driven refreshes are muted after
-// a scan starts, to swallow the create/destroy notifications a scan induces in
+// a no-op scan, to swallow the create/destroy notifications that scan induces in
 // some apps (which would otherwise loop into another refresh).
 const observerSelfScanSuppress = 200 * time.Millisecond
 
@@ -56,12 +58,87 @@ func (h *Handler) RequestObserverRefresh() {
 	}
 }
 
-// endObserverScanWindow ends scan suppression: it opens a short post-scan margin
-// (to catch notifications an app posts just after neru finishes reading) and
-// then clears the scanning flag. Deferred from activateHintModeInternal.
+// beginObserverScanWindow starts scan suppression: it raises the scanning flag
+// (which drops observer refreshes for the whole scan) and resets the per-scan
+// fingerprint state. Called at the top of activateHintModeInternal, under h.mu.
+func (h *Handler) beginObserverScanWindow() {
+	h.observerScanning.Store(true)
+	h.observerScanHasFingerprint = false
+}
+
+// recordScanFingerprint stores the fingerprint of the hint set this scan
+// produced, so endObserverScanWindow can tell a real change from self-induced
+// churn. Called once the final hint set is known, under h.mu.
+func (h *Handler) recordScanFingerprint(hints []*domainHint.Interface) {
+	h.observerScanFingerprint = fingerprintHints(hints)
+	h.observerScanHasFingerprint = true
+}
+
+// endObserverScanWindow ends scan suppression. Deferred from
+// activateHintModeInternal, so it runs on every exit path, under h.mu.
+//
+// It opens the short post-scan margin only when the scan produced the same hint
+// set as the previous scan (self-induced churn, nothing really changed). A scan
+// that changed the hint set caught a real change, so it clears any lingering
+// margin and stays hot: the change is often still settling and will post more
+// notifications, and dropping those was what made roughly one refresh in five
+// miss the fresh hints. A scan that never reached a fingerprint (an early error
+// or empty result) leaves the stored fingerprint untouched and opens no margin.
 func (h *Handler) endObserverScanWindow() {
+	defer h.observerScanning.Store(false)
+
+	if !h.observerScanHasFingerprint {
+		return
+	}
+
+	changed := h.observerScanFingerprint != h.observerLastFingerprint
+	h.observerLastFingerprint = h.observerScanFingerprint
+
+	if changed {
+		h.observerSuppressUntil.Store(0)
+
+		return
+	}
+
 	h.observerSuppressUntil.Store(time.Now().Add(observerSelfScanSuppress).UnixNano())
-	h.observerScanning.Store(false)
+}
+
+// fingerprintHints computes an order-independent fingerprint of a hint set from
+// each element's stable identity and bounds. Two scans that resolve the same
+// elements at the same positions produce the same value; adding, removing, or
+// moving an element changes it. Order independence (XOR-combining per-element
+// hashes) means a reordered-but-identical set is correctly seen as unchanged.
+func fingerprintHints(hints []*domainHint.Interface) uint64 {
+	var combined uint64
+
+	for _, hint := range hints {
+		el := hint.Element()
+		if el == nil {
+			continue
+		}
+
+		hh := fnv.New64a()
+		_, _ = hh.Write([]byte(el.StableID()))
+
+		b := el.Bounds()
+		var box [8]byte
+		putInt16(box[0:], b.Min.X)
+		putInt16(box[2:], b.Min.Y)
+		putInt16(box[4:], b.Dx())
+		putInt16(box[6:], b.Dy())
+		_, _ = hh.Write(box[:])
+
+		combined ^= hh.Sum64()
+	}
+
+	// Fold the count in so a set that XORs to the same value with a different
+	// number of elements (e.g. a duplicated pair) is still seen as changed.
+	return combined ^ (uint64(len(hints)) * 0x9E3779B97F4A7C15)
+}
+
+func putInt16(dst []byte, v int) {
+	dst[0] = byte(v)
+	dst[1] = byte(v >> 8)
 }
 
 // observerDrivenRefresh performs a coalesced, observer-triggered refresh. It runs
