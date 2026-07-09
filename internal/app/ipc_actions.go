@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
@@ -275,6 +276,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	actionName := cmd.Args[0]
+
+	if action.IsFeedToModeAction(actionName) {
+		return h.handleFeedToModeAction(cmd.Args[1:])
+	}
 
 	if action.IsFeedAction(actionName) {
 		return h.handleFeedAction(cmd.Args[1:])
@@ -663,6 +668,12 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 		}
 	}
 
+	// Check for --mode flag passed via IPC (from hotkey action strings).
+	// When coming from the CLI, cobra strips the flag before it reaches this handler.
+	if args[0] == "--mode" {
+		return h.handleFeedToModeAction(args[1:])
+	}
+
 	keys := make([]string, 0, len(args))
 	for _, arg := range args {
 		key := strings.TrimSpace(arg)
@@ -703,6 +714,51 @@ func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {
 	return ipc.Response{
 		Success: true,
 		Message: "feed performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Response {
+	if len(args) == 0 {
+		return ipc.Response{
+			Success: false,
+			Message: "feed-mode requires at least one key (e.g., action feed --mode o, action feed --mode ctrl+c)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	keys := make([]string, 0, len(args))
+	for _, arg := range args {
+		key := strings.TrimSpace(arg)
+		if key == "" {
+			return ipc.Response{
+				Success: false,
+				Message: "feed-mode keys cannot be empty",
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
+		keys = append(keys, key)
+	}
+
+	h.logger.Debug("Feeding keys to mode system", zap.Int("key_count", len(keys)))
+
+	for _, key := range keys {
+		normalized := config.CanonicalHotkeyForPlatform(key)
+		if normalized == "" {
+			return ipc.Response{
+				Success: false,
+				Message: fmt.Sprintf("invalid key: %q", key),
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
+		h.modesHandler.HandleKeyPress(normalized)
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "feed-mode performed",
 		Code:    ipc.CodeOK,
 	}
 }

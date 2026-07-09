@@ -336,7 +336,7 @@ neru action restore_cursor_pos                # Restore saved cursor position
 
 ### Feed Keys
 
-Posts keystrokes to the system through IPC. Works from CLI and config [hotkey arrays](CONFIGURATION.md#hotkeys).
+Posts keystrokes to the system or to Neru's mode system through IPC. Works from CLI and config [hotkey arrays](CONFIGURATION.md#hotkeys).
 
 ```bash
 neru action feed o
@@ -348,6 +348,28 @@ neru action feed h e l l o return
 **Syntax:** `neru action feed <key-or-chord> [key-or-chord...]`
 
 Each space-separated item is one key press or chord. Chords use `+` (e.g. `ctrl+c`, `Cmd+Shift+P`). Use `space` for a literal space key.
+
+#### `--mode` Flag
+
+By default, keys are posted directly to the OS (e.g. typing into the focused application). With `--mode`, keys are routed through Neru's active mode/action pipeline instead — useful for scripting mode interactions in hotkey chains:
+
+```bash
+neru action feed --mode o              # Feed "o" to the active mode
+neru action feed --mode Escape         # Feed Escape
+neru action feed --mode Cmd+Shift+p    # Feed a chord to the mode system
+```
+
+This is especially useful in hotkey arrays:
+
+```toml
+[hints.hotkeys]
+"Cmd+3" = [
+    "hints --role AXRadioButton --text design --action left_click",
+    "action feed --mode a",
+]
+```
+
+The hints command completes fully (AX elements collected, overlay drawn) before the feed fires, so there is no race.
 
 **Supported key names:**
 

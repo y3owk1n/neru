@@ -249,9 +249,15 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 
 [hints.hotkeys]
 "o"               = ["idle", "action feed o"]
+
+# Feed into Neru's own mode system (--mode)
+"Cmd+3"           = [
+    "hints --role AXRadioButton --text design --action left_click",
+    "action feed --mode a",
+]
 ```
 
-See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform behavior.
+Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform behavior.
 
 #### Composition Example
 
