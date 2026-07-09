@@ -48,8 +48,8 @@ const (
 	centeredRectHalf                       = 0.5
 	hintPillRadiusDivisor                  = 2.0
 	paddingMultiplier                      = 2
-	subKeyPreviewPaddingBottom             = 4
-	stickyBadgeClearPadding                = 3
+
+	stickyBadgeClearPadding = 3
 )
 
 type linuxOverlayBackend string
@@ -552,11 +552,31 @@ func (m *Manager) DrawRecursiveGrid(
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+		m.x11.DrawRecursiveGridWithSubKeyPreview(
+			bounds,
+			keys,
+			gridCols,
+			gridRows,
+			nextKeys,
+			nextGridCols,
+			nextGridRows,
+			style,
+			virtualPointer,
+		)
 
 		return nil
 	} else if m.wlroots != nil {
-		m.wlroots.DrawRecursiveGrid(bounds, depth, keys, gridCols, gridRows, style, virtualPointer)
+		m.wlroots.DrawRecursiveGridWithSubKeyPreview(
+			bounds,
+			keys,
+			gridCols,
+			gridRows,
+			nextKeys,
+			nextGridCols,
+			nextGridRows,
+			style,
+			virtualPointer,
+		)
 
 		return nil
 	}

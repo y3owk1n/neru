@@ -57,4 +57,17 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	recursivegridcomponent.VirtualPointerState,
 ) {
 }
+
+func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
+	image.Rectangle,
+	string,
+	int,
+	int,
+	string,
+	int,
+	int,
+	recursivegridcomponent.Style,
+	recursivegridcomponent.VirtualPointerState,
+) {
+}
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}

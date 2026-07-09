@@ -139,12 +139,40 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
+	o.DrawRecursiveGridWithSubKeyPreview(
+		bounds,
+		keys,
+		gridCols,
+		gridRows,
+		"",
+		0,
+		0,
+		style,
+		virtualPointer,
+	)
+}
+
+func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
+	bounds image.Rectangle,
+	keys string,
+	gridCols int,
+	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+) {
 	if o == nil || o.raw == nil || bounds.Empty() || gridCols <= 0 || gridRows <= 0 {
 		return
 	}
 	o.Clear()
 
 	keyRunes := []rune(strings.ToUpper(keys))
+	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
+	drawSubPreview := style.SubKeyPreview && len(nextKeyRunes) > 0 && nextGridCols > 0 &&
+		nextGridRows > 0
+
 	cellWidth := bounds.Dx() / gridCols
 	cellHeight := bounds.Dy() / gridRows
 	index := 0
@@ -182,8 +210,14 @@ func (o *x11Overlay) DrawRecursiveGrid(
 					style.LabelFontColor,
 				)
 
-				if shouldShowSubKeyPreview(cell, style) {
-					o.drawSubKeyPreview(label, cell, style)
+				if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
+					o.drawSubKeyMiniGrid(
+						cell,
+						nextKeyRunes,
+						nextGridCols,
+						nextGridRows,
+						style,
+					)
 				}
 			}
 			index++
@@ -434,23 +468,52 @@ func (o *x11Overlay) drawLabelBackground(
 	)
 }
 
-func (o *x11Overlay) drawSubKeyPreview(
-	label string,
+func (o *x11Overlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
+	nextKeyRunes []rune,
+	nextGridCols int,
+	nextGridRows int,
 	style recursivegridcomponent.Style,
 ) {
-	previewRect := image.Rect(
-		cell.Min.X,
-		cell.Max.Y-estimateTextHeight(style.SubKeyPreviewFontSize)-subKeyPreviewPaddingBottom,
-		cell.Max.X,
-		cell.Max.Y,
-	)
+	subCellWidth := cell.Dx() / nextGridCols
+	subCellHeight := cell.Dy() / nextGridRows
 
-	o.drawTextCentered(
-		label,
-		previewRect,
-		style.LabelFontName,
-		style.SubKeyPreviewFontSize,
-		style.SubKeyPreviewTextColor,
-	)
+	subIndex := 0
+	for subRow := range nextGridRows {
+		for subCol := range nextGridCols {
+			if subCol == nextGridCols/2 && subRow == nextGridRows/2 &&
+				nextGridCols%2 == 1 && nextGridRows%2 == 1 {
+				subIndex++
+
+				continue
+			}
+
+			if subIndex >= len(nextKeyRunes) {
+				return
+			}
+
+			subCell := image.Rect(
+				cell.Min.X+subCol*subCellWidth,
+				cell.Min.Y+subRow*subCellHeight,
+				cell.Min.X+(subCol+1)*subCellWidth,
+				cell.Min.Y+(subRow+1)*subCellHeight,
+			)
+			if subCol == nextGridCols-1 {
+				subCell.Max.X = cell.Max.X
+			}
+			if subRow == nextGridRows-1 {
+				subCell.Max.Y = cell.Max.Y
+			}
+
+			subLabel := string(nextKeyRunes[subIndex])
+			o.drawTextCentered(
+				subLabel,
+				subCell,
+				style.LabelFontName,
+				style.SubKeyPreviewFontSize,
+				style.SubKeyPreviewTextColor,
+			)
+			subIndex++
+		}
+	}
 }
