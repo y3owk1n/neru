@@ -7,6 +7,29 @@ set -euo pipefail
 # Run from the repo root so build/, bin/, and `just` resolve.
 cd "$(dirname "$0")/.."
 
+# Any of -y / --yes on the command line auto-accepts every prompt.
+assume_yes=0
+for arg in "$@"; do
+    case "$arg" in
+        -y | --yes) assume_yes=1 ;;
+        *) echo "unknown argument: $arg (use -y to auto-accept prompts)" >&2; exit 2 ;;
+    esac
+done
+
+# ask "prompt" -> prints the reply on stdout. Under -y it echoes the prompt with
+# a "y" and answers yes without reading, so the whole run is non-interactive.
+ask() {
+    if [ "$assume_yes" -eq 1 ]; then
+        printf '%sy\n' "$1" >&2
+        printf 'y'
+        return 0
+    fi
+    local reply
+    reply="$(ask "$1")"
+    printf '%s' "$reply"
+}
+
+
 app_dst="/Applications/Neru.app"
 neru_bin="$app_dst/Contents/MacOS/neru"
 cli="$neru_bin" # how the CLI is referred to in messages; becomes "neru" once linked onto PATH
@@ -82,7 +105,7 @@ done
 # not just the .app directory, so a partial bundle does not slip through.
 if [ ! -x "build/Neru.app/Contents/MacOS/neru" ]; then
     echo "Neru has not been built yet (build/Neru.app is missing or incomplete)."
-    read -r -p "Build it now with 'just bundle'? [y/N] " build_reply || build_reply=""
+    build_reply="$(ask "Build it now with 'just bundle'? [y/N] ")"
     case "$build_reply" in
         [Yy] | [Yy][Ee][Ss])
             just bundle
@@ -105,7 +128,7 @@ overwrote=0
 echo "Step 1/5: App bundle"
 if [ -e "$app_dst" ]; then
     echo "Neru is already installed at $app_dst."
-    read -r -p "Overwrite it with the freshly built bundle? [y/N] " reply || reply=""
+    reply="$(ask "Overwrite it with the freshly built bundle? [y/N] ")"
     case "$reply" in
         [Yy] | [Yy][Ee][Ss])
             echo "Stopping any running Neru before replacing the app..."
@@ -119,7 +142,7 @@ if [ -e "$app_dst" ]; then
             ;;
     esac
 else
-    read -r -p "Copy build/Neru.app → $app_dst? [y/N] " reply || reply=""
+    reply="$(ask "Copy build/Neru.app → $app_dst? [y/N] ")"
     case "$reply" in
         [Yy] | [Yy][Ee][Ss])
             install_bundle "$app_dst"
@@ -140,7 +163,7 @@ fi
 # the only instance. Installing points the agent at the current binary
 # and starts it (RunAtLoad + KeepAlive).
 echo "Step 2/5: Login agent"
-read -r -p "Register the login agent so Neru starts now and at login? (neru services install) [y/N] " svc_reply || svc_reply=""
+svc_reply="$(ask "Register the login agent so Neru starts now and at login? (neru services install) [y/N] ")"
 case "$svc_reply" in
     [Yy] | [Yy][Ee][Ss])
         stop_running_neru
@@ -173,7 +196,7 @@ else
     else
         link_prompt="Symlink 'neru' onto your PATH at $link_dst → the app binary? [y/N] "
     fi
-    read -r -p "$link_prompt" link_reply || link_reply=""
+    link_reply="$(ask "$link_prompt")"
     case "$link_reply" in
         [Yy] | [Yy][Ee][Ss])
             link_dir="$(dirname "$link_dst")"
@@ -198,7 +221,7 @@ fi
 # goes to the installed shell's per-user location. zsh needs its directory
 # on fpath, so print the line to add when zsh is present.
 echo "Step 4/5: Shell completions"
-read -r -p "Install shell completions for the shells you have? [y/N] " comp_reply || comp_reply=""
+comp_reply="$(ask "Install shell completions for the shells you have? [y/N] ")"
 case "$comp_reply" in
     [Yy] | [Yy][Ee][Ss])
         if command -v fish >/dev/null 2>&1; then
@@ -228,7 +251,7 @@ esac
 # a writable directory already on the manpath (so `man neru` finds them),
 # falling back to /usr/local/share/man when none is writable.
 echo "Step 5/5: Man pages"
-read -r -p "Generate and install man pages? [y/N] " man_reply || man_reply=""
+man_reply="$(ask "Generate and install man pages? [y/N] ")"
 case "$man_reply" in
     [Yy] | [Yy][Ee][Ss])
         just genman build/man >/dev/null
@@ -255,7 +278,7 @@ esac
 if [ "$service_installed" -eq 1 ]; then
     echo "Neru runs as a login agent and should be running now."
 else
-    read -r -p "Run Neru now? [y/N] " run_reply || run_reply=""
+    run_reply="$(ask "Run Neru now? [y/N] ")"
     case "$run_reply" in
         [Yy] | [Yy][Ee][Ss])
             # `neru status` exits non-zero unless a daemon is already up,

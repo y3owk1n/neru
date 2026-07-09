@@ -7,6 +7,29 @@ set -euo pipefail
 # Run from the repo root so build/, bin/, and `just` resolve.
 cd "$(dirname "$0")/.."
 
+# Any of -y / --yes on the command line auto-accepts every prompt.
+assume_yes=0
+for arg in "$@"; do
+    case "$arg" in
+        -y | --yes) assume_yes=1 ;;
+        *) echo "unknown argument: $arg (use -y to auto-accept prompts)" >&2; exit 2 ;;
+    esac
+done
+
+# ask "prompt" -> prints the reply on stdout. Under -y it echoes the prompt with
+# a "y" and answers yes without reading, so the whole run is non-interactive.
+ask() {
+    if [ "$assume_yes" -eq 1 ]; then
+        printf '%sy\n' "$1" >&2
+        printf 'y'
+        return 0
+    fi
+    local reply
+    reply="$(ask "$1")"
+    printf '%s' "$reply"
+}
+
+
 # Minimal Windows install: a per-user binary plus optional autostart via
 # the registry Run key. Windows has no launchd or systemd and `neru
 # services` is macOS-only, so autostart is authored here, not by Neru.
@@ -23,7 +46,7 @@ esac
 exe_src="bin/neru-windows-$arch.exe"
 if [ ! -f "$exe_src" ]; then
     echo "Neru has not been built for Windows yet ($exe_src is missing)."
-    read -r -p "Build it now with 'just build-windows $arch'? [y/N] " build_reply || build_reply=""
+    build_reply="$(ask "Build it now with 'just build-windows $arch'? [y/N] ")"
     case "$build_reply" in
         [Yy] | [Yy][Ee][Ss]) just build-windows "$arch" ;;
         *) echo "Aborted. Run 'just build-windows' first, then 'just install'." >&2; exit 1 ;;
@@ -43,7 +66,7 @@ echo "      $dst_dir"
 # Step 2: autostart via the per-user Run key (no admin). Uses the full
 # exe path, so it does not depend on PATH.
 echo "Step 2/2: Autostart"
-read -r -p "Start Neru at login (a registry Run entry)? [y/N] " run_reply || run_reply=""
+run_reply="$(ask "Start Neru at login (a registry Run entry)? [y/N] ")"
 case "$run_reply" in
     [Yy] | [Yy][Ee][Ss])
         win_exe="$(cygpath -w "$dst_dir/neru.exe" 2>/dev/null || echo "$dst_dir/neru.exe")"

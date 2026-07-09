@@ -7,6 +7,29 @@ set -euo pipefail
 # Run from the repo root so build/, bin/, and `just` resolve.
 cd "$(dirname "$0")/.."
 
+# Any of -y / --yes on the command line auto-accepts every prompt.
+assume_yes=0
+for arg in "$@"; do
+    case "$arg" in
+        -y | --yes) assume_yes=1 ;;
+        *) echo "unknown argument: $arg (use -y to auto-accept prompts)" >&2; exit 2 ;;
+    esac
+done
+
+# ask "prompt" -> prints the reply on stdout. Under -y it echoes the prompt with
+# a "y" and answers yes without reading, so the whole run is non-interactive.
+ask() {
+    if [ "$assume_yes" -eq 1 ]; then
+        printf '%sy\n' "$1" >&2
+        printf 'y'
+        return 0
+    fi
+    local reply
+    reply="$(ask "$1")"
+    printf '%s' "$reply"
+}
+
+
 # Minimal Linux install: a user-local binary and an optional systemd
 # user service. `neru services` is macOS-only, so the service is a plain
 # systemd unit in the shape the Nix modules use. Neru on Linux supports
@@ -24,7 +47,7 @@ for c in "bin/neru" "bin/neru-linux-$arch"; do
 done
 if [ -z "$bin_src" ]; then
     echo "Neru has not been built yet."
-    read -r -p "Build it now with 'just build'? [y/N] " build_reply || build_reply=""
+    build_reply="$(ask "Build it now with 'just build'? [y/N] ")"
     case "$build_reply" in
         [Yy] | [Yy][Ee][Ss]) just build; bin_src="bin/neru" ;;
         *) echo "Aborted. Run 'just build' first, then 'just install'." >&2; exit 1 ;;
@@ -48,7 +71,7 @@ esac
 # Step 2: the systemd user service. Tied to the graphical session so it
 # starts with the desktop and restarts on failure.
 echo "Step 2/5: systemd user service"
-read -r -p "Install a systemd user service so Neru starts with your session? [y/N] " svc_reply || svc_reply=""
+svc_reply="$(ask "Install a systemd user service so Neru starts with your session? [y/N] ")"
 case "$svc_reply" in
     [Yy] | [Yy][Ee][Ss])
         unit_dir="$HOME/.config/systemd/user"
@@ -94,7 +117,7 @@ echo "Step 3/5: input group (Wayland)"
 if id -nG 2>/dev/null | tr ' ' '\n' | grep -qx input; then
     echo "Already in the 'input' group."
 else
-    read -r -p "Add yourself to the 'input' group for Wayland keyboard capture? [y/N] " grp_reply || grp_reply=""
+    grp_reply="$(ask "Add yourself to the 'input' group for Wayland keyboard capture? [y/N] ")"
     case "$grp_reply" in
         [Yy] | [Yy][Ee][Ss])
             if sudo usermod -aG input "$USER"; then
@@ -111,7 +134,7 @@ fi
 
 # Step 4: shell completions, to each installed shell's per-user location.
 echo "Step 4/5: Shell completions"
-read -r -p "Install shell completions for the shells you have? [y/N] " comp_reply || comp_reply=""
+comp_reply="$(ask "Install shell completions for the shells you have? [y/N] ")"
 case "$comp_reply" in
     [Yy] | [Yy][Ee][Ss])
         if command -v bash >/dev/null 2>&1; then
@@ -138,7 +161,7 @@ esac
 
 # Step 5: man pages, into the XDG user man directory.
 echo "Step 5/5: Man pages"
-read -r -p "Generate and install man pages to ~/.local/share/man? [y/N] " man_reply || man_reply=""
+man_reply="$(ask "Generate and install man pages to ~/.local/share/man? [y/N] ")"
 case "$man_reply" in
     [Yy] | [Yy][Ee][Ss])
         just genman build/man >/dev/null

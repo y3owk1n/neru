@@ -488,7 +488,12 @@ just install   # copies neru.exe under %LOCALAPPDATA% and offers a login autosta
 ```
 
 `just install` refuses to run over a Homebrew or Nix-managed install and tells you
-to update it there instead. It is interactive; answer each prompt.
+to update it there instead. It is interactive; answer each prompt, or pass `-y` to
+accept them all and install everything without asking:
+
+```bash
+just install -y
+```
 
 ### Build and install manually
 
