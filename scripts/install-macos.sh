@@ -25,7 +25,7 @@ ask() {
         return 0
     fi
     local reply
-    reply="$(ask "$1")"
+    read -r -p "$1" reply || reply=""
     printf '%s' "$reply"
 }
 
