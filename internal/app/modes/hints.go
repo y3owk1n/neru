@@ -215,12 +215,16 @@ func (h *Handler) activateHintModeInternal(
 	actionString := domain.ActionString(actionEnum)
 
 	if isRefresh {
-		// During refresh, only clear overlay and stop polling but do NOT change mode
-		// or disable event tap. Mode and event tap are already in the correct state,
-		// so SetModeHints() can be skipped on the success path.
-		// This prevents leaving the app in idle mode with event tap disabled if hint
-		// generation fails.
-		h.overlayManager.Clear()
+		// During refresh, only stop polling; do NOT change mode or disable the event
+		// tap (both are already correct, so SetModeHints() can be skipped on success).
+		//
+		// Deliberately do NOT clear the overlay here. Clearing blanks the window and
+		// resets the incremental-draw state, so the final draw is a full redraw after
+		// the whole scan, leaving the overlay empty for the scan's duration (a visible
+		// flicker on every refresh). Leaving the previous hints up lets DrawHints do an
+		// incremental diff old->new instead: an unchanged set renders nothing, and a
+		// changed set morphs in place with no blank frame. A refresh that fails or
+		// resolves to no hints still falls through to exitModeLocked below, which clears.
 		h.stopIndicatorPolling()
 	} else {
 		h.exitModeLocked()
@@ -250,9 +254,14 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.screenBounds = activeScreenBounds
-	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
-	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
-	h.overlayManager.Clear()
+	// Clear any previous overlay content (e.g. scroll highlights) before drawing hints,
+	// but only on a fresh activation. On a refresh the previous content is the prior
+	// hint set, which the incremental draw replaces in place; clearing it here would
+	// reintroduce the per-refresh blank-frame flicker (see the isRefresh branch above).
+	if !isRefresh {
+		h.overlayManager.Clear()
+	}
+
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
