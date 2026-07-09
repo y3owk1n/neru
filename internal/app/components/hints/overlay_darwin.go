@@ -667,16 +667,18 @@ func (o *Overlay) drawHintsIncremental(
 		return true
 	}
 
-	// Handle structural changes (hints added/removed) using incremental C API
-	return o.drawHintsIncrementalStructural(
-		hints,
-		previousHints,
-		currentInput,
-		style,
-		previousInput,
-		previousStyle,
-		showArrow,
-	)
+	// A structural change (hints added/removed) falls back to a full redraw.
+	//
+	// The incremental structural path diffed purely by on-screen position, and only
+	// treated the update as a full replacement when *every* hint changed. A partial
+	// change that keeps most hints but swaps a few — an in-page control group being
+	// dismissed while another appears, common in Electron/web apps — took the
+	// incremental path, where overlapping or colliding positions could leave the
+	// newly appeared controls without hints. A full redraw via NeruDrawHints is
+	// atomic (it replaces the whole hint set in a single repaint with no blank
+	// frame), so it is both correct and flicker-free; the only cost is redrawing
+	// every hint, which is negligible. Returning false here routes to that path.
+	return false
 }
 
 // hintsAreStructurallyEqual checks if two hint lists have the same structure (same hints at same positions).
