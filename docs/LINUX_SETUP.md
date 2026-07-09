@@ -281,13 +281,17 @@ mkdir -p ~/.config/systemd/user
 cat > ~/.config/systemd/user/neru.service << EOF
 [Unit]
 Description=Neru keyboard navigation daemon
+After=graphical-session.target
+PartOf=graphical-session.target
 
 [Service]
-ExecStart=%h/.local/bin/neru daemon
+ExecStart=%h/.local/bin/neru launch
 Restart=on-failure
+RestartSec=5
+Nice=-10
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
 EOF
 
 systemctl --user daemon-reload
