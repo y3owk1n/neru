@@ -45,11 +45,18 @@ func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	return false
 }
 
-// registerHotkeys registers all global hotkeys defined in the configuration.
-func (a *App) registerHotkeys() {
+// registerHotkeys registers global hotkeys for the specified app bundle ID.
+// When bundleID is non-empty and per-app hotkey overrides are configured, the
+// app-specific bindings are used instead of the default [hotkeys] bindings.
+func (a *App) registerHotkeys(bundleID string) {
 	cfg := a.configSnapshot()
 
-	for key, actions := range cfg.Hotkeys.Bindings {
+	bindings := cfg.Hotkeys.Bindings
+	if bundleID != "" && cfg.HasGlobalAppHotkeyOverrides() {
+		bindings = cfg.GlobalHotkeysForApp(bundleID)
+	}
+
+	for key, actions := range bindings {
 		trimmedKey := strings.TrimSpace(key)
 
 		if trimmedKey == "" || len(actions) == 0 {
@@ -545,8 +552,20 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 	}
 
 	if !a.appState.HotkeysRegistered() {
-		a.registerHotkeys()
+		a.registerHotkeys(bundleID)
 		a.appState.SetHotkeysRegistered(true)
-		a.logger.Debug("Hotkeys registered")
+		a.logger.Debug("Hotkeys registered",
+			zap.String("bundle_id", bundleID))
+	} else if bundleID != a.currentHotkeyBundleID && cfg.HasGlobalAppHotkeyOverrides() {
+		// Focus changed to a different app with possibly different hotkey
+		// bindings. Re-register with the new app's bindings.
+		a.stopAllHotkeyRepeats()
+		a.hotkeyManager.UnregisterAll()
+		a.registerHotkeys(bundleID)
+		a.logger.Debug("Hotkeys re-registered for app",
+			zap.String("bundle_id", bundleID))
 	}
+
+	// Track which bundle ID's bindings are currently registered.
+	a.currentHotkeyBundleID = bundleID
 }

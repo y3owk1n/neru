@@ -1,6 +1,9 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -184,4 +187,93 @@ func TestService_Concurrency(_ *testing.T) {
 	}
 
 	waitGroup.Wait()
+}
+
+func writeTempToml(t *testing.T, content string) string {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	writeFileErr := os.WriteFile(configPath, []byte(content), 0o644)
+	if writeFileErr != nil {
+		t.Fatalf("Failed to write temp config: %v", writeFileErr)
+	}
+
+	return configPath
+}
+
+func TestService_LoadWithValidation_AppConfigsDuplicateNormalizedHotkeys(t *testing.T) {
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+	tests := []struct {
+		name    string
+		toml    string
+		wantErr bool
+	}{
+		{
+			name: "root app_configs duplicate normalized hotkeys",
+			toml: `
+[[app_configs]]
+bundle_id = "com.example.app"
+[app_configs.hotkeys]
+"Ctrl+Alt+K" = "hints"
+"Ctrl+Alt+k" = "grid"
+`,
+			wantErr: true,
+		},
+		{
+			name: "hints app_configs duplicate normalized hotkeys",
+			toml: `
+[hints]
+enabled = true
+hint_characters = "asdf"
+clickable_roles = ["AXButton"]
+
+[[hints.app_configs]]
+bundle_id = "com.example.app"
+[hints.app_configs.hotkeys]
+"Ctrl+Alt+K" = "action left_click"
+"Ctrl+Alt+k" = "action right_click"
+`,
+			wantErr: true,
+		},
+		{
+			name: "valid root app_configs no duplicates",
+			toml: `
+[[app_configs]]
+bundle_id = "com.example.app"
+[app_configs.hotkeys]
+"Ctrl+Alt+K" = "hints"
+"Ctrl+Shift+L" = "grid"
+`,
+			wantErr: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			configPath := writeTempToml(t, testCase.toml)
+			result := service.LoadWithValidation(configPath)
+
+			if testCase.wantErr {
+				if result.ValidationError == nil {
+					t.Error("LoadWithValidation() expected ValidationError, got nil")
+				} else if errMsg := result.ValidationError.Error(); !strings.Contains(errMsg, "duplicate bindings") &&
+					!strings.Contains(errMsg, "duplicate normalized") {
+					t.Errorf(
+						"LoadWithValidation() error = %q, want error containing 'duplicate bindings'",
+						errMsg,
+					)
+				}
+			}
+
+			if !testCase.wantErr && result.ValidationError != nil {
+				t.Errorf(
+					"LoadWithValidation() unexpected ValidationError: %v",
+					result.ValidationError,
+				)
+			}
+		})
+	}
 }

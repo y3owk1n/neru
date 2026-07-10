@@ -475,7 +475,8 @@ func validateAppConfigsWithCallback(
 			)
 		}
 
-		if _, ok := seen[appConfig.BundleID]; ok {
+		lowerID := strings.ToLower(strings.TrimSpace(appConfig.BundleID))
+		if _, ok := seen[lowerID]; ok {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"duplicate %s.app_configs bundle_id: %s",
@@ -483,7 +484,7 @@ func validateAppConfigsWithCallback(
 			)
 		}
 
-		seen[appConfig.BundleID] = struct{}{}
+		seen[lowerID] = struct{}{}
 
 		err := validateHotkeyTable(
 			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),
@@ -629,6 +630,11 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 	}
 
 	return validateAppConfigsWithCallback(modeName, appConfigs, scrollFieldValidator)
+}
+
+// validateHotkeysAppConfigs validates per-app global hotkey configuration.
+func validateHotkeysAppConfigs(modeName string, appConfigs []AppConfig) error {
+	return validateAppConfigsWithCallback(modeName, appConfigs, nil)
 }
 
 // ValidateAppConfigs validates per-app hint configuration.
@@ -940,6 +946,31 @@ func (c *Config) checkHotkeysConflicts() error {
 				appConfig.BundleID,
 			),
 			c.HotkeysForModeAndApp(ModeNameScroll, appConfig.BundleID),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check merged global hotkeys for each [[app_configs]] entry
+	for idx, appConfig := range c.AppConfigs {
+		merged := c.GlobalHotkeysForApp(appConfig.BundleID)
+		if merged == nil {
+			continue
+		}
+		// Convert to StringOrStringArray for conflict checking
+		table := make(map[string]StringOrStringArray, len(merged))
+		for k, v := range merged {
+			table[k] = StringOrStringArray(v)
+		}
+
+		err := checkHotkeyConflicts(
+			fmt.Sprintf(
+				"hotkeys merged with app_configs[%d] (%s)",
+				idx,
+				appConfig.BundleID,
+			),
+			table,
 		)
 		if err != nil {
 			return err

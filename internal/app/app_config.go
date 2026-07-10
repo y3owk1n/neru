@@ -63,25 +63,39 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	a.updateConfigSnapshot(loadResult)
 	a.reconfigureRuntimeFromConfig(loadResult.Config)
+
+	// An activation refresh between prepareForConfigUpdate and here may
+	// have re-registered with the old config for the current bundle,
+	// causing refreshHotkeysForAppOrCurrent to skip because the bundle
+	// hasn't changed.  Force clean registration with the new config.
+	a.hotkeyRegistrationMu.Lock()
+	if a.appState.HotkeysRegistered() {
+		a.stopAllHotkeyRepeats()
+		a.hotkeyManager.UnregisterAll()
+		a.appState.SetHotkeysRegistered(false)
+	}
+	a.hotkeyRegistrationMu.Unlock()
+
 	a.refreshHotkeysForAppOrCurrent("")
 }
 
 func (a *App) restoreHotkeysAfterFailedReload() {
-	// Restore hotkeys with the current (unchanged) config so the app
-	// does not remain in a degraded state after a failed reload.
-	// Use registerHotkeys directly instead of refreshHotkeysForAppOrCurrent
-	// because the latter depends on FocusedAppBundleID which can fail,
-	// leaving the app without hotkeys.
-	//
-	// Guard with HotkeysRegistered() because the blocking native alert
-	// shown by ReloadWithAppContext can trigger a focus-change notification,
-	// which may already have re-registered hotkeys on another path.
 	a.hotkeyRegistrationMu.Lock()
 	defer a.hotkeyRegistrationMu.Unlock()
 
 	if a.appState.IsEnabled() && !a.appState.HotkeysRegistered() {
-		a.registerHotkeys()
+		// Query the currently focused app so we register the right
+		// [[app_configs]] overrides.  Focus can change while the
+		// blocking reload-alert dialog is up, making the cached
+		// currentHotkeyBundleID stale.
+		bundleID, err := a.actionService.FocusedAppBundleID(a.ctx)
+		if err != nil {
+			bundleID = ""
+		}
+
+		a.registerHotkeys(bundleID)
 		a.appState.SetHotkeysRegistered(true)
+		a.currentHotkeyBundleID = bundleID
 		a.logger.Debug("Hotkeys restored after failed config reload")
 	}
 }

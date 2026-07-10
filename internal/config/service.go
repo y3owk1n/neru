@@ -368,6 +368,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 			parsedHotkeyActions := make(map[string][]string, len(hotMap))
 			for key, value := range hotMap {
+				// Skip hotmap infrastructure keys that are not hotkey bindings.
+				if key == "app_configs" {
+					continue
+				}
+
 				actions, actionsErr := parseRawHotkeyActions("hotkeys."+key, value)
 				if actionsErr != nil {
 					continue
@@ -390,6 +395,11 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 			// Merge user entries on top of defaults (already populated by DefaultConfig).
 			for key, value := range hotMap {
+				// Skip hotmap infrastructure keys that are not hotkey bindings.
+				if key == "app_configs" {
+					continue
+				}
+
 				// Find the existing default key that normalizes to the same value
 				// so that e.g. "cmd+shift+s" correctly overrides "Cmd+Shift+S".
 				canonicalKey := findNormalizedMapKey(
@@ -542,6 +552,10 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 				(*modeHotkey.dest)[key] = _sosa
 			}
 		}
+	}
+
+	if result := validateAppConfigsHotkeys(s.logger, "app_configs", raw); result != nil {
+		return result
 	}
 
 	if hintsRaw, ok := raw["hints"].(map[string]any); ok {

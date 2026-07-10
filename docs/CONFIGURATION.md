@@ -24,6 +24,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Mouse Action Indicator](#mouse_action_indicator)
 - [Mode Indicator](#mode_indicator)
 - [Sticky Modifiers](#sticky_modifiers)
+- [Per-App Global Hotkey Overrides](#per-app-global-hotkey-overrides)
 - [Smooth Cursor](#smooth_cursor)
 - [Smooth Scroll](#smooth_scroll)
 - [Held Repeat](#held_repeat)
@@ -184,6 +185,31 @@ When a mode is disabled (`enabled = false`), its default launcher hotkey is remo
 
 **Mode toggling:** Append `--toggle` to turn a hotkey into a toggle — activates the mode on first press, exits to idle on the second. Works with any mode: `"Ctrl+F" = "grid --toggle"`.
 
+#### Per-App Global Hotkey Overrides
+
+`[[app_configs]]` overrides `[hotkeys]` bindings for specific apps. Use this when you want different launcher hotkeys depending on which app is focused.
+
+```toml
+[hotkeys]
+"Cmd+Shift+Space" = "hints"
+
+[[app_configs]]
+bundle_id = "com.apple.Terminal"
+hotkeys = {
+    "Cmd+Space" = "hints",
+    "Cmd+Shift+Space" = "__disabled__"
+}
+
+[[app_configs]]
+bundle_id = "com.apple.Safari"
+hotkeys = {
+    "Cmd+Shift+F" = "hints",
+    "Cmd+Shift+Space" = "__disabled__"
+}
+```
+
+The same [merging rules](#merging-behavior) apply: app hotkeys merge on top of the base `[hotkeys]` bindings, and `__disabled__` removes an inherited binding. When no `[[app_configs]]` entry matches the focused app, the base `[hotkeys]` bindings are used as-is.
+
 ### Per-Mode Hotkeys
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
@@ -203,9 +229,23 @@ Multi-key alphabetic sequences (e.g. `gg`) use a 500ms timeout.
 
 #### Per-App Hotkey Overrides
 
-`[[<mode>.app_configs]]` overrides `<mode>.hotkeys` for specific apps. Supported for `hints`, `grid`, `recursive_grid`, and `scroll`. App hotkeys merge on top of mode hotkeys; `__disabled__` removes an inherited binding.
+Both global and per-mode hotkeys support per-app overrides via `[[app_configs]]` and `[[<mode>.app_configs]]`.
+
+- Global: `[[app_configs]]` overrides `[hotkeys]` bindings for specific apps
+- Per-mode: `[[<mode>.app_configs]]` overrides `<mode>.hotkeys` for specific apps
+
+Supported modes for per-mode overrides are `hints`, `grid`, `recursive_grid`, and `scroll`. App hotkeys merge on top of base hotkeys; `__disabled__` removes an inherited binding.
 
 ```toml
+# Per-app global hotkey overrides (root-level)
+[[app_configs]]
+bundle_id = "com.apple.Terminal"
+hotkeys = {
+    "Cmd+Space" = "hints",
+    "Cmd+Shift+Space" = "__disabled__"
+}
+
+# Per-app mode hotkey overrides
 [[hints.app_configs]]
 bundle_id = "com.brave.Browser"
 hotkeys = {
@@ -214,10 +254,18 @@ hotkeys = {
 }
 ```
 
-**Priority order** when a key is pressed inside a mode:
+**Priority order** when a key is pressed while Neru is running:
+
+| Context | Resolution |
+|---|---|
+| **Idle (no mode active)** | `[hotkeys]` bindings merged with per-app `[[app_configs]]` overrides for the focused app |
+| **Inside a mode** | `[<mode>.hotkeys]` merged with per-app `[[<mode>.app_configs]]` overrides, checked before the mode's built-in keys |
+| **Global hotkey conflicts with mode hotkey** | Mode hotkey override wins (e.g., a global `Cmd+Shift+F = "hints"` launcher is replaced by `[hints.hotkeys]` `"Cmd+Shift+F" = "recursive_grid"` while hints mode is active) |
+
+Inside a mode, the dispatch order is:
 
 1. Modifier toggle
-2. `<mode>.hotkeys` + per-app overrides
+2. `<mode>.hotkeys` + per-app overrides  
 3. Mode built-in keys (hint/grid character input)
 
 ### Action Reference

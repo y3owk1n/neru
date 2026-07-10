@@ -33,8 +33,16 @@ func (a *App) registerLayoutChangeHandler() {
 		a.hotkeyManager.UnregisterAll()
 		a.appState.SetHotkeysRegistered(false)
 
-		// Re-register with updated keycodes from the new layout
-		a.registerHotkeys()
+		// Re-register with updated keycodes from the new layout, querying
+		// the currently focused app so [[app_configs]] overrides match
+		// the app the user is actually in.
+		bundleID, err := a.actionService.FocusedAppBundleID(a.ctx)
+		if err != nil {
+			bundleID = ""
+		}
+
+		a.currentHotkeyBundleID = bundleID
+		a.registerHotkeys(bundleID)
 		a.appState.SetHotkeysRegistered(true)
 
 		a.logger.Info("Global hotkeys re-registered for new keyboard layout")

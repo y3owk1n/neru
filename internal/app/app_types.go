@@ -102,4 +102,9 @@ type App struct {
 
 	// IPC Controller
 	ipcController *IPCController
+
+	// currentHotkeyBundleID tracks which app's global hotkey bindings are
+	// currently registered. Used by refreshHotkeysForAppOrCurrent to avoid
+	// unnecessary re-registration on focus changes to the same app.
+	currentHotkeyBundleID string
 }
