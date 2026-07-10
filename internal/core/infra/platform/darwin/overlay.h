@@ -179,6 +179,17 @@ void NeruHideHintSearchInput(OverlayWindow window);
 /// @param prefix Match prefix
 void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix);
 
+/// Draw hints incrementally (add/update/remove specific hints without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param hintsToAdd Array of hint data to add or update
+/// @param addCount Number of hints to add/update
+/// @param positionsToRemove Array of hint positions to remove (by matching position)
+/// @param removeCount Number of hints to remove
+/// @param style Hint style (used for new/updated hints)
+void NeruDrawIncrementHints(
+    OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove, int removeCount,
+    HintStyle style);
+
 /// Set overlay level
 /// @param window Overlay window handle
 /// @param level Overlay level

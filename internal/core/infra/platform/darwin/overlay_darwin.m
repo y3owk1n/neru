@@ -2438,6 +2438,169 @@ void NeruUpdateHintMatchPrefix(OverlayWindow window, const char *prefix) {
 	});
 }
 
+/// Draw hints incrementally (add/update/remove specific hints without clearing entire overlay)
+/// @param window Overlay window handle
+/// @param hintsToAdd Array of hint data to add or update
+/// @param addCount Number of hints to add/update
+/// @param positionsToRemove Array of hint positions to remove (by matching position)
+/// @param removeCount Number of hints to remove
+/// @param style Hint style (used for new/updated hints)
+void NeruDrawIncrementHints(
+    OverlayWindow window, HintData *hintsToAdd, int addCount, CGPoint *positionsToRemove, int removeCount,
+    HintStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	// Build hint data arrays upfront — safe from any thread
+	NSMutableArray<HintItem *> *hintItemsToAdd = nil;
+	if (hintsToAdd && addCount > 0) {
+		hintItemsToAdd = buildHintItems(hintsToAdd, addCount, style.showArrow ? YES : NO, style.placement);
+	}
+
+	// Build positions array for hints to remove
+	NSMutableArray *positionsToRemoveArray = nil;
+	if (positionsToRemove && removeCount > 0) {
+		positionsToRemoveArray = [NSMutableArray arrayWithCapacity:removeCount];
+		for (int i = 0; i < removeCount; i++) {
+			NSValue *positionValue = [NSValue valueWithPoint:NSPointFromCGPoint(positionsToRemove[i])];
+			[positionsToRemoveArray addObject:positionValue];
+		}
+	}
+
+	// Copy all style properties NOW (before async block)
+	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
+	NSString *fontFamily = nil;
+	if (style.fontFamily) {
+		fontFamily = @(style.fontFamily);
+		if (fontFamily.length == 0)
+			fontFamily = nil;
+	}
+	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
+	NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
+	NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
+	int borderRadius = style.borderRadius;
+	int borderWidth = style.borderWidth;
+	int paddingX = style.paddingX;
+	int paddingY = style.paddingY;
+	int boundaryHighlightEnabled = style.boundaryHighlightEnabled;
+	int boundaryBorderWidth = style.boundaryBorderWidth;
+	int boundaryBorderRadius = style.boundaryBorderRadius;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		@autoreleasepool {
+			// Apply font — only re-create when family or size changed
+			BOOL hintFamilyChanged =
+			    (fontFamily != controller.overlayView.cachedHintFontFamily &&
+			     ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
+			if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
+				NSFont *font = nil;
+				if (fontFamily && [fontFamily length] > 0) {
+					font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
+				}
+				if (!font)
+					font = [NSFont boldSystemFontOfSize:fontSize];
+				controller.overlayView.hintFont = font;
+				controller.overlayView.cachedHintFontFamily = fontFamily;
+				controller.overlayView.cachedHintFontSize = fontSize;
+			}
+
+			// Apply colors
+			if (bgHex) {
+				NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
+				                                      alpha:1.0] colorWithAlphaComponent:0.95];
+				controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
+				                                                                     defaultColor:defaultBg];
+			}
+			if (textHex) {
+				controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
+				                                                               defaultColor:[NSColor blackColor]];
+			}
+			if (matchedTextHex) {
+				controller.overlayView.hintMatchedTextColor =
+				    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
+			}
+			if (borderHex) {
+				controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
+				                                                                 defaultColor:[NSColor blackColor]];
+			}
+			if (boundaryBgHex) {
+				NSColor *defaultBoundaryBg = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
+				controller.overlayView.hintBoundaryBackgroundColor =
+				    [controller.overlayView colorFromHex:boundaryBgHex defaultColor:defaultBoundaryBg];
+			}
+			if (boundaryBorderHex) {
+				NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
+				controller.overlayView.hintBoundaryBorderColor =
+				    [controller.overlayView colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
+			}
+
+			// Apply geometry properties
+			controller.overlayView.hintBorderRadius = borderRadius;
+			controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
+			controller.overlayView.hintPaddingX = paddingX;
+			controller.overlayView.hintPaddingY = paddingY;
+			controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
+			controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
+			controller.overlayView.hintBoundaryBorderRadius = boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
+
+			// Remove hints matching the given positions
+			if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
+				// Build a set of position keys for O(1) lookup
+				NSMutableSet *positionsToRemoveSet = [NSMutableSet setWithCapacity:[positionsToRemoveArray count]];
+				for (NSValue *removePositionValue in positionsToRemoveArray) {
+					NSPoint removePosition = [removePositionValue pointValue];
+					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", removePosition.x, removePosition.y];
+					[positionsToRemoveSet addObject:key];
+				}
+
+				NSMutableArray<HintItem *> *hintsToKeep =
+				    [NSMutableArray arrayWithCapacity:[controller.overlayView.hints count]];
+				for (HintItem *hintItem in controller.overlayView.hints) {
+					NSPoint hintPosition = hintItem.position;
+					NSString *hintKey = [NSString stringWithFormat:@"%.6f,%.6f", hintPosition.x, hintPosition.y];
+					if (![positionsToRemoveSet containsObject:hintKey]) {
+						[hintsToKeep addObject:hintItem];
+					}
+				}
+				controller.overlayView.hints = hintsToKeep;
+			}
+
+			// Add or update hints
+			if (hintItemsToAdd && [hintItemsToAdd count] > 0) {
+				// Build lookup map for existing hints by position for O(1) access
+				NSMutableDictionary *hintsByPosition =
+				    [NSMutableDictionary dictionaryWithCapacity:[controller.overlayView.hints count]];
+				for (HintItem *hintItem in controller.overlayView.hints) {
+					NSPoint pos = hintItem.position;
+					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", pos.x, pos.y];
+					hintsByPosition[key] = hintItem;
+				}
+
+				for (HintItem *newHintItem in hintItemsToAdd) {
+					NSPoint newPosition = newHintItem.position;
+					NSString *key = [NSString stringWithFormat:@"%.6f,%.6f", newPosition.x, newPosition.y];
+					HintItem *existingHint = hintsByPosition[key];
+					if (existingHint) {
+						NSUInteger index = [controller.overlayView.hints indexOfObjectIdenticalTo:existingHint];
+						if (index != NSNotFound) {
+							controller.overlayView.hints[index] = newHintItem;
+						}
+					} else {
+						[controller.overlayView.hints addObject:newHintItem];
+					}
+				}
+			}
+
+			[controller.overlayView setNeedsDisplay:YES];
+		}
+	});
+}
+
 /// Replace overlay window
 /// @param pwindow Pointer to overlay window handle
 void NeruReplaceOverlayWindow(OverlayWindow *pwindow) {

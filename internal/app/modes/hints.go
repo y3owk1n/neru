@@ -93,9 +93,9 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 }
 
 // filterHintsForScreen returns only the hints whose element center falls within
-// screenBounds, and deduplicates by position. Two hints at the same screen point
-// would render as overlapping, ambiguous labels, and the overlay's structural-equality
-// check keys hints by position, so a duplicate point would collide there as well.
+// screenBounds, and deduplicates by position so that downstream code (overlay
+// incremental updates, Objective-C NeruDrawIncrementHints) can safely use
+// position as a unique key without silently dropping entries.
 func filterHintsForScreen(
 	allHints []*domainHint.Interface,
 	screenBounds image.Rectangle,
