@@ -667,11 +667,9 @@ func (o *Overlay) drawHintsIncremental(
 		return true
 	}
 
-	// A structural change (a hint added, removed, or relabeled) falls back to the
-	// full atomic redraw in drawHintsInternal via NeruDrawHints, which replaces the
-	// whole set in one main-thread turn with no blank frame. That avoids a
-	// position-keyed incremental diff, which cannot distinguish a new element at a
-	// reused screen position from the old one it replaced.
+	// A structural change (a hint added, removed, or relabeled) returns false so
+	// drawHintsInternal does a full redraw via NeruDrawHints, which replaces the whole
+	// set atomically in one main-thread turn.
 	return false
 }
 

@@ -203,13 +203,11 @@ func (h *Handler) activateHintModeInternal(
 	actionString := domain.ActionString(actionEnum)
 
 	if isRefresh {
-		// During refresh, do NOT clear the overlay and do NOT change mode or disable
-		// the event tap. The existing labels stay on screen until the fresh scan
-		// finishes and the atomic redraw swaps in the new set, so there is no blank
-		// frame. Mode and event tap are already correct, so SetModeHints() is skipped
-		// on the success path, which also avoids leaving the app idle with the tap
-		// disabled if hint generation fails.
-		h.logger.Debug("hints refresh: preserving overlay (no pre-scan clear)")
+		// Keep the mode, event tap, and overlay in place for an in-place refresh, so
+		// the existing labels stay visible until the fresh scan draws the new set over
+		// them. Only indicator polling stops. Skipping SetModeHints on the success path
+		// avoids leaving the app idle with the event tap disabled if hint generation
+		// fails.
 		h.stopIndicatorPolling()
 	} else {
 		h.exitModeLocked()
@@ -239,10 +237,9 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.screenBounds = activeScreenBounds
-	// Clear any previous overlay content (e.g. scroll highlights) before drawing hints,
-	// but never on a refresh. An in-place refresh keeps its existing labels on screen
-	// until the atomic redraw swaps in the new set; clearing here would blank the
-	// overlay for the whole scan and make the labels flicker.
+	// On a fresh activation, clear leftover overlay content (e.g. scroll highlights)
+	// before drawing hints. A refresh keeps its overlay so the existing labels persist
+	// until the redraw draws the new set over them.
 	if !isRefresh {
 		h.overlayManager.Clear()
 	}
@@ -354,8 +351,8 @@ func (h *Handler) activateHintModeInternal(
 		strategyVal,
 	)
 	if !permissionOk {
-		// Match the other refresh abort paths: the pre-scan clear was removed, so on a
-		// refresh we must bail out through exitModeLocked to clear the stale overlay.
+		// On a refresh, exit through exitModeLocked so the stale overlay is cleared,
+		// matching the other refresh abort paths.
 		if isRefresh {
 			h.exitModeLocked()
 		}
