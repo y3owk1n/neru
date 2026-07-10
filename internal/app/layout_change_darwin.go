@@ -40,6 +40,7 @@ func (a *App) registerLayoutChangeHandler() {
 		if err != nil {
 			bundleID = ""
 		}
+
 		a.currentHotkeyBundleID = bundleID
 		a.registerHotkeys(bundleID)
 		a.appState.SetHotkeysRegistered(true)
