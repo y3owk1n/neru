@@ -93,9 +93,9 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 }
 
 // filterHintsForScreen returns only the hints whose element center falls within
-// screenBounds, and deduplicates by position so that downstream code (overlay
-// incremental updates, Objective-C NeruDrawIncrementHints) can safely use
-// position as a unique key without silently dropping entries.
+// screenBounds, and deduplicates by position. Two hints at the same screen point
+// would render as overlapping, ambiguous labels, and the overlay's structural-equality
+// check keys hints by position, so a duplicate point would collide there as well.
 func filterHintsForScreen(
 	allHints []*domainHint.Interface,
 	screenBounds image.Rectangle,
@@ -203,12 +203,13 @@ func (h *Handler) activateHintModeInternal(
 	actionString := domain.ActionString(actionEnum)
 
 	if isRefresh {
-		// During refresh, only clear overlay and stop polling but do NOT change mode
-		// or disable event tap. Mode and event tap are already in the correct state,
-		// so SetModeHints() can be skipped on the success path.
-		// This prevents leaving the app in idle mode with event tap disabled if hint
-		// generation fails.
-		h.overlayManager.Clear()
+		// During refresh, do NOT clear the overlay and do NOT change mode or disable
+		// the event tap. The existing labels stay on screen until the fresh scan
+		// finishes and the atomic redraw swaps in the new set, so there is no blank
+		// frame. Mode and event tap are already correct, so SetModeHints() is skipped
+		// on the success path, which also avoids leaving the app idle with the tap
+		// disabled if hint generation fails.
+		h.logger.Debug("hints refresh: preserving overlay (no pre-scan clear)")
 		h.stopIndicatorPolling()
 	} else {
 		h.exitModeLocked()
@@ -238,9 +239,13 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	h.screenBounds = activeScreenBounds
-	// Clear any previous overlay content (e.g., scroll highlights) before drawing hints.
-	// This prevents scroll highlights from persisting when switching from scroll mode to hints mode.
-	h.overlayManager.Clear()
+	// Clear any previous overlay content (e.g. scroll highlights) before drawing hints,
+	// but never on a refresh. An in-place refresh keeps its existing labels on screen
+	// until the atomic redraw swaps in the new set; clearing here would blank the
+	// overlay for the whole scan and make the labels flicker.
+	if !isRefresh {
+		h.overlayManager.Clear()
+	}
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
@@ -349,6 +354,12 @@ func (h *Handler) activateHintModeInternal(
 		strategyVal,
 	)
 	if !permissionOk {
+		// Match the other refresh abort paths: the pre-scan clear was removed, so on a
+		// refresh we must bail out through exitModeLocked to clear the stale overlay.
+		if isRefresh {
+			h.exitModeLocked()
+		}
+
 		return
 	}
 
