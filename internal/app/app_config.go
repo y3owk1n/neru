@@ -82,6 +82,7 @@ func (a *App) restoreHotkeysAfterFailedReload() {
 
 		a.registerHotkeys(bundleID)
 		a.appState.SetHotkeysRegistered(true)
+		a.currentHotkeyBundleID = bundleID
 		a.logger.Debug("Hotkeys restored after failed config reload")
 	}
 }
