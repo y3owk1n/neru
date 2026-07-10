@@ -392,7 +392,15 @@ func (h *Handler) SuppressModifiersUntilReleased(mods action.Modifiers) {
 		if mods.Has(mod) {
 			delete(h.pendingModifierKeys, mod)
 			h.stopPendingModifierTimer(mod)
-			h.usedInChordModifiers &^= mod
+			// Don't clear usedInChordModifiers here — it may have been
+			// set by SuppressModifiersForHotkey (called from the global
+			// hotkey dispatch path) before the async mode-action path
+			// reaches us. Clearing it would let a modifier UP event
+			// from the per-mode event tap fall through to the debounce
+			// path and create an unintended sticky toggle.
+			// usedInChordModifiers is cleaned up by handleModifierToggle
+			// on modifier release, or by expireSuppressedModifiersIfNeeded
+			// on suppression timeout.
 		}
 	}
 }
