@@ -31,7 +31,7 @@ func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 			continue
 		}
 
-		mode := strings.Split(trimmed, " ")[0]
+		mode := strings.Fields(trimmed)[0]
 		switch {
 		case mode == hintsStr && !cfg.Hints.Enabled:
 			return true
@@ -378,7 +378,7 @@ func actionsContainModeSwitch(actions []string) bool {
 
 		// The action format is "<mode_name>" with optional args, so split
 		// to get just the mode name for comparison.
-		mode := strings.Split(trimmed, " ")[0]
+		mode := strings.Fields(trimmed)[0]
 		switch mode {
 		case domain.ModeString(domain.ModeHints),
 			domain.ModeString(domain.ModeGrid),
