@@ -554,6 +554,10 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		}
 	}
 
+	if result := validateAppConfigsHotkeys(s.logger, "app_configs", raw); result != nil {
+		return result
+	}
+
 	if hintsRaw, ok := raw["hints"].(map[string]any); ok {
 		if result := validateAppConfigsHotkeys(s.logger, "hints", hintsRaw); result != nil {
 			return result
