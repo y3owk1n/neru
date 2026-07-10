@@ -1597,9 +1597,12 @@ func (c *ScrollConfig) HasAppHotkeyOverrides() bool {
 }
 
 // AppConfigForBundleID returns the matching hints app config for the given bundle ID.
+// Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
 	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
 			return &c.AppConfigs[idx]
 		}
 	}
@@ -1608,9 +1611,12 @@ func (c *HintsConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 }
 
 // AppConfigForBundleID returns the matching grid app config for the given bundle ID.
+// Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *GridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
 	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
 			return &c.AppConfigs[idx]
 		}
 	}
@@ -1619,9 +1625,12 @@ func (c *GridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 }
 
 // AppConfigForBundleID returns the matching recursive grid app config for the given bundle ID.
+// Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *RecursiveGridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
 	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
 			return &c.AppConfigs[idx]
 		}
 	}
@@ -1630,9 +1639,12 @@ func (c *RecursiveGridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 }
 
 // AppConfigForBundleID returns the matching scroll app config for the given bundle ID.
+// Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *ScrollConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
 	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
 			return &c.AppConfigs[idx]
 		}
 	}
@@ -1831,8 +1843,9 @@ func (c *HintsConfig) buildRolesMap(bundleID string) map[string]struct{} {
 		}
 	}
 
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
 	for _, appConfig := range c.AppConfigs {
-		if appConfig.BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(appConfig.BundleID)) == lowerBundleID {
 			for _, role := range appConfig.AdditionalClickable {
 				trimmed := strings.TrimSpace(role)
 				if trimmed != "" {
