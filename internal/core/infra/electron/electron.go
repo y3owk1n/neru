@@ -3,7 +3,6 @@ package electron
 import (
 	"strings"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -12,65 +11,49 @@ import (
 )
 
 const (
-	electronAttributeName = "AXManualAccessibility"
+	manualAttributeName   = "AXManualAccessibility"
 	enhancedAttributeName = "AXEnhancedUserInterface"
 )
 
+// setAttribute is the platform accessibility setter. It is a package variable
+// so tests can substitute a fake for the cross-process AX call.
+var setAttribute = platformSetApplicationAttribute
+
+// axState records which accessibility attributes have been set on a running
+// application, keyed by pid. bundle guards against pid reuse: when the OS hands
+// a retired pid to a different application, the mismatched bundle resets the
+// record so the new application has its attributes set too. The *Failed flags
+// remember that a set already failed and was logged, so a permanently
+// unsupported app is retried on later focus without repeating the log line.
+type axState struct {
+	bundle         string
+	manual         bool
+	manualFailed   bool
+	enhanced       bool
+	enhancedFailed bool
+}
+
 var (
-	electronPIDsMu      sync.Mutex
-	electronEnabledPIDs = make(map[int]struct{})
-	chromiumPIDsMu      sync.Mutex
-	chromiumEnabledPIDs = make(map[int]struct{})
-	firefoxPIDsMu       sync.Mutex
-	firefoxEnabledPIDs  = make(map[int]struct{})
+	enabledPIDsMu sync.Mutex
+	enabledPIDs   = make(map[int]axState)
 )
 
-const (
-	accessibilityRetryCount = 10
-	accessibilityRetryDelay = 100 * time.Millisecond
-	maxAccessibilityDepth   = 10
-)
-
-// EnsureElectronAccessibility ensures Electron accessibility is enabled for the provided bundle ID.
-func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&electronPIDsMu,
-		electronEnabledPIDs,
-		logger,
-		true,
-	)
-}
-
-// EnsureChromiumAccessibility ensures Chromium accessibility is enabled for the provided bundle ID.
-func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&chromiumPIDsMu,
-		chromiumEnabledPIDs,
-		logger,
-		false,
-	)
-}
-
-// EnsureFirefoxAccessibility ensures Firefox accessibility is enabled for the provided bundle ID.
-func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&firefoxPIDsMu,
-		firefoxEnabledPIDs,
-		logger,
-		false,
-	)
-}
-
-func ensureAccessibility(
-	bundleID string,
-	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
-	logger *zap.Logger,
-	isElectron bool,
-) bool {
+// EnsureAppAccessibility sets the accessibility attributes that make an
+// application's hint targets readable.
+//
+// AXManualAccessibility is set on every application. It wakes Electron and
+// Chromium accessibility trees, works for any app without a bundle whitelist,
+// and is a harmless no-op on applications that do not implement it (the set
+// fails silently with no window side effect).
+//
+// AXEnhancedUserInterface is set only when useEnhanced is true, which the
+// caller restricts to Chromium/Firefox browsers with web-content hints turned
+// on. It exposes browser web-area content but can relayout or move windows
+// under tiling window managers, so it stays off every other application.
+//
+// A successful set is cached per pid, so re-focusing an already-woken app does
+// no further work. A failed set is not cached, so a later focus retries it.
+func EnsureAppAccessibility(bundleID string, useEnhanced bool, logger *zap.Logger) {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -81,170 +64,78 @@ func ensureAccessibility(
 	if app == nil {
 		logger.Debug("Application not found for bundle ID", zap.String("bundle_id", bundleID))
 
-		return false
+		return
 	}
 
 	info, infoErr := app.Info()
 	if infoErr != nil {
-		return false
+		return
 	}
 
 	pid := info.PID()
-
 	if pid <= 0 {
-		return false
+		return
 	}
 
-	pidsMu.Lock()
+	ensurePIDAccessibility(pid, bundleID, useEnhanced, logger)
+}
 
-	_, already := enabledPIDs[pid]
-
-	pidsMu.Unlock()
-
-	if already {
-		return true
+// ensurePIDAccessibility applies and caches the accessibility attributes for a
+// resolved pid. It is separated from the application lookup so the caching and
+// gating rules can be tested without a live accessibility tree.
+func ensurePIDAccessibility(pid int, bundleID string, useEnhanced bool, logger *zap.Logger) {
+	enabledPIDsMu.Lock()
+	state := enabledPIDs[pid]
+	if !strings.EqualFold(state.bundle, bundleID) {
+		state = axState{bundle: bundleID}
 	}
+	enabledPIDsMu.Unlock()
 
-	if hasUsableAccessibilityTree(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
+	if !state.manual {
+		if setAttribute(pid, manualAttributeName, true) {
+			state.manual = true
+			state.manualFailed = false
 
-		return true
-	}
-
-	if isElectron {
-		success := platformSetApplicationAttribute(pid, electronAttributeName, true)
-
-		if !success {
 			logger.Debug(
-				"Failed to set AXManualAccessibility",
-				zap.Int("pid", pid),
+				"manual accessibility set",
 				zap.String("bundle_id", bundleID),
+				zap.Int("pid", pid),
+			)
+		} else if !state.manualFailed {
+			state.manualFailed = true
+
+			logger.Debug(
+				"manual accessibility set failed",
+				zap.String("bundle_id", bundleID),
+				zap.Int("pid", pid),
 			)
 		}
 	}
 
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
+	if useEnhanced && !state.enhanced {
+		if setAttribute(pid, enhancedAttributeName, true) {
+			state.enhanced = true
+			state.enhancedFailed = false
 
-		return true
-	}
+			logger.Debug(
+				"enhanced accessibility set for web content",
+				zap.String("bundle_id", bundleID),
+				zap.Int("pid", pid),
+			)
+		} else if !state.enhancedFailed {
+			state.enhancedFailed = true
 
-	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
-
-	if !success {
-		logger.Debug(
-			"Failed to enable AXEnhancedUserInterface",
-			zap.Int("pid", pid),
-			zap.String("bundle_id", bundleID),
-		)
-
-		return false
-	}
-
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
-
-		return true
-	}
-
-	logger.Warn(
-		"Accessibility could not be enabled",
-		zap.Int("pid", pid),
-		zap.String("bundle_id", bundleID),
-	)
-
-	return false
-}
-
-func waitForAccessibility(app *accessibility.Element, logger *zap.Logger) bool {
-	for range accessibilityRetryCount {
-		if hasUsableAccessibilityTree(app, logger) {
-			return true
-		}
-
-		time.Sleep(accessibilityRetryDelay)
-	}
-
-	return false
-}
-
-func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger) bool {
-	if root == nil {
-		return false
-	}
-
-	type entry struct {
-		el    *accessibility.Element
-		depth int
-	}
-
-	queue := []entry{{root, 0}}
-
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-
-		if cur.el == nil {
-			continue
-		}
-
-		info, err := cur.el.Info()
-		if err != nil || info == nil {
-			continue
-		}
-
-		role := info.Role()
-
-		switch role {
-		case "AXWebArea", "AXScrollArea":
-			logger.Info("Found usable accessibility tree", zap.String("role", role))
-
-			return true
-		}
-
-		if cur.depth >= maxAccessibilityDepth {
-			continue
-		}
-
-		children, err := cur.el.Children(role)
-		if err != nil {
-			continue
-		}
-
-		for _, child := range children {
-			queue = append(queue, entry{child, cur.depth + 1})
+			logger.Debug(
+				"enhanced accessibility set failed",
+				zap.String("bundle_id", bundleID),
+				zap.Int("pid", pid),
+			)
 		}
 	}
 
-	return false
-}
-
-func markPIDEnabled(
-	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
-	pid int,
-) {
-	pidsMu.Lock()
-	defer pidsMu.Unlock()
-
-	enabledPIDs[pid] = struct{}{}
-}
-
-// ShouldEnableElectronSupport determines if the provided bundle identifier
-// should have Electron accessibility manually toggled based on defaults and
-// user-specified overrides.
-func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
-		return true
-	}
-
-	result := IsLikelyElectronBundle(bundleID)
-
-	return result
+	enabledPIDsMu.Lock()
+	enabledPIDs[pid] = state
+	enabledPIDsMu.Unlock()
 }
 
 // ShouldEnableChromiumSupport determines if Chromium accessibility should be enabled for the provided bundle.
@@ -277,23 +168,6 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 	result := IsLikelyFirefoxBundle(bundleID)
 
 	return result
-}
-
-// IsLikelyElectronBundle returns true if the provided bundle identifier
-// matches a known Electron signature.
-func IsLikelyElectronBundle(bundleID string) bool {
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	if lower == "" {
-		return false
-	}
-
-	for _, exact := range config.KnownElectronBundles {
-		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // IsLikelyChromiumBundle returns true if the provided bundle identifier matches a known Chromium signature.

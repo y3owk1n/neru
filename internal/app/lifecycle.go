@@ -423,66 +423,22 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 
 	if cfg.Hints.Enabled {
-		if cfg.Hints.AdditionalAXSupport.Enable {
-			a.handleAdditionalAccessibility(bundleID, cfg)
-		}
+		a.handleAdditionalAccessibility(bundleID, cfg)
 	}
 }
 
-// handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
+// handleAdditionalAccessibility wakes the focused application's accessibility
+// tree so hints can read it. AXManualAccessibility is set on every focused app.
+// The window-moving AXEnhancedUserInterface is set only for Chromium/Firefox
+// browsers, and only when web-content hint support is enabled.
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
-	config := cfg.Hints.AdditionalAXSupport
+	axCfg := cfg.Hints.AdditionalAXSupport
 
-	isElectron := electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles)
-	isChromium := electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles)
-	isFirefox := electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles)
+	useEnhanced := axCfg.Enable &&
+		(electron.ShouldEnableChromiumSupport(bundleID, axCfg.AdditionalChromiumBundles) ||
+			electron.ShouldEnableFirefoxSupport(bundleID, axCfg.AdditionalFirefoxBundles))
 
-	if !isElectron && !isChromium && !isFirefox {
-		return
-	}
-
-	go func() {
-		// Apps may need time to initialize their accessibility tree after launch.
-		// We retry a few times to ensure the accessibility attributes are successfully set.
-		// Use exponential backoff to minimize latency for fast-booting apps while
-		// still accommodating slow-booting ones.
-		const (
-			maxRetries    = 5
-			initialDelay  = 100 * time.Millisecond
-			backoffFactor = 2
-		)
-
-		delay := initialDelay
-		for range maxRetries {
-			allSuccess := true
-
-			if isElectron {
-				if !electron.EnsureElectronAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isChromium {
-				if !electron.EnsureChromiumAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isFirefox {
-				if !electron.EnsureFirefoxAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if allSuccess {
-				return
-			}
-
-			// Wait before retrying
-			time.Sleep(delay)
-			delay *= backoffFactor
-		}
-	}()
+	go electron.EnsureAppAccessibility(bundleID, useEnhanced, a.logger)
 }
 
 // printStartupInfo displays startup information including registered hotkeys.

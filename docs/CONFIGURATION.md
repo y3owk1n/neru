@@ -476,15 +476,15 @@ width = 320
 
 ### Additional AX Support
 
-Framework-specific accessibility improvements for Electron, Chromium, Firefox, and WebKit apps:
+Makes web-page content inside browsers hintable. Electron apps (VS Code, Slack, and any other) are woken automatically on focus and do not need this setting.
 
-| Option                        | Type  | Default | Description                  |
-| ----------------------------- | ----- | ------- | ---------------------------- |
-| `enable`                      | bool  | `false` | Enable additional AX support |
-| `additional_electron_bundles` | array | `[]`    | Bundle IDs of Electron apps  |
-| `additional_chromium_bundles` | array | `[]`    | Bundle IDs of Chromium apps  |
-| `additional_firefox_bundles`  | array | `[]`    | Bundle IDs of Firefox apps   |
-| `additional_webkit_bundles`   | array | `[]`    | Bundle IDs of WebKit apps    |
+| Option                        | Type  | Default | Description                                                                                                |
+| ----------------------------- | ----- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| `enable`                      | bool  | `false` | Set `AXEnhancedUserInterface` on Chromium and Firefox browsers so hints reach their web-page content       |
+| `additional_electron_bundles` | array | `[]`    | Extra Electron bundle IDs, so neru recognises their web view and prunes the noisy DOM tree while scanning   |
+| `additional_chromium_bundles` | array | `[]`    | Extra Chromium browser bundle IDs that should get web-content hints                                         |
+| `additional_firefox_bundles`  | array | `[]`    | Extra Firefox browser bundle IDs that should get web-content hints                                          |
+| `additional_webkit_bundles`   | array | `[]`    | Extra WebKit browser bundle IDs, so neru prunes their web DOM tree while scanning                           |
 
 ```toml
 [hints.additional_ax_support]
@@ -496,6 +496,9 @@ additional_webkit_bundles = []
 ```
 
 Find bundle IDs: `osascript -e 'id of app "Safari"'`
+
+> [!WARNING]
+> `enable` sets the `AXEnhancedUserInterface` attribute on Chromium and Firefox browsers. Under a tiling or window-snapping manager (yabai, Rectangle, Magnet, Amethyst), turning this attribute on can make macOS relayout or move the browser window. neru sets it only while `enable` is on, and only on apps it treats as Chromium or Firefox browsers. Native apps never receive it, and Electron apps receive it only if you list them in one of the browser arrays yourself. Leave `enable` off if the window-move side effect bothers you.
 
 > [!TIP]
 > To support installed PWA apps, add a wildcard bundle ID to the appropriate browser array. For example, to support Brave-installed PWAs, add `"com.brave.Browser.app.*"` to `additional_chromium_bundles`:

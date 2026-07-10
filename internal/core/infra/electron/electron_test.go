@@ -16,54 +16,6 @@ const (
 	bundleIDMyAppUpper                      = "COM.EXAMPLE.MYAPP"
 )
 
-func TestIsLikelyElectronBundle(t *testing.T) {
-	tests := []struct {
-		name     string
-		bundleID string
-		want     bool
-	}{
-		{
-			name:     "known electron bundle",
-			bundleID: "com.microsoft.VSCode",
-			want:     true,
-		},
-		{
-			name:     "case insensitive match",
-			bundleID: "COM.MICROSOFT.VSCODE",
-			want:     true,
-		},
-		{
-			name:     testNameUnknownBundle,
-			bundleID: bundleIDSafari,
-			want:     false,
-		},
-		{
-			name:     testNameEmptyBundle,
-			bundleID: "",
-			want:     false,
-		},
-		{
-			name:     "whitespace bundle",
-			bundleID: "  ",
-			want:     false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := electron.IsLikelyElectronBundle(testCase.bundleID)
-			if got != testCase.want {
-				t.Errorf(
-					"IsLikelyElectronBundle(%q) = %v, want %v",
-					testCase.bundleID,
-					got,
-					testCase.want,
-				)
-			}
-		})
-	}
-}
-
 func TestIsLikelyChromiumBundle(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -104,64 +56,6 @@ func TestIsLikelyChromiumBundle(t *testing.T) {
 				t.Errorf(
 					"IsLikelyChromiumBundle(%q) = %v, want %v",
 					testCase.bundleID,
-					got,
-					testCase.want,
-				)
-			}
-		})
-	}
-}
-
-func TestShouldEnableElectronSupport(t *testing.T) {
-	tests := []struct {
-		name              string
-		bundleID          string
-		additionalBundles []string
-		want              bool
-	}{
-		{
-			name:              "known electron bundle",
-			bundleID:          "com.microsoft.VSCode",
-			additionalBundles: []string{},
-			want:              true,
-		},
-		{
-			name:              testNameAdditionalBundle,
-			bundleID:          bundleIDMyApp,
-			additionalBundles: []string{bundleIDMyApp},
-			want:              true,
-		},
-		{
-			name:              testNameUnknownBundle,
-			bundleID:          bundleIDSafari,
-			additionalBundles: []string{},
-			want:              false,
-		},
-		{
-			name:              testNameEmptyBundle,
-			bundleID:          "",
-			additionalBundles: []string{},
-			want:              false,
-		},
-		{
-			name:              testNameCaseInsensitiveAdditionalBundle,
-			bundleID:          bundleIDMyApp,
-			additionalBundles: []string{bundleIDMyAppUpper},
-			want:              true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := electron.ShouldEnableElectronSupport(
-				testCase.bundleID,
-				testCase.additionalBundles,
-			)
-			if got != testCase.want {
-				t.Errorf(
-					"ShouldEnableElectronSupport(%q, %v) = %v, want %v",
-					testCase.bundleID,
-					testCase.additionalBundles,
 					got,
 					testCase.want,
 				)

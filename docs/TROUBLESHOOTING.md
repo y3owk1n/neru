@@ -122,9 +122,9 @@ neru hints               # CLI works?
 log_level = "debug"
 ```
 
-### Electron/Chromium/Firefox issues
+### Browser web content has no hints
 
-**Enable additional AX support:**
+Chromium and Firefox keep their web-page accessibility tree asleep until an app asks for it. Turn on the enhanced attribute so hints reach page content (Electron apps do not need this):
 
 ```toml
 [hints.additional_ax_support]
@@ -163,34 +163,29 @@ tail -f ~/Library/Logs/neru/app.log
 
 ### Hints don't appear in Electron apps
 
-**Electron apps need additional AX support.**
+Electron apps (VS Code, Slack, Discord, and any other) are woken automatically the moment they gain focus, with no configuration. neru sets `AXManualAccessibility` on every focused app, which wakes the Electron accessibility tree.
 
-**Solution:**
-
-Edit `~/.config/neru/config.toml`:
+If hints still do not appear, turn on debug logging and confirm the wake happened:
 
 ```toml
-[hints.additional_ax_support]
-enable = true
-
-# If your app isn't auto-detected, add it:
-additional_electron_bundles = [
-    "com.your.electronapp",
-]
+[logging]
+log_level = "debug"
 ```
 
-Restart Neru:
+Restart Neru and watch the log:
 
 ```bash
 pkill neru && neru launch
+tail -f ~/Library/Logs/neru/app.log
 ```
 
-**Check logs for:**
+**Check the log for:**
 
 ```
-App requires Electron support
-Enabled AXManualAccessibility for: com.your.app
+manual accessibility set
 ```
+
+If instead you see `manual accessibility set failed`, macOS refused the attribute. For an Electron app that usually means neru is missing macOS Accessibility permission, so check that first. Ordinary native apps that do not implement the attribute log the same line harmlessly. If neither line appears for the app, confirm the app was frontmost when you opened hints.
 
 ### Hints don't appear in Chrome/Firefox content
 
@@ -434,14 +429,12 @@ pkill -9 neru
 
 ### VS Code: Hints don't appear in editor
 
-**Electron AX support needed.**
-
-**Solution:**
+VS Code is an Electron app and is woken automatically on focus, so hints work on its buttons, tabs, and sidebar without configuration. The editor surface itself exposes a thin accessibility tree, so hints can be sparse inside the editing area. For that surface, switch VS Code to the Vision strategy, which detects elements from the rendered window instead of the AX tree:
 
 ```toml
-[hints.additional_ax_support]
-enable = true
-# VS Code is auto-detected
+[[hints.app_configs]]
+bundle_id = "com.microsoft.VSCode"
+strategy = "vision"
 ```
 
 ### Adobe apps: Hints misaligned or missing
@@ -632,9 +625,13 @@ grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 
 ### Common log messages
 
-**"App requires Electron support"** - Electron app detected, needs AX support enabled
+**"manual accessibility set"** - neru woke an app's accessibility tree by setting AXManualAccessibility on it
 
-**"Enabled AXManualAccessibility"** - Electron support activated successfully
+**"manual accessibility set failed"** - macOS refused AXManualAccessibility; harmless for a native app that does not implement it, a permission problem for an app that should
+
+**"enhanced accessibility set for web content"** - neru set AXEnhancedUserInterface on a Chromium/Firefox browser to expose its web page
+
+**"enhanced accessibility set failed"** - macOS refused AXEnhancedUserInterface for a browser; its web-page content may not be hintable
 
 **"Hints mode activated"** - Hint overlay is active; includes hint count when available
 
