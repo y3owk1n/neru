@@ -127,8 +127,8 @@ log_level = "debug"
 Chromium and Firefox keep their web-page accessibility tree asleep until an app asks for it. Turn on the enhanced attribute so hints reach page content (Electron apps do not need this):
 
 ```toml
-[hints.additional_ax_support]
-enable = true
+[hints.web_content_hints]
+enabled = true
 ```
 
 ### Menubar/Dock hints missing

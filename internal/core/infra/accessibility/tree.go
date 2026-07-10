@@ -954,12 +954,12 @@ func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Pro
 		return false
 	}
 
-	chromiumBundles := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
+	chromiumBundles := cfg.Hints.WebContentHints.AdditionalChromiumBundles
 	if config.MatchesAdditionalBundle(bundleID, chromiumBundles) {
 		return true
 	}
 
-	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
+	electronBundles := cfg.Hints.WebContentHints.AdditionalElectronBundles
 
 	return config.MatchesAdditionalBundle(bundleID, electronBundles)
 }
@@ -988,6 +988,6 @@ func isWebKit(bundleID string, configProvider config.Provider) bool {
 
 	return config.MatchesAdditionalBundle(
 		bundleID,
-		cfg.Hints.AdditionalAXSupport.AdditionalWebKitBundles,
+		cfg.Hints.WebContentHints.AdditionalWebKitBundles,
 	)
 }

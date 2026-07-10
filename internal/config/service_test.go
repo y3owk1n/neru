@@ -277,3 +277,95 @@ bundle_id = "com.example.app"
 		})
 	}
 }
+
+func TestService_LoadWithValidation_RenamedWebContentHintsKey(t *testing.T) {
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+
+	t.Run("old additional_ax_support key is rejected with guidance", func(t *testing.T) {
+		configPath := writeTempToml(t, `
+[hints.additional_ax_support]
+enable = true
+`)
+
+		result := service.LoadWithValidation(configPath)
+
+		if result.ValidationError == nil {
+			t.Fatal("LoadWithValidation() expected a ValidationError for the renamed key, got nil")
+		}
+
+		errMsg := result.ValidationError.Error()
+		if !strings.Contains(errMsg, "additional_ax_support") ||
+			!strings.Contains(errMsg, "web_content_hints") {
+			t.Errorf("error = %q, want it to name both the old and new keys", errMsg)
+		}
+	})
+
+	t.Run("new web_content_hints key loads", func(t *testing.T) {
+		configPath := writeTempToml(t, `
+[hints.web_content_hints]
+enabled = true
+additional_chromium_bundles = ["com.example.browser"]
+`)
+
+		result := service.LoadWithValidation(configPath)
+
+		if result.ValidationError != nil {
+			t.Fatalf("LoadWithValidation() unexpected ValidationError: %v", result.ValidationError)
+		}
+
+		if !result.Config.Hints.WebContentHints.Enabled {
+			t.Error("web_content_hints.enabled did not load as true")
+		}
+
+		got := result.Config.Hints.WebContentHints.AdditionalChromiumBundles
+		if len(got) != 1 || got[0] != "com.example.browser" {
+			t.Errorf("additional_chromium_bundles = %v, want [com.example.browser]", got)
+		}
+	})
+
+	t.Run("old web_content_hints.enable field is rejected with guidance", func(t *testing.T) {
+		configPath := writeTempToml(t, `
+[hints.web_content_hints]
+enable = true
+`)
+
+		result := service.LoadWithValidation(configPath)
+
+		if result.ValidationError == nil {
+			t.Fatal("LoadWithValidation() expected a ValidationError for the renamed field, got nil")
+		}
+
+		errMsg := result.ValidationError.Error()
+		if !strings.Contains(errMsg, "enable") || !strings.Contains(errMsg, "enabled") {
+			t.Errorf("error = %q, want it to name both the old and new field", errMsg)
+		}
+	})
+
+	t.Run("empty old section is still rejected", func(t *testing.T) {
+		configPath := writeTempToml(t, "[hints.additional_ax_support]\n")
+
+		result := service.LoadWithValidation(configPath)
+
+		if result.ValidationError == nil {
+			t.Fatal("expected the bare old section to be rejected, got nil")
+		}
+
+		if !strings.Contains(result.ValidationError.Error(), "web_content_hints") {
+			t.Errorf("error = %q, want it to name the new key", result.ValidationError.Error())
+		}
+	})
+
+	t.Run("non-table hints does not misfire the guard", func(t *testing.T) {
+		configPath := writeTempToml(t, "hints = 5\n")
+
+		// A non-table [hints] must skip the rename guard without panicking. The
+		// typed decode reports the real type error; the guard must not claim it
+		// fired.
+		result := service.LoadWithValidation(configPath)
+
+		if result.ValidationError != nil &&
+			strings.Contains(result.ValidationError.Error(), "has been renamed") {
+			t.Errorf("rename guard misfired on a non-table hints: %v", result.ValidationError)
+		}
+	})
+}

@@ -437,8 +437,8 @@ func newDefaultConfig() *Config {
 
 			AppConfigs: []AppConfig{},
 
-			AdditionalAXSupport: AdditionalAXSupport{
-				Enable:                    false,
+			WebContentHints: WebContentHints{
+				Enabled:                   false,
 				AdditionalElectronBundles: []string{},
 				AdditionalChromiumBundles: []string{},
 				AdditionalFirefoxBundles:  []string{},

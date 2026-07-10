@@ -722,7 +722,7 @@ type HintsConfig struct {
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
-	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
+	WebContentHints WebContentHints `json:"webContentHints" toml:"web_content_hints"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
@@ -919,9 +919,9 @@ type HeldRepeatConfig struct {
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
 }
 
-// AdditionalAXSupport defines accessibility support for specific application frameworks.
-type AdditionalAXSupport struct {
-	Enable                    bool     `json:"enable"                    toml:"enable"`
+// WebContentHints configures accessibility for hints inside browser web-page content.
+type WebContentHints struct {
+	Enabled                   bool     `json:"enabled"                   toml:"enabled"`
 	AdditionalElectronBundles []string `json:"additionalElectronBundles" toml:"additional_electron_bundles"`
 	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
 	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`

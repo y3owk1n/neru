@@ -100,8 +100,8 @@ visible_check_enabled = false
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
-[hints.additional_ax_support]
-enable = false                              # Chromium/Firefox web-page hints via AXEnhancedUserInterface. Electron works without it
+[hints.web_content_hints]
+enabled = false                             # Chromium/Firefox web-page hints via AXEnhancedUserInterface. Electron works without it
 additional_electron_bundles = []
 additional_chromium_bundles = []
 additional_firefox_bundles = []

@@ -313,6 +313,45 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
+	// [hints.additional_ax_support] is no longer a valid section; it was replaced
+	// by [hints.web_content_hints]. The loader ignores unknown keys, so a config
+	// still using the old name would silently lose its settings. Reject it and
+	// point at the new key.
+	if hints, ok := raw["hints"].(map[string]any); ok {
+		if _, present := hints["additional_ax_support"]; present {
+			configResult.ValidationError = derrors.New(
+				derrors.CodeInvalidConfig,
+				"[hints.additional_ax_support] has been renamed to [hints.web_content_hints]. "+
+					"Rename that section in your config to keep browser web-content hints.",
+			)
+			configResult.Config = DefaultConfig()
+
+			s.logger.Warn("Config uses the renamed key hints.additional_ax_support",
+				zap.Error(configResult.ValidationError))
+
+			return configResult
+		}
+
+		// web_content_hints.enable was renamed to web_content_hints.enabled. The
+		// loader ignores unknown keys, so the old field would silently disable
+		// web-content hints. Reject it and point at the new key.
+		if webContentHints, ok := hints["web_content_hints"].(map[string]any); ok {
+			if _, present := webContentHints["enable"]; present {
+				configResult.ValidationError = derrors.New(
+					derrors.CodeInvalidConfig,
+					"[hints.web_content_hints] enable has been renamed to enabled. "+
+						"Rename that key in your config to keep browser web-content hints.",
+				)
+				configResult.Config = DefaultConfig()
+
+				s.logger.Warn("Config uses the renamed key hints.web_content_hints.enable",
+					zap.Error(configResult.ValidationError))
+
+				return configResult
+			}
+		}
+	}
+
 	// Decode into typed config struct (separate pass for validation)
 	_, err := toml.DecodeFile(configResult.ConfigPath, configResult.Config)
 	if err != nil {

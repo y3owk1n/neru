@@ -438,7 +438,7 @@ func (a *App) handleAppActivation(bundleID string) {
 // tree so hints can read it. It sets `AXManualAccessibility` on any focused app
 // (a no-op on apps that do not implement it), as well as
 // `AXEnhancedUserInterface` on Chromium and Firefox browsers when
-// `hints.additional_ax_support` is enabled. The latter is necessary in order to
+// `hints.web_content_hints` is enabled. The latter is necessary in order to
 // expose web-area content but can cause windows to move and prevent tiling
 // window managers from working correctly, so it stays off every other app.
 //
@@ -446,9 +446,9 @@ func (a *App) handleAppActivation(bundleID string) {
 // retries a freshly launched app with backoff and would otherwise block the
 // activation handler while it waits.
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
-	axCfg := cfg.Hints.AdditionalAXSupport
+	axCfg := cfg.Hints.WebContentHints
 
-	useEnhanced := axCfg.Enable &&
+	useEnhanced := axCfg.Enabled &&
 		(electron.ShouldEnableChromiumSupport(bundleID, axCfg.AdditionalChromiumBundles) ||
 			electron.ShouldEnableFirefoxSupport(bundleID, axCfg.AdditionalFirefoxBundles))
 
