@@ -63,6 +63,19 @@ func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	a.updateConfigSnapshot(loadResult)
 	a.reconfigureRuntimeFromConfig(loadResult.Config)
+
+	// An activation refresh between prepareForConfigUpdate and here may
+	// have re-registered with the old config for the current bundle,
+	// causing refreshHotkeysForAppOrCurrent to skip because the bundle
+	// hasn't changed.  Force clean registration with the new config.
+	a.hotkeyRegistrationMu.Lock()
+	if a.appState.HotkeysRegistered() {
+		a.stopAllHotkeyRepeats()
+		a.hotkeyManager.UnregisterAll()
+		a.appState.SetHotkeysRegistered(false)
+	}
+	a.hotkeyRegistrationMu.Unlock()
+
 	a.refreshHotkeysForAppOrCurrent("")
 }
 
