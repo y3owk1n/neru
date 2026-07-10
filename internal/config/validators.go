@@ -475,7 +475,8 @@ func validateAppConfigsWithCallback(
 			)
 		}
 
-		if _, ok := seen[appConfig.BundleID]; ok {
+		lowerID := strings.ToLower(strings.TrimSpace(appConfig.BundleID))
+		if _, ok := seen[lowerID]; ok {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"duplicate %s.app_configs bundle_id: %s",
@@ -483,7 +484,7 @@ func validateAppConfigsWithCallback(
 			)
 		}
 
-		seen[appConfig.BundleID] = struct{}{}
+		seen[lowerID] = struct{}{}
 
 		err := validateHotkeyTable(
 			fmt.Sprintf("%s.app_configs[%d].hotkeys", modeName, idx),

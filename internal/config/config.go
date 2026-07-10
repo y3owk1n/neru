@@ -1499,8 +1499,9 @@ func (c *Config) GlobalHotkeysForApp(bundleID string) map[string][]string {
 		return base
 	}
 
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
 	for idx := range c.AppConfigs {
-		if c.AppConfigs[idx].BundleID == bundleID {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
 			appConfig := &c.AppConfigs[idx]
 			if len(appConfig.Hotkeys) == 0 {
 				return base
