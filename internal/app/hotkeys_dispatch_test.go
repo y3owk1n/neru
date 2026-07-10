@@ -231,7 +231,7 @@ func TestRegisterHotkeysUsesReleasePathWhenSupported(t *testing.T) {
 	fake := newFakeReleaseHotkeyManager()
 	app := newDispatchTestApp(t, cfg, fake)
 
-	app.registerHotkeys()
+	app.registerHotkeys("")
 
 	for rawKey := range cfg.Hotkeys.Bindings {
 		key := config.CanonicalHotkeyForPlatform(rawKey)
@@ -271,7 +271,7 @@ func TestDispatchModeAwareHeldHotkey_RepeatVsOnce(t *testing.T) {
 
 	fake := newFakeReleaseHotkeyManager()
 	app := newDispatchTestApp(t, cfg, fake)
-	app.registerHotkeys()
+	app.registerHotkeys("")
 
 	repeatKey := config.CanonicalHotkeyForPlatform("Ctrl+Alt+J")
 	onceKey := config.CanonicalHotkeyForPlatform("Ctrl+Alt+P")

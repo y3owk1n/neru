@@ -448,6 +448,12 @@ type Config struct {
 	SmoothScroll    SmoothScrollConfig    `json:"smoothScroll"    toml:"smooth_scroll"`
 	HeldRepeat      HeldRepeatConfig      `json:"heldRepeat"      toml:"held_repeat"`
 	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
+
+	// AppConfigs holds per-application overrides for global hotkeys, similar to
+	// per-mode [[<mode>.app_configs]].  Each entry can override or disable
+	// specific global bindings (via __disabled__) when the identified app
+	// is focused.  Populated by the TOML struct decoder from [[app_configs]].
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 }
 
 // ThemePalette defines a semantic base palette for one appearance mode.
@@ -987,6 +993,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate global hotkey app configs
+	err = validateHotkeysAppConfigs("app_configs", c.AppConfigs)
+	if err != nil {
+		return err
+	}
+
 	// Validate grid settings
 	err = c.ValidateGrid()
 	if err != nil {
@@ -1473,6 +1485,65 @@ func (c *Config) HotkeysForModeAndApp(
 	}
 
 	return merged
+}
+
+// GlobalHotkeysForApp returns the effective global hotkey bindings for the given
+// focused app bundle ID. When the bundle ID matches an entry in [[app_configs]],
+// the app-specific hotkeys are merged on top of the base [hotkeys] bindings.
+// The __disabled__ sentinel removes a base binding.
+// Returns the base bindings unchanged when bundleID is empty or no matching
+// app config has hotkey overrides.
+func (c *Config) GlobalHotkeysForApp(bundleID string) map[string][]string {
+	base := c.Hotkeys.Bindings
+	if bundleID == "" || !c.HasGlobalAppHotkeyOverrides() {
+		return base
+	}
+
+	for idx := range c.AppConfigs {
+		if c.AppConfigs[idx].BundleID == bundleID {
+			appConfig := &c.AppConfigs[idx]
+			if len(appConfig.Hotkeys) == 0 {
+				return base
+			}
+
+			merged := make(map[string][]string, len(base))
+			for key, actions := range base {
+				copied := make([]string, len(actions))
+				copy(copied, actions)
+				merged[key] = copied
+			}
+
+			for key, sosa := range appConfig.Hotkeys {
+				canonicalKey := findNormalizedMapKey(merged, key)
+				if len(sosa) == 1 && sosa[0] == DisabledSentinel {
+					delete(merged, canonicalKey)
+
+					continue
+				}
+
+				delete(merged, canonicalKey)
+				merged[key] = []string(sosa)
+			}
+
+			return merged
+		}
+	}
+
+	return base
+}
+
+// HasGlobalAppHotkeyOverrides reports whether any [[app_configs]] entry
+// has a non-empty Hotkeys map. Callers can use this to skip expensive
+// operations (e.g. accessibility API calls) when no per-app hotkey overrides
+// are configured.
+func (c *Config) HasGlobalAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // HasAppHotkeyOverrides reports whether any [[hints.app_configs]] entry has a
