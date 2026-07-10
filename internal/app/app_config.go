@@ -80,12 +80,11 @@ func (a *App) restoreHotkeysAfterFailedReload() {
 	defer a.hotkeyRegistrationMu.Unlock()
 
 	if a.appState.IsEnabled() && !a.appState.HotkeysRegistered() {
-		// Use "" to register base bindings without app override. The next
-		// focus-change event will re-register with the correct app-specific
-		// bindings if any are configured.
-		a.registerHotkeys("")
+		// Restore with the previously tracked bundle ID so per-app
+		// [[app_configs]] overrides are preserved without re-querying
+		// the focused app (which can fail during alert dialog focus).
+		a.registerHotkeys(a.currentHotkeyBundleID)
 		a.appState.SetHotkeysRegistered(true)
-		a.currentHotkeyBundleID = ""
 		a.logger.Debug("Hotkeys restored after failed config reload")
 	}
 }
