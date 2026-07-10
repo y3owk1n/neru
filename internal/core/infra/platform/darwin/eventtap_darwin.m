@@ -34,8 +34,8 @@ typedef struct {
 	os_unfair_lock modifierPassthroughLock;                  ///< Lock for modifier passthrough config
 	CGEventFlags previousFlags;                              ///< Previous modifier flags for toggle detection
 	CGEventFlags modifierChordFlags;  ///< Modifiers used in a key chord and not eligible for sticky on release
-	BOOL
-	    nonChordModifierPress;  ///< Set when a non-chord modifier (Shift/Alt) is pressed while chord modifiers are held
+	CGEventFlags
+	    nonChordModifierFlags;  ///< Bitmask of non-chord modifiers (Shift/Alt) pressed while chord modifiers were held
 	BOOL stickyModifierDetectionArmed;  ///< Whether sticky modifier callbacks are armed for this mode session
 	BOOL stickyModifierToggleEnabled;   ///< Whether to emit __modifier_ events
 	os_unfair_lock stickyModifierLock;  ///< Lock for sticky modifier toggle config
@@ -347,7 +347,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			context->previousFlags = flags;
 			detectionArmed = context->stickyModifierDetectionArmed;
 			// All modifiers released — clear chord tracking state
-			// unconditionally so a stale nonChordModifierPress flag from a
+			// unconditionally so a stale nonChordModifierFlags value from a
 			// previous cycle doesn't leak into the next one.
 			if (stickyFlags == 0) {
 				// Don't clear modifierChordFlags here — the loop below still
@@ -406,9 +406,11 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 						// also suppressed. If nonChordModifierPress is set
 						// (Shift/Alt was pressed), let the UP through.
 						if (inChord) {
-							if (context->nonChordModifierPress) {
-								// Non-chord modifier — let the chord modifier UP
+							if (context->nonChordModifierFlags & modifiers[i].mask) {
+								// This modifier was pressed as a non-chord modifier
+								// while chord modifiers were held — let its UP
 								// reach Go so it can be a sticky toggle.
+								context->nonChordModifierFlags &= ~modifiers[i].mask;
 								context->modifierChordFlags &= ~modifiers[i].mask;
 							} else {
 								suppressChordRelease = YES;
@@ -422,7 +424,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 						// is pressed while chord modifiers are held - this
 						// signals a non-chord modifier press.
 						if (context->modifierChordFlags && !(context->modifierChordFlags & modifiers[i].mask)) {
-							context->nonChordModifierPress = YES;
+							context->nonChordModifierFlags |= modifiers[i].mask;
 						}
 					}
 
@@ -445,7 +447,7 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			os_unfair_lock_lock(&context->stickyModifierLock);
 			if ((flags & kStickyModifierMask) == 0) {
 				context->modifierChordFlags = 0;
-				context->nonChordModifierPress = NO;
+				context->nonChordModifierFlags = 0;
 			}
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
