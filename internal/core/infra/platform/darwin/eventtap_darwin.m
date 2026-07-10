@@ -33,7 +33,9 @@ typedef struct {
 	BOOL passthroughUnboundedModifiers;                      ///< Whether unbound modifier shortcuts reach macOS
 	os_unfair_lock modifierPassthroughLock;                  ///< Lock for modifier passthrough config
 	CGEventFlags previousFlags;                              ///< Previous modifier flags for toggle detection
-	CGEventFlags modifierChordFlags;    ///< Modifiers used in a key chord and not eligible for sticky on release
+	CGEventFlags modifierChordFlags;  ///< Modifiers used in a key chord and not eligible for sticky on release
+	BOOL
+	    nonChordModifierPress;  ///< Set when a non-chord modifier (Shift/Alt) is pressed while chord modifiers are held
 	BOOL stickyModifierDetectionArmed;  ///< Whether sticky modifier callbacks are armed for this mode session
 	BOOL stickyModifierToggleEnabled;   ///< Whether to emit __modifier_ events
 	os_unfair_lock stickyModifierLock;  ///< Lock for sticky modifier toggle config
@@ -344,9 +346,19 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			changed = flags ^ context->previousFlags;
 			context->previousFlags = flags;
 			detectionArmed = context->stickyModifierDetectionArmed;
-			if (!detectionArmed && stickyFlags == 0) {
-				context->stickyModifierDetectionArmed = YES;
-				context->modifierChordFlags = 0;
+			// All modifiers released — clear chord tracking state
+			// unconditionally so a stale nonChordModifierPress flag from a
+			// previous cycle doesn't leak into the next one.
+			if (stickyFlags == 0) {
+				// Don't clear modifierChordFlags here — the loop below still
+				// needs it to suppress modifier UP events from the same event.
+				// If multiple modifiers are released in the same or consecutive
+				// events, clearing here causes the second modifier's UP to miss
+				// the chord flag and leak through to Go. We defer clearing to
+				// after the loop.
+				if (!context->stickyModifierDetectionArmed) {
+					context->stickyModifierDetectionArmed = YES;
+				}
 			}
 			os_unfair_lock_unlock(&context->stickyModifierLock);
 
@@ -381,23 +393,61 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			for (size_t i = 0; i < sizeof(modifiers) / sizeof(modifiers[0]); i++) {
 				if (changed & modifiers[i].mask) {
 					BOOL suppressChordRelease = NO;
+					BOOL isRelease = (flags & modifiers[i].mask) == 0;
 					os_unfair_lock_lock(&context->stickyModifierLock);
-					if ((context->modifierChordFlags & modifiers[i].mask) && (flags & modifiers[i].mask) == 0) {
-						suppressChordRelease = YES;
-						context->modifierChordFlags &= ~modifiers[i].mask;
+
+					if (isRelease) {
+						BOOL inChord = (context->modifierChordFlags & modifiers[i].mask) != 0;
+
+						// Suppress modifier UP events when they were part of
+						// a hotkey chord (set in modifierChordFlags by the
+						// per-hotkey tap or kCGEventKeyDown handler). Don't
+						// clear the bit so subsequent inter-cycle UPs are
+						// also suppressed. If nonChordModifierPress is set
+						// (Shift/Alt was pressed), let the UP through.
+						if (inChord) {
+							if (context->nonChordModifierPress) {
+								// Non-chord modifier — let the chord modifier UP
+								// reach Go so it can be a sticky toggle.
+								context->modifierChordFlags &= ~modifiers[i].mask;
+							} else {
+								suppressChordRelease = YES;
+								// Don't clear modifierChordFlags — the bit
+								// persists for inter-cycle re-press
+								// suppression.
+							}
+						}
+					} else {
+						// Modifier DOWN event: check if a non-chord modifier
+						// is pressed while chord modifiers are held - this
+						// signals a non-chord modifier press.
+						if (context->modifierChordFlags && !(context->modifierChordFlags & modifiers[i].mask)) {
+							context->nonChordModifierPress = YES;
+						}
 					}
+
 					os_unfair_lock_unlock(&context->stickyModifierLock);
 					if (suppressChordRelease) {
 						continue;
 					}
 
-					const char *modName = (flags & modifiers[i].mask) ? modifiers[i].downName : modifiers[i].upName;
+					const char *modName = isRelease ? modifiers[i].upName : modifiers[i].downName;
 					if (context->callback) {
 						context->callback(modName, context->userData);
 						handled = YES;
 					}
 				}
 			}
+
+			// Deferred clearing: all modifiers released — clear chord tracking
+			// state AFTER the loop so modifier UP events from the same event
+			// are processed with modifierChordFlags still intact.
+			os_unfair_lock_lock(&context->stickyModifierLock);
+			if ((flags & kStickyModifierMask) == 0) {
+				context->modifierChordFlags = 0;
+				context->nonChordModifierPress = NO;
+			}
+			os_unfair_lock_unlock(&context->stickyModifierLock);
 
 			return handled ? NULL : event;
 		}
@@ -603,6 +653,31 @@ static CGEventRef hotkeyTapCallback(CGEventTapProxy proxy, CGEventType type, CGE
 		if (!tap->down) {
 			tap->down = 1;
 			tap->callback(tap->hotkeyID, 1, tap->userData);  // pressed
+
+			// Inform the per-mode event tap that these modifiers are part of a
+			// hotkey chord so it suppresses the corresponding modifier UP events
+			// (kCGEventFlagsChanged). Without this, the per-mode tap would emit
+			// __modifier_*_up events for modifiers released after the hotkey,
+			// triggering unintended sticky modifier toggles when the user presses
+			// the same chord again to switch modes.
+			//
+			// This is safe because:
+			// 1. The per-mode tap runs AFTER this hotkey tap (kCGHeadInsertEventTap
+			//    ordering: most-recently-created runs first), so by the time the
+			//    per-mode tap processes subsequent events (modifier UP events are
+			//    separate kCGEventFlagsChanged events), modifierChordFlags is set.
+			// 2. modifierChordFlags is protected by os_unfair_lock.
+			// 3. Both taps run on the main run loop (serialized execution).
+			if (gEventTapContext && tap->cgFlags) {
+				os_unfair_lock_lock(&gEventTapContext->stickyModifierLock);
+				// REPLACE modifierChordFlags with the hotkey's modifiers
+				// (instead of OR) to clear any stale bits from a previous
+				// cycle that weren't cleaned up by the deferred clearing
+				// (e.g., when modifiers were released while the event tap
+				// was disabled during idle).
+				gEventTapContext->modifierChordFlags = tap->cgFlags;
+				os_unfair_lock_unlock(&gEventTapContext->stickyModifierLock);
+			}
 		}
 		return NULL;  // consume
 	}
@@ -975,12 +1050,33 @@ void NeruSetEventTapStickyModifierToggle(EventTap tap, int enabled) {
 	os_unfair_lock_lock(&context->stickyModifierLock);
 	context->stickyModifierToggleEnabled = enabled != 0;
 	if (enabled) {
-		context->previousFlags = CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState);
-		context->modifierChordFlags = 0;
-		context->stickyModifierDetectionArmed = (context->previousFlags & kStickyModifierMask) == 0;
+		context->previousFlags = CGEventSourceFlagsState(kCGEventSourceStateHIDSystemState);
+
+		// Do NOT seed modifierChordFlags from CGEventSourceFlagsState —
+		// that function returns unreliable results when called from the
+		// Go callback goroutine (non-main thread). Instead, rely on the
+		// per-hotkey tap callback which REPLACES modifierChordFlags with
+		// the exact hotkey chord modifiers during F key DOWN processing.
+		// The hotkey tap runs before this function is called, so
+		// modifierChordFlags is already correct unless StickyModifierToggle
+		// was called with enabled=0 first (which clears it). In that case,
+		// modifierChordFlags will be 0 until the next F key DOWN event
+		// sets it correctly, which is fine because the event tap is NOT
+		// yet enabled (enableEventTap dispatches async to main thread).
+
+		// Always arm detection on mode entry so the C-level
+		// suppressChordRelease check runs for the initial hotkey
+		// chord's modifier UP events, even when modifiers are held.
+		context->stickyModifierDetectionArmed = YES;
 	} else {
+		// Do NOT clear modifierChordFlags here — the per-hotkey tap
+		// REPLACES it with the current hotkey's modifiers on every
+		// F key DOWN event. The mode exit path calls
+		// StickyModifierToggle(disable) which would undo the hotkey
+		// tap's work. The deferred clearing after the loop handles
+		// cleanup when all modifiers are physically released.
 		context->previousFlags = 0;
-		context->modifierChordFlags = 0;
+		// context->modifierChordFlags = 0;
 		context->stickyModifierDetectionArmed = NO;
 	}
 	os_unfair_lock_unlock(&context->stickyModifierLock);

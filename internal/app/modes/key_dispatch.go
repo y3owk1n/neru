@@ -379,6 +379,17 @@ func (h *Handler) dispatchHotkeyActions(
 		zap.String("key", rawKey),
 		zap.Int("action_count", len(actions)))
 
+	// Note: we do NOT suppress modifiers here because this function is called
+	// from handleHotkey which is called from HandleKeyPress while h.mu is held.
+	// Suppression via SuppressModifiersForHotkey would deadlock. However, this
+	// per-mode path is only reached when the per-mode event tap sees the key
+	// event before the global hotkey tap consumes it. In the certain scenario
+	// (switching modes on the same chord), the global hotkey tap consumes the
+	// non-modifier key first, so this path is never hit for the mode-switch
+	// hotkey. Modifier suppression for mode-switch actions is handled
+	// synchronously in dispatchModeAwareHeldHotkey / dispatchModeAwareHotkeyAsync
+	// in hotkeys.go before any async dispatch occurs.
+
 	// Execute in a goroutine so the event tap callback returns quickly.
 	// This also avoids a deadlock: executeHotkeyAction may call
 	// ipcController.HandleCommand -> ActivateModeWithOptions which

@@ -147,8 +147,20 @@ func (h *Handler) performCommonCleanup() {
 	accessibility.EnsureMouseUp()
 
 	h.setAppModeLocked(domain.ModeIdle)
-	h.suppressedModifiers = 0
-	h.suppressedUntil = time.Time{}
+
+	// Do NOT reset suppressedModifiers here — SuppressModifiersForHotkey was
+	// called synchronously by the hotkey dispatch path (dispatchModeAwareHeldHotkey
+	// or dispatchModeAwareHotkeyAsync) before the mode switch, and the modifier
+	// UP events arrive after the user releases the chord. Clearing
+	// suppressedModifiers here causes the modifier DOWN events (for the next
+	// chord press) to be handled as normal modifier taps instead of suppressed,
+	// which schedules a debounce timer that fires and toggles the sticky modifier
+	// when it shouldn't.
+	//
+	// expireSuppressedModifiersIfNeeded handles cleanup after the 2-second
+	// activationModifierSuppressionWindow expires.
+	// h.suppressedModifiers = 0
+	// h.suppressedUntil = time.Time{}
 	h.logger.Debug("Mode transition complete",
 		zap.String("to", "idle"))
 	h.overlayManager.SwitchTo(overlay.ModeIdle)

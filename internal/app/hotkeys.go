@@ -138,6 +138,12 @@ func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 		if overrideActions, ok := a.modes.ModeHotkeyOverride(key); ok {
 			actions = overrideActions
 		}
+
+		// Suppress hotkey modifiers synchronously so the per-mode event tap
+		// sees them as suppressed before the debounce timer can fire.
+		if actionsContainModeSwitch(actions) {
+			a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
+		}
 	}
 
 	a.dispatchHotkeyActionsAsync(key, actions)
@@ -166,6 +172,14 @@ func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 		globalActions,
 		a.configSnapshot(),
 	)
+
+	// Suppress hotkey modifiers synchronously so the per-mode event tap
+	// sees them as suppressed before the debounce timer can fire.
+	// This must happen before the async dispatch or startHotkeyRepeat.
+	if a.modes != nil && actionsContainModeSwitch(actions) {
+		a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
+	}
+
 	if repeat {
 		a.startHotkeyRepeat(key, actions)
 
@@ -351,6 +365,31 @@ func hotkeyModifiersFromKey(key string) action.Modifiers {
 	}
 
 	return mods
+}
+
+// actionsContainModeSwitch reports whether any action in the list is a
+// mode-switch action (hints, grid, recursive_grid, scroll, monitor_select).
+func actionsContainModeSwitch(actions []string) bool {
+	for _, actionStr := range actions {
+		trimmed := strings.TrimSpace(actionStr)
+		if trimmed == "" {
+			continue
+		}
+
+		// The action format is "<mode_name>" with optional args, so split
+		// to get just the mode name for comparison.
+		mode := strings.Split(trimmed, " ")[0]
+		switch mode {
+		case domain.ModeString(domain.ModeHints),
+			domain.ModeString(domain.ModeGrid),
+			domain.ModeString(domain.ModeRecursiveGrid),
+			domain.ModeString(domain.ModeScroll),
+			domain.ModeString(domain.ModeMonitorSelect):
+			return true
+		}
+	}
+
+	return false
 }
 
 func splitArgs(input string) []string {

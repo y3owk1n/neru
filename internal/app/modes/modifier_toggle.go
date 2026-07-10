@@ -81,12 +81,45 @@ func (h *Handler) handleModifierToggle(key string) bool {
 
 	if isDown {
 		if h.suppressedModifiers.Has(mod) {
+			// Record this as a fresh press so the UP handler can
+			// distinguish between a chord release (no fresh press)
+			// and a non-chord modifier tap (fresh press while suppressed).
+			if h.modifierFreshPress == nil {
+				h.modifierFreshPress = make(map[action.Modifiers]bool)
+			}
+
+			h.modifierFreshPress[mod] = true
+			h.suppressedModifiers &^= mod
+			h.usedInChordModifiers &^= mod
 			h.heldModifiers |= mod
 			delete(h.pendingModifierKeys, mod)
 			h.stopPendingModifierTimer(mod)
-			h.usedInChordModifiers &^= mod
 
 			return true
+		}
+
+		// Non-chord modifier detection at Go level: if a non-suppressed modifier
+		// is pressed while suppressedModifiers is set (from a previous
+		// hotkey chord), this signals a non-chord modifier press. Create pending keys
+		// for all suppressed modifiers so their subsequent UP events
+		// are handled as sticky toggles.
+		if h.suppressedModifiers != 0 {
+			now := time.Now()
+
+			for _, suppressedMod := range allStickyModifiers {
+				if h.suppressedModifiers.Has(suppressedMod) {
+					if h.pendingModifierKeys == nil {
+						h.pendingModifierKeys = make(map[action.Modifiers]time.Time)
+					}
+
+					h.pendingModifierKeys[suppressedMod] = now
+				}
+			}
+
+			h.suppressedModifiers = 0
+			h.usedInChordModifiers = 0
+			h.suppressedUntil = time.Time{}
+			h.logger.Debug("Suppression cleared by non-chord modifier press, pending keys created")
 		}
 
 		if h.pendingModifierKeys == nil {
@@ -118,6 +151,28 @@ func (h *Handler) handleModifierToggle(key string) bool {
 
 	downTime, pending := h.pendingModifierKeys[mod]
 	if !pending {
+		// If this modifier was pressed fresh while suppressed (set by
+		// the suppressed DOWN handler), treat the release as a tap.
+		// This handles the non-chord modifier case where stale suppression bits
+		// would otherwise cause the UP to be silently dropped.
+		if h.modifierFreshPress[mod] {
+			delete(h.modifierFreshPress, mod)
+
+			now := time.Now()
+
+			if h.pendingModifierKeys == nil {
+				h.pendingModifierKeys = make(map[action.Modifiers]time.Time)
+			}
+
+			h.pendingModifierKeys[mod] = now
+			h.scheduleModifierToggle(mod, now)
+			h.logger.Debug("Modifier key up (fresh press while suppressed, treating as tap)",
+				zap.String("key", key),
+				zap.String("modifier", mod.String()))
+
+			return true
+		}
+
 		h.logger.Debug("Modifier key up ignored (no matching pending down)",
 			zap.String("key", key),
 			zap.Any("pending", h.pendingModifierKeys))
@@ -263,6 +318,11 @@ func (h *Handler) notifyDebounceComplete() {
 }
 
 // clearStickyModifiers releases any physically held sticky modifiers and resets internal state.
+// UsedInChordModifiers is NOT reset here because it may have been set by
+// SuppressModifiersForHotkey (called from the global hotkey dispatch path)
+// to prevent modifier UP events from starting debounce timers during a
+// mode switch. Resetting it here would undo the suppression before the
+// UP events arrive, causing unintended sticky modifier toggles.
 func (h *Handler) clearStickyModifiers() {
 	if h.modifierState == nil {
 		return
@@ -289,7 +349,6 @@ func (h *Handler) clearStickyModifiers() {
 
 	h.modifierState.Reset()
 	h.heldModifiers = 0
-	h.usedInChordModifiers = 0
 }
 
 func (h *Handler) cancelPendingModifierToggle() {
@@ -338,6 +397,40 @@ func (h *Handler) SuppressModifiersUntilReleased(mods action.Modifiers) {
 	}
 }
 
+// SuppressModifiersForHotkey suppresses the given modifiers from sticky toggle
+// and also marks them as used-in-chord so that any modifier UP events that were
+// already enqueued by the per-mode event tap (before the synchronous suppression
+// could take effect) will be ignored by handleModifierToggle instead of starting
+// a debounce timer. This provides defense-in-depth against the race between the
+// per-mode event tap thread and the global hotkey callback goroutine.
+func (h *Handler) SuppressModifiersForHotkey(mods action.Modifiers) {
+	if mods == 0 {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.suppressedModifiers |= mods
+	h.suppressedUntil = time.Now().Add(activationModifierSuppressionWindow)
+
+	for _, mod := range allStickyModifiers {
+		if mods.Has(mod) {
+			// Clean up any modifierFreshPress state from a previous suppressed
+			// DOWN handler invocation — this prevents stale fresh-press flags
+			// from triggering spurious sticky toggles on the next cycle.
+			delete(h.modifierFreshPress, mod)
+			delete(h.pendingModifierKeys, mod)
+			h.stopPendingModifierTimer(mod)
+
+			// Mark as used-in-chord so that modifier UP events from the per-mode
+			// event tap that arrive before our suppression takes effect are still
+			// caught by the usedInChordModifiers check in handleModifierToggle.
+			h.usedInChordModifiers |= mod
+		}
+	}
+}
+
 func (h *Handler) expireSuppressedModifiersIfNeeded() {
 	if h.suppressedModifiers == 0 || h.suppressedUntil.IsZero() {
 		return
@@ -349,6 +442,8 @@ func (h *Handler) expireSuppressedModifiersIfNeeded() {
 
 	h.suppressedModifiers = 0
 	h.suppressedUntil = time.Time{}
+	h.usedInChordModifiers = 0
+	h.modifierFreshPress = nil
 }
 
 func (h *Handler) stickyModifiersEnabled() bool {

@@ -109,6 +109,7 @@ type Handler struct {
 	usedInChordModifiers  action.Modifiers
 	suppressedModifiers   action.Modifiers
 	suppressedUntil       time.Time
+	modifierFreshPress    map[action.Modifiers]bool
 	debounceNotify        chan struct{} // test-only: signaled when a debounce callback completes
 
 	// moveMonitorMu serializes MoveMonitor invocations. Lock ordering is
