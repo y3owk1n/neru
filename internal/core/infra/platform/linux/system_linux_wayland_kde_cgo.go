@@ -204,8 +204,15 @@ func libeiKey(keycode int, pressed bool) error {
 // device. The portal often grants only pointer + absolute-pointer capability,
 // so this check lets callers fail fast with a clear message rather than
 // discovering the absence mid-sequence.
+//
+// It uses TryLock so that `action feed` never blocks behind the portal warm-up
+// lock (held up to 120 s). If the lock is busy the result is conservatively
+// false, causing the caller to return CodeNotSupported immediately.
 func libeiHasKeyboard() bool {
-	globalLibeiState.mu.Lock()
+	if !globalLibeiState.mu.TryLock() {
+		return false
+	}
+
 	defer globalLibeiState.mu.Unlock()
 
 	if !globalLibeiState.ready {
