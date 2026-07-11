@@ -117,6 +117,22 @@ func wlrootsSetCursor(point image.Point) error {
 	)
 }
 
+func wlrootsHasVirtualKeyboard() (bool, error) {
+	return false, derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
+func wlrootsKey(keycode uint32, pressed bool) error {
+	_, _ = keycode, pressed
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 // Button constants matching the CGo version.
 const (
 	WlrBtnLeft   = 0x110

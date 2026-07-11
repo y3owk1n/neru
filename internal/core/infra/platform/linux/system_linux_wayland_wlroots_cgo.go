@@ -485,6 +485,47 @@ func wlrootsModifierEvent(modifier string, isDown bool) error {
 	return nil
 }
 
+// wlrootsHasVirtualKeyboard reports whether the connected compositor advertises
+// a usable virtual keyboard (zwp_virtual_keyboard_v1).
+func wlrootsHasVirtualKeyboard() (bool, error) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return false, err
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	return C.neru_wlr_has_virtual_keyboard(globalWlrootsState.client) != 0, nil //nolint:nlreturn
+}
+
+// wlrootsKey presses (pressed=true) or releases (pressed=false) a single key
+// identified by its evdev keycode on the virtual keyboard.
+func wlrootsKey(keycode uint32, pressed bool) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	client := globalWlrootsState.client
+	defer globalWlrootsState.mu.Unlock()
+
+	pressedInt := 0
+	if pressed {
+		pressedInt = 1
+	}
+
+	if C.neru_wlr_key(client, C.uint32_t(keycode), C.int(pressedInt)) == 0 { //nolint:nlreturn
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to post virtual keyboard key event",
+		)
+	}
+
+	return nil
+}
+
 // Exported button constants for use by the accessibility adapter.
 const (
 	WlrBtnLeft   = 0x110

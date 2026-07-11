@@ -701,3 +701,18 @@ int neru_wlr_screen_info(NeruWlrootsClient *c, int idx, int *x, int *y, int *w, 
 int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c) { return c && c->vptr != NULL; }
 
 int neru_wlr_has_virtual_keyboard(NeruWlrootsClient *c) { return c && c->vkeyboard != NULL && c->vkeyboard_ready; }
+
+int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed) {
+	if (!c || !c->vkeyboard || !c->vkeyboard_ready)
+		return 0;
+
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	uint32_t time = (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+
+	pthread_mutex_lock(&c->display_mutex);
+	zwp_virtual_keyboard_v1_key(c->vkeyboard, time, keycode, pressed ? 1 : 0);
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+	return 1;
+}

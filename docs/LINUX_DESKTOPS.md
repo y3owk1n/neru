@@ -30,7 +30,8 @@ KWin does **not** implement `zwlr_virtual_pointer_v1` (confirmed on KWin 6.6.4 v
 | Concern                         | Mechanism                                                               | Why                                                                                |
 | ------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Overlay + screen geometry       | Shared wlroots client (`zwlr_layer_shell_v1`, `zxdg_output_manager_v1`) | KWin exposes these; same path as Sway/Hyprland                                     |
-| Pointer / click / scroll / keys | `libei` via `org.freedesktop.portal.RemoteDesktop`                      | Only input path KWin exposes for third-party automation                            |
+| Pointer / click / scroll        | `libei` via `org.freedesktop.portal.RemoteDesktop`                      | Only input path KWin exposes for third-party automation                            |
+| Key feeding (`action feed`)     | `libei` via `org.freedesktop.portal.RemoteDesktop`                     | Keyboard device must be granted in portal; defaults to pointer-only               |
 | Hints (AT-SPI)                  | AT-SPI D-Bus + KWin geometry bridge                                     | AT-SPI coords are window-relative; bridge maps to global compositor space          |
 | Global hotkeys                  | Compositor keybindings only                                             | Wayland has no global-hotkey protocol; user binds `neru <mode>` in System Settings |
 | Systray                         | D-Bus StatusNotifierItem + `com.canonical.dbusmenu`                     | Matches KDE/GNOME tray hosts; no GTK dependency                                    |
@@ -82,6 +83,10 @@ See [Checking compositor protocols](#checking-compositor-protocols) for the
   `restore_token` + `persist_mode` instead of relying on `liboeffis` alone.
 - **Modifier keys need a keyboard device from the portal** — If the grant
   includes only a pointer device, modified clicks degrade.
+- **Key feeding needs a keyboard device from the portal** — `action feed`
+  requires keyboard capability from the RemoteDesktop portal. The portal defaults
+  to pointer-only; if keyboard is not granted, `neru action feed` returns
+  `CodeNotSupported` with a clear message.
 - **Screen geometry cached at startup** — Resolution changes after launch
   (monitor hotplug, VM resize) require a daemon relaunch. Same limitation as
   other Wayland backends; tracked for live refresh.
@@ -100,6 +105,13 @@ Confirm portal services are running.
 
 Expected. Neru routes input through libei on KDE; this message applies to
 compositors that lack both virtual pointer and a libei path.
+
+**"key feeding unavailable on KDE: the RemoteDesktop portal session did not grant a keyboard device"**
+
+The portal commonly grants pointer capability only. To enable key feeding on
+KDE, the portal session must include a keyboard device — this depends on the
+portal backend and KDE version. On most setups, keyboard is unavailable for
+security reasons. There is no user-facing toggle to request it.
 
 **Verifying injected input with the KWin Debug Console**
 
@@ -128,6 +140,7 @@ device (libei), while real hardware shows the physical device path.
 | Overlay                       | `zwlr_layer_shell_v1` with empty `input_region` for click-through                                                 |
 | Pointer / click / scroll      | `zwlr_virtual_pointer_v1`                                                                                         |
 | Sticky modifiers              | `zwp_virtual_keyboard_v1` when available                                                                          |
+| Key feeding (`action feed`)   | `zwp_virtual_keyboard_v1` — same virtual keyboard path as sticky modifiers                                        |
 | Keyboard capture during modes | `evdev` on `/dev/input/event*` (requires `input` group)                                                           |
 | Global hotkeys                | Compositor config (`bind` / `bindsym` / `spawn-sh`)                                                               |
 | Cursor position               | Client-side cache (Wayland hides global pointer); "agitation" via layer-shell + virtual pointer wiggle at startup |

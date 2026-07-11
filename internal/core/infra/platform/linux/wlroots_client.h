@@ -81,5 +81,6 @@ int neru_wlr_screen_count(NeruWlrootsClient *c);
 int neru_wlr_screen_info(NeruWlrootsClient *c, int idx, int *x, int *y, int *w, int *h, char *name_out, int name_len);
 int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c);
 int neru_wlr_has_virtual_keyboard(NeruWlrootsClient *c);
+int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed);
 
 #endif /* WLROOTS_CLIENT_H */

@@ -50,3 +50,7 @@ func libeiKey(keycode int, pressed bool) error {
 		"libei backend requires CGO-enabled Linux builds",
 	)
 }
+
+func libeiHasKeyboard() bool {
+	return false
+}

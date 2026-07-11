@@ -36,14 +36,22 @@ const (
 	keycodeLeftMeta  = 125 // KEY_LEFTMETA
 )
 
+// Modifier name constants used in key injection.
+const (
+	modNameShift = "shift"
+	modNameCtrl  = "ctrl"
+	modNameAlt   = "alt"
+	modNameCmd   = "cmd"
+)
+
 // libeiModifierKeycodes maps Neru's modifier names to evdev keycodes for the
 // libei keyboard path. KWin's RemoteDesktop portal commonly grants only a
 // pointer device, so libeiKey may still report these as unsupported.
 var libeiModifierKeycodes = map[string]int{
-	"shift": keycodeLeftShift,
-	"ctrl":  keycodeLeftCtrl,
-	"alt":   keycodeLeftAlt,
-	"cmd":   keycodeLeftMeta,
+	modNameShift: keycodeLeftShift,
+	modNameCtrl:  keycodeLeftCtrl,
+	modNameAlt:   keycodeLeftAlt,
+	modNameCmd:   keycodeLeftMeta,
 }
 
 // Release-retry backoff for the libei click path. When KWin pauses the

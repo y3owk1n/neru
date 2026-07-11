@@ -381,7 +381,7 @@ The hints command completes fully (AX elements collected, overlay drawn) before 
 - Function: `f1`–`f20`
 - Chord modifiers: `cmd`, `command`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`, `control`, and left/right forms (`LeftCmd`, `RightShift`)
 
-> Linux and Windows: returns not-supported error.
+> **Platform support:** macOS (all compositors). Linux — wlroots compositors (niri, Sway, Hyprland, River) via `zwp_virtual_keyboard_v1`; KDE/KWin via `libei`/RemoteDesktop portal when a keyboard device is granted. GNOME returns not-supported error. Windows returns not-supported error.
 
 ### Cycling Hints
 
