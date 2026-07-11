@@ -158,7 +158,16 @@ func feedKeyWlroots(modifiers []string, keycode uint32) error {
 }
 
 func feedKeyLibei(modifiers []string, keycode uint32) error {
-	if !libeiHasKeyboard() {
+	hasKeyboard, busy := libeiHasKeyboard()
+	if busy {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"libei session busy: RemoteDesktop portal warm-up in progress; "+
+				"approve the one-time consent prompt, then retry",
+		)
+	}
+
+	if !hasKeyboard {
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"key feeding unavailable on KDE: the RemoteDesktop portal session "+

@@ -206,18 +206,18 @@ func libeiKey(keycode int, pressed bool) error {
 // discovering the absence mid-sequence.
 //
 // It uses TryLock so that `action feed` never blocks behind the portal warm-up
-// lock (held up to 120 s). If the lock is busy the result is conservatively
-// false, causing the caller to return CodeNotSupported immediately.
-func libeiHasKeyboard() bool {
+// lock (held up to 120 s). If the lock is busy, busy is true and the caller
+// should return a retriable error instead of a permanent unsupported result.
+func libeiHasKeyboard() (bool, bool) {
 	if !globalLibeiState.mu.TryLock() {
-		return false
+		return false, true
 	}
 
 	defer globalLibeiState.mu.Unlock()
 
 	if !globalLibeiState.ready {
-		return false
+		return false, false
 	}
 
-	return C.neru_ei_has_keyboard(globalLibeiState.client) != 0 //nolint:nlreturn
+	return C.neru_ei_has_keyboard(globalLibeiState.client) != 0, false //nolint:nlreturn
 }
