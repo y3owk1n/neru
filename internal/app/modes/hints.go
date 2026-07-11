@@ -243,6 +243,7 @@ func (h *Handler) activateHintModeInternal(
 	if !isRefresh {
 		h.overlayManager.Clear()
 	}
+
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
