@@ -158,6 +158,20 @@ type Handler struct {
 	autoRefreshOnFire      func() // test seam; nil in production
 	hintRefreshFiring      bool
 
+	// Settle backoff: after an observer-driven scan, keep re-scanning at a
+	// widening interval until the hint set stops changing, so web content that
+	// renders with no AX notification is still caught. The interval resets dense
+	// whenever the set changes; the scan-count and window ceilings do not, so a
+	// continuously-changing page still winds down. Guarded by autoRefreshMu, except
+	// lastAppliedFingerprint which is only touched on the scan path under h.mu +
+	// autoRefreshMu. See auto_refresh.go.
+	autoRefreshSettling    bool
+	settleInterval         time.Duration
+	settleStableAtCap      int
+	settleScanCount        int
+	settleStart            time.Time
+	lastAppliedFingerprint uint64
+
 	// Base context for Handler methods. Injected by the App via NewHandler so
 	// all Handler operations observe app-level cancellation.
 	ctx context.Context //nolint:containedctx

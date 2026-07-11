@@ -384,3 +384,233 @@ func TestIsMidTyping(t *testing.T) {
 		t.Fatal("a partly-typed hint label should report mid-typing")
 	}
 }
+
+// setSettleHints installs a hint collection of n distinct elements on the
+// handler, so the settle-recheck fingerprint has something to hash.
+func setSettleHints(t *testing.T, handler *Handler, n int) {
+	t.Helper()
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if handler.hints.Context.Manager() == nil {
+		handler.hints.Context.SetManager(domainhint.NewManager(handler.logger, &handler.mu))
+	}
+
+	hints := make([]*domainhint.Interface, 0, n)
+	for i := range n {
+		label := string(rune('a' + i))
+
+		elem, err := element.NewElement(element.ID(label), image.Rect(i*10, i*10, i*10+10, i*10+10), element.RoleButton)
+		if err != nil {
+			t.Fatalf("NewElement: %v", err)
+		}
+
+		hints = append(hints, mustNewModeHint(label, elem))
+	}
+
+	if err := handler.hints.Context.SetHints(domainhint.NewCollection(hints)); err != nil {
+		t.Fatalf("SetHints: %v", err)
+	}
+}
+
+func (h *Handler) advanceSettle(changed bool) bool {
+	h.autoRefreshMu.Lock()
+	defer h.autoRefreshMu.Unlock()
+
+	return h.advanceSettleLocked(changed)
+}
+
+func (h *Handler) settleSnapshot() (interval time.Duration, stableAtCap, scanCount int) {
+	h.autoRefreshMu.Lock()
+	defer h.autoRefreshMu.Unlock()
+
+	return h.settleInterval, h.settleStableAtCap, h.settleScanCount
+}
+
+func (h *Handler) seedSettle(interval time.Duration, scanCount int) {
+	h.autoRefreshMu.Lock()
+	defer h.autoRefreshMu.Unlock()
+
+	h.autoRefreshSettling = true
+	h.settleInterval = interval
+	h.settleStableAtCap = 0
+	h.settleScanCount = scanCount
+	h.settleStart = time.Now()
+}
+
+func TestFingerprintHintsReflectsHintSet(t *testing.T) {
+	handler, _ := newRefreshHandler(domain.ModeHints, true)
+
+	handler.mu.Lock()
+	empty := handler.fingerprintHintsLocked()
+	handler.mu.Unlock()
+
+	setSettleHints(t, handler, 2)
+
+	handler.mu.Lock()
+	two := handler.fingerprintHintsLocked()
+	twoAgain := handler.fingerprintHintsLocked()
+	handler.mu.Unlock()
+
+	setSettleHints(t, handler, 3)
+
+	handler.mu.Lock()
+	three := handler.fingerprintHintsLocked()
+	handler.mu.Unlock()
+
+	if two == empty {
+		t.Error("a non-empty hint set must fingerprint differently from empty")
+	}
+
+	if two != twoAgain {
+		t.Error("the same hint set must produce the same fingerprint")
+	}
+
+	if three == two {
+		t.Error("a changed hint set must produce a different fingerprint")
+	}
+}
+
+func TestNextSettleInterval(t *testing.T) {
+	current := autoRefreshSettleBase
+
+	for range 20 {
+		next := nextSettleInterval(current)
+		if next == autoRefreshSettleCap {
+			break
+		}
+
+		if want := current * autoRefreshSettleGrowthNum / autoRefreshSettleGrowthDen; next != want {
+			t.Fatalf("nextSettleInterval(%v) = %v, want %v", current, next, want)
+		}
+
+		if next <= current {
+			t.Fatalf("the interval must grow: %v -> %v", current, next)
+		}
+
+		current = next
+	}
+
+	if got := nextSettleInterval(autoRefreshSettleCap); got != autoRefreshSettleCap {
+		t.Fatalf("at the cap nextSettleInterval = %v, want %v", got, autoRefreshSettleCap)
+	}
+
+	if got := nextSettleInterval(2 * autoRefreshSettleCap); got != autoRefreshSettleCap {
+		t.Fatalf("past the cap nextSettleInterval = %v, want %v", got, autoRefreshSettleCap)
+	}
+}
+
+func TestSettleShouldStop(t *testing.T) {
+	// Below the cap it never stops on stability, however many stable scans.
+	if settleShouldStop(autoRefreshSettleBase, 5, 1, 0) {
+		t.Error("must not stop below the cap on stable scans")
+	}
+
+	if settleShouldStop(autoRefreshSettleCap-time.Millisecond, 5, 1, 0) {
+		t.Error("must not stop just under the cap")
+	}
+
+	// At the cap it needs two consecutive stable scans.
+	if settleShouldStop(autoRefreshSettleCap, 1, 1, 0) {
+		t.Error("one stable scan at the cap must not stop")
+	}
+
+	if !settleShouldStop(autoRefreshSettleCap, autoRefreshSettleStopStable, 1, 0) {
+		t.Error("two stable scans at the cap must stop")
+	}
+
+	// Either global ceiling stops regardless of interval or stability.
+	if !settleShouldStop(autoRefreshSettleBase, 0, autoRefreshSettleMaxScans, 0) {
+		t.Error("the scan-count ceiling must stop")
+	}
+
+	if !settleShouldStop(autoRefreshSettleBase, 0, 1, autoRefreshSettleMaxWindow) {
+		t.Error("the window ceiling must stop")
+	}
+}
+
+func TestAdvanceSettleClimbsResetsAndStops(t *testing.T) {
+	handler, _ := newRefreshHandler(domain.ModeHints, true)
+	handler.seedSettle(autoRefreshSettleBase, 0)
+
+	// A stable scan below the cap grows the interval and does not stop.
+	if handler.advanceSettle(false) {
+		t.Fatal("a stable scan below the cap must not stop")
+	}
+
+	if iv, _, count := handler.settleSnapshot(); iv != nextSettleInterval(autoRefreshSettleBase) || count != 1 {
+		t.Fatalf("after one stable scan: interval=%v count=%d", iv, count)
+	}
+
+	// A change restarts the interval dense but keeps the scan count climbing.
+	handler.advanceSettle(false)
+
+	if handler.advanceSettle(true) {
+		t.Fatal("a changed scan must not stop")
+	}
+
+	if iv, stable, count := handler.settleSnapshot(); iv != autoRefreshSettleBase || stable != 0 || count != 3 {
+		t.Fatalf("after a change: interval=%v stableAtCap=%d count=%d, want base/0/3", iv, stable, count)
+	}
+
+	// At the cap, the first stable scan does not stop; the second does.
+	handler.seedSettle(autoRefreshSettleCap, 0)
+
+	if handler.advanceSettle(false) {
+		t.Fatal("one stable scan at the cap must not stop")
+	}
+
+	if _, stable, _ := handler.settleSnapshot(); stable != 1 {
+		t.Fatalf("after one stable-at-cap scan stableAtCap = %d, want 1", stable)
+	}
+
+	if !handler.advanceSettle(false) {
+		t.Fatal("two stable scans at the cap must stop")
+	}
+}
+
+func TestAdvanceSettleGlobalScanCapStopsAChangingPage(t *testing.T) {
+	handler, _ := newRefreshHandler(domain.ModeHints, true)
+	// Seed one scan short of the ceiling; the next scan reaches it.
+	handler.seedSettle(autoRefreshSettleBase, autoRefreshSettleMaxScans-1)
+
+	// Even though the set keeps changing (interval stays dense), the scan-count
+	// ceiling must still stop the loop so a live page cannot re-scan forever.
+	if !handler.advanceSettle(true) {
+		t.Fatal("reaching the scan-count ceiling must stop even while the page keeps changing")
+	}
+}
+
+func TestBeginHintRefreshPreemptsSettle(t *testing.T) {
+	handler, _ := newRefreshHandler(domain.ModeHints, true)
+	// A long debounce keeps the leading-edge timer from firing during the test.
+	handler.autoRefreshDebounce = time.Hour
+	handler.autoRefreshMaxWait = time.Hour
+
+	defer handler.stopAutoRefreshTimer()
+
+	// A settle loop is running with a pending re-check, as it would be when a hint
+	// is selected mid-settle.
+	handler.autoRefreshMu.Lock()
+	handler.autoRefreshSettling = true
+	handler.settleInterval = autoRefreshSettleCap
+	handler.settleStableAtCap = 1
+	handler.settleStart = time.Now()
+	handler.armSettleTimerLocked(time.Hour)
+	handler.autoRefreshMu.Unlock()
+
+	// A manual or --repeat refresh must win: scan now (leading edge, true) rather
+	// than be deferred behind the settle, which is what froze the overlay.
+	if !handler.beginHintRefresh() {
+		t.Fatal("a manual refresh during a settle loop must lead (true), not defer")
+	}
+
+	handler.autoRefreshMu.Lock()
+	settling := handler.autoRefreshSettling
+	handler.autoRefreshMu.Unlock()
+
+	if settling {
+		t.Fatal("a manual refresh must end the running settle loop")
+	}
+}
