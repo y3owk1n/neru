@@ -130,14 +130,10 @@ func feedKeyWlroots(modifiers []string, keycode uint32) error {
 	// 1. Press modifiers through the ref-counting dispatcher so that
 	// modifiers already held (e.g. by sticky modifiers) are not
 	// released when this feed sequence ends.
-	for _, modifier := range modifiers {
+	for i, modifier := range modifiers {
 		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
-			for j := range modifiers {
-				if j >= len(modifiers) {
-					break
-				}
-
+			for j := range i {
 				_ = WaylandModifierEvent(modifiers[j], false)
 			}
 
@@ -176,14 +172,10 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 	// the dispatcher routes to waylandModifierEvent -> libeiKey, but the
 	// ref-count prevents releasing a modifier that another consumer (sticky
 	// modifiers, accessibility clicks) still holds.
-	for _, modifier := range modifiers {
+	for i, modifier := range modifiers {
 		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
-			for j := range modifiers {
-				if j >= len(modifiers) {
-					break
-				}
-
+			for j := range i {
 				_ = WaylandModifierEvent(modifiers[j], false)
 			}
 
