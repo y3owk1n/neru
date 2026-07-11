@@ -122,16 +122,18 @@ func feedKeyWlroots(key string) error {
 		return err
 	}
 
-	// 1. Press modifiers via protocol-level modifier state.
+	// 1. Press modifiers through the ref-counting dispatcher so that
+	// modifiers already held (e.g. by sticky modifiers) are not
+	// released when this feed sequence ends.
 	for _, modifier := range modifiers {
-		err := wlrootsModifierEvent(modifier, true)
+		err := WaylandModifierEvent(modifier, true)
 		if err != nil {
 			for j := range modifiers {
 				if j >= len(modifiers) {
 					break
 				}
 
-				_ = wlrootsModifierEvent(modifiers[j], false)
+				_ = WaylandModifierEvent(modifiers[j], false)
 			}
 
 			return err
@@ -144,9 +146,11 @@ func feedKeyWlroots(key string) error {
 		err = wlrootsKey(keycode, false)
 	}
 
-	// 3. Release modifiers in reverse order.
+	// 3. Release modifiers in reverse order. The dispatcher ref-count
+	// suppresses the actual compositor release if another consumer
+	// (sticky modifiers, accessibility clicks) still holds the modifier.
 	for _, v := range slices.Backward(modifiers) {
-		_ = wlrootsModifierEvent(v, false)
+		_ = WaylandModifierEvent(v, false)
 	}
 
 	return err
@@ -166,34 +170,19 @@ func feedKeyLibei(key string) error {
 		return err
 	}
 
-	// Modifier names to evdev keycodes for the libei path (actual key presses).
-	modCode := func(name string) (int, bool) {
-		code, ok := libeiModifierKeycodes[name]
-
-		return code, ok
-	}
-
-	// 1. Press modifier keys.
-	for _, mod := range modifiers {
-		code, ok := modCode(mod)
-		if !ok {
-			return derrors.Newf(
-				derrors.CodeInvalidInput,
-				"unsupported modifier %q for libei keyboard",
-				mod,
-			)
-		}
-
-		err := libeiKey(code, true)
+	// 1. Press modifier keys through the ref-counting dispatcher. On KDE
+	// the dispatcher routes to waylandModifierEvent -> libeiKey, but the
+	// ref-count prevents releasing a modifier that another consumer (sticky
+	// modifiers, accessibility clicks) still holds.
+	for _, modifier := range modifiers {
+		err := WaylandModifierEvent(modifier, true)
 		if err != nil {
 			for j := range modifiers {
 				if j >= len(modifiers) {
 					break
 				}
 
-				if releaseCode, ok2 := modCode(modifiers[j]); ok2 {
-					_ = libeiKey(releaseCode, false)
-				}
+				_ = WaylandModifierEvent(modifiers[j], false)
 			}
 
 			return err
@@ -206,11 +195,11 @@ func feedKeyLibei(key string) error {
 		err = libeiKey(int(keycode), false)
 	}
 
-	// 3. Release modifier keys in reverse order.
+	// 3. Release modifier keys in reverse order. The dispatcher ref-count
+	// suppresses the actual compositor release if another consumer still
+	// holds the modifier.
 	for _, v := range slices.Backward(modifiers) {
-		if releaseCode, ok := modCode(v); ok {
-			_ = libeiKey(releaseCode, false)
-		}
+		_ = WaylandModifierEvent(v, false)
 	}
 
 	return err
