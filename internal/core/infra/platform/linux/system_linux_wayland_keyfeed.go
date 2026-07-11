@@ -104,29 +104,34 @@ var modifierNameMap = map[string]string{
 //     granted by the user (the portal defaults to pointer-only, so keyboard
 //     may be unavailable).
 func FeedKey(key string) error {
+	// Validate the key before any backend probing so that invalid keys
+	// always return CodeInvalidInput regardless of compositor or CGO
+	// availability.
+	modifiers, keycode, err := parseKeyString(key)
+	if err != nil {
+		return err
+	}
+
 	hasVKB, err := wlrootsHasVirtualKeyboard()
 	if err != nil {
 		return err
 	}
 
 	if hasVKB {
-		return feedKeyWlroots(key)
+		return feedKeyWlroots(modifiers, keycode)
 	}
 
-	return feedKeyLibei(key)
+	return feedKeyLibei(modifiers, keycode)
 }
 
-func feedKeyWlroots(key string) error {
-	modifiers, keycode, err := parseKeyString(key)
-	if err != nil {
-		return err
-	}
+func feedKeyWlroots(modifiers []string, keycode uint32) error {
+	var err error
 
 	// 1. Press modifiers through the ref-counting dispatcher so that
 	// modifiers already held (e.g. by sticky modifiers) are not
 	// released when this feed sequence ends.
 	for _, modifier := range modifiers {
-		err := WaylandModifierEvent(modifier, true)
+		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
 			for j := range modifiers {
 				if j >= len(modifiers) {
@@ -156,7 +161,7 @@ func feedKeyWlroots(key string) error {
 	return err
 }
 
-func feedKeyLibei(key string) error {
+func feedKeyLibei(modifiers []string, keycode uint32) error {
 	if !libeiHasKeyboard() {
 		return derrors.New(
 			derrors.CodeNotSupported,
@@ -165,17 +170,14 @@ func feedKeyLibei(key string) error {
 		)
 	}
 
-	modifiers, keycode, err := parseKeyString(key)
-	if err != nil {
-		return err
-	}
+	var err error
 
 	// 1. Press modifier keys through the ref-counting dispatcher. On KDE
 	// the dispatcher routes to waylandModifierEvent -> libeiKey, but the
 	// ref-count prevents releasing a modifier that another consumer (sticky
 	// modifiers, accessibility clicks) still holds.
 	for _, modifier := range modifiers {
-		err := WaylandModifierEvent(modifier, true)
+		err = WaylandModifierEvent(modifier, true)
 		if err != nil {
 			for j := range modifiers {
 				if j >= len(modifiers) {
