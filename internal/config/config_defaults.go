@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/y3owk1n/neru/internal/core/infra/axnotify"
+)
 
 const (
 	// DefaultHintFontSize is the default font size for hints.
@@ -15,6 +19,9 @@ const (
 	DefaultHintBoundaryBorderRadius = -1
 	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
 	DefaultHintBoundaryBorderWidth = 1
+	// DefaultAutoRefreshDebounceMs is the default debounce, in milliseconds, for
+	// hints auto-refresh. It matches the modes package's runtime fallback.
+	DefaultAutoRefreshDebounceMs = 150
 	// DefaultVisionRequestTimeoutMS is the default Vision request timeout.
 	DefaultVisionRequestTimeoutMS = 5000
 	// DefaultVisionMinimumConfidence keeps all Vision observations by default.
@@ -447,6 +454,12 @@ func newDefaultConfig() *Config {
 			VisibleCheckEnabled:  false,
 
 			AppConfigs: []AppConfig{},
+
+			AutoRefresh: HintsAutoRefresh{
+				Enabled:              false,
+				DebounceMs:           DefaultAutoRefreshDebounceMs,
+				AllowedNotifications: axnotify.Names(),
+			},
 		},
 		Grid: GridConfig{
 			Enabled: true,

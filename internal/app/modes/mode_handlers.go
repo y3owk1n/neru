@@ -341,6 +341,10 @@ func (h *Handler) confirmHintSearch() {
 	}
 
 	h.cycleHintIndex = -1
+
+	// Typing just ended: release any auto-refresh the debounce held back while
+	// the search query was being typed.
+	h.resumeHeldRefreshLocked()
 }
 
 func (h *Handler) cancelHintSearch() {
@@ -363,6 +367,10 @@ func (h *Handler) cancelHintSearch() {
 
 	h.overlayManager.HideHintSearchInput()
 	h.cycleHintIndex = -1
+
+	// Typing just ended: release any auto-refresh the debounce held back while
+	// the search query was being typed.
+	h.resumeHeldRefreshLocked()
 }
 
 func (h *Handler) drawHintSearchInput() {

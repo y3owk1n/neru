@@ -182,6 +182,23 @@ func (h *Handler) activateHintModeInternal(
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
+	// Auto-refresh debounce gate. The refresh paths that re-enter through this
+	// function (a --repeat re-activation, a passthrough re-scan, a bound `hints`
+	// re-launch, a cycle-hint re-scan, and the debounced observer) coalesce here.
+	// The leading edge — the first refresh in an idle burst — scans immediately,
+	// so a manual refresh is never delayed; a refresh arriving mid-burst schedules
+	// a single trailing scan instead of scanning again now. The debounced fire
+	// re-enters with hintRefreshFiring set and skips the gate. When auto_refresh
+	// is off the gate is inert and every path scans immediately, exactly as it did
+	// before. (The screen-change refresh takes its own specialized path in
+	// RefreshHintsForScreenChange and does not pass through here; a screen change
+	// keeps the same focused app, so its observer stays correctly targeted.)
+	if isRefresh && !h.hintRefreshFiring && h.autoRefreshEnabled() {
+		if !h.beginHintRefresh() {
+			return
+		}
+	}
+
 	// Reset cycle index on refresh since the hint list is regenerated
 	if isRefresh {
 		h.cycleHintIndex = -1
@@ -417,7 +434,7 @@ func (h *Handler) activateHintModeInternal(
 			zap.String("action", actionString),
 		)
 
-		if isRefresh {
+		if isRefresh && !h.hintRefreshFiring {
 			h.exitModeLocked()
 		}
 
@@ -443,7 +460,13 @@ func (h *Handler) activateHintModeInternal(
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
-		if isRefresh {
+		if isRefresh && h.hintRefreshFiring {
+			// A debounced auto-refresh that momentarily finds nothing (a page
+			// mid-load) keeps the hints session alive. Publish an empty hint set so
+			// the overlay, routing, and indicator polling stay consistent until the
+			// next change repopulates the hints.
+			h.publishEmptyHintsLocked()
+		} else if isRefresh {
 			h.exitModeLocked()
 		}
 
@@ -540,6 +563,11 @@ func (h *Handler) activateHintModeInternal(
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
 		}
 	}
+
+	// Point the auto-refresh observer at the focused app. Runs on every
+	// activation so it follows focus after a refresh; a same-app refresh is a
+	// no-op, and it disarms when auto_refresh is disabled.
+	h.updateAutoRefreshObservers(bundleID)
 
 	h.startIndicatorPolling(domain.ModeHints)
 }

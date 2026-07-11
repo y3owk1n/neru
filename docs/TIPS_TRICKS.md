@@ -75,6 +75,28 @@ If you want to have the search input shown automatically when activating hints m
 - `Enter` with multiple results: closes search only, letting you type the exact hint label to select
 - `Tab` / `cycle_hint`: navigates between filtered results without executing the action
 
+## Keep Hints Live While the Page Changes
+
+Hints are scanned once when the mode opens, so they can go stale when the focused window changes after that (a page finishes loading, a menu opens, a panel expands). Turn on `[hints.auto_refresh]` to keep them live: neru watches the focused app's accessibility notifications and re-scans hints when its UI changes, with no keypress. macOS only for now.
+
+```toml
+[hints.auto_refresh]
+enabled = true
+debounce_ms = 150
+allowed_notifications = [
+  "created", "ui_destroyed", "layout_changed",
+  "window_created", "window_moved", "window_resized",
+  "load_complete", "menu_opened", "menu_closed",
+]
+```
+
+Notes:
+
+- The re-scan is debounced, so a burst of changes collapses into a single update, and it never fires while you are part-way through typing a hint label or a search query. A change that lands mid-typing is held in the debounce and applied once you finish or cancel, so the hint set never shifts under your keystrokes.
+- Manual refreshes are not held back by the debounce. A `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, refreshes right away when nothing else is in flight, and otherwise coalesces with the in-flight auto-refresh into a single update, so you never get a double flicker.
+- `allowed_notifications` selects which changes wake a re-scan. Drop entries you do not want (for example, remove `window_moved` and `window_resized` if you only care about content, not window geometry). An empty list with `enabled = true` is rejected as a config error.
+- Web page content inside Chromium, Firefox, and Electron apps refreshes alongside native windows and menus: neru wakes the app's web accessibility tree on focus, so `load_complete` and layout changes inside a page reach the observer.
+
 ## Auto-Exit After Click
 
 The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to click and exit in one key:
@@ -295,7 +317,9 @@ ctrl - r : neru hints --action right_click
 
 ## Give Browser Content Time To Load Before Refreshing Hints
 
-Some browser-like apps need a short delay after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
+The cleanest fix is `[hints.auto_refresh]` (see [Keep Hints Live While the Page Changes](#keep-hints-live-while-the-page-changes)): it re-scans on its own when the page finishes loading, so you do not have to guess a delay. macOS only for now.
+
+If you would rather set a manual, per-app delay (or you are on another platform), give a browser-like app a short pause after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
 
 ```toml
 [[hints.app_configs]]

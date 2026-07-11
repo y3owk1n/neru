@@ -729,6 +729,8 @@ type HintsConfig struct {
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
+	AutoRefresh HintsAutoRefresh `json:"autoRefresh" toml:"auto_refresh"`
+
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
@@ -926,6 +928,22 @@ type HeldRepeatConfig struct {
 	Enabled      bool `json:"enabled"      toml:"enabled"`          // Master toggle for held-key repeat
 	InitialDelay int  `json:"initialDelay" toml:"initial_delay_ms"` // Delay before first repeat fires (ms)
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
+}
+
+// HintsAutoRefresh configures push-based hints auto-refresh. When enabled, neru
+// watches the focused app's accessibility notifications and re-scans hints when
+// its UI changes (a page loads, a menu opens, a panel appears), so hints do not
+// go stale while hints mode is open. macOS only for now; on other platforms no
+// observers are available and the setting is inert.
+//
+// AllowedNotifications selects which structural notifications register an
+// observer; the accepted names are the axnotify vocabulary (see axnotify.Names).
+// DebounceMs is how long a burst of changes must go quiet before the re-scan; a
+// non-positive value falls back to the built-in default.
+type HintsAutoRefresh struct {
+	Enabled              bool     `json:"enabled"              toml:"enabled"`
+	DebounceMs           int      `json:"debounceMs"           toml:"debounce_ms"`
+	AllowedNotifications []string `json:"allowedNotifications" toml:"allowed_notifications"`
 }
 
 // SystrayConfig defines system tray settings.

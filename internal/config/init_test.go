@@ -8,8 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/infra/axnotify"
 )
 
 func TestWriteDefaultConfig(t *testing.T) {
@@ -30,6 +32,32 @@ func TestWriteDefaultConfig(t *testing.T) {
 	content, readErr := os.ReadFile(cfgPath)
 	require.NoError(t, readErr)
 	assert.NotEmpty(t, content)
+}
+
+func TestWriteDefaultConfig_LoadsAndValidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "config.toml")
+
+	require.NoError(t, config.WriteDefaultConfig(cfgPath, false))
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	result := service.LoadWithValidation(cfgPath)
+
+	require.NoError(t, result.ValidationError, "the shipped default config must pass validation")
+	require.NotNil(t, result.Config)
+
+	// The [hints.auto_refresh] block parses into the expected values.
+	autoRefresh := result.Config.Hints.AutoRefresh
+	assert.False(t, autoRefresh.Enabled, "auto_refresh ships off by default")
+	assert.Equal(t, config.DefaultAutoRefreshDebounceMs, autoRefresh.DebounceMs)
+	assert.ElementsMatch(t, axnotify.Names(), autoRefresh.AllowedNotifications,
+		"the default template must list every supported notification name")
+
+	// Flipping it on must still validate, proving the template lists only valid
+	// notification names.
+	result.Config.Hints.AutoRefresh.Enabled = true
+	assert.NoError(t, result.Config.Validate(),
+		"the default notifications must be valid when auto_refresh is enabled")
 }
 
 func TestWriteDefaultConfig_ExistingFile(t *testing.T) {

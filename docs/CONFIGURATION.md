@@ -577,6 +577,34 @@ y_offset = 24
 width = 320
 ```
 
+### Auto Refresh
+
+Keep hints live while the focused app's UI changes. When enabled, neru registers accessibility observers on the focused app while hints mode is open and re-scans hints when a watched notification fires (a page loads, a menu opens, a panel appears), then tears the observers down on exit. macOS only for now; on other platforms the setting is inert.
+
+| Option                  | Type  | Default           | Description                                                                                         |
+| ----------------------- | ----- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| `enabled`               | bool  | `false`           | Turn auto-refresh on. Off by default.                                                               |
+| `debounce_ms`           | int   | `150`             | How long a burst of changes must settle before the re-scan. A non-positive value uses the default.  |
+| `allowed_notifications` | array | all names (below) | Which structural notifications trigger a re-scan. Must list at least one valid name when enabled.   |
+
+```toml
+[hints.auto_refresh]
+enabled = false
+debounce_ms = 150
+allowed_notifications = [
+  "created", "ui_destroyed", "layout_changed",
+  "window_created", "window_moved", "window_resized",
+  "load_complete", "menu_opened", "menu_closed",
+]
+```
+
+The valid `allowed_notifications` names are `created`, `ui_destroyed`, `layout_changed`, `window_created`, `window_moved`, `window_resized`, `load_complete`, `menu_opened`, and `menu_closed`. Enabling auto-refresh with an empty list, or with a name outside this set, is a config error.
+
+> [!NOTE]
+> Auto-refresh reaches inside Chromium, Firefox, and Electron web content as well as native windows and menus: `load_complete` and layout changes inside a page reach the observer, so hints re-scan when a browser page updates.
+
+Manual refreshes are not held back by the debounce. When auto-refresh is on, a `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, refreshes right away if nothing is already in flight; if an auto-refresh is mid-flight, it coalesces with that into a single update within the debounce window, so you never get a double flicker.
+
 ### Vision
 
 Tunable settings for Vision-based hint detection (only used when `hints.strategy` or the app-specific `strategy` override is set to `"vision"`).

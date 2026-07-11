@@ -21,6 +21,7 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -133,6 +134,30 @@ type Handler struct {
 	// Cycle hint state
 	cycleHintIndex int
 
+	// Auto-refresh: observerMgr arms AX observers on the focused app while a
+	// hints session runs with hints.auto_refresh enabled. An observed change
+	// feeds the debounce state below, which coalesces a burst of changes into a
+	// single-flight refresh (leading edge fires immediately, mid-burst changes
+	// collapse into one trailing scan, bounded by autoRefreshMaxWait).
+	//
+	// The debounce state is guarded by the leaf autoRefreshMu, which is never
+	// held while acquiring the mode lock (h.mu); the observer callback takes only
+	// autoRefreshMu, so it can never deadlock a teardown that holds h.mu while
+	// joining the observer thread. hintRefreshFiring marks the debounced fire so
+	// a transient empty scan keeps the session alive and the debounce gate is
+	// skipped on re-entry; it is guarded by h.mu, not autoRefreshMu.
+	observerMgr *axobserver.Manager
+
+	autoRefreshMu          sync.Mutex
+	autoRefreshTimer       *time.Timer
+	autoRefreshBurstOpen   bool
+	autoRefreshScanPending bool
+	autoRefreshBurstStart  time.Time
+	autoRefreshDebounce    time.Duration
+	autoRefreshMaxWait     time.Duration
+	autoRefreshOnFire      func() // test seam; nil in production
+	hintRefreshFiring      bool
+
 	// Base context for Handler methods. Injected by the App via NewHandler so
 	// all Handler operations observe app-level cancellation.
 	ctx context.Context //nolint:containedctx
@@ -241,6 +266,15 @@ func NewHandler(
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
 	}
+
+	// Auto-refresh observer plumbing. An observed UI change notifies the debounce
+	// state, which coalesces a burst into a single-flight refresh. Nothing is
+	// armed until a hints session runs with hints.auto_refresh enabled.
+	handler.autoRefreshDebounce = defaultAutoRefreshDebounce
+	handler.autoRefreshMaxWait = defaultAutoRefreshDebounce * autoRefreshMaxWaitFactor
+	handler.observerMgr = axobserver.New(func(_ int) {
+		handler.onObserverChange()
+	}, handler.logger)
 
 	return handler
 }
