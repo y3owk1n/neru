@@ -643,7 +643,7 @@ func buildChildrenSequential(
 
 // minElementSize is the minimum size threshold for elements.
 // Elements smaller than this are filtered out as noise (especially in Chromium DOM trees).
-const minElementSize = 15
+const minElementSize = 10
 
 // shouldIncludeElement combines all filtering logic into one function.
 //
