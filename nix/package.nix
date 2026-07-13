@@ -25,7 +25,7 @@
   writableTmpDirAsHomeHook,
   nix-update-script,
   unzip,
-  apple-sdk_15,
+  apple-sdk_15 ? null,
 }:
 if useZip then
   let
