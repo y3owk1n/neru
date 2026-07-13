@@ -152,13 +152,6 @@ Restart Neru:
 pkill neru && neru launch
 ```
 
-**Check logs for:**
-
-```
-App requires Electron support
-Enabled AXManualAccessibility for: com.your.app
-```
-
 ### Some elements that should have hints don't have hints
 
 This can happen when the element you're trying to select is small. If you encounter this, open an issue.
