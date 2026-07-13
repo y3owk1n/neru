@@ -76,6 +76,8 @@ func (a *App) Run() error {
 	a.refreshHotkeysForAppOrCurrent("")
 	a.logger.Info("Hotkeys initialized")
 
+	a.setupSleepObserver()
+
 	a.setupAppWatcherCallbacks()
 
 	if cfg.Grid.EnableGC {
@@ -598,6 +600,7 @@ func (a *App) Cleanup() {
 		// Stop theme observer: nil the handler first so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()
+		a.stopSleepObserver()
 		// Stop IPC server first to prevent new requests.
 		// Use a fresh context instead of a.ctx since the root context was
 		// canceled above; a canceled context would cause Stop() to fail

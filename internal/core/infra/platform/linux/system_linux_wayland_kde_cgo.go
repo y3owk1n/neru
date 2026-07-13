@@ -224,3 +224,23 @@ func libeiHasKeyboard() (bool, bool) {
 
 	return C.neru_ei_has_keyboard(globalLibeiState.client) != 0, false //nolint:nlreturn
 }
+
+// LibeiReset tears down the libei/RemoteDesktop portal session. The next input
+// operation re-establishes the session via tryAcquire. Call after sleep/wake and
+// after a detected evdev failure so that stale portal connections don't silently
+// block input injection.
+func LibeiReset() {
+	globalLibeiState.mu.Lock()
+	defer globalLibeiState.mu.Unlock()
+
+	if !globalLibeiState.ready {
+		return
+	}
+
+	if globalLibeiState.client != nil {
+		C.neru_ei_disconnect(globalLibeiState.client)
+		globalLibeiState.client = nil
+	}
+
+	globalLibeiState.ready = false
+}

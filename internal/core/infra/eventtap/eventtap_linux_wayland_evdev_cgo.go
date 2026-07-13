@@ -123,11 +123,24 @@ func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 	}
 
 	if len(capture.files) == 0 {
+		logger.Warn(
+			"No keyboard /dev/input/event* devices could be opened; "+
+				"check read permissions on /dev/input/event*",
+			zap.Int("total_event_devices", len(paths)),
+			zap.Error(errWaylandEvdevUnavailable),
+		)
+
 		return nil, fmt.Errorf(
 			"%w: no keyboard /dev/input/event* devices could be opened",
 			errWaylandEvdevUnavailable,
 		)
 	}
+
+	logger.Debug(
+		"Evdev capture created",
+		zap.Int("keyboard_devices", len(capture.files)),
+		zap.Int("total_event_devices", len(paths)),
+	)
 
 	return capture, nil
 }
@@ -142,6 +155,13 @@ func (capture *waylandEvdevCapture) Close() {
 
 		for _, file := range capture.files {
 			_ = file.Close()
+		}
+
+		if capture.logger != nil {
+			capture.logger.Debug(
+				"Evdev capture closed",
+				zap.Int("devices", len(capture.files)),
+			)
 		}
 	})
 }
@@ -169,6 +189,14 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 
 		readResult := C.neru_evdev_read_event(fd, &inputEvent)
 		if readResult <= 0 {
+			if capture.logger != nil {
+				capture.logger.Debug(
+					"Evdev reader exiting",
+					zap.String("device", file.Name()),
+					zap.Int("read_result", int(readResult)),
+				)
+			}
+
 			return
 		}
 

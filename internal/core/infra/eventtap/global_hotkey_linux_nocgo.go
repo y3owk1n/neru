@@ -27,3 +27,6 @@ func (l *GlobalHotkeyListener) Start() error { return nil }
 
 // Stop is a no-op without cgo.
 func (l *GlobalHotkeyListener) Stop() {}
+
+// IsRunning returns false without cgo (evdev is unavailable).
+func (l *GlobalHotkeyListener) IsRunning() bool { return false }

@@ -54,3 +54,5 @@ func libeiKey(keycode int, pressed bool) error {
 func libeiHasKeyboard() (bool, bool) {
 	return false, false
 }
+
+func LibeiReset() {}

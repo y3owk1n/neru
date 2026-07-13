@@ -143,6 +143,25 @@ func (m *Manager) UnregisterAll() {
 	}
 }
 
+// HealthCheck returns true when the global hotkey listener is healthy.
+// On non-Wayland backends (X11) it always returns true because there is no
+// passive evdev listener to monitor. Callers (the app health-check loop)
+// reinitialize the listener if this returns false.
+func (m *Manager) HealthCheck() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.waylandHotkeys == nil {
+		return true
+	}
+
+	if !m.waylandStarted {
+		return true
+	}
+
+	return m.waylandHotkeys.IsRunning()
+}
+
 // rebuildWaylandBindings re-syncs the evdev listener with the current set of
 // registered hotkeys. Callers must hold m.mu.
 func (m *Manager) rebuildWaylandBindings() {
@@ -160,8 +179,16 @@ func (m *Manager) rebuildWaylandBindings() {
 // ensureWaylandStarted lazily starts the evdev listener on first registration.
 // Callers must hold m.mu.
 func (m *Manager) ensureWaylandStarted() {
-	if m.waylandHotkeys == nil || m.waylandStarted {
+	if m.waylandHotkeys == nil {
 		return
+	}
+
+	if m.waylandStarted {
+		if m.waylandHotkeys.IsRunning() {
+			return
+		}
+
+		m.waylandStarted = false
 	}
 
 	err := m.waylandHotkeys.Start()
