@@ -134,9 +134,15 @@ Edit `~/.config/neru/config.toml`:
 [hints.additional_ax_support]
 enable = true
 
-# If your app isn't auto-detected, add it:
+# If your app isn't auto-detected, add it to the matching list:
 additional_electron_bundles = [
     "com.your.electronapp",
+]
+additional_chromium_bundles = [
+    "com.your.chromiumapp",
+]
+additional_firefox_bundles = [
+    "com.your.firefoxapp",
 ]
 ```
 
