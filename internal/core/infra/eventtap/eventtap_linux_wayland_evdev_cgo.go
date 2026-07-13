@@ -193,7 +193,7 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 				capture.logger.Debug(
 					"Evdev reader exiting",
 					zap.String("device", file.Name()),
-					zap.Int("read_result", readResult),
+					zap.Int("read_result", int(readResult)),
 				)
 			}
 
