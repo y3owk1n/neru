@@ -163,22 +163,29 @@ Enabled AXManualAccessibility for: com.your.app
 
 This can happen when the element you're trying to select is small. If you encounter this, open an issue.
 
-Alternatively, make sure all relevant roles are enabled. Look at [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65) for available roles.
+Alternatively, make sure all relevant roles are enabled. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65) to enable all roles.
+
+Run `neru config reload` and then test.
 
 ```toml
 [hints]
 clickable_roles = [
-    "AXButton",
-	"AXMenuButton",
     # ...
 ]
 ```
 
 ### Certain hints don't visually match any on-screen UI
 
-Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Try removing those from `hints.clickable_roles`.
+Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65), then remove only those roles so the remaining defaults stay enabled.
 
 Run `neru config reload` and then test.
+
+```toml
+[hints]
+clickable_roles = [
+    # ...
+]
+```
 
 ### Menubar/Dock hints missing
 
