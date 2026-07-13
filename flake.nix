@@ -23,6 +23,7 @@
         pkgs: version: useZip: commitHash:
         pkgs.callPackage ./nix/package.nix {
           inherit version useZip commitHash;
+          apple-sdk_15 = pkgs.apple-sdk_15 or null;
         };
     in
     {
