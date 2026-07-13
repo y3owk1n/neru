@@ -179,8 +179,16 @@ func (m *Manager) rebuildWaylandBindings() {
 // ensureWaylandStarted lazily starts the evdev listener on first registration.
 // Callers must hold m.mu.
 func (m *Manager) ensureWaylandStarted() {
-	if m.waylandHotkeys == nil || m.waylandStarted {
+	if m.waylandHotkeys == nil {
 		return
+	}
+
+	if m.waylandStarted {
+		if m.waylandHotkeys.IsRunning() {
+			return
+		}
+
+		m.waylandStarted = false
 	}
 
 	err := m.waylandHotkeys.Start()
