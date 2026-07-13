@@ -115,6 +115,14 @@ func (l *GlobalHotkeyListener) Stop() {
 	}
 }
 
+// IsRunning reports whether the listener is actively watching for chords.
+func (l *GlobalHotkeyListener) IsRunning() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.running
+}
+
 func (l *GlobalHotkeyListener) run(capture *waylandEvdevCapture, stopCh chan struct{}) {
 	state := waylandEvdevKeyState{pressed: make(map[uint16]bool)}
 
@@ -124,10 +132,6 @@ func (l *GlobalHotkeyListener) run(capture *waylandEvdevCapture, stopCh chan str
 			return
 		case event, ok := <-capture.events:
 			if !ok {
-				// Events channel closed: all reader goroutines exited. This can
-				// happen when the evdev file descriptors become stale after
-				// sleep/wake or device disconnection. Auto-restart the capture
-				// unless Stop() was already called.
 				if !l.tryRestartLocked(&capture, &stopCh, &state) {
 					return
 				}
@@ -172,8 +176,6 @@ func (l *GlobalHotkeyListener) tryRestartLocked(
 
 	newCapture.startReaders()
 
-	// Close the old capture in the background so we don't hold l.mu across
-	// the blocking ungrab/close calls.
 	oldCapture := *capture
 
 	*capture = newCapture
@@ -193,14 +195,6 @@ func (l *GlobalHotkeyListener) tryRestartLocked(
 	)
 
 	return true
-}
-
-// IsRunning reports whether the listener is actively watching for chords.
-func (l *GlobalHotkeyListener) IsRunning() bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	return l.running
 }
 
 func (l *GlobalHotkeyListener) handleEvent(

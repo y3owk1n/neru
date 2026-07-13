@@ -18,8 +18,8 @@ const (
 	login1Member      = "PrepareForSleep"
 	// hibernateReinitDelay is how long after PrepareForSleep(true) we wait
 	// before reinitialising. If PrepareForSleep(false) (normal resume) arrives
-	// within this window, the reinit is cancelled. This handles the systemd
-	// bug (https://github.com/systemd/systemd/issues/30666) where
+	// within this window, the reinit is canceled. This handles the systemd
+	// issue (https://github.com/systemd/systemd/issues/30666) where
 	// PrepareForSleep(false) is not emitted after hibernation.
 	hibernateReinitDelay = 10 * time.Second
 	// postReloadCheckDelay is how long after a config reload we wait before
@@ -33,7 +33,7 @@ var (
 	sleepStopChan  chan struct{}
 	sleepDBusClose func() error
 	sleepWG        sync.WaitGroup
-	// hibernateReinitTimer fires after hibernateReinitDelay unless cancelled by
+	// hibernateReinitTimer fires after hibernateReinitDelay unless canceled by
 	// a matching PrepareForSleep(false) signal.
 	hibernateReinitTimer *time.Timer
 )
@@ -44,8 +44,8 @@ var (
 // suspend.
 //
 // On PrepareForSleep(true) it arms a deferred reinit timer that fires
-// hibernateReinitDelay later unless cancelled by a matching
-// PrepareForSleep(false). This covers the systemd bug
+// hibernateReinitDelay later unless canceled by a matching
+// PrepareForSleep(false). This covers the systemd issue
 // (https://github.com/systemd/systemd/issues/30666) where the resume signal
 // is not emitted after hibernation.
 func (a *App) setupSleepObserver() {
@@ -78,11 +78,7 @@ func (a *App) setupSleepObserver() {
 	conn.Signal(signalCh)
 	sleepDBusClose = conn.Close
 
-	sleepWG.Add(1)
-
-	go func() {
-		defer sleepWG.Done()
-
+	sleepWG.Go(func() {
 		for {
 			select {
 			case <-sleepStopChan:
@@ -92,8 +88,8 @@ func (a *App) setupSleepObserver() {
 				}
 
 				return
-			case signal, ok := <-signalCh:
-				if !ok {
+			case signal, chOpen := <-signalCh:
+				if !chOpen {
 					return
 				}
 
@@ -133,7 +129,7 @@ func (a *App) setupSleepObserver() {
 				}
 			}
 		}
-	}()
+	})
 }
 
 // stopSleepObserver shuts down the D-Bus connection and signal goroutine
@@ -162,6 +158,7 @@ func (a *App) handleWakeFromSleep() {
 	// Step 2: Re-register global hotkeys. The stop+restart cycle closes stale
 	// evdev file descriptors and opens fresh ones, reviving the GlobalHotkeyListener.
 	a.hotkeyRegistrationMu.Lock()
+
 	needReregister := a.appState.HotkeysRegistered()
 	if needReregister {
 		a.stopAllHotkeyRepeats()
@@ -188,11 +185,7 @@ func (a *App) handleWakeFromSleep() {
 // fresh start" lifecycle bug where Start() returns nil but the listener is
 // effectively dead.
 func (a *App) schedulePostReloadVerification() {
-	sleepWG.Add(1)
-
-	go func() {
-		defer sleepWG.Done()
-
+	sleepWG.Go(func() {
 		timer := time.NewTimer(postReloadCheckDelay)
 		defer timer.Stop()
 
@@ -202,7 +195,7 @@ func (a *App) schedulePostReloadVerification() {
 		case <-timer.C:
 			a.verifyHotkeyHealth()
 		}
-	}()
+	})
 }
 
 // verifyHotkeyHealth tests whether the global hotkey listener is alive when it
