@@ -8,15 +8,17 @@ import (
 )
 
 // fakeSetter stands in for the cross-process AX attribute setter. It records
-// which attributes it was asked to set and returns a programmed result per
-// attribute (a missing entry means the set fails).
+// which attributes it was asked to set, and with which value, and returns a
+// programmed result per attribute (a missing entry means the set fails).
 type fakeSetter struct {
 	calls   []string
+	values  []bool
 	results map[string]bool
 }
 
-func (f *fakeSetter) set(_ int, attribute string, _ bool) bool {
+func (f *fakeSetter) set(_ int, attribute string, value bool) bool {
 	f.calls = append(f.calls, attribute)
+	f.values = append(f.values, value)
 
 	return f.results[attribute]
 }
@@ -31,6 +33,18 @@ func (f *fakeSetter) countOf(attribute string) int {
 	}
 
 	return count
+}
+
+// lastValueOf returns the value of the most recent set of the given attribute,
+// and whether the attribute was set at all.
+func (f *fakeSetter) lastValueOf(attribute string) (value, found bool) {
+	for i := len(f.calls) - 1; i >= 0; i-- {
+		if f.calls[i] == attribute {
+			return f.values[i], true
+		}
+	}
+
+	return false, false
 }
 
 // newEnableTest swaps in a fake setter, clears the pid cache, and returns the
@@ -202,5 +216,106 @@ func TestEnsurePIDSameBundleCaseInsensitiveKeepsCache(t *testing.T) {
 
 	if got := fake.countOf(manualAttributeName); got != 1 {
 		t.Fatalf("manual set attempts = %d, want 1 (same bundle, different case)", got)
+	}
+}
+
+func TestEnsurePIDReportsReadiness(t *testing.T) {
+	fake, _, logger := newEnableTest(t, map[string]bool{
+		manualAttributeName:   true,
+		enhancedAttributeName: false,
+	})
+
+	// Manual only: ready as soon as the manual set succeeds.
+	if ready, _ := ensurePIDAccessibility(100, "com.example.app", false, logger); !ready {
+		t.Fatal("manual-only ready = false, want true after the manual set succeeds")
+	}
+
+	// Enhanced wanted but its set fails: not ready, so the caller retries.
+	if ready, _ := ensurePIDAccessibility(200, "com.brave.Browser", true, logger); ready {
+		t.Fatal("ready = true, want false while the enhanced set keeps failing")
+	}
+
+	fake.results[enhancedAttributeName] = true
+
+	if ready, _ := ensurePIDAccessibility(200, "com.brave.Browser", true, logger); !ready {
+		t.Fatal("ready = false, want true once every wanted attribute is set")
+	}
+}
+
+func TestEnsurePIDFirstEncounterGuidesRetry(t *testing.T) {
+	_, _, logger := newEnableTest(t, map[string]bool{manualAttributeName: false})
+
+	// First time this pid is seen: worth a backoff retry in case the app is
+	// still bringing its accessibility tree up.
+	if _, retry := ensurePIDAccessibility(100, "com.example.app", false, logger); !retry {
+		t.Fatal("retry = false on first encounter, want true so a slow launch is retried")
+	}
+
+	// Seen before and still failing: a known app, so no retry burst on a later
+	// focus.
+	if _, retry := ensurePIDAccessibility(100, "com.example.app", false, logger); retry {
+		t.Fatal("retry = true on a later focus, want false so native apps are not re-probed")
+	}
+
+	// A different process reusing the pid is a fresh encounter again.
+	if _, retry := ensurePIDAccessibility(100, "com.other.app", false, logger); !retry {
+		t.Fatal("retry = false after pid reuse, want true for the new process")
+	}
+}
+
+func TestEnsurePIDEnhancedClearedWhenDisabled(t *testing.T) {
+	results := map[string]bool{manualAttributeName: true, enhancedAttributeName: true}
+
+	fake, logs, logger := newEnableTest(t, results)
+
+	// Enhanced is on for a browser, then web-content hints are turned off.
+	ensurePIDAccessibility(100, "com.brave.Browser", true, logger)
+	ensurePIDAccessibility(100, "com.brave.Browser", false, logger)
+
+	if value, found := fake.lastValueOf(enhancedAttributeName); !found || value {
+		t.Fatalf("last enhanced set = (value=%v, found=%v), want (false, true) to clear it", value, found)
+	}
+
+	if state := stateForPID(100); state.enhanced {
+		t.Fatal("state.enhanced = true, want false after the attribute is cleared")
+	}
+
+	if got := logs.FilterMessage("enhanced accessibility cleared").Len(); got != 1 {
+		t.Fatalf("enhanced cleared logs = %d, want 1", got)
+	}
+
+	// Re-focusing with hints still off does not clear again.
+	ensurePIDAccessibility(100, "com.brave.Browser", false, logger)
+
+	if got := fake.countOf(enhancedAttributeName); got != 2 {
+		t.Fatalf("enhanced set attempts = %d, want 2 (one to set, one to clear)", got)
+	}
+}
+
+func TestForgetAppAccessibilityResetsState(t *testing.T) {
+	fake, _, logger := newEnableTest(t, map[string]bool{manualAttributeName: true})
+
+	ensurePIDAccessibility(100, "com.example.App", false, logger)
+
+	// An empty bundle id must not wipe unrelated entries.
+	ForgetAppAccessibility("")
+
+	if state := stateForPID(100); state.bundle == "" {
+		t.Fatal("state was cleared by an empty-bundle forget, want it kept")
+	}
+
+	// The app terminates; its cached state is dropped (bundle match is
+	// case-insensitive, like the pid-reuse guard).
+	ForgetAppAccessibility("COM.EXAMPLE.APP")
+
+	if state := stateForPID(100); state.bundle != "" {
+		t.Fatalf("state = %+v, want empty after the app is forgotten", state)
+	}
+
+	// A new process reuses the retired pid: the attribute is set again.
+	ensurePIDAccessibility(100, "com.example.App", false, logger)
+
+	if got := fake.countOf(manualAttributeName); got != 2 {
+		t.Fatalf("manual set attempts = %d, want 2 (cache cleared on terminate, so the reused pid is set again)", got)
 	}
 }

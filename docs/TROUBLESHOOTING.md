@@ -633,6 +633,8 @@ grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 
 **"enhanced accessibility set failed"** - macOS refused AXEnhancedUserInterface for a browser; its web-page content may not be hintable
 
+**"enhanced accessibility cleared"** - neru removed AXEnhancedUserInterface from a browser after web-content hint support was turned off, so its tiling-window side effect does not persist
+
 **"Hints mode activated"** - Hint overlay is active; includes hint count when available
 
 **"Clickable element collection was slow"** - Accessibility scanning completed but took longer than expected

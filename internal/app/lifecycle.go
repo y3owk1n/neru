@@ -195,6 +195,13 @@ func (a *App) setupAppWatcherCallbacks() {
 		a.handleAppActivation(bundleID)
 	})
 
+	// Drop an app's cached accessibility state when it quits, so a later process
+	// reusing its pid has the attributes set again instead of inheriting stale
+	// per-process flags.
+	a.appWatcher.OnTerminate(func(_, bundleID string) {
+		electron.ForgetAppAccessibility(bundleID)
+	})
+
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -427,13 +434,17 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 }
 
-// handleAdditionalAccessibility wakes the accessibility tree of browsers and
-// Electron-based apps. It sets `AXManualAccessibility` on every focused app
-// (no-op on non-chromium-based apps).
+// handleAdditionalAccessibility wakes the focused application's accessibility
+// tree so hints can read it. It sets `AXManualAccessibility` on any focused app
+// (a no-op on apps that do not implement it), as well as
+// `AXEnhancedUserInterface` on Chromium and Firefox browsers when
+// `hints.additional_ax_support` is enabled. The latter is necessary in order to
+// expose web-area content but can cause windows to move and prevent tiling
+// window managers from working correctly, so it stays off every other app.
 //
-// It also sets `AXEnhancedUserInterface` on Chromium/Firefox browsers when
-// web-content hints are enabled. This flag can have side effects on window
-// layout under tiling window managers, so it is not set for other apps.
+// The work runs on a background goroutine because EnsureAppAccessibility
+// retries a freshly launched app with backoff and would otherwise block the
+// activation handler while it waits.
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
 	axCfg := cfg.Hints.AdditionalAXSupport
 
