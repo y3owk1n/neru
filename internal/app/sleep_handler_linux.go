@@ -36,6 +36,7 @@ var (
 	// hibernateReinitTimer fires after hibernateReinitDelay unless canceled by
 	// a matching PrepareForSleep(false) signal.
 	hibernateReinitTimer *time.Timer
+	hibernateTimerCh     <-chan time.Time
 )
 
 // setupSleepObserver subscribes to logind's PrepareForSleep D-Bus signal. On
@@ -82,12 +83,22 @@ func (a *App) setupSleepObserver() {
 		for {
 			select {
 			case <-sleepStopChan:
-				// Stop the deferred hibernation timer if one is running.
 				if hibernateReinitTimer != nil {
 					hibernateReinitTimer.Stop()
 				}
 
 				return
+			case <-hibernateTimerCh:
+				hibernateTimerCh = nil
+				hibernateReinitTimer = nil
+
+				select {
+				case <-sleepStopChan:
+					return
+				default:
+				}
+
+				a.handleWakeFromSleep()
 			case signal, chOpen := <-signalCh:
 				if !chOpen {
 					return
@@ -103,29 +114,21 @@ func (a *App) setupSleepObserver() {
 				}
 
 				if preparing {
-					// Going to sleep/hibernate. Arm a deferred reinit in case
-					// the resume signal never arrives
-					// (https://github.com/systemd/systemd/issues/30666).
-					if hibernateReinitTimer == nil {
-						hibernateReinitTimer = time.AfterFunc(
-							hibernateReinitDelay,
-							a.handleWakeFromSleep,
-						)
-					} else {
-						hibernateReinitTimer.Reset(hibernateReinitDelay)
-					}
-				} else {
-					// Normal wake: cancel the deferred timer. If the timer
-					// already fired (Stop returns false), skip the reinit
-					// to avoid a redundant cycle.
-					timerFired := false
 					if hibernateReinitTimer != nil {
-						timerFired = !hibernateReinitTimer.Stop()
+						hibernateReinitTimer.Stop()
 					}
 
-					if !timerFired {
-						a.handleWakeFromSleep()
+					hibernateReinitTimer = time.NewTimer(hibernateReinitDelay)
+					hibernateTimerCh = hibernateReinitTimer.C
+				} else {
+					if hibernateReinitTimer != nil {
+						hibernateReinitTimer.Stop()
+
+						hibernateTimerCh = nil
+						hibernateReinitTimer = nil
 					}
+
+					a.handleWakeFromSleep()
 				}
 			}
 		}
