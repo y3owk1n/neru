@@ -11,7 +11,7 @@
       eachSystem = nixpkgs.lib.genAttrs [
         "aarch64-darwin"
         "aarch64-linux"
-        "x86_64-darwin"
+        # "x86_64-darwin" # EOL for nixpkgs 26.11+
         "x86_64-linux"
       ];
 
