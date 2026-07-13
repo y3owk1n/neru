@@ -144,8 +144,8 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
-	if c.Hints.UI.FontSize < 6 || c.Hints.UI.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.font_size must be between 6 and 72")
+	if c.Hints.UI.FontSize < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.font_size must be >= 1")
 	}
 
 	err = validateMinValue(c.Hints.UI.BorderRadius, -1, "hints.ui.border_radius")
@@ -178,10 +178,10 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	if c.Hints.SearchInputUI.FontSize < 6 || c.Hints.SearchInputUI.FontSize > 72 {
+	if c.Hints.SearchInputUI.FontSize < 1 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"hints.search_input_ui.font_size must be between 6 and 72",
+			"hints.search_input_ui.font_size must be >= 1",
 		)
 	}
 
@@ -715,8 +715,8 @@ func (c *Config) ValidateGrid() error {
 		return err
 	}
 
-	if c.Grid.UI.FontSize < 6 || c.Grid.UI.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.font_size must be between 6 and 72")
+	if c.Grid.UI.FontSize < 1 {
+		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.font_size must be >= 1")
 	}
 
 	if c.Grid.UI.BorderWidth < 0 {
@@ -764,6 +764,20 @@ func (c *Config) ValidateMonitorSelect() error {
 		return err
 	}
 
+	err = validateMinValue(c.MonitorSelect.UI.FontSize, 1, "monitor_select.ui.font_size")
+	if err != nil {
+		return err
+	}
+
+	err = validateMinValue(
+		c.MonitorSelect.UI.SubtitleFontSize,
+		1,
+		"monitor_select.ui.subtitle_font_size",
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -778,6 +792,11 @@ func (c *Config) ValidateStickyModifiers() error {
 			derrors.CodeInvalidConfig,
 			"sticky_modifiers.tap_max_duration must be >= 0",
 		)
+	}
+
+	err := validateMinValue(c.StickyModifiers.UI.FontSize, 1, "sticky_modifiers.ui.font_size")
+	if err != nil {
+		return err
 	}
 
 	return validateColors([]colorField{
@@ -1230,6 +1249,13 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 	if c.RecursiveGrid.UI.FontSize < 1 {
 		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.ui.font_size must be >= 1")
+	}
+
+	if c.RecursiveGrid.UI.SubKeyPreviewFontSize < 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.sub_key_preview_font_size must be >= 1",
+		)
 	}
 
 	err = validateAppConfigsWithCallback(
