@@ -1182,12 +1182,15 @@ func (c *Config) ValidateGeneral() error {
 
 // ValidateModeIndicator validates the mode indicator configuration.
 func (c *Config) ValidateModeIndicator() error {
-	err := validateMinValue(c.ModeIndicator.UI.FontSize, 1, "mode_indicator.ui.font_size")
-	if err != nil {
-		return err
+	if c.ModeIndicator.UI.FontSize < 1 || c.ModeIndicator.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"mode_indicator.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
 	}
 
-	err = validateMinValue(c.ModeIndicator.UI.BorderWidth, 0, "mode_indicator.ui.border_width")
+	err := validateMinValue(c.ModeIndicator.UI.BorderWidth, 0, "mode_indicator.ui.border_width")
 	if err != nil {
 		return err
 	}
