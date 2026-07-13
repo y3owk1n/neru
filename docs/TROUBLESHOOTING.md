@@ -122,14 +122,57 @@ neru hints               # CLI works?
 log_level = "debug"
 ```
 
-### Electron/Chromium/Firefox issues
+### Hints don't appear in Electron apps or Chrome/Firefox content
 
-**Enable additional AX support:**
+**Browsers and Electron apps needs additional AX support.**
+
+**Solution:**
+
+Edit `~/.config/neru/config.toml`:
 
 ```toml
 [hints.additional_ax_support]
 enable = true
+
+# If your app isn't auto-detected, add it:
+additional_electron_bundles = [
+    "com.your.electronapp",
+]
 ```
+
+Restart Neru:
+
+```bash
+pkill neru && neru launch
+```
+
+**Check logs for:**
+
+```
+App requires Electron support
+Enabled AXManualAccessibility for: com.your.app
+```
+
+### Some elements that should have hints don't have hints
+
+This can happen when the element you're trying to select is small. If you encounter this, open an issue.
+
+Alternatively, make sure all relevant roles are enabled. Look at [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65) for available roles.
+
+```toml
+[hints]
+clickable_roles = [
+    "AXButton",
+	"AXMenuButton",
+    # ...
+]
+```
+
+### Certain hints don't visually match any on-screen UI
+
+Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Try removing those from `hints.clickable_roles`.
+
+Run `neru config reload` and then test.
 
 ### Menubar/Dock hints missing
 
@@ -160,41 +203,6 @@ tail -f ~/Library/Logs/neru/app.log
 # - App name and version
 # - Screenshot
 ```
-
-### Hints don't appear in Electron apps
-
-**Electron apps need additional AX support.**
-
-**Solution:**
-
-Edit `~/.config/neru/config.toml`:
-
-```toml
-[hints.additional_ax_support]
-enable = true
-
-# If your app isn't auto-detected, add it:
-additional_electron_bundles = [
-    "com.your.electronapp",
-]
-```
-
-Restart Neru:
-
-```bash
-pkill neru && neru launch
-```
-
-**Check logs for:**
-
-```
-App requires Electron support
-Enabled AXManualAccessibility for: com.your.app
-```
-
-### Hints don't appear in Chrome/Firefox content
-
-**Browser needs additional AX support.**
 
 ### No hints in menubar/Dock
 
@@ -496,17 +504,17 @@ If you're still experiencing issues:
     - Some custom layouts (e.g., Colemak, Dvorak) may not be resolved automatically
     - Force the layout by setting `kb_layout_to_use` in your config to the full bundle ID:
 
-      ```bash
-      # First, switch to your desired layout in the menu bar, then:
-      defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
-      ```
+        ```bash
+        # First, switch to your desired layout in the menu bar, then:
+        defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
+        ```
 
-      Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
+        Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
 
-      ```toml
-      [general]
-      kb_layout_to_use = "com.apple.keylayout.Colemak"
-      ```
+        ```toml
+        [general]
+        kb_layout_to_use = "com.apple.keylayout.Colemak"
+        ```
 
 3. **Layout changes at runtime not picked up:**
     - Neru now automatically re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)
