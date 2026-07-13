@@ -25,6 +25,7 @@
   writableTmpDirAsHomeHook,
   nix-update-script,
   unzip,
+  apple-sdk_15,
 }:
 if useZip then
   let
@@ -176,6 +177,8 @@ else
       "-X github.com/y3owk1n/neru/internal/cli.GitCommit=${commitHash}"
     ];
 
+    subPackages = [ "cmd/neru" ];
+
     nativeBuildInputs = [
       installShellFiles
       writableTmpDirAsHomeHook
@@ -184,21 +187,23 @@ else
       pkg-config
     ];
 
-    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
-      cairo
-      libxkbcommon
-      wayland
-      wayland-protocols
-      libx11
-      libxext
-      libxfixes
-      libxrandr
-      libxrender
-      libxtst
-      libxi
-    ];
-
-    subPackages = [ "cmd/neru" ];
+    buildInputs =
+      lib.optionals stdenv.hostPlatform.isLinux [
+        cairo
+        libxkbcommon
+        wayland
+        wayland-protocols
+        libx11
+        libxext
+        libxfixes
+        libxrandr
+        libxrender
+        libxtst
+        libxi
+      ]
+      ++ lib.optionals stdenv.hostPlatform.isDarwin [
+        apple-sdk_15
+      ];
 
     # Allow Go to use any available toolchain
     preBuild = ''
