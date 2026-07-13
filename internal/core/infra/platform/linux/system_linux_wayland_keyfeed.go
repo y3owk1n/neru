@@ -171,7 +171,10 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"key feeding unavailable on KDE: the RemoteDesktop portal session "+
-				"did not grant a keyboard device; only a pointer was granted",
+				"did not grant a keyboard device. Restart neru and check "+
+				"\"Enable keyboard\" in the consent prompt; if the prompt "+
+				"does not appear, run `flatpak permission-remove kde-authorized "+
+				"remote-desktop \"\"` first to clear the saved grant",
 		)
 	}
 

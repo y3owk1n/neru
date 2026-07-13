@@ -41,6 +41,18 @@ func (linuxDaemonHost) Run(application *app.App) error {
 			return
 		}
 
+		if !linux.HasKeyboard() {
+			application.Logger().Warn(
+				"Wayland input warm-up complete but RemoteDesktop portal did not grant a " +
+					"keyboard device; \"action feed\" and sticky modifiers will be unavailable. " +
+					"Restart neru and check \"Enable keyboard\" in the consent prompt; if the " +
+					"prompt does not appear, run `flatpak permission-remove kde-authorized " +
+					"remote-desktop \"\"` first to clear the saved grant",
+			)
+
+			return
+		}
+
 		application.Logger().Info("Wayland input warm-up complete")
 	}()
 

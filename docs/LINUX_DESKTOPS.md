@@ -108,10 +108,29 @@ compositors that lack both virtual pointer and a libei path.
 
 **"key feeding unavailable on KDE: the RemoteDesktop portal session did not grant a keyboard device"**
 
-The portal commonly grants pointer capability only. To enable key feeding on
-KDE, the portal session must include a keyboard device — this depends on the
-portal backend and KDE version. On most setups, keyboard is unavailable for
-security reasons. There is no user-facing toggle to request it.
+The RemoteDesktop portal defaults to pointer-only capability. To enable key
+feeding on KDE, start with a fresh portal grant:
+
+**Option A — Plasma 6.5+:** Open **System Settings → Applications → Remote
+Desktop**, find any saved `neru` permission, and remove it.
+
+**Option B — Plasma 6.3+ (CLI):** Run:
+```sh
+flatpak permission-remove kde-authorized remote-desktop ""
+```
+
+This clears KDE's portal permission store for host applications. The command
+works on any Plasma ≥ 6.3 regardless of whether `flatpak` packages are used.
+
+After clearing the saved permission:
+
+1. Restart the `neru` daemon.
+2. When the **"Remote Control" consent prompt** appears by
+   `xdg-desktop-portal-kde`, **check the "Enable keyboard" box** before
+   clicking "Allow".
+
+The daemon's startup log confirms success with `"Wayland input warm-up
+complete"` (keyboard available) or a warning when keyboard was not granted.
 
 **Verifying injected input with the KWin Debug Console**
 

@@ -11,6 +11,9 @@ struct NeruEiClient {
 	struct oeffis *oeffis;
 	struct ei *ei;
 
+	struct ei_seat *seat;  // Saved seat for two-stage capability bind
+	int seat_caps_bound;   // Keyboard bound, pointer caps still pending
+
 	struct ei_device *pointer;
 	int pointer_resumed;
 	int pointer_emulating;
@@ -54,14 +57,17 @@ static void drain(NeruEiClient *c) {
 	while ((e = ei_get_event(c->ei)) != NULL) {
 		switch (ei_event_get_type(e)) {
 		case EI_EVENT_SEAT_ADDED: {
-			struct ei_seat *seat = ei_event_get_seat(e);
-			// Bind relative pointer alongside absolute: after an absolute warp
-			// KWin updates the logical pointer (clicks land) but does not always
-			// repaint the visible cursor sprite. A zero-delta relative motion on
-			// the same device forces the sprite to snap to the warped position.
-			ei_seat_bind_capabilities(
-			    seat, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE, EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL,
-			    EI_DEVICE_CAP_KEYBOARD, NULL);
+			struct ei_seat *s = ei_event_get_seat(e);
+			if (!c->seat) {
+				c->seat = ei_seat_ref(s);
+				// Stage 1: bind keyboard alone. KWin's EIS implementation
+				// silently drops the keyboard device when it is bound
+				// alongside pointer capabilities in a single call (KDE bug
+				// (https://bugs.kde.org/show_bug.cgi?id=520464, confirmed on Plasma 6). After this bind is flushed
+				// and the keyboard device exists, a second bind adds the
+				// pointer capabilities without affecting the keyboard.
+				ei_seat_bind_capabilities(s, EI_DEVICE_CAP_KEYBOARD, NULL);
+			}
 			break;
 		}
 		case EI_EVENT_DEVICE_ADDED: {
@@ -199,6 +205,43 @@ NeruEiClient *neru_ei_connect(int timeout_ms) {
 		}
 		ei_dispatch(c->ei);
 		drain(c);
+
+		// Two-stage capability bind: KDE bug https://bugs.kde.org/show_bug.cgi?id=520464 causes KWin to silently
+		// drop the keyboard device when keyboard and pointer are bound together
+		// in a single ei_seat_bind_capabilities() call. The workaround:
+		//   Stage 1 (in drain's EI_EVENT_SEAT_ADDED handler) binds keyboard
+		//   alone so the keyboard device is created before any pointer caps
+		//   are requested.
+		//   Stage 2 (here) flushes the keyboard bind, then binds the remaining
+		//   pointer capabilities. KWin sees the keyboard already exists and
+		//   keeps it, while also creating the pointer devices.
+		if (c->seat && !c->seat_caps_bound) {
+			ei_dispatch(c->ei);
+			// Drain any keyboard device events that arrived in response to
+			// the stage 1 bind before queuing stage 2, so c->keyboard and
+			// c->keyboard_resumed reflect the actual state.
+			drain(c);
+			ei_seat_bind_capabilities(
+			    c->seat, EI_DEVICE_CAP_KEYBOARD, EI_DEVICE_CAP_POINTER, EI_DEVICE_CAP_POINTER_ABSOLUTE,
+			    EI_DEVICE_CAP_BUTTON, EI_DEVICE_CAP_SCROLL, NULL);
+			c->seat_caps_bound = 1;
+		}
+	}
+
+	// 3b) Give the keyboard device a brief extra window to appear after the
+	// pointer. The portal may advertise both devices but the keyboard add/resume
+	// events can arrive slightly later. If keyboard was not granted by the portal
+	// this loop simply times out in ~1 s and the connection still succeeds so
+	// pointer/click/scroll work. The caller can check neru_ei_has_keyboard.
+	{
+		int64_t kbd_deadline = now_ms() + 1000;
+		while (!c->keyboard_resumed && now_ms() < kbd_deadline) {
+			if (wait_readable(efd, kbd_deadline) != 1) {
+				break;
+			}
+			ei_dispatch(c->ei);
+			drain(c);
+		}
 	}
 
 	return c;
@@ -219,6 +262,9 @@ void neru_ei_disconnect(NeruEiClient *c) {
 			ei_device_stop_emulating(c->keyboard);
 		}
 		ei_device_unref(c->keyboard);
+	}
+	if (c->seat) {
+		ei_seat_unref(c->seat);
 	}
 	if (c->ei) {
 		ei_unref(c->ei);
@@ -298,4 +344,16 @@ int neru_ei_key(NeruEiClient *c, int keycode, int pressed) {
 	return 1;
 }
 
-int neru_ei_has_keyboard(NeruEiClient *c) { return c && c->keyboard != NULL; }
+int neru_ei_has_keyboard(NeruEiClient *c) {
+	if (!c) {
+		return 0;
+	}
+	// The keyboard device may have been added/resumed after we finished waiting
+	// in neru_ei_connect (which only waits for the pointer device). Pump any
+	// pending EIS events so the keyboard state is visible to the caller.
+	pump(c);
+	// Only check device existence, not resume state: a transient pause by the
+	// compositor would otherwise make the Go layer report a permanent "not
+	// granted" error even though the device exists and will be resumed shortly.
+	return c->keyboard != NULL;
+}

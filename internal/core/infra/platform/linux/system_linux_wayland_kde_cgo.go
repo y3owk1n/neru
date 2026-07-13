@@ -193,7 +193,10 @@ func libeiKey(keycode int, pressed bool) error {
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"libei keyboard injection unavailable; the RemoteDesktop portal "+
-				"session did not grant a keyboard device",
+				"session did not grant a keyboard device. Restart neru and "+
+				"check \"Enable keyboard\" in the consent prompt; if the prompt "+
+				"does not appear, run `flatpak permission-remove kde-authorized "+
+				"remote-desktop \"\"` first to clear the saved grant",
 		)
 	}
 

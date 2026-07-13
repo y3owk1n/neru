@@ -86,6 +86,10 @@ func libeiButtonRelease(button int) error {
 // action does not block on the dialog past the IPC timeout. Best-effort: errors
 // (no Wayland session, consent declined) are returned for logging and the lazy
 // path remains as a fallback.
+//
+// When the session is established without a keyboard device, the function still
+// succeeds (pointer/click/scroll work) so that error messages about keyboard
+// availability come from the caller, not from this warm-up path.
 func WarmWaylandInput() error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil
@@ -101,6 +105,29 @@ func WarmWaylandInput() error {
 	}
 
 	return libeiEnsure()
+}
+
+// HasKeyboard reports whether the Wayland backend can inject keyboard events.
+// On wlroots compositors it always returns true (zwp_virtual_keyboard_v1 is
+// available). On KDE/KWin it reflects whether the RemoteDesktop portal grant
+// included keyboard capability. Safe to call before any warm-up (returns false
+// if no session exists yet). On X11 / non-Wayland sessions it returns true
+// (keyboard injection goes through XTest, not through this backend).
+func HasKeyboard() bool {
+	if os.Getenv("WAYLAND_DISPLAY") == "" {
+		return true
+	}
+
+	// wlroots compositors provide a virtual keyboard regardless of any portal
+	// grant, so we must check that path first before querying the libei state.
+	hasVKB, err := wlrootsHasVirtualKeyboard()
+	if err == nil && hasVKB {
+		return true
+	}
+
+	has, _ := libeiHasKeyboard()
+
+	return has
 }
 
 func waylandMoveCursorToPoint(point image.Point) error {
