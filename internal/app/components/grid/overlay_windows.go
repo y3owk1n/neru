@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	minFontSize  = 12
 	minLineWidth = 1
 	invalidColor = 0xFFFFFFFF
 	hexPairCount = 2
@@ -122,7 +121,7 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 		LabelFontColor: parseWindowsColor(
 			cfg.UI.TextColor.ForTheme(theme, config.GridTextColorLight, config.GridTextColorDark),
 		),
-		LabelFontSize: float64(max(cfg.UI.FontSize, minFontSize)),
+		LabelFontSize: float64(cfg.UI.FontSize),
 		LabelFontName: cfg.UI.FontFamily,
 		MatchedTextColor: parseWindowsColor(
 			cfg.UI.MatchedTextColor.ForTheme(

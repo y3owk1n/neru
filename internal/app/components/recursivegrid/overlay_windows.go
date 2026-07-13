@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	minFontSize   = 14
 	hexDigitCount = 2
 	invalidColor  = 0xFFFFFFFF
 	colorLen3     = 3
@@ -135,7 +134,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 				config.RecursiveGridTextColorDark,
 			),
 		),
-		LabelFontSize:   float64(max(cfg.UI.FontSize, minFontSize)),
+		LabelFontSize:   float64(cfg.UI.FontSize),
 		LabelFontName:   ports.ResolveFont(cfg.UI.FontFamily, true),
 		LabelBackground: cfg.UI.LabelBackground,
 		LabelBackgroundColor: parseWindowsColor(

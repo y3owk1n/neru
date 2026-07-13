@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -9,6 +10,11 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
+
+// maxFontSize is the maximum font size accepted by the config validator.
+// Values above this can overflow C.int (int32) on Darwin or platform int on
+// Windows when passed to native overlay renderers.
+const maxFontSize = math.MaxInt32
 
 var validModifiers = map[string]bool{
 	"Primary":     true,
@@ -144,8 +150,12 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
-	if c.Hints.UI.FontSize < 6 || c.Hints.UI.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.font_size must be between 6 and 72")
+	if c.Hints.UI.FontSize < 1 || c.Hints.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
 	}
 
 	err = validateMinValue(c.Hints.UI.BorderRadius, -1, "hints.ui.border_radius")
@@ -178,10 +188,11 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	if c.Hints.SearchInputUI.FontSize < 6 || c.Hints.SearchInputUI.FontSize > 72 {
-		return derrors.New(
+	if c.Hints.SearchInputUI.FontSize < 1 || c.Hints.SearchInputUI.FontSize > maxFontSize {
+		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"hints.search_input_ui.font_size must be between 6 and 72",
+			"hints.search_input_ui.font_size must be between 1 and %d",
+			maxFontSize,
 		)
 	}
 
@@ -715,8 +726,12 @@ func (c *Config) ValidateGrid() error {
 		return err
 	}
 
-	if c.Grid.UI.FontSize < 6 || c.Grid.UI.FontSize > 72 {
-		return derrors.New(derrors.CodeInvalidConfig, "grid.ui.font_size must be between 6 and 72")
+	if c.Grid.UI.FontSize < 1 || c.Grid.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"grid.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
 	}
 
 	if c.Grid.UI.BorderWidth < 0 {
@@ -764,6 +779,23 @@ func (c *Config) ValidateMonitorSelect() error {
 		return err
 	}
 
+	if c.MonitorSelect.UI.FontSize < 1 || c.MonitorSelect.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"monitor_select.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
+	}
+
+	if c.MonitorSelect.UI.SubtitleFontSize < 1 ||
+		c.MonitorSelect.UI.SubtitleFontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"monitor_select.ui.subtitle_font_size must be between 1 and %d",
+			maxFontSize,
+		)
+	}
+
 	return nil
 }
 
@@ -777,6 +809,14 @@ func (c *Config) ValidateStickyModifiers() error {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
 			"sticky_modifiers.tap_max_duration must be >= 0",
+		)
+	}
+
+	if c.StickyModifiers.UI.FontSize < 1 || c.StickyModifiers.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"sticky_modifiers.ui.font_size must be between 1 and %d",
+			maxFontSize,
 		)
 	}
 
@@ -1228,8 +1268,21 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
-	if c.RecursiveGrid.UI.FontSize < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "recursive_grid.ui.font_size must be >= 1")
+	if c.RecursiveGrid.UI.FontSize < 1 || c.RecursiveGrid.UI.FontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.font_size must be between 1 and %d",
+			maxFontSize,
+		)
+	}
+
+	if c.RecursiveGrid.UI.SubKeyPreviewFontSize < 1 ||
+		c.RecursiveGrid.UI.SubKeyPreviewFontSize > maxFontSize {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.sub_key_preview_font_size must be between 1 and %d",
+			maxFontSize,
+		)
 	}
 
 	err = validateAppConfigsWithCallback(
