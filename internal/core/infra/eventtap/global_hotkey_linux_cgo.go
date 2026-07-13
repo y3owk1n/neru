@@ -124,12 +124,83 @@ func (l *GlobalHotkeyListener) run(capture *waylandEvdevCapture, stopCh chan str
 			return
 		case event, ok := <-capture.events:
 			if !ok {
-				return
+				// Events channel closed: all reader goroutines exited. This can
+				// happen when the evdev file descriptors become stale after
+				// sleep/wake or device disconnection. Auto-restart the capture
+				// unless Stop() was already called.
+				if !l.tryRestartLocked(&capture, &stopCh, &state) {
+					return
+				}
+
+				continue
 			}
 
 			l.handleEvent(&state, event)
 		}
 	}
+}
+
+// tryRestartLocked attempts to re-establish the evdev capture after a reader
+// failure. The caller must NOT hold l.mu. Returns true when the capture was
+// replaced successfully and the loop should continue; false when Stop was
+// called concurrently or evdev remains unavailable and the loop must exit.
+func (l *GlobalHotkeyListener) tryRestartLocked(
+	capture **waylandEvdevCapture,
+	stopCh *chan struct{},
+	state *waylandEvdevKeyState,
+) bool {
+	l.mu.Lock()
+
+	if !l.running {
+		l.mu.Unlock()
+
+		return false
+	}
+
+	newCapture, err := newWaylandEvdevCapture(l.logger)
+	if err != nil {
+		l.logger.Warn(
+			"Evdev hotkey listener readers died and reconnection failed; "+
+				"global hotkeys will stop working until neru is restarted",
+			zap.Error(err),
+		)
+		l.running = false
+		l.mu.Unlock()
+
+		return false
+	}
+
+	newCapture.startReaders()
+
+	// Close the old capture in the background so we don't hold l.mu across
+	// the blocking ungrab/close calls.
+	oldCapture := *capture
+
+	*capture = newCapture
+	*stopCh = make(chan struct{})
+	*state = waylandEvdevKeyState{pressed: make(map[uint16]bool)}
+	l.capture = newCapture
+	l.stopCh = *stopCh
+	l.mu.Unlock()
+
+	if oldCapture != nil {
+		go oldCapture.Close()
+	}
+
+	l.logger.Info(
+		"Evdev hotkey listener reconnected after reader failure",
+		zap.Int("devices", len(newCapture.files)),
+	)
+
+	return true
+}
+
+// IsRunning reports whether the listener is actively watching for chords.
+func (l *GlobalHotkeyListener) IsRunning() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.running
 }
 
 func (l *GlobalHotkeyListener) handleEvent(

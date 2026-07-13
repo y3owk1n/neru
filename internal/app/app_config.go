@@ -30,6 +30,9 @@ func (a *App) ReloadConfig(ctx context.Context, configPath string) error {
 	a.applyAppSpecificConfigUpdates(loadResult)
 	a.reconfigureAfterUpdate(loadResult)
 
+	// On Linux, verify the hotkey listener started correctly after reload.
+	a.schedulePostReloadVerification()
+
 	return nil
 }
 

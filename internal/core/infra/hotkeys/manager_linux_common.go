@@ -189,6 +189,25 @@ func (m *Manager) stopWayland() {
 	m.waylandStarted = false
 }
 
+// HealthCheck returns true when the global hotkey listener is healthy.
+// On non-Wayland backends (X11) it always returns true because there is no
+// passive evdev listener to monitor. Callers (the app health-check loop)
+// reinitialize the listener if this returns false.
+func (m *Manager) HealthCheck() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.waylandHotkeys == nil {
+		return true
+	}
+
+	if !m.waylandStarted {
+		return true
+	}
+
+	return m.waylandHotkeys.IsRunning()
+}
+
 // SetGlobalManager assigns the global manager instance (Linux stub).
 func SetGlobalManager(_ *Manager) {}
 
