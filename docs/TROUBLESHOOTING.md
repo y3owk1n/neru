@@ -646,10 +646,6 @@ grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 
 ### Common log messages
 
-**"App requires Electron support"** - Electron app detected, needs AX support enabled
-
-**"Enabled AXManualAccessibility"** - Electron support activated successfully
-
 **"Hints mode activated"** - Hint overlay is active; includes hint count when available
 
 **"Clickable element collection was slow"** - Accessibility scanning completed but took longer than expected
