@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.47.0](https://github.com/y3owk1n/neru/compare/v1.46.1...v1.47.0) (2026-07-13)
+
+
+### Features
+
+* add `app_configs` for global hotkey overrides ([#1008](https://github.com/y3owk1n/neru/issues/1008)) ([b1a4c67](https://github.com/y3owk1n/neru/commit/b1a4c67ac18164ba2ae3ac0978d3bc21f8802108))
+* **cli,action:** add `--mode` flag to `action feed` to feed keys into neru ([#999](https://github.com/y3owk1n/neru/issues/999)) ([fe23531](https://github.com/y3owk1n/neru/commit/fe235314b7ce4d65fb398a1f74d111f3a3a26853))
+* **hotkeys:** let per-mode hotkeys override a global hotkey on the same key ([#993](https://github.com/y3owk1n/neru/issues/993)) ([c95ccf5](https://github.com/y3owk1n/neru/commit/c95ccf5225a32551eb7ec6f8667f439a6524e447))
+* **linux,wayland,kde:** add `action feed` support ([#1013](https://github.com/y3owk1n/neru/issues/1013)) ([c28300b](https://github.com/y3owk1n/neru/commit/c28300bc24773815f1c37d22ee4d70023247650e))
+
+
+### Bug Fixes
+
+* **darwin,stick_modifier:** prevent random sticky modifier toggles ([#1011](https://github.com/y3owk1n/neru/issues/1011)) ([22bc23c](https://github.com/y3owk1n/neru/commit/22bc23c3439c1dd8e8a5e756381c8d5e87ac0a7d))
+* **hints:** keep labels on screen during refresh instead of blanking ([#1012](https://github.com/y3owk1n/neru/issues/1012)) ([4638626](https://github.com/y3owk1n/neru/commit/4638626da0e63a7938e7eaa921b65728c5acbaa5))
+* **hints:** lower down `minElementSize` to 10 for smaller sized hints ([#1020](https://github.com/y3owk1n/neru/issues/1020)) ([eefb876](https://github.com/y3owk1n/neru/commit/eefb8762949158d74c5ac01f3a3c48af00ecbbe4))
+* **linux,kde:** work around KDE EIS keyboard drop bug ([#1021](https://github.com/y3owk1n/neru/issues/1021)) ([8ff4a32](https://github.com/y3owk1n/neru/commit/8ff4a322d767b346d0b7217799f405179ea066ef))
+* **linux,recursive_grid:** render subkey preview properly when enabled ([#995](https://github.com/y3owk1n/neru/issues/995)) ([1da2cd2](https://github.com/y3owk1n/neru/commit/1da2cd2db59d92db9c022d8d10a71ede209b94b7))
+* **linux:** recover from stale evdev/libei connections after sleep and config reload ([#1023](https://github.com/y3owk1n/neru/issues/1023)) ([a43eb4e](https://github.com/y3owk1n/neru/commit/a43eb4e14b4a519a37295eea9c42d04736fabdee))
+* lower down minimum font size to `1` and add missing validations ([#1024](https://github.com/y3owk1n/neru/issues/1024)) ([c196b93](https://github.com/y3owk1n/neru/commit/c196b93026dd763e6f519c45a39784a0360e9165))
+
+
+### Documentation
+
+* add bernatGene config showcase ([#1010](https://github.com/y3owk1n/neru/issues/1010)) ([32958a6](https://github.com/y3owk1n/neru/commit/32958a6b2e0582d651a7d0d73ef6dcb52f4680f8))
+* **tips:** add commands to open a new window and edit config tips ([#997](https://github.com/y3owk1n/neru/issues/997)) ([d2816d3](https://github.com/y3owk1n/neru/commit/d2816d3b933410026fa9c599b642c6da88510888))
+* **tips:** add mode-cycling and element-targeted shortcut recipes ([#1004](https://github.com/y3owk1n/neru/issues/1004)) ([fcbcd5b](https://github.com/y3owk1n/neru/commit/fcbcd5b33969c9801f0542f74af29359972b99cc))
+
 ## [1.46.1](https://github.com/y3owk1n/neru/compare/v1.46.0...v1.46.1) (2026-07-07)
 
 
