@@ -53,9 +53,9 @@ var (
 // not implement it.
 //
 // `AXEnhancedUserInterface` is set only when useEnhanced is true, which the
-// caller restricts to Chromium/Firefox browsers with web-content hints turned
-// on. It exposes browser web-area content but can relayout or move windows
-// under tiling window managers, so it stays off every other application.
+// caller restricts to Firefox browsers with web-content hints turned on. It
+// exposes browser web-area content but can relayout or move windows under
+// tiling window managers, so it stays off every other application.
 //
 // A successful set is cached per pid, so re-focusing an already-woken app does
 // no further work. A failed set is not cached, so a later focus retries it.
@@ -221,22 +221,6 @@ func ForgetAppAccessibility(bundleID string) {
 	}
 }
 
-// ShouldEnableChromiumSupport determines if Chromium accessibility should be enabled for the provided bundle.
-// This function checks both known Chromium bundles and user-provided overrides.
-func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
-		return true
-	}
-
-	result := IsLikelyChromiumBundle(bundleID)
-
-	return result
-}
-
 // ShouldEnableFirefoxSupport determines if Firefox accessibility should be enabled for the provided bundle.
 // This function checks both known Firefox bundles and user-provided overrides.
 func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) bool {
@@ -251,23 +235,6 @@ func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) boo
 	result := IsLikelyFirefoxBundle(bundleID)
 
 	return result
-}
-
-// IsLikelyChromiumBundle returns true if the provided bundle identifier matches a known Chromium signature.
-// This helps identify applications that would benefit from AXEnhancedUserInterface accessibility improvements.
-func IsLikelyChromiumBundle(bundleID string) bool {
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	if lower == "" {
-		return false
-	}
-
-	for _, exact := range config.KnownChromiumBundles {
-		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // IsLikelyFirefoxBundle returns true if the provided bundle identifier matches a known Firefox signature.

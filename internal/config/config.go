@@ -1912,7 +1912,8 @@ func IsAllLetters(keyStr string) bool {
 }
 
 // KnownChromiumBundles contains known Chromium-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
+// These applications are classified as Chromium during accessibility-tree
+// traversal so their web-area hint targets are found correctly.
 var KnownChromiumBundles = []string{
 	"net.imput.helium",
 	"com.google.Chrome",

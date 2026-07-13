@@ -436,11 +436,14 @@ func (a *App) handleAppActivation(bundleID string) {
 
 // handleAdditionalAccessibility wakes the focused application's accessibility
 // tree so hints can read it. It sets `AXManualAccessibility` on any focused app
-// (a no-op on apps that do not implement it), as well as
-// `AXEnhancedUserInterface` on Chromium and Firefox browsers when
-// `hints.additional_ax_support` is enabled. The latter is necessary in order to
-// expose web-area content but can cause windows to move and prevent tiling
-// window managers from working correctly, so it stays off every other app.
+// (a no-op on apps that do not implement it), which is enough to expose the
+// hint targets of Chromium and Electron apps alongside ordinary native apps.
+//
+// `AXEnhancedUserInterface` is additionally set on Firefox browsers when
+// `hints.additional_ax_support` is enabled, because Firefox exposes its
+// web-area content only under that attribute. It can cause windows to move and
+// prevent tiling window managers from working correctly, so it stays off every
+// other app.
 //
 // The work runs on a background goroutine because EnsureAppAccessibility
 // retries a freshly launched app with backoff and would otherwise block the
@@ -449,8 +452,7 @@ func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config)
 	axCfg := cfg.Hints.AdditionalAXSupport
 
 	useEnhanced := axCfg.Enable &&
-		(electron.ShouldEnableChromiumSupport(bundleID, axCfg.AdditionalChromiumBundles) ||
-			electron.ShouldEnableFirefoxSupport(bundleID, axCfg.AdditionalFirefoxBundles))
+		electron.ShouldEnableFirefoxSupport(bundleID, axCfg.AdditionalFirefoxBundles)
 
 	go electron.EnsureAppAccessibility(bundleID, useEnhanced, a.logger)
 }
