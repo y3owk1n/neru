@@ -427,10 +427,13 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 }
 
-// handleAdditionalAccessibility wakes the focused application's accessibility
-// tree so hints can read it. AXManualAccessibility is set on every focused app.
-// The window-moving AXEnhancedUserInterface is set only for Chromium/Firefox
-// browsers, and only when web-content hint support is enabled.
+// handleAdditionalAccessibility wakes the accessibility tree of browsers and
+// Electron-based apps. It sets `AXManualAccessibility` on every focused app
+// (no-op on non-chromium-based apps).
+//
+// It also sets `AXEnhancedUserInterface` on Chromium/Firefox browsers when
+// web-content hints are enabled. This flag can have side effects on window
+// layout under tiling window managers, so it is not set for other apps.
 func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
 	axCfg := cfg.Hints.AdditionalAXSupport
 

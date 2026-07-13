@@ -42,9 +42,8 @@ var (
 // application's hint targets readable.
 //
 // AXManualAccessibility is set on every application. It wakes Electron and
-// Chromium accessibility trees, works for any app without a bundle whitelist,
-// and is a harmless no-op on applications that do not implement it (the set
-// fails silently with no window side effect).
+// Chromium accessibility trees, and is a harmless no-op on applications that do
+// not implement it.
 //
 // AXEnhancedUserInterface is set only when useEnhanced is true, which the
 // caller restricts to Chromium/Firefox browsers with web-content hints turned
