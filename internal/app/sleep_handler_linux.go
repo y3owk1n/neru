@@ -147,19 +147,15 @@ func (a *App) stopSleepObserver() {
 	sleepWG.Wait()
 }
 
-// handleWakeFromSleep reinitializes all input subsystems after the system
-// resumes from suspend, or after a health check detects stale connections.
-// Called from the logind PrepareForSleep(false) signal handler, the deferred
-// hibernation timer, and the post-reload verification.
-func (a *App) handleWakeFromSleep() {
-	a.logger.Info("Reinitializing input listeners after sleep/wake or stale evdev")
+// reinitializeHotkeys tears down and re-registers the global hotkey listener
+// without touching the libei/RemoteDesktop session. Use this for health-check
+// recovery after stale evdev fds; it avoids triggering a fresh RemoteDesktop
+// portal consent prompt.
+func (a *App) reinitializeHotkeys() {
+	a.logger.Info("Reinitializing hotkey listener (evdev only)")
 
-	// Step 1: Exit any active navigation mode. This stops the in-mode evdev
-	// EventTap and cleans up the overlay. Safe to call when already idle.
 	a.ExitMode()
 
-	// Step 2: Re-register global hotkeys. The stop+restart cycle closes stale
-	// evdev file descriptors and opens fresh ones, reviving the GlobalHotkeyListener.
 	a.hotkeyRegistrationMu.Lock()
 
 	needReregister := a.appState.HotkeysRegistered()
@@ -175,12 +171,29 @@ func (a *App) handleWakeFromSleep() {
 		a.refreshHotkeysForAppOrCurrent("")
 	}
 
-	// Step 3: Reset the libei/RemoteDesktop session so the next input operation
+	a.logger.Info("Hotkey listener reinitialized")
+}
+
+// handleWakeFromSleep reinitializes all input subsystems after the system
+// resumes from suspend. It re-registers the evdev-based hotkey listener and
+// resets the libei/RemoteDesktop portal session, both of which go stale when
+// the compositor reinitializes during resume.
+//
+// Called from the logind PrepareForSleep(false) signal handler and the
+// deferred hibernation timer. Do NOT call this from post-reload health
+// checks — use reinitializeHotkeys instead to avoid triggering a fresh
+// RemoteDesktop consent prompt on every recovery.
+func (a *App) handleWakeFromSleep() {
+	a.logger.Info("Reinitializing input listeners after sleep/wake")
+
+	a.reinitializeHotkeys()
+
+	// Reset the libei/RemoteDesktop session so the next input operation
 	// re-establishes the portal connection. The old socket is stale after the
 	// compositor reinitialized during resume.
 	linux.LibeiReset()
 
-	a.logger.Info("Input listeners reinitialized")
+	a.logger.Info("Input listeners reinitialized after sleep/wake")
 }
 
 // schedulePostReloadVerification checks the hotkey listener is alive 2s after
@@ -202,7 +215,9 @@ func (a *App) schedulePostReloadVerification() {
 }
 
 // verifyHotkeyHealth tests whether the global hotkey listener is alive when it
-// should be running, and triggers a full reinitialization if not.
+// should be running, and re-registers hotkeys if not. Uses evdev-only recovery
+// (reinitializeHotkeys) rather than the full handleWakeFromSleep so the
+// libei/RemoteDesktop session is not torn down unnecessarily.
 func (a *App) verifyHotkeyHealth() {
 	if !a.appState.HotkeysRegistered() {
 		return
@@ -215,6 +230,6 @@ func (a *App) verifyHotkeyHealth() {
 
 	if !hc.HealthCheck() {
 		a.logger.Warn("Hotkey listener not healthy after config reload; reinitialising")
-		a.handleWakeFromSleep()
+		a.reinitializeHotkeys()
 	}
 }
