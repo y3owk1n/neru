@@ -3,7 +3,5 @@
 // by default.
 //
 // On macOS this works by toggling AXManualAccessibility / AXEnhancedUserInterface
-// attributes via the platform accessibility API. The platform-specific call is
-// isolated in platform_darwin.go / platform_other.go so this package compiles
-// on all platforms.
+// attributes via the platform accessibility API.
 package electron
