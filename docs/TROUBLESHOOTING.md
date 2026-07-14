@@ -122,15 +122,6 @@ neru hints               # CLI works?
 log_level = "debug"
 ```
 
-### Electron/Chromium/Firefox issues
-
-**Enable additional AX support:**
-
-```toml
-[hints.additional_ax_support]
-enable = true
-```
-
 ### Menubar/Dock hints missing
 
 ```toml
@@ -160,41 +151,6 @@ tail -f ~/Library/Logs/neru/app.log
 # - App name and version
 # - Screenshot
 ```
-
-### Hints don't appear in Electron apps
-
-**Electron apps need additional AX support.**
-
-**Solution:**
-
-Edit `~/.config/neru/config.toml`:
-
-```toml
-[hints.additional_ax_support]
-enable = true
-
-# If your app isn't auto-detected, add it:
-additional_electron_bundles = [
-    "com.your.electronapp",
-]
-```
-
-Restart Neru:
-
-```bash
-pkill neru && neru launch
-```
-
-**Check logs for:**
-
-```
-App requires Electron support
-Enabled AXManualAccessibility for: com.your.app
-```
-
-### Hints don't appear in Chrome/Firefox content
-
-**Browser needs additional AX support.**
 
 ### No hints in menubar/Dock
 
@@ -431,18 +387,6 @@ pkill -9 neru
 ---
 
 ## App-Specific Issues
-
-### VS Code: Hints don't appear in editor
-
-**Electron AX support needed.**
-
-**Solution:**
-
-```toml
-[hints.additional_ax_support]
-enable = true
-# VS Code is auto-detected
-```
 
 ### Adobe apps: Hints misaligned or missing
 

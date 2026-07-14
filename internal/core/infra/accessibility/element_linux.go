@@ -527,6 +527,9 @@ const (
 	linuxBackendWayland linuxBackend = "wayland"
 )
 
+// DetectBundleType returns "" on Linux (stub).
+func DetectBundleType(_ string) string { return "" }
+
 // currentLinuxBackend delegates to the canonical platform.DetectLinuxBackend
 // so that compositor-family detection (GNOME, KDE, wlroots, etc.) is
 // consistent across all layers.

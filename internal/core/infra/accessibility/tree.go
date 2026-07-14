@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/logger"
 )
 
 // Pre-allocated common errors.
@@ -156,14 +157,13 @@ func (n *TreeNode) AddChild(child *TreeNode) {
 
 // TreeOptions configures accessibility tree traversal behavior and filtering.
 type TreeOptions struct {
-	filterFunc           func(*ElementInfo) bool
-	maxDepth             int
-	logger               *zap.Logger
-	stats                *treeStats
-	bundleID             string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
-	configProvider       config.Provider // For checking user-configured Chromium/Electron bundles
-	isChromiumOrElectron bool            // Pre-computed flag for fast check
-	isWebKit             bool            // Pre-computed flag for WebKit-based apps
+	filterFunc     func(*ElementInfo) bool
+	maxDepth       int
+	logger         *zap.Logger
+	stats          *treeStats
+	bundleID       string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
+	configProvider config.Provider // For checking user-configured Chromium/Electron bundles
+	bundleType     string          // "electron", "chromium", "firefox", "webkit", or ""
 }
 
 // FilterFunc returns the filter function.
@@ -294,8 +294,15 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	if opts.bundleID == "" {
 		opts.bundleID = root.BundleIdentifier()
 	}
-	opts.isChromiumOrElectron = isChromiumOrElectron(opts.bundleID, opts.configProvider)
-	opts.isWebKit = isWebKit(opts.bundleID, opts.configProvider)
+	opts.bundleType = DetectBundleType(opts.bundleID)
+
+	if opts.bundleType != "" {
+		logger.Info(
+			"Detected non empty bundle type",
+			zap.String("bundle_id", opts.bundleID),
+			zap.String("bundle_type", opts.bundleType),
+		)
+	}
 
 	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
 
@@ -325,8 +332,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),
 			zap.String("root_role", info.Role()),
 			zap.Int("pid", info.PID()),
-			zap.Bool("is_chromium_electron", opts.isChromiumOrElectron),
-			zap.Bool("is_webkit", opts.isWebKit),
+			zap.String("bundle_type", opts.bundleType),
 		)
 	}
 
@@ -462,7 +468,8 @@ func buildTreeRecursive(
 	//
 	// Example, try this site: https://nix-darwin.github.io/nix-darwin/manual/
 	elementRect := rectFromInfo(parent.info)
-	if !elementRect.Overlaps(windowBounds) && (opts.isChromiumOrElectron || opts.isWebKit) {
+	if !elementRect.Overlaps(windowBounds) &&
+		(opts.bundleType == "chromium" || opts.bundleType == "electron" || opts.bundleType == "webkit") {
 		if opts.stats != nil {
 			opts.stats.outOfBoundsSkipped.Add(1)
 		}
@@ -692,7 +699,7 @@ func shouldIncludeElement(
 
 	// Strict filtering: auto-enabled for Chromium/Electron apps with noisy DOM trees
 	// WebKit-based apps (Safari) have clean trees that don't need this aggressive filtering
-	if opts.isChromiumOrElectron && elementRect.Dx() > 0 &&
+	if (opts.bundleType == "chromium" || opts.bundleType == "electron") && elementRect.Dx() > 0 &&
 		elementRect.Dy() > 0 {
 		// Filter out tiny elements that are likely noise in Chromium DOM trees.
 		// This is especially important for web content where the DOM can have
@@ -884,110 +891,4 @@ func (n *TreeNode) walkTreePostOrder(visit func(*TreeNode)) {
 		child.walkTreePostOrder(visit)
 	}
 	visit(n)
-}
-
-// isChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps
-// or user-configured additional bundles.
-func isChromiumOrElectron(bundleID string, configProvider config.Provider) bool {
-	if isLikelyChromiumOrElectron(bundleID) {
-		return true
-	}
-
-	return isUserConfiguredChromiumElectron(bundleID, configProvider)
-}
-
-var (
-	knownChromiumMap map[string]struct{}
-	knownElectronMap map[string]struct{}
-	initKnownOnce    sync.Once
-)
-
-func initKnownMaps() {
-	knownChromiumMap = make(map[string]struct{}, len(config.KnownChromiumBundles))
-	for _, b := range config.KnownChromiumBundles {
-		knownChromiumMap[strings.ToLower(strings.TrimSpace(b))] = struct{}{}
-	}
-	knownElectronMap = make(map[string]struct{}, len(config.KnownElectronBundles))
-	for _, b := range config.KnownElectronBundles {
-		knownElectronMap[strings.ToLower(strings.TrimSpace(b))] = struct{}{}
-	}
-}
-
-// isLikelyChromiumOrElectron returns true if the bundle ID matches known Chromium/Electron apps.
-// This is duplicated from electron package to avoid import cycle.
-func isLikelyChromiumOrElectron(bundleID string) bool {
-	if bundleID == "" {
-		return false
-	}
-	initKnownOnce.Do(initKnownMaps)
-
-	bundleID = strings.ToLower(strings.TrimSpace(bundleID))
-	if _, ok := knownChromiumMap[bundleID]; ok {
-		return true
-	}
-	if _, ok := knownElectronMap[bundleID]; ok {
-		return true
-	}
-
-	return false
-}
-
-// isLikelyWebKit returns true if the bundle ID matches known WebKit-based apps.
-func isLikelyWebKit(bundleID string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	return config.MatchesAdditionalBundle(bundleID, config.KnownWebKitBundles)
-}
-
-// isUserConfiguredChromiumElectron checks if the bundle ID matches user-configured
-// additional Chromium/Electron bundles from config. Supports exact matches and
-// wildcard patterns (ending with *).
-func isUserConfiguredChromiumElectron(bundleID string, configProvider config.Provider) bool {
-	if bundleID == "" || configProvider == nil {
-		return false
-	}
-
-	cfg := configProvider.Get()
-	if cfg == nil {
-		return false
-	}
-
-	chromiumBundles := cfg.Hints.AdditionalAXSupport.AdditionalChromiumBundles
-	if config.MatchesAdditionalBundle(bundleID, chromiumBundles) {
-		return true
-	}
-
-	electronBundles := cfg.Hints.AdditionalAXSupport.AdditionalElectronBundles
-
-	return config.MatchesAdditionalBundle(bundleID, electronBundles)
-}
-
-// isWebKit returns true if the bundle ID matches known WebKit-based app bundle
-// identifiers or user-configured additional WebKit bundles.
-func isWebKit(bundleID string, configProvider config.Provider) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	// Check known WebKit bundles (Safari, Safari Technology Preview, etc.)
-	if config.MatchesAdditionalBundle(bundleID, config.KnownWebKitBundles) {
-		return true
-	}
-
-	// Check user-configured additional WebKit bundles
-	if configProvider == nil {
-		return false
-	}
-
-	cfg := configProvider.Get()
-	if cfg == nil {
-		return false
-	}
-
-	return config.MatchesAdditionalBundle(
-		bundleID,
-		cfg.Hints.AdditionalAXSupport.AdditionalWebKitBundles,
-	)
 }

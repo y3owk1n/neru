@@ -722,8 +722,6 @@ type HintsConfig struct {
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
-	AdditionalAXSupport AdditionalAXSupport `json:"additionalAxSupport" toml:"additional_ax_support"`
-
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
@@ -917,15 +915,6 @@ type HeldRepeatConfig struct {
 	Enabled      bool `json:"enabled"      toml:"enabled"`          // Master toggle for held-key repeat
 	InitialDelay int  `json:"initialDelay" toml:"initial_delay_ms"` // Delay before first repeat fires (ms)
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
-}
-
-// AdditionalAXSupport defines accessibility support for specific application frameworks.
-type AdditionalAXSupport struct {
-	Enable                    bool     `json:"enable"                    toml:"enable"`
-	AdditionalElectronBundles []string `json:"additionalElectronBundles" toml:"additional_electron_bundles"`
-	AdditionalChromiumBundles []string `json:"additionalChromiumBundles" toml:"additional_chromium_bundles"`
-	AdditionalFirefoxBundles  []string `json:"additionalFirefoxBundles"  toml:"additional_firefox_bundles"`
-	AdditionalWebKitBundles   []string `json:"additionalWebKitBundles"   toml:"additional_webkit_bundles"`
 }
 
 // SystrayConfig defines system tray settings.
@@ -1871,33 +1860,6 @@ func (c *HintsConfig) buildRolesMap(bundleID string) map[string]struct{} {
 	return rolesMap
 }
 
-// MatchesAdditionalBundle checks if a bundle ID matches any user-provided additional bundles.
-// It supports both exact matches and wildcard patterns (ending with *).
-func MatchesAdditionalBundle(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" || len(additionalBundles) == 0 {
-		return false
-	}
-
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-
-	for _, candidate := range additionalBundles {
-		trimmed := strings.ToLower(strings.TrimSpace(candidate))
-		if trimmed == "" {
-			continue
-		}
-
-		if prefix, found := strings.CutSuffix(trimmed, "*"); found {
-			if strings.HasPrefix(lower, prefix) {
-				return true
-			}
-		} else if lower == trimmed {
-			return true
-		}
-	}
-
-	return false
-}
-
 // IsAllLetters checks if a string contains only letters (a-z, A-Z).
 func IsAllLetters(keyStr string) bool {
 	for _, r := range keyStr {
@@ -1909,39 +1871,4 @@ func IsAllLetters(keyStr string) bool {
 	}
 
 	return len(keyStr) > 0
-}
-
-// KnownChromiumBundles contains known Chromium-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownChromiumBundles = []string{
-	"net.imput.helium",
-	"com.google.Chrome",
-	"com.brave.Browser",
-	"company.thebrowser.Browser",
-}
-
-// KnownFirefoxBundles contains known Firefox-based application bundle identifiers.
-// These applications benefit from AXEnhancedUserInterface accessibility improvements.
-var KnownFirefoxBundles = []string{
-	"org.mozilla.firefox",
-	"app.zen-browser.zen",
-}
-
-// KnownElectronBundles contains known Electron-based application bundle identifiers.
-// These applications require manual accessibility attribute toggling to work properly.
-var KnownElectronBundles = []string{
-	"com.microsoft.VSCode",
-	"com.exafunction.windsurf",
-	"com.tinyspeck.slackmacgap",
-	"com.spotify.client",
-	"md.obsidian",
-	"com.hnc.discord",
-	"com.openai.codex",
-	"com.google.antigravity",
-}
-
-// KnownWebKitBundles contains known WebKit-based application bundle identifiers.
-// These applications skip hit-test visibility checks to avoid slow AX API calls.
-var KnownWebKitBundles = []string{
-	"com.apple.Safari",
 }

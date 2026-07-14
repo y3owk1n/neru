@@ -436,14 +436,6 @@ func newDefaultConfig() *Config {
 			VisibleCheckEnabled:  false,
 
 			AppConfigs: []AppConfig{},
-
-			AdditionalAXSupport: AdditionalAXSupport{
-				Enable:                    false,
-				AdditionalElectronBundles: []string{},
-				AdditionalChromiumBundles: []string{},
-				AdditionalFirefoxBundles:  []string{},
-				AdditionalWebKitBundles:   []string{},
-			},
 		},
 		Grid: GridConfig{
 			Enabled: true,

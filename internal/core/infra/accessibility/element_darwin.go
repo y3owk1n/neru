@@ -815,3 +815,18 @@ func IsMissionControlActive() bool {
 
 	return bool(result)
 }
+
+// DetectBundleType inspects the app bundle for a given bundle ID and returns
+// the application type: "electron", "chromium", "firefox", "webkit", or "".
+func DetectBundleType(bundleID string) string {
+	cBundleID := C.CString(bundleID)
+	defer C.free(unsafe.Pointer(cBundleID)) //nolint:nlreturn
+
+	result := C.NeruDetectBundleType(cBundleID)
+	if result == nil {
+		return ""
+	}
+	defer C.NeruFreeString(result)
+
+	return C.GoString(result)
+}

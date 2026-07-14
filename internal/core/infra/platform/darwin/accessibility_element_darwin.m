@@ -97,6 +97,117 @@ void *NeruGetApplicationByBundleId(const char *bundle_id) {
 	}
 }
 
+/// Detect the application type of an app bundle by inspecting engine-specific
+/// resource files and Info.plist keys, avoiding hardcoded app/framework name
+/// lists.
+///
+/// Detection strategy (all file-based, zero keywords):
+///   1. Electron Framework.framework                    -> electron
+///   2. icudtl.dat in any .framework                     -> chromium
+///   3. CrAppModeShortcutIDKey (Chrome PWA app shim)     -> chromium
+///   4. omni.ja in Contents/Resources/                   -> firefox
+///   5. LSTemplateApplication=1 (Safari PWA)             -> webkit
+///   6. http/https URL scheme registration               -> webkit
+///
+/// @param bundle_id Bundle identifier
+/// @return "electron", "chromium", "firefox", "webkit", or NULL if unknown
+char *NeruDetectBundleType(const char *bundle_id) {
+	if (!bundle_id)
+		return NULL;
+
+	@autoreleasepool {
+		NSString *bundleIdStr = [NSString stringWithUTF8String:bundle_id];
+
+		// Find the app bundle on disk: try LaunchServices (installed apps) first,
+		// then NSRunningApplication (running apps that may not be in LS database,
+		// e.g. Chromium PWA app shims with UUID-suffixed bundle IDs).
+		NSURL *bundleURL = nil;
+		CFArrayRef appURLs = LSCopyApplicationURLsForBundleIdentifier((__bridge CFStringRef)bundleIdStr, NULL);
+		if (appURLs) {
+			CFIndex count = CFArrayGetCount(appURLs);
+			if (count > 0) {
+				bundleURL = (__bridge NSURL *)CFArrayGetValueAtIndex(appURLs, 0);
+			}
+			CFRelease(appURLs);
+		}
+
+		if (!bundleURL) {
+			NSArray *running = [NSRunningApplication runningApplicationsWithBundleIdentifier:bundleIdStr];
+			if (running.count > 0) {
+				bundleURL = [running.firstObject bundleURL];
+			}
+		}
+
+		if (!bundleURL)
+			return NULL;
+
+		NSString *bundlePath = [bundleURL path];
+		NSFileManager *fm = [NSFileManager defaultManager];
+
+		// 1. Electron Framework.framework is the definitive Electron marker
+		NSString *frameworksPath = [bundlePath stringByAppendingPathComponent:@"Contents/Frameworks"];
+		if ([fm fileExistsAtPath:[frameworksPath stringByAppendingPathComponent:@"Electron Framework.framework"]])
+			return strdup("electron");
+
+		// 2. icudtl.dat inside any framework signals Chromium-based (Chrome, Edge, Brave, etc.)
+		if ([fm fileExistsAtPath:frameworksPath]) {
+			NSArray *fwItems = [fm contentsOfDirectoryAtPath:frameworksPath error:nil];
+			for (NSString *item in fwItems) {
+				if (![item hasSuffix:@".framework"])
+					continue;
+				NSString *fwPath = [frameworksPath stringByAppendingPathComponent:item];
+				NSString *icuPath = [fwPath stringByAppendingPathComponent:@"Resources/icudtl.dat"];
+				if ([fm fileExistsAtPath:icuPath])
+					return strdup("chromium");
+			}
+		}
+
+		// 3. Any CrAppMode* key identifies Chrome/Chromium PWA app shims.
+		//    These are thin bundles that load the Chromium framework dynamically
+		//    from the parent browser installation (no icudtl.dat locally).
+		//    Common keys: CrAppModeShortcutID, CrAppModeShortcutURL,
+		//    CrAppModeShortcutName, CrAppModeBrowserBundleID, etc.
+		NSString *plistPath = [bundlePath stringByAppendingPathComponent:@"Contents/Info.plist"];
+		NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+		if (info) {
+			for (NSString *key in info) {
+				if ([key hasPrefix:@"CrAppMode"]) {
+					return strdup("chromium");
+				}
+			}
+		}
+
+		// 4. omni.ja is unique to Firefox
+		NSString *resourcesPath = [bundlePath stringByAppendingPathComponent:@"Contents/Resources/omni.ja"];
+		if ([fm fileExistsAtPath:resourcesPath])
+			return strdup("firefox");
+
+		// 5. LSTemplateApplication marks Safari web apps (Add to Dock PWAs).
+		//    These use system WebKit and register "x-webkit-app-launch", not http.
+		if ([info[@"LSTemplateApplication"] boolValue])
+			return strdup("webkit");
+
+		// 6. http/https URL scheme registration — only web browsers register these.
+		//    Non-browser apps (TextEdit, Terminal, IDEs, etc.) never do.
+		NSArray *urlTypes = info[@"CFBundleURLTypes"];
+		if (urlTypes) {
+			for (NSDictionary *urlType in urlTypes) {
+				NSArray *schemes = urlType[@"CFBundleURLSchemes"];
+				if (!schemes)
+					continue;
+				for (NSString *scheme in schemes) {
+					if ([[scheme lowercaseString] isEqualToString:@"http"] ||
+					    [[scheme lowercaseString] isEqualToString:@"https"]) {
+						return strdup("webkit");
+					}
+				}
+			}
+		}
+
+		return NULL;
+	}
+}
+
 #pragma mark - Element Information Functions
 
 static bool shouldPrefetchActions(const char *role) {

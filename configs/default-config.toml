@@ -100,13 +100,6 @@ visible_check_enabled = false
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
-[hints.additional_ax_support]
-enable = false                              # Enable enhanced AX for Electron/Chromium/Firefox/WebKit apps
-additional_electron_bundles = []
-additional_chromium_bundles = []
-additional_firefox_bundles = []
-additional_webkit_bundles = []
-
 [hints.ui]
 font_size = 10
 font_family = ""                            # Empty = system font

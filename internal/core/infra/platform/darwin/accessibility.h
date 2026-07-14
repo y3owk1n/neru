@@ -47,6 +47,11 @@ int NeruRequestAccessibilityPermissions(void);
 
 #pragma mark - Application Functions
 
+/// Detect browser engine type by inspecting the app bundle's frameworks
+/// @param bundle_id Bundle identifier
+/// @return "electron", "chromium", "firefox", "webkit", or NULL if unknown
+char *NeruDetectBundleType(const char *bundle_id);
+
 /// Get system-wide accessibility element
 /// @return System-wide element reference
 void *NeruGetSystemWideElement(void);

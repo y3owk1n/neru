@@ -360,3 +360,6 @@ func CurrentCursorPosition() image.Point {
 
 // IsMissionControlActive returns whether Mission Control is active (stub).
 func IsMissionControlActive() bool { return false }
+
+// DetectBundleType returns "" on Windows (stub).
+func DetectBundleType(_ string) string { return "" }

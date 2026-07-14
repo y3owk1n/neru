@@ -1,13 +1,11 @@
 package electron
 
 import (
-	"strings"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
 
@@ -159,104 +157,4 @@ func markPIDEnabled(
 	defer pidsMu.Unlock()
 
 	enabledPIDs[pid] = struct{}{}
-}
-
-// ShouldEnableElectronSupport determines if the provided bundle identifier
-// should have Electron accessibility manually toggled based on defaults and
-// user-specified overrides.
-func ShouldEnableElectronSupport(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
-		return true
-	}
-
-	result := IsLikelyElectronBundle(bundleID)
-
-	return result
-}
-
-// ShouldEnableChromiumSupport determines if Chromium accessibility should be enabled for the provided bundle.
-// This function checks both known Chromium bundles and user-provided overrides.
-func ShouldEnableChromiumSupport(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
-		return true
-	}
-
-	result := IsLikelyChromiumBundle(bundleID)
-
-	return result
-}
-
-// ShouldEnableFirefoxSupport determines if Firefox accessibility should be enabled for the provided bundle.
-// This function checks both known Firefox bundles and user-provided overrides.
-func ShouldEnableFirefoxSupport(bundleID string, additionalBundles []string) bool {
-	if bundleID == "" {
-		return false
-	}
-
-	if config.MatchesAdditionalBundle(bundleID, additionalBundles) {
-		return true
-	}
-
-	result := IsLikelyFirefoxBundle(bundleID)
-
-	return result
-}
-
-// IsLikelyElectronBundle returns true if the provided bundle identifier
-// matches a known Electron signature.
-func IsLikelyElectronBundle(bundleID string) bool {
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	if lower == "" {
-		return false
-	}
-
-	for _, exact := range config.KnownElectronBundles {
-		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsLikelyChromiumBundle returns true if the provided bundle identifier matches a known Chromium signature.
-// This helps identify applications that would benefit from AXEnhancedUserInterface accessibility improvements.
-func IsLikelyChromiumBundle(bundleID string) bool {
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	if lower == "" {
-		return false
-	}
-
-	for _, exact := range config.KnownChromiumBundles {
-		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsLikelyFirefoxBundle returns true if the provided bundle identifier matches a known Firefox signature.
-// This helps identify applications that would benefit from AXEnhancedUserInterface accessibility improvements.
-func IsLikelyFirefoxBundle(bundleID string) bool {
-	lower := strings.ToLower(strings.TrimSpace(bundleID))
-	if lower == "" {
-		return false
-	}
-
-	for _, exact := range config.KnownFirefoxBundles {
-		if strings.EqualFold(strings.TrimSpace(exact), lower) {
-			return true
-		}
-	}
-
-	return false
 }
