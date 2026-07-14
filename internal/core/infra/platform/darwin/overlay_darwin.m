@@ -1782,18 +1782,22 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
 		return;
 
-	void (^lightweightBlock)(void) = ^{
+	if ([NSThread isMainThread]) {
 		[self.window setLevel:kCGMaximumWindowLevel];
 		[self applyOverlayCollectionBehavior];
 		[self.window orderFrontRegardless];
 		[self.overlayView setNeedsDisplay:YES];
-	};
-
-	if ([NSThread isMainThread]) {
-		lightweightBlock();
-	} else {
-		dispatch_async(dispatch_get_main_queue(), lightweightBlock);
+		return;
 	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
+			return;
+		[self.window setLevel:kCGMaximumWindowLevel];
+		[self applyOverlayCollectionBehavior];
+		[self.window orderFrontRegardless];
+		[self.overlayView setNeedsDisplay:YES];
+	});
 }
 
 - (void)handleWindowServerAttachmentInvalidated:(NSNotification *)notification {
