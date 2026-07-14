@@ -156,7 +156,7 @@ pkill neru && neru launch
 
 This can happen when the element you're trying to select is small. If you encounter this, open an issue.
 
-Alternatively, make sure all relevant roles are enabled. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65) to enable all roles.
+Alternatively, make sure all relevant roles are enabled. If you've customized `hints.clickable_roles`, you can remove that customization or restore it to the original value from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65).
 
 Run `neru config reload` and then test.
 
