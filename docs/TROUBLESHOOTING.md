@@ -169,7 +169,7 @@ clickable_roles = [
 
 ### Certain hints don't visually match any on-screen UI
 
-Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65), then remove only those roles so the remaining defaults stay enabled.
+Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml), then remove only those roles so the remaining defaults stay enabled.
 
 Run `neru config reload` and then test.
 
