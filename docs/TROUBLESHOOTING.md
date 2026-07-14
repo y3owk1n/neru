@@ -113,6 +113,23 @@ neru hints               # CLI works?
 - Remove app from `excluded_apps` in config
 - Test in different app
 
+### No hints visible when using multiple monitors
+
+**Focused window and cursor are on different displays.** Neru only draws hints on the display where the cursor is. If the focused window is on another display, no hints will show for that window.
+
+**Solution:**
+
+If you're using a window manager, you can probably set it up so that your cursor always follows the focused window.
+
+Alternatively, you can change the shortcut that you use to activate `hints` to chain `action move_mouse --window` before activation, so the cursor moves to the focused window first:
+
+```toml
+[hotkeys]
+"Primary+Shift+Space" = ["action move_mouse --window", "hints"]
+```
+
+A tiling window manager with focus-follows-mouse avoids this at the source.
+
 ### Misaligned hints/grids
 
 **Rare issue.** Enable debug logging and check logs:
