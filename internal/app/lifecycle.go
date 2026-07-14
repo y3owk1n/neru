@@ -423,24 +423,12 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 
 	if cfg.Hints.Enabled {
-		if cfg.Hints.AdditionalAXSupport.Enable {
-			a.handleAdditionalAccessibility(bundleID, cfg)
-		}
+		a.handleAdditionalAccessibility(bundleID)
 	}
 }
 
 // handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
-func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config) {
-	config := cfg.Hints.AdditionalAXSupport
-
-	isElectron := electron.ShouldEnableElectronSupport(bundleID, config.AdditionalElectronBundles)
-	isChromium := electron.ShouldEnableChromiumSupport(bundleID, config.AdditionalChromiumBundles)
-	isFirefox := electron.ShouldEnableFirefoxSupport(bundleID, config.AdditionalFirefoxBundles)
-
-	if !isElectron && !isChromium && !isFirefox {
-		return
-	}
-
+func (a *App) handleAdditionalAccessibility(bundleID string) {
 	go func() {
 		// Apps may need time to initialize their accessibility tree after launch.
 		// We retry a few times to ensure the accessibility attributes are successfully set.
@@ -456,22 +444,8 @@ func (a *App) handleAdditionalAccessibility(bundleID string, cfg *config.Config)
 		for range maxRetries {
 			allSuccess := true
 
-			if isElectron {
-				if !electron.EnsureElectronAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isChromium {
-				if !electron.EnsureChromiumAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
-			}
-
-			if isFirefox {
-				if !electron.EnsureFirefoxAccessibility(bundleID, a.logger) {
-					allSuccess = false
-				}
+			if !electron.EnsureAccessibility(bundleID, a.logger) {
+				allSuccess = false
 			}
 
 			if allSuccess {

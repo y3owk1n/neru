@@ -11,18 +11,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
 
-const (
-	electronAttributeName = "AXManualAccessibility"
-	enhancedAttributeName = "AXEnhancedUserInterface"
-)
-
 var (
-	electronPIDsMu      sync.Mutex
-	electronEnabledPIDs = make(map[int]struct{})
-	chromiumPIDsMu      sync.Mutex
-	chromiumEnabledPIDs = make(map[int]struct{})
-	firefoxPIDsMu       sync.Mutex
-	firefoxEnabledPIDs  = make(map[int]struct{})
+	axPIDsMu      sync.Mutex
+	axEnabledPIDs = make(map[int]struct{})
 )
 
 const (
@@ -31,36 +22,13 @@ const (
 	maxAccessibilityDepth   = 10
 )
 
-// EnsureElectronAccessibility ensures Electron accessibility is enabled for the provided bundle ID.
-func EnsureElectronAccessibility(bundleID string, logger *zap.Logger) bool {
+// EnsureAccessibility ensures accessibility is enabled for the provided bundle ID.
+func EnsureAccessibility(bundleID string, logger *zap.Logger) bool {
 	return ensureAccessibility(
 		bundleID,
-		&electronPIDsMu,
-		electronEnabledPIDs,
+		&axPIDsMu,
+		axEnabledPIDs,
 		logger,
-		true,
-	)
-}
-
-// EnsureChromiumAccessibility ensures Chromium accessibility is enabled for the provided bundle ID.
-func EnsureChromiumAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&chromiumPIDsMu,
-		chromiumEnabledPIDs,
-		logger,
-		false,
-	)
-}
-
-// EnsureFirefoxAccessibility ensures Firefox accessibility is enabled for the provided bundle ID.
-func EnsureFirefoxAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&firefoxPIDsMu,
-		firefoxEnabledPIDs,
-		logger,
-		false,
 	)
 }
 
@@ -69,7 +37,6 @@ func ensureAccessibility(
 	pidsMu *sync.Mutex,
 	enabledPIDs map[int]struct{},
 	logger *zap.Logger,
-	isElectron bool,
 ) bool {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -111,47 +78,11 @@ func ensureAccessibility(
 		return true
 	}
 
-	if isElectron {
-		success := platformSetApplicationAttribute(pid, electronAttributeName, true)
-
-		if !success {
-			logger.Debug(
-				"Failed to set AXManualAccessibility",
-				zap.Int("pid", pid),
-				zap.String("bundle_id", bundleID),
-			)
-		}
-	}
-
 	if waitForAccessibility(app, logger) {
 		markPIDEnabled(pidsMu, enabledPIDs, pid)
 
 		return true
 	}
-
-	success := platformSetApplicationAttribute(pid, enhancedAttributeName, true)
-
-	if !success {
-		logger.Debug(
-			"Failed to enable AXEnhancedUserInterface",
-			zap.Int("pid", pid),
-			zap.String("bundle_id", bundleID),
-		)
-
-		return false
-	}
-
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
-
-		return true
-	}
-
-	logger.Warn(
-		"Accessibility could not be enabled",
-		zap.Int("pid", pid),
-		zap.String("bundle_id", bundleID),
-	)
 
 	return false
 }
