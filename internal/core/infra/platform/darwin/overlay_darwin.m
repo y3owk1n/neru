@@ -1777,6 +1777,29 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	});
 }
 
+- (void)handleActiveSpaceDidChange:(NSNotification *)notification {
+	(void)notification;
+	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
+		return;
+
+	if ([NSThread isMainThread]) {
+		[self.window setLevel:kCGMaximumWindowLevel];
+		[self applyOverlayCollectionBehavior];
+		[self.window orderFrontRegardless];
+		[self.overlayView setNeedsDisplay:YES];
+		return;
+	}
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
+			return;
+		[self.window setLevel:kCGMaximumWindowLevel];
+		[self applyOverlayCollectionBehavior];
+		[self.window orderFrontRegardless];
+		[self.overlayView setNeedsDisplay:YES];
+	});
+}
+
 - (void)handleWindowServerAttachmentInvalidated:(NSNotification *)notification {
 	(void)notification;
 	if ([NSThread isMainThread]) {
@@ -1841,7 +1864,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[self applyOverlayCollectionBehavior];
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
-	                                                       selector:@selector(handleWindowServerAttachmentInvalidated:)
+	                                                       selector:@selector(handleActiveSpaceDidChange:)
 	                                                           name:NSWorkspaceActiveSpaceDidChangeNotification
 	                                                         object:nil];
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self
