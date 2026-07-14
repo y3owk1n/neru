@@ -122,6 +122,26 @@ neru hints               # CLI works?
 log_level = "debug"
 ```
 
+### Hints not showing in browsers (Chrome, Firefox, Safari, Brave, Edge, Electron apps)
+
+**Browser engine detection is fully automatic.** Neru identifies the rendering engine (Chromium, Firefox, WebKit, Electron) by inspecting the app bundle — no manual configuration needed.
+
+If hints aren't showing in a browser or Electron app, the automatic detection likely missed it. Check the logs for the detection result:
+
+```bash
+grep "Detected non empty bundle type" ~/Library/Logs/neru/app.log
+```
+
+If your browser doesn't appear in the logs at all, the detection returned empty — open an issue at [github.com/y3owk1n/neru](https://github.com/y3owk1n/neru) with the bundle ID.
+
+Find the bundle ID:
+```bash
+osascript -e 'id of app "Your Browser"'
+```
+
+> [!NOTE]
+> PWAs (installed web apps) are also detected automatically — Chrome PWAs as `chromium`, Safari PWAs as `webkit`.
+
 ### Menubar/Dock hints missing
 
 ```toml
@@ -576,9 +596,7 @@ grep "com.apple.Safari" ~/Library/Logs/neru/app.log
 
 ### Common log messages
 
-**"App requires Electron support"** - Electron app detected, needs AX support enabled
-
-**"Enabled AXManualAccessibility"** - Electron support activated successfully
+**"Found usable accessibility tree"** - Accessibility tree detected, AX support activated
 
 **"Hints mode activated"** - Hint overlay is active; includes hint count when available
 
