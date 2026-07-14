@@ -51,14 +51,6 @@ ignore_clickable_check = false
 # 	"Shift+L" = "__disabled__"
 # }
 
-[hints.additional_ax_support]
-enable = true
-
-additional_electron_bundles = []
-additional_chromium_bundles = []
-additional_firefox_bundles = []
-additional_webkit_bundles = []
-
 [grid]
 enabled = false
 
