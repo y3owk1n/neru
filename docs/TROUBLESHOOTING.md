@@ -113,6 +113,23 @@ neru hints               # CLI works?
 - Remove app from `excluded_apps` in config
 - Test in different app
 
+### No hints visible when using multiple monitors
+
+**Focused window and cursor are on different displays.** Neru only draws hints on the display where the cursor is. If the focused window is on another display, no hints will show for that window.
+
+**Solution:**
+
+If you're using a window manager, you can probably set it up so that your cursor always follows the focused window.
+
+Alternatively, you can change the shortcut that you use to activate `hints` to chain `action move_mouse --window` before activation, so the cursor moves to the focused window first:
+
+```toml
+[hotkeys]
+"Primary+Shift+Space" = ["action move_mouse --window", "hints"]
+```
+
+A tiling window manager with focus-follows-mouse avoids this at the source.
+
 ### Misaligned hints/grids
 
 **Rare issue.** Enable debug logging and check logs:
@@ -141,6 +158,34 @@ osascript -e 'id of app "Your Browser"'
 
 > [!NOTE]
 > PWAs (installed web apps) are also detected automatically — Chrome PWAs as `chromium`, Safari PWAs as `webkit`.
+
+### Some elements that should have hints don't have hints
+
+This can happen when the element you're trying to select is small. If you encounter this, open an issue.
+
+Alternatively, make sure all relevant roles are enabled. If you've customized `hints.clickable_roles`, you can remove that customization or restore it to the original value from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65).
+
+Run `neru config reload` and then test.
+
+```toml
+[hints]
+clickable_roles = [
+    # ...
+]
+```
+
+### Certain hints don't visually match any on-screen UI
+
+Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml), then remove only those roles so the remaining defaults stay enabled.
+
+Run `neru config reload` and then test.
+
+```toml
+[hints]
+clickable_roles = [
+    # ...
+]
+```
 
 ### Menubar/Dock hints missing
 
@@ -460,17 +505,17 @@ If you're still experiencing issues:
     - Some custom layouts (e.g., Colemak, Dvorak) may not be resolved automatically
     - Force the layout by setting `kb_layout_to_use` in your config to the full bundle ID:
 
-      ```bash
-      # First, switch to your desired layout in the menu bar, then:
-      defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
-      ```
+        ```bash
+        # First, switch to your desired layout in the menu bar, then:
+        defaults read com.apple.HIToolbox AppleCurrentKeyboardLayoutInputSourceID
+        ```
 
-      Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
+        Then use the returned value (e.g., `com.apple.keylayout.Colemak`):
 
-      ```toml
-      [general]
-      kb_layout_to_use = "com.apple.keylayout.Colemak"
-      ```
+        ```toml
+        [general]
+        kb_layout_to_use = "com.apple.keylayout.Colemak"
+        ```
 
 3. **Layout changes at runtime not picked up:**
     - Neru now automatically re-registers global hotkeys when the keyboard layout changes (e.g., switching from US to Dvorak while Neru is running)

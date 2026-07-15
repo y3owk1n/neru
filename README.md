@@ -19,8 +19,6 @@ _Built for the person who already remapped Caps Lock._
 | :--------------: | :--------------: | :--------------------: |
 | Full featured ✅ | Basic support 🔵 | Basic support 🔵       |
 
-**練る** _(neru)_ — "to refine through practice." The more you use it, the faster you get.
-
 </div>
 
 ---
