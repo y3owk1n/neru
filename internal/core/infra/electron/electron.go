@@ -1,17 +1,11 @@
 package electron
 
 import (
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-)
-
-var (
-	axPIDsMu      sync.Mutex
-	axEnabledPIDs = make(map[string]int) // bundleID -> PID
 )
 
 const (
@@ -35,32 +29,7 @@ func EnsureAccessibility(bundleID string, logger *zap.Logger) bool {
 		return false
 	}
 
-	info, infoErr := app.Info()
-	if infoErr != nil {
-		return false
-	}
-
-	pid := info.PID()
-
-	if pid <= 0 {
-		return false
-	}
-
-	axPIDsMu.Lock()
-	cachedPID, already := axEnabledPIDs[bundleID]
-	axPIDsMu.Unlock()
-
-	if already && cachedPID == pid {
-		return true
-	}
-
-	if waitForAccessibility(app, logger) {
-		markPIDEnabled(&axPIDsMu, axEnabledPIDs, bundleID, pid)
-
-		return true
-	}
-
-	return false
+	return waitForAccessibility(app, logger)
 }
 
 func waitForAccessibility(app *accessibility.Element, logger *zap.Logger) bool {
@@ -126,14 +95,4 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 	return false
 }
 
-func markPIDEnabled(
-	pidsMu *sync.Mutex,
-	enabledPIDs map[string]int,
-	bundleID string,
-	pid int,
-) {
-	pidsMu.Lock()
-	defer pidsMu.Unlock()
 
-	enabledPIDs[bundleID] = pid
-}
