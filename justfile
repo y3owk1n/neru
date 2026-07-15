@@ -130,10 +130,11 @@ bundle: release
     cp -r bin/neru build/Neru.app/Contents/MacOS/neru
 
     cp resources/icon.icns build/Neru.app/Contents/Resources/icon.icns
+    cp resources/Neru.entitlements build/Neru.app/Contents/Resources/Neru.entitlements
 
     sed "s/VERSION/{{ VERSION }}/g" resources/Info.plist.template > build/Neru.app/Contents/Info.plist
 
-    codesign --force --deep --sign - build/Neru.app
+    codesign --force --deep --sign - --entitlements resources/Neru.entitlements --options runtime build/Neru.app
 
     @echo "✓ Bundle complete: build/Neru.app"
 

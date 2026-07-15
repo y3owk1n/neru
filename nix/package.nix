@@ -230,6 +230,7 @@ else
       cp $out/bin/neru $out/Applications/Neru.app/Contents/MacOS/neru
 
       cp ${finalAttrs.src}/resources/icon.icns $out/Applications/Neru.app/Contents/Resources/icon.icns
+      cp ${finalAttrs.src}/resources/Neru.entitlements $out/Applications/Neru.app/Contents/Resources/Neru.entitlements
 
       SRC_PLIST=${finalAttrs.src}/resources/Info.plist.template
 

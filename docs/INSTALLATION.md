@@ -144,20 +144,59 @@ The module automatically:
 - Installs shell completions for bash, fish, and zsh
 
 > [!NOTE]
-> **Codesign for source builds (`neru-source`):** Add this to your nix-darwin configuration:
->
-> ```nix
-> # In your nix-darwin module
-> system.activationScripts.postActivation.text = ''
->   # codesign Neru.app
->   if [ -e "/Users/${username}/Applications/Home Manager Apps/Neru.app" ]; then
->      /usr/bin/codesign --force --deep --sign - --timestamp=none "/Users/${username}/Applications/Home Manager Apps/Neru.app"
->      echo "Codesign Neru.app..."
->   fi
-> '';
-> ```
+> **Codesign for source builds (`neru-source`):** The Go linker signs the binary
+> automatically, but this linker signature lacks hardened runtime entitlements.
+> To embed our `Neru.entitlements` with `--options runtime`, use Apple's `codesign`
+> (available outside the build sandbox). The entitlements file is bundled at
+> `Contents/Resources/Neru.entitlements`.
 >
 > This is not needed for the default `pkgs.neru` (zip) package, which is pre-signed.
+>
+> #### Home Manager
+>
+> ```nix
+> { config, lib, ... }:
+>
+> let
+>   username = config.users.primaryUser or "changeme";
+>   appPath = "/Users/${username}/Applications/Home Manager Apps/Neru.app";
+>   entitlements = "${appPath}/Contents/Resources/Neru.entitlements";
+> in {
+>   home.activation.signNeru = lib.hm.dag.entryAfter [ "copyApps" ] ''
+>     if [ -e "${appPath}" ]; then
+>       echo "Codesigning Neru.app..."
+>       /usr/bin/codesign --force --sign - \
+>         --entitlements "${entitlements}" \
+>         --options runtime \
+>         --timestamp=none \
+>         "${appPath}"
+>     fi
+>   '';
+> }
+> ```
+>
+> #### nix-darwin
+>
+> ```nix
+> { config, lib, ... }:
+>
+> let
+>   username = config.users.primaryUser or "changeme";
+>   appPath = "/Users/${username}/Applications/Nix Apps/Neru.app";
+>   entitlements = "${appPath}/Contents/Resources/Neru.entitlements";
+> in {
+>   system.activationScripts.postActivation.text = ''
+>     if [ -e "${appPath}" ]; then
+>       echo "Codesigning Neru.app..."
+>       /usr/bin/codesign --force --sign - \
+>         --entitlements "${entitlements}" \
+>         --options runtime \
+>         --timestamp=none \
+>         "${appPath}"
+>     fi
+>   '';
+> }
+> ```
 
 ### Option 2: NixOS Module (System-Level, Linux)
 

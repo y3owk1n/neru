@@ -16,6 +16,21 @@ on:
         secrets:
             upload_token:
                 required: false
+            # TODO: Add these once Developer ID signing is set up
+            # mac_developer_id_cert:
+            #     required: false
+            # mac_developer_id_key:
+            #     required: false
+            # mac_dev_id_keychain_pwd:
+            #     required: false
+            # apple_notary_api_issuer:
+            #     required: false
+            # apple_notary_api_key_id:
+            #     required: false
+            # apple_notary_api_key:
+            #     required: false
+            # apple_team_id:
+            #     required: false
 
 name: publish-artifacts
 
@@ -47,6 +62,7 @@ jobs:
                   cp bin/neru-darwin-arm64 build/arm64/Neru.app/Contents/MacOS/neru
                   chmod +x build/arm64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/arm64/Neru.app/Contents/Resources/icon.icns
+                  cp resources/Neru.entitlements build/arm64/Neru.app/Contents/Resources/Neru.entitlements
                   mkdir -p build/arm64/share/man/man1
                   cp build/man/*.1 build/arm64/share/man/man1/
                   sed \
@@ -54,14 +70,35 @@ jobs:
                     -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
                     -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
                     resources/Info.plist.template > build/arm64/Neru.app/Contents/Info.plist
-
-                  # Ad-hoc codesign to preserve accessibility permissions across updates
-                  codesign --force --deep --sign - build/arm64/Neru.app
-
                   mkdir -p build/arm64/bin
                   cp bin/neru-darwin-arm64 build/arm64/bin/neru
                   chmod +x build/arm64/bin/neru
 
+            - name: Codesign neru-darwin-arm64 (ad-hoc)
+              run: |
+                  # TODO: Replace ad-hoc with Developer ID + notarization when cert is set up
+                  #       Remove this step and uncomment the "Developer ID sign & notarize" step below.
+                  codesign --force --deep --sign - \
+                    --entitlements resources/Neru.entitlements \
+                    --options runtime \
+                    build/arm64/Neru.app
+
+            # # TODO: Enable when Developer ID cert is set up (and disable the ad-hoc step above)
+            # - name: Developer ID sign & notarize
+            #   uses: ./.github/actions/developer-id-notarize
+            #   with:
+            #     app-path: build/arm64/Neru.app
+            #     developer-id-identity: 'Developer ID Application: Your Name (TEAM_ID)'
+            #     mac-developer-id-cert: ${{ secrets.mac_developer_id_cert }}
+            #     mac-developer-id-key: ${{ secrets.mac_developer_id_key }}
+            #     mac-dev-id-keychain-pwd: ${{ secrets.mac_dev_id_keychain_pwd }}
+            #     apple-notary-api-issuer: ${{ secrets.apple_notary_api_issuer }}
+            #     apple-notary-api-key-id: ${{ secrets.apple_notary_api_key_id }}
+            #     apple-notary-api-key: ${{ secrets.apple_notary_api_key }}
+            #     apple-team-id: ${{ secrets.apple_team_id }}
+
+            - name: Package neru-darwin-arm64
+              run: |
                   cd build/arm64
                   zip -r ../../neru-darwin-arm64.zip bin Neru.app share
                   cd ../..
@@ -104,6 +141,7 @@ jobs:
                   cp bin/neru-darwin-amd64 build/amd64/Neru.app/Contents/MacOS/neru
                   chmod +x build/amd64/Neru.app/Contents/MacOS/neru
                   cp resources/icon.icns build/amd64/Neru.app/Contents/Resources/icon.icns
+                  cp resources/Neru.entitlements build/amd64/Neru.app/Contents/Resources/Neru.entitlements
                   mkdir -p build/amd64/share/man/man1
                   cp build/man/*.1 build/amd64/share/man/man1/
                   sed \
@@ -111,14 +149,35 @@ jobs:
                     -e "s/SHORT_VERSION/${{ inputs.macos_short_version }}/g" \
                     -e "s/BUILD_ID/${{ inputs.version_override }}/g" \
                     resources/Info.plist.template > build/amd64/Neru.app/Contents/Info.plist
-
-                  # Ad-hoc codesign to preserve accessibility permissions across updates
-                  codesign --force --deep --sign - build/amd64/Neru.app
-
                   mkdir -p build/amd64/bin
                   cp bin/neru-darwin-amd64 build/amd64/bin/neru
                   chmod +x build/amd64/bin/neru
 
+            - name: Codesign neru-darwin-amd64 (ad-hoc)
+              run: |
+                  # TODO: Replace ad-hoc with Developer ID + notarization when cert is set up
+                  #       Remove this step and uncomment the "Developer ID sign & notarize" step below.
+                  codesign --force --deep --sign - \
+                    --entitlements resources/Neru.entitlements \
+                    --options runtime \
+                    build/amd64/Neru.app
+
+            # # TODO: Enable when Developer ID cert is set up (and disable the ad-hoc step above)
+            # - name: Developer ID sign & notarize
+            #   uses: ./.github/actions/developer-id-notarize
+            #   with:
+            #     app-path: build/amd64/Neru.app
+            #     developer-id-identity: 'Developer ID Application: Your Name (TEAM_ID)'
+            #     mac-developer-id-cert: ${{ secrets.mac_developer_id_cert }}
+            #     mac-developer-id-key: ${{ secrets.mac_developer_id_key }}
+            #     mac-dev-id-keychain-pwd: ${{ secrets.mac_dev_id_keychain_pwd }}
+            #     apple-notary-api-issuer: ${{ secrets.apple_notary_api_issuer }}
+            #     apple-notary-api-key-id: ${{ secrets.apple_notary_api_key_id }}
+            #     apple-notary-api-key: ${{ secrets.apple_notary_api_key }}
+            #     apple-team-id: ${{ secrets.apple_team_id }}
+
+            - name: Package neru-darwin-amd64
+              run: |
                   cd build/amd64
                   zip -r ../../neru-darwin-amd64.zip bin Neru.app share
                   cd ../..
