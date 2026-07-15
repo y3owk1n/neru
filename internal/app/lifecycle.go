@@ -427,34 +427,15 @@ func (a *App) handleAppActivation(bundleID string) {
 	}
 }
 
-// handleAdditionalAccessibility configures accessibility support for Electron/Chromium/Firefox applications.
+// handleAdditionalAccessibility waits for the app's accessibility tree to become
+// ready (needed by Electron/Chromium/Firefox apps which initialize asynchronously).
 func (a *App) handleAdditionalAccessibility(bundleID string) {
 	go func() {
-		// Apps may need time to initialize their accessibility tree after launch.
-		// We retry a few times to ensure the accessibility attributes are successfully set.
-		// Use exponential backoff to minimize latency for fast-booting apps while
-		// still accommodating slow-booting ones.
-		const (
-			maxRetries    = 5
-			initialDelay  = 100 * time.Millisecond
-			backoffFactor = 2
-		)
-
-		delay := initialDelay
+		const maxRetries = 5
 		for range maxRetries {
-			allSuccess := true
-
-			if !electron.EnsureAccessibility(bundleID, a.logger) {
-				allSuccess = false
-			}
-
-			if allSuccess {
+			if electron.EnsureAccessibility(bundleID, a.logger) {
 				return
 			}
-
-			// Wait before retrying
-			time.Sleep(delay)
-			delay *= backoffFactor
 		}
 	}()
 }
