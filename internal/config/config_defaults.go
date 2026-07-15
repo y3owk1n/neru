@@ -1,10 +1,6 @@
 package config
 
-import (
-	"time"
-
-	"github.com/y3owk1n/neru/internal/core/infra/axnotify"
-)
+import "time"
 
 const (
 	// DefaultHintFontSize is the default font size for hints.
@@ -456,9 +452,8 @@ func newDefaultConfig() *Config {
 			AppConfigs: []AppConfig{},
 
 			AutoRefresh: HintsAutoRefresh{
-				Enabled:              false,
-				DebounceMs:           DefaultAutoRefreshDebounceMs,
-				AllowedNotifications: axnotify.Names(),
+				Enabled:    false,
+				DebounceMs: DefaultAutoRefreshDebounceMs,
 			},
 		},
 		Grid: GridConfig{

@@ -107,19 +107,6 @@ visible_check_enabled = false
 [hints.auto_refresh]
 enabled = false                             # Opt-in; observers arm on the focused app while hints are open and disarm on exit
 debounce_ms = 150                           # How long a burst of changes must settle before re-scanning
-# Notifications that trigger a re-scan. Comment out any you do not want. The last
-# row is web-content signals browsers post when a page changes (Chromium and
-# Firefox emit no plain "created" for web content). The opt-in name "value_changed"
-# is also valid but off by default: it fires on every value update (a clock, a
-# progress bar), so it can wake the observer constantly.
-allowed_notifications = [
-  "created", "ui_destroyed", "layout_changed",
-  "window_created", "window_moved", "window_resized",
-  "load_complete", "menu_opened", "menu_closed",
-  "focused_ui_element_changed",
-  "live_region_changed", "live_region_created", "expanded_changed",
-  "row_expanded", "row_collapsed", "element_busy_changed",
-]
 
 [hints.ui]
 font_size = 10

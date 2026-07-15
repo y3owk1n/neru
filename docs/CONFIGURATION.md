@@ -581,24 +581,18 @@ width = 320
 
 Keep hints live while the focused app's UI changes. When enabled, neru registers accessibility observers on the focused app while hints mode is open and re-scans hints when a watched notification fires (a page loads, a menu opens, a panel appears), then tears the observers down on exit. macOS only for now; on other platforms the setting is inert.
 
-| Option                  | Type  | Default           | Description                                                                                         |
-| ----------------------- | ----- | ----------------- | --------------------------------------------------------------------------------------------------- |
-| `enabled`               | bool  | `false`           | Turn auto-refresh on. Off by default.                                                               |
-| `debounce_ms`           | int   | `150`             | How long a burst of changes must settle before the re-scan. A non-positive value uses the default.  |
-| `allowed_notifications` | array | all names (below) | Which structural notifications trigger a re-scan. Must list at least one valid name when enabled.   |
+| Option        | Type | Default | Description                                                                                         |
+| ------------- | ---- | ------- | --------------------------------------------------------------------------------------------------- |
+| `enabled`     | bool | `false` | Turn auto-refresh on. Off by default.                                                               |
+| `debounce_ms` | int  | `150`   | How long a burst of changes must settle before the re-scan. A non-positive value uses the default.  |
 
 ```toml
 [hints.auto_refresh]
 enabled = false
 debounce_ms = 150
-allowed_notifications = [
-  "created", "ui_destroyed", "layout_changed",
-  "window_created", "window_moved", "window_resized",
-  "load_complete", "menu_opened", "menu_closed",
-]
 ```
 
-The valid `allowed_notifications` names are `created`, `ui_destroyed`, `layout_changed`, `window_created`, `window_moved`, `window_resized`, `load_complete`, `menu_opened`, and `menu_closed`. Enabling auto-refresh with an empty list, or with a name outside this set, is a config error.
+The observer watches a fixed set of accessibility notifications that mean the UI actually changed (an element or window appeared, moved, or vanished, a page loaded, a menu opened, focus moved), plus the signals browsers post for web content.
 
 > [!NOTE]
 > Auto-refresh reaches inside Chromium, Firefox, and Electron web content as well as native windows and menus: `load_complete` and layout changes inside a page reach the observer, so hints re-scan when a browser page updates.

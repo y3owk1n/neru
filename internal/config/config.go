@@ -936,14 +936,11 @@ type HeldRepeatConfig struct {
 // go stale while hints mode is open. macOS only for now; on other platforms no
 // observers are available and the setting is inert.
 //
-// AllowedNotifications selects which structural notifications register an
-// observer; the accepted names are the axnotify vocabulary (see axnotify.Names).
 // DebounceMs is how long a burst of changes must go quiet before the re-scan; a
 // non-positive value falls back to the built-in default.
 type HintsAutoRefresh struct {
-	Enabled              bool     `json:"enabled"              toml:"enabled"`
-	DebounceMs           int      `json:"debounceMs"           toml:"debounce_ms"`
-	AllowedNotifications []string `json:"allowedNotifications" toml:"allowed_notifications"`
+	Enabled    bool `json:"enabled"    toml:"enabled"`
+	DebounceMs int  `json:"debounceMs" toml:"debounce_ms"`
 }
 
 // SystrayConfig defines system tray settings.

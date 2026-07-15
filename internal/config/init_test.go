@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/infra/axnotify"
 )
 
 func TestWriteDefaultConfig(t *testing.T) {
@@ -50,14 +49,11 @@ func TestWriteDefaultConfig_LoadsAndValidates(t *testing.T) {
 	autoRefresh := result.Config.Hints.AutoRefresh
 	assert.False(t, autoRefresh.Enabled, "auto_refresh ships off by default")
 	assert.Equal(t, config.DefaultAutoRefreshDebounceMs, autoRefresh.DebounceMs)
-	assert.ElementsMatch(t, axnotify.Names(), autoRefresh.AllowedNotifications,
-		"the default template must list every supported notification name")
 
-	// Flipping it on must still validate, proving the template lists only valid
-	// notification names.
+	// Flipping it on must still validate.
 	result.Config.Hints.AutoRefresh.Enabled = true
 	assert.NoError(t, result.Config.Validate(),
-		"the default notifications must be valid when auto_refresh is enabled")
+		"auto_refresh must validate when enabled")
 }
 
 func TestWriteDefaultConfig_ExistingFile(t *testing.T) {

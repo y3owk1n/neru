@@ -56,14 +56,6 @@ ignore_clickable_check = false
 [hints.auto_refresh]
 enabled = true
 debounce_ms = 150
-allowed_notifications = [
-  "created", "ui_destroyed", "layout_changed",
-  "window_created", "window_moved", "window_resized",
-  "load_complete", "menu_opened", "menu_closed",
-  "focused_ui_element_changed",
-  "live_region_changed", "live_region_created", "expanded_changed",
-  "row_expanded", "row_collapsed", "element_busy_changed",
-]
 
 [grid]
 enabled = false

@@ -546,24 +546,7 @@ func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 
 	h.setAutoRefreshTiming(time.Duration(autoRefresh.DebounceMs) * time.Millisecond)
 
-	mask, err := axobserver.MaskFromNames(autoRefresh.AllowedNotifications)
-	if err != nil {
-		// The config validator rejects unknown names, so this only trips if an
-		// unvalidated config reached the handler. Disarm rather than observe an
-		// unexpected notification set.
-		h.logger.Warn("auto_refresh: unknown notification name, disarming observers",
-			zap.Error(err))
-		h.disarmAutoRefreshObservers()
-
-		return
-	}
-
-	if mask == 0 {
-		// An empty allowed_notifications list means nothing to watch.
-		h.disarmAutoRefreshObservers()
-
-		return
-	}
+	mask := axobserver.DefaultMask
 
 	pid := focusedAppPID(bundleID)
 	if pid <= 0 {

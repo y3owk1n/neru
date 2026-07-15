@@ -83,18 +83,13 @@ Hints are scanned once when the mode opens, so they can go stale when the focuse
 [hints.auto_refresh]
 enabled = true
 debounce_ms = 150
-allowed_notifications = [
-  "created", "ui_destroyed", "layout_changed",
-  "window_created", "window_moved", "window_resized",
-  "load_complete", "menu_opened", "menu_closed",
-]
 ```
 
 Notes:
 
 - The re-scan is debounced, so a burst of changes collapses into a single update, and it never fires while you are part-way through typing a hint label or a search query. A change that lands mid-typing is held in the debounce and applied once you finish or cancel, so the hint set never shifts under your keystrokes.
 - Manual refreshes are not held back by the debounce. A `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, refreshes right away when nothing else is in flight, and otherwise coalesces with the in-flight auto-refresh into a single update, so you never get a double flicker.
-- `allowed_notifications` selects which changes wake a re-scan. Drop entries you do not want (for example, remove `window_moved` and `window_resized` if you only care about content, not window geometry). An empty list with `enabled = true` is rejected as a config error.
+- The observer watches a fixed set of notifications that mean the UI actually changed (an element or window appeared, moved, or vanished, a page loaded, a menu opened, focus moved). It skips `value_changed`, which fires on every value update (a clock, a progress bar) and would wake the observer continuously.
 - Web page content inside Chromium, Firefox, and Electron apps refreshes alongside native windows and menus: neru wakes the app's web accessibility tree on focus, so `load_complete` and layout changes inside a page reach the observer.
 
 ## Auto-Exit After Click

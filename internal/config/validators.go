@@ -9,7 +9,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/axnotify"
 )
 
 // maxFontSize is the maximum font size accepted by the config validator.
@@ -353,8 +352,7 @@ func (c *Config) ValidateHints() error {
 
 // validateHintsAutoRefresh checks the [hints.auto_refresh] section. It only
 // constrains the settings when auto_refresh is enabled: the debounce must be
-// non-negative, and allowed_notifications must name at least one notification,
-// each one recognized by the observer service.
+// non-negative.
 func validateHintsAutoRefresh(autoRefresh HintsAutoRefresh) error {
 	if !autoRefresh.Enabled {
 		return nil
@@ -365,28 +363,6 @@ func validateHintsAutoRefresh(autoRefresh HintsAutoRefresh) error {
 			derrors.CodeInvalidConfig,
 			"hints.auto_refresh.debounce_ms must be non-negative",
 		)
-	}
-
-	if len(autoRefresh.AllowedNotifications) == 0 {
-		return derrors.Newf(
-			derrors.CodeInvalidConfig,
-			"hints.auto_refresh.allowed_notifications must list at least one notification "+
-				"when auto_refresh is enabled; valid names are %s",
-			strings.Join(axnotify.Names(), ", "),
-		)
-	}
-
-	for idx, name := range autoRefresh.AllowedNotifications {
-		if !axnotify.IsName(name) {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.auto_refresh.allowed_notifications[%d] %q is not a valid notification; "+
-					"valid names are %s",
-				idx,
-				name,
-				strings.Join(axnotify.Names(), ", "),
-			)
-		}
 	}
 
 	return nil

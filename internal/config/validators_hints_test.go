@@ -204,8 +204,8 @@ func TestValidateHints_AutoRefreshDefaultsAreValidWhenEnabled(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.AutoRefresh.Enabled = true
 
-	// The default allowed_notifications list must satisfy validation, so a user
-	// who only flips enabled = true gets a working config.
+	// The default section must satisfy validation, so a user who only flips
+	// enabled = true gets a working config.
 	if err := cfg.ValidateHints(); err != nil {
 		t.Fatalf("ValidateHints() rejected the default auto_refresh config: %v", err)
 	}
@@ -214,32 +214,11 @@ func TestValidateHints_AutoRefreshDefaultsAreValidWhenEnabled(t *testing.T) {
 func TestValidateHints_AutoRefreshDisabledSkipsValidation(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.AutoRefresh.Enabled = false
-	cfg.Hints.AutoRefresh.AllowedNotifications = nil
 	cfg.Hints.AutoRefresh.DebounceMs = -1
 
 	// When disabled, the section is inert and its contents are not constrained.
 	if err := cfg.ValidateHints(); err != nil {
 		t.Fatalf("ValidateHints() should not validate a disabled auto_refresh: %v", err)
-	}
-}
-
-func TestValidateHints_AutoRefreshEnabledRequiresANotification(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.AutoRefresh.Enabled = true
-	cfg.Hints.AutoRefresh.AllowedNotifications = []string{}
-
-	if err := cfg.ValidateHints(); err == nil {
-		t.Fatal("ValidateHints() expected error when auto_refresh is enabled with no notifications")
-	}
-}
-
-func TestValidateHints_AutoRefreshRejectsUnknownNotification(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.AutoRefresh.Enabled = true
-	cfg.Hints.AutoRefresh.AllowedNotifications = []string{"layout_changed", "not_a_real_one"}
-
-	if err := cfg.ValidateHints(); err == nil {
-		t.Fatal("ValidateHints() expected error for an unknown notification name")
 	}
 }
 
