@@ -22,20 +22,6 @@ const (
 
 // EnsureAccessibility ensures accessibility is enabled for the provided bundle ID.
 func EnsureAccessibility(bundleID string, logger *zap.Logger) bool {
-	return ensureAccessibility(
-		bundleID,
-		&axPIDsMu,
-		axEnabledPIDs,
-		logger,
-	)
-}
-
-func ensureAccessibility(
-	bundleID string,
-	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
-	logger *zap.Logger,
-) bool {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -60,24 +46,16 @@ func ensureAccessibility(
 		return false
 	}
 
-	pidsMu.Lock()
-
-	_, already := enabledPIDs[pid]
-
-	pidsMu.Unlock()
+	axPIDsMu.Lock()
+	_, already := axEnabledPIDs[pid]
+	axPIDsMu.Unlock()
 
 	if already {
 		return true
 	}
 
-	if hasUsableAccessibilityTree(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
-
-		return true
-	}
-
 	if waitForAccessibility(app, logger) {
-		markPIDEnabled(pidsMu, enabledPIDs, pid)
+		markPIDEnabled(&axPIDsMu, axEnabledPIDs, pid)
 
 		return true
 	}
