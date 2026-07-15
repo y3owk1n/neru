@@ -181,8 +181,7 @@ The module automatically:
 > { config, lib, ... }:
 >
 > let
->   username = config.system.primaryUser or "changeme";
->   appPath = "/Users/${username}/Applications/Nix Apps/Neru.app";
+>   appPath = "/Applications/Nix Apps/Neru.app";
 >   entitlements = "${appPath}/Contents/Resources/Neru.entitlements";
 > in {
 >   system.activationScripts.postActivation.text = ''
