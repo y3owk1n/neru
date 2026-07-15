@@ -181,7 +181,7 @@ The module automatically:
 > { config, lib, ... }:
 >
 > let
->   username = config.users.primaryUser or "changeme";
+>   username = config.system.primaryUser or "changeme";
 >   appPath = "/Users/${username}/Applications/Nix Apps/Neru.app";
 >   entitlements = "${appPath}/Contents/Resources/Neru.entitlements";
 > in {
