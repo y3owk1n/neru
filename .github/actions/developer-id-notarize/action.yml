@@ -54,15 +54,16 @@ runs:
 
     - shell: bash
       run: |
+        echo "${{ inputs.apple-notary-api-key }}" > /tmp/notary_api_key.p8
         zip_path="${{ inputs.app-path }}-notarize.zip"
         ditto -c -k --sequesterRsrc --keepParent "${{ inputs.app-path }}" "$zip_path"
         xcrun notarytool submit "$zip_path" \
           --issuer "${{ inputs.apple-notary-api-issuer }}" \
           --key-id "${{ inputs.apple-notary-api-key-id }}" \
-          --key "${{ inputs.apple-notary-api-key }}" \
+          --key /tmp/notary_api_key.p8 \
           --team-id "${{ inputs.apple-team-id }}" \
           --wait
-        rm "$zip_path"
+        rm "$zip_path" /tmp/notary_api_key.p8
 
     - shell: bash
       run: xcrun stapler staple "${{ inputs.app-path }}"
