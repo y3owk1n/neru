@@ -95,3 +95,11 @@ jobs:
             macos_short_version: ${{ needs.prepare-nightly-release.outputs.macos_short_version }}
         secrets:
             upload_token: ${{ github.token }}
+            # # TODO: Add these once Developer ID signing is set up
+            # mac_developer_id_cert: ${{ secrets.mac_developer_id_cert }}
+            # mac_developer_id_key: ${{ secrets.mac_developer_id_key }}
+            # mac_dev_id_keychain_pwd: ${{ secrets.mac_dev_id_keychain_pwd }}
+            # apple_notary_api_issuer: ${{ secrets.apple_notary_api_issuer }}
+            # apple_notary_api_key_id: ${{ secrets.apple_notary_api_key_id }}
+            # apple_notary_api_key: ${{ secrets.apple_notary_api_key }}
+            # apple_team_id: ${{ secrets.apple_team_id }}
