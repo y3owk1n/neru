@@ -94,5 +94,3 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 
 	return false
 }
-
-
