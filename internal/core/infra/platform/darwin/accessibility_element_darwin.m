@@ -102,12 +102,12 @@ void *NeruGetApplicationByBundleId(const char *bundle_id) {
 /// lists.
 ///
 /// Detection strategy (all file-based, zero keywords):
-///   1. Electron Framework.framework                    -> electron
-///   2. icudtl.dat in any .framework                     -> chromium
-///   3. CrAppModeShortcutIDKey (Chrome PWA app shim)     -> chromium
-///   4. omni.ja in Contents/Resources/                   -> firefox
-///   5. LSTemplateApplication=1 (Safari PWA)             -> webkit
-///   6. http/https URL scheme registration               -> webkit
+///   1. Electron Framework.framework                      -> electron
+///   2. app_mode_loader in a framework's Helpers/         -> chromium
+///   3. CrAppModeShortcutIDKey (Chrome PWA app shim)      -> chromium
+///   4. XUL engine + Contents/Resources/browser/          -> firefox
+///   5. LSTemplateApplication=1 (Safari PWA)              -> webkit
+///   6. http/https URL scheme registration                -> webkit
 ///
 /// @param bundle_id Bundle identifier
 /// @return "electron", "chromium", "firefox", "webkit", or NULL if unknown
@@ -149,15 +149,26 @@ char *NeruDetectBundleType(const char *bundle_id) {
 		if ([fm fileExistsAtPath:[frameworksPath stringByAppendingPathComponent:@"Electron Framework.framework"]])
 			return strdup("electron");
 
-		// 2. icudtl.dat inside any framework signals Chromium-based (Chrome, Edge, Brave, etc.)
-		if ([fm fileExistsAtPath:frameworksPath]) {
-			NSArray *fwItems = [fm contentsOfDirectoryAtPath:frameworksPath error:nil];
+		// 2. app_mode_loader inside a framework's Helpers/ marks a Chromium-based browser
+		//    (Chrome, Edge, Brave, Vivaldi, Opera, Arc, etc.). Unlike icudtl.dat it is absent
+		//    from Electron/CEF/Qt runtimes, so non-browser Chromium apps are not matched.
+		//    Some browsers (e.g. ChatGPT Atlas) nest the real browser under
+		//    Contents/Support/<App>.app, so scan those Frameworks directories too.
+		NSString *supportPath = [bundlePath stringByAppendingPathComponent:@"Contents/Support"];
+		NSMutableArray *frameworksDirs = [NSMutableArray arrayWithObject:frameworksPath];
+		for (NSString *sub in [fm contentsOfDirectoryAtPath:supportPath error:nil]) {
+			if ([sub hasSuffix:@".app"])
+				[frameworksDirs addObject:[[supportPath stringByAppendingPathComponent:sub]
+				                              stringByAppendingPathComponent:@"Contents/Frameworks"]];
+		}
+		for (NSString *frameworksDir in frameworksDirs) {
+			NSArray *fwItems = [fm contentsOfDirectoryAtPath:frameworksDir error:nil];
 			for (NSString *item in fwItems) {
 				if (![item hasSuffix:@".framework"])
 					continue;
-				NSString *fwPath = [frameworksPath stringByAppendingPathComponent:item];
-				NSString *icuPath = [fwPath stringByAppendingPathComponent:@"Resources/icudtl.dat"];
-				if ([fm fileExistsAtPath:icuPath])
+				NSString *fwPath = [frameworksDir stringByAppendingPathComponent:item];
+				NSString *loaderPath = [fwPath stringByAppendingPathComponent:@"Helpers/app_mode_loader"];
+				if ([fm fileExistsAtPath:loaderPath])
 					return strdup("chromium");
 			}
 		}
@@ -177,9 +188,16 @@ char *NeruDetectBundleType(const char *bundle_id) {
 			}
 		}
 
-		// 4. omni.ja is unique to Firefox
-		NSString *resourcesPath = [bundlePath stringByAppendingPathComponent:@"Contents/Resources/omni.ja"];
-		if ([fm fileExistsAtPath:resourcesPath])
+		// 4. XUL (the Gecko engine binary) plus a Contents/Resources/browser component marks a
+		//    Firefox-based browser (Firefox, LibreWolf, Waterfox, Floorp, Zen, Mullvad/Tor Browser,
+		//    Pale Moon, etc.). The browser directory separates a Gecko browser from Gecko non-browsers
+		//    like Thunderbird (mail) or SeaMonkey (suite), which ship XUL but no browser component.
+		//    Firefox's bundle layout is flat and unbranded, so these are fixed paths (no scan needed).
+		NSString *xulPath = [bundlePath stringByAppendingPathComponent:@"Contents/MacOS/XUL"];
+		NSString *browserPath = [bundlePath stringByAppendingPathComponent:@"Contents/Resources/browser"];
+		BOOL browserIsDir = NO;
+		BOOL hasBrowserDir = [fm fileExistsAtPath:browserPath isDirectory:&browserIsDir] && browserIsDir;
+		if ([fm fileExistsAtPath:xulPath] && hasBrowserDir)
 			return strdup("firefox");
 
 		// 5. LSTemplateApplication marks Safari web apps (Add to Dock PWAs).
