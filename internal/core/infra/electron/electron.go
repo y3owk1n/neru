@@ -11,7 +11,7 @@ import (
 
 var (
 	axPIDsMu      sync.Mutex
-	axEnabledPIDs = make(map[int]struct{})
+	axEnabledPIDs = make(map[string]int) // bundleID -> PID
 )
 
 const (
@@ -47,15 +47,15 @@ func EnsureAccessibility(bundleID string, logger *zap.Logger) bool {
 	}
 
 	axPIDsMu.Lock()
-	_, already := axEnabledPIDs[pid]
+	cachedPID, already := axEnabledPIDs[bundleID]
 	axPIDsMu.Unlock()
 
-	if already {
+	if already && cachedPID == pid {
 		return true
 	}
 
 	if waitForAccessibility(app, logger) {
-		markPIDEnabled(&axPIDsMu, axEnabledPIDs, pid)
+		markPIDEnabled(&axPIDsMu, axEnabledPIDs, bundleID, pid)
 
 		return true
 	}
@@ -128,11 +128,12 @@ func hasUsableAccessibilityTree(root *accessibility.Element, logger *zap.Logger)
 
 func markPIDEnabled(
 	pidsMu *sync.Mutex,
-	enabledPIDs map[int]struct{},
+	enabledPIDs map[string]int,
+	bundleID string,
 	pid int,
 ) {
 	pidsMu.Lock()
 	defer pidsMu.Unlock()
 
-	enabledPIDs[pid] = struct{}{}
+	enabledPIDs[bundleID] = pid
 }
