@@ -158,7 +158,7 @@ The module automatically:
 > { config, lib, ... }:
 >
 > let
->   username = config.users.primaryUser or "changeme";
+>   username = config.home.username or "changeme";
 >   appPath = "/Users/${username}/Applications/Home Manager Apps/Neru.app";
 >   entitlements = "${appPath}/Contents/Resources/Neru.entitlements";
 > in {
