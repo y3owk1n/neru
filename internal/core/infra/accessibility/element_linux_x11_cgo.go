@@ -377,11 +377,3 @@ func x11ReleaseModifiers(display *C.Display, modifiers action.Modifiers) {
 		C.neru_ax_release_modifier(display, C.XK_Shift_L)
 	}
 }
-
-func abs(v int) int {
-	if v < 0 {
-		return -v
-	}
-
-	return v
-}

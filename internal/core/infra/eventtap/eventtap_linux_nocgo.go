@@ -24,6 +24,10 @@ func ScrollDeviceScroll(_, _ int) error {
 	return errors.New("uinput scroll unavailable (no CGO)")
 }
 
+func ScrollDeviceScrollBatch(_ int, _ []int) error {
+	return errors.New("uinput scroll batch unavailable (no CGO)")
+}
+
 // IsUinputScrollAvailable returns false when CGO is disabled.
 func IsUinputScrollAvailable() bool {
 	return false

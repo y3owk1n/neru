@@ -61,4 +61,6 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	recursivegridcomponent.VirtualPointerState,
 ) {
 }
+func (o *x11Overlay) Flush() {}
+
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
