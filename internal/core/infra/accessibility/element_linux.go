@@ -28,6 +28,13 @@ var (
 	linuxMouseDownMu  sync.RWMutex
 )
 
+func abs(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
 // SetClickableRoles configures which accessibility roles are treated as clickable (Linux stub).
 func SetClickableRoles(_ []string, _ *zap.Logger) {}
 

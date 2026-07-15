@@ -70,4 +70,8 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	recursivegridcomponent.VirtualPointerState,
 ) {
 }
+func (o *wlrootsOverlay) Flush() {}
+
+func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
+
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
