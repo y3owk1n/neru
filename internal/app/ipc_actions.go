@@ -1687,6 +1687,12 @@ func (h *IPCControllerActions) handleActionChain(
 			h.logger.Error("Failed to perform action in chain",
 				zap.Error(performErr),
 				zap.String("action", trimmed))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform action in chain: " + performErr.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
 		}
 	}
 
