@@ -42,6 +42,12 @@ func (h *Handler) executeActionAtPoint(
 
 			return
 		}
+
+		if *modifierStr != "" && modifiers == 0 {
+			h.logger.Error("Pending modifier was non-empty but parsed to no modifiers")
+
+			return
+		}
 	}
 
 	modifiers |= h.stickyModifiers()

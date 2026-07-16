@@ -253,3 +253,48 @@ func TestExtractModeOptions_ModifierRequiresAction(t *testing.T) {
 		t.Fatalf("expected error message containing %q, got: %q", expectedMsg, resp.Message)
 	}
 }
+
+func TestExtractModeOptions_ModifierEmptyList(t *testing.T) {
+	cfg := config.DefaultConfig()
+	appState := state.NewAppState()
+	logger := zap.NewNop()
+	configService := config.NewService(cfg, "", logger, nil)
+	actionService := services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		&portmocks.MockSystemPort{},
+		logger,
+	)
+
+	controller := app.NewIPCController(
+		nil,
+		nil,
+		actionService,
+		nil,
+		configService,
+		appState,
+		cfg,
+		newTestModesHandler(cfg, logger, appState, actionService),
+		nil,
+		nil,
+		nil,
+		nil,
+		logger,
+	)
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{
+		Action: actionHints,
+		Args:   []string{actionHints, "--action=left_click", "--modifier=,"},
+	})
+
+	if resp.Success {
+		t.Fatal(
+			"HandleCommand() expected error response since --modifier value had no actual modifier names",
+		)
+	}
+
+	expectedMsg := "modifier values cannot be empty"
+	if !strings.Contains(resp.Message, expectedMsg) {
+		t.Fatalf("expected error message containing %q, got: %q", expectedMsg, resp.Message)
+	}
+}

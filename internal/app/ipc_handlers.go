@@ -480,11 +480,21 @@ func (h *IPCControllerModes) extractModeOptions(
 			return opts, &resp
 		}
 
-		_, modErr := action.ParseModifiers(*opts.Modifier)
+		mods, modErr := action.ParseModifiers(*opts.Modifier)
 		if modErr != nil {
 			resp := ipc.Response{
 				Success: false,
 				Message: modErr.Error(),
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
+
+		if mods == 0 {
+			resp := ipc.Response{
+				Success: false,
+				Message: "modifier values cannot be empty",
 				Code:    ipc.CodeInvalidInput,
 			}
 

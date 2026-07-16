@@ -121,9 +121,16 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 					)
 				}
 
-				_, modErr := action.ParseModifiers(modifierFlag)
+				mods, modErr := action.ParseModifiers(modifierFlag)
 				if modErr != nil {
 					return modErr
+				}
+
+				if mods == 0 {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"modifier values cannot be empty",
+					)
 				}
 			}
 
