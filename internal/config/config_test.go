@@ -280,7 +280,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:             testBundleIDA,
-							IgnoreClickableCheck: true,
+							IgnoreClickableCheck: new(true),
 						},
 					},
 				},
@@ -295,7 +295,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:             testBundleIDA,
-							IgnoreClickableCheck: false,
+							IgnoreClickableCheck: new(false),
 						},
 					},
 				},
@@ -310,7 +310,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:             testBundleIDB,
-							IgnoreClickableCheck: true,
+							IgnoreClickableCheck: new(true),
 						},
 					},
 				},
@@ -325,11 +325,11 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:             testBundleIDB,
-							IgnoreClickableCheck: true,
+							IgnoreClickableCheck: new(true),
 						},
 						{
 							BundleID:             testBundleIDA,
-							IgnoreClickableCheck: true,
+							IgnoreClickableCheck: new(true),
 						},
 					},
 				},
@@ -355,7 +355,7 @@ func TestConfig_AppConfigIgnoreClickableCheck(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:             testBundleIDA,
-							IgnoreClickableCheck: false, // app-specific false
+							IgnoreClickableCheck: new(false), // app-specific false
 						},
 					},
 				},
@@ -397,7 +397,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDA,
-							VisibleCheckEnabled: true,
+							VisibleCheckEnabled: new(true),
 						},
 					},
 				},
@@ -412,7 +412,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDA,
-							VisibleCheckEnabled: false,
+							VisibleCheckEnabled: new(false),
 						},
 					},
 				},
@@ -427,7 +427,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDB,
-							VisibleCheckEnabled: true,
+							VisibleCheckEnabled: new(true),
 						},
 					},
 				},
@@ -442,11 +442,11 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDB,
-							VisibleCheckEnabled: true,
+							VisibleCheckEnabled: new(true),
 						},
 						{
 							BundleID:            testBundleIDA,
-							VisibleCheckEnabled: true,
+							VisibleCheckEnabled: new(true),
 						},
 					},
 				},
@@ -472,7 +472,7 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            testBundleIDA,
-							VisibleCheckEnabled: false, // app-specific false
+							VisibleCheckEnabled: new(false), // app-specific false
 						},
 					},
 				},

@@ -561,7 +561,7 @@ func rejectHintsFields(modeName string) AppConfigFieldValidator {
 			)
 		}
 
-		if appConfig.IgnoreClickableCheck {
+		if appConfig.IgnoreClickableCheck != nil && *appConfig.IgnoreClickableCheck {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s.app_configs[%d].ignore_clickable_check is only valid for hints mode",
@@ -569,7 +569,7 @@ func rejectHintsFields(modeName string) AppConfigFieldValidator {
 			)
 		}
 
-		if appConfig.VisibleCheckEnabled {
+		if appConfig.VisibleCheckEnabled != nil && *appConfig.VisibleCheckEnabled {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s.app_configs[%d].visible_check_enabled is only valid for hints mode",

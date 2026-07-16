@@ -548,8 +548,8 @@ type AppConfig struct {
 	Strategy             string                         `json:"strategy"             toml:"strategy"`
 	LabelDirection       string                         `json:"labelDirection"       toml:"label_direction"`
 	AdditionalClickable  []string                       `json:"additionalClickable"  toml:"additional_clickable_roles"`
-	IgnoreClickableCheck bool                           `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
-	VisibleCheckEnabled  bool                           `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
+	IgnoreClickableCheck *bool                          `json:"ignoreClickableCheck" toml:"ignore_clickable_check"`
+	VisibleCheckEnabled  *bool                          `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
 	ScrollStep           *int                           `json:"scrollStep"           toml:"scroll_step,omitempty"`
 	ScrollStepHalf       *int                           `json:"scrollStepHalf"       toml:"scroll_step_half,omitempty"`
 	ScrollStepFull       *int                           `json:"scrollStepFull"       toml:"scroll_step_full,omitempty"`
@@ -1663,46 +1663,116 @@ func (c *Config) IsAppExcluded(bundleID string) bool {
 	return false
 }
 
+// MergedForApp returns a copy of the HintsConfig with app-specific overrides
+// merged on top. Only fields explicitly set in the [[hints.app_configs]] entry
+// override the base; unset fields inherit from the root [hints] config.
+// Hotkeys are handled separately via HotkeysForModeAndApp since they require
+// key-level merge semantics (__disabled__ sentinel, etc.).
+func (c *HintsConfig) MergedForApp(bundleID string) HintsConfig {
+	appConfig := c.AppConfigForBundleID(bundleID)
+
+	merged := *c // shallow copy
+
+	if appConfig == nil {
+		// No app config: still filter empty roles from the base.
+		if hasEmptyRoles(merged.ClickableRoles) {
+			merged.ClickableRoles = mergeClickableRoles(merged.ClickableRoles, nil)
+		}
+
+		return merged
+	}
+
+	if appConfig.Strategy != "" {
+		merged.Strategy = appConfig.Strategy
+	}
+
+	if appConfig.LabelDirection != "" {
+		merged.LabelDirection = appConfig.LabelDirection
+	}
+
+	if appConfig.IgnoreClickableCheck != nil {
+		merged.IgnoreClickableCheck = *appConfig.IgnoreClickableCheck
+	}
+
+	if appConfig.VisibleCheckEnabled != nil {
+		merged.VisibleCheckEnabled = *appConfig.VisibleCheckEnabled
+	}
+
+	// Always rebuild ClickableRoles with filtering + deduplication so that
+	// empty and whitespace-only entries from the base config are removed,
+	// and additional roles from the app config are merged without duplicates.
+	merged.ClickableRoles = mergeClickableRoles(
+		merged.ClickableRoles,
+		appConfig.AdditionalClickable,
+	)
+
+	return merged
+}
+
 // ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
 func (c *Config) ClickableRolesForApp(bundleID string) []string {
-	rolesMap := c.Hints.buildRolesMap(bundleID)
-
-	return rolesMapToSlice(rolesMap)
+	return c.Hints.ClickableRolesForApp(bundleID)
 }
 
-// ShouldIgnoreClickableCheckForApp returns whether clickable check should be ignored for a specific app bundle ID.
-// It first checks for app-specific configuration, then falls back to the global setting.
+// ShouldIgnoreClickableCheckForApp returns whether clickable check should be
+// ignored for a specific app bundle ID. Delegates to MergedForApp to handle
+// the root→app-config override chain.
 func (c *Config) ShouldIgnoreClickableCheckForApp(bundleID string) bool {
-	// Check if the app has an app-specific ignore_clickable_check
-	appConfig := c.Hints.AppConfigForBundleID(bundleID)
-	if appConfig != nil {
-		return appConfig.IgnoreClickableCheck
-	}
-
-	// Fall back to global ignore_clickable_check
-	return c.Hints.IgnoreClickableCheck
+	return c.Hints.MergedForApp(bundleID).IgnoreClickableCheck
 }
 
-// ShouldEnableVisibleCheckForApp returns whether the visibility hit-test check should be performed
-// for a specific app bundle ID. It first checks for app-specific configuration, then falls back
-// to the global setting. Default is false (visibility check skipped).
+// ShouldEnableVisibleCheckForApp returns whether the visibility hit-test check
+// should be performed for a specific app bundle ID. Delegates to MergedForApp
+// to handle the root→app-config override chain.
 func (c *Config) ShouldEnableVisibleCheckForApp(bundleID string) bool {
-	appConfig := c.Hints.AppConfigForBundleID(bundleID)
-	if appConfig != nil {
-		return appConfig.VisibleCheckEnabled
-	}
-
-	return c.Hints.VisibleCheckEnabled
+	return c.Hints.MergedForApp(bundleID).VisibleCheckEnabled
 }
 
-// rolesMapToSlice converts a roles map to a slice.
-func rolesMapToSlice(rolesMap map[string]struct{}) []string {
-	roles := make([]string, 0, len(rolesMap))
-	for role := range rolesMap {
-		roles = append(roles, role)
+// hasEmptyRoles reports whether the slice contains any empty or
+// whitespace-only entries. Used by MergedForApp to decide whether to
+// rebuild ClickableRoles for filtering.
+func hasEmptyRoles(roles []string) bool {
+	for _, role := range roles {
+		if strings.TrimSpace(role) == "" {
+			return true
+		}
 	}
 
-	return roles
+	return false
+}
+
+// mergeClickableRoles combines base roles with additional roles, deduplicating
+// and filtering out empty/whitespace-only entries. Base roles are preserved in
+// their original order (minus empties), then additional roles are appended.
+func mergeClickableRoles(base, additional []string) []string {
+	seen := make(map[string]struct{}, len(base)+len(additional))
+	result := make([]string, 0, len(base)+len(additional))
+
+	for _, role := range base {
+		trimmed := strings.TrimSpace(role)
+		if trimmed == "" {
+			continue
+		}
+
+		if _, exists := seen[trimmed]; !exists {
+			seen[trimmed] = struct{}{}
+			result = append(result, trimmed)
+		}
+	}
+
+	for _, role := range additional {
+		trimmed := strings.TrimSpace(role)
+		if trimmed == "" {
+			continue
+		}
+
+		if _, exists := seen[trimmed]; !exists {
+			seen[trimmed] = struct{}{}
+			result = append(result, trimmed)
+		}
+	}
+
+	return result
 }
 
 // ValidateModes validates that at least one mode is enabled.
@@ -1790,74 +1860,39 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 }
 
 // ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
+// Starts from the merged config (root + app overrides), then appends
+// AXMenuBarItem / AXDockItem when the corresponding hints flags are enabled.
 func (c *HintsConfig) ClickableRolesForApp(bundleID string) []string {
-	rolesMap := c.buildRolesMap(bundleID)
+	merged := c.MergedForApp(bundleID)
 
-	return rolesMapToSlice(rolesMap)
+	// Append menubar/dock roles on top of the merged roles.
+	if merged.IncludeMenubarHints {
+		merged.ClickableRoles = append(merged.ClickableRoles, RoleMenuBarItem)
+	}
+
+	if merged.IncludeDockHints {
+		merged.ClickableRoles = append(merged.ClickableRoles, RoleDockItem)
+	}
+
+	return merged.ClickableRoles
 }
 
 // StrategyForApp returns the element detection strategy for the given bundle ID.
-// Falls back to the global HintsConfig.Strategy if no app-specific override is set.
+// Delegates to MergedForApp to handle the root→app-config override chain.
 func (c *HintsConfig) StrategyForApp(bundleID string) string {
-	appConfig := c.AppConfigForBundleID(bundleID)
-	if appConfig != nil && appConfig.Strategy != "" {
-		return appConfig.Strategy
-	}
-
-	return c.Strategy
+	return c.MergedForApp(bundleID).Strategy
 }
 
 // LabelDirectionForApp returns the label direction for the given bundle ID.
-// Falls back to the global `HintsConfig.LabelDirection` if no app-specific
-// override is set. An empty global value is normalized to the default
-// `normal` so callers can always treat the result as a fully-qualified direction.
+// Delegates to MergedForApp to handle the root→app-config override chain.
+// An empty result is normalized to the default "normal".
 func (c *HintsConfig) LabelDirectionForApp(bundleID string) string {
-	appConfig := c.AppConfigForBundleID(bundleID)
-	if appConfig != nil && appConfig.LabelDirection != "" {
-		return appConfig.LabelDirection
-	}
-
-	if c.LabelDirection == "" {
+	dir := c.MergedForApp(bundleID).LabelDirection
+	if dir == "" {
 		return LabelDirectionNormal
 	}
 
-	return c.LabelDirection
-}
-
-// buildRolesMap builds a map of clickable roles for the given bundle ID.
-func (c *HintsConfig) buildRolesMap(bundleID string) map[string]struct{} {
-	rolesMap := make(map[string]struct{})
-
-	for _, role := range c.ClickableRoles {
-		trimmed := strings.TrimSpace(role)
-		if trimmed != "" {
-			rolesMap[trimmed] = struct{}{}
-		}
-	}
-
-	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
-	for _, appConfig := range c.AppConfigs {
-		if strings.ToLower(strings.TrimSpace(appConfig.BundleID)) == lowerBundleID {
-			for _, role := range appConfig.AdditionalClickable {
-				trimmed := strings.TrimSpace(role)
-				if trimmed != "" {
-					rolesMap[trimmed] = struct{}{}
-				}
-			}
-
-			break
-		}
-	}
-
-	if c.IncludeMenubarHints {
-		rolesMap[RoleMenuBarItem] = struct{}{}
-	}
-
-	if c.IncludeDockHints {
-		rolesMap[RoleDockItem] = struct{}{}
-	}
-
-	return rolesMap
+	return dir
 }
 
 // IsAllLetters checks if a string contains only letters (a-z, A-Z).
