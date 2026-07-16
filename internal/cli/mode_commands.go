@@ -113,11 +113,18 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				)
 			}
 
-			if modifierFlag != "" && actionFlag == "" {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"--modifier requires --action",
-				)
+			if modifierFlag != "" {
+				if actionFlag == "" {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"--modifier requires --action",
+					)
+				}
+
+				_, modErr := action.ParseModifiers(modifierFlag)
+				if modErr != nil {
+					return modErr
+				}
 			}
 
 			if actionFlag != "" {

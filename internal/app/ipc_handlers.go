@@ -469,14 +469,27 @@ func (h *IPCControllerModes) extractModeOptions(
 		return opts, &resp
 	}
 
-	if opts.Modifier != nil && opts.Action == nil {
-		resp := ipc.Response{
-			Success: false,
-			Message: "--modifier requires an action",
-			Code:    ipc.CodeInvalidInput,
+	if opts.Modifier != nil {
+		if opts.Action == nil {
+			resp := ipc.Response{
+				Success: false,
+				Message: "--modifier requires an action",
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
 		}
 
-		return opts, &resp
+		_, modErr := action.ParseModifiers(*opts.Modifier)
+		if modErr != nil {
+			resp := ipc.Response{
+				Success: false,
+				Message: modErr.Error(),
+				Code:    ipc.CodeInvalidInput,
+			}
+
+			return opts, &resp
+		}
 	}
 
 	return opts, nil

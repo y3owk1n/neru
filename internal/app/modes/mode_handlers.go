@@ -39,6 +39,8 @@ func (h *Handler) executeActionAtPoint(
 		modifiers, err = action.ParseModifiers(*modifierStr)
 		if err != nil {
 			h.logger.Error("Failed to parse pending modifier", zap.Error(err))
+
+			return
 		}
 	}
 
