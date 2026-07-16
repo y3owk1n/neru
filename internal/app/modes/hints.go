@@ -43,6 +43,7 @@ type ModeActivationOptions struct {
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool
+	HideOnEmptySearch     *bool
 	Strategy              *string
 	LabelDirection        *string
 	Toggle                *bool
@@ -137,6 +138,7 @@ func (h *Handler) activateHintModeWithAction(
 	filterRoles []string,
 	filterTextContains []string,
 	search *bool,
+	hideOnEmptySearch *bool,
 	strategy *string,
 	labelDirection *string,
 	splitWord *bool,
@@ -148,6 +150,7 @@ func (h *Handler) activateHintModeWithAction(
 		filterRoles,
 		filterTextContains,
 		search,
+		hideOnEmptySearch,
 		strategy,
 		labelDirection,
 		splitWord,
@@ -170,6 +173,7 @@ func (h *Handler) activateHintModeInternal(
 	filterRoles []string,
 	filterTextContains []string,
 	search *bool,
+	hideOnEmptySearch *bool,
 	strategyOverride *string,
 	labelDirectionOverride *string,
 	splitWordOverride *bool,
@@ -284,6 +288,10 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetStartWithSearch(*search)
 			}
 
+			if hideOnEmptySearch != nil {
+				h.hints.Context.SetHideOnEmptySearch(*hideOnEmptySearch)
+			}
+
 			if strategyOverride != nil {
 				h.hints.Context.SetStrategyOverride(*strategyOverride)
 			}
@@ -306,6 +314,7 @@ func (h *Handler) activateHintModeInternal(
 			h.hints.Context.SetFilterRoles(filterRoles)
 			h.hints.Context.SetFilterTextContains(filterTextContains)
 			h.hints.Context.SetStartWithSearch(search != nil && *search)
+			h.hints.Context.SetHideOnEmptySearch(hideOnEmptySearch != nil && *hideOnEmptySearch)
 
 			if strategyOverride != nil {
 				h.hints.Context.SetStrategyOverride(*strategyOverride)

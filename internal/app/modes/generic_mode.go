@@ -53,6 +53,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.FilterRoles,
 				opts.FilterTextContains,
 				opts.Search,
+				opts.HideOnEmptySearch,
 				opts.Strategy,
 				opts.LabelDirection,
 				opts.SplitWord,

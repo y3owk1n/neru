@@ -209,6 +209,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					filterRoles,
 					filterTextContains,
 					&startWithSearch,
+					nil,
 					&strategyOverride,
 					&labelDirectionOverride,
 					&splitWord,
@@ -281,6 +282,20 @@ func (h *Handler) applyHintSearchFilter() {
 
 	sourceHints := ctx.SourceHints()
 	if sourceHints == nil {
+		return
+	}
+
+	// When HideOnEmptySearch is active and the query is empty, hide all hints.
+	// This lets the user see nothing until they type a search query.
+	if ctx.HideOnEmptySearch() && ctx.SearchQuery() == "" {
+		setHintsErr := ctx.ClearVisibleHints()
+		if setHintsErr != nil {
+			h.logger.Error("Failed to clear hints for empty search", zap.Error(setHintsErr))
+		}
+
+		h.drawHintSearchInput()
+		h.cycleHintIndex = -1
+
 		return
 	}
 

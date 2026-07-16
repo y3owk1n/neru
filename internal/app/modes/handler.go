@@ -792,6 +792,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				filterRoles,
 				filterTextContains,
 				&startWithSearch,
+				nil,
 				&strategyOverride,
 				&labelDirectionOverride,
 				&splitWord,
@@ -835,11 +836,20 @@ func (h *Handler) startHintSearchLocked() error {
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
 
-	setHintsErr := h.hints.Context.SetVisibleHints(
-		h.hints.Context.SourceHints(),
-	)
-	if setHintsErr != nil {
-		return setHintsErr
+	if h.hints.Context.HideOnEmptySearch() {
+		// When hide-on-empty-search is active, hide all hints initially.
+		// Hints will appear as the user types a query.
+		setHintsErr := h.hints.Context.ClearVisibleHints()
+		if setHintsErr != nil {
+			return setHintsErr
+		}
+	} else {
+		setHintsErr := h.hints.Context.SetVisibleHints(
+			h.hints.Context.SourceHints(),
+		)
+		if setHintsErr != nil {
+			return setHintsErr
+		}
 	}
 
 	h.cycleHintIndex = -1

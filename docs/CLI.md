@@ -98,6 +98,7 @@ neru hints
 # Type hint label (e.g. "as") to select an element
 
 neru hints --search                                # Start with search input active
+neru hints --search --hide-on-empty-search          # Start search with hints hidden until you type
 neru hints --action left_click --repeat            # Click multiple elements in succession
 neru hints --strategy vision                       # Use Vision Framework for element detection
 neru hints --strategy vision --split-word          # Split detected text into word-level regions (requires vision)
@@ -116,7 +117,8 @@ neru hints --text next --action left_click --repeat   # Filter persists across r
 | `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                                                             |
 | `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                                              |
 | `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                                                 |
-| `--search, -s`            | bool   | Start with search input active.                                                                                                                                  |
+| `--search, -s`            | bool   | Start with search input active.                                                                                                                               |
+| `--hide-on-empty-search` | bool   | Hide all hints when search query is empty — hints appear only as you type (requires `--search`).                                                               |                                                                                                                                  |
 | `--role`                  | string | Filter by AX role. Comma-separated for multiple (e.g. `--role AXButton,AXLink`).                                                                                 |
 | `--text`                  | string | Filter elements by text content (title, description, value). Case-insensitive substring match. Comma-separated for OR match.                                     |
 | `--strategy`              | string | Element detection strategy: `axtree` (macOS AX API, default) or `vision` (Vision Framework). Overrides config for this invocation.                               |

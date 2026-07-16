@@ -150,8 +150,9 @@ type Context struct {
 	hints       *domainHint.Collection
 	sourceHints *domainHint.Collection
 
-	searchQuery  string
-	searchActive bool
+	searchQuery       string
+	searchActive      bool
+	hideOnEmptySearch bool
 }
 
 // SetManager sets the domain hint manager.
@@ -204,6 +205,15 @@ func (c *Context) SetVisibleHints(hints *domainHint.Collection) error {
 	return nil
 }
 
+// ClearVisibleHints replaces the visible hints with an empty collection,
+// effectively hiding all hints while preserving the source collection for
+// search cancellation.
+func (c *Context) ClearVisibleHints() error {
+	hints := domainHint.NewCollection(nil)
+
+	return c.SetVisibleHints(hints)
+}
+
 // Hints returns the current hint collection.
 func (c *Context) Hints() *domainHint.Collection {
 	return c.hints
@@ -234,6 +244,18 @@ func (c *Context) SearchActive() bool {
 	return c.searchActive
 }
 
+// SetHideOnEmptySearch sets whether hints should be hidden when the search
+// query is empty.
+func (c *Context) SetHideOnEmptySearch(hide bool) {
+	c.hideOnEmptySearch = hide
+}
+
+// HideOnEmptySearch returns whether hints should be hidden when the search
+// query is empty.
+func (c *Context) HideOnEmptySearch() bool {
+	return c.hideOnEmptySearch
+}
+
 // Reset resets the hints context to its initial state.
 func (c *Context) Reset() error {
 	var err error
@@ -245,6 +267,7 @@ func (c *Context) Reset() error {
 	c.sourceHints = nil
 	c.searchQuery = ""
 	c.searchActive = false
+	c.hideOnEmptySearch = false
 	c.baseContext.Reset()
 
 	return err
