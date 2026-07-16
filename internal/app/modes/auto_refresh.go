@@ -321,6 +321,7 @@ func (h *Handler) observerDrivenRefreshLocked() {
 	startWithSearch := h.hints.Context.StartWithSearch()
 	strategyOverride := h.hints.Context.StrategyOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
+	splitWord := h.hints.Context.SplitWord()
 
 	// Mark this as the debounced auto-refresh fire so a transient empty scan (a
 	// page mid-load) keeps the session alive instead of exiting, and so the
@@ -331,11 +332,13 @@ func (h *Handler) observerDrivenRefreshLocked() {
 	h.activateHintModeInternal(
 		nil,
 		nil,
+		nil,
 		filterRoles,
 		filterTextContains,
 		&startWithSearch,
 		&strategyOverride,
 		&labelDirectionOverride,
+		&splitWord,
 	)
 }
 
