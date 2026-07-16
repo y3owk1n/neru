@@ -479,6 +479,17 @@ func (h *IPCControllerModes) extractModeOptions(
 		return opts, &resp
 	}
 
+	if opts.HideOnEmptySearch != nil && *opts.HideOnEmptySearch &&
+		(opts.Search == nil || !*opts.Search) {
+		resp := ipc.Response{
+			Success: false,
+			Message: "--hide-on-empty-search requires --search",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return opts, &resp
+	}
+
 	if opts.Modifier != nil {
 		if opts.Action == nil {
 			resp := ipc.Response{
