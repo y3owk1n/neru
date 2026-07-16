@@ -402,7 +402,7 @@ The hints command completes fully (AX elements collected, overlay drawn) before 
 
 ### Cycling Hints
 
-In hints mode, cycles through visible hints without requiring label input.
+In hints mode, cycles through visible hints without requiring label input. Cycling moves the cursor to the next hint but does **not** execute the pending action — this lets you browse results before committing. Use `Enter` on a single search result or type an exact hint label to trigger the action.
 
 ```bash
 neru action cycle_hint                        # Next hint

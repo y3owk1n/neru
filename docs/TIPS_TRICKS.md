@@ -71,7 +71,9 @@ If you want to have the search input shown automatically when activating hints m
 - `Space` is supported for multi-word searches (e.g., "search for issue")
 - `Backspace` removes characters
 - `Escape` cancels and restores all hints
-- `Enter` auto-selects the first hint when 1+ hints remain, handling pending actions and cursor movement
+- `Enter` with 1 result: executes the pending action (if any) and exits
+- `Enter` with multiple results: closes search only, letting you type the exact hint label to select
+- `Tab` / `cycle_hint`: navigates between filtered results without executing the action
 
 ## Auto-Exit After Click
 

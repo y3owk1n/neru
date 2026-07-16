@@ -306,9 +306,20 @@ func (h *Handler) confirmHintSearch() {
 	ctx.SetSearchActive(false)
 	h.overlayManager.HideHintSearchInput()
 
-	if visibleHints := ctx.Hints(); visibleHints != nil && visibleHints.Count() >= 1 {
+	visibleHints := ctx.Hints()
+	if visibleHints != nil && visibleHints.Count() >= 1 {
+		// When a pending action is configured and more than one hint matches
+		// the search query, just close the search overlay without executing
+		// the action. This lets the user type the exact hint label to select
+		// an element instead of blindly acting on the first match.
+		if ctx.PendingAction() != nil && visibleHints.Count() > 1 {
+			h.cycleHintIndex = -1
+
+			return
+		}
+
 		go func() {
-			_ = h.CycleHint(h.ctx, false)
+			_ = h.CycleHint(h.ctx, false, true)
 		}()
 	} else {
 		h.cancelHintSearch()

@@ -1344,7 +1344,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 		zap.Bool("backward", parsed.useBackward),
 	)
 
-	err := h.modesHandler.CycleHint(ctx, parsed.useBackward)
+	err := h.modesHandler.CycleHint(ctx, parsed.useBackward, false)
 	if err != nil {
 		h.logger.Error("Failed to cycle hints", zap.Error(err))
 
