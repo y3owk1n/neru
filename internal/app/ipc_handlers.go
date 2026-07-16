@@ -157,6 +157,7 @@ type ModeActivationOptions struct {
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool
+	HideOnEmptySearch     *bool
 	Strategy              *string
 	LabelDirection        *string
 	Toggle                *bool
@@ -226,6 +227,9 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--search" || arg == "-s":
 			searchTrue := true
 			opts.Search = &searchTrue
+		case arg == "--hide-on-empty-search":
+			hideTrue := true
+			opts.HideOnEmptySearch = &hideTrue
 		case arg == "--debug" || arg == "-d":
 			debugTrue := true
 			opts.Debug = &debugTrue
@@ -560,6 +564,7 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 		FilterRoles:           opts.FilterRoles,
 		FilterTextContains:    opts.FilterTextContains,
 		Search:                opts.Search,
+		HideOnEmptySearch:     opts.HideOnEmptySearch,
 		Strategy:              opts.Strategy,
 		LabelDirection:        opts.LabelDirection,
 		Toggle:                opts.Toggle,

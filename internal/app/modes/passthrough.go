@@ -194,6 +194,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 			filterRoles,
 			filterTextContains,
 			&startWithSearch,
+			nil,
 			&strategyOverride,
 			&labelDirectionOverride,
 			&splitWord,

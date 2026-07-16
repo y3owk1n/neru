@@ -13,17 +13,18 @@ import (
 
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
-	Name                  string
-	Short                 string
-	Long                  string
-	ActionDesc            string   // Description for the action flag (e.g., "hint selection" or "grid selection")
-	Aliases               []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
-	SupportSearch         bool     // Whether this mode supports the --search flag
-	SupportFiltering      bool     // Whether this mode supports --role and --text filter flags
-	SupportStrategy       bool     // Whether this mode supports the --strategy flag
-	SupportLabelDirection bool     // Whether this mode supports the --label-direction flag
-	SupportDebug          bool     // Whether this mode supports the --debug probe flag
-	SupportSplitWord      bool     // Whether this mode supports the --split-word flag
+	Name                     string
+	Short                    string
+	Long                     string
+	ActionDesc               string   // Description for the action flag (e.g., "hint selection" or "grid selection")
+	Aliases                  []string // Optional CLI aliases (e.g., "recursive-grid" for "recursive_grid")
+	SupportSearch            bool     // Whether this mode supports the --search flag
+	SupportHideOnEmptySearch bool     // Whether this mode supports the --hide-on-empty-search flag
+	SupportFiltering         bool     // Whether this mode supports --role and --text filter flags
+	SupportStrategy          bool     // Whether this mode supports the --strategy flag
+	SupportLabelDirection    bool     // Whether this mode supports the --label-direction flag
+	SupportDebug             bool     // Whether this mode supports the --debug probe flag
+	SupportSplitWord         bool     // Whether this mode supports the --split-word flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -102,6 +103,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				}
 			}
 
+			var hideOnEmptySearchFlag bool
+			if config.SupportHideOnEmptySearch {
+				hideOnEmptySearchFlag, err = cmd.Flags().GetBool("hide-on-empty-search")
+				if err != nil {
+					return err
+				}
+			}
+
 			var labelDirectionFlag string
 			if config.SupportLabelDirection {
 				labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
@@ -119,6 +128,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return derrors.New(
 					derrors.CodeInvalidInput,
 					"--repeat requires --action",
+				)
+			}
+
+			if hideOnEmptySearchFlag && !searchFlag {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--hide-on-empty-search requires --search",
 				)
 			}
 
@@ -216,6 +232,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--search")
 			}
 
+			if hideOnEmptySearchFlag {
+				params = append(params, "--hide-on-empty-search")
+			}
+
 			if roleFlag != "" {
 				params = append(params, "--role="+roleFlag)
 			}
@@ -298,6 +318,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"s",
 			false,
 			"Show search input when the mode is activated",
+		)
+	}
+
+	if config.SupportHideOnEmptySearch {
+		cmd.Flags().Bool(
+			"hide-on-empty-search",
+			false,
+			"Hide all hints when search query is empty (requires --search)",
 		)
 	}
 
