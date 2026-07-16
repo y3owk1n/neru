@@ -42,6 +42,7 @@ func (h *Handler) executeActionAtPoint(
 	// which produce a double-click via the native click-counting layer.
 	actions := strings.Split(*action, ",")
 	actionPerformed := false
+	chainFailed := false
 
 	for actionIdx, a := range actions {
 		trimmed := strings.TrimSpace(a)
@@ -64,12 +65,15 @@ func (h *Handler) executeActionAtPoint(
 		)
 		if performErr != nil {
 			h.logger.Error("Failed to perform pending action", zap.Error(performErr))
+
+			chainFailed = true
+
+			break
 		}
 
 		// Track whether any action was a click (not a move-mouse action)
 		// so handleCursorRestoration can insert a settling delay.
-		if performErr == nil &&
-			trimmed != "move_mouse" &&
+		if trimmed != "move_mouse" &&
 			trimmed != "move_mouse_relative" {
 			actionPerformed = true
 		}
@@ -81,7 +85,7 @@ func (h *Handler) executeActionAtPoint(
 		h.cursorState.MarkActionPerformed()
 	}
 
-	if repeat && reActivateFunc != nil {
+	if repeat && reActivateFunc != nil && !chainFailed {
 		// Wait for the target app to finish processing the click before
 		// re-activating (which may move the cursor for grid/recursive-grid).
 		// This mirrors the settle delay in handleCursorRestoration and
@@ -96,7 +100,12 @@ func (h *Handler) executeActionAtPoint(
 		return
 	}
 
-	h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
+	if chainFailed {
+		h.appState.SetModeExitReason(state.ModeExitReasonCancelled)
+	} else {
+		h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
+	}
+
 	h.exitModeLocked()
 }
 
