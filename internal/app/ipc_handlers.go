@@ -422,11 +422,8 @@ func (h *IPCControllerModes) extractModeOptions(
 				return opts, &resp
 			}
 
-			if action.IsResetAction(trimmed) ||
-				action.IsBackspaceAction(trimmed) ||
-				action.IsWaitForModeExitAction(trimmed) ||
-				action.IsSaveCursorPosAction(trimmed) ||
-				action.IsRestoreCursorPosAction(trimmed) {
+			_, err := action.Name(trimmed).ToType()
+			if err != nil {
 				resp := ipc.Response{
 					Success: false,
 					Message: fmt.Sprintf(
