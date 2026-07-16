@@ -368,56 +368,77 @@ func (h *IPCControllerModes) extractModeOptions(
 	}
 
 	if opts.Action != nil {
-		// Validate that the action name is recognized so direct IPC callers
-		// get the same immediate feedback as the CLI (which checks via
-		// action.IsKnownName in mode_commands.go).
-		if !action.IsKnownName(action.Name(*opts.Action)) {
-			resp := ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"invalid action: %s. Supported actions: %s",
-					*opts.Action,
-					action.SupportedNamesString(),
-				),
-				Code: ipc.CodeInvalidInput,
+		// Split comma-separated actions and validate each one.
+		// This enables multi-click sequences like:
+		//   hints --action left_click,left_click
+		// which produce a double-click via the native click-counting layer.
+		actions := strings.Split(*opts.Action, ",")
+		for actionIdx, a := range actions {
+			trimmed := strings.TrimSpace(a)
+			if trimmed == "" {
+				resp := ipc.Response{
+					Success: false,
+					Message: fmt.Sprintf(
+						"invalid --action at position %d: empty action in comma-separated list",
+						actionIdx,
+					),
+					Code: ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
 			}
 
-			return opts, &resp
-		}
+			// Validate that the action name is recognized so direct IPC callers
+			// get the same immediate feedback as the CLI (which checks via
+			// action.IsKnownName in mode_commands.go).
+			if !action.IsKnownName(action.Name(trimmed)) {
+				resp := ipc.Response{
+					Success: false,
+					Message: fmt.Sprintf(
+						"invalid action: %s. Supported actions: %s",
+						trimmed,
+						action.SupportedNamesString(),
+					),
+					Code: ipc.CodeInvalidInput,
+				}
 
-		// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
-		// cannot be used as pending mode actions. Reject them here so that
-		// direct IPC callers get the same validation as the CLI.
-		if action.IsScrollSubAction(*opts.Action) {
-			resp := ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"scroll sub-action %q cannot be used as a mode action; use 'action %s' instead",
-					*opts.Action,
-					*opts.Action,
-				),
-				Code: ipc.CodeInvalidInput,
+				return opts, &resp
 			}
 
-			return opts, &resp
-		}
+			// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
+			// cannot be used as pending mode actions. Reject them here so that
+			// direct IPC callers get the same validation as the CLI.
+			if action.IsScrollSubAction(trimmed) {
+				resp := ipc.Response{
+					Success: false,
+					Message: fmt.Sprintf(
+						"scroll sub-action %q cannot be used as a mode action; use 'action %s' instead",
+						trimmed,
+						trimmed,
+					),
+					Code: ipc.CodeInvalidInput,
+				}
 
-		if action.IsResetAction(*opts.Action) ||
-			action.IsBackspaceAction(*opts.Action) ||
-			action.IsWaitForModeExitAction(*opts.Action) ||
-			action.IsSaveCursorPosAction(*opts.Action) ||
-			action.IsRestoreCursorPosAction(*opts.Action) {
-			resp := ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"mode action %q is not allowed; use 'action %s' instead",
-					*opts.Action,
-					*opts.Action,
-				),
-				Code: ipc.CodeInvalidInput,
+				return opts, &resp
 			}
 
-			return opts, &resp
+			if action.IsResetAction(trimmed) ||
+				action.IsBackspaceAction(trimmed) ||
+				action.IsWaitForModeExitAction(trimmed) ||
+				action.IsSaveCursorPosAction(trimmed) ||
+				action.IsRestoreCursorPosAction(trimmed) {
+				resp := ipc.Response{
+					Success: false,
+					Message: fmt.Sprintf(
+						"mode action %q is not allowed; use 'action %s' instead",
+						trimmed,
+						trimmed,
+					),
+					Code: ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
 		}
 	}
 

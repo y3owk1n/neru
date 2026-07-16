@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -108,40 +109,55 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			}
 
 			if actionFlag != "" {
-				// Validate action
-				if !action.IsKnownName(action.Name(actionFlag)) {
-					return derrors.Newf(
-						derrors.CodeInvalidInput,
-						"invalid action: %s. Supported actions: %s",
-						actionFlag,
-						action.SupportedNamesString(),
-					)
-				}
+				// Split comma-separated actions and validate each one.
+				// This enables multi-click sequences like:
+				//   neru hints --action left_click,left_click
+				// which produce a double-click via the native click-counting layer.
+				actions := strings.Split(actionFlag, ",")
+				for actionIdx, a := range actions {
+					trimmed := strings.TrimSpace(a)
+					if trimmed == "" {
+						return derrors.Newf(
+							derrors.CodeInvalidInput,
+							"invalid --action at position %d: empty action in comma-separated list",
+							actionIdx,
+						)
+					}
 
-				// Scroll sub-actions (scroll_up, page_down, etc.) are only
-				// valid as standalone CLI/IPC commands, not as pending mode
-				// actions. Reject them here so the user gets immediate feedback
-				// instead of a silent failure when the mode completes.
-				if action.IsScrollSubAction(actionFlag) {
-					return derrors.Newf(
-						derrors.CodeInvalidInput,
-						"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
-						actionFlag,
-						actionFlag,
-					)
-				}
+					if !action.IsKnownName(action.Name(trimmed)) {
+						return derrors.Newf(
+							derrors.CodeInvalidInput,
+							"invalid action: %s. Supported actions: %s",
+							trimmed,
+							action.SupportedNamesString(),
+						)
+					}
 
-				if action.IsResetAction(actionFlag) ||
-					action.IsBackspaceAction(actionFlag) ||
-					action.IsWaitForModeExitAction(actionFlag) ||
-					action.IsSaveCursorPosAction(actionFlag) ||
-					action.IsRestoreCursorPosAction(actionFlag) {
-					return derrors.Newf(
-						derrors.CodeInvalidInput,
-						"%q cannot be used as a mode --action flag; use 'neru action %s' instead",
-						actionFlag,
-						actionFlag,
-					)
+					// Scroll sub-actions (scroll_up, page_down, etc.) are only
+					// valid as standalone CLI/IPC commands, not as pending mode
+					// actions. Reject them here so the user gets immediate
+					// feedback instead of a silent failure when the mode completes.
+					if action.IsScrollSubAction(trimmed) {
+						return derrors.Newf(
+							derrors.CodeInvalidInput,
+							"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
+							trimmed,
+							trimmed,
+						)
+					}
+
+					if action.IsResetAction(trimmed) ||
+						action.IsBackspaceAction(trimmed) ||
+						action.IsWaitForModeExitAction(trimmed) ||
+						action.IsSaveCursorPosAction(trimmed) ||
+						action.IsRestoreCursorPosAction(trimmed) {
+						return derrors.Newf(
+							derrors.CodeInvalidInput,
+							"%q cannot be used as a mode --action flag; use 'neru action %s' instead",
+							trimmed,
+							trimmed,
+						)
+					}
 				}
 			}
 
@@ -204,7 +220,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"action",
 		"a",
 		"",
-		fmt.Sprintf("Action to perform on %s (%s)", config.ActionDesc, action.SupportedNamesString()),
+		fmt.Sprintf(
+			"Action to perform on %s (%s). Commas chain multiple actions (e.g. left_click,left_click for double-click)",
+			config.ActionDesc,
+			action.SupportedNamesString(),
+		),
 	)
 
 	cmd.Flags().BoolP(

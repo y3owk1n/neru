@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -36,22 +37,47 @@ func (h *Handler) executeActionAtPoint(
 
 	ctx := h.ctx
 
-	performActionErr := h.actionService.PerformActionAtPoint(
-		ctx,
-		*action,
-		point,
-		h.stickyModifiers(),
-	)
-	if performActionErr != nil {
-		h.logger.Error("Failed to perform pending action", zap.Error(performActionErr))
+	// Split comma-separated actions and execute each one sequentially.
+	// This enables multi-click sequences like --action left_click,left_click
+	// which produce a double-click via the native click-counting layer.
+	actions := strings.Split(*action, ",")
+	actionPerformed := false
+
+	for actionIdx, a := range actions {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "" {
+			continue
+		}
+
+		// Add a small delay between actions so the OS has time to process
+		// each click before the next one arrives. This is required for the
+		// native click-counting to correctly detect multi-click sequences.
+		if actionIdx > 0 {
+			time.Sleep(postActionSettleDelay)
+		}
+
+		performErr := h.actionService.PerformActionAtPoint(
+			ctx,
+			trimmed,
+			point,
+			h.stickyModifiers(),
+		)
+		if performErr != nil {
+			h.logger.Error("Failed to perform pending action", zap.Error(performErr))
+		}
+
+		// Track whether any action was a click (not a move-mouse action)
+		// so handleCursorRestoration can insert a settling delay.
+		if performErr == nil &&
+			trimmed != "move_mouse" &&
+			trimmed != "move_mouse_relative" {
+			actionPerformed = true
+		}
 	}
 
 	// Signal that a click was just performed so handleCursorRestoration
 	// can insert a settling delay before moving the cursor.
-	// Skip move-mouse actions — they don't produce clicks that need settling.
-	if performActionErr == nil &&
-		*action != "move_mouse" &&
-		*action != "move_mouse_relative" {
+	if actionPerformed {
 		h.cursorState.MarkActionPerformed()
 	}
 

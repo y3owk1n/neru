@@ -53,10 +53,16 @@ const (
 	flagBare      = "--bare"
 	flagBail      = "--bail"
 
-	msgActionServiceNotAvailable           = "action service not available"
-	msgModesHandlerNotAvailable            = "modes handler not available"
-	msgSelectionRequiresActiveSelection    = "--selection requires an active mode selection"
-	msgMoveMonitorDoesNotSupportTheseFlags = "move_monitor does not support these flags"
+	msgActionServiceNotAvailable            = "action service not available"
+	msgModesHandlerNotAvailable             = "modes handler not available"
+	msgSelectionRequiresActiveSelection     = "--selection requires an active mode selection"
+	msgMoveMonitorDoesNotSupportTheseFlags  = "move_monitor does not support these flags"
+	msgSelectionAndBareCannotBeUsedTogether = "--selection and --bare cannot be used together"
+
+	// interActionDelay is the pause between actions in a comma-separated chain.
+	// This gives the OS time to process each click before the next one arrives,
+	// enabling the native click-counting layer to detect multi-click sequences.
+	interActionDelay = 75 * time.Millisecond
 )
 
 // NewIPCControllerActions creates a new action command handler.
@@ -340,6 +346,13 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleSearchHintsAction(parsed)
 	}
 
+	// Handle comma-separated action chains (e.g., "left_click,left_click")
+	// which produce multi-click sequences via the native click-counting layer.
+	// Only mouse button actions are allowed in chains.
+	if strings.Contains(actionName, ",") {
+		return h.handleActionChain(ctx, cmd, parsed)
+	}
+
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return ipc.Response{
@@ -453,7 +466,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	if parsed.useSelection && parsed.useBare {
 		return ipc.Response{
 			Success: false,
-			Message: "--selection and --bare cannot be used together",
+			Message: msgSelectionAndBareCannotBeUsedTogether,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1414,7 +1427,7 @@ func (h *IPCControllerActions) handleScrollAction(
 	if parsed.useSelection && parsed.useBare {
 		return ipc.Response{
 			Success: false,
-			Message: "--selection and --bare cannot be used together",
+			Message: msgSelectionAndBareCannotBeUsedTogether,
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -1497,6 +1510,195 @@ func (h *IPCControllerActions) handleScrollAction(
 		Message: actionName + " performed",
 		Code:    ipc.CodeOK,
 	}
+}
+
+// handleActionChain executes a comma-separated chain of mouse button actions
+// at the same target point (e.g., "left_click,left_click" for a double-click).
+// The native click-counting layer automatically converts sequential clicks into
+// multi-click events (clickCount=2, clickCount=3...).
+func (h *IPCControllerActions) handleActionChain(
+	ctx context.Context,
+	cmd ipc.Command,
+	parsed parsedActionArgs,
+) ipc.Response {
+	actionName := cmd.Args[0]
+
+	// Split comma-separated actions
+	actions := strings.Split(actionName, ",")
+
+	// Validate each action in the chain
+	for actionIdx, a := range actions {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "" {
+			return ipc.Response{
+				Success: false,
+				Message: fmt.Sprintf(
+					"invalid action at position %d: empty action in comma-separated list",
+					actionIdx,
+				),
+				Code: ipc.CodeInvalidInput,
+			}
+		}
+
+		if !action.IsKnownName(action.Name(trimmed)) {
+			return ipc.Response{
+				Success: false,
+				Message: fmt.Sprintf(
+					"invalid action: %s. Supported actions: %s",
+					trimmed,
+					action.SupportedNamesString(),
+				),
+				Code: ipc.CodeInvalidInput,
+			}
+		}
+
+		// Chain only supports mouse button actions (left_click, right_click, etc.)
+		// for multi-click sequences.
+		if action.IsScrollSubAction(trimmed) {
+			return ipc.Response{
+				Success: false,
+				Message: fmt.Sprintf(
+					"scroll sub-action %q cannot be used in an action chain",
+					trimmed,
+				),
+				Code: ipc.CodeInvalidInput,
+			}
+		}
+
+		if action.IsResetAction(trimmed) ||
+			action.IsBackspaceAction(trimmed) ||
+			action.IsWaitForModeExitAction(trimmed) ||
+			action.IsSaveCursorPosAction(trimmed) ||
+			action.IsRestoreCursorPosAction(trimmed) ||
+			action.IsMoveMonitorAction(trimmed) ||
+			action.IsCycleHintAction(trimmed) ||
+			action.IsSearchHintsAction(trimmed) ||
+			action.Name(trimmed) == action.NameMoveMouse ||
+			action.Name(trimmed) == action.NameMoveMouseRelative {
+			return ipc.Response{
+				Success: false,
+				Message: fmt.Sprintf(
+					"%q cannot be used in an action chain; only mouse button actions are allowed",
+					trimmed,
+				),
+				Code: ipc.CodeInvalidInput,
+			}
+		}
+	}
+
+	// Parse modifiers
+	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
+	if modErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: modErr.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	// Merge sticky modifiers
+	if h.modesHandler != nil {
+		stickyMods := h.modesHandler.StickyModifiers()
+		modifiers |= stickyMods
+	}
+
+	// Reject coordinate flags (chains only support click actions at the cursor)
+	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
+		parsed.hasCenter || parsed.hasWindow || parsed.hasMonitorName || parsed.usePrevious {
+		return ipc.Response{
+			Success: false,
+			Message: "--x/--y/--dx/--dy/--center/--window flags are not supported in action chains",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useSelection && parsed.useBare {
+		return ipc.Response{
+			Success: false,
+			Message: msgSelectionAndBareCannotBeUsedTogether,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useBail {
+		return ipc.Response{
+			Success: false,
+			Message: "--bail is not supported in action chains",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.actionService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgActionServiceNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	// Resolve target point once for all actions in the chain
+	targetPoint, pointErrResp := h.resolveMouseActionPoint(ctx, parsed)
+	if pointErrResp != nil {
+		return *pointErrResp
+	}
+
+	// Move cursor to selection target if needed
+	targetsSelection := parsed.useSelection
+	if !targetsSelection && !parsed.useBare {
+		if selectionPoint, ok := h.currentSelectionPoint(); ok &&
+			targetPoint == selectionPoint {
+			targetsSelection = true
+		}
+	}
+
+	if targetsSelection {
+		moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+		if moveErr != nil {
+			h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
+
+			return ipc.Response{
+				Success: false,
+				Message: "failed to perform action: " + moveErr.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+	}
+
+	// Execute each action in the chain at the same point with the same modifiers.
+	for actionIdx, a := range actions {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "" {
+			continue
+		}
+
+		// Add a delay between actions so the OS has time to process each
+		// click before the next one fires. This ensures the native
+		// click-counting (which tracks clickCount within a ~500ms window)
+		// correctly produces double-click and triple-click events.
+		if actionIdx > 0 {
+			time.Sleep(interActionDelay)
+		}
+
+		h.logger.Debug("Executing action in chain",
+			zap.String("action", trimmed),
+			zap.Int("x", targetPoint.X),
+			zap.Int("y", targetPoint.Y),
+		)
+
+		performErr := h.actionService.PerformActionAtPoint(
+			ctx,
+			trimmed,
+			targetPoint,
+			modifiers,
+		)
+		if performErr != nil {
+			h.logger.Error("Failed to perform action in chain",
+				zap.Error(performErr),
+				zap.String("action", trimmed))
+		}
+	}
+
+	return ipc.Response{Success: true, Message: actionName + " performed", Code: ipc.CodeOK}
 }
 
 // scrollActionMapping returns the direction, default amount, and validity for a scroll action name.

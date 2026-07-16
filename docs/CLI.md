@@ -68,7 +68,7 @@ neru idle                                  # Cancel active navigation mode
 
 | Flag                      | Type   | Description                                                                                                                               |
 | ------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `--action, -a`            | string | Action on selection: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll` |
+| `--action, -a`            | string | Action on selection: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll`. Commas chain multiple actions (e.g. `left_click,left_click` for double-click) |
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--toggle, -t`            | bool   | Toggle mode on/off — exit to idle if already active                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
@@ -251,6 +251,16 @@ neru action right_click                   # Right click
 neru action middle_click                  # Middle click
 neru action mouse_down                    # Hold mouse button
 neru action mouse_up                      # Release mouse button
+```
+
+Click actions can be chained with commas to produce multi-click sequences.
+The native click-counting layer automatically converts sequential clicks
+into the appropriate OS-level multi-click events:
+
+```bash
+neru action left_click,left_click                    # Double-click
+neru action left_click,left_click,left_click          # Triple-click
+neru action left_click,left_click --modifier cmd      # Cmd+double-click
 ```
 
 | Flag          | Description                                                                 |

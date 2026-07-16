@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -25,15 +27,32 @@ Available subcommands:
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Key injection:    feed
 
+Click actions can be chained with commas to produce multi-click sequences:
+  neru action left_click,left_click              Double-click at cursor
+  neru action left_click,left_click,left_click    Triple-click at cursor
+
 Examples:
   neru action left_click                        Click at current cursor
+  neru action left_click,left_click             Double-click at cursor
   neru action scroll_down --steps 5             Scroll down 5 steps
   neru action move_mouse --x 1920 --y 1080      Move to absolute position
   neru action feed ctrl+c                        Send Ctrl+C keystroke`,
+	// Allow unknown flags (--modifier, --selection, --bare, etc.) to pass through
+	// to the IPC handler for comma-separated action chains. These flags are defined
+	// on individual subcommands (left_click, right_click, etc.) and would otherwise
+	// be rejected by cobra's default strict flag parsing.
+	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 && strings.Contains(args[0], ",") {
+			// Comma-separated action chain (e.g. "left_click,left_click")
+			// doesn't match a subcommand name. Forward it directly through IPC
+			// where handleActionChain will split and execute each action.
+			return sendCommand(cmd, "action", args)
+		}
+
 		return derrors.New(
 			derrors.CodeInvalidInput,
 			"action subcommand required (e.g., neru action left_click, neru action scroll_up)",
