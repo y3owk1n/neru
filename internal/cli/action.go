@@ -37,11 +37,7 @@ Examples:
   neru action scroll_down --steps 5             Scroll down 5 steps
   neru action move_mouse --x 1920 --y 1080      Move to absolute position
   neru action feed ctrl+c                        Send Ctrl+C keystroke`,
-	// Allow unknown flags (--modifier, --selection, --bare, etc.) to pass through
-	// to the IPC handler for comma-separated action chains. These flags are defined
-	// on individual subcommands (left_click, right_click, etc.) and would otherwise
-	// be rejected by cobra's default strict flag parsing.
-	FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	DisableFlagParsing: true,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		return requiresRunningInstance()
 	},
