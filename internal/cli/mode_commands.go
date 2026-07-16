@@ -146,11 +146,8 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 						)
 					}
 
-					if action.IsResetAction(trimmed) ||
-						action.IsBackspaceAction(trimmed) ||
-						action.IsWaitForModeExitAction(trimmed) ||
-						action.IsSaveCursorPosAction(trimmed) ||
-						action.IsRestoreCursorPosAction(trimmed) {
+					actType, err := action.Name(trimmed).ToType()
+					if err != nil || !actType.IsMouseButton() {
 						return derrors.Newf(
 							derrors.CodeInvalidInput,
 							"%q cannot be used as a mode --action flag; use 'neru action %s' instead",

@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	actionGrid  = "grid"
-	actionHints = "hints"
+	actionGrid   = "grid"
+	actionHints  = "hints"
+	actionScroll = "scroll"
 )
 
 func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) {
@@ -120,6 +121,9 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 		"feed",
 		"sleep",
 		"reset",
+		"move_mouse",
+		"move_mouse_relative",
+		actionScroll,
 	}
 	for _, act := range disallowedActions {
 		resp := controller.HandleCommand(context.Background(), ipc.Command{

@@ -116,7 +116,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 		}{
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{"grid", domain.ModeGrid, func() { application.SetModeGrid() }},
-			{"scroll", domain.ModeScroll, func() { application.SetModeScroll() }},
+			{actionScroll, domain.ModeScroll, func() { application.SetModeScroll() }},
 			{modeIdle, domain.ModeIdle, func() { application.SetModeIdle() }},
 			{"hints", domain.ModeHints, func() { application.SetModeHints() }},
 			{modeIdle, domain.ModeIdle, func() { application.SetModeIdle() }},

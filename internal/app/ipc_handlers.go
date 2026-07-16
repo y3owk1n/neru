@@ -422,8 +422,8 @@ func (h *IPCControllerModes) extractModeOptions(
 				return opts, &resp
 			}
 
-			_, err := action.Name(trimmed).ToType()
-			if err != nil {
+			actType, err := action.Name(trimmed).ToType()
+			if err != nil || !actType.IsMouseButton() {
 				resp := ipc.Response{
 					Success: false,
 					Message: fmt.Sprintf(

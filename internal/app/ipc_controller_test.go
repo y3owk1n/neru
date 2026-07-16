@@ -144,7 +144,7 @@ func TestIPCController_HandleActionAndScroll(t *testing.T) {
 	ctx := context.Background()
 
 	// Test that the scroll handler can be called
-	scrollResponse := controller.HandleCommand(ctx, ipc.Command{Action: "scroll"})
+	scrollResponse := controller.HandleCommand(ctx, ipc.Command{Action: actionScroll})
 	if scrollResponse.Code == ipc.CodeUnknownCommand {
 		t.Error("Scroll command should be recognized")
 	}
