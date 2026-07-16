@@ -1565,16 +1565,8 @@ func (h *IPCControllerActions) handleActionChain(
 			}
 		}
 
-		if action.IsResetAction(trimmed) ||
-			action.IsBackspaceAction(trimmed) ||
-			action.IsWaitForModeExitAction(trimmed) ||
-			action.IsSaveCursorPosAction(trimmed) ||
-			action.IsRestoreCursorPosAction(trimmed) ||
-			action.IsMoveMonitorAction(trimmed) ||
-			action.IsCycleHintAction(trimmed) ||
-			action.IsSearchHintsAction(trimmed) ||
-			action.Name(trimmed) == action.NameMoveMouse ||
-			action.Name(trimmed) == action.NameMoveMouseRelative {
+		actType, err := action.Name(trimmed).ToType()
+		if err != nil || !actType.IsMouseButton() {
 			return ipc.Response{
 				Success: false,
 				Message: fmt.Sprintf(

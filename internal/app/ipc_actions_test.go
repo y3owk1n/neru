@@ -746,3 +746,37 @@ func TestHandleAction_WaitForModeExitBail_StaleReasonCleared(t *testing.T) {
 		t.Fatalf("response code = %q, want %q", resp.Code, ipc.CodeChainBail)
 	}
 }
+
+func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	// Chain containing 'feed'
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"left_click,feed"},
+	})
+	if resp.Success {
+		t.Fatal("expected chain validation to fail for feed action")
+	}
+
+	// Chain containing 'sleep'
+	resp = controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"left_click,sleep"},
+	})
+	if resp.Success {
+		t.Fatal("expected chain validation to fail for sleep action")
+	}
+
+	// Chain containing 'cycle_hint'
+	resp = controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"left_click,cycle_hint"},
+	})
+	if resp.Success {
+		t.Fatal("expected chain validation to fail for cycle_hint action")
+	}
+}
