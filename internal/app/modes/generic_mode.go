@@ -55,6 +55,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Search,
 				opts.Strategy,
 				opts.LabelDirection,
+				opts.SplitWord,
 			)
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(

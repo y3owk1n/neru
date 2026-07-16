@@ -380,6 +380,11 @@ func (h *Handler) refreshHintsForMonitorMove(
 	strategyOverride := h.hints.Context.StrategyOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 
+	splitWordOverride := false
+	if h.hints != nil && h.hints.Context != nil {
+		splitWordOverride = h.hints.Context.SplitWord()
+	}
+
 	domainHints, err := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
@@ -387,6 +392,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 		"",
 		strategyOverride,
 		labelDirectionOverride,
+		splitWordOverride,
 	)
 	if err != nil {
 		h.logger.Error(

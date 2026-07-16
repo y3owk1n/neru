@@ -533,6 +533,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		"com.example.app",
 		config.StrategyVision,
 		"",
+		false,
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -593,6 +594,7 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 		"com.example.app",
 		config.StrategyVision,
 		"",
+		false,
 	)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
@@ -756,7 +758,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	// to the default normal generator. The normal algorithm keeps 3
 	// single-char slots ([A S D]) and expands the 4th alphabet slot (F)
 	// into 2-char labels starting at [FA].
-	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "")
+	hints, err := service.GenerateHints(ctx, nil, nil, "", "", "", false)
 	if err != nil {
 		t.Fatalf("GenerateHints() unexpected error: %v", err)
 	}
@@ -777,7 +779,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
 	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
 	// prove the override actually engaged.
-	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionReverse)
+	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionReverse, false)
 	if err != nil {
 		t.Fatalf("GenerateHints() with reverse override unexpected error: %v", err)
 	}
@@ -871,6 +873,7 @@ func (m *mockVisionPort) DetectElements(
 	context.Context,
 	image.Rectangle,
 	config.HintsVisionConfig,
+	bool,
 ) ([]*element.Element, error) {
 	if m.detectErr != nil {
 		return nil, m.detectErr
@@ -885,4 +888,38 @@ func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 
 func (m *mockVisionPort) Health(context.Context) error {
 	return nil
+}
+
+func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testing.T) {
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+	service := services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{},
+		generator,
+		config.HintsConfig{
+			Strategy: config.StrategyAXTree,
+		},
+		logger.Get(),
+		nil,
+	)
+
+	ctx := context.Background()
+
+	_, err := service.GenerateHints(
+		ctx,
+		nil,
+		nil,
+		"",
+		config.StrategyAXTree,
+		"",
+		true, // splitWord
+	)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
+		t.Errorf("expected invalid input error, got: %v", err)
+	}
 }

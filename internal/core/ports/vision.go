@@ -28,6 +28,7 @@ type VisionPort interface {
 		ctx context.Context,
 		screenBounds image.Rectangle,
 		cfg config.HintsVisionConfig,
+		splitWord bool,
 	) ([]*element.Element, error)
 
 	// CaptureScreen returns the current screen image for the primary display.

@@ -16,6 +16,7 @@ func (a *Adapter) DetectElements(
 	_ context.Context,
 	_ image.Rectangle,
 	_ config.HintsVisionConfig,
+	_ bool,
 ) ([]*element.Element, error) {
 	return nil, derrors.New(derrors.CodeNotSupported, "vision detection is only supported on macOS")
 }

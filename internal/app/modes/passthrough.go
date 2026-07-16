@@ -186,6 +186,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
+		splitWord := h.hints.Context.SplitWord()
 		h.activateHintModeInternal(
 			nil,
 			nil,
@@ -195,6 +196,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 			&startWithSearch,
 			&strategyOverride,
 			&labelDirectionOverride,
+			&splitWord,
 		)
 	})
 	h.refreshHintsTimer = timer

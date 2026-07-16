@@ -24,6 +24,9 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   Use --strategy vision to use the Vision Framework (macOS) for element
   detection instead of the default AX API.
 
+  Use --split-word to split detected text into word-level regions (requires
+  vision strategy).
+
   Use --debug to probe the focused window and print the clickable elements
   that would be hinted (count plus a sample) without showing the overlay.
   This is handy for verifying the platform accessibility pipeline.
@@ -40,6 +43,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --search                      Start with search input shown
     neru hints --role AXButton               Hint only buttons
     neru hints --strategy vision             Use Vision Framework detection
+    neru hints --strategy vision --split-word Use vision strategy with word-level splitting
     neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,
 
@@ -49,6 +53,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 	SupportStrategy:       true,
 	SupportDebug:          true,
 	SupportLabelDirection: true,
+	SupportSplitWord:      true,
 })
 
 func init() {

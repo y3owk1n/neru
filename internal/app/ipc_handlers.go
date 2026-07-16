@@ -161,6 +161,7 @@ type ModeActivationOptions struct {
 	LabelDirection        *string
 	Toggle                *bool
 	Debug                 *bool
+	SplitWord             *bool
 }
 
 // parseCursorSelectionModeValue resolves a --cursor-selection-mode value into a
@@ -245,6 +246,9 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			modifierArg := cmd.Args[startIdx]
 			opts.Modifier = &modifierArg
+		case arg == "--split-word":
+			splitWordTrue := true
+			opts.SplitWord = &splitWordTrue
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg
@@ -264,7 +268,8 @@ func (h *IPCControllerModes) extractModeOptions(
 			opts.Action = &actionArg
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
 			val, resp := parseCursorSelectionModeValue(
-				strings.TrimPrefix(arg, "--cursor-selection-mode="))
+				strings.TrimPrefix(arg, "--cursor-selection-mode="),
+			)
 			if resp != nil {
 				return opts, resp
 			}
@@ -290,7 +295,8 @@ func (h *IPCControllerModes) extractModeOptions(
 		case strings.HasPrefix(arg, "--role="):
 			opts.FilterRoles = append(
 				opts.FilterRoles,
-				parseCSV(strings.TrimPrefix(arg, "--role="))...)
+				parseCSV(strings.TrimPrefix(arg, "--role="))...,
+			)
 		case arg == "--role":
 			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--role" {
 				resp := ipc.Response{
@@ -523,11 +529,17 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 			strategy = *opts.Strategy
 		}
 
+		splitWord := false
+		if opts.SplitWord != nil {
+			splitWord = *opts.SplitWord
+		}
+
 		summary, probeErr := h.modes.DebugProbeHints(
 			ctx,
 			opts.FilterRoles,
 			opts.FilterTextContains,
 			strategy,
+			splitWord,
 		)
 		if probeErr != nil {
 			return ipc.Response{
@@ -551,6 +563,7 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 		Strategy:              opts.Strategy,
 		LabelDirection:        opts.LabelDirection,
 		Toggle:                opts.Toggle,
+		SplitWord:             opts.SplitWord,
 	})
 
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}

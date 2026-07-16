@@ -77,7 +77,7 @@ func (s *HintService) ShowHints(
 ) ([]*hint.Interface, error) {
 	s.logger.Debug("Showing hints")
 
-	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "", "", "")
+	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "", "", "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +112,7 @@ func (s *HintService) GenerateHints(
 	bundleID string,
 	strategyOverride string,
 	labelDirectionOverride string,
+	splitWord bool,
 ) ([]*hint.Interface, error) {
 	s.mu.RLock()
 	cfg := s.config
@@ -189,6 +190,13 @@ func (s *HintService) GenerateHints(
 		labelDirection = labelDirectionOverride
 	}
 
+	if splitWord && strategy != config.StrategyVision {
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"--split-word is only supported when resolved strategy is 'vision'",
+		)
+	}
+
 	var (
 		elements []*element.Element
 		genErr   error
@@ -196,7 +204,7 @@ func (s *HintService) GenerateHints(
 
 	switch strategy {
 	case config.StrategyVision:
-		elements = s.generateHintsVision(ctx, bundleID, filter)
+		elements = s.generateHintsVision(ctx, bundleID, filter, splitWord)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)
 	}
@@ -377,6 +385,7 @@ func (s *HintService) generateHintsVision(
 	ctx context.Context,
 	_ string,
 	filter ports.ElementFilter,
+	splitWord bool,
 ) []*element.Element {
 	// Collect supplementary elements (menubar, dock, NC, etc.) via AX.
 	// These are system-level components that vision should not attempt to detect.
@@ -422,7 +431,12 @@ func (s *HintService) generateHintsVision(
 
 	// Detect window elements via vision
 	visionStart := time.Now()
-	windowElements, visionErr := s.vision.DetectElements(ctx, windowBounds, s.config.Vision)
+	windowElements, visionErr := s.vision.DetectElements(
+		ctx,
+		windowBounds,
+		s.config.Vision,
+		splitWord,
+	)
 	s.logger.Debug("TIMING: Window elements (vision)",
 		zap.Duration("elapsed", time.Since(visionStart)),
 		zap.Int("count", len(windowElements)),

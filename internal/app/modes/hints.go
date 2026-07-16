@@ -46,6 +46,7 @@ type ModeActivationOptions struct {
 	Strategy              *string
 	LabelDirection        *string
 	Toggle                *bool
+	SplitWord             *bool
 }
 
 const (
@@ -138,6 +139,7 @@ func (h *Handler) activateHintModeWithAction(
 	search *bool,
 	strategy *string,
 	labelDirection *string,
+	splitWord *bool,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -148,6 +150,7 @@ func (h *Handler) activateHintModeWithAction(
 		search,
 		strategy,
 		labelDirection,
+		splitWord,
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
@@ -169,6 +172,7 @@ func (h *Handler) activateHintModeInternal(
 	search *bool,
 	strategyOverride *string,
 	labelDirectionOverride *string,
+	splitWordOverride *bool,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -287,6 +291,10 @@ func (h *Handler) activateHintModeInternal(
 			if labelDirectionOverride != nil {
 				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
 			}
+
+			if splitWordOverride != nil {
+				h.hints.Context.SetSplitWord(*splitWordOverride)
+			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
 			h.hints.Context.SetPendingModifier(modifier)
@@ -309,6 +317,12 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
 			} else {
 				h.hints.Context.SetLabelDirectionOverride("")
+			}
+
+			if splitWordOverride != nil {
+				h.hints.Context.SetSplitWord(*splitWordOverride)
+			} else {
+				h.hints.Context.SetSplitWord(false)
 			}
 		}
 	}
@@ -352,6 +366,13 @@ func (h *Handler) activateHintModeInternal(
 		labelDirectionVal = *labelDirectionOverride
 	}
 
+	splitWordVal := false
+	if h.hints != nil && h.hints.Context != nil {
+		splitWordVal = h.hints.Context.SplitWord()
+	} else if splitWordOverride != nil {
+		splitWordVal = *splitWordOverride
+	}
+
 	var permissionOk bool
 
 	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissionsLocked(
@@ -377,6 +398,7 @@ func (h *Handler) activateHintModeInternal(
 		bundleID,
 		strategyVal,
 		labelDirectionVal,
+		splitWordVal,
 	)
 	if domainHintsErr != nil {
 		h.logger.Error(

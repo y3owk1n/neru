@@ -16,6 +16,7 @@ type baseContext struct {
 	startWithSearch        bool
 	strategyOverride       string
 	labelDirectionOverride string
+	splitWord              bool
 }
 
 // SetPendingAction sets the action to execute when mode selection is complete.
@@ -76,6 +77,7 @@ func (c *baseContext) Reset() {
 	c.startWithSearch = false
 	c.strategyOverride = ""
 	c.labelDirectionOverride = ""
+	c.splitWord = false
 }
 
 // SetFilterRoles sets the filter roles for hint mode.
@@ -127,6 +129,16 @@ func (c *baseContext) SetLabelDirectionOverride(direction string) {
 // LabelDirectionOverride returns the session hint label direction override.
 func (c *baseContext) LabelDirectionOverride() string {
 	return c.labelDirectionOverride
+}
+
+// SetSplitWord stores the session word splitting preference.
+func (c *baseContext) SetSplitWord(split bool) {
+	c.splitWord = split
+}
+
+// SplitWord returns the session word splitting preference.
+func (c *baseContext) SplitWord() bool {
+	return c.splitWord
 }
 
 // Context holds the state and context for hint mode operations.

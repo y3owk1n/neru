@@ -33,6 +33,7 @@ func (a *Adapter) DetectElements(
 	ctx context.Context,
 	screenBounds image.Rectangle,
 	cfg config.HintsVisionConfig,
+	splitWord bool,
 ) ([]*element.Element, error) {
 	select {
 	case <-ctx.Done():
@@ -56,6 +57,11 @@ func (a *Adapter) DetectElements(
 		detectRectangles = 1
 	}
 
+	var wordLevel C.int
+	if splitWord {
+		wordLevel = 1
+	}
+
 	cCfg := C.NeruVisionConfig{
 		detectText:             detectText,
 		detectRectangles:       detectRectangles,
@@ -64,6 +70,7 @@ func (a *Adapter) DetectElements(
 		rectangleMinSize:       C.double(cfg.RectangleMinSize),
 		rectangleMinAspect:     C.double(cfg.RectangleMinAspect),
 		rectangleMaxAspect:     C.double(cfg.RectangleMaxAspect),
+		wordLevel:              wordLevel,
 	}
 
 	result := C.NeruDetectElements(cgRect, cCfg)

@@ -23,6 +23,7 @@ type ModeConfig struct {
 	SupportStrategy       bool     // Whether this mode supports the --strategy flag
 	SupportLabelDirection bool     // Whether this mode supports the --label-direction flag
 	SupportDebug          bool     // Whether this mode supports the --debug probe flag
+	SupportSplitWord      bool     // Whether this mode supports the --split-word flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -88,6 +89,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			var debugFlag bool
 			if config.SupportDebug {
 				debugFlag, err = cmd.Flags().GetBool("debug")
+				if err != nil {
+					return err
+				}
+			}
+
+			var splitWordFlag bool
+			if config.SupportSplitWord {
+				splitWordFlag, err = cmd.Flags().GetBool("split-word")
 				if err != nil {
 					return err
 				}
@@ -239,6 +248,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--label-direction="+labelDirectionFlag)
 			}
 
+			if splitWordFlag {
+				params = append(params, "--split-word")
+			}
+
 			return sendCommand(cmd, config.Name, params)
 		},
 	}
@@ -323,6 +336,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"label-direction",
 			"",
 			"Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)",
+		)
+	}
+
+	if config.SupportSplitWord {
+		cmd.Flags().Bool(
+			"split-word",
+			false,
+			"Split detected text into word-level regions (requires vision strategy)",
 		)
 	}
 

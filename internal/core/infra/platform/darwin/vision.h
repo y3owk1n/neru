@@ -23,6 +23,7 @@ typedef struct {
 	double rectangleMinSize;
 	double rectangleMinAspect;
 	double rectangleMaxAspect;
+	int wordLevel;
 } NeruVisionConfig;
 
 // Captures the display containing the given rect and runs Vision Framework

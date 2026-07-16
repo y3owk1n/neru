@@ -260,19 +260,49 @@ VisionResult *NeruDetectElements(CGRect screenBounds, NeruVisionConfig config) {
 
 		// Add detected text regions
 		for (VNRecognizedTextObservation *obs in texts) {
-			CGRect r = [obs boundingBox];
-			CGRect pixelRect = visionRectToCGRect(imgRect, r);
 			VNRecognizedText *top = [[obs topCandidates:1] firstObject];
 			NSString *text = top ? top.string : @"";
-			[regionList addObject:@{
-				@"x" : @(originX + pixelRect.origin.x / scaleX),
-				@"y" : @(originY + pixelRect.origin.y / scaleY),
-				@"w" : @(pixelRect.size.width / scaleX),
-				@"h" : @(pixelRect.size.height / scaleY),
-				@"score" : @(obs.confidence),
-				@"isText" : @(1),
-				@"label" : text ?: @""
-			}];
+
+			if (config.wordLevel && top && text.length > 0) {
+				// Split into word-level regions
+				[text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+				                         options:NSStringEnumerationByWords
+				                      usingBlock:^(
+				                          NSString *word, NSRange wordRange, NSRange enclosingRange, BOOL *stop) {
+					                      NSError *err = nil;
+					                      VNRectangleObservation *wordObs = [top boundingBoxForRange:wordRange
+					                                                                           error:&err];
+					                      if (err != nil || wordObs == nil) {
+						                      return;
+					                      }
+					                      CGRect wordBox = [wordObs boundingBox];
+					                      if (CGRectIsEmpty(wordBox) || CGRectIsNull(wordBox)) {
+						                      return;
+					                      }
+					                      CGRect pixelRect = visionRectToCGRect(imgRect, wordBox);
+					                      [regionList addObject:@{
+						                      @"x" : @(originX + pixelRect.origin.x / scaleX),
+						                      @"y" : @(originY + pixelRect.origin.y / scaleY),
+						                      @"w" : @(pixelRect.size.width / scaleX),
+						                      @"h" : @(pixelRect.size.height / scaleY),
+						                      @"score" : @(obs.confidence),
+						                      @"isText" : @(1),
+						                      @"label" : word
+					                      }];
+				                      }];
+			} else {
+				CGRect r = [obs boundingBox];
+				CGRect pixelRect = visionRectToCGRect(imgRect, r);
+				[regionList addObject:@{
+					@"x" : @(originX + pixelRect.origin.x / scaleX),
+					@"y" : @(originY + pixelRect.origin.y / scaleY),
+					@"w" : @(pixelRect.size.width / scaleX),
+					@"h" : @(pixelRect.size.height / scaleY),
+					@"score" : @(obs.confidence),
+					@"isText" : @(1),
+					@"label" : text ?: @""
+				}];
+			}
 		}
 
 		// Build C result

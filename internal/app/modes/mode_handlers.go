@@ -193,6 +193,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 		startWithSearch := h.hints.Context.StartWithSearch()
 		strategyOverride := h.hints.Context.StrategyOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
+		splitWord := h.hints.Context.SplitWord()
 
 		h.moveCursorAndHandleAction(
 			center,
@@ -210,6 +211,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					&startWithSearch,
 					&strategyOverride,
 					&labelDirectionOverride,
+					&splitWord,
 				)
 				// Restore repeat, action and modifier on the fresh context so subsequent
 				// selections continue the repeat cycle.
@@ -225,6 +227,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					h.hints.Context.SetStartWithSearch(startWithSearch)
 					h.hints.Context.SetStrategyOverride(strategyOverride)
 					h.hints.Context.SetLabelDirectionOverride(labelDirectionOverride)
+					h.hints.Context.SetSplitWord(splitWord)
 				}
 			},
 		)
