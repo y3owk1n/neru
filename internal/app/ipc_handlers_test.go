@@ -9,9 +9,11 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 const (
@@ -20,21 +22,66 @@ const (
 	actionScroll = "scroll"
 )
 
+func newTestModesHandler(
+	cfg *config.Config,
+	logger *zap.Logger,
+	appState *state.AppState,
+	actionService *services.ActionService,
+) *modes.Handler {
+	return modes.NewHandler(
+		context.Background(),
+		cfg,
+		logger,
+		appState,
+		state.NewCursorState(),
+		nil,                     // overlayManager
+		nil,                     // renderer
+		nil,                     // hintService
+		nil,                     // gridService
+		actionService,           // actionService
+		nil,                     // scrollService
+		nil,                     // modeIndicatorService
+		nil,                     // stickyIndicatorService
+		nil,                     // hintsComponent
+		nil,                     // grid
+		nil,                     // scroll
+		nil,                     // recursiveGridComponent
+		func() {},               // enableEventTap
+		func() {},               // disableEventTap
+		func(bool, []string) {}, // setModifierPassthrough
+		func([]string) {},       // setInterceptedModifierKeys
+		func(func()) {},         // setPassthroughCallback
+		func(bool) {},           // setStickyModifierToggle
+		func(string, bool) {},   // postModifierEvent
+		func() {},               // refreshHotkeys
+		func(string, string) error { return nil }, // executeHotkeyAction
+		func() {}, // shutdown
+		nil,       // textInput
+		nil,       // systemPort
+	)
+}
+
 func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
 	configService := config.NewService(cfg, "", logger, nil)
+	actionService := services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		&portmocks.MockSystemPort{},
+		logger,
+	)
 
 	controller := app.NewIPCController(
 		nil,
 		nil,
-		nil,
+		actionService,
 		nil,
 		configService,
 		appState,
 		cfg,
-		&modes.Handler{},
+		newTestModesHandler(cfg, logger, appState, actionService),
 		nil,
 		nil,
 		nil,
@@ -61,16 +108,22 @@ func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
 	appState := state.NewAppState()
 	logger := zap.NewNop()
 	configService := config.NewService(cfg, "", logger, nil)
+	actionService := services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		&portmocks.MockSystemPort{},
+		logger,
+	)
 
 	controller := app.NewIPCController(
 		nil,
 		nil,
-		nil,
+		actionService,
 		nil,
 		configService,
 		appState,
 		cfg,
-		&modes.Handler{},
+		newTestModesHandler(cfg, logger, appState, actionService),
 		nil,
 		nil,
 		nil,
@@ -97,16 +150,22 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 	appState := state.NewAppState()
 	logger := zap.NewNop()
 	configService := config.NewService(cfg, "", logger, nil)
+	actionService := services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		&portmocks.MockSystemPort{},
+		logger,
+	)
 
 	controller := app.NewIPCController(
 		nil,
 		nil,
-		nil,
+		actionService,
 		nil,
 		configService,
 		appState,
 		cfg,
-		&modes.Handler{},
+		newTestModesHandler(cfg, logger, appState, actionService),
 		nil,
 		nil,
 		nil,
@@ -147,5 +206,50 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 				expectedMsg,
 			)
 		}
+	}
+}
+
+func TestExtractModeOptions_ModifierRequiresAction(t *testing.T) {
+	cfg := config.DefaultConfig()
+	appState := state.NewAppState()
+	logger := zap.NewNop()
+	configService := config.NewService(cfg, "", logger, nil)
+	actionService := services.NewActionService(
+		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockOverlayPort{},
+		&portmocks.MockSystemPort{},
+		logger,
+	)
+
+	controller := app.NewIPCController(
+		nil,
+		nil,
+		actionService,
+		nil,
+		configService,
+		appState,
+		cfg,
+		newTestModesHandler(cfg, logger, appState, actionService),
+		nil,
+		nil,
+		nil,
+		nil,
+		logger,
+	)
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{
+		Action: actionHints,
+		Args:   []string{actionHints, "--modifier=shift"},
+	})
+
+	if resp.Success {
+		t.Fatal(
+			"HandleCommand() expected error response since --modifier was passed without --action",
+		)
+	}
+
+	expectedMsg := "--modifier requires an action"
+	if !strings.Contains(resp.Message, expectedMsg) {
+		t.Fatalf("expected error message containing %q, got: %q", expectedMsg, resp.Message)
 	}
 }

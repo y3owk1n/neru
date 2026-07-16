@@ -41,6 +41,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
+			modifierFlag, err := cmd.Flags().GetString("modifier")
+			if err != nil {
+				return err
+			}
+
 			repeatFlag, err := cmd.Flags().GetBool("repeat")
 			if err != nil {
 				return err
@@ -108,6 +113,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				)
 			}
 
+			if modifierFlag != "" && actionFlag == "" {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--modifier requires --action",
+				)
+			}
+
 			if actionFlag != "" {
 				// Split comma-separated actions and validate each one.
 				// This enables multi-click sequences like:
@@ -163,6 +175,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			params = append(params, config.Name)
 			if actionFlag != "" {
 				params = append(params, actionFlag)
+			}
+
+			if modifierFlag != "" {
+				params = append(params, "--modifier="+modifierFlag)
 			}
 
 			if repeatFlag {
@@ -236,6 +252,12 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"r",
 		false,
 		"Re-activate mode after performing the action (requires --action)",
+	)
+
+	cmd.Flags().String(
+		"modifier",
+		"",
+		"Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)",
 	)
 	cmd.Flags().String(
 		"cursor-selection-mode",

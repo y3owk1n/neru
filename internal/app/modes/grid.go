@@ -17,6 +17,7 @@ import (
 // activateGridModeWithAction activates grid mode with optional action parameter.
 func (h *Handler) activateGridModeWithAction(
 	actionStr *string,
+	modifier *string,
 	repeat *bool,
 	cursorFollowSelection *bool,
 ) {
@@ -93,6 +94,10 @@ func (h *Handler) activateGridModeWithAction(
 			h.grid.Context.SetPendingAction(actionStr)
 		}
 
+		if modifier != nil {
+			h.grid.Context.SetPendingModifier(modifier)
+		}
+
 		if repeat != nil {
 			h.grid.Context.SetRepeat(*repeat)
 		}
@@ -102,6 +107,7 @@ func (h *Handler) activateGridModeWithAction(
 		}
 	} else {
 		h.grid.Context.SetPendingAction(actionStr)
+		h.grid.Context.SetPendingModifier(modifier)
 		h.grid.Context.SetRepeat(repeat != nil && *repeat)
 		h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
 			domain.ModeGrid,

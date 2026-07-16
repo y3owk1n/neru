@@ -11,6 +11,7 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
@@ -19,20 +20,33 @@ import (
 // When repeat is true and reActivateFunc is provided, the mode is re-activated
 // instead of exiting after performing the action.
 func (h *Handler) executeActionAtPoint(
-	action *string,
+	actionStr *string,
+	modifierStr *string,
 	point image.Point,
 	repeat bool,
 	reActivateFunc func(),
 ) {
-	if action == nil {
+	if actionStr == nil {
 		h.logger.Warn("executeActionAtPoint called with nil action")
 
 		return
 	}
 
+	var modifiers action.Modifiers
+	if modifierStr != nil {
+		var err error
+
+		modifiers, err = action.ParseModifiers(*modifierStr)
+		if err != nil {
+			h.logger.Error("Failed to parse pending modifier", zap.Error(err))
+		}
+	}
+
+	modifiers |= h.stickyModifiers()
+
 	h.logger.Debug("Executing pending action",
-		zap.String("action", *action),
-		zap.String("modifiers", h.stickyModifiers().String()),
+		zap.String("action", *actionStr),
+		zap.String("modifiers", modifiers.String()),
 		zap.Bool("repeat", repeat))
 
 	ctx := h.ctx
@@ -40,7 +54,7 @@ func (h *Handler) executeActionAtPoint(
 	// Split comma-separated actions and execute each one sequentially.
 	// This enables multi-click sequences like --action left_click,left_click
 	// which produce a double-click via the native click-counting layer.
-	actions := strings.Split(*action, ",")
+	actions := strings.Split(*actionStr, ",")
 	actionPerformed := false
 	chainFailed := false
 
@@ -61,7 +75,7 @@ func (h *Handler) executeActionAtPoint(
 			ctx,
 			trimmed,
 			point,
-			h.stickyModifiers(),
+			modifiers,
 		)
 		if performErr != nil {
 			h.logger.Error("Failed to perform pending action", zap.Error(performErr))
@@ -113,6 +127,7 @@ func (h *Handler) executeActionAtPoint(
 func (h *Handler) moveCursorAndHandleAction(
 	point image.Point,
 	pendingAction *string,
+	pendingModifier *string,
 	shouldReActivate bool,
 	reActivateFunc func(),
 ) {
@@ -124,7 +139,9 @@ func (h *Handler) moveCursorAndHandleAction(
 	}
 
 	if pendingAction != nil {
-		h.executeActionAtPoint(pendingAction, point, shouldReActivate, reActivateFunc)
+		h.executeActionAtPoint(
+			pendingAction, pendingModifier, point, shouldReActivate, reActivateFunc,
+		)
 
 		return
 	}
@@ -160,6 +177,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 		h.logger.Debug("Found element", zap.String("label", hint.Label()))
 
 		pendingAction := h.hints.Context.PendingAction()
+		pendingModifier := h.hints.Context.PendingModifier()
 		repeat := h.hints.Context.Repeat()
 		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
 		filterRoles := h.hints.Context.FilterRoles()
@@ -171,10 +189,12 @@ func (h *Handler) handleHintsModeKey(key string) {
 		h.moveCursorAndHandleAction(
 			center,
 			pendingAction,
+			pendingModifier,
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
 				h.activateHintModeInternal(
+					nil,
 					nil,
 					&cursorFollowSelection,
 					filterRoles,
@@ -183,12 +203,13 @@ func (h *Handler) handleHintsModeKey(key string) {
 					&strategyOverride,
 					&labelDirectionOverride,
 				)
-				// Restore repeat and action on the fresh context so subsequent
+				// Restore repeat, action and modifier on the fresh context so subsequent
 				// selections continue the repeat cycle.
 				// Guard: only restore if re-activation succeeded (mode is still hints).
 				if repeat && h.appState.CurrentMode() == domain.ModeHints &&
 					h.hints != nil && h.hints.Context != nil {
 					h.hints.Context.SetPendingAction(pendingAction)
+					h.hints.Context.SetPendingModifier(pendingModifier)
 					h.hints.Context.SetRepeat(true)
 					h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
 					h.hints.Context.SetFilterRoles(filterRoles)
@@ -429,6 +450,7 @@ func (h *Handler) handleGridModeKey(key string) {
 
 		repeat := h.grid.Context.Repeat()
 		pendingAction := h.grid.Context.PendingAction()
+		pendingModifier := h.grid.Context.PendingModifier()
 		cursorFollowSelection := h.grid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
@@ -440,9 +462,15 @@ func (h *Handler) handleGridModeKey(key string) {
 		h.moveCursorAndHandleAction(
 			absolutePoint,
 			pendingAction,
+			pendingModifier,
 			repeat, // Re-activate grid mode when --repeat is set
 			func() {
-				h.activateGridModeWithAction(pendingAction, &repeat, &cursorFollowSelection)
+				h.activateGridModeWithAction(
+					pendingAction,
+					pendingModifier,
+					&repeat,
+					&cursorFollowSelection,
+				)
 			},
 		)
 	} else if targetPoint := gridKeyResult.TargetPoint(); !targetPoint.Eq(image.Point{}) {

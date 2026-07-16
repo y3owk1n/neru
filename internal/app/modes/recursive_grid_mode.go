@@ -15,6 +15,7 @@ func NewRecursiveGridMode(handler *Handler) *RecursiveGridMode {
 		ActivateFunc: func(handler *Handler, opts ModeActivationOptions) {
 			handler.activateRecursiveGridModeWithAction(
 				opts.Action,
+				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
 			)

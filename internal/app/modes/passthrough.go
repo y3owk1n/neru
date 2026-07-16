@@ -189,6 +189,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		h.activateHintModeInternal(
 			nil,
 			nil,
+			nil,
 			filterRoles,
 			filterTextContains,
 			&startWithSearch,

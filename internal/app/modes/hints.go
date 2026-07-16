@@ -37,6 +37,7 @@ func (h *Handler) currentHintStyleLocked() hints.StyleMode {
 // ModeActivationOptions configures a mode activation request.
 type ModeActivationOptions struct {
 	Action                *string
+	Modifier              *string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
@@ -129,6 +130,7 @@ func filterHintsForScreen(
 // activateHintModeWithAction activates hint mode with optional action parameter.
 func (h *Handler) activateHintModeWithAction(
 	action *string,
+	modifier *string,
 	repeat *bool,
 	cursorFollowSelection *bool,
 	filterRoles []string,
@@ -139,6 +141,7 @@ func (h *Handler) activateHintModeWithAction(
 ) {
 	h.activateHintModeInternal(
 		action,
+		modifier,
 		cursorFollowSelection,
 		filterRoles,
 		filterTextContains,
@@ -159,6 +162,7 @@ func (h *Handler) activateHintModeWithAction(
 
 func (h *Handler) activateHintModeInternal(
 	actionStr *string,
+	modifier *string,
 	cursorFollowSelection *bool,
 	filterRoles []string,
 	filterTextContains []string,
@@ -256,6 +260,10 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetPendingAction(actionStr)
 			}
 
+			if modifier != nil {
+				h.hints.Context.SetPendingModifier(modifier)
+			}
+
 			if cursorFollowSelection != nil {
 				h.hints.Context.SetCursorFollowSelection(*cursorFollowSelection)
 			}
@@ -281,6 +289,7 @@ func (h *Handler) activateHintModeInternal(
 			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
+			h.hints.Context.SetPendingModifier(modifier)
 			h.hints.Context.SetRepeat(false)
 			h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
 				domain.ModeHints,

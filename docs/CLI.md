@@ -69,6 +69,7 @@ neru idle                                  # Cancel active navigation mode
 | Flag                      | Type   | Description                                                                                                                               |
 | ------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `--action, -a`            | string | Action on selection: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`, `scroll`. Commas chain multiple actions (e.g. `left_click,left_click` for double-click) |
+| `--modifier`              | string | Comma-separated modifier keys to hold during action: `cmd`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl` (requires `--action`)                                        |
 | `--repeat, -r`            | bool   | Re-activate mode after action (requires `--action`)                                                                                       |
 | `--toggle, -t`            | bool   | Toggle mode on/off — exit to idle if already active                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
@@ -80,6 +81,7 @@ Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `
 ```bash
 # Examples
 neru hints --action left_click                     # Click via hints
+neru hints --action left_click --modifier shift    # Shift+click via hints
 neru hints --action left_click --repeat            # Click and re-enter hints
 neru hints --search                                # Start with search input visible
 neru grid --toggle                                 # Toggle grid on/off
@@ -109,6 +111,7 @@ neru hints --text next --action left_click --repeat   # Filter persists across r
 | Flag                      | Type   | Description                                                                                                                                                      |
 | ------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags))                                                                                               |
+| `--modifier`              | string | Modifier keys to hold during action (requires `--action`)                                                                                                        |
 | `--repeat, -r`            | bool   | Re-activate hints after action (requires `--action`)                                                                                                             |
 | `--toggle, -t`            | bool   | Toggle hints on/off                                                                                                                                              |
 | `--cursor-selection-mode` | string | `follow` (default) or `hold` — whether cursor jumps to selection                                                                                                 |
@@ -133,6 +136,7 @@ neru grid --cursor-selection-mode hold          # Grid with stationary cursor
 | Flag                      | Type   | Description                                                        |
 | ------------------------- | ------ | ------------------------------------------------------------------ |
 | `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags)) |
+| `--modifier`              | string | Modifier keys to hold during action (requires `--action`)          |
 | `--repeat, -r`            | bool   | Re-activate grid after action (requires `--action`)                |
 | `--toggle, -t`            | bool   | Toggle grid on/off                                                 |
 | `--cursor-selection-mode` | string | `follow` (default) or `hold`                                       |
@@ -157,6 +161,7 @@ neru recursive_grid --action middle_click       # Middle-click via recursive gri
 | Flag                      | Type   | Description                                                        |
 | ------------------------- | ------ | ------------------------------------------------------------------ |
 | `--action, -a`            | string | Action on selection (same values as [Common Flags](#common-flags)) |
+| `--modifier`              | string | Modifier keys to hold during action (requires `--action`)          |
 | `--repeat, -r`            | bool   | Re-activate recursive grid after action (requires `--action`)      |
 | `--toggle, -t`            | bool   | Toggle recursive grid on/off                                       |
 | `--cursor-selection-mode` | string | `follow` (default) or `hold`                                       |

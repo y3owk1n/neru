@@ -151,6 +151,7 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 // ModeActivationOptions holds the parsed options for activating a navigation mode.
 type ModeActivationOptions struct {
 	Action                *string
+	Modifier              *string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	FilterRoles           []string
@@ -187,6 +188,8 @@ func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
 // parameters from a mode IPC command. It returns the options and an optional
 // error response. If the response is non-nil the caller should return it
 // immediately.
+//
+//nolint:funlen
 func (h *IPCControllerModes) extractModeOptions(
 	cmd ipc.Command,
 ) (ModeActivationOptions, *ipc.Response) {
@@ -225,6 +228,23 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--debug" || arg == "-d":
 			debugTrue := true
 			opts.Debug = &debugTrue
+		case strings.HasPrefix(arg, "--modifier="):
+			modifierArg := strings.TrimPrefix(arg, "--modifier=")
+			opts.Modifier = &modifierArg
+		case arg == "--modifier":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--modifier requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			modifierArg := cmd.Args[startIdx]
+			opts.Modifier = &modifierArg
 		case strings.HasPrefix(arg, "--action="):
 			actionArg := strings.TrimPrefix(arg, "--action=")
 			opts.Action = &actionArg
@@ -449,6 +469,16 @@ func (h *IPCControllerModes) extractModeOptions(
 		return opts, &resp
 	}
 
+	if opts.Modifier != nil && opts.Action == nil {
+		resp := ipc.Response{
+			Success: false,
+			Message: "--modifier requires an action",
+			Code:    ipc.CodeInvalidInput,
+		}
+
+		return opts, &resp
+	}
+
 	return opts, nil
 }
 
@@ -489,6 +519,7 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 
 	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{
 		Action:                opts.Action,
+		Modifier:              opts.Modifier,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		FilterRoles:           opts.FilterRoles,
@@ -514,6 +545,7 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 
 	h.modes.ActivateModeWithOptions(domain.ModeGrid, modes.ModeActivationOptions{
 		Action:                opts.Action,
+		Modifier:              opts.Modifier,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		Toggle:                opts.Toggle,
@@ -534,6 +566,7 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 
 	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, modes.ModeActivationOptions{
 		Action:                opts.Action,
+		Modifier:              opts.Modifier,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		Toggle:                opts.Toggle,

@@ -47,6 +47,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 		case domain.ModeHints:
 			m.handler.activateHintModeWithAction(
 				opts.Action,
+				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
 				opts.FilterRoles,
@@ -58,12 +59,14 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(
 				opts.Action,
+				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
 			)
 		case domain.ModeRecursiveGrid:
 			m.handler.activateRecursiveGridModeWithAction(
 				opts.Action,
+				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
 			)

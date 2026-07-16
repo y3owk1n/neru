@@ -16,7 +16,7 @@ func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
 		cursorState: state.NewCursorState(),
 	}
 
-	handler.executeActionAtPoint(nil, point(10, 10), false, nil)
+	handler.executeActionAtPoint(nil, nil, point(10, 10), false, nil)
 
 	if handler.cursorState.WasActionPerformed() {
 		t.Fatal("expected no action state change for nil action")

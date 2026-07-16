@@ -763,6 +763,8 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 	}
 
 	pendingAction := h.hints.Context.PendingAction()
+
+	pendingModifier := h.hints.Context.PendingModifier()
 	if pendingAction != nil {
 		cursorFollowSelection := h.hints.Context.CursorFollowSelection()
 		filterRoles := h.hints.Context.FilterRoles()
@@ -771,8 +773,9 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 		strategyOverride := h.hints.Context.StrategyOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 
-		h.executeActionAtPoint(pendingAction, center, true, func() {
+		h.executeActionAtPoint(pendingAction, pendingModifier, center, true, func() {
 			h.activateHintModeInternal(
+				nil,
 				nil,
 				nil,
 				filterRoles,
@@ -786,6 +789,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool) error {
 			if h.appState.CurrentMode() == domain.ModeHints &&
 				h.hints != nil && h.hints.Context != nil {
 				h.hints.Context.SetPendingAction(pendingAction)
+				h.hints.Context.SetPendingModifier(pendingModifier)
 				h.hints.Context.SetRepeat(true)
 				h.hints.Context.SetCursorFollowSelection(cursorFollowSelection)
 				h.hints.Context.SetFilterRoles(filterRoles)

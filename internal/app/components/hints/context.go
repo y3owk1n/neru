@@ -8,6 +8,7 @@ import (
 // It contains shared state fields used across different mode contexts.
 type baseContext struct {
 	pendingAction          *string
+	pendingModifier        *string
 	repeat                 bool
 	cursorFollowSelection  bool
 	filterRoles            []string
@@ -25,6 +26,16 @@ func (c *baseContext) SetPendingAction(action *string) {
 // PendingAction returns the pending action to execute.
 func (c *baseContext) PendingAction() *string {
 	return c.pendingAction
+}
+
+// SetPendingModifier sets the modifier keys to apply when the pending action fires.
+func (c *baseContext) SetPendingModifier(modifier *string) {
+	c.pendingModifier = modifier
+}
+
+// PendingModifier returns the modifier keys to apply when the pending action fires.
+func (c *baseContext) PendingModifier() *string {
+	return c.pendingModifier
 }
 
 // SetRepeat sets whether the mode should re-activate after performing the action.
@@ -57,6 +68,7 @@ func (c *baseContext) ToggleCursorFollowSelection() bool {
 // Reset resets the base context to its initial state.
 func (c *baseContext) Reset() {
 	c.pendingAction = nil
+	c.pendingModifier = nil
 	c.repeat = false
 	c.cursorFollowSelection = false
 	c.filterRoles = nil

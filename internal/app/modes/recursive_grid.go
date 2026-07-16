@@ -18,6 +18,7 @@ import (
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter.
 func (h *Handler) activateRecursiveGridModeWithAction(
 	actionStr *string,
+	modifier *string,
 	repeat *bool,
 	cursorFollowSelection *bool,
 ) {
@@ -108,6 +109,10 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 				h.recursiveGrid.Context.SetPendingAction(actionStr)
 			}
 
+			if modifier != nil {
+				h.recursiveGrid.Context.SetPendingModifier(modifier)
+			}
+
 			if repeat != nil {
 				h.recursiveGrid.Context.SetRepeat(*repeat)
 			}
@@ -117,6 +122,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 			}
 		} else {
 			h.recursiveGrid.Context.SetPendingAction(actionStr)
+			h.recursiveGrid.Context.SetPendingModifier(modifier)
 			h.recursiveGrid.Context.SetRepeat(repeat != nil && *repeat)
 			h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
 		}
@@ -218,6 +224,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 
 		repeat := h.recursiveGrid.Context.Repeat()
 		pendingAction := h.recursiveGrid.Context.PendingAction()
+		pendingModifier := h.recursiveGrid.Context.PendingModifier()
 		cursorFollowSelection := h.recursiveGrid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
@@ -229,10 +236,12 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		h.moveCursorAndHandleAction(
 			absoluteCenter,
 			pendingAction,
+			pendingModifier,
 			repeat, // Re-activate recursive-grid mode when --repeat is set
 			func() {
 				h.activateRecursiveGridModeWithAction(
 					pendingAction,
+					pendingModifier,
 					&repeat,
 					&cursorFollowSelection,
 				)
