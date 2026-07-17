@@ -116,6 +116,11 @@ func init() {
 	// the expected version.
 	ipc.SetBuildVersion(Version)
 
+	// Override Cobra's default OutOrStderr() for cmd.Println so that
+	// primary command output goes to stdout (pipeable) while errors
+	// via cmd.PrintErrln still correctly go to stderr.
+	RootCmd.SetOut(os.Stdout)
+
 	// Initialize CLI utilities.
 	formatter = cliutil.NewOutputFormatter()
 
