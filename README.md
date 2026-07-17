@@ -8,10 +8,11 @@
 
 _Built for the person who already remapped Caps Lock._
 
-![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru?style=flat-square&logo=go)
-[![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru?style=flat-square)](https://github.com/y3owk1n/neru/releases)
-[![Discord](https://img.shields.io/discord/1502261043701874698?style=flat-square)](https://discord.gg/KZwnwr9dz6)
-[![License](https://img.shields.io/github/license/y3owk1n/neru?style=flat-square)](LICENSE)
+![Go Version](https://img.shields.io/github/go-mod/go-version/y3owk1n/neru?style=for-the-badge&logoColor=#white&logo=go)
+[![Latest Release](https://img.shields.io/github/v/release/y3owk1n/neru?style=for-the-badge&logoColor=#white)](https://github.com/y3owk1n/neru/releases)
+[![Discord](https://img.shields.io/discord/1502261043701874698?style=for-the-badge&logoColor=#white)](https://discord.gg/KZwnwr9dz6)
+[![License](https://img.shields.io/github/license/y3owk1n/neru?style=for-the-badge&logoColor=#white)](LICENSE)
+[![Github Sponsor](https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#white)](https://github.com/sponsors/y3owk1n)
 
 **Free and open-source.** No subscription. No trial. No catch.
 
