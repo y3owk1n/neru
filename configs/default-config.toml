@@ -217,9 +217,11 @@ label_background_padding_x = -1
 label_background_padding_y = -1
 label_background_border_radius = -1
 label_background_border_width = 1
+label_char = ""                             # Override cell labels with a single character (e.g. "·"); empty = use key
 sub_key_preview = false                     # Draw miniature key grid inside each cell
 sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
+sub_key_preview_label_char = ""             # Override sub-key preview labels with a single character (e.g. "·"); empty = use key
 
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual_pointer

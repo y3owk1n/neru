@@ -321,7 +321,10 @@ func (o *Overlay) DrawRecursiveGrid(
 			if idx < len(keyRunes) {
 				labelStr = string(keyRunes[idx])
 			}
-			label := strings.ToUpper(labelStr)
+			label := style.LabelChar()
+			if label == "" {
+				label = strings.ToUpper(labelStr)
+			}
 			cells[idx] = C.GridCell{
 				label:               o.getOrCacheLabel(label),
 				bounds:              o.rectToCRect(cell),
@@ -332,8 +335,15 @@ func (o *Overlay) DrawRecursiveGrid(
 		}
 	}
 
-	// Build uppercased next-depth keys for sub-key preview
-	subKeyKeysUpper := strings.ToUpper(nextKeys)
+	// Build sub-key preview labels.
+	// When a label char override is set, repeat it to match the grid cell count
+	// so the native renderer gets the expected number of labels.
+	subKeyLabel := style.SubKeyPreviewLabelChar()
+	if subKeyLabel != "" {
+		subKeyLabel = strings.Repeat(subKeyLabel, nextGridCols*nextGridRows)
+	} else {
+		subKeyLabel = strings.ToUpper(nextKeys)
+	}
 
 	// Get cached style
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
@@ -370,7 +380,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
 		subKeyAutohideMultiplier:    C.float(style.SubKeyPreviewAutohideMultiplier()),
 		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
-		subKeyKeys:                  o.getOrCacheLabel(subKeyKeysUpper),
+		subKeyKeys:                  o.getOrCacheLabel(subKeyLabel),
 	}
 
 	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
@@ -500,10 +510,12 @@ type Style struct {
 	labelBackgroundPaddingY         int
 	labelBackgroundBorderRadius     int
 	labelBackgroundBorderWidth      int
+	labelChar                       string
 	subKeyPreview                   bool
 	subKeyPreviewFontSize           int
 	subKeyPreviewAutohideMultiplier float64
 	subKeyPreviewTextColor          string
+	subKeyPreviewLabelChar          string
 }
 
 // LineColor returns the line color.
@@ -566,6 +578,16 @@ func (s Style) LabelBackgroundBorderWidth() int {
 	return s.labelBackgroundBorderWidth
 }
 
+// LabelChar returns the label character override (empty = use key character).
+func (s Style) LabelChar() string {
+	return s.labelChar
+}
+
+// SubKeyPreviewLabelChar returns the sub-key preview label character override (empty = use key character).
+func (s Style) SubKeyPreviewLabelChar() string {
+	return s.subKeyPreviewLabelChar
+}
+
 // SubKeyPreview returns whether sub-key preview is enabled.
 func (s Style) SubKeyPreview() bool {
 	return s.subKeyPreview
@@ -619,6 +641,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		labelBackgroundPaddingY:         cfg.UI.LabelBackgroundPaddingY,
 		labelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
 		labelBackgroundBorderWidth:      cfg.UI.LabelBackgroundBorderWidth,
+		labelChar:                       cfg.UI.LabelChar,
 		subKeyPreview:                   cfg.UI.SubKeyPreview,
 		subKeyPreviewFontSize:           cfg.UI.SubKeyPreviewFontSize,
 		subKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,
@@ -627,5 +650,6 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridSubKeyPreviewTextColorLight,
 			config.RecursiveGridSubKeyPreviewTextColorDark,
 		),
+		subKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
 	}
 }
