@@ -556,8 +556,8 @@ func generateCellsWithRegions(
 						xCoordinate+cellWidth, yCoordinate+cellHeight,
 					),
 					center: image.Point{
-						X: xCoordinate + cellWidth/2,
-						Y: yCoordinate + cellHeight/2,
+						X: xCoordinate + gridRound(cellWidth),
+						Y: yCoordinate + gridRound(cellHeight),
 					},
 				}
 				cells[cellIndex] = cell
@@ -834,4 +834,10 @@ func gridMin(a, b int) int {
 	}
 
 	return b
+}
+
+// gridRound performs integer division rounding to the nearest integer (half away from zero).
+// All coordinates in this package are non-negative so only the positive branch is needed.
+func gridRound(numerator int) int {
+	return (numerator + CenterDivisor/2) / CenterDivisor
 }

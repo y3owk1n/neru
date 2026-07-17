@@ -233,6 +233,8 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 	assert.True(t, completed2, "Should be completed after selection at final depth")
 	assert.True(t, completeCalled, "Complete callback should be called")
 	assert.Equal(t, point2, completePoint, "Complete point should match return point")
+	// BottomRight of (0,0)-(50,50) with 2x2: cell (25,25)-(50,50), center rounded
+	assert.Equal(t, image.Point{X: 38, Y: 38}, point2, "Center should be at (38, 38)")
 }
 
 func TestManagerHandleInputMaxDepth(t *testing.T) {

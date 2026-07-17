@@ -42,6 +42,8 @@ const (
 	NSWindowSharingReadOnly = 1
 	// millisecondsPerSecond converts config milliseconds into native seconds.
 	millisecondsPerSecond = 1000.0
+	// cellCenterDivisor is the divisor used when centering a cell grid within its bounds.
+	cellCenterDivisor = 2
 )
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs.
@@ -281,9 +283,14 @@ func (o *Overlay) DrawRecursiveGrid(
 		)
 	}
 
-	// Calculate cell dimensions
-	cellWidth := bounds.Dx() / gridCols
-	cellHeight := bounds.Dy() / gridRows
+	// All cells are exactly the same size: floor(W/cols) × floor(H/rows).
+	// Leftover pixels from uneven division become uniform padding around the grid.
+	cellW := bounds.Dx() / gridCols
+	cellH := bounds.Dy() / gridRows
+	gridW := cellW * gridCols
+	gridH := cellH * gridRows
+	offX := (bounds.Dx() - gridW) / cellCenterDivisor
+	offY := (bounds.Dy() - gridH) / cellCenterDivisor
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
@@ -296,26 +303,10 @@ func (o *Overlay) DrawRecursiveGrid(
 		for col := range gridCols {
 			idx := row*gridCols + col
 
-			maxX := bounds.Min.X + (col+1)*cellWidth
-			if col == gridCols-1 {
-				maxX = bounds.Max.X
-			}
+			x := bounds.Min.X + offX + col*cellW
+			y := bounds.Min.Y + offY + row*cellH
 
-			maxY := bounds.Min.Y + (row+1)*cellHeight
-			if row == gridRows-1 {
-				maxY = bounds.Max.Y
-			}
-
-			cell := image.Rectangle{
-				Min: image.Point{
-					X: bounds.Min.X + col*cellWidth,
-					Y: bounds.Min.Y + row*cellHeight,
-				},
-				Max: image.Point{
-					X: maxX,
-					Y: maxY,
-				},
-			}
+			cell := image.Rect(x, y, x+cellW, y+cellH)
 
 			labelStr := ""
 			if idx < len(keyRunes) {
