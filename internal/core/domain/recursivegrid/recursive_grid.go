@@ -187,7 +187,6 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	}
 
 	if !qg.CanDivide() {
-		qg.history = append(qg.history, qg.currentBounds)
 		qg.currentBounds = selected
 
 		return center, true
