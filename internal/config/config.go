@@ -773,10 +773,12 @@ type RecursiveGridUI struct {
 	LabelBackgroundPaddingY         int     `json:"labelBackgroundPaddingY"         toml:"label_background_padding_y"`
 	LabelBackgroundBorderRadius     int     `json:"labelBackgroundBorderRadius"     toml:"label_background_border_radius"`
 	LabelBackgroundBorderWidth      int     `json:"labelBackgroundBorderWidth"      toml:"label_background_border_width"`
+	LabelChar                       string  `json:"labelChar"                       toml:"label_char"`
 	SubKeyPreview                   bool    `json:"subKeyPreview"                   toml:"sub_key_preview"`
 	SubKeyPreviewFontSize           int     `json:"subKeyPreviewFontSize"           toml:"sub_key_preview_font_size"`
 	SubKeyPreviewAutohideMultiplier float64 `json:"subKeyPreviewAutohideMultiplier" toml:"sub_key_preview_autohide_multiplier"`
 	SubKeyPreviewTextColor          Color   `json:"subKeyPreviewTextColor"          toml:"sub_key_preview_text_color"`
+	SubKeyPreviewLabelChar          string  `json:"subKeyPreviewLabelChar"          toml:"sub_key_preview_label_char"`
 }
 
 // RecursiveGridLayerConfig defines per-depth overrides for the recursive grid.

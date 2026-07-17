@@ -215,7 +215,11 @@ func (o *winOverlay) DrawRecursiveGrid(
 			}
 
 			if index < len(keyRunes) {
-				label := string(keyRunes[index])
+				label := style.LabelChar
+				if label == "" {
+					label = string(keyRunes[index])
+				}
+
 				if style.LabelBackground {
 					o.drawRecursiveLabelBackground(label, cell, style)
 				}
@@ -303,6 +307,11 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
+	previewLabel := style.SubKeyPreviewLabelChar
+	if previewLabel == "" {
+		previewLabel = label
+	}
+
 	previewRect := image.Rect(
 		cell.Min.X,
 		cell.Max.Y-estimateWinTextHeight(style.SubKeyPreviewFontSize)-winSubKeyPreviewPaddingBottom,
@@ -311,7 +320,7 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	)
 
 	o.drawTextCentered(
-		label,
+		previewLabel,
 		previewRect,
 		ports.ResolveFont(style.LabelFontName, false),
 		style.SubKeyPreviewFontSize,

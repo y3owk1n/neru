@@ -276,6 +276,10 @@ const (
 	// DefaultRecursiveGridLabelBackgroundBorderWidth is the default label badge border width.
 	DefaultRecursiveGridLabelBackgroundBorderWidth = 1
 
+	// DefaultRecursiveGridLabelChar is the default label character override (empty = use key character).
+	DefaultRecursiveGridLabelChar = ""
+	// DefaultRecursiveGridSubKeyPreviewLabelChar is the default sub-key preview label character override (empty = use key character).
+	DefaultRecursiveGridSubKeyPreviewLabelChar = ""
 	// DefaultRecursiveGridSubKeyPreview controls whether the sub-key mini-grid is shown inside each cell.
 	DefaultRecursiveGridSubKeyPreview = false
 	// DefaultRecursiveGridSubKeyPreviewFontSize is the default font size for sub-key preview labels.
@@ -514,10 +518,12 @@ func newDefaultConfig() *Config {
 				LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
 				LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
 				LabelBackground:                 false,
+				LabelChar:                       DefaultRecursiveGridLabelChar,
 				SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
 				SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
 				SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
 				SubKeyPreviewTextColor:          Color{},
+				SubKeyPreviewLabelChar:          DefaultRecursiveGridSubKeyPreviewLabelChar,
 			},
 
 			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,

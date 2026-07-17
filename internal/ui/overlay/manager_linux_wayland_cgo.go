@@ -244,10 +244,15 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 
 			o.drawRect(cell, fill, style.LineColor, style.LineWidth)
 			if index < len(keyRunes) {
-				label := string(keyRunes[index])
+				label := style.LabelChar
+				if label == "" {
+					label = string(keyRunes[index])
+				}
+
 				if style.LabelBackground {
 					o.drawLabelBackground(label, cell, style)
 				}
+
 				o.drawTextCentered(
 					label,
 					cell,
@@ -667,7 +672,10 @@ func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 				subCell.Max.Y = cell.Max.Y
 			}
 
-			subLabel := string(nextKeyRunes[subIndex])
+			subLabel := style.SubKeyPreviewLabelChar
+			if subLabel == "" {
+				subLabel = string(nextKeyRunes[subIndex])
+			}
 			o.drawTextCentered(
 				subLabel,
 				subCell,
