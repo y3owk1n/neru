@@ -1285,6 +1285,20 @@ func (c *Config) ValidateRecursiveGrid() error {
 		)
 	}
 
+	if utf8.RuneCountInString(c.RecursiveGrid.UI.LabelChar) > 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.label_char must be empty or a single character",
+		)
+	}
+
+	if utf8.RuneCountInString(c.RecursiveGrid.UI.SubKeyPreviewLabelChar) > 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.sub_key_preview_label_char must be empty or a single character",
+		)
+	}
+
 	err = validateAppConfigsWithCallback(
 		"recursive_grid",
 		c.RecursiveGrid.AppConfigs,
