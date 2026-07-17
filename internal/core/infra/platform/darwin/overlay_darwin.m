@@ -177,12 +177,13 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) BOOL hideUnmatched;                       ///< Hide unmatched cells
 
 // Sub-key preview: draws a miniature key grid inside each cell
-@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;        ///< Draw sub-key preview mini-grid
-@property(nonatomic, assign) int gridSubKeyCols;                ///< Sub-key preview grid columns
-@property(nonatomic, assign) int gridSubKeyRows;                ///< Sub-key preview grid rows
-@property(nonatomic, strong) NSFont *gridSubKeyFont;            ///< Sub-key preview font
-@property(nonatomic, strong) NSColor *gridSubKeyTextColor;      ///< Sub-key preview text color
-@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;  ///< Cached sub-key font size
+@property(nonatomic, assign) BOOL gridDrawSubKeyPreview;          ///< Draw sub-key preview mini-grid
+@property(nonatomic, assign) int gridSubKeyCols;                  ///< Sub-key preview grid columns
+@property(nonatomic, assign) int gridSubKeyRows;                  ///< Sub-key preview grid rows
+@property(nonatomic, strong) NSFont *gridSubKeyFont;              ///< Sub-key preview font
+@property(nonatomic, strong) NSColor *gridSubKeyTextColor;        ///< Sub-key preview text color
+@property(nonatomic, assign) CGFloat cachedGridSubKeyFontSize;    ///< Cached sub-key font size
+@property(nonatomic, copy) NSString *cachedGridSubKeyFontFamily;  ///< Cached sub-key font family
 @property(nonatomic, assign)
     CGFloat gridSubKeyAutohideMultiplier;  ///< Sub-key preview autohide multiplier (0 = disable)
 @property(nonatomic, strong)
@@ -2702,6 +2703,12 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+	NSString *subKeyFontFamily = nil;
+	if (style.subKeyFontFamily) {
+		subKeyFontFamily = @(style.subKeyFontFamily);
+		if (subKeyFontFamily.length == 0)
+			subKeyFontFamily = nil;
+	}
 	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 
@@ -2770,9 +2777,19 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 			controller.overlayView.gridSubKeyRows = subKeyGridRows;
 			controller.overlayView.gridSubKeyLabels = subKeyLabels;
 			if (drawSubKeyPreview) {
-				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize) {
-					controller.overlayView.gridSubKeyFont = [NSFont systemFontOfSize:subKeyFontSize];
+				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
+				    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
+				     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
+					NSFont *subFont = nil;
+					if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
+						subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
+					}
+					if (!subFont) {
+						subFont = [NSFont systemFontOfSize:subKeyFontSize];
+					}
+					controller.overlayView.gridSubKeyFont = subFont;
 					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
+					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
 				}
 				controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
 				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
@@ -2833,6 +2850,12 @@ void NeruAnimateRecursiveGridTransition(
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
 	CGFloat subKeyFontSize = style.subKeyFontSize > 0 ? style.subKeyFontSize : 6.0;
+	NSString *subKeyFontFamily = nil;
+	if (style.subKeyFontFamily) {
+		subKeyFontFamily = @(style.subKeyFontFamily);
+		if (subKeyFontFamily.length == 0)
+			subKeyFontFamily = nil;
+	}
 	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
 
@@ -2894,9 +2917,19 @@ void NeruAnimateRecursiveGridTransition(
 			controller.overlayView.gridSubKeyRows = subKeyGridRows;
 			controller.overlayView.gridSubKeyLabels = subKeyLabels;
 			if (drawSubKeyPreview) {
-				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize) {
-					controller.overlayView.gridSubKeyFont = [NSFont systemFontOfSize:subKeyFontSize];
+				if (subKeyFontSize != controller.overlayView.cachedGridSubKeyFontSize ||
+				    (subKeyFontFamily != controller.overlayView.cachedGridSubKeyFontFamily &&
+				     ![subKeyFontFamily isEqualToString:controller.overlayView.cachedGridSubKeyFontFamily])) {
+					NSFont *subFont = nil;
+					if (subKeyFontFamily && [subKeyFontFamily length] > 0) {
+						subFont = [controller.overlayView resolveFont:subKeyFontFamily size:subKeyFontSize bold:NO];
+					}
+					if (!subFont) {
+						subFont = [NSFont systemFontOfSize:subKeyFontSize];
+					}
+					controller.overlayView.gridSubKeyFont = subFont;
 					controller.overlayView.cachedGridSubKeyFontSize = subKeyFontSize;
+					controller.overlayView.cachedGridSubKeyFontFamily = subKeyFontFamily;
 				}
 				controller.overlayView.gridSubKeyAutohideMultiplier = subKeyAutohideMultiplier;
 				controller.overlayView.gridSubKeyTextColor = [controller.overlayView colorFromHex:subKeyTextHex
