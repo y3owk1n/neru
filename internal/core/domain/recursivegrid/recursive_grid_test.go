@@ -99,9 +99,9 @@ func TestSelectCellCompletion(t *testing.T) {
 	// The user gets one more selection at this final depth.
 	center, completed := grid.SelectCell(recursivegrid.TopLeft)
 
-	// After selecting top-left, bounds are (0,0)-(25,25), center is at (12, 12)
-	expectedCenter := image.Point{X: 12, Y: 12}
-	assert.Equal(t, expectedCenter, center, "Center should be at (12, 12)")
+	// After selecting top-left, bounds are (0,0)-(25,25), center rounded to nearest pixel
+	expectedCenter := image.Point{X: 13, Y: 13}
+	assert.Equal(t, expectedCenter, center, "Center should be at (13, 13)")
 	assert.False(
 		t,
 		completed,
@@ -112,7 +112,8 @@ func TestSelectCellCompletion(t *testing.T) {
 	center2, completed2 := grid.SelectCell(recursivegrid.BottomRight)
 	assert.True(t, completed2, "Should be completed after selection at final depth")
 
-	// CellCenter of BottomRight within (0,0)-(25,25): cell is (12,12)-(25,25), center is (18, 18)
+	// All cells are exactly 12×12, centered in (0,0)-(25,25): offsets are (0,0),
+	// so the grid spans (0,0)-(24,24). BottomRight cell is (12,12)-(24,24), center rounded.
 	expectedCenter2 := image.Point{X: 18, Y: 18}
 	assert.Equal(t, expectedCenter2, center2, "Center should be at (18, 18)")
 }

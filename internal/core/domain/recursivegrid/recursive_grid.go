@@ -11,6 +11,9 @@ const (
 	DefaultGridCols = 3
 	// DefaultGridRows is the default recursive-grid row count.
 	DefaultGridRows = 3
+	// CenterDivisor is the divisor used when computing the center of a rectangle,
+	// i.e. Min.X + Dx()/CenterDivisor.
+	CenterDivisor = 2
 )
 
 // Cell represents the index of a cell in the grid.
@@ -116,41 +119,36 @@ func (qg *RecursiveGrid) GridRows() int {
 
 // Divide splits the current bounds into cells based on grid dimensions for the current depth.
 // Cells are ordered left-to-right, top-to-bottom.
+// Every cell is exactly the same size: floor(W/cols) × floor(H/rows). Any leftover pixels
+// from uneven division are distributed as uniform padding around the grid, so cells within
+// a single level are always identically sized.
 func (qg *RecursiveGrid) Divide() []image.Rectangle {
 	layout := qg.LayoutForDepth(qg.depth)
 	cols := layout.GridCols
 	rows := layout.GridRows
-	cellWidth := qg.currentBounds.Dx() / cols
-	cellHeight := qg.currentBounds.Dy() / rows
-	cells := make([]image.Rectangle, cols*rows)
+	boundsW := qg.currentBounds.Dx()
+	boundsH := qg.currentBounds.Dy()
+	cellW := boundsW / cols
+	cellH := boundsH / rows
+	usedW := cellW * cols
+	usedH := cellH * rows
+	offX := (boundsW - usedW) / CenterDivisor
+	offY := (boundsH - usedH) / CenterDivisor
 
+	cells := make([]image.Rectangle, cols*rows)
 	for row := range rows {
 		for col := range cols {
 			idx := row*cols + col
-
-			maxX := qg.currentBounds.Min.X + (col+1)*cellWidth
-			if col == cols-1 {
-				maxX = qg.currentBounds.Max.X
-			}
-
-			maxY := qg.currentBounds.Min.Y + (row+1)*cellHeight
-			if row == rows-1 {
-				maxY = qg.currentBounds.Max.Y
-			}
-
-			cells[idx] = image.Rect(
-				qg.currentBounds.Min.X+col*cellWidth,
-				qg.currentBounds.Min.Y+row*cellHeight,
-				maxX,
-				maxY,
-			)
+			x := qg.currentBounds.Min.X + offX + col*cellW
+			y := qg.currentBounds.Min.Y + offY + row*cellH
+			cells[idx] = image.Rect(x, y, x+cellW, y+cellH)
 		}
 	}
 
 	return cells
 }
 
-// CellCenter returns the center point of the specified cell.
+// CellCenter returns the center point of the specified cell, rounded to nearest pixel.
 func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 	cells := qg.Divide()
 	idx := int(cell)
@@ -162,15 +160,15 @@ func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 	selected := cells[idx]
 
 	return image.Point{
-		X: selected.Min.X + selected.Dx()/2,
-		Y: selected.Min.Y + selected.Dy()/2,
+		X: selected.Min.X + divRound(selected.Dx(), CenterDivisor),
+		Y: selected.Min.Y + divRound(selected.Dy(), CenterDivisor),
 	}
 }
 
 // SelectCell narrows the active area to the selected cell.
 // Returns the center point of the selected cell and whether the selection is complete.
 // If the grid cannot be divided further (min size or max depth), the selection completes
-// immediately without changing bounds. Otherwise, the bounds narrow to the selected cell.
+// but currentBounds is still narrowed to the selected cell for consistency.
 func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	cells := qg.Divide()
 	idx := int(cell)
@@ -180,24 +178,25 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 		return qg.CurrentCenter(), true
 	}
 
-	// Check if we can divide further
-	if !qg.CanDivide() {
-		// If we can't divide further (max depth or min size),
-		// return the center of the selected cell without changing bounds.
-		return qg.CellCenter(cell), true
+	selected := cells[idx]
+
+	// Compute center from the cell bounds before any state mutation.
+	center := image.Point{
+		X: selected.Min.X + divRound(selected.Dx(), CenterDivisor),
+		Y: selected.Min.Y + divRound(selected.Dy(), CenterDivisor),
 	}
 
-	selected := cells[idx]
+	if !qg.CanDivide() {
+		qg.history = append(qg.history, qg.currentBounds)
+		qg.currentBounds = selected
+
+		return center, true
+	}
 
 	// Save current bounds for backtracking
 	qg.history = append(qg.history, qg.currentBounds)
 	qg.currentBounds = selected
 	qg.depth++
-
-	center := image.Point{
-		X: selected.Min.X + selected.Dx()/2,
-		Y: selected.Min.Y + selected.Dy()/2,
-	}
 
 	return center, false
 }
@@ -218,11 +217,11 @@ func (qg *RecursiveGrid) CanDivide() bool {
 	return cellWidth >= qg.minSizeWidth && cellHeight >= qg.minSizeHeight
 }
 
-// CurrentCenter returns the center point of the current bounds.
+// CurrentCenter returns the center point of the current bounds, rounded to nearest pixel.
 func (qg *RecursiveGrid) CurrentCenter() image.Point {
 	return image.Point{
-		X: qg.currentBounds.Min.X + qg.currentBounds.Dx()/2,
-		Y: qg.currentBounds.Min.Y + qg.currentBounds.Dy()/2,
+		X: qg.currentBounds.Min.X + divRound(qg.currentBounds.Dx(), CenterDivisor),
+		Y: qg.currentBounds.Min.Y + divRound(qg.currentBounds.Dy(), CenterDivisor),
 	}
 }
 

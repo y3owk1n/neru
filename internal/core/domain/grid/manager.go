@@ -277,13 +277,15 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	xBreaks[m.subCols] = cellBounds.Max.X
 	yBreaks[m.subRows] = cellBounds.Max.Y
 
-	// Calculate center point of the selected subgrid cell
+	// Calculate center point of the selected subgrid cell, rounded to nearest pixel
 	left := xBreaks[colIndex]
 	right := xBreaks[colIndex+1]
 	top := yBreaks[rowIndex]
 	bottom := yBreaks[rowIndex+1]
-	xCoordinate := left + (right-left)/CenterDivisor
-	yCoordinate := top + (bottom-top)/CenterDivisor
+	dx := right - left
+	dy := bottom - top
+	xCoordinate := left + gridRound(dx)
+	yCoordinate := top + gridRound(dy)
 	m.Logger.Debug("Grid manager: Subgrid selection complete",
 		zap.Int("row", rowIndex), zap.Int("col", colIndex),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
