@@ -347,6 +347,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.SubKeyTextColor = unsafe.Pointer(C.CString(style.SubKeyPreviewTextColor()))
+		cached.SubKeyFontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 	})
 
 	finalStyle := C.GridCellStyle{
@@ -369,6 +370,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyGridRows:              C.int(nextGridRows),
 		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview() && nextKeys != "")),
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
+		subKeyFontFamily:            (*C.char)(cachedStyle.SubKeyFontFamily),
 		subKeyAutohideMultiplier:    C.float(style.SubKeyPreviewAutohideMultiplier()),
 		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
 		subKeyKeys:                  o.getOrCacheLabel(subKeyLabel),

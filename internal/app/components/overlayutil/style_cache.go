@@ -20,6 +20,7 @@ type CachedStyle struct {
 	MatchedBorderColor  unsafe.Pointer
 	HighlightColor      unsafe.Pointer
 	SubKeyTextColor     unsafe.Pointer
+	SubKeyFontFamily    unsafe.Pointer
 	BoundaryBgColor     unsafe.Pointer
 	BoundaryBorderColor unsafe.Pointer
 }
@@ -91,6 +92,8 @@ func (c *StyleCache) freeLocked() {
 	c.style.HighlightColor = nil
 	native.FreeCString(c.style.SubKeyTextColor)
 	c.style.SubKeyTextColor = nil
+	native.FreeCString(c.style.SubKeyFontFamily)
+	c.style.SubKeyFontFamily = nil
 	native.FreeCString(c.style.BoundaryBgColor)
 	c.style.BoundaryBgColor = nil
 	native.FreeCString(c.style.BoundaryBorderColor)
