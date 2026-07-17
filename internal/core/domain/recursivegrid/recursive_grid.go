@@ -167,8 +167,8 @@ func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 
 // SelectCell narrows the active area to the selected cell.
 // Returns the center point of the selected cell and whether the selection is complete.
-// If the grid cannot be divided further (min size or max depth), the selection completes
-// but currentBounds is still narrowed to the selected cell for consistency.
+// When the grid cannot be divided further (min size or max depth), the selection completes
+// and currentBounds is left unchanged so that backtrack restores the correct ancestor bounds.
 func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	cells := qg.Divide()
 	idx := int(cell)
@@ -187,8 +187,6 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	}
 
 	if !qg.CanDivide() {
-		qg.currentBounds = selected
-
 		return center, true
 	}
 
