@@ -340,15 +340,15 @@ This is useful for testing a config before committing it to your dotfiles, or fo
 Quickly open your config in an editor without hunting for the file path:
 
 ```bash
-neru status 2>&1 | grep Config | awk '{print $2}' | xargs nvim
+neru status | grep Config | awk '{print $2}' | xargs nvim
 ```
 
 Or if you would like to open a new window and edit the config:
 
 ```bash
 # both works the same except one uses ghostty cli and another uses macos open command
-ghostty -e bash -c "neru status 2>&1 | grep Config | awk '{print \$2}' | xargs nvim" # check if your terminal has equivalent cli support
-open -na Ghostty --args -e bash -c "neru status 2>&1 | grep Config | awk '{print \$2}' | xargs nvim" # this should generally work
+ghostty -e bash -c "neru status | grep Config | awk '{print \$2}' | xargs nvim" # check if your terminal has equivalent cli support
+open -na Ghostty --args -e bash -c "neru status | grep Config | awk '{print \$2}' | xargs nvim" # this should generally work
 ```
 
 You can wrap this in a shell alias or bind it to a key in your window manager / hotkey daemon.
