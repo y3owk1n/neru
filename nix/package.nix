@@ -9,6 +9,7 @@
   buildGoModule,
   pkg-config,
   cairo,
+  libei,
   libxkbcommon,
   wayland,
   wayland-protocols,
@@ -82,6 +83,7 @@ if useZip then
 
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
       cairo
+      libei
       libxkbcommon
       wayland
       wayland-protocols
@@ -190,6 +192,7 @@ else
     buildInputs =
       lib.optionals stdenv.hostPlatform.isLinux [
         cairo
+        libei
         libxkbcommon
         wayland
         wayland-protocols
