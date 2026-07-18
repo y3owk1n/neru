@@ -973,6 +973,19 @@ func centeredRect(cell image.Rectangle, width, height int) image.Rectangle {
 	)
 }
 
+func shouldShowLabel(
+	cell image.Rectangle,
+	style recursivegrid.Style,
+) bool {
+	if style.LabelAutohideMultiplier <= 0 {
+		return true
+	}
+
+	threshold := style.LabelFontSize * style.LabelAutohideMultiplier
+
+	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
+}
+
 func shouldShowSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegrid.Style,

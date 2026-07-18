@@ -203,17 +203,19 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 					label = string(keyRunes[index])
 				}
 
-				if style.LabelBackground {
-					o.drawLabelBackground(label, cell, style)
-				}
+				if shouldShowLabel(cell, style) {
+					if style.LabelBackground {
+						o.drawLabelBackground(label, cell, style)
+					}
 
-				o.drawTextCentered(
-					label,
-					cell,
-					style.LabelFontName,
-					style.LabelFontSize,
-					style.LabelFontColor,
-				)
+					o.drawTextCentered(
+						label,
+						cell,
+						style.LabelFontName,
+						style.LabelFontSize,
+						style.LabelFontColor,
+					)
+				}
 
 				if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
 					o.drawSubKeyMiniGrid(
