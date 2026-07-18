@@ -3,34 +3,20 @@
 package darwin
 
 /*
-#include <stdlib.h>
 #include "axobserver.h"
 */
 import "C"
 
-import "unsafe"
+// AXObserverNotificationHandler receives the name of the accessibility
+// notification that fired (for debug logging).
+type AXObserverNotificationHandler func(notif string)
 
-// AXObserverNotificationHandler receives the pid whose UI changed and the name
-// of the notification that fired (for debug logging).
-type AXObserverNotificationHandler func(pid int, notif string)
-
-var axObserverSlot cgoSlot[AXObserverNotificationHandler]
+var axObserverHandlerSlot cgoSlot[AXObserverNotificationHandler]
 
 // SetAXObserverHandler registers the process-global observer callback. Passing
 // nil clears it and drops any in-flight callback via the slot's generation.
 func SetAXObserverHandler(handler AXObserverNotificationHandler) {
-	axObserverSlot.Set(handler)
-}
-
-// StartObserverThread starts the observer run-loop thread if it is not already
-// running, blocking until it is live. Idempotent.
-func StartObserverThread() {
-	C.NeruObserverStartThread()
-}
-
-// StopObserverThread stops and joins the observer run-loop thread. Idempotent.
-func StopObserverThread() {
-	C.NeruObserverStopThread()
+	axObserverHandlerSlot.Set(handler)
 }
 
 // ObserverThreadRunning reports whether the observer run-loop thread is running.
@@ -38,25 +24,21 @@ func ObserverThreadRunning() bool {
 	return C.NeruObserverThreadRunning() != 0
 }
 
-// ArmObserver arms an AXObserver on pid for the fixed accessibility
-// notification set and returns an opaque handle, or nil on failure. The
-// run-loop thread must be running. messagingTimeout (seconds, ignored when
-// <= 0) bounds this observer's synchronous AX calls to the target app; it is
-// scoped to that app's element, not process-wide.
-func ArmObserver(pid int, messagingTimeout float64) unsafe.Pointer {
-	return unsafe.Pointer(C.NeruObserverArm(C.int(pid), C.float(messagingTimeout)))
+// WatchObserver makes pid the watched process: it arms an AXObserver on pid for
+// the fixed accessibility notification set, tearing down whatever was watched
+// before, and reports whether the watch succeeded. On failure nothing is
+// watched afterward, so a later call retries from a clean state.
+// messagingTimeout (seconds, ignored when <= 0) bounds this observer's
+// synchronous AX calls to the target app; it is scoped to that app's element,
+// not process-wide.
+func WatchObserver(pid int, messagingTimeout float64) bool {
+	return C.NeruObserverWatch(C.int(pid), C.float(messagingTimeout)) != 0
 }
 
-// DisarmObserver tears down a handle from ArmObserver. When live is true it
-// unregisters notifications; skip that for a process that has exited. Safe with a
-// nil handle.
-func DisarmObserver(handle unsafe.Pointer, live bool) {
-	liveFlag := C.int(0)
-	if live {
-		liveFlag = C.int(1)
-	}
-
-	C.NeruObserverDisarm(handle, liveFlag)
+// UnwatchObserver stops watching: it tears down the watched observer, if any,
+// and stops the run-loop thread. Safe to call when nothing is watched.
+func UnwatchObserver() {
+	C.NeruObserverUnwatch()
 }
 
 // ObserverLiveCounts returns the created-minus-released counts of AXObserver and
@@ -68,21 +50,14 @@ func ObserverLiveCounts() (observers, appElements int64) {
 }
 
 //export handleAXObserverNotification
-func handleAXObserverNotification(pid C.int, notif *C.char) {
-	firingPID := int(pid)
-	name := C.GoString(notif)
-
-	axObserverSlot.withValid(func(handler AXObserverNotificationHandler) {
-		handler(firingPID, name)
-	})
+func handleAXObserverNotification(notif *C.char) {
+	dispatchAXObserverNotification(C.GoString(notif))
 }
 
-// HandleAXObserverNotification synthesizes an observer notification, dispatching
-// it through the registered handler. It lets the callback wiring be tested
-// without a live accessibility notification.
-func HandleAXObserverNotification(pid int, notif string) {
-	cNotif := C.CString(notif)
-	defer C.free(unsafe.Pointer(cNotif))
-
-	handleAXObserverNotification(C.int(pid), cNotif)
+// dispatchAXObserverNotification routes a notification name through the
+// registered handler.
+func dispatchAXObserverNotification(notif string) {
+	axObserverHandlerSlot.withValid(func(handler AXObserverNotificationHandler) {
+		handler(notif)
+	})
 }

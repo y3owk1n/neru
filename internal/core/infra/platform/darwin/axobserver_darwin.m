@@ -9,7 +9,9 @@
 
 #import <ApplicationServices/ApplicationServices.h>
 #import <Foundation/Foundation.h>
+#include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,20 +21,23 @@
 // Forward one notification to Go. Declared as a //export in axobserver.go. Runs
 // on the observer run-loop thread, so it must do O(1) work only — no AX calls,
 // no blocking. notif is the notification name, for debug logging.
-extern void handleAXObserverNotification(int pid, const char *notif);
+extern void handleAXObserverNotification(const char *notif);
 
-#pragma mark - Handle
+#pragma mark - The watched application
 
-// One armed observer, owned by the Go layer through the opaque handle. notifs
-// records the notification names that registered successfully, so a live disarm
-// unregisters exactly those. The kAX* names are process-owned constants and are
-// not retained.
+// The one watched process. This layer watches a single application at a time:
+// NeruObserverWatch installs a new observer here and tears down whatever was
+// watched before, NeruObserverUnwatch empties it. All reads and writes happen
+// on the run-loop thread (marshalled through neruRunOnLoop), except the
+// occupancy checks in NeruObserverWatch/NeruObserverUnwatch, which run on the
+// caller thread strictly after the marshalled block completed.
 typedef struct {
 	AXObserverRef observer;
 	AXUIElementRef appElement;
-	CFStringRef notifs[32];
-	int notifCount;
-} NeruObserverHandle;
+	int pid;
+} NeruWatchedApp;
+
+static NeruWatchedApp gWatchedApp;
 
 #pragma mark - Leak counters
 
@@ -73,11 +78,11 @@ static void neruRunOnLoop(void (^block)(void)) {
 }
 
 // A no-op source that keeps CFRunLoopRun blocked even when no observer sources
-// are attached, so the thread stays alive between arms and exits only on an
+// are attached, so the thread stays alive between watches and exits only on an
 // explicit CFRunLoopStop.
 static void neruKeepAlivePerform(void *info) { (void)info; }
 
-// Fires once, when the run loop is actually entered, so NeruObserverStartThread
+// Fires once, when the run loop is actually entered, so the thread start
 // returns only after the loop is genuinely running.
 static void neruLoopEntered(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	(void)observer;
@@ -120,7 +125,9 @@ static void *neruThreadMain(void *arg) {
 	return NULL;
 }
 
-void NeruObserverStartThread(void) {
+// Start the run-loop thread if it is not already running, blocking until the
+// loop is live so a subsequent watch has a loop to attach to.
+static void neruStartThreadIfNeeded(void) {
 	if (gRunning) {
 		return;
 	}
@@ -130,7 +137,7 @@ void NeruObserverStartThread(void) {
 
 	if (pthread_create(&gThread, NULL, neruThreadMain, NULL) != 0) {
 		// The thread never starts, so gReady would never be signaled. Leave the
-		// subsystem stopped so NeruObserverArm fails cleanly instead of blocking
+		// subsystem stopped so NeruObserverWatch fails cleanly instead of blocking
 		// forever on the wait below.
 		gRunning = 0;
 		gReady = NULL;
@@ -142,8 +149,11 @@ void NeruObserverStartThread(void) {
 	gReady = NULL;
 }
 
-void NeruObserverStopThread(void) {
-	if (!gRunning) {
+// Stop and join the run-loop thread when nothing is watched. Runs on the caller
+// thread, never inside a neruRunOnLoop block: stopping joins the run-loop
+// thread, and a join issued from that thread would deadlock against itself.
+static void neruStopThreadIfIdle(void) {
+	if (!gRunning || gWatchedApp.observer != NULL) {
 		return;
 	}
 
@@ -165,8 +175,7 @@ static void neruObserverCallback(
 	(void)observer;
 	(void)element;
 	(void)info;
-
-	int pid = (int)(intptr_t)refcon;
+	(void)refcon;
 
 	char nameBuf[128];
 	const char *name = "";
@@ -174,21 +183,112 @@ static void neruObserverCallback(
 		name = nameBuf;
 	}
 
-	handleAXObserverNotification(pid, name);
+	handleAXObserverNotification(name);
 }
 
-#pragma mark - Arm / disarm (run on the run-loop thread)
+#pragma mark - Watched notifications
 
-static NeruObserverHandle *neruArmOnLoop(int pid, float messagingTimeout) {
+// The notifications every observer registers on the application element;
+// descendant elements' notifications bubble up to it. The set covers the
+// structural changes that mean the UI actually changed (an element or window
+// appeared, moved, or vanished; a page finished loading; a menu opened or
+// closed; focus moved), plus the signals browsers post for web content, where
+// Chromium and Firefox emit no plain "created" notification (a live region
+// updating or being created, a disclosure or row expanding or collapsing, a
+// busy flag clearing). Value-change notifications such as AXValueChanged must
+// stay out of this list: they fire on every value update (a ticking clock, a
+// progress bar) and would wake the observer continuously.
+//
+// The names are written as their literal string values so the array can be a
+// compile-time constant (the SDK's kAX* symbols are runtime-initialized externs
+// a static initializer cannot reference). The standard names are the values of
+// the kAX*Notification constants Apple defines in AXNotificationConstants.h:
+// https://developer.apple.com/documentation/applicationservices/axnotificationconstants_h/miscellaneous_defines
+// AXLoadComplete, AXLiveRegionChanged, AXLiveRegionCreated, and AXExpandedChanged
+// have no public constant; they are the strings browser engines post.
+static const CFStringRef gNotificationNames[] = {
+    CFSTR("AXCreated"),           CFSTR("AXUIElementDestroyed"),
+    CFSTR("AXLayoutChanged"),     CFSTR("AXWindowCreated"),
+    CFSTR("AXWindowMoved"),       CFSTR("AXWindowResized"),
+    CFSTR("AXLoadComplete"),      CFSTR("AXMenuOpened"),
+    CFSTR("AXMenuClosed"),        CFSTR("AXFocusedUIElementChanged"),
+    CFSTR("AXLiveRegionChanged"), CFSTR("AXLiveRegionCreated"),
+    CFSTR("AXExpandedChanged"),   CFSTR("AXRowExpanded"),
+    CFSTR("AXRowCollapsed"),      CFSTR("AXElementBusyChanged"),
+};
+
+static const int gNotificationNameCount = (int)(sizeof(gNotificationNames) / sizeof(gNotificationNames[0]));
+
+// Report whether pid still names a live process, so teardown can skip the
+// notification-unregister IPC to a process that has already exited. kill with
+// signal 0 delivers no signal at all: it only performs the existence and
+// permission check, so nothing is killed or disturbed.
+static int neruProcessAlive(int pid) { return kill(pid, 0) == 0 || errno != ESRCH; }
+
+#pragma mark - Watch / unwatch (watched-app mutations run on the run-loop thread)
+
+// Tear down one observer: remove its run-loop source, unregister the watched
+// notifications when the process is still alive, and release everything. The
+// unregister loop walks the same fixed name list registration offers; a name
+// the app never accepted returns a harmless not-registered error. It bails on
+// the first error that means the app is gone or wedged, so a beachballing app
+// costs at most one messaging timeout here instead of one per name.
+static void neruTeardownOnLoop(NeruWatchedApp watched) {
+	CFRunLoopSourceRef src = AXObserverGetRunLoopSource(watched.observer);
+	if (gRunLoop != NULL && src != NULL) {
+		CFRunLoopRemoveSource(gRunLoop, src, kCFRunLoopDefaultMode);
+	}
+
+	if (neruProcessAlive(watched.pid)) {
+		for (int i = 0; i < gNotificationNameCount; i++) {
+			AXError removeErr =
+			    AXObserverRemoveNotification(watched.observer, watched.appElement, gNotificationNames[i]);
+			if (removeErr == kAXErrorInvalidUIElement || removeErr == kAXErrorCannotComplete) {
+				break;
+			}
+		}
+	}
+
+	CFRelease(watched.observer);
+	atomic_fetch_sub(&gLiveObservers, 1);
+	CFRelease(watched.appElement);
+	atomic_fetch_sub(&gLiveAppElements, 1);
+}
+
+// Switch the watched application to pid: build and register the new observer first, install
+// it, then tear down the previously watched one, so the run loop never sits
+// with zero observers mid-switch. On failure nothing is watched afterward and the
+// previous observer is torn down too, so a later watch of the same pid retries
+// from a clean state.
+static int neruWatchOnLoop(int pid, float messagingTimeout) {
+	// Watching the pid already watched is a success no-op, so a caller can
+	// re-point the observer on every refresh without tearing down and rebuilding
+	// the observer each time.
+	if (gWatchedApp.observer != NULL && gWatchedApp.pid == pid) {
+		return 1;
+	}
+
+	NeruWatchedApp prev = gWatchedApp;
+	int hadPrev = gWatchedApp.observer != NULL;
+
+	gWatchedApp.observer = NULL;
+	gWatchedApp.appElement = NULL;
+	gWatchedApp.pid = 0;
+
 	AXUIElementRef appEl = AXUIElementCreateApplication((pid_t)pid);
 	if (appEl == NULL) {
-		return NULL;
+		if (hadPrev) {
+			neruTeardownOnLoop(prev);
+		}
+
+		return 0;
 	}
 	atomic_fetch_add(&gLiveAppElements, 1);
 
-	// Bound this app's synchronous AX calls (the registrations below) so a wedged
-	// app cannot hang the observer thread. Scoped to this element, so unrelated
-	// accessibility work keeps the default timeout.
+	// Bound this app's synchronous AX calls (the registrations below and the
+	// teardown's unregistrations) so a wedged app cannot hang the observer
+	// thread. Scoped to this element, so unrelated accessibility work keeps the
+	// default timeout.
 	if (messagingTimeout > 0) {
 		AXUIElementSetMessagingTimeout(appEl, messagingTimeout);
 	}
@@ -199,59 +299,22 @@ static NeruObserverHandle *neruArmOnLoop(int pid, float messagingTimeout) {
 		CFRelease(appEl);
 		atomic_fetch_sub(&gLiveAppElements, 1);
 
-		return NULL;
+		if (hadPrev) {
+			neruTeardownOnLoop(prev);
+		}
+
+		return 0;
 	}
 	atomic_fetch_add(&gLiveObservers, 1);
 
-	NeruObserverHandle *handle = calloc(1, sizeof(NeruObserverHandle));
-	if (handle == NULL) {
-		CFRelease(observer);
-		atomic_fetch_sub(&gLiveObservers, 1);
-		CFRelease(appEl);
-		atomic_fetch_sub(&gLiveAppElements, 1);
-
-		return NULL;
-	}
-	handle->observer = observer;
-	handle->appElement = appEl;
-
-	void *refcon = (void *)(intptr_t)pid;
-
-	// The notifications every observer registers on the application element;
-	// descendant elements' notifications bubble up to it. The set covers the
-	// structural changes that mean the UI actually changed (an element or window
-	// appeared, moved, or vanished; a page finished loading; a menu opened or
-	// closed; focus moved), plus the signals browsers post for web content, where
-	// Chromium and Firefox emit no plain "created" notification (a live region
-	// updating or being created, a disclosure or row expanding or collapsing, a
-	// busy flag clearing). AXLoadComplete, AXLiveRegionChanged,
-	// AXLiveRegionCreated, and AXExpandedChanged have no public kAX* constant, so
-	// they are the literal strings those apps post. Value-change notifications
-	// such as kAXValueChangedNotification must stay out of this list: they fire
-	// on every value update (a ticking clock, a progress bar) and would wake the
-	// observer continuously. The array is block-scope because the kAX* names are
-	// runtime-initialized externs, which a static initializer cannot reference.
-	CFStringRef notifications[] = {
-	    kAXCreatedNotification,       kAXUIElementDestroyedNotification,
-	    kAXLayoutChangedNotification, kAXWindowCreatedNotification,
-	    kAXWindowMovedNotification,   kAXWindowResizedNotification,
-	    CFSTR("AXLoadComplete"),      kAXMenuOpenedNotification,
-	    kAXMenuClosedNotification,    kAXFocusedUIElementChangedNotification,
-	    CFSTR("AXLiveRegionChanged"), CFSTR("AXLiveRegionCreated"),
-	    CFSTR("AXExpandedChanged"),   kAXRowExpandedNotification,
-	    kAXRowCollapsedNotification,  kAXElementBusyChangedNotification,
-	};
-	const int notificationCount = (int)(sizeof(notifications) / sizeof(notifications[0]));
-
-	int armed = 0;
+	int registered = 0;
 	int fatal = 0;
-	for (int i = 0; i < notificationCount; i++) {
-		AXError addErr = AXObserverAddNotification(observer, appEl, notifications[i], refcon);
+	for (int i = 0; i < gNotificationNameCount; i++) {
+		AXError addErr = AXObserverAddNotification(observer, appEl, gNotificationNames[i], NULL);
 		if (addErr == kAXErrorSuccess || addErr == kAXErrorNotificationAlreadyRegistered) {
-			handle->notifs[handle->notifCount++] = notifications[i];
-			armed++;
+			registered++;
 		} else if (addErr == kAXErrorInvalidUIElement || addErr == kAXErrorCannotComplete) {
-			// The app is gone or wedged. Abort the whole handle rather than
+			// The app is gone or wedged. Abort the whole watch rather than
 			// registering a partial, unreliable set.
 			fatal = 1;
 			break;
@@ -260,62 +323,70 @@ static NeruObserverHandle *neruArmOnLoop(int pid, float messagingTimeout) {
 		// does not emit this notification is still worth observing for the rest.
 	}
 
-	if (fatal || armed == 0) {
+	if (fatal || registered == 0) {
 		CFRelease(observer);
 		atomic_fetch_sub(&gLiveObservers, 1);
 		CFRelease(appEl);
 		atomic_fetch_sub(&gLiveAppElements, 1);
-		free(handle);
 
-		return NULL;
+		if (hadPrev) {
+			neruTeardownOnLoop(prev);
+		}
+
+		return 0;
 	}
 
 	CFRunLoopAddSource(gRunLoop, AXObserverGetRunLoopSource(observer), kCFRunLoopDefaultMode);
 
-	return handle;
-}
+	gWatchedApp.observer = observer;
+	gWatchedApp.appElement = appEl;
+	gWatchedApp.pid = pid;
 
-void *NeruObserverArm(int pid, float messagingTimeout) {
-	if (pid <= 0 || !gRunning || gRunLoop == NULL) {
-		return NULL;
+	if (hadPrev) {
+		neruTeardownOnLoop(prev);
 	}
 
-	__block NeruObserverHandle *result = NULL;
+	return 1;
+}
+
+int NeruObserverWatch(int pid, float messagingTimeout) {
+	if (pid <= 0) {
+		return 0;
+	}
+
+	neruStartThreadIfNeeded();
+
+	if (!gRunning || gRunLoop == NULL) {
+		return 0;
+	}
+
+	__block int ok = 0;
 	neruRunOnLoop(^{
-		result = neruArmOnLoop(pid, messagingTimeout);
+		ok = neruWatchOnLoop(pid, messagingTimeout);
 	});
 
-	return result;
+	neruStopThreadIfIdle();
+
+	return ok;
 }
 
-static void neruDisarmOnLoop(NeruObserverHandle *handle, int live) {
-	CFRunLoopSourceRef src = AXObserverGetRunLoopSource(handle->observer);
-	if (gRunLoop != NULL && src != NULL) {
-		CFRunLoopRemoveSource(gRunLoop, src, kCFRunLoopDefaultMode);
-	}
-
-	// For a live app, unregister exactly what we registered. For a process that
-	// has exited (live == 0) skip the IPC — the CFRelease below drops the
-	// registration and reaching a gone process only wastes a messaging timeout.
-	if (live) {
-		for (int i = 0; i < handle->notifCount; i++) {
-			AXObserverRemoveNotification(handle->observer, handle->appElement, handle->notifs[i]);
-		}
-	}
-
-	CFRelease(handle->observer);
-	atomic_fetch_sub(&gLiveObservers, 1);
-	CFRelease(handle->appElement);
-	atomic_fetch_sub(&gLiveAppElements, 1);
-	free(handle);
-}
-
-void NeruObserverDisarm(void *handle, int live) {
-	if (handle == NULL) {
+void NeruObserverUnwatch(void) {
+	if (!gRunning) {
 		return;
 	}
 
 	neruRunOnLoop(^{
-		neruDisarmOnLoop((NeruObserverHandle *)handle, live);
+		if (gWatchedApp.observer == NULL) {
+			return;
+		}
+
+		NeruWatchedApp watched = gWatchedApp;
+		gWatchedApp.observer = NULL;
+		gWatchedApp.appElement = NULL;
+		gWatchedApp.pid = 0;
+
+		neruTeardownOnLoop(watched);
 	});
+
+	neruStopThreadIfIdle();
 }

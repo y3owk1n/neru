@@ -2,22 +2,18 @@
 
 package axobserver
 
-// unsupportedPlatform is the observer backend on platforms that have no AX
-// observer implementation yet. The Manager is platform-independent, so it always
-// has a Platform to talk to; here every Arm fails, so nothing is ever armed and
-// no change is ever reported. Hints still work, they just do not auto-refresh.
+const observerSupported = false
+
+// Platforms without an AX observer implementation get no-op entry points: every
+// watch fails, so nothing is ever watched and no change is ever reported. Hints
+// still work, they just do not auto-refresh.
 //
-// To add push-based auto-refresh for a platform, replace this with a build-tagged
-// backend (for example platform_linux.go) that implements Platform against the
-// OS accessibility API, mirroring platform_darwin.go.
-type unsupportedPlatform struct{}
+// To add push-based auto-refresh for a platform, replace these with a
+// build-tagged file (for example platform_linux.go) implementing them against
+// the OS accessibility API, mirroring platform_darwin.go.
 
-func newPlatform() Platform {
-	return unsupportedPlatform{}
-}
+func platformWatch(_ int) bool { return false }
 
-func (unsupportedPlatform) Arm(_ int) bool                                 { return false }
-func (unsupportedPlatform) Disarm(_ int)                                   {}
-func (unsupportedPlatform) DisarmAll()                                     {}
-func (unsupportedPlatform) SetChangeHandler(_ func(pid int, notif string)) {}
-func (unsupportedPlatform) Close()                                         {}
+func platformUnwatch() {}
+
+func platformSetChangeHandler(_ func(notif string)) {}
