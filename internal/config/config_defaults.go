@@ -280,6 +280,9 @@ const (
 	DefaultRecursiveGridLabelChar = ""
 	// DefaultRecursiveGridSubKeyPreviewLabelChar is the default sub-key preview label character override (empty = use key character).
 	DefaultRecursiveGridSubKeyPreviewLabelChar = ""
+	// DefaultRecursiveGridLabelAutohideMultiplier is the default minimum cell size multiplier
+	// for main label autohide. Set to 0 to disable autohide.
+	DefaultRecursiveGridLabelAutohideMultiplier = 1.5
 	// DefaultRecursiveGridSubKeyPreview controls whether the sub-key mini-grid is shown inside each cell.
 	DefaultRecursiveGridSubKeyPreview = false
 	// DefaultRecursiveGridSubKeyPreviewFontSize is the default font size for sub-key preview labels.
@@ -519,6 +522,7 @@ func newDefaultConfig() *Config {
 				LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
 				LabelBackground:                 false,
 				LabelChar:                       DefaultRecursiveGridLabelChar,
+				LabelAutohideMultiplier:         DefaultRecursiveGridLabelAutohideMultiplier,
 				SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
 				SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
 				SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,

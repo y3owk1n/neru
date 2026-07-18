@@ -218,6 +218,7 @@ label_background_padding_y = -1
 label_background_border_radius = -1
 label_background_border_width = 1
 label_char = ""                             # Override cell labels with a single character (e.g. "·"); empty = use key
+label_autohide_multiplier = 1.5             # Hide labels when cell < fontSize × multiplier (0 = disable)
 sub_key_preview = false                     # Draw miniature key grid inside each cell
 sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5

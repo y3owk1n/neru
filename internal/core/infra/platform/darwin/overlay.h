@@ -89,6 +89,7 @@ typedef struct {
 	int labelBackgroundPaddingY;      ///< Label badge vertical padding (-1 = auto)
 	int labelBackgroundBorderRadius;  ///< Label badge border radius (-1 = auto)
 	int labelBackgroundBorderWidth;   ///< Label badge border width
+	float labelAutohideMultiplier;    ///< Minimum cell size multiplier for main label autohide (0 = disable)
 	int subKeyGridCols;               ///< Sub-key preview grid columns (next depth's cols)
 	int subKeyGridRows;               ///< Sub-key preview grid rows (next depth's rows)
 	int drawSubKeyPreview;            ///< Draw miniature key grid inside each cell (1 = yes, 0 = no)

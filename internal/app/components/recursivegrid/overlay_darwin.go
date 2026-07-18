@@ -369,6 +369,7 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyGridCols:              C.int(nextGridCols),
 		subKeyGridRows:              C.int(nextGridRows),
 		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview() && nextKeys != "")),
+		labelAutohideMultiplier:     C.float(style.LabelAutohideMultiplier()),
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
 		subKeyFontFamily:            (*C.char)(cachedStyle.SubKeyFontFamily),
 		subKeyAutohideMultiplier:    C.float(style.SubKeyPreviewAutohideMultiplier()),
@@ -504,6 +505,7 @@ type Style struct {
 	labelBackgroundBorderRadius     int
 	labelBackgroundBorderWidth      int
 	labelChar                       string
+	labelAutohideMultiplier         float64
 	subKeyPreview                   bool
 	subKeyPreviewFontSize           int
 	subKeyPreviewAutohideMultiplier float64
@@ -596,6 +598,11 @@ func (s Style) SubKeyPreviewAutohideMultiplier() float64 {
 	return s.subKeyPreviewAutohideMultiplier
 }
 
+// LabelAutohideMultiplier returns the minimum cell size multiplier for main label autohide.
+func (s Style) LabelAutohideMultiplier() float64 {
+	return s.labelAutohideMultiplier
+}
+
 // SubKeyPreviewTextColor returns the text color for sub-key preview labels.
 func (s Style) SubKeyPreviewTextColor() string {
 	return s.subKeyPreviewTextColor
@@ -635,6 +642,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		labelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
 		labelBackgroundBorderWidth:      cfg.UI.LabelBackgroundBorderWidth,
 		labelChar:                       cfg.UI.LabelChar,
+		labelAutohideMultiplier:         cfg.UI.LabelAutohideMultiplier,
 		subKeyPreview:                   cfg.UI.SubKeyPreview,
 		subKeyPreviewFontSize:           cfg.UI.SubKeyPreviewFontSize,
 		subKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,

@@ -37,6 +37,7 @@ type Style struct {
 	LabelBackgroundBorderRadius     int
 	LabelBackgroundBorderWidth      float64
 	LabelChar                       string
+	LabelAutohideMultiplier         float64
 	SubKeyPreview                   bool
 	SubKeyPreviewFontSize           float64
 	SubKeyPreviewAutohideMultiplier float64
@@ -151,6 +152,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		LabelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
 		LabelBackgroundBorderWidth:      float64(max(cfg.UI.LabelBackgroundBorderWidth, 0)),
 		LabelChar:                       cfg.UI.LabelChar,
+		LabelAutohideMultiplier:         cfg.UI.LabelAutohideMultiplier,
 		SubKeyPreview:                   cfg.UI.SubKeyPreview,
 		SubKeyPreviewFontSize:           float64(max(cfg.UI.SubKeyPreviewFontSize, 1)),
 		SubKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,

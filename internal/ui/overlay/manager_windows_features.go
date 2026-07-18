@@ -220,17 +220,19 @@ func (o *winOverlay) DrawRecursiveGrid(
 					label = string(keyRunes[index])
 				}
 
-				if style.LabelBackground {
-					o.drawRecursiveLabelBackground(label, cell, style)
-				}
+				if shouldShowWinLabel(cell, style) {
+					if style.LabelBackground {
+						o.drawRecursiveLabelBackground(label, cell, style)
+					}
 
-				o.drawTextCentered(
-					label,
-					cell,
-					ports.ResolveFont(style.LabelFontName, false),
-					style.LabelFontSize,
-					style.LabelFontColor,
-				)
+					o.drawTextCentered(
+						label,
+						cell,
+						ports.ResolveFont(style.LabelFontName, false),
+						style.LabelFontSize,
+						style.LabelFontColor,
+					)
+				}
 
 				if shouldShowWinSubKeyPreview(cell, style) {
 					o.drawRecursiveSubKeyPreview(label, cell, style)
@@ -326,6 +328,16 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 		style.SubKeyPreviewFontSize,
 		style.SubKeyPreviewTextColor,
 	)
+}
+
+func shouldShowWinLabel(cell image.Rectangle, style recursivegridcomponent.Style) bool {
+	if style.LabelAutohideMultiplier <= 0 {
+		return true
+	}
+
+	threshold := style.LabelFontSize * style.LabelAutohideMultiplier
+
+	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
 
 func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcomponent.Style) bool {
