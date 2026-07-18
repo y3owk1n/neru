@@ -105,7 +105,7 @@ visible_check_enabled = false
 # hints mode is open. Native windows, menus, and browser web content all refresh.
 # macOS only for now.
 [hints.auto_refresh]
-enabled = false                             # Opt-in; observers arm on the focused app while hints are open and disarm on exit
+enabled = true                              # On by default; set to false to scan hints only once per activation
 debounce_ms = 150                           # How long a burst of changes must settle before re-scanning
 
 [hints.ui]

@@ -47,13 +47,13 @@ func TestWriteDefaultConfig_LoadsAndValidates(t *testing.T) {
 
 	// The [hints.auto_refresh] block parses into the expected values.
 	autoRefresh := result.Config.Hints.AutoRefresh
-	assert.False(t, autoRefresh.Enabled, "auto_refresh ships off by default")
+	assert.True(t, autoRefresh.Enabled, "auto_refresh ships on by default")
 	assert.Equal(t, config.DefaultAutoRefreshDebounceMs, autoRefresh.DebounceMs)
 
-	// Flipping it on must still validate.
-	result.Config.Hints.AutoRefresh.Enabled = true
+	// Turning it off must still validate.
+	result.Config.Hints.AutoRefresh.Enabled = false
 	assert.NoError(t, result.Config.Validate(),
-		"auto_refresh must validate when enabled")
+		"auto_refresh must validate when disabled")
 }
 
 func TestWriteDefaultConfig_ExistingFile(t *testing.T) {

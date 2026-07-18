@@ -452,7 +452,7 @@ func newDefaultConfig() *Config {
 			AppConfigs: []AppConfig{},
 
 			AutoRefresh: HintsAutoRefresh{
-				Enabled:    false,
+				Enabled:    true,
 				DebounceMs: DefaultAutoRefreshDebounceMs,
 			},
 		},
