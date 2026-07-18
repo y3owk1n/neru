@@ -20,6 +20,14 @@ import (
 )
 
 // Overlay renders a cursor-following virtual pointer in its own small window.
+const (
+	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
+	NSWindowSharingNone = 0
+	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
+	NSWindowSharingReadOnly = 1
+)
+
+// Overlay is a virtual pointer overlay window.
 type Overlay struct {
 	window C.OverlayWindow
 	config config.VirtualPointerConfig
@@ -69,6 +77,16 @@ func (o *Overlay) Hide() {
 // Clear removes the virtual pointer from the overlay.
 func (o *Overlay) Clear() {
 	C.NeruHideCursorIndicator(o.window)
+}
+
+// SetSharingType sets the window sharing type for screen sharing visibility.
+func (o *Overlay) SetSharingType(hide bool) {
+	sharingType := C.int(NSWindowSharingReadOnly)
+	if hide {
+		sharingType = C.int(NSWindowSharingNone)
+	}
+
+	C.NeruSetOverlaySharingType(o.window, sharingType)
 }
 
 // ResizeToActiveScreen is a no-op; positioning is handled per draw.

@@ -38,5 +38,8 @@ func (o *Overlay) ResizeToActiveScreen() {}
 // Draw is a no-op.
 func (o *Overlay) Draw(_, _, _ int, _ string) {}
 
+// SetSharingType is a no-op.
+func (o *Overlay) SetSharingType(_ bool) {}
+
 // Destroy is a no-op.
 func (o *Overlay) Destroy() {}

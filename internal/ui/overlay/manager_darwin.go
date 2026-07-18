@@ -292,6 +292,10 @@ func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 // UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
 func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
 	m.virtualPointerOverlay = o
+
+	if o != nil && m.hideInScreenShare {
+		o.SetSharingType(true)
+	}
 }
 
 // HintOverlay returns the hint overlay renderer.
@@ -558,6 +562,10 @@ func (m *Manager) SetSharingType(hide bool) {
 
 	if m.stickyModifiersOverlay != nil {
 		m.stickyModifiersOverlay.SetSharingType(hide)
+	}
+
+	if m.virtualPointerOverlay != nil {
+		m.virtualPointerOverlay.SetSharingType(hide)
 	}
 
 	if m.logger != nil {
