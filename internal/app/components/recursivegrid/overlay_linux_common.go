@@ -37,6 +37,7 @@ type Style struct {
 	LabelBackgroundBorderRadius     int
 	LabelBackgroundBorderWidth      float64
 	LabelChar                       string
+	LabelAutohideMultiplier         float64
 	SubKeyPreview                   bool
 	SubKeyPreviewFontSize           float64
 	SubKeyPreviewAutohideMultiplier float64

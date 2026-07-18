@@ -175,6 +175,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderRadius;  ///< Grid label badge border radius
 @property(nonatomic, assign) CGFloat gridLabelBackgroundBorderWidth;   ///< Grid label badge border width
 @property(nonatomic, assign) BOOL hideUnmatched;                       ///< Hide unmatched cells
+@property(nonatomic, assign) CGFloat gridLabelAutohideMultiplier;      ///< Main label autohide multiplier (0 = disable)
 
 // Sub-key preview: draws a miniature key grid inside each cell
 @property(nonatomic, assign) BOOL gridDrawSubKeyPreview;          ///< Draw sub-key preview mini-grid
@@ -334,6 +335,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_gridLabelBackgroundBorderRadius = -1.0;
 		_gridLabelBackgroundBorderWidth = 1.0;
 		_gridSubKeyAutohideMultiplier = 1.5;
+		_gridLabelAutohideMultiplier = 0.0;
 		_hideUnmatched = NO;
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
@@ -1547,6 +1549,15 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		return;
 	}
 
+	// Skip main label when cells are too small to render legibly.
+	// Each cell must be at least (multiplier × font size) in both dimensions.
+	// A multiplier of 0 disables autohide.
+	if (self.gridLabelAutohideMultiplier > 0) {
+		CGFloat minCell = self.gridFont.pointSize * self.gridLabelAutohideMultiplier;
+		if (cellRect.size.width < minCell || cellRect.size.height < minCell)
+			return;
+	}
+
 	// Set up attributed string
 	NSMutableAttributedString *attrString = self.cachedGridCellAttributedString;
 	[[attrString mutableString] setString:label];
@@ -2699,6 +2710,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
 	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
 	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+	CGFloat labelAutohideMultiplier = style.labelAutohideMultiplier;
 	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
@@ -2770,6 +2782,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
 			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
 			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+			controller.overlayView.gridLabelAutohideMultiplier = labelAutohideMultiplier;
 
 			// Apply sub-key preview settings
 			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
@@ -2846,6 +2859,7 @@ void NeruAnimateRecursiveGridTransition(
 	CGFloat labelBackgroundPaddingY = style.labelBackgroundPaddingY;
 	CGFloat labelBackgroundBorderRadius = style.labelBackgroundBorderRadius;
 	CGFloat labelBackgroundBorderWidth = style.labelBackgroundBorderWidth;
+	CGFloat labelAutohideMultiplier = style.labelAutohideMultiplier;
 	BOOL drawSubKeyPreview = style.drawSubKeyPreview ? YES : NO;
 	int subKeyGridCols = style.subKeyGridCols;
 	int subKeyGridRows = style.subKeyGridRows;
@@ -2912,6 +2926,7 @@ void NeruAnimateRecursiveGridTransition(
 			controller.overlayView.gridLabelBackgroundPaddingY = labelBackgroundPaddingY;
 			controller.overlayView.gridLabelBackgroundBorderRadius = labelBackgroundBorderRadius;
 			controller.overlayView.gridLabelBackgroundBorderWidth = labelBackgroundBorderWidth;
+			controller.overlayView.gridLabelAutohideMultiplier = labelAutohideMultiplier;
 			controller.overlayView.gridDrawSubKeyPreview = drawSubKeyPreview;
 			controller.overlayView.gridSubKeyCols = subKeyGridCols;
 			controller.overlayView.gridSubKeyRows = subKeyGridRows;

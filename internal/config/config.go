@@ -774,6 +774,7 @@ type RecursiveGridUI struct {
 	LabelBackgroundBorderRadius     int     `json:"labelBackgroundBorderRadius"     toml:"label_background_border_radius"`
 	LabelBackgroundBorderWidth      int     `json:"labelBackgroundBorderWidth"      toml:"label_background_border_width"`
 	LabelChar                       string  `json:"labelChar"                       toml:"label_char"`
+	LabelAutohideMultiplier         float64 `json:"labelAutohideMultiplier"         toml:"label_autohide_multiplier"`
 	SubKeyPreview                   bool    `json:"subKeyPreview"                   toml:"sub_key_preview"`
 	SubKeyPreviewFontSize           int     `json:"subKeyPreviewFontSize"           toml:"sub_key_preview_font_size"`
 	SubKeyPreviewAutohideMultiplier float64 `json:"subKeyPreviewAutohideMultiplier" toml:"sub_key_preview_autohide_multiplier"`
