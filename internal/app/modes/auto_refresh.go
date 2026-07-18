@@ -8,6 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
+	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 )
 
 const (
@@ -15,31 +16,24 @@ const (
 	// hints.auto_refresh.min_refresh_delay_ms is unset or non-positive.
 	defaultAutoRefreshDebounce = 150 * time.Millisecond
 
-	// autoRefreshMaxWaitFactor derives the max-wait cap from the debounce window.
-	// Under sustained UI churn the trailing timer keeps getting pushed back; the
-	// cap forces a refresh once a burst has run this many debounce windows, so a
-	// continuously-animating app still refreshes at a bounded rate rather than
-	// never settling.
+	// autoRefreshMaxWaitFactor caps how long a burst of changes can keep
+	// postponing the re-scan. Every change restarts the debounce timer, so an
+	// app whose UI never goes quiet would never re-scan on the debounce alone.
+	// Once a burst has lasted this many debounce windows, the re-scan fires
+	// anyway, so a continuously-animating app still refreshes at a steady rate.
 	autoRefreshMaxWaitFactor = 4
-
-	// Settle-backoff parameters. After an observer-driven scan the page may still
-	// be rendering with no further AX notification, so the settle loop re-scans at
-	// a widening interval: base, then ×growth each stable step (1.6, as 8/5), until
-	// it reaches the cap. It resets to base whenever the hint set changes, and
-	// stops only after two consecutive stable scans at the cap. The scan-count and
-	// window ceilings bound a page that keeps changing so it cannot re-scan forever.
-	autoRefreshSettleBase       = 250 * time.Millisecond
-	autoRefreshSettleCap        = 5 * time.Second
-	autoRefreshSettleGrowthNum  = 8
-	autoRefreshSettleGrowthDen  = 5
-	autoRefreshSettleStopStable = 2
-	autoRefreshSettleMaxScans   = 25
-	autoRefreshSettleMaxWindow  = 30 * time.Second
 )
 
-// autoRefreshEnabled reports whether the live config enables hints auto-refresh.
-// Caller must hold h.mu (it reads h.config).
-func (h *Handler) autoRefreshEnabled() bool {
+// initAutoRefresh wires the observer manager and seeds the debounce timing, so
+// a hints activation can point the observer at the focused app. Nothing is
+// armed until a hints session runs with hints.auto_refresh enabled.
+func (h *Handler) initAutoRefresh() {
+	h.autoRefreshDebounce = defaultAutoRefreshDebounce
+	h.autoRefreshMaxWait = defaultAutoRefreshDebounce * autoRefreshMaxWaitFactor
+	h.observerMgr = axobserver.New(func(int) { h.onObserverChange() }, h.logger)
+}
+
+func (h *Handler) autoRefreshEnabledLocked() bool {
 	return h.config != nil && h.config.Hints.AutoRefresh.Enabled
 }
 
@@ -79,22 +73,22 @@ func (h *Handler) holdRefreshLocked() {
 	h.autoRefreshBurstStart = time.Now()
 }
 
-// beginHintRefresh is the debounce gate every manual in-hints refresh passes
-// through while auto_refresh is enabled — a --repeat re-entry, a passthrough
-// re-scan, a bound `hints` re-launch, a cycle-hint re-scan. It returns true for
-// the leading edge — the first refresh in an idle burst, or a burst whose timer
-// was paused for typing — which scans immediately so a manual refresh is never
-// delayed, and false when a refresh is already in flight (a single trailing scan
-// is (re)scheduled instead), or when it is held for a search in progress.
+// admitHintRefresh is the debounce gate for every manual in-hints refresh while
+// auto_refresh is enabled: a --repeat re-entry, a passthrough re-scan, a bound
+// `hints` re-launch, a cycle-hint re-scan. It returns true when the caller
+// should scan right now. That is the leading edge, meaning the first refresh in
+// an idle burst, or one whose timer was paused for typing, so a manual refresh
+// is never delayed. It returns false when a scan is already in flight, in which
+// case it schedules a single trailing scan instead, or when it holds the
+// refresh because a search is in progress.
 //
 // A refresh that lands while a search query is being typed is held and released
 // when the search ends (confirm or cancel), so the query and its filtered hint
-// set are not swapped out from under the keystrokes. A pending hint-label
-// selection is deliberately NOT held: the --repeat re-scan that runs right after
-// a label is chosen would otherwise freeze the overlay on the stale filter with
-// no event left to release it. Runs under the mode lock and takes only the leaf
-// autoRefreshMu.
-func (h *Handler) beginHintRefresh() bool {
+// set survive the keystrokes. A pending hint-label selection is not held: the
+// --repeat re-scan that runs right after a label is chosen must proceed, or the
+// overlay would freeze on the stale filter with no event left to release it.
+// Runs under the mode lock and takes only the leaf autoRefreshMu.
+func (h *Handler) admitHintRefresh() bool {
 	if h.hintSearchInProgress() {
 		h.autoRefreshMu.Lock()
 		h.holdRefreshLocked()
@@ -108,19 +102,20 @@ func (h *Handler) beginHintRefresh() bool {
 
 	now := time.Now()
 
-	// A manual or --repeat refresh takes priority over a running settle loop: end
-	// the settle so this scans now (the leading edge below) rather than being
-	// deferred behind a pending settle re-check, which would freeze the overlay on
-	// a hint selection. Ending it clears the settle timer, so the leading-edge test
-	// passes even if a stale burst flag lingered. A later observer change re-seeds
-	// the settle from the fresh scan.
+	// A manual or --repeat refresh outranks a running settle loop. Stop the
+	// settle so this refresh scans immediately below instead of waiting behind
+	// the settle's next re-check, which is what would freeze the overlay on the
+	// hint the user just selected. Stopping it also clears the settle timer, so
+	// the leading-edge check below sees no active timer and admits this refresh.
+	// A later observed change starts a fresh settle from the new scan.
 	if h.autoRefreshSettling {
 		h.stopSettleInnerLocked()
 	}
 
-	// An idle burst, or a burst whose timer was paused for typing (open but with
-	// no timer), is the leading edge: scan now and (re)open the window. Scanning
-	// here also absorbs any refresh the observer path held while typing.
+	// The leading edge is an idle burst, or a burst whose timer was paused for
+	// typing (marked open but with no timer running). Either way, scan now and
+	// (re)open the debounce window. This scan also picks up any refresh the
+	// observer path deferred while the user was typing.
 	if !h.autoRefreshBurstOpen || h.autoRefreshTimer == nil {
 		h.autoRefreshBurstOpen = true
 		h.autoRefreshBurstStart = now
@@ -154,15 +149,15 @@ func (h *Handler) onObserverChange() {
 	// ceilings untouched so a continuously-changing page still winds down. Stop
 	// once the window ceiling is reached rather than re-arming forever.
 	if h.autoRefreshSettling {
-		if now.Sub(h.settleStart) >= autoRefreshSettleMaxWindow {
+		if now.Sub(h.settleStart) >= autoRefreshSettleMaxDuration {
 			h.stopSettleInnerLocked()
 
 			return
 		}
 
-		h.settleInterval = autoRefreshSettleBase
+		h.settleInterval = autoRefreshSettleBaseInterval
 		h.settleStableAtCap = 0
-		h.armSettleTimerLocked(autoRefreshSettleBase)
+		h.armSettleTimerLocked(autoRefreshSettleBaseInterval)
 
 		return
 	}
@@ -309,7 +304,7 @@ func (h *Handler) observerDrivenRefreshLocked() {
 		return
 	}
 
-	if !h.autoRefreshEnabled() {
+	if !h.autoRefreshEnabledLocked() {
 		return
 	}
 
@@ -343,183 +338,6 @@ func (h *Handler) observerDrivenRefreshLocked() {
 	)
 }
 
-// beginSettleLocked starts the settle loop after an observer-driven scan. Web
-// content often renders in waves with no AX notification for the later ones, so
-// one scan can catch a page mid-render. It records the applied hint set's
-// fingerprint as the baseline and arms the first re-scan at the base interval.
-// Caller must hold h.mu.
-func (h *Handler) beginSettleLocked() {
-	if h.appState.CurrentMode() != domain.ModeHints || !h.autoRefreshEnabled() {
-		return
-	}
-
-	fingerprint := h.fingerprintHintsLocked()
-
-	h.autoRefreshMu.Lock()
-	defer h.autoRefreshMu.Unlock()
-
-	h.autoRefreshSettling = true
-	h.lastAppliedFingerprint = fingerprint
-	h.settleInterval = autoRefreshSettleBase
-	h.settleStableAtCap = 0
-	h.settleScanCount = 0
-	h.settleStart = time.Now()
-	h.armSettleTimerLocked(autoRefreshSettleBase)
-}
-
-// settleFireLocked runs one backoff step: re-scan, compare the new hint set to
-// what is applied, then either reset the interval dense (it changed), grow the
-// interval (stable), or stop. The re-scan redraws only what changed via the
-// refresh path's incremental draw, so a stable step is invisible. Caller holds
-// h.mu.
-func (h *Handler) settleFireLocked() {
-	stillHints := h.appState.CurrentMode() == domain.ModeHints && h.autoRefreshEnabled()
-
-	if stillHints {
-		h.observerDrivenRefreshLocked()
-		stillHints = h.appState.CurrentMode() == domain.ModeHints
-	}
-
-	var fingerprint uint64
-	if stillHints {
-		fingerprint = h.fingerprintHintsLocked()
-	}
-
-	h.autoRefreshMu.Lock()
-	defer h.autoRefreshMu.Unlock()
-
-	if !stillHints {
-		h.stopSettleInnerLocked()
-
-		return
-	}
-
-	changed := fingerprint != h.lastAppliedFingerprint
-	h.lastAppliedFingerprint = fingerprint
-
-	if h.advanceSettleLocked(changed) {
-		h.stopSettleInnerLocked()
-
-		return
-	}
-
-	h.armSettleTimerLocked(h.settleInterval)
-}
-
-// advanceSettleLocked updates the backoff after a settle scan and reports whether
-// the loop should stop. A change restarts the interval dense; a stable scan grows
-// it, or counts toward the stop once it is at the cap. Caller holds autoRefreshMu.
-func (h *Handler) advanceSettleLocked(changed bool) bool {
-	h.settleScanCount++
-
-	switch {
-	case changed:
-		h.settleInterval = autoRefreshSettleBase
-		h.settleStableAtCap = 0
-	case h.settleInterval >= autoRefreshSettleCap:
-		h.settleStableAtCap++
-	default:
-		h.settleInterval = nextSettleInterval(h.settleInterval)
-	}
-
-	return settleShouldStop(h.settleInterval, h.settleStableAtCap, h.settleScanCount, time.Since(h.settleStart))
-}
-
-// stopSettleInnerLocked ends the settle loop and clears its state. Caller holds
-// autoRefreshMu.
-func (h *Handler) stopSettleInnerLocked() {
-	h.autoRefreshSettling = false
-	h.settleInterval = 0
-	h.settleStableAtCap = 0
-	h.settleScanCount = 0
-
-	if h.autoRefreshTimer != nil {
-		h.autoRefreshTimer.Stop()
-		h.autoRefreshTimer = nil
-	}
-}
-
-// armSettleTimerLocked (re)arms the timer to fire the next settle re-check after
-// delay. Caller holds autoRefreshMu.
-func (h *Handler) armSettleTimerLocked(delay time.Duration) {
-	if delay < 0 {
-		delay = 0
-	}
-
-	if h.autoRefreshTimer != nil {
-		h.autoRefreshTimer.Stop()
-	}
-
-	h.autoRefreshTimer = time.AfterFunc(delay, h.fireHintRefresh)
-}
-
-// nextSettleInterval grows the backoff interval by the growth factor (8/5 = 1.6),
-// clamped to the cap.
-func nextSettleInterval(current time.Duration) time.Duration {
-	next := current * autoRefreshSettleGrowthNum / autoRefreshSettleGrowthDen
-	if next > autoRefreshSettleCap {
-		return autoRefreshSettleCap
-	}
-
-	return next
-}
-
-// settleShouldStop reports whether the settle loop has finished: two consecutive
-// stable scans once the interval reached the cap, or either global ceiling (total
-// scans, or elapsed since the sequence began) reached.
-func settleShouldStop(interval time.Duration, stableAtCap, scanCount int, elapsed time.Duration) bool {
-	if interval >= autoRefreshSettleCap && stableAtCap >= autoRefreshSettleStopStable {
-		return true
-	}
-
-	if scanCount >= autoRefreshSettleMaxScans {
-		return true
-	}
-
-	return elapsed >= autoRefreshSettleMaxWindow
-}
-
-// fingerprintHintsLocked hashes the current hint set (element bounds and role) so
-// two scans can be compared for equality without walking the accessibility tree
-// again. Caller must hold h.mu.
-func (h *Handler) fingerprintHintsLocked() uint64 {
-	if h.hints == nil || h.hints.Context == nil {
-		return 0
-	}
-
-	collection := h.hints.Context.Hints()
-	if collection == nil {
-		return 0
-	}
-
-	const (
-		fnvOffset uint64 = 14695981039346656037
-		fnvPrime  uint64 = 1099511628211
-	)
-
-	hash := fnvOffset
-	mix := func(v uint64) {
-		hash = (hash ^ v) * fnvPrime
-	}
-
-	hints := collection.All()
-	mix(uint64(len(hints)))
-
-	for _, hint := range hints {
-		bounds := hint.Bounds()
-		mix(uint64(uint32(bounds.Min.X)))
-		mix(uint64(uint32(bounds.Min.Y)))
-		mix(uint64(uint32(bounds.Max.X)))
-		mix(uint64(uint32(bounds.Max.Y)))
-
-		for _, char := range hint.Element().Role() {
-			mix(uint64(char))
-		}
-	}
-
-	return hash
-}
-
 // updateAutoRefreshObservers points the AX observer at the focused app when
 // hints auto_refresh is enabled, and tears it down when it is not. It runs on
 // every hints activation (fresh or refresh) while the mode lock is held, so the
@@ -532,7 +350,7 @@ func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 		return
 	}
 
-	if !h.autoRefreshEnabled() {
+	if !h.autoRefreshEnabledLocked() {
 		h.disarmAutoRefreshObservers()
 
 		return

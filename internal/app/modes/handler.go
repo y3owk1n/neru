@@ -134,11 +134,16 @@ type Handler struct {
 	// Cycle hint state
 	cycleHintIndex int
 
-	// Auto-refresh: observerMgr arms AX observers on the focused app while a
+	// Auto-refresh: observerMgr arms an AX observer on the focused app while a
 	// hints session runs with hints.auto_refresh enabled. An observed change
 	// feeds the debounce state below, which coalesces a burst of changes into a
 	// single-flight refresh (leading edge fires immediately, mid-burst changes
 	// collapse into one trailing scan, bounded by autoRefreshMaxWait).
+	//
+	// This state lives on the Handler like the rest of the hints-session state:
+	// the mode values are stateless dispatchers, the observer manager outlives
+	// any single activation, and the timers and the observer callback coordinate
+	// through the mode lock and the leaf mutex, both owned here.
 	//
 	// The debounce state is guarded by the leaf autoRefreshMu, which is never
 	// held while acquiring the mode lock (h.mu); the observer callback takes only
@@ -160,11 +165,11 @@ type Handler struct {
 
 	// Settle backoff: after an observer-driven scan, keep re-scanning at a
 	// widening interval until the hint set stops changing, so web content that
-	// renders with no AX notification is still caught. The interval resets dense
-	// whenever the set changes; the scan-count and window ceilings do not, so a
-	// continuously-changing page still winds down. Guarded by autoRefreshMu, except
-	// lastAppliedFingerprint which is only touched on the scan path under h.mu +
-	// autoRefreshMu. See auto_refresh.go.
+	// renders with no AX notification is still caught. The interval resets to the
+	// base whenever the set changes; the scan-count and window ceilings do not, so
+	// a continuously-changing page still winds down. Guarded by autoRefreshMu,
+	// except lastAppliedFingerprint which is only touched on the scan path under
+	// h.mu + autoRefreshMu. See auto_refresh_settle.go.
 	autoRefreshSettling    bool
 	settleInterval         time.Duration
 	settleStableAtCap      int
@@ -281,14 +286,7 @@ func NewHandler(
 		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
 	}
 
-	// Auto-refresh observer plumbing. An observed UI change notifies the debounce
-	// state, which coalesces a burst into a single-flight refresh. Nothing is
-	// armed until a hints session runs with hints.auto_refresh enabled.
-	handler.autoRefreshDebounce = defaultAutoRefreshDebounce
-	handler.autoRefreshMaxWait = defaultAutoRefreshDebounce * autoRefreshMaxWaitFactor
-	handler.observerMgr = axobserver.New(func(_ int) {
-		handler.onObserverChange()
-	}, handler.logger)
+	handler.initAutoRefresh()
 
 	return handler
 }

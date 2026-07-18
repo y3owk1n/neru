@@ -193,8 +193,8 @@ func (h *Handler) activateHintModeInternal(
 	// before. (The screen-change refresh takes its own specialized path in
 	// RefreshHintsForScreenChange and does not pass through here; a screen change
 	// keeps the same focused app, so its observer stays correctly targeted.)
-	if isRefresh && !h.hintRefreshFiring && h.autoRefreshEnabled() {
-		if !h.beginHintRefresh() {
+	if isRefresh && !h.hintRefreshFiring && h.autoRefreshEnabledLocked() {
+		if !h.admitHintRefresh() {
 			return
 		}
 	}
