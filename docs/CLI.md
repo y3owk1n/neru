@@ -74,7 +74,7 @@ neru idle                                  # Cancel active navigation mode
 | `--toggle, -t`            | bool   | Toggle mode on/off — exit to idle if already active                                                                                       |
 | `--cursor-selection-mode` | string | `follow` (cursor follows selection) or `hold` (cursor stays)                                                                              |
 
-Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
+Not allowed as `--action`: `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`, and scroll sub-actions (`scroll_up`, `page_down`, `go_top`, etc.).
 
 > The `--action` flag is most useful in hints mode (Vimium-style). In grid/recursive-grid, prefer composing behavior in per-mode hotkeys: `["action left_click", "idle"]`.
 
@@ -347,6 +347,8 @@ neru action wait_for_mode_exit                # Block until mode exits to idle
 neru action wait_for_mode_exit --bail         # Block; abort chain if mode was cancelled (no selection)
 neru action save_cursor_pos                   # Save current cursor position
 neru action restore_cursor_pos                # Restore saved cursor position
+neru action hide_cursor                       # Hide the system cursor
+neru action show_cursor                       # Show the system cursor
 ```
 
 | Flag      | Description                                                                   |

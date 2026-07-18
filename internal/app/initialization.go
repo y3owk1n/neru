@@ -256,4 +256,8 @@ func (a *App) registerOverlays() {
 	if a.recursiveGridComponent != nil && a.recursiveGridComponent.Overlay != nil {
 		a.overlayManager.UseRecursiveGridOverlay(a.recursiveGridComponent.Overlay)
 	}
+
+	if a.virtualPointerOverlay != nil {
+		a.overlayManager.UseVirtualPointerOverlay(a.virtualPointerOverlay)
+	}
 }

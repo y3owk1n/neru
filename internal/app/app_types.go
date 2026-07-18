@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -88,6 +89,7 @@ type App struct {
 	modeIndicatorComponent   *components.ModeIndicatorComponent
 	stickyIndicatorComponent *components.StickyIndicatorComponent
 	recursiveGridComponent   *components.RecursiveGridComponent
+	virtualPointerOverlay    *virtualpointer.Overlay
 	systrayComponent         SystrayComponent
 
 	// Lifecycle management

@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -87,6 +88,7 @@ type Manager struct {
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
 	stickyModifiersOverlay *stickyindicator.Overlay
+	virtualPointerOverlay  *virtualpointer.Overlay
 
 	stickyBadgeRect    image.Rectangle
 	stickyBadgeVisible bool
@@ -336,6 +338,11 @@ func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
 }
 
+// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay.
+func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
+	m.virtualPointerOverlay = o
+}
+
 // HintOverlay returns the hints overlay.
 func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
 
@@ -350,6 +357,9 @@ func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return m.s
 
 // RecursiveGridOverlay returns the recursive grid overlay.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return m.recursiveGridOverlay }
+
+// VirtualPointerOverlay returns the cursor-following virtual pointer overlay.
+func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay { return m.virtualPointerOverlay }
 
 // OverlayCapabilities returns the feature capabilities.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {

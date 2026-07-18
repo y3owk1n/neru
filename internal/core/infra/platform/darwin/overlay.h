@@ -270,6 +270,26 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 /// @param window Overlay window handle
 void NeruHideCursorIndicator(OverlayWindow window);
 
+/// Position a small overlay window on the cursor and draw the virtual pointer dot.
+/// @param window Overlay window handle
+/// @param absoluteX Cursor X in Quartz screen coordinates
+/// @param absoluteY Cursor Y in Quartz screen coordinates
+/// @param style Virtual pointer style
+void NeruPositionAndDrawVirtualPointer(
+    OverlayWindow window, double absoluteX, double absoluteY, CursorIndicatorStyle style);
+
+/// Hide the system cursor (CGDisplayHideCursor).
+/// Uses the private CGS API to allow cursor changes from background processes.
+void NeruHideSystemCursor(void);
+
+/// Show the system cursor (CGDisplayShowCursor).
+void NeruShowSystemCursor(void);
+
+/// Safely re-hide the system cursor (show+hide pair) so the ref count never
+/// exceeds 1. The show decrements the ref count (or is a no-op if already 0)
+/// and the hide increments it, so the net delta is always zero.
+void NeruRehideSystemCursor(void);
+
 /// Show a transient mouse action indicator in its own overlay window.
 /// @param position Global cursor position in Quartz coordinates
 /// @param style Indicator style

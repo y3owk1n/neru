@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
@@ -253,6 +254,36 @@ func (f *ComponentFactory) CreateStickyIndicatorComponent(
 	}, nil
 }
 
+// CreateVirtualPointerOverlay creates the cursor-following virtual pointer overlay.
+func (f *ComponentFactory) CreateVirtualPointerOverlay() (*virtualpointer.Overlay, error) {
+	if f.headless() {
+		return nil, nil //nolint:nilnil
+	}
+
+	overlay, err := f.createOverlay("virtual_pointer", f.config.VirtualPointer)
+	if err != nil {
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeOverlayFailed,
+			"failed to create virtual pointer overlay",
+		)
+	}
+
+	if overlay == nil {
+		return nil, nil //nolint:nilnil
+	}
+
+	typed, ok := overlay.(*virtualpointer.Overlay)
+	if !ok {
+		return nil, derrors.New(
+			derrors.CodeOverlayFailed,
+			"unexpected virtual pointer overlay type",
+		)
+	}
+
+	return typed, nil
+}
+
 // CreateRecursiveGridComponent creates a recursive-grid component with standardized error handling.
 func (f *ComponentFactory) CreateRecursiveGridComponent(
 	opts ComponentCreationOptions,
@@ -366,6 +397,21 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 
 		return stickyindicator.NewOverlay(
 			uiConfig,
+			f.themeProvider,
+			f.logger,
+		)
+	case "virtual_pointer":
+		virtualPointerConfig, ok := cfg.(config.VirtualPointerConfig)
+		if !ok {
+			return nil, derrors.New(derrors.CodeInvalidInput, "invalid virtual pointer config type")
+		}
+
+		if f.headless() {
+			return nil, nil //nolint:nilnil
+		}
+
+		return virtualpointer.NewOverlay(
+			virtualPointerConfig,
 			f.themeProvider,
 			f.logger,
 		)

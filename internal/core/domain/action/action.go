@@ -163,6 +163,10 @@ const (
 	NamePageUp Name = "page_up"
 	// NamePageDown represents the page-down action.
 	NamePageDown Name = "page_down"
+	// NameHideCursor hides the system cursor.
+	NameHideCursor Name = "hide_cursor"
+	// NameShowCursor shows the system cursor.
+	NameShowCursor Name = "show_cursor"
 	// NameSleep pauses action execution for a specified duration.
 	NameSleep Name = "sleep"
 	// NameCycleHint cycles through visible hints in hints mode.
@@ -234,6 +238,16 @@ func IsRestoreCursorPosAction(name string) bool {
 	return Name(name) == NameRestoreCursorPos
 }
 
+// IsHideCursorAction reports whether the given action is hide_cursor.
+func IsHideCursorAction(name string) bool {
+	return Name(name) == NameHideCursor
+}
+
+// IsShowCursorAction reports whether the given action is show_cursor.
+func IsShowCursorAction(name string) bool {
+	return Name(name) == NameShowCursor
+}
+
 // IsMoveMonitorAction reports whether the given action is move_monitor.
 func IsMoveMonitorAction(name string) bool {
 	return Name(name) == NameMoveMonitor
@@ -267,7 +281,8 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
+		NameHideCursor, NameShowCursor:
 		return true
 	default:
 		return false
@@ -290,7 +305,8 @@ func IsScrollSubAction(name string) bool {
 		NameMouseDown, NameMouseUp,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints:
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
+		NameHideCursor, NameShowCursor:
 		return false
 	default:
 		return false
@@ -368,7 +384,9 @@ func (n Name) ToType() (Type, error) {
 		NameFeed,
 		NameSleep,
 		NameCycleHint,
-		NameSearchHints:
+		NameSearchHints,
+		NameHideCursor,
+		NameShowCursor:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

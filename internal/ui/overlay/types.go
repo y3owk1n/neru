@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -105,6 +106,9 @@ func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
 // UseStickyModifiersOverlay is a no-op implementation.
 func (n *NoOpManager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {}
 
+// UseVirtualPointerOverlay is a no-op implementation.
+func (n *NoOpManager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {}
+
 // HintOverlay returns nil.
 func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
 
@@ -119,6 +123,9 @@ func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil
 
 // StickyModifiersOverlay returns nil.
 func (n *NoOpManager) StickyModifiersOverlay() *stickyindicator.Overlay { return nil }
+
+// VirtualPointerOverlay returns nil.
+func (n *NoOpManager) VirtualPointerOverlay() *virtualpointer.Overlay { return nil }
 
 // DrawHintsWithStyle is a no-op implementation.
 func (n *NoOpManager) DrawHintsWithStyle(
@@ -146,6 +153,9 @@ func (n *NoOpManager) DrawModeIndicator(x, y int) {}
 
 // DrawStickyModifiersIndicator is a no-op implementation.
 func (n *NoOpManager) DrawStickyModifiersIndicator(x, y int, symbols string) {}
+
+// DrawVirtualPointer is a no-op implementation.
+func (n *NoOpManager) DrawVirtualPointer(_, _ int, _ int, _ string) {}
 
 // DrawMouseActionIndicator is a no-op implementation.
 func (n *NoOpManager) DrawMouseActionIndicator(
@@ -227,12 +237,14 @@ type ManagerInterface interface {
 	UseModeIndicatorOverlay(o *modeindicator.Overlay)
 	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
 	UseStickyModifiersOverlay(o *stickyindicator.Overlay)
+	UseVirtualPointerOverlay(o *virtualpointer.Overlay)
 
 	HintOverlay() *hints.Overlay
 	GridOverlay() *grid.Overlay
 	ModeIndicatorOverlay() *modeindicator.Overlay
 	RecursiveGridOverlay() *recursivegrid.Overlay
 	StickyModifiersOverlay() *stickyindicator.Overlay
+	VirtualPointerOverlay() *virtualpointer.Overlay
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawHintSearchInput(
@@ -244,6 +256,7 @@ type ManagerInterface interface {
 	HideHintSearchInput()
 	DrawModeIndicator(x, y int)
 	DrawStickyModifiersIndicator(x, y int, symbols string)
+	DrawVirtualPointer(x, y int, size int, fillColor string)
 	DrawMouseActionIndicator(point image.Point, style ports.MouseActionIndicatorStyle)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	DrawRecursiveGrid(

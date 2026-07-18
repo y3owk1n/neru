@@ -62,6 +62,10 @@ func (h *Handler) clearAndHideOverlay() {
 
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *Handler) cleanupHintsMode() {
+	if h.config.VirtualPointer.Enabled {
+		h.showSystemCursorLocked()
+	}
+
 	h.stopHintSearchTextInputLocked(false)
 
 	resetErr := h.hints.Context.Reset()

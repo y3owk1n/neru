@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -60,6 +61,7 @@ type Manager struct {
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
 	stickyModifiersOverlay *stickyindicator.Overlay
+	virtualPointerOverlay  *virtualpointer.Overlay
 }
 
 var (
@@ -287,6 +289,11 @@ func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
 	m.recursiveGridOverlay = o
 }
 
+// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
+func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
+	m.virtualPointerOverlay = o
+}
+
 // HintOverlay returns the hint overlay renderer.
 func (m *Manager) HintOverlay() *hints.Overlay {
 	return m.hintOverlay
@@ -310,6 +317,11 @@ func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
 // RecursiveGridOverlay returns the recursive-grid overlay renderer.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return m.recursiveGridOverlay
+}
+
+// VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
+func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay {
+	return m.virtualPointerOverlay
 }
 
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
@@ -383,6 +395,15 @@ func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, sym
 	}
 
 	m.stickyModifiersOverlay.Draw(xCoordinate, yCoordinate, symbols)
+}
+
+// DrawVirtualPointer renders the cursor-following virtual pointer overlay.
+func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
+	if m.virtualPointerOverlay == nil {
+		return
+	}
+
+	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator in its own native window.

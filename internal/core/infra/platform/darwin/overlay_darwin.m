@@ -3318,6 +3318,61 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 	});
 }
 
+static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point);
+static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point);
+
+/// Position a small overlay window on the cursor and draw the virtual pointer dot.
+void NeruPositionAndDrawVirtualPointer(
+    OverlayWindow window, double absoluteX, double absoluteY, CursorIndicatorStyle style) {
+	if (!window)
+		return;
+
+	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+
+	CGFloat radius = style.radius > 0 ? style.radius : 3.0;
+	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
+	CGFloat margin = 2.0;
+	CGFloat windowSize = (radius * 2.0) + margin * 2.0;
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		@autoreleasepool {
+			CGPoint desiredCenter = CGPointMake(absoluteX, absoluteY);
+			NSPoint appKitCenter = NeruAppKitPointFromQuartzPoint(desiredCenter);
+
+			NSScreen *cursorScreen = NeruScreenContainingQuartzPoint(desiredCenter);
+			if (cursorScreen != nil) {
+				NSRect screenFrame = cursorScreen.frame;
+				CGFloat half = windowSize / 2.0;
+				CGFloat minX = screenFrame.origin.x + half;
+				CGFloat maxX = NSMaxX(screenFrame) - half;
+				CGFloat minY = screenFrame.origin.y + half;
+				CGFloat maxY = NSMaxY(screenFrame) - half;
+				if (minX <= maxX) {
+					appKitCenter.x = MAX(minX, MIN(appKitCenter.x, maxX));
+				}
+				if (minY <= maxY) {
+					appKitCenter.y = MAX(minY, MIN(appKitCenter.y, maxY));
+				}
+			}
+
+			NSRect frame = NSMakeRect(
+			    appKitCenter.x - windowSize / 2.0, appKitCenter.y - windowSize / 2.0, windowSize, windowSize);
+
+			[controller.window setFrame:frame display:NO];
+			[controller.overlayView setFrame:NSMakeRect(0, 0, windowSize, windowSize)];
+			NeruOrderOverlayWindowIfDrawable(controller, NO);
+
+			[controller.overlayView cancelCursorIndicatorTransition];
+			controller.overlayView.cursorIndicatorVisible = YES;
+			controller.overlayView.cursorIndicatorPosition = NSMakePoint(windowSize / 2.0, windowSize / 2.0);
+			controller.overlayView.cursorIndicatorRadius = radius;
+			controller.overlayView.cursorIndicatorFillColor =
+			    [controller.overlayView colorFromHex:fillHex defaultColor:[NSColor whiteColor]];
+			[controller.overlayView setNeedsDisplay:YES];
+		}
+	});
+}
+
 /// Hide the virtual cursor indicator.
 /// @param window Overlay window handle
 void NeruHideCursorIndicator(OverlayWindow window) {
@@ -3642,5 +3697,42 @@ void NeruShowMouseActionIndicator(CGPoint position, MouseActionIndicatorStyle st
 				    }
 			    });
 		}
+	});
+}
+
+#pragma mark - System Cursor
+
+/// Private CGS API to allow cursor changes from background processes.
+typedef int CGSConnectionID;
+CGError CGSSetConnectionProperty(CGSConnectionID cid, CGSConnectionID targetCID, CFStringRef key, CFTypeRef value);
+CGSConnectionID _CGSDefaultConnection(void);
+
+static void _NeruEnableCursorInBackground(void) {
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		CGSConnectionID cid = _CGSDefaultConnection();
+		CFStringRef key = CFSTR("SetsCursorInBackground");
+		CGSSetConnectionProperty(cid, cid, key, kCFBooleanTrue);
+	});
+}
+
+void NeruHideSystemCursor(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		_NeruEnableCursorInBackground();
+		CGDisplayHideCursor(kCGNullDirectDisplay);
+	});
+}
+
+void NeruShowSystemCursor(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		CGDisplayShowCursor(kCGNullDirectDisplay);
+	});
+}
+
+void NeruRehideSystemCursor(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		_NeruEnableCursorInBackground();
+		CGDisplayShowCursor(kCGNullDirectDisplay);
+		CGDisplayHideCursor(kCGNullDirectDisplay);
 	});
 }

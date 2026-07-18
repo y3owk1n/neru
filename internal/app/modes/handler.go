@@ -123,6 +123,9 @@ type Handler struct {
 	indicatorStopCh chan struct{}
 	indicatorDoneCh chan struct{}
 
+	// systemCursorHidden tracks whether hide_cursor (or hints virtual pointer) is active.
+	systemCursorHidden bool
+
 	// Cycle hint state
 	cycleHintIndex int
 
