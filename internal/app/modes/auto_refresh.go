@@ -318,6 +318,7 @@ func (h *Handler) observerDrivenRefreshLocked() {
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 	startWithSearch := h.hints.Context.StartWithSearch()
+	hideOnEmptySearch := h.hints.Context.HideOnEmptySearch()
 	strategyOverride := h.hints.Context.StrategyOverride()
 	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 	splitWord := h.hints.Context.SplitWord()
@@ -335,6 +336,7 @@ func (h *Handler) observerDrivenRefreshLocked() {
 		filterRoles,
 		filterTextContains,
 		&startWithSearch,
+		&hideOnEmptySearch,
 		&strategyOverride,
 		&labelDirectionOverride,
 		&splitWord,
