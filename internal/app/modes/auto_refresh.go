@@ -8,7 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 )
 
 const (
@@ -531,9 +530,9 @@ func (h *Handler) fingerprintHintsLocked() uint64 {
 // hints auto_refresh is enabled, and tears it down when it is not. It runs on
 // every hints activation (fresh or refresh) while the mode lock is held, so the
 // observer follows focus: a refresh after the front app changed (for example a
-// Cmd+Tab passthrough) re-targets it. Reconcile is the single source of truth —
-// it re-targets a changed pid, retries a pid whose previous arm failed, and is a
-// no-op for a pid already armed with the same mask.
+// Cmd+Tab passthrough) re-targets it. Watch re-targets a changed pid, retries a
+// pid whose previous arm failed (a failed arm leaves the slot empty), and is a
+// no-op for the pid already watched.
 func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 	if h.observerMgr == nil {
 		return
@@ -549,8 +548,6 @@ func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 
 	h.setAutoRefreshTiming(time.Duration(autoRefresh.DebounceMs) * time.Millisecond)
 
-	mask := axobserver.DefaultMask
-
 	pid := focusedAppPID(bundleID)
 	if pid <= 0 {
 		// A transient failure to resolve the focused pid (for example a bundle-ID
@@ -562,15 +559,15 @@ func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 		return
 	}
 
-	h.logger.Debug("auto_refresh: reconciling observer on focused app",
-		zap.Int("pid", pid), zap.String("bundle_id", bundleID), zap.Uint32("mask", uint32(mask)))
+	h.logger.Debug("auto_refresh: watching focused app",
+		zap.Int("pid", pid), zap.String("bundle_id", bundleID))
 
-	h.observerMgr.Reconcile([]axobserver.Target{{PID: pid, Mask: mask}})
+	h.observerMgr.Watch(pid)
 }
 
-// disarmAutoRefreshObservers tears down every observer and cancels a pending
+// disarmAutoRefreshObservers tears down the observer and cancels a pending
 // refresh. It runs on hints-mode exit while the mode lock is held, and is a
-// cheap no-op when nothing is armed. DisarmAll joins the observer run-loop
+// cheap no-op when nothing is armed. Unwatch joins the observer run-loop
 // thread before the timer is stopped, so an in-flight observer callback (which
 // only touches the leaf mutex) completes first and nothing can arm a new timer
 // afterward.
@@ -579,7 +576,7 @@ func (h *Handler) disarmAutoRefreshObservers() {
 		return
 	}
 
-	h.observerMgr.DisarmAll()
+	h.observerMgr.Unwatch()
 	h.stopAutoRefreshTimer()
 }
 
