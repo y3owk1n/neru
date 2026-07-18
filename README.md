@@ -16,9 +16,9 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|      macOS       |      Linux       |        Windows         |
-| :--------------: | :--------------: | :--------------------: |
-| Full featured ✅ | Basic support 🔵 | Basic support 🔵       |
+|      macOS       |      Linux       |     Windows      |
+| :--------------: | :--------------: | :--------------: |
+| Full featured ✅ | Basic support 🔵 | Basic support 🔵 |
 
 </div>
 
@@ -142,17 +142,18 @@ https://github.com/user-attachments/assets/d99328a6-b5f9-402a-a01b-297da2ffb454
 
 ## How Neru compares
 
-| Tool                                            | Approach                                      |  Price   |    Open Source    |
-| :---------------------------------------------- | :-------------------------------------------- | :------: | :---------------: |
-| **Neru**                                        | Grid + Recursive Grid + AX Hints + Vision OCR | **Free** |        ✅         |
-| [Homerow](https://www.homerow.app/)             | AX-Tree Hints                                 |   Paid   |        ❌         |
-| [Wooshy](https://wooshy.app)                    | AX-Tree Search-to-click                       |   Paid   |        ❌         |
-| [Mouseless](https://mouseless.click/)           | Grid pointer control                          |   Paid   |        ❌         |
-| [Scoot](https://github.com/mjrusso/scoot)       | AX Hints + Grid                               |   Free   |        ✅         |
-| [Glyphlow](https://github.com/blindFS/Glyphlow) | Hints + vim text editing                      |   Free   |        ✅         |
-| [Stochos](https://github.com/museslabs/stochos) | Keyboard driven mouse control                 |   Free   |        ✅         |
-| [Vimac](https://github.com/dexterleng/vimac)    | AX Hints                                      |   Free   | ✅ (unmaintained) |
-| [warpd](https://github.com/rvaiya/warpd)        | Grid + Hints + Normal Pointer                 |   Free   |        ✅         |
+| Tool                                                   | Approach                                          |  Price   |    Open Source    |
+| :----------------------------------------------------- | :------------------------------------------------ | :------: | :---------------: |
+| **Neru**                                               | Grid + Recursive Grid + AX Hints + Vision OCR     | **Free** |        ✅         |
+| [Homerow](https://www.homerow.app/)                    | AX-Tree Hints                                     |   Paid   |        ❌         |
+| [Wooshy](https://wooshy.app)                           | AX-Tree Search-to-click                           |   Paid   |        ❌         |
+| [Mouseless](https://mouseless.click/)                  | Grid pointer control                              |   Paid   |        ❌         |
+| [Scoot](https://github.com/mjrusso/scoot)              | AX Hints + Grid                                   |   Free   |        ✅         |
+| [Glyphlow](https://github.com/blindFS/Glyphlow)        | Hints + vim text editing                          |   Free   |        ✅         |
+| [Stochos](https://github.com/museslabs/stochos)        | Keyboard driven mouse control                     |   Free   |        ✅         |
+| [warpd](https://github.com/rvaiya/warpd)               | Grid + Hints + Normal Pointer                     |   Free   |        ✅         |
+| [Mousemaster](https://github.com/petoncle/mousemaster) | Grid + Hints + Continuous Pointer + Key Remapping |   Free   |        ✅         |
+| [Vimac](https://github.com/dexterleng/vimac)           | AX Hints                                          |   Free   | ✅ (unmaintained) |
 
 More modes, more engines, more platforms — and it's free. If you've been paying for any of the tools above, Neru is worth 10 minutes of your time.
 
