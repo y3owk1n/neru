@@ -18,7 +18,7 @@ const leftClickAction = "left_click"
 
 func newTestActionService(
 	acc *portmocks.MockAccessibilityPort,
-	sys *portmocks.MockSystemPort,
+	sys ports.SystemPort,
 ) *services.ActionService {
 	return services.NewActionService(acc, &portmocks.MockOverlayPort{}, sys, zap.NewNop())
 }
@@ -275,6 +275,46 @@ func TestMoveMouseRelative_UsesCurrentCursorPosition(t *testing.T) {
 
 	if moved != (image.Point{X: 50, Y: 35}) {
 		t.Fatalf("MoveMouseRelative() moved to %v, want (50,35)", moved)
+	}
+}
+
+type relativeCursorSystem struct {
+	*portmocks.MockSystemPort
+
+	handled bool
+	moved   image.Point
+}
+
+func (s *relativeCursorSystem) MoveCursorBy(
+	_ context.Context,
+	delta image.Point,
+) (bool, error) {
+	s.moved = delta
+
+	return s.handled, nil
+}
+
+func TestMoveMouseRelative_UsesNativeRelativeMovement(t *testing.T) {
+	ctx := context.Background()
+	sys := &relativeCursorSystem{
+		MockSystemPort: &portmocks.MockSystemPort{
+			CursorPositionFunc: func(context.Context) (image.Point, error) {
+				t.Fatal("CursorPosition() should not be called for native relative movement")
+
+				return image.Point{}, nil
+			},
+		},
+		handled: true,
+	}
+	service := newTestActionService(&portmocks.MockAccessibilityPort{}, sys)
+
+	err := service.MoveMouseRelative(ctx, 10, -5)
+	if err != nil {
+		t.Fatalf("MoveMouseRelative() error = %v", err)
+	}
+
+	if sys.moved != (image.Point{X: 10, Y: -5}) {
+		t.Fatalf("MoveMouseRelative() delta = %v, want (10,-5)", sys.moved)
 	}
 }
 

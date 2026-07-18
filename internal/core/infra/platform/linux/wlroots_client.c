@@ -559,6 +559,19 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y) {
 	return 1;
 }
 
+int neru_wlr_move_relative(NeruWlrootsClient *c, int dx, int dy) {
+	if (!c || !c->vptr)
+		return 0;
+
+	pthread_mutex_lock(&c->display_mutex);
+	zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(dx), wl_fixed_from_int(dy));
+	zwlr_virtual_pointer_v1_frame(c->vptr);
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+
+	return 1;
+}
+
 // Button codes for linux/input-event-codes.h
 #define NERU_BTN_LEFT 0x110
 #define NERU_BTN_RIGHT 0x111

@@ -216,6 +216,20 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
 }
 
+// MoveCursorBy uses native relative motion when the Wayland backend supports it.
+// The bool result reports whether the request was handled, allowing callers to
+// retain their absolute-position fallback on X11 and unsupported backends.
+func (s *SystemAdapter) MoveCursorBy(
+	ctx context.Context,
+	delta image.Point,
+) (bool, error) {
+	if s.backend == backendWaylandWlroots {
+		return true, wlrootsMoveCursorBy(delta)
+	}
+
+	return false, nil
+}
+
 // WaitForCursorIdle returns immediately on Linux until smooth cursor support exists.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return nil

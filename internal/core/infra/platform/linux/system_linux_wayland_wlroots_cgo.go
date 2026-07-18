@@ -299,6 +299,29 @@ func wlrootsMoveCursorToPoint(point image.Point) error {
 	return nil
 }
 
+func wlrootsMoveCursorBy(delta image.Point) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
+
+	client := globalWlrootsState.client
+
+	if C.neru_wlr_move_relative(client, C.int(delta.X), C.int(delta.Y)) == 0 { //nolint:nlreturn
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to move wlroots virtual pointer by (%d, %d)",
+			delta.X,
+			delta.Y,
+		)
+	}
+
+	return nil
+}
+
 // wlrootsClick performs a mouse click at the given position using the virtual pointer.
 func wlrootsClick(point image.Point, button int) error {
 	err := ensureWlrootsState()
