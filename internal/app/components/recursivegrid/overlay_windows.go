@@ -152,6 +152,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		LabelBackgroundBorderRadius:     cfg.UI.LabelBackgroundBorderRadius,
 		LabelBackgroundBorderWidth:      float64(max(cfg.UI.LabelBackgroundBorderWidth, 0)),
 		LabelChar:                       cfg.UI.LabelChar,
+		LabelAutohideMultiplier:         cfg.UI.LabelAutohideMultiplier,
 		SubKeyPreview:                   cfg.UI.SubKeyPreview,
 		SubKeyPreviewFontSize:           float64(max(cfg.UI.SubKeyPreviewFontSize, 1)),
 		SubKeyPreviewAutohideMultiplier: cfg.UI.SubKeyPreviewAutohideMultiplier,
