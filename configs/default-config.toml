@@ -106,7 +106,7 @@ visible_check_enabled = false
 # macOS only for now.
 [hints.auto_refresh]
 enabled = true                              # On by default; set to false to scan hints only once per activation
-debounce_ms = 150                           # How long a burst of changes must settle before re-scanning
+min_refresh_delay_ms = 150                  # How long the app must stop changing before hints re-scan
 
 [hints.ui]
 font_size = 10

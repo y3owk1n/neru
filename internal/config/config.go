@@ -930,17 +930,18 @@ type HeldRepeatConfig struct {
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
 }
 
-// HintsAutoRefresh configures push-based hints auto-refresh. When enabled, neru
-// watches the focused app's accessibility notifications and re-scans hints when
-// its UI changes (a page loads, a menu opens, a panel appears), so hints do not
-// go stale while hints mode is open. macOS only for now; on other platforms no
-// observers are available and the setting is inert.
+// HintsAutoRefresh configures hints auto-refresh, which is on by default: while
+// hints mode is open, neru watches the focused app's accessibility
+// notifications and re-scans hints when its UI changes (a page loads, a menu
+// opens, a panel appears), so hints do not go stale. macOS only for now; on
+// other platforms no observers are available and the setting is inert.
 //
-// DebounceMs is how long a burst of changes must go quiet before the re-scan; a
-// non-positive value falls back to the built-in default.
+// MinRefreshDelayMs is how long the app's UI must stay quiet after a change
+// before hints re-scan; a non-positive value falls back to the built-in
+// default.
 type HintsAutoRefresh struct {
-	Enabled    bool `json:"enabled"    toml:"enabled"`
-	DebounceMs int  `json:"debounceMs" toml:"debounce_ms"`
+	Enabled           bool `json:"enabled"           toml:"enabled"`
+	MinRefreshDelayMs int  `json:"minRefreshDelayMs" toml:"min_refresh_delay_ms"`
 }
 
 // SystrayConfig defines system tray settings.

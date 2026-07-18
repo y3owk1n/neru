@@ -12,7 +12,7 @@ import (
 
 const (
 	// defaultAutoRefreshDebounce is the debounce window used when the configured
-	// hints.auto_refresh.debounce_ms is unset or non-positive.
+	// hints.auto_refresh.min_refresh_delay_ms is unset or non-positive.
 	defaultAutoRefreshDebounce = 150 * time.Millisecond
 
 	// autoRefreshMaxWaitFactor derives the max-wait cap from the debounce window.
@@ -540,7 +540,7 @@ func (h *Handler) updateAutoRefreshObservers(bundleID string) {
 
 	autoRefresh := h.config.Hints.AutoRefresh
 
-	h.setAutoRefreshTiming(time.Duration(autoRefresh.DebounceMs) * time.Millisecond)
+	h.setAutoRefreshTiming(time.Duration(autoRefresh.MinRefreshDelayMs) * time.Millisecond)
 
 	pid := focusedAppPID(bundleID)
 	if pid <= 0 {

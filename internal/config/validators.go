@@ -351,17 +351,17 @@ func (c *Config) ValidateHints() error {
 }
 
 // validateHintsAutoRefresh checks the [hints.auto_refresh] section. It only
-// constrains the settings when auto_refresh is enabled: the debounce must be
-// non-negative.
+// constrains the settings when auto_refresh is enabled: the minimum refresh
+// delay must be non-negative.
 func validateHintsAutoRefresh(autoRefresh HintsAutoRefresh) error {
 	if !autoRefresh.Enabled {
 		return nil
 	}
 
-	if autoRefresh.DebounceMs < 0 {
+	if autoRefresh.MinRefreshDelayMs < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"hints.auto_refresh.debounce_ms must be non-negative",
+			"hints.auto_refresh.min_refresh_delay_ms must be non-negative",
 		)
 	}
 

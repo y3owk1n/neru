@@ -214,7 +214,7 @@ func TestValidateHints_AutoRefreshDefaultsAreValidWhenEnabled(t *testing.T) {
 func TestValidateHints_AutoRefreshDisabledSkipsValidation(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.AutoRefresh.Enabled = false
-	cfg.Hints.AutoRefresh.DebounceMs = -1
+	cfg.Hints.AutoRefresh.MinRefreshDelayMs = -1
 
 	// When disabled, the section is inert and its contents are not constrained.
 	if err := cfg.ValidateHints(); err != nil {
@@ -222,12 +222,12 @@ func TestValidateHints_AutoRefreshDisabledSkipsValidation(t *testing.T) {
 	}
 }
 
-func TestValidateHints_AutoRefreshRejectsNegativeDebounce(t *testing.T) {
+func TestValidateHints_AutoRefreshRejectsNegativeMinRefreshDelay(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.AutoRefresh.Enabled = true
-	cfg.Hints.AutoRefresh.DebounceMs = -5
+	cfg.Hints.AutoRefresh.MinRefreshDelayMs = -5
 
 	if err := cfg.ValidateHints(); err == nil {
-		t.Fatal("ValidateHints() expected error for a negative debounce_ms")
+		t.Fatal("ValidateHints() expected error for a negative min_refresh_delay_ms")
 	}
 }

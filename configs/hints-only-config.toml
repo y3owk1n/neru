@@ -55,7 +55,7 @@ ignore_clickable_check = false
 # windows, menus, and browser web content all refresh.
 [hints.auto_refresh]
 enabled = true
-debounce_ms = 150
+min_refresh_delay_ms = 150
 
 [grid]
 enabled = false
