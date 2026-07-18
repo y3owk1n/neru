@@ -155,7 +155,7 @@ func (h *Handler) onObserverChange() {
 	// once the window ceiling is reached rather than re-arming forever.
 	if h.autoRefreshSettling {
 		if now.Sub(h.settleStart) >= autoRefreshSettleMaxWindow {
-			h.stopSettleLocked()
+			h.stopSettleInnerLocked()
 
 			return
 		}
@@ -423,14 +423,6 @@ func (h *Handler) advanceSettleLocked(changed bool) bool {
 	}
 
 	return settleShouldStop(h.settleInterval, h.settleStableAtCap, h.settleScanCount, time.Since(h.settleStart))
-}
-
-// stopSettleLocked ends the settle loop and clears its state. Caller holds h.mu
-// but not autoRefreshMu.
-func (h *Handler) stopSettleLocked() {
-	h.autoRefreshMu.Lock()
-	h.stopSettleInnerLocked()
-	h.autoRefreshMu.Unlock()
 }
 
 // stopSettleInnerLocked ends the settle loop and clears its state. Caller holds

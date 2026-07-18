@@ -439,6 +439,39 @@ func (h *Handler) seedSettle(interval time.Duration, scanCount int) {
 	h.settleStart = time.Now()
 }
 
+func TestObserverChangePastSettleWindowStopsWithoutDeadlock(t *testing.T) {
+	handler, _ := newRefreshHandler(domain.ModeHints, true)
+
+	handler.seedSettle(autoRefreshSettleBase, 0)
+
+	// Backdate the settle so this change lands past the window ceiling, which
+	// must end the loop.
+	handler.autoRefreshMu.Lock()
+	handler.settleStart = time.Now().Add(-autoRefreshSettleMaxWindow - time.Second)
+	handler.autoRefreshMu.Unlock()
+
+	done := make(chan struct{})
+
+	go func() {
+		handler.onObserverChange()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("onObserverChange did not return while ending a settle past its window")
+	}
+
+	handler.autoRefreshMu.Lock()
+	settling := handler.autoRefreshSettling
+	handler.autoRefreshMu.Unlock()
+
+	if settling {
+		t.Fatal("a change past the settle window should end the settle loop")
+	}
+}
+
 func TestFingerprintHintsReflectsHintSet(t *testing.T) {
 	handler, _ := newRefreshHandler(domain.ModeHints, true)
 
