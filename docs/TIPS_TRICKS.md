@@ -16,7 +16,6 @@
 - [Cycle Through Modes with One Hotkey](#cycle-through-modes-with-one-hotkey)
 - [Bind a Shortcut to a Specific UI Element](#bind-a-shortcut-to-a-specific-ui-element)
 - [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
-- [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Edit Config File Directly](#edit-config-file-directly)
@@ -74,23 +73,6 @@ If you want to have the search input shown automatically when activating hints m
 - `Enter` with 1 result: executes the pending action (if any) and exits
 - `Enter` with multiple results: closes search only, letting you type the exact hint label to select
 - `Tab` / `cycle_hint`: navigates between filtered results without executing the action
-
-## Keep Hints Live While the Page Changes
-
-Hints are scanned once when the mode opens, so they can go stale when the focused window changes after that (a page finishes loading, a menu opens, a panel expands). Turn on `[hints.auto_refresh]` to keep them live: neru watches the focused app's accessibility notifications and re-scans hints when its UI changes, with no keypress. macOS only for now.
-
-```toml
-[hints.auto_refresh]
-enabled = true
-debounce_ms = 150
-```
-
-Notes:
-
-- The re-scan is debounced, so a burst of changes collapses into a single update, and it never fires while you are part-way through typing a hint label or a search query. A change that lands mid-typing is held in the debounce and applied once you finish or cancel, so the hint set never shifts under your keystrokes.
-- Manual refreshes are not held back by the debounce. A `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, refreshes right away when nothing else is in flight, and otherwise coalesces with the in-flight auto-refresh into a single update, so you never get a double flicker.
-- The observer watches a fixed set of notifications that mean the UI actually changed (an element or window appeared, moved, or vanished, a page loaded, a menu opened, focus moved). It skips `value_changed`, which fires on every value update (a clock, a progress bar) and would wake the observer continuously.
-- Web page content inside Chromium, Firefox, and Electron apps refreshes alongside native windows and menus: neru wakes the app's web accessibility tree on focus, so `load_complete` and layout changes inside a page reach the observer.
 
 ## Auto-Exit After Click
 
@@ -308,35 +290,6 @@ To disable all built-in hotkeys (e.g. when using an external hotkey daemon like 
 ctrl - f : neru hints
 ctrl - g : neru grid
 ctrl - r : neru hints --action right_click
-```
-
-## Give Browser Content Time To Load Before Refreshing Hints
-
-The cleanest fix is `[hints.auto_refresh]` (see [Keep Hints Live While the Page Changes](#keep-hints-live-while-the-page-changes)): it re-scans on its own when the page finishes loading, so you do not have to guess a delay. macOS only for now.
-
-If you would rather set a manual, per-app delay (or you are on another platform), give a browser-like app a short pause after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
-
-```toml
-[[hints.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = {
-	"Return" = ["action left_click", "action sleep 0.8", "hints"],
-	"Shift+L" = "__disabled__"
-}
-```
-
-This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Brave Browser. Everything else keeps using your normal hint bindings.
-
-You can use the same pattern for grid and recursive_grid modes:
-
-```toml
-[[grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "Return" = "action left_click" }
-
-[[recursive_grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "u" = "action left_click" }
 ```
 
 ## Checking the Accessibility Tree on macOS

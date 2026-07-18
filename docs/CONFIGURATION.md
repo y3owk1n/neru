@@ -579,25 +579,20 @@ width = 320
 
 ### Auto Refresh
 
-Keep hints live while the focused app's UI changes. When enabled, neru registers accessibility observers on the focused app while hints mode is open and re-scans hints when a watched notification fires (a page loads, a menu opens, a panel appears), then tears the observers down on exit. macOS only for now; on other platforms the setting is inert.
+Keeps hints up to date while hints mode is open. When the focused app's screen changes (a page finishes loading, a menu opens, a panel appears), neru re-scans and updates the hints on its own, so a hint never points at something that has moved or disappeared. This works for web page content in browsers and Electron apps as well as native windows and menus. It is on by default. macOS only for now; on other platforms the setting has no effect.
 
-| Option        | Type | Default | Description                                                                                         |
-| ------------- | ---- | ------- | --------------------------------------------------------------------------------------------------- |
-| `enabled`     | bool | `false` | Turn auto-refresh on. Off by default.                                                               |
-| `debounce_ms` | int  | `150`   | How long a burst of changes must settle before the re-scan. A non-positive value uses the default.  |
+| Option                 | Type | Default | Description                                                                                             |
+| ---------------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `enabled`              | bool | `true`  | Keep hints up to date while hints mode is open. Set to `false` to scan hints only once per activation.  |
+| `min_refresh_delay_ms` | int  | `150`   | How long the app must stop changing before hints re-scan. A non-positive value uses the default.        |
 
 ```toml
 [hints.auto_refresh]
-enabled = false
-debounce_ms = 150
+enabled = true
+min_refresh_delay_ms = 150
 ```
 
-The observer watches a fixed set of accessibility notifications that mean the UI actually changed (an element or window appeared, moved, or vanished, a page loaded, a menu opened, focus moved), plus the signals browsers post for web content.
-
-> [!NOTE]
-> Auto-refresh reaches inside Chromium, Firefox, and Electron web content as well as native windows and menus: `load_complete` and layout changes inside a page reach the observer, so hints re-scan when a browser page updates.
-
-Manual refreshes are not held back by the debounce. When auto-refresh is on, a `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, refreshes right away if nothing is already in flight; if an auto-refresh is mid-flight, it coalesces with that into a single update within the debounce window, so you never get a double flicker.
+Refreshes you trigger yourself are never delayed. A `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, updates right away; if an automatic refresh is already underway, the two merge into a single update, so you never get a double flicker.
 
 ### Vision
 
