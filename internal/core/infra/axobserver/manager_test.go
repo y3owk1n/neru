@@ -7,40 +7,28 @@ import (
 	"go.uber.org/zap"
 )
 
-// Arbitrary distinct masks for the reconcile tests. Only their distinctness and
-// non-zero value matter here, not which notifications they name; maskBrowser is
-// a strict superset of maskFront so the re-arm-on-change test exercises a real
-// mask difference.
-var (
-	maskFront = notifCreated | notifUIDestroyed | notifLayoutChanged |
-		notifWindowCreated | notifWindowMoved | notifWindowResized
-	maskBrowser = maskFront | notifLoadComplete
-	maskMenu    = notifMenuOpened | notifMenuClosed
-	maskAux     = notifCreated | notifUIDestroyed | notifWindowCreated
-)
-
 // fakePlatform records what the Manager asks of the platform and lets a test
-// drive the change callback, so the Manager's reconcile and lifecycle logic can
-// be exercised without a live accessibility tree.
+// drive the change callback, so the Manager's watch and lifecycle logic can be
+// exercised without a live accessibility tree.
 type fakePlatform struct {
 	mu             sync.Mutex
-	armed          map[int]Mask
+	armed          map[int]struct{}
 	armCalls       []int
 	disarmedPIDs   []int
 	failArm        map[int]bool
 	disarmAllCalls int
 	closeCalls     int
-	sink           func(int, string)
+	handler        func(int, string)
 }
 
 func newFakePlatform() *fakePlatform {
 	return &fakePlatform{
-		armed:   make(map[int]Mask),
+		armed:   make(map[int]struct{}),
 		failArm: make(map[int]bool),
 	}
 }
 
-func (f *fakePlatform) Arm(pid int, mask Mask) bool {
+func (f *fakePlatform) Arm(pid int) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -50,7 +38,7 @@ func (f *fakePlatform) Arm(pid int, mask Mask) bool {
 		return false
 	}
 
-	f.armed[pid] = mask
+	f.armed[pid] = struct{}{}
 
 	return true
 }
@@ -68,14 +56,14 @@ func (f *fakePlatform) DisarmAll() {
 	defer f.mu.Unlock()
 
 	f.disarmAllCalls++
-	f.armed = make(map[int]Mask)
+	f.armed = make(map[int]struct{})
 }
 
-func (f *fakePlatform) SetSink(sink func(int, string)) {
+func (f *fakePlatform) SetChangeHandler(handler func(int, string)) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.sink = sink
+	f.handler = handler
 }
 
 func (f *fakePlatform) Close() {
@@ -83,27 +71,27 @@ func (f *fakePlatform) Close() {
 	defer f.mu.Unlock()
 
 	f.closeCalls++
-	f.sink = nil
-	f.armed = make(map[int]Mask)
+	f.handler = nil
+	f.armed = make(map[int]struct{})
 }
 
 func (f *fakePlatform) fire(pid int) {
 	f.mu.Lock()
-	sink := f.sink
+	handler := f.handler
 	f.mu.Unlock()
 
-	if sink != nil {
-		sink(pid, "AXCreated")
+	if handler != nil {
+		handler(pid, "AXCreated")
 	}
 }
 
-func (f *fakePlatform) armedSnapshot() map[int]Mask {
+func (f *fakePlatform) armedSnapshot() map[int]struct{} {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	out := make(map[int]Mask, len(f.armed))
-	for pid, mask := range f.armed {
-		out[pid] = mask
+	out := make(map[int]struct{}, len(f.armed))
+	for pid := range f.armed {
+		out[pid] = struct{}{}
 	}
 
 	return out
@@ -123,117 +111,107 @@ func (f *fakePlatform) armCallCount(pid int) int {
 	return count
 }
 
-func TestReconcileArmsAndDisarms(t *testing.T) {
+func TestWatchArmsAndSwaps(t *testing.T) {
 	fake := newFakePlatform()
 	manager := newWithPlatform(fake, nil, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}, {PID: 20, Mask: maskMenu}})
+	manager.Watch(10)
 
 	armed := fake.armedSnapshot()
-	if len(armed) != 2 || armed[10] != maskFront || armed[20] != maskMenu {
-		t.Fatalf("after first reconcile armed = %v", armed)
+	if _, ok := armed[10]; !ok || len(armed) != 1 {
+		t.Fatalf("after Watch(10) armed = %v", armed)
 	}
 
-	manager.Reconcile([]Target{{PID: 20, Mask: maskMenu}, {PID: 30, Mask: maskAux}})
+	manager.Watch(20)
 
 	armed = fake.armedSnapshot()
 	if _, ok := armed[10]; ok {
-		t.Error("pid 10 should have been disarmed")
+		t.Error("pid 10 should have been disarmed after the swap")
 	}
 
-	if armed[20] != maskMenu {
-		t.Error("pid 20 should have stayed armed")
+	if _, ok := armed[20]; !ok || len(armed) != 1 {
+		t.Errorf("pid 20 should be the only armed pid; armed = %v", armed)
 	}
 
-	if armed[30] != maskAux {
-		t.Error("pid 30 should have been armed")
+	if got := fake.armCallCount(20); got != 1 {
+		t.Errorf("pid 20 arm calls = %d, want 1", got)
 	}
 }
 
-func TestReconcileKeepsUnchangedTarget(t *testing.T) {
+func TestWatchIsNoOpForSamePID(t *testing.T) {
 	fake := newFakePlatform()
 	manager := newWithPlatform(fake, nil, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
+	manager.Watch(10)
+	manager.Watch(10)
 
 	if got := fake.armCallCount(10); got != 1 {
-		t.Fatalf("unchanged target should not re-arm; arm calls = %d", got)
+		t.Fatalf("watching the same pid should not re-arm; arm calls = %d", got)
 	}
 
 	if len(fake.disarmedPIDs) != 0 {
-		t.Fatalf("unchanged target should not disarm; disarmed = %v", fake.disarmedPIDs)
+		t.Fatalf("watching the same pid should not disarm; disarmed = %v", fake.disarmedPIDs)
 	}
 }
 
-func TestReconcileReArmsOnMaskChange(t *testing.T) {
+func TestWatchIgnoresNonPositivePID(t *testing.T) {
 	fake := newFakePlatform()
 	manager := newWithPlatform(fake, nil, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
-	manager.Reconcile([]Target{{PID: 10, Mask: maskBrowser}})
-
-	if got := fake.armCallCount(10); got != 2 {
-		t.Fatalf("mask change should re-arm pid 10; arm calls = %d", got)
-	}
-
-	if got := fake.armedSnapshot()[10]; got != maskBrowser {
-		t.Fatalf("armed mask = %v, want maskBrowser", got)
-	}
-}
-
-func TestReconcileSkipsInvalidTargets(t *testing.T) {
-	fake := newFakePlatform()
-	manager := newWithPlatform(fake, nil, zap.NewNop())
-
-	manager.Reconcile([]Target{
-		{PID: 0, Mask: maskFront},
-		{PID: 10, Mask: 0},
-		{PID: -1, Mask: maskMenu},
-	})
+	manager.Watch(0)
+	manager.Watch(-1)
 
 	if got := fake.armedSnapshot(); len(got) != 0 {
-		t.Fatalf("no invalid target should arm; armed = %v", got)
+		t.Fatalf("a non-positive pid should arm nothing; armed = %v", got)
+	}
+
+	if len(fake.armCalls) != 0 {
+		t.Fatalf("a non-positive pid should not reach the platform; arm calls = %v", fake.armCalls)
 	}
 }
 
-func TestReconcileArmFailureRetries(t *testing.T) {
+func TestWatchArmFailureRetries(t *testing.T) {
 	fake := newFakePlatform()
 	fake.failArm[10] = true
 	manager := newWithPlatform(fake, nil, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
+	manager.Watch(10)
+
 	if len(fake.armedSnapshot()) != 0 {
 		t.Fatal("a failed arm should not be tracked as armed")
 	}
 
 	fake.failArm[10] = false
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
+
+	manager.Watch(10)
 
 	if got := fake.armCallCount(10); got != 2 {
 		t.Fatalf("a previously failed pid should be retried; arm calls = %d", got)
 	}
 
-	if fake.armedSnapshot()[10] != maskFront {
+	if _, ok := fake.armedSnapshot()[10]; !ok {
 		t.Fatal("the retry should have armed pid 10")
 	}
 }
 
-func TestDisarmAllIsNoOpWhenEmpty(t *testing.T) {
+func TestUnwatchDisarms(t *testing.T) {
 	fake := newFakePlatform()
 	manager := newWithPlatform(fake, nil, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}, {PID: 20, Mask: maskMenu}})
-	manager.DisarmAll()
+	manager.Watch(10)
+	manager.Unwatch()
 
 	if fake.disarmAllCalls != 1 {
-		t.Fatalf("DisarmAll platform calls = %d, want 1", fake.disarmAllCalls)
+		t.Fatalf("Unwatch platform calls = %d, want 1", fake.disarmAllCalls)
 	}
 
-	manager.DisarmAll()
+	manager.Unwatch()
 
 	if fake.disarmAllCalls != 1 {
-		t.Fatalf("DisarmAll with nothing armed should not hit the platform; calls = %d", fake.disarmAllCalls)
+		t.Fatalf(
+			"Unwatch with nothing armed should not hit the platform; calls = %d",
+			fake.disarmAllCalls,
+		)
 	}
 }
 
@@ -250,30 +228,33 @@ func TestChangeCallbackDeliversPID(t *testing.T) {
 	}
 }
 
-func TestCloseStopsReconcileAndCallbacks(t *testing.T) {
+func TestCloseStopsWatchAndCallbacks(t *testing.T) {
 	fake := newFakePlatform()
 
 	fired := 0
 	manager := newWithPlatform(fake, func(int) { fired++ }, zap.NewNop())
 
-	manager.Reconcile([]Target{{PID: 10, Mask: maskFront}})
+	manager.Watch(10)
 	manager.Close()
 
 	if fake.closeCalls != 1 {
 		t.Fatalf("Close platform calls = %d, want 1", fake.closeCalls)
 	}
 
-	manager.Reconcile([]Target{{PID: 20, Mask: maskMenu}})
+	manager.Watch(20)
+
 	if len(fake.armedSnapshot()) != 0 {
-		t.Fatal("Reconcile after Close should arm nothing")
+		t.Fatal("Watch after Close should arm nothing")
 	}
 
 	fake.fire(10)
+
 	if fired != 0 {
 		t.Fatalf("no callback should fire after Close; fired = %d", fired)
 	}
 
 	manager.Close()
+
 	if fake.closeCalls != 1 {
 		t.Fatalf("a second Close should be a no-op; calls = %d", fake.closeCalls)
 	}

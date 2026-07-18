@@ -3,6 +3,7 @@
 package axobserver
 
 import (
+	"errors"
 	"syscall"
 	"unsafe"
 
@@ -30,14 +31,10 @@ func newPlatform() Platform {
 	return &darwinPlatform{handles: make(map[int]unsafe.Pointer)}
 }
 
-func (p *darwinPlatform) Arm(pid int, mask Mask) bool {
-	native := toDarwinMask(mask)
-	if native == 0 {
-		return false
-	}
-
-	// Arm replaces: the Manager re-arms a mask change by calling Arm again with
-	// no prior Disarm, so tear down any existing handle for this pid first.
+func (p *darwinPlatform) Arm(pid int) bool {
+	// Arming a pid that already holds a handle replaces it: tear the old
+	// observer down first, or overwriting the map entry would orphan its
+	// AXObserver.
 	if old, ok := p.handles[pid]; ok {
 		delete(p.handles, pid)
 		darwin.DisarmObserver(old, processAlive(pid))
@@ -45,7 +42,7 @@ func (p *darwinPlatform) Arm(pid int, mask Mask) bool {
 
 	p.ensureThreadUp()
 
-	handle := darwin.ArmObserver(pid, native, observerMessagingTimeoutSeconds)
+	handle := darwin.ArmObserver(pid, observerMessagingTimeoutSeconds)
 	if handle == nil {
 		p.stopThreadIfIdle()
 
@@ -77,15 +74,15 @@ func (p *darwinPlatform) DisarmAll() {
 	p.stopThreadIfIdle()
 }
 
-func (p *darwinPlatform) SetSink(sink func(pid int, notif string)) {
-	if sink == nil {
+func (p *darwinPlatform) SetChangeHandler(handler func(pid int, notif string)) {
+	if handler == nil {
 		darwin.SetAXObserverHandler(nil)
 
 		return
 	}
 
 	darwin.SetAXObserverHandler(func(pid int, notif string) {
-		sink(pid, notif)
+		handler(pid, notif)
 	})
 }
 
@@ -100,6 +97,7 @@ func (p *darwinPlatform) ensureThreadUp() {
 	}
 
 	darwin.StartObserverThread()
+
 	p.threadUp = true
 }
 
@@ -109,6 +107,7 @@ func (p *darwinPlatform) stopThreadIfIdle() {
 	}
 
 	darwin.StopObserverThread()
+
 	p.threadUp = false
 }
 
@@ -116,42 +115,5 @@ func (p *darwinPlatform) stopThreadIfIdle() {
 // notification-unregister IPC to a process that has already exited. Signal 0
 // performs the existence and permission check without delivering a signal.
 func processAlive(pid int) bool {
-	return syscall.Kill(pid, syscall.Signal(0)) != syscall.ESRCH
-}
-
-// toDarwinMask maps the package's notification bits to the native notification
-// bits. The two bit layouts are kept independent on purpose, so a change to one
-// does not silently reinterpret the other.
-func toDarwinMask(mask Mask) darwin.AXObserverMask {
-	pairs := []struct {
-		bit    Mask
-		native darwin.AXObserverMask
-	}{
-		{notifCreated, darwin.AXNotifCreated},
-		{notifUIDestroyed, darwin.AXNotifUIDestroyed},
-		{notifLayoutChanged, darwin.AXNotifLayoutChanged},
-		{notifWindowCreated, darwin.AXNotifWindowCreated},
-		{notifWindowMoved, darwin.AXNotifWindowMoved},
-		{notifWindowResized, darwin.AXNotifWindowResized},
-		{notifLoadComplete, darwin.AXNotifLoadComplete},
-		{notifMenuOpened, darwin.AXNotifMenuOpened},
-		{notifMenuClosed, darwin.AXNotifMenuClosed},
-		{notifFocusedUIChanged, darwin.AXNotifFocusedUIChanged},
-		{notifValueChanged, darwin.AXNotifValueChanged},
-		{notifLiveRegionChanged, darwin.AXNotifLiveRegionChanged},
-		{notifLiveRegionCreated, darwin.AXNotifLiveRegionCreated},
-		{notifExpandedChanged, darwin.AXNotifExpandedChanged},
-		{notifRowExpanded, darwin.AXNotifRowExpanded},
-		{notifRowCollapsed, darwin.AXNotifRowCollapsed},
-		{notifElementBusyChanged, darwin.AXNotifElementBusyChanged},
-	}
-
-	var native darwin.AXObserverMask
-	for _, pair := range pairs {
-		if mask&pair.bit != 0 {
-			native |= pair.native
-		}
-	}
-
-	return native
+	return !errors.Is(syscall.Kill(pid, syscall.Signal(0)), syscall.ESRCH)
 }

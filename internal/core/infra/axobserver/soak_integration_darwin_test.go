@@ -21,7 +21,6 @@ import (
 // additionally checks the live-object counts while an observer is armed.
 func TestObserverSoakArmDisarm(t *testing.T) {
 	pid := os.Getpid()
-	mask := darwin.AXNotifCreated | darwin.AXNotifWindowCreated
 	armedAtLeastOnce := false
 
 	const iterations = 1000
@@ -32,7 +31,7 @@ func TestObserverSoakArmDisarm(t *testing.T) {
 			t.Fatalf("iteration %d: run-loop thread did not start", i)
 		}
 
-		if handle := darwin.ArmObserver(pid, mask, 0.25); handle != nil {
+		if handle := darwin.ArmObserver(pid, 0.25); handle != nil {
 			armedAtLeastOnce = true
 
 			if obs, appEl := darwin.ObserverLiveCounts(); obs < 1 || appEl < 1 {
@@ -46,7 +45,12 @@ func TestObserverSoakArmDisarm(t *testing.T) {
 		darwin.StopObserverThread()
 
 		if obs, appEl := darwin.ObserverLiveCounts(); obs != 0 || appEl != 0 {
-			t.Fatalf("iteration %d: live counts after teardown obs=%d appEl=%d, want 0", i, obs, appEl)
+			t.Fatalf(
+				"iteration %d: live counts after teardown obs=%d appEl=%d, want 0",
+				i,
+				obs,
+				appEl,
+			)
 		}
 
 		if darwin.ObserverThreadRunning() {
@@ -55,7 +59,10 @@ func TestObserverSoakArmDisarm(t *testing.T) {
 	}
 
 	if armedAtLeastOnce {
-		t.Logf("soak done: %d cycles, including the armed live-object balance assertion", iterations)
+		t.Logf(
+			"soak done: %d cycles, including the armed live-object balance assertion",
+			iterations,
+		)
 	} else {
 		t.Logf("soak done: %d cycles of teardown and thread lifecycle only; the armed "+
 			"live-object balance was NOT checked because this process is not "+
@@ -63,20 +70,18 @@ func TestObserverSoakArmDisarm(t *testing.T) {
 	}
 }
 
-// TestArmRejectsUnsupportedMask confirms an arm whose mask names no known
-// notification is rejected and leaks nothing.
-func TestArmRejectsUnsupportedMask(t *testing.T) {
-	pid := os.Getpid()
-
+// TestArmRejectsInvalidPID confirms an arm for a pid that cannot name a process
+// is rejected and leaks nothing.
+func TestArmRejectsInvalidPID(t *testing.T) {
 	darwin.StartObserverThread()
 	t.Cleanup(darwin.StopObserverThread)
 
-	if darwin.ArmObserver(pid, 0, 0.25) != nil {
-		t.Error("arm with a zero mask should fail")
+	if darwin.ArmObserver(0, 0.25) != nil {
+		t.Error("arm with pid 0 should fail")
 	}
 
-	if darwin.ArmObserver(pid, darwin.AXObserverMask(1<<20), 0.25) != nil {
-		t.Error("arm with an unmappable mask should fail")
+	if darwin.ArmObserver(-1, 0.25) != nil {
+		t.Error("arm with a negative pid should fail")
 	}
 
 	if obs, appEl := darwin.ObserverLiveCounts(); obs != 0 || appEl != 0 {

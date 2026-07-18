@@ -16,8 +16,8 @@ func newPlatform() Platform {
 	return unsupportedPlatform{}
 }
 
-func (unsupportedPlatform) Arm(_ int, _ Mask) bool                { return false }
-func (unsupportedPlatform) Disarm(_ int)                          {}
-func (unsupportedPlatform) DisarmAll()                            {}
-func (unsupportedPlatform) SetSink(_ func(pid int, notif string)) {}
-func (unsupportedPlatform) Close()                                {}
+func (unsupportedPlatform) Arm(_ int) bool                                 { return false }
+func (unsupportedPlatform) Disarm(_ int)                                   {}
+func (unsupportedPlatform) DisarmAll()                                     {}
+func (unsupportedPlatform) SetChangeHandler(_ func(pid int, notif string)) {}
+func (unsupportedPlatform) Close()                                         {}

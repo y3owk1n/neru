@@ -177,44 +177,9 @@ static void neruObserverCallback(
 	handleAXObserverNotification(pid, name);
 }
 
-#pragma mark - Notification mapping
-
-typedef struct {
-	uint32_t bit;
-	CFStringRef name;
-} NeruNotifEntry;
-
-// Map each mask bit to its notification name. AXLoadComplete has no public kAX*
-// constant, so its name is the literal string web areas post on page load.
-static const NeruNotifEntry *neruNotifTable(int *count) {
-	static NeruNotifEntry table[32];
-	table[0] = (NeruNotifEntry){NERU_AXNOTIF_CREATED, kAXCreatedNotification};
-	table[1] = (NeruNotifEntry){NERU_AXNOTIF_UI_DESTROYED, kAXUIElementDestroyedNotification};
-	table[2] = (NeruNotifEntry){NERU_AXNOTIF_LAYOUT_CHANGED, kAXLayoutChangedNotification};
-	table[3] = (NeruNotifEntry){NERU_AXNOTIF_WINDOW_CREATED, kAXWindowCreatedNotification};
-	table[4] = (NeruNotifEntry){NERU_AXNOTIF_WINDOW_MOVED, kAXWindowMovedNotification};
-	table[5] = (NeruNotifEntry){NERU_AXNOTIF_WINDOW_RESIZED, kAXWindowResizedNotification};
-	table[6] = (NeruNotifEntry){NERU_AXNOTIF_LOAD_COMPLETE, CFSTR("AXLoadComplete")};
-	table[7] = (NeruNotifEntry){NERU_AXNOTIF_MENU_OPENED, kAXMenuOpenedNotification};
-	table[8] = (NeruNotifEntry){NERU_AXNOTIF_MENU_CLOSED, kAXMenuClosedNotification};
-	table[9] = (NeruNotifEntry){NERU_AXNOTIF_FOCUSED_UI_CHANGED, kAXFocusedUIElementChangedNotification};
-	table[10] = (NeruNotifEntry){NERU_AXNOTIF_VALUE_CHANGED, kAXValueChangedNotification};
-	// Web-content signals. Chromium and Firefox post these string notifications
-	// (no public kAX* constant for the first three) when a page's content changes.
-	table[11] = (NeruNotifEntry){NERU_AXNOTIF_LIVE_REGION_CHANGED, CFSTR("AXLiveRegionChanged")};
-	table[12] = (NeruNotifEntry){NERU_AXNOTIF_LIVE_REGION_CREATED, CFSTR("AXLiveRegionCreated")};
-	table[13] = (NeruNotifEntry){NERU_AXNOTIF_EXPANDED_CHANGED, CFSTR("AXExpandedChanged")};
-	table[14] = (NeruNotifEntry){NERU_AXNOTIF_ROW_EXPANDED, kAXRowExpandedNotification};
-	table[15] = (NeruNotifEntry){NERU_AXNOTIF_ROW_COLLAPSED, kAXRowCollapsedNotification};
-	table[16] = (NeruNotifEntry){NERU_AXNOTIF_ELEMENT_BUSY_CHANGED, kAXElementBusyChangedNotification};
-	*count = 17;
-
-	return table;
-}
-
 #pragma mark - Arm / disarm (run on the run-loop thread)
 
-static NeruObserverHandle *neruArmOnLoop(int pid, uint32_t mask, float messagingTimeout) {
+static NeruObserverHandle *neruArmOnLoop(int pid, float messagingTimeout) {
 	AXUIElementRef appEl = AXUIElementCreateApplication((pid_t)pid);
 	if (appEl == NULL) {
 		return NULL;
@@ -252,19 +217,38 @@ static NeruObserverHandle *neruArmOnLoop(int pid, uint32_t mask, float messaging
 
 	void *refcon = (void *)(intptr_t)pid;
 
-	int tableCount = 0;
-	const NeruNotifEntry *table = neruNotifTable(&tableCount);
+	// The notifications every observer registers on the application element;
+	// descendant elements' notifications bubble up to it. The set covers the
+	// structural changes that mean the UI actually changed (an element or window
+	// appeared, moved, or vanished; a page finished loading; a menu opened or
+	// closed; focus moved), plus the signals browsers post for web content, where
+	// Chromium and Firefox emit no plain "created" notification (a live region
+	// updating or being created, a disclosure or row expanding or collapsing, a
+	// busy flag clearing). AXLoadComplete, AXLiveRegionChanged,
+	// AXLiveRegionCreated, and AXExpandedChanged have no public kAX* constant, so
+	// they are the literal strings those apps post. Value-change notifications
+	// such as kAXValueChangedNotification must stay out of this list: they fire
+	// on every value update (a ticking clock, a progress bar) and would wake the
+	// observer continuously. The array is block-scope because the kAX* names are
+	// runtime-initialized externs, which a static initializer cannot reference.
+	CFStringRef notifications[] = {
+	    kAXCreatedNotification,       kAXUIElementDestroyedNotification,
+	    kAXLayoutChangedNotification, kAXWindowCreatedNotification,
+	    kAXWindowMovedNotification,   kAXWindowResizedNotification,
+	    CFSTR("AXLoadComplete"),      kAXMenuOpenedNotification,
+	    kAXMenuClosedNotification,    kAXFocusedUIElementChangedNotification,
+	    CFSTR("AXLiveRegionChanged"), CFSTR("AXLiveRegionCreated"),
+	    CFSTR("AXExpandedChanged"),   kAXRowExpandedNotification,
+	    kAXRowCollapsedNotification,  kAXElementBusyChangedNotification,
+	};
+	const int notificationCount = (int)(sizeof(notifications) / sizeof(notifications[0]));
 
 	int armed = 0;
 	int fatal = 0;
-	for (int i = 0; i < tableCount; i++) {
-		if ((mask & table[i].bit) == 0) {
-			continue;
-		}
-
-		AXError addErr = AXObserverAddNotification(observer, appEl, table[i].name, refcon);
+	for (int i = 0; i < notificationCount; i++) {
+		AXError addErr = AXObserverAddNotification(observer, appEl, notifications[i], refcon);
 		if (addErr == kAXErrorSuccess || addErr == kAXErrorNotificationAlreadyRegistered) {
-			handle->notifs[handle->notifCount++] = table[i].name;
+			handle->notifs[handle->notifCount++] = notifications[i];
 			armed++;
 		} else if (addErr == kAXErrorInvalidUIElement || addErr == kAXErrorCannotComplete) {
 			// The app is gone or wedged. Abort the whole handle rather than
@@ -291,14 +275,14 @@ static NeruObserverHandle *neruArmOnLoop(int pid, uint32_t mask, float messaging
 	return handle;
 }
 
-void *NeruObserverArm(int pid, uint32_t mask, float messagingTimeout) {
-	if (pid <= 0 || mask == 0 || !gRunning || gRunLoop == NULL) {
+void *NeruObserverArm(int pid, float messagingTimeout) {
+	if (pid <= 0 || !gRunning || gRunLoop == NULL) {
 		return NULL;
 	}
 
 	__block NeruObserverHandle *result = NULL;
 	neruRunOnLoop(^{
-		result = neruArmOnLoop(pid, mask, messagingTimeout);
+		result = neruArmOnLoop(pid, messagingTimeout);
 	});
 
 	return result;

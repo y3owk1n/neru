@@ -10,31 +10,6 @@ import "C"
 
 import "unsafe"
 
-// AXObserverMask mirrors the NERU_AXNOTIF_* bits in axobserver.h. A value is a
-// set of notifications to subscribe an observer to.
-type AXObserverMask uint32
-
-// Notification bits. These match the C mask bits one for one.
-const (
-	AXNotifCreated            AXObserverMask = C.NERU_AXNOTIF_CREATED
-	AXNotifUIDestroyed        AXObserverMask = C.NERU_AXNOTIF_UI_DESTROYED
-	AXNotifLayoutChanged      AXObserverMask = C.NERU_AXNOTIF_LAYOUT_CHANGED
-	AXNotifWindowCreated      AXObserverMask = C.NERU_AXNOTIF_WINDOW_CREATED
-	AXNotifWindowMoved        AXObserverMask = C.NERU_AXNOTIF_WINDOW_MOVED
-	AXNotifWindowResized      AXObserverMask = C.NERU_AXNOTIF_WINDOW_RESIZED
-	AXNotifLoadComplete       AXObserverMask = C.NERU_AXNOTIF_LOAD_COMPLETE
-	AXNotifMenuOpened         AXObserverMask = C.NERU_AXNOTIF_MENU_OPENED
-	AXNotifMenuClosed         AXObserverMask = C.NERU_AXNOTIF_MENU_CLOSED
-	AXNotifFocusedUIChanged   AXObserverMask = C.NERU_AXNOTIF_FOCUSED_UI_CHANGED
-	AXNotifValueChanged       AXObserverMask = C.NERU_AXNOTIF_VALUE_CHANGED
-	AXNotifLiveRegionChanged  AXObserverMask = C.NERU_AXNOTIF_LIVE_REGION_CHANGED
-	AXNotifLiveRegionCreated  AXObserverMask = C.NERU_AXNOTIF_LIVE_REGION_CREATED
-	AXNotifExpandedChanged    AXObserverMask = C.NERU_AXNOTIF_EXPANDED_CHANGED
-	AXNotifRowExpanded        AXObserverMask = C.NERU_AXNOTIF_ROW_EXPANDED
-	AXNotifRowCollapsed       AXObserverMask = C.NERU_AXNOTIF_ROW_COLLAPSED
-	AXNotifElementBusyChanged AXObserverMask = C.NERU_AXNOTIF_ELEMENT_BUSY_CHANGED
-)
-
 // AXObserverNotificationHandler receives the pid whose UI changed and the name
 // of the notification that fired (for debug logging).
 type AXObserverNotificationHandler func(pid int, notif string)
@@ -63,12 +38,13 @@ func ObserverThreadRunning() bool {
 	return C.NeruObserverThreadRunning() != 0
 }
 
-// ArmObserver arms an AXObserver on pid for the notifications in mask and returns
-// an opaque handle, or nil on failure. The run-loop thread must be running.
-// messagingTimeout (seconds, ignored when <= 0) bounds this observer's synchronous
-// AX calls to the target app; it is scoped to that app's element, not process-wide.
-func ArmObserver(pid int, mask AXObserverMask, messagingTimeout float64) unsafe.Pointer {
-	return unsafe.Pointer(C.NeruObserverArm(C.int(pid), C.uint32_t(mask), C.float(messagingTimeout)))
+// ArmObserver arms an AXObserver on pid for the fixed accessibility
+// notification set and returns an opaque handle, or nil on failure. The
+// run-loop thread must be running. messagingTimeout (seconds, ignored when
+// <= 0) bounds this observer's synchronous AX calls to the target app; it is
+// scoped to that app's element, not process-wide.
+func ArmObserver(pid int, messagingTimeout float64) unsafe.Pointer {
+	return unsafe.Pointer(C.NeruObserverArm(C.int(pid), C.float(messagingTimeout)))
 }
 
 // DisarmObserver tears down a handle from ArmObserver. When live is true it
