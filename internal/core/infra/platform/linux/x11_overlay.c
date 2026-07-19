@@ -159,6 +159,38 @@ void neru_x11_overlay_rect(
 	cairo_restore(cr);
 }
 
+static void neru_x11_overlay_rounded_path(cairo_t *cr, double x, double y, double width, double height, double radius) {
+	double max_radius = (width < height ? width : height) / 2.0;
+	if (radius > max_radius)
+		radius = max_radius;
+	if (radius <= 0) {
+		cairo_rectangle(cr, x, y, width, height);
+		return;
+	}
+
+	const double deg = 0.0174532925199432957692;
+	cairo_new_sub_path(cr);
+	cairo_arc(cr, x + width - radius, y + radius, radius, -90.0 * deg, 0.0 * deg);
+	cairo_arc(cr, x + width - radius, y + height - radius, radius, 0.0 * deg, 90.0 * deg);
+	cairo_arc(cr, x + radius, y + height - radius, radius, 90.0 * deg, 180.0 * deg);
+	cairo_arc(cr, x + radius, y + radius, radius, 180.0 * deg, 270.0 * deg);
+	cairo_close_path(cr);
+}
+
+void neru_x11_overlay_rounded_rect(
+    NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
+    unsigned int stroke, double stroke_width) {
+	cairo_t *cr = overlay->cr;
+	cairo_save(cr);
+	neru_x11_overlay_rounded_path(cr, x, y, width, height, radius);
+	neru_x11_overlay_color(cr, fill);
+	cairo_fill_preserve(cr);
+	neru_x11_overlay_color(cr, stroke);
+	cairo_set_line_width(cr, stroke_width);
+	cairo_stroke(cr);
+	cairo_restore(cr);
+}
+
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color) {

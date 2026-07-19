@@ -22,6 +22,7 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 type x11Overlay struct {
@@ -215,17 +216,28 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	}
 
 	if virtualPointer.Visible {
+		vpChar := virtualPointer.Char
+		if vpChar == "" {
+			vpChar = "\u25CF"
+		}
+
+		fontName := ports.ResolveFont(virtualPointer.FontName, false)
+
+		fontSize := float64(virtualPointer.Size)
+		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
+
 		vpBounds := image.Rect(
-			virtualPointer.Position.X-virtualPointer.Size/2,
-			virtualPointer.Position.Y-virtualPointer.Size/2,
-			virtualPointer.Position.X+virtualPointer.Size/2,
-			virtualPointer.Position.Y+virtualPointer.Size/2,
+			virtualPointer.Position.X-halfSize,
+			virtualPointer.Position.Y-halfSize,
+			virtualPointer.Position.X+halfSize,
+			virtualPointer.Position.Y+halfSize,
 		)
-		o.drawRect(
+		o.drawTextCentered(
+			vpChar,
 			vpBounds,
+			fontName,
+			fontSize,
 			parseHexColor(virtualPointer.FillColor),
-			style.LineColor,
-			subgridLineWidth,
 		)
 	}
 
@@ -408,6 +420,26 @@ func (o *x11Overlay) drawRect(
 		C.double(bounds.Min.Y),
 		C.double(bounds.Dx()),
 		C.double(bounds.Dy()),
+		C.uint(fill),
+		C.uint(border),
+		C.double(lineWidth),
+	)
+}
+
+func (o *x11Overlay) drawRoundedRect(
+	bounds image.Rectangle,
+	radius float64,
+	fill uint32,
+	border uint32,
+	lineWidth float64,
+) {
+	C.neru_x11_overlay_rounded_rect(
+		o.raw,
+		C.double(bounds.Min.X),
+		C.double(bounds.Min.Y),
+		C.double(bounds.Dx()),
+		C.double(bounds.Dy()),
+		C.double(radius),
 		C.uint(fill),
 		C.uint(border),
 		C.double(lineWidth),

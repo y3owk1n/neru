@@ -225,18 +225,28 @@ func (o *winOverlay) DrawRecursiveGrid(
 	}
 
 	if virtualPointer.Visible {
+		vpChar := virtualPointer.Char
+		if vpChar == "" {
+			vpChar = "\u25CF"
+		}
+
+		fontName := ports.ResolveFont(virtualPointer.FontName, false)
+
+		fontSize := float64(virtualPointer.Size)
+		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
+
 		vpBounds := image.Rect(
-			virtualPointer.Position.X-virtualPointer.Size/2,
-			virtualPointer.Position.Y-virtualPointer.Size/2,
-			virtualPointer.Position.X+virtualPointer.Size/2,
-			virtualPointer.Position.Y+virtualPointer.Size/2,
+			virtualPointer.Position.X-halfSize,
+			virtualPointer.Position.Y-halfSize,
+			virtualPointer.Position.X+halfSize,
+			virtualPointer.Position.Y+halfSize,
 		)
-		o.drawFilledRect(
+		o.drawTextCentered(
+			vpChar,
 			vpBounds,
+			fontName,
+			fontSize,
 			parseHexColorARGB(virtualPointer.FillColor),
-			style.LineColor,
-			winSubgridLineWidth,
-			0,
 		)
 	}
 

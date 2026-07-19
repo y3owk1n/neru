@@ -27,6 +27,9 @@ void neru_x11_overlay_resize(NeruX11Overlay *overlay);
 void neru_x11_overlay_rect(
     NeruX11Overlay *overlay, double x, double y, double width, double height, unsigned int fill, unsigned int stroke,
     double stroke_width);
+void neru_x11_overlay_rounded_rect(
+    NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
+    unsigned int stroke, double stroke_width);
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color);

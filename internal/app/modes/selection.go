@@ -148,7 +148,7 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 
 	point, ok := h.grid.Context.SelectionPoint()
 
-	size, fillColor, enabled := h.virtualPointerStyle()
+	style, enabled := h.virtualPointerStyle()
 	if !ok || h.grid.Context.CursorFollowSelection() || !enabled {
 		h.grid.Overlay.HideVirtualPointer()
 
@@ -156,7 +156,7 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 	}
 
 	localPoint := coordinates.ConvertToLocalCoordinates(point, h.screenBounds)
-	h.grid.Overlay.ShowVirtualPointer(localPoint, size, fillColor)
+	h.grid.Overlay.ShowVirtualPointer(localPoint, style.fontSize, style.fillColor)
 }
 
 func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
@@ -181,7 +181,7 @@ func (h *Handler) currentRecursiveGridVirtualPointerState() componentrecursivegr
 
 	point, ok := h.recursiveGrid.Context.SelectionPoint()
 
-	size, fillColor, enabled := h.virtualPointerStyle()
+	style, enabled := h.virtualPointerStyle()
 	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
 		return componentrecursivegrid.VirtualPointerState{}
 	}
@@ -189,12 +189,21 @@ func (h *Handler) currentRecursiveGridVirtualPointerState() componentrecursivegr
 	return componentrecursivegrid.VirtualPointerState{
 		Visible:   true,
 		Position:  coordinates.ConvertToLocalCoordinates(point, h.screenBounds),
-		Size:      size,
-		FillColor: fillColor,
+		Size:      style.fontSize,
+		FillColor: style.fillColor,
+		Char:      style.char,
+		FontName:  style.fontName,
 	}
 }
 
-func (h *Handler) virtualPointerStyle() (int, string, bool) {
+type virtualPointerStyle struct {
+	fontSize  int
+	fillColor string
+	char      string
+	fontName  string
+}
+
+func (h *Handler) virtualPointerStyle() (virtualPointerStyle, bool) {
 	cfg := h.config.VirtualPointer
 
 	fillColor := cfg.UI.TextColor.ForTheme(
@@ -208,5 +217,15 @@ func (h *Handler) virtualPointerStyle() (int, string, bool) {
 		size = config.DefaultVirtualPointerFontSize
 	}
 
-	return size, fillColor, true
+	char := cfg.UI.Char
+	if char == "" {
+		char = config.DefaultVirtualPointerChar
+	}
+
+	return virtualPointerStyle{
+		fontSize:  size,
+		fillColor: fillColor,
+		char:      char,
+		fontName:  cfg.UI.FontFamily,
+	}, true
 }

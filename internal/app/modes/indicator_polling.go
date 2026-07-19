@@ -107,7 +107,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					virtualPointerFillColor string
 				)
 				if showVirtualPointer {
-					virtualPointerSize, virtualPointerFillColor, showVirtualPointer = h.virtualPointerStyle()
+					vps, enabled := h.virtualPointerStyle()
+
+					showVirtualPointer = enabled
+					if enabled {
+						virtualPointerSize = vps.fontSize
+						virtualPointerFillColor = vps.fillColor
+					}
 				}
 
 				stickyPoint := h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))

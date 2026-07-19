@@ -101,6 +101,8 @@ type VirtualPointerState struct {
 	Position  image.Point
 	Size      int
 	FillColor string
+	Char      string
+	FontName  string
 }
 
 // Reset resets the recursive_grid context to its initial state.

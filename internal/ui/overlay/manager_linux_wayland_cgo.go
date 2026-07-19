@@ -25,6 +25,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 type wlrootsOverlay struct {
@@ -261,13 +262,29 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	}
 
 	if virtualPointer.Visible {
+		vpChar := virtualPointer.Char
+		if vpChar == "" {
+			vpChar = "\u25CF"
+		}
+
+		fontName := ports.ResolveFont(virtualPointer.FontName, false)
+
+		fontSize := float64(virtualPointer.Size)
+		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
+
 		vpBounds := image.Rect(
-			virtualPointer.Position.X-virtualPointer.Size/2,
-			virtualPointer.Position.Y-virtualPointer.Size/2,
-			virtualPointer.Position.X+virtualPointer.Size/2,
-			virtualPointer.Position.Y+virtualPointer.Size/2,
+			virtualPointer.Position.X-halfSize,
+			virtualPointer.Position.Y-halfSize,
+			virtualPointer.Position.X+halfSize,
+			virtualPointer.Position.Y+halfSize,
 		)
-		o.drawRect(vpBounds, parseHexColor(virtualPointer.FillColor), style.LineColor, 1)
+		o.drawTextCentered(
+			vpChar,
+			vpBounds,
+			fontName,
+			fontSize,
+			parseHexColor(virtualPointer.FillColor),
+		)
 	}
 
 	C.neru_wayland_overlay_flush(o.raw)
