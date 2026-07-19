@@ -14,6 +14,7 @@ import (
 
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -186,60 +187,40 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.Clear()
 
 	keyRunes := []rune(strings.ToUpper(keys))
-	cellWidth := bounds.Dx() / gridCols
-	cellHeight := bounds.Dy() / gridRows
 
-	index := 0
-	for row := range gridRows {
-		for col := range gridCols {
-			cell := image.Rect(
-				bounds.Min.X+col*cellWidth,
-				bounds.Min.Y+row*cellHeight,
-				bounds.Min.X+(col+1)*cellWidth,
-				bounds.Min.Y+(row+1)*cellHeight,
-			)
-			if col == gridCols-1 {
-				cell.Max.X = bounds.Max.X
+	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
+	for idx, cell := range cellRects {
+		if style.HighlightColor != 0 {
+			o.window.FillRect(cell, style.HighlightColor)
+		}
+
+		if style.LineWidth > 0 {
+			o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
+		}
+
+		if idx < len(keyRunes) {
+			label := style.LabelChar
+			if label == "" {
+				label = string(keyRunes[idx])
 			}
 
-			if row == gridRows-1 {
-				cell.Max.Y = bounds.Max.Y
-			}
-
-			if style.HighlightColor != 0 {
-				o.window.FillRect(cell, style.HighlightColor)
-			}
-
-			if style.LineWidth > 0 {
-				o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
-			}
-
-			if index < len(keyRunes) {
-				label := style.LabelChar
-				if label == "" {
-					label = string(keyRunes[index])
+			if shouldShowWinLabel(cell, style) {
+				if style.LabelBackground {
+					o.drawRecursiveLabelBackground(label, cell, style)
 				}
 
-				if shouldShowWinLabel(cell, style) {
-					if style.LabelBackground {
-						o.drawRecursiveLabelBackground(label, cell, style)
-					}
-
-					o.drawTextCentered(
-						label,
-						cell,
-						ports.ResolveFont(style.LabelFontName, false),
-						style.LabelFontSize,
-						style.LabelFontColor,
-					)
-				}
-
-				if shouldShowWinSubKeyPreview(cell, style) {
-					o.drawRecursiveSubKeyPreview(label, cell, style)
-				}
+				o.drawTextCentered(
+					label,
+					cell,
+					ports.ResolveFont(style.LabelFontName, false),
+					style.LabelFontSize,
+					style.LabelFontColor,
+				)
 			}
 
-			index++
+			if shouldShowWinSubKeyPreview(cell, style) {
+				o.drawRecursiveSubKeyPreview(label, cell, style)
+			}
 		}
 	}
 

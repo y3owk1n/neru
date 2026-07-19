@@ -117,35 +117,54 @@ func (qg *RecursiveGrid) GridRows() int {
 	return qg.LayoutForDepth(qg.depth).GridRows
 }
 
-// Divide splits the current bounds into cells based on grid dimensions for the current depth.
-// Cells are ordered left-to-right, top-to-bottom.
-// Every cell is exactly the same size: floor(W/cols) × floor(H/rows). Any leftover pixels
-// from uneven division are distributed as uniform padding around the grid, so cells within
-// a single level are always identically sized.
-func (qg *RecursiveGrid) Divide() []image.Rectangle {
-	layout := qg.LayoutForDepth(qg.depth)
-	cols := layout.GridCols
-	rows := layout.GridRows
-	boundsW := qg.currentBounds.Dx()
-	boundsH := qg.currentBounds.Dy()
-	cellW := boundsW / cols
-	cellH := boundsH / rows
-	usedW := cellW * cols
-	usedH := cellH * rows
-	offX := (boundsW - usedW) / CenterDivisor
-	offY := (boundsH - usedH) / CenterDivisor
+// ComputeGridCells returns the cell rectangles for a grid of the given dimensions
+// within the given bounds, using remainder-distribution so that cells within a
+// single level differ in size by at most 1 pixel and the grid fills the entire
+// bounds contiguously without gaps. This is the single source of truth for cell
+// positions shared by Divide() and all platform overlay renderers.
+func ComputeGridCells(bounds image.Rectangle, cols, rows int) []image.Rectangle {
+	baseW := bounds.Dx() / cols
+	baseH := bounds.Dy() / rows
+	remW := bounds.Dx() % cols
+	remH := bounds.Dy() % rows
 
 	cells := make([]image.Rectangle, cols*rows)
+
+	currentY := bounds.Min.Y
 	for row := range rows {
-		for col := range cols {
-			idx := row*cols + col
-			x := qg.currentBounds.Min.X + offX + col*cellW
-			y := qg.currentBounds.Min.Y + offY + row*cellH
-			cells[idx] = image.Rect(x, y, x+cellW, y+cellH)
+		currentX := bounds.Min.X
+
+		cellH := baseH
+		if row < remH {
+			cellH++
 		}
+
+		for col := range cols {
+			cellW := baseW
+			if col < remW {
+				cellW++
+			}
+
+			idx := row*cols + col
+			cells[idx] = image.Rect(currentX, currentY, currentX+cellW, currentY+cellH)
+			currentX += cellW
+		}
+
+		currentY += cellH
 	}
 
 	return cells
+}
+
+// Divide splits the current bounds into cells based on grid dimensions for the current depth.
+// Cells are ordered left-to-right, top-to-bottom.
+// Leftover pixels from uneven division are distributed to the first N cells (one pixel each)
+// so that cells within a single level differ in size by at most 1 pixel and the grid
+// fills the entire bounds without gaps.
+func (qg *RecursiveGrid) Divide() []image.Rectangle {
+	layout := qg.LayoutForDepth(qg.depth)
+
+	return ComputeGridCells(qg.currentBounds, layout.GridCols, layout.GridRows)
 }
 
 // CellCenter returns the center point of the specified cell, rounded to nearest pixel.
