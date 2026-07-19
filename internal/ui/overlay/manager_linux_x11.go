@@ -470,7 +470,7 @@ func (o *x11Overlay) drawSubKeyMiniGrid(
 	// Center cell index for odd grids; skip it in preview for visual clarity.
 	centerIdx := -1
 	if nextGridCols%2 == 1 && nextGridRows%2 == 1 {
-		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2 //nolint:nmd
+		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2 //nolint:mnd
 	}
 
 	subIndex := 0
