@@ -273,6 +273,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 /// Resolve vertical hint padding (-1 = auto based on font size).
 - (CGFloat)resolvedHintPaddingY;
+
+/// Draw a grid cell border with edge-clipping at the view boundary.
+/// cellRect must be in view (flipped) coordinates.
+- (void)drawGridCellBorder:(NSRect)cellRect isMatched:(BOOL)isMatched screenWidth:(CGFloat)screenWidth;
 @end
 
 #pragma mark - Overlay View Implementation
@@ -1428,23 +1432,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		NSRectFill(cellRect);
 
 		// Draw border
-		NSColor *borderColor =
-		    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
-		[borderColor setStroke];
-		NSRect borderRect = cellRect;
-		if ((int)self.gridBorderWidth % 2 == 1) {
-			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
-		}
-		if (NSMaxX(cellRect) >= screenWidth) {
-			borderRect.size.width -= 1.0;
-		}
-		if (NSMinY(cellRect) <= 0) {
-			borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
-			borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
-		}
-		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
-		[borderPath setLineWidth:self.gridBorderWidth];
-		[borderPath stroke];
+		[self drawGridCellBorder:cellRect isMatched:isMatched screenWidth:screenWidth];
 
 		// Draw label
 		if (label && [label length] > 0) {
@@ -1469,6 +1457,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 
 	BOOL filterByRect = !NSIsEmptyRect(dirtyRect);
 	CGFloat screenHeight = self.bounds.size.height;
+	CGFloat screenWidth = self.bounds.size.width;
 	CGRect fromBounds = CGRectNull;
 	CGRect toBounds = CGRectNull;
 
@@ -1506,14 +1495,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		[bgBase setFill];
 		NSRectFill(cellRect);
 
-		[self.gridBorderColor setStroke];
-		NSRect borderRect = cellRect;
-		if ((int)self.gridBorderWidth % 2 == 1) {
-			borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
-		}
-		NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
-		[borderPath setLineWidth:self.gridBorderWidth];
-		[borderPath stroke];
+		[self drawGridCellBorder:cellRect isMatched:NO screenWidth:screenWidth];
 
 		NSString *fromLabel = fromCell.label ?: @"";
 		NSString *toLabel = toCell.label ?: fromLabel;
@@ -1537,6 +1519,29 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 			[self drawGridLabel:toLabel inCellRect:cellRect isMatched:NO matchedPrefixLength:0 alpha:progress];
 		}
 	}
+}
+
+/// Draw a grid cell border with edge-clipping at the view boundary.
+/// cellRect must be in view (flipped) coordinates.
+- (void)drawGridCellBorder:(NSRect)cellRect isMatched:(BOOL)isMatched screenWidth:(CGFloat)screenWidth {
+	NSColor *borderColor =
+	    isMatched && self.gridMatchedBorderColor ? self.gridMatchedBorderColor : self.gridBorderColor;
+	[borderColor setStroke];
+
+	NSRect borderRect = cellRect;
+	if ((int)self.gridBorderWidth % 2 == 1) {
+		borderRect = NSOffsetRect(cellRect, 0.5, -0.5);
+	}
+	if (NSMaxX(cellRect) >= screenWidth) {
+		borderRect.size.width -= 1.0;
+	}
+	if (NSMinY(cellRect) <= 0) {
+		borderRect.origin.y += ceil(self.gridBorderWidth / 2.0);
+		borderRect.size.height -= ceil(self.gridBorderWidth / 2.0);
+	}
+	NSBezierPath *borderPath = [NSBezierPath bezierPathWithRect:borderRect];
+	[borderPath setLineWidth:self.gridBorderWidth];
+	[borderPath stroke];
 }
 
 /// Draw a grid label centered in the cell, optionally with a rounded badge.
