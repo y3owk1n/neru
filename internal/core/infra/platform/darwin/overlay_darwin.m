@@ -3367,8 +3367,26 @@ void NeruPositionAndDrawVirtualPointer(
 	CGFloat margin = 2.0;
 
 	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
-	CGFloat radius = fontSize / 2.0;
-	CGFloat windowSize = fontSize + margin * 2.0;
+
+	// Measure the actual glyph size so the window accommodates wide/tall characters
+	// (e.g. "⬤", "◆") that can exceed fontSize.
+	// Use the same resolution strategy as resolveFont:size:bold: (without bold trait)
+	// to keep measurement consistent with the rendering font set inside the dispatch block.
+	NSFont *measureFont = nil;
+	if (fontFamily.length > 0) {
+		measureFont = [NSFont fontWithName:fontFamily size:fontSize];
+		if (!measureFont) {
+			NSFontManager *fm = [NSFontManager sharedFontManager];
+			measureFont = [fm fontWithFamily:fontFamily traits:0 weight:5 size:fontSize];
+		}
+	}
+	if (!measureFont) {
+		measureFont = [NSFont systemFontOfSize:fontSize];
+	}
+	NSSize labelSize = [labelChar sizeWithAttributes:@{NSFontAttributeName : measureFont}];
+	CGFloat textDimension = MAX(labelSize.width, labelSize.height);
+	CGFloat windowSize = textDimension + margin * 2.0;
+	CGFloat radius = textDimension / 2.0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
