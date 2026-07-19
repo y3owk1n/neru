@@ -2,6 +2,8 @@
 
 package modes
 
+func (h *Handler) CursorVisibilitySupported() bool { return false }
+
 func (h *Handler) hideSystemCursorNative() {}
 
 func (h *Handler) showSystemCursorNative() {}

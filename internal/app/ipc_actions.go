@@ -1260,6 +1260,19 @@ func (h *IPCControllerActions) handleCursorVisibilityAction(
 		}
 	}
 
+	if !h.modesHandler.CursorVisibilitySupported() {
+		actionName := "show_cursor"
+		if hide {
+			actionName = "hide_cursor"
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: actionName + " is not supported on this platform",
+			Code:    ipc.CodeNotSupported,
+		}
+	}
+
 	if hide {
 		h.modesHandler.HideSystemCursor()
 

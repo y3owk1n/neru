@@ -8,6 +8,8 @@ package modes
 */
 import "C"
 
+func (h *Handler) CursorVisibilitySupported() bool { return true }
+
 func (h *Handler) hideSystemCursorNative() {
 	C.NeruHideSystemCursor()
 }
