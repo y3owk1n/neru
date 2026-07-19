@@ -569,6 +569,14 @@ int neru_wlr_move_relative(NeruWlrootsClient *c, int dx, int dy) {
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
 
+	// Update cache synchronously — relative-motion events from the compositor
+	// never reach us because this client never owns pointer focus (all our
+	// surfaces have empty input regions after init). Without this, every
+	// MoveCursorBy call drifts the cache further from the real cursor.
+	atomic_fetch_add(&c->cursor_x, dx);
+	atomic_fetch_add(&c->cursor_y, dy);
+	atomic_store(&c->cursor_initialized, 1);
+
 	return 1;
 }
 
