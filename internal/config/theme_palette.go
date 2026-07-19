@@ -21,10 +21,10 @@ const (
 )
 
 var (
-	// VirtualPointerColorLight is the fallback light color for the virtual pointer.
-	VirtualPointerColorLight = solidRGBHex(defaultThemeLightAccentAlt)
-	// VirtualPointerColorDark is the fallback dark color for the virtual pointer.
-	VirtualPointerColorDark = solidRGBHex(defaultThemeDarkAccentAlt)
+	// VirtualPointerTextColorLight is the fallback light text color for the virtual pointer char.
+	VirtualPointerTextColorLight = solidRGBHex(defaultThemeLightAccentAlt)
+	// VirtualPointerTextColorDark is the fallback dark text color for the virtual pointer char.
+	VirtualPointerTextColorDark = solidRGBHex(defaultThemeDarkAccentAlt)
 
 	// HintsBackgroundColorLight is the fallback light background color for hints.
 	HintsBackgroundColorLight = applyAlpha(defaultThemeLightSurface, "F2")
@@ -309,7 +309,7 @@ func (c *Config) ResolveThemeDefaults() {
 		c.Theme.Light.Accent, c.Theme.Dark.Accent,
 	))
 
-	mergeColorWithDefault(&c.VirtualPointer.UI.Color, solidThemedColor(
+	mergeColorWithDefault(&c.VirtualPointer.UI.TextColor, solidThemedColor(
 		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt,
 	))
 

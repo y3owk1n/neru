@@ -44,11 +44,7 @@ func (h *Handler) showSystemCursorLocked() {
 }
 
 func (h *Handler) shouldShowCursorFollowingVirtualPointerLocked() bool {
-	if !h.systemCursorHidden || h.config == nil || !h.config.VirtualPointer.Enabled {
-		return false
-	}
-
-	return true
+	return h.systemCursorHidden && h.config != nil
 }
 
 func (h *Handler) ensureCursorOverlayPollingLocked() {

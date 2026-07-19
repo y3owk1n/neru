@@ -226,11 +226,10 @@ sub_key_preview_label_char = ""             # Override sub-key preview labels wi
 
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#virtual_pointer
-[virtual_pointer]
-enabled = true
-
 [virtual_pointer.ui]
-size = 3
+char = "●"             # Character to display (e.g. "•", "●", "◉", "⬤") or anything you like
+font_size = 8
+font_family = ""
 
 # Mouse action indicator (macOS)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse_action_indicator

@@ -256,10 +256,10 @@ hotkeys = {
 
 **Priority order** when a key is pressed while Neru is running:
 
-| Context | Resolution |
-|---|---|
-| **Idle (no mode active)** | `[hotkeys]` bindings merged with per-app `[[app_configs]]` overrides for the focused app |
-| **Inside a mode** | `[<mode>.hotkeys]` merged with per-app `[[<mode>.app_configs]]` overrides, checked before the mode's built-in keys |
+| Context                                      | Resolution                                                                                                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idle (no mode active)**                    | `[hotkeys]` bindings merged with per-app `[[app_configs]]` overrides for the focused app                                                                                   |
+| **Inside a mode**                            | `[<mode>.hotkeys]` merged with per-app `[[<mode>.app_configs]]` overrides, checked before the mode's built-in keys                                                         |
 | **Global hotkey conflicts with mode hotkey** | Mode hotkey override wins (e.g., a global `Cmd+Shift+F = "hints"` launcher is replaced by `[hints.hotkeys]` `"Cmd+Shift+F" = "recursive_grid"` while hints mode is active) |
 
 Inside a mode, the dispatch order is:
@@ -272,16 +272,16 @@ Inside a mode, the dispatch order is:
 
 All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#action-commands) for full flag documentation.
 
-| Category    | Actions                                                                               |
-| ----------- | ------------------------------------------------------------------------------------- |
-| Click       | `left_click`, `right_click`, `middle_click`                                           |
-| Mouse       | `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`                         |
-| Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`                             |
-| Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                                         |
-| Keyboard    | `feed`                                                                                |
-| Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`                                 |
-| Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s` |
-| Mode        | `reset`, `backspace`                                                                  |
+| Category    | Actions                                                                                |
+| ----------- | -------------------------------------------------------------------------------------- |
+| Click       | `left_click`, `right_click`, `middle_click`                                            |
+| Mouse       | `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`                          |
+| Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`                              |
+| Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                                          |
+| Keyboard    | `feed`                                                                                 |
+| Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`                                  |
+| Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s`  |
+| Mode        | `reset`, `backspace`                                                                   |
 | Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
@@ -668,27 +668,27 @@ layers = [
 
 ### UI
 
-| Option                                | Type   | Default | Description                          |
-| ------------------------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`                           | int    | `10`    | Font size                            |
-| `font_family`                         | string | `""`    | Font family (empty = system default) |
-| `line_width`                          | int    | `1`     | Grid line width                      |
-| `line_color`                          | color  | derived | Grid line color                      |
-| `highlight_color`                     | color  | derived | Selected cell highlight              |
-| `text_color`                          | color  | derived | Label text                           |
-| `label_background`                    | bool   | `false` | Background behind labels             |
-| `label_background_color`              | color  | derived | Label background                     |
-| `label_background_padding_x`          | int    | `-1`    | Horizontal label padding (-1 = auto) |
-| `label_background_padding_y`          | int    | `-1`    | Vertical label padding (-1 = auto)   |
-| `label_background_border_radius`      | int    | `-1`    | Label corner radius (-1 = auto)      |
-| `label_background_border_width`       | int    | `1`     | Label border width                   |
+| Option                                | Type   | Default | Description                                                                  |
+| ------------------------------------- | ------ | ------- | ---------------------------------------------------------------------------- |
+| `font_size`                           | int    | `10`    | Font size                                                                    |
+| `font_family`                         | string | `""`    | Font family (empty = system default)                                         |
+| `line_width`                          | int    | `1`     | Grid line width                                                              |
+| `line_color`                          | color  | derived | Grid line color                                                              |
+| `highlight_color`                     | color  | derived | Selected cell highlight                                                      |
+| `text_color`                          | color  | derived | Label text                                                                   |
+| `label_background`                    | bool   | `false` | Background behind labels                                                     |
+| `label_background_color`              | color  | derived | Label background                                                             |
+| `label_background_padding_x`          | int    | `-1`    | Horizontal label padding (-1 = auto)                                         |
+| `label_background_padding_y`          | int    | `-1`    | Vertical label padding (-1 = auto)                                           |
+| `label_background_border_radius`      | int    | `-1`    | Label corner radius (-1 = auto)                                              |
+| `label_background_border_width`       | int    | `1`     | Label border width                                                           |
 | `label_char`                          | string | `""`    | Override all cell labels with a single character (e.g. `·`); empty = use key |
-| `label_autohide_multiplier`           | float  | `1.5`   | Hide labels when cell < fontSize × multiplier (0 = disable) |
-| `sub_key_preview`                     | bool   | `false` | Show sub-key previews in cells       |
-| `sub_key_preview_font_size`           | int    | `8`     | Sub-key preview font size            |
-| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier        |
-| `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color           |
-| `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`); empty = use key |
+| `label_autohide_multiplier`           | float  | `1.5`   | Hide labels when cell < fontSize × multiplier (0 = disable)                  |
+| `sub_key_preview`                     | bool   | `false` | Show sub-key previews in cells                                               |
+| `sub_key_preview_font_size`           | int    | `8`     | Sub-key preview font size                                                    |
+| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier                                                |
+| `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
+| `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`); empty = use key  |
 
 ```toml
 [recursive_grid.ui]
@@ -765,29 +765,29 @@ hotkeys = { "k" = "action scroll_up", "j" = "action scroll_down" }
 
 Interactive display picking mode. Shows per-monitor overlay badges labelled with selectable characters. Monitors are sorted in a fixed spatial order (top-to-bottom, left-to-right).
 
-| Option                 | Type   | Default       | Description                                         |
-| ---------------------- | ------ | ------------- | --------------------------------------------------- |
-| `enabled`              | bool   | `false`       | Enable interactive monitor picking                  |
-| `characters`           | string | `"123456789"` | Characters used for monitor labels                  |
+| Option       | Type   | Default       | Description                        |
+| ------------ | ------ | ------------- | ---------------------------------- |
+| `enabled`    | bool   | `false`       | Enable interactive monitor picking |
+| `characters` | string | `"123456789"` | Characters used for monitor labels |
 
 ### UI
 
-| Key                        | Default       | Description                        |
-| -------------------------- | ------------- | ---------------------------------- |
-| `font_size`                | `96`          | Badge label font size              |
-| `font_family`              | `""` (system) | Badge label font family            |
-| `subtitle_font_size`       | `18`          | Monitor name subtitle font size    |
-| `subtitle_font_family`     | `""` (system) | Subtitle font family               |
-| `border_radius`            | `-1` (auto)   | Badge corner radius                |
-| `padding_x`                | `-1` (auto)   | Horizontal padding                 |
-| `padding_y`                | `-1` (auto)   | Vertical padding                   |
-| `border_width`             | `0`           | Badge border width                 |
-| `background_color`         | derived       | Badge fill color                   |
-| `text_color`               | derived       | Label text color                   |
-| `matched_text_color`       | derived       | Partially-typed label text color   |
-| `border_color`             | derived       | Badge border color                 |
-| `backdrop_color`           | `""` (none)   | Per-monitor overlay backdrop tint  |
-| `subtitle_text_color`      | derived       | Subtitle text color                |
+| Key                    | Default       | Description                       |
+| ---------------------- | ------------- | --------------------------------- |
+| `font_size`            | `96`          | Badge label font size             |
+| `font_family`          | `""` (system) | Badge label font family           |
+| `subtitle_font_size`   | `18`          | Monitor name subtitle font size   |
+| `subtitle_font_family` | `""` (system) | Subtitle font family              |
+| `border_radius`        | `-1` (auto)   | Badge corner radius               |
+| `padding_x`            | `-1` (auto)   | Horizontal padding                |
+| `padding_y`            | `-1` (auto)   | Vertical padding                  |
+| `border_width`         | `0`           | Badge border width                |
+| `background_color`     | derived       | Badge fill color                  |
+| `text_color`           | derived       | Label text color                  |
+| `matched_text_color`   | derived       | Partially-typed label text color  |
+| `border_color`         | derived       | Badge border color                |
+| `backdrop_color`       | `""` (none)   | Per-monitor overlay backdrop tint |
+| `subtitle_text_color`  | derived       | Subtitle text color               |
 
 ### Hotkeys
 
@@ -819,20 +819,22 @@ backdrop_color = ""
 
 ## [virtual_pointer]
 
-A small dot rendered at the active selection when grid or recursive-grid runs in `--cursor-selection-mode hold`.
+A small character rendered at the cursor when the system cursor is hidden. macOS only.
 
-| Option    | Type  | Default | Description          |
-| --------- | ----- | ------- | -------------------- |
-| `enabled` | bool  | `true`  | Enable/disable       |
-| `size`    | int   | `3`     | Dot radius in points |
-| `color`   | color | derived | Dot color            |
+### UI
+
+| Option        | Type   | Default  | Description                    |
+| ------------- | ------ | -------- | ------------------------------ |
+| `char`        | string | `"●"`    | Character to display             |
+| `font_size`   | int    | `8`      | Font size in points              |
+| `font_family` | string | `""`     | Font family (empty = system)   |
+| `text_color`  | color  | derived  | Character color                |
 
 ```toml
-[virtual_pointer]
-enabled = true
-
 [virtual_pointer.ui]
-size = 3
+char = "●"
+font_size = 8
+font_family = ""
 ```
 
 ---

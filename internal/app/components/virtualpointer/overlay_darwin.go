@@ -92,22 +92,41 @@ func (o *Overlay) SetSharingType(hide bool) {
 // ResizeToActiveScreen is a no-op; positioning is handled per draw.
 func (o *Overlay) ResizeToActiveScreen() {}
 
-// Draw positions the overlay on the cursor and renders the virtual pointer dot.
+// Draw positions the overlay on the cursor and renders the virtual pointer indicator.
+// When a char is configured in the overlay's config, the character is drawn using the
+// configured font and text color. Otherwise falls back to a filled circle using fillColor.
 func (o *Overlay) Draw(xCoordinate, yCoordinate, size int, fillColor string) {
 	if size < 1 || fillColor == "" {
 		return
 	}
 
+	o.configMu.RLock()
+	cfg := o.config
+	o.configMu.RUnlock()
+
 	cFillColor := C.CString(fillColor)
-	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
+	cLabelChar := C.CString(cfg.UI.Char)
+	cFontFamily := C.CString(cfg.UI.FontFamily)
+	cTextColor := C.CString(cfg.UI.TextColor.ForTheme(
+		o.theme, config.VirtualPointerTextColorLight, config.VirtualPointerTextColorDark,
+	))
+
+	defer C.free(unsafe.Pointer(cFillColor))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
 
 	C.NeruPositionAndDrawVirtualPointer(
 		o.window,
 		C.double(xCoordinate),
 		C.double(yCoordinate),
 		C.CursorIndicatorStyle{
-			radius:    C.double(size),
-			fillColor: cFillColor,
+			radius:     C.double(size),
+			fillColor:  cFillColor,
+			labelChar:  cLabelChar,
+			fontFamily: cFontFamily,
+			fontSize:   C.int(cfg.UI.FontSize),
+			textColor:  cTextColor,
 		},
 	)
 }

@@ -194,6 +194,9 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) NSPoint cursorIndicatorPosition;        ///< Virtual cursor indicator center
 @property(nonatomic, assign) CGFloat cursorIndicatorRadius;          ///< Virtual cursor indicator radius
 @property(nonatomic, strong) NSColor *cursorIndicatorFillColor;      ///< Virtual cursor indicator fill
+@property(nonatomic, copy) NSString *cursorIndicatorLabel;           ///< Virtual cursor indicator label (char)
+@property(nonatomic, strong) NSFont *cursorIndicatorFont;            ///< Virtual cursor indicator font
+@property(nonatomic, strong) NSColor *cursorIndicatorTextColor;      ///< Virtual cursor indicator text color
 @property(nonatomic, assign)
     BOOL cursorIndicatorTransitionActive;  ///< Animate virtual pointer with recursive-grid transitions
 @property(nonatomic, assign) NSPoint cursorIndicatorFromPosition;  ///< Previous virtual pointer position
@@ -340,6 +343,9 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
 		_cursorIndicatorFillColor = [NSColor colorWithWhite:1.0 alpha:1.0];
+		_cursorIndicatorLabel = nil;
+		_cursorIndicatorFont = nil;
+		_cursorIndicatorTextColor = nil;
 		_cursorIndicatorTransitionActive = NO;
 		_cursorIndicatorFromPosition = NSZeroPoint;
 		_cursorIndicatorToPosition = NSZeroPoint;
@@ -382,6 +388,9 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[self.gridCells removeAllObjects];
 	self.searchInput = nil;
 	self.cursorIndicatorVisible = NO;
+	self.cursorIndicatorLabel = nil;
+	self.cursorIndicatorFont = nil;
+	self.cursorIndicatorTextColor = nil;
 	[self.colorCache removeAllObjects];
 	[[self.cachedHintAttributedString mutableString] setString:@""];
 	[[self.cachedHintMeasureString mutableString] setString:@""];
@@ -1062,6 +1071,7 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 }
 
 /// Draw the virtual cursor indicator when it intersects the dirty region.
+/// Draws the configured character using the configured font and text color.
 /// @param dirtyRect Dirty region to redraw. Pass NSZeroRect to draw unconditionally.
 - (void)drawCursorIndicatorInRect:(NSRect)dirtyRect {
 	if (!self.cursorIndicatorVisible)
@@ -1076,12 +1086,17 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	CGFloat screenHeight = self.bounds.size.height;
 	CGFloat centerY = screenHeight - position.y;
 	NSPoint center = NSMakePoint(position.x, centerY);
-	NSBezierPath *dot = [NSBezierPath
-	    bezierPathWithOvalInRect:NSMakeRect(
-	                                 center.x - self.cursorIndicatorRadius, center.y - self.cursorIndicatorRadius,
-	                                 self.cursorIndicatorRadius * 2.0, self.cursorIndicatorRadius * 2.0)];
-	[self.cursorIndicatorFillColor setFill];
-	[dot fill];
+
+	NSFont *font = self.cursorIndicatorFont;
+	if (!font)
+		font = [NSFont systemFontOfSize:8.0];
+
+	NSColor *textColor = self.cursorIndicatorTextColor ?: [NSColor whiteColor];
+
+	NSDictionary *attrs = @{NSFontAttributeName : font, NSForegroundColorAttributeName : textColor};
+	NSSize textSize = [self.cursorIndicatorLabel sizeWithAttributes:attrs];
+	NSPoint textOrigin = NSMakePoint(center.x - textSize.width / 2.0, center.y - textSize.height / 2.0);
+	[self.cursorIndicatorLabel drawAtPoint:textOrigin withAttributes:attrs];
 }
 
 /// Compute the screen-space bounding rect for a hint item (view coordinates, bottom-left origin).
@@ -3284,6 +3299,7 @@ void NeruDrawIncrementGrid(
 }
 
 /// Show a virtual cursor indicator at the specified point.
+/// Draws the configured character using the configured font and text color.
 /// @param window Overlay window handle
 /// @param position Indicator center position in overlay coordinates
 /// @param style Indicator style
@@ -3293,8 +3309,12 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	CGFloat radius = style.radius > 0 ? style.radius : 10.0;
-	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
+	NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
+	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
+
+	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
+	CGFloat radius = fontSize / 2.0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
@@ -3311,8 +3331,19 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 			controller.overlayView.cursorIndicatorVisible = YES;
 			controller.overlayView.cursorIndicatorPosition = nextPosition;
 			controller.overlayView.cursorIndicatorRadius = radius;
-			controller.overlayView.cursorIndicatorFillColor =
-			    [controller.overlayView colorFromHex:fillHex defaultColor:[NSColor whiteColor]];
+			controller.overlayView.cursorIndicatorLabel = labelChar;
+
+			NSFont *font = nil;
+			if (fontFamily.length > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.cursorIndicatorFont = font;
+			controller.overlayView.cursorIndicatorTextColor =
+			    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
+
 			[controller.overlayView setNeedsDisplay:YES];
 		}
 	});
@@ -3321,7 +3352,8 @@ void NeruShowCursorIndicator(OverlayWindow window, CGPoint position, CursorIndic
 static NSPoint NeruAppKitPointFromQuartzPoint(CGPoint point);
 static NSScreen *NeruScreenContainingQuartzPoint(CGPoint point);
 
-/// Position a small overlay window on the cursor and draw the virtual pointer dot.
+/// Position a small overlay window on the cursor and draw the virtual pointer indicator.
+/// Draws the configured character using the configured font and text color.
 void NeruPositionAndDrawVirtualPointer(
     OverlayWindow window, double absoluteX, double absoluteY, CursorIndicatorStyle style) {
 	if (!window)
@@ -3329,10 +3361,32 @@ void NeruPositionAndDrawVirtualPointer(
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	CGFloat radius = style.radius > 0 ? style.radius : 3.0;
-	NSString *fillHex = style.fillColor ? @(style.fillColor) : nil;
+	NSString *labelChar = style.labelChar ? @(style.labelChar) : @"\u25CF";
+	NSString *fontFamily = style.fontFamily ? @(style.fontFamily) : nil;
+	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	CGFloat margin = 2.0;
-	CGFloat windowSize = (radius * 2.0) + margin * 2.0;
+
+	CGFloat fontSize = style.fontSize > 0 ? (CGFloat)style.fontSize : 8.0;
+
+	// Measure the actual glyph size so the window accommodates wide/tall characters
+	// (e.g. "⬤", "◆") that can exceed fontSize.
+	// Use the same resolution strategy as resolveFont:size:bold: (without bold trait)
+	// to keep measurement consistent with the rendering font set inside the dispatch block.
+	NSFont *measureFont = nil;
+	if (fontFamily.length > 0) {
+		measureFont = [NSFont fontWithName:fontFamily size:fontSize];
+		if (!measureFont) {
+			NSFontManager *fm = [NSFontManager sharedFontManager];
+			measureFont = [fm fontWithFamily:fontFamily traits:0 weight:5 size:fontSize];
+		}
+	}
+	if (!measureFont) {
+		measureFont = [NSFont systemFontOfSize:fontSize];
+	}
+	NSSize labelSize = [labelChar sizeWithAttributes:@{NSFontAttributeName : measureFont}];
+	CGFloat textDimension = MAX(labelSize.width, labelSize.height);
+	CGFloat windowSize = textDimension + margin * 2.0;
+	CGFloat radius = textDimension / 2.0;
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
@@ -3366,8 +3420,19 @@ void NeruPositionAndDrawVirtualPointer(
 			controller.overlayView.cursorIndicatorVisible = YES;
 			controller.overlayView.cursorIndicatorPosition = NSMakePoint(windowSize / 2.0, windowSize / 2.0);
 			controller.overlayView.cursorIndicatorRadius = radius;
-			controller.overlayView.cursorIndicatorFillColor =
-			    [controller.overlayView colorFromHex:fillHex defaultColor:[NSColor whiteColor]];
+			controller.overlayView.cursorIndicatorLabel = labelChar;
+
+			NSFont *font = nil;
+			if (fontFamily.length > 0) {
+				font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:NO];
+			}
+			if (!font) {
+				font = [NSFont systemFontOfSize:fontSize];
+			}
+			controller.overlayView.cursorIndicatorFont = font;
+			controller.overlayView.cursorIndicatorTextColor =
+			    [controller.overlayView colorFromHex:textHex defaultColor:[NSColor whiteColor]];
+
 			[controller.overlayView setNeedsDisplay:YES];
 		}
 	});

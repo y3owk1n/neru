@@ -821,16 +821,17 @@ type RecursiveGridConfig struct {
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
-// VirtualPointerUI defines the visual settings for the hold-mode virtual pointer.
+// VirtualPointerUI defines the visual settings for the character-based virtual pointer.
 type VirtualPointerUI struct {
-	Size  int   `json:"size"  toml:"size"`
-	Color Color `json:"color" toml:"color"`
+	Char       string `json:"char"       toml:"char"`
+	FontSize   int    `json:"fontSize"   toml:"font_size"`
+	FontFamily string `json:"fontFamily" toml:"font_family"`
+	TextColor  Color  `json:"textColor"  toml:"text_color"`
 }
 
 // VirtualPointerConfig defines settings for the hold-mode virtual pointer.
 type VirtualPointerConfig struct {
-	Enabled bool             `json:"enabled" toml:"enabled"`
-	UI      VirtualPointerUI `json:"ui"      toml:"ui"`
+	UI VirtualPointerUI `json:"ui" toml:"ui"`
 }
 
 // MouseActionUI defines the visual settings for mouse action indicators.

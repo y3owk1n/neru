@@ -320,6 +320,7 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 	return &components.RecursiveGridComponent{
 		Overlay: recursiveGridOverlay,
 		Context: &recursivegrid.Context{},
+		Theme:   f.themeProvider,
 	}, nil
 }
 
@@ -351,7 +352,17 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, nil //nolint:nilnil
 		}
 
-		return grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr()), nil
+		overlay := grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr())
+		overlay.SetVirtualPointerConfig(
+			f.config.VirtualPointer.UI,
+			f.config.VirtualPointer.UI.TextColor.ForTheme(
+				f.themeProvider,
+				config.VirtualPointerTextColorLight,
+				config.VirtualPointerTextColorDark,
+			),
+		)
+
+		return overlay, nil
 	case "mode_indicator":
 		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
 		if !ok {
@@ -377,11 +388,21 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, nil //nolint:nilnil
 		}
 
-		return recursivegrid.NewOverlayWithWindow(
+		overlay := recursivegrid.NewOverlayWithWindow(
 			recursiveGridConfig,
 			f.logger,
 			f.overlayManager.WindowPtr(),
-		), nil
+		)
+		overlay.SetVirtualPointerConfig(
+			f.config.VirtualPointer.UI,
+			f.config.VirtualPointer.UI.TextColor.ForTheme(
+				f.themeProvider,
+				config.VirtualPointerTextColorLight,
+				config.VirtualPointerTextColorDark,
+			),
+		)
+
+		return overlay, nil
 	case "sticky_modifiers":
 		uiConfig, ok := cfg.(config.StickyModifiersUI)
 		if !ok {

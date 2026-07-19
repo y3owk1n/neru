@@ -1313,19 +1313,28 @@ func (c *Config) ValidateRecursiveGrid() error {
 
 // ValidateVirtualPointer validates virtual pointer configuration.
 func (c *Config) ValidateVirtualPointer() error {
-	if !c.VirtualPointer.Enabled {
-		return nil
-	}
-
 	err := validateColors([]colorField{
-		{c.VirtualPointer.UI.Color, "virtual_pointer.ui.color"},
+		{c.VirtualPointer.UI.TextColor, "virtual_pointer.ui.text_color"},
 	})
 	if err != nil {
 		return err
 	}
 
-	if c.VirtualPointer.UI.Size < 1 {
-		return derrors.New(derrors.CodeInvalidConfig, "virtual_pointer.ui.size must be >= 1")
+	charLen := utf8.RuneCountInString(c.VirtualPointer.UI.Char)
+	if charLen != 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"virtual_pointer.ui.char must be exactly 1 character",
+		)
+	}
+
+	if c.VirtualPointer.UI.FontSize < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "virtual_pointer.ui.font_size must be >= 0")
+	}
+
+	if c.VirtualPointer.UI.FontSize > maxFontSize {
+		return derrors.Newf(derrors.CodeInvalidConfig,
+			"virtual_pointer.ui.font_size must be <= %d", maxFontSize)
 	}
 
 	return nil

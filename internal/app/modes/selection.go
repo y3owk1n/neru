@@ -196,15 +196,17 @@ func (h *Handler) currentRecursiveGridVirtualPointerState() componentrecursivegr
 
 func (h *Handler) virtualPointerStyle() (int, string, bool) {
 	cfg := h.config.VirtualPointer
-	if !cfg.Enabled {
-		return 0, "", false
-	}
 
-	fillColor := cfg.UI.Color.ForTheme(
+	fillColor := cfg.UI.TextColor.ForTheme(
 		h.themeProvider,
-		config.VirtualPointerColorLight,
-		config.VirtualPointerColorDark,
+		config.VirtualPointerTextColorLight,
+		config.VirtualPointerTextColorDark,
 	)
 
-	return cfg.UI.Size, fillColor, true
+	size := cfg.UI.FontSize
+	if size < 1 {
+		size = config.DefaultVirtualPointerFontSize
+	}
+
+	return size, fillColor, true
 }

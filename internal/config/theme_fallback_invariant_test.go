@@ -15,14 +15,14 @@ func TestDefaultThemeFallbacksMatchResolvedDefaults(t *testing.T) {
 		want string
 	}{
 		{
-			name: "virtual pointer light",
-			got:  cfg.VirtualPointer.UI.Color.Light,
-			want: config.VirtualPointerColorLight,
+			name: "virtual pointer text light",
+			got:  cfg.VirtualPointer.UI.TextColor.Light,
+			want: config.VirtualPointerTextColorLight,
 		},
 		{
-			name: "virtual pointer dark",
-			got:  cfg.VirtualPointer.UI.Color.Dark,
-			want: config.VirtualPointerColorDark,
+			name: "virtual pointer text dark",
+			got:  cfg.VirtualPointer.UI.TextColor.Dark,
+			want: config.VirtualPointerTextColorDark,
 		},
 		{
 			name: "hints background light",

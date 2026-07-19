@@ -154,31 +154,27 @@ func TestDefaultConfig(t *testing.T) {
 	})
 
 	t.Run("Virtual Pointer Defaults", func(t *testing.T) {
-		if !cfg.VirtualPointer.Enabled {
-			t.Error("Expected VirtualPointer.Enabled to be true by default")
-		}
-
-		if cfg.VirtualPointer.UI.Size != config.DefaultVirtualPointerSize {
+		if cfg.VirtualPointer.UI.Char != config.DefaultVirtualPointerChar {
 			t.Errorf(
-				"Expected VirtualPointer.UI.Size %d, got %d",
-				config.DefaultVirtualPointerSize,
-				cfg.VirtualPointer.UI.Size,
+				"Expected VirtualPointer.UI.Char %q, got %q",
+				config.DefaultVirtualPointerChar,
+				cfg.VirtualPointer.UI.Char,
 			)
 		}
 
-		if cfg.VirtualPointer.UI.Color.Light != config.VirtualPointerColorLight {
+		if cfg.VirtualPointer.UI.TextColor.Light != config.VirtualPointerTextColorLight {
 			t.Errorf(
-				"Expected VirtualPointer.UI.Color.Light %q, got %q",
-				config.VirtualPointerColorLight,
-				cfg.VirtualPointer.UI.Color.Light,
+				"Expected VirtualPointer.UI.TextColor.Light %q, got %q",
+				config.VirtualPointerTextColorLight,
+				cfg.VirtualPointer.UI.TextColor.Light,
 			)
 		}
 
-		if cfg.VirtualPointer.UI.Color.Dark != config.VirtualPointerColorDark {
+		if cfg.VirtualPointer.UI.TextColor.Dark != config.VirtualPointerTextColorDark {
 			t.Errorf(
-				"Expected VirtualPointer.UI.Color.Dark %q, got %q",
-				config.VirtualPointerColorDark,
-				cfg.VirtualPointer.UI.Color.Dark,
+				"Expected VirtualPointer.UI.TextColor.Dark %q, got %q",
+				config.VirtualPointerTextColorDark,
+				cfg.VirtualPointer.UI.TextColor.Dark,
 			)
 		}
 	})

@@ -251,8 +251,12 @@ const (
 	DefaultRecursiveGridLineWidth = 1
 	// DefaultRecursiveGridFontSize is the default font size for cell labels.
 	DefaultRecursiveGridFontSize = 10
-	// DefaultVirtualPointerSize is the default virtual pointer dot radius in points.
-	DefaultVirtualPointerSize = 3
+	// DefaultVirtualPointerChar is the default character displayed by the virtual pointer.
+	DefaultVirtualPointerChar = "\u25CF" // "●"
+	// DefaultVirtualPointerFontSize is the default font size for the virtual pointer char.
+	DefaultVirtualPointerFontSize = 8
+	// DefaultVirtualPointerFontFamily is the default font family for the virtual pointer char.
+	DefaultVirtualPointerFontFamily = ""
 	// DefaultMouseActionIndicatorSize is the default mouse action indicator diameter in points.
 	DefaultMouseActionIndicatorSize = 36
 	// DefaultMouseActionIndicatorBorderWidth is the default mouse action indicator border width.
@@ -535,10 +539,11 @@ func newDefaultConfig() *Config {
 			MaxDepth:      DefaultRecursiveGridMaxDepth,
 		},
 		VirtualPointer: VirtualPointerConfig{
-			Enabled: true,
 			UI: VirtualPointerUI{
-				Size:  DefaultVirtualPointerSize,
-				Color: Color{},
+				Char:       DefaultVirtualPointerChar,
+				FontSize:   DefaultVirtualPointerFontSize,
+				FontFamily: DefaultVirtualPointerFontFamily,
+				TextColor:  Color{},
 			},
 		},
 		MouseAction: MouseActionConfig{

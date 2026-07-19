@@ -94,6 +94,9 @@ func (o *Overlay) SetRecursiveGridConfig(cfg config.RecursiveGridConfig) {
 	o.SetConfig(cfg)
 }
 
+// SetVirtualPointerConfig stores the virtual pointer UI config (Linux stub).
+func (o *Overlay) SetVirtualPointerConfig(_ config.VirtualPointerUI, _ string) {}
+
 // Show shows the recursive_grid overlay (Linux stub).
 func (o *Overlay) Show() {}
 
