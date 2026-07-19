@@ -1,6 +1,8 @@
 package modes
 
 import (
+	"time"
+
 	"github.com/y3owk1n/neru/internal/core/domain"
 )
 
@@ -77,6 +79,34 @@ func (h *Handler) shouldPollCursorOverlaysLocked(mode domain.Mode) bool {
 	}
 
 	return h.shouldShowCursorFollowingVirtualPointerLocked()
+}
+
+// cursorRehideInterval is the minimum interval between automatic cursor re-hide
+// calls in the indicator polling loop. This prevents excessive main-queue
+// dispatches while ensuring the cursor is re-hidden within ~500ms after
+// macOS reveals it (e.g. right-click context menus, Mission Control).
+const cursorRehideInterval = 500 * time.Millisecond
+
+// rehideSystemCursor re-hides the system cursor if it may have been
+// revealed by a system event (right-click, Mission Control, Exposé, etc.).
+// Uses TryLock internally to avoid deadlocks with the polling goroutine.
+// Respects the rate limit defined by cursorRehideInterval.
+func (h *Handler) rehideSystemCursor() {
+	if !h.mu.TryLock() {
+		return
+	}
+	defer h.mu.Unlock()
+
+	if !h.systemCursorHidden {
+		return
+	}
+
+	if time.Since(h.lastCursorRehideTime) < cursorRehideInterval {
+		return
+	}
+
+	h.lastCursorRehideTime = time.Now()
+	h.RehideSystemCursor()
 }
 
 func (h *Handler) hideCursorFollowingVirtualPointerLocked() {
