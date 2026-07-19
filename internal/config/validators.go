@@ -1320,10 +1320,11 @@ func (c *Config) ValidateVirtualPointer() error {
 		return err
 	}
 
-	if utf8.RuneCountInString(c.VirtualPointer.UI.Char) > 1 {
+	charLen := utf8.RuneCountInString(c.VirtualPointer.UI.Char)
+	if charLen != 1 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
-			"virtual_pointer.ui.char must be at most 1 character",
+			"virtual_pointer.ui.char must be exactly 1 character",
 		)
 	}
 
