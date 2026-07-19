@@ -42,8 +42,6 @@ const (
 	NSWindowSharingReadOnly = 1
 	// millisecondsPerSecond converts config milliseconds into native seconds.
 	millisecondsPerSecond = 1000.0
-	// cellCenterDivisor is the divisor used when centering a cell grid within its bounds.
-	cellCenterDivisor = 2
 )
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs.
@@ -309,48 +307,31 @@ func (o *Overlay) DrawRecursiveGrid(
 			zap.Int("key_count", len(keyRunes)),
 			zap.Int("expected", keyCount),
 		)
-	}
-
-	// All cells are exactly the same size: floor(W/cols) × floor(H/rows).
-	// Leftover pixels from uneven division become uniform padding around the grid.
-	cellW := bounds.Dx() / gridCols
-	cellH := bounds.Dy() / gridRows
-	gridW := cellW * gridCols
-	gridH := cellH * gridRows
-	offX := (bounds.Dx() - gridW) / cellCenterDivisor
-	offY := (bounds.Dy() - gridH) / cellCenterDivisor
-
-	// Hold drawMu.RLock for the entire span from label lookup through the C
+	} // Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
+
+	// Compute cell positions using the shared helper (same as Divide()).
+	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
 
 	// Create grid cells dynamically
 	cells := make([]C.GridCell, keyCount)
 
-	for row := range gridRows {
-		for col := range gridCols {
-			idx := row*gridCols + col
-
-			x := bounds.Min.X + offX + col*cellW
-			y := bounds.Min.Y + offY + row*cellH
-
-			cell := image.Rect(x, y, x+cellW, y+cellH)
-
-			labelStr := ""
-			if idx < len(keyRunes) {
-				labelStr = string(keyRunes[idx])
-			}
-			label := style.LabelChar()
-			if label == "" {
-				label = strings.ToUpper(labelStr)
-			}
-			cells[idx] = C.GridCell{
-				label:               o.getOrCacheLabel(label),
-				bounds:              o.rectToCRect(cell),
-				isMatched:           C.int(0),
-				isSubgrid:           C.int(0),
-				matchedPrefixLength: C.int(0),
-			}
+	for idx, cellRect := range cellRects {
+		labelStr := ""
+		if idx < len(keyRunes) {
+			labelStr = string(keyRunes[idx])
+		}
+		label := style.LabelChar()
+		if label == "" {
+			label = strings.ToUpper(labelStr)
+		}
+		cells[idx] = C.GridCell{
+			label:               o.getOrCacheLabel(label),
+			bounds:              o.rectToCRect(cellRect),
+			isMatched:           C.int(0),
+			isSubgrid:           C.int(0),
+			matchedPrefixLength: C.int(0),
 		}
 	}
 

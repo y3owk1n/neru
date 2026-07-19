@@ -22,6 +22,7 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux/wlr_protocol"
 )
@@ -219,61 +220,43 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	drawSubPreview := style.SubKeyPreview && len(nextKeyRunes) > 0 && nextGridCols > 0 &&
 		nextGridRows > 0
 
-	cellWidth := bounds.Dx() / gridCols
-	cellHeight := bounds.Dy() / gridRows
-	index := 0
-	for row := range gridRows {
-		for col := range gridCols {
-			cell := image.Rect(
-				bounds.Min.X+col*cellWidth,
-				bounds.Min.Y+row*cellHeight,
-				bounds.Min.X+(col+1)*cellWidth,
-				bounds.Min.Y+(row+1)*cellHeight,
-			)
-			if col == gridCols-1 {
-				cell.Max.X = bounds.Max.X
-			}
-			if row == gridRows-1 {
-				cell.Max.Y = bounds.Max.Y
+	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
+	for idx, cell := range cellRects {
+		fill := style.HighlightColor
+		if fill == 0 {
+			fill = subgridCellBackground
+		}
+
+		o.drawRect(cell, fill, style.LineColor, style.LineWidth)
+		if idx < len(keyRunes) {
+			label := style.LabelChar
+			if label == "" {
+				label = string(keyRunes[idx])
 			}
 
-			fill := style.HighlightColor
-			if fill == 0 {
-				fill = subgridCellBackground
-			}
-
-			o.drawRect(cell, fill, style.LineColor, style.LineWidth)
-			if index < len(keyRunes) {
-				label := style.LabelChar
-				if label == "" {
-					label = string(keyRunes[index])
+			if shouldShowLabel(cell, style) {
+				if style.LabelBackground {
+					o.drawLabelBackground(label, cell, style)
 				}
 
-				if shouldShowLabel(cell, style) {
-					if style.LabelBackground {
-						o.drawLabelBackground(label, cell, style)
-					}
-
-					o.drawTextCentered(
-						label,
-						cell,
-						style.LabelFontName,
-						style.LabelFontSize,
-						style.LabelFontColor,
-					)
-				}
-
-				if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
-					o.drawSubKeyMiniGrid(
-						cell,
-						nextKeyRunes,
-						nextGridCols,
-						nextGridRows,
-						style,
-					)
-				}
+				o.drawTextCentered(
+					label,
+					cell,
+					style.LabelFontName,
+					style.LabelFontSize,
+					style.LabelFontColor,
+				)
 			}
-			index++
+
+			if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
+				o.drawSubKeyMiniGrid(
+					cell,
+					nextKeyRunes,
+					nextGridCols,
+					nextGridRows,
+					style,
+				)
+			}
 		}
 	}
 
@@ -644,48 +627,38 @@ func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 	nextGridRows int,
 	style recursivegridcomponent.Style,
 ) {
-	subCellWidth := cell.Dx() / nextGridCols
-	subCellHeight := cell.Dy() / nextGridRows
+	subCells := recursivegrid.ComputeGridCells(cell, nextGridCols, nextGridRows)
+
+	// Center cell index for odd grids; skip it in preview for visual clarity.
+	centerIdx := -1
+	if nextGridCols%2 == 1 && nextGridRows%2 == 1 {
+		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2 //nolint:mnd
+	}
 
 	subIndex := 0
-	for subRow := range nextGridRows {
-		for subCol := range nextGridCols {
-			if subCol == nextGridCols/2 && subRow == nextGridRows/2 &&
-				nextGridCols%2 == 1 && nextGridRows%2 == 1 {
-				subIndex++
-
-				continue
-			}
-
-			if subIndex >= len(nextKeyRunes) {
-				return
-			}
-
-			subCell := image.Rect(
-				cell.Min.X+subCol*subCellWidth,
-				cell.Min.Y+subRow*subCellHeight,
-				cell.Min.X+(subCol+1)*subCellWidth,
-				cell.Min.Y+(subRow+1)*subCellHeight,
-			)
-			if subCol == nextGridCols-1 {
-				subCell.Max.X = cell.Max.X
-			}
-			if subRow == nextGridRows-1 {
-				subCell.Max.Y = cell.Max.Y
-			}
-
-			subLabel := style.SubKeyPreviewLabelChar
-			if subLabel == "" {
-				subLabel = string(nextKeyRunes[subIndex])
-			}
-			o.drawTextCentered(
-				subLabel,
-				subCell,
-				style.LabelFontName,
-				style.SubKeyPreviewFontSize,
-				style.SubKeyPreviewTextColor,
-			)
+	for idx, subCell := range subCells {
+		if idx == centerIdx {
 			subIndex++
+
+			continue
 		}
+
+		if subIndex >= len(nextKeyRunes) {
+			return
+		}
+
+		subLabel := style.SubKeyPreviewLabelChar
+		if subLabel == "" {
+			subLabel = string(nextKeyRunes[subIndex])
+		}
+
+		o.drawTextCentered(
+			subLabel,
+			subCell,
+			style.LabelFontName,
+			style.SubKeyPreviewFontSize,
+			style.SubKeyPreviewTextColor,
+		)
+		subIndex++
 	}
 }

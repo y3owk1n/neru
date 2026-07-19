@@ -112,10 +112,10 @@ func TestSelectCellCompletion(t *testing.T) {
 	center2, completed2 := grid.SelectCell(recursivegrid.BottomRight)
 	assert.True(t, completed2, "Should be completed after selection at final depth")
 
-	// All cells are exactly 12×12, centered in (0,0)-(25,25): offsets are (0,0),
-	// so the grid spans (0,0)-(24,24). BottomRight cell is (12,12)-(24,24), center rounded.
-	expectedCenter2 := image.Point{X: 18, Y: 18}
-	assert.Equal(t, expectedCenter2, center2, "Center should be at (18, 18)")
+	// Cells are distributed contiguously: (0,0)-(13,13), (13,0)-(25,13),
+	// (0,13)-(13,25), (13,13)-(25,25). BottomRight cell is (13,13)-(25,25), center rounded.
+	expectedCenter2 := image.Point{X: 19, Y: 19}
+	assert.Equal(t, expectedCenter2, center2, "Center should be at (19, 19)")
 }
 
 func TestCanDivide(t *testing.T) {
@@ -408,6 +408,494 @@ func TestRemapToNewBounds_ZeroOldBounds(t *testing.T) {
 	grid.RemapToNewBounds(newBounds)
 	// With zero old bounds, currentBounds should fall back to newBounds.
 	assert.Equal(t, newBounds, grid.CurrentBounds())
+}
+
+// verifyContiguousCoverage checks that the cells from Divide() form a perfect
+// partition of the given bounds — no gaps, no overlaps, no overflow.
+func verifyContiguousCoverage(
+	t *testing.T,
+	cells []image.Rectangle,
+	bounds image.Rectangle,
+	cols int,
+	rows int,
+) {
+	t.Helper()
+
+	if len(cells) != cols*rows {
+		t.Fatalf("expected %d cells, got %d", cols*rows, len(cells))
+	}
+
+	for idx, cell := range cells {
+		// No overflow: every cell must be within bounds
+		if cell.Min.X < bounds.Min.X {
+			t.Errorf("cell %d: Min.X %d < bounds.Min.X %d", idx, cell.Min.X, bounds.Min.X)
+		}
+
+		if cell.Min.Y < bounds.Min.Y {
+			t.Errorf("cell %d: Min.Y %d < bounds.Min.Y %d", idx, cell.Min.Y, bounds.Min.Y)
+		}
+
+		if cell.Max.X > bounds.Max.X {
+			t.Errorf("cell %d: Max.X %d > bounds.Max.X %d", idx, cell.Max.X, bounds.Max.X)
+		}
+
+		if cell.Max.Y > bounds.Max.Y {
+			t.Errorf("cell %d: Max.Y %d > bounds.Max.Y %d", idx, cell.Max.Y, bounds.Max.Y)
+		}
+
+		// Every cell must have positive area
+		if cell.Dx() <= 0 {
+			t.Errorf("cell %d: non-positive width %d", idx, cell.Dx())
+		}
+
+		if cell.Dy() <= 0 {
+			t.Errorf("cell %d: non-positive height %d", idx, cell.Dy())
+		}
+	}
+
+	for row := range rows {
+		for col := range cols {
+			idx := row*cols + col
+			cell := cells[idx]
+
+			// First cell in each row must start at bounds.Min.X
+			if col == 0 && cell.Min.X != bounds.Min.X {
+				t.Errorf(
+					"row %d, col 0: Min.X %d != bounds.Min.X %d",
+					row, cell.Min.X, bounds.Min.X,
+				)
+			}
+
+			// Last cell in each row must end at bounds.Max.X
+			if col == cols-1 && cell.Max.X != bounds.Max.X {
+				t.Errorf(
+					"row %d, last col: Max.X %d != bounds.Max.X %d",
+					row, cell.Max.X, bounds.Max.X,
+				)
+			}
+
+			// Horizontal contiguity: adjacent cells must touch exactly
+			if col > 0 {
+				prev := cells[row*cols+(col-1)]
+				if cell.Min.X != prev.Max.X {
+					t.Errorf(
+						"horizontal gap/overlap row %d between col %d and %d: "+
+							"prev.Max.X=%d, curr.Min.X=%d",
+						row, col-1, col, prev.Max.X, cell.Min.X,
+					)
+				}
+			}
+
+			// First row cells must start at bounds.Min.Y
+			if row == 0 && cell.Min.Y != bounds.Min.Y {
+				t.Errorf(
+					"row 0, col %d: Min.Y %d != bounds.Min.Y %d",
+					col, cell.Min.Y, bounds.Min.Y,
+				)
+			}
+
+			// Last row cells must end at bounds.Max.Y
+			if row == rows-1 && cell.Max.Y != bounds.Max.Y {
+				t.Errorf(
+					"last row, col %d: Max.Y %d != bounds.Max.Y %d",
+					col, cell.Max.Y, bounds.Max.Y,
+				)
+			}
+
+			// Vertical contiguity: cells in the same column on adjacent rows
+			// must touch exactly.
+			if row > 0 {
+				above := cells[(row-1)*cols+col]
+				if cell.Min.Y != above.Max.Y {
+					t.Errorf(
+						"vertical gap/overlap col %d between row %d and %d: "+
+							"above.Max.Y=%d, curr.Min.Y=%d",
+						col, row-1, row, above.Max.Y, cell.Min.Y,
+					)
+				}
+			}
+		}
+	}
+}
+
+// verifyCellSizeConsistency checks that cell widths within each row differ by
+// at most 1 pixel, and cell heights within each column differ by at most 1 pixel.
+func verifyCellSizeConsistency(t *testing.T, cells []image.Rectangle, cols int, rows int) {
+	t.Helper()
+
+	for row := range rows {
+		minW, maxW := cells[row*cols].Dx(), cells[row*cols].Dx()
+
+		for col := range cols {
+			cellWidth := cells[row*cols+col].Dx()
+			if cellWidth < minW {
+				minW = cellWidth
+			}
+
+			if cellWidth > maxW {
+				maxW = cellWidth
+			}
+		}
+
+		if maxW-minW > 1 {
+			t.Errorf(
+				"row %d: cell width variance too large: min=%d, max=%d (diff=%d, max allowed=1)",
+				row, minW, maxW, maxW-minW,
+			)
+		}
+	}
+
+	for col := range cols {
+		minH, maxH := cells[col].Dy(), cells[col].Dy()
+
+		for row := range rows {
+			cellHeight := cells[row*cols+col].Dy()
+			if cellHeight < minH {
+				minH = cellHeight
+			}
+
+			if cellHeight > maxH {
+				maxH = cellHeight
+			}
+		}
+
+		if maxH-minH > 1 {
+			t.Errorf(
+				"col %d: cell height variance too large: min=%d, max=%d (diff=%d, max allowed=1)",
+				col, minH, maxH, maxH-minH,
+			)
+		}
+	}
+}
+
+func TestDivide_ContiguousCoverage(t *testing.T) {
+	tests := []struct {
+		name     string
+		bounds   image.Rectangle
+		gridCols int
+		gridRows int
+	}{
+		// 2x2 variations
+		{name: "2x2_even_100x100", bounds: image.Rect(0, 0, 100, 100), gridCols: 2, gridRows: 2},
+		{name: "2x2_uneven_101x99", bounds: image.Rect(0, 0, 101, 99), gridCols: 2, gridRows: 2},
+		{
+			name:     "2x2_offset_500x300_700x500",
+			bounds:   image.Rect(500, 300, 700, 500),
+			gridCols: 2,
+			gridRows: 2,
+		},
+
+		// 3x3 variations
+		{name: "3x3_even_300x300", bounds: image.Rect(0, 0, 300, 300), gridCols: 3, gridRows: 3},
+		{name: "3x3_uneven_100x100", bounds: image.Rect(0, 0, 100, 100), gridCols: 3, gridRows: 3},
+		{name: "3x3_rem2_101x101", bounds: image.Rect(0, 0, 101, 101), gridCols: 3, gridRows: 3},
+		{
+			name:     "3x3_prime_1920x1080",
+			bounds:   image.Rect(0, 0, 1920, 1080),
+			gridCols: 3,
+			gridRows: 3,
+		},
+
+		// 4x4 variations
+		{name: "4x4_even_400x400", bounds: image.Rect(0, 0, 400, 400), gridCols: 4, gridRows: 4},
+		{name: "4x4_uneven_101x101", bounds: image.Rect(0, 0, 101, 101), gridCols: 4, gridRows: 4},
+		{name: "4x4_rem3_103x103", bounds: image.Rect(0, 0, 103, 103), gridCols: 4, gridRows: 4},
+		{
+			name:     "4x4_offset_100x200_300x400",
+			bounds:   image.Rect(100, 200, 300, 400),
+			gridCols: 4,
+			gridRows: 4,
+		},
+
+		// 5x5 variations
+		{name: "5x5_even_500x500", bounds: image.Rect(0, 0, 500, 500), gridCols: 5, gridRows: 5},
+		{name: "5x5_uneven_100x100", bounds: image.Rect(0, 0, 100, 100), gridCols: 5, gridRows: 5},
+		{name: "5x5_rem4_104x104", bounds: image.Rect(0, 0, 104, 104), gridCols: 5, gridRows: 5},
+		{
+			name:     "5x5_prime_1920x1080",
+			bounds:   image.Rect(0, 0, 1920, 1080),
+			gridCols: 5,
+			gridRows: 5,
+		},
+
+		// Weird edge combos: non-square grids
+		{name: "3x2_uneven_101x101", bounds: image.Rect(0, 0, 101, 101), gridCols: 3, gridRows: 2},
+		{name: "2x3_uneven_102x103", bounds: image.Rect(0, 0, 102, 103), gridCols: 2, gridRows: 3},
+		{name: "4x3_even_400x300", bounds: image.Rect(0, 0, 400, 300), gridCols: 4, gridRows: 3},
+		{name: "3x4_uneven_101x99", bounds: image.Rect(0, 0, 101, 99), gridCols: 3, gridRows: 4},
+		{name: "5x3_uneven_103x100", bounds: image.Rect(0, 0, 103, 100), gridCols: 5, gridRows: 3},
+		{name: "3x5_uneven_100x103", bounds: image.Rect(0, 0, 100, 103), gridCols: 3, gridRows: 5},
+		{name: "6x2_uneven_100x50", bounds: image.Rect(0, 0, 100, 50), gridCols: 6, gridRows: 2},
+		{name: "2x6_uneven_50x100", bounds: image.Rect(0, 0, 50, 100), gridCols: 2, gridRows: 6},
+		{
+			name:     "7x3_uneven_1920x1080",
+			bounds:   image.Rect(0, 0, 1920, 1080),
+			gridCols: 7,
+			gridRows: 3,
+		},
+		{
+			name:     "3x7_uneven_1080x1920",
+			bounds:   image.Rect(0, 0, 1080, 1920),
+			gridCols: 3,
+			gridRows: 7,
+		},
+
+		// Single row/column
+		{
+			name:     "3x1_single_row_100x50",
+			bounds:   image.Rect(0, 0, 100, 50),
+			gridCols: 3,
+			gridRows: 1,
+		},
+		{
+			name:     "1x3_single_col_50x100",
+			bounds:   image.Rect(0, 0, 50, 100),
+			gridCols: 1,
+			gridRows: 3,
+		},
+		{
+			name:     "5x1_single_row_101x30",
+			bounds:   image.Rect(0, 0, 101, 30),
+			gridCols: 5,
+			gridRows: 1,
+		},
+		{
+			name:     "1x5_single_col_30x101",
+			bounds:   image.Rect(0, 0, 30, 101),
+			gridCols: 1,
+			gridRows: 5,
+		},
+		{
+			name:     "4x1_single_row_offset_200x100_400x150",
+			bounds:   image.Rect(200, 100, 400, 150),
+			gridCols: 4,
+			gridRows: 1,
+		},
+
+		// Large remainder scenarios
+		{
+			name:     "4x3_large_rem_1919x1079",
+			bounds:   image.Rect(0, 0, 1919, 1079),
+			gridCols: 4,
+			gridRows: 3,
+		},
+		{name: "6x4_max_rem_100x100", bounds: image.Rect(0, 0, 100, 100), gridCols: 6, gridRows: 4},
+		{
+			name:     "8x3_large_grid_2000x1000",
+			bounds:   image.Rect(0, 0, 2000, 1000),
+			gridCols: 8,
+			gridRows: 3,
+		},
+
+		// Prime-ish combinations
+		{
+			name:     "7x5_prime_dims_1920x1080",
+			bounds:   image.Rect(0, 0, 1920, 1080),
+			gridCols: 7,
+			gridRows: 5,
+		},
+		{
+			name:     "5x7_prime_swapped_1080x1920",
+			bounds:   image.Rect(0, 0, 1080, 1920),
+			gridCols: 5,
+			gridRows: 7,
+		},
+		{
+			name:     "11x7_large_prime_2000x1500",
+			bounds:   image.Rect(0, 0, 2000, 1500),
+			gridCols: 11,
+			gridRows: 7,
+		},
+
+		// Tiny cells (many divisions)
+		{name: "9x9_tiny_100x100", bounds: image.Rect(0, 0, 100, 100), gridCols: 9, gridRows: 9},
+		{
+			name:     "10x10_dense_200x200",
+			bounds:   image.Rect(0, 0, 200, 200),
+			gridCols: 10,
+			gridRows: 10,
+		},
+
+		// Oddball combinations
+		{
+			name:     "4x2_offset_nonzero_origin",
+			bounds:   image.Rect(400, 200, 800, 500),
+			gridCols: 4,
+			gridRows: 2,
+		},
+		{name: "2x4_tall_offset", bounds: image.Rect(100, 100, 300, 500), gridCols: 2, gridRows: 4},
+		{
+			name:     "6x6_square_uneven_250x250",
+			bounds:   image.Rect(0, 0, 250, 250),
+			gridCols: 6,
+			gridRows: 6,
+		},
+		{name: "8x5_mixed_999x777", bounds: image.Rect(0, 0, 999, 777), gridCols: 8, gridRows: 5},
+		{
+			name:     "3x8_tall_narrow_500x2000",
+			bounds:   image.Rect(0, 0, 500, 2000),
+			gridCols: 3,
+			gridRows: 8,
+		},
+		{
+			name:     "12x4_wide_2000x500",
+			bounds:   image.Rect(0, 0, 2000, 500),
+			gridCols: 12,
+			gridRows: 4,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			grid := recursivegrid.NewRecursiveGridWithLayers(
+				testCase.bounds,
+				1, 1, 10,
+				testCase.gridCols, testCase.gridRows,
+				nil,
+			)
+			cells := grid.Divide()
+
+			verifyContiguousCoverage(
+				t, cells,
+				testCase.bounds,
+				testCase.gridCols, testCase.gridRows,
+			)
+			verifyCellSizeConsistency(
+				t, cells,
+				testCase.gridCols, testCase.gridRows,
+			)
+		})
+	}
+}
+
+func TestDivide_ContiguousAcrossDepths(t *testing.T) {
+	// Regression test: after selecting a cell and recursing, the next level's
+	// cells must exactly cover the cell's bounds with no gaps or overflow.
+	bounds := image.Rect(0, 0, 800, 600)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 1, 1, 10, 3, 3, nil)
+
+	// Depth 0: verify top-level grid
+	layout := grid.LayoutForDepth(grid.CurrentDepth())
+	cells0 := grid.Divide()
+	verifyContiguousCoverage(t, cells0, bounds, layout.GridCols, layout.GridRows)
+	verifyCellSizeConsistency(t, cells0, layout.GridCols, layout.GridRows)
+
+	// Select center cell (index 4 in a 3x3 grid) → depth 1
+	// The new currentBounds must exactly equal the selected cell bounds
+	centerCell := cells0[4]
+	_, completed := grid.SelectCell(4)
+	assert.False(t, completed, "Should not complete after first selection")
+	assert.Equal(t, centerCell, grid.CurrentBounds(),
+		"CurrentBounds after selecting must match the cell from Divide()")
+
+	// Depth 1: verify cells are contiguous within the selected cell
+	layout1 := grid.LayoutForDepth(grid.CurrentDepth())
+	cells1 := grid.Divide()
+	verifyContiguousCoverage(t, cells1, grid.CurrentBounds(), layout1.GridCols, layout1.GridRows)
+	verifyCellSizeConsistency(t, cells1, layout1.GridCols, layout1.GridRows)
+
+	// Select top-left cell (index 0) → depth 2
+	topLeftCell := cells1[0]
+	_, completed = grid.SelectCell(0)
+	assert.False(t, completed, "Should not complete after second selection")
+	assert.Equal(t, topLeftCell, grid.CurrentBounds(),
+		"CurrentBounds after second selection must match the cell from Divide()")
+
+	// Depth 2: verify cells are contiguous within the twice-narrowed bounds
+	layout2 := grid.LayoutForDepth(grid.CurrentDepth())
+	cells2 := grid.Divide()
+	verifyContiguousCoverage(t, cells2, grid.CurrentBounds(), layout2.GridCols, layout2.GridRows)
+	verifyCellSizeConsistency(t, cells2, layout2.GridCols, layout2.GridRows)
+}
+
+func TestDivide_ContiguousAcrossDepths_UnevenBounds(t *testing.T) {
+	// Real-world scenario: 1080p display with 3x3 grid.
+	// 1920/3 = 640, 1080/3 = 360 — divides evenly for the top level.
+	// Sub-recursions will produce uneven divisions that must still be contiguous.
+	bounds := image.Rect(0, 0, 1920, 1080)
+	grid := recursivegrid.NewRecursiveGridWithLayers(bounds, 1, 1, 10, 3, 3, nil)
+
+	// Depth 0: all cells should be exactly 640x360
+	layout := grid.LayoutForDepth(grid.CurrentDepth())
+	cells0 := grid.Divide()
+	verifyContiguousCoverage(t, cells0, bounds, layout.GridCols, layout.GridRows)
+	verifyCellSizeConsistency(t, cells0, layout.GridCols, layout.GridRows)
+
+	// Select bottom-right cell (index 8) → (1280,720)-(1920,1080)
+	_, completed := grid.SelectCell(8)
+	assert.False(t, completed)
+
+	// Depth 1: bounds (1280,720)-(1920,1080), 640x360, still divides evenly
+	layout1 := grid.LayoutForDepth(grid.CurrentDepth())
+	cells1 := grid.Divide()
+	verifyContiguousCoverage(t, cells1, grid.CurrentBounds(), layout1.GridCols, layout1.GridRows)
+	verifyCellSizeConsistency(t, cells1, layout1.GridCols, layout1.GridRows)
+
+	// Select top-left cell (index 0) → (1280,720)-(1493,840) approx
+	// At 3x3: 640/3 = 213rem1, 360/3 = 120rem0
+	_, completed = grid.SelectCell(0)
+	assert.False(t, completed)
+
+	// Depth 2: bounds should be divisible into 3x3 contiguous cells
+	layout2 := grid.LayoutForDepth(grid.CurrentDepth())
+	cells2 := grid.Divide()
+	verifyContiguousCoverage(t, cells2, grid.CurrentBounds(), layout2.GridCols, layout2.GridRows)
+	verifyCellSizeConsistency(t, cells2, layout2.GridCols, layout2.GridRows)
+
+	// Select one more cell to depth 3 with heavily uneven dimensions
+	_, completed = grid.SelectCell(4) // center cell at depth 2
+	assert.False(t, completed)
+
+	// Depth 3: must still be contiguous
+	layout3 := grid.LayoutForDepth(grid.CurrentDepth())
+	cells3 := grid.Divide()
+	verifyContiguousCoverage(t, cells3, grid.CurrentBounds(), layout3.GridCols, layout3.GridRows)
+	verifyCellSizeConsistency(t, cells3, layout3.GridCols, layout3.GridRows)
+}
+
+func TestDivide_ContiguousAcrossDepths_NonSquareGrids(t *testing.T) {
+	// Test with 2x4 grid across depths, including per-depth layout overrides.
+	bounds := image.Rect(0, 0, 1000, 700)
+	depthLayouts := map[int]recursivegrid.DepthLayout{
+		0: {GridCols: 2, GridRows: 4},
+		1: {GridCols: 3, GridRows: 2},
+		2: {GridCols: 5, GridRows: 1},
+	}
+	grid := recursivegrid.NewRecursiveGridWithLayers(
+		bounds, 1, 1, 10,
+		3, 3, // defaults (overridden at each depth)
+		depthLayouts,
+	)
+
+	// Depth 0: 2x4
+	layout := grid.LayoutForDepth(0)
+	cells := grid.Divide()
+	verifyContiguousCoverage(t, cells, bounds, layout.GridCols, layout.GridRows)
+	verifyCellSizeConsistency(t, cells, layout.GridCols, layout.GridRows)
+
+	// Select cell 0 → depth 1
+	selected := cells[0]
+	_, completed := grid.SelectCell(0)
+	assert.False(t, completed)
+	assert.Equal(t, selected, grid.CurrentBounds())
+
+	// Depth 1: 3x2 within selected cell
+	layout1 := grid.LayoutForDepth(1)
+	cells1 := grid.Divide()
+	verifyContiguousCoverage(t, cells1, grid.CurrentBounds(), layout1.GridCols, layout1.GridRows)
+	verifyCellSizeConsistency(t, cells1, layout1.GridCols, layout1.GridRows)
+
+	// Select cell 0 → depth 2
+	selected2 := cells1[0]
+	_, completed = grid.SelectCell(0)
+	assert.False(t, completed)
+	assert.Equal(t, selected2, grid.CurrentBounds())
+
+	// Depth 2: 5x1 (single row) within twice-narrowed bounds
+	layout2 := grid.LayoutForDepth(2)
+	cells2 := grid.Divide()
+	verifyContiguousCoverage(t, cells2, grid.CurrentBounds(), layout2.GridCols, layout2.GridRows)
+	verifyCellSizeConsistency(t, cells2, layout2.GridCols, layout2.GridRows)
 }
 
 func TestIsComplete(t *testing.T) {
