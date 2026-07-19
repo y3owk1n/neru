@@ -126,6 +126,10 @@ type Handler struct {
 	// systemCursorHidden tracks whether hide_cursor (or hints virtual pointer) is active.
 	systemCursorHidden bool
 
+	// lastCursorRehideTime records the last time RehideSystemCursor was called
+	// to avoid excessive re-hide calls in the polling loop.
+	lastCursorRehideTime time.Time
+
 	// Cycle hint state
 	cycleHintIndex int
 

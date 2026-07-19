@@ -207,6 +207,10 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					vp.Clear()
 				}
 
+				// Re-hide the system cursor if macOS revealed it (e.g. right-click
+				// context menu, Mission Control, Exposé). Rate-limited to ~2 Hz.
+				h.rehideSystemCursor()
+
 				// Flush indicator draws atomically to avoid intermediate buffer
 				// states appearing between overlay updates.
 				h.overlayManager.Flush()
