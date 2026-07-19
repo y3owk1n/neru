@@ -19,14 +19,11 @@ import (
 )
 
 const (
-	winSubgridLineWidth = 1
-
-	winHexColorOpaque     = 0xFFFFFFFF
-	winHexRepeatCount     = 2
-	winHexColorLenShort   = 3
-	winHexColorLenNoAlpha = 6
-	winHexColorLenFull    = 8
-
+	winHexColorOpaque                  = 0xFFFFFFFF
+	winHexRepeatCount                  = 2
+	winHexColorLenShort                = 3
+	winHexColorLenNoAlpha              = 6
+	winHexColorLenFull                 = 8
 	winAutoPaddingHorizontalMultiplier = 0.6
 	winAutoPaddingVerticalMultiplier   = 0.35
 	winAutoPaddingMinHorizontal        = 6
@@ -36,11 +33,10 @@ const (
 	winCenteredRectDivisor             = 2
 	winPaddingMultiplier               = 2
 	winSubKeyPreviewPaddingBottom      = 4
-
-	winAutoRadiusBadgeCap           = 6.0
-	winAutoRadiusBoundaryCap        = 4.0
-	winMouseActionSquareRadiusScale = 0.18
-	winMouseActionMinSquareRadius   = 2.0
+	winAutoRadiusBadgeCap              = 6.0
+	winAutoRadiusBoundaryCap           = 4.0
+	winMouseActionSquareRadiusScale    = 0.18
+	winMouseActionMinSquareRadius      = 2.0
 )
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
