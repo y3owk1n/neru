@@ -64,7 +64,8 @@ type Manager struct {
 	gridOverlay            *grid.Overlay
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
-	stickyModifiersOverlay *stickyindicator.Overlay
+	stickyModifiersOverlay   *stickyindicator.Overlay
+	virtualPointerOverlay    *virtualpointer.Overlay
 }
 
 var (
@@ -311,6 +312,16 @@ func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
 // RecursiveGridOverlay returns the recursive-grid overlay component.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return m.recursiveGridOverlay
+}
+
+// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
+func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
+	m.virtualPointerOverlay = o
+}
+
+// VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
+func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay {
+	return m.virtualPointerOverlay
 }
 
 // OverlayCapabilities reports Windows overlay support.
