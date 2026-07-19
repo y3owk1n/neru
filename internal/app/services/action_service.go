@@ -25,6 +25,10 @@ type ActionService struct {
 	logger   *zap.Logger
 }
 
+type relativeCursorMover interface {
+	MoveCursorBy(ctx context.Context, delta image.Point) (bool, error)
+}
+
 // NewActionService creates a new action service.
 func NewActionService(
 	accessibility ports.AccessibilityPort,
@@ -217,14 +221,25 @@ func (s *ActionService) MoveMouseRelative(
 	deltaX, deltaY int,
 	bypassSmooth ...bool,
 ) error {
+	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
+
+	if mover, ok := s.system.(relativeCursorMover); ok {
+		handled, err := mover.MoveCursorBy(ctx, image.Point{X: deltaX, Y: deltaY})
+		if handled {
+			if err != nil {
+				s.logger.Error("Failed to move cursor relatively", zap.Error(err))
+			}
+
+			return err
+		}
+	}
+
 	cursorPos, err := s.system.CursorPosition(ctx)
 	if err != nil {
 		s.logger.Error("Failed to get cursor position", zap.Error(err))
 
 		return derrors.WrapAccessibilityFailed(err, "get cursor position")
 	}
-
-	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
 	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
 }

@@ -47,6 +47,15 @@ func wlrootsMoveCursorToPoint(point image.Point) error {
 	)
 }
 
+func wlrootsMoveCursorBy(delta image.Point) error {
+	_ = delta
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 func wlrootsClick(point image.Point, button int) error {
 	_, _ = point, button
 
