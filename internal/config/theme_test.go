@@ -298,8 +298,8 @@ text = "#F2FBFF"
 		t.Fatalf("expected derived grid dark border %q, got %q", "#995BE4D8", got)
 	}
 
-	if got := result.Config.VirtualPointer.UI.Color.Light; got != "#2166F3" {
-		t.Fatalf("expected derived virtual pointer light color %q, got %q", "#2166F3", got)
+	if got := result.Config.VirtualPointer.UI.TextColor.Light; got != "#2166F3" {
+		t.Fatalf("expected derived virtual pointer light text color %q, got %q", "#2166F3", got)
 	}
 
 	if got := result.Config.Grid.UI.MatchedTextColor.Light; got != "#F7FBFF" {

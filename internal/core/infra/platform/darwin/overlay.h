@@ -111,8 +111,12 @@ typedef struct {
 
 /// Virtual cursor indicator style configuration
 typedef struct {
-	double radius;    ///< Outer radius in points
-	char *fillColor;  ///< Fill color
+	double radius;     ///< Outer radius in points
+	char *fillColor;   ///< Text color (hex)
+	char *labelChar;   ///< Character to draw (UTF-8, NULL for circle fallback)
+	char *fontFamily;  ///< Font family name (NULL for system)
+	int fontSize;      ///< Font size in points (0 for auto from radius)
+	char *textColor;   ///< Text color (hex)
 } CursorIndicatorStyle;
 
 /// Mouse action indicator style configuration

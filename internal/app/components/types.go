@@ -43,20 +43,28 @@ type GridComponent struct {
 }
 
 // UpdateConfig updates the grid component with new configuration.
-func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) {
-	if config.Grid.Enabled {
-		g.Style = grid.BuildStyle(config.Grid, g.Theme)
+func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
+	if cfg.Grid.Enabled {
+		g.Style = grid.BuildStyle(cfg.Grid, g.Theme)
 		if g.Overlay != nil {
-			g.Overlay.SetConfig(config.Grid)
+			g.Overlay.SetConfig(cfg.Grid)
+			g.Overlay.SetVirtualPointerConfig(
+				cfg.VirtualPointer.UI,
+				cfg.VirtualPointer.UI.TextColor.ForTheme(
+					g.Theme,
+					config.VirtualPointerTextColorLight,
+					config.VirtualPointerTextColorDark,
+				),
+			)
 		}
 
 		if g.Manager != nil {
 			// Recreate grid if characters or labels changed
 			oldGrid := g.Manager.Grid()
-			if oldGrid != nil && config.Grid.Characters != "" {
-				charactersChanged := strings.ToUpper(config.Grid.Characters) != oldGrid.Characters()
-				rowLabelsChanged := strings.ToUpper(config.Grid.RowLabels) != oldGrid.RowLabels()
-				colLabelsChanged := strings.ToUpper(config.Grid.ColLabels) != oldGrid.ColLabels()
+			if oldGrid != nil && cfg.Grid.Characters != "" {
+				charactersChanged := strings.ToUpper(cfg.Grid.Characters) != oldGrid.Characters()
+				rowLabelsChanged := strings.ToUpper(cfg.Grid.RowLabels) != oldGrid.RowLabels()
+				colLabelsChanged := strings.ToUpper(cfg.Grid.ColLabels) != oldGrid.ColLabels()
 
 				if charactersChanged || rowLabelsChanged || colLabelsChanged {
 					logger.Debug("Recreating grid due to config changes",
@@ -64,9 +72,9 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 						zap.Bool("rowLabelsChanged", rowLabelsChanged),
 						zap.Bool("colLabelsChanged", colLabelsChanged))
 					newGrid := domainGrid.NewGridWithLabels(
-						config.Grid.Characters,
-						config.Grid.RowLabels,
-						config.Grid.ColLabels,
+						cfg.Grid.Characters,
+						cfg.Grid.RowLabels,
+						cfg.Grid.ColLabels,
 						oldGrid.Bounds(),
 						logger,
 					)
@@ -75,9 +83,9 @@ func (g *GridComponent) UpdateConfig(config *config.Config, logger *zap.Logger) 
 			}
 
 			// Update manager subgrid keys if they changed
-			subKeys := config.Grid.SublayerKeys
+			subKeys := cfg.Grid.SublayerKeys
 			if subKeys == "" {
-				subKeys = config.Grid.Characters
+				subKeys = cfg.Grid.Characters
 			}
 
 			g.Manager.UpdateSubKeys(subKeys)
@@ -123,11 +131,20 @@ type RecursiveGridComponent struct {
 	Manager *domainRecursiveGrid.Manager
 	Overlay *recursivegrid.Overlay
 	Context *recursivegrid.Context
+	Theme   config.ThemeProvider
 }
 
 // UpdateConfig updates the recursive-grid component with new configuration.
 func (q *RecursiveGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
 	if cfg.RecursiveGrid.Enabled && q.Overlay != nil {
 		q.Overlay.SetConfig(cfg.RecursiveGrid)
+		q.Overlay.SetVirtualPointerConfig(
+			cfg.VirtualPointer.UI,
+			cfg.VirtualPointer.UI.TextColor.ForTheme(
+				q.Theme,
+				config.VirtualPointerTextColorLight,
+				config.VirtualPointerTextColorDark,
+			),
+		)
 	}
 }

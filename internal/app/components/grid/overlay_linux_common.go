@@ -91,6 +91,9 @@ func (o *Overlay) SetConfig(cfg config.GridConfig) {
 	o.config = cfg
 }
 
+// SetVirtualPointerConfig stores the virtual pointer UI config (Linux stub).
+func (o *Overlay) SetVirtualPointerConfig(_ config.VirtualPointerUI, _ string) {}
+
 // Config returns the grid configuration (Linux stub).
 func (o *Overlay) Config() config.GridConfig {
 	return o.config

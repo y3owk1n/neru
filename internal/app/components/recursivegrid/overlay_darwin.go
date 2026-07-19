@@ -58,10 +58,12 @@ type Overlay struct {
 	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
 
-	callbackManager *overlayutil.CallbackManager
-	styleCache      *overlayutil.StyleCache
-	labelCacheMu    sync.RWMutex
-	cachedLabels    map[string]*C.char
+	callbackManager     *overlayutil.CallbackManager
+	styleCache          *overlayutil.StyleCache
+	labelCacheMu        sync.RWMutex
+	cachedLabels        map[string]*C.char
+	virtualPointerCfg   config.VirtualPointerUI
+	virtualPointerColor string
 
 	// drawMu serializes draw operations against cache invalidation.
 	// Draw paths hold RLock; freeAllCaches holds Lock.
@@ -77,7 +79,7 @@ func NewOverlay(cfg config.RecursiveGridConfig, logger *zap.Logger) (*Overlay, e
 	base.CallbackManager.SetComponent("recursivegrid")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          cfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -96,7 +98,7 @@ func NewOverlayWithWindow(
 	base.CallbackManager.SetComponent("recursivegrid")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          cfg,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -132,6 +134,15 @@ func (o *Overlay) SetConfig(cfg config.RecursiveGridConfig) {
 	o.freeAllCaches()
 }
 
+// SetVirtualPointerConfig stores the virtual pointer UI config for char rendering.
+// color is the resolved text color hex string (already resolved for the active theme).
+func (o *Overlay) SetVirtualPointerConfig(cfg config.VirtualPointerUI, color string) {
+	o.configMu.Lock()
+	o.virtualPointerCfg = cfg
+	o.virtualPointerColor = color
+	o.configMu.Unlock()
+}
+
 // Show displays the overlay window.
 func (o *Overlay) Show() {
 	C.NeruShowOverlayWindow(o.window)
@@ -159,9 +170,21 @@ func (o *Overlay) ShowVirtualPointer(
 	cFillColor := C.CString(fillColor)
 	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
 
+	cfg := o.virtualPointerCfg
+	cLabelChar := C.CString(cfg.Char)
+	cFontFamily := C.CString(cfg.FontFamily)
+	cTextColor := C.CString(o.virtualPointerColor)
+	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
+
 	indicatorStyle := C.CursorIndicatorStyle{
-		radius:    C.double(size),
-		fillColor: cFillColor,
+		radius:     C.double(size),
+		fillColor:  cFillColor,
+		labelChar:  cLabelChar,
+		fontFamily: cFontFamily,
+		fontSize:   C.int(cfg.FontSize),
+		textColor:  cTextColor,
 	}
 
 	C.NeruShowCursorIndicator(
@@ -215,7 +238,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 		contextPtr := overlayutil.CallbackIDToPointer(callbackID, generation)
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
-			(C.ResizeCompletionCallback)(C.recursiveGridResizeCompletionCallback),
+			C.ResizeCompletionCallback(C.recursiveGridResizeCompletionCallback),
 			contextPtr,
 		)
 	})
@@ -256,7 +279,8 @@ func (o *Overlay) DrawRecursiveGrid(
 			zap.Int("depth", depth),
 			zap.Int("grid_cols", gridCols),
 			zap.Int("grid_rows", gridRows),
-			zap.String("keys", keys))
+			zap.String("keys", keys),
+		)
 	}
 
 	// Use the provided dimensions and calculate key count

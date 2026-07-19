@@ -211,11 +211,4 @@ func TestConfigValidateVirtualPointer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateVirtualPointer() unexpected error: %v", err)
 	}
-
-	cfg.VirtualPointer.UI.Size = 0
-
-	err = cfg.ValidateVirtualPointer()
-	if err == nil {
-		t.Fatal("ValidateVirtualPointer() expected error for size=0")
-	}
 }

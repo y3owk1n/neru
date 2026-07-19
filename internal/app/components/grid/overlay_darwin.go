@@ -83,6 +83,10 @@ type Overlay struct {
 	// Draw paths hold RLock; freeAllCaches holds Lock.
 	drawMu sync.RWMutex
 
+	// virtualPointerCfg stores the config for rendering the virtual pointer character.
+	virtualPointerCfg   config.VirtualPointerUI
+	virtualPointerColor string
+
 	// Pre-allocated buffer for grid lines (always 4 lines for highlights)
 	gridLineBuffer [DefaultGridLinesCount]C.CGRect
 
@@ -152,7 +156,7 @@ func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) 
 	}
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          config,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -177,7 +181,7 @@ func NewOverlayWithWindow(
 	base.CallbackManager.SetComponent("grid")
 
 	return &Overlay{
-		window:          (C.OverlayWindow)(base.Window),
+		window:          C.OverlayWindow(base.Window),
 		config:          config,
 		logger:          logger,
 		callbackManager: base.CallbackManager,
@@ -214,6 +218,15 @@ func (o *Overlay) SetConfig(config config.GridConfig) {
 	o.freeAllCaches()
 }
 
+// SetVirtualPointerConfig stores the virtual pointer UI config for char rendering.
+// color is the resolved text color hex string (already resolved for the active theme).
+func (o *Overlay) SetVirtualPointerConfig(cfg config.VirtualPointerUI, color string) {
+	o.configMu.Lock()
+	o.virtualPointerCfg = cfg
+	o.virtualPointerColor = color
+	o.configMu.Unlock()
+}
+
 // SetHideUnmatched sets whether to hide unmatched cells.
 func (o *Overlay) SetHideUnmatched(hide bool) {
 	hideInt := 0
@@ -232,9 +245,21 @@ func (o *Overlay) ShowVirtualPointer(
 	cFillColor := C.CString(fillColor)
 	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
 
+	cfg := o.virtualPointerCfg
+	cLabelChar := C.CString(cfg.Char)
+	cFontFamily := C.CString(cfg.FontFamily)
+	cTextColor := C.CString(o.virtualPointerColor)
+	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
+
 	indicatorStyle := C.CursorIndicatorStyle{
-		radius:    C.double(size),
-		fillColor: cFillColor,
+		radius:     C.double(size),
+		fillColor:  cFillColor,
+		labelChar:  cLabelChar,
+		fontFamily: cFontFamily,
+		fontSize:   C.int(cfg.FontSize),
+		textColor:  cTextColor,
 	}
 
 	C.NeruShowCursorIndicator(
@@ -310,7 +335,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 
 		C.NeruResizeOverlayToActiveScreenWithCallback(
 			o.window,
-			(C.ResizeCompletionCallback)(C.gridResizeCompletionCallback),
+			C.ResizeCompletionCallback(C.gridResizeCompletionCallback),
 			contextPtr,
 		)
 	})
