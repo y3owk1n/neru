@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -64,8 +65,8 @@ type Manager struct {
 	gridOverlay            *grid.Overlay
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
-	stickyModifiersOverlay   *stickyindicator.Overlay
-	virtualPointerOverlay    *virtualpointer.Overlay
+	stickyModifiersOverlay *stickyindicator.Overlay
+	virtualPointerOverlay  *virtualpointer.Overlay
 }
 
 var (

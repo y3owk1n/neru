@@ -2,6 +2,7 @@
 
 package modes
 
+// CursorVisibilitySupported returns false on non-macOS platforms.
 func (h *Handler) CursorVisibilitySupported() bool { return false }
 
 func (h *Handler) hideSystemCursorNative() {}
