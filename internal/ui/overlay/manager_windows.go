@@ -662,6 +662,15 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	m.stickyWin.Show()
 }
 
+// DrawVirtualPointer renders the cursor-following virtual pointer overlay.
+func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
+	if m.virtualPointerOverlay == nil {
+		return
+	}
+
+	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
+}
+
 // DrawMouseActionIndicator renders a transient mouse action indicator on the Windows overlay.
 func (m *Manager) DrawMouseActionIndicator(
 	point image.Point,

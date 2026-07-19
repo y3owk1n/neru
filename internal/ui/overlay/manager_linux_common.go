@@ -709,6 +709,15 @@ type overlayBadgeStyle struct {
 	offsetY     int
 }
 
+// DrawVirtualPointer renders the cursor-following virtual pointer overlay.
+func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
+	if m.virtualPointerOverlay == nil {
+		return
+	}
+
+	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
+}
+
 // DrawMouseActionIndicator is a macOS-only renderer; Linux currently stubs it.
 func (m *Manager) DrawMouseActionIndicator(_ image.Point, _ ports.MouseActionIndicatorStyle) {}
 
