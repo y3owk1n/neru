@@ -638,6 +638,8 @@ func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 	subIndex := 0
 	for idx, subCell := range subCells {
 		if idx == centerIdx {
+			subIndex++
+
 			continue
 		}
 
