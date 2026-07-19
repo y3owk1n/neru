@@ -242,13 +242,17 @@ func (o *Overlay) ShowVirtualPointer(
 	size int,
 	fillColor string,
 ) {
+	o.configMu.RLock()
+	cfg := o.virtualPointerCfg
+	color := o.virtualPointerColor
+	o.configMu.RUnlock()
+
 	cFillColor := C.CString(fillColor)
 	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
 
-	cfg := o.virtualPointerCfg
 	cLabelChar := C.CString(cfg.Char)
 	cFontFamily := C.CString(cfg.FontFamily)
-	cTextColor := C.CString(o.virtualPointerColor)
+	cTextColor := C.CString(color)
 	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
