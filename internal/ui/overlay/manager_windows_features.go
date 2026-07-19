@@ -19,14 +19,11 @@ import (
 )
 
 const (
-	winSubgridLineWidth = 1
-
-	winHexColorOpaque     = 0xFFFFFFFF
-	winHexRepeatCount     = 2
-	winHexColorLenShort   = 3
-	winHexColorLenNoAlpha = 6
-	winHexColorLenFull    = 8
-
+	winHexColorOpaque                  = 0xFFFFFFFF
+	winHexRepeatCount                  = 2
+	winHexColorLenShort                = 3
+	winHexColorLenNoAlpha              = 6
+	winHexColorLenFull                 = 8
 	winAutoPaddingHorizontalMultiplier = 0.6
 	winAutoPaddingVerticalMultiplier   = 0.35
 	winAutoPaddingMinHorizontal        = 6
@@ -36,11 +33,10 @@ const (
 	winCenteredRectDivisor             = 2
 	winPaddingMultiplier               = 2
 	winSubKeyPreviewPaddingBottom      = 4
-
-	winAutoRadiusBadgeCap           = 6.0
-	winAutoRadiusBoundaryCap        = 4.0
-	winMouseActionSquareRadiusScale = 0.18
-	winMouseActionMinSquareRadius   = 2.0
+	winAutoRadiusBadgeCap              = 6.0
+	winAutoRadiusBoundaryCap           = 4.0
+	winMouseActionSquareRadiusScale    = 0.18
+	winMouseActionMinSquareRadius      = 2.0
 )
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
@@ -225,18 +221,28 @@ func (o *winOverlay) DrawRecursiveGrid(
 	}
 
 	if virtualPointer.Visible {
+		vpChar := virtualPointer.Char
+		if vpChar == "" {
+			vpChar = "\u25CF"
+		}
+
+		fontName := ports.ResolveFont(virtualPointer.FontName, false)
+
+		fontSize := float64(virtualPointer.Size)
+		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
+
 		vpBounds := image.Rect(
-			virtualPointer.Position.X-virtualPointer.Size/2,
-			virtualPointer.Position.Y-virtualPointer.Size/2,
-			virtualPointer.Position.X+virtualPointer.Size/2,
-			virtualPointer.Position.Y+virtualPointer.Size/2,
+			virtualPointer.Position.X-halfSize,
+			virtualPointer.Position.Y-halfSize,
+			virtualPointer.Position.X+halfSize,
+			virtualPointer.Position.Y+halfSize,
 		)
-		o.drawFilledRect(
+		o.drawTextCentered(
+			vpChar,
 			vpBounds,
+			fontName,
+			fontSize,
 			parseHexColorARGB(virtualPointer.FillColor),
-			style.LineColor,
-			winSubgridLineWidth,
-			0,
 		)
 	}
 
