@@ -196,6 +196,9 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 							virtualPointerFillColor,
 						)
 					}
+				} else if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
+					vp.Hide()
+					vp.Clear()
 				}
 
 				// Flush indicator draws atomically to avoid intermediate buffer
