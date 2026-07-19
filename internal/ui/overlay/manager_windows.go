@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -65,6 +66,7 @@ type Manager struct {
 	modeIndicatorOverlay   *modeindicator.Overlay
 	recursiveGridOverlay   *recursivegrid.Overlay
 	stickyModifiersOverlay *stickyindicator.Overlay
+	virtualPointerOverlay  *virtualpointer.Overlay
 }
 
 var (
@@ -311,6 +313,16 @@ func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
 // RecursiveGridOverlay returns the recursive-grid overlay component.
 func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return m.recursiveGridOverlay
+}
+
+// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
+func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
+	m.virtualPointerOverlay = o
+}
+
+// VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
+func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay {
+	return m.virtualPointerOverlay
 }
 
 // OverlayCapabilities reports Windows overlay support.
@@ -660,6 +672,15 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	}
 
 	m.stickyWin.Show()
+}
+
+// DrawVirtualPointer renders the cursor-following virtual pointer overlay.
+func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
+	if m.virtualPointerOverlay == nil {
+		return
+	}
+
+	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator on the Windows overlay.

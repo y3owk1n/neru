@@ -143,6 +143,10 @@ func (a *App) updateComponentConfigs(cfg *config.Config) {
 	if a.recursiveGridComponent != nil {
 		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
 	}
+
+	if a.virtualPointerOverlay != nil {
+		a.virtualPointerOverlay.SetConfig(cfg.VirtualPointer)
+	}
 }
 
 func (a *App) updateServiceConfigs(cfg *config.Config) {

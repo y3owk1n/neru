@@ -241,6 +241,13 @@ func initializeUIComponents(app *App) error {
 
 	app.stickyIndicatorComponent = stickyIndicatorComponent
 
+	virtualPointerOverlay, err := factory.CreateVirtualPointerOverlay()
+	if err != nil {
+		return err
+	}
+
+	app.virtualPointerOverlay = virtualPointerOverlay
+
 	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
 		SkipIfDisabled: false,
 		Required:       false,
@@ -562,6 +569,7 @@ func cleanupUIComponents(app *App) {
 	app.scrollComponent = nil
 	app.modeIndicatorComponent = nil
 	app.stickyIndicatorComponent = nil
+	app.virtualPointerOverlay = nil
 
 	// Clean up renderer
 	app.renderer = nil

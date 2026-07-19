@@ -25,6 +25,7 @@ Available subcommands:
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor
   Mode control:     reset, backspace, wait_for_mode_exit, cycle_hint
   Cursor saving:    save_cursor_pos, restore_cursor_pos
+  Cursor visibility: hide_cursor, show_cursor
   Key injection:    feed
 
 Click actions can be chained with commas to produce multi-click sequences:
@@ -195,6 +196,26 @@ var ActionRestoreCursorPosCmd = BuildActionCommand(
 	false,
 )
 
+// ActionHideCursorCmd hides the system cursor.
+var ActionHideCursorCmd = BuildActionCommand(
+	"hide_cursor",
+	"Hide system cursor",
+	`Hide the system cursor. Used together with show_cursor to create a virtual
+pointer experience. The cursor stays hidden until show_cursor is called or
+the application exits.`,
+	[]string{"hide_cursor"},
+	false,
+)
+
+// ActionShowCursorCmd shows the system cursor.
+var ActionShowCursorCmd = BuildActionCommand(
+	"show_cursor",
+	"Show system cursor",
+	`Show the system cursor after it was hidden by hide_cursor.`,
+	[]string{"show_cursor"},
+	false,
+)
+
 // ActionScrollUpCmd scrolls up at the current cursor position.
 var ActionScrollUpCmd = BuildScrollActionCommand(
 	"scroll_up",
@@ -310,6 +331,8 @@ func init() {
 	ActionCmd.AddCommand(ActionPageUpCmd)
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
+	ActionCmd.AddCommand(ActionHideCursorCmd)
+	ActionCmd.AddCommand(ActionShowCursorCmd)
 
 	RootCmd.AddCommand(ActionCmd)
 }

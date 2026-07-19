@@ -346,6 +346,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return h.handleSearchHintsAction(parsed)
 	}
 
+	if action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName) {
+		return h.handleCursorVisibilityAction(parsed, action.IsHideCursorAction(actionName))
+	}
+
 	// Handle comma-separated action chains (e.g., "left_click,left_click")
 	// which produce multi-click sequences via the native click-counting layer.
 	// Only mouse button actions are allowed in chains.
@@ -1229,6 +1233,55 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	h.savedCursorMu.Unlock()
 
 	return ipc.Response{Success: true, Message: "cursor restored", Code: ipc.CodeOK}
+}
+
+func (h *IPCControllerActions) handleCursorVisibilityAction(
+	parsed parsedActionArgs,
+	hide bool,
+) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		actionName := "show_cursor"
+		if hide {
+			actionName = "hide_cursor"
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: actionName + " does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	if !h.modesHandler.CursorVisibilitySupported() {
+		actionName := "show_cursor"
+		if hide {
+			actionName = "hide_cursor"
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: actionName + " is not supported on this platform",
+			Code:    ipc.CodeNotSupported,
+		}
+	}
+
+	if hide {
+		h.modesHandler.HideSystemCursor()
+
+		return ipc.Response{Success: true, Message: "system cursor hidden", Code: ipc.CodeOK}
+	}
+
+	h.modesHandler.ShowSystemCursor()
+
+	return ipc.Response{Success: true, Message: "system cursor shown", Code: ipc.CodeOK}
 }
 
 // handleMoveMonitorAction moves the cursor (and any active mode overlay)

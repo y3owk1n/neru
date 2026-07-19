@@ -23,9 +23,9 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	if h.indicatorTicker != nil || h.indicatorStopCh != nil {
 		return
 	}
-	// Only start polling if at least one of mode indicator or sticky modifiers
-	// indicator is enabled for this mode.
-	if h.config == nil || (!h.modeIndicatorEnabled(mode) && !h.stickyModifiersEnabled()) {
+
+	// All callers hold h.mu, so we can call the *Locked helpers directly.
+	if h.config == nil || !h.shouldPollCursorOverlaysLocked(mode) {
 		return
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
@@ -100,6 +100,16 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 				}
 				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
 				stickyEnabled := h.stickyModifiersEnabled()
+				showVirtualPointer := h.shouldShowCursorFollowingVirtualPointerLocked()
+
+				var (
+					virtualPointerSize      int
+					virtualPointerFillColor string
+				)
+				if showVirtualPointer {
+					virtualPointerSize, virtualPointerFillColor, showVirtualPointer = h.virtualPointerStyle()
+				}
+
 				stickyPoint := h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
 
 				cursorPt := image.Pt(cursorX, cursorY)
@@ -176,10 +186,23 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					}
 				}
 
-				// Flush both indicator draws atomically to avoid intermediate
-				// buffer states appearing between the mode indicator and sticky
-				// modifiers draws. The overlay backend batches the buffer
-				// modifications and only sends them on Flush().
+				if showVirtualPointer {
+					if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
+						vp.Show()
+						h.overlayManager.DrawVirtualPointer(
+							cursorX,
+							cursorY,
+							virtualPointerSize,
+							virtualPointerFillColor,
+						)
+					}
+				} else if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
+					vp.Hide()
+					vp.Clear()
+				}
+
+				// Flush indicator draws atomically to avoid intermediate buffer
+				// states appearing between overlay updates.
 				h.overlayManager.Flush()
 			}
 		}
@@ -216,6 +239,10 @@ func (h *Handler) stopIndicatorPolling() {
 	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 		stickyInd.Clear()
 		stickyInd.Hide()
+	}
+	// All callers hold h.mu, so we can call the *Locked helpers directly.
+	if !h.shouldShowCursorFollowingVirtualPointerLocked() {
+		h.hideCursorFollowingVirtualPointerLocked()
 	}
 	// Clean up resources after loop has exited.
 	if h.indicatorTicker != nil {

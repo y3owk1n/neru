@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
@@ -209,6 +210,7 @@ func (m *mockOverlayManager) UseGridOverlay(_ *grid.Overlay)                    
 func (m *mockOverlayManager) UseModeIndicatorOverlay(_ *modeindicator.Overlay)     {}
 func (m *mockOverlayManager) UseStickyModifiersOverlay(_ *stickyindicator.Overlay) {}
 func (m *mockOverlayManager) UseRecursiveGridOverlay(_ *recursivegrid.Overlay)     {}
+func (m *mockOverlayManager) UseVirtualPointerOverlay(_ *virtualpointer.Overlay)   {}
 
 func (m *mockOverlayManager) HintOverlay() *hints.Overlay { return nil }
 func (m *mockOverlayManager) GridOverlay() *grid.Overlay  { return nil }
@@ -224,6 +226,10 @@ func (m *mockOverlayManager) RecursiveGridOverlay() *recursivegrid.Overlay {
 	return nil
 }
 
+func (m *mockOverlayManager) VirtualPointerOverlay() *virtualpointer.Overlay {
+	return nil
+}
+
 func (m *mockOverlayManager) DrawHintsWithStyle(
 	_ []*hints.Hint,
 	_ hints.StyleMode,
@@ -232,6 +238,7 @@ func (m *mockOverlayManager) DrawHintsWithStyle(
 }
 func (m *mockOverlayManager) DrawModeIndicator(_, _ int)                      {}
 func (m *mockOverlayManager) DrawStickyModifiersIndicator(_, _ int, _ string) {}
+func (m *mockOverlayManager) DrawVirtualPointer(_, _, _ int, _ string)        {}
 
 func (m *mockOverlayManager) DrawMouseActionIndicator(
 	_ image.Point,

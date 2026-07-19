@@ -552,6 +552,10 @@ func (a *App) Cleanup() {
 		}
 
 		a.ExitMode()
+
+		if a.modes != nil {
+			a.modes.ShowSystemCursor()
+		}
 		// Stop theme observer: nil the handler first so any in-flight KVO callback
 		// (between the async dispatch and actual observer removal) is a no-op.
 		a.stopThemeObserver()

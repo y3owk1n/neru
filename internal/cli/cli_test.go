@@ -173,6 +173,8 @@ func TestCommandInitialization(t *testing.T) {
 		"page_down":           false,
 		"move_monitor":        false,
 		"cycle_hint":          false,
+		"hide_cursor":         false,
+		"show_cursor":         false,
 	}
 
 	for _, cmd := range cli.ActionCmd.Commands() {
@@ -230,6 +232,8 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_page_up", getActionCmd("page_up"), true},
 		{"action_page_down", getActionCmd("page_down"), true},
 		{"action_move_monitor", getActionCmd("move_monitor"), true},
+		{"action_hide_cursor", getActionCmd("hide_cursor"), true},
+		{"action_show_cursor", getActionCmd("show_cursor"), true},
 		{cliTestStatus, getCmd(cliTestStatus), true},
 		{
 			"doctor",

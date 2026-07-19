@@ -81,6 +81,9 @@ const (
 	// CodeChainBail indicates a chain action should abort (e.g. user canceled
 	// a mode without making a selection).
 	CodeChainBail = "ERR_CHAIN_BAIL"
+
+	// CodeNotSupported indicates the operation is not supported on this platform.
+	CodeNotSupported = "ERR_NOT_SUPPORTED"
 )
 
 // Command represents a command sent through the IPC interface.
