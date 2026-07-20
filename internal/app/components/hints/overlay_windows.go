@@ -173,8 +173,8 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 		),
 		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(
 			theme,
-			config.HintsTextColorLight,
-			config.HintsTextColorDark,
+			"",
+			"",
 		),
 		textOutlineWidth:         cfg.UI.TextOutlineWidth,
 		boundaryHighlightEnabled: cfg.BoundaryHighlight.Enabled,

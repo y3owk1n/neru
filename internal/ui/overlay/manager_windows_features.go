@@ -322,8 +322,8 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 		ports.ResolveFont(style.LabelFontName, false),
 		style.SubKeyPreviewFontSize,
 		style.SubKeyPreviewTextColor,
-		style.TextOutlineColor,
-		style.TextOutlineWidth,
+		style.SubKeyPreviewTextOutlineColor,
+		style.SubKeyPreviewTextOutlineWidth,
 	)
 }
 

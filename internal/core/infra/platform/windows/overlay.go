@@ -1024,7 +1024,7 @@ func renderTextAlphaInto(
 
 	// When outlineWidth > 0, dilate the text coverage mask and composite the
 	// outline behind the fill text.
-	if outlineWidth > 0 {
+	if outlineWidth > 0 && outlineColor != 0 {
 		dilated := dilateCoverage(tmpPixels, texW, texH, outlineWidth)
 		outlinePixels := make([]byte, texW*texH*bytesPerPixel)
 
