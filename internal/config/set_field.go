@@ -243,6 +243,9 @@ func ValidateConfigSetField(path, value string) error {
 	return nil
 }
 
+// unknownField is returned by ConfigFieldType when the path cannot be resolved.
+const unknownField = "unknown"
+
 // ConfigFieldType returns a human-readable type hint for a config path.
 //
 //nolint:revive,exhaustive
@@ -250,21 +253,30 @@ func ConfigFieldType(path string) string {
 	cfg := DefaultConfig()
 	target := reflect.ValueOf(cfg).Elem()
 
-	for part := range strings.SplitSeq(path, ".") {
+	parts := strings.Split(path, ".")
+	for partIdx, part := range parts {
 		field := findFieldByTomlTag(target, part)
 		if !field.IsValid() {
-			return "unknown"
+			return unknownField
 		}
 
-		if field.Kind() == reflect.Pointer {
-			field = field.Elem()
+		// Intermediate path elements must resolve to structs so the next
+		// iteration can call findFieldByTomlTag without panicking on
+		// NumField of a non-struct type.
+		if partIdx < len(parts)-1 {
+			target = derefStruct(field)
+			if target.Kind() != reflect.Struct {
+				return unknownField
+			}
+
+			continue
 		}
 
 		target = field
 	}
 
 	if !target.IsValid() {
-		return "unknown"
+		return unknownField
 	}
 
 	target = derefStruct(target)
