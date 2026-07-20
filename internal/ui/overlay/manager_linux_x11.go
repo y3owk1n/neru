@@ -203,7 +203,7 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 				)
 			}
 
-			if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
+			if drawSubPreview && shouldShowSubKeyPreview(cell, style, nextGridCols, nextGridRows) {
 				o.drawSubKeyMiniGrid(
 					cell,
 					nextKeyRunes,

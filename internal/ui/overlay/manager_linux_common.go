@@ -1008,6 +1008,8 @@ func shouldShowLabel(
 func shouldShowSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegrid.Style,
+	subGridCols int,
+	subGridRows int,
 ) bool {
 	if !style.SubKeyPreview {
 		return false
@@ -1018,8 +1020,10 @@ func shouldShowSubKeyPreview(
 	}
 
 	threshold := style.SubKeyPreviewFontSize * style.SubKeyPreviewAutohideMultiplier
+	subCellW := float64(cell.Dx()) / float64(subGridCols)
+	subCellH := float64(cell.Dy()) / float64(subGridRows)
 
-	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
+	return subCellW >= threshold && subCellH >= threshold
 }
 
 func parseHexColor(value string) uint32 {

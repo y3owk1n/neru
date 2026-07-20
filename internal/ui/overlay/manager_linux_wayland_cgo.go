@@ -249,7 +249,7 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 				)
 			}
 
-			if drawSubPreview && shouldShowSubKeyPreview(cell, style) {
+			if drawSubPreview && shouldShowSubKeyPreview(cell, style, nextGridCols, nextGridRows) {
 				o.drawSubKeyMiniGrid(
 					cell,
 					nextKeyRunes,
