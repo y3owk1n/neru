@@ -188,6 +188,7 @@ func parseOptionalColor(value string) uint32 {
 	if value == "" {
 		return 0
 	}
+
 	return parseLinuxColor(value)
 }
 
