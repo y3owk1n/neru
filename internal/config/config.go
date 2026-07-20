@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math/bits"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1460,11 +1461,13 @@ func (c *Config) HotkeysForModeAndApp(
 
 	baseLen := len(base)
 	appHotkeysLen := len(appConfig.Hotkeys)
-	maxInt := int(^uint(0) >> 1)
+
+	sum, carry := bits.Add(uint(baseLen), uint(appHotkeysLen), 0)
+	maxInt := ^uint(0) >> 1
 
 	size := baseLen
-	if baseLen <= maxInt-appHotkeysLen {
-		size = baseLen + appHotkeysLen
+	if carry == 0 && sum <= maxInt {
+		size = int(sum)
 	}
 
 	merged := make(map[string]StringOrStringArray, size)
@@ -1760,11 +1763,13 @@ func hasEmptyRoles(roles []string) bool {
 func mergeClickableRoles(base, additional []string) []string {
 	baseLen := len(base)
 	additionalLen := len(additional)
-	maxInt := int(^uint(0) >> 1)
+
+	sum, carry := bits.Add(uint(baseLen), uint(additionalLen), 0)
+	maxInt := ^uint(0) >> 1
 
 	size := baseLen
-	if size <= maxInt-additionalLen {
-		size += additionalLen
+	if carry == 0 && sum <= maxInt {
+		size = int(sum)
 	}
 
 	seen := make(map[string]struct{}, size)
