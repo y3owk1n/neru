@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.48.0](https://github.com/y3owk1n/neru/compare/v1.47.0...v1.48.0) (2026-07-20)
+
+
+### Features
+
+* allow `--modifier` in mode `--action` ([#1040](https://github.com/y3owk1n/neru/issues/1040)) ([ba7cb19](https://github.com/y3owk1n/neru/commit/ba7cb198721734b48a49bcda97f555830e02a12c))
+* allow multiple clicks for `--action` and `action` ([#1039](https://github.com/y3owk1n/neru/issues/1039)) ([afea90a](https://github.com/y3owk1n/neru/commit/afea90a6bcbf6a68597055b47f34e49c021bc227))
+* **cli:** add `neru config set` for runtime config changes ([#1071](https://github.com/y3owk1n/neru/issues/1071)) ([a130074](https://github.com/y3owk1n/neru/commit/a130074758f1a1fb42e2c1a76e21772189dd1d94))
+* **darwin,action:** add hide and show system cursor action with virtual pointer ([#1059](https://github.com/y3owk1n/neru/issues/1059)) ([b3d6feb](https://github.com/y3owk1n/neru/commit/b3d6feb6c66e560e1309f5e494d3eb4de72295d2))
+* **darwin,hints:** auto-detect bundle types ([#1035](https://github.com/y3owk1n/neru/issues/1035)) ([db5682f](https://github.com/y3owk1n/neru/commit/db5682f5c6cf1609b227ea94c0ef59d2f0cb2551))
+* **hints,cli:** add `--hide-on-empty-search` flag when search is empty ([#1044](https://github.com/y3owk1n/neru/issues/1044)) ([a850c32](https://github.com/y3owk1n/neru/commit/a850c32419b0a70b5cdd1b6a34fabc0044f5b650))
+* **hints,vision,darwin:** add `--split-word` flag for vision only ([#1041](https://github.com/y3owk1n/neru/issues/1041)) ([dfc76db](https://github.com/y3owk1n/neru/commit/dfc76db0b2be5e2978cf247b953843b8091589b8))
+* make virtual pointer fully customisable ([#1061](https://github.com/y3owk1n/neru/issues/1061)) ([7c18422](https://github.com/y3owk1n/neru/commit/7c18422d150f7c942da8ec3e25932b3a861dff71))
+* **recursive_grid,config:** add `label_autohide_multiplier` to hide cramped labels ([#1054](https://github.com/y3owk1n/neru/issues/1054)) ([d8c4eb3](https://github.com/y3owk1n/neru/commit/d8c4eb3052253cff14bde400b048aab84cd3d68b))
+* **recursive_grid:** add `label_char` and `sub_key_preview_label_char` config options ([#1045](https://github.com/y3owk1n/neru/issues/1045)) ([d95bb36](https://github.com/y3owk1n/neru/commit/d95bb36bc92870f76b4ccfa59bd0e276f6eac6cb))
+
+
+### Bug Fixes
+
+* **cli:** write output to stdout so that they are pipeable ([#1047](https://github.com/y3owk1n/neru/issues/1047)) ([bcddd01](https://github.com/y3owk1n/neru/commit/bcddd01df2816e6ae72b641c1cca904f7f7a5f5d))
+* **config:** ensure `app_configs` merges properly without defaults ([#1042](https://github.com/y3owk1n/neru/issues/1042)) ([204c0fd](https://github.com/y3owk1n/neru/commit/204c0fde54faef63ce3179de17e1ebbbf8a1aa41))
+* **darwin:** auto-rehide cursor when macOS reveal it ([#1065](https://github.com/y3owk1n/neru/issues/1065)) ([a2f6184](https://github.com/y3owk1n/neru/commit/a2f61841914af0a806e26b2bbd3ff75c43957e08))
+* **darwin:** use a lightweight handler for space changes ([#1032](https://github.com/y3owk1n/neru/issues/1032)) ([83351be](https://github.com/y3owk1n/neru/commit/83351be839de0f5955ce48dbf4767a56d64ca8a4))
+* guard against integer overflow in allocation size computations ([#1074](https://github.com/y3owk1n/neru/issues/1074)) ([f7136b9](https://github.com/y3owk1n/neru/commit/f7136b91a834fc4d53c6b1faa3bc7d49e8805f8b))
+* **hints:** separate `cycle_hint` from action execution ([#1043](https://github.com/y3owk1n/neru/issues/1043)) ([b65861f](https://github.com/y3owk1n/neru/commit/b65861f7cec9302674a8496737ec0bbee3b6ef02))
+* **linux,wayland:** sync cursor cache after move relative ([#1056](https://github.com/y3owk1n/neru/issues/1056)) ([b0f6a97](https://github.com/y3owk1n/neru/commit/b0f6a97bb08d22986aaec6eee5e87faba53cc784))
+* **linux,windows:** ensure proper render for configured virtual pointer ([#1063](https://github.com/y3owk1n/neru/issues/1063)) ([2f859e1](https://github.com/y3owk1n/neru/commit/2f859e16726c7b214871f9ddf9883f9a5b7f3a39))
+* **linux:** add nocgo stubs for consistency ([#1037](https://github.com/y3owk1n/neru/issues/1037)) ([2c27777](https://github.com/y3owk1n/neru/commit/2c277774d9a50a3c5abf2ebd5355732a7724ca45))
+* **linux:** ensure subkey preview autohide checks the subcell dimensions ([#1066](https://github.com/y3owk1n/neru/issues/1066)) ([c1a436d](https://github.com/y3owk1n/neru/commit/c1a436d1ed1f610bdc363de36e90228ae8ac0cd1))
+* **linux:** use native relative pointer motion ([#1055](https://github.com/y3owk1n/neru/issues/1055)) ([542866f](https://github.com/y3owk1n/neru/commit/542866f1fb822b02b5655e511cfc9628bfb2b4aa))
+* **recursive_grid,darwin:** pass font family to sub-key preview renderer ([#1048](https://github.com/y3owk1n/neru/issues/1048)) ([75ac644](https://github.com/y3owk1n/neru/commit/75ac6446df9b715dfb1671d9b60d241146f0c020))
+* **recursive_grid,overlay:** evenly distribute cells and round centers to nearest pixel ([#1046](https://github.com/y3owk1n/neru/issues/1046)) ([e0fee73](https://github.com/y3owk1n/neru/commit/e0fee73364a0f8c8a2e88bfce880c22f5eb3155f))
+* **recursive_grid:** distribute remainder pixels contiguiously ([#1062](https://github.com/y3owk1n/neru/issues/1062)) ([b9d2367](https://github.com/y3owk1n/neru/commit/b9d23673dd0784f09a084e88c3852f27e6e3d3da))
+
+
+### Documentation
+
+* **cli:** rewrite with proper grouping ([#1068](https://github.com/y3owk1n/neru/issues/1068)) ([860db8b](https://github.com/y3owk1n/neru/commit/860db8b0960736ca9e88640f243061fce43a5cad))
+* **troubleshooting:** Add notes about element size and element type, clean up Electron/Browser troubleshooting ([#1029](https://github.com/y3owk1n/neru/issues/1029)) ([e6d0211](https://github.com/y3owk1n/neru/commit/e6d0211d96b0b994c7f5e64ecf148e42160caa7b))
+* **troubleshooting:** explain missing hints on multi-monitor setups ([#1031](https://github.com/y3owk1n/neru/issues/1031)) ([14ec9ed](https://github.com/y3owk1n/neru/commit/14ec9ed68bd792ca2d3cf62a78f8a55d5f979ba4))
+
 ## [1.47.0](https://github.com/y3owk1n/neru/compare/v1.46.1...v1.47.0) (2026-07-13)
 
 
