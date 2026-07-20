@@ -412,7 +412,12 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	cells := make([]*Cell, gridCols*gridRows)
+	totalCells := gridCols * gridRows
+	if gridCols > 0 && totalCells/gridCols != gridRows { // overflow check
+		totalCells = gridRows
+	}
+
+	cells := make([]*Cell, totalCells)
 	cellIndex := 0
 
 	// Calculate region dimensions based on label length

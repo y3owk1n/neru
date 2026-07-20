@@ -1458,7 +1458,11 @@ func (c *Config) HotkeysForModeAndApp(
 		return base
 	}
 
-	merged := make(map[string]StringOrStringArray, len(base)+len(appConfig.Hotkeys))
+	n := max(len(base)+len(appConfig.Hotkeys),
+		// overflow check
+		len(base))
+
+	merged := make(map[string]StringOrStringArray, n)
 	for key, actions := range base {
 		copied := make(StringOrStringArray, len(actions))
 		copy(copied, actions)
@@ -1749,8 +1753,12 @@ func hasEmptyRoles(roles []string) bool {
 // and filtering out empty/whitespace-only entries. Base roles are preserved in
 // their original order (minus empties), then additional roles are appended.
 func mergeClickableRoles(base, additional []string) []string {
-	seen := make(map[string]struct{}, len(base)+len(additional))
-	result := make([]string, 0, len(base)+len(additional))
+	n := max(len(base)+len(additional),
+		// overflow check
+		len(base))
+
+	seen := make(map[string]struct{}, n)
+	result := make([]string, 0, n)
 
 	for _, role := range base {
 		trimmed := strings.TrimSpace(role)
