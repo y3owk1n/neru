@@ -1463,7 +1463,7 @@ func (c *Config) HotkeysForModeAndApp(
 	maxInt := int(^uint(0) >> 1)
 
 	size := baseLen
-	if appHotkeysLen <= maxInt-baseLen {
+	if baseLen <= maxInt-appHotkeysLen {
 		size = baseLen + appHotkeysLen
 	}
 
@@ -1763,8 +1763,8 @@ func mergeClickableRoles(base, additional []string) []string {
 	maxInt := int(^uint(0) >> 1)
 
 	size := baseLen
-	if additionalLen <= maxInt-baseLen {
-		size = baseLen + additionalLen
+	if size <= maxInt-additionalLen {
+		size += additionalLen
 	}
 
 	seen := make(map[string]struct{}, size)
