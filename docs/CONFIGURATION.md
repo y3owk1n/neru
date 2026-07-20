@@ -823,12 +823,12 @@ A small character rendered at the cursor when the system cursor is hidden. macOS
 
 ### UI
 
-| Option        | Type   | Default  | Description                    |
-| ------------- | ------ | -------- | ------------------------------ |
-| `char`        | string | `"●"`    | Character to display             |
-| `font_size`   | int    | `8`      | Font size in points              |
-| `font_family` | string | `""`     | Font family (empty = system)   |
-| `text_color`  | color  | derived  | Character color                |
+| Option        | Type   | Default | Description                  |
+| ------------- | ------ | ------- | ---------------------------- |
+| `char`        | string | `"●"`   | Character to display         |
+| `font_size`   | int    | `8`     | Font size in points          |
+| `font_family` | string | `""`    | Font family (empty = system) |
+| `text_color`  | color  | derived | Character color              |
 
 ```toml
 [virtual_pointer.ui]
