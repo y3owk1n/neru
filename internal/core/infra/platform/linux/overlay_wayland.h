@@ -75,7 +75,7 @@ void neru_wayland_overlay_rounded_rect(
     unsigned int stroke, double stroke_width);
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color);
+    unsigned int color, unsigned int outline_color, double outline_width);
 int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay);
 const char *neru_wayland_overlay_get_key(NeruWaylandOverlay *overlay);
 

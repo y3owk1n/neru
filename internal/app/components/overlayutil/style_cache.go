@@ -10,19 +10,21 @@ import (
 // CachedStyle holds pointers to C strings for style properties.
 // Fields are unsafe.Pointer to avoid C type dependency across packages.
 type CachedStyle struct {
-	FontFamily          unsafe.Pointer
-	BgColor             unsafe.Pointer
-	LabelBgColor        unsafe.Pointer
-	TextColor           unsafe.Pointer
-	MatchedTextColor    unsafe.Pointer
-	BorderColor         unsafe.Pointer
-	MatchedBgColor      unsafe.Pointer
-	MatchedBorderColor  unsafe.Pointer
-	HighlightColor      unsafe.Pointer
-	SubKeyTextColor     unsafe.Pointer
-	SubKeyFontFamily    unsafe.Pointer
-	BoundaryBgColor     unsafe.Pointer
-	BoundaryBorderColor unsafe.Pointer
+	FontFamily             unsafe.Pointer
+	BgColor                unsafe.Pointer
+	LabelBgColor           unsafe.Pointer
+	TextColor              unsafe.Pointer
+	MatchedTextColor       unsafe.Pointer
+	TextOutlineColor       unsafe.Pointer
+	BorderColor            unsafe.Pointer
+	MatchedBgColor         unsafe.Pointer
+	MatchedBorderColor     unsafe.Pointer
+	HighlightColor         unsafe.Pointer
+	SubKeyTextColor        unsafe.Pointer
+	SubKeyTextOutlineColor unsafe.Pointer
+	SubKeyFontFamily       unsafe.Pointer
+	BoundaryBgColor        unsafe.Pointer
+	BoundaryBorderColor    unsafe.Pointer
 }
 
 // StyleCache manages caching of C strings for styles to reduce allocations.
@@ -82,6 +84,8 @@ func (c *StyleCache) freeLocked() {
 	c.style.TextColor = nil
 	native.FreeCString(c.style.MatchedTextColor)
 	c.style.MatchedTextColor = nil
+	native.FreeCString(c.style.TextOutlineColor)
+	c.style.TextOutlineColor = nil
 	native.FreeCString(c.style.BorderColor)
 	c.style.BorderColor = nil
 	native.FreeCString(c.style.MatchedBgColor)
@@ -92,6 +96,8 @@ func (c *StyleCache) freeLocked() {
 	c.style.HighlightColor = nil
 	native.FreeCString(c.style.SubKeyTextColor)
 	c.style.SubKeyTextColor = nil
+	native.FreeCString(c.style.SubKeyTextOutlineColor)
+	c.style.SubKeyTextOutlineColor = nil
 	native.FreeCString(c.style.SubKeyFontFamily)
 	c.style.SubKeyFontFamily = nil
 	native.FreeCString(c.style.BoundaryBgColor)

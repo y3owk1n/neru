@@ -37,6 +37,8 @@ type monitorSelectRenderStyle struct {
 	BackgroundColor    string
 	TextColor          string
 	MatchedTextColor   string
+	TextOutlineColor   string
+	TextOutlineWidth   int
 	BorderColor        string
 	BackdropColor      string
 	SubtitleTextColor  string
@@ -90,6 +92,8 @@ func (h *Handler) showMonitorSelectLocked() error {
 		backgroundColor:    cStringOrNil(style.BackgroundColor),
 		textColor:          cStringOrNil(style.TextColor),
 		matchedTextColor:   cStringOrNil(style.MatchedTextColor),
+		textOutlineColor:   cStringOrNil(style.TextOutlineColor),
+		textOutlineWidth:   C.int(style.TextOutlineWidth),
 		borderColor:        cStringOrNil(style.BorderColor),
 		backdropColor:      cStringOrNil(style.BackdropColor),
 		subtitleTextColor:  cStringOrNil(style.SubtitleTextColor),
@@ -154,6 +158,9 @@ func freeMonitorSelectStyle(styl C.MonitorSelectStyle) {
 	if styl.subtitleTextColor != nil {
 		C.free(unsafe.Pointer(styl.subtitleTextColor))
 	}
+	if styl.textOutlineColor != nil {
+		C.free(unsafe.Pointer(styl.textOutlineColor))
+	}
 }
 
 func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderState {
@@ -182,6 +189,8 @@ func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderSta
 			MatchedTextColor: uiCfg.MatchedTextColor.ForTheme(theme,
 				configpkg.MonitorSelectMatchedTextColorLight,
 				configpkg.MonitorSelectMatchedTextColorDark),
+			TextOutlineColor: uiCfg.TextOutlineColor.ForTheme(theme, "", ""),
+			TextOutlineWidth: uiCfg.TextOutlineWidth,
 			BorderColor: uiCfg.BorderColor.ForTheme(theme,
 				configpkg.MonitorSelectBorderColorLight,
 				configpkg.MonitorSelectBorderColorDark),

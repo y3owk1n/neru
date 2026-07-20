@@ -490,6 +490,8 @@ type ModeIndicatorUI struct {
 	FontFamily       string `json:"fontFamily"       toml:"font_family"`
 	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
 	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	TextOutlineColor Color  `json:"textOutlineColor" toml:"text_outline_color"`
+	TextOutlineWidth int    `json:"textOutlineWidth" toml:"text_outline_width"`
 	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
 	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
@@ -503,11 +505,12 @@ type ModeIndicatorUI struct {
 // Text is the label shown in the indicator; empty string hides the label.
 // Color overrides are optional; empty string inherits from [mode_indicator.ui].
 type ModeIndicatorModeConfig struct {
-	Enabled         bool   `json:"enabled"         toml:"enabled"`
-	Text            string `json:"text"            toml:"text"`
-	BackgroundColor Color  `json:"backgroundColor" toml:"background_color"`
-	TextColor       Color  `json:"textColor"       toml:"text_color"`
-	BorderColor     Color  `json:"borderColor"     toml:"border_color"`
+	Enabled          bool   `json:"enabled"          toml:"enabled"`
+	Text             string `json:"text"             toml:"text"`
+	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
+	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	TextOutlineColor Color  `json:"textOutlineColor" toml:"text_outline_color"`
+	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 }
 
 // ModeIndicatorConfig defines per-mode indicator visibility and appearance.
@@ -526,6 +529,8 @@ type StickyModifiersUI struct {
 	FontFamily       string `json:"fontFamily"       toml:"font_family"`
 	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
 	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	TextOutlineColor Color  `json:"textOutlineColor" toml:"text_outline_color"`
+	TextOutlineWidth int    `json:"textOutlineWidth" toml:"text_outline_width"`
 	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
 	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
@@ -596,6 +601,8 @@ type MonitorSelectUI struct {
 	BackgroundColor    Color  `json:"backgroundColor"    toml:"background_color"`
 	TextColor          Color  `json:"textColor"          toml:"text_color"`
 	MatchedTextColor   Color  `json:"matchedTextColor"   toml:"matched_text_color"`
+	TextOutlineColor   Color  `json:"textOutlineColor"   toml:"text_outline_color"`
+	TextOutlineWidth   int    `json:"textOutlineWidth"   toml:"text_outline_width"`
 	BorderColor        Color  `json:"borderColor"        toml:"border_color"`
 	BackdropColor      Color  `json:"backdropColor"      toml:"backdrop_color"`
 	SubtitleFontSize   int    `json:"subtitleFontSize"   toml:"subtitle_font_size"`
@@ -623,6 +630,8 @@ type HintsUI struct {
 	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
 	TextColor        Color  `json:"textColor"        toml:"text_color"`
 	MatchedTextColor Color  `json:"matchedTextColor" toml:"matched_text_color"`
+	TextOutlineColor Color  `json:"textOutlineColor" toml:"text_outline_color"`
+	TextOutlineWidth int    `json:"textOutlineWidth" toml:"text_outline_width"`
 	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
 }
 
@@ -734,6 +743,8 @@ type GridUI struct {
 	BackgroundColor        Color `json:"backgroundColor"        toml:"background_color"`
 	TextColor              Color `json:"textColor"              toml:"text_color"`
 	MatchedTextColor       Color `json:"matchedTextColor"       toml:"matched_text_color"`
+	TextOutlineColor       Color `json:"textOutlineColor"       toml:"text_outline_color"`
+	TextOutlineWidth       int   `json:"textOutlineWidth"       toml:"text_outline_width"`
 	MatchedBackgroundColor Color `json:"matchedBackgroundColor" toml:"matched_background_color"`
 	MatchedBorderColor     Color `json:"matchedBorderColor"     toml:"matched_border_color"`
 	BorderColor            Color `json:"borderColor"            toml:"border_color"`
@@ -765,6 +776,8 @@ type RecursiveGridUI struct {
 	LineWidth                       int     `json:"lineWidth"                       toml:"line_width"`
 	HighlightColor                  Color   `json:"highlightColor"                  toml:"highlight_color"`
 	TextColor                       Color   `json:"textColor"                       toml:"text_color"`
+	TextOutlineColor                Color   `json:"textOutlineColor"                toml:"text_outline_color"`
+	TextOutlineWidth                int     `json:"textOutlineWidth"                toml:"text_outline_width"`
 	FontSize                        int     `json:"fontSize"                        toml:"font_size"`
 	FontFamily                      string  `json:"fontFamily"                      toml:"font_family"`
 	LabelBackground                 bool    `json:"labelBackground"                 toml:"label_background"`
@@ -779,6 +792,8 @@ type RecursiveGridUI struct {
 	SubKeyPreviewFontSize           int     `json:"subKeyPreviewFontSize"           toml:"sub_key_preview_font_size"`
 	SubKeyPreviewAutohideMultiplier float64 `json:"subKeyPreviewAutohideMultiplier" toml:"sub_key_preview_autohide_multiplier"`
 	SubKeyPreviewTextColor          Color   `json:"subKeyPreviewTextColor"          toml:"sub_key_preview_text_color"`
+	SubKeyPreviewTextOutlineColor   Color   `json:"subKeyPreviewTextOutlineColor"   toml:"sub_key_preview_text_outline_color"`
+	SubKeyPreviewTextOutlineWidth   int     `json:"subKeyPreviewTextOutlineWidth"   toml:"sub_key_preview_text_outline_width"`
 	SubKeyPreviewLabelChar          string  `json:"subKeyPreviewLabelChar"          toml:"sub_key_preview_label_char"`
 }
 
@@ -823,10 +838,12 @@ type RecursiveGridConfig struct {
 
 // VirtualPointerUI defines the visual settings for the character-based virtual pointer.
 type VirtualPointerUI struct {
-	Char       string `json:"char"       toml:"char"`
-	FontSize   int    `json:"fontSize"   toml:"font_size"`
-	FontFamily string `json:"fontFamily" toml:"font_family"`
-	TextColor  Color  `json:"textColor"  toml:"text_color"`
+	Char             string `json:"char"             toml:"char"`
+	FontSize         int    `json:"fontSize"         toml:"font_size"`
+	FontFamily       string `json:"fontFamily"       toml:"font_family"`
+	TextColor        Color  `json:"textColor"        toml:"text_color"`
+	TextOutlineColor Color  `json:"textOutlineColor" toml:"text_outline_color"`
+	TextOutlineWidth int    `json:"textOutlineWidth" toml:"text_outline_width"`
 }
 
 // VirtualPointerConfig defines settings for the hold-mode virtual pointer.

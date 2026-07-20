@@ -426,6 +426,8 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode
 | `text_color`         | color  | derived    | Text color                                 |
 | `matched_text_color` | color  | derived    | Text color for matched characters          |
 | `border_color`       | color  | derived    | Border color                               |
+| `text_outline_color` | color  | `""`       | Text outline color (empty = no outline)    |
+| `text_outline_width` | int    | `0`        | Text outline width in pixels (0 = none)    |
 
 ```toml
 [hints.ui]
@@ -591,17 +593,19 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 
 ### UI
 
-| Option                     | Type   | Default | Description                          |
-| -------------------------- | ------ | ------- | ------------------------------------ |
-| `font_size`                | int    | `10`    | Font size in points                  |
-| `font_family`              | string | `""`    | Font family (empty = system default) |
-| `border_width`             | int    | `1`     | Border width in pixels               |
-| `background_color`         | color  | derived | Cell background                      |
-| `text_color`               | color  | derived | Label text                           |
-| `matched_text_color`       | color  | derived | Matched cell text                    |
-| `matched_background_color` | color  | derived | Matched cell background              |
-| `matched_border_color`     | color  | derived | Matched cell border                  |
-| `border_color`             | color  | derived | Default cell border                  |
+| Option                     | Type   | Default | Description                             |
+| -------------------------- | ------ | ------- | --------------------------------------- |
+| `font_size`                | int    | `10`    | Font size in points                     |
+| `font_family`              | string | `""`    | Font family (empty = system default)    |
+| `border_width`             | int    | `1`     | Border width in pixels                  |
+| `background_color`         | color  | derived | Cell background                         |
+| `text_color`               | color  | derived | Label text                              |
+| `matched_text_color`       | color  | derived | Matched cell text                       |
+| `matched_background_color` | color  | derived | Matched cell background                 |
+| `matched_border_color`     | color  | derived | Matched cell border                     |
+| `border_color`             | color  | derived | Default cell border                     |
+| `text_outline_color`       | color  | `""`    | Text outline color (empty = no outline) |
+| `text_outline_width`       | int    | `0`     | Text outline width in pixels (0 = none) |
 
 ```toml
 [grid.ui]
@@ -689,6 +693,10 @@ layers = [
 | `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier                                                |
 | `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
 | `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`); empty = use key  |
+| `text_outline_color`                  | color  | `""`    | Text outline color (empty = no outline)                                      |
+| `text_outline_width`                  | int    | `0`     | Text outline width in pixels (0 = none)                                      |
+| `sub_key_preview_text_outline_color`  | color  | `""`    | Sub-key preview text outline color                                           |
+| `sub_key_preview_text_outline_width`  | int    | `0`     | Sub-key preview text outline width in px                                     |
 
 ```toml
 [recursive_grid.ui]
@@ -772,22 +780,24 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 
 ### UI
 
-| Key                    | Default       | Description                       |
-| ---------------------- | ------------- | --------------------------------- |
-| `font_size`            | `96`          | Badge label font size             |
-| `font_family`          | `""` (system) | Badge label font family           |
-| `subtitle_font_size`   | `18`          | Monitor name subtitle font size   |
-| `subtitle_font_family` | `""` (system) | Subtitle font family              |
-| `border_radius`        | `-1` (auto)   | Badge corner radius               |
-| `padding_x`            | `-1` (auto)   | Horizontal padding                |
-| `padding_y`            | `-1` (auto)   | Vertical padding                  |
-| `border_width`         | `0`           | Badge border width                |
-| `background_color`     | derived       | Badge fill color                  |
-| `text_color`           | derived       | Label text color                  |
-| `matched_text_color`   | derived       | Partially-typed label text color  |
-| `border_color`         | derived       | Badge border color                |
-| `backdrop_color`       | `""` (none)   | Per-monitor overlay backdrop tint |
-| `subtitle_text_color`  | derived       | Subtitle text color               |
+| Key                    | Default       | Description                             |
+| ---------------------- | ------------- | --------------------------------------- |
+| `font_size`            | `96`          | Badge label font size                   |
+| `font_family`          | `""` (system) | Badge label font family                 |
+| `subtitle_font_size`   | `18`          | Monitor name subtitle font size         |
+| `subtitle_font_family` | `""` (system) | Subtitle font family                    |
+| `border_radius`        | `-1` (auto)   | Badge corner radius                     |
+| `padding_x`            | `-1` (auto)   | Horizontal padding                      |
+| `padding_y`            | `-1` (auto)   | Vertical padding                        |
+| `border_width`         | `0`           | Badge border width                      |
+| `background_color`     | derived       | Badge fill color                        |
+| `text_color`           | derived       | Label text color                        |
+| `matched_text_color`   | derived       | Partially-typed label text color        |
+| `border_color`         | derived       | Badge border color                      |
+| `backdrop_color`       | `""` (none)   | Per-monitor overlay backdrop tint       |
+| `text_outline_color`   | `""`          | Text outline color (empty = no outline) |
+| `text_outline_width`   | `0`           | Text outline width in pixels (0 = none) |
+| `subtitle_text_color`  | derived       | Subtitle text color                     |
 
 ### Hotkeys
 
@@ -823,12 +833,14 @@ A small character rendered at the cursor when the system cursor is hidden. macOS
 
 ### UI
 
-| Option        | Type   | Default | Description                  |
-| ------------- | ------ | ------- | ---------------------------- |
-| `char`        | string | `"●"`   | Character to display         |
-| `font_size`   | int    | `8`     | Font size in points          |
-| `font_family` | string | `""`    | Font family (empty = system) |
-| `text_color`  | color  | derived | Character color              |
+| Option               | Type   | Default | Description                             |
+| -------------------- | ------ | ------- | --------------------------------------- |
+| `char`               | string | `"●"`   | Character to display                    |
+| `font_size`          | int    | `8`     | Font size in points                     |
+| `font_family`        | string | `""`    | Font family (empty = system)            |
+| `text_color`         | color  | derived | Character color                         |
+| `text_outline_color` | color  | `""`    | Text outline color (empty = no outline) |
+| `text_outline_width` | int    | `0`     | Text outline width in pixels (0 = none) |
 
 ```toml
 [virtual_pointer.ui]
@@ -891,13 +903,14 @@ A floating label that follows the cursor and displays the current mode name.
 
 ### Per-Mode
 
-| Option             | Type   | Default        | Description                       |
-| ------------------ | ------ | -------------- | --------------------------------- |
-| `enabled`          | bool   | varies by mode | Show/hide indicator for this mode |
-| `text`             | string | varies by mode | Label text                        |
-| `background_color` | color  | derived        | Override background color         |
-| `text_color`       | color  | derived        | Override text color               |
-| `border_color`     | color  | derived        | Override border color             |
+| Option               | Type   | Default        | Description                                          |
+| -------------------- | ------ | -------------- | ---------------------------------------------------- |
+| `enabled`            | bool   | varies by mode | Show/hide indicator for this mode                    |
+| `text`               | string | varies by mode | Label text                                           |
+| `background_color`   | color  | derived        | Override background color                            |
+| `text_color`         | color  | derived        | Override text color                                  |
+| `border_color`       | color  | derived        | Override border color                                |
+| `text_outline_color` | color  | `""`           | Text outline color override (empty = use ui default) |
 
 ```toml
 [mode_indicator.scroll]
@@ -936,6 +949,8 @@ text = "Monitor Select"
 | `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)               |
 | `indicator_x_offset` | int    | `20`    | X offset from cursor (positive = right) |
 | `indicator_y_offset` | int    | `20`    | Y offset from cursor (positive = down)  |
+| `text_outline_color` | color  | `""`    | Text outline color (empty = no outline) |
+| `text_outline_width` | int    | `0`     | Text outline width in pixels (0 = none) |
 
 ```toml
 [mode_indicator.ui]
@@ -961,19 +976,21 @@ Tap modifiers inside a mode to make them sticky for subsequent actions.
 
 ### UI
 
-| Option               | Type   | Default | Description                            |
-| -------------------- | ------ | ------- | -------------------------------------- |
-| `font_size`          | int    | `10`    | Font size                              |
-| `font_family`        | string | `""`    | Font family (empty = system default)   |
-| `background_color`   | color  | derived | Background with alpha                  |
-| `text_color`         | color  | derived | Text color                             |
-| `border_color`       | color  | derived | Border color                           |
-| `border_width`       | int    | `1`     | Border width                           |
-| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)         |
-| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)           |
-| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)              |
-| `indicator_x_offset` | int    | `-40`   | X offset from cursor (negative = left) |
-| `indicator_y_offset` | int    | `20`    | Y offset from cursor (down)            |
+| Option               | Type   | Default | Description                             |
+| -------------------- | ------ | ------- | --------------------------------------- |
+| `font_size`          | int    | `10`    | Font size                               |
+| `font_family`        | string | `""`    | Font family (empty = system default)    |
+| `background_color`   | color  | derived | Background with alpha                   |
+| `text_color`         | color  | derived | Text color                              |
+| `border_color`       | color  | derived | Border color                            |
+| `border_width`       | int    | `1`     | Border width                            |
+| `padding_x`          | int    | `-1`    | Horizontal padding (-1 = auto)          |
+| `padding_y`          | int    | `-1`    | Vertical padding (-1 = auto)            |
+| `border_radius`      | int    | `-1`    | Corner radius (-1 = auto)               |
+| `indicator_x_offset` | int    | `-40`   | X offset from cursor (negative = left)  |
+| `indicator_y_offset` | int    | `20`    | Y offset from cursor (down)             |
+| `text_outline_color` | color  | `""`    | Text outline color (empty = no outline) |
+| `text_outline_width` | int    | `0`     | Text outline width in pixels (0 = none) |
 
 ```toml
 [sticky_modifiers]

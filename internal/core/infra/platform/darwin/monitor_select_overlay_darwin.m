@@ -148,10 +148,13 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 				// Colors
 				NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 				NSString *textHex = style.textColor ? @(style.textColor) : nil;
+				NSString *textOutlineHex = style.textOutlineColor ? @(style.textOutlineColor) : nil;
+				int textOutlineWidth = style.textOutlineWidth;
 				NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 
 				NSColor *bgColor = monitorSelectColorFromHex(bgHex, [NSColor colorWithWhite:0.95 alpha:0.95]);
 				NSColor *textColor = monitorSelectColorFromHex(textHex, [NSColor blackColor]);
+				NSColor *textOutlineColor = monitorSelectColorFromHex(textOutlineHex, nil);
 				NSColor *borderColor = monitorSelectColorFromHex(borderHex, [NSColor colorWithWhite:0.5 alpha:0.5]);
 
 				// Fonts
@@ -221,7 +224,22 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 
 				// Label text layer
 				CATextLayer *textLayer = [CATextLayer layer];
-				textLayer.string = label;
+				if (textOutlineWidth > 0 && textOutlineColor) {
+					NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithString:label];
+					[attrStr addAttribute:NSForegroundColorAttributeName
+					                value:textColor
+					                range:NSMakeRange(0, label.length)];
+					[attrStr addAttribute:NSStrokeColorAttributeName
+					                value:textOutlineColor
+					                range:NSMakeRange(0, label.length)];
+					[attrStr addAttribute:NSStrokeWidthAttributeName
+					                value:@(textOutlineWidth)
+					                range:NSMakeRange(0, label.length)];
+					[attrStr addAttribute:NSFontAttributeName value:labelFont range:NSMakeRange(0, label.length)];
+					textLayer.string = attrStr;
+				} else {
+					textLayer.string = label;
+				}
 				textLayer.font = (__bridge CTFontRef)labelFont;
 				textLayer.fontSize = fontSize;
 				textLayer.foregroundColor = textColor.CGColor;
@@ -237,7 +255,25 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 					CGFloat subY = textY + labelSize.height + 4;
 
 					CATextLayer *subLayer = [CATextLayer layer];
-					subLayer.string = subtitle;
+					if (textOutlineWidth > 0 && textOutlineColor) {
+						NSMutableAttributedString *attrStr =
+						    [[NSMutableAttributedString alloc] initWithString:subtitle];
+						[attrStr addAttribute:NSForegroundColorAttributeName
+						                value:subColor
+						                range:NSMakeRange(0, subtitle.length)];
+						[attrStr addAttribute:NSStrokeColorAttributeName
+						                value:textOutlineColor
+						                range:NSMakeRange(0, subtitle.length)];
+						[attrStr addAttribute:NSStrokeWidthAttributeName
+						                value:@(textOutlineWidth)
+						                range:NSMakeRange(0, subtitle.length)];
+						[attrStr addAttribute:NSFontAttributeName
+						                value:subtitleFont
+						                range:NSMakeRange(0, subtitle.length)];
+						subLayer.string = attrStr;
+					} else {
+						subLayer.string = subtitle;
+					}
 					subLayer.font = (__bridge CTFontRef)subtitleFont;
 					subLayer.fontSize = subFontSize;
 					subLayer.foregroundColor = subColor.CGColor;

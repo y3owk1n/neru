@@ -23,6 +23,8 @@ type StyleMode struct {
 	textColor                string
 	matchedTextColor         string
 	borderColor              string
+	textOutlineColor         string
+	textOutlineWidth         int
 	boundaryHighlightEnabled bool
 	boundaryBorderWidth      int
 	boundaryBorderRadius     int
@@ -77,6 +79,12 @@ func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroun
 
 // BoundaryBorderColor returns the target boundary stroke color.
 func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
+
+// TextOutlineColor returns the text outline color.
+func (s StyleMode) TextOutlineColor() string { return s.textOutlineColor }
+
+// TextOutlineWidth returns the text outline width.
+func (s StyleMode) TextOutlineWidth() int { return s.textOutlineWidth }
 
 // Overlay manages the rendering of hint overlays using native platform APIs (Windows stub).
 type Overlay struct {
@@ -163,6 +171,12 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 			config.HintsBorderColorLight,
 			config.HintsBorderColorDark,
 		),
+		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			config.HintsTextColorLight,
+			config.HintsTextColorDark,
+		),
+		textOutlineWidth:         cfg.UI.TextOutlineWidth,
 		boundaryHighlightEnabled: cfg.BoundaryHighlight.Enabled,
 		boundaryBorderWidth:      cfg.BoundaryHighlight.BorderWidth,
 		boundaryBorderRadius:     cfg.BoundaryHighlight.BorderRadius,

@@ -32,7 +32,7 @@ void neru_x11_overlay_rounded_rect(
     unsigned int stroke, double stroke_width);
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color);
+    unsigned int color, unsigned int outline_color, double outline_width);
 void neru_x11_overlay_flush(NeruX11Overlay *overlay);
 
 #endif /* X11_OVERLAY_H */

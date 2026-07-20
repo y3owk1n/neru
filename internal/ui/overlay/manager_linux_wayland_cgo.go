@@ -246,6 +246,8 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 					style.LabelFontName,
 					style.LabelFontSize,
 					style.LabelFontColor,
+					style.TextOutlineColor,
+					style.TextOutlineWidth,
 				)
 			}
 
@@ -284,6 +286,8 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 			fontName,
 			fontSize,
 			parseHexColor(virtualPointer.FillColor),
+			0,
+			0,
 		)
 	}
 
@@ -310,7 +314,7 @@ func (o *wlrootsOverlay) DrawBadge(
 	rect := badgeBounds(posX, posY, text, style)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
-	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
+	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text, 0, 0)
 }
 
 func (o *wlrootsOverlay) Flush() {
@@ -365,12 +369,22 @@ func (o *wlrootsOverlay) DrawHints(
 			parseHexColor(style.BorderColor()),
 			float64(max(style.BorderWidth(), 0)),
 		)
+		outlineColor := uint32(0)
+		outlineWidth := float64(0)
+		if style.TextOutlineWidth() > 0 {
+			if oc := style.TextOutlineColor(); oc != "" {
+				outlineColor = parseHexColor(oc)
+			}
+			outlineWidth = float64(style.TextOutlineWidth())
+		}
 		o.drawTextCentered(
 			hint.Label(),
 			bounds,
 			style.FontFamily(),
 			float64(max(style.FontSize(), 1)),
 			parseHexColor(textColor),
+			outlineColor,
+			outlineWidth,
 		)
 	}
 
@@ -488,7 +502,15 @@ func (o *wlrootsOverlay) redrawGrid() {
 			border = style.MatchedBorderColor
 		}
 		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
+		o.drawTextCentered(
+			label,
+			cell.Bounds(),
+			style.LabelFontName,
+			style.LabelFontSize,
+			text,
+			style.TextOutlineColor,
+			style.TextOutlineWidth,
+		)
 	}
 
 	if o.currentSubgrid != nil {
@@ -550,6 +572,8 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 				style.LabelFontName,
 				style.LabelFontSize*subgridFontScale,
 				style.LabelFontColor,
+				style.TextOutlineColor,
+				style.TextOutlineWidth,
 			)
 			index++
 		}
@@ -600,6 +624,8 @@ func (o *wlrootsOverlay) drawTextCentered(
 	fontFamily string,
 	fontSize float64,
 	color uint32,
+	outlineColor uint32,
+	outlineWidth float64,
 ) {
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
@@ -614,6 +640,8 @@ func (o *wlrootsOverlay) drawTextCentered(
 		C.double(bounds.Min.Y+bounds.Dy()/2),
 		C.double(fontSize),
 		C.uint(color),
+		C.uint(outlineColor),
+		C.double(outlineWidth),
 	)
 }
 
@@ -675,6 +703,8 @@ func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 			style.LabelFontName,
 			style.SubKeyPreviewFontSize,
 			style.SubKeyPreviewTextColor,
+			style.SubKeyPreviewTextOutlineColor,
+			style.SubKeyPreviewTextOutlineWidth,
 		)
 		subIndex++
 	}

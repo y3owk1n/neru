@@ -36,6 +36,8 @@ type Style struct {
 	MatchedBackgroundColor uint32
 	MatchedBorderColor     uint32
 	ShowLabels             bool
+	TextOutlineColor       uint32
+	TextOutlineWidth       float64
 }
 
 // Overlay manages the rendering of grid overlays using native platform APIs (Linux stub).
@@ -149,7 +151,19 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 			),
 		),
 		ShowLabels: true,
+		TextOutlineColor: parseOptionalColor(
+			cfg.UI.TextOutlineColor.ForTheme(theme, "", ""),
+		),
+		TextOutlineWidth: float64(cfg.UI.TextOutlineWidth),
 	}
+}
+
+func parseOptionalColor(value string) uint32 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	return parseLinuxColor(value)
 }
 
 func parseLinuxColor(value string) uint32 {

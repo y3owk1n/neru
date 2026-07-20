@@ -131,12 +131,16 @@ func (o *winOverlay) DrawHints(
 			)
 		}
 
-		o.window.DrawTextCentered(
+		outlineColor := parseHexColorARGB(style.TextOutlineColor())
+		outlineWidth := style.TextOutlineWidth()
+		o.window.DrawTextCenteredWithOutline(
 			hint.Label(),
 			bounds,
 			ports.ResolveFont(style.FontFamily(), false),
 			fontSize,
 			parseHexColorARGB(textColor),
+			outlineColor,
+			outlineWidth,
 		)
 
 		// Composite this hint atomically so its content lands as a unit,
@@ -205,12 +209,14 @@ func (o *winOverlay) DrawRecursiveGrid(
 					o.drawRecursiveLabelBackground(label, cell, style)
 				}
 
-				o.drawTextCentered(
+				o.drawTextCenteredWithOutline(
 					label,
 					cell,
 					ports.ResolveFont(style.LabelFontName, false),
 					style.LabelFontSize,
 					style.LabelFontColor,
+					style.TextOutlineColor,
+					style.TextOutlineWidth,
 				)
 			}
 
@@ -237,12 +243,14 @@ func (o *winOverlay) DrawRecursiveGrid(
 			virtualPointer.Position.X+halfSize,
 			virtualPointer.Position.Y+halfSize,
 		)
-		o.drawTextCentered(
+		o.drawTextCenteredWithOutline(
 			vpChar,
 			vpBounds,
 			fontName,
 			fontSize,
 			parseHexColorARGB(virtualPointer.FillColor),
+			0,
+			0,
 		)
 	}
 
@@ -308,12 +316,14 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 		cell.Max.Y,
 	)
 
-	o.drawTextCentered(
+	o.drawTextCenteredWithOutline(
 		previewLabel,
 		previewRect,
 		ports.ResolveFont(style.LabelFontName, false),
 		style.SubKeyPreviewFontSize,
 		style.SubKeyPreviewTextColor,
+		style.TextOutlineColor,
+		style.TextOutlineWidth,
 	)
 }
 

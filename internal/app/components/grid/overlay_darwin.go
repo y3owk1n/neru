@@ -519,6 +519,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		cached.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
 		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
 		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		cached.TextOutlineColor = unsafe.Pointer(C.CString(style.TextOutlineColor()))
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.MatchedBackgroundColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.MatchedBorderColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
@@ -530,6 +531,8 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:       (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:       C.int(style.TextOutlineWidth()),
 		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
@@ -755,6 +758,7 @@ func (o *Overlay) drawGridIncrementalStructural(
 		cached.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
 		cached.TextColor = unsafe.Pointer(C.CString(currentStyle.TextColor()))
 		cached.MatchedTextColor = unsafe.Pointer(C.CString(currentStyle.MatchedTextColor()))
+		cached.TextOutlineColor = unsafe.Pointer(C.CString(currentStyle.TextOutlineColor()))
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(currentStyle.MatchedBackgroundColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(currentStyle.MatchedBorderColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(currentStyle.BorderColor()))
@@ -766,6 +770,8 @@ func (o *Overlay) drawGridIncrementalStructural(
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:       (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:       C.int(currentStyle.TextOutlineWidth()),
 		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
@@ -983,6 +989,7 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		cached.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
 		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
 		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		cached.TextOutlineColor = unsafe.Pointer(C.CString(style.TextOutlineColor()))
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.MatchedBackgroundColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.MatchedBorderColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
@@ -994,6 +1001,8 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 		backgroundColor:        (*C.char)(cachedStyle.BgColor),
 		textColor:              (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:       (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:       (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:       C.int(style.TextOutlineWidth()),
 		matchedBackgroundColor: (*C.char)(cachedStyle.MatchedBgColor),
 		matchedBorderColor:     (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:            (*C.char)(cachedStyle.BorderColor),
@@ -1030,6 +1039,8 @@ type Style struct {
 	backgroundColor        string
 	textColor              string
 	matchedTextColor       string
+	textOutlineColor       string
+	textOutlineWidth       int
 	matchedBackgroundColor string
 	matchedBorderColor     string
 	borderColor            string
@@ -1063,6 +1074,16 @@ func (s Style) TextColor() string {
 // MatchedTextColor returns the matched text color.
 func (s Style) MatchedTextColor() string {
 	return s.matchedTextColor
+}
+
+// TextOutlineColor returns the text outline color.
+func (s Style) TextOutlineColor() string {
+	return s.textOutlineColor
+}
+
+// TextOutlineWidth returns the text outline width.
+func (s Style) TextOutlineWidth() int {
+	return s.textOutlineWidth
 }
 
 // MatchedBackgroundColor returns the matched background color.
@@ -1101,6 +1122,12 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 			config.GridMatchedTextColorLight,
 			config.GridMatchedTextColorDark,
 		),
+		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			"",
+			"",
+		),
+		textOutlineWidth: cfg.UI.TextOutlineWidth,
 		matchedBackgroundColor: cfg.UI.MatchedBackgroundColor.ForTheme(
 			theme,
 			config.GridMatchedBackgroundColorLight,

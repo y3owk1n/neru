@@ -351,11 +351,15 @@ func (o *Overlay) DrawRecursiveGrid(
 		cached.BgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.LabelBgColor = unsafe.Pointer(C.CString(style.LabelBackgroundColor()))
 		cached.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
+		cached.TextOutlineColor = unsafe.Pointer(C.CString(style.TextOutlineColor()))
 		cached.MatchedTextColor = unsafe.Pointer(C.CString(style.TextColor()))
 		cached.MatchedBgColor = unsafe.Pointer(C.CString(style.HighlightColor()))
 		cached.MatchedBorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.BorderColor = unsafe.Pointer(C.CString(style.LineColor()))
 		cached.SubKeyTextColor = unsafe.Pointer(C.CString(style.SubKeyPreviewTextColor()))
+		cached.SubKeyTextOutlineColor = unsafe.Pointer(
+			C.CString(style.SubKeyPreviewTextOutlineColor()),
+		)
 		cached.SubKeyFontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 	})
 
@@ -366,6 +370,8 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundColor:        (*C.char)(cachedStyle.LabelBgColor),
 		textColor:                   (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:            (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:            (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:            C.int(style.TextOutlineWidth()),
 		matchedBackgroundColor:      (*C.char)(cachedStyle.MatchedBgColor),
 		matchedBorderColor:          (*C.char)(cachedStyle.MatchedBorderColor),
 		borderColor:                 (*C.char)(cachedStyle.BorderColor),
@@ -383,6 +389,8 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyFontFamily:            (*C.char)(cachedStyle.SubKeyFontFamily),
 		subKeyAutohideMultiplier:    C.float(style.SubKeyPreviewAutohideMultiplier()),
 		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
+		subKeyTextOutlineColor:      (*C.char)(cachedStyle.SubKeyTextOutlineColor),
+		subKeyTextOutlineWidth:      C.int(style.SubKeyPreviewTextOutlineWidth()),
 		subKeyKeys:                  o.getOrCacheLabel(subKeyLabel),
 	}
 
@@ -505,6 +513,8 @@ type Style struct {
 	lineWidth                       int
 	highlightColor                  string
 	textColor                       string
+	textOutlineColor                string
+	textOutlineWidth                int
 	fontSize                        int
 	fontFamily                      string
 	labelBackground                 bool
@@ -519,6 +529,8 @@ type Style struct {
 	subKeyPreviewFontSize           int
 	subKeyPreviewAutohideMultiplier float64
 	subKeyPreviewTextColor          string
+	subKeyPreviewTextOutlineColor   string
+	subKeyPreviewTextOutlineWidth   int
 	subKeyPreviewLabelChar          string
 }
 
@@ -540,6 +552,26 @@ func (s Style) HighlightColor() string {
 // TextColor returns the text color.
 func (s Style) TextColor() string {
 	return s.textColor
+}
+
+// TextOutlineColor returns the text outline color.
+func (s Style) TextOutlineColor() string {
+	return s.textOutlineColor
+}
+
+// TextOutlineWidth returns the text outline width.
+func (s Style) TextOutlineWidth() int {
+	return s.textOutlineWidth
+}
+
+// SubKeyPreviewTextOutlineColor returns the sub-key preview text outline color.
+func (s Style) SubKeyPreviewTextOutlineColor() string {
+	return s.subKeyPreviewTextOutlineColor
+}
+
+// SubKeyPreviewTextOutlineWidth returns the sub-key preview text outline width.
+func (s Style) SubKeyPreviewTextOutlineWidth() int {
+	return s.subKeyPreviewTextOutlineWidth
 }
 
 // FontSize returns the font size.
@@ -638,9 +670,15 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridTextColorLight,
 			config.RecursiveGridTextColorDark,
 		),
-		fontSize:        cfg.UI.FontSize,
-		fontFamily:      ports.ResolveFont(cfg.UI.FontFamily, true),
-		labelBackground: cfg.UI.LabelBackground,
+		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			"",
+			"",
+		),
+		textOutlineWidth: cfg.UI.TextOutlineWidth,
+		fontSize:         cfg.UI.FontSize,
+		fontFamily:       ports.ResolveFont(cfg.UI.FontFamily, true),
+		labelBackground:  cfg.UI.LabelBackground,
 		labelBackgroundColor: cfg.UI.LabelBackgroundColor.ForTheme(
 			theme,
 			config.RecursiveGridLabelBackgroundColorLight,
@@ -660,6 +698,12 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridSubKeyPreviewTextColorLight,
 			config.RecursiveGridSubKeyPreviewTextColorDark,
 		),
-		subKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
+		subKeyPreviewTextOutlineColor: cfg.UI.SubKeyPreviewTextOutlineColor.ForTheme(
+			theme,
+			"",
+			"",
+		),
+		subKeyPreviewTextOutlineWidth: cfg.UI.SubKeyPreviewTextOutlineWidth,
+		subKeyPreviewLabelChar:        cfg.UI.SubKeyPreviewLabelChar,
 	}
 }

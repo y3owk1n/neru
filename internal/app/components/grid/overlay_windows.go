@@ -34,6 +34,8 @@ type Style struct {
 	MatchedTextColor       uint32
 	MatchedBackgroundColor uint32
 	MatchedBorderColor     uint32
+	TextOutlineColor       uint32
+	TextOutlineWidth       int
 	ShowLabels             bool
 }
 
@@ -147,7 +149,13 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 				config.GridMatchedBorderColorDark,
 			),
 		),
-		ShowLabels: true,
+		TextOutlineColor: parseWindowsColor(cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			config.GridTextColorLight,
+			config.GridTextColorDark,
+		)),
+		TextOutlineWidth: cfg.UI.TextOutlineWidth,
+		ShowLabels:       true,
 	}
 }
 

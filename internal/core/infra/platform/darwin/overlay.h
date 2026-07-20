@@ -28,6 +28,8 @@ typedef struct {
 	char *backgroundColor;          ///< Background color
 	char *textColor;                ///< Text color
 	char *matchedTextColor;         ///< Matched text color
+	char *textOutlineColor;         ///< Text outline color (NULL = no outline)
+	double textOutlineWidth;        ///< Text outline width (0 = no outline)
 	char *borderColor;              ///< Border color
 	int borderRadius;               ///< Border radius (-1 = auto)
 	int borderWidth;                ///< Border width
@@ -80,6 +82,8 @@ typedef struct {
 	char *labelBackgroundColor;       ///< Label background color
 	char *textColor;                  ///< Text color
 	char *matchedTextColor;           ///< Matched text color
+	char *textOutlineColor;           ///< Text outline color (NULL = no outline)
+	int textOutlineWidth;             ///< Text outline width (0 = no outline)
 	char *matchedBackgroundColor;     ///< Matched background color
 	char *matchedBorderColor;         ///< Matched border color
 	char *borderColor;                ///< Border color
@@ -97,6 +101,8 @@ typedef struct {
 	char *subKeyFontFamily;           ///< Font family for sub-key preview labels
 	float subKeyAutohideMultiplier;   ///< Minimum cell size multiplier for sub-key preview autohide (0 = disable)
 	char *subKeyTextColor;            ///< Text color for sub-key preview labels
+	char *subKeyTextOutlineColor;     ///< Text outline color for sub-key preview labels (NULL = no outline)
+	int subKeyTextOutlineWidth;       ///< Text outline width for sub-key preview labels (0 = no outline)
 	char *subKeyKeys;                 ///< Key string for sub-key preview (next depth's keys, uppercased)
 } GridCellStyle;
 
@@ -335,6 +341,8 @@ typedef struct {
 	char *backgroundColor;     ///< Badge background color
 	char *textColor;           ///< Label text color
 	char *matchedTextColor;    ///< Matched prefix text color
+	char *textOutlineColor;    ///< Text outline color (NULL = no outline)
+	int textOutlineWidth;      ///< Text outline width (0 = no outline)
 	char *borderColor;         ///< Badge border color
 	char *backdropColor;       ///< Monitor backdrop tint color
 	char *subtitleTextColor;   ///< Subtitle text color

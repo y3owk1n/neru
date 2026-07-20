@@ -193,16 +193,29 @@ void neru_x11_overlay_rounded_rect(
 
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color) {
+    unsigned int color, unsigned int outline_color, double outline_width) {
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	cairo_save(cr);
 	cairo_select_font_face(cr, font_family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
-	neru_x11_overlay_color(cr, color);
-	cairo_move_to(cr, x - (extents.width / 2.0) - extents.x_bearing, y - (extents.height / 2.0) - extents.y_bearing);
-	cairo_show_text(cr, text);
+	double text_x = x - (extents.width / 2.0) - extents.x_bearing;
+	double text_y = y - (extents.height / 2.0) - extents.y_bearing;
+	if (outline_width > 0.0) {
+		cairo_move_to(cr, text_x, text_y);
+		cairo_text_path(cr, text);
+		neru_x11_overlay_color(cr, outline_color);
+		cairo_set_line_width(cr, outline_width);
+		cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+		cairo_stroke_preserve(cr);
+		neru_x11_overlay_color(cr, color);
+		cairo_fill(cr);
+	} else {
+		neru_x11_overlay_color(cr, color);
+		cairo_move_to(cr, text_x, text_y);
+		cairo_show_text(cr, text);
+	}
 	cairo_restore(cr);
 }
 

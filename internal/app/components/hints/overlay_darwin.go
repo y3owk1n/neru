@@ -106,6 +106,8 @@ type StyleMode struct {
 	backgroundColor          string
 	textColor                string
 	matchedTextColor         string
+	textOutlineColor         string
+	textOutlineWidth         int
 	borderColor              string
 	boundaryHighlightEnabled bool
 	boundaryBorderWidth      int
@@ -162,6 +164,16 @@ func (s StyleMode) TextColor() string {
 // MatchedTextColor returns the matched text color.
 func (s StyleMode) MatchedTextColor() string {
 	return s.matchedTextColor
+}
+
+// TextOutlineColor returns the text outline color.
+func (s StyleMode) TextOutlineColor() string {
+	return s.textOutlineColor
+}
+
+// TextOutlineWidth returns the text outline width.
+func (s StyleMode) TextOutlineWidth() int {
+	return s.textOutlineWidth
 }
 
 // BorderColor returns the border color.
@@ -377,6 +389,12 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 			config.HintsMatchedTextColorLight,
 			config.HintsMatchedTextColorDark,
 		),
+		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			"",
+			"",
+		),
+		textOutlineWidth: cfg.UI.TextOutlineWidth,
 		borderColor: cfg.UI.BorderColor.ForTheme(
 			theme,
 			config.HintsBorderColorLight,
@@ -571,6 +589,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		_cachedStyle.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
 		_cachedStyle.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
 		_cachedStyle.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		_cachedStyle.TextOutlineColor = unsafe.Pointer(C.CString(style.TextOutlineColor()))
 		_cachedStyle.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
 		_cachedStyle.BoundaryBgColor = unsafe.Pointer(C.CString(style.BoundaryBackgroundColor()))
 		_cachedStyle.BoundaryBorderColor = unsafe.Pointer(C.CString(style.BoundaryBorderColor()))
@@ -587,6 +606,8 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		backgroundColor:          (*C.char)(cachedStyle.BgColor),
 		textColor:                (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:         (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:         (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:         C.double(style.TextOutlineWidth()),
 		borderColor:              (*C.char)(cachedStyle.BorderColor),
 		borderRadius:             C.int(style.BorderRadius()),
 		borderWidth:              C.int(style.BorderWidth()),
@@ -820,6 +841,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		_cachedStyle.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
 		_cachedStyle.TextColor = unsafe.Pointer(C.CString(currentStyle.TextColor()))
 		_cachedStyle.MatchedTextColor = unsafe.Pointer(C.CString(currentStyle.MatchedTextColor()))
+		_cachedStyle.TextOutlineColor = unsafe.Pointer(C.CString(currentStyle.TextOutlineColor()))
 		_cachedStyle.BorderColor = unsafe.Pointer(C.CString(currentStyle.BorderColor()))
 		_cachedStyle.BoundaryBgColor = unsafe.Pointer(
 			C.CString(currentStyle.BoundaryBackgroundColor()),
@@ -840,6 +862,8 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		backgroundColor:          (*C.char)(cachedStyle.BgColor),
 		textColor:                (*C.char)(cachedStyle.TextColor),
 		matchedTextColor:         (*C.char)(cachedStyle.MatchedTextColor),
+		textOutlineColor:         (*C.char)(cachedStyle.TextOutlineColor),
+		textOutlineWidth:         C.double(currentStyle.TextOutlineWidth()),
 		borderColor:              (*C.char)(cachedStyle.BorderColor),
 		borderRadius:             C.int(currentStyle.BorderRadius()),
 		borderWidth:              C.int(currentStyle.BorderWidth()),

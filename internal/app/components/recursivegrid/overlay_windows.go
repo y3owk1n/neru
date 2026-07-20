@@ -38,6 +38,8 @@ type Style struct {
 	LabelBackgroundBorderWidth      float64
 	LabelChar                       string
 	LabelAutohideMultiplier         float64
+	TextOutlineColor                uint32
+	TextOutlineWidth                int
 	SubKeyPreview                   bool
 	SubKeyPreviewFontSize           float64
 	SubKeyPreviewAutohideMultiplier float64
@@ -167,7 +169,13 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			),
 		),
 		SubKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
-		ShowLabels:             true,
+		TextOutlineColor: parseWindowsColor(cfg.UI.TextOutlineColor.ForTheme(
+			theme,
+			config.RecursiveGridTextColorLight,
+			config.RecursiveGridTextColorDark,
+		)),
+		TextOutlineWidth: cfg.UI.TextOutlineWidth,
+		ShowLabels:       true,
 	}
 }
 

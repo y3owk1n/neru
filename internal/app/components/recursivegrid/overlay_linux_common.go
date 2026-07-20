@@ -44,6 +44,10 @@ type Style struct {
 	SubKeyPreviewTextColor          uint32
 	SubKeyPreviewLabelChar          string
 	ShowLabels                      bool
+	TextOutlineColor                uint32
+	TextOutlineWidth                float64
+	SubKeyPreviewTextOutlineColor   uint32
+	SubKeyPreviewTextOutlineWidth   float64
 }
 
 // Overlay manages the rendering of recursive_grid overlays using native platform APIs (Linux stub).
@@ -168,7 +172,23 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		),
 		SubKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
 		ShowLabels:             true,
+		TextOutlineColor: parseOptionalColor(
+			cfg.UI.TextOutlineColor.ForTheme(theme, "", ""),
+		),
+		TextOutlineWidth: float64(cfg.UI.TextOutlineWidth),
+		SubKeyPreviewTextOutlineColor: parseOptionalColor(
+			cfg.UI.SubKeyPreviewTextOutlineColor.ForTheme(theme, "", ""),
+		),
+		SubKeyPreviewTextOutlineWidth: float64(cfg.UI.SubKeyPreviewTextOutlineWidth),
 	}
+}
+
+func parseOptionalColor(value string) uint32 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	return parseLinuxColor(value)
 }
 
 func parseLinuxColor(value string) uint32 {

@@ -343,12 +343,14 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
 
 		if style.ShowLabels {
-			o.drawTextCentered(
+			o.drawTextCenteredWithOutline(
 				label,
 				cell.Bounds(),
 				ports.ResolveFont(style.LabelFontName, false),
 				style.LabelFontSize,
 				text,
+				style.TextOutlineColor,
+				style.TextOutlineWidth,
 			)
 		}
 	}
@@ -427,12 +429,14 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				yBreaks[row+1],
 			)
 			o.drawCellBorder(cell, style.LineColor, style.LineWidth)
-			o.drawTextCentered(
+			o.drawTextCenteredWithOutline(
 				string(keyRunes[index]),
 				cell,
 				ports.ResolveFont(style.LabelFontName, false),
 				style.LabelFontSize*winSubgridFontScale,
 				style.LabelFontColor,
+				style.TextOutlineColor,
+				style.TextOutlineWidth,
 			)
 			index++
 		}
@@ -467,9 +471,33 @@ func (o *winOverlay) drawTextCentered(
 	fontSize float64,
 	color uint32,
 ) {
+	o.drawTextCenteredWithOutline(text, bounds, fontFamily, fontSize, color, 0, 0)
+}
+
+func (o *winOverlay) drawTextCenteredWithOutline(
+	text string,
+	bounds image.Rectangle,
+	fontFamily string,
+	fontSize float64,
+	color uint32,
+	outlineColor uint32,
+	outlineWidth int,
+) {
 	if o == nil || o.window == nil {
 		return
 	}
 
-	o.window.DrawTextCentered(text, bounds, fontFamily, fontSize, color)
+	if outlineWidth > 0 {
+		o.window.DrawTextCenteredWithOutline(
+			text,
+			bounds,
+			fontFamily,
+			fontSize,
+			color,
+			outlineColor,
+			outlineWidth,
+		)
+	} else {
+		o.window.DrawTextCentered(text, bounds, fontFamily, fontSize, color)
+	}
 }

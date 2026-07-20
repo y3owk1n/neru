@@ -134,11 +134,13 @@ type rectStroke struct {
 }
 
 type textDraw struct {
-	text       string
-	rect       image.Rectangle
-	fontFamily string
-	fontSize   float64
-	color      uint32
+	text         string
+	rect         image.Rectangle
+	fontFamily   string
+	fontSize     float64
+	color        uint32
+	outlineColor uint32
+	outlineWidth int
 }
 
 type bitmapV4Header struct {
@@ -579,13 +581,27 @@ func (o *OverlayWindow) StrokeRoundedRect(
 }
 
 // DrawTextCentered renders centered text inside bounds using GDI onto the
-// pixel buffer with alpha compositing.
+// pixel buffer with alpha compositing, without text outline.
 func (o *OverlayWindow) DrawTextCentered(
 	text string,
 	bounds image.Rectangle,
 	fontFamily string,
 	fontSize float64,
 	color uint32,
+) {
+	o.DrawTextCenteredWithOutline(text, bounds, fontFamily, fontSize, color, 0, 0)
+}
+
+// DrawTextCenteredWithOutline renders centered text with an optional outline
+// stroke. When outlineWidth <= 0, behavior is identical to DrawTextCentered.
+func (o *OverlayWindow) DrawTextCenteredWithOutline(
+	text string,
+	bounds image.Rectangle,
+	fontFamily string,
+	fontSize float64,
+	color uint32,
+	outlineColor uint32,
+	outlineWidth int,
 ) {
 	if o == nil || text == "" || bounds.Empty() {
 		return
@@ -597,11 +613,13 @@ func (o *OverlayWindow) DrawTextCentered(
 
 	o.mu.Lock()
 	o.texts = append(o.texts, textDraw{
-		text:       text,
-		rect:       bounds,
-		fontFamily: fontFamily,
-		fontSize:   fontSize,
-		color:      color,
+		text:         text,
+		rect:         bounds,
+		fontFamily:   fontFamily,
+		fontSize:     fontSize,
+		color:        color,
+		outlineColor: outlineColor,
+		outlineWidth: outlineWidth,
 	})
 	o.dirty = true
 	o.mu.Unlock()
@@ -644,7 +662,7 @@ func (o *OverlayWindow) CompositeCurrent() {
 	}
 
 	for _, t := range texts {
-		renderTextAlphaInto(o.pixels, o.width, o.height, t)
+		renderTextAlphaInto(o.pixels, o.width, o.height, t, t.outlineColor, t.outlineWidth)
 	}
 }
 
@@ -698,7 +716,7 @@ func (o *OverlayWindow) Flush() error {
 
 	// Render text via GDI onto a temporary bitmap, then composite.
 	for _, t := range texts {
-		renderTextAlphaInto(pixels, o.width, o.height, t)
+		renderTextAlphaInto(pixels, o.width, o.height, t, t.outlineColor, t.outlineWidth)
 	}
 
 	runOnOverlayUI(func() {
@@ -859,7 +877,13 @@ func (o *OverlayWindow) flushPixels() {
 	))
 }
 
-func renderTextAlphaInto(pixels []byte, bufW, bufH int, textCmd textDraw) {
+func renderTextAlphaInto(
+	pixels []byte,
+	bufW, bufH int,
+	textCmd textDraw,
+	outlineColor uint32,
+	outlineWidth int,
+) {
 	// Clamp text rect to overlay bounds.
 	textRect := textCmd.rect.Intersect(image.Rect(0, 0, bufW, bufH))
 	if textRect.Empty() {
@@ -998,7 +1022,33 @@ func renderTextAlphaInto(pixels []byte, bufW, bufH int, textCmd textDraw) {
 		dtCenter|dtVCenter|dtSingleLine,
 	))
 
-	// Composite the small text bitmap into the main pixel buffer at the correct offset.
+	// When outlineWidth > 0, dilate the text coverage mask and composite the
+	// outline behind the fill text.
+	if outlineWidth > 0 {
+		dilated := dilateCoverage(tmpPixels, texW, texH, outlineWidth)
+		outlinePixels := make([]byte, texW*texH*bytesPerPixel)
+		for y := 0; y < texH; y++ {
+			for x := 0; x < texW; x++ {
+				cov := dilated[y*texW+x]
+				if cov > 0 {
+					outlinePixels[(y*texW+x)*bytesPerPixel+2] = cov
+				}
+			}
+		}
+		alphaCompositeTextAt(
+			pixels,
+			bufW,
+			bufH,
+			outlinePixels,
+			texW,
+			texH,
+			textX,
+			textY,
+			outlineColor,
+		)
+	}
+
+	// Composite the fill text on top of any outline.
 	alphaCompositeTextAt(pixels, bufW, bufH, tmpPixels, texW, texH, textX, textY, textCmd.color)
 }
 
@@ -1312,6 +1362,45 @@ func alphaCompositeTextAt(
 			pixels[dstIdx+3] = byte(srcA + (dstA*invA)/alphaMax)
 		}
 	}
+}
+
+// dilateCoverage creates a dilated coverage mask from the text bitmap. For
+// each pixel, it finds the maximum coverage within a (outlineWidth*2+1) square
+// neighborhood in the source text bitmap. Coverage is read from the red channel
+// (index +2 in BGRA layout).
+func dilateCoverage(src []byte, w, h, outlineWidth int) []byte {
+	if outlineWidth <= 0 {
+		dst := make([]byte, w*h)
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				dst[y*w+x] = src[(y*w+x)*bytesPerPixel+2]
+			}
+		}
+		return dst
+	}
+
+	dst := make([]byte, w*h)
+	for y := 0; y < h; y++ {
+		y0 := max(0, y-outlineWidth)
+		y1 := min(h, y+outlineWidth+1)
+		for x := 0; x < w; x++ {
+			x0 := max(0, x-outlineWidth)
+			x1 := min(w, x+outlineWidth+1)
+
+			var maxCov byte
+			for dy := y0; dy < y1; dy++ {
+				row := dy * w * bytesPerPixel
+				for dx := x0; dx < x1; dx++ {
+					cov := src[row+dx*bytesPerPixel+2]
+					if cov > maxCov {
+						maxCov = cov
+					}
+				}
+			}
+			dst[y*w+x] = maxCov
+		}
+	}
+	return dst
 }
 
 func clamp(val, maxVal int) int {

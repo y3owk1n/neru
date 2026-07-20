@@ -130,6 +130,8 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, strong) NSFont *hintFont;                      ///< Hint font
 @property(nonatomic, strong) NSColor *hintTextColor;                ///< Hint text color
 @property(nonatomic, strong) NSColor *hintMatchedTextColor;         ///< Hint matched text color
+@property(nonatomic, strong) NSColor *hintTextOutlineColor;         ///< Hint text outline color
+@property(nonatomic, assign) CGFloat hintTextOutlineWidth;          ///< Hint text outline width
 @property(nonatomic, strong) NSColor *hintBackgroundColor;          ///< Hint background color
 @property(nonatomic, strong) NSColor *hintBorderColor;              ///< Hint border color
 @property(nonatomic, strong) NSColor *hintBoundaryBackgroundColor;  ///< Target boundary fill color
@@ -163,6 +165,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, strong) NSFont *gridFont;        ///< Grid font
 @property(nonatomic, strong) NSColor *gridTextColor;  ///< Grid text color
 @property(nonatomic, strong) NSColor *gridMatchedTextColor;            ///< Grid matched text color
+@property(nonatomic, strong) NSColor *gridTextOutlineColor;            ///< Grid text outline color
+@property(nonatomic, assign) CGFloat gridTextOutlineWidth;             ///< Grid text outline width
+@property(nonatomic, strong) NSColor *gridSubKeyTextOutlineColor;      ///< Sub-key preview text outline color
+@property(nonatomic, assign) CGFloat gridSubKeyTextOutlineWidth;       ///< Sub-key preview text outline width
 @property(nonatomic, strong) NSColor *gridMatchedBackgroundColor;      ///< Grid matched background color
 @property(nonatomic, strong) NSColor *gridMatchedBorderColor;          ///< Grid matched border color
 @property(nonatomic, strong) NSColor *gridBackgroundColor;             ///< Grid background color
@@ -314,6 +320,8 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_hintBoundaryHighlightEnabled = NO;
 		_hintBoundaryBorderWidth = 1.0;
 		_hintBoundaryBorderRadius = 4.0;
+		_hintTextOutlineColor = nil;
+		_hintTextOutlineWidth = 0;
 		_hintPaddingX = -1.0;
 		_hintPaddingY = -1.0;
 		_searchInput = nil;
@@ -344,6 +352,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		_gridSubKeyAutohideMultiplier = 1.5;
 		_gridLabelAutohideMultiplier = 0.0;
 		_hideUnmatched = NO;
+		_gridTextOutlineColor = nil;
+		_gridTextOutlineWidth = 0;
+		_gridSubKeyTextOutlineColor = nil;
+		_gridSubKeyTextOutlineWidth = 0;
 		_cursorIndicatorVisible = NO;
 		_cursorIndicatorRadius = 3.0;
 		_cursorIndicatorFillColor = [NSColor colorWithWhite:1.0 alpha:1.0];
@@ -1303,6 +1315,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 		[attrString
 		    setAttributes:@{NSFontAttributeName : self.hintFont, NSForegroundColorAttributeName : self.hintTextColor}
 		            range:fullRange];
+		if (self.hintTextOutlineWidth > 0 && self.hintTextOutlineColor) {
+			[attrString addAttribute:NSStrokeColorAttributeName value:self.hintTextOutlineColor range:fullRange];
+			[attrString addAttribute:NSStrokeWidthAttributeName value:@(-self.hintTextOutlineWidth) range:fullRange];
+		}
 		if (matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 			[attrString addAttribute:NSForegroundColorAttributeName
 			                   value:self.hintMatchedTextColor
@@ -1586,6 +1602,12 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	[attrString addAttribute:NSForegroundColorAttributeName
 	                   value:[self color:self.cachedGridTextColor withMultipliedAlpha:alpha]
 	                   range:fullRange];
+	if (self.gridTextOutlineWidth > 0 && self.gridTextOutlineColor) {
+		[attrString addAttribute:NSStrokeColorAttributeName
+		                   value:[self color:self.gridTextOutlineColor withMultipliedAlpha:alpha]
+		                   range:fullRange];
+		[attrString addAttribute:NSStrokeWidthAttributeName value:@(-self.gridTextOutlineWidth) range:fullRange];
+	}
 	if (isMatched && matchedPrefixLength > 0 && matchedPrefixLength <= [label length]) {
 		[attrString addAttribute:NSForegroundColorAttributeName
 		                   value:[self color:self.cachedGridMatchedTextColor withMultipliedAlpha:alpha]
@@ -1730,6 +1752,10 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 			[[str mutableString] setString:subLabel];
 			NSRange range = NSMakeRange(0, subLabel.length);
 			[str setAttributes:@{NSFontAttributeName : subFont, NSForegroundColorAttributeName : subColor} range:range];
+			if (self.gridSubKeyTextOutlineWidth > 0 && self.gridSubKeyTextOutlineColor) {
+				[str addAttribute:NSStrokeColorAttributeName value:self.gridSubKeyTextOutlineColor range:range];
+				[str addAttribute:NSStrokeWidthAttributeName value:@(-self.gridSubKeyTextOutlineWidth) range:range];
+			}
 
 			NSSize textSize = [str size];
 			CGFloat x = subRect.origin.x + (subCellWidth - textSize.width) / 2.0;
@@ -2535,6 +2561,8 @@ void NeruDrawIncrementHints(
 	NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *textOutlineHex = style.textOutlineColor ? @(style.textOutlineColor) : nil;
+	double textOutlineWidth = style.textOutlineWidth;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
 	NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
 	NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
@@ -2602,6 +2630,15 @@ void NeruDrawIncrementHints(
 			controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
 			controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
 			controller.overlayView.hintBoundaryBorderRadius = boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
+
+			// Apply text outline
+			if (textOutlineHex) {
+				controller.overlayView.hintTextOutlineColor = [controller.overlayView colorFromHex:textOutlineHex
+				                                                                      defaultColor:nil];
+			} else {
+				controller.overlayView.hintTextOutlineColor = nil;
+			}
+			controller.overlayView.hintTextOutlineWidth = textOutlineWidth;
 
 			// Remove hints matching the given positions
 			if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {
@@ -2743,6 +2780,10 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 	}
 	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
+	NSString *textOutlineHex = style.textOutlineColor ? @(style.textOutlineColor) : nil;
+	int textOutlineWidth = style.textOutlineWidth;
+	NSString *subKeyTextOutlineHex = style.subKeyTextOutlineColor ? @(style.subKeyTextOutlineColor) : nil;
+	int subKeyTextOutlineWidth = style.subKeyTextOutlineWidth;
 
 	// Build sub-key labels array from the next-depth key string.
 	// Use composed-character enumeration so this stays correct even if
@@ -2833,6 +2874,24 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
 
+			// Apply text outline
+			if (textOutlineHex) {
+				controller.overlayView.gridTextOutlineColor = [controller.overlayView colorFromHex:textOutlineHex
+				                                                                      defaultColor:nil];
+			} else {
+				controller.overlayView.gridTextOutlineColor = nil;
+			}
+			controller.overlayView.gridTextOutlineWidth = textOutlineWidth;
+
+			// Apply sub-key preview text outline
+			if (subKeyTextOutlineHex) {
+				controller.overlayView.gridSubKeyTextOutlineColor =
+				    [controller.overlayView colorFromHex:subKeyTextOutlineHex defaultColor:nil];
+			} else {
+				controller.overlayView.gridSubKeyTextOutlineColor = nil;
+			}
+			controller.overlayView.gridSubKeyTextOutlineWidth = subKeyTextOutlineWidth;
+
 			// Replace cell data and redisplay
 			[controller.overlayView cancelGridTransition];
 			[controller.overlayView cancelCursorIndicatorTransition];
@@ -2892,6 +2951,8 @@ void NeruAnimateRecursiveGridTransition(
 	}
 	CGFloat subKeyAutohideMultiplier = style.subKeyAutohideMultiplier;
 	NSString *subKeyTextHex = style.subKeyTextColor ? @(style.subKeyTextColor) : nil;
+	NSString *textOutlineHex = style.textOutlineColor ? @(style.textOutlineColor) : nil;
+	int textOutlineWidth = style.textOutlineWidth;
 
 	NSString *subKeyKeysStr = style.subKeyKeys ? @(style.subKeyKeys) : nil;
 	NSMutableArray<NSString *> *subKeyLabels = nil;
@@ -2973,6 +3034,16 @@ void NeruAnimateRecursiveGridTransition(
 
 			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+
+			// Apply text outline
+			if (textOutlineHex) {
+				controller.overlayView.gridTextOutlineColor = [controller.overlayView colorFromHex:textOutlineHex
+				                                                                      defaultColor:nil];
+			} else {
+				controller.overlayView.gridTextOutlineColor = nil;
+			}
+			controller.overlayView.gridTextOutlineWidth = textOutlineWidth;
+
 			[controller.overlayView startGridTransitionToCells:cellItems duration:duration];
 		}
 	});
@@ -3165,6 +3236,8 @@ void NeruDrawIncrementGrid(
 	NSString *labelBgHex = style.labelBackgroundColor ? @(style.labelBackgroundColor) : nil;
 	NSString *textHex = style.textColor ? @(style.textColor) : nil;
 	NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
+	NSString *textOutlineHex = style.textOutlineColor ? @(style.textOutlineColor) : nil;
+	int textOutlineWidth = style.textOutlineWidth;
 	NSString *matchedBgHex = style.matchedBackgroundColor ? @(style.matchedBackgroundColor) : nil;
 	NSString *matchedBorderHex = style.matchedBorderColor ? @(style.matchedBorderColor) : nil;
 	NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
@@ -3240,6 +3313,16 @@ void NeruDrawIncrementGrid(
 			// Sync cached color references
 			controller.overlayView.cachedGridTextColor = controller.overlayView.gridTextColor;
 			controller.overlayView.cachedGridMatchedTextColor = controller.overlayView.gridMatchedTextColor;
+
+			// Apply text outline
+			if (textOutlineHex) {
+				controller.overlayView.gridTextOutlineColor = [controller.overlayView colorFromHex:textOutlineHex
+				                                                                      defaultColor:nil];
+			} else {
+				controller.overlayView.gridTextOutlineColor = nil;
+			}
+			controller.overlayView.gridTextOutlineWidth = textOutlineWidth;
+
 			[controller.overlayView cancelGridTransition];
 			[controller.overlayView cancelCursorIndicatorTransition];
 

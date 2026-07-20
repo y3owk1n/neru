@@ -29,6 +29,8 @@ type StyleMode struct {
 	boundaryBorderRadius     int
 	boundaryBackgroundColor  string
 	boundaryBorderColor      string
+	textOutlineColor         string
+	textOutlineWidth         int
 }
 
 // FontSize returns the font size.
@@ -78,6 +80,12 @@ func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroun
 
 // BoundaryBorderColor returns the target boundary stroke color.
 func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
+
+// TextOutlineColor returns the text outline color.
+func (s StyleMode) TextOutlineColor() string { return s.textOutlineColor }
+
+// TextOutlineWidth returns the text outline width.
+func (s StyleMode) TextOutlineWidth() int { return s.textOutlineWidth }
 
 // Overlay manages the rendering of hint overlays using native platform APIs (Linux stub).
 type Overlay struct {
@@ -177,5 +185,7 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 			config.HintsBoundaryBorderColorLight,
 			config.HintsBoundaryBorderColorDark,
 		),
+		textOutlineColor: cfg.UI.TextOutlineColor.ForTheme(theme, "", ""),
+		textOutlineWidth: cfg.UI.TextOutlineWidth,
 	}
 }
