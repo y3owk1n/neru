@@ -42,6 +42,11 @@ const (
 	// This prevents allocation-size panics from oversized dimensions.
 	MaxGridRows = 10000
 
+	// MaxDisplayDimension caps the width and height in pixels to prevent
+	// excessive work in candidate generation and overflow in area computation.
+	// Real display bounds are well under this value (typical max is ~30000).
+	MaxDisplayDimension = 50000
+
 	// MaxKeyIndex is the maximum key index.
 	MaxKeyIndex = 9
 
@@ -231,6 +236,17 @@ func NewGridWithLabels(
 			index:      make(map[string]*Cell),
 			prefixes:   make(map[string]bool),
 		}
+	}
+
+	// Clamp display dimensions to a practical maximum to bound candidate search
+	// work and prevent overflow in area computation. Real display bounds are
+	// typically under 30000 pixels per side; this clamp is purely defensive.
+	if width > MaxDisplayDimension {
+		width = MaxDisplayDimension
+	}
+
+	if height > MaxDisplayDimension {
+		height = MaxDisplayDimension
 	}
 
 	// Automatically determine optimal cell size constraints based on screen characteristics
