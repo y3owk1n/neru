@@ -244,6 +244,12 @@ func NewGridWithLabels(
 		gridRows = 2
 	}
 
+	// Guard against integer overflow in cell allocation size.
+	// gridCols and gridRows are screen-derived (< 10^4), so this is defensive.
+	if gridCols > math.MaxInt/gridRows {
+		gridCols = math.MaxInt / gridRows
+	}
+
 	// Calculate total cells needed to fill screen
 	totalCells := gridRows * gridCols
 
