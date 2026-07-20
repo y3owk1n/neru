@@ -1027,14 +1027,16 @@ func renderTextAlphaInto(
 	if outlineWidth > 0 {
 		dilated := dilateCoverage(tmpPixels, texW, texH, outlineWidth)
 		outlinePixels := make([]byte, texW*texH*bytesPerPixel)
-		for y := 0; y < texH; y++ {
-			for x := 0; x < texW; x++ {
+
+		for y := range texH {
+			for x := range texW {
 				cov := dilated[y*texW+x]
 				if cov > 0 {
 					outlinePixels[(y*texW+x)*bytesPerPixel+2] = cov
 				}
 			}
 		}
+
 		alphaCompositeTextAt(
 			pixels,
 			bufW,
@@ -1368,38 +1370,41 @@ func alphaCompositeTextAt(
 // each pixel, it finds the maximum coverage within a (outlineWidth*2+1) square
 // neighborhood in the source text bitmap. Coverage is read from the red channel
 // (index +2 in BGRA layout).
-func dilateCoverage(src []byte, w, h, outlineWidth int) []byte {
+func dilateCoverage(src []byte, width, height, outlineWidth int) []byte {
 	if outlineWidth <= 0 {
-		dst := make([]byte, w*h)
-		for y := 0; y < h; y++ {
-			for x := 0; x < w; x++ {
-				dst[y*w+x] = src[(y*w+x)*bytesPerPixel+2]
+		dst := make([]byte, width*height)
+		for y := range height {
+			for x := range width {
+				dst[y*width+x] = src[(y*width+x)*bytesPerPixel+2]
 			}
 		}
+
 		return dst
 	}
 
-	dst := make([]byte, w*h)
-	for y := 0; y < h; y++ {
-		y0 := max(0, y-outlineWidth)
-		y1 := min(h, y+outlineWidth+1)
-		for x := 0; x < w; x++ {
-			x0 := max(0, x-outlineWidth)
-			x1 := min(w, x+outlineWidth+1)
+	dst := make([]byte, width*height)
+	for y := range height {
+		yStart := max(0, y-outlineWidth)
+		yEnd := min(height, y+outlineWidth+1)
+		for x := range width {
+			xStart := max(0, x-outlineWidth)
+			xEnd := min(width, x+outlineWidth+1)
 
 			var maxCov byte
-			for dy := y0; dy < y1; dy++ {
-				row := dy * w * bytesPerPixel
-				for dx := x0; dx < x1; dx++ {
+			for dy := yStart; dy < yEnd; dy++ {
+				row := dy * width * bytesPerPixel
+				for dx := xStart; dx < xEnd; dx++ {
 					cov := src[row+dx*bytesPerPixel+2]
 					if cov > maxCov {
 						maxCov = cov
 					}
 				}
 			}
-			dst[y*w+x] = maxCov
+
+			dst[y*width+x] = maxCov
 		}
 	}
+
 	return dst
 }
 
