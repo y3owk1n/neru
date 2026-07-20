@@ -176,10 +176,12 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			"",
 			"",
 		)),
-		TextOutlineWidth:                cfg.UI.TextOutlineWidth,
-		SubKeyPreviewTextOutlineColor:   parseWindowsColor(cfg.UI.SubKeyPreviewTextOutlineColor.ForTheme(theme, "", "")),
-		SubKeyPreviewTextOutlineWidth:   cfg.UI.SubKeyPreviewTextOutlineWidth,
-		ShowLabels:                      true,
+		TextOutlineWidth: cfg.UI.TextOutlineWidth,
+		SubKeyPreviewTextOutlineColor: parseWindowsColor(
+			cfg.UI.SubKeyPreviewTextOutlineColor.ForTheme(theme, "", ""),
+		),
+		SubKeyPreviewTextOutlineWidth: cfg.UI.SubKeyPreviewTextOutlineWidth,
+		ShowLabels:                    true,
 	}
 }
 
