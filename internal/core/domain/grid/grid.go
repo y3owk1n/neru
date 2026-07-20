@@ -34,6 +34,14 @@ const (
 	// MinGridRows is the minimum number of grid rows.
 	MinGridRows = 2
 
+	// MaxGridCols is the maximum number of grid columns.
+	// This prevents allocation-size panics from oversized dimensions.
+	MaxGridCols = 10000
+
+	// MaxGridRows is the maximum number of grid rows.
+	// This prevents allocation-size panics from oversized dimensions.
+	MaxGridRows = 10000
+
 	// MaxKeyIndex is the maximum key index.
 	MaxKeyIndex = 9
 
@@ -244,8 +252,17 @@ func NewGridWithLabels(
 		gridRows = 2
 	}
 
+	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
+	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
+	if gridCols > MaxGridCols {
+		gridCols = MaxGridCols
+	}
+
+	if gridRows > MaxGridRows {
+		gridRows = MaxGridRows
+	}
+
 	// Guard against integer overflow in cell allocation size.
-	// gridCols and gridRows are screen-derived (< 10^4), so this is defensive.
 	if gridCols > math.MaxInt/gridRows {
 		gridCols = math.MaxInt / gridRows
 	}
@@ -418,8 +435,17 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	// Guard grid dimensions against integer overflow in the cell allocation.
-	// In practice gridCols/gridRows are screen-derived (< 10^4), so this is defensive.
+	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
+	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
+	if gridCols > MaxGridCols {
+		gridCols = MaxGridCols
+	}
+
+	if gridRows > MaxGridRows {
+		gridRows = MaxGridRows
+	}
+
+	// Guard against integer overflow in cell allocation size.
 	if gridCols > math.MaxInt/gridRows {
 		gridCols = math.MaxInt / gridRows
 	}
