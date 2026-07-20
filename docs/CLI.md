@@ -301,11 +301,12 @@ neru action left_click --modifier cmd,shift
 neru action right_click --modifier alt
 ```
 
-Click chaining via `--action` (commas produce multi-click events):
+Commas chain multiple click actions directly:
 
 ```bash
-neru hints --action left_click,left_click           # Double-click
-neru hints --action left_click,left_click,left_click # Triple-click
+neru action left_click,left_click             # Double-click
+neru action left_click,left_click,left_click  # Triple-click
+neru hints --action left_click,left_click     # Same, via mode --action
 ```
 
 ### 12b. move_mouse
@@ -395,7 +396,7 @@ neru action go_bottom
 
 ### 12f. feed
 
-`neru action feed [-h|--help] [--mode] -- <key> [<key>...]`
+`neru action feed [-h|--help] [--mode] <key> [<key>...]`
 
 Post keystrokes to the system or to Neru's mode system.
 
