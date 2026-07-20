@@ -424,7 +424,9 @@ func initializeModeHandler(app *App) {
 
 // initializeIPCController sets up the IPC controller for external communication.
 // Note: eventTap and ipcServer are nil at this point; they are set later
-// via SetInfrastructure in initializeEventTapAndIPC (Phase 8).
+// via SetInfrastructure in initializeEventTapAndIPC (Phase 8). The
+// SetConfigField callback is set after creation so the constructor's
+// signature stays stable for test callers.
 func initializeIPCController(app *App) {
 	app.ipcController = NewIPCController(
 		app.hintService,
@@ -441,6 +443,12 @@ func initializeIPCController(app *App) {
 		app.ReloadConfig,
 		app.logger,
 	)
+
+	// Set the config-set callback so runtime field changes propagate to
+	// app components (services, overlays, hotkeys, etc.). Uses the setter
+	// method so it also propagates to the info handler (which was created
+	// during construction before the callback was available).
+	app.ipcController.SetConfigFieldCallback(app.SetConfigField)
 }
 
 // setupScreenShareStateSubscription sets up a callback to update overlay when screen share state changes.

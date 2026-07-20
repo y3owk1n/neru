@@ -165,6 +165,136 @@ func TestIPCController_UnknownCommand(t *testing.T) {
 	}
 }
 
+func TestIPCController_HandleConfigSet_String(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	// Set a string config field
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"hints.hint_characters", "qwerty"},
+	})
+
+	if !commandResponse.Success {
+		t.Fatalf(
+			"Expected success=true, got %v: %s",
+			commandResponse.Success,
+			commandResponse.Message,
+		)
+	}
+
+	if commandResponse.Code != ipc.CodeOK {
+		t.Fatalf("Expected code=%s, got %s", ipc.CodeOK, commandResponse.Code)
+	}
+
+	// Verify the change took effect by dumping the config
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
+		if cfg.Hints.HintCharacters != "qwerty" {
+			t.Errorf("Expected hint_characters='qwerty', got %q", cfg.Hints.HintCharacters)
+		}
+	} else {
+		t.Error("Failed to read config after set")
+	}
+}
+
+func TestIPCController_HandleConfigSet_Integer(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"hints.ui.font_size", "14"},
+	})
+
+	if !commandResponse.Success {
+		t.Fatalf(
+			"Expected success=true, got %v: %s",
+			commandResponse.Success,
+			commandResponse.Message,
+		)
+	}
+
+	// Verify the change
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
+		if cfg.Hints.UI.FontSize != 14 {
+			t.Errorf("Expected font_size=14, got %d", cfg.Hints.UI.FontSize)
+		}
+	} else {
+		t.Error("Failed to read config after set")
+	}
+}
+
+func TestIPCController_HandleConfigSet_Bool(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"general.passthrough_unbounded_keys", "true"},
+	})
+
+	if !commandResponse.Success {
+		t.Fatalf(
+			"Expected success=true, got %v: %s",
+			commandResponse.Success,
+			commandResponse.Message,
+		)
+	}
+
+	// Verify the change
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+	if cfg, ok := cfgResp.Data.(*config.Config); ok && cfg != nil {
+		if !cfg.General.PassthroughUnboundedKeys {
+			t.Error("Expected passthrough_unbounded_keys=true")
+		}
+	} else {
+		t.Error("Failed to read config after set")
+	}
+}
+
+func TestIPCController_HandleConfigSet_InvalidKey(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"hints.nonexistent", "value"},
+	})
+
+	if commandResponse.Success {
+		t.Fatal("Expected success=false for invalid key")
+	}
+
+	if commandResponse.Code != ipc.CodeInvalidInput {
+		t.Fatalf("Expected code=%s, got %s", ipc.CodeInvalidInput, commandResponse.Code)
+	}
+}
+
+func TestIPCController_HandleConfigSet_MissingArgs(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"hints.hint_characters"},
+	})
+
+	if commandResponse.Success {
+		t.Fatal("Expected success=false for missing args")
+	}
+
+	if commandResponse.Code != ipc.CodeInvalidInput {
+		t.Fatalf("Expected code=%s, got %s", ipc.CodeInvalidInput, commandResponse.Code)
+	}
+}
+
 func TestIPCController_UpdateConfig(t *testing.T) {
 	controller := newTestController()
 	ctx := context.Background()

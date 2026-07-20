@@ -37,6 +37,11 @@ type IPCController struct {
 	// Reload callback for full app-level config reload
 	ReloadConfig func(ctx context.Context, configPath string) error
 
+	// SetConfigField callback for runtime config field changes with full
+	// app-level reconfiguration (component updates, hotkey re-registration, etc.).
+	// If nil, the config is only updated in-memory.
+	SetConfigField func(ctx context.Context, key, value string) error
+
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
 
@@ -111,6 +116,19 @@ func (c *IPCController) UpdateConfig(cfg *config.Config) {
 	}
 }
 
+// SetConfigFieldCallback sets the callback for runtime config field changes
+// and propagates it to the info handler. Must be called after construction
+// (e.g. from initializeIPCController) since the constructor's registerHandlers
+// runs before the callback can be set.
+func (c *IPCController) SetConfigFieldCallback(
+	cb func(ctx context.Context, key, value string) error,
+) {
+	c.SetConfigField = cb
+	if c.infoHandler != nil {
+		c.infoHandler.setConfigField = cb
+	}
+}
+
 // SetInfrastructure updates the infrastructure references on the controller
 // and its info handler. This is called after event tap and IPC server are
 // initialized (Phase 8), since the IPC controller is created earlier (Phase 7).
@@ -150,12 +168,14 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 		c.IPCServer,
 		c.ReloadConfig,
 		c.Logger,
+		nil, // setConfigField — set below before RegisterHandlers
 	)
 
 	// Register handlers from each component
 	lifecycleHandler.RegisterHandlers(c.Handlers)
 	modesHandler.RegisterHandlers(c.Handlers)
 	actionsHandler.RegisterHandlers(c.Handlers)
+
 	c.infoHandler.RegisterHandlers(c.Handlers)
 
 	// Register overlay handler
