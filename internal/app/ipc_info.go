@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +30,10 @@ const healthNotInitialized = "not initialized"
 // supported/stub/headless/ok vocabulary.
 const detailSuffix = "_detail"
 
+// minConfigSetArgs is the minimum number of arguments required by the
+// config-set IPC handler (key and value).
+const minConfigSetArgs = 2
+
 // IPCControllerInfo handles info and config-related IPC commands.
 type IPCControllerInfo struct {
 	configService *config.Service
@@ -47,6 +52,11 @@ type IPCControllerInfo struct {
 
 	// configMu protects config from concurrent read/write.
 	configMu sync.RWMutex
+
+	// setConfigField is a callback invoked by handleConfigSet to apply a
+	// config field change at the app level (reconfigure components, re-register
+	// hotkeys, etc.). If nil only the in-memory config is updated.
+	setConfigField func(ctx context.Context, key, value string) error
 }
 
 // NewIPCControllerInfo creates a new info/config command handler.
@@ -64,21 +74,23 @@ func NewIPCControllerInfo(
 	ipcServer ports.IPCPort,
 	reloadConfig func(ctx context.Context, configPath string) error,
 	logger *zap.Logger,
+	setConfigField func(ctx context.Context, key, value string) error,
 ) *IPCControllerInfo {
 	return &IPCControllerInfo{
-		configService: configService,
-		appState:      appState,
-		config:        config,
-		modes:         modes,
-		hintService:   hintService,
-		gridService:   gridService,
-		actionService: actionService,
-		scrollService: scrollService,
-		systemPort:    systemPort,
-		eventTap:      eventTap,
-		ipcServer:     ipcServer,
-		reloadConfig:  reloadConfig,
-		logger:        logger,
+		configService:  configService,
+		appState:       appState,
+		config:         config,
+		modes:          modes,
+		hintService:    hintService,
+		gridService:    gridService,
+		actionService:  actionService,
+		scrollService:  scrollService,
+		systemPort:     systemPort,
+		eventTap:       eventTap,
+		ipcServer:      ipcServer,
+		reloadConfig:   reloadConfig,
+		setConfigField: setConfigField,
+		logger:         logger,
 	}
 }
 
@@ -90,6 +102,7 @@ func (h *IPCControllerInfo) RegisterHandlers(
 	handlers[domain.CommandConfig] = h.handleConfig
 	handlers[domain.CommandReloadConfig] = h.handleReloadConfig
 	handlers[domain.CommandHealth] = h.handleHealth
+	handlers[domain.CommandConfigSet] = h.handleConfigSet
 }
 
 // ResolveConfigPath determines the configuration file path for status reporting.
@@ -139,11 +152,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 	if cfg == nil {
 		h.logger.Error("Config is nil in handleStatus")
 
-		return ipc.Response{
-			Success: false,
-			Message: "config not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.configNotAvailableResponse()
 	}
 
 	status := map[string]any{
@@ -171,11 +180,7 @@ func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.R
 	if cfg == nil {
 		h.logger.Error("Config is nil in handleConfig")
 
-		return ipc.Response{
-			Success: false,
-			Message: "config not available",
-			Code:    ipc.CodeActionFailed,
-		}
+		return h.configNotAvailableResponse()
 	}
 
 	return ipc.Response{
@@ -350,6 +355,96 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	}
 
 	return response
+}
+
+func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.Response {
+	if len(cmd.Args) < minConfigSetArgs {
+		return ipc.Response{
+			Success: false,
+			Message: "config-set requires key and value arguments",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	key := cmd.Args[0]
+	value := cmd.Args[1]
+
+	// If an app-level callback is provided, delegate to it for full
+	// reconfiguration (component updates, hotkey re-registration, etc.).
+	if h.setConfigField != nil {
+		err := h.setConfigField(ctx, key, value)
+		if err != nil {
+			return ipc.Response{
+				Success: false,
+				Message: err.Error(),
+				Code:    ipc.CodeActionFailed,
+			}
+		}
+
+		return ipc.Response{
+			Success: true,
+			Message: fmt.Sprintf("config %s set to %q", key, value),
+			Code:    ipc.CodeOK,
+		}
+	}
+
+	// Fallback: update in-memory config only via the config service.
+	cfg := h.configSnapshot()
+	if cfg == nil {
+		return h.configNotAvailableResponse()
+	}
+
+	newCfg, err := config.DeepCopyConfig(cfg)
+	if err != nil {
+		h.logger.Error("Failed to deep copy config", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to copy config: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	setErr := config.SetField(newCfg, key, value)
+	if setErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: setErr.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	updateErr := h.configService.Update(newCfg)
+	if updateErr != nil {
+		h.logger.Error("Failed to update config service", zap.Error(updateErr))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to apply config: " + updateErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	// Update the local config pointer.
+	h.configMu.Lock()
+	h.config = newCfg
+	h.configMu.Unlock()
+
+	return ipc.Response{
+		Success: true,
+		Message: fmt.Sprintf("config %s set to %q", key, value),
+		Code:    ipc.CodeOK,
+	}
+}
+
+// configNotAvailableResponse returns a standardized response for when the
+// config is nil. Extracted as a helper to avoid repeating the string literal.
+func (h *IPCControllerInfo) configNotAvailableResponse() ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: "config not available",
+		Code:    ipc.CodeActionFailed,
+	}
 }
 
 func (h *IPCControllerInfo) systemCapabilities() ports.PlatformCapabilities {

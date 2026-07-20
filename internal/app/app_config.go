@@ -7,8 +7,65 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	infra "github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
+
+// SetConfigField applies a single runtime config field change with full
+// app-level reconfiguration (component updates, hotkey re-registration, etc.).
+// This mirrors the reload path but operates on the in-memory config rather
+// than re-reading from disk.
+func (a *App) SetConfigField(ctx context.Context, key, value string) error {
+	a.prepareForConfigUpdate()
+
+	// Deep copy the current config so we only mutate the new copy.
+	newCfg, err := config.DeepCopyConfig(a.config)
+	if err != nil {
+		a.restoreHotkeysAfterFailedReload()
+
+		return derrors.Wrap(err, derrors.CodeSerializationFailed, "deep copy config")
+	}
+
+	// Apply the field change to the copy.
+	setErr := config.SetField(newCfg, key, value)
+	if setErr != nil {
+		a.restoreHotkeysAfterFailedReload()
+
+		return setErr
+	}
+
+	// Validate the new config.
+	valErr := newCfg.Validate()
+	if valErr != nil {
+		a.restoreHotkeysAfterFailedReload()
+
+		return derrors.Wrap(valErr, derrors.CodeInvalidConfig, "config-set validation")
+	}
+
+	// Update the config service (notifies watchers with the new config).
+	updateErr := a.configService.Update(newCfg)
+	if updateErr != nil {
+		a.restoreHotkeysAfterFailedReload()
+
+		return updateErr
+	}
+
+	// Build a LoadResult for the reconfiguration helpers.
+	loadResult := &config.LoadResult{
+		Config:     newCfg,
+		ConfigPath: a.ConfigPath,
+	}
+
+	a.applyAppSpecificConfigUpdates(loadResult)
+	a.reconfigureAfterUpdate(loadResult)
+
+	a.logger.Info("Config field updated at runtime",
+		zap.String("key", key),
+		zap.String("value", value),
+	)
+
+	return nil
+}
 
 // ReloadConfig reloads the configuration from the specified path.
 // If validation fails, shows an alert and keeps the current config.

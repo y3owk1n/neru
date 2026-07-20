@@ -522,13 +522,44 @@ neru config init -c /path/to/config.toml
 
 Check config for syntax errors and invalid values. Does not require a running daemon. Exits successfully if no config is found (Neru uses built-in defaults).
 
-### 13c. dump
+### 13c. set
+
+`neru config set <key> <value>`
+
+Set a configuration value on the running daemon without restarting. Changes take effect immediately. Requires a running daemon.
+
+The key uses dotted TOML path notation matching your config file (e.g. `hints.hint_characters`, `general.passthrough_unbounded_keys`).
+
+**SUPPORTED TYPES**
+
+| Type    | Example value                          |
+| ------- | -------------------------------------- |
+| string  | `"asdfghjkl"`                          |
+| integer | `14`                                   |
+| boolean | `true`                                 |
+| float   | `0.5`                                  |
+| color   | `"#FF0000AA"` or `{"light":"#000","dark":"#FFF"}` |
+| array   | `"AXButton,AXLink"` or `'["AXButton","AXLink"]'` |
+
+**EXAMPLES**
+
+```bash
+neru config set hints.hint_characters "asdfghjkl"
+neru config set hints.ui.font_size 14
+neru config set general.passthrough_unbounded_keys true
+neru config set hints.clickable_roles "AXButton,AXLink"
+neru config set scroll.scroll_step 50
+```
+
+Use `neru config dump | jq` to explore all available keys and their current values.
+
+### 13d. dump
 
 `neru config dump [-h|--help]`
 
 Print active config as JSON. Requires a running daemon.
 
-### 13d. reload
+### 13e. reload
 
 `neru config reload [-h|--help]`
 

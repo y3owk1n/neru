@@ -37,6 +37,7 @@ const (
 	CommandToggleScreenShare           = "toggle-screen-share"
 	CommandToggleCursorFollowSelection = "toggle-cursor-follow-selection"
 	CommandToggleScrollInvert          = "toggle-scroll-invert"
+	CommandConfigSet                   = "config-set"
 )
 
 // Mode-related constants.

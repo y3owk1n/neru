@@ -11,6 +11,7 @@ Neru uses TOML for configuration. No config file is required — Neru works out 
 - [Quick Start](#quick-start)
 - [Config File Location](#config-file-location)
 - [Managing Your Config](#managing-your-config)
+- [Runtime Config Changes](#runtime-config-changes)
 - [Color Format](#color-format)
 - [Hotkeys](#hotkeys)
 - [General](#general)
@@ -76,9 +77,48 @@ neru config validate    # Check syntax (no daemon needed)
 neru config reload      # Apply changes to running daemon
 neru config dump        # Print loaded config as JSON (daemon required)
 neru config init        # Create default config file
+neru config set <key> <value>  # Change a single value at runtime (see below)
 ```
 
 See [CLI.md](CLI.md#configuration-management) for full flag documentation.
+
+---
+
+## Runtime Config Changes
+
+Neru supports changing individual configuration values at runtime without restarting the daemon or re-reading the config file from disk.
+
+```bash
+neru config set hints.hint_characters "qwerty"
+neru config set scroll.scroll_step 25
+neru config set general.passthrough_unbounded_keys true
+```
+
+### How it works
+
+1. The CLI validates the path and value locally before sending to the daemon.
+2. The daemon deep-copies the current in-memory config, applies the change, and validates the result.
+3. Services, overlays, and hotkeys are reconfigured automatically — the same internal path used by `neru config reload`.
+4. The change is in-memory only. To make it persistent across restarts, update your config file too.
+
+### Supported field types
+
+| Type    | Example                                   |
+| ------- | ----------------------------------------- |
+| string  | `neru config set hints.hint_characters qwerty` |
+| integer | `neru config set hints.ui.font_size 14`        |
+| boolean | `neru config set scroll.invert_scroll true`    |
+| float   | `neru config set hints.vision.minimum_confidence 0.3` |
+| color   | `neru config set hints.ui.background_color "#FF0000AA"` |
+| array   | `neru config set hints.clickable_roles "AXButton,AXLink"` |
+
+> **Tip:** Use `neru config dump | jq` to explore the full config structure and find the dotted path for any setting.
+
+### Limitations
+
+- Array elements are replaced wholesale, not appended.
+- Struct fields (like `[theme]`) must be set via their leaf sub-paths, not as a whole object.
+- Config reload (`neru config reload`) via file on disk will override any runtime changes.
 
 ---
 

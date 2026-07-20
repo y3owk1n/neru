@@ -18,6 +18,7 @@ var configCmd = &cobra.Command{
 Subcommands:
   dump       Print the currently active configuration as JSON
   reload     Reload configuration from disk without restarting
+  set        Set a config value at runtime (no restart needed)
   init       Create a default configuration file to get started
   validate   Check a configuration file for errors
 
@@ -87,5 +88,6 @@ var configReloadCmd = &cobra.Command{
 func init() {
 	configCmd.AddCommand(configDumpCmd)
 	configCmd.AddCommand(configReloadCmd)
+	configCmd.AddCommand(configSetCmd)
 	RootCmd.AddCommand(configCmd)
 }
