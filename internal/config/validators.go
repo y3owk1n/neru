@@ -139,6 +139,7 @@ func (c *Config) ValidateHints() error {
 		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
 		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},
+		{c.Hints.UI.TextOutlineColor, "hints.ui.text_outline_color"},
 		{c.Hints.UI.BorderColor, "hints.ui.border_color"},
 		{c.Hints.SearchInputUI.BackgroundColor, "hints.search_input_ui.background_color"},
 		{c.Hints.SearchInputUI.TextColor, "hints.search_input_ui.text_color"},
@@ -148,6 +149,13 @@ func (c *Config) ValidateHints() error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if c.Hints.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.ui.text_outline_width must be non-negative",
+		)
 	}
 
 	if c.Hints.UI.FontSize < 1 || c.Hints.UI.FontSize > maxFontSize {
@@ -720,10 +728,18 @@ func (c *Config) ValidateGrid() error {
 		{c.Grid.UI.MatchedTextColor, "grid.ui.matched_text_color"},
 		{c.Grid.UI.MatchedBackgroundColor, "grid.ui.matched_background_color"},
 		{c.Grid.UI.MatchedBorderColor, "grid.ui.matched_border_color"},
+		{c.Grid.UI.TextOutlineColor, "grid.ui.text_outline_color"},
 		{c.Grid.UI.BorderColor, "grid.ui.border_color"},
 	})
 	if err != nil {
 		return err
+	}
+
+	if c.Grid.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"grid.ui.text_outline_width must be non-negative",
+		)
 	}
 
 	if c.Grid.UI.FontSize < 1 || c.Grid.UI.FontSize > maxFontSize {
@@ -771,12 +787,20 @@ func (c *Config) ValidateMonitorSelect() error {
 		{c.MonitorSelect.UI.BackgroundColor, "monitor_select.ui.background_color"},
 		{c.MonitorSelect.UI.TextColor, "monitor_select.ui.text_color"},
 		{c.MonitorSelect.UI.MatchedTextColor, "monitor_select.ui.matched_text_color"},
+		{c.MonitorSelect.UI.TextOutlineColor, "monitor_select.ui.text_outline_color"},
 		{c.MonitorSelect.UI.BorderColor, "monitor_select.ui.border_color"},
 		{c.MonitorSelect.UI.BackdropColor, "monitor_select.ui.backdrop_color"},
 		{c.MonitorSelect.UI.SubtitleTextColor, "monitor_select.ui.subtitle_text_color"},
 	})
 	if err != nil {
 		return err
+	}
+
+	if c.MonitorSelect.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"monitor_select.ui.text_outline_width must be non-negative",
+		)
 	}
 
 	if c.MonitorSelect.UI.FontSize < 1 || c.MonitorSelect.UI.FontSize > maxFontSize {
@@ -820,9 +844,17 @@ func (c *Config) ValidateStickyModifiers() error {
 		)
 	}
 
+	if c.StickyModifiers.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"sticky_modifiers.ui.text_outline_width must be non-negative",
+		)
+	}
+
 	return validateColors([]colorField{
 		{c.StickyModifiers.UI.BackgroundColor, "sticky_modifiers.ui.background_color"},
 		{c.StickyModifiers.UI.TextColor, "sticky_modifiers.ui.text_color"},
+		{c.StickyModifiers.UI.TextOutlineColor, "sticky_modifiers.ui.text_outline_color"},
 		{c.StickyModifiers.UI.BorderColor, "sticky_modifiers.ui.border_color"},
 	})
 }
@@ -1254,11 +1286,30 @@ func (c *Config) ValidateRecursiveGrid() error {
 		{c.RecursiveGrid.UI.LineColor, "recursive_grid.ui.line_color"},
 		{c.RecursiveGrid.UI.HighlightColor, "recursive_grid.ui.highlight_color"},
 		{c.RecursiveGrid.UI.TextColor, "recursive_grid.ui.text_color"},
+		{c.RecursiveGrid.UI.TextOutlineColor, "recursive_grid.ui.text_outline_color"},
+		{
+			c.RecursiveGrid.UI.SubKeyPreviewTextOutlineColor,
+			"recursive_grid.ui.sub_key_preview_text_outline_color",
+		},
 		{c.RecursiveGrid.UI.LabelBackgroundColor, "recursive_grid.ui.label_background_color"},
 		{c.RecursiveGrid.UI.SubKeyPreviewTextColor, "recursive_grid.ui.sub_key_preview_text_color"},
 	})
 	if err != nil {
 		return err
+	}
+
+	if c.RecursiveGrid.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.text_outline_width must be non-negative",
+		)
+	}
+
+	if c.RecursiveGrid.UI.SubKeyPreviewTextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"recursive_grid.ui.sub_key_preview_text_outline_width must be non-negative",
+		)
 	}
 
 	if c.RecursiveGrid.UI.LineWidth < 0 {
@@ -1315,9 +1366,17 @@ func (c *Config) ValidateRecursiveGrid() error {
 func (c *Config) ValidateVirtualPointer() error {
 	err := validateColors([]colorField{
 		{c.VirtualPointer.UI.TextColor, "virtual_pointer.ui.text_color"},
+		{c.VirtualPointer.UI.TextOutlineColor, "virtual_pointer.ui.text_outline_color"},
 	})
 	if err != nil {
 		return err
+	}
+
+	if c.VirtualPointer.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"virtual_pointer.ui.text_outline_width must be non-negative",
+		)
 	}
 
 	charLen := utf8.RuneCountInString(c.VirtualPointer.UI.Char)

@@ -1205,6 +1205,13 @@ func (c *Config) ValidateModeIndicator() error {
 		return err
 	}
 
+	if c.ModeIndicator.UI.TextOutlineWidth < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"mode_indicator.ui.text_outline_width must be non-negative",
+		)
+	}
+
 	err = validateMinValue(c.ModeIndicator.UI.PaddingX, -1, "mode_indicator.ui.padding_x")
 	if err != nil {
 		return err
@@ -1223,6 +1230,7 @@ func (c *Config) ValidateModeIndicator() error {
 	err = validateColors([]colorField{
 		{c.ModeIndicator.UI.BackgroundColor, "mode_indicator.ui.background_color"},
 		{c.ModeIndicator.UI.TextColor, "mode_indicator.ui.text_color"},
+		{c.ModeIndicator.UI.TextOutlineColor, "mode_indicator.ui.text_outline_color"},
 		{c.ModeIndicator.UI.BorderColor, "mode_indicator.ui.border_color"},
 	})
 	if err != nil {
@@ -1244,6 +1252,7 @@ func (c *Config) ValidateModeIndicator() error {
 		err = validateColors([]colorField{
 			{mode.cfg.BackgroundColor, "mode_indicator." + mode.name + ".background_color"},
 			{mode.cfg.TextColor, "mode_indicator." + mode.name + ".text_color"},
+			{mode.cfg.TextOutlineColor, "mode_indicator." + mode.name + ".text_outline_color"},
 			{mode.cfg.BorderColor, "mode_indicator." + mode.name + ".border_color"},
 		})
 		if err != nil {
