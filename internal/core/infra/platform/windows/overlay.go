@@ -1383,25 +1383,26 @@ func dilateCoverage(src []byte, width, height, outlineWidth int) []byte {
 	}
 
 	dst := make([]byte, width*height)
-	for y := range height {
-		yStart := max(0, y-outlineWidth)
-		yEnd := min(height, y+outlineWidth+1)
-		for x := range width {
-			xStart := max(0, x-outlineWidth)
-			xEnd := min(width, x+outlineWidth+1)
+	for row := range height {
+		yStart := max(0, row-outlineWidth)
+		yEnd := min(height, row+outlineWidth+1)
+
+		for col := range width {
+			xStart := max(0, col-outlineWidth)
+			xEnd := min(width, col+outlineWidth+1)
 
 			var maxCov byte
 			for dy := yStart; dy < yEnd; dy++ {
-				row := dy * width * bytesPerPixel
+				rowOffset := dy * width * bytesPerPixel
 				for dx := xStart; dx < xEnd; dx++ {
-					cov := src[row+dx*bytesPerPixel+2]
+					cov := src[rowOffset+dx*bytesPerPixel+2]
 					if cov > maxCov {
 						maxCov = cov
 					}
 				}
 			}
 
-			dst[y*width+x] = maxCov
+			dst[row*width+col] = maxCov
 		}
 	}
 

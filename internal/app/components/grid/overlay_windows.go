@@ -164,6 +164,7 @@ func parseWindowsColor(value string) uint32 {
 	if value == "" {
 		return 0
 	}
+
 	value = strings.TrimPrefix(value, "#")
 	switch len(value) {
 	case colorLen3:

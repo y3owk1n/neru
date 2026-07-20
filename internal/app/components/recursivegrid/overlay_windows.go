@@ -186,7 +186,12 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 }
 
 func parseWindowsColor(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+
+	value = strings.TrimPrefix(value, "#")
 	switch len(value) {
 	case colorLen3:
 		value = "FF" + strings.Repeat(string(value[0]), hexDigitCount) +
