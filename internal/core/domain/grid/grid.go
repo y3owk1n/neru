@@ -412,9 +412,11 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	totalCells := gridCols * gridRows
-	if gridCols > 0 && totalCells/gridCols != gridRows { // overflow check
-		totalCells = gridRows
+	var totalCells int
+	if gridCols > math.MaxInt/gridRows {
+		totalCells = math.MaxInt
+	} else {
+		totalCells = gridCols * gridRows
 	}
 
 	cells := make([]*Cell, totalCells)
