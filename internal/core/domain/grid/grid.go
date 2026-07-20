@@ -34,6 +34,19 @@ const (
 	// MinGridRows is the minimum number of grid rows.
 	MinGridRows = 2
 
+	// MaxGridCols is the maximum number of grid columns.
+	// This prevents allocation-size panics from oversized dimensions.
+	MaxGridCols = 10000
+
+	// MaxGridRows is the maximum number of grid rows.
+	// This prevents allocation-size panics from oversized dimensions.
+	MaxGridRows = 10000
+
+	// MaxDisplayDimension caps the width and height in pixels to prevent
+	// excessive work in candidate generation and overflow in area computation.
+	// Real display bounds are well under this value (typical max is ~30000).
+	MaxDisplayDimension = 50000
+
 	// MaxKeyIndex is the maximum key index.
 	MaxKeyIndex = 9
 
@@ -225,6 +238,17 @@ func NewGridWithLabels(
 		}
 	}
 
+	// Clamp display dimensions to a practical maximum to bound candidate search
+	// work and prevent overflow in area computation. Real display bounds are
+	// typically under 30000 pixels per side; this clamp is purely defensive.
+	if width > MaxDisplayDimension {
+		width = MaxDisplayDimension
+	}
+
+	if height > MaxDisplayDimension {
+		height = MaxDisplayDimension
+	}
+
 	// Automatically determine optimal cell size constraints based on screen characteristics
 	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height)
 
@@ -242,6 +266,21 @@ func NewGridWithLabels(
 
 	if gridRows < MinGridRows {
 		gridRows = 2
+	}
+
+	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
+	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
+	if gridCols > MaxGridCols {
+		gridCols = MaxGridCols
+	}
+
+	if gridRows > MaxGridRows {
+		gridRows = MaxGridRows
+	}
+
+	// Guard against integer overflow in cell allocation size.
+	if gridCols > math.MaxInt/gridRows {
+		gridCols = math.MaxInt / gridRows
 	}
 
 	// Calculate total cells needed to fill screen
@@ -411,6 +450,21 @@ func generateCellsWithRegions(
 		zap.Int("grid_cols", gridCols),
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
+
+	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
+	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
+	if gridCols > MaxGridCols {
+		gridCols = MaxGridCols
+	}
+
+	if gridRows > MaxGridRows {
+		gridRows = MaxGridRows
+	}
+
+	// Guard against integer overflow in cell allocation size.
+	if gridCols > math.MaxInt/gridRows {
+		gridCols = math.MaxInt / gridRows
+	}
 
 	cells := make([]*Cell, gridCols*gridRows)
 	cellIndex := 0

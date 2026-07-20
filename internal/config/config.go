@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math/bits"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1458,7 +1459,18 @@ func (c *Config) HotkeysForModeAndApp(
 		return base
 	}
 
-	merged := make(map[string]StringOrStringArray, len(base)+len(appConfig.Hotkeys))
+	baseLen := len(base)
+	appHotkeysLen := len(appConfig.Hotkeys)
+
+	sum, carry := bits.Add(uint(baseLen), uint(appHotkeysLen), 0)
+	maxInt := ^uint(0) >> 1
+
+	size := baseLen
+	if carry == 0 && sum <= maxInt {
+		size = int(sum)
+	}
+
+	merged := make(map[string]StringOrStringArray, size)
 	for key, actions := range base {
 		copied := make(StringOrStringArray, len(actions))
 		copy(copied, actions)
@@ -1749,8 +1761,19 @@ func hasEmptyRoles(roles []string) bool {
 // and filtering out empty/whitespace-only entries. Base roles are preserved in
 // their original order (minus empties), then additional roles are appended.
 func mergeClickableRoles(base, additional []string) []string {
-	seen := make(map[string]struct{}, len(base)+len(additional))
-	result := make([]string, 0, len(base)+len(additional))
+	baseLen := len(base)
+	additionalLen := len(additional)
+
+	sum, carry := bits.Add(uint(baseLen), uint(additionalLen), 0)
+	maxInt := ^uint(0) >> 1
+
+	size := baseLen
+	if carry == 0 && sum <= maxInt {
+		size = int(sum)
+	}
+
+	seen := make(map[string]struct{}, size)
+	result := make([]string, 0, size)
 
 	for _, role := range base {
 		trimmed := strings.TrimSpace(role)
