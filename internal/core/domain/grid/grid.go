@@ -412,14 +412,13 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	var totalCells int
+	// Guard grid dimensions against integer overflow in the cell allocation.
+	// In practice gridCols/gridRows are screen-derived (< 10^4), so this is defensive.
 	if gridCols > math.MaxInt/gridRows {
-		totalCells = math.MaxInt
-	} else {
-		totalCells = gridCols * gridRows
+		gridCols = math.MaxInt / gridRows
 	}
 
-	cells := make([]*Cell, totalCells)
+	cells := make([]*Cell, gridCols*gridRows)
 	cellIndex := 0
 
 	// Calculate region dimensions based on label length
