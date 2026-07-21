@@ -1459,7 +1459,8 @@ func validateHotkeyActionString(actionStr string) error {
 		ModeNameMonitorSelect,
 		"toggle-screen-share", CmdToggleCursorFollowSelection,
 		"toggle-scroll-invert",
-		"config":
+		"config",
+		"marks":
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

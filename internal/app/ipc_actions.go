@@ -33,6 +33,9 @@ type IPCControllerActions struct {
 	savedCursorMu      sync.RWMutex
 	savedCursorPos     image.Point
 	savedCursorPresent bool
+
+	marksMu sync.RWMutex
+	marks   map[string]image.Point
 }
 
 const modeExitPollInterval = 10 * time.Millisecond
@@ -79,6 +82,7 @@ func NewIPCControllerActions(
 		modesHandler:  modesHandler,
 		appState:      appState,
 		logger:        logger,
+		marks:         make(map[string]image.Point),
 	}
 }
 
@@ -87,6 +91,7 @@ func (h *IPCControllerActions) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[actionCmd] = h.handleAction
+	handlers["marks"] = h.handleMarksCommand
 }
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.
@@ -272,6 +277,7 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 	return parsed, parseErr
 }
 
+//nolint:funlen
 func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) == 0 {
 		return ipc.Response{
@@ -332,6 +338,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	if action.IsRestoreCursorPosAction(actionName) {
 		return h.handleRestoreCursorPosAction(ctx, parsed)
+	}
+
+	if response, handled := h.dispatchMarksAction(ctx, actionName, parsed, cmd); handled {
+		return response
 	}
 
 	if action.IsMoveMonitorAction(actionName) {
@@ -1168,7 +1178,7 @@ func (h *IPCControllerActions) handleSaveCursorPosAction(
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "action service not available",
+			Message: msgActionServiceNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -1205,7 +1215,7 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
-			Message: "action service not available",
+			Message: msgActionServiceNotAvailable,
 			Code:    ipc.CodeActionFailed,
 		}
 	}
@@ -1447,6 +1457,239 @@ func (h *IPCControllerActions) handleSearchHintsAction(parsed parsedActionArgs) 
 	return ipc.Response{
 		Success: true,
 		Message: "search_hints activated",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleMarksCommand(
+	ctx context.Context,
+	cmd ipc.Command,
+) ipc.Response {
+	if len(cmd.Args) == 0 {
+		return ipc.Response{
+			Success: false,
+			Message: "marks subcommand required (set, get, delete, clear)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	subcmd := cmd.Args[0]
+	markName := markNameFromArgs(cmd.Args)
+
+	parsed := parsedActionArgs{}
+
+	switch subcmd {
+	case "set":
+		return h.handleMarksSetAction(ctx, parsed, markName)
+	case "get":
+		return h.handleMarksGetAction(ctx, parsed, markName)
+	case "delete":
+		return h.handleMarksDeleteAction(parsed, markName)
+	case "clear":
+		return h.handleMarksClearAction(parsed)
+	default:
+		return ipc.Response{
+			Success: false,
+			Message: "unknown marks subcommand: " + subcmd,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+}
+
+func (h *IPCControllerActions) dispatchMarksAction(
+	ctx context.Context,
+	actionName string,
+	parsed parsedActionArgs,
+	cmd ipc.Command,
+) (ipc.Response, bool) {
+	if action.IsMarksSetAction(actionName) {
+		markName := markNameFromArgs(cmd.Args)
+
+		return h.handleMarksSetAction(ctx, parsed, markName), true
+	}
+
+	if action.IsMarksGetAction(actionName) {
+		markName := markNameFromArgs(cmd.Args)
+
+		return h.handleMarksGetAction(ctx, parsed, markName), true
+	}
+
+	if action.IsMarksDeleteAction(actionName) {
+		markName := markNameFromArgs(cmd.Args)
+
+		return h.handleMarksDeleteAction(parsed, markName), true
+	}
+
+	if action.IsMarksClearAction(actionName) {
+		return h.handleMarksClearAction(parsed), true
+	}
+
+	return ipc.Response{}, false
+}
+
+func markNameFromArgs(args []string) string {
+	if len(args) > 1 {
+		return args[1]
+	}
+
+	return ""
+}
+
+func (h *IPCControllerActions) handleMarksSetAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+	markName string,
+) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_set does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if markName == "" {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_set requires a mark name",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.actionService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgActionServiceNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	pos, posErr := h.actionService.CursorPosition(ctx)
+	if posErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "failed to capture cursor position: " + posErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.marksMu.Lock()
+	h.marks[markName] = pos
+	h.marksMu.Unlock()
+
+	return ipc.Response{
+		Success: true,
+		Message: "mark '" + markName + "' saved",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleMarksGetAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+	markName string,
+) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_get does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if markName == "" {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_get requires a mark name",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.actionService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgActionServiceNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	h.marksMu.RLock()
+	pos, ok := h.marks[markName]
+	h.marksMu.RUnlock()
+
+	if !ok {
+		return ipc.Response{
+			Success: false,
+			Message: "mark '" + markName + "' not found",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	moveErr := h.actionService.MoveCursorToPoint(ctx, pos)
+	if moveErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "failed to move to mark: " + moveErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "mark '" + markName + "' restored",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleMarksDeleteAction(
+	parsed parsedActionArgs,
+	markName string,
+) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_delete does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if markName == "" {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_delete requires a mark name",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.marksMu.Lock()
+	delete(h.marks, markName)
+	h.marksMu.Unlock()
+
+	return ipc.Response{
+		Success: true,
+		Message: "mark '" + markName + "' deleted",
+		Code:    ipc.CodeOK,
+	}
+}
+
+func (h *IPCControllerActions) handleMarksClearAction(
+	parsed parsedActionArgs,
+) ipc.Response {
+	if hasUnsupportedFlags(parsed) {
+		return ipc.Response{
+			Success: false,
+			Message: "marks_clear does not support action flags",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	h.marksMu.Lock()
+	h.marks = make(map[string]image.Point)
+	h.marksMu.Unlock()
+
+	return ipc.Response{
+		Success: true,
+		Message: "all marks cleared",
 		Code:    ipc.CodeOK,
 	}
 }

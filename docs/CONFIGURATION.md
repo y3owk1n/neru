@@ -385,11 +385,12 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s`  |
 | Mode        | `reset`, `backspace`                                                                   |
 | Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
-| Cursor      | `hide_cursor`, `show_cursor`                                                           |
+| Marks       | `marks_set <name>`, `marks_get <name>`, `marks_delete <name>`, `marks_clear` |
+| Cursor      | `hide_cursor`, `show_cursor` |
 
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))
-- `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
+- `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `marks_set`, `marks_get`, `marks_delete`, `marks_clear`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 
 #### Feed Keys
 
@@ -422,6 +423,21 @@ Use `--mode` to route keys through Neru's active mode/action pipeline instead of
 ```
 
 Use `--bail` to abort the chain when the mode exits without a selection (e.g., user presses Escape). Without `--bail`, `wait_for_mode_exit` always succeeds and the chain continues.
+
+#### Marks Example
+
+Named marks work like a more flexible `save_cursor_pos` / `restore_cursor_pos` — you can set multiple positions and jump between them:
+
+```toml
+[hints.hotkeys]
+# Mark interesting positions before clicking, then return
+"Primary+1" = ["action marks_set a", "action left_click"]
+"Primary+2" = ["action marks_set b", "action left_click"]
+
+# Jump between marked positions
+"Primary+9" = "action marks_get a"
+"Primary+0" = "action marks_get b"
+```
 
 ---
 

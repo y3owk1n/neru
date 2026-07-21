@@ -173,6 +173,14 @@ const (
 	NameCycleHint Name = "cycle_hint"
 	// NameSearchHints starts text filtering in hints mode.
 	NameSearchHints Name = "search_hints"
+	// NameMarksSet saves the current cursor position as a named mark.
+	NameMarksSet Name = "marks_set"
+	// NameMarksGet moves the cursor to a named mark's position.
+	NameMarksGet Name = "marks_get"
+	// NameMarksDelete deletes a named mark.
+	NameMarksDelete Name = "marks_delete"
+	// NameMarksClear clears all marks.
+	NameMarksClear Name = "marks_clear"
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
@@ -263,6 +271,32 @@ func IsSearchHintsAction(name string) bool {
 	return Name(name) == NameSearchHints
 }
 
+// IsMarksSetAction reports whether the given action is marks_set.
+func IsMarksSetAction(name string) bool {
+	return Name(name) == NameMarksSet
+}
+
+// IsMarksGetAction reports whether the given action is marks_get.
+func IsMarksGetAction(name string) bool {
+	return Name(name) == NameMarksGet
+}
+
+// IsMarksDeleteAction reports whether the given action is marks_delete.
+func IsMarksDeleteAction(name string) bool {
+	return Name(name) == NameMarksDelete
+}
+
+// IsMarksClearAction reports whether the given action is marks_clear.
+func IsMarksClearAction(name string) bool {
+	return Name(name) == NameMarksClear
+}
+
+// IsMarksAction reports whether the given action is any marks action.
+func IsMarksAction(name string) bool {
+	return IsMarksSetAction(name) || IsMarksGetAction(name) ||
+		IsMarksDeleteAction(name) || IsMarksClearAction(name)
+}
+
 // IsKnownName determines whether the specified action name is recognized by the
 // application. This is a superset of the names in knownNames — it also includes
 // scroll sub-actions (scroll_up, page_down, etc.) which are IPC/CLI-only.
@@ -282,7 +316,8 @@ func IsKnownName(name Name) bool {
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameHideCursor, NameShowCursor:
+		NameHideCursor, NameShowCursor,
+		NameMarksSet, NameMarksGet, NameMarksDelete, NameMarksClear:
 		return true
 	default:
 		return false
@@ -306,7 +341,8 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
-		NameHideCursor, NameShowCursor:
+		NameHideCursor, NameShowCursor,
+		NameMarksSet, NameMarksGet, NameMarksDelete, NameMarksClear:
 		return false
 	default:
 		return false
@@ -386,7 +422,8 @@ func (n Name) ToType() (Type, error) {
 		NameCycleHint,
 		NameSearchHints,
 		NameHideCursor,
-		NameShowCursor:
+		NameShowCursor,
+		NameMarksSet, NameMarksGet, NameMarksDelete, NameMarksClear:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "action name not executable: %s", n)
 	default:
 		return 0, derrors.Newf(derrors.CodeInvalidInput, "unknown action name: %s", n)

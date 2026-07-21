@@ -20,12 +20,13 @@ Neru provides a comprehensive command-line interface for controlling the daemon,
 - [10. neru scroll](#10-neru-scroll)
 - [11. neru monitor_select](#11-neru-monitor_select)
 - [12. neru action](#12-neru-action)
-- [13. neru config](#13-neru-config)
-- [14. neru toggle-scroll-invert](#14-neru-toggle-scroll-invert)
-- [15. neru toggle-cursor-follow-selection](#15-neru-toggle-cursor-follow-selection)
-- [16. neru toggle-screen-share](#16-neru-toggle-screen-share)
-- [17. neru services](#17-neru-services)
-- [18. neru docs](#18-neru-docs)
+- [13. neru marks](#13-neru-marks)
+- [14. neru config](#14-neru-config)
+- [15. neru toggle-scroll-invert](#15-neru-toggle-scroll-invert)
+- [16. neru toggle-cursor-follow-selection](#16-neru-toggle-cursor-follow-selection)
+- [17. neru toggle-screen-share](#17-neru-toggle-screen-share)
+- [18. neru services](#18-neru-services)
+- [19. neru docs](#19-neru-docs)
 - [Scripting](#scripting)
 - [IPC Communication](#ipc-communication)
 
@@ -457,6 +458,8 @@ Block the action chain until the current mode exits to idle.
 
 Save/restore the cursor position, or hide/show the system cursor.
 
+For named cursor positions (similar to vim marks), see the [`neru marks`](#13-neru-marks) command.
+
 ### 12k. sleep
 
 `neru action sleep [-h|--help] <duration>`
@@ -498,9 +501,35 @@ neru action move_monitor --name "DELL U2720Q"
 
 ---
 
-## 13. neru config
+## 13. neru marks
 
-### 13a. init
+`neru marks <subcommand> [args]`
+
+Save and recall named cursor positions (marks), similar to vim's mark system. Marks are stored in memory for the current daemon session.
+
+**SUBCOMMANDS**
+
+| Command         | Description                                  |
+| --------------- | -------------------------------------------- |
+| `set <name>`    | Save the current cursor position as `<name>` |
+| `get <name>`    | Move the cursor to the mark named `<name>`   |
+| `delete <name>` | Delete the mark named `<name>`               |
+| `clear`         | Delete all marks                             |
+
+**EXAMPLES**
+
+```bash
+neru marks set a          # Save current cursor position as 'a'
+neru marks get a          # Jump to mark 'a'
+neru marks delete a       # Delete mark 'a'
+neru marks clear          # Clear all marks
+```
+
+---
+
+## 14. neru config
+
+### 14a. init
 
 `neru config init [-h|--help] [-f|--force] [-c|--config <path>]`
 
@@ -520,13 +549,13 @@ neru config init --force
 neru config init -c /path/to/config.toml
 ```
 
-### 13b. validate
+### 14b. validate
 
 `neru config validate [-h|--help] [-c|--config <path>]`
 
 Check config for syntax errors and invalid values. Does not require a running daemon. Exits successfully if no config is found (Neru uses built-in defaults).
 
-### 13c. set
+### 14c. set
 
 `neru config set [--no-reload] <key> <value>`
 
@@ -540,14 +569,14 @@ The key uses dotted TOML path notation matching your config file (e.g. `hints.hi
 
 **SUPPORTED TYPES**
 
-| Type    | Example value                          |
-| ------- | -------------------------------------- |
-| string  | `"asdfghjkl"`                          |
-| integer | `14`                                   |
-| boolean | `true`                                 |
-| float   | `0.5`                                  |
+| Type    | Example value                                     |
+| ------- | ------------------------------------------------- |
+| string  | `"asdfghjkl"`                                     |
+| integer | `14`                                              |
+| boolean | `true`                                            |
+| float   | `0.5`                                             |
 | color   | `"#FF0000AA"` or `{"light":"#000","dark":"#FFF"}` |
-| array   | `"AXButton,AXLink"` or `'["AXButton","AXLink"]'` |
+| array   | `"AXButton,AXLink"` or `'["AXButton","AXLink"]'`  |
 
 **EXAMPLES**
 
@@ -578,13 +607,13 @@ neru config reload
 
 Use `neru config dump | jq` to explore all available keys and their current values.
 
-### 13d. dump
+### 14d. dump
 
 `neru config dump [-h|--help]`
 
 Print active config as JSON. Requires a running daemon.
 
-### 13e. reset
+### 14e. reset
 
 `neru config reset [--no-reload] <key>`
 
@@ -603,7 +632,7 @@ neru config reset --no-reload recursive_grid.keys
 neru config reload
 ```
 
-### 13f. reload
+### 14f. reload
 
 `neru config reload [-h|--help]`
 
@@ -611,7 +640,7 @@ Reload config from disk without restarting. Requires a running daemon. Some sett
 
 ---
 
-## 14. neru toggle-scroll-invert
+## 15. neru toggle-scroll-invert
 
 `neru toggle-scroll-invert [-h|--help]`
 
@@ -619,7 +648,7 @@ Toggle scroll direction inversion at runtime. State resets to configured `invert
 
 ---
 
-## 15. neru toggle-cursor-follow-selection
+## 16. neru toggle-cursor-follow-selection
 
 `neru toggle-cursor-follow-selection [-h|--help]`
 
@@ -627,7 +656,7 @@ Toggle cursor-follow-selection in the active hints, grid, or recursive_grid sess
 
 ---
 
-## 16. neru toggle-screen-share
+## 17. neru toggle-screen-share
 
 `neru toggle-screen-share [-h|--help]`
 
@@ -643,7 +672,7 @@ Toggle overlay visibility during screen sharing. Hidden overlays are invisible o
 
 ---
 
-## 17. neru services
+## 18. neru services
 
 Manage Neru as a system service for automatic startup on login. macOS only; other platforms return not-supported.
 
@@ -660,7 +689,7 @@ Manage Neru as a system service for automatic startup on login. macOS only; othe
 
 ---
 
-## 18. neru docs
+## 19. neru docs
 
 `neru docs config [-h|--help]` -- Open configuration reference in browser.
 
