@@ -169,6 +169,18 @@ Use `--toggle` to turn a single hotkey into a mode toggle — pressing it once a
 
 This is especially useful when you want a single key to both enter and exit a mode, avoiding the need for a separate `Escape` press or a dedicated exit keybinding.
 
+## Auto-Zoom to Depth on Activation
+
+Use `--zoom-to-depth` to automatically drill down to a target depth at the current cursor position when recursive grid opens. This skips intermediate cell selections and places you directly at the desired depth:
+
+```toml
+[hotkeys]
+"Primary+Shift+2" = "recursive_grid --zoom-to-depth 2"
+"Primary+Shift+3" = "recursive_grid --zoom-to-depth 3 --action left_click"
+```
+
+If the depth exceeds the available grid depth, zooming clamps silently at the deepest level possible.
+
 ## Cycle Through Modes with One Hotkey
 
 Instead of a separate launcher key for every mode, one key can walk through all of them. Press it from idle to open the first mode, then press the same key again to advance through hints, recursive grid, grid, and scroll, wrapping back to hints at the end.

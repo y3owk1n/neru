@@ -71,6 +71,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
+				nil, // zoom is not re-applied on screen change
 			)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()

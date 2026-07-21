@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"go.uber.org/zap"
@@ -154,6 +155,7 @@ type ModeActivationOptions struct {
 	Modifier              *string
 	Repeat                *bool
 	CursorFollowSelection *bool
+	ZoomToDepth           *int
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool
@@ -224,6 +226,44 @@ func (h *IPCControllerModes) extractModeOptions(
 		case arg == "--toggle" || arg == "-t":
 			toggleTrue := true
 			opts.Toggle = &toggleTrue
+		case strings.HasPrefix(arg, "--zoom-to-depth="):
+			depthVal, err := strconv.Atoi(strings.TrimPrefix(arg, "--zoom-to-depth="))
+			if err != nil || depthVal < 0 {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--zoom-to-depth requires a non-negative integer",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			opts.ZoomToDepth = &depthVal
+		case arg == "--zoom-to-depth":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--zoom-to-depth requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+
+			depthVal, err := strconv.Atoi(cmd.Args[startIdx])
+			if err != nil || depthVal < 0 {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--zoom-to-depth requires a non-negative integer",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			opts.ZoomToDepth = &depthVal
 		case arg == "--search" || arg == "-s":
 			searchTrue := true
 			opts.Search = &searchTrue
@@ -621,6 +661,7 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 		Modifier:              opts.Modifier,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
+		ZoomToDepth:           opts.ZoomToDepth,
 		Toggle:                opts.Toggle,
 	})
 

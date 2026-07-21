@@ -665,7 +665,7 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 Narrows the active area with each keypress for precise cursor placement.
 
-Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#recursive-grid-mode)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#recursive-grid-mode)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
