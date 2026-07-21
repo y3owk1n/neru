@@ -35,7 +35,19 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		Aliases: config.Aliases,
 		Short:   config.Short,
 		Long:    config.Long,
-		PreRunE: func(_ *cobra.Command, _ []string) error {
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			// Validate before requiring a running daemon so users get
+			// immediate feedback on invalid arguments regardless of daemon state.
+			if config.SupportZoomToDepth {
+				zoomToDepth, err := cmd.Flags().GetInt("zoom-to-depth")
+				if err == nil && zoomToDepth < 0 {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"--zoom-to-depth requires a non-negative integer",
+					)
+				}
+			}
+
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
