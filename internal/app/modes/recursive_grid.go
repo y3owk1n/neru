@@ -87,24 +87,9 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		)
 	}
 
-	// Move cursor to center of initial grid
-	if h.recursiveGrid.Manager != nil {
-		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
-
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-		if h.recursiveGrid.Context != nil {
-			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-		}
-
-		if cursorShouldFollow {
-			err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
-			if err != nil {
-				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
-			}
-		}
-	}
-
-	// Auto-zoom to depth if requested
+	// Auto-zoom to depth if requested.
+	// This reads the cursor position *before* we potentially move it to
+	// the grid center below, so zoom uses the user's actual cursor location.
 	var (
 		zoomCompleted bool
 		zoomCenter    image.Point
@@ -119,6 +104,27 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 			zoomCompleted = completed
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
+		}
+	}
+
+	// Move cursor to center of initial grid.
+	// When zoom-to-depth is active, skip this — the zoom completion handler
+	// (or partial-zoom handler below) positions the cursor from the user's
+	// actual cursor position rather than the grid center.
+	isZoomRequested := zoomToDepth != nil && *zoomToDepth > 0 && !isRefresh
+	if !isZoomRequested && h.recursiveGrid.Manager != nil {
+		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
+
+		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		if h.recursiveGrid.Context != nil {
+			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+		}
+
+		if cursorShouldFollow {
+			err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
+			if err != nil {
+				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
+			}
 		}
 	}
 
