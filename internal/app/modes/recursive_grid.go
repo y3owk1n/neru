@@ -90,18 +90,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// Auto-zoom to depth if requested.
 	// This reads the cursor position *before* we potentially move it to
 	// the grid center below, so zoom uses the user's actual cursor location.
-	var (
-		zoomCompleted bool
-		zoomCenter    image.Point
-	)
-
 	if zoomToDepth != nil && *zoomToDepth > 0 && h.recursiveGrid.Manager != nil && !isRefresh {
 		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
 		if posErr == nil {
 			localCursorPos := coordinates.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
-			center, completed := h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *zoomToDepth)
-			zoomCenter = center
-			zoomCompleted = completed
+			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *zoomToDepth)
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
 		}
@@ -155,40 +148,10 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 		}
 	}
 
-	// If zoom-to-depth completed the grid, handle completion immediately
-	// instead of entering interactive mode.
-	if zoomCompleted {
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(zoomCenter, h.screenBounds)
-		if h.recursiveGrid.Context != nil {
-			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-		}
-
-		shouldReActivate := repeat != nil && *repeat
-		pendingAction := h.recursiveGrid.Context.PendingAction()
-
-		// Move cursor and either execute action or re-activate
-		h.moveCursorAndHandleAction(
-			absoluteCenter,
-			pendingAction,
-			h.recursiveGrid.Context.PendingModifier(),
-			shouldReActivate,
-			func() {
-				h.activateRecursiveGridModeWithAction(
-					pendingAction,
-					h.recursiveGrid.Context.PendingModifier(),
-					repeat,
-					&cursorShouldFollow,
-					nil,
-				)
-			},
-		)
-
-		// Exit here since moveCursorAndHandleAction handles mode transition.
-		return
-	}
-
-	// When zoom was active (but didn't complete), update the selection point
-	// to reflect the zoomed position.
+	// When zoom-to-depth completed (or clamped), update the selection point
+	// to the zoomed position and let the user refine in interactive mode.
+	// The pending action fires on the next manual cell selection rather than
+	// executing immediately, which is consistent with normal grid behavior.
 	if zoomToDepth != nil && *zoomToDepth > 0 && !isRefresh &&
 		h.recursiveGrid.Manager != nil {
 		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
