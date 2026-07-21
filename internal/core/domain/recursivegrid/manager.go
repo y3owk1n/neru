@@ -299,6 +299,28 @@ func (m *Manager) HasHistory() bool {
 	return m.grid.HasHistory()
 }
 
+// ZoomToPoint auto-navigates to the given target depth based on cursor position.
+// Returns the final center point and whether the selection is complete.
+func (m *Manager) ZoomToPoint(point image.Point, targetDepth int) (image.Point, bool) {
+	center, isComplete := m.grid.ZoomToPoint(point, targetDepth)
+
+	m.SetCurrentInput("")
+
+	if isComplete {
+		if m.onComplete != nil {
+			m.onComplete(center)
+		}
+
+		return center, true
+	}
+
+	if m.onUpdate != nil {
+		m.onUpdate(center)
+	}
+
+	return center, false
+}
+
 // keyToCell maps an input key to a cell index using the current depth's key mapping.
 // Returns -1 if the key is not mapped.
 func (m *Manager) keyToCell(key string) Cell {

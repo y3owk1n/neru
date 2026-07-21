@@ -25,6 +25,7 @@ type ModeConfig struct {
 	SupportLabelDirection    bool     // Whether this mode supports the --label-direction flag
 	SupportDebug             bool     // Whether this mode supports the --debug probe flag
 	SupportSplitWord         bool     // Whether this mode supports the --split-word flag
+	SupportZoomToDepth       bool     // Whether this mode supports the --zoom-to-depth flag
 }
 
 // BuildModeCommand creates a CLI command for a navigation mode (hints, grid, etc.).
@@ -116,6 +117,21 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
 				if err != nil {
 					return err
+				}
+			}
+
+			var zoomToDepthFlag int
+			if config.SupportZoomToDepth {
+				zoomToDepthFlag, err = cmd.Flags().GetInt("zoom-to-depth")
+				if err != nil {
+					return err
+				}
+
+				if zoomToDepthFlag < 0 {
+					return derrors.New(
+						derrors.CodeInvalidInput,
+						"--zoom-to-depth requires a non-negative integer",
+					)
 				}
 			}
 
@@ -256,6 +272,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--cursor-selection-mode="+cursorSelectionMode)
 			}
 
+			if config.SupportZoomToDepth && zoomToDepthFlag > 0 {
+				params = append(params, fmt.Sprintf("--zoom-to-depth=%d", zoomToDepthFlag))
+			}
+
 			if strategyFlag != "" {
 				params = append(params, "--strategy="+strategyFlag)
 			}
@@ -311,6 +331,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"",
 		"How the real cursor should behave during selection: follow or hold",
 	)
+
+	if config.SupportZoomToDepth {
+		cmd.Flags().Int(
+			"zoom-to-depth",
+			0,
+			"Auto-zoom to the specified depth in recursive-grid at the current cursor position",
+		)
+	}
 
 	if config.SupportSearch {
 		cmd.Flags().BoolP(

@@ -40,6 +40,7 @@ type ModeActivationOptions struct {
 	Modifier              *string
 	Repeat                *bool
 	CursorFollowSelection *bool
+	ZoomToDepth           *int
 	FilterRoles           []string
 	FilterTextContains    []string
 	Search                *bool

@@ -187,7 +187,7 @@ neru grid --cursor-selection-mode hold
 
 ## 9. neru recursive_grid
 
-`neru recursive_grid [-h|--help] [-a|--action <action>] [-t|--toggle] [-r|--repeat] [--modifier <mod>] [--cursor-selection-mode <mode>]`
+`neru recursive_grid [-h|--help] [-a|--action <action>] [-t|--toggle] [-r|--repeat] [--modifier <mod>] [--cursor-selection-mode <mode>] [--zoom-to-depth <depth>]`
 
 Divide the screen into cells. Each keypress narrows the active area recursively.
 
@@ -205,11 +205,15 @@ Divide the screen into cells. Each keypress narrows the active area recursively.
 
 `--cursor-selection-mode <mode>` -- `follow` (default) or `hold`.
 
+`--zoom-to-depth <depth>` -- Auto-drill to the specified depth at the current cursor position. If the grid cannot divide further (min size or max depth), zooming stops early. Negative values are rejected.
+
 **EXAMPLES**
 
 ```bash
 neru recursive_grid
 neru recursive_grid --action middle_click
+neru recursive_grid --zoom-to-depth 2
+neru recursive_grid --zoom-to-depth 3 --action left_click
 ```
 
 ---

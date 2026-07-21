@@ -368,3 +368,44 @@ func (qg *RecursiveGrid) CellBounds(q Cell) image.Rectangle {
 
 	return cells[idx]
 }
+
+// CellForPoint returns the cell index containing the given point.
+// Returns -1 if the point is outside the current bounds.
+func (qg *RecursiveGrid) CellForPoint(point image.Point) Cell {
+	if !point.In(qg.currentBounds) {
+		return -1
+	}
+
+	cells := qg.Divide()
+	for i, cell := range cells {
+		if point.In(cell) {
+			return Cell(i)
+		}
+	}
+
+	return -1
+}
+
+// ZoomToPoint automatically selects cells at each depth level that contain
+// the given point, up to the target depth. If the grid cannot be divided
+// further (min size or max depth), zooming stops early. Returns the final
+// center point and whether the selection is complete.
+func (qg *RecursiveGrid) ZoomToPoint(point image.Point, targetDepth int) (image.Point, bool) {
+	for qg.depth < targetDepth {
+		if !qg.CanDivide() {
+			return qg.CurrentCenter(), true
+		}
+
+		cell := qg.CellForPoint(point)
+		if cell < 0 {
+			return qg.CurrentCenter(), true
+		}
+
+		center, isComplete := qg.SelectCell(cell)
+		if isComplete {
+			return center, true
+		}
+	}
+
+	return qg.CurrentCenter(), false
+}

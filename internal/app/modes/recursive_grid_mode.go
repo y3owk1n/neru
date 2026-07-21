@@ -18,6 +18,7 @@ func NewRecursiveGridMode(handler *Handler) *RecursiveGridMode {
 				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
+				opts.ZoomToDepth,
 			)
 		},
 		HandleKeyFunc: func(handler *Handler, key string) {
