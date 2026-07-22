@@ -370,25 +370,23 @@ func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
 
 // ensureA11yEnabled activates AT-SPI on first call (lazy, safe to call
 // multiple times). It saves the original a11y status so Close can restore it.
+// a11yMu is held across the D-Bus calls so Close() sees a consistent view:
+// either activation has finished (activated == true) or it hasn't started.
 func (c *ATSPIClient) ensureA11yEnabled() error {
 	c.a11yMu.Lock()
-	if c.activated {
-		c.a11yMu.Unlock()
+	defer c.a11yMu.Unlock()
 
+	if c.activated {
 		return nil
 	}
 
 	savedIsOn, savedSrOn, err := c.readA11yStatus()
 	if err != nil {
-		c.a11yMu.Unlock()
-
 		return err
 	}
 
 	c.savedIsOn = savedIsOn
 	c.savedSrOn = savedSrOn
-	c.activated = false
-	c.a11yMu.Unlock()
 
 	err = c.setA11yStatus(true, true)
 	if err != nil {
@@ -397,9 +395,7 @@ func (c *ATSPIClient) ensureA11yEnabled() error {
 
 	go c.kwin.start()
 
-	c.a11yMu.Lock()
 	c.activated = true
-	c.a11yMu.Unlock()
 
 	c.logger.Debug("AT-SPI accessibility enabled (lazy)")
 
