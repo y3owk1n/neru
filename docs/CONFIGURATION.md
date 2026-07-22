@@ -92,7 +92,8 @@ neru config validate    # Check syntax (no daemon needed)
 neru config reload      # Apply changes to running daemon
 neru config dump        # Print loaded config as JSON (daemon required)
 neru config init        # Create default config file
-neru config set <key> <value>  # Change a single value at runtime (see below)
+neru config set <key> <value>   # Change a single value at runtime (see below)
+neru config reset <key>         # Remove a single override (reverts to base config)
 ```
 
 See [CLI.md](CLI.md#configuration-management) for full flag documentation.
@@ -116,9 +117,30 @@ neru config set general.passthrough_unbounded_keys true
 3. Services, overlays, and hotkeys are reconfigured automatically — the same internal path used by `neru config reload`.
 4. The change is automatically persisted to `config.override.toml` alongside your config file. This file is loaded on every start, so changes survive restarts.
 
+### Batch changes with `--no-reload`
+
+Use `--no-reload` when setting or resetting multiple interdependent fields (e.g. `recursive_grid.grid_cols` + `recursive_grid.keys`). Each change persists to the override file without disrupting active hotkeys or exiting the current mode. Run `neru config reload` once after all changes to apply them.
+
+```bash
+neru config set --no-reload recursive_grid.grid_cols 3
+neru config set --no-reload recursive_grid.grid_rows 3
+neru config set --no-reload recursive_grid.keys "gcrhtnmwv"
+neru config reload
+```
+
+### Resetting overrides with `config reset`
+
+To revert a single field to its base config value, use `neru config reset <key>`. Like `config set`, it supports `--no-reload` for batch operations.
+
+```bash
+neru config reset recursive_grid.grid_cols
+neru config reset --no-reload recursive_grid.grid_rows
+neru config reload
+```
+
 ### Config override file
 
-Runtime changes via `neru config set` are written to an override file alongside your main config file. The override filename is derived from your config file's name: `config.toml` produces `config.override.toml`, `my-neru.toml` produces `my-neru.override.toml`, etc.
+Runtime changes via `neru config set` and `neru config reset` are written to an override file alongside your main config file. The override filename is derived from your config file's name: `config.toml` produces `config.override.toml`, `my-neru.toml` produces `my-neru.override.toml`, etc.
 
 The file uses the same TOML format and follows the same layering:
 
@@ -126,9 +148,7 @@ The file uses the same TOML format and follows the same layering:
 Defaults → config.toml → config.override.toml → Runtime (in-memory)
 ```
 
-To revert a change:
-- **Single field**: Edit the override file and remove the line, or set it to a different value, then run `neru config reload`.
-- **All overrides**: Delete the override file and run `neru config reload` to reset to config.toml values.
+To revert all overrides at once, delete the override file and run `neru config reload`.
 
 ### Supported field types
 
@@ -145,7 +165,7 @@ To revert a change:
 
 ### Limitations
 
-- **Hotkeys**: Cannot be set via `neru config set` (edit `config.toml` directly instead).
+- **Hotkeys**: Cannot be set via `neru config set` (edit `config.toml` directly instead). However, `config set` and `config reset` can be used *as hotkey actions* to change other config fields at runtime.
 - **Struct fields**: Sections like `[theme]` must be set via their leaf sub-paths, not as an object.
 - **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
 - **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
@@ -233,6 +253,16 @@ Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 
 [hotkeys]
 "Primary+Shift+D" = ["hints", "exec echo 'hints activated'"]
 "PageUp"          = ["action go_top", "action page_down"]
+"Cmd+8"           = [
+    "config set recursive_grid.grid_cols 3 --no-reload",
+    "config set recursive_grid.grid_rows 3 --no-reload",
+    "config set recursive_grid.keys gcrhtnmwv",
+]
+"Cmd+9"           = [
+    "config reset recursive_grid.grid_cols --no-reload",
+    "config reset recursive_grid.grid_rows --no-reload",
+    "config reset recursive_grid.keys",
+]
 ```
 
 **Shell commands** use the `exec` prefix: `"Primary+T" = "exec open -a Terminal"`

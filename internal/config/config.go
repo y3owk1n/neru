@@ -1543,6 +1543,42 @@ func setNestedMapValue(data map[string]any, path string, value any) {
 	}
 }
 
+// deleteNestedMapValue removes a dotted-path key from a nested map. Empty
+// ancestor maps are pruned so the serialized override file stays clean.
+func deleteNestedMapValue(data map[string]any, path string) {
+	parts := strings.Split(path, ".")
+	if len(parts) == 0 || parts[0] == "" {
+		return
+	}
+
+	// Walk down, collecting each level so we can prune on the way back up.
+	stack := make([]map[string]any, 0, len(parts))
+	stack = append(stack, data)
+
+	current := data
+	for i := range len(parts) - 1 {
+		next, ok := current[parts[i]].(map[string]any)
+		if !ok {
+			return
+		}
+
+		stack = append(stack, next)
+		current = next
+	}
+
+	// Delete the leaf key.
+	delete(current, parts[len(parts)-1])
+
+	// Prune empty ancestors from leaf upward.
+	for i := len(stack) - 1; i > 0; i-- {
+		if len(stack[i]) > 0 {
+			break
+		}
+
+		delete(stack[i-1], parts[i-1])
+	}
+}
+
 // getFieldValue reads a typed value from a Config by dotted path.
 func getFieldValue(cfg *Config, path string) (any, error) {
 	parts := strings.Split(path, ".")

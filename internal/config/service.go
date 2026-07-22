@@ -911,6 +911,15 @@ func (s *Service) Update(config *Config) error {
 	return nil
 }
 
+// Replace swaps the in-memory config without validation or watcher
+// notification. Use only when callers manage consistency themselves
+// (e.g. --no-reload batches multiple changes before a final reload).
+func (s *Service) Replace(config *Config) {
+	s.mu.Lock()
+	s.config = config
+	s.mu.Unlock()
+}
+
 // SaveOverrideField persists a single config field change to the override file.
 // It reads any existing overrides, applies the new field, and writes the result.
 // Returns nil if there is no config path (daemon was started without a file).
@@ -961,6 +970,45 @@ func (s *Service) SaveOverrideField(key, value string) error {
 	s.logger.Info("Config override persisted",
 		zap.String("key", key),
 		zap.String("value", value),
+		zap.String("override_path", overridePath))
+
+	return nil
+}
+
+// RemoveOverrideField removes a single config field from the override file.
+// After the next reload, the field will revert to its value from the base
+// config file (or the code default).
+func (s *Service) RemoveOverrideField(key string) error {
+	s.mu.RLock()
+	configPath := s.path
+	s.mu.RUnlock()
+
+	if configPath == "" {
+		return nil
+	}
+
+	overridePath := OverridePath(configPath)
+
+	overrides := make(map[string]any)
+
+	_, decodeErr := toml.DecodeFile(overridePath, &overrides)
+	if decodeErr != nil && !os.IsNotExist(decodeErr) {
+		return derrors.Wrap(
+			decodeErr,
+			derrors.CodeConfigIOFailed,
+			"failed to read existing overrides",
+		)
+	}
+
+	deleteNestedMapValue(overrides, key)
+
+	saveErr := SaveOverride(overridePath, overrides)
+	if saveErr != nil {
+		return saveErr
+	}
+
+	s.logger.Info("Config override removed",
+		zap.String("key", key),
 		zap.String("override_path", overridePath))
 
 	return nil

@@ -19,7 +19,9 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	a.prepareForConfigUpdate()
 
 	// Deep copy the current config so we only mutate the new copy.
-	newCfg, err := config.DeepCopyConfig(a.config)
+	// Read from the service (source of truth) so prior --no-reload
+	// changes are included.
+	newCfg, err := config.DeepCopyConfig(a.configService.Get())
 	if err != nil {
 		a.restoreHotkeysAfterFailedReload()
 

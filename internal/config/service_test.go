@@ -156,6 +156,33 @@ func TestService_Watch(t *testing.T) {
 	}
 }
 
+func TestService_Replace(t *testing.T) {
+	t.Parallel()
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	ctx := t.Context()
+
+	watchCh := service.Watch(ctx)
+	// Drain initial notification.
+	<-watchCh
+
+	modified := config.DefaultConfig()
+	modified.Hints.HintCharacters = "replaced"
+	service.Replace(modified)
+
+	// Config should be updated.
+	if got := service.Get().Hints.HintCharacters; got != "replaced" {
+		t.Errorf("Replace() did not update config: got %q, want %q", got, "replaced")
+	}
+
+	// Replace should NOT send a watcher notification.
+	select {
+	case <-watchCh:
+		t.Error("Replace() sent unexpected watcher notification")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
 func TestService_Concurrency(_ *testing.T) {
 	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
