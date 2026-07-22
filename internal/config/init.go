@@ -10,6 +10,23 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// linuxHotkeysBlock matches the default [hotkeys] section in default-config.toml.
+// It is replaced with a commented-out version on Linux to avoid terminal collisions.
+const linuxHotkeysBlock = `[hotkeys]
+"Primary+Shift+Space" = "hints"
+"Primary+Shift+G" = "grid"
+"Primary+Shift+C" = "recursive_grid"
+"Primary+Shift+S" = "scroll"`
+
+const linuxHotkeysBlockComment = `# Global hotkeys are disabled by default on Linux to avoid conflicts with
+# terminal and application shortcuts (e.g. Ctrl+Shift+C / copy).
+# Uncomment to enable, or bind \` + "`neru <mode>`" + ` in your DE/WM.
+# [hotkeys]
+# "Primary+Shift+Space" = "hints"
+# "Primary+Shift+G" = "grid"
+# "Primary+Shift+C" = "recursive_grid"
+# "Primary+Shift+S" = "scroll"`
+
 // WriteDefaultConfig writes the default configuration to the specified path.
 // If force is false and the file already exists, it returns an error.
 func WriteDefaultConfig(cfgPath string, force bool) error {
@@ -47,8 +64,10 @@ func WriteDefaultConfig(cfgPath string, force bool) error {
 // adjustments applied (e.g. exec_shell path on Windows).
 func platformDefaultConfig() []byte {
 	cfg := configs.DefaultConfig
+
+	content := string(cfg)
+
 	if runtime.GOOS == "windows" {
-		content := string(cfg)
 		content = strings.ReplaceAll(content,
 			`exec_shell = "/bin/bash"`,
 			`exec_shell = "C:\\Windows\\System32\\cmd.exe"`,
@@ -57,8 +76,16 @@ func platformDefaultConfig() []byte {
 			`exec_shell_args = ["-lc"]`,
 			`exec_shell_args = ["/c"]`,
 		)
-		cfg = []byte(content)
 	}
+
+	if runtime.GOOS == "linux" {
+		content = strings.ReplaceAll(content,
+			linuxHotkeysBlock,
+			linuxHotkeysBlockComment,
+		)
+	}
+
+	cfg = []byte(content)
 
 	return cfg
 }

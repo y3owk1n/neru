@@ -231,6 +231,11 @@ type Service struct {
 	watchers      []chan<- *Config
 	logger        *zap.Logger
 	alertProvider AlertProvider
+
+	// defaults is the base configuration used as the starting point by
+	// LoadWithValidation. It is initialized from defaultConfigForDecoding()
+	// in NewService, but can be overridden by tests via withDefaults.
+	defaults *Config
 }
 
 // NewService creates a new configuration service.
@@ -250,18 +255,47 @@ func NewService(
 
 	return &Service{
 		config:        cfg,
+		defaults:      defaultConfigForDecoding(),
 		path:          path,
 		logger:        logger.Named("config"),
 		alertProvider: alertProvider,
 	}
 }
 
+// WithDefaults sets the base defaults used by LoadWithValidation. This is
+// intended for tests that need to override platform-specific default hotkeys.
+func (s *Service) WithDefaults(cfg *Config) *Service {
+	if cfg != nil {
+		s.defaults = cfg
+	}
+
+	return s
+}
+
 // LoadWithValidation loads configuration from the specified path and returns both
 // the config and any validation error separately. This allows callers to decide
 // how to handle validation failures (e.g., show alert and use default config).
 func (s *Service) LoadWithValidation(path string) *LoadResult {
+	// Start from a fresh platform-default config, then overlay hotkey
+	// overrides from s.defaults (which may be injected by tests). This
+	// avoids both shared-state mutation and accumulation across loads
+	// (since Hotkeys.Bindings has a toml:"-" tag and is not reset by
+	// the TOML decode that follows).
+	base := newDefaultConfig()
+	applyPlatformDefaults(base)
+
+	if s.defaults != nil {
+		for k, v := range s.defaults.Hotkeys.Bindings {
+			if base.Hotkeys.Bindings == nil {
+				base.Hotkeys.Bindings = make(map[string][]string, len(s.defaults.Hotkeys.Bindings))
+			}
+
+			base.Hotkeys.Bindings[k] = v
+		}
+	}
+
 	configResult := &LoadResult{
-		Config:     defaultConfigForDecoding(),
+		Config:     base,
 		ConfigPath: path,
 	}
 
