@@ -175,6 +175,12 @@ func (capture *waylandEvdevCapture) Close() {
 		capture.files = nil
 		capture.deviceMu.Unlock()
 
+		// Wait for all reader goroutines to finish. Closing the files above
+		// makes neru_evdev_read_event return immediately, causing each reader
+		// to exit. We must wait here so that no reader can send on the events
+		// channel after we close it below.
+		capture.done.Wait()
+
 		close(capture.events)
 
 		if capture.logger != nil {
