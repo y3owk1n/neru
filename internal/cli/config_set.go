@@ -49,7 +49,15 @@ Use "neru config dump | jq" to explore all available keys.`,
 		key := args[0]
 		value := args[1]
 
-		valErr := config.ValidateConfigSetField(key, value)
+		noReload, _ := cmd.Flags().GetBool(noReloadFlagName)
+
+		var valErr error
+		if noReload {
+			valErr = config.SetField(config.DefaultConfig(), key, value)
+		} else {
+			valErr = config.ValidateConfigSetField(key, value)
+		}
+
 		if valErr != nil {
 			typeHint := config.ConfigFieldType(key)
 
@@ -60,8 +68,6 @@ Use "neru config dump | jq" to explore all available keys.`,
 				typeHint,
 			)
 		}
-
-		noReload, _ := cmd.Flags().GetBool(noReloadFlagName)
 
 		client := ipc.NewClient()
 
