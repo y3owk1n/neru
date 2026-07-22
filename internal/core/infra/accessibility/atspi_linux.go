@@ -144,52 +144,37 @@ type ATSPIClient struct {
 
 	// a11y state management.
 	a11yMu    sync.Mutex
-	activated bool   // true once we enabled AT-SPI this session
-	savedIsOn bool   // original IsEnabled before our first enable
-	savedSrOn bool   // original ScreenReaderEnabled before our first enable
+	activated bool // true once we enabled AT-SPI this session
+	savedIsOn bool // original IsEnabled before our first enable
+	savedSrOn bool // original ScreenReaderEnabled before our first enable
 }
 
-// NewATSPIClient builds the Linux accessibility client and best-effort enables
-// assistive-tech mode so apps start exposing their trees before the first
-// hints request. When hints are disabled, accessibility is not activated
-// to avoid triggering unnecessary screen-reader prompts in applications.
+// NewATSPIClient builds the Linux accessibility client. AT-SPI is not
+// activated until ensureA11yEnabled is called (lazily on first hints request),
+// so hints-disabled sessions never touch the session-wide a11y status.
 func NewATSPIClient(
 	logger *zap.Logger,
 	configProvider config.Provider,
-	hintsEnabled bool,
+	_ bool,
 ) *ATSPIClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	client := &ATSPIClient{
+	return &ATSPIClient{
 		InfraAXClient: NewInfraAXClient(logger, configProvider),
 		logger:        logger.Named("accessibility.atspi"),
 		kwin:          newKWinBridge(logger),
 	}
-
-	// Always reset a11y status on startup to clear any state left by a previous
-	// run. If hints are enabled, re-enable after the reset.
-	go func() {
-		_ = client.disableAccessibility()
-
-		if hintsEnabled {
-			err := client.enableAccessibility()
-			if err != nil {
-				client.logger.Warn("Failed to enable AT-SPI accessibility status", zap.Error(err))
-			}
-
-			// Install the KWin geometry bridge so AT-SPI window-relative
-			// coordinates can be offset into screen coordinates.
-			go client.kwin.start()
-		}
-	}()
-
-	return client
 }
 
 // FrontmostWindow returns the active top-level window via AT-SPI.
 func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
+	err := c.ensureA11yEnabled()
+	if err != nil {
+		c.logger.Warn("Failed to enable AT-SPI accessibility", zap.Error(err))
+	}
+
 	conn, err := c.ensureA11yConn()
 	if err != nil {
 		return nil, err
@@ -304,6 +289,7 @@ func (c *ATSPIClient) Close() error {
 		if closeErr != nil {
 			c.logger.Warn("Failed to close AT-SPI D-Bus connection", zap.Error(closeErr))
 		}
+
 		c.a11y = nil
 		c.a11yReady = false
 	}
@@ -319,22 +305,27 @@ func (c *ATSPIClient) readA11yStatus() (bool, bool, error) {
 	if connErr != nil {
 		return false, false, connErr
 	}
+
 	obj := conn.Object(a11yBusDest, a11yBusPath)
 
 	var isVariant dbus.Variant
+
 	getErr := obj.Call("org.freedesktop.DBus.Properties.Get", 0,
 		a11yStatusIfc, a11yPropIsEnabled).Store(&isVariant)
 	if getErr != nil {
 		return false, false, getErr
 	}
+
 	isOn, _ := isVariant.Value().(bool)
 
 	var srVariant dbus.Variant
+
 	getErr = obj.Call("org.freedesktop.DBus.Properties.Get", 0,
 		a11yStatusIfc, a11yPropScreenReader).Store(&srVariant)
 	if getErr != nil {
 		return false, false, getErr
 	}
+
 	srOn, _ := srVariant.Value().(bool)
 
 	return isOn, srOn, nil
@@ -348,6 +339,7 @@ func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
 	if connErr != nil {
 		return connErr
 	}
+
 	obj := conn.Object(a11yBusDest, a11yBusPath)
 
 	var props []string
@@ -365,6 +357,7 @@ func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
 		case a11yPropScreenReader:
 			propVal = srEnabled
 		}
+
 		err := obj.Call("org.freedesktop.DBus.Properties.Set", 0,
 			a11yStatusIfc, prop, dbus.MakeVariant(propVal)).Err
 		if err != nil {
@@ -379,61 +372,42 @@ func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
 	return nil
 }
 
-// enableAccessibility flips org.a11y.Status so toolkits expose their trees.
-func (c *ATSPIClient) enableAccessibility() error {
-	obj, connErr := c.getA11yStatusObj()
-	if connErr != nil {
-		return connErr
+// ensureA11yEnabled activates AT-SPI on first call (lazy, safe to call
+// multiple times). It saves the original a11y status so Close can restore it.
+func (c *ATSPIClient) ensureA11yEnabled() error {
+	c.a11yMu.Lock()
+	if c.activated {
+		c.a11yMu.Unlock()
+
+		return nil
 	}
 
-	t := true
-	for _, prop := range []string{"IsEnabled", "ScreenReaderEnabled"} {
-		callErr := obj.Call(
-			"org.freedesktop.DBus.Properties.Set", 0,
-			a11yStatusIfc, prop, dbus.MakeVariant(t),
-		).Err
-		if callErr != nil {
-			return callErr
-		}
-	}
-
-	c.logger.Debug("AT-SPI accessibility status enabled")
-
-	return nil
-}
-
-// disableAccessibility clears org.a11y.Status so toolkits stop exposing their
-// accessibility trees and apps no longer detect a screen reader.
-func (c *ATSPIClient) disableAccessibility() error {
-	obj, connErr := c.getA11yStatusObj()
-	if connErr != nil {
-		return connErr
-	}
-
-	f := false
-	for _, prop := range []string{"ScreenReaderEnabled", "IsEnabled"} {
-		callErr := obj.Call(
-			"org.freedesktop.DBus.Properties.Set", 0,
-			a11yStatusIfc, prop, dbus.MakeVariant(f),
-		).Err
-		if callErr != nil {
-			return callErr
-		}
-	}
-
-	c.logger.Debug("AT-SPI accessibility status disabled")
-
-	return nil
-}
-
-// getA11yStatusObj returns a D-Bus object for the org.a11y.Status interface.
-func (c *ATSPIClient) getA11yStatusObj() (dbus.BusObject, error) {
-	conn, err := dbus.SessionBus()
+	savedIsOn, savedSrOn, err := c.readA11yStatus()
 	if err != nil {
-		return nil, err
+		c.a11yMu.Unlock()
+
+		return err
 	}
 
-	return conn.Object(a11yBusDest, a11yBusPath), nil
+	c.savedIsOn = savedIsOn
+	c.savedSrOn = savedSrOn
+	c.activated = false
+	c.a11yMu.Unlock()
+
+	err = c.setA11yStatus(true, true)
+	if err != nil {
+		return err
+	}
+
+	go c.kwin.start()
+
+	c.a11yMu.Lock()
+	c.activated = true
+	c.a11yMu.Unlock()
+
+	c.logger.Debug("AT-SPI accessibility enabled (lazy)")
+
+	return nil
 }
 
 // ensureA11yConn lazily connects to the dedicated AT-SPI bus.
