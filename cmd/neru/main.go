@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // main is defined in main_os.go files (main_darwin.go / main_other.go)
@@ -22,12 +23,7 @@ type alertProvider struct {
 	system config.AlertProvider
 }
 
-func newAlertProvider() *alertProvider {
-	sp, err := platform.NewSystemPort()
-	if err != nil {
-		return &alertProvider{}
-	}
-
+func newAlertProvider(sp ports.SystemPort) *alertProvider {
 	return &alertProvider{system: sp}
 }
 
@@ -41,28 +37,24 @@ func (p *alertProvider) ShowAlert(ctx context.Context, title, message string) er
 
 // LaunchDaemon is called by the CLI to launch the daemon.
 func LaunchDaemon(configPath string) {
+	// Create system port early for startup notice and alerts.
+	systemPort, sysPortErr := platform.NewSystemPort()
+
+	// On non-macOS, print a brief startup notice with platform capabilities
+	// rather than a stale warning. Users can run 'neru doctor' for full details.
 	if !platform.IsDarwin() {
-		fmt.Fprintf(
-			os.Stderr,
-			"⚠️  WARNING: Neru is running on %s, which is not yet fully supported.\n",
-			platform.CurrentOS(),
-		)
-		fmt.Fprintf(
-			os.Stderr,
-			"   Most features (hotkeys, overlays, accessibility, notifications) are stubs\n",
-		)
-		fmt.Fprintf(os.Stderr, "   and will not function. Only macOS is currently supported.\n")
-		fmt.Fprintf(
-			os.Stderr,
-			"   See docs/ARCHITECTURE.md for the contribution guide.\n\n",
-		)
+		if sysPortErr != nil {
+			fmt.Fprintf(os.Stderr, "⚠️  %s\n\n", sysPortErr.Error())
+		} else {
+			printPlatformStartupNotice(systemPort.Capabilities())
+		}
 	}
 
 	service := config.NewService(
 		config.DefaultConfig(),
 		configPath,
 		zap.NewNop(),
-		newAlertProvider(),
+		newAlertProvider(systemPort),
 	)
 	configResult := service.LoadWithValidation(configPath)
 
@@ -91,6 +83,22 @@ func LaunchDaemon(configPath string) {
 		fmt.Fprintf(os.Stderr, "Error running app: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// printPlatformStartupNotice prints a compact, dynamic startup message on non-macOS
+// platforms. It uses the system port's live capability report so it never goes stale
+// as features get implemented. Users are directed to 'neru doctor' for full details.
+func printPlatformStartupNotice(caps ports.PlatformCapabilities) {
+	platformLabel := caps.Platform
+	if platformLabel == "" {
+		platformLabel = string(platform.CurrentOS())
+	}
+
+	fmt.Fprintf(
+		os.Stderr,
+		"⚠️  Neru is running on %s. Run 'neru doctor' for platform capabilities.\n\n",
+		platformLabel,
+	)
 }
 
 // handleConfigValidationError shows a validation error and exits.
