@@ -107,7 +107,7 @@ type EventTap struct {
 	// /dev/input/event* devices on every mode activation, which was the
 	// source of a mild delay before the grid/hints mode accepted input.
 	evdevWaylandCapture     any
-	evdevWaylandCaptureInit sync.Once
+	evdevWaylandCaptureInit sync.Mutex
 }
 
 // NewEventTap creates a new EventTap instance.

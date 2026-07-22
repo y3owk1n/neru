@@ -621,48 +621,42 @@ func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 	}
 }
 
-// initEvdevCapture initializes the persistent waylandEvdevCapture once and
-// stores it on the EventTap. Subsequent calls return the existing capture.
+// initEvdevCapture initializes the persistent waylandEvdevCapture.
+// A failed attempt can be retried later, allowing detection of newly
+// connected keyboards after startup.
 func (et *EventTap) initEvdevCapture() (*waylandEvdevCapture, error) {
-	var err error
+	et.evdevWaylandCaptureInit.Lock()
+	defer et.evdevWaylandCaptureInit.Unlock()
 
-	et.evdevWaylandCaptureInit.Do(func() {
-		wlCapture, capErr := newWaylandEvdevCapture(et.logger)
-		if capErr != nil {
-			if et.logger != nil {
-				level := et.logger.Info
-				if !errors.Is(capErr, errWaylandEvdevUnavailable) {
-					level = et.logger.Warn
-				}
-
-				level(
-					"Wayland evdev capture unavailable; falling back to overlay keyboard focus",
-					zap.Error(capErr),
-				)
-			}
-
-			err = capErr
-
-			return
+	if et.evdevWaylandCapture != nil {
+		c, ok := et.evdevWaylandCapture.(*waylandEvdevCapture)
+		if !ok {
+			return nil, errWaylandEvdevUnavailable
 		}
 
-		et.evdevWaylandCapture = wlCapture
-	})
-
-	if err != nil {
-		return nil, err
+		return c, nil
 	}
 
-	if et.evdevWaylandCapture == nil {
-		return nil, errWaylandEvdevUnavailable
+	wlCapture, capErr := newWaylandEvdevCapture(et.logger)
+	if capErr != nil {
+		if et.logger != nil {
+			level := et.logger.Info
+			if !errors.Is(capErr, errWaylandEvdevUnavailable) {
+				level = et.logger.Warn
+			}
+
+			level(
+				"Wayland evdev capture unavailable; falling back to overlay keyboard focus",
+				zap.Error(capErr),
+			)
+		}
+
+		return nil, capErr
 	}
 
-	c, ok := et.evdevWaylandCapture.(*waylandEvdevCapture)
-	if !ok {
-		return nil, errWaylandEvdevUnavailable
-	}
+	et.evdevWaylandCapture = wlCapture
 
-	return c, nil
+	return wlCapture, nil
 }
 
 // closeEvdevCapture closes the persistent evdev capture, releasing all file
