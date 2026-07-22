@@ -13,12 +13,8 @@ import (
 )
 
 // NewPlatformAXClient returns the AT-SPI-backed client on Linux.
-// When hintsEnabled is false the underlying AT-SPI client skips activating
-// the accessibility bus, avoiding unnecessary screen-reader prompts.
-func NewPlatformAXClient(
-	logger *zap.Logger,
-	configProvider config.Provider,
-	hintsEnabled bool,
-) AXClient {
-	return NewATSPIClient(logger, configProvider, hintsEnabled)
+// AT-SPI activation is now lazy (on first hints request), so the
+// caller does not need to pass a hints-enabled flag at construction.
+func NewPlatformAXClient(logger *zap.Logger, configProvider config.Provider) AXClient {
+	return NewATSPIClient(logger, configProvider)
 }

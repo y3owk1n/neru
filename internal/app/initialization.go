@@ -85,7 +85,7 @@ func initializeAdapters(
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client.
-	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService, cfg.Hints.Enabled)
+	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
 
 	// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
 	app.axClient = axClient

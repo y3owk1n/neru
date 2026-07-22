@@ -13,7 +13,6 @@ import (
 )
 
 // NewPlatformAXClient returns the default infrastructure client.
-// hintsEnabled is only meaningful on Linux; on other platforms it is ignored.
-func NewPlatformAXClient(logger *zap.Logger, configProvider config.Provider, _ bool) AXClient {
+func NewPlatformAXClient(logger *zap.Logger, configProvider config.Provider) AXClient {
 	return NewInfraAXClient(logger, configProvider)
 }

@@ -152,11 +152,7 @@ type ATSPIClient struct {
 // NewATSPIClient builds the Linux accessibility client. AT-SPI is not
 // activated until ensureA11yEnabled is called (lazily on first hints request),
 // so hints-disabled sessions never touch the session-wide a11y status.
-func NewATSPIClient(
-	logger *zap.Logger,
-	configProvider config.Provider,
-	_ bool,
-) *ATSPIClient {
+func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPIClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
