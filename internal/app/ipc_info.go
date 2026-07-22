@@ -488,6 +488,14 @@ func (h *IPCControllerInfo) handleConfigReset(ctx context.Context, cmd ipc.Comma
 	key := cmd.Args[0]
 	noReload := len(cmd.Args) > 1 && cmd.Args[1] == "--no-reload"
 
+	if config.ConfigFieldType(key) == "unknown" {
+		return ipc.Response{
+			Success: false,
+			Message: "unknown config field: " + key,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
 	removeErr := h.configService.RemoveOverrideField(key)
 	if removeErr != nil {
 		return ipc.Response{
