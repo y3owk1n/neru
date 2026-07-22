@@ -20,6 +20,9 @@ func NewSystemAdapter() *SystemAdapter {
 	return &SystemAdapter{}
 }
 
+// PlatformLabel returns "darwin".
+func (s *SystemAdapter) PlatformLabel() string { return "darwin" }
+
 // Health checks the health of the macOS system adapter.
 func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil
