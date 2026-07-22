@@ -15,6 +15,20 @@ import (
 
 const hintsCommand = "hints"
 
+// defaultConfigWithHotkeys returns a config with standard default hotkeys,
+// regardless of platform. This keeps the integration tests platform-independent.
+func defaultConfigWithHotkeys() *config.Config {
+	cfg := config.DefaultConfig()
+	cfg.Hotkeys.Bindings = map[string][]string{
+		"Primary+Shift+Space": {hintsCommand},
+		"Primary+Shift+G":     {config.ModeNameGrid},
+		"Primary+Shift+C":     {config.ModeNameRecursiveGrid},
+		"Primary+Shift+S":     {config.ModeNameScroll},
+	}
+
+	return cfg
+}
+
 // TestConfigFileOperationsIntegration tests real file system operations
 // for configuration loading and reloading to prevent file system regressions.
 func TestConfigFileOperationsIntegration(t *testing.T) {
@@ -75,7 +89,7 @@ max_age = 30
 		writeConfigFile(t, configPath, configContent, 0o644)
 
 		// Load config from real file
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 		loadResult := service.LoadWithValidation(configPath)
 
 		if loadResult.ValidationError != nil {
@@ -111,7 +125,7 @@ font_size = 12
 		writeConfigFile(t, configPath, initialContent, 0o644)
 
 		// Create a config service and load initial config
-		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+		configSvc := config.NewService(defaultConfigWithHotkeys(), configPath, zap.NewNop(), nil)
 
 		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
@@ -156,7 +170,7 @@ bundle_id = "com.apple.Safari"
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -191,7 +205,7 @@ scroll_step_full = 1000
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -237,7 +251,7 @@ scroll_step_full = 1000
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -266,7 +280,7 @@ scroll_step_full = 1000
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -297,7 +311,7 @@ scroll_step_full = 1000
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -331,7 +345,7 @@ enabled = false
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -358,7 +372,7 @@ enabled = false
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -389,7 +403,7 @@ enabled = false
 
 		writeConfigFile(t, configPath, configContent, 0o644)
 
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
@@ -415,7 +429,7 @@ enabled = true
 		writeConfigFile(t, configPath, configContent, 0o600)
 
 		// Should still be able to load it
-		service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+		service := config.NewService(defaultConfigWithHotkeys(), "", zap.NewNop(), nil)
 
 		loadResult := service.LoadWithValidation(configPath)
 		if loadResult.ValidationError != nil {
