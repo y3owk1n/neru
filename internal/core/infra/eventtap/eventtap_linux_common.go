@@ -101,6 +101,13 @@ type EventTap struct {
 	// hasn't changed before invoking the callback. This prevents
 	// stale buffered events from leaking across enable/disable cycles.
 	dispatchEpoch atomic.Uint64
+
+	// evdevWaylandCapture holds a *waylandEvdevCapture created once and
+	// reused across Enable/Disable cycles. This avoids re-scanning
+	// /dev/input/event* devices on every mode activation, which was the
+	// source of a mild delay before the grid/hints mode accepted input.
+	evdevWaylandCapture     any
+	evdevWaylandCaptureInit sync.Mutex
 }
 
 // NewEventTap creates a new EventTap instance.
@@ -200,6 +207,12 @@ func (et *EventTap) Destroy() {
 	et.mu.Unlock()
 
 	et.Disable()
+
+	// Clean up the persistent evdev capture (closes file descriptors
+	// and drains reader goroutines). The closeEvdevCapture method is
+	// defined in the cgo build-tagged file for Wayland+cgo builds;
+	// it is a no-op when the capture was never initialized.
+	et.closeEvdevCapture()
 
 	// Stop the dispatch goroutine and wait for it to finish.
 	// The dispatchCh is created once in NewEventTap and lives for the
