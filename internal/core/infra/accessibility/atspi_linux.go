@@ -51,6 +51,10 @@ const (
 	// Capacity hint for the clickable-node slice: most windows fit well under
 	// this and the slice grows if a dense tree exceeds it.
 	atspiClickableNodesCap = 128
+
+	// org.a11y.Status D-Bus property names.
+	a11yPropIsEnabled    = "IsEnabled"
+	a11yPropScreenReader = "ScreenReaderEnabled"
 )
 
 // accRef is the AT-SPI (bus-name, object-path) reference returned by
@@ -137,6 +141,12 @@ type ATSPIClient struct {
 	mu        sync.Mutex
 	a11y      *dbus.Conn
 	a11yReady bool
+
+	// a11y state management.
+	a11yMu    sync.Mutex
+	activated bool   // true once we enabled AT-SPI this session
+	savedIsOn bool   // original IsEnabled before our first enable
+	savedSrOn bool   // original ScreenReaderEnabled before our first enable
 }
 
 // NewATSPIClient builds the Linux accessibility client and best-effort enables
@@ -272,21 +282,99 @@ func (c *ATSPIClient) ClickableNodes(
 	return out, nil
 }
 
-// Close resets the AT-SPI accessibility status to disabled and releases the
-// dedicated D-Bus connection to the a11y bus.
+// Close restores the org.a11y.Status to the values that were active before
+// our first enable, and releases the dedicated D-Bus connection.
 func (c *ATSPIClient) Close() error {
-	_ = c.disableAccessibility()
+	c.a11yMu.Lock()
+	wasActivated := c.activated
+	restoreIsOn := c.savedIsOn
+	restoreSrOn := c.savedSrOn
+	c.a11yMu.Unlock()
+
+	if wasActivated {
+		err := c.setA11yStatus(restoreSrOn, restoreIsOn)
+		if err != nil {
+			c.logger.Warn("Failed to restore AT-SPI a11y status", zap.Error(err))
+		}
+	}
+
 	c.mu.Lock()
 	if c.a11y != nil {
 		closeErr := c.a11y.Close()
 		if closeErr != nil {
 			c.logger.Warn("Failed to close AT-SPI D-Bus connection", zap.Error(closeErr))
 		}
-
 		c.a11y = nil
 		c.a11yReady = false
 	}
 	c.mu.Unlock()
+
+	return nil
+}
+
+// readA11yStatus reads the current IsEnabled and ScreenReaderEnabled D-Bus
+// properties from org.a11y.Status.
+func (c *ATSPIClient) readA11yStatus() (bool, bool, error) {
+	conn, connErr := dbus.SessionBus()
+	if connErr != nil {
+		return false, false, connErr
+	}
+	obj := conn.Object(a11yBusDest, a11yBusPath)
+
+	var isVariant dbus.Variant
+	getErr := obj.Call("org.freedesktop.DBus.Properties.Get", 0,
+		a11yStatusIfc, a11yPropIsEnabled).Store(&isVariant)
+	if getErr != nil {
+		return false, false, getErr
+	}
+	isOn, _ := isVariant.Value().(bool)
+
+	var srVariant dbus.Variant
+	getErr = obj.Call("org.freedesktop.DBus.Properties.Get", 0,
+		a11yStatusIfc, a11yPropScreenReader).Store(&srVariant)
+	if getErr != nil {
+		return false, false, getErr
+	}
+	srOn, _ := srVariant.Value().(bool)
+
+	return isOn, srOn, nil
+}
+
+// setA11yStatus writes the given values for IsEnabled and ScreenReaderEnabled
+// on org.a11y.Status. When disabling, ScreenReaderEnabled is cleared before
+// IsEnabled; when enabling, IsEnabled is set first.
+func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
+	conn, connErr := dbus.SessionBus()
+	if connErr != nil {
+		return connErr
+	}
+	obj := conn.Object(a11yBusDest, a11yBusPath)
+
+	var props []string
+	if !srEnabled {
+		props = []string{a11yPropScreenReader, a11yPropIsEnabled}
+	} else {
+		props = []string{a11yPropIsEnabled, a11yPropScreenReader}
+	}
+
+	for _, prop := range props {
+		var propVal bool
+		switch prop {
+		case a11yPropIsEnabled:
+			propVal = isEnabled
+		case a11yPropScreenReader:
+			propVal = srEnabled
+		}
+		err := obj.Call("org.freedesktop.DBus.Properties.Set", 0,
+			a11yStatusIfc, prop, dbus.MakeVariant(propVal)).Err
+		if err != nil {
+			return err
+		}
+	}
+
+	c.logger.Debug("AT-SPI status set",
+		zap.Bool(a11yPropIsEnabled, isEnabled),
+		zap.Bool(a11yPropScreenReader, srEnabled))
 
 	return nil
 }
