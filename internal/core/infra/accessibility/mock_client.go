@@ -179,6 +179,9 @@ func (m *MockAXClient) IsMissionControlActive() bool {
 	return m.MockMissionControlActive
 }
 
+// Close is a no-op for the mock.
+func (m *MockAXClient) Close() error { return nil }
+
 // Mock implementations for Window, App, Node
 
 // MockWindow is a mock implementation of AXWindow.

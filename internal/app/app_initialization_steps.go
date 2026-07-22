@@ -90,6 +90,7 @@ func initializeServicesAndAdapters(app *App) error {
 
 	// Initialize adapters
 	accAdapter, overlayAdapter := initializeAdapters(
+		app,
 		cfg,
 		cfgService,
 		logger,

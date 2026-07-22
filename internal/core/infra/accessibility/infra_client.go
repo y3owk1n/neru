@@ -301,6 +301,10 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
 }
 
+// Close is a no-op for the default infrastructure client; the macOS AX API
+// does not hold process-external resources that need explicit teardown.
+func (c *InfraAXClient) Close() error { return nil }
+
 // extractElement returns the raw *Element from an AXElement wrapper.
 func (c *InfraAXClient) extractElement(root AXElement) (*Element, error) {
 	switch elementType := root.(type) {

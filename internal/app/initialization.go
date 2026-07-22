@@ -74,6 +74,7 @@ func initializeAppWatcher(logger *zap.Logger) Watcher {
 
 // initializeAdapters creates and initializes the accessibility and overlay adapters.
 func initializeAdapters(
+	app *App,
 	cfg *config.Config,
 	cfgService *config.Service,
 	logger *zap.Logger,
@@ -84,7 +85,10 @@ func initializeAdapters(
 	clickableRoles := cfg.Hints.ClickableRoles
 
 	// Create infrastructure client.
-	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
+	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService, cfg.Hints.Enabled)
+
+	// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
+	app.axClient = axClient
 
 	// Create base accessibility adapter with core functionality
 	accAdapter := accessibilityAdapter.NewAdapter(

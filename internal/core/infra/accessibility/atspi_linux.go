@@ -141,8 +141,13 @@ type ATSPIClient struct {
 
 // NewATSPIClient builds the Linux accessibility client and best-effort enables
 // assistive-tech mode so apps start exposing their trees before the first
-// hints request.
-func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPIClient {
+// hints request. When hints are disabled, accessibility is not activated
+// to avoid triggering unnecessary screen-reader prompts in applications.
+func NewATSPIClient(
+	logger *zap.Logger,
+	configProvider config.Provider,
+	hintsEnabled bool,
+) *ATSPIClient {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -153,18 +158,22 @@ func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPICl
 		kwin:          newKWinBridge(logger),
 	}
 
-	// Enable a11y now (in the background) so Qt/GTK apps build their trees
-	// well before the user triggers hints.
+	// Always reset a11y status on startup to clear any state left by a previous
+	// run. If hints are enabled, re-enable after the reset.
 	go func() {
-		err := client.enableAccessibility()
-		if err != nil {
-			client.logger.Warn("Failed to enable AT-SPI accessibility status", zap.Error(err))
+		_ = client.disableAccessibility()
+
+		if hintsEnabled {
+			err := client.enableAccessibility()
+			if err != nil {
+				client.logger.Warn("Failed to enable AT-SPI accessibility status", zap.Error(err))
+			}
+
+			// Install the KWin geometry bridge so AT-SPI window-relative
+			// coordinates can be offset into screen coordinates.
+			go client.kwin.start()
 		}
 	}()
-
-	// Install the KWin geometry bridge so AT-SPI window-relative coordinates
-	// can be offset into screen coordinates.
-	go client.kwin.start()
 
 	return client
 }
@@ -263,14 +272,31 @@ func (c *ATSPIClient) ClickableNodes(
 	return out, nil
 }
 
+// Close resets the AT-SPI accessibility status to disabled and releases the
+// dedicated D-Bus connection to the a11y bus.
+func (c *ATSPIClient) Close() error {
+	_ = c.disableAccessibility()
+	c.mu.Lock()
+	if c.a11y != nil {
+		closeErr := c.a11y.Close()
+		if closeErr != nil {
+			c.logger.Warn("Failed to close AT-SPI D-Bus connection", zap.Error(closeErr))
+		}
+
+		c.a11y = nil
+		c.a11yReady = false
+	}
+	c.mu.Unlock()
+
+	return nil
+}
+
 // enableAccessibility flips org.a11y.Status so toolkits expose their trees.
 func (c *ATSPIClient) enableAccessibility() error {
-	conn, err := dbus.SessionBus()
-	if err != nil {
-		return err
+	obj, connErr := c.getA11yStatusObj()
+	if connErr != nil {
+		return connErr
 	}
-
-	obj := conn.Object(a11yBusDest, a11yBusPath)
 
 	t := true
 	for _, prop := range []string{"IsEnabled", "ScreenReaderEnabled"} {
@@ -286,6 +312,40 @@ func (c *ATSPIClient) enableAccessibility() error {
 	c.logger.Debug("AT-SPI accessibility status enabled")
 
 	return nil
+}
+
+// disableAccessibility clears org.a11y.Status so toolkits stop exposing their
+// accessibility trees and apps no longer detect a screen reader.
+func (c *ATSPIClient) disableAccessibility() error {
+	obj, connErr := c.getA11yStatusObj()
+	if connErr != nil {
+		return connErr
+	}
+
+	f := false
+	for _, prop := range []string{"ScreenReaderEnabled", "IsEnabled"} {
+		callErr := obj.Call(
+			"org.freedesktop.DBus.Properties.Set", 0,
+			a11yStatusIfc, prop, dbus.MakeVariant(f),
+		).Err
+		if callErr != nil {
+			return callErr
+		}
+	}
+
+	c.logger.Debug("AT-SPI accessibility status disabled")
+
+	return nil
+}
+
+// getA11yStatusObj returns a D-Bus object for the org.a11y.Status interface.
+func (c *ATSPIClient) getA11yStatusObj() (dbus.BusObject, error) {
+	conn, err := dbus.SessionBus()
+	if err != nil {
+		return nil, err
+	}
+
+	return conn.Object(a11yBusDest, a11yBusPath), nil
 }
 
 // ensureA11yConn lazily connects to the dedicated AT-SPI bus.

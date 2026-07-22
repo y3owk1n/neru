@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io"
 	"sync"
 
 	"go.uber.org/zap"
@@ -59,6 +60,11 @@ type App struct {
 	appWatcher     Watcher
 
 	modes *modes.Handler
+
+	// axClient is stored so it can be closed during Cleanup.
+	// On Linux this resets AT-SPI accessibility status and releases the
+	// D-Bus connection; on other platforms it is a no-op.
+	axClient io.Closer
 
 	// Control channels
 	stopChan    chan struct{}
