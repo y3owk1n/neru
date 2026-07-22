@@ -602,13 +602,17 @@ func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 		}
 	}
 
-	capture.files = append(capture.files, file)
-	isGrabbed := capture.grabbed
-	capture.deviceMu.Unlock()
+	// If the capture is currently grabbed, grab the new device under the
+	// same lock so Disable cannot race ahead and ungrab before we finish.
+	if capture.grabbed && C.neru_evdev_grab(C.int(file.Fd()), 1) != 0 {
+		capture.deviceMu.Unlock()
+		_ = file.Close()
 
-	if isGrabbed {
-		C.neru_evdev_grab(C.int(file.Fd()), 1)
+		return
 	}
+
+	capture.files = append(capture.files, file)
+	capture.deviceMu.Unlock()
 
 	capture.startReader(file)
 
@@ -616,7 +620,6 @@ func (capture *waylandEvdevCapture) handleNewDevice(name string) {
 		capture.logger.Info(
 			"New keyboard device detected and captured",
 			zap.String("device", path),
-			zap.Bool("grabbed", isGrabbed),
 		)
 	}
 }
