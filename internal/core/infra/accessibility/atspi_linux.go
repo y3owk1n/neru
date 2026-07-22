@@ -373,6 +373,18 @@ func (c *ATSPIClient) setA11yStatus(srEnabled, isEnabled bool) error {
 	return nil
 }
 
+// setA11yProp writes a single org.a11y.Status property.
+func (c *ATSPIClient) setA11yProp(prop string, val bool) error {
+	conn, err := dbus.SessionBus()
+	if err != nil {
+		return err
+	}
+
+	return conn.Object(a11yBusDest, a11yBusPath).
+		Call("org.freedesktop.DBus.Properties.Set", 0,
+			a11yStatusIfc, prop, dbus.MakeVariant(val)).Err
+}
+
 // ensureA11yEnabled activates AT-SPI on first call (lazy, safe to call
 // multiple times). It saves the original a11y status so Close can restore it.
 // a11yMu is held across the D-Bus calls so Close() sees a consistent view:
@@ -397,8 +409,15 @@ func (c *ATSPIClient) ensureA11yEnabled() error {
 	c.savedIsOn = savedIsOn
 	c.savedSrOn = savedSrOn
 
-	err = c.setA11yStatus(true, true)
+	err = c.setA11yProp(a11yPropIsEnabled, true)
 	if err != nil {
+		return err
+	}
+
+	err = c.setA11yProp(a11yPropScreenReader, true)
+	if err != nil {
+		_ = c.setA11yProp(a11yPropIsEnabled, c.savedIsOn) // best-effort rollback
+
 		return err
 	}
 
