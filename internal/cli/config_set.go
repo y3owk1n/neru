@@ -36,10 +36,10 @@ Examples:
   neru config set general.passthrough_unbounded_keys true
   neru config set hints.clickable_roles "AXButton,AXLink"
   neru config set scroll.scroll_step 50
-  neru config set --no-reload recursive_grid.cols 4
-  neru config set --no-reload recursive_grid.rows 3
-  neru config reload
+  neru config set --no-reload recursive_grid.grid_cols 4
+  neru config set --no-reload recursive_grid.grid_rows 3
 
+Use "neru config reload" after setting multiple fields with --no-reload.
 Use "neru config dump | jq" to explore all available keys.`,
 	Args: cobra.ExactArgs(commandArgCount),
 	PreRunE: func(_ *cobra.Command, _ []string) error {
