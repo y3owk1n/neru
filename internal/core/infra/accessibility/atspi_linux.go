@@ -11,6 +11,7 @@ package accessibility
 
 import (
 	"context"
+	"errors"
 	"image"
 	"strings"
 	"sync"
@@ -21,6 +22,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 )
+
+var errClientClosed = errors.New("AT-SPI client is closed")
 
 const (
 	a11yBusDest   = "org.a11y.Bus"
@@ -145,6 +148,7 @@ type ATSPIClient struct {
 	// a11y state management.
 	a11yMu    sync.Mutex
 	activated bool // true once we enabled AT-SPI this session
+	closed    bool // true after Close() runs; prevents re-activation
 	savedIsOn bool // original IsEnabled before our first enable
 	savedSrOn bool // original ScreenReaderEnabled before our first enable
 }
@@ -270,6 +274,7 @@ func (c *ATSPIClient) Close() error {
 	wasActivated := c.activated
 	restoreIsOn := c.savedIsOn
 	restoreSrOn := c.savedSrOn
+	c.closed = true
 	c.a11yMu.Unlock()
 
 	if wasActivated {
@@ -378,6 +383,10 @@ func (c *ATSPIClient) ensureA11yEnabled() error {
 
 	if c.activated {
 		return nil
+	}
+
+	if c.closed {
+		return errClientClosed
 	}
 
 	savedIsOn, savedSrOn, err := c.readA11yStatus()
