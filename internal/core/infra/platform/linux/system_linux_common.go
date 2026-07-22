@@ -35,6 +35,16 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	return &SystemAdapter{backend: backend}
 }
 
+// PlatformLabel returns "linux/<backend>" (e.g. "linux/x11", "linux/wayland-kde").
+// Uses the cached backend field set at construction time — no I/O or live probes.
+func (s *SystemAdapter) PlatformLabel() string {
+	if s.backend != "" {
+		return "linux/" + s.backend
+	}
+
+	return "linux"
+}
+
 // Health checks the health of the Linux system adapter.
 func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil

@@ -41,12 +41,14 @@ func LaunchDaemon(configPath string) {
 	systemPort, sysPortErr := platform.NewSystemPort()
 
 	// On non-macOS, print a brief startup notice directing to 'neru doctor'
-	// for the full platform capability report.
+	// for the full platform capability report. Uses the system port's
+	// lightweight PlatformLabel() (no I/O or live probes) as the primary
+	// source, falling back to CurrentOS() when the port is unavailable.
 	if !platform.IsDarwin() {
 		if sysPortErr != nil {
 			fmt.Fprintf(os.Stderr, "⚠️  %s\n\n", sysPortErr.Error())
 		} else {
-			printPlatformStartupNotice()
+			printPlatformStartupNotice(systemPort.PlatformLabel())
 		}
 	}
 
@@ -86,11 +88,17 @@ func LaunchDaemon(configPath string) {
 }
 
 // printPlatformStartupNotice prints a compact startup notice on non-macOS.
-func printPlatformStartupNotice() {
+// Uses the system port's lightweight PlatformLabel() (no I/O, no live probes)
+// as the primary source, falling back to CurrentOS() when unavailable.
+func printPlatformStartupNotice(platformLabel string) {
+	if platformLabel == "" {
+		platformLabel = string(platform.CurrentOS())
+	}
+
 	fmt.Fprintf(
 		os.Stderr,
 		"⚠️  Neru is running on %s. Run 'neru doctor' for platform capabilities.\n\n",
-		platform.CurrentOS(),
+		platformLabel,
 	)
 }
 

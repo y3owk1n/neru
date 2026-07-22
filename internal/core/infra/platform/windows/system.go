@@ -27,6 +27,9 @@ func NewSystemAdapter() *SystemAdapter {
 	return &SystemAdapter{}
 }
 
+// PlatformLabel returns "windows".
+func (s *SystemAdapter) PlatformLabel() string { return "windows" }
+
 // Health checks the health of the Windows system adapter.
 func (s *SystemAdapter) Health(ctx context.Context) error {
 	return nil

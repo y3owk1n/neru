@@ -29,6 +29,7 @@ type MockSystemPort struct {
 	ShowAlertFunc                   func(ctx context.Context, title, message string) error
 	ShowNotificationFunc            func(title, message string)
 	CapabilitiesFunc                func() ports.PlatformCapabilities
+	PlatformLabelFunc               func() string
 	HealthFunc                      func(ctx context.Context) error
 }
 
@@ -215,6 +216,15 @@ func (m *MockSystemPort) Capabilities() ports.PlatformCapabilities {
 	}
 
 	return ports.PlatformCapabilities{}
+}
+
+// PlatformLabel is a mock implementation.
+func (m *MockSystemPort) PlatformLabel() string {
+	if m.PlatformLabelFunc != nil {
+		return m.PlatformLabelFunc()
+	}
+
+	return ""
 }
 
 // Health is a mock implementation.

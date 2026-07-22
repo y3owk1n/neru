@@ -95,6 +95,13 @@ type SystemPort interface {
 	ThemeProviderPort
 	SecureInputPort
 
+	// PlatformLabel returns a human-readable platform identifier that can be
+	// used in startup notices and diagnostics. Unlike Capabilities().Platform,
+	// this method performs no I/O or live probes — it returns a cached label
+	// set at construction time.
+	// Examples: "darwin", "windows", "linux/x11", "linux/wayland-kde".
+	PlatformLabel() string
+
 	// ShowAlert displays a native system alert/notification.
 	// title   — brief summary shown as the alert heading (e.g. the error message)
 	// message — detail text shown in the alert body (e.g. the config file path)
