@@ -68,6 +68,21 @@ Loaded in priority order (highest first):
 
 Override at launch: `neru launch -c /path/to/config.toml`
 
+### Config Layering
+
+Neru loads configuration in layers. Each layer overrides the previous one:
+
+```
+Defaults → config.toml → config.override.toml → Runtime (in-memory)
+```
+
+- **Defaults**: Built-in sensible defaults for your platform.
+- **config.toml**: Your hand-crafted configuration file.
+- **Override file**: Runtime changes from `neru config set` (persistent). Named after your config file (e.g. `config.override.toml` for `config.toml`).
+- **Runtime**: In-memory changes that are lost on restart.
+
+This means `neru config set` changes survive restarts without modifying your `config.toml`. To revert, edit or remove the override file.
+
 ---
 
 ## Managing Your Config
@@ -99,7 +114,21 @@ neru config set general.passthrough_unbounded_keys true
 1. The CLI validates the path and value locally before sending to the daemon.
 2. The daemon deep-copies the current in-memory config, applies the change, and validates the result.
 3. Services, overlays, and hotkeys are reconfigured automatically — the same internal path used by `neru config reload`.
-4. The change is in-memory only. To make it persistent across restarts, update your config file too.
+4. The change is automatically persisted to `config.override.toml` alongside your config file. This file is loaded on every start, so changes survive restarts.
+
+### Config override file
+
+Runtime changes via `neru config set` are written to an override file alongside your main config file. The override filename is derived from your config file's name: `config.toml` produces `config.override.toml`, `my-neru.toml` produces `my-neru.override.toml`, etc.
+
+The file uses the same TOML format and follows the same layering:
+
+```
+Defaults → config.toml → config.override.toml → Runtime (in-memory)
+```
+
+To revert a change:
+- **Single field**: Edit the override file and remove the line, or set it to a different value, then run `neru config reload`.
+- **All overrides**: Delete the override file and run `neru config reload` to reset to config.toml values.
 
 ### Supported field types
 
@@ -116,9 +145,12 @@ neru config set general.passthrough_unbounded_keys true
 
 ### Limitations
 
-- Array elements are replaced wholesale, not appended.
-- Struct fields (like `[theme]`) must be set via their leaf sub-paths, not as a whole object.
-- Config reload (`neru config reload`) via file on disk will override any runtime changes.
+- **Hotkeys**: Cannot be set via `neru config set` (edit `config.toml` directly instead).
+- **Struct fields**: Sections like `[theme]` must be set via their leaf sub-paths, not as an object.
+- **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
+- **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
+- **Array replacement**: Array fields are replaced wholesale, not appended.
+- **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
 
 ---
 

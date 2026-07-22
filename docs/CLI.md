@@ -530,7 +530,7 @@ Check config for syntax errors and invalid values. Does not require a running da
 
 `neru config set <key> <value>`
 
-Set a configuration value on the running daemon without restarting. Changes take effect immediately. Requires a running daemon.
+Set a configuration value on the running daemon without restarting. Changes take effect immediately and are persisted to `config.override.toml` so they survive restarts. Requires a running daemon.
 
 The key uses dotted TOML path notation matching your config file (e.g. `hints.hint_characters`, `general.passthrough_unbounded_keys`).
 
@@ -553,6 +553,20 @@ neru config set hints.ui.font_size 14
 neru config set general.passthrough_unbounded_keys true
 neru config set hints.clickable_roles "AXButton,AXLink"
 neru config set scroll.scroll_step 50
+```
+
+**REVERTING CHANGES**
+
+Changes are stored in an override file derived from your config filename (e.g. `config.toml` → `config.override.toml`, `my-neru.toml` → `my-neru.override.toml`). To revert:
+
+```bash
+# Revert a single field:
+# Edit the override file and remove the line, then:
+neru config reload
+
+# Revert all overrides:
+rm ~/.config/neru/config.override.toml
+neru config reload
 ```
 
 Use `neru config dump | jq` to explore all available keys and their current values.
