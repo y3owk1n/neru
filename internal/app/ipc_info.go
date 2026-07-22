@@ -190,6 +190,12 @@ func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) i
 			})
 		case "reload":
 			return h.handleReloadConfig(ctx, ipc.Command{})
+		default:
+			return ipc.Response{
+				Success: false,
+				Message: "unknown config subcommand: " + cmd.Args[0],
+				Code:    ipc.CodeInvalidInput,
+			}
 		}
 	}
 
