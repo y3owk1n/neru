@@ -15,7 +15,9 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -26,6 +28,8 @@ import (
 const (
 	waylandEvdevEventBufferSize           = 128
 	waylandEvdevModifierReleasePollPeriod = 5 * time.Millisecond
+	waylandEvdevHotplugBufSize            = 4096
+	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
 )
 
 var (
@@ -81,6 +85,10 @@ type waylandEvdevCapture struct {
 	done             sync.WaitGroup
 	grabbed          bool
 	startReadersOnce sync.Once
+
+	deviceMu  sync.Mutex
+	inotifyFd int
+	hotplugWg sync.WaitGroup
 }
 
 func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
@@ -90,9 +98,10 @@ func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 	}
 
 	capture := &waylandEvdevCapture{
-		files:  make([]*os.File, 0, len(paths)),
-		events: make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
-		logger: logger,
+		files:     make([]*os.File, 0, len(paths)),
+		events:    make(chan waylandEvdevEvent, waylandEvdevEventBufferSize),
+		logger:    logger,
+		inotifyFd: -1,
 	}
 
 	for _, path := range paths {
@@ -152,34 +161,48 @@ func (capture *waylandEvdevCapture) Close() {
 	}
 
 	capture.closeOnce.Do(func() {
-		capture.ungrabAll()
+		// Stop the hotplug watcher first: closing the inotify fd unblocks
+		// the hotplugLoop goroutine, causing it to exit.
+		capture.stopHotplugWatcher()
+
+		capture.deviceMu.Lock()
+		capture.ungrabAllLocked()
 
 		for _, file := range capture.files {
 			_ = file.Close()
 		}
 
+		capture.files = nil
+		capture.deviceMu.Unlock()
+
 		close(capture.events)
 
 		if capture.logger != nil {
-			capture.logger.Debug(
-				"Evdev capture closed",
-				zap.Int("devices", len(capture.files)),
-			)
+			capture.logger.Debug("Evdev capture closed")
 		}
 	})
 }
 
-// startReaders launches reader goroutines for each captured keyboard device.
+// startReaders launches reader goroutines for each captured keyboard device
+// and starts the inotify hotplug watcher for detecting device hotplug.
 // These goroutines run for the entire lifetime of the capture, outliving
 // individual Enable/Disable cycles. Events are sent to capture.events with
 // a non-blocking send so that a full buffer (e.g. while Neru is disabled)
 // simply drops stale events instead of blocking the reader.
 func (capture *waylandEvdevCapture) startReaders() {
+	capture.deviceMu.Lock()
 	for _, file := range capture.files {
 		capture.done.Add(1)
-
 		go capture.readLoop(file)
 	}
+	capture.deviceMu.Unlock()
+
+	capture.startHotplugWatcher()
+}
+
+func (capture *waylandEvdevCapture) startReader(file *os.File) {
+	capture.done.Add(1)
+	go capture.readLoop(file)
 }
 
 func (capture *waylandEvdevCapture) readLoop(file *os.File) {
@@ -200,6 +223,13 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 				)
 			}
 
+			// Device disconnected — remove it from the tracked files slice
+			// so we don't attempt to grab/query a stale fd on the next cycle.
+			capture.deviceMu.Lock()
+			capture.removeFileLocked(file)
+			capture.deviceMu.Unlock()
+			_ = file.Close()
+
 			return
 		}
 
@@ -217,7 +247,26 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 	}
 }
 
+// removeFileLocked removes file from the tracked files slice.
+// Must be called with capture.deviceMu held.
+func (capture *waylandEvdevCapture) removeFileLocked(file *os.File) {
+	for i, f := range capture.files {
+		if f == file {
+			capture.files = append(capture.files[:i], capture.files[i+1:]...)
+
+			return
+		}
+	}
+}
+
 func (capture *waylandEvdevCapture) grabAll() error {
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	return capture.grabAllLocked()
+}
+
+func (capture *waylandEvdevCapture) grabAllLocked() error {
 	if capture == nil || capture.grabbed {
 		return nil
 	}
@@ -316,6 +365,13 @@ func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 }
 
 func (capture *waylandEvdevCapture) ungrabAll() {
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	capture.ungrabAllLocked()
+}
+
+func (capture *waylandEvdevCapture) ungrabAllLocked() {
 	if capture == nil || !capture.grabbed {
 		return
 	}
@@ -332,6 +388,9 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	if capture == nil {
 		return false
 	}
+
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
 
 	modifierCodes := []uint16{
 		evdevKeyLeftShift,
@@ -370,6 +429,9 @@ func queryEvdevModifierState(
 		return linuxModifierState{}
 	}
 
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
 	var state linuxModifierState
 
 	type modifierKey struct {
@@ -399,6 +461,160 @@ func queryEvdevModifierState(
 	}
 
 	return state
+}
+
+// startHotplugWatcher starts an inotify watch on /dev/input/ to detect new
+// keyboard devices being plugged in after initial capture creation.
+func (capture *waylandEvdevCapture) startHotplugWatcher() {
+	if capture == nil {
+		return
+	}
+
+	inotifyFd, err := syscall.InotifyInit1(syscall.IN_NONBLOCK)
+	if err != nil {
+		if capture.logger != nil {
+			capture.logger.Debug(
+				"Inotify init failed, keyboard hotplug detection disabled",
+				zap.Error(err),
+			)
+		}
+
+		return
+	}
+
+	_, err = syscall.InotifyAddWatch(inotifyFd, "/dev/input", syscall.IN_CREATE)
+	if err != nil {
+		_ = syscall.Close(inotifyFd)
+
+		if capture.logger != nil {
+			capture.logger.Debug(
+				"Inotify add watch failed, keyboard hotplug detection disabled",
+				zap.Error(err),
+			)
+		}
+
+		return
+	}
+
+	capture.deviceMu.Lock()
+	if capture.inotifyFd != -1 {
+		// A watcher is already running; clean up the duplicate.
+		capture.deviceMu.Unlock()
+		_ = syscall.Close(inotifyFd)
+
+		return
+	}
+
+	capture.inotifyFd = inotifyFd
+	capture.deviceMu.Unlock()
+
+	capture.hotplugWg.Add(1)
+	go capture.hotplugLoop()
+}
+
+// stopHotplugWatcher closes the inotify fd, which unblocks the hotplugLoop
+// goroutine, then waits for the goroutine to finish.
+func (capture *waylandEvdevCapture) stopHotplugWatcher() {
+	capture.deviceMu.Lock()
+	fd := capture.inotifyFd
+	capture.inotifyFd = -1
+	capture.deviceMu.Unlock()
+
+	if fd != -1 {
+		_ = syscall.Close(fd)
+	}
+
+	capture.hotplugWg.Wait()
+}
+
+// hotplugLoop reads inotify events and handles new keyboard device creation.
+func (capture *waylandEvdevCapture) hotplugLoop() {
+	defer capture.hotplugWg.Done()
+
+	buf := make([]byte, waylandEvdevHotplugBufSize)
+	for {
+		n, err := syscall.Read(capture.inotifyFd, buf)
+		if err != nil {
+			return
+		}
+
+		capture.handleInotifyEvents(buf[:n])
+	}
+}
+
+// handleInotifyEvents parses raw inotify event bytes and reacts to new device
+// creation events.
+func (capture *waylandEvdevCapture) handleInotifyEvents(buf []byte) {
+	offset := 0
+	for offset+syscall.SizeofInotifyEvent <= len(buf) {
+		event := (*syscall.InotifyEvent)(unsafe.Pointer(&buf[offset]))
+		nameLen := int(event.Len)
+		if nameLen > 0 && event.Mask&syscall.IN_CREATE != 0 {
+			nameStart := offset + syscall.SizeofInotifyEvent
+			nameEnd := nameStart + nameLen
+			nameEnd = min(nameEnd, len(buf))
+			name := strings.TrimRight(string(buf[nameStart:nameEnd]), "\x00")
+			if strings.HasPrefix(name, "event") {
+				capture.handleNewDevice(name)
+			}
+		}
+		offset += syscall.SizeofInotifyEvent + nameLen
+	}
+}
+
+// handleNewDevice opens a newly created /dev/input/event* device and, if it
+// is a keyboard, adds it to the capture and starts a reader goroutine. If
+// the capture is currently in a grabbed state, the new device is also grabbed
+// immediately so Neru stays in full control.
+func (capture *waylandEvdevCapture) handleNewDevice(name string) {
+	// Give udev a moment to fully initialize the device node and populate
+	// the input capabilities before we interrogate it.
+	time.Sleep(waylandEvdevHotplugSettleDelay)
+
+	path := filepath.Join("/dev/input", name)
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+
+	fd := C.int(file.Fd())
+	if C.neru_evdev_is_keyboard(fd) == 0 {
+		_ = file.Close()
+
+		return
+	}
+
+	capture.deviceMu.Lock()
+
+	// Avoid duplicates: the device might already be tracked if the inotify
+	// event fired for a device that was open at initial scan time (unlikely
+	// but possible on some kernels).
+	for _, f := range capture.files {
+		if f.Name() == path {
+			capture.deviceMu.Unlock()
+			_ = file.Close()
+
+			return
+		}
+	}
+
+	capture.files = append(capture.files, file)
+	isGrabbed := capture.grabbed
+	capture.deviceMu.Unlock()
+
+	if isGrabbed {
+		C.neru_evdev_grab(C.int(file.Fd()), 1)
+	}
+
+	capture.startReader(file)
+
+	if capture.logger != nil {
+		capture.logger.Info(
+			"New keyboard device detected and captured",
+			zap.String("device", path),
+			zap.Bool("grabbed", isGrabbed),
+		)
+	}
 }
 
 // initEvdevCapture initializes the persistent waylandEvdevCapture once and
