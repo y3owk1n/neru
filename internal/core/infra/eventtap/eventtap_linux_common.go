@@ -105,8 +105,8 @@ type EventTap struct {
 	// evdevWaylandCapture holds a *waylandEvdevCapture created once and
 	// reused across Enable/Disable cycles. This avoids re-scanning
 	// /dev/input/event* devices on every mode activation, which was the
-	// source of a ~0.5s delay before the grid/hints mode accepted input.
-	evdevWaylandCapture    any
+	// source of a mild delay before the grid/hints mode accepted input.
+	evdevWaylandCapture     any
 	evdevWaylandCaptureInit sync.Once
 }
 
@@ -221,10 +221,6 @@ func (et *EventTap) Destroy() {
 	close(et.dispatchCh)
 	et.dispatchWg.Wait()
 }
-
-// closeEvdevCapture is a no-op on non-cgo Linux builds.
-// On cgo+Wayland, it closes the persistent evdev capture.
-func (et *EventTap) closeEvdevCapture() {}
 
 // SetHandler sets the callback for key events.
 func (et *EventTap) SetHandler(handler func(key string)) {

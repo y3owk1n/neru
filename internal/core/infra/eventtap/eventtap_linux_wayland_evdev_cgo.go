@@ -407,7 +407,7 @@ func (et *EventTap) initEvdevCapture() (*waylandEvdevCapture, error) {
 	var err error
 
 	et.evdevWaylandCaptureInit.Do(func() {
-		cap, capErr := newWaylandEvdevCapture(et.logger)
+		wlCapture, capErr := newWaylandEvdevCapture(et.logger)
 		if capErr != nil {
 			if et.logger != nil {
 				level := et.logger.Info
@@ -426,7 +426,7 @@ func (et *EventTap) initEvdevCapture() (*waylandEvdevCapture, error) {
 			return
 		}
 
-		et.evdevWaylandCapture = cap
+		et.evdevWaylandCapture = wlCapture
 	})
 
 	if err != nil {
@@ -437,7 +437,12 @@ func (et *EventTap) initEvdevCapture() (*waylandEvdevCapture, error) {
 		return nil, errWaylandEvdevUnavailable
 	}
 
-	return et.evdevWaylandCapture.(*waylandEvdevCapture), nil
+	c, ok := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	if !ok {
+		return nil, errWaylandEvdevUnavailable
+	}
+
+	return c, nil
 }
 
 // closeEvdevCapture closes the persistent evdev capture, releasing all file
@@ -448,7 +453,11 @@ func (et *EventTap) closeEvdevCapture() {
 		return
 	}
 
-	capture := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	capture, ok := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	if !ok {
+		return
+	}
+
 	capture.Close()
 	et.evdevWaylandCapture = nil
 }
@@ -457,7 +466,7 @@ func (et *EventTap) runWaylandEvdev() bool {
 	// Get or create the persistent capture (initialized once, reused
 	// across Enable/Disable cycles). This avoids re-scanning
 	// /dev/input/event* devices on every mode activation, which was
-	// the source of a ~0.5s delay before modes accepted input.
+	// the source of a mild delay before modes accepted input.
 	capture, err := et.initEvdevCapture()
 	if err != nil {
 		return false
