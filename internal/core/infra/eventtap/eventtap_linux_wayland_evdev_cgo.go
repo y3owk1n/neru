@@ -77,9 +77,10 @@ type waylandEvdevCapture struct {
 	events chan waylandEvdevEvent
 	logger *zap.Logger
 
-	closeOnce sync.Once
-	done      sync.WaitGroup
-	grabbed   bool
+	closeOnce        sync.Once
+	done             sync.WaitGroup
+	grabbed          bool
+	startReadersOnce sync.Once
 }
 
 func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
@@ -157,6 +158,8 @@ func (capture *waylandEvdevCapture) Close() {
 			_ = file.Close()
 		}
 
+		close(capture.events)
+
 		if capture.logger != nil {
 			capture.logger.Debug(
 				"Evdev capture closed",
@@ -166,17 +169,17 @@ func (capture *waylandEvdevCapture) Close() {
 	})
 }
 
+// startReaders launches reader goroutines for each captured keyboard device.
+// These goroutines run for the entire lifetime of the capture, outliving
+// individual Enable/Disable cycles. Events are sent to capture.events with
+// a non-blocking send so that a full buffer (e.g. while Neru is disabled)
+// simply drops stale events instead of blocking the reader.
 func (capture *waylandEvdevCapture) startReaders() {
 	for _, file := range capture.files {
 		capture.done.Add(1)
 
 		go capture.readLoop(file)
 	}
-
-	go func() {
-		capture.done.Wait()
-		close(capture.events)
-	}()
 }
 
 func (capture *waylandEvdevCapture) readLoop(file *os.File) {
@@ -200,10 +203,16 @@ func (capture *waylandEvdevCapture) readLoop(file *os.File) {
 			return
 		}
 
-		capture.events <- waylandEvdevEvent{
+		// Non-blocking send: if the events channel is full (Neru is disabled
+		// between modes and stale events have accumulated), silently drop the
+		// event rather than blocking the reader.
+		select {
+		case capture.events <- waylandEvdevEvent{
 			eventType: uint16(inputEvent._type),
 			code:      uint16(inputEvent.code),
 			value:     int32(inputEvent.value),
+		}:
+		default:
 		}
 	}
 }
@@ -392,24 +401,67 @@ func queryEvdevModifierState(
 	return state
 }
 
-func (et *EventTap) runWaylandEvdev() bool {
-	capture, err := newWaylandEvdevCapture(et.logger)
-	if err != nil {
-		if et.logger != nil {
-			level := et.logger.Info
-			if !errors.Is(err, errWaylandEvdevUnavailable) {
-				level = et.logger.Warn
+// initEvdevCapture initializes the persistent waylandEvdevCapture once and
+// stores it on the EventTap. Subsequent calls return the existing capture.
+func (et *EventTap) initEvdevCapture() (*waylandEvdevCapture, error) {
+	var err error
+
+	et.evdevWaylandCaptureInit.Do(func() {
+		cap, capErr := newWaylandEvdevCapture(et.logger)
+		if capErr != nil {
+			if et.logger != nil {
+				level := et.logger.Info
+				if !errors.Is(capErr, errWaylandEvdevUnavailable) {
+					level = et.logger.Warn
+				}
+
+				level(
+					"Wayland evdev capture unavailable; falling back to overlay keyboard focus",
+					zap.Error(capErr),
+				)
 			}
 
-			level(
-				"Wayland evdev capture unavailable; falling back to overlay keyboard focus",
-				zap.Error(err),
-			)
+			err = capErr
+
+			return
 		}
 
+		et.evdevWaylandCapture = cap
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if et.evdevWaylandCapture == nil {
+		return nil, errWaylandEvdevUnavailable
+	}
+
+	return et.evdevWaylandCapture.(*waylandEvdevCapture), nil
+}
+
+// closeEvdevCapture closes the persistent evdev capture, releasing all file
+// descriptors and stopping reader goroutines. It is safe to call multiple
+// times — the underlying Close() uses sync.Once.
+func (et *EventTap) closeEvdevCapture() {
+	if et.evdevWaylandCapture == nil {
+		return
+	}
+
+	capture := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	capture.Close()
+	et.evdevWaylandCapture = nil
+}
+
+func (et *EventTap) runWaylandEvdev() bool {
+	// Get or create the persistent capture (initialized once, reused
+	// across Enable/Disable cycles). This avoids re-scanning
+	// /dev/input/event* devices on every mode activation, which was
+	// the source of a ~0.5s delay before modes accepted input.
+	capture, err := et.initEvdevCapture()
+	if err != nil {
 		return false
 	}
-	defer capture.Close()
 
 	manager := overlay.Get()
 	keyboardCaptureDisabled := false
@@ -441,7 +493,11 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	capture.startReaders()
+	// Start reader goroutines on first invocation only; they run for
+	// the entire lifetime of the capture (until EventTap.Destroy()).
+	capture.startReadersOnce.Do(func() {
+		capture.startReaders()
+	})
 
 	if manager != nil {
 		manager.SetKeyboardCaptureEnabled(false)
@@ -455,6 +511,20 @@ func (et *EventTap) runWaylandEvdev() bool {
 		)
 	}
 
+	// Drain any stale events that accumulated in the channel while
+	// Neru was disabled between modes. These are events from other
+	// applications that were pushed into the buffer when we were
+	// ungrabbed. A labeled break is required here — plain break
+	// inside select only exits the select, not the for loop.
+drainStale:
+	for {
+		select {
+		case <-capture.events:
+		default:
+			break drainStale
+		}
+	}
+
 	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
 		pressed: pressed,
@@ -466,6 +536,12 @@ func (et *EventTap) runWaylandEvdev() bool {
 	for {
 		select {
 		case <-et.stopCh:
+			// Ungrab devices but keep the capture alive for reuse
+			// on the next Enable(). The reader goroutines stay
+			// running and will drop stale events via the non-blocking
+			// send until we drain and re-grab.
+			capture.ungrabAll()
+
 			return true
 		case event, ok := <-capture.events:
 			if !ok {
