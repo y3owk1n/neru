@@ -528,11 +528,15 @@ Check config for syntax errors and invalid values. Does not require a running da
 
 ### 13c. set
 
-`neru config set <key> <value>`
+`neru config set [--no-reload] <key> <value>`
 
 Set a configuration value on the running daemon without restarting. Changes take effect immediately and are persisted to `config.override.toml` so they survive restarts. Requires a running daemon.
 
 The key uses dotted TOML path notation matching your config file (e.g. `hints.hint_characters`, `general.passthrough_unbounded_keys`).
+
+**OPTIONS**
+
+`--no-reload` — Skip hotkey re-registration and mode exit. Use when setting multiple interdependent fields in sequence (e.g. changing both `recursive_grid.grid_cols` and `recursive_grid.keys`). Run `neru config reload` afterwards to apply all changes at once.
 
 **SUPPORTED TYPES**
 
@@ -553,15 +557,18 @@ neru config set hints.ui.font_size 14
 neru config set general.passthrough_unbounded_keys true
 neru config set hints.clickable_roles "AXButton,AXLink"
 neru config set scroll.scroll_step 50
+neru config set --no-reload recursive_grid.grid_cols 3
+neru config set --no-reload recursive_grid.keys "abcdefghijkl"
+neru config reload
 ```
 
 **REVERTING CHANGES**
 
-Changes are stored in an override file derived from your config filename (e.g. `config.toml` → `config.override.toml`, `my-neru.toml` → `my-neru.override.toml`). To revert:
+Changes are stored in an override file derived from your config filename (e.g. `config.toml` → `config.override.toml`, `my-neru.toml` → `my-neru.override.toml`). To revert a single field use `config reset` or manually:
 
 ```bash
 # Revert a single field:
-# Edit the override file and remove the line, then:
+neru config reset recursive_grid.grid_cols
 neru config reload
 
 # Revert all overrides:
@@ -577,7 +584,26 @@ Use `neru config dump | jq` to explore all available keys and their current valu
 
 Print active config as JSON. Requires a running daemon.
 
-### 13e. reload
+### 13e. reset
+
+`neru config reset [--no-reload] <key>`
+
+Remove a single field from the override file, reverting it to the value from your base config file (or the code default) on the next reload. Requires a running daemon.
+
+**OPTIONS**
+
+`--no-reload` — Defer reloading. Use when resetting multiple fields in sequence. Run `neru config reload` afterward.
+
+**EXAMPLES**
+
+```bash
+neru config reset recursive_grid.grid_cols
+neru config reset --no-reload recursive_grid.grid_rows
+neru config reset --no-reload recursive_grid.keys
+neru config reload
+```
+
+### 13f. reload
 
 `neru config reload [-h|--help]`
 

@@ -19,6 +19,7 @@ Subcommands:
   dump       Print the currently active configuration as JSON
   reload     Reload configuration from disk without restarting
   set        Set a config value at runtime (no restart needed)
+  reset      Reset a config field to its default value
   init       Create a default configuration file to get started
   validate   Check a configuration file for errors
 
@@ -89,5 +90,6 @@ func init() {
 	configCmd.AddCommand(configDumpCmd)
 	configCmd.AddCommand(configReloadCmd)
 	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configResetCmd)
 	RootCmd.AddCommand(configCmd)
 }

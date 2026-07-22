@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -292,6 +293,77 @@ func TestIPCController_HandleConfigSet_MissingArgs(t *testing.T) {
 
 	if commandResponse.Code != ipc.CodeInvalidInput {
 		t.Fatalf("Expected code=%s, got %s", ipc.CodeInvalidInput, commandResponse.Code)
+	}
+}
+
+func TestIPCController_HandleConfigSet_NoReload(t *testing.T) {
+	controller := newTestController()
+	ctx := context.Background()
+
+	// Default config: grid_cols=3, grid_rows=3, keys="rtyfghvbn" (9 chars).
+
+	// Step 1: change grid_cols to 4 with --no-reload.
+	// This creates an unbalanced state (4*3=12 ≠ 9 chars keys).
+	// Without --no-reload this would fail validation.
+	resp := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"recursive_grid.grid_cols", "4", "--no-reload"},
+	})
+	if !resp.Success {
+		t.Fatalf("--no-reload grid_cols: expected success, got %v: %s",
+			resp.Success, resp.Message)
+	}
+
+	if resp.Code != ipc.CodeOK {
+		t.Fatalf("--no-reload grid_cols: expected code %s, got %s",
+			ipc.CodeOK, resp.Code)
+	}
+
+	if !strings.Contains(resp.Message, "reload required") {
+		t.Fatalf("--no-reload grid_cols: message should contain 'reload required', got %q",
+			resp.Message)
+	}
+
+	// Step 2: fix keys to match (4*3=12 chars).
+	resp = controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"recursive_grid.keys", "abcdefghijkl", "--no-reload"},
+	})
+	if !resp.Success {
+		t.Fatalf("--no-reload keys: expected success, got %v: %s",
+			resp.Success, resp.Message)
+	}
+
+	// Step 3: set an unrelated field without --no-reload.
+	// This exercises that prior --no-reload changes are visible to the
+	// full validation path (deep copies from service, sees 4*3=12=keys).
+	resp = controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"recursive_grid.min_size_width", "2"},
+	})
+	if !resp.Success {
+		t.Fatalf("regular set after --no-reload: expected success, got %v: %s",
+			resp.Success, resp.Message)
+	}
+
+	// Step 4: verify final state.
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+
+	cfg, ok := cfgResp.Data.(*config.Config)
+	if !ok || cfg == nil {
+		t.Fatal("failed to read config after no-reload sequence")
+	}
+
+	if cfg.RecursiveGrid.GridCols != 4 {
+		t.Errorf("expected grid_cols=4, got %d", cfg.RecursiveGrid.GridCols)
+	}
+
+	if cfg.RecursiveGrid.Keys != "abcdefghijkl" {
+		t.Errorf("expected keys=%q, got %q", "abcdefghijkl", cfg.RecursiveGrid.Keys)
+	}
+
+	if cfg.RecursiveGrid.MinSizeWidth != 2 {
+		t.Errorf("expected min_size_width=2, got %d", cfg.RecursiveGrid.MinSizeWidth)
 	}
 }
 

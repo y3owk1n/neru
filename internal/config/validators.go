@@ -1458,7 +1458,8 @@ func validateHotkeyActionString(actionStr string) error {
 	case "idle", ModeNameHints, ModeNameGrid, ModeNameScroll, ModeNameRecursiveGrid,
 		ModeNameMonitorSelect,
 		"toggle-screen-share", CmdToggleCursorFollowSelection,
-		"toggle-scroll-invert":
+		"toggle-scroll-invert",
+		"config":
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

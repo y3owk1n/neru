@@ -174,9 +174,27 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 	}
 }
 
-func (h *IPCControllerInfo) handleConfig(_ context.Context, _ ipc.Command) ipc.Response {
-	cfg := h.configSnapshot()
+func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Response {
+	// Support sub-commands like "config set ..." from hotkey bindings.
+	if len(cmd.Args) > 0 {
+		switch cmd.Args[0] {
+		case "set":
+			return h.handleConfigSet(ctx, ipc.Command{
+				Action: domain.CommandConfigSet,
+				Args:   cmd.Args[1:],
+			})
+		case "reset":
+			return h.handleConfigReset(ctx, ipc.Command{
+				Action: "config-reset",
+				Args:   cmd.Args[1:],
+			})
+		case "reload":
+			return h.handleReloadConfig(ctx, ipc.Command{})
+		}
+	}
 
+	// Default: dump the full config.
+	cfg := h.configSnapshot()
 	if cfg == nil {
 		h.logger.Error("Config is nil in handleConfig")
 
@@ -368,9 +386,18 @@ func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command
 
 	key := cmd.Args[0]
 	value := cmd.Args[1]
+	noReload := len(cmd.Args) > minConfigSetArgs && cmd.Args[minConfigSetArgs] == "--no-reload"
 
-	// If an app-level callback is provided, delegate to it for full
-	// reconfiguration (component updates, hotkey re-registration, etc.).
+	if noReload {
+		// Lightweight path: update in-memory config and persist without
+		// disrupting active hotkeys or exiting the current mode. Useful
+		// when setting multiple fields in sequence. Caller should run
+		// "neru config reload" afterward to apply all changes.
+		return h.handleConfigSetNoReload(ctx, key, value)
+	}
+
+	// Full path: delegate to the app-level callback for reconfiguration
+	// (component updates, hotkey re-registration, etc.).
 	if h.setConfigField != nil {
 		err := h.setConfigField(ctx, key, value)
 		if err != nil {
@@ -388,7 +415,107 @@ func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	// Fallback: update in-memory config only via the config service.
+	// Fallback (e.g. tests with no callback): update in-memory config only.
+	return h.handleConfigSetInMemory(ctx, key, value)
+}
+
+// handleConfigSetNoReload updates the in-memory config and persists to the
+// override file without triggering mode exit or hotkey re-registration.
+func (h *IPCControllerInfo) handleConfigSetNoReload(
+	_ context.Context,
+	key, value string,
+) ipc.Response {
+	cfg := h.configSnapshot()
+	if cfg == nil {
+		return h.configNotAvailableResponse()
+	}
+
+	newCfg, err := config.DeepCopyConfig(cfg)
+	if err != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "failed to copy config: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	setErr := config.SetField(newCfg, key, value)
+	if setErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: setErr.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	// Skip Validate() here so interdependent fields (e.g. grid_cols + keys)
+	// can be updated incrementally before a final "neru config reload".
+	h.configService.Replace(newCfg)
+	h.configMu.Lock()
+	h.config = newCfg
+	h.configMu.Unlock()
+
+	// Persist to override file so changes survive restart.
+	persistErr := h.configService.SaveOverrideField(key, value)
+	if persistErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "config set but failed to persist: " + persistErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: fmt.Sprintf("config %s set to %q (reload required to apply)", key, value),
+		Code:    ipc.CodeOK,
+	}
+}
+
+// handleConfigReset removes a field from the override file, reverting it to
+// the base config or default value on the next reload.  When --no-reload is
+// present the in-memory config is left alone so callers can batch multiple
+// resets before a final "neru config reload".
+func (h *IPCControllerInfo) handleConfigReset(ctx context.Context, cmd ipc.Command) ipc.Response {
+	if len(cmd.Args) < 1 {
+		return ipc.Response{
+			Success: false,
+			Message: "config-reset requires a key argument",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	key := cmd.Args[0]
+	noReload := len(cmd.Args) > 1 && cmd.Args[1] == "--no-reload"
+
+	removeErr := h.configService.RemoveOverrideField(key)
+	if removeErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: "failed to remove override: " + removeErr.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	if noReload {
+		return ipc.Response{
+			Success: true,
+			Message: fmt.Sprintf("config %s reset (reload required to apply)", key),
+			Code:    ipc.CodeOK,
+		}
+	}
+
+	// Full reload to apply the reset immediately.
+	return h.handleReloadConfig(ctx, ipc.Command{})
+}
+
+// handleConfigSetInMemory updates the in-memory config without persisting.
+// This is the fallback path used when no app-level callback is registered
+// (e.g. in tests).
+func (h *IPCControllerInfo) handleConfigSetInMemory(
+	_ context.Context,
+	key, value string,
+) ipc.Response {
 	cfg := h.configSnapshot()
 	if cfg == nil {
 		return h.configNotAvailableResponse()
@@ -425,7 +552,6 @@ func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	// Update the local config pointer.
 	h.configMu.Lock()
 	h.config = newCfg
 	h.configMu.Unlock()
