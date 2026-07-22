@@ -533,12 +533,16 @@ func (capture *waylandEvdevCapture) hotplugLoop() {
 
 	buf := make([]byte, waylandEvdevHotplugBufSize)
 	for {
-		n, err := syscall.Read(capture.inotifyFd, buf)
+		nread, err := syscall.Read(capture.inotifyFd, buf)
 		if err != nil {
+			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
+				continue
+			}
+
 			return
 		}
 
-		capture.handleInotifyEvents(buf[:n])
+		capture.handleInotifyEvents(buf[:nread])
 	}
 }
 
