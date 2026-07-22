@@ -634,6 +634,49 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 		return configResult
 	}
 
+	// Load override file (persistent runtime overrides from `neru config set`).
+	// The override file decodes on top of the main config, so fields set by the
+	// user at runtime take precedence over both config.toml and defaults.
+	overridePath := OverridePath(configResult.ConfigPath)
+	if overridePath != "" {
+		overrideStat, statErr := os.Stat(overridePath)
+		if statErr == nil && !overrideStat.IsDir() {
+			s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
+
+			_, decodeErr := toml.DecodeFile(overridePath, configResult.Config)
+			if decodeErr != nil {
+				configResult.ValidationError = derrors.WrapConfigFailed(
+					decodeErr,
+					"parse config override file",
+				)
+				configResult.Config = DefaultConfig()
+
+				s.logger.Warn("Config override file parse failed",
+					zap.String("path", overridePath),
+					zap.Error(configResult.ValidationError))
+
+				return configResult
+			}
+
+			configResult.Config.ResolveThemeDefaults()
+
+			// Re-validate after merging overrides
+			validateErr := configResult.Config.Validate()
+			if validateErr != nil {
+				configResult.ValidationError = derrors.WrapConfigFailed(
+					validateErr,
+					"validate configuration with overrides",
+				)
+				configResult.Config = DefaultConfig()
+
+				s.logger.Warn("Configuration with overrides validation failed",
+					zap.Error(configResult.ValidationError))
+
+				return configResult
+			}
+		}
+	}
+
 	s.logger.Info("Configuration loaded successfully")
 
 	removeLauncherBindingsForDisabledModes(configResult.Config)
@@ -864,6 +907,61 @@ func (s *Service) Update(config *Config) error {
 		}
 		// Note: Update doesn't check context cancellation as it's a synchronous operation
 	}
+
+	return nil
+}
+
+// SaveOverrideField persists a single config field change to the override file.
+// It reads any existing overrides, applies the new field, and writes the result.
+// Returns nil if there is no config path (daemon was started without a file).
+func (s *Service) SaveOverrideField(key, value string) error {
+	s.mu.RLock()
+	configPath := s.path
+	s.mu.RUnlock()
+
+	if configPath == "" {
+		return nil
+	}
+
+	overridePath := OverridePath(configPath)
+
+	// Read existing overrides
+	overrides := make(map[string]any)
+
+	_, decodeErr := toml.DecodeFile(overridePath, &overrides)
+	if decodeErr != nil && !os.IsNotExist(decodeErr) {
+		return derrors.Wrap(
+			decodeErr,
+			derrors.CodeConfigIOFailed,
+			"failed to read existing overrides",
+		)
+	}
+
+	// Parse the value to the correct type by setting it on a throwaway Config
+	// and reading it back via reflection.
+	scratch := &Config{}
+
+	setErr := SetField(scratch, key, value)
+	if setErr != nil {
+		return setErr
+	}
+
+	typedVal, valErr := getFieldValue(scratch, key)
+	if valErr != nil {
+		return valErr
+	}
+
+	setNestedMapValue(overrides, key, typedVal)
+
+	saveErr := SaveOverride(overridePath, overrides)
+	if saveErr != nil {
+		return saveErr
+	}
+
+	s.logger.Info("Config override persisted",
+		zap.String("key", key),
+		zap.String("value", value),
+		zap.String("override_path", overridePath))
 
 	return nil
 }

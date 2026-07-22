@@ -59,6 +59,13 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	a.applyAppSpecificConfigUpdates(loadResult)
 	a.reconfigureAfterUpdate(loadResult)
 
+	// Persist the change to the override file so it survives restarts.
+	persistErr := a.configService.SaveOverrideField(key, value)
+	if persistErr != nil {
+		return derrors.Wrap(persistErr, derrors.CodeConfigIOFailed,
+			"config set at runtime but failed to persist (the change will not survive a restart)")
+	}
+
 	a.logger.Info("Config field updated at runtime",
 		zap.String("key", key),
 		zap.String("value", value),
