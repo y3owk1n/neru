@@ -13,6 +13,8 @@ import (
 )
 
 // NewPlatformAXClient returns the AT-SPI-backed client on Linux.
+// AT-SPI activation is now lazy (on first hints request), so the
+// caller does not need to pass a hints-enabled flag at construction.
 func NewPlatformAXClient(logger *zap.Logger, configProvider config.Provider) AXClient {
 	return NewATSPIClient(logger, configProvider)
 }

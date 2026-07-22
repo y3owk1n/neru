@@ -600,6 +600,14 @@ func (a *App) Cleanup() {
 		if a.eventTap != nil {
 			a.eventTap.Destroy()
 		}
+		// Close the accessibility client to release platform resources
+		// (e.g. AT-SPI D-Bus connection and a11y status on Linux).
+		if a.axClient != nil {
+			closeErr := a.axClient.Close()
+			if closeErr != nil {
+				a.logger.Error("Failed to close accessibility client", zap.Error(closeErr))
+			}
+		}
 		// Sync and close logger
 		loggerSyncErr := logger.Sync()
 		if loggerSyncErr != nil {

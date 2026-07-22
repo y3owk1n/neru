@@ -57,6 +57,10 @@ type AXClient interface {
 	SetClickableRoles(roles []string)
 	ClickableRoles() []string
 	IsMissionControlActive() bool
+
+	// Close releases any resources held by the client (e.g. D-Bus connections
+	// or AT-SPI accessibility status).
+	Close() error
 }
 
 // AXAppInfo contains information about an application.
