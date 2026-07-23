@@ -21,7 +21,7 @@ import (
 
 	"go.uber.org/zap"
 
-	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
+	linux "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -817,6 +817,19 @@ drainStale:
 	for {
 		select {
 		case <-et.stopCh:
+			// Inject synthetic release events for keys that were
+			// physically held when the mode was activated but have
+			// since been released.  The evdev grab consumed those
+			// release events; the compositor/terminal never saw them
+			// and so continues repeating the key.  Releasing them
+			// here unsticks the compositor's key state before we
+			// ungrab.
+			for code := range state.initialKeys {
+				if !state.pressed[code] {
+					_ = linux.WaylandKeyEvent(uint32(code), false)
+				}
+			}
+
 			// Ungrab devices but keep the capture alive for reuse
 			// on the next Enable(). The reader goroutines stay
 			// running and will drop stale events via the non-blocking
