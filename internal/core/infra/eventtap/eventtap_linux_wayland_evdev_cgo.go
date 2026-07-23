@@ -32,6 +32,7 @@ const (
 	waylandEvdevPreGrabTimeout            = 5 * time.Second
 	waylandEvdevHotplugBufSize            = 4096
 	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
+	waylandEvdevHotplugPollInterval       = 500 * time.Millisecond
 )
 
 var (
@@ -101,9 +102,11 @@ type waylandEvdevCapture struct {
 	grabbed          bool
 	startReadersOnce sync.Once
 
-	deviceMu  sync.Mutex
-	inotifyFd int
-	hotplugWg sync.WaitGroup
+	deviceMu      sync.Mutex
+	inotifyFd     int
+	hotplugStopCh chan struct{}
+	hotplugOnce   sync.Once
+	hotplugWg     sync.WaitGroup
 }
 
 func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
@@ -520,7 +523,7 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 		return
 	}
 
-	inotifyFd, err := syscall.InotifyInit()
+	inotifyFd, err := syscall.InotifyInit1(syscall.IN_NONBLOCK)
 	if err != nil {
 		if capture.logger != nil {
 			capture.logger.Debug(
@@ -556,36 +559,55 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 	}
 
 	capture.inotifyFd = inotifyFd
+	capture.hotplugStopCh = make(chan struct{})
 	capture.deviceMu.Unlock()
 
 	capture.hotplugWg.Add(1)
 	go capture.hotplugLoop()
 }
 
-// stopHotplugWatcher closes the inotify fd, which unblocks the hotplugLoop
-// goroutine, then waits for the goroutine to finish.
+// stopHotplugWatcher signals the hotplugLoop goroutine to stop via the stop
+// channel, closes the inotify fd, then waits for the goroutine to finish.
 func (capture *waylandEvdevCapture) stopHotplugWatcher() {
 	capture.deviceMu.Lock()
-	fd := capture.inotifyFd
+	inotifyFd := capture.inotifyFd
 	capture.inotifyFd = -1
 	capture.deviceMu.Unlock()
 
-	if fd != -1 {
-		_ = syscall.Close(fd)
+	capture.hotplugOnce.Do(func() {
+		if capture.hotplugStopCh != nil {
+			close(capture.hotplugStopCh)
+		}
+	})
+
+	if inotifyFd != -1 {
+		_ = syscall.Close(inotifyFd)
 	}
 
 	capture.hotplugWg.Wait()
 }
 
-// hotplugLoop reads inotify events and handles new keyboard device creation.
+// hotplugLoop polls for inotify events with a non-blocking read and
+// rate-limits the poll via a ticker so the goroutine does not busy-wait
+// on EAGAIN.  A dedicated stop channel provides an interruptible shutdown
+// that does not rely on closing the inotify fd to unblock the read.
 func (capture *waylandEvdevCapture) hotplugLoop() {
 	defer capture.hotplugWg.Done()
 
 	buf := make([]byte, waylandEvdevHotplugBufSize)
+	ticker := time.NewTicker(waylandEvdevHotplugPollInterval)
+	defer ticker.Stop()
+
 	for {
 		nread, err := syscall.Read(capture.inotifyFd, buf)
 		if err != nil {
 			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
+				select {
+				case <-capture.hotplugStopCh:
+					return
+				case <-ticker.C:
+				}
+
 				continue
 			}
 
