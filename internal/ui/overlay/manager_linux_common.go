@@ -170,6 +170,14 @@ func (m *Manager) Show() {
 
 // Hide hides the overlay.
 func (m *Manager) Hide() {
+	// Cancel any running animation before acquiring renderMu to avoid
+	// deadlock with the animation goroutine.
+	if m.wlroots != nil {
+		m.wlroots.cancelAnimation()
+	} else if m.x11 != nil {
+		m.x11.cancelAnimation()
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
@@ -204,6 +212,12 @@ func (m *Manager) SetKeyboardCaptureEnabled(enabled bool) {
 
 // Clear clears the overlay content.
 func (m *Manager) Clear() {
+	if m.wlroots != nil {
+		m.wlroots.cancelAnimation()
+	} else if m.x11 != nil {
+		m.x11.cancelAnimation()
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
@@ -405,6 +419,12 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 
 // DrawHintsWithStyle draws the hints overlay using the active Linux backend.
 func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
+	if m.wlroots != nil {
+		m.wlroots.cancelAnimation()
+	} else if m.x11 != nil {
+		m.x11.cancelAnimation()
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
