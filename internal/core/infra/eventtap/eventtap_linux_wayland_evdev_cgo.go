@@ -39,7 +39,10 @@ var (
 	errUinputScrollSend        = errors.New("failed to send uinput scroll event")
 )
 
-const waylandEvdevDeviceNameSize = 256
+const (
+	waylandEvdevDeviceNameSize = 256
+	evdevMaxPressedKeys        = 256
+)
 
 const waylandEvdevBusVirtual = 0x06
 
@@ -440,7 +443,7 @@ func queryAllPressedKeys(capture *waylandEvdevCapture, pressed map[uint16]bool) 
 	capture.deviceMu.Lock()
 	defer capture.deviceMu.Unlock()
 
-	keycodes := make([]C.uint, 256)
+	keycodes := make([]C.uint, evdevMaxPressedKeys)
 
 	for _, file := range capture.files {
 		fd := C.int(file.Fd())
