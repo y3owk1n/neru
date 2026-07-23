@@ -43,6 +43,7 @@ type wlrootsOverlay struct {
 	stopCh chan struct{}
 	doneCh chan struct{}
 
+	cancelMu         sync.Mutex
 	animStop         chan struct{}
 	animDone         chan struct{}
 	hasLast          bool
@@ -419,6 +420,9 @@ func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
 }
 
 func (o *wlrootsOverlay) cancelAnimation() {
+	o.cancelMu.Lock()
+	defer o.cancelMu.Unlock()
+
 	if o.animStop != nil {
 		close(o.animStop)
 		o.animStop = nil

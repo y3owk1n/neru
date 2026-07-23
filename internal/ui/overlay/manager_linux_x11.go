@@ -39,6 +39,7 @@ type x11Overlay struct {
 
 	renderMu *sync.Mutex
 
+	cancelMu         sync.Mutex
 	animStop         chan struct{}
 	animDone         chan struct{}
 	hasLast          bool
@@ -350,6 +351,9 @@ func (o *x11Overlay) setRenderMu(mu *sync.Mutex) {
 }
 
 func (o *x11Overlay) cancelAnimation() {
+	o.cancelMu.Lock()
+	defer o.cancelMu.Unlock()
+
 	if o.animStop != nil {
 		close(o.animStop)
 		o.animStop = nil
