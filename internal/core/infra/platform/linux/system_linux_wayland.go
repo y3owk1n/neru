@@ -58,3 +58,12 @@ func WlrootsScrollBatch(axis int, deltas, discretes []int) error {
 func WaylandModifierEvent(modifier string, isDown bool) error {
 	return globalWlrootsModifierDispatcher.event(modifier, isDown)
 }
+
+// WaylandKeyEvent presses (pressed=true) or releases (pressed=false) a single
+// key identified by its evdev keycode using the virtual keyboard protocol.
+// This is used to inject synthetic release events for keys that were held
+// before an evdev grab and released during it, so the compositor's key state
+// stays consistent.
+func WaylandKeyEvent(keycode uint32, pressed bool) error {
+	return waylandKeyEvent(keycode, pressed)
+}

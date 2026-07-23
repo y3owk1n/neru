@@ -21,13 +21,15 @@ import (
 
 	"go.uber.org/zap"
 
-	_ "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
+	linux "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 const (
 	waylandEvdevEventBufferSize           = 128
 	waylandEvdevModifierReleasePollPeriod = 5 * time.Millisecond
+	waylandEvdevPreGrabHoldPollPeriod     = 50 * time.Millisecond
+	waylandEvdevPreGrabTimeout            = 5 * time.Second
 	waylandEvdevHotplugBufSize            = 4096
 	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
 )
@@ -39,7 +41,10 @@ var (
 	errUinputScrollSend        = errors.New("failed to send uinput scroll event")
 )
 
-const waylandEvdevDeviceNameSize = 256
+const (
+	waylandEvdevDeviceNameSize = 256
+	evdevMaxPressedKeys        = 256
+)
 
 const waylandEvdevBusVirtual = 0x06
 
@@ -74,6 +79,16 @@ type waylandEvdevEvent struct {
 type waylandEvdevKeyState struct {
 	modifiers evdevModifierState
 	pressed   map[uint16]bool
+	// initialKeys tracks keys that were already physically held when
+	// the event tap was (re-)enabled.  The kernel replays press events
+	// via SYN_DROPPED after EVIOCGRAB; we suppress dispatch for these
+	// until the physical release (removing from initialKeys).
+	initialKeys map[uint16]bool
+	// releasedDuringGrab is a subset of initialKeys: keys that were
+	// released while the evdev grab was active and whose release events
+	// never reached libinput.  We inject synthetic releases for these
+	// at shutdown so libinput's per-keycode hw_is_key_down is cleared.
+	releasedDuringGrab map[uint16]bool
 }
 
 type waylandEvdevCapture struct {
@@ -422,6 +437,35 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	return false
 }
 
+// queryAllPressedKeys retrieves all currently pressed keys via EVIOCGKEY from
+// each captured device and records them in the pressed map. This is called
+// after EVIOCGRAB because the kernel replays the current key state through the
+// SYN_DROPPED mechanism. By querying the state here we can distinguish keys
+// that were held before mode activation from keys pressed during the mode.
+func queryAllPressedKeys(capture *waylandEvdevCapture, pressed map[uint16]bool) {
+	if capture == nil {
+		return
+	}
+
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	keycodes := make([]C.uint, evdevMaxPressedKeys)
+
+	for _, file := range capture.files {
+		fd := C.int(file.Fd())
+		n := int(C.neru_evdev_get_pressed_keys(fd, &keycodes[0], C.int(len(keycodes))))
+		if n <= 0 {
+			continue
+		}
+
+		for i := range min(n, len(keycodes)) {
+			code := uint16(keycodes[i])
+			pressed[code] = true
+		}
+	}
+}
+
 // queryEvdevModifierState queries the current evdev key state and returns
 // a linuxModifierState counting any held modifier keys across all captured
 // devices. Keys that are physically held are also recorded in pressed so that
@@ -713,6 +757,57 @@ func (et *EventTap) runWaylandEvdev() bool {
 		}
 	}
 
+	// Wait for ALL physically held keys to be released before
+	// grabbing.  Grabbing while a key is held causes the kernel to
+	// route that key's release to our fd only — libinput never sees
+	// it and permanently considers the key pressed.  The next press
+	// of the same key after the mode exits is then treated as a
+	// duplicate by libinput and silently consumed.
+	{
+		held := make(map[uint16]bool)
+		queryAllPressedKeys(capture, held)
+		if len(held) > 0 {
+			if manager != nil {
+				manager.SetKeyboardCaptureEnabled(true)
+			}
+
+			deadline := time.After(waylandEvdevPreGrabTimeout)
+			ticker := time.NewTicker(waylandEvdevPreGrabHoldPollPeriod)
+		waitLoop:
+			for {
+				pressed := make(map[uint16]bool)
+				queryAllPressedKeys(capture, pressed)
+				if len(pressed) == 0 {
+					break waitLoop
+				}
+
+				select {
+				case <-et.stopCh:
+					ticker.Stop()
+					if manager != nil {
+						manager.SetKeyboardCaptureEnabled(false)
+					}
+
+					return true
+				case <-deadline:
+					break waitLoop
+				case <-ticker.C:
+				case _, ok := <-capture.events:
+					if !ok {
+						ticker.Stop()
+
+						return true
+					}
+				}
+			}
+			ticker.Stop()
+
+			if manager != nil {
+				manager.SetKeyboardCaptureEnabled(false)
+			}
+		}
+	}
+
 	grabErr := capture.grabAll()
 	if grabErr != nil {
 		if et.logger != nil {
@@ -759,19 +854,57 @@ drainStale:
 
 	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed: pressed,
+		pressed:            pressed,
+		initialKeys:        make(map[uint16]bool),
+		releasedDuringGrab: make(map[uint16]bool),
 		modifiers: evdevModifierState{
 			linuxModifierState: queryEvdevModifierState(capture, pressed),
 		},
 	}
 
+	// Query all currently pressed (not just modifier) keys so we can suppress
+	// dispatch for keys that were held before this mode session started.
+	// Without this, the kernel's SYN_DROPPED replay after EVIOCGRAB delivers
+	// stale press events that would be interpreted as fresh key presses.
+	queryAllPressedKeys(capture, pressed)
+
+	// Copy the queried keys into initialKeys so the event handler can
+	// distinguish pre-existing presses from new ones. Keys that were already
+	// held when the event tap was enabled will have their repeat events
+	// suppressed until the user releases and re-presses them.
+	for code := range pressed {
+		state.initialKeys[code] = true
+	}
+
 	for {
 		select {
 		case <-et.stopCh:
-			// Ungrab devices but keep the capture alive for reuse
-			// on the next Enable(). The reader goroutines stay
-			// running and will drop stale events via the non-blocking
-			// send until we drain and re-grab.
+			// Inject synthetic releases for keys that were in
+			// initialKeys and physically released during the grab
+			// (their release never reached libinput), or are still
+			// in initialKeys but no longer pressed (released during
+			// the grab before the event handler processed them).
+			for code := range state.releasedDuringGrab {
+				err := linux.WaylandKeyEvent(uint32(code), false)
+				if err != nil && et.logger != nil {
+					et.logger.Warn("Failed to inject synthetic key release at shutdown",
+						zap.Uint16("keycode", code),
+						zap.Error(err),
+					)
+				}
+			}
+			for code := range state.initialKeys {
+				if !state.pressed[code] {
+					err := linux.WaylandKeyEvent(uint32(code), false)
+					if err != nil && et.logger != nil {
+						et.logger.Warn("Failed to inject synthetic key release at shutdown",
+							zap.Uint16("keycode", code),
+							zap.Error(err),
+						)
+					}
+				}
+			}
+
 			capture.ungrabAll()
 
 			return true
@@ -838,8 +971,22 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 	switch event.value {
 	case evdevValuePress:
+		// If this key was already held when the event tap was enabled, the
+		// press is from the kernel's SYN_DROPPED state replay after
+		// EVIOCGRAB. Track it in pressed (so subsequent repeats are not
+		// silently consumed) but skip dispatch — the user did not press
+		// it during this mode session. The initialKeys entry persists
+		// until the physical release so repeats continue to be suppressed.
 		state.trackKey(event.code, true)
+
+		if state.initialKeys[event.code] {
+			return
+		}
 	case evdevValueRelease:
+		if state.initialKeys[event.code] {
+			state.releasedDuringGrab[event.code] = true
+			delete(state.initialKeys, event.code)
+		}
 		state.trackKey(event.code, false)
 
 		key := evdevKeyName(event.code)
@@ -852,6 +999,13 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	case evdevValueRepeat:
 		if !state.pressed[event.code] {
+			return
+		}
+
+		// Suppress repeat dispatch for keys that were held before mode
+		// activation. The user must release and re-press to have the key
+		// register as a fresh input in the active mode.
+		if state.initialKeys[event.code] {
 			return
 		}
 	default:

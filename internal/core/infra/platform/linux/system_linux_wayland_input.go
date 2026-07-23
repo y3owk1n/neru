@@ -282,3 +282,18 @@ func waylandModifierEvent(modifier string, isDown bool) error {
 
 	return libeiKey(keycode, isDown)
 }
+
+// waylandKeyEvent presses or releases a key on the virtual keyboard, routing
+// through the wlroots virtual keyboard or libei depending on the compositor.
+func waylandKeyEvent(keycode uint32, pressed bool) error {
+	hasVirtualKeyboard, err := wlrootsHasVirtualKeyboard()
+	if err != nil {
+		return err
+	}
+
+	if hasVirtualKeyboard {
+		return wlrootsKey(keycode, pressed)
+	}
+
+	return libeiKey(int(keycode), pressed)
+}
