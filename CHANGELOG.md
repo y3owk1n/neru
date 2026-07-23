@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.49.0](https://github.com/y3owk1n/neru/compare/v1.48.0...v1.49.0) (2026-07-23)
+
+
+### Features
+
+* **config:** add `--no-reload` for `set` and add `reset` ([#1083](https://github.com/y3owk1n/neru/issues/1083)) ([2920864](https://github.com/y3owk1n/neru/commit/292086496bcaacea9edcc290eb11a13168f6ce71))
+* **config:** persistent `config set` via `override` files ([#1082](https://github.com/y3owk1n/neru/issues/1082)) ([6398fa5](https://github.com/y3owk1n/neru/commit/6398fa5c96df784bd102e37b5bda8bdb9192287b))
+* **linux:** support animation for recursive grid ([#1089](https://github.com/y3owk1n/neru/issues/1089)) ([b800247](https://github.com/y3owk1n/neru/commit/b8002472206c1f13b11eed9c39f846ba26217fcf))
+* **recursive_grid:** add `--zoom-to-depth` flag ([#1077](https://github.com/y3owk1n/neru/issues/1077)) ([3dfe895](https://github.com/y3owk1n/neru/commit/3dfe895c3c69b5cf573e1075019c58e51d0b9cb0))
+
+
+### Bug Fixes
+
+* **linux,wayland:** make evdev capture persistent with kb hotplug support ([#1086](https://github.com/y3owk1n/neru/issues/1086)) ([e345661](https://github.com/y3owk1n/neru/commit/e34566154ca4d39c2820ef8e82130e292281ae2a))
+* **linux,wayland:** prevent hotpulgLoop busy wait ([#1088](https://github.com/y3owk1n/neru/issues/1088)) ([c519875](https://github.com/y3owk1n/neru/commit/c5198756531e0fdaafa83cfa5391dc6db3cd42ec))
+* **linux,wayland:** prevent stale evdev state from causing stuck keys after grab ([#1087](https://github.com/y3owk1n/neru/issues/1087)) ([cdd466a](https://github.com/y3owk1n/neru/commit/cdd466a547f72923210687dbb4b3848bbcfac7f0))
+* **linux:** disable default global hotkeys to avoid collisions ([#1081](https://github.com/y3owk1n/neru/issues/1081)) ([3625f39](https://github.com/y3owk1n/neru/commit/3625f3957969025bae9913d5c8e71bea0e77ad80))
+* **linux:** gate AT-SPI accessibility init and ensure reset on quit ([#1085](https://github.com/y3owk1n/neru/issues/1085)) ([986f064](https://github.com/y3owk1n/neru/commit/986f064526d0884ec52dae437f6c1e66b3ea1427))
+* replace startup warning on launch with dynamic capability notice ([#1084](https://github.com/y3owk1n/neru/issues/1084)) ([03b2d5c](https://github.com/y3owk1n/neru/commit/03b2d5cb096e9d5ca818a855da8fe701c4a55007))
+
 ## [1.48.0](https://github.com/y3owk1n/neru/compare/v1.47.0...v1.48.0) (2026-07-20)
 
 
