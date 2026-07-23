@@ -4,6 +4,7 @@ package overlay
 
 import (
 	"image"
+	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -20,6 +21,7 @@ type x11Overlay struct {
 
 func newX11Overlay(logger *zap.Logger) *x11Overlay {
 	_ = logger
+
 	return nil
 }
 
@@ -44,13 +46,19 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	string,
 	int,
 	int,
+	string,
+	int,
+	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
+	bool,
+	int,
 ) {
 }
 
 func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	image.Rectangle,
+	int,
 	string,
 	int,
 	int,
@@ -59,8 +67,13 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
+	bool,
+	int,
 ) {
 }
 func (o *x11Overlay) Flush() {}
 
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+
+func (o *x11Overlay) cancelAnimation()          {}
+func (o *x11Overlay) setRenderMu(_ *sync.Mutex) {}

@@ -25,12 +25,11 @@ type wlrootsOverlay struct {
 
 func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	_ = logger
+
 	return nil
 }
 
-func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex) {}
-func (o *wlrootsOverlay) startPoller()               {}
-func (o *wlrootsOverlay) Healthy() bool              { return false }
+func (o *wlrootsOverlay) Healthy() bool { return false }
 func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	return nil
 }
@@ -53,13 +52,19 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	string,
 	int,
 	int,
+	string,
+	int,
+	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
+	bool,
+	int,
 ) {
 }
 
 func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	image.Rectangle,
+	int,
 	string,
 	int,
 	int,
@@ -68,10 +73,15 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	int,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
+	bool,
+	int,
 ) {
 }
 func (o *wlrootsOverlay) Flush() {}
 
-func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
-
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+
+func (o *wlrootsOverlay) cancelAnimation()               {}
+func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex)     {}
+func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
+func (o *wlrootsOverlay) startPoller()                   {}

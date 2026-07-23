@@ -109,6 +109,13 @@ void neru_x11_overlay_clear(NeruX11Overlay *overlay) {
 	XFlush(overlay->display);
 }
 
+void neru_x11_overlay_clear_buffered(NeruX11Overlay *overlay) {
+	cairo_save(overlay->cr);
+	cairo_set_operator(overlay->cr, CAIRO_OPERATOR_CLEAR);
+	cairo_paint(overlay->cr);
+	cairo_restore(overlay->cr);
+}
+
 void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int width, int height) {
 	if (overlay == NULL || width <= 0 || height <= 0) {
 		return;

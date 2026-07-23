@@ -22,6 +22,7 @@ void neru_x11_overlay_destroy(NeruX11Overlay *overlay);
 void neru_x11_overlay_show(NeruX11Overlay *overlay);
 void neru_x11_overlay_hide(NeruX11Overlay *overlay);
 void neru_x11_overlay_clear(NeruX11Overlay *overlay);
+void neru_x11_overlay_clear_buffered(NeruX11Overlay *overlay);
 void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int width, int height);
 void neru_x11_overlay_resize(NeruX11Overlay *overlay);
 void neru_x11_overlay_rect(
