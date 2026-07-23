@@ -81,6 +81,7 @@ func (o *wlrootsOverlay) Flush() {}
 
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *wlrootsOverlay) cancelAnimation()               {}
 func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex)     {}
 func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
 func (o *wlrootsOverlay) startPoller()                   {}

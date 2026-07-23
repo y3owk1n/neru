@@ -75,4 +75,5 @@ func (o *x11Overlay) Flush() {}
 
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *x11Overlay) cancelAnimation()          {}
 func (o *x11Overlay) setRenderMu(_ *sync.Mutex) {}
