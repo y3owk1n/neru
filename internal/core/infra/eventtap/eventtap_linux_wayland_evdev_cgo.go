@@ -79,11 +79,16 @@ type waylandEvdevEvent struct {
 type waylandEvdevKeyState struct {
 	modifiers evdevModifierState
 	pressed   map[uint16]bool
-	// initialKeys tracks keys that were already physically held when the event
-	// tap was (re-)enabled. The kernel replays press events for these via the
-	// SYN_DROPPED mechanism after EVIOCGRAB. We suppress dispatches for these
-	// keys until they are released (removing from initialKeys) and re-pressed.
+	// initialKeys tracks keys that were already physically held when
+	// the event tap was (re-)enabled.  The kernel replays press events
+	// via SYN_DROPPED after EVIOCGRAB; we suppress dispatch for these
+	// until the physical release (removing from initialKeys).
 	initialKeys map[uint16]bool
+	// releasedDuringGrab is a subset of initialKeys: keys that were
+	// released while the evdev grab was active and whose release events
+	// never reached libinput.  We inject synthetic releases for these
+	// at shutdown so libinput's per-keycode hw_is_key_down is cleared.
+	releasedDuringGrab map[uint16]bool
 }
 
 type waylandEvdevCapture struct {
@@ -849,8 +854,9 @@ drainStale:
 
 	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed:     pressed,
-		initialKeys: make(map[uint16]bool),
+		pressed:            pressed,
+		initialKeys:        make(map[uint16]bool),
+		releasedDuringGrab: make(map[uint16]bool),
 		modifiers: evdevModifierState{
 			linuxModifierState: queryEvdevModifierState(capture, pressed),
 		},
@@ -873,11 +879,14 @@ drainStale:
 	for {
 		select {
 		case <-et.stopCh:
-			// Inject synthetic releases for any keys that were
-			// released during the grab and whose release events
-			// never reached libinput.  (After the pre-grab wait
-			// above, initialKeys is typically empty — this is a
-			// safety net for keys pressed during the mode itself.)
+			// Inject synthetic releases for keys that were in
+			// initialKeys and physically released during the grab
+			// (their release never reached libinput), or are still
+			// in initialKeys but no longer pressed (released during
+			// the grab before the event handler processed them).
+			for code := range state.releasedDuringGrab {
+				_ = linux.WaylandKeyEvent(uint32(code), false)
+			}
 			for code := range state.initialKeys {
 				if !state.pressed[code] {
 					_ = linux.WaylandKeyEvent(uint32(code), false)
@@ -962,7 +971,10 @@ func (et *EventTap) handleWaylandEvdevEvent(
 			return
 		}
 	case evdevValueRelease:
-		delete(state.initialKeys, event.code)
+		if state.initialKeys[event.code] {
+			state.releasedDuringGrab[event.code] = true
+			delete(state.initialKeys, event.code)
+		}
 		state.trackKey(event.code, false)
 
 		key := evdevKeyName(event.code)
