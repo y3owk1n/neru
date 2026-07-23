@@ -421,15 +421,20 @@ func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
 
 func (o *wlrootsOverlay) cancelAnimation() {
 	o.cancelMu.Lock()
-	defer o.cancelMu.Unlock()
 
+	var doneCh chan struct{}
 	if o.animStop != nil {
 		close(o.animStop)
 		o.animStop = nil
 	}
 	if o.animDone != nil {
-		<-o.animDone
+		doneCh = o.animDone
 		o.animDone = nil
+	}
+	o.cancelMu.Unlock()
+
+	if doneCh != nil {
+		<-doneCh
 	}
 }
 
@@ -593,6 +598,16 @@ func (o *wlrootsOverlay) startGridAnimation(
 
 	go func() {
 		defer close(doneCh)
+		defer func() {
+			o.cancelMu.Lock()
+			if o.animStop == stopCh {
+				o.animStop = nil
+			}
+			if o.animDone == doneCh {
+				o.animDone = nil
+			}
+			o.cancelMu.Unlock()
+		}()
 
 		for {
 			select {
