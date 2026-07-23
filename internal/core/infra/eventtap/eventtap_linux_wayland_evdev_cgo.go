@@ -74,6 +74,11 @@ type waylandEvdevEvent struct {
 type waylandEvdevKeyState struct {
 	modifiers evdevModifierState
 	pressed   map[uint16]bool
+	// initialKeys tracks keys that were already physically held when the event
+	// tap was (re-)enabled. The kernel replays press events for these via the
+	// SYN_DROPPED mechanism after EVIOCGRAB. We suppress dispatches for these
+	// keys until they are released (removing from initialKeys) and re-pressed.
+	initialKeys map[uint16]bool
 }
 
 type waylandEvdevCapture struct {
@@ -422,6 +427,35 @@ func (capture *waylandEvdevCapture) modifierKeysHeld() bool {
 	return false
 }
 
+// queryAllPressedKeys retrieves all currently pressed keys via EVIOCGKEY from
+// each captured device and records them in the pressed map. This is called
+// after EVIOCGRAB because the kernel replays the current key state through the
+// SYN_DROPPED mechanism. By querying the state here we can distinguish keys
+// that were held before mode activation from keys pressed during the mode.
+func queryAllPressedKeys(capture *waylandEvdevCapture, pressed map[uint16]bool) {
+	if capture == nil {
+		return
+	}
+
+	capture.deviceMu.Lock()
+	defer capture.deviceMu.Unlock()
+
+	keycodes := make([]C.uint, 256)
+
+	for _, file := range capture.files {
+		fd := C.int(file.Fd())
+		n := int(C.neru_evdev_get_pressed_keys(fd, &keycodes[0], C.int(len(keycodes))))
+		if n <= 0 {
+			continue
+		}
+
+		for i := range min(n, len(keycodes)) {
+			code := uint16(keycodes[i])
+			pressed[code] = true
+		}
+	}
+}
+
 // queryEvdevModifierState queries the current evdev key state and returns
 // a linuxModifierState counting any held modifier keys across all captured
 // devices. Keys that are physically held are also recorded in pressed so that
@@ -759,10 +793,25 @@ drainStale:
 
 	pressed := make(map[uint16]bool)
 	state := waylandEvdevKeyState{
-		pressed: pressed,
+		pressed:     pressed,
+		initialKeys: make(map[uint16]bool),
 		modifiers: evdevModifierState{
 			linuxModifierState: queryEvdevModifierState(capture, pressed),
 		},
+	}
+
+	// Query all currently pressed (not just modifier) keys so we can suppress
+	// dispatch for keys that were held before this mode session started.
+	// Without this, the kernel's SYN_DROPPED replay after EVIOCGRAB delivers
+	// stale press events that would be interpreted as fresh key presses.
+	queryAllPressedKeys(capture, pressed)
+
+	// Copy the queried keys into initialKeys so the event handler can
+	// distinguish pre-existing presses from new ones. Keys that were already
+	// held when the event tap was enabled will have their repeat events
+	// suppressed until the user releases and re-presses them.
+	for code := range pressed {
+		state.initialKeys[code] = true
 	}
 
 	for {
@@ -838,8 +887,19 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 	switch event.value {
 	case evdevValuePress:
+		// If this key was already held when the event tap was enabled, the
+		// press is from the kernel's SYN_DROPPED state replay after
+		// EVIOCGRAB. Track it in pressed (so subsequent repeats are not
+		// silently consumed) but skip dispatch — the user did not press
+		// it during this mode session. The initialKeys entry persists
+		// until the physical release so repeats continue to be suppressed.
 		state.trackKey(event.code, true)
+
+		if state.initialKeys[event.code] {
+			return
+		}
 	case evdevValueRelease:
+		delete(state.initialKeys, event.code)
 		state.trackKey(event.code, false)
 
 		key := evdevKeyName(event.code)
@@ -852,6 +912,13 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	case evdevValueRepeat:
 		if !state.pressed[event.code] {
+			return
+		}
+
+		// Suppress repeat dispatch for keys that were held before mode
+		// activation. The user must release and re-press to have the key
+		// register as a fresh input in the active mode.
+		if state.initialKeys[event.code] {
 			return
 		}
 	default:

@@ -60,6 +60,28 @@ ssize_t neru_evdev_read_event(int fd, struct input_event *event) {
 	return n;
 }
 
+int neru_evdev_get_pressed_keys(int fd, unsigned int *out_keys, int max_keys) {
+	unsigned long key_bits[(KEY_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
+	memset(key_bits, 0, sizeof(key_bits));
+
+	if (ioctl(fd, EVIOCGKEY(sizeof(key_bits)), key_bits) < 0) {
+		return -1;
+	}
+
+	int count = 0;
+	for (unsigned int i = 0; i < KEY_MAX; i++) {
+		int idx = i / (8 * (int)sizeof(unsigned long));
+		int bit = i % (8 * (int)sizeof(unsigned long));
+		if ((key_bits[idx] >> bit) & 1UL) {
+			if (count < max_keys) {
+				out_keys[count] = i;
+			}
+			count++;
+		}
+	}
+	return count;
+}
+
 int neru_uinput_create_scroll(int *out_fd) {
 	int fd = open("/dev/uinput", O_RDWR);
 	if (fd < 0) {
