@@ -560,6 +560,15 @@ func (m *Manager) DrawRecursiveGrid(
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
+	// Cancel any running animation before acquiring renderMu to avoid
+	// deadlock: the animation goroutine may be waiting for renderMu and
+	// won't see the stop signal until it runs a full loop iteration.
+	if m.wlroots != nil {
+		m.wlroots.cancelAnimation()
+	} else if m.x11 != nil {
+		m.x11.cancelAnimation()
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
