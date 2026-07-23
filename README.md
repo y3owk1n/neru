@@ -51,6 +51,8 @@ https://github.com/user-attachments/assets/6b5673e1-7131-4bc0-ad57-41678e9423b9
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
+neru config init
+if [ -f ~/.zshrc ] && ! grep -q 'eval "$(neru completion zsh)"' ~/.zshrc; then; echo 'eval "$(neru completion zsh)"' >> ~/.zshrc; fi
 ```
 
 Grant **Accessibility** in **System Settings → Privacy & Security → Accessibility**, then:
