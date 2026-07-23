@@ -520,7 +520,7 @@ func (capture *waylandEvdevCapture) startHotplugWatcher() {
 		return
 	}
 
-	inotifyFd, err := syscall.InotifyInit1(syscall.IN_NONBLOCK)
+	inotifyFd, err := syscall.InotifyInit()
 	if err != nil {
 		if capture.logger != nil {
 			capture.logger.Debug(
