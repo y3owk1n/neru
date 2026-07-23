@@ -885,11 +885,23 @@ drainStale:
 			// in initialKeys but no longer pressed (released during
 			// the grab before the event handler processed them).
 			for code := range state.releasedDuringGrab {
-				_ = linux.WaylandKeyEvent(uint32(code), false)
+				err := linux.WaylandKeyEvent(uint32(code), false)
+				if err != nil && et.logger != nil {
+					et.logger.Warn("Failed to inject synthetic key release at shutdown",
+						zap.Uint16("keycode", code),
+						zap.Error(err),
+					)
+				}
 			}
 			for code := range state.initialKeys {
 				if !state.pressed[code] {
-					_ = linux.WaylandKeyEvent(uint32(code), false)
+					err := linux.WaylandKeyEvent(uint32(code), false)
+					if err != nil && et.logger != nil {
+						et.logger.Warn("Failed to inject synthetic key release at shutdown",
+							zap.Uint16("keycode", code),
+							zap.Error(err),
+						)
+					}
 				}
 			}
 
