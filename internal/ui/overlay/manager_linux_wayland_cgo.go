@@ -344,10 +344,14 @@ func (o *wlrootsOverlay) DrawHints(
 			centerX+badgeWidth/centeredRectDivisor,
 			centerY+badgeHeight/centeredRectDivisor,
 		)
-		if style.BorderRadius() > 0 {
+		radius := style.BorderRadius()
+		if radius < 0 {
+			radius = badgeHeight / centeredRectDivisor
+		}
+		if radius > 0 {
 			o.drawRoundedRect(
 				badge,
-				float64(style.BorderRadius()),
+				float64(radius),
 				parseHexColor(style.BackgroundColor()),
 				parseHexColor(style.BorderColor()),
 				float64(max(style.BorderWidth(), 0)),
