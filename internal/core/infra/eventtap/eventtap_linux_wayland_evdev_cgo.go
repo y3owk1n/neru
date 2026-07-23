@@ -28,6 +28,8 @@ import (
 const (
 	waylandEvdevEventBufferSize           = 128
 	waylandEvdevModifierReleasePollPeriod = 5 * time.Millisecond
+	waylandEvdevPreGrabHoldPollPeriod     = 50 * time.Millisecond
+	waylandEvdevPreGrabTimeout            = 5 * time.Second
 	waylandEvdevHotplugBufSize            = 4096
 	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
 )
@@ -750,6 +752,57 @@ func (et *EventTap) runWaylandEvdev() bool {
 		}
 	}
 
+	// Wait for ALL physically held keys to be released before
+	// grabbing.  Grabbing while a key is held causes the kernel to
+	// route that key's release to our fd only — libinput never sees
+	// it and permanently considers the key pressed.  The next press
+	// of the same key after the mode exits is then treated as a
+	// duplicate by libinput and silently consumed.
+	{
+		held := make(map[uint16]bool)
+		queryAllPressedKeys(capture, held)
+		if len(held) > 0 {
+			if manager != nil {
+				manager.SetKeyboardCaptureEnabled(true)
+			}
+
+			deadline := time.After(waylandEvdevPreGrabTimeout)
+			ticker := time.NewTicker(waylandEvdevPreGrabHoldPollPeriod)
+		waitLoop:
+			for {
+				pressed := make(map[uint16]bool)
+				queryAllPressedKeys(capture, pressed)
+				if len(pressed) == 0 {
+					break waitLoop
+				}
+
+				select {
+				case <-et.stopCh:
+					ticker.Stop()
+					if manager != nil {
+						manager.SetKeyboardCaptureEnabled(false)
+					}
+
+					return true
+				case <-deadline:
+					break waitLoop
+				case <-ticker.C:
+				case _, ok := <-capture.events:
+					if !ok {
+						ticker.Stop()
+
+						return true
+					}
+				}
+			}
+			ticker.Stop()
+
+			if manager != nil {
+				manager.SetKeyboardCaptureEnabled(false)
+			}
+		}
+	}
+
 	grabErr := capture.grabAll()
 	if grabErr != nil {
 		if et.logger != nil {
@@ -820,23 +873,17 @@ drainStale:
 	for {
 		select {
 		case <-et.stopCh:
-			// Inject synthetic release events for keys that were
-			// physically held when the mode was activated but have
-			// since been released.  The evdev grab consumed those
-			// release events; the compositor/terminal never saw them
-			// and so continues repeating the key.  Releasing them
-			// here unsticks the compositor's key state before we
-			// ungrab.
+			// Inject synthetic releases for any keys that were
+			// released during the grab and whose release events
+			// never reached libinput.  (After the pre-grab wait
+			// above, initialKeys is typically empty — this is a
+			// safety net for keys pressed during the mode itself.)
 			for code := range state.initialKeys {
 				if !state.pressed[code] {
 					_ = linux.WaylandKeyEvent(uint32(code), false)
 				}
 			}
 
-			// Ungrab devices but keep the capture alive for reuse
-			// on the next Enable(). The reader goroutines stay
-			// running and will drop stale events via the non-blocking
-			// send until we drain and re-grab.
 			capture.ungrabAll()
 
 			return true
