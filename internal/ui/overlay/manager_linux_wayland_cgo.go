@@ -34,23 +34,24 @@ type wlrootsOverlay struct {
 	currentPrefix  string
 	hideUnmatched  bool
 	currentSubgrid *domainGrid.Cell
-	sublayerKeys   string // Configured sublayer keys (uppercase), set from grid config
-	// Cached grid state for incremental redraws triggered by
-	// UpdateGridMatches / ShowSubgrid (which don't receive the grid).
-	cachedGrid  *domainGrid.Grid
-	cachedStyle gridcomponent.Style
+	sublayerKeys   string
+	cachedGrid     *domainGrid.Grid
+	cachedStyle    gridcomponent.Style
 
-	// displayMu serializes all access to the underlying wl_display connection.
-	// The Wayland client API is not thread-safe: concurrent wl_display_dispatch
-	// (keyboard poller) and wl_display_flush / wl_display_roundtrip (rendering)
-	// from different goroutines is undefined behavior. This mutex is shared with
-	// the Manager's renderMu — the Manager sets it after construction via
-	// setDisplayMu so that both the rendering path and the keyboard poller
-	// serialize on the same lock.
 	displayMu *sync.Mutex
 
-	stopCh chan struct{} // signals keyboardPoller to exit
-	doneCh chan struct{} // closed when keyboardPoller has exited
+	stopCh chan struct{}
+	doneCh chan struct{}
+
+	animStop         chan struct{}
+	animDone         chan struct{}
+	hasLast          bool
+	lastBounds       image.Rectangle
+	lastCols         int
+	lastRows         int
+	lastDepth        int
+	lastRects        []image.Rectangle
+	currentAnimRects []image.Rectangle
 }
 
 func init() {
@@ -64,18 +65,12 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 	}
 
 	C.neru_wayland_overlay_setup_buffers(raw)
-
 	overlay := &wlrootsOverlay{
 		raw:    raw,
 		logger: logger,
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
 	}
-
-	// Do NOT start the keyboardPoller goroutine here. The caller must
-	// call setDisplayMu first (to share renderMu), then startPoller.
-	// Starting the goroutine before displayMu is set would be a data
-	// race: the poller reads displayMu on every iteration.
 
 	return overlay
 }
@@ -94,7 +89,6 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 
 func (o *wlrootsOverlay) Show() {
 	if o != nil && o.raw != nil {
-		// Re-setup buffers in case dimensions changed
 		C.neru_wayland_overlay_setup_buffers(o.raw)
 		C.neru_wayland_overlay_show(o.raw)
 	}
@@ -102,12 +96,15 @@ func (o *wlrootsOverlay) Show() {
 
 func (o *wlrootsOverlay) Hide() {
 	if o != nil && o.raw != nil {
+		o.cancelAnimation()
 		C.neru_wayland_overlay_hide(o.raw)
 	}
 }
 
 func (o *wlrootsOverlay) Clear() {
 	if o != nil && o.raw != nil {
+		o.cancelAnimation()
+		o.hasLast = false
 		C.neru_wayland_overlay_clear(o.raw)
 	}
 }
@@ -133,8 +130,7 @@ func (o *wlrootsOverlay) Destroy() {
 		return
 	}
 
-	// Signal the poller goroutine to stop and wait for it to exit
-	// before freeing the C struct, preventing a use-after-free.
+	o.cancelAnimation()
 	close(o.stopCh)
 	<-o.doneCh
 
@@ -155,6 +151,9 @@ func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Styl
 	o.currentSubgrid = cell
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
+	if !o.selectAvailableBuffer() {
+		return
+	}
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
 	C.neru_wayland_overlay_flush(o.raw)
 }
@@ -167,11 +166,9 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	if o == nil || o.raw == nil || g == nil {
 		return
 	}
-	// Cache for incremental redraws from UpdateGridMatches / ShowSubgrid.
 	o.cachedGrid = g
 	o.cachedStyle = style
 	o.currentPrefix = strings.ToUpper(input)
-	// Clear subgrid — DrawGrid draws the main grid; ShowSubgrid sets it separately.
 	o.currentSubgrid = nil
 
 	o.redrawGrid()
@@ -179,28 +176,7 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 
 func (o *wlrootsOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
-	_ int,
-	keys string,
-	gridCols int,
-	gridRows int,
-	style recursivegridcomponent.Style,
-	virtualPointer recursivegridcomponent.VirtualPointerState,
-) {
-	o.DrawRecursiveGridWithSubKeyPreview(
-		bounds,
-		keys,
-		gridCols,
-		gridRows,
-		"",
-		0,
-		0,
-		style,
-		virtualPointer,
-	)
-}
-
-func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
-	bounds image.Rectangle,
+	depth int,
 	keys string,
 	gridCols int,
 	gridRows int,
@@ -209,90 +185,84 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	nextGridRows int,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
+	animEnabled bool,
+	animDurationMS int,
+) {
+	o.DrawRecursiveGridWithSubKeyPreview(
+		bounds, depth, keys, gridCols, gridRows,
+		nextKeys, nextGridCols, nextGridRows,
+		style, virtualPointer, animEnabled, animDurationMS,
+	)
+}
+
+//nolint:mnd
+func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	gridCols int,
+	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+	animEnabled bool,
+	animDurationMS int,
 ) {
 	if o == nil || o.raw == nil || bounds.Empty() || gridCols <= 0 || gridRows <= 0 {
 		return
 	}
+
 	C.neru_wayland_overlay_setup_buffers(o.raw)
-	o.Clear()
-
-	keyRunes := []rune(strings.ToUpper(keys))
-	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
-	drawSubPreview := style.SubKeyPreview && len(nextKeyRunes) > 0 && nextGridCols > 0 &&
-		nextGridRows > 0
-
+	shouldAnimate := animEnabled && o.hasLast && depth != o.lastDepth &&
+		!o.lastBounds.Empty()
 	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
-	for idx, cell := range cellRects {
-		fill := style.HighlightColor
-		if fill == 0 {
-			fill = subgridCellBackground
+
+	if shouldAnimate {
+		o.cancelAnimation()
+
+		duration := time.Duration(animDurationMS) * time.Millisecond
+		if duration <= 0 {
+			duration = 50 * time.Millisecond
 		}
 
-		o.drawRect(cell, fill, style.LineColor, style.LineWidth)
-		if idx < len(keyRunes) {
-			label := style.LabelChar
-			if label == "" {
-				label = string(keyRunes[idx])
-			}
+		fromRects := o.buildFromRects(cellRects)
+		keyRunes := []rune(strings.ToUpper(keys))
+		nextKeyRunes := []rune(strings.ToUpper(nextKeys))
 
-			if shouldShowLabel(cell, style) {
-				if style.LabelBackground {
-					o.drawLabelBackground(label, cell, style)
-				}
+		animStop := make(chan struct{})
+		animDone := make(chan struct{})
+		o.animStop = animStop
+		o.animDone = animDone
 
-				o.drawTextCentered(
-					label,
-					cell,
-					style.LabelFontName,
-					style.LabelFontSize,
-					style.LabelFontColor,
-				)
-			}
-
-			if drawSubPreview && shouldShowSubKeyPreview(cell, style, nextGridCols, nextGridRows) {
-				o.drawSubKeyMiniGrid(
-					cell,
-					nextKeyRunes,
-					nextGridCols,
-					nextGridRows,
-					style,
-				)
-			}
-		}
-	}
-
-	if virtualPointer.Visible {
-		vpChar := virtualPointer.Char
-		if vpChar == "" {
-			vpChar = "\u25CF"
-		}
-
-		fontName := ports.ResolveFont(virtualPointer.FontName, false)
-
-		fontSize := float64(virtualPointer.Size)
-		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
-
-		vpBounds := image.Rect(
-			virtualPointer.Position.X-halfSize,
-			virtualPointer.Position.Y-halfSize,
-			virtualPointer.Position.X+halfSize,
-			virtualPointer.Position.Y+halfSize,
+		o.startGridAnimation(
+			fromRects, cellRects,
+			keyRunes, nextKeyRunes,
+			nextGridCols, nextGridRows,
+			style, virtualPointer,
+			duration, animStop, animDone,
 		)
-		o.drawTextCentered(
-			vpChar,
-			vpBounds,
-			fontName,
-			fontSize,
-			parseHexColor(virtualPointer.FillColor),
+	} else {
+		o.cancelAnimation()
+		o.clearAndDraw(
+			cellRects, keys, gridCols, gridRows,
+			nextKeys, nextGridCols, nextGridRows,
+			style, virtualPointer,
 		)
 	}
 
-	C.neru_wayland_overlay_flush(o.raw)
+	o.hasLast = true
+	o.lastBounds = bounds
+	o.lastCols = gridCols
+	o.lastRows = gridRows
+	o.lastDepth = depth
+	o.lastRects = make([]image.Rectangle, len(cellRects))
+	copy(o.lastRects, cellRects)
 }
 
 func (o *wlrootsOverlay) DrawBadge(
-	posX,
-	posY int,
+	posX, posY int,
 	text string,
 	colors overlayColors,
 	style overlayBadgeStyle,
@@ -300,13 +270,12 @@ func (o *wlrootsOverlay) DrawBadge(
 	if o == nil || o.raw == nil || text == "" {
 		return
 	}
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 
+	C.neru_wayland_overlay_setup_buffers(o.raw)
 	fontSize := style.fontSize
 	if fontSize <= 0 {
 		fontSize = 14
 	}
-
 	rect := badgeBounds(posX, posY, text, style)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
@@ -329,7 +298,12 @@ func (o *wlrootsOverlay) DrawHints(
 	}
 
 	C.neru_wayland_overlay_setup_buffers(o.raw)
-	o.Clear()
+	o.cancelAnimation()
+	o.hasLast = false
+	if !o.selectAvailableBuffer() {
+		return
+	}
+	C.neru_wayland_overlay_clear(o.raw)
 	for _, hint := range hintsSlice {
 		if style.BoundaryHighlightEnabled() {
 			boundary := image.Rect(
@@ -346,28 +320,25 @@ func (o *wlrootsOverlay) DrawHints(
 			)
 		}
 
-		bounds := hintLabelBounds(
+		bounds := image.Rect(
 			hint.Position().X,
 			hint.Position().Y,
-			hint.Label(),
-			style,
+			hint.Position().X+hint.Size().X,
+			hint.Position().Y+hint.Size().Y,
 		)
-
 		textColor := style.TextColor()
 		if hint.MatchedPrefix() != "" {
 			textColor = style.MatchedTextColor()
 		}
 
-		o.drawRoundedRect(
+		o.drawRect(
 			bounds,
-			hintCornerRadius(style.BorderRadius(), bounds.Dy()),
 			parseHexColor(style.BackgroundColor()),
 			parseHexColor(style.BorderColor()),
 			float64(max(style.BorderWidth(), 0)),
 		)
 		o.drawTextCentered(
-			hint.Label(),
-			bounds,
+			hint.Label(), bounds,
 			style.FontFamily(),
 			float64(max(style.FontSize(), 1)),
 			parseHexColor(textColor),
@@ -377,9 +348,60 @@ func (o *wlrootsOverlay) DrawHints(
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
-// keyboardPoller polls for keyboard events.
-// It acquires displayMu around every wl_display access to prevent concurrent
-// use with the rendering path (which also holds the same mutex via renderMu).
+// selectAvailableBuffer picks a buffer that the compositor has released.
+// Falls back to sync (roundtrip) if none free, which forces release processing.
+func (o *wlrootsOverlay) selectAvailableBuffer() bool {
+	if o == nil || o.raw == nil {
+		return false
+	}
+	C.neru_wayland_overlay_dispatch_pending(o.raw)
+	bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+	if bufIdx < 0 {
+		C.neru_wayland_overlay_sync(o.raw)
+		bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+	}
+	if bufIdx < 0 {
+		return false
+	}
+	C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
+
+	return true
+}
+
+// unexported helpers
+
+func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
+	o.displayMu = mu
+}
+
+func (o *wlrootsOverlay) startPoller() {
+	go o.keyboardPoller()
+}
+
+func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	cEnabled := C.int(0)
+	if enabled {
+		cEnabled = 1
+	}
+
+	C.neru_wayland_overlay_set_keyboard_capture(o.raw, cEnabled)
+}
+
+func (o *wlrootsOverlay) cancelAnimation() {
+	if o.animStop != nil {
+		close(o.animStop)
+		o.animStop = nil
+	}
+	if o.animDone != nil {
+		<-o.animDone
+		o.animDone = nil
+	}
+}
+
 func (o *wlrootsOverlay) keyboardPoller() {
 	defer close(o.doneCh)
 
@@ -392,10 +414,6 @@ func (o *wlrootsOverlay) keyboardPoller() {
 		default:
 		}
 
-		// Collect all buffered keys under a single lock acquisition.
-		// wl_display_roundtrip (called by the rendering path) may
-		// dispatch multiple keyboard events; the ring buffer preserves
-		// them all so none are silently dropped.
 		var keys []string
 
 		if o.displayMu != nil {
@@ -436,39 +454,268 @@ func (o *wlrootsOverlay) keyboardPoller() {
 	}
 }
 
-func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
+//nolint:mnd,varnamelen
+func (o *wlrootsOverlay) buildFromRects(toRects []image.Rectangle) []image.Rectangle {
+	if len(o.currentAnimRects) == len(toRects) {
+		from := make([]image.Rectangle, len(o.currentAnimRects))
+		copy(from, o.currentAnimRects)
+
+		return from
+	}
+
+	if len(o.lastRects) == len(toRects) {
+		from := make([]image.Rectangle, len(o.lastRects))
+		copy(from, o.lastRects)
+
+		return from
+	}
+
+	if o.lastBounds.Empty() {
+		from := make([]image.Rectangle, len(toRects))
+		for idx, rect := range toRects {
+			cx := rect.Min.X + rect.Dx()/2
+			cy := rect.Min.Y + rect.Dy()/2
+			from[idx] = image.Rect(cx, cy, cx, cy)
+		}
+
+		return from
+	}
+
+	fromBounds := o.lastBounds
+	fw := float64(fromBounds.Dx())
+	fh := float64(fromBounds.Dy())
+	from := make([]image.Rectangle, len(toRects))
+	for idx, rect := range toRects {
+		nx := float64(rect.Min.X+rect.Dx()/2) / float64(rect.Dx())
+		ny := float64(rect.Min.Y+rect.Dy()/2) / float64(rect.Dy())
+		cx := int(float64(fromBounds.Min.X) + nx*fw)
+		cy := int(float64(fromBounds.Min.Y) + ny*fh)
+		rw := rect.Dx()
+		rh := rect.Dy()
+		from[idx] = image.Rect(
+			cx-rw/2, cy-rh/2,
+			cx+rw/2, cy+rh/2,
+		)
+	}
+
+	return from
+}
+
+func (o *wlrootsOverlay) startGridAnimation(
+	fromRects, toRects []image.Rectangle,
+	keyRunes, nextKeyRunes []rune,
+	nextGridCols, nextGridRows int,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+	duration time.Duration,
+	stopCh chan struct{},
+	doneCh chan struct{},
+) {
+	C.neru_wayland_overlay_sync(o.raw)
+
+	startTime := time.Now()
+
+	renderFrame := func(rawProgress float64) bool {
+		if rawProgress >= 1.0 {
+			rawProgress = 1.0
+		}
+		progress := easeInOut(rawProgress)
+
+		interpCells := make([]image.Rectangle, len(toRects))
+		for i := range toRects {
+			src := fromRects[i]
+			dst := toRects[i]
+			interpCells[i] = image.Rect(
+				int(lerp(float64(src.Min.X), float64(dst.Min.X), progress)),
+				int(lerp(float64(src.Min.Y), float64(dst.Min.Y), progress)),
+				int(lerp(float64(src.Max.X), float64(dst.Max.X), progress)),
+				int(lerp(float64(src.Max.Y), float64(dst.Max.Y), progress)),
+			)
+		}
+
+		C.neru_wayland_overlay_dispatch_pending(o.raw)
+		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		if bufIdx < 0 {
+			C.neru_wayland_overlay_sync(o.raw)
+			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		}
+		if bufIdx < 0 {
+			return false
+		}
+		C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
+
+		o.currentAnimRects = interpCells
+
+		C.neru_wayland_overlay_clear(o.raw)
+		o.drawFrame(
+			interpCells, keyRunes, nextKeyRunes,
+			nextGridCols, nextGridRows, style, virtualPointer,
+		)
+
+		return true
+	}
+
+	go func() {
+		defer close(doneCh)
+
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			elapsed := time.Since(startTime)
+			rawProgress := float64(elapsed) / float64(duration)
+			if rawProgress >= 1.0 {
+				rawProgress = 1.0
+			}
+
+			renderStart := time.Now()
+
+			if o.displayMu != nil {
+				o.displayMu.Lock()
+				// Parent may have closed stopCh while we were waiting
+				// for the lock. Check here to avoid deadlock:
+				//   parent holds displayMu, waits for animDone
+				//   we   hold displayMu, parent waits for displayMu
+				select {
+				case <-stopCh:
+					o.displayMu.Unlock()
+
+					return
+				default:
+				}
+			}
+			_ = renderFrame(rawProgress)
+			if o.displayMu != nil {
+				o.displayMu.Unlock()
+			}
+
+			if rawProgress >= 1.0 {
+				return
+			}
+
+			renderDur := time.Since(renderStart)
+			sleepFor := animationFrameDur - renderDur
+			if sleepFor > 0 {
+				select {
+				case <-stopCh:
+					return
+				case <-time.After(sleepFor):
+				}
+			}
+		}
+	}()
+}
+
+func (o *wlrootsOverlay) clearAndDraw(
+	cellRects []image.Rectangle,
+	keys string, gridCols, gridRows int,
+	nextKeys string, nextGridCols, nextGridRows int,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
-	cEnabled := C.int(0)
-	if enabled {
-		cEnabled = 1
+	o.currentAnimRects = nil
+
+	keyRunes := []rune(strings.ToUpper(keys))
+	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
+
+	if !o.selectAvailableBuffer() {
+		return
+	}
+	C.neru_wayland_overlay_clear(o.raw)
+	o.drawFrame(cellRects, keyRunes, nextKeyRunes,
+		nextGridCols, nextGridRows, style, virtualPointer)
+}
+
+func (o *wlrootsOverlay) drawFrame(
+	cellRects []image.Rectangle,
+	keyRunes, nextKeyRunes []rune,
+	nextGridCols, nextGridRows int,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+) {
+	drawSubPreview := style.SubKeyPreview && len(nextKeyRunes) > 0 &&
+		nextGridCols > 0 && nextGridRows > 0
+
+	for idx, cell := range cellRects {
+		if cell.Empty() {
+			continue
+		}
+
+		fill := style.HighlightColor
+		if fill == 0 {
+			fill = subgridCellBackground
+		}
+
+		o.drawRect(cell, fill, style.LineColor, style.LineWidth)
+		if idx < len(keyRunes) {
+			label := style.LabelChar
+			if label == "" {
+				label = string(keyRunes[idx])
+			}
+
+			if shouldShowLabel(cell, style) {
+				if style.LabelBackground {
+					o.drawLabelBackground(label, cell, style)
+				}
+
+				o.drawTextCentered(
+					label, cell, style.LabelFontName,
+					style.LabelFontSize, style.LabelFontColor,
+				)
+			}
+
+			if drawSubPreview &&
+				shouldShowSubKeyPreview(cell, style, nextGridCols, nextGridRows) {
+				o.drawSubKeyMiniGrid(cell, nextKeyRunes,
+					nextGridCols, nextGridRows, style)
+			}
+		}
 	}
 
-	C.neru_wayland_overlay_set_keyboard_capture(o.raw, cEnabled)
+	if virtualPointer.Visible {
+		o.drawVirtualPointer(virtualPointer)
+	}
+
+	C.neru_wayland_overlay_flush(o.raw)
 }
 
-// startPoller launches the keyboard polling goroutine.
-// Must be called after setDisplayMu so the poller has a valid mutex.
-func (o *wlrootsOverlay) startPoller() {
-	go o.keyboardPoller()
+//nolint:mnd,varnamelen
+func (o *wlrootsOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPointerState) {
+	vpChar := vp.Char
+	if vpChar == "" {
+		vpChar = "\u25CF"
+	}
+
+	fontName := ports.ResolveFont(vp.FontName, false)
+	fontSize := float64(vp.Size)
+	halfSize := max(vp.Size/2, 1)
+	vpBounds := image.Rect(
+		vp.Position.X-halfSize,
+		vp.Position.Y-halfSize,
+		vp.Position.X+halfSize,
+		vp.Position.Y+halfSize,
+	)
+	o.drawTextCentered(vpChar, vpBounds, fontName, fontSize,
+		parseHexColor(vp.FillColor))
 }
 
-// setDisplayMu sets the mutex used to serialize wl_display access.
-// Must be called before the keyboard poller goroutine starts using it.
-func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
-	o.displayMu = mu
-}
-
-// redrawGrid performs the actual grid rendering using cached state.
 func (o *wlrootsOverlay) redrawGrid() {
 	if o == nil || o.raw == nil || o.cachedGrid == nil {
 		return
 	}
-	C.neru_wayland_overlay_setup_buffers(o.raw)
-	o.Clear()
 
+	C.neru_wayland_overlay_setup_buffers(o.raw)
+	if !o.selectAvailableBuffer() {
+		return
+	}
+	C.neru_wayland_overlay_clear(o.raw)
 	style := o.cachedStyle
 	prefix := o.currentPrefix
 
@@ -488,7 +735,8 @@ func (o *wlrootsOverlay) redrawGrid() {
 			border = style.MatchedBorderColor
 		}
 		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(), style.LabelFontName, style.LabelFontSize, text)
+		o.drawTextCentered(label, cell.Bounds(),
+			style.LabelFontName, style.LabelFontSize, text)
 	}
 
 	if o.currentSubgrid != nil {
@@ -498,55 +746,46 @@ func (o *wlrootsOverlay) redrawGrid() {
 }
 
 func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	const (
-		cols = 3
-		rows = 3
-	)
-
-	// Use configured sublayer keys; fall back to default
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
 	}
-	maxKeys := min(len(keyRunes), cols*rows)
-
-	// Build breakpoints that evenly distribute remainders to fully cover the cell
-	// (matches macOS ShowSubgrid implementation).
-	xBreaks := make([]int, cols+1)
-	yBreaks := make([]int, rows+1)
+	maxKeys := min(len(keyRunes), subgridCols*subgridRows)
+	xBreaks := make([]int, subgridCols+1)
+	yBreaks := make([]int, subgridRows+1)
 	xBreaks[0] = bounds.Min.X
 	yBreaks[0] = bounds.Min.Y
-	for i := 1; i <= cols; i++ {
+
+	for i := 1; i <= subgridCols; i++ {
 		xBreaks[i] = bounds.Min.X + int(
-			float64(i)*float64(bounds.Dx())/float64(cols)+subgridHalfPixel,
+			float64(i)*float64(bounds.Dx())/float64(subgridCols)+
+				subgridHalfPixel,
 		)
 	}
-	for i := 1; i <= rows; i++ {
+	for i := 1; i <= subgridRows; i++ {
 		yBreaks[i] = bounds.Min.Y + int(
-			float64(i)*float64(bounds.Dy())/float64(rows)+subgridHalfPixel,
+			float64(i)*float64(bounds.Dy())/float64(subgridRows)+
+				subgridHalfPixel,
 		)
 	}
-	// Ensure last breaks exactly match bounds to avoid 1px drift
-	xBreaks[cols] = bounds.Max.X
-	yBreaks[rows] = bounds.Max.Y
+	xBreaks[subgridCols] = bounds.Max.X
+	yBreaks[subgridRows] = bounds.Max.Y
 
 	index := 0
-	for row := range rows {
-		for col := range cols {
+	for row := range subgridRows {
+		for col := range subgridCols {
 			if index >= maxKeys {
 				break
 			}
+
 			cell := image.Rect(
-				xBreaks[col],
-				yBreaks[row],
-				xBreaks[col+1],
-				yBreaks[row+1],
+				xBreaks[col], yBreaks[row],
+				xBreaks[col+1], yBreaks[row+1],
 			)
-			// Use a visible semi-opaque fill so subgrid cells are clearly distinct
-			o.drawRect(cell, style.BackgroundColor, style.LineColor, style.LineWidth)
+			o.drawRect(cell, style.BackgroundColor,
+				style.LineColor, style.LineWidth)
 			o.drawTextCentered(
-				string(keyRunes[index]),
-				cell,
+				string(keyRunes[index]), cell,
 				style.LabelFontName,
 				style.LabelFontSize*subgridFontScale,
 				style.LabelFontColor,
@@ -558,98 +797,78 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 
 func (o *wlrootsOverlay) drawRect(
 	bounds image.Rectangle,
-	fill uint32,
-	border uint32,
-	lineWidth float64,
+	fill uint32, border uint32, lineWidth float64,
 ) {
 	C.neru_wayland_overlay_rect(
 		o.raw,
-		C.double(bounds.Min.X),
-		C.double(bounds.Min.Y),
-		C.double(bounds.Dx()),
-		C.double(bounds.Dy()),
-		C.uint(fill),
-		C.uint(border),
-		C.double(lineWidth),
+		C.double(bounds.Min.X), C.double(bounds.Min.Y),
+		C.double(bounds.Dx()), C.double(bounds.Dy()),
+		C.uint(fill), C.uint(border), C.double(lineWidth),
 	)
 }
 
 func (o *wlrootsOverlay) drawRoundedRect(
 	bounds image.Rectangle,
 	radius float64,
-	fill uint32,
-	border uint32,
-	lineWidth float64,
+	fill uint32, border uint32, lineWidth float64,
 ) {
 	C.neru_wayland_overlay_rounded_rect(
 		o.raw,
-		C.double(bounds.Min.X),
-		C.double(bounds.Min.Y),
-		C.double(bounds.Dx()),
-		C.double(bounds.Dy()),
+		C.double(bounds.Min.X), C.double(bounds.Min.Y),
+		C.double(bounds.Dx()), C.double(bounds.Dy()),
 		C.double(radius),
-		C.uint(fill),
-		C.uint(border),
-		C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth),
 	)
 }
 
 func (o *wlrootsOverlay) drawTextCentered(
-	text string,
-	bounds image.Rectangle,
-	fontFamily string,
-	fontSize float64,
-	color uint32,
+	text string, bounds image.Rectangle,
+	fontFamily string, fontSize float64, color uint32,
 ) {
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
+
 	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
 
 	C.neru_wayland_overlay_text(
-		o.raw,
-		cText,
-		cFontFamily,
+		o.raw, cText, cFontFamily,
 		C.double(bounds.Min.X+bounds.Dx()/2),
 		C.double(bounds.Min.Y+bounds.Dy()/2),
-		C.double(fontSize),
-		C.uint(color),
+		C.double(fontSize), C.uint(color),
 	)
 }
 
 func (o *wlrootsOverlay) drawLabelBackground(
-	label string,
-	cell image.Rectangle,
+	label string, cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
 	fontSize := style.LabelFontSize
-	paddingX := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingX, true)
-	paddingY := resolveAutoPadding(fontSize, style.LabelBackgroundPaddingY, false)
-	width := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
-	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
+	paddingX := resolveAutoPadding(fontSize,
+		style.LabelBackgroundPaddingX, true)
+	paddingY := resolveAutoPadding(fontSize,
+		style.LabelBackgroundPaddingY, false)
+	width := estimateTextWidth(label, fontSize) +
+		paddingX*paddingMultiplier
+	height := estimateTextHeight(fontSize) +
+		paddingY*paddingMultiplier
 	rect := centeredRect(cell, width, height)
-
-	o.drawRect(
-		rect,
-		style.LabelBackgroundColor,
-		style.LineColor,
-		max(style.LabelBackgroundBorderWidth, 0),
-	)
+	o.drawRect(rect, style.LabelBackgroundColor,
+		style.LineColor, max(style.LabelBackgroundBorderWidth, 0))
 }
 
+//nolint:mnd
 func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
 	nextKeyRunes []rune,
-	nextGridCols int,
-	nextGridRows int,
+	nextGridCols int, nextGridRows int,
 	style recursivegridcomponent.Style,
 ) {
 	subCells := recursivegrid.ComputeGridCells(cell, nextGridCols, nextGridRows)
-
-	// Center cell index for odd grids; skip it in preview for visual clarity.
 	centerIdx := -1
+
 	if nextGridCols%2 == 1 && nextGridRows%2 == 1 {
-		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2 //nolint:mnd
+		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2
 	}
 
 	subIndex := 0
@@ -670,10 +889,8 @@ func (o *wlrootsOverlay) drawSubKeyMiniGrid(
 		}
 
 		o.drawTextCentered(
-			subLabel,
-			subCell,
-			style.LabelFontName,
-			style.SubKeyPreviewFontSize,
+			subLabel, subCell,
+			style.LabelFontName, style.SubKeyPreviewFontSize,
 			style.SubKeyPreviewTextColor,
 		)
 		subIndex++

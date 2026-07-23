@@ -9,6 +9,7 @@
 #include <xkbcommon/xkbcommon.h>
 
 #define NERU_KEY_RING_CAP 32
+#define NERU_NUM_BUFFERS 3
 
 typedef struct {
 	int x, y, width, height;
@@ -18,12 +19,23 @@ typedef struct {
 
 	struct wl_surface *wl_surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
-	struct wl_buffer *buffer;
 
+	// Current buffer (pointers updated by select_buffer, avoids changing all C functions)
+	struct wl_buffer *buffer;
 	cairo_surface_t *cairo_surface;
 	cairo_t *cr;
 	void *shm_data;
 	size_t shm_size;
+
+	// Double-buffered buffer pool
+	struct wl_buffer *buffers[NERU_NUM_BUFFERS];
+	cairo_surface_t *cairo_surfaces[NERU_NUM_BUFFERS];
+	cairo_t *crs[NERU_NUM_BUFFERS];
+	void *shm_datas[NERU_NUM_BUFFERS];
+	size_t shm_sizes[NERU_NUM_BUFFERS];
+	int busy[NERU_NUM_BUFFERS];
+	int num_buffers;
+	int current_buffer;
 } NeruWaylandOverlayScreen;
 
 typedef struct {
@@ -67,6 +79,10 @@ void neru_wayland_overlay_set_keyboard_capture(NeruWaylandOverlay *overlay, int 
 void neru_wayland_overlay_clear(NeruWaylandOverlay *overlay);
 void neru_wayland_overlay_clear_rect(NeruWaylandOverlay *overlay, double x, double y, double width, double height);
 void neru_wayland_overlay_flush(NeruWaylandOverlay *overlay);
+void neru_wayland_overlay_sync(NeruWaylandOverlay *overlay);
+void neru_wayland_overlay_select_buffer(NeruWaylandOverlay *overlay, int index);
+int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay);
+void neru_wayland_overlay_dispatch_pending(NeruWaylandOverlay *overlay);
 void neru_wayland_overlay_rect(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, unsigned int fill,
     unsigned int stroke, double stroke_width);

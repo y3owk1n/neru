@@ -359,6 +359,21 @@ static const struct wl_seat_listener seat_listener = {
     .name = neru_seat_name,
 };
 
+// Buffer release listener - compositor tells us it's done reading a buffer
+static void neru_buffer_release(void *data, struct wl_buffer *wl_buffer) {
+	NeruWaylandOverlayScreen *scr = (NeruWaylandOverlayScreen *)data;
+	for (int i = 0; i < NERU_NUM_BUFFERS; i++) {
+		if (scr->buffers[i] == wl_buffer) {
+			scr->busy[i] = 0;
+			break;
+		}
+	}
+}
+
+static const struct wl_buffer_listener neru_buffer_listener = {
+    .release = neru_buffer_release,
+};
+
 NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 	NeruWaylandOverlay *overlay = calloc(1, sizeof(NeruWaylandOverlay));
 	if (!overlay)
@@ -417,14 +432,17 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
-		if (scr->cr)
-			cairo_destroy(scr->cr);
-		if (scr->cairo_surface)
-			cairo_surface_destroy(scr->cairo_surface);
-		if (scr->buffer)
-			wl_buffer_destroy(scr->buffer);
-		if (scr->shm_data)
-			munmap(scr->shm_data, scr->shm_size);
+		for (int b = 0; b < scr->num_buffers; b++) {
+			if (scr->crs[b])
+				cairo_destroy(scr->crs[b]);
+			if (scr->cairo_surfaces[b])
+				cairo_surface_destroy(scr->cairo_surfaces[b]);
+			if (scr->buffers[b])
+				wl_buffer_destroy(scr->buffers[b]);
+			if (scr->shm_datas[b])
+				munmap(scr->shm_datas[b], scr->shm_sizes[b]);
+		}
+		scr->num_buffers = 0;
 		if (scr->layer_surface)
 			zwlr_layer_surface_v1_destroy(scr->layer_surface);
 		if (scr->wl_surface)
@@ -446,6 +464,38 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 	if (overlay->display)
 		wl_display_disconnect(overlay->display);
 	free(overlay);
+}
+
+static int neru_create_single_buffer(
+    NeruWaylandOverlay *overlay, NeruWaylandOverlayScreen *scr, int buf_idx, int buf_width, int buf_height, int stride,
+    int scale) {
+	size_t buf_size = (size_t)stride * (size_t)buf_height;
+	int fd = create_shm_file(buf_size);
+	if (fd < 0)
+		return -1;
+
+	void *data = mmap(NULL, buf_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (data == MAP_FAILED) {
+		close(fd);
+		return -1;
+	}
+
+	struct wl_shm_pool *pool = wl_shm_create_pool(overlay->shm, fd, (int)buf_size);
+	scr->buffers[buf_idx] = wl_shm_pool_create_buffer(pool, 0, buf_width, buf_height, stride, WL_SHM_FORMAT_ARGB8888);
+	wl_buffer_add_listener(scr->buffers[buf_idx], &neru_buffer_listener, scr);
+	wl_shm_pool_destroy(pool);
+	close(fd);
+
+	scr->shm_datas[buf_idx] = data;
+	scr->shm_sizes[buf_idx] = buf_size;
+	scr->busy[buf_idx] = 0;
+
+	scr->cairo_surfaces[buf_idx] =
+	    cairo_image_surface_create_for_data(data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, stride);
+	scr->crs[buf_idx] = cairo_create(scr->cairo_surfaces[buf_idx]);
+	cairo_scale(scr->crs[buf_idx], scale, scale);
+
+	return 0;
 }
 
 void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
@@ -496,33 +546,30 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
-		if (scr->buffer)
+		if (scr->num_buffers > 0)
 			continue;
 
 		int scale = scr->scale > 0 ? scr->scale : 1;
 		int buf_width = scr->width * scale;
 		int buf_height = scr->height * scale;
-
 		size_t stride = ((size_t)buf_width) * 4u;
-		scr->shm_size = stride * (size_t)buf_height;
-		int fd = create_shm_file(scr->shm_size);
-		if (fd < 0)
-			continue;
 
-		scr->shm_data = mmap(NULL, scr->shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-		if (scr->shm_data == MAP_FAILED) {
-			close(fd);
-			continue;
+		int ok = 0;
+		for (int b = 0; b < NERU_NUM_BUFFERS; b++) {
+			if (neru_create_single_buffer(overlay, scr, b, buf_width, buf_height, (int)stride, scale) == 0)
+				ok++;
 		}
-		struct wl_shm_pool *pool = wl_shm_create_pool(overlay->shm, fd, (int)scr->shm_size);
-		scr->buffer = wl_shm_pool_create_buffer(pool, 0, buf_width, buf_height, (int)stride, WL_SHM_FORMAT_ARGB8888);
-		wl_shm_pool_destroy(pool);
-		close(fd);
+		scr->num_buffers = ok;
 
-		scr->cairo_surface =
-		    cairo_image_surface_create_for_data(scr->shm_data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, (int)stride);
-		scr->cr = cairo_create(scr->cairo_surface);
-		cairo_scale(scr->cr, scale, scale);
+		if (ok > 0) {
+			// Point current pointers to buffer 0
+			scr->current_buffer = 0;
+			scr->buffer = scr->buffers[0];
+			scr->cairo_surface = scr->cairo_surfaces[0];
+			scr->cr = scr->crs[0];
+			scr->shm_data = scr->shm_datas[0];
+			scr->shm_size = scr->shm_sizes[0];
+		}
 
 		if (scr->wl_surface)
 			wl_surface_set_buffer_scale(scr->wl_surface, scale);
@@ -538,6 +585,10 @@ void neru_wayland_overlay_show(NeruWaylandOverlay *overlay) {
 			wl_surface_attach(scr->wl_surface, scr->buffer, 0, 0);
 			wl_surface_damage_buffer(scr->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
 			wl_surface_commit(scr->wl_surface);
+			// Mark the committed buffer as busy (compositor owns it now)
+			if (scr->current_buffer >= 0) {
+				scr->busy[scr->current_buffer] = 1;
+			}
 		}
 	}
 	wl_display_flush(overlay->display);
@@ -562,23 +613,31 @@ void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 			wl_surface_destroy(scr->wl_surface);
 			scr->wl_surface = NULL;
 		}
-		// Destroy buffer and cairo
-		if (scr->buffer) {
-			wl_buffer_destroy(scr->buffer);
-			scr->buffer = NULL;
+		// Destroy all buffers and cairo
+		for (int b = 0; b < scr->num_buffers; b++) {
+			if (scr->crs[b])
+				cairo_destroy(scr->crs[b]);
+			if (scr->cairo_surfaces[b])
+				cairo_surface_destroy(scr->cairo_surfaces[b]);
+			if (scr->buffers[b])
+				wl_buffer_destroy(scr->buffers[b]);
+			if (scr->shm_datas[b])
+				munmap(scr->shm_datas[b], scr->shm_sizes[b]);
+			scr->crs[b] = NULL;
+			scr->cairo_surfaces[b] = NULL;
+			scr->buffers[b] = NULL;
+			scr->shm_datas[b] = NULL;
+			scr->shm_sizes[b] = 0;
+			scr->busy[b] = 0;
 		}
-		if (scr->cairo_surface) {
-			cairo_surface_destroy(scr->cairo_surface);
-			scr->cairo_surface = NULL;
-		}
-		if (scr->cr) {
-			cairo_destroy(scr->cr);
-			scr->cr = NULL;
-		}
-		if (scr->shm_data) {
-			munmap(scr->shm_data, scr->shm_size);
-			scr->shm_data = NULL;
-		}
+		scr->num_buffers = 0;
+		// Reset current pointers
+		scr->buffer = NULL;
+		scr->cairo_surface = NULL;
+		scr->cr = NULL;
+		scr->shm_data = NULL;
+		scr->shm_size = 0;
+		scr->current_buffer = -1;
 	}
 	wl_display_flush(overlay->display);
 }
@@ -637,6 +696,45 @@ void neru_wayland_overlay_clear_rect(NeruWaylandOverlay *overlay, double x, doub
 }
 
 void neru_wayland_overlay_flush(NeruWaylandOverlay *overlay) { neru_wayland_overlay_show(overlay); }
+
+void neru_wayland_overlay_sync(NeruWaylandOverlay *overlay) {
+	if (!overlay || !overlay->display)
+		return;
+	wl_display_roundtrip(overlay->display);
+}
+
+void neru_wayland_overlay_select_buffer(NeruWaylandOverlay *overlay, int index) {
+	if (!overlay)
+		return;
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+		if (index < 0 || index >= scr->num_buffers)
+			continue;
+		scr->buffer = scr->buffers[index];
+		scr->cairo_surface = scr->cairo_surfaces[index];
+		scr->cr = scr->crs[index];
+		scr->shm_data = scr->shm_datas[index];
+		scr->shm_size = scr->shm_sizes[index];
+		scr->current_buffer = index;
+	}
+}
+
+int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay) {
+	if (!overlay || overlay->nr_screens == 0)
+		return -1;
+	NeruWaylandOverlayScreen *scr = &overlay->screens[0];
+	for (int i = 0; i < scr->num_buffers; i++) {
+		if (!scr->busy[i])
+			return i;
+	}
+	return -1;
+}
+
+void neru_wayland_overlay_dispatch_pending(NeruWaylandOverlay *overlay) {
+	if (!overlay || !overlay->display)
+		return;
+	wl_display_dispatch_pending(overlay->display);
+}
 
 static void neru_wayland_overlay_color(cairo_t *cr, unsigned int color) {
 	double a = ((color >> 24) & 0xFF) / 255.0;
