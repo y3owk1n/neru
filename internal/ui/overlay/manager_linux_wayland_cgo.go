@@ -220,14 +220,12 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
 
 	if shouldAnimate {
-		o.cancelAnimation()
-
 		duration := time.Duration(animDurationMS) * time.Millisecond
 		if duration <= 0 {
 			duration = 50 * time.Millisecond
 		}
 
-		fromRects := o.buildFromRects(cellRects)
+		fromRects := o.buildFromRects(cellRects, bounds)
 		keyRunes := []rune(strings.ToUpper(keys))
 		nextKeyRunes := []rune(strings.ToUpper(nextKeys))
 
@@ -244,7 +242,6 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 			duration, animStop, animDone,
 		)
 	} else {
-		o.cancelAnimation()
 		o.clearAndDraw(
 			cellRects, keys, gridCols, gridRows,
 			nextKeys, nextGridCols, nextGridRows,
@@ -304,6 +301,7 @@ func (o *wlrootsOverlay) DrawHints(
 		return
 	}
 	C.neru_wayland_overlay_clear(o.raw)
+	fontSize := float64(max(style.FontSize(), 1))
 	for _, hint := range hintsSlice {
 		if style.BoundaryHighlightEnabled() {
 			boundary := image.Rect(
@@ -320,27 +318,52 @@ func (o *wlrootsOverlay) DrawHints(
 			)
 		}
 
-		bounds := image.Rect(
-			hint.Position().X,
-			hint.Position().Y,
-			hint.Position().X+hint.Size().X,
-			hint.Position().Y+hint.Size().Y,
-		)
 		textColor := style.TextColor()
 		if hint.MatchedPrefix() != "" {
 			textColor = style.MatchedTextColor()
 		}
 
-		o.drawRect(
-			bounds,
-			parseHexColor(style.BackgroundColor()),
-			parseHexColor(style.BorderColor()),
-			float64(max(style.BorderWidth(), 0)),
+		label := hint.Label()
+		paddingX := resolveAutoPadding(fontSize, style.PaddingX(), true)
+		paddingY := resolveAutoPadding(fontSize, style.PaddingY(), false)
+		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
+		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
+
+		centerX := hint.Position().X + hint.Size().X/centeredRectDivisor
+		centerY := hint.Position().Y + hint.Size().Y/centeredRectDivisor
+		switch style.Placement() {
+		case "top":
+			centerY = hint.Position().Y
+		case "bottom":
+			centerY = hint.Position().Y + hint.Size().Y
+		}
+
+		badge := image.Rect(
+			centerX-badgeWidth/centeredRectDivisor,
+			centerY-badgeHeight/centeredRectDivisor,
+			centerX+badgeWidth/centeredRectDivisor,
+			centerY+badgeHeight/centeredRectDivisor,
 		)
+		if style.BorderRadius() > 0 {
+			o.drawRoundedRect(
+				badge,
+				float64(style.BorderRadius()),
+				parseHexColor(style.BackgroundColor()),
+				parseHexColor(style.BorderColor()),
+				float64(max(style.BorderWidth(), 0)),
+			)
+		} else {
+			o.drawRect(
+				badge,
+				parseHexColor(style.BackgroundColor()),
+				parseHexColor(style.BorderColor()),
+				float64(max(style.BorderWidth(), 0)),
+			)
+		}
 		o.drawTextCentered(
-			hint.Label(), bounds,
+			label, badge,
 			style.FontFamily(),
-			float64(max(style.FontSize(), 1)),
+			fontSize,
 			parseHexColor(textColor),
 		)
 	}
@@ -455,7 +478,10 @@ func (o *wlrootsOverlay) keyboardPoller() {
 }
 
 //nolint:mnd,varnamelen
-func (o *wlrootsOverlay) buildFromRects(toRects []image.Rectangle) []image.Rectangle {
+func (o *wlrootsOverlay) buildFromRects(
+	toRects []image.Rectangle,
+	bounds image.Rectangle,
+) []image.Rectangle {
 	if len(o.currentAnimRects) == len(toRects) {
 		from := make([]image.Rectangle, len(o.currentAnimRects))
 		copy(from, o.currentAnimRects)
@@ -484,10 +510,12 @@ func (o *wlrootsOverlay) buildFromRects(toRects []image.Rectangle) []image.Recta
 	fromBounds := o.lastBounds
 	fw := float64(fromBounds.Dx())
 	fh := float64(fromBounds.Dy())
+	dw := float64(bounds.Dx())
+	dh := float64(bounds.Dy())
 	from := make([]image.Rectangle, len(toRects))
 	for idx, rect := range toRects {
-		nx := float64(rect.Min.X+rect.Dx()/2) / float64(rect.Dx())
-		ny := float64(rect.Min.Y+rect.Dy()/2) / float64(rect.Dy())
+		nx := (float64(rect.Min.X+rect.Dx()/2) - float64(bounds.Min.X)) / dw
+		ny := (float64(rect.Min.Y+rect.Dy()/2) - float64(bounds.Min.Y)) / dh
 		cx := int(float64(fromBounds.Min.X) + nx*fw)
 		cy := int(float64(fromBounds.Min.Y) + ny*fh)
 		rw := rect.Dx()
