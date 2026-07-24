@@ -56,7 +56,7 @@ static void neru_wlr_pointer_leave(
 static void neru_wlr_pointer_motion(
     void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+	if (c && c->vptr && c->entered_discovery_surface) {
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (scr->discovery_surface == c->entered_discovery_surface) {
@@ -89,7 +89,7 @@ static void neru_wlr_pointer_motion(
 static void neru_wlr_pointer_button(
     void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+	if (c && c->vptr && c->entered_discovery_surface) {
 		zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 	}
@@ -99,7 +99,7 @@ static void neru_wlr_pointer_button(
 static void neru_wlr_pointer_axis(
     void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+	if (c && c->vptr && c->entered_discovery_surface) {
 		zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 	}
