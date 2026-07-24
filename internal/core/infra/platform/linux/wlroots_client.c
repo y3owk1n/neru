@@ -22,16 +22,20 @@
 #include "wlroots_client.h"
 
 // Pointer listener callbacks — update cursor cache.
+// Forward discovery-surface pointer events through the virtual pointer so the
+// underlying application still receives them instead of having them swallowed.
 static void neru_wlr_pointer_enter(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	if (c) {
+		c->entered_discovery_surface = NULL;
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (surface != NULL && surface == scr->discovery_surface) {
 				atomic_store(&c->cursor_x, scr->x + wl_fixed_to_int(sx));
 				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
 				atomic_store(&c->cursor_initialized, 1);
+				c->entered_discovery_surface = surface;
 				break;
 			}
 		}
@@ -42,26 +46,64 @@ static void neru_wlr_pointer_enter(
 
 static void neru_wlr_pointer_leave(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
-	// No-op.
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c && surface && surface == c->entered_discovery_surface)
+		c->entered_discovery_surface = NULL;
+	(void)pointer;
+	(void)serial;
 }
 
 static void neru_wlr_pointer_motion(
     void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-	(void)data;
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+		for (int i = 0; i < c->nr_screens; i++) {
+			NeruWaylandScreen *scr = &c->screens[i];
+			if (scr->discovery_surface == c->entered_discovery_surface) {
+				int minx = 0, miny = 0, maxx = 0, maxy = 0;
+				for (int j = 0; j < c->nr_screens; j++) {
+					NeruWaylandScreen *s = &c->screens[j];
+					if (j == 0 || s->x < minx)
+						minx = s->x;
+					if (j == 0 || s->y < miny)
+						miny = s->y;
+					int r = s->x + s->w, b = s->y + s->h;
+					if (j == 0 || r > maxx)
+						maxx = r;
+					if (j == 0 || b > maxy)
+						maxy = b;
+				}
+				wl_fixed_t gx = wl_fixed_from_int(scr->x) + sx;
+				wl_fixed_t gy = wl_fixed_from_int(scr->y) + sy;
+				zwlr_virtual_pointer_v1_motion_absolute(
+				    c->vptr, time, gx - wl_fixed_from_int(minx), gy - wl_fixed_from_int(miny),
+				    wl_fixed_from_int(maxx - minx), wl_fixed_from_int(maxy - miny));
+				zwlr_virtual_pointer_v1_frame(c->vptr);
+				break;
+			}
+		}
+	}
 	(void)pointer;
-	(void)time;
-	(void)sx;
-	(void)sy;
 }
 
 static void neru_wlr_pointer_button(
     void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
-	// No-op.
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+		zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
+		zwlr_virtual_pointer_v1_frame(c->vptr);
+	}
+	(void)pointer;
 }
 
 static void neru_wlr_pointer_axis(
     void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {
-	// No-op.
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c && c->vptr && c->entered_discovery_surface && atomic_load(&c->cursor_initialized) == 0) {
+		zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
+		zwlr_virtual_pointer_v1_frame(c->vptr);
+	}
+	(void)pointer;
 }
 
 static void neru_wlr_pointer_frame(void *data, struct wl_pointer *pointer) {
