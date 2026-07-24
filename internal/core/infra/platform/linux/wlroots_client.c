@@ -114,7 +114,6 @@ static void neru_wlr_pointer_motion(
 				break;
 			}
 		}
-		c->forwarding = 0;
 	}
 	(void)pointer;
 }
@@ -127,7 +126,6 @@ static void neru_wlr_pointer_button(
 		neru_wlr_sync_vptr_position(c, time);
 		zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
-		c->forwarding = 0;
 	}
 	(void)pointer;
 }
@@ -140,13 +138,14 @@ static void neru_wlr_pointer_axis(
 		neru_wlr_sync_vptr_position(c, time);
 		zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
-		c->forwarding = 0;
 	}
 	(void)pointer;
 }
 
 static void neru_wlr_pointer_frame(void *data, struct wl_pointer *pointer) {
-	(void)data;
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (c)
+		c->forwarding = 0;
 	(void)pointer;
 }
 
