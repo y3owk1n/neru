@@ -141,7 +141,15 @@ static void neru_wlr_relative_motion(
 		c->cursor_y_frac -= wl_fixed_from_int(idy);
 		atomic_fetch_add(&c->cursor_x, idx);
 		atomic_fetch_add(&c->cursor_y, idy);
-		atomic_store(&c->cursor_initialized, 1);
+		int in_discovery = 0;
+		for (int i = 0; i < c->nr_screens; i++) {
+			if (c->screens[i].discovery_surface) {
+				in_discovery = 1;
+				break;
+			}
+		}
+		if (!in_discovery)
+			atomic_store(&c->cursor_initialized, 1);
 	}
 	(void)zwp_relative_pointer_v1;
 	(void)utime_hi;
