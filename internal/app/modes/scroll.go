@@ -13,6 +13,7 @@ import (
 // StartInteractiveScroll activates the interactive scroll mode,
 // showing the scroll overlay and enabling key handling for scrolling.
 func (h *Handler) StartInteractiveScroll() {
+	h.prepareForModeActivation()
 	h.cursorState.SkipNextRestore()
 
 	h.scroll.Context.Reset()

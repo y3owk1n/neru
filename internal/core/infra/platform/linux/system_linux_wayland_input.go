@@ -154,6 +154,10 @@ func waylandCursorPosition() (image.Point, error) {
 	return wlrootsCursorPosition()
 }
 
+func waylandRefreshCursorPosition() error {
+	return wlrootsRefreshCursorPosition()
+}
+
 func waylandClick(point image.Point, button int) error {
 	hasVirtualPointer, err := wlrootsHasVirtualPointer()
 	if err != nil {
