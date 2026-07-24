@@ -51,6 +51,12 @@ ignore_clickable_check = false
 # 	"Shift+L" = "__disabled__"
 # }
 
+# Keep hints live as the focused app's UI changes (macOS only for now). Native
+# windows, menus, and browser web content all refresh.
+[hints.auto_refresh]
+enabled = true
+min_refresh_delay_ms = 150
+
 [grid]
 enabled = false
 

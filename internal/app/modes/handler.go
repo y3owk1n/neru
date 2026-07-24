@@ -101,6 +101,13 @@ type Handler struct {
 	hintSearchTextInputActive  bool
 	hintSearchEventTapDisabled bool
 
+	// hintLabelSelectionPending is set when a search confirm matches several
+	// hints and the user still has to type the exact label of one. While it is
+	// set, auto-refresh treats the user as mid-typing and does not swap the
+	// filtered hints out from under the selection. Guarded by h.mu. The next
+	// activation or the hints-mode cleanup clears it.
+	hintLabelSelectionPending bool
+
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
 	pendingModifierKeys   map[action.Modifiers]time.Time
@@ -132,6 +139,17 @@ type Handler struct {
 
 	// Cycle hint state
 	cycleHintIndex int
+
+	// While a hints session runs with hints.auto_refresh enabled, the
+	// axobserver package watches the focused app and reports its UI changes.
+	// autoRefresh holds the scheduling state that turns a burst of changes into
+	// one refresh and drives the settle recheck. Its locking rules are
+	// documented on the type. autoRefreshScanning is true while the
+	// auto-refresh performs its scan, so a scan that comes up empty keeps the
+	// session alive and the re-entry skips the debounce gate. It is guarded by
+	// h.mu, not by the autoRefresh mutex.
+	autoRefresh         hintAutoRefresh
+	autoRefreshScanning bool
 
 	// Base context for Handler methods. Injected by the App via NewHandler so
 	// all Handler operations observe app-level cancellation.
@@ -241,6 +259,8 @@ func NewHandler(
 		domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
 	}
+
+	handler.initAutoRefresh()
 
 	return handler
 }
@@ -564,6 +584,13 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	defer h.mu.Unlock()
 
 	h.config = config
+
+	// When a config reload turns auto-refresh off, the observer is released and
+	// the refresh timers stop. Nothing re-arms until a hints activation runs
+	// with auto-refresh enabled again.
+	if !h.autoRefreshEnabledLocked() {
+		h.disarmAutoRefreshObservers()
+	}
 
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(

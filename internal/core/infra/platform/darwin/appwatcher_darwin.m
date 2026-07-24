@@ -8,6 +8,7 @@
 #import "accessibility.h"
 #import "appwatcher.h"
 
+#import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - External Function Declarations
@@ -16,6 +17,8 @@ extern void handleAppLaunch(const char *appName, const char *bundleID);
 extern void handleAppTerminate(const char *appName, const char *bundleID);
 extern void handleAppActivate(const char *appName, const char *bundleID);
 extern void handleAppDeactivate(const char *appName, const char *bundleID);
+extern void handleFrontAppSwitched(const char *appName, const char *bundleID);
+extern void handleMenuTrackingChanged(void);
 extern void handleScreenParametersChanged(void);
 
 #pragma mark - App Watcher Delegate Implementation
@@ -144,6 +147,18 @@ extern void handleScreenParametersChanged(void);
 	}
 }
 
+/// Handle a system-wide menu tracking notification. HIToolbox posts one
+/// distributed notification when any menu-tracking session begins and another
+/// when it ends. That covers every menu bar menu, third-party status item
+/// menus, Control Center panels, and the Notification Center panel, which all
+/// open and close as menu-tracking sessions without any workspace or
+/// accessibility event.
+/// @param notification Notification object
+- (void)menuTrackingChanged:(NSNotification *)notification {
+	(void)notification;
+	handleMenuTrackingChanged();
+}
+
 /// Handle active space change notification
 /// @param notification Notification object
 - (void)activeSpaceDidChange:(NSNotification *)notification {
@@ -188,6 +203,88 @@ extern void handleScreenParametersChanged(void);
 }
 
 @end
+
+#pragma mark - Front Application Switch (Carbon)
+
+// The Carbon front-application-switch event fires whenever the process owning
+// key focus changes. Unlike the NSWorkspace activation notifications above, it
+// also fires for UI agents (Notification Center, Control Center, menu bar
+// extras), which take key focus without a workspace-level activation.
+static EventHandlerRef gFrontAppSwitchHandler = NULL;
+
+static OSStatus neruFrontAppSwitched(EventHandlerCallRef call, EventRef event, void *userData) {
+	(void)call;
+	(void)userData;
+
+	@autoreleasepool {
+		ProcessSerialNumber psn;
+		OSStatus err = GetEventParameter(
+		    event, kEventParamProcessID, typeProcessSerialNumber, NULL, sizeof(psn), NULL, &psn);
+		if (err != noErr) {
+			return noErr;
+		}
+
+		pid_t pid = 0;
+// The Process Manager PSN-to-pid conversion is deprecated, but the front-switch
+// event only carries a PSN, so it is the one way to identify the new front app.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+		err = GetProcessPID(&psn, &pid);
+#pragma clang diagnostic pop
+		if (err != noErr || pid <= 0) {
+			return noErr;
+		}
+
+		// Ignore neru itself, so an overlay panel taking key focus does not
+		// report a switch.
+		if (pid == [NSRunningApplication currentApplication].processIdentifier) {
+			return noErr;
+		}
+
+		NSRunningApplication *app = [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+		NSString *appName = app.localizedName ?: @"Unknown";
+		NSString *bundleID = app.bundleIdentifier ?: @"unknown.bundle";
+
+		// Copy strings to prevent dangling pointers across the thread boundary
+		char *appNameCopy = strdup([appName UTF8String]);
+		char *bundleIDCopy = strdup([bundleID UTF8String]);
+
+		dispatch_async(dispatch_get_main_queue(), ^{
+			if (appNameCopy && bundleIDCopy) {
+				handleFrontAppSwitched(appNameCopy, bundleIDCopy);
+			}
+			free(appNameCopy);
+			free(bundleIDCopy);
+		});
+	}
+
+	return noErr;
+}
+
+// Install and remove run on the main queue, where the application event
+// target's dispatcher lives.
+static void neruInstallFrontAppSwitchHandler(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (gFrontAppSwitchHandler != NULL) {
+			return;
+		}
+
+		static const EventTypeSpec eventSpec = {kEventClassApplication, kEventAppFrontSwitched};
+		InstallApplicationEventHandler(
+		    NewEventHandlerUPP(neruFrontAppSwitched), 1, &eventSpec, NULL, &gFrontAppSwitchHandler);
+	});
+}
+
+static void neruRemoveFrontAppSwitchHandler(void) {
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (gFrontAppSwitchHandler == NULL) {
+			return;
+		}
+
+		RemoveEventHandler(gFrontAppSwitchHandler);
+		gFrontAppSwitchHandler = NULL;
+	});
+}
 
 #pragma mark - App Watcher Functions
 
@@ -248,6 +345,28 @@ void NeruStartAppWatcher(void) {
 		// NeruSetDetectMissionControlEnabled, the queue, timer, and space-change
 		// observer are initialized lazily at that point.
 		NeruUpdateMissionControlState();
+
+		neruInstallFrontAppSwitchHandler();
+
+		// Register for the menu tracking notifications on the main thread; the
+		// distributed center delivers on the registering thread's run loop, and
+		// the watcher queue has none. The names are the literal strings
+		// HIToolbox posts; they have no public constant. Deliver-immediately
+		// keeps delivery live while neru runs as a background agent.
+		AppWatcherDelegate *menuObserver = delegate;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			NSDistributedNotificationCenter *distCenter = [NSDistributedNotificationCenter defaultCenter];
+			for (NSString *name in @[
+				     @"com.apple.HIToolbox.beginMenuTrackingNotification",
+				     @"com.apple.HIToolbox.endMenuTrackingNotification"
+			     ]) {
+				[distCenter addObserver:menuObserver
+				               selector:@selector(menuTrackingChanged:)
+				                   name:name
+				                 object:nil
+				     suspensionBehavior:NSNotificationSuspensionBehaviorDeliverImmediately];
+			}
+		});
 	});
 }
 
@@ -273,6 +392,9 @@ void NeruStopAppWatcher(void) {
 		NSNotificationCenter *center = [workspace notificationCenter];
 		[center removeObserver:delegate];
 		[[NSNotificationCenter defaultCenter] removeObserver:delegate];
+		[[NSDistributedNotificationCenter defaultCenter] removeObserver:delegate];
+
+		neruRemoveFrontAppSwitchHandler();
 
 		delegate = nil;  // ARC will handle deallocation
 	});

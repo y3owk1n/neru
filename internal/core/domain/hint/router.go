@@ -31,6 +31,12 @@ func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 	}
 }
 
+// CurrentInput returns the hint prefix typed so far. It is empty when the user
+// has not begun typing a label.
+func (r *Router) CurrentInput() string {
+	return r.manager.CurrentInput()
+}
+
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) (RouteResult, error) {
 	// Process input through manager

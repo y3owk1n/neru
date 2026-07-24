@@ -729,6 +729,8 @@ type HintsConfig struct {
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
+	AutoRefresh HintsAutoRefresh `json:"autoRefresh" toml:"auto_refresh"`
+
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
@@ -926,6 +928,21 @@ type HeldRepeatConfig struct {
 	Enabled      bool `json:"enabled"      toml:"enabled"`          // Master toggle for held-key repeat
 	InitialDelay int  `json:"initialDelay" toml:"initial_delay_ms"` // Delay before first repeat fires (ms)
 	Interval     int  `json:"interval"     toml:"interval_ms"`      // Interval between subsequent repeats (ms)
+}
+
+// HintsAutoRefresh configures hints auto-refresh, which is on by default.
+// While hints mode is open, neru watches the focused app's accessibility
+// notifications and re-scans hints when its UI changes (a page loads, a menu
+// opens, a panel appears), so hints do not go stale. It works on macOS only
+// for now. Other platforms have no observer support, so the setting has no
+// effect there.
+//
+// MinRefreshDelayMs is how long the app's UI must stay quiet after a change
+// before hints re-scan. A non-positive value falls back to the built-in
+// default.
+type HintsAutoRefresh struct {
+	Enabled           bool `json:"enabled"           toml:"enabled"`
+	MinRefreshDelayMs int  `json:"minRefreshDelayMs" toml:"min_refresh_delay_ms"`
 }
 
 // SystrayConfig defines system tray settings.

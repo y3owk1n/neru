@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -30,6 +31,29 @@ func TestWriteDefaultConfig(t *testing.T) {
 	content, readErr := os.ReadFile(cfgPath)
 	require.NoError(t, readErr)
 	assert.NotEmpty(t, content)
+}
+
+func TestWriteDefaultConfig_LoadsAndValidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "config.toml")
+
+	require.NoError(t, config.WriteDefaultConfig(cfgPath, false))
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	result := service.LoadWithValidation(cfgPath)
+
+	require.NoError(t, result.ValidationError, "the shipped default config must pass validation")
+	require.NotNil(t, result.Config)
+
+	// The [hints.auto_refresh] block parses into the expected values.
+	autoRefresh := result.Config.Hints.AutoRefresh
+	assert.True(t, autoRefresh.Enabled, "auto_refresh ships on by default")
+	assert.Equal(t, config.DefaultAutoRefreshMinDelayMs, autoRefresh.MinRefreshDelayMs)
+
+	// Turning it off must still validate.
+	result.Config.Hints.AutoRefresh.Enabled = false
+	assert.NoError(t, result.Config.Validate(),
+		"auto_refresh must validate when disabled")
 }
 
 func TestWriteDefaultConfig_ExistingFile(t *testing.T) {

@@ -100,6 +100,14 @@ visible_check_enabled = false
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
+# Keep hints live: re-scan and update hints when the focused app's UI changes
+# (a page loads, a menu opens, a panel appears), so hints do not go stale while
+# hints mode is open. Native windows, menus, and browser web content all refresh.
+# macOS only for now.
+[hints.auto_refresh]
+enabled = true                              # On by default; set to false to scan hints only once per activation
+min_refresh_delay_ms = 150                  # How long the app must stop changing before hints re-scan
+
 [hints.ui]
 font_size = 10
 font_family = ""                            # Empty = system font
