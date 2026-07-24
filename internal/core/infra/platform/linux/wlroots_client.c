@@ -34,8 +34,8 @@ static void neru_wlr_pointer_enter(
 			if (surface != NULL && surface == scr->discovery_surface) {
 				atomic_store(&c->cursor_x, scr->x + wl_fixed_to_int(sx));
 				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
-				atomic_store(&c->cursor_initialized, 1);
 				c->entered_discovery_surface = surface;
+				atomic_store(&c->cursor_initialized, 1);
 				break;
 			}
 		}
