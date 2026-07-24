@@ -53,6 +53,37 @@ static void neru_wlr_pointer_leave(
 	(void)serial;
 }
 
+// Align the virtual pointer to the current discovery-surface coordinates so
+// that subsequent button/axis events target the correct position.  Returns 1
+// if a motion_absolute was emitted, 0 otherwise.
+static int neru_wlr_sync_vptr_position(NeruWlrootsClient *c, uint32_t time) {
+	for (int i = 0; i < c->nr_screens; i++) {
+		NeruWaylandScreen *scr = &c->screens[i];
+		if (scr->discovery_surface == c->entered_discovery_surface) {
+			int minx = 0, miny = 0, maxx = 0, maxy = 0;
+			for (int j = 0; j < c->nr_screens; j++) {
+				NeruWaylandScreen *s = &c->screens[j];
+				if (j == 0 || s->x < minx)
+					minx = s->x;
+				if (j == 0 || s->y < miny)
+					miny = s->y;
+				int r = s->x + s->w, b = s->y + s->h;
+				if (j == 0 || r > maxx)
+					maxx = r;
+				if (j == 0 || b > maxy)
+					maxy = b;
+			}
+			int cx = atomic_load(&c->cursor_x);
+			int cy = atomic_load(&c->cursor_y);
+			zwlr_virtual_pointer_v1_motion_absolute(
+			    c->vptr, time, wl_fixed_from_int(cx - minx), wl_fixed_from_int(cy - miny),
+			    wl_fixed_from_int(maxx - minx), wl_fixed_from_int(maxy - miny));
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void neru_wlr_pointer_motion(
     void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
@@ -93,6 +124,7 @@ static void neru_wlr_pointer_button(
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	if (c && c->vptr && c->entered_discovery_surface && !c->forwarding) {
 		c->forwarding = 1;
+		neru_wlr_sync_vptr_position(c, time);
 		zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 		c->forwarding = 0;
@@ -105,6 +137,7 @@ static void neru_wlr_pointer_axis(
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	if (c && c->vptr && c->entered_discovery_surface && !c->forwarding) {
 		c->forwarding = 1;
+		neru_wlr_sync_vptr_position(c, time);
 		zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
 		zwlr_virtual_pointer_v1_frame(c->vptr);
 		c->forwarding = 0;
