@@ -64,6 +64,8 @@ func (h *Handler) clearAndHideOverlay() {
 func (h *Handler) cleanupHintsMode() {
 	h.disarmAutoRefreshObservers()
 
+	h.hintLabelSelectionPending = false
+
 	h.stopHintSearchTextInputLocked(false)
 
 	resetErr := h.hints.Context.Reset()

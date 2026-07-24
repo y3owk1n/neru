@@ -1,3 +1,15 @@
+// Settle recheck: web content often keeps rendering without sending
+// accessibility notifications. A scan can catch a page mid-render, or miss part
+// of the changes. After each scan initiated by an observer event, a settle
+// recheck session re-checks the page on a timer, comparing hint-set
+// fingerprints. When nothing changes, it checks again after a growing interval,
+// up to a max. When the page changes, it resets the interval duration. The base
+// interval duration rises under sustained changes, so a page that never stops
+// changing is followed at a bounded rate. The session ends after the interval
+// reaches the maximum duration and doesn't detect any changes in a few
+// consecutive scans, or when a new accessibility notification hands scheduling
+// back to the debounce. State lives on hintAutoRefresh in auto_refresh.go.
+
 package modes
 
 import (
@@ -7,144 +19,148 @@ import (
 )
 
 const (
-	// Settle-backoff parameters. After an observer-driven scan the page may still
-	// be rendering with no further AX notification, so the settle loop keeps
-	// re-scanning on its own at a widening interval. The interval starts at the
-	// base interval and grows by the growth ratio (the numerator over the
-	// denominator) after each scan that finds the hint set unchanged, up to the
-	// max interval. Any change resets the interval to the base. The loop stops
-	// after enough consecutive unchanged scans at the max interval, or when it
-	// reaches either ceiling (total scans or elapsed duration), so a page that
-	// never stops changing still winds down.
+	// Pacing for the settle recheck. The wait between checks starts at the base
+	// interval and grows by the growth factor. When a check finds nothing
+	// changed, the wait grows toward the max interval. When the wait is at the
+	// max and a few consecutive checks still find nothing, the session ends.
+	// When a check finds changes, the wait resets to the floor. The floor stays
+	// at the base interval for the first few changes and then grows by the same
+	// factor, up to the floor cap.
 	autoRefreshSettleBaseInterval      = 250 * time.Millisecond
 	autoRefreshSettleMaxInterval       = 5 * time.Second
-	autoRefreshSettleGrowthNumerator   = 8
-	autoRefreshSettleGrowthDenominator = 5
+	autoRefreshSettleGrowthFactor      = 1.6
 	autoRefreshSettleStableScansToStop = 2
-	autoRefreshSettleMaxScans          = 25
-	autoRefreshSettleMaxDuration       = 30 * time.Second
+	autoRefreshSettleFreeFastChecks    = 4
+	autoRefreshSettleFloorCap          = 2 * time.Second
 )
 
-// beginSettleLocked starts the settle loop after an observer-driven scan. Web
-// content often renders in waves with no AX notification for the later ones, so
-// one scan can catch a page mid-render. It records the applied hint set's
-// fingerprint as the baseline and arms the first re-scan at the base interval.
-// Caller must hold h.mu.
-func (h *Handler) beginSettleLocked() {
+// beginSettleSessionLocked starts a settle session after an observer-driven scan,
+// since that scan can have caught the page mid-render. It records the applied
+// hint set's fingerprint as the baseline and arms the first check at the base
+// interval. Caller must hold h.mu.
+func (h *Handler) beginSettleSessionLocked() {
 	if h.appState.CurrentMode() != domain.ModeHints || !h.autoRefreshEnabledLocked() {
 		return
 	}
 
 	fingerprint := h.fingerprintHintsLocked()
 
-	h.autoRefreshMu.Lock()
-	defer h.autoRefreshMu.Unlock()
+	autoRefresh := &h.autoRefresh
 
-	h.autoRefreshSettling = true
-	h.lastAppliedFingerprint = fingerprint
-	h.settleInterval = autoRefreshSettleBaseInterval
-	h.settleStableAtCap = 0
-	h.settleScanCount = 0
-	h.settleStart = time.Now()
-	h.armSettleTimerLocked(autoRefreshSettleBaseInterval)
+	autoRefresh.mu.Lock()
+	defer autoRefresh.mu.Unlock()
+
+	autoRefresh.settling = true
+	autoRefresh.lastFingerprint = fingerprint
+	autoRefresh.floor = autoRefreshSettleBaseInterval
+	autoRefresh.changedCount = 0
+	autoRefresh.interval = autoRefreshSettleBaseInterval
+	autoRefresh.stableAtCap = 0
+	autoRefresh.armTimerLocked(autoRefreshSettleBaseInterval)
 }
 
-// settleFireLocked runs one backoff step: re-scan, compare the new hint set to
-// what is applied, then either reset the interval to the base (it changed), grow
-// the interval (stable), or stop. The re-scan redraws only what changed via the
-// refresh path's incremental draw, so a stable step is invisible. Caller holds
-// h.mu.
-func (h *Handler) settleFireLocked() {
+// runSettleCheckLocked runs one check of the settle loop. It re-scans the page and
+// compares the new hint set to the previous one. When the set changed, the wait
+// resets to the floor. When nothing changed, the wait grows, or the session
+// ends once it has been at the max for a few unchanged checks. The re-scan
+// redraws only the hints that changed, so a check that finds nothing leaves the
+// screen untouched. Caller must hold h.mu.
+func (h *Handler) runSettleCheckLocked() {
+	// The session only runs while hints mode is open and auto-refresh is on.
 	stillHints := h.appState.CurrentMode() == domain.ModeHints && h.autoRefreshEnabledLocked()
 
 	if stillHints {
-		h.observerDrivenRefreshLocked()
+		// Re-scan the page and publish the fresh hint set.
+		h.runAutoRefreshScanLocked()
+		// The scan can end the session on some failure paths, so check the mode
+		// again after the scan.
 		stillHints = h.appState.CurrentMode() == domain.ModeHints
 	}
 
+	// Hash the freshly published hint set so it can be compared with the hash
+	// the previous check recorded.
 	var fingerprint uint64
 	if stillHints {
 		fingerprint = h.fingerprintHintsLocked()
 	}
 
-	h.autoRefreshMu.Lock()
-	defer h.autoRefreshMu.Unlock()
+	autoRefresh := &h.autoRefresh
 
+	autoRefresh.mu.Lock()
+	defer autoRefresh.mu.Unlock()
+
+	// Stop the session if hints mode ended.
 	if !stillHints {
-		h.stopSettleInnerLocked()
+		autoRefresh.stopSettleSessionLocked()
 
 		return
 	}
 
-	changed := fingerprint != h.lastAppliedFingerprint
-	h.lastAppliedFingerprint = fingerprint
+	// If the fingerprint changed, the page has changed since the previous
+	// check. The new fingerprint becomes the baseline for the next one.
+	changed := fingerprint != autoRefresh.lastFingerprint
+	autoRefresh.lastFingerprint = fingerprint
 
-	if h.advanceSettleLocked(changed) {
-		h.stopSettleInnerLocked()
-
-		return
+	// Adjust the wait for the next check. The session is finished once the
+	// page has stayed unchanged long enough.
+	sessionFinished := autoRefresh.advanceSettleLocked(changed)
+	if sessionFinished {
+		autoRefresh.stopSettleSessionLocked()
+	} else {
+		// Schedule the next check after the adjusted wait.
+		autoRefresh.armTimerLocked(autoRefresh.interval)
 	}
-
-	h.armSettleTimerLocked(h.settleInterval)
 }
 
-// advanceSettleLocked updates the backoff after a settle scan and reports whether
-// the loop should stop. A change resets the interval to the base; a stable scan
-// grows it, or counts toward the stop once it is at the max. Caller holds
-// autoRefreshMu.
-func (h *Handler) advanceSettleLocked(changed bool) bool {
-	h.settleScanCount++
-
+// advanceSettleLocked updates the wait after a settle check and reports
+// whether the session is finished. When the check found changes, the wait
+// resets to the floor, and after the first few changes each further change
+// also raises the floor. When the check found nothing, the wait grows. When
+// the wait is already at the max and enough consecutive checks find nothing,
+// the session is finished. Caller must hold mu.
+func (ar *hintAutoRefresh) advanceSettleLocked(changed bool) bool {
 	switch {
 	case changed:
-		h.settleInterval = autoRefreshSettleBaseInterval
-		h.settleStableAtCap = 0
-	case h.settleInterval >= autoRefreshSettleMaxInterval:
-		h.settleStableAtCap++
+		ar.changedCount++
+		if ar.changedCount > autoRefreshSettleFreeFastChecks {
+			ar.floor = nextSettleFloor(ar.floor)
+		}
+
+		ar.interval = ar.floor
+		ar.stableAtCap = 0
+	case ar.interval >= autoRefreshSettleMaxInterval:
+		ar.stableAtCap++
 	default:
-		h.settleInterval = nextSettleInterval(h.settleInterval)
+		ar.interval = nextSettleInterval(ar.interval)
 	}
 
-	return settleShouldStop(
-		h.settleInterval,
-		h.settleStableAtCap,
-		h.settleScanCount,
-		time.Since(h.settleStart),
-	)
+	// True means the session is finished: the wait has reached the max
+	// interval and enough consecutive checks found no changes.
+	return ar.interval >= autoRefreshSettleMaxInterval &&
+		ar.stableAtCap >= autoRefreshSettleStableScansToStop
 }
 
-// stopSettleInnerLocked ends the settle loop and clears its state. Caller holds
-// autoRefreshMu.
-func (h *Handler) stopSettleInnerLocked() {
-	h.autoRefreshSettling = false
-	h.settleInterval = 0
-	h.settleStableAtCap = 0
-	h.settleScanCount = 0
+// stopSettleSessionLocked ends the settle session and clears its state. Bumping the
+// timer generation invalidates a fire that already left its timer, so a late
+// fire cannot act on the cleared state. Caller must hold mu.
+func (ar *hintAutoRefresh) stopSettleSessionLocked() {
+	ar.timerGen++
+	ar.settling = false
+	ar.interval = 0
+	ar.stableAtCap = 0
+	ar.floor = 0
+	ar.changedCount = 0
 
-	if h.autoRefreshTimer != nil {
-		h.autoRefreshTimer.Stop()
-		h.autoRefreshTimer = nil
+	if ar.timer != nil {
+		ar.timer.Stop()
+		ar.timer = nil
 	}
 }
 
-// armSettleTimerLocked (re)arms the timer to fire the next settle re-check after
-// delay. Caller holds autoRefreshMu.
-func (h *Handler) armSettleTimerLocked(delay time.Duration) {
-	if delay < 0 {
-		delay = 0
-	}
-
-	if h.autoRefreshTimer != nil {
-		h.autoRefreshTimer.Stop()
-	}
-
-	h.autoRefreshTimer = time.AfterFunc(delay, h.fireHintRefresh)
-}
-
-// nextSettleInterval grows the backoff interval by the growth ratio, clamped to
-// the max interval.
+// nextSettleInterval grows the backoff interval by the growth factor, clamped
+// to the max interval.
 func nextSettleInterval(current time.Duration) time.Duration {
-	next := current * autoRefreshSettleGrowthNumerator / autoRefreshSettleGrowthDenominator
+	next := time.Duration(float64(current) * autoRefreshSettleGrowthFactor)
 	if next > autoRefreshSettleMaxInterval {
 		return autoRefreshSettleMaxInterval
 	}
@@ -152,24 +168,15 @@ func nextSettleInterval(current time.Duration) time.Duration {
 	return next
 }
 
-// settleShouldStop reports whether the settle loop has finished: enough
-// consecutive stable scans once the interval reached the max, or either global
-// ceiling (total scans, or elapsed since the sequence began) reached.
-func settleShouldStop(
-	interval time.Duration,
-	stableAtCap, scanCount int,
-	elapsed time.Duration,
-) bool {
-	if interval >= autoRefreshSettleMaxInterval &&
-		stableAtCap >= autoRefreshSettleStableScansToStop {
-		return true
+// nextSettleFloor grows the session floor by the growth factor, clamped to the
+// floor cap.
+func nextSettleFloor(current time.Duration) time.Duration {
+	next := time.Duration(float64(current) * autoRefreshSettleGrowthFactor)
+	if next > autoRefreshSettleFloorCap {
+		return autoRefreshSettleFloorCap
 	}
 
-	if scanCount >= autoRefreshSettleMaxScans {
-		return true
-	}
-
-	return elapsed >= autoRefreshSettleMaxDuration
+	return next
 }
 
 // fingerprintHintsLocked hashes the current hint set (element bounds and role) so

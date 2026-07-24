@@ -338,7 +338,7 @@ Both global and per-mode hotkeys support per-app overrides via `[[app_configs]]`
 
 Supported modes for per-mode overrides are `hints`, `grid`, `recursive_grid`, and `scroll`. App hotkeys merge on top of base hotkeys; `__disabled__` removes an inherited binding.
 
-```toml
+````toml
 # Per-app global hotkey overrides (root-level)
 [[app_configs]]
 bundle_id = "com.apple.Terminal"
@@ -354,7 +354,19 @@ hotkeys = {
     "Return" = "action left_click",
     "Shift+L" = "__disabled__"
 }
-```
+i```
+
+The same pattern works for the other modes:
+
+```toml
+[[grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "Return" = "action left_click" }
+
+[[recursive_grid.app_configs]]
+bundle_id = "com.brave.Browser"
+hotkeys = { "u" = "action left_click" }
+````
 
 **Priority order** when a key is pressed while Neru is running:
 
@@ -581,10 +593,10 @@ width = 320
 
 Keeps hints up to date while hints mode is open. When the focused app's screen changes (a page finishes loading, a menu opens, a panel appears), neru re-scans and updates the hints on its own, so a hint never points at something that has moved or disappeared. This works for web page content in browsers and Electron apps as well as native windows and menus. It is on by default. macOS only for now; on other platforms the setting has no effect.
 
-| Option                 | Type | Default | Description                                                                                             |
-| ---------------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------- |
-| `enabled`              | bool | `true`  | Keep hints up to date while hints mode is open. Set to `false` to scan hints only once per activation.  |
-| `min_refresh_delay_ms` | int  | `150`   | How long the app must stop changing before hints re-scan. A non-positive value uses the default.        |
+| Option                 | Type | Default | Description                                                                                            |
+| ---------------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `enabled`              | bool | `true`  | Keep hints up to date while hints mode is open. Set to `false` to scan hints only once per activation. |
+| `min_refresh_delay_ms` | int  | `150`   | How long the app must stop changing before hints re-scan. A non-positive value uses the default.       |
 
 ```toml
 [hints.auto_refresh]
@@ -592,7 +604,7 @@ enabled = true
 min_refresh_delay_ms = 150
 ```
 
-Refreshes you trigger yourself are never delayed. A `hints` re-launch bound to a key, or `--repeat` re-entering hints after an action, updates right away; if an automatic refresh is already underway, the two merge into a single update, so you never get a double flicker.
+Refreshing hints yourself (a `hints` key binding, or `--repeat` re-entering hints after an action) works as usual. If an automatic update happens at the same moment, the two become one update, so the labels never refresh twice.
 
 ### Vision
 

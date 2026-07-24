@@ -1558,6 +1558,12 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
+	// The scroll moved the content under the hint labels, so re-scan to keep
+	// them in step. Outside an active hints session this does nothing.
+	if h.modesHandler != nil {
+		h.modesHandler.RefreshAfterScroll()
+	}
+
 	return ipc.Response{
 		Success: true,
 		Message: actionName + " performed",

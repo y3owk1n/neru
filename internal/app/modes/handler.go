@@ -21,7 +21,6 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/axobserver"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
@@ -102,6 +101,13 @@ type Handler struct {
 	hintSearchTextInputActive  bool
 	hintSearchEventTapDisabled bool
 
+	// hintLabelSelectionPending is set when a search confirm matches several
+	// hints and the user still has to type the exact label of one. While it is
+	// set, auto-refresh treats the user as mid-typing and does not swap the
+	// filtered hints out from under the selection. Guarded by h.mu. The next
+	// activation or the hints-mode cleanup clears it.
+	hintLabelSelectionPending bool
+
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
 	pendingModifierKeys   map[action.Modifiers]time.Time
@@ -134,48 +140,16 @@ type Handler struct {
 	// Cycle hint state
 	cycleHintIndex int
 
-	// Auto-refresh: observerMgr arms an AX observer on the focused app while a
-	// hints session runs with hints.auto_refresh enabled. An observed change
-	// feeds the debounce state below, which coalesces a burst of changes into a
-	// single-flight refresh (leading edge fires immediately, mid-burst changes
-	// collapse into one trailing scan, bounded by autoRefreshMaxWait).
-	//
-	// This state lives on the Handler like the rest of the hints-session state:
-	// the mode values are stateless dispatchers, the observer manager outlives
-	// any single activation, and the timers and the observer callback coordinate
-	// through the mode lock and the leaf mutex, both owned here.
-	//
-	// The debounce state is guarded by the leaf autoRefreshMu, which is never
-	// held while acquiring the mode lock (h.mu); the observer callback takes only
-	// autoRefreshMu, so it can never deadlock a teardown that holds h.mu while
-	// joining the observer thread. hintRefreshFiring marks the debounced fire so
-	// a transient empty scan keeps the session alive and the debounce gate is
-	// skipped on re-entry; it is guarded by h.mu, not autoRefreshMu.
-	observerMgr *axobserver.Manager
-
-	autoRefreshMu          sync.Mutex
-	autoRefreshTimer       *time.Timer
-	autoRefreshBurstOpen   bool
-	autoRefreshScanPending bool
-	autoRefreshBurstStart  time.Time
-	autoRefreshDebounce    time.Duration
-	autoRefreshMaxWait     time.Duration
-	autoRefreshOnFire      func() // test seam; nil in production
-	hintRefreshFiring      bool
-
-	// Settle backoff: after an observer-driven scan, keep re-scanning at a
-	// widening interval until the hint set stops changing, so web content that
-	// renders with no AX notification is still caught. The interval resets to the
-	// base whenever the set changes; the scan-count and window ceilings do not, so
-	// a continuously-changing page still winds down. Guarded by autoRefreshMu,
-	// except lastAppliedFingerprint which is only touched on the scan path under
-	// h.mu + autoRefreshMu. See auto_refresh_settle.go.
-	autoRefreshSettling    bool
-	settleInterval         time.Duration
-	settleStableAtCap      int
-	settleScanCount        int
-	settleStart            time.Time
-	lastAppliedFingerprint uint64
+	// While a hints session runs with hints.auto_refresh enabled, the
+	// axobserver package watches the focused app and reports its UI changes.
+	// autoRefresh holds the scheduling state that turns a burst of changes into
+	// one refresh and drives the settle recheck. Its locking rules are
+	// documented on the type. autoRefreshScanning is true while the
+	// auto-refresh performs its scan, so a scan that comes up empty keeps the
+	// session alive and the re-entry skips the debounce gate. It is guarded by
+	// h.mu, not by the autoRefresh mutex.
+	autoRefresh         hintAutoRefresh
+	autoRefreshScanning bool
 
 	// Base context for Handler methods. Injected by the App via NewHandler so
 	// all Handler operations observe app-level cancellation.
@@ -610,6 +584,13 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	defer h.mu.Unlock()
 
 	h.config = config
+
+	// When a config reload turns auto-refresh off, the observer is released and
+	// the refresh timers stop. Nothing re-arms until a hints activation runs
+	// with auto-refresh enabled again.
+	if !h.autoRefreshEnabledLocked() {
+		h.disarmAutoRefreshObservers()
+	}
 
 	if h.renderer != nil {
 		h.renderer.UpdateConfig(

@@ -350,9 +350,9 @@ func (c *Config) ValidateHints() error {
 	return nil
 }
 
-// validateHintsAutoRefresh checks the [hints.auto_refresh] section. It only
-// constrains the settings when auto_refresh is enabled: the minimum refresh
-// delay must be non-negative.
+// validateHintsAutoRefresh checks the [hints.auto_refresh] section. When
+// auto_refresh is enabled, the minimum refresh delay must be non-negative.
+// A disabled section is not checked further.
 func validateHintsAutoRefresh(autoRefresh HintsAutoRefresh) error {
 	if !autoRefresh.Enabled {
 		return nil
