@@ -202,6 +202,12 @@ func (h *Handler) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
+				// A completed selection supersedes any scheduled refresh work.
+				// Clearing the debounce and settle state here makes the gate in
+				// the activation below admit an immediate scan, so the
+				// re-activation is never deferred behind observer chatter.
+				h.stopAutoRefreshTimer()
+
 				h.activateHintModeInternal(
 					nil,
 					nil,

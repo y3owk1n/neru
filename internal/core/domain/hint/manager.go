@@ -275,6 +275,11 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 
 		m.lastFilteredLen = len(filtered)
 
+		// The match consumes the typed label. Clearing it here keeps the buffer
+		// from leaking into the next selection, and from reading as mid-typing
+		// while a deferred re-activation is still pending.
+		m.SetCurrentInput("")
+
 		return m.cachedFilteredHints[0], true, nil
 	}
 
