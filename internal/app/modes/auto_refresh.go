@@ -102,12 +102,13 @@ func (ar *hintAutoRefresh) holdLocked() {
 	ar.burstStart = time.Now()
 }
 
-// onChange records a UI change reported by the AX observer. It runs on the
-// observer callback thread, and hints teardown joins that thread while holding
-// the mode lock, so taking the mode lock here would deadlock. It therefore
-// only updates this type's state and arms the timer, and the scan runs later,
-// when the timer fires. Waiting for the timer also collapses the flurry of
-// notifications a single page load emits into one scan.
+// onChange records a UI change reported by the AX observer, or a focus change
+// forwarded by RefreshAfterFocusChange. The observer
+// invokes it on its callback thread, and hints teardown joins that thread
+// while holding the mode lock, so taking the mode lock here would deadlock. It
+// therefore only updates this type's state and arms the timer, and the scan
+// runs later, when the timer fires. Waiting for the timer also collapses the
+// flurry of notifications a single page load emits into one scan.
 func (ar *hintAutoRefresh) onChange() {
 	ar.mu.Lock()
 	defer ar.mu.Unlock()
@@ -467,6 +468,30 @@ func (h *Handler) RefreshAfterScroll() {
 		nil,
 		nil,
 	)
+}
+
+// RefreshAfterFocusChange records a focus-affecting system event (a
+// front-application switch, a menu tracking begin or end, a Mission Control
+// transition) as an observed change, so the debounced scan and its settle
+// recheck follow focus. The scan re-resolves the focused app, which re-points
+// the observer at it. System panels like Notification Center take key focus as
+// a different process without posting any accessibility notification in the
+// watched app, so these events are the only signal that a hints session moved
+// to another process. Outside an active hints session, or with auto_refresh
+// disabled, it does nothing. Callers must not hold the mode lock.
+func (h *Handler) RefreshAfterFocusChange() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return
+	}
+
+	if !h.autoRefreshEnabledLocked() {
+		return
+	}
+
+	h.autoRefresh.onChange()
 }
 
 // updateAutoRefreshObservers points the AX observer at the focused app when
