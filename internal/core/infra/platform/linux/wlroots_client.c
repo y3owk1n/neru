@@ -29,16 +29,25 @@ static void neru_wlr_pointer_enter(
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	if (c) {
 		c->entered_discovery_surface = NULL;
+		int is_discovery = 0;
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (surface != NULL && surface == scr->discovery_surface) {
 				atomic_store(&c->cursor_x, scr->x + wl_fixed_to_int(sx));
 				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
-				c->entered_discovery_surface = surface;
 				atomic_store(&c->cursor_initialized, 1);
+				is_discovery = 1;
+				// Only allow forwarding if this is a genuine physical
+				// enter, not an echo of our own virtual-pointer event.
+				if (!c->forwarding)
+					c->entered_discovery_surface = surface;
 				break;
 			}
 		}
+		// Focus moved to a non-discovery surface — safe to allow
+		// forwarding again on the next genuine discovery enter.
+		if (!is_discovery)
+			c->forwarding = 0;
 	}
 	(void)pointer;
 	(void)serial;
@@ -47,8 +56,10 @@ static void neru_wlr_pointer_enter(
 static void neru_wlr_pointer_leave(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && surface && surface == c->entered_discovery_surface)
+	if (c && surface && surface == c->entered_discovery_surface) {
 		c->entered_discovery_surface = NULL;
+		c->forwarding = 0;
+	}
 	(void)pointer;
 	(void)serial;
 }
@@ -143,9 +154,7 @@ static void neru_wlr_pointer_axis(
 }
 
 static void neru_wlr_pointer_frame(void *data, struct wl_pointer *pointer) {
-	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c)
-		c->forwarding = 0;
+	(void)data;
 	(void)pointer;
 }
 
