@@ -12,6 +12,8 @@ import (
 const (
 	// ValidationTimeout is the timeout for validation checks.
 	ValidationTimeout = 2 * time.Second
+	// cursorSyncTimeout is the timeout for cursor sync before mode activation.
+	cursorSyncTimeout = 150 * time.Millisecond
 )
 
 type cursorSyncer interface {
@@ -95,10 +97,11 @@ func (h *Handler) syncCursorPositionForModeActivation() {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(h.ctx, 150*time.Millisecond)
+	ctx, cancel := context.WithTimeout(h.ctx, cursorSyncTimeout)
 	defer cancel()
 
-	if err := syncer.SyncCursorPosition(ctx); err != nil {
+	err := syncer.SyncCursorPosition(ctx)
+	if err != nil {
 		h.logger.Debug("Failed to sync cursor position for mode activation", zap.Error(err))
 	}
 }

@@ -155,7 +155,7 @@ static int neru_wlr_create_shm_file(off_t size) {
 #endif
 
 	char name[] = "/tmp/neru-cursor-discovery-XXXXXX";
-	int fd = mkstemp(name);
+	fd = mkstemp(name);
 	if (fd < 0)
 		return -1;
 	unlink(name);
