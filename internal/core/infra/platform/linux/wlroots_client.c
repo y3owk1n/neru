@@ -5,6 +5,8 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
@@ -23,7 +25,7 @@
 static void neru_wlr_pointer_enter(
     void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && atomic_load(&c->cursor_initialized) == 0) {
+	if (c) {
 		for (int i = 0; i < c->nr_screens; i++) {
 			NeruWaylandScreen *scr = &c->screens[i];
 			if (surface != NULL && surface == scr->discovery_surface) {
@@ -121,6 +123,143 @@ static const struct wl_pointer_listener neru_wlr_pointer_listener = {
     .axis_stop = neru_wlr_pointer_axis_stop,
     .axis_discrete = neru_wlr_pointer_axis_discrete,
 };
+
+typedef struct {
+	NeruWlrootsClient *client;
+	NeruWaylandScreen *screen;
+	struct wl_surface *surface;
+	struct zwlr_layer_surface_v1 *layer_surface;
+	struct wl_buffer *buffer;
+	void *shm_data;
+	size_t shm_size;
+	int width;
+	int height;
+	int configured;
+} NeruCursorDiscoverySurface;
+
+static int neru_wlr_discovery_attach_buffer(NeruWlrootsClient *c, NeruCursorDiscoverySurface *surface);
+
+static int neru_wlr_create_shm_file(off_t size) {
+	int ret;
+
+#ifdef __NR_memfd_create
+	int fd = syscall(__NR_memfd_create, "neru-cursor-discovery-shm", 0);
+	if (fd >= 0) {
+		do {
+			ret = ftruncate(fd, size);
+		} while (ret < 0 && errno == EINTR);
+		if (ret >= 0)
+			return fd;
+		close(fd);
+	}
+#endif
+
+	char name[] = "/tmp/neru-cursor-discovery-XXXXXX";
+	int fd = mkstemp(name);
+	if (fd < 0)
+		return -1;
+	unlink(name);
+	do {
+		ret = ftruncate(fd, size);
+	} while (ret < 0 && errno == EINTR);
+	if (ret < 0) {
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+static void neru_wlr_discovery_configure(
+    void *data, struct zwlr_layer_surface_v1 *layer_surface, uint32_t serial, uint32_t width, uint32_t height) {
+	NeruCursorDiscoverySurface *surface = (NeruCursorDiscoverySurface *)data;
+	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+	if (width > 0)
+		surface->width = (int)width;
+	if (height > 0)
+		surface->height = (int)height;
+	surface->configured = 1;
+	neru_wlr_discovery_attach_buffer(surface->client, surface);
+}
+
+static void neru_wlr_discovery_closed(void *data, struct zwlr_layer_surface_v1 *layer_surface) {
+	NeruCursorDiscoverySurface *surface = (NeruCursorDiscoverySurface *)data;
+	surface->configured = -1;
+}
+
+static const struct zwlr_layer_surface_v1_listener neru_wlr_discovery_layer_listener = {
+    .configure = neru_wlr_discovery_configure,
+    .closed = neru_wlr_discovery_closed,
+};
+
+static int neru_wlr_discovery_attach_buffer(NeruWlrootsClient *c, NeruCursorDiscoverySurface *surface) {
+	if (!c || !c->shm || !surface || !surface->surface || surface->width <= 0 || surface->height <= 0)
+		return 0;
+	if (surface->buffer)
+		return 1;
+
+	size_t stride = (size_t)surface->width * 4u;
+	surface->shm_size = stride * (size_t)surface->height;
+	int fd = neru_wlr_create_shm_file((off_t)surface->shm_size);
+	if (fd < 0)
+		return 0;
+
+	surface->shm_data = mmap(NULL, surface->shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (surface->shm_data == MAP_FAILED) {
+		surface->shm_data = NULL;
+		close(fd);
+		return 0;
+	}
+	memset(surface->shm_data, 0, surface->shm_size);
+
+	struct wl_shm_pool *pool = wl_shm_create_pool(c->shm, fd, (int)surface->shm_size);
+	if (!pool) {
+		munmap(surface->shm_data, surface->shm_size);
+		surface->shm_data = NULL;
+		close(fd);
+		return 0;
+	}
+
+	surface->buffer =
+	    wl_shm_pool_create_buffer(pool, 0, surface->width, surface->height, (int)stride, WL_SHM_FORMAT_ARGB8888);
+	wl_shm_pool_destroy(pool);
+	close(fd);
+	if (!surface->buffer) {
+		munmap(surface->shm_data, surface->shm_size);
+		surface->shm_data = NULL;
+		return 0;
+	}
+
+	wl_surface_attach(surface->surface, surface->buffer, 0, 0);
+	wl_surface_damage_buffer(surface->surface, 0, 0, INT32_MAX, INT32_MAX);
+	wl_surface_commit(surface->surface);
+
+	return 1;
+}
+
+static void neru_wlr_discovery_destroy(NeruCursorDiscoverySurface *surface) {
+	if (!surface)
+		return;
+	if (surface->surface) {
+		wl_surface_attach(surface->surface, NULL, 0, 0);
+		wl_surface_commit(surface->surface);
+	}
+	if (surface->layer_surface) {
+		zwlr_layer_surface_v1_destroy(surface->layer_surface);
+		surface->layer_surface = NULL;
+	}
+	if (surface->surface) {
+		wl_surface_destroy(surface->surface);
+		surface->surface = NULL;
+	}
+	if (surface->buffer) {
+		wl_buffer_destroy(surface->buffer);
+		surface->buffer = NULL;
+	}
+	if (surface->shm_data) {
+		munmap(surface->shm_data, surface->shm_size);
+		surface->shm_data = NULL;
+	}
+}
 
 static int neru_wlr_create_keymap_fd(const char *keymap, size_t size) {
 	char template[] = "/tmp/neru-vkbd-keymap-XXXXXX";
@@ -452,68 +591,110 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	free(c);
 }
 
-// Initialize cursor position to the center of the screen containing the
-// cursor (or first screen). Wayland has no protocol to query global
-// pointer position, so we initialize to the center and then track
-// position purely client-side via neru_wlr_move_absolute (matching
-// warpd's pattern where ptr.x/ptr.y are only set by way_mouse_move).
+int neru_wlr_refresh_cursor(NeruWlrootsClient *c) {
+	if (!c || !c->layer_shell || !c->compositor || !c->shm || !c->pointer || c->nr_screens == 0)
+		return 0;
+
+	NeruCursorDiscoverySurface surfaces[NERU_MAX_OUTPUTS] = {0};
+	int created = 0;
+	int was_initialized = atomic_load(&c->cursor_initialized);
+	int old_x = atomic_load(&c->cursor_x);
+	int old_y = atomic_load(&c->cursor_y);
+
+	atomic_store(&c->cursor_initialized, 0);
+
+	pthread_mutex_lock(&c->display_mutex);
+	for (int i = 0; i < c->nr_screens; i++) {
+		NeruWaylandScreen *scr = &c->screens[i];
+		if (!scr->wl_output || scr->w <= 0 || scr->h <= 0)
+			continue;
+
+		NeruCursorDiscoverySurface *surface = &surfaces[created];
+		surface->client = c;
+		surface->screen = scr;
+		surface->width = scr->w;
+		surface->height = scr->h;
+		surface->surface = wl_compositor_create_surface(c->compositor);
+		if (!surface->surface)
+			continue;
+
+		scr->discovery_surface = surface->surface;
+		surface->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
+		    c->layer_shell, surface->surface, scr->wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru_cursor_sync");
+		if (!surface->layer_surface) {
+			scr->discovery_surface = NULL;
+			wl_surface_destroy(surface->surface);
+			surface->surface = NULL;
+			continue;
+		}
+
+		zwlr_layer_surface_v1_set_size(surface->layer_surface, scr->w, scr->h);
+		zwlr_layer_surface_v1_set_anchor(
+		    surface->layer_surface, ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+		                                ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+		zwlr_layer_surface_v1_set_exclusive_zone(surface->layer_surface, -1);
+		zwlr_layer_surface_v1_set_keyboard_interactivity(
+		    surface->layer_surface, ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
+		zwlr_layer_surface_v1_add_listener(surface->layer_surface, &neru_wlr_discovery_layer_listener, surface);
+		wl_surface_commit(surface->surface);
+		created++;
+	}
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+
+	if (created == 0) {
+		if (was_initialized) {
+			atomic_store(&c->cursor_x, old_x);
+			atomic_store(&c->cursor_y, old_y);
+			atomic_store(&c->cursor_initialized, 1);
+		}
+		return 0;
+	}
+
+	if (atomic_load(&c->dispatch_running)) {
+		for (int attempt = 0; attempt < 50 && atomic_load(&c->cursor_initialized) == 0; attempt++) {
+			usleep(2000);
+		}
+	} else {
+		pthread_mutex_lock(&c->display_mutex);
+		for (int attempt = 0; attempt < 4 && atomic_load(&c->cursor_initialized) == 0; attempt++) {
+			wl_display_roundtrip(c->display);
+		}
+		pthread_mutex_unlock(&c->display_mutex);
+	}
+
+	int discovered = atomic_load(&c->cursor_initialized);
+
+	pthread_mutex_lock(&c->display_mutex);
+	for (int i = 0; i < created; i++) {
+		if (surfaces[i].screen)
+			surfaces[i].screen->discovery_surface = NULL;
+		neru_wlr_discovery_destroy(&surfaces[i]);
+	}
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+
+	if (!discovered && was_initialized) {
+		atomic_store(&c->cursor_x, old_x);
+		atomic_store(&c->cursor_y, old_y);
+		atomic_store(&c->cursor_initialized, 1);
+	}
+
+	return discovered;
+}
+
+// Initialize cursor position. Wayland has no global pointer-position query, so
+// Neru briefly maps transparent layer-shell surfaces and reads wl_pointer.enter
+// coordinates. If a compositor refuses discovery, startup falls back to the
+// first screen center and later mode activations can try to refresh again.
 void neru_wlr_init_cursor(NeruWlrootsClient *c) {
 	if (!c || atomic_load(&c->cursor_initialized))
 		return;
 
-	// Use Warpd's cursor discovery trick: create invisible full-screen layer-shell surfaces
-	// across all outputs, wiggle the virtual pointer, and capture the pointer_enter event.
-	if (!c->layer_shell || !c->compositor || !c->pointer || !c->vptr || c->nr_screens == 0) {
-		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
-		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
-		atomic_store(&c->cursor_initialized, 1);
+	if (neru_wlr_refresh_cursor(c))
 		return;
-	}
 
-	struct zwlr_layer_surface_v1 *layer_surfaces[NERU_MAX_OUTPUTS] = {0};
-
-	for (int i = 0; i < c->nr_screens; i++) {
-		c->screens[i].discovery_surface = wl_compositor_create_surface(c->compositor);
-		layer_surfaces[i] = zwlr_layer_shell_v1_get_layer_surface(
-		    c->layer_shell, c->screens[i].discovery_surface, c->screens[i].wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
-		    "neru_discovery");
-		zwlr_layer_surface_v1_set_size(layer_surfaces[i], c->screens[i].w, c->screens[i].h);
-		zwlr_layer_surface_v1_set_anchor(
-		    layer_surfaces[i], ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
-		                           ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
-		zwlr_layer_surface_v1_set_exclusive_zone(layer_surfaces[i], -1);
-		wl_surface_commit(c->screens[i].discovery_surface);
-	}
-
-	pthread_mutex_lock(&c->display_mutex);
-	wl_display_roundtrip(c->display);
-
-	// Wiggle the virtual pointer to force a pointer enter event
-	zwlr_virtual_pointer_v1_motion(c->vptr, 0, wl_fixed_from_int(1), wl_fixed_from_int(1));
-	zwlr_virtual_pointer_v1_frame(c->vptr);
-	wl_display_flush(c->display);
-	pthread_mutex_unlock(&c->display_mutex);
-
-	// Process the enter event synchronously (dispatch thread not started yet).
-	pthread_mutex_lock(&c->display_mutex);
-	wl_display_roundtrip(c->display);
-	pthread_mutex_unlock(&c->display_mutex);
-
-	// Destroy discovery surfaces
-	pthread_mutex_lock(&c->display_mutex);
-	for (int i = 0; i < c->nr_screens; i++) {
-		if (layer_surfaces[i])
-			zwlr_layer_surface_v1_destroy(layer_surfaces[i]);
-		if (c->screens[i].discovery_surface) {
-			wl_surface_destroy(c->screens[i].discovery_surface);
-			c->screens[i].discovery_surface = NULL;
-		}
-	}
-	wl_display_flush(c->display);
-	pthread_mutex_unlock(&c->display_mutex);
-
-	// Fallback if discovery failed
-	if (atomic_load(&c->cursor_initialized) == 0) {
+	if (c->nr_screens > 0) {
 		atomic_store(&c->cursor_x, c->screens[0].x + c->screens[0].w / 2);
 		atomic_store(&c->cursor_y, c->screens[0].y + c->screens[0].h / 2);
 		atomic_store(&c->cursor_initialized, 1);

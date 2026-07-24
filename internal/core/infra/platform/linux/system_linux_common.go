@@ -262,6 +262,25 @@ func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error)
 	)
 }
 
+// SyncCursorPosition refreshes Wayland's client-side cursor cache from the
+// compositor when possible. X11 and macOS query the OS directly on every
+// CursorPosition call; Wayland does not expose a global pointer query, so the
+// Wayland backend briefly maps transparent layer-shell surfaces and captures
+// wl_pointer.enter coordinates before a mode uses the cached position.
+func (s *SystemAdapter) SyncCursorPosition(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if s.waylandUsesWlrClientStack() {
+		return waylandRefreshCursorPosition()
+	}
+
+	return nil
+}
+
 // IsDarkMode returns true if Linux dark mode is currently active. See
 // darkModePreference for source ordering and semantics.
 func (s *SystemAdapter) IsDarkMode() bool {

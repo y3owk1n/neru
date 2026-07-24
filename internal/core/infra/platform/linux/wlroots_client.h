@@ -69,6 +69,7 @@ NeruWlrootsClient *neru_wlr_connect(void);
 void neru_wlr_disconnect(NeruWlrootsClient *c);
 int neru_wlr_start_dispatch(NeruWlrootsClient *c);
 void neru_wlr_init_cursor(NeruWlrootsClient *c);
+int neru_wlr_refresh_cursor(NeruWlrootsClient *c);
 int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y);
 int neru_wlr_move_relative(NeruWlrootsClient *c, int dx, int dy);
 int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
