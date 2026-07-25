@@ -30,3 +30,6 @@ func (l *GlobalHotkeyListener) Stop() {}
 
 // IsRunning returns false without cgo (evdev is unavailable).
 func (l *GlobalHotkeyListener) IsRunning() bool { return false }
+
+// DeviceCount returns 0 without cgo.
+func (l *GlobalHotkeyListener) DeviceCount() int { return 0 }

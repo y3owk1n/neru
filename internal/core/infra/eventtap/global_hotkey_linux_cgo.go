@@ -123,6 +123,21 @@ func (l *GlobalHotkeyListener) IsRunning() bool {
 	return l.running
 }
 
+// DeviceCount returns the number of captured keyboard devices.
+func (l *GlobalHotkeyListener) DeviceCount() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.capture == nil {
+		return 0
+	}
+
+	l.capture.deviceMu.Lock()
+	defer l.capture.deviceMu.Unlock()
+
+	return len(l.capture.files)
+}
+
 func (l *GlobalHotkeyListener) run(capture *waylandEvdevCapture, stopCh chan struct{}) {
 	state := waylandEvdevKeyState{pressed: make(map[uint16]bool)}
 
