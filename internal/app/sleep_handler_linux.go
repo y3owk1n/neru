@@ -168,7 +168,28 @@ func (a *App) reinitializeHotkeys() {
 	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
-		a.refreshHotkeysForAppOrCurrent("")
+		const maxRetries = 5
+		const retryDelay = 500 * time.Millisecond
+
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			a.refreshHotkeysForAppOrCurrent("")
+			if a.hotkeyManager.HealthCheck() {
+				break
+			}
+
+			if attempt < maxRetries {
+				a.logger.Debug(
+					"Hotkey listener not healthy after reinitialization attempt; retrying",
+					zap.Int("attempt", attempt),
+				)
+				a.hotkeyRegistrationMu.Lock()
+				a.stopAllHotkeyRepeats()
+				a.hotkeyManager.UnregisterAll()
+				a.appState.SetHotkeysRegistered(false)
+				a.hotkeyRegistrationMu.Unlock()
+				time.Sleep(retryDelay)
+			}
+		}
 	}
 
 	a.logger.Info("Hotkey listener reinitialized")

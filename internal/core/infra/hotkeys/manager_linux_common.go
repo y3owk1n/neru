@@ -151,15 +151,27 @@ func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	if !isWaylandBackend(m.backend) {
+		return true
+	}
+
 	if m.waylandHotkeys == nil {
 		return true
 	}
 
-	if !m.waylandStarted {
+	if len(m.callbacks) == 0 {
 		return true
 	}
 
-	return m.waylandHotkeys.IsRunning()
+	if !m.waylandStarted {
+		return false
+	}
+
+	if !m.waylandHotkeys.IsRunning() {
+		return false
+	}
+
+	return m.waylandHotkeys.DeviceCount() > 0
 }
 
 // rebuildWaylandBindings re-syncs the evdev listener with the current set of

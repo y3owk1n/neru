@@ -152,23 +152,17 @@ func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
 
 	if len(capture.files) == 0 {
 		logger.Warn(
-			"No keyboard /dev/input/event* devices could be opened; "+
-				"check read permissions on /dev/input/event*",
+			"No keyboard /dev/input/event* devices could be opened initially; "+
+				"hotplug watcher will monitor for newly connected keyboard devices",
 			zap.Int("total_event_devices", len(paths)),
-			zap.Error(errWaylandEvdevUnavailable),
 		)
-
-		return nil, fmt.Errorf(
-			"%w: no keyboard /dev/input/event* devices could be opened",
-			errWaylandEvdevUnavailable,
+	} else {
+		logger.Debug(
+			"Evdev capture created",
+			zap.Int("keyboard_devices", len(capture.files)),
+			zap.Int("total_event_devices", len(paths)),
 		)
 	}
-
-	logger.Debug(
-		"Evdev capture created",
-		zap.Int("keyboard_devices", len(capture.files)),
-		zap.Int("total_event_devices", len(paths)),
-	)
 
 	return capture, nil
 }
