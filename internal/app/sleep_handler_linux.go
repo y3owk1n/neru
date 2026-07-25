@@ -184,11 +184,15 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
+		healthy := false
+
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
 
 			hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
 			if !ok || hc.HealthCheck() {
+				healthy = true
+
 				break
 			}
 
@@ -205,6 +209,15 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 				a.hotkeyRegistrationMu.Unlock()
 				time.Sleep(retryDelay)
 			}
+		}
+
+		if !healthy {
+			a.logger.Warn(
+				"Hotkey listener failed to recover after max reinitialization attempts",
+				zap.Int("max_retries", maxRetries),
+			)
+
+			return
 		}
 	}
 
