@@ -53,7 +53,7 @@ brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-Open the Neru app in the Application folder and grant **Accessibility** in **System Settings → Privacy & Security → Accessibility**, then:
+Open the Neru app in the Applications folder and grant **Accessibility** in **System Settings → Privacy & Security → Accessibility**, then:
 
 Press `Cmd+Shift+Space`. Labels appear. You're already using it.
 
