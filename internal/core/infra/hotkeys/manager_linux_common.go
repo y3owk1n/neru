@@ -4,12 +4,15 @@ package hotkeys
 
 import (
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 )
+
+const waylandStopTimeout = 3 * time.Second
 
 // HotkeyID represents a unique identifier for a registered hotkey.
 type HotkeyID int
@@ -22,6 +25,7 @@ type Manager struct {
 	callbacks map[HotkeyID]Callback
 	keys      map[HotkeyID]string
 	logger    *zap.Logger
+	rawLogger *zap.Logger
 	nextID    HotkeyID
 	backend   platform.LinuxBackend
 	mu        sync.RWMutex
@@ -42,6 +46,7 @@ func NewManager(logger *zap.Logger) *Manager {
 		callbacks: make(map[HotkeyID]Callback),
 		keys:      make(map[HotkeyID]string),
 		logger:    logger.Named("hotkeys"),
+		rawLogger: logger,
 		nextID:    1,
 		backend:   platformBackend(),
 	}
@@ -224,7 +229,11 @@ func (m *Manager) stopWayland() {
 		return
 	}
 
-	m.waylandHotkeys.Stop()
+	if !m.waylandHotkeys.StopWithTimeout(waylandStopTimeout) {
+		m.logger.Warn("Replacing stuck evdev hotkey listener with fresh instance")
+		m.waylandHotkeys = eventtap.NewGlobalHotkeyListener(m.rawLogger)
+	}
+
 	m.waylandStarted = false
 }
 

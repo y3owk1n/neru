@@ -152,6 +152,17 @@ func (a *App) stopSleepObserver() {
 // recovery after stale evdev fds; it avoids triggering a fresh RemoteDesktop
 // portal consent prompt.
 func (a *App) reinitializeHotkeys() {
+	a.reinitializeHotkeysWithParams(5, 500*time.Millisecond)
+}
+
+// reinitializeHotkeysAfterSleep is used on sleep/wake resume. Systems like
+// Steam Deck can take several seconds for evdev input devices to settle after
+// resume, so this uses a longer retry window (10 retries x 1s = 10s).
+func (a *App) reinitializeHotkeysAfterSleep() {
+	a.reinitializeHotkeysWithParams(10, 1*time.Second)
+}
+
+func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Duration) {
 	a.logger.Info("Reinitializing hotkey listener (evdev only)")
 
 	a.ExitMode()
@@ -168,11 +179,6 @@ func (a *App) reinitializeHotkeys() {
 	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
-		const (
-			maxRetries = 5
-			retryDelay = 500 * time.Millisecond
-		)
-
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
 
@@ -185,6 +191,7 @@ func (a *App) reinitializeHotkeys() {
 				a.logger.Debug(
 					"Hotkey listener not healthy after reinitialization attempt; retrying",
 					zap.Int("attempt", attempt),
+					zap.Int("max_retries", maxRetries),
 				)
 				a.hotkeyRegistrationMu.Lock()
 				a.stopAllHotkeyRepeats()
@@ -211,7 +218,7 @@ func (a *App) reinitializeHotkeys() {
 func (a *App) handleWakeFromSleep() {
 	a.logger.Info("Reinitializing input listeners after sleep/wake")
 
-	a.reinitializeHotkeys()
+	a.reinitializeHotkeysAfterSleep()
 
 	// Reset the libei/RemoteDesktop session so the next input operation
 	// re-establishes the portal connection. The old socket is stale after the

@@ -11,6 +11,7 @@ package eventtap
 
 import (
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -112,6 +113,48 @@ func (l *GlobalHotkeyListener) Stop() {
 
 	if capture != nil {
 		capture.Close()
+	}
+}
+
+// StopWithTimeout halts watching with a deadline. Returns true if the stop
+// completed cleanly, false if the timeout expired and the old capture was
+// abandoned. On timeout the stale reader goroutines are leaked but will
+// eventually exit when the kernel finalises the file descriptors.
+func (l *GlobalHotkeyListener) StopWithTimeout(timeout time.Duration) bool {
+	l.mu.Lock()
+	if !l.running {
+		l.mu.Unlock()
+
+		return true
+	}
+
+	close(l.stopCh)
+	capture := l.capture
+	l.capture = nil
+	l.running = false
+	l.mu.Unlock()
+
+	if capture == nil {
+		return true
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		capture.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		l.logger.Warn(
+			"Evdev capture close timed out; abandoning stale readers",
+			zap.Duration("timeout", timeout),
+		)
+
+		return false
 	}
 }
 
