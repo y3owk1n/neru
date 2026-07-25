@@ -100,8 +100,8 @@ static void neru_wlr_sync_vptr_to_cursor(NeruWlrootsClient *c, uint32_t time) {
 	int cx = atomic_load(&c->cursor_x);
 	int cy = atomic_load(&c->cursor_y);
 	zwlr_virtual_pointer_v1_motion_absolute(
-	    c->vptr, time, wl_fixed_from_int(cx - minx), wl_fixed_from_int(cy - miny),
-	    wl_fixed_from_int(maxx - minx), wl_fixed_from_int(maxy - miny));
+	    c->vptr, time, wl_fixed_from_int(cx - minx), wl_fixed_from_int(cy - miny), wl_fixed_from_int(maxx - minx),
+	    wl_fixed_from_int(maxy - miny));
 }
 
 static void neru_wlr_pointer_button(
