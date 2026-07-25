@@ -160,8 +160,8 @@ func (a *App) reinitializeHotkeys() {
 	a.reinitializeHotkeysWithParams(hotkeyReinitRetries, hotkeyReinitDelay)
 }
 
-// reinitializeHotkeysAfterSleep is used on sleep/wake resume. Systems like
-// Steam Deck can take several seconds for evdev input devices to settle after
+// reinitializeHotkeysAfterSleep is used on sleep/wake resume. Some systems
+// can take several seconds for evdev input devices to settle after
 // resume, so this uses a longer retry window (10 retries x 1s = 10s).
 func (a *App) reinitializeHotkeysAfterSleep() {
 	a.reinitializeHotkeysWithParams(hotkeySleepRetries, 1*time.Second)
