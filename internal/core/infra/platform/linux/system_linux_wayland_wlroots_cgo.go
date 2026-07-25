@@ -174,6 +174,25 @@ func wlrootsSetCursor(point image.Point) error {
 	return nil
 }
 
+func wlrootsRefreshCursorPosition() error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
+
+	if C.neru_wlr_refresh_cursor(globalWlrootsState.client) == 0 { //nolint:nlreturn
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to refresh wlroots cursor position",
+		)
+	}
+
+	return nil
+}
+
 func wlrootsScreenBounds() (image.Rectangle, error) {
 	err := ensureWlrootsState()
 	if err != nil {

@@ -126,6 +126,13 @@ func wlrootsSetCursor(point image.Point) error {
 	)
 }
 
+func wlrootsRefreshCursorPosition() error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
 func wlrootsHasVirtualKeyboard() (bool, error) {
 	return false, derrors.New(
 		derrors.CodeNotSupported,

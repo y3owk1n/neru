@@ -12,7 +12,13 @@ import (
 const (
 	// ValidationTimeout is the timeout for validation checks.
 	ValidationTimeout = 2 * time.Second
+	// cursorSyncTimeout is the timeout for cursor sync before mode activation.
+	cursorSyncTimeout = 150 * time.Millisecond
 )
+
+type cursorSyncer interface {
+	SyncCursorPosition(ctx context.Context) error
+}
 
 // validateModeActivation performs common validation checks before mode activation.
 // Returns an error if the mode cannot be activated.
@@ -69,9 +75,10 @@ func (h *Handler) validateModeActivation(bundleID string, modeName string, modeE
 }
 
 // prepareForModeActivation performs common preparation steps before activating a mode.
-// This includes resetting scroll context.
+// This includes resetting scroll state and syncing any platform cursor cache.
 func (h *Handler) prepareForModeActivation() {
 	h.resetScrollContext()
+	h.syncCursorPositionForModeActivation()
 }
 
 // resetScrollContext resets scroll-related state to ensure clean mode transitions.
@@ -81,5 +88,20 @@ func (h *Handler) resetScrollContext() {
 		h.scroll.Context.Reset()
 		// Also reset the skip restore flag since we're transitioning from scroll mode
 		h.cursorState.Reset()
+	}
+}
+
+func (h *Handler) syncCursorPositionForModeActivation() {
+	syncer, ok := h.system.(cursorSyncer)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(h.ctx, cursorSyncTimeout)
+	defer cancel()
+
+	err := syncer.SyncCursorPosition(ctx)
+	if err != nil {
+		h.logger.Debug("Failed to sync cursor position for mode activation", zap.Error(err))
 	}
 }
