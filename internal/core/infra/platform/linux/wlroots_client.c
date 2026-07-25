@@ -37,15 +37,12 @@ static void neru_wlr_pointer_enter(
 				atomic_store(&c->cursor_y, scr->y + wl_fixed_to_int(sy));
 				atomic_store(&c->cursor_initialized, 1);
 				is_discovery = 1;
-				// Only allow forwarding if this is a genuine physical
-				// enter, not an echo of our own virtual-pointer event.
-				if (!c->forwarding)
-					c->entered_discovery_surface = surface;
+				c->entered_discovery_surface = surface;
+				if (c->forwarding)
+					c->forwarding = 0;
 				break;
 			}
 		}
-		// Focus moved to a non-discovery surface — safe to allow
-		// forwarding again on the next genuine discovery enter.
 		if (!is_discovery)
 			c->forwarding = 0;
 	}
@@ -98,32 +95,36 @@ static int neru_wlr_sync_vptr_position(NeruWlrootsClient *c, uint32_t time) {
 static void neru_wlr_pointer_motion(
     void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && !c->forwarding) {
-		c->forwarding = 1;
-		for (int i = 0; i < c->nr_screens; i++) {
-			NeruWaylandScreen *scr = &c->screens[i];
-			if (scr->discovery_surface == c->entered_discovery_surface) {
-				int minx = 0, miny = 0, maxx = 0, maxy = 0;
-				for (int j = 0; j < c->nr_screens; j++) {
-					NeruWaylandScreen *s = &c->screens[j];
-					if (j == 0 || s->x < minx)
-						minx = s->x;
-					if (j == 0 || s->y < miny)
-						miny = s->y;
-					int r = s->x + s->w, b = s->y + s->h;
-					if (j == 0 || r > maxx)
-						maxx = r;
-					if (j == 0 || b > maxy)
-						maxy = b;
+	if (c && c->vptr && c->entered_discovery_surface) {
+		if (!c->forwarding) {
+			c->forwarding = 1;
+			for (int i = 0; i < c->nr_screens; i++) {
+				NeruWaylandScreen *scr = &c->screens[i];
+				if (scr->discovery_surface == c->entered_discovery_surface) {
+					int minx = 0, miny = 0, maxx = 0, maxy = 0;
+					for (int j = 0; j < c->nr_screens; j++) {
+						NeruWaylandScreen *s = &c->screens[j];
+						if (j == 0 || s->x < minx)
+							minx = s->x;
+						if (j == 0 || s->y < miny)
+							miny = s->y;
+						int r = s->x + s->w, b = s->y + s->h;
+						if (j == 0 || r > maxx)
+							maxx = r;
+						if (j == 0 || b > maxy)
+							maxy = b;
+					}
+					wl_fixed_t gx = wl_fixed_from_int(scr->x) + sx;
+					wl_fixed_t gy = wl_fixed_from_int(scr->y) + sy;
+					zwlr_virtual_pointer_v1_motion_absolute(
+					    c->vptr, time, gx - wl_fixed_from_int(minx), gy - wl_fixed_from_int(miny),
+					    wl_fixed_from_int(maxx - minx), wl_fixed_from_int(maxy - miny));
+					zwlr_virtual_pointer_v1_frame(c->vptr);
+					break;
 				}
-				wl_fixed_t gx = wl_fixed_from_int(scr->x) + sx;
-				wl_fixed_t gy = wl_fixed_from_int(scr->y) + sy;
-				zwlr_virtual_pointer_v1_motion_absolute(
-				    c->vptr, time, gx - wl_fixed_from_int(minx), gy - wl_fixed_from_int(miny),
-				    wl_fixed_from_int(maxx - minx), wl_fixed_from_int(maxy - miny));
-				zwlr_virtual_pointer_v1_frame(c->vptr);
-				break;
 			}
+		} else {
+			c->forwarding = 0;
 		}
 	}
 	(void)pointer;
@@ -132,11 +133,15 @@ static void neru_wlr_pointer_motion(
 static void neru_wlr_pointer_button(
     void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && !c->forwarding) {
-		c->forwarding = 1;
-		neru_wlr_sync_vptr_position(c, time);
-		zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
-		zwlr_virtual_pointer_v1_frame(c->vptr);
+	if (c && c->vptr && c->entered_discovery_surface) {
+		if (!c->forwarding) {
+			c->forwarding = 1;
+			neru_wlr_sync_vptr_position(c, time);
+			zwlr_virtual_pointer_v1_button(c->vptr, time, button, state);
+			zwlr_virtual_pointer_v1_frame(c->vptr);
+		} else {
+			c->forwarding = 0;
+		}
 	}
 	(void)pointer;
 }
@@ -144,11 +149,15 @@ static void neru_wlr_pointer_button(
 static void neru_wlr_pointer_axis(
     void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
-	if (c && c->vptr && c->entered_discovery_surface && !c->forwarding) {
-		c->forwarding = 1;
-		neru_wlr_sync_vptr_position(c, time);
-		zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
-		zwlr_virtual_pointer_v1_frame(c->vptr);
+	if (c && c->vptr && c->entered_discovery_surface) {
+		if (!c->forwarding) {
+			c->forwarding = 1;
+			neru_wlr_sync_vptr_position(c, time);
+			zwlr_virtual_pointer_v1_axis(c->vptr, time, axis, value);
+			zwlr_virtual_pointer_v1_frame(c->vptr);
+		} else {
+			c->forwarding = 0;
+		}
 	}
 	(void)pointer;
 }
