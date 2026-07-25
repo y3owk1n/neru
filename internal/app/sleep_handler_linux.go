@@ -168,11 +168,14 @@ func (a *App) reinitializeHotkeys() {
 	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
-		const maxRetries = 5
-		const retryDelay = 500 * time.Millisecond
+		const (
+			maxRetries = 5
+			retryDelay = 500 * time.Millisecond
+		)
 
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
+
 			hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
 			if !ok || hc.HealthCheck() {
 				break

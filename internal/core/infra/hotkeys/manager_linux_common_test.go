@@ -1,15 +1,17 @@
 //go:build linux
 
-package hotkeys
+package hotkeys_test
 
 import (
 	"testing"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 )
 
 func TestLinuxManagerHealthCheck(t *testing.T) {
-	mgr := NewManager(zap.NewNop())
+	mgr := hotkeys.NewManager(zap.NewNop())
 	if mgr == nil {
 		t.Fatal("expected non-nil manager")
 	}
