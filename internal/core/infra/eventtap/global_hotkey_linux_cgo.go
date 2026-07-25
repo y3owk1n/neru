@@ -119,7 +119,7 @@ func (l *GlobalHotkeyListener) Stop() {
 // StopWithTimeout halts watching with a deadline. Returns true if the stop
 // completed cleanly, false if the timeout expired and the old capture was
 // abandoned. On timeout the stale reader goroutines are leaked but will
-// eventually exit when the kernel finalises the file descriptors.
+// eventually exit when the kernel finalizes the file descriptors.
 func (l *GlobalHotkeyListener) StopWithTimeout(timeout time.Duration) bool {
 	l.mu.Lock()
 	if !l.running {

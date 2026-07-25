@@ -122,7 +122,7 @@ func (s *libeiState) tryAcquire() error {
 // fails (e.g. because the portal session went stale across system sleep), it
 // resets the session, re-acquires a fresh session, and retries once.
 func (s *libeiState) execute(
-	fn func(client *C.NeruEiClient) bool,
+	clientFn func(client *C.NeruEiClient) bool,
 	errorProvider func() error,
 ) error {
 	err := s.tryAcquire()
@@ -131,7 +131,7 @@ func (s *libeiState) execute(
 	}
 
 	client := s.client
-	ok := fn(client)
+	ok := clientFn(client)
 	s.mu.Unlock()
 
 	if ok {
@@ -148,7 +148,7 @@ func (s *libeiState) execute(
 	}
 	defer s.mu.Unlock()
 
-	if !fn(s.client) {
+	if !clientFn(s.client) {
 		return errorProvider()
 	}
 
@@ -157,9 +157,7 @@ func (s *libeiState) execute(
 
 func libeiMoveAbs(posX, posY int) error {
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool {
-			return C.neru_ei_move_abs(c, C.int(posX), C.int(posY)) != 0
-		},
+		func(c *C.NeruEiClient) bool { return C.neru_ei_move_abs(c, C.int(posX), C.int(posY)) != 0 }, //nolint:nlreturn
 		func() error {
 			return derrors.Newf(
 				derrors.CodeActionFailed,
@@ -177,9 +175,7 @@ func libeiButton(button int, pressed bool) error {
 	}
 
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool {
-			return C.neru_ei_button(c, C.int(button), pressedInt) != 0
-		},
+		func(c *C.NeruEiClient) bool { return C.neru_ei_button(c, C.int(button), pressedInt) != 0 }, //nolint:nlreturn
 		func() error {
 			return derrors.New(derrors.CodeActionFailed, "libei failed to emit button event")
 		},
@@ -188,9 +184,7 @@ func libeiButton(button int, pressed bool) error {
 
 func libeiScroll(axis, delta int) error {
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool {
-			return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0
-		},
+		func(c *C.NeruEiClient) bool { return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0 }, //nolint:nlreturn
 		func() error {
 			return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
 		},
@@ -204,9 +198,7 @@ func libeiKey(keycode int, pressed bool) error {
 	}
 
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool {
-			return C.neru_ei_key(c, C.int(keycode), pressedInt) != 0
-		},
+		func(c *C.NeruEiClient) bool { return C.neru_ei_key(c, C.int(keycode), pressedInt) != 0 }, //nolint:nlreturn
 		func() error {
 			return derrors.New(
 				derrors.CodeNotSupported,

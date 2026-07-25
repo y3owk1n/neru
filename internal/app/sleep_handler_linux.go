@@ -23,6 +23,13 @@ const (
 	// postReloadCheckDelay is how long after a config reload we wait before
 	// verifying the hotkey listener started correctly.
 	postReloadCheckDelay = 2 * time.Second
+	// hotkeyReinitRetries is the default number of hotkey reinitialization retries.
+	hotkeyReinitRetries = 5
+	// hotkeyReinitDelay is the delay between retry attempts during normal reinit.
+	hotkeyReinitDelay = 500 * time.Millisecond
+	// hotkeySleepRetries is the number of hotkey reinitialization retries after
+	// sleep/wake, allowing extra time for evdev devices to settle.
+	hotkeySleepRetries = 10
 )
 
 // Package-level resources for sleep observer cleanup. Stored here (rather than
@@ -150,14 +157,14 @@ func (a *App) stopSleepObserver() {
 // recovery after stale evdev fds; it avoids triggering a fresh RemoteDesktop
 // portal consent prompt.
 func (a *App) reinitializeHotkeys() {
-	a.reinitializeHotkeysWithParams(5, 500*time.Millisecond)
+	a.reinitializeHotkeysWithParams(hotkeyReinitRetries, hotkeyReinitDelay)
 }
 
 // reinitializeHotkeysAfterSleep is used on sleep/wake resume. Systems like
 // Steam Deck can take several seconds for evdev input devices to settle after
 // resume, so this uses a longer retry window (10 retries x 1s = 10s).
 func (a *App) reinitializeHotkeysAfterSleep() {
-	a.reinitializeHotkeysWithParams(10, 1*time.Second)
+	a.reinitializeHotkeysWithParams(hotkeySleepRetries, 1*time.Second)
 }
 
 func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Duration) {
