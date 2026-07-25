@@ -173,7 +173,8 @@ func (a *App) reinitializeHotkeys() {
 
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
-			if a.hotkeyManager.HealthCheck() {
+			hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
+			if !ok || hc.HealthCheck() {
 				break
 			}
 
