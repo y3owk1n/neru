@@ -121,7 +121,10 @@ func (s *libeiState) tryAcquire() error {
 // execute runs an input action against the active libei client. If the action
 // fails (e.g. because the portal session went stale across system sleep), it
 // resets the session, re-acquires a fresh session, and retries once.
-func (s *libeiState) execute(fn func(client *C.NeruEiClient) bool, errorProvider func() error) error {
+func (s *libeiState) execute(
+	fn func(client *C.NeruEiClient) bool,
+	errorProvider func() error,
+) error {
 	err := s.tryAcquire()
 	if err != nil {
 		return err
