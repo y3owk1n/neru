@@ -8,8 +8,6 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
 const (
@@ -219,11 +217,6 @@ func (a *App) handleWakeFromSleep() {
 	a.logger.Info("Reinitializing input listeners after sleep/wake")
 
 	a.reinitializeHotkeysAfterSleep()
-
-	// Reset the libei/RemoteDesktop session so the next input operation
-	// re-establishes the portal connection. The old socket is stale after the
-	// compositor reinitialized during resume.
-	linux.LibeiReset()
 
 	a.logger.Info("Input listeners reinitialized after sleep/wake")
 }

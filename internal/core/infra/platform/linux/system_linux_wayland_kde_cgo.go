@@ -118,89 +118,103 @@ func (s *libeiState) tryAcquire() error {
 	return nil
 }
 
-func libeiMoveAbs(posX, posY int) error {
-	err := globalLibeiState.tryAcquire()
+// execute runs an input action against the active libei client. If the action
+// fails (e.g. because the portal session went stale across system sleep), it
+// resets the session, re-acquires a fresh session, and retries once.
+func (s *libeiState) execute(fn func(client *C.NeruEiClient) bool, errorProvider func() error) error {
+	err := s.tryAcquire()
 	if err != nil {
 		return err
 	}
-	defer globalLibeiState.mu.Unlock()
 
-	client := globalLibeiState.client
+	client := s.client
+	ok := fn(client)
+	s.mu.Unlock()
 
-	if C.neru_ei_move_abs(client, C.int(posX), C.int(posY)) == 0 { //nolint:nlreturn
-		return derrors.Newf(
-			derrors.CodeActionFailed,
-			"libei failed to move pointer to (%d, %d)",
-			posX, posY,
-		)
+	if ok {
+		return nil
+	}
+
+	// Action failed on existing session; it might be stale after system suspend.
+	// Reset and attempt a single reconnect + retry.
+	LibeiReset()
+
+	err = s.tryAcquire()
+	if err != nil {
+		return err
+	}
+	defer s.mu.Unlock()
+
+	if !fn(s.client) {
+		return errorProvider()
 	}
 
 	return nil
+}
+
+func libeiMoveAbs(posX, posY int) error {
+	return globalLibeiState.execute(
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_move_abs(c, C.int(posX), C.int(posY)) != 0
+		},
+		func() error {
+			return derrors.Newf(
+				derrors.CodeActionFailed,
+				"libei failed to move pointer to (%d, %d)",
+				posX, posY,
+			)
+		},
+	)
 }
 
 func libeiButton(button int, pressed bool) error {
-	err := globalLibeiState.tryAcquire()
-	if err != nil {
-		return err
-	}
-	defer globalLibeiState.mu.Unlock()
-
-	client := globalLibeiState.client
-
 	pressedInt := C.int(0)
 	if pressed {
 		pressedInt = C.int(1)
 	}
 
-	if C.neru_ei_button(client, C.int(button), pressedInt) == 0 { //nolint:nlreturn
-		return derrors.New(derrors.CodeActionFailed, "libei failed to emit button event")
-	}
-
-	return nil
+	return globalLibeiState.execute(
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_button(c, C.int(button), pressedInt) != 0
+		},
+		func() error {
+			return derrors.New(derrors.CodeActionFailed, "libei failed to emit button event")
+		},
+	)
 }
 
 func libeiScroll(axis, delta int) error {
-	err := globalLibeiState.tryAcquire()
-	if err != nil {
-		return err
-	}
-	defer globalLibeiState.mu.Unlock()
-
-	client := globalLibeiState.client
-
-	if C.neru_ei_scroll(client, C.int(axis), C.int(delta)) == 0 { //nolint:nlreturn
-		return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
-	}
-
-	return nil
+	return globalLibeiState.execute(
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0
+		},
+		func() error {
+			return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
+		},
+	)
 }
 
 func libeiKey(keycode int, pressed bool) error {
-	err := globalLibeiState.tryAcquire()
-	if err != nil {
-		return err
-	}
-	defer globalLibeiState.mu.Unlock()
-
-	client := globalLibeiState.client
-
 	pressedInt := C.int(0)
 	if pressed {
 		pressedInt = C.int(1)
 	}
 
-	if C.neru_ei_key(client, C.int(keycode), pressedInt) == 0 { //nolint:nlreturn
-		return derrors.New(
-			derrors.CodeNotSupported,
-			"libei keyboard injection unavailable; the RemoteDesktop portal "+
-				"session did not grant a keyboard device. Restart neru and "+
-				"check \"Enable keyboard\" in the consent prompt; if the prompt "+
-				"does not appear, run `flatpak permission-remove kde-authorized "+
-				"remote-desktop \"\"` first to clear the saved grant",
-		)
-	}
-
-	return nil
+	return globalLibeiState.execute(
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_key(c, C.int(keycode), pressedInt) != 0
+		},
+		func() error {
+			return derrors.New(
+				derrors.CodeNotSupported,
+				"libei keyboard injection unavailable; the RemoteDesktop portal "+
+					"session did not grant a keyboard device. Restart neru and "+
+					"check \"Enable keyboard\" in the consent prompt; if the prompt "+
+					"does not appear, run `flatpak permission-remove kde-authorized "+
+					"remote-desktop \"\"` first to clear the saved grant",
+			)
+		},
+	)
 }
 
 // libeiHasKeyboard reports whether the granted libei session includes a keyboard
