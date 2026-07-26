@@ -16,7 +16,7 @@ struct neru_xkb_state {
 	struct xkb_state *state;
 	struct wl_display *display;
 	struct wl_keyboard *wl_keyboard;
-	struct keymap_ready kr; // listener data, alive for lifetime of this struct
+	struct keymap_ready kr;  // listener data, alive for lifetime of this struct
 };
 
 // ── wl_keyboard listener (only .keymap is used) ─────────────────────────
