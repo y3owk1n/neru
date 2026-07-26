@@ -54,7 +54,12 @@ static void neru_keyboard_key(
 
 static void neru_keyboard_modifiers(
     void *data, struct wl_keyboard *wl_keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
-    uint32_t mods_locked, uint32_t group) {}
+    uint32_t mods_locked, uint32_t group) {
+	struct keymap_ready *kr = data;
+	if (kr->state) {
+		xkb_state_update_mask(kr->state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+	}
+}
 
 static void neru_keyboard_repeat_info(void *data, struct wl_keyboard *wl_keyboard, int32_t rate, int32_t delay) {}
 
