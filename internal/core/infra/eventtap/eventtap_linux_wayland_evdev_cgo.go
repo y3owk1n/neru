@@ -773,7 +773,7 @@ func (et *EventTap) runWaylandEvdev() bool {
 	xkb := C.neru_xkb_state_create()
 	capture.xkbState = unsafe.Pointer(xkb)
 	if xkb == nil && et.logger != nil {
-		et.logger.Warn(
+		et.logger.Error(
 			"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
 				"falling back to hardcoded evdev key names",
 		)
