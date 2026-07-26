@@ -284,8 +284,8 @@ void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_l
 		return;
 
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_DEPRESSED);
-	xkb_mod_mask_t latched   = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LATCHED);
-	xkb_mod_mask_t locked    = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED);
+	xkb_mod_mask_t latched = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LATCHED);
+	xkb_mod_mask_t locked = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED);
 	xkb_layout_index_t group = xkb_state_serialize_layout(state->state, XKB_STATE_LAYOUT_LOCKED);
 
 	xkb_mod_mask_t new_locked = locked;
