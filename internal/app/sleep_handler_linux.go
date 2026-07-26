@@ -8,8 +8,6 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
 const (
@@ -25,6 +23,13 @@ const (
 	// postReloadCheckDelay is how long after a config reload we wait before
 	// verifying the hotkey listener started correctly.
 	postReloadCheckDelay = 2 * time.Second
+	// hotkeyReinitRetries is the default number of hotkey reinitialization retries.
+	hotkeyReinitRetries = 5
+	// hotkeyReinitDelay is the delay between retry attempts during normal reinit.
+	hotkeyReinitDelay = 500 * time.Millisecond
+	// hotkeySleepRetries is the number of hotkey reinitialization retries after
+	// sleep/wake, allowing extra time for evdev devices to settle.
+	hotkeySleepRetries = 10
 )
 
 // Package-level resources for sleep observer cleanup. Stored here (rather than
@@ -152,6 +157,17 @@ func (a *App) stopSleepObserver() {
 // recovery after stale evdev fds; it avoids triggering a fresh RemoteDesktop
 // portal consent prompt.
 func (a *App) reinitializeHotkeys() {
+	a.reinitializeHotkeysWithParams(hotkeyReinitRetries, hotkeyReinitDelay)
+}
+
+// reinitializeHotkeysAfterSleep is used on sleep/wake resume. Some systems
+// can take several seconds for evdev input devices to settle after
+// resume, so this uses a longer retry window (10 retries x 1s = 10s).
+func (a *App) reinitializeHotkeysAfterSleep() {
+	a.reinitializeHotkeysWithParams(hotkeySleepRetries, 1*time.Second)
+}
+
+func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Duration) {
 	a.logger.Info("Reinitializing hotkey listener (evdev only)")
 
 	a.ExitMode()
@@ -168,16 +184,15 @@ func (a *App) reinitializeHotkeys() {
 	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
-		const (
-			maxRetries = 5
-			retryDelay = 500 * time.Millisecond
-		)
+		healthy := false
 
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
 
 			hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
 			if !ok || hc.HealthCheck() {
+				healthy = true
+
 				break
 			}
 
@@ -185,6 +200,7 @@ func (a *App) reinitializeHotkeys() {
 				a.logger.Debug(
 					"Hotkey listener not healthy after reinitialization attempt; retrying",
 					zap.Int("attempt", attempt),
+					zap.Int("max_retries", maxRetries),
 				)
 				a.hotkeyRegistrationMu.Lock()
 				a.stopAllHotkeyRepeats()
@@ -193,6 +209,15 @@ func (a *App) reinitializeHotkeys() {
 				a.hotkeyRegistrationMu.Unlock()
 				time.Sleep(retryDelay)
 			}
+		}
+
+		if !healthy {
+			a.logger.Warn(
+				"Hotkey listener failed to recover after max reinitialization attempts",
+				zap.Int("max_retries", maxRetries),
+			)
+
+			return
 		}
 	}
 
@@ -211,12 +236,7 @@ func (a *App) reinitializeHotkeys() {
 func (a *App) handleWakeFromSleep() {
 	a.logger.Info("Reinitializing input listeners after sleep/wake")
 
-	a.reinitializeHotkeys()
-
-	// Reset the libei/RemoteDesktop session so the next input operation
-	// re-establishes the portal connection. The old socket is stale after the
-	// compositor reinitialized during resume.
-	linux.LibeiReset()
+	a.reinitializeHotkeysAfterSleep()
 
 	a.logger.Info("Input listeners reinitialized after sleep/wake")
 }
