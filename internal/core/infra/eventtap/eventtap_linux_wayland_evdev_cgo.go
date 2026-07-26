@@ -927,7 +927,8 @@ drainStale:
 			for code := range state.releasedDuringGrab {
 				err := linux.WaylandKeyEvent(uint32(code), false)
 				if err != nil && et.logger != nil {
-					et.logger.Warn("Failed to inject synthetic key release at shutdown",
+					et.logger.Warn(
+						"Failed to inject synthetic key release at shutdown",
 						zap.Uint16("keycode", code),
 						zap.Error(err),
 					)
@@ -937,7 +938,8 @@ drainStale:
 				if !state.pressed[code] {
 					err := linux.WaylandKeyEvent(uint32(code), false)
 					if err != nil && et.logger != nil {
-						et.logger.Warn("Failed to inject synthetic key release at shutdown",
+						et.logger.Warn(
+							"Failed to inject synthetic key release at shutdown",
 							zap.Uint16("keycode", code),
 							zap.Error(err),
 						)
@@ -968,7 +970,7 @@ func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) s
 		(*C.neru_xkb_state)(capture.xkbState),
 		C.uint16_t(code),
 		&buf[0],
-		64,
+		64, //nolint:nlreturn
 	) == 0 {
 		return C.GoString(&buf[0])
 	}
@@ -1045,8 +1047,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 	switch event.value {
 	case evdevValuePress:
-		// If this key was already held when the event tap was enabled, the
-		// press is from the kernel's SYN_DROPPED state replay after
+		// If this key was already held when the event tap was e kernel's SYN_DROPPED state replay after
 		// EVIOCGRAB. Track it in pressed (so subsequent repeats are not
 		// silently consumed) but skip dispatch — the user did not press
 		// it during this mode session. The initialKeys entry persists
