@@ -68,19 +68,22 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 
 ## Platform Status
 
-| Capability                         | macOS | Linux            | Windows       |
-| ---------------------------------- | ----- | ---------------- | ------------- |
-| Screen bounds / cursor             | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Global hotkeys                     | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Keyboard event tap                 | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Accessibility (clickable elements) | ✅    | 🔲 TODO (AT-SPI) | 🔲 TODO (UIA) |
-| UI overlays                        | ✅    | 🔲 TODO          | 🔲 TODO       |
-| App watcher                        | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Dark mode detection                | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Notifications / alerts             | ✅    | 🔲 TODO          | 🔲 TODO       |
-| Config / log directories           | ✅    | ⚠️ Partial       | ✅ (AppData)  |
+> **Note:** This table is a quick-reference overview. For the full detailed
+> feature-level comparison, see [CROSS_PLATFORM.md](./CROSS_PLATFORM.md#feature-parity-reference).
 
-🔲 = stub returns `CodeNotSupported`. Replace with real implementation.
+| Capability                         | macOS | Linux (X11) | Linux (wlroots) | Linux (KDE) | Linux (GNOME) | Windows |
+| ---------------------------------- | ----- | ----------- | --------------- | ----------- | -------------- | ------- |
+| Screen bounds / cursor             | ✅    | ✅          | ✅              | ✅          | ✅             | ✅      |
+| Global hotkeys                     | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
+| Keyboard event tap                 | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
+| Accessibility (elements)           | ✅    | 🟡 (AT-SPI) | 🟡 (AT-SPI)     | 🟡 (AT-SPI) | 🟡 (AT-SPI)    | ✅ (UIA) |
+| UI overlays                        | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
+| App watcher                        | ✅    | 🟡          | 🟡              | 🟡          | 🟡             | 🟡      |
+| Dark mode detection                | ✅    | ✅          | ✅              | ✅          | ✅             | 🟡      |
+| Notifications / alerts             | ✅    | 🟡          | 🟡              | 🟡          | 🟡             | 🟡      |
+| Config / log directories           | ✅    | ✅          | ✅              | ✅          | ✅             | ✅      |
+
+✅ = Supported   🟡 = Stub (code exists, returns `CodeNotSupported`)   ❌ = Not available
 
 ---
 
