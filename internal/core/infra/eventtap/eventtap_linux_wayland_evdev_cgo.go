@@ -4,6 +4,7 @@ package eventtap
 
 /*
 #include "../platform/linux/evdev.h"
+#include "../platform/linux/wayland_keymap.h"
 */
 import "C"
 
@@ -107,6 +108,10 @@ type waylandEvdevCapture struct {
 	hotplugStopCh chan struct{}
 	hotplugOnce   sync.Once
 	hotplugWg     sync.WaitGroup
+
+	// xkbState holds a C xkb_state initialized from the compositor's keymap.
+	// Used to resolve evdev scan codes to key names that respect XKB options.
+	xkbState unsafe.Pointer // *C.neru_xkb_state
 }
 
 func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
@@ -194,6 +199,11 @@ func (capture *waylandEvdevCapture) Close() {
 		capture.done.Wait()
 
 		close(capture.events)
+
+		if capture.xkbState != nil {
+			C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
+			capture.xkbState = nil
+		}
 
 		if capture.logger != nil {
 			capture.logger.Debug("Evdev capture closed")
@@ -755,6 +765,20 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
+	// Initialize xkb_state from the compositor's keymap (once, cached
+	// across cycles). This ensures evdev scan codes are resolved through
+	// the XKB keymap, respecting options like caps:swapescape.
+	if capture.xkbState == nil {
+		state := C.neru_xkb_state_create()
+		capture.xkbState = unsafe.Pointer(state)
+		if state == nil && et.logger != nil {
+			et.logger.Warn(
+				"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
+					"falling back to hardcoded evdev key names",
+			)
+		}
+	}
+
 	manager := overlay.Get()
 	keyboardCaptureDisabled := false
 	if manager != nil {
@@ -934,12 +958,46 @@ drainStale:
 	}
 }
 
+func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) string {
+	if capture == nil || capture.xkbState == nil {
+		return evdevKeyName(code)
+	}
+
+	var buf [64]C.char
+	if C.neru_xkb_state_key_get_name(
+		(*C.neru_xkb_state)(capture.xkbState),
+		C.uint16_t(code),
+		&buf[0],
+		64,
+	) == 0 {
+		return C.GoString(&buf[0])
+	}
+
+	return evdevKeyName(code)
+}
+
 func (et *EventTap) handleWaylandEvdevEvent(
 	state *waylandEvdevKeyState,
 	event waylandEvdevEvent,
 ) {
 	if event.eventType != evdevEventKey {
 		return
+	}
+
+	// Feed all key events to xkb_state so its internal state stays
+	// consistent for key symbol resolution via XKB (respects options
+	// like caps:swapescape set by the compositor).
+	capture, _ := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	if capture != nil && capture.xkbState != nil {
+		press := C.int(0)
+		if event.value == evdevValuePress {
+			press = 1
+		}
+		C.neru_xkb_state_key(
+			(*C.neru_xkb_state)(capture.xkbState),
+			C.uint16_t(event.code),
+			press,
+		)
 	}
 
 	if modifier := evdevModifierName(event.code); modifier != "" {
@@ -1005,7 +1063,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 		state.trackKey(event.code, false)
 
-		key := evdevKeyName(event.code)
+		key := et.xkbEvdevKeyName(capture, event.code)
 		if key != "" {
 			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
@@ -1028,7 +1086,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
-	key := evdevKeyName(event.code)
+	key := et.xkbEvdevKeyName(capture, event.code)
 	if key == "" {
 		return
 	}
