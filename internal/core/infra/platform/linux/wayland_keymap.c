@@ -88,7 +88,7 @@ static void neru_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	struct registry_data *rd = data;
 	if (strcmp(interface, "wl_seat") == 0) {
-		rd->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
+		rd->seat = wl_registry_bind(registry, name, &wl_seat_interface, version < 7 ? version : 7);
 	}
 }
 
