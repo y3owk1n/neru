@@ -236,8 +236,8 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 	    {"KP_Left", "Left"},
 	    {"KP_Right", "Right"},
 	    {"KP_Begin", "5"},
-	{"KP_Decimal", "."},
-	{"Caps_Lock", "CapsLock"},
+	    {"KP_Decimal", "."},
+	    {"Caps_Lock", "CapsLock"},
 	};
 
 	for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++) {
