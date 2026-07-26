@@ -765,18 +765,18 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	// Initialize xkb_state from the compositor's keymap (once, cached
-	// across cycles). This ensures evdev scan codes are resolved through
-	// the XKB keymap, respecting options like caps:swapescape.
-	if capture.xkbState == nil {
-		state := C.neru_xkb_state_create()
-		capture.xkbState = unsafe.Pointer(state)
-		if state == nil && et.logger != nil {
-			et.logger.Warn(
-				"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
-					"falling back to hardcoded evdev key names",
-			)
-		}
+	// Refresh xkb_state on every activation so lock modifiers (Num Lock,
+	// Caps Lock) and layout group reflect the current compositor state.
+	if capture.xkbState != nil {
+		C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
+	}
+	xkb := C.neru_xkb_state_create()
+	capture.xkbState = unsafe.Pointer(xkb)
+	if xkb == nil && et.logger != nil {
+		et.logger.Warn(
+			"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
+				"falling back to hardcoded evdev key names",
+		)
 	}
 
 	manager := overlay.Get()
