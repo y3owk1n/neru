@@ -40,9 +40,10 @@ separate "stable on macOS today" from "portable by design, still incomplete".
     - [ ] native overlay rendering
     - [ ] global hotkeys & event capture
 - Linux (Wayland KDE Plasma):
-    - [ ] input injection (libei or KWin protocols)
-    - [ ] native overlay rendering
-    - [ ] global hotkeys & event capture
+    - [x] input injection (libei via RemoteDesktop portal)
+    - [x] native overlay rendering (wlr-layer-shell + Cairo)
+    - [x] global hotkeys & event capture (evdev passive grab)
+    - [ ] app watcher / focus tracking
 - Windows:
     - [x] UI Automation integration — initial coverage
     - [x] screen and cursor management
