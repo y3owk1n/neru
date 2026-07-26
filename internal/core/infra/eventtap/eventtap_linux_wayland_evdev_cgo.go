@@ -1016,8 +1016,6 @@ func (et *EventTap) xkbStateModifierName(capture *waylandEvdevCapture, code uint
 		return evdevModifierAlt
 	case "Meta_L", "Meta_R", "Super_L", "Super_R", "Hyper_L", "Hyper_R":
 		return evdevModifierCmd
-	case "Caps_Lock":
-		return ""
 	}
 
 	return ""
