@@ -994,30 +994,33 @@ func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) s
 	return evdevKeyName(code)
 }
 
-// xkbStateResolvesAsModifier reports whether the xkb_state resolves the
-// given scan code as a modifier key. This prevents the hardcoded evdev
-// modifier map from treating a physical modifier as such when the
-// compositor's XKB options remap it (e.g. caps:swapescape, ctrl:swapcaps).
-func (et *EventTap) xkbStateResolvesAsModifier(capture *waylandEvdevCapture, code uint16) bool {
+// xkbStateModifierName returns the canonical evdev modifier name for the
+// given scan code as resolved by the XKB keymap, or empty string when the
+// key is not a modifier.  When XKB remaps a physical modifier to a different
+// function (e.g. ctrl:swapcaps makes Caps Lock act as Control), this returns
+// the remapped modifier name so the handler tracks the correct modifier.
+func (et *EventTap) xkbStateModifierName(capture *waylandEvdevCapture, code uint16) string {
 	if capture == nil || capture.xkbState == nil {
-		return true
+		return evdevModifierName(code)
 	}
 	key := et.xkbEvdevKeyName(capture, code)
 	if key == "" {
-		return true
+		return evdevModifierName(code)
 	}
 	switch key {
-	case "Shift_L", "Shift_R",
-		"Control_L", "Control_R",
-		"Alt_L", "Alt_R",
-		"Meta_L", "Meta_R",
-		"Super_L", "Super_R",
-		"Hyper_L", "Hyper_R",
-		"Caps_Lock", "Num_Lock":
-		return true
+	case "Shift_L", "Shift_R":
+		return evdevModifierShift
+	case "Control_L", "Control_R":
+		return evdevModifierCtrl
+	case "Alt_L", "Alt_R":
+		return evdevModifierAlt
+	case "Meta_L", "Meta_R", "Super_L", "Super_R", "Hyper_L", "Hyper_R":
+		return evdevModifierCmd
+	case "Caps_Lock":
+		return evdevModifierLock
 	}
 
-	return false
+	return ""
 }
 
 func (et *EventTap) handleWaylandEvdevEvent(
@@ -1044,12 +1047,13 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		)
 	}
 
-	// Skip modifier handling when XKB remaps this physical key to a
-	// non-modifier function (e.g. caps:swapescape remaps Caps Lock to
-	// Escape, but the hardcoded scan-code check would still classify it
-	// as a modifier and return before the compositor keymap fires).
-	modifier := evdevModifierName(event.code)
-	if modifier != "" && et.xkbStateResolvesAsModifier(capture, event.code) {
+	// Resolve the modifier name through the XKB keymap so that compositor
+	// options like ctrl:swapcaps and caps:swapescape are respected: when
+	// XKB remaps a physical modifier to a different function, the handler
+	// uses the remapped modifier name (or bypasses modifier handling when
+	// the key is remapped to a non-modifier).
+	modifier := et.xkbStateModifierName(capture, event.code)
+	if modifier != "" {
 		if event.value == evdevValueRepeat {
 			return
 		}
