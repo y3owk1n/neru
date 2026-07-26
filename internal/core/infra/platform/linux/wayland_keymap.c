@@ -178,6 +178,50 @@ void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press
 	xkb_state_update_key(state->state, (xkb_keycode_t)evdev_code + 8, is_press ? XKB_KEY_DOWN : XKB_KEY_UP);
 }
 
+static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
+	static const struct {
+		const char *xkb;
+		const char *canon;
+	} table[] = {
+		{"semicolon", ";"},   {"colon", ":"},       {"comma", ","},
+		{"period", "."},      {"slash", "/"},        {"backslash", "\\"},
+		{"apostrophe", "'"},  {"grave", "`"},        {"minus", "-"},
+		{"equal", "="},       {"bracketleft", "["},  {"bracketright", "]"},
+		{"less", "<"},        {"greater", ">"},      {"underscore", "_"},
+		{"plus", "+"},        {"asciitilde", "~"},   {"exclam", "!"},
+		{"at", "@"},          {"numbersign", "#"},   {"dollar", "$"},
+		{"percent", "%"},     {"asciicircum", "^"},  {"ampersand", "&"},
+		{"asterisk", "*"},    {"parenleft", "("},    {"parenright", ")"},
+		{"question", "?"},    {"quotedbl", "\""},    {"bar", "|"},
+		{"Page_Up", "PageUp"},     {"Page_Down", "PageDown"},
+		{"KP_Add", "+"},           {"KP_Subtract", "-"},
+		{"KP_Multiply", "*"},      {"KP_Divide", "/"},
+		{"KP_Enter", "Return"},    {"KP_Delete", "Delete"},
+		{"KP_Insert", "Insert"},   {"KP_Home", "Home"},
+		{"KP_End", "End"},         {"KP_Page_Up", "PageUp"},
+		{"KP_Page_Down", "PageDown"}, {"KP_Up", "Up"},
+		{"KP_Down", "Down"},       {"KP_Left", "Left"},
+		{"KP_Right", "Right"},     {"KP_Begin", "5"},
+		{"KP_Decimal", "."},
+	};
+	for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++) {
+		if (strcmp(buf, table[i].xkb) == 0) {
+			size_t len = strlen(table[i].canon);
+			if (len < buf_size) {
+				memmove(buf, table[i].canon, len + 1);
+			}
+			return;
+		}
+	}
+	/* KP_0 through KP_9 */
+	size_t blen = strlen(buf);
+	if (blen == 5 && buf[0] == 'K' && buf[1] == 'P' && buf[2] == '_' &&
+	    buf[3] >= '0' && buf[3] <= '9') {
+		buf[0] = buf[3];
+		buf[1] = '\0';
+	}
+}
+
 int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size) {
 	if (!state || !state->state || !buf || buf_size == 0)
 		return -1;
@@ -187,6 +231,10 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 		return -1;
 
 	xkb_keysym_get_name(keysym, buf, buf_size);
+	if (buf[0] == '\0')
+		return -1;
+
+	neru_normalize_xkb_name(buf, buf_size);
 	if (buf[0] == '\0')
 		return -1;
 
