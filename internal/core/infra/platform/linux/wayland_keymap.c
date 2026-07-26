@@ -293,7 +293,6 @@ void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_l
 	if (caps_idx != XKB_MOD_INVALID && caps_lock_on)
 		locked |= (xkb_mod_mask_t)1 << caps_idx;
 
-	xkb_layout_index_t current_group =
-	    xkb_state_serialize_layout(state->state, XKB_STATE_LAYOUT_LOCKED);
+	xkb_layout_index_t current_group = xkb_state_serialize_layout(state->state, XKB_STATE_LAYOUT_LOCKED);
 	xkb_state_update_mask(state->state, 0, 0, locked, 0, 0, current_group);
 }
