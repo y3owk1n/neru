@@ -245,7 +245,7 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 	}
 	/* KP_0 through KP_9 */
 	size_t blen = strlen(buf);
-	if (blen == 5 && buf[0] == 'K' && buf[1] == 'P' && buf[2] == '_' && buf[3] >= '0' && buf[3] <= '9') {
+	if (blen == 4 && buf[0] == 'K' && buf[1] == 'P' && buf[2] == '_' && buf[3] >= '0' && buf[3] <= '9') {
 		buf[0] = buf[3];
 		buf[1] = '\0';
 	}
