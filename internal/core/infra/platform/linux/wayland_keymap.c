@@ -183,27 +183,57 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 		const char *xkb;
 		const char *canon;
 	} table[] = {
-		{"semicolon", ";"},   {"colon", ":"},       {"comma", ","},
-		{"period", "."},      {"slash", "/"},        {"backslash", "\\"},
-		{"apostrophe", "'"},  {"grave", "`"},        {"minus", "-"},
-		{"equal", "="},       {"bracketleft", "["},  {"bracketright", "]"},
-		{"less", "<"},        {"greater", ">"},      {"underscore", "_"},
-		{"plus", "+"},        {"asciitilde", "~"},   {"exclam", "!"},
-		{"at", "@"},          {"numbersign", "#"},   {"dollar", "$"},
-		{"percent", "%"},     {"asciicircum", "^"},  {"ampersand", "&"},
-		{"asterisk", "*"},    {"parenleft", "("},    {"parenright", ")"},
-		{"question", "?"},    {"quotedbl", "\""},    {"bar", "|"},
-		{"Page_Up", "PageUp"},     {"Page_Down", "PageDown"},
-		{"KP_Add", "+"},           {"KP_Subtract", "-"},
-		{"KP_Multiply", "*"},      {"KP_Divide", "/"},
-		{"KP_Enter", "Return"},    {"KP_Delete", "Delete"},
-		{"KP_Insert", "Insert"},   {"KP_Home", "Home"},
-		{"KP_End", "End"},         {"KP_Page_Up", "PageUp"},
-		{"KP_Page_Down", "PageDown"}, {"KP_Up", "Up"},
-		{"KP_Down", "Down"},       {"KP_Left", "Left"},
-		{"KP_Right", "Right"},     {"KP_Begin", "5"},
-		{"KP_Decimal", "."},
+	    {"semicolon", ";"},
+	    {"colon", ":"},
+	    {"comma", ","},
+	    {"period", "."},
+	    {"slash", "/"},
+	    {"backslash", "\\"},
+	    {"apostrophe", "'"},
+	    {"grave", "`"},
+	    {"minus", "-"},
+	    {"equal", "="},
+	    {"bracketleft", "["},
+	    {"bracketright", "]"},
+	    {"less", "<"},
+	    {"greater", ">"},
+	    {"underscore", "_"},
+	    {"plus", "+"},
+	    {"asciitilde", "~"},
+	    {"exclam", "!"},
+	    {"at", "@"},
+	    {"numbersign", "#"},
+	    {"dollar", "$"},
+	    {"percent", "%"},
+	    {"asciicircum", "^"},
+	    {"ampersand", "&"},
+	    {"asterisk", "*"},
+	    {"parenleft", "("},
+	    {"parenright", ")"},
+	    {"question", "?"},
+	    {"quotedbl", "\""},
+	    {"bar", "|"},
+	    {"Page_Up", "PageUp"},
+	    {"Page_Down", "PageDown"},
+	    {"KP_Add", "+"},
+	    {"KP_Subtract", "-"},
+	    {"KP_Multiply", "*"},
+	    {"KP_Divide", "/"},
+	    {"KP_Enter", "Return"},
+	    {"KP_Delete", "Delete"},
+	    {"KP_Insert", "Insert"},
+	    {"KP_Home", "Home"},
+	    {"KP_End", "End"},
+	    {"KP_Page_Up", "PageUp"},
+	    {"KP_Page_Down", "PageDown"},
+	    {"KP_Up", "Up"},
+	    {"KP_Down", "Down"},
+	    {"KP_Left", "Left"},
+	    {"KP_Right", "Right"},
+	    {"KP_Begin", "5"},
+	    {"KP_Decimal", "."},
 	};
+
 	for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++) {
 		if (strcmp(buf, table[i].xkb) == 0) {
 			size_t len = strlen(table[i].canon);
@@ -215,8 +245,7 @@ static void neru_normalize_xkb_name(char *buf, size_t buf_size) {
 	}
 	/* KP_0 through KP_9 */
 	size_t blen = strlen(buf);
-	if (blen == 5 && buf[0] == 'K' && buf[1] == 'P' && buf[2] == '_' &&
-	    buf[3] >= '0' && buf[3] <= '9') {
+	if (blen == 5 && buf[0] == 'K' && buf[1] == 'P' && buf[2] == '_' && buf[3] >= '0' && buf[3] <= '9') {
 		buf[0] = buf[3];
 		buf[1] = '\0';
 	}
