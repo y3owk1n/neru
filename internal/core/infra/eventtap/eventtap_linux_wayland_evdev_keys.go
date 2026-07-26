@@ -100,6 +100,7 @@ const (
 	evdevModifierCtrl  = "ctrl"
 	evdevModifierAlt   = "alt"
 	evdevModifierCmd   = "cmd"
+	evdevModifierLock  = "lock"
 
 	// Alias spellings accepted in configs for the canonical modifier tokens.
 	evdevModifierAliasControl = "control"
@@ -149,6 +150,7 @@ var evdevModifierNames = map[uint16]string{
 	evdevKeyRightAlt:   evdevModifierAlt,
 	evdevKeyLeftMeta:   evdevModifierCmd,
 	evdevKeyRightMeta:  evdevModifierCmd,
+	evdevKeyCapsLock:   evdevModifierLock,
 }
 
 var evdevKeyNames = map[uint16]string{

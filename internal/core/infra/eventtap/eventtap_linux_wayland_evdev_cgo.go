@@ -994,6 +994,32 @@ func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) s
 	return evdevKeyName(code)
 }
 
+// xkbStateResolvesAsModifier reports whether the xkb_state resolves the
+// given scan code as a modifier key. This prevents the hardcoded evdev
+// modifier map from treating a physical modifier as such when the
+// compositor's XKB options remap it (e.g. caps:swapescape, ctrl:swapcaps).
+func (et *EventTap) xkbStateResolvesAsModifier(capture *waylandEvdevCapture, code uint16) bool {
+	if capture == nil || capture.xkbState == nil {
+		return true
+	}
+	key := et.xkbEvdevKeyName(capture, code)
+	if key == "" {
+		return true
+	}
+	switch key {
+	case "Shift_L", "Shift_R",
+		"Control_L", "Control_R",
+		"Alt_L", "Alt_R",
+		"Meta_L", "Meta_R",
+		"Super_L", "Super_R",
+		"Hyper_L", "Hyper_R",
+		"Caps_Lock", "Num_Lock":
+		return true
+	}
+
+	return false
+}
+
 func (et *EventTap) handleWaylandEvdevEvent(
 	state *waylandEvdevKeyState,
 	event waylandEvdevEvent,
@@ -1018,7 +1044,12 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		)
 	}
 
-	if modifier := evdevModifierName(event.code); modifier != "" {
+	// Skip modifier handling when XKB remaps this physical key to a
+	// non-modifier function (e.g. caps:swapescape remaps Caps Lock to
+	// Escape, but the hardcoded scan-code check would still classify it
+	// as a modifier and return before the compositor keymap fires).
+	modifier := evdevModifierName(event.code)
+	if modifier != "" && et.xkbStateResolvesAsModifier(capture, event.code) {
 		if event.value == evdevValueRepeat {
 			return
 		}
