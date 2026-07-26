@@ -4,6 +4,7 @@ package eventtap
 
 /*
 #include "../platform/linux/evdev.h"
+#include "../platform/linux/wayland_keymap.h"
 */
 import "C"
 
@@ -107,6 +108,10 @@ type waylandEvdevCapture struct {
 	hotplugStopCh chan struct{}
 	hotplugOnce   sync.Once
 	hotplugWg     sync.WaitGroup
+
+	// xkbState holds a C xkb_state initialized from the compositor's keymap.
+	// Used to resolve evdev scan codes to key names that respect XKB options.
+	xkbState unsafe.Pointer // *C.neru_xkb_state
 }
 
 func newWaylandEvdevCapture(logger *zap.Logger) (*waylandEvdevCapture, error) {
@@ -194,6 +199,11 @@ func (capture *waylandEvdevCapture) Close() {
 		capture.done.Wait()
 
 		close(capture.events)
+
+		if capture.xkbState != nil {
+			C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
+			capture.xkbState = nil
+		}
 
 		if capture.logger != nil {
 			capture.logger.Debug("Evdev capture closed")
@@ -755,6 +765,36 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
+	// Refresh xkb_state on every activation so lock modifiers (Num Lock,
+	// Caps Lock) and layout group reflect the current compositor state.
+	if capture.xkbState != nil {
+		C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
+	}
+	xkb := C.neru_xkb_state_create()
+	capture.xkbState = unsafe.Pointer(xkb)
+	if xkb == nil && et.logger != nil {
+		et.logger.Error(
+			"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
+				"falling back to hardcoded evdev key names",
+		)
+	}
+	if xkb != nil {
+		numLock := C.int(0)
+		capsLock := C.int(0)
+		capture.deviceMu.Lock()
+		for _, file := range capture.files {
+			fd := C.int(file.Fd())
+			if C.neru_evdev_led_is_on(fd, C.uint(0)) != 0 {
+				numLock = 1
+			}
+			if C.neru_evdev_led_is_on(fd, C.uint(1)) != 0 {
+				capsLock = 1
+			}
+		}
+		capture.deviceMu.Unlock()
+		C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
+	}
+
 	manager := overlay.Get()
 	keyboardCaptureDisabled := false
 	if manager != nil {
@@ -903,7 +943,8 @@ drainStale:
 			for code := range state.releasedDuringGrab {
 				err := linux.WaylandKeyEvent(uint32(code), false)
 				if err != nil && et.logger != nil {
-					et.logger.Warn("Failed to inject synthetic key release at shutdown",
+					et.logger.Warn(
+						"Failed to inject synthetic key release at shutdown",
 						zap.Uint16("keycode", code),
 						zap.Error(err),
 					)
@@ -913,7 +954,8 @@ drainStale:
 				if !state.pressed[code] {
 					err := linux.WaylandKeyEvent(uint32(code), false)
 					if err != nil && et.logger != nil {
-						et.logger.Warn("Failed to inject synthetic key release at shutdown",
+						et.logger.Warn(
+							"Failed to inject synthetic key release at shutdown",
 							zap.Uint16("keycode", code),
 							zap.Error(err),
 						)
@@ -934,6 +976,51 @@ drainStale:
 	}
 }
 
+func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) string {
+	if capture == nil || capture.xkbState == nil {
+		return evdevKeyName(code)
+	}
+
+	var buf [64]C.char
+	if C.neru_xkb_state_key_get_name(
+		(*C.neru_xkb_state)(capture.xkbState),
+		C.uint16_t(code),
+		&buf[0],
+		64, //nolint:nlreturn
+	) == 0 {
+		return C.GoString(&buf[0])
+	}
+
+	return evdevKeyName(code)
+}
+
+// xkbStateModifierName returns the canonical evdev modifier name for the
+// given scan code as resolved by the XKB keymap, or empty string when the
+// key is not a modifier.  When XKB remaps a physical modifier to a different
+// function (e.g. ctrl:swapcaps makes Caps Lock act as Control), this returns
+// the remapped modifier name so the handler tracks the correct modifier.
+func (et *EventTap) xkbStateModifierName(capture *waylandEvdevCapture, code uint16) string {
+	if capture == nil || capture.xkbState == nil {
+		return evdevModifierName(code)
+	}
+	key := et.xkbEvdevKeyName(capture, code)
+	if key == "" {
+		return evdevModifierName(code)
+	}
+	switch key {
+	case "Shift_L", "Shift_R":
+		return evdevModifierShift
+	case "Control_L", "Control_R":
+		return evdevModifierCtrl
+	case "Alt_L", "Alt_R":
+		return evdevModifierAlt
+	case "Meta_L", "Meta_R", "Super_L", "Super_R", "Hyper_L", "Hyper_R":
+		return evdevModifierCmd
+	}
+
+	return ""
+}
+
 func (et *EventTap) handleWaylandEvdevEvent(
 	state *waylandEvdevKeyState,
 	event waylandEvdevEvent,
@@ -942,7 +1029,26 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
-	if modifier := evdevModifierName(event.code); modifier != "" {
+	// Feed all key events to xkb_state so its internal state stays
+	// consistent for key symbol resolution via XKB (respects options
+	// like caps:swapescape set by the compositor).
+	capture, _ := et.evdevWaylandCapture.(*waylandEvdevCapture)
+	if capture != nil && capture.xkbState != nil {
+		switch event.value {
+		case evdevValuePress:
+			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 1)
+		case evdevValueRelease:
+			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 0)
+		}
+	}
+
+	// Resolve the modifier name through the XKB keymap so that compositor
+	// options like ctrl:swapcaps and caps:swapescape are respected: when
+	// XKB remaps a physical modifier to a different function, the handler
+	// uses the remapped modifier name (or bypasses modifier handling when
+	// the key is remapped to a non-modifier).
+	modifier := et.xkbStateModifierName(capture, event.code)
+	if modifier != "" {
 		if event.value == evdevValueRepeat {
 			return
 		}
@@ -987,8 +1093,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 	switch event.value {
 	case evdevValuePress:
-		// If this key was already held when the event tap was enabled, the
-		// press is from the kernel's SYN_DROPPED state replay after
+		// If this key was already held when the event tap was e kernel's SYN_DROPPED state replay after
 		// EVIOCGRAB. Track it in pressed (so subsequent repeats are not
 		// silently consumed) but skip dispatch — the user did not press
 		// it during this mode session. The initialKeys entry persists
@@ -1005,7 +1110,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 		state.trackKey(event.code, false)
 
-		key := evdevKeyName(event.code)
+		key := et.xkbEvdevKeyName(capture, event.code)
 		if key != "" {
 			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
@@ -1028,7 +1133,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
-	key := evdevKeyName(event.code)
+	key := et.xkbEvdevKeyName(capture, event.code)
 	if key == "" {
 		return
 	}

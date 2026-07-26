@@ -67,7 +67,6 @@ const (
 	evdevKeyRightShift uint16 = 54
 	evdevKeyLeftAlt    uint16 = 56
 	evdevKeySpace      uint16 = 57
-	evdevKeyCapsLock   uint16 = 58
 	evdevKeyF1         uint16 = 59
 	evdevKeyF2         uint16 = 60
 	evdevKeyF3         uint16 = 61

@@ -44,6 +44,19 @@ int neru_evdev_get_name(int fd, char *name, size_t name_size) {
 	return r;
 }
 
+int neru_evdev_led_is_on(int fd, unsigned int led) {
+	unsigned long led_bits[(LED_MAX + 8 * sizeof(unsigned long)) / (8 * sizeof(unsigned long))];
+	memset(led_bits, 0, sizeof(led_bits));
+
+	if (ioctl(fd, EVIOCGLED(sizeof(led_bits)), led_bits) < 0) {
+		return 0;
+	}
+
+	int idx = led / (8 * (int)sizeof(unsigned long));
+	int bit = led % (8 * (int)sizeof(unsigned long));
+	return (led_bits[idx] >> bit) & 1UL;
+}
+
 int neru_evdev_get_bustype(int fd) {
 	struct input_id id;
 	if (ioctl(fd, EVIOCGID, &id) < 0) {
