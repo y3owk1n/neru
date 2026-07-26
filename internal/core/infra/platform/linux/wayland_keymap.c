@@ -274,3 +274,24 @@ int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char
 
 	return 0;
 }
+
+void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_lock_on) {
+	if (!state || !state->state)
+		return;
+
+	struct xkb_keymap *keymap = xkb_state_get_keymap(state->state);
+	if (!keymap)
+		return;
+
+	xkb_mod_mask_t locked = 0;
+
+	xkb_mod_index_t num_idx = xkb_keymap_mod_get_index(keymap, "Mod2");
+	if (num_idx != XKB_MOD_INVALID && num_lock_on)
+		locked |= (xkb_mod_mask_t)1 << num_idx;
+
+	xkb_mod_index_t caps_idx = xkb_keymap_mod_get_index(keymap, "Lock");
+	if (caps_idx != XKB_MOD_INVALID && caps_lock_on)
+		locked |= (xkb_mod_mask_t)1 << caps_idx;
+
+	xkb_state_update_mask(state->state, 0, 0, locked, 0, 0, 0);
+}

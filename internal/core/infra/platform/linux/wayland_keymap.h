@@ -22,4 +22,6 @@ void neru_xkb_state_key(neru_xkb_state *state, uint16_t evdev_code, int is_press
 // Returns 0 on success, -1 on failure.
 int neru_xkb_state_key_get_name(neru_xkb_state *state, uint16_t evdev_code, char *buf, size_t buf_size);
 
+void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_lock_on);
+
 #endif

@@ -778,6 +778,22 @@ func (et *EventTap) runWaylandEvdev() bool {
 				"falling back to hardcoded evdev key names",
 		)
 	}
+	if xkb != nil {
+		numLock := C.int(0)
+		capsLock := C.int(0)
+		capture.deviceMu.Lock()
+		for _, file := range capture.files {
+			fd := C.int(file.Fd())
+			if C.neru_evdev_led_is_on(fd, C.uint(0)) != 0 {
+				numLock = 1
+			}
+			if C.neru_evdev_led_is_on(fd, C.uint(1)) != 0 {
+				capsLock = 1
+			}
+		}
+		capture.deviceMu.Unlock()
+		C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
+	}
 
 	manager := overlay.Get()
 	keyboardCaptureDisabled := false
