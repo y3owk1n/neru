@@ -1036,15 +1036,12 @@ func (et *EventTap) handleWaylandEvdevEvent(
 	// like caps:swapescape set by the compositor).
 	capture, _ := et.evdevWaylandCapture.(*waylandEvdevCapture)
 	if capture != nil && capture.xkbState != nil {
-		press := C.int(0)
-		if event.value == evdevValuePress {
-			press = 1
+		switch event.value {
+		case evdevValuePress:
+			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 1)
+		case evdevValueRelease:
+			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 0)
 		}
-		C.neru_xkb_state_key(
-			(*C.neru_xkb_state)(capture.xkbState),
-			C.uint16_t(event.code),
-			press,
-		)
 	}
 
 	// Resolve the modifier name through the XKB keymap so that compositor
