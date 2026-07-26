@@ -7,18 +7,19 @@
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 
-struct neru_xkb_state {
-	struct xkb_state *state;
-	struct wl_display *display;
-	struct wl_keyboard *wl_keyboard;
-};
-
-// ── wl_keyboard listener (only .keymap is used) ─────────────────────────
-
 struct keymap_ready {
 	struct xkb_state *state;
 	int ready;
 };
+
+struct neru_xkb_state {
+	struct xkb_state *state;
+	struct wl_display *display;
+	struct wl_keyboard *wl_keyboard;
+	struct keymap_ready kr; // listener data, alive for lifetime of this struct
+};
+
+// ── wl_keyboard listener (only .keymap is used) ─────────────────────────
 
 static void neru_keyboard_keymap(
     void *data, struct wl_keyboard *wl_keyboard, uint32_t format, int32_t fd, uint32_t size) {
@@ -136,28 +137,27 @@ neru_xkb_state *neru_xkb_state_create(void) {
 		return NULL;
 	}
 
-	struct keymap_ready kr = {0};
-	wl_keyboard_add_listener(kb, &keyboard_listener, &kr);
-	wl_display_roundtrip(display);
-	wl_display_roundtrip(display);
-
-	if (!kr.state) {
-		wl_keyboard_destroy(kb);
-		wl_display_disconnect(display);
-		return NULL;
-	}
-
 	neru_xkb_state *state = calloc(1, sizeof(neru_xkb_state));
 	if (!state) {
-		xkb_state_unref(kr.state);
 		wl_keyboard_destroy(kb);
 		wl_display_disconnect(display);
 		return NULL;
 	}
 
-	state->state = kr.state;
 	state->display = display;
 	state->wl_keyboard = kb;
+	state->kr = (struct keymap_ready){0};
+
+	wl_keyboard_add_listener(kb, &keyboard_listener, &state->kr);
+	wl_display_roundtrip(display);
+	wl_display_roundtrip(display);
+
+	if (!state->kr.state) {
+		neru_xkb_state_destroy(state);
+		return NULL;
+	}
+
+	state->state = state->kr.state;
 
 	return state;
 }
