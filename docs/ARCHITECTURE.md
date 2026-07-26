@@ -71,19 +71,19 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 > **Note:** This table is a quick-reference overview. For the full detailed
 > feature-level comparison, see [CROSS_PLATFORM.md](./CROSS_PLATFORM.md#feature-parity-reference).
 
-| Capability                         | macOS | Linux (X11) | Linux (wlroots) | Linux (KDE) | Linux (GNOME) | Windows |
-| ---------------------------------- | ----- | ----------- | --------------- | ----------- | -------------- | ------- |
-| Screen bounds / cursor             | ✅    | ✅          | ✅              | ✅          | ✅             | ✅      |
-| Global hotkeys                     | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
-| Keyboard event tap                 | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
-| Accessibility (elements)           | ✅    | 🟡 (AT-SPI) | 🟡 (AT-SPI)     | 🟡 (AT-SPI) | 🟡 (AT-SPI)    | ✅ (UIA) |
-| UI overlays                        | ✅    | ✅          | ✅              | ✅          | ❌             | ✅      |
-| App watcher                        | ✅    | 🟡          | 🟡              | 🟡          | 🟡             | 🟡      |
-| Dark mode detection                | ✅    | ✅          | ✅              | ✅          | ✅             | 🟡      |
-| Notifications / alerts             | ✅    | 🟡          | 🟡              | 🟡          | 🟡             | 🟡      |
-| Config / log directories           | ✅    | ✅          | ✅              | ✅          | ✅             | ✅      |
+| Capability               | macOS | Linux (X11) | Linux (wlroots) | Linux (KDE) | Linux (GNOME) | Windows  |
+| ------------------------ | ----- | ----------- | --------------- | ----------- | ------------- | -------- |
+| Screen bounds / cursor   | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
+| Global hotkeys           | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
+| Keyboard event tap       | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
+| Accessibility (elements) | ✅    | 🟡 (AT-SPI) | 🟡 (AT-SPI)     | 🟡 (AT-SPI) | 🟡 (AT-SPI)   | ✅ (UIA) |
+| UI overlays              | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
+| App watcher              | ✅    | 🟡          | 🟡              | 🟡          | 🟡            | 🟡       |
+| Dark mode detection      | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
+| Notifications / alerts   | ✅    | 🟡          | 🟡              | 🟡          | 🟡            | 🟡       |
+| Config / log directories | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
 
-✅ = Supported   🟡 = Stub (code exists, returns `CodeNotSupported`)   ❌ = Not available
+✅ = Supported 🟡 = Stub (code exists, returns `CodeNotSupported`) ❌ = Not available
 
 ---
 
