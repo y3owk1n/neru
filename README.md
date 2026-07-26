@@ -48,16 +48,58 @@ https://github.com/user-attachments/assets/6b5673e1-7131-4bc0-ad57-41678e9423b9
 
 ## Install
 
+**macOS** — Homebrew (recommended):
+
 ```bash
 brew tap y3owk1n/tap
 brew install --cask y3owk1n/tap/neru
 ```
 
-Open the Neru app in the Applications folder and grant **Accessibility** in **System Settings → Privacy & Security → Accessibility**, then:
+<details>
+<summary>All platforms — prebuilt binaries</summary>
 
-Press `Cmd+Shift+Space`. Labels appear. You're already using it.
+Download the latest release for your OS from [GitHub Releases](https://github.com/y3owk1n/neru/releases/latest):
 
-Other options (Nix flake, or build from source and run `just install`) → [Installation Guide](docs/INSTALLATION.md)
+| Platform | Architecture          | File                     |
+| :------- | :-------------------- | :----------------------- |
+| macOS    | Intel (x86_64)        | `neru-darwin-amd64.zip`  |
+| macOS    | Apple Silicon (arm64) | `neru-darwin-arm64.zip`  |
+| Linux    | x86_64                | `neru-linux-amd64.zip`   |
+| Linux    | ARM64                 | `neru-linux-arm64.zip`   |
+| Windows  | x86_64                | `neru-windows-amd64.zip` |
+| Windows  | ARM64                 | `neru-windows-arm64.zip` |
+
+Extract the binary or executable and place it on your PATH.
+
+</details>
+
+<details>
+<summary>Linux — Nix flake</summary>
+
+Add to your flake inputs, then enable the module:
+
+```nix
+services.neru.enable = true;
+```
+
+See [Installation Guide](docs/INSTALLATION.md) for nix-darwin, NixOS, and home-manager examples.
+
+</details>
+
+<details>
+<summary>From source</summary>
+
+```bash
+git clone https://github.com/y3owk1n/neru.git && cd neru
+just build   # or just bundle on macOS
+just install
+```
+
+</details>
+
+---
+
+Once you're done with the installation, you can just run the `Neru.app` (macOS) or `neru launch` binary (macOS / Linux) or `neru.exe` (Windows). Neru will prompt for config initialization and accessibility permission whenever is needed.
 
 ---
 
@@ -180,15 +222,15 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 
 Everything you need to go deep:
 
-| Guide                                      | What's in it                                |
-| :----------------------------------------- | :------------------------------------------ |
-| [Installation](docs/INSTALLATION.md)       | Homebrew, Nix, source, permissions, launchd |
-| [CLI](docs/CLI.md)                         | Every command and flag                      |
-| [Configuration](docs/CONFIGURATION.md)     | Keybindings, themes, overlays, all settings |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)       | Power-user patterns and setups              |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes                     |
-| [Roadmap](docs/ROADMAP.md)                 | What's coming                               |
-| [Contributing](CONTRIBUTING.md)            | PRs and bug reports                         |
+| Guide                                      | What's in it                                          |
+| :----------------------------------------- | :---------------------------------------------------- |
+| [Installation](docs/INSTALLATION.md)       | Homebrew, Nix, prebuilt binaries, source, permissions |
+| [CLI](docs/CLI.md)                         | Every command and flag                                |
+| [Configuration](docs/CONFIGURATION.md)     | Keybindings, themes, overlays, all settings           |
+| [Tips & Tricks](docs/TIPS_TRICKS.md)       | Power-user patterns and setups                        |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes                               |
+| [Roadmap](docs/ROADMAP.md)                 | What's coming                                         |
+| [Contributing](CONTRIBUTING.md)            | PRs and bug reports                                   |
 
 ---
 
@@ -236,7 +278,8 @@ MIT — see [LICENSE](LICENSE).
 **Stop reaching for the mouse. It takes one command.**
 
 ```bash
-brew install --cask y3owk1n/tap/neru
+brew install --cask y3owk1n/tap/neru  # macOS
+# or download a binary: github.com/y3owk1n/neru/releases/latest
 ```
 
 <br/>
