@@ -283,15 +283,20 @@ void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_l
 	if (!keymap)
 		return;
 
-	xkb_mod_mask_t locked = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED);
+	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_DEPRESSED);
+	xkb_mod_mask_t latched   = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LATCHED);
+	xkb_mod_mask_t locked    = xkb_state_serialize_mods(state->state, XKB_STATE_MODS_LOCKED);
+	xkb_layout_index_t group = xkb_state_serialize_layout(state->state, XKB_STATE_LAYOUT_LOCKED);
+
+	xkb_mod_mask_t new_locked = locked;
+	int changed = 0;
 
 	xkb_mod_index_t num_idx = xkb_keymap_mod_get_index(keymap, "Mod2");
 	if (num_idx != XKB_MOD_INVALID) {
 		int cur = (locked >> num_idx) & 1;
 		if (cur != num_lock_on) {
-			xkb_keycode_t kc = 69 + 8;
-			xkb_state_update_key(state->state, kc, XKB_KEY_DOWN);
-			xkb_state_update_key(state->state, kc, XKB_KEY_UP);
+			new_locked ^= (xkb_mod_mask_t)1 << num_idx;
+			changed = 1;
 		}
 	}
 
@@ -299,9 +304,12 @@ void neru_xkb_state_sync_leds(neru_xkb_state *state, int num_lock_on, int caps_l
 	if (caps_idx != XKB_MOD_INVALID) {
 		int cur = (locked >> caps_idx) & 1;
 		if (cur != caps_lock_on) {
-			xkb_keycode_t kc = 58 + 8;
-			xkb_state_update_key(state->state, kc, XKB_KEY_DOWN);
-			xkb_state_update_key(state->state, kc, XKB_KEY_UP);
+			new_locked ^= (xkb_mod_mask_t)1 << caps_idx;
+			changed = 1;
 		}
+	}
+
+	if (changed) {
+		xkb_state_update_mask(state->state, depressed, latched, new_locked, 0, 0, group);
 	}
 }
