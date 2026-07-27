@@ -102,6 +102,32 @@ func TestDarwinAccessibility(t *testing.T) {
 }
 ```
 
+#### macOS tests that need the main run loop
+
+Native work such as building the keyboard layout maps or creating a `CGEventTap`
+is dispatched to the main queue, which is only drained while the main run loop
+runs. The daemon starts that loop in `cmd/neru`; a `go test` binary never does.
+A test that reaches such code therefore only passes when the Go scheduler
+happens to run it on the main OS thread — otherwise `dispatch_async` work
+silently times out (an empty keymap makes every key name fail to parse) and
+`dispatch_sync` deadlocks.
+
+Pump the run loop from `TestMain` so the behaviour is deterministic:
+
+```go
+// Pin the main thread during package init so TestMain still runs on it.
+func init() {
+    runtime.LockOSThread()
+}
+
+func TestMain(m *testing.M) {
+    os.Exit(darwin.RunMainLoopForTesting(m.Run))
+}
+```
+
+`*_integration_darwin_test.go` files are exempt from the "One Rule", so they may
+import `internal/core/infra/platform/darwin` directly.
+
 ### Test Command Usage
 
 - `just test`: Runs all unit tests (platform-agnostic).
