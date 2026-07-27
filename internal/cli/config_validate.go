@@ -20,7 +20,8 @@ var configValidateCmd = &cobra.Command{
 Checks for syntax errors, invalid values, and configuration conflicts.
 Useful for verifying config changes before reloading.
 By default, searches for config in standard locations for your platform
-(e.g. %APPDATA%/neru/config.toml on Windows, or $XDG_CONFIG_HOME/neru/config.toml on Unix).
+(e.g. %APPDATA%/neru/config.toml then ~/.config/neru/config.toml on Windows,
+or $XDG_CONFIG_HOME/neru/config.toml on Unix).
 Use the global --config flag to validate a specific file.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return runConfigValidate(cmd)

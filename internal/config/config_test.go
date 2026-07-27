@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -547,6 +548,78 @@ func TestFindConfigFile(t *testing.T) {
 		if !filepath.IsAbs(result) {
 			t.Errorf("FindConfigFile() returned relative path: %s", result)
 		}
+	}
+}
+
+// writeConfigFile creates a minimal, valid config file at path, creating any
+// missing parent directories.
+func writeConfigFile(t *testing.T, path string) {
+	t.Helper()
+
+	mkdirErr := os.MkdirAll(filepath.Dir(path), 0o755)
+	if mkdirErr != nil {
+		t.Fatalf("MkdirAll(%q) failed: %v", filepath.Dir(path), mkdirErr)
+	}
+
+	writeErr := os.WriteFile(path, []byte("[hints]\n"), 0o600)
+	if writeErr != nil {
+		t.Fatalf("WriteFile(%q) failed: %v", path, writeErr)
+	}
+}
+
+// TestFindConfigFile_DotConfigFallback pins that ~/.config/neru/config.toml is
+// discovered even when it is not the preferred directory. On Windows the
+// preferred directory is %APPDATA%\neru, so this is what lets a config carried
+// over from a Unix dotfiles repo work without setting XDG_CONFIG_HOME.
+func TestFindConfigFile_DotConfigFallback(t *testing.T) {
+	homeDir := t.TempDir()
+	preferredDir := t.TempDir()
+
+	// Point the preferred directory at an empty location, and os.UserHomeDir
+	// at ours: it reads USERPROFILE on Windows and HOME on Unix.
+	if runtime.GOOS == goosWindows {
+		t.Setenv("XDG_CONFIG_HOME", "")
+		t.Setenv("APPDATA", preferredDir)
+		t.Setenv("USERPROFILE", homeDir)
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", preferredDir)
+		t.Setenv("HOME", homeDir)
+	}
+
+	dotConfig := filepath.Join(homeDir, ".config", "neru", "config.toml")
+	writeConfigFile(t, dotConfig)
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	if got := service.FindConfigFile(); got != dotConfig {
+		t.Errorf("FindConfigFile() = %q, want %q", got, dotConfig)
+	}
+}
+
+// TestFindConfigFile_PrefersPreferredDir pins that the ~/.config fallback does
+// not shadow the platform's preferred directory when both exist.
+func TestFindConfigFile_PrefersPreferredDir(t *testing.T) {
+	homeDir := t.TempDir()
+	preferredDir := t.TempDir()
+
+	if runtime.GOOS == goosWindows {
+		t.Setenv("XDG_CONFIG_HOME", "")
+		t.Setenv("APPDATA", preferredDir)
+		t.Setenv("USERPROFILE", homeDir)
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", preferredDir)
+		t.Setenv("HOME", homeDir)
+	}
+
+	preferred := filepath.Join(preferredDir, "neru", "config.toml")
+	dotConfig := filepath.Join(homeDir, ".config", "neru", "config.toml")
+
+	for _, path := range []string{preferred, dotConfig} {
+		writeConfigFile(t, path)
+	}
+
+	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	if got := service.FindConfigFile(); got != preferred {
+		t.Errorf("FindConfigFile() = %q, want %q", got, preferred)
 	}
 }
 

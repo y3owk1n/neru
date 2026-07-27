@@ -152,6 +152,12 @@ func launchProgram(cmd *cobra.Command, cfgPath string) {
 		os.Exit(0)
 	}
 
+	// From here on this process is the daemon rather than a CLI client. On
+	// Windows that means giving up a console the shell allocated for us, so a
+	// Start Menu or autostart launch does not leave a window behind. No-op
+	// elsewhere, and no-op when a terminal owns the console.
+	detachConsoleIfOwned()
+
 	if LaunchFunc != nil {
 		LaunchFunc(cfgPath)
 	} else {

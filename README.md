@@ -99,7 +99,7 @@ just install
 
 ---
 
-Once you're done with the installation, you can just run the `Neru.app` (macOS) or `neru launch` binary (macOS / Linux) or `neru.exe` (Windows). Neru will prompt for config initialization and accessibility permission whenever is needed.
+Once you're done with the installation, you can just run the `Neru.app` (macOS) or the `neru launch` binary (macOS / Linux / Windows). On Windows you can also start Neru from the Start Menu, which runs the same `neru.exe` without a console window. Neru will prompt for config initialization and accessibility permission whenever is needed.
 
 ---
 

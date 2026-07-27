@@ -690,7 +690,9 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 // The $XDG_CONFIG_HOME environment variable is also respected on Windows when set,
 // for users of cross-platform shell environments.
 // This is the single source of truth for the primary config location,
-// used by both FindConfigFile and config init.
+// used by both FindConfigFile and config init. It is where a config file is
+// written; FindConfigFile additionally reads ~/.config/neru on Windows, so a
+// config carried over from a Unix dotfiles repo is still picked up.
 func DefaultConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, "neru"), nil
@@ -721,9 +723,14 @@ func DefaultConfigDir() (string, error) {
 // FindConfigFile searches for a configuration file in standard locations.
 // Returns the path to the config file, or an empty string if not found.
 func (s *Service) FindConfigFile() string {
-	// Try preferred config directory first (XDG_CONFIG_HOME or ~/.config)
+	// Try preferred config directory first (XDG_CONFIG_HOME, %APPDATA% on
+	// Windows, or ~/.config)
+	preferredDir := ""
+
 	configDir, dirErr := DefaultConfigDir()
 	if dirErr == nil {
+		preferredDir = configDir
+
 		path := filepath.Join(configDir, "config.toml")
 		if found := s.tryConfigPath(path); found != "" {
 			return found
@@ -732,11 +739,19 @@ func (s *Service) FindConfigFile() string {
 		s.logger.Warn("Failed to determine config directory", zap.Error(dirErr))
 	}
 
-	// When XDG_CONFIG_HOME is set, also check ~/.config as a fallback
-	if os.Getenv("XDG_CONFIG_HOME") != "" {
-		homeDir, homeErr := os.UserHomeDir()
-		if homeErr == nil {
-			path := filepath.Join(homeDir, ".config", "neru", "config.toml")
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		s.logger.Warn("Failed to get user home directory", zap.Error(homeErr))
+	}
+
+	// Also check ~/.config/neru whenever it is not already the preferred
+	// directory. That covers XDG_CONFIG_HOME pointing elsewhere, and Windows,
+	// where the preferred directory is %APPDATA%\neru — cross-platform
+	// dotfiles keep working there without setting XDG_CONFIG_HOME.
+	if homeErr == nil {
+		dotConfigDir := filepath.Join(homeDir, ".config", "neru")
+		if dotConfigDir != preferredDir {
+			path := filepath.Join(dotConfigDir, "config.toml")
 			if found := s.tryConfigPath(path); found != "" {
 				return found
 			}
@@ -744,15 +759,12 @@ func (s *Service) FindConfigFile() string {
 	}
 
 	// Try legacy and current-directory locations
-	homeDir, homeErr := os.UserHomeDir()
 	if homeErr == nil {
 		// Try .neru.toml
 		path := filepath.Join(homeDir, ".neru.toml")
 		if found := s.tryConfigPath(path); found != "" {
 			return found
 		}
-	} else {
-		s.logger.Warn("Failed to get user home directory", zap.Error(homeErr))
 	}
 
 	// Try current directory

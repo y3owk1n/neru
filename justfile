@@ -8,10 +8,13 @@ BUILD_DATE := `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 # macOS deployment target (used in CGO CFLAGS and as an env var for clang/ld).
 MACOSX_DEPLOYMENT_TARGET := "14.0"
 
-# Ldflags for version injection; Windows uses GUI subsystem (no console window).
+# Ldflags for version injection. Windows deliberately builds for the console
+# subsystem (no -H windowsgui) so a single neru.exe serves as both the CLI and
+# the daemon: subcommands can write to the terminal they were typed into, and
+# the daemon frees the console the shell allocated for it (see
+# internal/cli/console_windows.go).
 
 LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + " -X github.com/y3owk1n/neru/internal/cli.GitCommit=" + GIT_COMMIT + " -X github.com/y3owk1n/neru/internal/cli.BuildDate=" + BUILD_DATE
-WIN_LDFLAGS := "-H windowsgui -s -w -X github.com/y3owk1n/neru/internal/cli.Version=" + VERSION + " -X github.com/y3owk1n/neru/internal/cli.GitCommit=" + GIT_COMMIT + " -X github.com/y3owk1n/neru/internal/cli.BuildDate=" + BUILD_DATE
 
 # Default build
 default: build
@@ -23,7 +26,7 @@ default: build
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
-    {{ if os() == "windows" { "CGO_ENABLED=0" } else { "CGO_ENABLED=1" } }} go build -ldflags="{{ if os() == "windows" { WIN_LDFLAGS } else { LDFLAGS } }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
+    {{ if os() == "windows" { "CGO_ENABLED=0" } else { "CGO_ENABLED=1" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
 
 # Build a Linux binary. Must run on a Linux host (CGO required for native backends).
@@ -58,7 +61,7 @@ build-windows ARCH="amd64":
     @echo "Building Neru for windows/{{ ARCH }}..."
     mkdir -p bin
     just generate-winres {{ ARCH }}
-    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="{{ WIN_LDFLAGS }}" -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
+    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Build complete: bin/neru-windows-{{ ARCH }}.exe"
 
 # Build a macOS binary for the current host.
@@ -119,7 +122,7 @@ release-ci-windows ARCH VERSION_OVERRIDE:
     @echo "Date: {{ BUILD_DATE }}"
     mkdir -p bin
     just generate-winres {{ ARCH }}
-    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-H windowsgui -s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
+    CGO_ENABLED=0 GOOS=windows GOARCH={{ ARCH }} go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/cli.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/cli.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru-windows-{{ ARCH }}.exe ./cmd/neru
     @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
 # Bundle the application
@@ -148,6 +151,21 @@ install *ARGS:
     script="{{ justfile_directory() }}/scripts/install-{{ os() }}.sh"
     if [ ! -f "$script" ]; then
         echo "just install: unsupported platform '{{ os() }}'" >&2
+        exit 1
+    fi
+    exec bash "$script" {{ ARGS }}
+
+# Remove a Neru installed by `just install`, undoing each of its steps in
+# reverse. Dispatches to the per-platform script in scripts/. Pass -y to accept
+# every prompt non-interactively, and --purge to also remove your config and
+# logs (they are kept otherwise, so -y alone can never delete your config.toml).
+# On Windows this runs under a bash such as Git Bash.
+uninstall *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script="{{ justfile_directory() }}/scripts/uninstall-{{ os() }}.sh"
+    if [ ! -f "$script" ]; then
+        echo "just uninstall: unsupported platform '{{ os() }}'" >&2
         exit 1
     fi
     exec bash "$script" {{ ARGS }}
