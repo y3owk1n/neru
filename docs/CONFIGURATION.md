@@ -61,12 +61,18 @@ neru config init -c /path/to/config.toml  # Custom path
 Loaded in priority order (highest first):
 
 1. `$XDG_CONFIG_HOME/neru/config.toml`
-2. `~/.config/neru/config.toml`
-3. `~/.neru.toml` (legacy)
-4. `neru.toml` (current directory)
-5. `config.toml` (current directory)
+2. `%APPDATA%\neru\config.toml` (Windows only)
+3. `~/.config/neru/config.toml`
+4. `~/.neru.toml` (legacy)
+5. `neru.toml` (current directory)
+6. `config.toml` (current directory)
 
 Override at launch: `neru launch -c /path/to/config.toml`
+
+On Windows, `neru config init` writes to `%APPDATA%\neru\config.toml` — the
+platform convention — but `~/.config/neru/config.toml` is still read, so a config
+kept in a cross-platform dotfiles repo works as-is. Set `XDG_CONFIG_HOME` if you
+want `neru config init` and `neru config set` to write there too.
 
 ### Config Layering
 

@@ -522,7 +522,8 @@ just install   # copies neru to ~/.local/bin, offers a systemd user service,
 
 # Windows (from Git Bash): build the exe, then install it
 just build-windows
-just install   # copies neru.exe under %LOCALAPPDATA% and offers a login autostart entry
+just install   # copies neru.exe under %LOCALAPPDATA%, and offers a user PATH entry,
+               # a Start Menu shortcut, and a login autostart entry
 ```
 
 `just install` refuses to run over a Homebrew or Nix-managed install and tells you
@@ -532,6 +533,8 @@ accept them all and install everything without asking:
 ```bash
 just install -y
 ```
+
+To undo it later, see [`just uninstall`](#just-uninstall).
 
 ### Build and install manually
 
@@ -665,26 +668,109 @@ url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin
 brew uninstall --cask neru
 ```
 
+### Nix
+
+Remove the module from your configuration and rebuild.
+
+### `just uninstall`
+
+If you installed from source with `just install`, `just uninstall` undoes each of
+its steps in reverse, asking before each one. On Windows it runs under a bash such
+as Git Bash, same as the installer.
+
+```bash
+just uninstall            # interactive
+just uninstall -y         # accept every prompt
+just uninstall -y --purge # ...and delete your config and logs too
+```
+
+**Your config and logs are kept unless you pass `--purge`.** `-y` on its own can
+never delete a hand-tuned `config.toml`. With `--purge` it lists the fully
+resolved directories and asks before deleting any of them — worth reading, since
+`XDG_CONFIG_HOME` can put your config somewhere other than `~/.config`.
+
+It refuses to run over a Homebrew- or Nix-managed install and points you at the
+right removal command instead. Two things it deliberately leaves alone:
+
+- **A `/usr/local/bin/neru` that is not a symlink into the app bundle** — that is
+  a hand-installed binary, which the installer also refuses to touch.
+- **The Linux `input` group** — other evdev tools may rely on it, so it prints the
+  `gpasswd -d` line rather than dropping your membership.
+
+On macOS, the Accessibility and Input Monitoring entries stay in System Settings →
+Privacy & Security; remove them by hand if you are not reinstalling.
+
 ### Manual
+
+<details>
+<summary>macOS</summary>
 
 ```bash
 # Stop and remove launchd service (if installed)
 neru services uninstall
 
-# Remove app bundle
+# Remove app bundle and CLI
 rm -rf /Applications/Neru.app
-
-# Remove CLI
 rm /usr/local/bin/neru
 
-# Remove configuration
-rm -rf ~/.config/neru
-rm -rf ~/Library/Application\ Support/neru
+# Remove completions and man pages
+rm -f ~/.config/fish/completions/neru.fish ~/.zsh/completions/_neru \
+      ~/.local/share/bash-completion/completions/neru
+rm -f /usr/local/share/man/man1/neru*.1
 
-# Remove logs
-rm -rf ~/Library/Logs/neru
+# Remove configuration, data and logs
+rm -rf ~/.config/neru ~/Library/Application\ Support/neru ~/Library/Logs/neru
 ```
 
-### Nix
+</details>
 
-Remove the module from your configuration and rebuild.
+<details>
+<summary>Linux</summary>
+
+```bash
+# Stop and remove the systemd user service
+systemctl --user disable --now neru.service
+rm -f ~/.config/systemd/user/neru.service
+systemctl --user daemon-reload
+
+# Remove the binary
+rm -f ~/.local/bin/neru
+
+# Remove completions and man pages
+rm -f ~/.local/share/bash-completion/completions/neru ~/.zsh/completions/_neru \
+      ~/.config/fish/completions/neru.fish
+rm -f ~/.local/share/man/man1/neru*.1
+
+# Remove configuration, data and logs
+rm -rf ~/.config/neru ~/.local/share/neru ~/.local/state/neru
+
+# Only if nothing else needs it
+sudo gpasswd -d "$USER" input
+```
+
+</details>
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+Stop-Process -Name neru -Force -ErrorAction SilentlyContinue
+
+# Autostart and Start Menu shortcut
+Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Neru
+Remove-Item "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Neru.lnk"
+
+# Binary
+Remove-Item "$env:LOCALAPPDATA\Programs\neru" -Recurse
+
+# Configuration, data and logs
+Remove-Item "$env:APPDATA\neru" -Recurse
+Remove-Item "$env:LOCALAPPDATA\neru" -Recurse
+```
+
+Removing the PATH entry by hand is fiddly — `setx` truncates the value at 1024
+characters and flattens other tools' `%VAR%` entries. Either use
+`just uninstall`, or edit it through System Settings → *Edit environment
+variables for your account*.
+
+</details>
