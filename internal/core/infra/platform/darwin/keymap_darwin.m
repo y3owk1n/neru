@@ -895,6 +895,15 @@ static void waitForLayoutMapsInitialized(NSTimeInterval timeoutSeconds) {
 		}
 	}
 	[gLayoutInitCondition unlock];
+
+	// The build is dispatched to the main queue, so a timeout means the main
+	// run loop never ran it. Callers then see an empty keymap and every key
+	// name fails to resolve, which is worth saying out loud.
+	if (!atomic_load_explicit(&gLayoutMapsInitialized, memory_order_acquire)) {
+		NSLog(
+		    @"Neru: timed out after %.1fs waiting for keyboard layout maps (main run loop not running?)",
+		    timeoutSeconds);
+	}
 }
 
 /// Register notification observer (called once from initializeKeyMaps)

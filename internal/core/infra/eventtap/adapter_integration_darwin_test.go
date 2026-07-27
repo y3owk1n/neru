@@ -4,13 +4,27 @@ package eventtap_test
 
 import (
 	"context"
+	"os"
+	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	_ "github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // Link CGO implementations
+	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // Link CGO implementations
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
+
+// Pin the main thread during package init so TestMain still runs on it.
+func init() {
+	runtime.LockOSThread()
+}
+
+// TestMain services the macOS main run loop while the tests run. Resolving
+// hotkey strings to key codes happens on the main queue, which nothing drains
+// in a plain `go test` binary.
+func TestMain(m *testing.M) {
+	os.Exit(darwin.RunMainLoopForTesting(m.Run))
+}
 
 // TestEventTapAdapterImplementsPort verifies the adapter implements the port interface.
 func TestEventTapAdapterImplementsPort(_ *testing.T) {
