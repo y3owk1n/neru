@@ -106,7 +106,9 @@ for comp in \
         comp_found=1
     fi
 done
-[ "$comp_found" -eq 0 ] && echo "  No completions found"
+if [ "$comp_found" -eq 0 ]; then
+    echo "  No completions found"
+fi
 
 # Step 5: man pages. Only Neru's own pages, never the directory itself.
 echo "Step 5/5: Man pages"

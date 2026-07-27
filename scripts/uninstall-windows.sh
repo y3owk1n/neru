@@ -75,12 +75,32 @@ if [ "$purge" -eq 0 ]; then
 fi
 
 # Step 0: stop a running Neru. Windows locks the image of a running process, so
-# the binary in step 4 cannot be deleted while the daemon is up.
+# the binary in step 4 cannot be deleted while the daemon is up. Matched by full
+# path, not image name: a dev build or a second install is also called neru.exe,
+# and this must only stop the one it is about to delete.
 echo "Step 0/5: Running instance"
-if MSYS2_ARG_CONV_EXCL='*' taskkill /IM neru.exe /F >/dev/null 2>&1; then
-    echo "✓ Stopped a running Neru"
+if stop_result="$(run_ps "$win_dst_exe" <<'PS'
+param([Parameter(Mandatory = $true)][string]$Exe)
+$ErrorActionPreference = 'Stop'
+
+$running = @(Get-Process -Name neru -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -eq $Exe })
+if ($running.Count -eq 0) {
+    Write-Output 'absent'
+    exit 0
+}
+
+$running | Stop-Process -Force
+Write-Output 'stopped'
+PS
+)"; then
+    if [ "${stop_result%$'\r'}" = "stopped" ]; then
+        echo "✓ Stopped the Neru running from $win_dst_exe"
+    else
+        echo "  No Neru running from $win_dst_exe"
+    fi
 else
-    echo "  Neru is not running"
+    echo "Could not stop a running Neru; close it before retrying." >&2
 fi
 
 # Step 1: autostart. Removed first so a half-finished uninstall never leaves a
@@ -200,8 +220,9 @@ if [ "$purge" -eq 0 ]; then
     echo "  Kept. Pass --purge to remove your config and logs too."
 else
     note_purge_target "config" "$(cygpath -u "${APPDATA:-$HOME/AppData/Roaming}")/neru"
-    [ -n "${XDG_CONFIG_HOME:-}" ] &&
+    if [ -n "${XDG_CONFIG_HOME:-}" ]; then
         note_purge_target "XDG config" "$(cygpath -u "$XDG_CONFIG_HOME")/neru"
+    fi
     # Neru also reads ~/.config/neru on Windows, for configs carried over from a
     # Unix dotfiles repo.
     note_purge_target "dotfiles config" "$HOME/.config/neru"

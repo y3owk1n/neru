@@ -137,7 +137,9 @@ for comp in \
         comp_found=1
     fi
 done
-[ "$comp_found" -eq 0 ] && echo "  No completions found"
+if [ "$comp_found" -eq 0 ]; then
+    echo "  No completions found"
+fi
 
 # Step 5: man pages. The installer picks whichever manpath directory was
 # writable, so scan the same set and remove only Neru's own pages — never the
@@ -156,7 +158,9 @@ for man_base in $(manpath 2>/dev/null | tr ':' ' ') "/usr/local/share/man"; do
     echo "✓ Removed man pages from $man_dir"
     man_found=1
 done
-[ "$man_found" -eq 0 ] && echo "  No man pages found"
+if [ "$man_found" -eq 0 ]; then
+    echo "  No man pages found"
+fi
 
 # Config and logs. Opt-in via --purge, and still confirmed, because a
 # hand-tuned config.toml is the one thing here that cannot be rebuilt.
