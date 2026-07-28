@@ -22,20 +22,19 @@ typedef struct {
 	struct wl_surface *discovery_surface;
 } NeruWaylandScreen;
 
-// Maximum number of foreign-toplevel windows tracked concurrently. Sessions
-// rarely exceed a few dozen toplevels; excess handles are ignored (they simply
-// won't contribute a focused app_id, which is harmless).
-#define NERU_MAX_TOPLEVELS 64
 // app_id / title buffer length. Reverse-DNS desktop IDs (e.g.
 // "org.kde.konsole") and freedesktop app-ids fit comfortably in 256 bytes.
 #define NERU_APP_ID_LEN 256
 
-// NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. app_id and the
-// activated flag are committed atomically on the handle's `done` event; the
-// `pending_*` fields buffer values arriving between `done` events so a
-// half-applied state is never observed.
+// NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. Nodes are heap
+// allocated and threaded onto NeruWlrootsClient.toplevels via `link`, so there
+// is no fixed cap on the number of windows tracked. app_id and the activated
+// flag are committed atomically on the handle's `done` event; the `pending_*`
+// fields buffer values arriving between `done` events so a half-applied state
+// is never observed.
 typedef struct {
-	struct zwlr_foreign_toplevel_handle_v1 *handle;  // NULL marks a free slot
+	struct wl_list link;  // links into NeruWlrootsClient.toplevels
+	struct zwlr_foreign_toplevel_handle_v1 *handle;
 	char app_id[NERU_APP_ID_LEN];
 	char pending_app_id[NERU_APP_ID_LEN];
 	int has_pending_app_id;
@@ -66,7 +65,7 @@ typedef struct NeruWlrootsClient {
 	// the "activated" (focused) state so Neru can resolve the focused app_id
 	// on wlroots/KWin Wayland sessions (GNOME/Mutter does not implement it).
 	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
-	NeruToplevel toplevels[NERU_MAX_TOPLEVELS];
+	struct wl_list toplevels;              // list of NeruToplevel, guarded by toplevel_mutex
 	char focused_app_id[NERU_APP_ID_LEN];  // guarded by toplevel_mutex
 	pthread_mutex_t toplevel_mutex;
 	int toplevel_mutex_ready;

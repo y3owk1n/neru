@@ -484,9 +484,10 @@ static void neru_wlr_toplevel_unlock(NeruWlrootsClient *c) {
 }
 
 static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_foreign_toplevel_handle_v1 *handle) {
-	for (int i = 0; i < NERU_MAX_TOPLEVELS; i++) {
-		if (c->toplevels[i].handle == handle)
-			return &c->toplevels[i];
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->handle == handle)
+			return t;
 	}
 	return NULL;
 }
@@ -496,9 +497,9 @@ static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_fo
 // activated the cache is cleared. Callers must hold toplevel_mutex.
 static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	const char *found = NULL;
-	for (int i = 0; i < NERU_MAX_TOPLEVELS; i++) {
-		NeruToplevel *t = &c->toplevels[i];
-		if (t->handle && t->activated && t->app_id[0] != '\0')
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->activated && t->app_id[0] != '\0')
 			found = t->app_id;
 	}
 	if (found) {
@@ -589,7 +590,8 @@ static void neru_wlr_toplevel_closed(void *data, struct zwlr_foreign_toplevel_ha
 	neru_wlr_toplevel_lock(c);
 	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
 	if (t) {
-		memset(t, 0, sizeof(*t));  // frees the slot (handle -> NULL)
+		wl_list_remove(&t->link);
+		free(t);
 		neru_wlr_recompute_focused(c);
 	}
 	neru_wlr_toplevel_unlock(c);
@@ -621,19 +623,18 @@ static void neru_wlr_manager_toplevel(
 	if (!c || !handle)
 		return;
 
-	neru_wlr_toplevel_lock(c);
-	NeruToplevel *slot = neru_wlr_find_toplevel(c, NULL);  // first free slot
-	if (slot) {
-		memset(slot, 0, sizeof(*slot));
-		slot->handle = handle;
-	}
-	neru_wlr_toplevel_unlock(c);
-
-	if (!slot) {
-		// Table full — stop tracking this window rather than leaking the handle.
+	NeruToplevel *node = calloc(1, sizeof(*node));
+	if (!node) {
+		// Out of memory — drop tracking for this window rather than leak the
+		// handle. Losing one window's focus signal is preferable to a crash.
 		zwlr_foreign_toplevel_handle_v1_destroy(handle);
 		return;
 	}
+	node->handle = handle;
+
+	neru_wlr_toplevel_lock(c);
+	wl_list_insert(&c->toplevels, &node->link);
+	neru_wlr_toplevel_unlock(c);
 
 	zwlr_foreign_toplevel_handle_v1_add_listener(handle, &neru_wlr_toplevel_listener, c);
 }
@@ -641,8 +642,27 @@ static void neru_wlr_manager_toplevel(
 static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_manager_v1 *manager) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
 	(void)manager;
-	if (c)
-		c->toplevel_mgr = NULL;
+	if (!c)
+		return;
+
+	// The compositor has invalidated the manager, so every tracked handle and
+	// the cached focus are now stale. Drop them all so focused-app queries stop
+	// returning a dead window's app_id. Handle proxies are intentionally not
+	// destroyed here: a stray `closed` (or wl_display_disconnect) frees them,
+	// and their listeners key on the client, so a late event finds no node and
+	// is a safe no-op. This runs on the dispatch thread, serialized with the
+	// handle callbacks.
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t;
+	NeruToplevel *tmp;
+	wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
+		wl_list_remove(&t->link);
+		free(t);
+	}
+	c->focused_app_id[0] = '\0';
+	neru_wlr_toplevel_unlock(c);
+
+	c->toplevel_mgr = NULL;
 }
 
 static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_listener = {
@@ -769,7 +789,9 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	}
 
 	// Guards the foreign-toplevel bookkeeping; must be ready before the
-	// manager listener starts delivering toplevel/handle events below.
+	// manager listener starts delivering toplevel/handle events below. The
+	// list head must be initialized before any toplevel event can insert.
+	wl_list_init(&c->toplevels);
 	pthread_mutex_init(&c->toplevel_mutex, NULL);
 	c->toplevel_mutex_ready = 1;
 
@@ -854,11 +876,16 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		zwp_relative_pointer_v1_destroy(c->rel_ptr);
 	}
 	// Tear down foreign-toplevel tracking. The dispatch thread is already
-	// joined at this point, so no callbacks can race these destroys.
-	for (int i = 0; i < NERU_MAX_TOPLEVELS; i++) {
-		if (c->toplevels[i].handle) {
-			zwlr_foreign_toplevel_handle_v1_destroy(c->toplevels[i].handle);
-			c->toplevels[i].handle = NULL;
+	// joined at this point, so no callbacks can race these destroys. The list
+	// may be empty (e.g. after a manager `finished` event cleared it).
+	if (c->toplevel_mutex_ready) {
+		NeruToplevel *t;
+		NeruToplevel *tmp;
+		wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
+			wl_list_remove(&t->link);
+			if (t->handle)
+				zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
+			free(t);
 		}
 	}
 	if (c->toplevel_mgr) {
