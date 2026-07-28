@@ -103,10 +103,18 @@ func (s *SystemAdapter) LogDir() (string, error) {
 }
 
 // FocusedApplicationPID returns the PID of the currently focused application on Linux.
-// TODO(linux): implement using AT-SPI or /proc filesystem.
+//
+// X11 reads _NET_WM_PID directly. Wayland (wlroots + KDE) has no protocol that
+// exposes another client's PID, so it resolves the focused window's app_id via
+// wlr-foreign-toplevel-management and best-effort matches it against /proc;
+// unmatched app_ids return CodeNotSupported rather than a fabricated PID.
 func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) {
 	if s.backend == backendX11 {
 		return x11FocusedApplicationPID()
+	}
+
+	if s.waylandUsesWlrClientStack() {
+		return waylandFocusedApplicationPID()
 	}
 
 	return 0, derrors.New(
@@ -116,29 +124,17 @@ func (s *SystemAdapter) FocusedApplicationPID(ctx context.Context) (int, error) 
 }
 
 // ApplicationNameByPID returns the name of the application with the given PID on Linux.
-// TODO(linux): implement using /proc/<pid>/comm or AT-SPI.
+// Process inspection reads procfs, so it is display-server agnostic and works on
+// every Linux backend (X11 and all Wayland compositors).
 func (s *SystemAdapter) ApplicationNameByPID(ctx context.Context, pid int) (string, error) {
-	if s.backend == backendX11 {
-		return linuxApplicationNameByPID(pid)
-	}
-
-	return "", derrors.New(
-		derrors.CodeNotSupported,
-		"ApplicationNameByPID not yet implemented on linux backend "+s.backend,
-	)
+	return linuxApplicationNameByPID(pid)
 }
 
 // ApplicationBundleIDByPID returns the application identifier (desktop ID) for Linux.
-// TODO(linux): implement using /proc/<pid>/cmdline + .desktop file lookup.
+// Derived from procfs (argv[0]), so it is display-server agnostic and works on
+// every Linux backend (X11 and all Wayland compositors).
 func (s *SystemAdapter) ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error) {
-	if s.backend == backendX11 {
-		return linuxApplicationBundleIDByPID(pid)
-	}
-
-	return "", derrors.New(
-		derrors.CodeNotSupported,
-		"ApplicationBundleIDByPID not yet implemented on linux backend "+s.backend,
-	)
+	return linuxApplicationBundleIDByPID(pid)
 }
 
 // ScreenBounds returns the bounds of the active screen on Linux.

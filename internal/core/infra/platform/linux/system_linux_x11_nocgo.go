@@ -30,22 +30,6 @@ func x11FocusedApplicationPID() (int, error) {
 	)
 }
 
-func linuxApplicationNameByPID(pid int) (string, error) {
-	return "", derrors.Newf(
-		derrors.CodeNotSupported,
-		"Linux process inspection requires CGO-enabled Linux builds (pid=%d)",
-		pid,
-	)
-}
-
-func linuxApplicationBundleIDByPID(pid int) (string, error) {
-	return "", derrors.Newf(
-		derrors.CodeNotSupported,
-		"Linux bundle ID lookup requires CGO-enabled Linux builds (pid=%d)",
-		pid,
-	)
-}
-
 func x11ActiveScreenBounds() (image.Rectangle, error) {
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,

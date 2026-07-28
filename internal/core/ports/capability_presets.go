@@ -50,7 +50,8 @@ func LinuxCapabilities() PlatformCapabilities {
 	return PlatformCapabilities{
 		Platform: "linux",
 		Process: supportedCapability(
-			"focused app inspection available via XWayland/X11 properties",
+			"focused app inspection available via X11 _NET_WM_PID and Wayland " +
+				"wlr-foreign-toplevel app_id (wlroots/KDE; PID best-effort via /proc)",
 		),
 		Screen: supportedCapability(
 			"screen enumeration available via XRandR and Wayland xdg-output",

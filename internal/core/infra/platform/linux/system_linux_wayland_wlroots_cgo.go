@@ -157,6 +157,38 @@ func wlrootsHasVirtualPointer() (bool, error) {
 	return globalWlrootsState.hasVirtualPointer, nil
 }
 
+// wlrootsFocusedAppIDBufferSize matches NERU_APP_ID_LEN in wlroots_client.h.
+const wlrootsFocusedAppIDBufferSize = 256
+
+// wlrootsFocusedAppID returns the app_id of the currently activated (focused)
+// toplevel as reported by wlr-foreign-toplevel-management. The bool is false
+// when the compositor exposes no such manager (GNOME/Mutter) or when nothing
+// is focused yet. This works for both wlroots compositors and KWin/KDE, since
+// both bind the same client stack via ensureWlrootsState.
+func wlrootsFocusedAppID() (string, bool) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return "", false
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	client := globalWlrootsState.client
+	if client == nil {
+		return "", false
+	}
+
+	buf := make([]C.char, wlrootsFocusedAppIDBufferSize)
+	bufLen := C.int(wlrootsFocusedAppIDBufferSize)
+
+	if C.neru_wlr_focused_app_id(client, &buf[0], bufLen) == 0 { //nolint:nlreturn
+		return "", false
+	}
+
+	return C.GoString(&buf[0]), true
+}
+
 // wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
 // libei move on KDE) into the wlroots client's client-side cursor cache so
 // CursorPosition and screen resolution stay accurate.

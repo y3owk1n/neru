@@ -22,6 +22,27 @@ typedef struct {
 	struct wl_surface *discovery_surface;
 } NeruWaylandScreen;
 
+// Maximum number of foreign-toplevel windows tracked concurrently. Sessions
+// rarely exceed a few dozen toplevels; excess handles are ignored (they simply
+// won't contribute a focused app_id, which is harmless).
+#define NERU_MAX_TOPLEVELS 64
+// app_id / title buffer length. Reverse-DNS desktop IDs (e.g.
+// "org.kde.konsole") and freedesktop app-ids fit comfortably in 256 bytes.
+#define NERU_APP_ID_LEN 256
+
+// NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. app_id and the
+// activated flag are committed atomically on the handle's `done` event; the
+// `pending_*` fields buffer values arriving between `done` events so a
+// half-applied state is never observed.
+typedef struct {
+	struct zwlr_foreign_toplevel_handle_v1 *handle;  // NULL marks a free slot
+	char app_id[NERU_APP_ID_LEN];
+	char pending_app_id[NERU_APP_ID_LEN];
+	int has_pending_app_id;
+	int activated;
+	int pending_activated;
+} NeruToplevel;
+
 typedef struct NeruWlrootsClient {
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -40,6 +61,15 @@ typedef struct NeruWlrootsClient {
 	struct zwp_virtual_keyboard_v1 *vkeyboard;
 	int vkeyboard_ready;
 	struct zxdg_output_manager_v1 *xdg_output_mgr;
+
+	// Foreign-toplevel management: tracks every toplevel and which one holds
+	// the "activated" (focused) state so Neru can resolve the focused app_id
+	// on wlroots/KWin Wayland sessions (GNOME/Mutter does not implement it).
+	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
+	NeruToplevel toplevels[NERU_MAX_TOPLEVELS];
+	char focused_app_id[NERU_APP_ID_LEN];  // guarded by toplevel_mutex
+	pthread_mutex_t toplevel_mutex;
+	int toplevel_mutex_ready;
 
 	struct xkb_context *xkb_ctx;
 	struct xkb_keymap *xkb_keymap;
@@ -87,5 +117,15 @@ int neru_wlr_screen_info(NeruWlrootsClient *c, int idx, int *x, int *y, int *w, 
 int neru_wlr_has_virtual_pointer(NeruWlrootsClient *c);
 int neru_wlr_has_virtual_keyboard(NeruWlrootsClient *c);
 int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed);
+
+// neru_wlr_has_toplevel_manager reports whether the compositor advertised the
+// zwlr_foreign_toplevel_manager_v1 global (true on wlroots and KWin/KDE).
+int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c);
+
+// neru_wlr_focused_app_id copies the app_id of the currently-activated
+// toplevel into out (NUL-terminated, capped at out_len). Returns 1 when a
+// non-empty focused app_id is available, 0 otherwise (no manager, nothing
+// focused, or the focused toplevel has no app_id yet).
+int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
 
 #endif /* WLROOTS_CLIENT_H */

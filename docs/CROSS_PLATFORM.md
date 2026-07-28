@@ -564,7 +564,7 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 
 | Capability                          | macOS                       | Linux (X11)        | Linux (wlroots)           | Linux (KDE)              | Linux (GNOME)     | Windows                  |
 | ----------------------------------- | --------------------------- | ------------------ | ------------------------- | ------------------------ | ----------------- | ------------------------ |
-| **Focused App PID**                 | ✅                          | ✅                 | 🟡                        | 🟡                       | 🟡                | ✅                       |
+| **Focused App PID**                 | ✅                          | ✅                 | ⚠️ (app_id; PID best-effort) | ⚠️ (app_id; PID best-effort) | 🟡                | ✅                       |
 | **Screen Bounds**                   | ✅                          | ✅                 | ✅                        | ✅                       | ✅                | ✅                       |
 | **Screen Enumeration**              | ✅                          | ✅ (XRandR)        | ✅ (xdg-output)           | ✅ (xdg-output)          | ✅ (xdg-output)   | ✅ (EnumDisplayMonitors) |
 | **Cursor Position**                 | ✅                          | ✅                 | ✅ (sync surface)         | ✅ (sync surface)        | ❌                | ✅                       |
@@ -584,6 +584,15 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 | **Font Resolution**                 | ✅ (NSFont)                 | ✅ (fontconfig)    | ✅ (fontconfig)           | ✅ (fontconfig)          | ✅ (fontconfig)   | ✅ (DirectWrite)         |
 | **System Cursor Hide**              | ✅ (CGDisplayHideCursor)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
 | **Monitor Select Panels**           | ✅ (native Cocoa panels)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
+
+**Focused App PID on Wayland:** wlroots and KDE sessions resolve the focused
+window through the `wlr-foreign-toplevel-management` protocol, which exposes the
+window's **app_id** (used as the bundle identifier for per-app config) but not
+its PID — Wayland clients cannot read another client's process credentials.
+`SystemPort.FocusedApplicationPID` therefore best-effort matches the app_id
+against `/proc`; when no process matches it returns `CodeNotSupported` with the
+app_id rather than a fabricated number. GNOME/Mutter does not implement the
+protocol, so it stays a stub there (use an X11 session under GNOME).
 
 ### Overlay Rendering
 
@@ -669,7 +678,7 @@ Key files:
 | **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | Stub.                                                                   | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
 | **Strategy support**       | `config.StrategyAX` (default), `config.StrategyVision` (macOS Vision Framework).                                                                                                         | AX only.                                                                | AX only.                                                                             |
 | **Popover / menu support** | ✅ (AXOrientation-based popover detection, menubar walking).                                                                                                                             | 🟡                                                                      | 🟡                                                                                   |
-| **Focused application**    | ✅ (NSWorkspace + AXUIElement).                                                                                                                                                          | ⚠️ (X11: `_NET_ACTIVE_WINDOW`; Wayland: XWayland).                      | ✅ (Win32 `GetForegroundWindow`).                                                    |
+| **Focused application**    | ✅ (NSWorkspace + AXUIElement).                                                                                                                                                          | ✅ (X11: `_NET_ACTIVE_WINDOW`; Wayland: `wlr-foreign-toplevel` app_id on wlroots/KDE, XWayland fallback). | ✅ (Win32 `GetForegroundWindow`).                                                    |
 
 #### Action Execution
 
@@ -878,6 +887,7 @@ The following features exist on exactly one platform:
 | evdev scroll direct injection   | `internal/core/infra/eventtap/eventtap_linux_wayland_evdev_cgo.go` `IsUinputScrollAvailable()` | Direct `/dev/uinput` scroll; not available on macOS/Windows                  |
 | Linux backend detection         | `internal/core/infra/platform/linux_backend.go`                                                | `XDG_CURRENT_DESKTOP` / `WAYLAND_DISPLAY` / `DISPLAY` based routing          |
 | X11 event tap via XGrabKeyboard | `internal/core/infra/eventtap/eventtap_linux_x11.go`                                           | X11-specific mechanism                                                       |
+| Wayland focused-app app_id      | `internal/core/infra/platform/linux/wlroots_client.c` `neru_wlr_focused_app_id()`              | `wlr-foreign-toplevel-management` tracks the activated toplevel's app_id (wlroots/KDE) |
 
 #### Windows-Only
 
