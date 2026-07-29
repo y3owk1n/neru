@@ -91,6 +91,14 @@ type waylandEvdevKeyState struct {
 	// never reached libinput.  We inject synthetic releases for these
 	// at shutdown so libinput's per-keycode hw_is_key_down is cleared.
 	releasedDuringGrab map[uint16]bool
+	// passthroughHeld maps a base keycode that is currently being passed
+	// through to the focused app to the modifier names we pressed on the
+	// virtual keyboard for it. The modifiers stay held (refcounted by the
+	// wlroots modifier dispatcher) across the whole press→repeat→release
+	// span so auto-repeat works without flapping the modifier, and are
+	// released on the physical key-up. Presence also marks the release as
+	// "already passed through" so no stray key-up leaks into Neru.
+	passthroughHeld map[uint16][]string
 }
 
 type waylandEvdevCapture struct {
@@ -963,6 +971,17 @@ drainStale:
 				}
 			}
 
+			// Release any modifiers still held for a passthrough key that was
+			// down when the mode exited, so a virtual modifier can never stay
+			// latched after the grab ends.
+			for code, mods := range state.passthroughHeld {
+				delete(state.passthroughHeld, code)
+
+				for _, mod := range slices.Backward(mods) {
+					_ = linux.WaylandModifierEvent(mod, false)
+				}
+			}
+
 			capture.ungrabAll()
 
 			return true
@@ -1110,6 +1129,20 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 		state.trackKey(event.code, false)
 
+		// A key that was passed through never reached Neru as a press, so its
+		// release must not leak a key-up into Neru either. Release the virtual
+		// modifiers we were holding for it (refcounted, so a modifier shared
+		// with another passthrough key or a sticky hold stays down).
+		if mods, ok := state.passthroughHeld[event.code]; ok {
+			delete(state.passthroughHeld, event.code)
+
+			for _, mod := range slices.Backward(mods) {
+				_ = linux.WaylandModifierEvent(mod, false)
+			}
+
+			return
+		}
+
 		key := et.xkbEvdevKeyName(capture, event.code)
 		if key != "" {
 			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
@@ -1143,7 +1176,84 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
+	// Modifier passthrough: when an unbound Ctrl/Alt/Cmd chord should reach the
+	// focused application, re-inject it through the virtual keyboard (a distinct
+	// device from the EVIOCGRAB'd physical keyboard, so it does not re-enter this
+	// reader) and skip Neru's own dispatch.
+	if et.shouldPassthroughChord(key) {
+		et.passthroughEvdevChord(state, event.code, event.value == evdevValuePress)
+
+		return
+	}
+
 	et.dispatchKey(key)
+}
+
+// passthroughEvdevChord re-injects a modifier chord to the focused application
+// through the zwp_virtual_keyboard_v1 path. On the initial press it holds the
+// currently-held modifiers down (refcounted by the wlroots modifier dispatcher)
+// and taps the base keycode, records the hold so the physical release can drop
+// those modifiers, and notifies the mode layer once. On auto-repeat it re-taps
+// only the base key, leaving the modifiers held so the app sees a steadily-held
+// modifier instead of it flapping around every repeat. Injection is best-effort
+// (a failed event is dropped) since there is no meaningful recovery mid-chord.
+func (et *EventTap) passthroughEvdevChord(state *waylandEvdevKeyState, code uint16, isPress bool) {
+	if _, held := state.passthroughHeld[code]; held && !isPress {
+		// Auto-repeat: modifiers are already held; just re-tap the base key.
+		_ = linux.WaylandKeyEvent(uint32(code), true)
+		_ = linux.WaylandKeyEvent(uint32(code), false)
+
+		return
+	}
+
+	mods := heldPassthroughModifiers(state)
+
+	for _, mod := range mods {
+		_ = linux.WaylandModifierEvent(mod, true)
+	}
+
+	_ = linux.WaylandKeyEvent(uint32(code), true)
+	_ = linux.WaylandKeyEvent(uint32(code), false)
+
+	if state.passthroughHeld == nil {
+		state.passthroughHeld = make(map[uint16][]string)
+	}
+
+	state.passthroughHeld[code] = mods
+
+	et.firePassthroughCallback()
+}
+
+// passthroughModifierCount is the number of distinct modifier groups
+// (shift/ctrl/alt/cmd) a re-injected chord can carry.
+const passthroughModifierCount = 4
+
+// heldPassthroughModifiers returns the canonical names of the modifiers
+// currently held, in a stable shift→ctrl→alt→cmd order, for chord re-injection.
+func heldPassthroughModifiers(state *waylandEvdevKeyState) []string {
+	if state == nil {
+		return nil
+	}
+
+	mods := make([]string, 0, passthroughModifierCount)
+
+	if state.modifiers.shift > 0 {
+		mods = append(mods, evdevModifierShift)
+	}
+
+	if state.modifiers.ctrl > 0 {
+		mods = append(mods, evdevModifierCtrl)
+	}
+
+	if state.modifiers.alt > 0 {
+		mods = append(mods, evdevModifierAlt)
+	}
+
+	if state.modifiers.cmd > 0 {
+		mods = append(mods, evdevModifierCmd)
+	}
+
+	return mods
 }
 
 func (state *waylandEvdevKeyState) trackKey(code uint16, isDown bool) {
