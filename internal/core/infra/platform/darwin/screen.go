@@ -99,15 +99,17 @@ func IsScreenZoomed() bool {
 	return bool(C.NeruIsScreenZoomed())
 }
 
-// ZoomViewport returns the region of the screen that the Accessibility Zoom
-// viewport currently shows, in global CG coordinates. The viewport edges are
+// ZoomViewportAt returns the region that Accessibility Zoom currently shows on
+// the display containing point, in global CG coordinates. The viewport edges are
 // fractional, so this is the smallest integer rectangle that fully contains it.
-// The second return value is false when the screen is not zoomed in, or when the
+// The second return value is false when that display is not magnified — zoom is
+// off, zoomed all the way out, or magnifying a different display — or when the
 // SkyLight zoom SPI that backs it is unavailable.
-func ZoomViewport() (image.Rectangle, bool) {
+func ZoomViewportAt(point image.Point) (image.Rectangle, bool) {
 	var viewport C.CGRect
 
-	if C.NeruGetZoomViewport(&viewport) == 0 {
+	target := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
+	if C.NeruGetZoomViewportForPoint(target, &viewport) == 0 {
 		return image.Rectangle{}, false
 	}
 

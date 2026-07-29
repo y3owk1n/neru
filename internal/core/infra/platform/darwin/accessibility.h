@@ -318,10 +318,11 @@ CGPoint NeruGetCurrentCursorPosition(void);
 /// @return true when the screen is magnified by Accessibility Zoom
 bool NeruIsScreenZoomed(void);
 
-/// Get the on-screen region of the Accessibility Zoom viewport
+/// Get the on-screen region of the Accessibility Zoom viewport covering a point
+/// @param point Point in global CG coordinates, used to pick the display
 /// @param outViewport Receives the visible rectangle in global CG coordinates
-/// @return 1 when zoomed in and outViewport was written, 0 otherwise
-int NeruGetZoomViewport(CGRect *outViewport);
+/// @return 1 when that display is magnified and outViewport was written, 0 otherwise
+int NeruGetZoomViewportForPoint(CGPoint point, CGRect *outViewport);
 
 /// Pan the Accessibility Zoom viewport by the smallest amount that brings the
 /// given point on screen, mirroring what dragging a real mouse into the edge of

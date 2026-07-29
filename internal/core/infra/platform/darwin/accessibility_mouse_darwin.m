@@ -15,10 +15,22 @@
 
 #pragma mark - Mouse Functions
 
-/// Move mouse cursor to position with specified event type
+/// Lock making "pan the zoom viewport, then post the move" indivisible.
+///
+/// Cursor moves are issued concurrently — each hotkey press dispatches its own
+/// goroutine, repeat-while-held runs another, and IPC actions run on the IPC
+/// goroutine — and those paths do not share a lock. Two interleaved moves could
+/// otherwise pan for one target and then post the other, leaving the cursor at a
+/// correct coordinate but outside the magnified region, where nothing corrects
+/// it until the next move.
+static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
+
+/// Pan the zoom viewport to reveal a point and post a mouse move there
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
+static void postMouseMoveLocked(CGPoint position, CGEventType eventType) {
+	os_unfair_lock_lock(&mouseMoveLock);
+
 	NeruEnsureZoomViewportContainsPoint(position);
 
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
@@ -26,24 +38,26 @@ void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
 		CGEventSetFlags(move, 0);
 		CGEventPost(kNeruMouseEventTapLocation, move);
 		CFRelease(move);
-
-		CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
 	}
+
+	os_unfair_lock_unlock(&mouseMoveLock);
+}
+
+/// Move mouse cursor to position with specified event type
+/// @param position Target position
+/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
+void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
+	postMouseMoveLocked(position, eventType);
+
+	// Deliberately outside the lock: this spins the run loop for milliseconds,
+	// and serialising that would stall every other cursor path.
+	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
 }
 
 /// Post a single mouse move event (non-blocking, for async animation)
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) {
-	NeruEnsureZoomViewportContainsPoint(position);
-
-	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
-	if (move) {
-		CGEventSetFlags(move, 0);
-		CGEventPost(kNeruMouseEventTapLocation, move);
-		CFRelease(move);
-	}
-}
+void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) { postMouseMoveLocked(position, eventType); }
 
 #pragma mark - Mouse Action Functions
 

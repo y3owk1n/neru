@@ -10,6 +10,7 @@ package accessibility_test
 
 import (
 	"image"
+	"sync"
 	"testing"
 	"time"
 
@@ -90,7 +91,7 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 
 		// While zoomed in, landing on the point is only half the job — the
 		// viewport has to have followed, or the cursor is correct but off screen.
-		if viewport, ok := darwinplatform.ZoomViewport(); ok && !landed.In(viewport) {
+		if viewport, ok := darwinplatform.ZoomViewportAt(landed); ok && !landed.In(viewport) {
 			t.Errorf(
 				"MoveMouseSmooth(%v) landed at %v, outside the zoom viewport %v",
 				target, landed, viewport,
@@ -154,6 +155,83 @@ func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
 					landed.Sub(directTarget),
 				)
 			}
+		}
+	}
+}
+
+// TestConcurrentMovesKeepCursorInViewport runs cursor moves from several
+// goroutines at once and requires the cursor to end up somewhere visible.
+//
+// Cursor moves are not serialized across callers: every hotkey press dispatches
+// its own goroutine, repeat-while-held runs another, and IPC actions run on the
+// IPC goroutine. While zoomed, each move both pans the magnified region and
+// posts the cursor, and if two moves interleave those halves the cursor is left
+// at a correct coordinate outside the magnified region — a state nothing
+// corrects until the next move. The final position is naturally undefined when
+// callers race, but it must always be somewhere the user can see.
+func TestConcurrentMovesKeepCursorInViewport(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	bounds := darwinplatform.ActiveScreenBounds()
+	if bounds.Empty() {
+		t.Skip("no active screen bounds")
+	}
+
+	if _, zoomed := darwinplatform.ZoomViewportAt(darwinplatform.CursorPosition()); !zoomed {
+		t.Log("Accessibility Zoom is not engaged — this only checks for races, not visibility")
+	}
+
+	startPos := darwinplatform.CursorPosition()
+	defer darwinplatform.MoveMouse(startPos, true)
+
+	// Far apart, so an interleaved pan and post cannot accidentally agree.
+	targets := []image.Point{
+		{X: bounds.Min.X + bounds.Dx()/10, Y: bounds.Min.Y + bounds.Dy()/10},
+		{X: bounds.Min.X + bounds.Dx()*9/10, Y: bounds.Min.Y + bounds.Dy()*9/10},
+		{X: bounds.Min.X + bounds.Dx()*9/10, Y: bounds.Min.Y + bounds.Dy()/10},
+		{X: bounds.Min.X + bounds.Dx()/10, Y: bounds.Min.Y + bounds.Dy()*9/10},
+	}
+
+	const (
+		rounds        = 40
+		movesPerRound = 6
+	)
+
+	for round := range rounds {
+		var movers sync.WaitGroup
+
+		for _, target := range targets {
+			movers.Add(1)
+
+			go func(destination image.Point) {
+				defer movers.Done()
+
+				for range movesPerRound {
+					darwinplatform.MoveMouse(destination, true)
+				}
+			}(target)
+		}
+
+		movers.Wait()
+		time.Sleep(80 * time.Millisecond)
+
+		landed := darwinplatform.CursorPosition()
+
+		viewport, zoomed := darwinplatform.ZoomViewportAt(landed)
+		if !zoomed {
+			continue
+		}
+
+		if !landed.In(viewport) {
+			t.Fatalf(
+				"round %d: concurrent moves left the cursor at %v, outside the magnified region %v — "+
+					"a pan and a post from different moves interleaved",
+				round,
+				landed,
+				viewport,
+			)
 		}
 	}
 }

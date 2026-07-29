@@ -191,7 +191,10 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 
 			// Landing on the point is not enough while zoomed in: the viewport
 			// has to have followed, or the cursor is correct but off screen.
-			if viewport, zoomed := darwinplatform.ZoomViewport(); zoomed && !landed.In(viewport) {
+			if viewport, zoomed := darwinplatform.ZoomViewportAt(
+				landed,
+			); zoomed &&
+				!landed.In(viewport) {
 				t.Errorf(
 					"MoveCursorToPoint(%v) landed at %v, outside the zoom viewport %v",
 					target, landed, viewport,

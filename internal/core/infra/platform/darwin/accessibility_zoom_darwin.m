@@ -26,23 +26,36 @@
 // SPI. Those symbols are resolved with dlsym and every entry point degrades to
 // "leave the viewport alone" when they are missing, so a future macOS that drops
 // them costs the follow behavior and nothing else.
+//
+// The per-display entry points are the ones to use. Zoom magnifies one display
+// at a time, and the display-agnostic variants report whichever display the
+// pointer is over while clamping a requested origin against the bounding box of
+// all displays. With a second display stacked below the main one that lower
+// bound sits well inside the main display, leaving a band at its top edge that
+// can never be brought into view. The per-display variants clamp against the
+// display itself, which is both correct and what the geometry below assumes.
 
 typedef int NeruCGSConnectionID;
 
 typedef NeruCGSConnectionID (*NeruSLSMainConnectionIDFn)(void);
 
-/// Reads the zoom viewport center, magnification and smoothing flag.
-typedef CGError (*NeruSLSGetZoomParametersFn)(
-    NeruCGSConnectionID cid, CGPoint *outOrigin, double *outFactor, bool *outSmoothing);
+/// Reads one display's zoom viewport center, magnification and smoothing flag.
+typedef CGError (*NeruSLSGetZoomParametersForDisplayFn)(
+    NeruCGSConnectionID cid, CGDirectDisplayID display, CGPoint *outOrigin, double *outFactor, bool *outSmoothing);
 
-/// Moves the zoom viewport. The trailing two arguments are undocumented; zero
-/// reproduces the behavior of the system's own panning.
-typedef CGError (*NeruSLSSetZoomParametersFn)(
-    NeruCGSConnectionID cid, CGPoint *origin, double factor, int smoothing, int reserved, double reserved2);
+/// Moves one display's zoom viewport. The two reserved arguments are
+/// undocumented; zero reproduces the behavior of the system's own panning.
+///
+/// @note smoothing is persistent user state rather than a per-call option —
+///       passing anything other than the value just read from the getter
+///       silently rewrites the user's preference.
+typedef CGError (*NeruSLSSetZoomParametersForDisplayFn)(
+    NeruCGSConnectionID cid, CGDirectDisplayID display, CGPoint *origin, int smoothing, int reserved, double factor,
+    double reserved2);
 
 static NeruCGSConnectionID gNeruZoomConnection = 0;
-static NeruSLSGetZoomParametersFn gNeruGetZoomParameters = NULL;
-static NeruSLSSetZoomParametersFn gNeruSetZoomParameters = NULL;
+static NeruSLSGetZoomParametersForDisplayFn gNeruGetZoomParametersForDisplay = NULL;
+static NeruSLSSetZoomParametersForDisplayFn gNeruSetZoomParametersForDisplay = NULL;
 static bool gNeruZoomSPIAvailable = false;
 
 /// Resolve the SkyLight zoom SPI once
@@ -54,10 +67,12 @@ static void neruLoadZoomSPI(void) {
 			return;
 
 		NeruSLSMainConnectionIDFn mainConnectionID = (NeruSLSMainConnectionIDFn)dlsym(skyLight, "SLSMainConnectionID");
-		gNeruGetZoomParameters = (NeruSLSGetZoomParametersFn)dlsym(skyLight, "SLSGetZoomParameters");
-		gNeruSetZoomParameters = (NeruSLSSetZoomParametersFn)dlsym(skyLight, "SLSSetZoomParameters");
+		gNeruGetZoomParametersForDisplay =
+		    (NeruSLSGetZoomParametersForDisplayFn)dlsym(skyLight, "SLSGetZoomParametersForDisplay");
+		gNeruSetZoomParametersForDisplay =
+		    (NeruSLSSetZoomParametersForDisplayFn)dlsym(skyLight, "SLSSetZoomParametersForDisplay");
 
-		if (!mainConnectionID || !gNeruGetZoomParameters || !gNeruSetZoomParameters)
+		if (!mainConnectionID || !gNeruGetZoomParametersForDisplay || !gNeruSetZoomParametersForDisplay)
 			return;
 
 		gNeruZoomConnection = mainConnectionID();
@@ -65,59 +80,78 @@ static void neruLoadZoomSPI(void) {
 	});
 }
 
-/// Read the current zoom viewport center and magnification
-/// @param outOrigin Receives the viewport center in global CG coordinates
-/// @param outFactor Receives the magnification factor
-/// @param outSmoothing Receives the user's smoothing preference
-/// @return true when the screen is zoomed in and the values are usable
-static bool neruCurrentZoomParameters(CGPoint *outOrigin, double *outFactor, bool *outSmoothing) {
-	if (!UAZoomEnabled())
-		return false;
-
-	neruLoadZoomSPI();
-	if (!gNeruZoomSPIAvailable)
-		return false;
-
-	CGPoint origin = CGPointZero;
-	double factor = 0.0;
-	bool smoothing = false;
-
-	if (gNeruGetZoomParameters(gNeruZoomConnection, &origin, &factor, &smoothing) != kCGErrorSuccess)
-		return false;
-
-	// A factor of 1 means zoomed all the way out — there is no viewport to pan.
-	if (factor <= 1.0)
-		return false;
-
-	*outOrigin = origin;
-	*outFactor = factor;
-	*outSmoothing = smoothing;
-
-	return true;
-}
-
-/// Bounds of the display the zoom viewport currently sits on
-/// @param origin Viewport center in global CG coordinates
-/// @return Display bounds, falling back to the main display
-static CGRect neruZoomDisplayBounds(CGPoint origin) {
+/// Find the display a point falls on
+/// @param point Point in global CG coordinates
+/// @param outBounds Receives that display's bounds
+/// @return The display, or kCGNullDirectDisplay when the point is off-screen
+static CGDirectDisplayID neruDisplayForPoint(CGPoint point, CGRect *outBounds) {
 	CGDirectDisplayID display = kCGNullDirectDisplay;
 	uint32_t matched = 0;
 
-	if (CGGetDisplaysWithPoint(origin, 1, &display, &matched) == kCGErrorSuccess && matched > 0)
-		return CGDisplayBounds(display);
+	if (CGGetDisplaysWithPoint(point, 1, &display, &matched) != kCGErrorSuccess || matched == 0)
+		return kCGNullDirectDisplay;
 
-	return CGDisplayBounds(CGMainDisplayID());
+	if (outBounds)
+		*outBounds = CGDisplayBounds(display);
+
+	return display;
 }
 
-int NeruGetZoomViewport(CGRect *outViewport) {
+/// Read the zoom viewport of the display a point falls on
+/// @param point Point in global CG coordinates
+/// @param outBounds Receives the display's bounds
+/// @param outOrigin Receives the viewport center in global CG coordinates
+/// @param outFactor Receives the magnification factor
+/// @param outSmoothing Receives the user's smoothing preference, to be passed back unchanged
+/// @return The display when it is magnified, kCGNullDirectDisplay otherwise
+static CGDirectDisplayID neruZoomedDisplayForPoint(
+    CGPoint point, CGRect *outBounds, CGPoint *outOrigin, double *outFactor, bool *outSmoothing) {
+	if (!UAZoomEnabled())
+		return kCGNullDirectDisplay;
+
+	neruLoadZoomSPI();
+	if (!gNeruZoomSPIAvailable)
+		return kCGNullDirectDisplay;
+
+	CGRect bounds = CGRectZero;
+	CGDirectDisplayID display = neruDisplayForPoint(point, &bounds);
+	if (display == kCGNullDirectDisplay)
+		return kCGNullDirectDisplay;
+
 	CGPoint origin = CGPointZero;
 	double factor = 0.0;
 	bool smoothing = false;
 
-	if (!neruCurrentZoomParameters(&origin, &factor, &smoothing))
+	if (gNeruGetZoomParametersForDisplay(gNeruZoomConnection, display, &origin, &factor, &smoothing) != kCGErrorSuccess)
+		return kCGNullDirectDisplay;
+
+	// A factor of 1 means this display is not magnified — either zoom is on a
+	// different display, or it is zoomed all the way out. Either way there is no
+	// viewport to pan, and the point is already displayed normally.
+	if (factor <= 1.0)
+		return kCGNullDirectDisplay;
+
+	if (outBounds)
+		*outBounds = bounds;
+	if (outOrigin)
+		*outOrigin = origin;
+	if (outFactor)
+		*outFactor = factor;
+	if (outSmoothing)
+		*outSmoothing = smoothing;
+
+	return display;
+}
+
+int NeruGetZoomViewportForPoint(CGPoint point, CGRect *outViewport) {
+	CGRect bounds = CGRectZero;
+	CGPoint origin = CGPointZero;
+	double factor = 0.0;
+	bool smoothing = false;
+
+	if (neruZoomedDisplayForPoint(point, &bounds, &origin, &factor, &smoothing) == kCGNullDirectDisplay)
 		return 0;
 
-	CGRect bounds = neruZoomDisplayBounds(origin);
 	CGFloat halfWidth = bounds.size.width / (2 * factor);
 	CGFloat halfHeight = bounds.size.height / (2 * factor);
 
@@ -128,20 +162,13 @@ int NeruGetZoomViewport(CGRect *outViewport) {
 }
 
 void NeruEnsureZoomViewportContainsPoint(CGPoint target) {
+	CGRect bounds = CGRectZero;
 	CGPoint origin = CGPointZero;
 	double factor = 0.0;
 	bool smoothing = false;
 
-	if (!neruCurrentZoomParameters(&origin, &factor, &smoothing))
-		return;
-
-	CGRect bounds = neruZoomDisplayBounds(origin);
-
-	// Zoom magnifies one display at a time; the others render normally. A target
-	// on one of those is already plainly visible, and panning the zoomed
-	// display's viewport toward it only drags that viewport to an edge for no
-	// benefit, leaving it somewhere the user did not put it.
-	if (!CGRectContainsPoint(bounds, target))
+	CGDirectDisplayID display = neruZoomedDisplayForPoint(target, &bounds, &origin, &factor, &smoothing);
+	if (display == kCGNullDirectDisplay)
 		return;
 
 	CGFloat halfWidth = bounds.size.width / (2 * factor);
@@ -167,17 +194,12 @@ void NeruEnsureZoomViewportContainsPoint(CGPoint target) {
 	else if (target.y > origin.y + insetHeight)
 		wanted.y = target.y - insetHeight;
 
-	// The viewport cannot leave its display, and the window server clamps to
-	// exactly this range. Clamping here too means a target that is unreachable —
-	// most often one on a different display than the zoomed one — compares equal
-	// to the current origin and costs nothing instead of re-pinning the viewport
-	// to the same edge on every move.
-	CGFloat minX = CGRectGetMinX(bounds) + halfWidth;
-	CGFloat maxX = CGRectGetMaxX(bounds) - halfWidth;
-	CGFloat minY = CGRectGetMinY(bounds) + halfHeight;
-	CGFloat maxY = CGRectGetMaxY(bounds) - halfHeight;
-	wanted.x = fmax(minX, fmin(maxX, wanted.x));
-	wanted.y = fmax(minY, fmin(maxY, wanted.y));
+	// The viewport cannot leave its display, and the window server clamps a
+	// requested origin to exactly this range. Clamping here too means an
+	// unreachable target compares equal to the current origin and costs nothing
+	// instead of re-pinning the viewport to the same edge on every move.
+	wanted.x = fmax(CGRectGetMinX(bounds) + halfWidth, fmin(CGRectGetMaxX(bounds) - halfWidth, wanted.x));
+	wanted.y = fmax(CGRectGetMinY(bounds) + halfHeight, fmin(CGRectGetMaxY(bounds) - halfHeight, wanted.y));
 
 	if (CGPointEqualToPoint(wanted, origin))
 		return;
@@ -185,5 +207,5 @@ void NeruEnsureZoomViewportContainsPoint(CGPoint target) {
 	// The window server keeps the cursor at a fixed position within the
 	// viewport, so panning drags the cursor with it. Callers must pan first and
 	// position the cursor afterwards, never the other way round.
-	gNeruSetZoomParameters(gNeruZoomConnection, &wanted, factor, smoothing ? 1 : 0, 0, 0.0);
+	gNeruSetZoomParametersForDisplay(gNeruZoomConnection, display, &wanted, smoothing ? 1 : 0, 0, factor, 0.0);
 }
