@@ -16,6 +16,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -569,24 +570,28 @@ func (c *ATSPIClient) collectViaCollection(
 		return nil, false
 	}
 
-	// Bound the work before materializing so a pathological page cannot spawn an
-	// unbounded number of goroutines (the walk applies the same cap to its output).
-	if len(matches) > atspiMaxNodes {
-		matches = matches[:atspiMaxNodes]
-	}
-
 	// Materialize each match (role re-check + extents + name) concurrently: the
 	// lookups are independent, latency-bound D-Bus round-trips that godbus
-	// multiplexes safely over the one connection. Each goroutine writes its own
-	// slot, so no lock is needed; nil slots are dropped afterward.
+	// multiplexes safely over the one connection. The bounded semaphore paces the
+	// loop, so at most collectionMaxWorkers goroutines run at once no matter how
+	// many matches there are. Each goroutine writes its own slot, so no lock is
+	// needed; nil slots are dropped afterward.
 	results := make([]*atspiNode, len(matches))
 
 	sem := make(chan struct{}, collectionMaxWorkers)
 
-	var waitGroup sync.WaitGroup
+	var (
+		waitGroup  sync.WaitGroup
+		validCount atomic.Int64
+	)
 
 	for index, ref := range matches {
-		if ctx.Err() != nil {
+		// Stop scheduling once canceled, or once we have enough *valid* nodes.
+		// Capping on emitted nodes (like the walk) rather than raw candidates
+		// keeps invalid/zero-sized matches from crowding out valid ones past the
+		// limit. validCount lags slightly under concurrency, so a few in-flight
+		// workers may push past the cap — the output loop below trims the excess.
+		if ctx.Err() != nil || validCount.Load() >= atspiMaxNodes {
 			break
 		}
 
@@ -598,17 +603,39 @@ func (c *ATSPIClient) collectViaCollection(
 			defer waitGroup.Done()
 			defer func() { <-sem }()
 
-			results[slot] = c.materializeMatch(conn, ref, roleSet, offX, offY)
+			if ctx.Err() != nil {
+				return
+			}
+
+			node := c.materializeMatch(conn, ref, roleSet, offX, offY)
+			if node != nil {
+				results[slot] = node
+
+				validCount.Add(1)
+			}
 		}(index, ref)
 	}
 
 	waitGroup.Wait()
 
 	out := make([]AXNode, 0, len(results))
+
 	for _, node := range results {
-		if node != nil {
-			out = append(out, node)
+		if node == nil {
+			continue
 		}
+
+		out = append(out, node)
+		if len(out) >= atspiMaxNodes {
+			break
+		}
+	}
+
+	// Every match failed to materialize (e.g. a dynamic UI invalidated every
+	// reference between GetMatches and the per-match lookups). Treat that like an
+	// empty result and fall back to the walk rather than report an empty success.
+	if len(out) == 0 {
+		return nil, false
 	}
 
 	return out, true
