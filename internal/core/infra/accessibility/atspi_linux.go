@@ -182,7 +182,14 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 		return nil, err
 	}
 
-	frame, ok := c.findActiveFrame(conn)
+	// Read the compositor's focused app_id and title once (together so they
+	// describe one window) and use this single snapshot both to select the frame
+	// and to record it on the window. Reading it again after selection could
+	// capture a newer window's identity against the old frame, letting the
+	// ClickableNodes stability check accept a stale frame.
+	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
+
+	frame, ok := c.findActiveFrame(conn, focusedAppID, focusedTitle)
 	if !ok {
 		c.logger.Debug("AT-SPI: no active frame found")
 
@@ -195,12 +202,6 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 		zap.String("bus", frame.Name),
 		zap.String("app", c.name(conn, accRef{Name: frame.Name, Path: atspiRootPath})),
 		zap.String("frameTitle", c.name(conn, frame)))
-
-	// Record the compositor's focused app_id and title (read together so they
-	// describe one window) at selection time, so ClickableNodes can detect a
-	// focus change — including a same-application window switch — before walking
-	// or offsetting the frame.
-	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
 
 	return &atspiWindow{
 		ref:          frame,
@@ -677,14 +678,18 @@ func isNonTargetSurfaceApp(name string) bool {
 // the focused window. On other Wayland compositors (wlroots) the fallback —
 // including the desktop-shell last resort — could return a background surface,
 // so no frame is returned and hints simply do not appear.
-func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
+// The focusedAppID and focusedTitle are the caller's single focus snapshot
+// (empty on X11, GNOME, or when nothing is focused), used so the selected frame
+// and the identity recorded for the stability check come from the same read.
+func (c *ATSPIClient) findActiveFrame(
+	conn *dbus.Conn,
+	focusedAppID, focusedTitle string,
+) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
-	// Compositor-reported focused app_id and title (read together so they
-	// describe one window); empty on X11, GNOME, or when nothing is focused yet.
 	// The title disambiguates multiple windows of the focused application, which
 	// share an app_id.
-	focusedAppID, focusedTitle, haveFocused := linux.WaylandFocusedAppIdentity()
+	haveFocused := focusedAppID != ""
 	haveFocusedTitle := focusedTitle != ""
 
 	var (
