@@ -34,6 +34,12 @@ func x11FocusedAppID() (string, bool) {
 	return "", false
 }
 
+// x11FocusEventFD is unavailable without CGO — the focus monitor uses Xlib.
+// Callers fall back to polling.
+func x11FocusEventFD() (int, bool) {
+	return -1, false
+}
+
 func x11ActiveScreenBounds() (image.Rectangle, error) {
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,

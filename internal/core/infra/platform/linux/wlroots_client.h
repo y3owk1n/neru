@@ -78,6 +78,15 @@ typedef struct NeruWlrootsClient {
 	pthread_mutex_t toplevel_mutex;
 	int toplevel_mutex_ready;
 
+	// focus_pipe is a self-pipe that pushes focus-change notifications to Go
+	// without a cross-thread callback: neru_wlr_recompute_focused writes one
+	// byte to focus_pipe[1] (the write end) whenever focused_app_id changes, and
+	// the Go app watcher blocks reading focus_pipe[0] (the read end, exposed via
+	// neru_wlr_focus_event_fd). Both ends are non-blocking so the dispatch
+	// thread never stalls under toplevel_mutex. Both are -1 until initialized.
+	int focus_pipe[2];
+	int focus_pipe_ready;
+
 	struct xkb_context *xkb_ctx;
 	struct xkb_keymap *xkb_keymap;
 	uint32_t mod_shift;
@@ -141,5 +150,12 @@ int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
 // available, 0 otherwise. The title disambiguates multiple windows of the
 // focused application, which share an app_id.
 int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len);
+
+// neru_wlr_focus_event_fd returns a readable file descriptor that becomes
+// readable whenever the focused app_id changes. Callers poll it, drain the
+// pending byte(s), then re-query neru_wlr_focused_app_id. Returns -1 when no
+// pipe is available. The fd is owned by the client and closed by
+// neru_wlr_disconnect; callers must not close it.
+int neru_wlr_focus_event_fd(NeruWlrootsClient *c);
 
 #endif /* WLROOTS_CLIENT_H */

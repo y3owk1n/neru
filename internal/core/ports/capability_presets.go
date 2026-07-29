@@ -81,9 +81,10 @@ func LinuxCapabilities() PlatformCapabilities {
 				"the wl-keyboard fallback cannot re-inject selectively)",
 		),
 		AppWatcher: supportedCapability(
-			"focused-app change detection via polling the WM_CLASS (X11) or " +
-				"wlr-foreign-toplevel app_id (Wayland wlroots/KDE); GNOME/Mutter " +
-				"exposes no focused-app source",
+			"focused-app change detection keyed on the WM_CLASS (X11) or " +
+				"wlr-foreign-toplevel app_id (Wayland wlroots/KDE), event-driven " +
+				"where the compositor/X11 exposes a focus-change signal and polling " +
+				"otherwise; GNOME/Mutter exposes no focused-app source",
 		),
 		// Default placeholder; the Linux SystemAdapter overrides this with
 		// the live-probed state (current color-scheme + source) on each

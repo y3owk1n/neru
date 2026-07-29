@@ -128,6 +128,12 @@ func wlrootsFocusedAppIdentity() (string, string, bool) {
 	return "", "", false
 }
 
+// wlrootsFocusEventFD is unavailable without CGO — the foreign-toplevel client
+// lives in the CGO build. Callers fall back to polling.
+func wlrootsFocusEventFD() (int, bool) {
+	return -1, false
+}
+
 func wlrootsSetCursor(point image.Point) error {
 	_ = point
 

@@ -2,43 +2,67 @@
 
 // internal/core/infra/appwatcher/platform_linux.go
 // Linux app-watcher backend. macOS receives focus changes from an NSWorkspace
-// observer; Linux has no equivalent push API, so this polls the focused
-// application's identity (app_id on Wayland wlroots/KDE, WM_CLASS on X11) and
-// dispatches activate/deactivate events when it changes. GNOME/Mutter exposes
-// no focused-app source, so the poll yields nothing and no events fire there.
+// observer; on Linux the focused application's identity is the app_id (Wayland
+// wlroots/KDE) or WM_CLASS (X11). Where the compositor/X11 exposes a
+// focus-change notification (via linux.SubscribeFocusedApp), the watcher blocks
+// on that fd and re-samples on each wake — near-instant per-app hotkey
+// re-registration. Otherwise it falls back to polling on a fixed interval.
+// GNOME/Mutter exposes no focused-app source, so no events fire there.
 
 package appwatcher
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/sys/unix"
 
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
-// focusPollInterval is how often the focused application is sampled. It trades
-// switch latency (per-app hotkeys re-register on the next poll after an
-// alt-tab) against idle cost (one lightweight focus query per interval).
+// focusPollInterval is how often the focused application is sampled on the
+// polling fallback (backends with no focus-change fd). It trades switch latency
+// (per-app hotkeys re-register on the next poll after an alt-tab) against idle
+// cost (one lightweight focus query per interval).
 const focusPollInterval = 400 * time.Millisecond
+
+// focusEventPollTimeout bounds a single poll() wait on the event-driven path so
+// the loop notices context cancellation within this window even when no focus
+// event arrives. It is short enough for prompt shutdown yet long enough that an
+// idle daemon makes only a couple of no-op poll() syscalls per second.
+const focusEventPollTimeout = 500 * time.Millisecond
+
+// focusEventSafetyInterval bounds how long the event-driven loop goes without a
+// forced re-sample. Focus changes normally wake it immediately via the fd; this
+// periodic re-sample is a safety net against a missed or coalesced event and
+// costs one focus query per interval (matching the polling fallback's idle
+// cost, but far less often).
+const focusEventSafetyInterval = 3 * time.Second
 
 // globalLinuxWatcher is the process-wide app watcher, mirroring the single
 // darwin.SetAppWatcher registration. NewWatcher registers itself here via
 // platformRegisterWatcher.
 var globalLinuxWatcher = &linuxAppWatcher{
-	identity: linux.FocusedAppID,
-	interval: focusPollInterval,
+	identity:  linux.FocusedAppID,
+	subscribe: linux.SubscribeFocusedApp,
+	interval:  focusPollInterval,
 }
 
-// linuxAppWatcher polls the focused-application identity and dispatches
-// activation changes to the registered Watcher.
+// linuxAppWatcher samples the focused-application identity and dispatches
+// activation changes to the registered Watcher, waking on a focus-change fd
+// where one is available and polling otherwise.
 type linuxAppWatcher struct {
 	// identity resolves the focused app_id for a backend; injectable for tests.
 	identity func(backend string) (string, bool)
-	interval time.Duration
+	// subscribe returns an fd that becomes readable on focus changes, or
+	// ok=false to select the polling fallback; injectable for tests. A nil
+	// subscribe also selects polling.
+	subscribe func(backend string) (int, bool)
+	interval  time.Duration
 
 	mu      sync.Mutex
 	watcher *Watcher
@@ -46,7 +70,7 @@ type linuxAppWatcher struct {
 	wg      sync.WaitGroup
 
 	// last is the most recently dispatched app_id ("" means "none focused").
-	// It is owned exclusively by the poll goroutine, so it needs no lock.
+	// It is owned exclusively by the sample goroutine, so it needs no lock.
 	last string
 }
 
@@ -98,17 +122,37 @@ func (l *linuxAppWatcher) stop() {
 	l.wg.Wait()
 }
 
-// loop samples the focused application every interval until the context is
-// canceled, dispatching a deactivate/activate pair on each change.
+// loop samples the focused application until the context is canceled. It
+// samples once immediately, then either blocks on a focus-change fd (when the
+// backend exposes one) or polls on a fixed interval.
 func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 	defer l.wg.Done()
 
+	// Sample once immediately so per-app state converges without waiting for the
+	// first event or poll tick.
+	l.tick(backend)
+
+	if l.subscribe != nil {
+		if fd, ok := l.subscribe(backend); ok && fd >= 0 {
+			l.watcher.logger.Debug("App watcher: using event-driven focus updates",
+				zap.String("backend", backend))
+			l.loopEvent(ctx, backend, fd)
+
+			return
+		}
+	}
+
+	l.watcher.logger.Debug("App watcher: polling focus updates",
+		zap.String("backend", backend),
+		zap.Duration("interval", l.interval))
+	l.loopPoll(ctx, backend)
+}
+
+// loopPoll samples the focused application every interval until the context is
+// canceled. Used when the backend exposes no focus-change fd.
+func (l *linuxAppWatcher) loopPoll(ctx context.Context, backend string) {
 	ticker := time.NewTicker(l.interval)
 	defer ticker.Stop()
-
-	// Sample once immediately so per-app state converges without waiting a
-	// full interval for the first tick.
-	l.tick(backend)
 
 	for {
 		select {
@@ -116,6 +160,102 @@ func (l *linuxAppWatcher) loop(ctx context.Context, backend string) {
 			return
 		case <-ticker.C:
 			l.tick(backend)
+		}
+	}
+}
+
+// loopEvent blocks on the focus-change fd and re-samples on each wake. A short
+// poll timeout keeps shutdown responsive to context cancellation, and a
+// periodic safety-net re-sample guards against a missed or coalesced event. If
+// the fd hangs up or errors, it degrades to polling so focus tracking survives.
+//
+// focusFD is owned by the platform layer (a process-lifetime pipe/monitor).
+// We poll a dup of it so this goroutine holds its own descriptor: if that layer
+// ever closes the underlying fd, our in-flight Poll can't become a
+// use-after-close or fd-reuse race — we simply see POLLHUP and fall back to
+// polling. dup(2) clears close-on-exec, so we re-arm it; neru spawns exec-action
+// children that must not inherit this fd.
+func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD int) {
+	dupFD, err := unix.Dup(focusFD)
+	if err != nil {
+		l.watcher.logger.Warn("App watcher: dup focus fd failed, falling back to polling",
+			zap.String("backend", backend),
+			zap.Error(err))
+		l.loopPoll(ctx, backend)
+
+		return
+	}
+
+	unix.CloseOnExec(dupFD)
+
+	defer func() { _ = unix.Close(dupFD) }()
+
+	pollFDs := []unix.PollFd{{Fd: int32(dupFD), Events: unix.POLLIN}}
+	nextSafety := time.Now().Add(focusEventSafetyInterval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		_, err = unix.Poll(pollFDs, int(focusEventPollTimeout/time.Millisecond))
+		if err != nil {
+			if errors.Is(err, unix.EINTR) {
+				continue
+			}
+			// Unexpected poll failure — degrade to polling rather than spin.
+			l.watcher.logger.Warn("App watcher: focus fd poll failed, falling back to polling",
+				zap.String("backend", backend),
+				zap.Error(err))
+			l.loopPoll(ctx, backend)
+
+			return
+		}
+
+		revents := pollFDs[0].Revents
+
+		if revents&(unix.POLLHUP|unix.POLLERR|unix.POLLNVAL) != 0 {
+			l.watcher.logger.Warn("App watcher: focus fd hung up, falling back to polling",
+				zap.String("backend", backend))
+			l.loopPoll(ctx, backend)
+
+			return
+		}
+
+		if revents&unix.POLLIN != 0 {
+			drainFD(dupFD)
+			l.tick(backend)
+
+			nextSafety = time.Now().Add(focusEventSafetyInterval)
+
+			continue
+		}
+
+		// Poll timed out with no event: re-sample only when the safety interval
+		// has elapsed, so an idle X11 daemon isn't opening a display every tick.
+		if !time.Now().Before(nextSafety) {
+			l.tick(backend)
+
+			nextSafety = time.Now().Add(focusEventSafetyInterval)
+		}
+	}
+}
+
+// drainFD reads and discards all pending bytes from a non-blocking fd so a
+// burst of focus-change signals coalesces into a single re-sample.
+func drainFD(fd int) {
+	var buf [64]byte
+
+	for {
+		n, err := unix.Read(fd, buf[:])
+		if n <= 0 || err != nil {
+			return
+		}
+
+		if n < len(buf) {
+			return
 		}
 	}
 }
