@@ -1247,7 +1247,17 @@ func (et *EventTap) passthroughEvdevChord(
 		return false
 	}
 
-	_ = linux.WaylandKeyEvent(uint32(code), false)
+	keyUpErr := linux.WaylandKeyEvent(uint32(code), false)
+	if keyUpErr != nil && et.logger != nil {
+		// The chord was already delivered by the key-down; a rejected key-up is
+		// not retried (the injection channel would have to recover), but log it
+		// so a stuck virtual key is diagnosable.
+		et.logger.Warn(
+			"Failed to release passthrough key",
+			zap.Uint16("keycode", code),
+			zap.Error(keyUpErr),
+		)
+	}
 
 	if state.passthroughHeld == nil {
 		state.passthroughHeld = make(map[uint16][]string)
@@ -1263,10 +1273,19 @@ func (et *EventTap) passthroughEvdevChord(
 // releasePassthroughModifiers releases the given modifiers in reverse press
 // order (refcounted, so a modifier shared with another passthrough key or a
 // sticky hold stays down). Used both to unwind a failed press and to drop a
-// held chord's modifiers on release/shutdown.
+// held chord's modifiers on release/shutdown. A rejected release is not retried
+// (a dead injection channel would keep failing), but is logged so a latched
+// virtual modifier is diagnosable — matching the shutdown synthetic-release path.
 func (et *EventTap) releasePassthroughModifiers(mods []string) {
 	for _, mod := range slices.Backward(mods) {
-		_ = linux.WaylandModifierEvent(mod, false)
+		err := linux.WaylandModifierEvent(mod, false)
+		if err != nil && et.logger != nil {
+			et.logger.Warn(
+				"Failed to release passthrough modifier",
+				zap.String("modifier", mod),
+				zap.Error(err),
+			)
+		}
 	}
 }
 
