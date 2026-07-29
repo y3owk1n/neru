@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -46,8 +47,9 @@ const (
 	atspiStateActive  = 1
 	atspiStateShowing = 25
 
-	// AT-SPI packs state into an array of uint32 words (one bit per state).
-	atspiStateBitsPerWord = 32
+	// Bit width of the int32 words AT-SPI packs its state and role sets into
+	// (one bit per state/role index).
+	atspiBitsPerWord = 32
 
 	// Walk bounds to keep D-Bus traffic sane on deep trees.
 	atspiMaxDepth = 40
@@ -60,7 +62,80 @@ const (
 	// org.a11y.Status D-Bus property names.
 	a11yPropIsEnabled    = "IsEnabled"
 	a11yPropScreenReader = "ScreenReaderEnabled"
+
+	// org.a11y.atspi.Collection.GetMatches fetches all descendants matching a
+	// role+state predicate in a single D-Bus call, instead of the per-node walk.
+	atspiCollectionIfc = "org.a11y.atspi.Collection"
+
+	// AtspiCollectionMatchType values (atspi-constants.h): how a criterion set is
+	// interpreted. MATCH_ALL requires all listed items; MATCH_ANY requires any.
+	// An empty set with MATCH_ALL imposes no constraint.
+	atspiMatchAll = int32(1)
+	atspiMatchAny = int32(2)
+
+	// AtspiCollectionSortOrder CANONICAL (atspi-constants.h). Ordering is
+	// irrelevant here since hints are re-positioned, but a valid value is required.
+	atspiSortCanonical = uint32(1)
+
+	// Fixed word counts libatspi marshals the role/state sets into (see
+	// _atspi_match_rule_marshal in at-spi2-core/atspi/atspi-matchrule.c): the role
+	// bitfield is always 5 int32 words, the state bitset always 2.
+	atspiRoleWords  = 5
+	atspiStateWords = 2
+
+	// collectionMaxWorkers bounds the goroutines that materialize GetMatches
+	// results (role/extents/name lookups). These are latency-bound D-Bus calls
+	// that godbus multiplexes over one connection, so overlapping them cuts the
+	// per-match cost; the cap keeps a large page from flooding the a11y bus.
+	collectionMaxWorkers = 16
 )
+
+// AtspiRole enum ids (declaration-order indices in atspi-constants.h), used to
+// build the Collection.GetMatches role bitfield. The enum is ABI-stable
+// (append-only), so these are fixed.
+const (
+	atspiRolePushButton     = 43
+	atspiRoleToggleButton   = 62
+	atspiRolePushButtonMenu = 129
+	atspiRoleComboBox       = 11
+	atspiRoleCheckBox       = 7
+	atspiRoleCheckMenuItem  = 8
+	atspiRoleRadioButton    = 44
+	atspiRoleRadioMenuItem  = 45
+	atspiRoleLinkID         = 88
+	atspiRoleEntry          = 79
+	atspiRolePasswordText   = 40
+	atspiRoleSlider         = 51
+	atspiRolePageTab        = 37
+	atspiRoleMenuItemID     = 35
+	atspiRoleListItem       = 32
+	atspiRoleTableCell      = 56
+	atspiRoleTableRow       = 90
+)
+
+// atspiRoleNameToID maps the AT-SPI role names Neru cares about (the keys of
+// atspiToAXRole) to their AtspiRole id, for building the Collection.GetMatches
+// role bitfield.
+var atspiRoleNameToID = map[string]int32{
+	"push button":     atspiRolePushButton,
+	"button":          atspiRolePushButton,
+	"toggle button":   atspiRoleToggleButton,
+	"menu button":     atspiRolePushButtonMenu,
+	"combo box":       atspiRoleComboBox,
+	"check box":       atspiRoleCheckBox,
+	"check menu item": atspiRoleCheckMenuItem,
+	"radio button":    atspiRoleRadioButton,
+	"radio menu item": atspiRoleRadioMenuItem,
+	"link":            atspiRoleLinkID,
+	"entry":           atspiRoleEntry,
+	"password text":   atspiRolePasswordText,
+	"slider":          atspiRoleSlider,
+	"page tab":        atspiRolePageTab,
+	"menu item":       atspiRoleMenuItemID,
+	"list item":       atspiRoleListItem,
+	"table cell":      atspiRoleTableCell,
+	"table row":       atspiRoleTableRow,
+}
 
 // accRef is the AT-SPI (bus-name, object-path) reference returned by
 // GetChildren and the registry root.
@@ -293,11 +368,28 @@ func (c *ATSPIClient) ClickableNodes(
 		return nil, nil
 	}
 
+	roleSet := rolesSet(roles)
+
+	// Fast path: a single Collection.GetMatches call instead of the per-node
+	// walk. Falls back to the walk when the toolkit doesn't implement Collection.
+	if nodes, ok := c.collectViaCollection(ctx, conn, win.ref, roleSet, offX, offY); ok {
+		c.logger.Debug("AT-SPI clickable scan complete",
+			zap.String("path", "collection"),
+			zap.Int("count", len(nodes)),
+			zap.Int("offsetX", offX),
+			zap.Int("offsetY", offY),
+			zap.Bool("haveOrigin", haveOrigin),
+			zap.Duration("elapsed", time.Since(start)))
+
+		return nodes, nil
+	}
+
 	out := make([]AXNode, 0, atspiClickableNodesCap)
 	visited := 0
-	c.walk(ctx, conn, win.ref, rolesSet(roles), 0, &out, &visited, offX, offY)
+	c.walk(ctx, conn, win.ref, roleSet, 0, &out, &visited, offX, offY)
 
-	c.logger.Debug("AT-SPI clickable walk complete",
+	c.logger.Debug("AT-SPI clickable scan complete",
+		zap.String("path", "walk"),
 		zap.Int("count", len(out)),
 		zap.Int("visited", visited),
 		zap.Int("offsetX", offX),
@@ -306,6 +398,84 @@ func (c *ATSPIClient) ClickableNodes(
 		zap.Duration("elapsed", time.Since(start)))
 
 	return out, nil
+}
+
+// atspiMatchRule mirrors the AT-SPI Collection MatchRule D-Bus struct
+// (aiia{ss}iaiiasib); godbus marshals the exported fields in declaration order.
+type atspiMatchRule struct {
+	States     []int32
+	StateMatch int32
+	Attributes map[string]string
+	AttrMatch  int32
+	Roles      []int32
+	RoleMatch  int32
+	Interfaces []string
+	IfaceMatch int32
+	Invert     bool
+}
+
+// deriveTargetRoleIDs returns the AtspiRole ids whose AX mapping is in roleSet —
+// exactly the roles the per-node walk would emit — so the Collection query has
+// identical semantics.
+func deriveTargetRoleIDs(roleSet map[string]struct{}) []int32 {
+	var ids []int32
+
+	seen := make(map[int32]struct{})
+
+	for atspiName, axRole := range atspiToAXRole {
+		if _, ok := roleSet[axRole]; !ok {
+			continue
+		}
+
+		roleID, ok := atspiRoleNameToID[atspiName]
+		if !ok {
+			continue
+		}
+
+		if _, dup := seen[roleID]; dup {
+			continue
+		}
+
+		seen[roleID] = struct{}{}
+
+		ids = append(ids, roleID)
+	}
+
+	return ids
+}
+
+// roleBitfield packs AtspiRole ids into the fixed 5-word int32 bitfield libatspi
+// expects: bit (id%32) of word (id/32).
+func roleBitfield(ids []int32) []int32 {
+	words := make([]int32, atspiRoleWords)
+
+	for _, roleID := range ids {
+		if roleID < 0 {
+			continue
+		}
+
+		word := roleID / atspiBitsPerWord
+		if int(word) < len(words) {
+			words[word] |= 1 << uint(roleID%atspiBitsPerWord)
+		}
+	}
+
+	return words
+}
+
+// stateBitset packs AT-SPI state indices into the fixed 2-word int32 array
+// libatspi expects: bit (s%32) of word (s/32).
+func stateBitset(states ...uint) []int32 {
+	words := make([]int32, atspiStateWords)
+
+	for _, s := range states {
+		w := s / atspiBitsPerWord
+		if int(w) < len(words) {
+			words[w] |= 1 << (s % atspiBitsPerWord)
+		}
+	}
+
+	return words
 }
 
 // Close restores the org.a11y.Status to the values that were active before
@@ -338,6 +508,144 @@ func (c *ATSPIClient) Close() error {
 	c.mu.Unlock()
 
 	return nil
+}
+
+// collectViaCollection fetches clickable elements with a single
+// org.a11y.atspi.Collection.GetMatches call rooted at the frame, instead of the
+// recursive per-node walk. It returns (nodes, true) on success, or (nil, false)
+// to signal the caller to fall back to the walk — when Collection is disabled,
+// no requested role maps to an AtspiRole, or the toolkit does not implement the
+// interface (the GetMatches call errors). Results have identical semantics to
+// the walk: SHOWING elements whose role maps (via atspiToAXRole) into roleSet.
+func (c *ATSPIClient) collectViaCollection(
+	ctx context.Context,
+	conn *dbus.Conn,
+	root accRef,
+	roleSet map[string]struct{},
+	offX, offY int,
+) ([]AXNode, bool) {
+	if os.Getenv("NERU_ATSPI_NO_COLLECTION") != "" {
+		return nil, false
+	}
+
+	ids := deriveTargetRoleIDs(roleSet)
+	if len(ids) == 0 {
+		// No requested role has an AtspiRole equivalent; the walk would also emit
+		// nothing. Fall back rather than issue a match-nothing query.
+		return nil, false
+	}
+
+	rule := atspiMatchRule{
+		States:     stateBitset(atspiStateShowing),
+		StateMatch: atspiMatchAll,
+		Attributes: map[string]string{},
+		AttrMatch:  atspiMatchAll,
+		Roles:      roleBitfield(ids),
+		RoleMatch:  atspiMatchAny,
+		Interfaces: []string{},
+		IfaceMatch: atspiMatchAll,
+		Invert:     false,
+	}
+
+	var matches []accRef
+
+	err := conn.Object(root.Name, root.Path).
+		CallWithContext(ctx, atspiCollectionIfc+".GetMatches", 0,
+			rule, atspiSortCanonical, int32(0), true).
+		Store(&matches)
+	if err != nil {
+		c.logger.Debug("AT-SPI Collection.GetMatches unavailable; falling back to walk",
+			zap.Error(err))
+
+		return nil, false
+	}
+
+	// Collection is implemented but returned nothing. Don't trust that as
+	// authoritative — a toolkit's Collection may be incomplete or scope the
+	// subtree differently than the per-node walk (e.g. return zero on a page the
+	// walk would find elements on). Fall back to the walk, which is the safe
+	// baseline; genuinely empty windows are cheap to walk.
+	if len(matches) == 0 {
+		return nil, false
+	}
+
+	// Bound the work before materializing so a pathological page cannot spawn an
+	// unbounded number of goroutines (the walk applies the same cap to its output).
+	if len(matches) > atspiMaxNodes {
+		matches = matches[:atspiMaxNodes]
+	}
+
+	// Materialize each match (role re-check + extents + name) concurrently: the
+	// lookups are independent, latency-bound D-Bus round-trips that godbus
+	// multiplexes safely over the one connection. Each goroutine writes its own
+	// slot, so no lock is needed; nil slots are dropped afterward.
+	results := make([]*atspiNode, len(matches))
+
+	sem := make(chan struct{}, collectionMaxWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for index, ref := range matches {
+		if ctx.Err() != nil {
+			break
+		}
+
+		waitGroup.Add(1)
+
+		sem <- struct{}{}
+
+		go func(slot int, ref accRef) {
+			defer waitGroup.Done()
+			defer func() { <-sem }()
+
+			results[slot] = c.materializeMatch(conn, ref, roleSet, offX, offY)
+		}(index, ref)
+	}
+
+	waitGroup.Wait()
+
+	out := make([]AXNode, 0, len(results))
+	for _, node := range results {
+		if node != nil {
+			out = append(out, node)
+		}
+	}
+
+	return out, true
+}
+
+// materializeMatch turns a GetMatches result into an atspiNode, or nil if it
+// should be dropped (role not in the requested set, or no valid on-screen
+// extents). It mirrors the walk's emit filter and is safe for concurrent use —
+// it only issues reads over the shared connection, which godbus multiplexes.
+func (c *ATSPIClient) materializeMatch(
+	conn *dbus.Conn,
+	ref accRef,
+	roleSet map[string]struct{},
+	offX, offY int,
+) *atspiNode {
+	// Re-verify the role maps into the requested set: a toolkit may return a role
+	// we did not ask for, and this keeps parity with the walk's filter.
+	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(conn, ref))]
+	if !mappable {
+		return nil
+	}
+
+	if _, ok := roleSet[axRole]; !ok {
+		return nil
+	}
+
+	rect, valid := c.extents(conn, ref)
+	if !valid {
+		return nil
+	}
+
+	return &atspiNode{
+		id:    string(ref.Path) + "@" + ref.Name,
+		role:  axRole,
+		title: c.name(conn, ref),
+		rect:  rect.Add(image.Pt(offX, offY)),
+	}
 }
 
 // readA11yStatus reads the current IsEnabled and ScreenReaderEnabled D-Bus
@@ -590,12 +898,12 @@ func (c *ATSPIClient) stateHas(conn *dbus.Conn, ref accRef, bit uint) bool {
 		return false
 	}
 
-	word := bit / atspiStateBitsPerWord
+	word := bit / atspiBitsPerWord
 	if int(word) >= len(states) {
 		return false
 	}
 
-	return states[word]&(1<<(bit%atspiStateBitsPerWord)) != 0
+	return states[word]&(1<<(bit%atspiBitsPerWord)) != 0
 }
 
 // extents returns the on-screen rectangle of an accessible.

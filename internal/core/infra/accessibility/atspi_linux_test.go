@@ -3,7 +3,10 @@
 //nolint:testpackage // Exercises the unexported app_id matching helpers directly.
 package accessibility
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 const (
 	appIDFirefox = "org.mozilla.firefox"
@@ -208,5 +211,136 @@ func TestSelectFrame(t *testing.T) {
 				t.Errorf("selectFrame() = (%+v, %v), want (%+v, %v)", got, ok, tc.want, tc.wantOK)
 			}
 		})
+	}
+}
+
+func TestStateBitset(t *testing.T) {
+	got := stateBitset(atspiStateShowing) // SHOWING = 25
+	if len(got) != atspiStateWords {
+		t.Fatalf("len = %d, want %d", len(got), atspiStateWords)
+	}
+
+	if got[0] != 1<<25 || got[1] != 0 {
+		t.Fatalf("stateBitset(SHOWING) = %v, want [%d 0]", got, int32(1)<<25)
+	}
+}
+
+func TestRoleBitfield(t *testing.T) {
+	// push button 43 -> word1 bit11; link 88 -> word2 bit24; menu 129 -> word4 bit1.
+	got := roleBitfield([]int32{43, 88, 129})
+	if len(got) != atspiRoleWords {
+		t.Fatalf("len = %d, want %d", len(got), atspiRoleWords)
+	}
+
+	want := make([]int32, atspiRoleWords)
+	for _, id := range []int32{43, 88, 129} {
+		want[id/32] |= 1 << uint(id%32)
+	}
+
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("word %d = %d, want %d (got=%v want=%v)", i, got[i], want[i], got, want)
+		}
+	}
+
+	// Explicit spot-checks guard against off-by-one word/bit packing.
+	if got[1] != 1<<11 {
+		t.Errorf("word1 = %d, want %d (push button)", got[1], int32(1)<<11)
+	}
+
+	if got[4] != 1<<1 {
+		t.Errorf("word4 = %d, want %d (push-button-menu)", got[4], int32(1)<<1)
+	}
+}
+
+func TestDeriveTargetRoleIDs(t *testing.T) {
+	noDuplicates := func(t *testing.T, ids []int32) {
+		t.Helper()
+
+		seen := make(map[int32]bool)
+		for _, roleID := range ids {
+			if seen[roleID] {
+				t.Errorf("duplicate id %d in %v", roleID, ids)
+			}
+
+			seen[roleID] = true
+		}
+	}
+
+	t.Run("AXButton maps to its several atspi roles (deduped)", func(t *testing.T) {
+		// push button(43), button(43 -> deduped), toggle button(62).
+		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleButton: {}})
+		for _, want := range []int32{43, 62} {
+			if !slices.Contains(ids, want) {
+				t.Errorf("missing role id %d in %v", want, ids)
+			}
+		}
+
+		noDuplicates(t, ids)
+
+		if len(ids) != 2 {
+			t.Errorf("AXButton -> %v, want exactly ids {43, 62}", ids)
+		}
+	})
+
+	t.Run("AXMenuItem gathers all three menu-item roles", func(t *testing.T) {
+		// check menu item(8), radio menu item(45), menu item(35).
+		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleMenuItem: {}})
+		for _, want := range []int32{8, 45, 35} {
+			if !slices.Contains(ids, want) {
+				t.Errorf("missing role id %d in %v", want, ids)
+			}
+		}
+
+		noDuplicates(t, ids)
+	})
+
+	t.Run("AXTextField gathers entry and password text", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleTextField: {}})
+		for _, want := range []int32{79, 40} {
+			if !slices.Contains(ids, want) {
+				t.Errorf("missing role id %d in %v", want, ids)
+			}
+		}
+	})
+
+	t.Run("multiple AX roles union their ids", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleRow: {}, axRoleButton: {}})
+		for _, want := range []int32{32, 90, 43, 62} { // list item, table row, push/toggle button
+			if !slices.Contains(ids, want) {
+				t.Errorf("missing role id %d in %v", want, ids)
+			}
+		}
+
+		noDuplicates(t, ids)
+	})
+
+	t.Run("raw AT-SPI names never match (parity with the walk)", func(t *testing.T) {
+		// deriveTargetRoleIDs keys on the AX values of atspiToAXRole, exactly like
+		// the walk, so a set of raw AT-SPI role names resolves to nothing.
+		ids := deriveTargetRoleIDs(map[string]struct{}{"spin button": {}, "toolbar": {}})
+		if len(ids) != 0 {
+			t.Errorf("atspi-name set -> %v, want none", ids)
+		}
+	})
+
+	t.Run("role with no atspi equivalent yields none", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(map[string]struct{}{"AXUnknownWidget": {}})
+		if len(ids) != 0 {
+			t.Errorf("unknown role -> %v, want none", ids)
+		}
+	})
+}
+
+func TestAtspiRoleNameToIDCoversAtspiToAXRole(t *testing.T) {
+	// Every AT-SPI role name that maps to an AX role (and is therefore hintable
+	// via the walk) must also have an AtspiRole id. If the two maps drift, the
+	// Collection fast path would silently miss that role type while the walk
+	// still finds it — a subtle correctness gap.
+	for atspiName := range atspiToAXRole {
+		if _, ok := atspiRoleNameToID[atspiName]; !ok {
+			t.Errorf("atspiToAXRole has %q but atspiRoleNameToID lacks it; "+
+				"Collection.GetMatches would not match that role", atspiName)
+		}
 	}
 }
