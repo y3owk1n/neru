@@ -179,6 +179,10 @@ func (m *MockAXClient) IsMissionControlActive() bool {
 	return m.MockMissionControlActive
 }
 
+// SupportsSupplementaryElements returns true so tests exercise the Dock/menu
+// bar/Stage Manager/PIP/screen-capture collectors regardless of host platform.
+func (m *MockAXClient) SupportsSupplementaryElements() bool { return true }
+
 // Close is a no-op for the mock.
 func (m *MockAXClient) Close() error { return nil }
 

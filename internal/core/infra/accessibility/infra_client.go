@@ -301,6 +301,13 @@ func (c *InfraAXClient) IsMissionControlActive() bool {
 	return IsMissionControlActive()
 }
 
+// SupportsSupplementaryElements reports whether the platform exposes the
+// macOS-specific auxiliary surfaces (Dock, menu bar, etc.). True on macOS,
+// false on Linux/Windows.
+func (c *InfraAXClient) SupportsSupplementaryElements() bool {
+	return supportsSupplementaryElements()
+}
+
 // Close is a no-op for the default infrastructure client; the macOS AX API
 // does not hold process-external resources that need explicit teardown.
 func (c *InfraAXClient) Close() error { return nil }

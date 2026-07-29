@@ -265,70 +265,76 @@ func (a *Adapter) ClickableElements(
 		}()
 	}
 
-	// Menubar elements
-	if !missionControlActive && filter.IncludeMenubar {
-		waitGroup.Add(1)
+	// The Dock, menu bar, Notification Center, Stage Manager, Picture-in-Picture
+	// and screen-capture UI are macOS-specific surfaces resolved by system
+	// bundle ID. They do not exist on other platforms, so skip them entirely
+	// there rather than probing for nonexistent apps (which only logs failures).
+	if a.client.SupportsSupplementaryElements() {
+		// Menubar elements
+		if !missionControlActive && filter.IncludeMenubar {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("menubar", func() ([]*element.Element, error) {
-				return a.addMenubarElements(ctx, nil, filter), nil
-			})
-		}()
-	}
+			go func() {
+				collectElements("menubar", func() ([]*element.Element, error) {
+					return a.addMenubarElements(ctx, nil, filter), nil
+				})
+			}()
+		}
 
-	// Dock elements
-	if filter.IncludeDock {
-		waitGroup.Add(1)
+		// Dock elements
+		if filter.IncludeDock {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("dock", func() ([]*element.Element, error) {
-				return a.addDockElements(ctx, nil), nil
-			})
-		}()
-	}
+			go func() {
+				collectElements("dock", func() ([]*element.Element, error) {
+					return a.addDockElements(ctx, nil), nil
+				})
+			}()
+		}
 
-	// Notification Center
-	if !missionControlActive && filter.IncludeNotificationCenter {
-		waitGroup.Add(1)
+		// Notification Center
+		if !missionControlActive && filter.IncludeNotificationCenter {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("notification_center", func() ([]*element.Element, error) {
-				return a.addNotificationCenterElements(ctx, nil), nil
-			})
-		}()
-	}
+			go func() {
+				collectElements("notification_center", func() ([]*element.Element, error) {
+					return a.addNotificationCenterElements(ctx, nil), nil
+				})
+			}()
+		}
 
-	// Stage Manager
-	if !missionControlActive && filter.IncludeStageManager {
-		waitGroup.Add(1)
+		// Stage Manager
+		if !missionControlActive && filter.IncludeStageManager {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("stage_manager", func() ([]*element.Element, error) {
-				return a.addStageManagerElements(ctx, nil), nil
-			})
-		}()
-	}
+			go func() {
+				collectElements("stage_manager", func() ([]*element.Element, error) {
+					return a.addStageManagerElements(ctx, nil), nil
+				})
+			}()
+		}
 
-	// PIP
-	if !missionControlActive && filter.IncludePIP {
-		waitGroup.Add(1)
+		// PIP
+		if !missionControlActive && filter.IncludePIP {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("pip", func() ([]*element.Element, error) {
-				return a.addPIPElements(ctx, nil), nil
-			})
-		}()
-	}
+			go func() {
+				collectElements("pip", func() ([]*element.Element, error) {
+					return a.addPIPElements(ctx, nil), nil
+				})
+			}()
+		}
 
-	// Screen Capture
-	if !missionControlActive && filter.IncludeScreenCapture {
-		waitGroup.Add(1)
+		// Screen Capture
+		if !missionControlActive && filter.IncludeScreenCapture {
+			waitGroup.Add(1)
 
-		go func() {
-			collectElements("screen_capture", func() ([]*element.Element, error) {
-				return a.addScreenCaptureElements(ctx, nil), nil
-			})
-		}()
+			go func() {
+				collectElements("screen_capture", func() ([]*element.Element, error) {
+					return a.addScreenCaptureElements(ctx, nil), nil
+				})
+			}()
+		}
 	}
 
 	// Wait for all queries to complete or context to be canceled
