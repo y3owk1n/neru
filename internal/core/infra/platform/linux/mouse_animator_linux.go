@@ -22,22 +22,37 @@ const (
 
 // cursorAnimationDone is a once-closable completion signal shared with
 // WaitForCursorIdle. It mirrors the darwin animator's done channel so callers
-// can block until the cursor settles.
+// can block until the cursor settles, and additionally carries the first
+// backend move error so WaitForCursorIdle can surface a failed warp instead of
+// reporting a phantom success. err is written inside once.Do before the channel
+// closes, so a reader that observes the close also observes err (the channel
+// close is the happens-before edge — no extra lock needed).
 type cursorAnimationDone struct {
 	ch   chan struct{}
 	once sync.Once
+	err  error
 }
 
 func newCursorAnimationDone() *cursorAnimationDone {
 	return &cursorAnimationDone{ch: make(chan struct{})}
 }
 
+// close settles the animation as successful (no backend error).
 func (d *cursorAnimationDone) close() {
+	d.closeWithErr(nil)
+}
+
+// closeWithErr settles the animation, recording err for the first caller to
+// close. Cancellation paths pass nil (a stopped animation is not a move
+// failure); only a failed backend warp passes a non-nil err.
+func (d *cursorAnimationDone) closeWithErr(err error) {
 	if d == nil {
 		return
 	}
 
 	d.once.Do(func() {
+		d.err = err
+
 		close(d.ch)
 	})
 }
@@ -113,7 +128,7 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 
 	select {
 	case <-done.ch:
-		return nil
+		return done.err
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -121,6 +136,13 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 
 // animateTo enqueues an animation toward end, coalescing so only the latest
 // target survives when requests arrive faster than the worker drains them.
+//
+// Worker start and enqueue happen under a.mu in one critical section. This is
+// what makes it safe against a concurrent stop(): a bypassed move can never
+// swap out the channel or kill the worker between "pick a channel" and "send",
+// so a request can never be stranded on an orphaned channel with an unclosed
+// done. Because every producer holds the lock and the worker is the sole
+// consumer of the size-1 buffer, the enqueue is always non-blocking.
 func (a *smoothCursorAnimator) animateTo(
 	end image.Point,
 	steps, maxDuration int,
@@ -135,38 +157,46 @@ func (a *smoothCursorAnimator) animateTo(
 		done:             done,
 	}
 
-	reqCh := a.ensureWorker(done)
-	select {
-	case reqCh <- req:
-	default:
-		select {
-		case dropped := <-reqCh:
-			dropped.done.close()
-		default:
-		}
-
-		reqCh <- req
-	}
-}
-
-func (a *smoothCursorAnimator) ensureWorker(done *cursorAnimationDone) chan cursorRequest {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.done = done
+	if a.reqCh == nil {
+		a.reqCh = make(chan cursorRequest, 1)
+		a.stopCh = make(chan struct{})
 
-	if a.reqCh != nil {
-		return a.reqCh
+		go a.run(a.reqCh, a.stopCh)
 	}
 
-	reqCh := make(chan cursorRequest, 1)
-	stopCh := make(chan struct{})
-	a.reqCh = reqCh
-	a.stopCh = stopCh
+	a.done = done
+	a.enqueueLocked(req)
+}
 
-	go a.run(reqCh, stopCh)
+// enqueueLocked places req on the worker channel, coalescing so only the latest
+// target survives. The caller must hold a.mu.
+//
+// The buffer is size 1 and, under the lock, we are the only producer while the
+// worker is the only consumer (it removes, never adds). So after draining a
+// stale request the buffer is empty and the follow-up send cannot block. The
+// final default branch is therefore unreachable in practice; it closes done
+// defensively so a waiter can never hang even if that invariant is ever broken.
+func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
+	select {
+	case a.reqCh <- req:
+		return
+	default:
+	}
 
-	return reqCh
+	select {
+	case dropped := <-a.reqCh:
+		dropped.done.close()
+	default:
+	}
+
+	select {
+	case a.reqCh <- req:
+	default:
+		req.done.close()
+	}
 }
 
 func (a *smoothCursorAnimator) run(reqCh <-chan cursorRequest, stopCh <-chan struct{}) {
@@ -234,7 +264,18 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		_ = a.move(intermediate)
+		// A failed backend warp means the cursor is not where the caller
+		// expects, so surface it through WaitForCursorIdle rather than
+		// reporting a phantom success. Backend move failures reflect device
+		// state (disconnected virtual pointer, lost display), so abort the
+		// remaining steps instead of spinning on calls that will also fail.
+		moveErr := a.move(intermediate)
+		if moveErr != nil {
+			req.done.closeWithErr(moveErr)
+			a.clearDoneIfCurrent(req.done)
+
+			return
+		}
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)

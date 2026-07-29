@@ -5,11 +5,16 @@ package linux
 
 import (
 	"context"
+	"errors"
 	"image"
 	"sync"
 	"testing"
 	"time"
 )
+
+// errMoveFailed is a static sentinel for the backend-move-failure test, so the
+// propagated error can be matched with errors.Is.
+var errMoveFailed = errors.New("virtual pointer disconnected")
 
 // recorder captures the moves an animator injects so tests can assert on the
 // glide path and final landing point without touching a real display server.
@@ -137,6 +142,67 @@ func TestSmoothCursorAnimatorWaitReturnsWhenIdle(t *testing.T) {
 	if rec.count() != 0 {
 		t.Fatalf("idle animator injected %d moves, want 0", rec.count())
 	}
+}
+
+func TestSmoothCursorAnimatorPropagatesMoveError(t *testing.T) {
+	t.Parallel()
+
+	failingMove := func(_ image.Point) error {
+		return errMoveFailed
+	}
+	pos := func() image.Point {
+		return image.Point{}
+	}
+
+	animator := newSmoothCursorAnimator(pos, failingMove)
+	animator.animateTo(image.Point{X: 400, Y: 400}, 8, 60, 0.1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if !errors.Is(err, errMoveFailed) {
+		t.Fatalf("wait did not surface the backend move error: got %v want %v", err, errMoveFailed)
+	}
+}
+
+// TestSmoothCursorAnimatorConcurrentStopAndAnimate guards the animateTo/stop
+// race: a bypassed move (stop) must never strand a smooth request on an
+// orphaned channel with an unclosed done. Run with -race. The test passes if it
+// completes without deadlocking on a wait that never returns.
+func TestSmoothCursorAnimatorConcurrentStopAndAnimate(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	var waitGroup sync.WaitGroup
+
+	for index := range 200 {
+		waitGroup.Add(2)
+
+		go func() {
+			defer waitGroup.Done()
+
+			animator.animateTo(image.Point{X: index, Y: index}, 6, 40, 0.2)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+
+			err := animator.wait(ctx)
+			if err != nil {
+				t.Errorf("wait blocked or errored during concurrent stop: %v", err)
+			}
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			animator.stop()
+		}()
+	}
+
+	waitGroup.Wait()
 }
 
 func TestSmoothCursorAnimatorStopReleasesWaiter(t *testing.T) {
