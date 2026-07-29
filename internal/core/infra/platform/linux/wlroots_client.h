@@ -26,6 +26,10 @@ typedef struct {
 // "org.kde.konsole") and freedesktop app-ids fit comfortably in 256 bytes.
 #define NERU_APP_ID_LEN 256
 
+// Window-title buffer length. Titles can be longer than app-ids; 512 bytes
+// avoids truncating most window titles so they match the AT-SPI frame name.
+#define NERU_TITLE_LEN 512
+
 // NeruToplevel mirrors one zwlr_foreign_toplevel_handle_v1. Nodes are heap
 // allocated and threaded onto NeruWlrootsClient.toplevels via `link`, so there
 // is no fixed cap on the number of windows tracked. app_id and the activated
@@ -38,6 +42,9 @@ typedef struct {
 	char app_id[NERU_APP_ID_LEN];
 	char pending_app_id[NERU_APP_ID_LEN];
 	int has_pending_app_id;
+	char title[NERU_TITLE_LEN];
+	char pending_title[NERU_TITLE_LEN];
+	int has_pending_title;
 	int activated;
 	int pending_activated;
 } NeruToplevel;
@@ -67,6 +74,7 @@ typedef struct NeruWlrootsClient {
 	struct zwlr_foreign_toplevel_manager_v1 *toplevel_mgr;
 	struct wl_list toplevels;              // list of NeruToplevel, guarded by toplevel_mutex
 	char focused_app_id[NERU_APP_ID_LEN];  // guarded by toplevel_mutex
+	char focused_title[NERU_TITLE_LEN];    // guarded by toplevel_mutex
 	pthread_mutex_t toplevel_mutex;
 	int toplevel_mutex_ready;
 
@@ -126,5 +134,11 @@ int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c);
 // non-empty focused app_id is available, 0 otherwise (no manager, nothing
 // focused, or the focused toplevel has no app_id yet).
 int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
+
+// neru_wlr_focused_app_title copies the title of the currently-activated
+// toplevel into out (NUL-terminated, capped at out_len). Returns 1 when a
+// non-empty focused title is available, 0 otherwise. Used to disambiguate
+// multiple windows of the focused application, which share an app_id.
+int neru_wlr_focused_app_title(NeruWlrootsClient *c, char *out, int out_len);
 
 #endif /* WLROOTS_CLIENT_H */

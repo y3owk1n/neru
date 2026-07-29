@@ -78,3 +78,11 @@ func WaylandKeyEvent(keycode uint32, pressed bool) error {
 func WaylandFocusedAppID() (string, bool) {
 	return wlrootsFocusedAppID()
 }
+
+// WaylandFocusedAppTitle returns the title of the focused toplevel (via
+// wlr-foreign-toplevel-management), used to disambiguate multiple windows of
+// the focused application, which share an app_id. The bool is false when no
+// title is available (GNOME/Mutter, nothing focused, or CGO disabled).
+func WaylandFocusedAppTitle() (string, bool) {
+	return wlrootsFocusedAppTitle()
+}

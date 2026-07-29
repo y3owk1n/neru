@@ -189,6 +189,37 @@ func wlrootsFocusedAppID() (string, bool) {
 	return C.GoString(&buf[0]), true
 }
 
+// wlrootsFocusedTitleBufferSize matches NERU_TITLE_LEN in wlroots_client.h.
+const wlrootsFocusedTitleBufferSize = 512
+
+// wlrootsFocusedAppTitle returns the title of the currently activated (focused)
+// toplevel. The bool is false when no manager is present or nothing is focused.
+// The title disambiguates multiple windows of the focused application, which
+// share an app_id.
+func wlrootsFocusedAppTitle() (string, bool) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return "", false
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	client := globalWlrootsState.client
+	if client == nil {
+		return "", false
+	}
+
+	buf := make([]C.char, wlrootsFocusedTitleBufferSize)
+	bufLen := C.int(wlrootsFocusedTitleBufferSize)
+
+	if C.neru_wlr_focused_app_title(client, &buf[0], bufLen) == 0 { //nolint:nlreturn
+		return "", false
+	}
+
+	return C.GoString(&buf[0]), true
+}
+
 // wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
 // libei move on KDE) into the wlroots client's client-side cursor cache so
 // CursorPosition and screen resolution stay accurate.

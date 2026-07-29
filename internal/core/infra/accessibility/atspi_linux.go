@@ -243,6 +243,15 @@ func (c *ATSPIClient) ClickableNodes(
 
 	start := time.Now()
 
+	// If focus changed since this window was selected, the frame is stale:
+	// walking it would surface hints for a now-background window (and any
+	// geometry would belong to a different window). Return nothing so hints do
+	// not target the wrong surface. When no focused app_id is available
+	// (X11/GNOME) there is nothing to compare, so the walk proceeds.
+	if !c.focusStableSince(win.focusedAppID) {
+		return nil, nil
+	}
+
 	// Validate the cached KWin origin against the frame actually being walked
 	// (by size): a stale origin from a previous window would offset every hint
 	// to the wrong screen position. When the frame extents are unavailable the
@@ -254,7 +263,7 @@ func (c *ATSPIClient) ClickableNodes(
 	)
 
 	frameRect, frameOK := c.extents(conn, win.ref)
-	if frameOK && c.focusStableSince(win.focusedAppID) {
+	if frameOK {
 		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
 		if ok {
 			// AT-SPI reports element coordinates in the app's own space, where the
@@ -655,19 +664,23 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
 	// Compositor-reported focused app_id (Wayland wlroots/KWin); empty on X11,
-	// GNOME, or when nothing is focused yet.
+	// GNOME, or when nothing is focused yet. The focused title disambiguates
+	// multiple windows of the focused application, which share an app_id.
 	focusedAppID, haveFocused := linux.WaylandFocusedAppID()
+	focusedTitle, haveFocusedTitle := linux.WaylandFocusedAppTitle()
 
 	var (
 		// Frames whose application matches the compositor's focused app_id — the
 		// most reliable signal on Wayland, so they win over the ACTIVE heuristic.
-		// When that app has several visible windows, prefer the one the app's own
-		// toolkit marks ACTIVE (reliable within a single app, unlike the cross-app
-		// ACTIVE state) so a background window of the focused app cannot win.
-		focusedActiveShowing accRef
-		haveFocusedActive    bool
-		focusedShowing       accRef
-		haveFocusedShowing   bool
+		// When that app has several visible windows, prefer the one whose title
+		// matches the focused toplevel's title, then the one the toolkit marks
+		// ACTIVE, so a background window of the focused app cannot win.
+		focusedTitleFrame     accRef
+		haveFocusedTitleMatch bool
+		focusedActiveShowing  accRef
+		haveFocusedActive     bool
+		focusedShowing        accRef
+		haveFocusedShowing    bool
 
 		activeShowing accRef
 		haveAS        bool
@@ -720,8 +733,16 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 
 			// The application the compositor reports as focused wins outright,
 			// regardless of the (unreliable) cross-app AT-SPI ACTIVE state. Among
-			// that app's visible windows, prefer the one it marks ACTIVE.
+			// that app's visible windows, prefer the one whose title matches the
+			// focused toplevel, then the one it marks ACTIVE, then the first
+			// showing one.
 			if matchesFocused && showing {
+				if haveFocusedTitle && !haveFocusedTitleMatch &&
+					titleMatchesFocused(c.name(conn, frame), focusedTitle) {
+					focusedTitleFrame = frame
+					haveFocusedTitleMatch = true
+				}
+
 				if active && !haveFocusedActive {
 					focusedActiveShowing = frame
 					haveFocusedActive = true
@@ -756,6 +777,8 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	activeStateIdentifiesFocus := platform.DetectLinuxBackend() == platform.BackendWaylandKDE
 
 	switch {
+	case haveFocusedTitleMatch:
+		return focusedTitleFrame, true
 	case haveFocusedActive:
 		return focusedActiveShowing, true
 	case haveFocusedShowing:
@@ -778,6 +801,16 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	default:
 		return accRef{}, false
 	}
+}
+
+// titleMatchesFocused reports whether an AT-SPI frame title equals the
+// compositor's focused toplevel title. Both derive from the window's
+// xdg_toplevel.title, so a whitespace-trimmed exact comparison disambiguates
+// windows of the same application. Empty titles never match.
+func titleMatchesFocused(frameTitle, focusedTitle string) bool {
+	frameTitle = strings.TrimSpace(frameTitle)
+
+	return frameTitle != "" && frameTitle == strings.TrimSpace(focusedTitle)
 }
 
 // appMatchesFocusedID reports whether an AT-SPI application name corresponds to

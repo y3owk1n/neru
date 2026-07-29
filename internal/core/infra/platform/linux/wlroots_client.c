@@ -492,28 +492,43 @@ static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_fo
 	return NULL;
 }
 
-// Recompute the cached focused app_id from the committed per-toplevel state.
-// The last activated toplevel carrying a non-empty app_id wins; if none is
-// activated the cache is cleared. Callers must hold toplevel_mutex.
+// Recompute the cached focused app_id and title from the committed per-toplevel
+// state. The last activated toplevel carrying a non-empty app_id wins; if none
+// is activated the cache is cleared. Callers must hold toplevel_mutex.
 static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	const char *found = NULL;
+	const char *found_title = NULL;
 	NeruToplevel *t;
 	wl_list_for_each(t, &c->toplevels, link) {
-		if (t->activated && t->app_id[0] != '\0')
+		if (t->activated && t->app_id[0] != '\0') {
 			found = t->app_id;
+			found_title = t->title;
+		}
 	}
 	if (found) {
 		strncpy(c->focused_app_id, found, NERU_APP_ID_LEN - 1);
 		c->focused_app_id[NERU_APP_ID_LEN - 1] = '\0';
+		strncpy(c->focused_title, found_title ? found_title : "", NERU_TITLE_LEN - 1);
+		c->focused_title[NERU_TITLE_LEN - 1] = '\0';
 	} else {
 		c->focused_app_id[0] = '\0';
+		c->focused_title[0] = '\0';
 	}
 }
 
 static void neru_wlr_toplevel_title(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, const char *title) {
-	(void)data;
-	(void)handle;
-	(void)title;
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c || !title)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
+	if (t) {
+		// Buffer until `done` so title commits atomically with app_id/state.
+		strncpy(t->pending_title, title, NERU_TITLE_LEN - 1);
+		t->pending_title[NERU_TITLE_LEN - 1] = '\0';
+		t->has_pending_title = 1;
+	}
+	neru_wlr_toplevel_unlock(c);
 }
 
 static void neru_wlr_toplevel_app_id(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, const char *app_id) {
@@ -576,6 +591,11 @@ static void neru_wlr_toplevel_done(void *data, struct zwlr_foreign_toplevel_hand
 			strncpy(t->app_id, t->pending_app_id, NERU_APP_ID_LEN - 1);
 			t->app_id[NERU_APP_ID_LEN - 1] = '\0';
 			t->has_pending_app_id = 0;
+		}
+		if (t->has_pending_title) {
+			strncpy(t->title, t->pending_title, NERU_TITLE_LEN - 1);
+			t->title[NERU_TITLE_LEN - 1] = '\0';
+			t->has_pending_title = 0;
 		}
 		t->activated = t->pending_activated;
 		neru_wlr_recompute_focused(c);
@@ -662,6 +682,7 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 		free(t);
 	}
 	c->focused_app_id[0] = '\0';
+	c->focused_title[0] = '\0';
 	neru_wlr_toplevel_unlock(c);
 
 	// Do not destroy the manager proxy here: the server destroys it right after
@@ -1256,6 +1277,23 @@ int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len) {
 	neru_wlr_toplevel_lock(c);
 	if (c->focused_app_id[0] != '\0') {
 		strncpy(out, c->focused_app_id, (size_t)(out_len - 1));
+		out[out_len - 1] = '\0';
+		ok = 1;
+	} else {
+		out[0] = '\0';
+	}
+	neru_wlr_toplevel_unlock(c);
+	return ok;
+}
+
+int neru_wlr_focused_app_title(NeruWlrootsClient *c, char *out, int out_len) {
+	if (!c || !out || out_len <= 0)
+		return 0;
+
+	int ok = 0;
+	neru_wlr_toplevel_lock(c);
+	if (c->focused_title[0] != '\0') {
+		strncpy(out, c->focused_title, (size_t)(out_len - 1));
 		out[out_len - 1] = '\0';
 		ok = 1;
 	} else {
