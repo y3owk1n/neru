@@ -22,37 +22,22 @@ const (
 
 // cursorAnimationDone is a once-closable completion signal shared with
 // WaitForCursorIdle. It mirrors the darwin animator's done channel so callers
-// can block until the cursor settles, and additionally carries the first
-// backend move error so WaitForCursorIdle can surface a failed warp instead of
-// reporting a phantom success. err is written inside once.Do before the channel
-// closes, so a reader that observes the close also observes err (the channel
-// close is the happens-before edge — no extra lock needed).
+// can block until the cursor settles.
 type cursorAnimationDone struct {
 	ch   chan struct{}
 	once sync.Once
-	err  error
 }
 
 func newCursorAnimationDone() *cursorAnimationDone {
 	return &cursorAnimationDone{ch: make(chan struct{})}
 }
 
-// close settles the animation as successful (no backend error).
 func (d *cursorAnimationDone) close() {
-	d.closeWithErr(nil)
-}
-
-// closeWithErr settles the animation, recording err for the first caller to
-// close. Cancellation paths pass nil (a stopped animation is not a move
-// failure); only a failed backend warp passes a non-nil err.
-func (d *cursorAnimationDone) closeWithErr(err error) {
 	if d == nil {
 		return
 	}
 
 	d.once.Do(func() {
-		d.err = err
-
 		close(d.ch)
 	})
 }
@@ -69,18 +54,25 @@ type cursorRequest struct {
 }
 
 // smoothCursorAnimator animates cursor movement toward a target by stepping a
-// backend move function over time. It mirrors the darwin animator design: a
-// single worker goroutine, latest-target-wins coalescing, and a completion
+// backend move function over time. It mirrors the darwin animator's semantics:
+// a single worker goroutine, latest-target-wins coalescing, and a completion
 // channel that WaitForCursorIdle blocks on.
 //
+// Like the darwin animator it is preemptive and fire-and-forget: callers do not
+// serialize cursor access (IPC, hotkey, and event-tap paths all drive moves
+// concurrently), so a bypassed/direct move cancels an in-flight animation and
+// the last writer wins. Backend move errors during an animation are best-effort
+// and not reported through WaitForCursorIdle — matching darwin, whose native
+// move call cannot fail back to Go. The direct (non-smooth) MoveCursorToPoint
+// path still returns backend errors synchronously; only the opt-in animated
+// path degrades to best-effort.
+//
 // Completion is tracked per *session*, not per request. A session begins when
-// an idle animator receives a target and ends when the queue drains (or a
-// failed warp aborts it). All targets that arrive while the session is busy —
-// including coalesced replacements — share the one session completion, so a
-// waiter stays attached until the cursor reaches the latest target, and the
-// session's first move error stays observable by a WaitForCursorIdle that
-// arrives after the session ends (the completion is superseded by the next
-// session or a stop(), never silently cleared).
+// an idle animator receives a target and ends when the queue drains. All
+// targets that arrive while the session is busy — including coalesced
+// replacements — share the one session completion, so a waiter stays attached
+// until the cursor reaches the latest target rather than being released when an
+// intermediate target is superseded.
 //
 // The X11/Wayland injection detail is kept out of the animator by injecting
 // pos/move at construction: pos samples the current cursor once per request
@@ -95,7 +87,6 @@ type smoothCursorAnimator struct {
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
 	done   *cursorAnimationDone // current session completion; nil only between stop() and the next session
-	err    error                // first backend move error of the current session
 	busy   bool                 // a session is in progress (worker actively draining toward a target)
 }
 
@@ -108,8 +99,8 @@ func newSmoothCursorAnimator(
 
 // stop cancels any in-flight animation and releases waiters. It is called on
 // the non-smooth move path so a direct warp always wins over a running tween.
-// It resets the whole session (including any recorded error) and detaches the
-// current worker via stopCh so a stale worker cannot mutate a later session.
+// It detaches the current worker via stopCh so a stale worker cannot mutate a
+// later session.
 func (a *smoothCursorAnimator) stop() {
 	a.mu.Lock()
 	stopCh := a.stopCh
@@ -117,7 +108,6 @@ func (a *smoothCursorAnimator) stop() {
 	a.reqCh = nil
 	a.stopCh = nil
 	a.done = nil
-	a.err = nil
 	a.busy = false
 
 	if stopCh != nil {
@@ -128,9 +118,8 @@ func (a *smoothCursorAnimator) stop() {
 	done.close()
 }
 
-// wait blocks until the current session settles or ctx is canceled, returning
-// the session's first backend move error (nil on success or cancellation). It
-// returns immediately when no session is active, preserving the historical
+// wait blocks until the current session settles or ctx is canceled. It returns
+// immediately when no session is active, preserving the historical
 // "WaitForCursorIdle is a no-op on Linux" behavior for the non-smooth path.
 func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 	a.mu.Lock()
@@ -143,7 +132,7 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 
 	select {
 	case <-done.ch:
-		return done.err
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -183,7 +172,6 @@ func (a *smoothCursorAnimator) animateTo(
 
 	if !a.busy {
 		a.done = newCursorAnimationDone()
-		a.err = nil
 		a.busy = true
 	}
 
@@ -278,17 +266,11 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		// A failed backend warp means the cursor is not where the caller
-		// expects, so surface it through WaitForCursorIdle rather than
-		// reporting a phantom success. Backend move failures reflect device
-		// state (disconnected virtual pointer, lost display), so abort the
-		// session instead of spinning on steps that will also fail.
-		moveErr := a.move(intermediate)
-		if moveErr != nil {
-			a.endSessionWithError(reqCh, stopCh, moveErr)
-
-			return
-		}
+		// Best-effort, matching darwin (whose native move cannot fail back to
+		// Go): a failed backend warp during the opt-in animation is not
+		// surfaced through WaitForCursorIdle. The direct MoveCursorToPoint path
+		// still returns backend errors synchronously.
+		_ = a.move(intermediate)
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)
@@ -322,8 +304,8 @@ restart:
 // finishOrNext, called after a target is reached, either hands back the next
 // queued target to continue the current session, or ends the session by closing
 // its completion (keeping a.done referencing the closed completion so a late
-// WaitForCursorIdle still observes the result). It no-ops when this worker has
-// been superseded by a stop()/restart, detected via stopCh identity, so a stale
+// WaitForCursorIdle still sees "idle"). It no-ops when this worker has been
+// superseded by a stop()/restart, detected via stopCh identity, so a stale
 // worker never closes a newer session's completion.
 func (a *smoothCursorAnimator) finishOrNext(
 	reqCh <-chan cursorRequest,
@@ -346,48 +328,12 @@ func (a *smoothCursorAnimator) finishOrNext(
 	}
 
 	done := a.done
-	err := a.err
 	a.busy = false
 	a.mu.Unlock()
 
-	done.closeWithErr(err)
+	done.close()
 
 	return cursorRequest{}, false
-}
-
-// endSessionWithError aborts the current session reporting moveErr. It discards
-// any target queued during the session (the device failed, so the session
-// aborts as a whole and a fresh animateTo will re-drive), then closes the
-// session completion. Like finishOrNext, it no-ops when this worker has been
-// superseded, detected via stopCh identity.
-func (a *smoothCursorAnimator) endSessionWithError(
-	reqCh <-chan cursorRequest,
-	stopCh <-chan struct{},
-	moveErr error,
-) {
-	a.mu.Lock()
-
-	if a.stopCh != stopCh {
-		a.mu.Unlock()
-
-		return
-	}
-
-	select {
-	case <-reqCh:
-	default:
-	}
-
-	if a.err == nil {
-		a.err = moveErr
-	}
-
-	done := a.done
-	err := a.err
-	a.busy = false
-	a.mu.Unlock()
-
-	done.closeWithErr(err)
 }
 
 // stopAndDrainTimer stops timer and clears any pending tick so the next Reset

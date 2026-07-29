@@ -5,16 +5,11 @@ package linux
 
 import (
 	"context"
-	"errors"
 	"image"
 	"sync"
 	"testing"
 	"time"
 )
-
-// errMoveFailed is a static sentinel for the backend-move-failure test, so the
-// propagated error can be matched with errors.Is.
-var errMoveFailed = errors.New("virtual pointer disconnected")
 
 // recorder captures the moves an animator injects so tests can assert on the
 // glide path and final landing point without touching a real display server.
@@ -144,28 +139,6 @@ func TestSmoothCursorAnimatorWaitReturnsWhenIdle(t *testing.T) {
 	}
 }
 
-func TestSmoothCursorAnimatorPropagatesMoveError(t *testing.T) {
-	t.Parallel()
-
-	failingMove := func(_ image.Point) error {
-		return errMoveFailed
-	}
-	pos := func() image.Point {
-		return image.Point{}
-	}
-
-	animator := newSmoothCursorAnimator(pos, failingMove)
-	animator.animateTo(image.Point{X: 400, Y: 400}, 8, 60, 0.1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	err := animator.wait(ctx)
-	if !errors.Is(err, errMoveFailed) {
-		t.Fatalf("wait did not surface the backend move error: got %v want %v", err, errMoveFailed)
-	}
-}
-
 // TestSmoothCursorAnimatorWaiterTracksSupersedingTarget guards the coalescing
 // race: a waiter that attaches while an earlier target animates must not be
 // released until the cursor reaches the *latest* target, even when the queued
@@ -223,21 +196,14 @@ func TestSmoothCursorAnimatorWaiterTracksSupersedingTarget(t *testing.T) {
 	}
 }
 
-// TestSmoothCursorAnimatorErrorVisibleToLateWaiter guards the completion-erase
-// race: an error that occurs before the caller reaches WaitForCursorIdle must
-// still be observable. The animation is allowed to fail and fully settle before
-// wait is called.
-func TestSmoothCursorAnimatorErrorVisibleToLateWaiter(t *testing.T) {
+// TestSmoothCursorAnimatorBestEffortOnMoveFailure documents that a failing
+// backend warp during the animation is best-effort (matching darwin): the
+// session still settles and WaitForCursorIdle returns without error.
+func TestSmoothCursorAnimatorBestEffortOnMoveFailure(t *testing.T) {
 	t.Parallel()
 
-	moved := make(chan struct{}, 1)
 	failingMove := func(_ image.Point) error {
-		select {
-		case moved <- struct{}{}:
-		default:
-		}
-
-		return errMoveFailed
+		return context.DeadlineExceeded // any non-nil error
 	}
 	pos := func() image.Point {
 		return image.Point{}
@@ -246,17 +212,12 @@ func TestSmoothCursorAnimatorErrorVisibleToLateWaiter(t *testing.T) {
 	animator := newSmoothCursorAnimator(pos, failingMove)
 	animator.animateTo(image.Point{X: 400, Y: 400}, 8, 60, 0.1)
 
-	// Wait until the (failing) move has run and the session has had time to
-	// settle, so wait() is a genuinely "late" caller.
-	<-moved
-	time.Sleep(20 * time.Millisecond)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	err := animator.wait(ctx)
-	if !errors.Is(err, errMoveFailed) {
-		t.Fatalf("late waiter did not observe the move error: got %v want %v", err, errMoveFailed)
+	if err != nil {
+		t.Fatalf("smooth-move failure must not surface through wait: got %v", err)
 	}
 }
 

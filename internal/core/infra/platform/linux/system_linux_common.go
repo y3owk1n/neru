@@ -235,8 +235,12 @@ func (s *SystemAdapter) MoveCursorToPoint(
 		return nil
 	}
 
-	// A direct warp must win over any in-flight animation, matching the darwin
-	// behavior where every non-smooth move stops the animator first.
+	// Stop before warping: the animation worker must be canceled first so a
+	// pending tween step cannot override the direct warp. This matches the
+	// darwin non-smooth path (stop, then move). Cursor access is not serialized
+	// across the IPC/hotkey/event-tap goroutines, so this is deliberately
+	// preemptive last-writer-wins — a bypassed move cancels an in-flight
+	// animation and releases its waiter, exactly as on macOS.
 	s.cursorAnimator.stop()
 
 	return s.moveCursorDirect(point)
