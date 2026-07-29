@@ -94,6 +94,31 @@ unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) 
 	return pid;
 }
 
+char *neru_x11_get_window_class(Display *display, Window window) {
+	if (window == 0) {
+		return NULL;
+	}
+
+	XClassHint hint;
+	if (XGetClassHint(display, window, &hint) == 0) {
+		return NULL;
+	}
+
+	char *class_name = NULL;
+	if (hint.res_class != NULL) {
+		class_name = strdup(hint.res_class);
+	}
+
+	if (hint.res_name != NULL) {
+		XFree(hint.res_name);
+	}
+	if (hint.res_class != NULL) {
+		XFree(hint.res_class);
+	}
+
+	return class_name;
+}
+
 NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count) {
 	Window root = neru_x11_root_window(display);
 	int monitor_count = 0;
