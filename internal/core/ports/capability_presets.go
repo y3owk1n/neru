@@ -59,7 +59,12 @@ func LinuxCapabilities() PlatformCapabilities {
 		Cursor: supportedCapability(
 			"cursor movement/tracking available via XTest and Wayland virtual-pointer",
 		),
-		Accessibility: stubCapability("AT-SPI integration not implemented yet"),
+		Accessibility: supportedCapability(
+			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +
+				"click/scroll injection via XTest (X11) or virtual-pointer/libei " +
+				"(Wayland wlroots/KDE). Coverage depends on the app's AT-SPI " +
+				"support; there is no Vision/OCR fallback",
+		),
 		Overlay: supportedCapability(
 			"native overlays available via X11 windows or Wayland layer-shell + Cairo",
 		),
@@ -72,8 +77,10 @@ func LinuxCapabilities() PlatformCapabilities {
 		KeyboardEventTap: supportedCapability(
 			"keyboard event tap available via X11 grab and Wayland layer-shell keyboard interactivity",
 		),
-		AppWatcher: stubCapability(
-			"app watcher not needed for Neru's current navigation model",
+		AppWatcher: supportedCapability(
+			"focused-app change detection via polling the WM_CLASS (X11) or " +
+				"wlr-foreign-toplevel app_id (Wayland wlroots/KDE); GNOME/Mutter " +
+				"exposes no focused-app source",
 		),
 		// Default placeholder; the Linux SystemAdapter overrides this with
 		// the live-probed state (current color-scheme + source) on each
