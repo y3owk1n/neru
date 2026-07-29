@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
 
 var errClientClosed = errors.New("AT-SPI client is closed")
@@ -138,8 +139,8 @@ var defaultClickableAXRoles = map[string]struct{}{
 type ATSPIClient struct {
 	*InfraAXClient
 
-	logger *zap.Logger
-	kwin   *kwinBridge
+	logger       *zap.Logger
+	windowOrigin windowOriginSource
 
 	mu        sync.Mutex
 	a11y      *dbus.Conn
@@ -164,7 +165,7 @@ func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPICl
 	return &ATSPIClient{
 		InfraAXClient: NewInfraAXClient(logger, configProvider),
 		logger:        logger.Named("accessibility.atspi"),
-		kwin:          newKWinBridge(logger),
+		windowOrigin:  newWindowOriginSource(logger),
 	}
 }
 
@@ -249,7 +250,7 @@ func (c *ATSPIClient) ClickableNodes(
 
 	frameRect, frameOK := c.extents(conn, win.ref)
 	if frameOK {
-		offX, offY, haveOrigin = c.kwin.originFor(frameRect.Dx(), frameRect.Dy())
+		offX, offY, haveOrigin = c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
 	}
 
 	out := make([]AXNode, 0, atspiClickableNodesCap)
@@ -421,7 +422,7 @@ func (c *ATSPIClient) ensureA11yEnabled() error {
 		return err
 	}
 
-	go c.kwin.start()
+	go c.windowOrigin.start()
 
 	c.activated = true
 
@@ -604,15 +605,29 @@ func isNonTargetSurfaceApp(name string) bool {
 }
 
 // findActiveFrame locates the focused top-level window across all registered
-// applications by looking for a frame with the ACTIVE state.
-// On KDE several frames can report the ACTIVE state at once (e.g. the maliit
-// virtual keyboard "plasma-keyboard" is persistently active but off-screen).
-// The genuinely focused window is the one that is ACTIVE *and* SHOWING, so we
-// prefer that and fall back to any active, then any showing, frame.
+// applications.
+//
+// The primary signal on Wayland is the compositor's focused app_id from
+// wlr-foreign-toplevel-management (wlroots/KWin): the AT-SPI ACTIVE state is
+// unreliable there — wlroots compositors such as niri/Sway/Hyprland leave the
+// genuinely focused window ACTIVE=false while background frames report
+// ACTIVE=true — so a frame whose application matches the focused app_id wins
+// over the ACTIVE heuristic. When no app_id is available (X11, GNOME, or the
+// focused app exposes no AT-SPI frame) we fall back to the ACTIVE-state
+// heuristic: prefer ACTIVE+SHOWING, then any ACTIVE, then any SHOWING frame.
 func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
+	// Compositor-reported focused app_id (Wayland wlroots/KWin); empty on X11,
+	// GNOME, or when nothing is focused yet.
+	focusedAppID, haveFocused := linux.WaylandFocusedAppID()
+
 	var (
+		// Frame whose application matches the compositor's focused app_id — the
+		// most reliable signal on Wayland, so it wins over the ACTIVE heuristic.
+		focusedShowing   accRef
+		haveFocusedMatch bool
+
 		activeShowing accRef
 		haveAS        bool
 		activeAny     accRef
@@ -640,6 +655,7 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		}
 
 		isShell := isDesktopShellApp(appName)
+		matchesFocused := haveFocused && appMatchesFocusedID(appName, focusedAppID)
 
 		for _, frame := range c.children(conn, app) {
 			role := c.roleName(conn, frame)
@@ -661,6 +677,13 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 				continue
 			}
 
+			// The application the compositor reports as focused wins outright,
+			// regardless of the (unreliable) AT-SPI ACTIVE state.
+			if matchesFocused && showing && !haveFocusedMatch {
+				focusedShowing = frame
+				haveFocusedMatch = true
+			}
+
 			if active && showing && !haveAS {
 				activeShowing = frame
 				haveAS = true
@@ -679,6 +702,8 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	}
 
 	switch {
+	case haveFocusedMatch:
+		return focusedShowing, true
 	case haveAS:
 		return activeShowing, true
 	case haveAA:
@@ -690,6 +715,47 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	default:
 		return accRef{}, false
 	}
+}
+
+// appMatchesFocusedID reports whether an AT-SPI application name corresponds to
+// the compositor's focused app_id. The two vocabularies differ: AT-SPI reports
+// a display name ("Firefox") while wlr-foreign-toplevel reports an app_id that
+// is often reverse-DNS ("org.mozilla.firefox") or a bare id ("helium"). The
+// match is case-insensitive and also compares the last dot-segment of either
+// side, so "Firefox" matches "org.mozilla.firefox" and "Helium" matches
+// "helium".
+func appMatchesFocusedID(atspiName, appID string) bool {
+	name := strings.ToLower(strings.TrimSpace(atspiName))
+	focusedID := strings.ToLower(strings.TrimSpace(appID))
+
+	if name == "" || focusedID == "" {
+		return false
+	}
+
+	if name == focusedID {
+		return true
+	}
+
+	if seg := lastDotSegment(focusedID); seg != "" && seg == name {
+		return true
+	}
+
+	if seg := lastDotSegment(name); seg != "" && seg == focusedID {
+		return true
+	}
+
+	return false
+}
+
+// lastDotSegment returns the substring after the final '.', or "" when there is
+// no interior dot (nothing after the dot, or no dot at all).
+func lastDotSegment(value string) string {
+	i := strings.LastIndex(value, ".")
+	if i < 0 || i == len(value)-1 {
+		return ""
+	}
+
+	return value[i+1:]
 }
 
 // walk recursively collects clickable, showing nodes under ref.
