@@ -40,8 +40,17 @@ clickable_roles = [
 ]
 ignore_clickable_check = false
 
-## Application-specific configurations for customizing hint behavior per app
-## Each entry allows overriding clickable roles and clickable check behavior for specific bundle IDs
+## Application-specific configurations for customizing hint behavior per app.
+## Each entry overrides behavior for one app, matched on `bundle_id`.
+##
+## `bundle_id` is platform-specific (the field name is kept for compatibility):
+##   macOS         -> bundle ID          e.g. "com.brave.Browser"  (osascript -e 'id of app "Brave Browser"')
+##   Linux/X11     -> WM_CLASS class     e.g. "brave-browser"      (xprop WM_CLASS)
+##   Linux/Wayland -> toplevel app_id    e.g. "brave-browser"      (swaymsg -t get_tree / hyprctl activewindow)
+## GNOME/Mutter on Wayland exposes no focused-app source, so per-app config
+## never applies there; GNOME on X11 and all wlroots/KDE Wayland sessions work.
+
+## macOS example:
 # [[hints.app_configs]]
 # bundle_id = "com.brave.Browser"
 # additional_clickable_roles = ["AXTabGroup"]
@@ -50,6 +59,11 @@ ignore_clickable_check = false
 # 	"Return" = "action left_click",
 # 	"Shift+L" = "__disabled__"
 # }
+
+## Linux example (key on WM_CLASS / app_id, confirmed via xprop / swaymsg):
+# [[hints.app_configs]]
+# bundle_id = "org.kde.konsole"
+# ignore_clickable_check = true
 
 [grid]
 enabled = false

@@ -496,6 +496,12 @@ static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_fo
 // state. The last activated toplevel carrying a non-empty app_id wins; if none
 // is activated the cache is cleared. Callers must hold toplevel_mutex.
 static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
+	// Snapshot the previous focused app_id so we only wake the Go watcher when
+	// the focused application actually changes (not on every `done` commit).
+	char prev[NERU_APP_ID_LEN];
+	strncpy(prev, c->focused_app_id, NERU_APP_ID_LEN - 1);
+	prev[NERU_APP_ID_LEN - 1] = '\0';
+
 	const char *found = NULL;
 	const char *found_title = NULL;
 	NeruToplevel *t;
@@ -513,6 +519,17 @@ static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
 	} else {
 		c->focused_app_id[0] = '\0';
 		c->focused_title[0] = '\0';
+	}
+
+	// Push a focus-change notification to Go. The write is non-blocking, so a
+	// full pipe (a byte still unread) simply drops this one via EAGAIN — the
+	// reader re-queries the live focused_app_id on the next wake regardless, so
+	// no state is lost. Runs under toplevel_mutex; a non-blocking write never
+	// stalls the dispatch thread.
+	if (c->focus_pipe_ready && strcmp(prev, c->focused_app_id) != 0) {
+		char b = 1;
+		ssize_t n = write(c->focus_pipe[1], &b, 1);
+		(void)n;
 	}
 }
 
@@ -821,6 +838,26 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	pthread_mutex_init(&c->toplevel_mutex, NULL);
 	c->toplevel_mutex_ready = 1;
 
+	// Self-pipe for pushing focus changes to Go. Created before the
+	// foreign-toplevel listener is bound below so the initial focus burst during
+	// the discovery roundtrip is signaled too. calloc zeroed focus_pipe, but 0
+	// is a valid fd, so reset to -1 before pipe() so cleanup can tell "unset"
+	// from "fd 0". A failure here is non-fatal: focus_pipe_ready stays 0 and Go
+	// falls back to polling.
+	c->focus_pipe[0] = -1;
+	c->focus_pipe[1] = -1;
+	if (pipe(c->focus_pipe) == 0) {
+		for (int i = 0; i < 2; i++) {
+			int flags = fcntl(c->focus_pipe[i], F_GETFL, 0);
+			if (flags != -1)
+				fcntl(c->focus_pipe[i], F_SETFL, flags | O_NONBLOCK);
+			int fdflags = fcntl(c->focus_pipe[i], F_GETFD, 0);
+			if (fdflags != -1)
+				fcntl(c->focus_pipe[i], F_SETFD, fdflags | FD_CLOEXEC);
+		}
+		c->focus_pipe_ready = 1;
+	}
+
 	c->registry = wl_display_get_registry(c->display);
 	wl_registry_add_listener(c->registry, &neru_wlr_registry_listener, c);
 
@@ -891,6 +928,19 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	if (had_dispatch)
 		pthread_join(c->dispatch_thread, NULL);
 	pthread_mutex_destroy(&c->display_mutex);
+
+	// Close the focus self-pipe now that the dispatch thread (the only writer)
+	// has joined, so no write can race the close. Closing the read end makes any
+	// blocked Go reader observe EOF/POLLHUP.
+	if (c->focus_pipe_ready) {
+		if (c->focus_pipe[0] >= 0)
+			close(c->focus_pipe[0]);
+		if (c->focus_pipe[1] >= 0)
+			close(c->focus_pipe[1]);
+		c->focus_pipe[0] = -1;
+		c->focus_pipe[1] = -1;
+		c->focus_pipe_ready = 0;
+	}
 
 	if (c->vptr) {
 		zwlr_virtual_pointer_v1_destroy(c->vptr);
@@ -1306,4 +1356,10 @@ int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_l
 	}
 	neru_wlr_toplevel_unlock(c);
 	return ok;
+}
+
+int neru_wlr_focus_event_fd(NeruWlrootsClient *c) {
+	if (!c || !c->focus_pipe_ready)
+		return -1;
+	return c->focus_pipe[0];
 }

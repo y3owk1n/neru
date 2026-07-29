@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -171,6 +173,79 @@ func TestLinuxAppWatcherStartStopLifecycle(t *testing.T) {
 
 	// stop is idempotent.
 	poller.stop()
+}
+
+// TestLinuxAppWatcherEventLoopWakesOnFD proves the event-driven path dispatches
+// an activation when the focus-change fd becomes readable, rather than waiting
+// for a poll interval. A real non-blocking pipe stands in for the platform
+// focus fd; writing a byte simulates a compositor/X11 focus-change signal.
+func TestLinuxAppWatcherEventLoopWakesOnFD(t *testing.T) {
+	watcher := NewWatcher(nil)
+
+	activated := make(chan string, 4)
+	watcher.OnActivate(func(_, bundle string) { activated <- bundle })
+
+	var pipeFDs [2]int
+
+	err := unix.Pipe(pipeFDs[:])
+	if err != nil {
+		t.Fatalf("unix.Pipe: %v", err)
+	}
+
+	err = unix.SetNonblock(pipeFDs[0], true)
+	if err != nil {
+		t.Fatalf("SetNonblock: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = unix.Close(pipeFDs[0])
+		_ = unix.Close(pipeFDs[1])
+	})
+
+	var (
+		curMu sync.Mutex
+		cur   string
+	)
+
+	poller := &linuxAppWatcher{
+		identity: func(string) (string, bool) {
+			curMu.Lock()
+			defer curMu.Unlock()
+
+			if cur == "" {
+				return "", false
+			}
+
+			return cur, true
+		},
+		// A large interval ensures a passing test exercises the fd wake, not the
+		// safety-net re-sample.
+		subscribe: func(string) (int, bool) { return pipeFDs[0], true },
+		interval:  time.Hour,
+		watcher:   watcher,
+	}
+
+	poller.start()
+	t.Cleanup(poller.stop)
+
+	// Change focus, then signal via the fd.
+	curMu.Lock()
+	cur = appFirefox
+	curMu.Unlock()
+
+	_, err = unix.Write(pipeFDs[1], []byte{1})
+	if err != nil {
+		t.Fatalf("unix.Write: %v", err)
+	}
+
+	select {
+	case got := <-activated:
+		if got != appFirefox {
+			t.Fatalf("activate bundle = %q, want %q", got, appFirefox)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("event loop did not dispatch activate after fd signal")
+	}
 }
 
 func TestLinuxAppWatcherStartWithoutWatcherIsNoop(t *testing.T) {

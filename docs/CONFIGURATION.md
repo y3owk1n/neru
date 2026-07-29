@@ -318,6 +318,24 @@ hotkeys = {
 
 The same [merging rules](#merging-behavior) apply: app hotkeys merge on top of the base `[hotkeys]` bindings, and `__disabled__` removes an inherited binding. When no `[[app_configs]]` entry matches the focused app, the base `[hotkeys]` bindings are used as-is.
 
+#### App identity across platforms (`bundle_id`)
+
+The `bundle_id` key selects which app an override applies to — for both `[[app_configs]]` and every `[[<mode>.app_configs]]`. What it matches is platform-specific, even though the field is named `bundle_id` everywhere for config compatibility:
+
+| Platform | Identity Neru matches | How to find it |
+| --- | --- | --- |
+| macOS | Bundle ID, reverse-DNS (e.g. `com.apple.Safari`) | `osascript -e 'id of app "Safari"'` |
+| Linux · X11 | Window `WM_CLASS` — the *class* field | `xprop WM_CLASS`, then click the window |
+| Linux · Wayland (wlroots: Sway/Hyprland/niri/COSMIC, and KWin/KDE) | Toplevel `app_id` | `swaymsg -t get_tree` (Sway), `hyprctl activewindow` (Hyprland), `niri msg windows` (niri), or your compositor's window inspector |
+
+On Linux, put the `WM_CLASS` or `app_id` in the `bundle_id` field. Matching is case-insensitive but exact — no globbing or partial matches.
+
+> **Heads up:** Linux identity strings vary by toolkit and distribution. GTK, Qt, Electron, and XWayland apps often report a `WM_CLASS`/`app_id` you would not guess (e.g. `Google-chrome`, `code`, `org.kde.konsole`). Always confirm with the commands above rather than assuming a reverse-DNS name.
+
+**GNOME/Mutter on Wayland is not supported.** Mutter implements no focused-app protocol (no `wlr-foreign-toplevel-management`), so Neru cannot tell which application is focused and per-app overrides never apply there. GNOME on **X11** works normally, as do all wlroots compositors and KWin/KDE on Wayland. See [CROSS_PLATFORM.md](./CROSS_PLATFORM.md) for the backend matrix.
+
+Where the compositor or X11 exposes a focus-change signal, Neru applies per-app overrides the instant you switch windows; otherwise it re-checks the focused app a few times per second.
+
 ### Per-Mode Hotkeys
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.

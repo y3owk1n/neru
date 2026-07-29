@@ -230,6 +230,34 @@ func wlrootsFocusedAppIdentity() (string, string, bool) {
 	return C.GoString(&appBuf[0]), C.GoString(&titleBuf[0]), true
 }
 
+// wlrootsFocusEventFD returns a readable file descriptor that becomes ready
+// whenever the focused app_id changes, so the app watcher can wake on focus
+// changes instead of polling. ok is false when the wlroots client is
+// unavailable (GNOME/Mutter, no compositor) or exposes no pipe. The fd is owned
+// by the client and closed on disconnect; callers must not close it and must
+// poll it read-only.
+func wlrootsFocusEventFD() (int, bool) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return -1, false
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	client := globalWlrootsState.client
+	if client == nil {
+		return -1, false
+	}
+
+	fd := C.neru_wlr_focus_event_fd(client) //nolint:nlreturn
+	if fd < 0 {
+		return -1, false
+	}
+
+	return int(fd), true
+}
+
 // wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
 // libei move on KDE) into the wlroots client's client-side cursor cache so
 // CursorPosition and screen resolution stay accurate.

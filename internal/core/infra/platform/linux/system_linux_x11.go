@@ -4,6 +4,7 @@ package linux
 
 /*
 #cgo linux pkg-config: x11 xtst xrandr
+#cgo linux LDFLAGS: -lpthread
 #include <stdlib.h>
 #include "x11_system.h"
 */
@@ -14,6 +15,7 @@ import (
 	"image"
 	"os"
 	"strings"
+	"sync"
 	"unsafe"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -136,6 +138,35 @@ func x11FocusedAppID() (string, bool) {
 	}
 
 	return appID, true
+}
+
+var (
+	x11FocusMonitorMu   sync.Mutex
+	x11FocusMonitorInst *C.NeruX11FocusMonitor
+)
+
+// x11FocusEventFD lazily starts the X11 focused-window monitor and returns a
+// readable fd that becomes ready when the active window changes. ok is false
+// when X11 is unavailable (DISPLAY unset, XOpenDisplay failed). The monitor is
+// process-global and persists for the daemon lifetime, matching the singleton
+// wlroots client; the fd is owned by the monitor and callers must not close it.
+func x11FocusEventFD() (int, bool) {
+	x11FocusMonitorMu.Lock()
+	defer x11FocusMonitorMu.Unlock()
+
+	if x11FocusMonitorInst == nil {
+		x11FocusMonitorInst = C.neru_x11_focus_monitor_start()
+		if x11FocusMonitorInst == nil {
+			return -1, false
+		}
+	}
+
+	fd := C.neru_x11_focus_monitor_fd(x11FocusMonitorInst) //nolint:nlreturn
+	if fd < 0 {
+		return -1, false
+	}
+
+	return int(fd), true
 }
 
 func x11Monitors() ([]x11Monitor, error) {
