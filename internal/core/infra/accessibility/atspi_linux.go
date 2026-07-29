@@ -254,7 +254,17 @@ func (c *ATSPIClient) ClickableNodes(
 
 	frameRect, frameOK := c.extents(conn, win.ref)
 	if frameOK && c.focusStableSince(win.focusedAppID) {
-		offX, offY, haveOrigin = c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
+		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
+		if ok {
+			// AT-SPI reports element coordinates in the app's own space, where the
+			// frame content sits at frameRect.Min — non-zero when the toolkit adds a
+			// margin (e.g. a GTK client-side-decoration shadow). The compositor
+			// origin is the content's screen position, so shift element coordinates
+			// by (compositor origin − frame margin) to avoid a constant offset.
+			offX = originX - frameRect.Min.X
+			offY = originY - frameRect.Min.Y
+			haveOrigin = true
+		}
 	}
 
 	out := make([]AXNode, 0, atspiClickableNodesCap)
