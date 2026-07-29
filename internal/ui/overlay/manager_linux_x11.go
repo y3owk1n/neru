@@ -302,6 +302,8 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		if radius < 0 {
 			radius = min(badgeHeight/centeredRectDivisor, hintAutoRadiusMax)
 		}
+		// Cap the radius so a top/bottom badge keeps a flat edge for the tail.
+		radius = hintBadgeRadius(radius, badgeWidth, style.Placement())
 
 		// hint.Position() is the element center (set in modes/hints.go). The
 		// badge is centered horizontally on it and placed above / on / below the

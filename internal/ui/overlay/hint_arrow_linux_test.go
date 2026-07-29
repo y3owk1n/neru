@@ -167,6 +167,58 @@ func TestHintTailEdge(t *testing.T) {
 	}
 }
 
+func TestHintBadgeRadius_ReservesTailFlatEdge(t *testing.T) {
+	// Center placement is never capped — the tail doesn't exist there.
+	if got := hintBadgeRadius(100, 40, "center"); got != 100 {
+		t.Errorf("center radius should be unchanged, got %d", got)
+	}
+
+	// A radius large enough to consume the whole flat edge is capped so the
+	// connector tail still has somewhere to attach.
+	// halfW = 20, so max = 20 - hintArrowMinHalfBase.
+	if got, want := hintBadgeRadius(1000, 40, "bottom"), 20-hintArrowMinHalfBase; got != want {
+		t.Errorf("oversized radius = %d, want capped to %d", got, want)
+	}
+
+	// A normal radius that already leaves room is left untouched.
+	if got := hintBadgeRadius(6, 40, "top"); got != 6 {
+		t.Errorf("normal radius should be unchanged, got %d", got)
+	}
+}
+
+func TestHintBadgePlacement_FullPillKeepsTail(t *testing.T) {
+	// Regression: a full-pill border radius on a top/bottom hint must still
+	// produce a visible tail once the radius is capped to reserve a flat edge.
+	// Previously the tail base expanded to the full badge width and both native
+	// renderers collapsed it to a point, dropping the arrow.
+	target := image.Pt(200, 150)
+	badgeWidth, badgeHeight := 40, 24
+
+	radius := hintBadgeRadius(1000, badgeWidth, "bottom")
+	badge, arrow, hasArrow := hintBadgePlacement(target, badgeWidth, badgeHeight, radius, "bottom")
+
+	if !hasArrow {
+		t.Fatal("full-pill bottom placement should still draw a tail")
+	}
+
+	if arrow.baseLeft.X >= arrow.baseRight.X {
+		t.Errorf(
+			"tail base collapsed to a point: baseLeft=%v baseRight=%v",
+			arrow.baseLeft,
+			arrow.baseRight,
+		)
+	}
+	// The base must stay within the flat span the (capped) radius leaves, so the
+	// native renderer does not clamp it away.
+	flatLeft := badge.Min.X + radius
+
+	flatRight := badge.Max.X - radius
+	if arrow.baseLeft.X < flatLeft || arrow.baseRight.X > flatRight {
+		t.Errorf("tail base %v..%v escapes flat span [%d,%d]",
+			arrow.baseLeft, arrow.baseRight, flatLeft, flatRight)
+	}
+}
+
 func assertArrowSymmetry(t *testing.T, arrow hintArrowTriangle, centerX int) {
 	t.Helper()
 
