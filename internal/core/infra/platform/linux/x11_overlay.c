@@ -198,6 +198,32 @@ void neru_x11_overlay_rounded_rect(
 	cairo_restore(cr);
 }
 
+// neru_x11_overlay_triangle draws the hint connector arrow. It fills the closed
+// triangle (x0,y0)->(x1,y1)->(x2,y2) then strokes only the two edges meeting at
+// the apex (x1,y1) as an open path, leaving the base seamless where the badge is
+// drawn over it so the arrow reads as a tail attached to the badge.
+void neru_x11_overlay_triangle(
+    NeruX11Overlay *overlay, double x0, double y0, double x1, double y1, double x2, double y2, unsigned int fill,
+    unsigned int stroke, double stroke_width) {
+	cairo_t *cr = overlay->cr;
+	cairo_save(cr);
+	cairo_move_to(cr, x0, y0);
+	cairo_line_to(cr, x1, y1);
+	cairo_line_to(cr, x2, y2);
+	cairo_close_path(cr);
+	neru_x11_overlay_color(cr, fill);
+	cairo_fill(cr);
+	if (stroke_width > 0.0) {
+		cairo_move_to(cr, x0, y0);
+		cairo_line_to(cr, x1, y1);
+		cairo_line_to(cr, x2, y2);
+		neru_x11_overlay_color(cr, stroke);
+		cairo_set_line_width(cr, stroke_width);
+		cairo_stroke(cr);
+	}
+	cairo_restore(cr);
+}
+
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color) {

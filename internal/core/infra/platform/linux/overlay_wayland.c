@@ -811,6 +811,42 @@ void neru_wayland_overlay_rounded_rect(
 	}
 }
 
+// neru_wayland_overlay_triangle draws the hint connector arrow on every output.
+// Like the X11 variant it fills the closed triangle then strokes only the two
+// edges meeting at the apex (x1,y1), leaving the base seamless under the badge
+// so the arrow reads as a tail attached to the badge.
+void neru_wayland_overlay_triangle(
+    NeruWaylandOverlay *overlay, double x0, double y0, double x1, double y1, double x2, double y2, unsigned int fill,
+    unsigned int stroke, double stroke_width) {
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+		if (!scr->cr)
+			continue;
+
+		double sx0 = x0 - scr->x, sy0 = y0 - scr->y;
+		double sx1 = x1 - scr->x, sy1 = y1 - scr->y;
+		double sx2 = x2 - scr->x, sy2 = y2 - scr->y;
+
+		cairo_t *cr = scr->cr;
+		cairo_save(cr);
+		cairo_move_to(cr, sx0, sy0);
+		cairo_line_to(cr, sx1, sy1);
+		cairo_line_to(cr, sx2, sy2);
+		cairo_close_path(cr);
+		neru_wayland_overlay_color(cr, fill);
+		cairo_fill(cr);
+		if (stroke_width > 0.0) {
+			cairo_move_to(cr, sx0, sy0);
+			cairo_line_to(cr, sx1, sy1);
+			cairo_line_to(cr, sx2, sy2);
+			neru_wayland_overlay_color(cr, stroke);
+			cairo_set_line_width(cr, stroke_width);
+			cairo_stroke(cr);
+		}
+		cairo_restore(cr);
+	}
+}
+
 // neru_resolve_font_family returns a font family cairo's toy API can actually
 // render, substituting a generic fallback when the requested family fails.
 //

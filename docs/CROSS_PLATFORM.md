@@ -719,7 +719,7 @@ to unoffset (window-relative) coordinates rather than misplacing hints.
 | Element                        | macOS                                        | Linux X11                        | Linux Wayland                    | Windows                             |
 | ------------------------------ | -------------------------------------------- | -------------------------------- | -------------------------------- | ----------------------------------- |
 | **Hint badges — rectangular**  | ✅ (with rounded rect + text)                | ✅ (Cairo rounded rect)          | ✅ (Cairo rounded rect)          | ✅ (SDF rounded rect)               |
-| **Hint arrows (top/bottom)**   | ✅ (1pt arrow height, NSBezierPath)          | ❌                               | ❌                               | ❌                                  |
+| **Hint arrows (top/bottom)**   | ✅ (1pt arrow height, NSBezierPath)          | ✅ (Cairo triangle tail)         | ✅ (Cairo triangle tail)         | ❌                                  |
 | **Hint boundary highlight**    | ✅ (rounded rect behind element border)      | ✅ (Cairo)                       | ✅ (Cairo)                       | ✅ (SDF, capped 4px radius)         |
 | **Hint search input overlay**  | ✅ (`/ query count/` rounded badge)          | ❌                               | ❌                               | ✅ (`/ query count/` rounded badge) |
 | **Grid cell labels**           | ✅                                           | ✅                               | ✅                               | ✅                                  |
@@ -894,7 +894,7 @@ backend-specific. The blacklist keeps chosen chords consumed, and
 | **Menubar elements**           | ✅                                                                | 🟡                                          | 🟡                              |
 | **Dock elements**              | ✅                                                                | N/A                                         | N/A                             |
 | **Popup/popover elements**     | ✅ (AXOrientation-based)                                          | ⚠️ (walked when in active frame's subtree)  | 🟡                              |
-| **Hint overlay arrows**        | ✅ (top/bottom arrow indicators on labels)                        | ❌                                          | ❌                              |
+| **Hint overlay arrows**        | ✅ (top/bottom arrow indicators on labels)                        | ✅ (Cairo triangle tail)                    | ❌                              |
 | **Boundary highlight**         | ✅                                                                | ✅ (Cairo)                                  | ✅ (SDF)                        |
 | **Search input badge**         | ✅                                                                | ❌                                          | ✅                              |
 
@@ -993,7 +993,6 @@ The following features exist on exactly one platform:
 | Vision framework strategy | `internal/core/ports/vision.go` + `internal/core/infra/platform/darwin/vision_darwin.m` | macOS-only `VNRequest` / `VGImageRequestHandler` APIs                                            |
 | Monitor select panels     | `internal/app/modes/monitor_select_overlay_darwin.go`                                   | Uses Cocoa NSPanel per display. Not implemented on other platforms.                              |
 | Screen sharing hide       | `internal/core/infra/platform/darwin/overlay_darwin.m`                                  | NSWindow sharing level property (Quartz only)                                                    |
-| Per-hint arrow indicators | `internal/app/components/hints/overlay_darwin.go`                                       | NSBezierPath arrow drawing — not in Cairo/SDF renderers                                          |
 | Secure input detection    | `internal/core/infra/platform/darwin/secureinput.go`                                    | Uses `CGSessionCopyCurrentDictionary` — private API                                              |
 
 #### Linux-Only

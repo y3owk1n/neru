@@ -55,6 +55,12 @@ const (
 	// radius so labels get a subtle rounded corner rather than a full pill,
 	// matching the macOS overlay's MIN(height/2, 6).
 	hintAutoRadiusMax = 6
+	// hintArrowHeight is the height in pixels of the triangular connector arrow
+	// drawn between a hint badge and its target for top/bottom placement,
+	// mirroring the macOS overlay's tooltip arrow. hintArrowHalfBase is half the
+	// arrow's base width where it meets the badge edge.
+	hintArrowHeight   = 5
+	hintArrowHalfBase = 5
 
 	stickyBadgeClearPadding = 3
 )
@@ -1031,6 +1037,87 @@ func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rec
 		posX+style.offsetX+width,
 		posY+style.offsetY+height,
 	)
+}
+
+// hintArrowTriangle holds the three vertices of a hint connector arrow in
+// screen coordinates: the two base corners flush with the badge edge and the
+// tip pointing at the target element.
+type hintArrowTriangle struct {
+	baseLeft  image.Point
+	tip       image.Point
+	baseRight image.Point
+}
+
+// hintBadgePlacement computes the badge rect for a hint given its target point
+// (the element center) and, for top/bottom placement, the connector arrow that
+// visually ties the badge to the target. It centralizes the placement math
+// shared by the X11 and Wayland overlays so both stay in lockstep with the
+// macOS overlay's arrow behavior.
+//
+// radius is the badge's already-resolved corner radius; it keeps the arrow base
+// on the badge's flat edge rather than over a rounded corner. hasArrow is false
+// for center or unrecognized placements, which draw no arrow.
+func hintBadgePlacement(
+	target image.Point,
+	badgeWidth, badgeHeight, radius int,
+	placement string,
+) (image.Rectangle, hintArrowTriangle, bool) {
+	halfW := badgeWidth / centeredRectDivisor
+	halfH := badgeHeight / centeredRectDivisor
+	centerX := target.X
+	centerY := target.Y
+
+	switch placement {
+	case "top":
+		// Badge sits above the target, offset by the gap plus arrow height so
+		// the arrow has room to point down at the target.
+		centerY = target.Y - hintPlacementGap - hintArrowHeight - halfH
+	case "bottom":
+		// Badge sits below the target; arrow points up at the target.
+		centerY = target.Y + hintPlacementGap + hintArrowHeight + halfH
+	default:
+		badge := image.Rect(centerX-halfW, centerY-halfH, centerX+halfW, centerY+halfH)
+
+		return badge, hintArrowTriangle{}, false
+	}
+
+	badge := image.Rect(centerX-halfW, centerY-halfH, centerX+halfW, centerY+halfH)
+
+	// Keep the arrow base within the badge's flat edge (inside the corner
+	// radius); fall back to the badge half-width for badges too narrow to clamp.
+	halfBase := hintArrowHalfBase
+	if limit := halfW - max(radius, 0); halfBase > limit {
+		halfBase = limit
+	}
+
+	if halfBase < 1 {
+		halfBase = halfW
+	}
+
+	if halfBase < 1 {
+		return badge, hintArrowTriangle{}, false
+	}
+
+	var arrow hintArrowTriangle
+
+	switch placement {
+	case "bottom":
+		baseY := badge.Min.Y
+		arrow = hintArrowTriangle{
+			baseLeft:  image.Pt(centerX-halfBase, baseY),
+			tip:       image.Pt(centerX, baseY-hintArrowHeight),
+			baseRight: image.Pt(centerX+halfBase, baseY),
+		}
+	case "top":
+		baseY := badge.Max.Y
+		arrow = hintArrowTriangle{
+			baseLeft:  image.Pt(centerX-halfBase, baseY),
+			tip:       image.Pt(centerX, baseY+hintArrowHeight),
+			baseRight: image.Pt(centerX+halfBase, baseY),
+		}
+	}
+
+	return badge, arrow, true
 }
 
 func expandRect(rect image.Rectangle, amount int) image.Rectangle {
