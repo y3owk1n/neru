@@ -298,13 +298,16 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
 		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 
-		centerX := hint.Position().X + hint.Size().X/centeredRectDivisor
-		centerY := hint.Position().Y + hint.Size().Y/centeredRectDivisor
+		// hint.Position() is the element center (set in modes/hints.go), so the
+		// badge is centered horizontally on it and placed above / on / below the
+		// center to match the macOS placement behavior.
+		centerX := hint.Position().X
+		centerY := hint.Position().Y
 		switch style.Placement() {
 		case "top":
-			centerY = hint.Position().Y
+			centerY = hint.Position().Y - hintPlacementGap - badgeHeight/centeredRectDivisor
 		case "bottom":
-			centerY = hint.Position().Y + hint.Size().Y
+			centerY = hint.Position().Y + hintPlacementGap + badgeHeight/centeredRectDivisor
 		}
 
 		badge := image.Rect(

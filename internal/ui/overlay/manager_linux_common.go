@@ -48,6 +48,9 @@ const (
 	centeredRectDivisor                    = 2
 	centeredRectHalf                       = 0.5
 	paddingMultiplier                      = 2
+	// hintPlacementGap is the pixel gap between a hint badge and its target
+	// point for top/bottom placement, mirroring the macOS overlay.
+	hintPlacementGap = 1
 
 	stickyBadgeClearPadding = 3
 )
