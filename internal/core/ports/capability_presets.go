@@ -75,7 +75,10 @@ func LinuxCapabilities() PlatformCapabilities {
 			"global hotkeys available via X11 (Wayland relies on compositor bindings)",
 		),
 		KeyboardEventTap: supportedCapability(
-			"keyboard event tap available via X11 grab and Wayland layer-shell keyboard interactivity",
+			"keyboard event tap available via X11 grab and Wayland evdev/layer-shell " +
+				"keyboard interactivity; modifier passthrough of unbound shortcuts is " +
+				"supported on the Wayland evdev backend only (X11's exclusive grab and " +
+				"the wl-keyboard fallback cannot re-inject selectively)",
 		),
 		AppWatcher: supportedCapability(
 			"focused-app change detection via polling the WM_CLASS (X11) or " +

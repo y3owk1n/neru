@@ -11,6 +11,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
@@ -74,6 +75,16 @@ type EventTap struct {
 	hotkeys              []string
 	stickyModifierToggle bool
 	enabled              bool
+
+	// Modifier passthrough state. Populated by SetModifierPassthrough /
+	// SetInterceptedModifierKeys and consulted only by the Wayland evdev
+	// backend (handleWaylandEvdevEvent): with a virtual-keyboard injection path
+	// it can re-emit an unbound chord to the focused app. The X11 grab and the
+	// wl-keyboard fallback cannot re-inject selectively, so this stays inert
+	// there. Chords are stored canonicalized via canonicalChordForMatch.
+	passthroughEnabled   bool
+	passthroughBlacklist map[string]struct{}
+	interceptedChords    map[string]struct{}
 
 	// Detection arming: sticky modifier events are only dispatched once all
 	// initially-held modifiers have been released (matching macOS behavior).
@@ -238,11 +249,28 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.hotkeys = append([]string(nil), hotkeys...)
 }
 
-// SetModifierPassthrough enables/disables modifier passthrough.
-func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
+// SetModifierPassthrough enables/disables modifier passthrough and records the
+// blacklist of chords Neru must keep consuming even when they are otherwise
+// unbound (the mode layer folds the active mode's own hotkeys into this list).
+// Only the Wayland evdev backend acts on it; see the struct field comment.
+func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
+	set := canonicalChordSet(blacklist)
 
-// SetInterceptedModifierKeys sets which modifier keys to intercept.
-func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
+	et.mu.Lock()
+	et.passthroughEnabled = enabled
+	et.passthroughBlacklist = set
+	et.mu.Unlock()
+}
+
+// SetInterceptedModifierKeys records the modifier chords the active mode still
+// wants Neru to consume while passthrough is enabled.
+func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
+	set := canonicalChordSet(keys)
+
+	et.mu.Lock()
+	et.interceptedChords = set
+	et.mu.Unlock()
+}
 
 // SetPassthroughCallback sets the callback for passthrough mode.
 func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
@@ -250,6 +278,74 @@ func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
 	defer et.mu.Unlock()
 
 	et.passthroughCallback = cb
+}
+
+// canonicalChordSet builds a lookup set of chords normalized via
+// canonicalChordForMatch so runtime lookups are independent of the order the
+// user wrote their hotkeys in.
+func canonicalChordSet(chords []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(chords))
+
+	for _, chord := range chords {
+		if canonical := canonicalChordForMatch(chord); canonical != "" {
+			set[canonical] = struct{}{}
+		}
+	}
+
+	return set
+}
+
+// canonicalChordForMatch normalizes a modifier chord to a stable,
+// order-independent form for passthrough matching: aliases are resolved and
+// tokens lowercased via config.NormalizeKeyForComparison, then the modifiers
+// are re-emitted in the fixed shift+ctrl+alt+cmd order that
+// evdevModifierState.prefix() produces, with the base key last. Applying it to
+// both the configured blacklist/intercepted entries and the runtime evdev chord
+// makes lookups agree regardless of modifier ordering.
+func canonicalChordForMatch(chord string) string {
+	normalized := config.NormalizeKeyForComparison(strings.TrimSpace(chord))
+	if normalized == "" {
+		return ""
+	}
+
+	parts := strings.Split(normalized, "+")
+	base := strings.TrimSpace(parts[len(parts)-1])
+
+	var hasShift, hasCtrl, hasAlt, hasCmd bool
+
+	for _, part := range parts[:len(parts)-1] {
+		switch canonicalLinuxModifier(part) {
+		case evdevModifierShift:
+			hasShift = true
+		case evdevModifierCtrl:
+			hasCtrl = true
+		case evdevModifierAlt:
+			hasAlt = true
+		case evdevModifierCmd:
+			hasCmd = true
+		}
+	}
+
+	var builder strings.Builder
+
+	for _, mod := range []struct {
+		held bool
+		name string
+	}{
+		{hasShift, evdevModifierShift},
+		{hasCtrl, evdevModifierCtrl},
+		{hasAlt, evdevModifierAlt},
+		{hasCmd, evdevModifierCmd},
+	} {
+		if mod.held {
+			builder.WriteString(mod.name)
+			builder.WriteByte('+')
+		}
+	}
+
+	builder.WriteString(base)
+
+	return builder.String()
 }
 
 // SetStickyModifierToggle enables/disables sticky modifier toggle.
@@ -320,6 +416,52 @@ func (et *EventTap) stickyDetectionArmed() bool {
 	defer et.mu.RUnlock()
 
 	return et.stickyModifierDetectionArmed
+}
+
+// shouldPassthroughChord reports whether an unbound modifier chord should be
+// passed through to the focused application instead of consumed by Neru. It
+// mirrors the macOS event-tap decision: passthrough must be enabled, the chord
+// must carry a Ctrl/Alt/Cmd modifier (shift-only chords stay usable inside
+// modes), and it must be neither blacklisted nor in the mode's intercepted set.
+func (et *EventTap) shouldPassthroughChord(chord string) bool {
+	// Check the cheap enabled flag before the allocating normalization so the
+	// common disabled case (the default) costs nothing on the key hot path.
+	et.mu.RLock()
+	enabled := et.passthroughEnabled
+	et.mu.RUnlock()
+
+	if !enabled || !config.HasPassthroughModifier(chord) {
+		return false
+	}
+
+	canonical := canonicalChordForMatch(chord)
+
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	if _, ok := et.passthroughBlacklist[canonical]; ok {
+		return false
+	}
+
+	if _, ok := et.interceptedChords[canonical]; ok {
+		return false
+	}
+
+	return true
+}
+
+// firePassthroughCallback invokes the registered passthrough callback (if any)
+// on its own goroutine and without holding et.mu, so it can neither block the
+// key-reader goroutine nor deadlock against the mode handler's own lock. This
+// mirrors the async dispatch the macOS tap uses for the same callback.
+func (et *EventTap) firePassthroughCallback() {
+	et.mu.RLock()
+	cb := et.passthroughCallback
+	et.mu.RUnlock()
+
+	if cb != nil {
+		go cb()
+	}
 }
 
 // run starts the event interception loop.

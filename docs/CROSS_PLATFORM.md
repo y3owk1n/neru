@@ -825,11 +825,28 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 | ------------------------ | ------------------------------------------------ | ----------------------- | ---------------------------------- | ---------------------------- |
 | **Mechanism**            | `CGEventTapCreate` (Quartz)                      | `XGrabKeyboard`         | evdev grab + wl-keyboard           | `WH_KEYBOARD_LL` hook        |
 | **CGO required**         | Yes                                              | Yes                     | Yes (cgo path)                     | No                           |
-| **Modifier passthrough** | ✅ (CGEventTap callback can pass events through) | ❌ (no-op)              | ❌ (no-op)                         | ❌ (no-op)                   |
+| **Modifier passthrough** | ✅ (CGEventTap callback can pass events through) | ❌ (grab is all-or-nothing) | ✅ (evdev only; re-inject via virtual kbd) | ❌ (no-op)                   |
 | **PostModifierEvent**    | ✅                                               | ✅                      | ✅                                 | ❌ (no-op)                   |
 | **Sticky modifiers**     | ✅                                               | ✅                      | ✅                                 | ✅                           |
-| **File**                 | `eventtap_darwin.go`                             | `eventtap_linux_x11.go` | `eventtap_linux_wayland.go`        | `eventtap_windows.go`        |
+| **File**                 | `eventtap_darwin.go`                             | `eventtap_linux_x11.go` | `eventtap_linux_wayland.go` / `..._evdev_cgo.go` | `eventtap_windows.go`        |
 | **Event source**         | System-wide CGEvent stream                       | X11 grabbed keyboard    | `/dev/uinput` + wl_keyboard events | System-wide `WH_KEYBOARD_LL` |
+
+**Modifier passthrough on Linux (Wayland evdev only):** while a mode is active
+Neru captures the keyboard exclusively, so shortcuts it doesn't bind (e.g.
+`Ctrl+C`, `Ctrl+Tab`) are normally swallowed. With
+`general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd chords are instead
+re-injected to the focused app. This works on the **Wayland evdev** backend
+because Neru holds an `EVIOCGRAB` on the physical device but injects through a
+*separate* `zwp_virtual_keyboard_v1`, which bypasses that grab and reaches the
+app with no feedback loop (see `handleWaylandEvdevEvent` →
+`passthroughEvdevChord`). It is **not** available on **X11** — an `XGrabKeyboard`
+routes Neru's own synthetic XTest events back to itself, and `XSendEvent` is
+ignored by most apps — nor on the rare **wl-keyboard fallback**, which has no
+injection path. Classification (blacklist, mode-intercepted keys, the mode's own
+hotkeys) and the post-passthrough hint refresh are shared cross-platform in
+`internal/app/modes/passthrough.go`; only the final re-injection is
+backend-specific. The blacklist keeps chosen chords consumed, and
+`general.should_exit_after_passthrough` exits the mode after a passthrough.
 
 #### Global Hotkeys
 
