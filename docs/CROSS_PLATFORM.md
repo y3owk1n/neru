@@ -653,11 +653,13 @@ window's screen origin, supplied by a compositor-specific `windowOriginSource`
 - **KDE / KWin** — a small KWin script pushes the focused window's geometry over
   D-Bus (`kwin_geometry_linux.go`).
 - **niri** (`NIRI_SOCKET`) — `niri msg -j focused-window`/`focused-output`.
-  Works for **floating** windows (niri populates `tile_pos_in_workspace_view`);
-  for **tiled** windows niri does not expose the on-screen position
-  ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so neru falls back
-  to unoffset coordinates — hints then align only when the window fills the
-  output (maximize/float as a workaround).
+  Works for **floating** windows (niri populates `tile_pos_in_workspace_view`)
+  and **fullscreen** windows (whose frame sits at the output origin with no
+  offset needed). For **tiled** windows — including a maximized column
+  (`maximize-column`, the default `Mod+F`) — niri does not expose the on-screen
+  position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so neru
+  falls back to unoffset coordinates and hints are misaligned there. Use a
+  floating window, or true fullscreen (`fullscreen-window`), for aligned hints.
 - **Sway** (`SWAYSOCK`) — `swaymsg -t get_tree`, focused node `rect + window_rect`.
 - **Hyprland** (`HYPRLAND_INSTANCE_SIGNATURE`) — `hyprctl -j activewindow` `at`/`size`.
 
