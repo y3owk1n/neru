@@ -646,22 +646,27 @@ static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_m
 		return;
 
 	// The compositor has invalidated the manager, so every tracked handle and
-	// the cached focus are now stale. Drop them all so focused-app queries stop
-	// returning a dead window's app_id. Handle proxies are intentionally not
-	// destroyed here: a stray `closed` (or wl_display_disconnect) frees them,
-	// and their listeners key on the client, so a late event finds no node and
-	// is a safe no-op. This runs on the dispatch thread, serialized with the
-	// handle callbacks.
+	// the cached focus are now stale. Release each handle proxy (its own
+	// `destroy` request — `finished` invalidates only the manager, not the
+	// handles) and free the nodes so nothing leaks and focused-app queries stop
+	// returning a dead window's app_id. Runs on the dispatch thread, serialized
+	// with the handle callbacks; once destroyed a proxy dispatches no further
+	// events, so a late `closed` is a safe no-op.
 	neru_wlr_toplevel_lock(c);
 	NeruToplevel *t;
 	NeruToplevel *tmp;
 	wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
 		wl_list_remove(&t->link);
+		if (t->handle)
+			zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
 		free(t);
 	}
 	c->focused_app_id[0] = '\0';
 	neru_wlr_toplevel_unlock(c);
 
+	// Do not destroy the manager proxy here: the server destroys it right after
+	// `finished`, so sending its `stop` destructor request would target a dead
+	// object. Just drop our reference; wl_display_disconnect reaps the proxy.
 	c->toplevel_mgr = NULL;
 }
 
