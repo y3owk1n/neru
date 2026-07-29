@@ -379,6 +379,161 @@ func (o *wlrootsOverlay) DrawHints(
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
+// DrawMouseActionIndicator animates a transient click indicator centered on
+// point. It runs on this overlay's dedicated indicator surface, independent of
+// the mode overlay's show/hide lifecycle, so it survives the mode exit that
+// immediately follows a click.
+func (o *wlrootsOverlay) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	// Cancel any in-flight indicator animation before starting a new one.
+	// (Must run without displayMu held: the animation goroutine may be blocked
+	// acquiring displayMu, and cancelAnimation waits for it to exit.)
+	o.cancelAnimation()
+
+	duration := time.Duration(style.DurationMS) * time.Millisecond
+	if duration <= 0 {
+		duration = defaultMouseActionDuration
+	}
+
+	// The keyboard poller runs concurrently on this overlay's wl_display under
+	// displayMu, so the surface setup/show here must take the same lock — the
+	// Wayland client API is not thread-safe.
+	if o.displayMu != nil {
+		o.displayMu.Lock()
+	}
+	C.neru_wayland_overlay_setup_buffers(o.raw)
+	// The indicator must never steal keyboard focus from the app it decorates.
+	C.neru_wayland_overlay_set_keyboard_capture(o.raw, C.int(0))
+	C.neru_wayland_overlay_show(o.raw)
+	C.neru_wayland_overlay_sync(o.raw)
+	if o.displayMu != nil {
+		o.displayMu.Unlock()
+	}
+
+	animStop := make(chan struct{})
+	animDone := make(chan struct{})
+	o.animStop = animStop
+	o.animDone = animDone
+
+	o.startMouseActionAnimation(point, style, duration, animStop, animDone)
+}
+
+func (o *wlrootsOverlay) startMouseActionAnimation(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+	duration time.Duration,
+	stopCh chan struct{},
+	doneCh chan struct{},
+) {
+	startTime := time.Now()
+
+	fillBase := parseHexColor(style.BackgroundColor)
+	borderBase := parseHexColor(style.BorderColor)
+	lineWidth := float64(max(style.BorderWidth, 0))
+	baseSize := float64(max(style.Size, 1))
+	isSquare := style.Shape == "square"
+
+	renderFrame := func(rawProgress float64) {
+		eased := applyEasing(style.Easing, rawProgress)
+		scale := max(lerp(style.StartScale, style.EndScale, eased), 0)
+		opacity := lerp(style.StartOpacity, style.EndOpacity, eased)
+		diameter := baseSize * scale
+		rect := mouseActionIndicatorRect(point, diameter)
+		fill := applyOpacity(fillBase, opacity)
+		border := applyOpacity(borderBase, opacity)
+
+		C.neru_wayland_overlay_dispatch_pending(o.raw)
+		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		if bufIdx < 0 {
+			C.neru_wayland_overlay_sync(o.raw)
+			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		}
+		if bufIdx < 0 {
+			return
+		}
+		C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
+
+		C.neru_wayland_overlay_clear(o.raw)
+		if isSquare {
+			o.drawRect(rect, fill, border, lineWidth)
+		} else {
+			o.drawRoundedRect(rect, diameter/centeredRectDivisor, fill, border, lineWidth)
+		}
+		C.neru_wayland_overlay_flush(o.raw)
+	}
+
+	go func() {
+		defer close(doneCh)
+		defer func() {
+			o.cancelMu.Lock()
+			if o.animStop == stopCh {
+				o.animStop = nil
+			}
+			if o.animDone == doneCh {
+				o.animDone = nil
+			}
+			o.cancelMu.Unlock()
+		}()
+
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			elapsed := time.Since(startTime)
+			rawProgress := min(float64(elapsed)/float64(duration), 1.0)
+
+			renderStart := time.Now()
+
+			if o.displayMu != nil {
+				o.displayMu.Lock()
+				select {
+				case <-stopCh:
+					o.displayMu.Unlock()
+
+					return
+				default:
+				}
+			}
+			renderFrame(rawProgress)
+			if o.displayMu != nil {
+				o.displayMu.Unlock()
+			}
+
+			if rawProgress >= 1.0 {
+				// Finished: unmap the dedicated surface so the fully faded
+				// indicator does not linger on screen.
+				if o.displayMu != nil {
+					o.displayMu.Lock()
+				}
+				C.neru_wayland_overlay_hide(o.raw)
+				if o.displayMu != nil {
+					o.displayMu.Unlock()
+				}
+
+				return
+			}
+
+			sleepFor := animationFrameDur - time.Since(renderStart)
+			if sleepFor > 0 {
+				select {
+				case <-stopCh:
+					return
+				case <-time.After(sleepFor):
+				}
+			}
+		}
+	}()
+}
+
 // selectAvailableBuffer picks a buffer that the compositor has released.
 // Falls back to sync (roundtrip) if none free, which forces release processing.
 func (o *wlrootsOverlay) selectAvailableBuffer() bool {

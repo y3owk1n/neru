@@ -87,6 +87,18 @@ type Manager struct {
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
 
+	// The mouse-action indicator renders on its own dedicated overlay window,
+	// separate from the mode overlay above, because it fires *after* a click
+	// once the mode has exited and the mode overlay has been hidden. It is
+	// created lazily on first use. indicatorMu serializes creation and
+	// dispatch; indicatorRenderMu is the indicator overlay's own render lock
+	// (it owns an independent X11/Wayland connection, so it must not share the
+	// mode overlay's renderMu).
+	indicatorMu       sync.Mutex
+	indicatorRenderMu sync.Mutex
+	x11Indicator      *x11Overlay
+	wlrootsIndicator  *wlrootsOverlay
+
 	keyboardCaptureEnabled bool
 
 	hintOverlay            *hints.Overlay
@@ -314,6 +326,24 @@ func (m *Manager) Destroy() {
 
 	if wlroots != nil {
 		wlroots.Destroy()
+	}
+
+	// Tear down the dedicated mouse-action indicator overlay, if it was ever
+	// created. Same locking rationale as above: the wlroots Destroy waits on
+	// its poller goroutine, which acquires indicatorRenderMu each iteration.
+	m.indicatorMu.Lock()
+	x11Indicator := m.x11Indicator
+	wlrootsIndicator := m.wlrootsIndicator
+	m.x11Indicator = nil
+	m.wlrootsIndicator = nil
+	m.indicatorMu.Unlock()
+
+	if x11Indicator != nil {
+		x11Indicator.Destroy()
+	}
+
+	if wlrootsIndicator != nil {
+		wlrootsIndicator.Destroy()
 	}
 }
 
@@ -768,8 +798,48 @@ func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillCol
 	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
-// DrawMouseActionIndicator is a macOS-only renderer; Linux currently stubs it.
-func (m *Manager) DrawMouseActionIndicator(_ image.Point, _ ports.MouseActionIndicatorStyle) {}
+// DrawMouseActionIndicator animates a transient indicator at the click point on
+// a dedicated overlay window, independent of the mode overlay so it survives
+// the mode exit that follows a click. The indicator overlay is created lazily
+// on first use.
+func (m *Manager) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	if m == nil {
+		return
+	}
+
+	m.indicatorMu.Lock()
+	defer m.indicatorMu.Unlock()
+
+	switch m.backend {
+	case linuxOverlayBackendX11:
+		if m.x11Indicator == nil {
+			m.x11Indicator = newX11Overlay(m.logger)
+			if m.x11Indicator != nil {
+				m.x11Indicator.setRenderMu(&m.indicatorRenderMu)
+			}
+		}
+
+		m.x11Indicator.DrawMouseActionIndicator(point, style)
+	case linuxOverlayBackendWaylandWlroots:
+		if m.wlrootsIndicator == nil {
+			m.wlrootsIndicator = newWlrootsOverlay(m.logger)
+			if m.wlrootsIndicator != nil {
+				// The indicator surface shares the dedicated render lock and
+				// runs its own event poller (keyboard capture stays disabled,
+				// so it only pumps the surface's configure/frame events).
+				m.wlrootsIndicator.setDisplayMu(&m.indicatorRenderMu)
+				m.wlrootsIndicator.setKeyboardCaptureEnabled(false)
+				m.wlrootsIndicator.startPoller()
+			}
+		}
+
+		m.wlrootsIndicator.DrawMouseActionIndicator(point, style)
+	case linuxOverlayBackendUnknown:
+	}
+}
 
 func (m *Manager) clearStickyBadgeLocked() {
 	if !m.stickyBadgeVisible {
