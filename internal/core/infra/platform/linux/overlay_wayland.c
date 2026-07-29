@@ -379,9 +379,14 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 	if (!overlay)
 		return NULL;
 
-	// EXCLUSIVE by default for keyboard capture fallback
-	// SetKeyboardCaptureEnabled can change it to NONE when not needed
-	overlay->keyboard_interactivity_set = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
+	// NONE by default so the overlay never steals keyboard focus on creation. A
+	// layer-surface keyboard grab makes wlroots compositors (niri, Sway, …)
+	// deactivate the focused app's toplevel, which breaks the "focused window"
+	// query a hints refresh depends on. Keys are captured via the evdev grab; only
+	// the non-evdev fallback (see runWayland in eventtap_linux_wayland.go) turns
+	// this back to EXCLUSIVE via neru_wayland_overlay_set_keyboard_capture. This
+	// mirrors macOS, whose overlay is a non-activating panel.
+	overlay->keyboard_interactivity_set = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
 
 	overlay->display = wl_display_connect(NULL);
 	if (!overlay->display) {
@@ -529,8 +534,9 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		                            ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
 		zwlr_layer_surface_v1_set_exclusive_zone(scr->layer_surface, -1);
 
-		// Request exclusive keyboard interactivity when overlay is shown
-		// This tells the compositor to send keyboard events to this surface
+		// Apply the current keyboard-interactivity mode (NONE by default so the
+		// overlay does not steal focus; the non-evdev fallback raises it to
+		// EXCLUSIVE via neru_wayland_overlay_set_keyboard_capture).
 		zwlr_layer_surface_v1_set_keyboard_interactivity(scr->layer_surface, overlay->keyboard_interactivity_set);
 
 		zwlr_layer_surface_v1_add_listener(scr->layer_surface, &layer_surface_listener, overlay);

@@ -29,8 +29,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 		return
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
-	// when indicator overlays are shown, but only if uinput scroll is active
-	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() {
+	// when indicator overlays are shown, but only if uinput scroll is active.
+	// Skip entirely when an evdev keyboard grab owns the keyboard: there the
+	// overlay must stay keyboard-passive (its grab would deactivate the focused
+	// app's toplevel on wlroots, breaking the next hints refresh), and the evdev
+	// path already keeps it that way.
+	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() &&
+		!eventtap.IsWaylandEvdevKeyboardActive() {
 		m.SetKeyboardCaptureEnabled(false)
 	}
 	// Ensure the mode indicator overlay covers the correct screen before
@@ -222,8 +227,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 // stopIndicatorPolling stops the indicator polling goroutine and cleans up
 // both mode indicator and sticky modifiers indicator overlays.
 func (h *Handler) stopIndicatorPolling() {
-	// Restore keyboard capture if uinput scroll was active.
-	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() {
+	// Restore keyboard capture if uinput scroll was active. Never re-enable it
+	// while an evdev keyboard grab owns the keyboard: on wlroots compositors the
+	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
+	// so a hints refresh (which stops indicator polling before rescanning) would
+	// re-read the wrong focused window and clear the hints.
+	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() &&
+		!eventtap.IsWaylandEvdevKeyboardActive() {
 		m.SetKeyboardCaptureEnabled(true)
 	}
 

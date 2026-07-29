@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -35,6 +36,22 @@ const (
 	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
 	waylandEvdevHotplugPollInterval       = 500 * time.Millisecond
 )
+
+// waylandEvdevKeyboardActive reports whether an evdev keyboard grab is currently
+// held, i.e. keys are captured directly from the input devices rather than via
+// the overlay layer-surface's keyboard grab. When true, the overlay must NOT
+// request exclusive keyboard focus: on wlroots compositors (niri, Sway, …) a
+// layer-surface keyboard grab deactivates the focused app's toplevel, which
+// makes a hints refresh re-read the wrong "focused window" and tear the overlay
+// down. See IsWaylandEvdevKeyboardActive and its use in the indicator polling.
+var waylandEvdevKeyboardActive atomic.Bool
+
+// IsWaylandEvdevKeyboardActive reports whether keys are currently being captured
+// via an evdev grab (so the overlay's keyboard grab is redundant and must stay
+// off). False on non-Wayland sessions, when the grab failed, and between modes.
+func IsWaylandEvdevKeyboardActive() bool {
+	return waylandEvdevKeyboardActive.Load()
+}
 
 var (
 	errWaylandEvdevUnavailable = errors.New("wayland evdev capture unavailable")
@@ -764,6 +781,10 @@ func (et *EventTap) closeEvdevCapture() {
 }
 
 func (et *EventTap) runWaylandEvdev() bool {
+	// Clear the evdev-active flag on every exit path (mode end / ungrab), so the
+	// overlay may reclaim the keyboard grab if it ever becomes the fallback.
+	defer waylandEvdevKeyboardActive.Store(false)
+
 	// Get or create the persistent capture (initialized once, reused
 	// across Enable/Disable cycles). This avoids re-scanning
 	// /dev/input/event* devices on every mode activation, which was
@@ -804,14 +825,6 @@ func (et *EventTap) runWaylandEvdev() bool {
 	}
 
 	manager := overlay.Get()
-	keyboardCaptureDisabled := false
-	if manager != nil {
-		defer func() {
-			if keyboardCaptureDisabled {
-				manager.SetKeyboardCaptureEnabled(true)
-			}
-		}()
-	}
 
 	for capture.modifierKeysHeld() {
 		select {
@@ -884,6 +897,11 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
+	// The evdev grab now owns the keyboard for this mode session, so the overlay
+	// must stay keyboard-passive (see waylandEvdevKeyboardActive). Cleared by the
+	// deferred Store(false) when this function returns on mode exit / ungrab.
+	waylandEvdevKeyboardActive.Store(true)
+
 	// Start reader goroutines on first invocation only; they run for
 	// the entire lifetime of the capture (until EventTap.Destroy()).
 	capture.startReadersOnce.Do(func() {
@@ -891,8 +909,12 @@ func (et *EventTap) runWaylandEvdev() bool {
 	})
 
 	if manager != nil {
+		// Keep the overlay keyboard-passive for the whole session and do NOT
+		// restore it to EXCLUSIVE on exit: the evdev grab owns the keyboard, so a
+		// layer-surface grab would only deactivate the focused app's toplevel on
+		// wlroots. Every subsequent mode therefore also starts from NONE. The
+		// non-evdev fallback (runWayland) raises EXCLUSIVE itself when it needs it.
 		manager.SetKeyboardCaptureEnabled(false)
-		keyboardCaptureDisabled = true
 	}
 
 	if et.logger != nil {

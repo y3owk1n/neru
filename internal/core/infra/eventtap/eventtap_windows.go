@@ -168,6 +168,11 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
+// IsWaylandEvdevKeyboardActive returns false on Windows (no evdev / Wayland).
+func IsWaylandEvdevKeyboardActive() bool {
+	return false
+}
+
 func (et *EventTap) handleKey(key string, isUp bool) bool {
 	if key == "" {
 		return false
