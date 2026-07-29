@@ -7,6 +7,7 @@ import (
 	"context"
 	"image"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -218,6 +219,68 @@ func TestSmoothCursorAnimatorBestEffortOnMoveFailure(t *testing.T) {
 	err := animator.wait(ctx)
 	if err != nil {
 		t.Fatalf("smooth-move failure must not surface through wait: got %v", err)
+	}
+}
+
+// TestSmoothCursorAnimatorStopFencesInflightStep verifies stop() does not
+// return while a backend injection step is in flight, and blocks any further
+// step from injecting. This is the ordering guarantee that lets a bypassed
+// direct warp (issued right after stop) land last instead of racing a stale
+// animation step.
+func TestSmoothCursorAnimatorStopFencesInflightStep(t *testing.T) {
+	t.Parallel()
+
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+
+	var moveActive atomic.Bool
+
+	blockingMove := func(_ image.Point) error {
+		moveActive.Store(true)
+
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+
+		<-release
+		moveActive.Store(false)
+
+		return nil
+	}
+	pos := func() image.Point {
+		return image.Point{}
+	}
+
+	animator := newSmoothCursorAnimator(pos, blockingMove)
+	animator.animateTo(image.Point{X: 100, Y: 100}, 10, 200, 1.0)
+
+	<-entered // a backend step is now in flight, blocked in blockingMove
+
+	stopReturned := make(chan struct{})
+
+	go func() {
+		animator.stop()
+		close(stopReturned)
+	}()
+
+	// stop() must not return while the step is mid-injection.
+	select {
+	case <-stopReturned:
+		t.Fatal("stop returned while a backend move was in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	if !moveActive.Load() {
+		t.Fatal("expected the in-flight step to still be active")
+	}
+
+	close(release) // let the in-flight step finish
+
+	select {
+	case <-stopReturned:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop did not return after the in-flight step completed")
 	}
 }
 

@@ -236,11 +236,11 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	}
 
 	// Stop before warping: the animation worker must be canceled first so a
-	// pending tween step cannot override the direct warp. This matches the
-	// darwin non-smooth path (stop, then move). Cursor access is not serialized
-	// across the IPC/hotkey/event-tap goroutines, so this is deliberately
-	// preemptive last-writer-wins — a bypassed move cancels an in-flight
-	// animation and releases its waiter, exactly as on macOS.
+	// pending tween step cannot override the direct warp. stop() drains the
+	// animator's injection mutex, so on return no animation step is in flight
+	// and none will start — this warp lands last, not racing a stale step back
+	// to an intermediate point. (Which of two distinct concurrent callers wins
+	// is still last-writer-wins, as on macOS.)
 	s.cursorAnimator.stop()
 
 	return s.moveCursorDirect(point)

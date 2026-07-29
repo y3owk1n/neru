@@ -61,11 +61,13 @@ type cursorRequest struct {
 // Like the darwin animator it is preemptive and fire-and-forget: callers do not
 // serialize cursor access (IPC, hotkey, and event-tap paths all drive moves
 // concurrently), so a bypassed/direct move cancels an in-flight animation and
-// the last writer wins. Backend move errors during an animation are best-effort
-// and not reported through WaitForCursorIdle — matching darwin, whose native
-// move call cannot fail back to Go. The direct (non-smooth) MoveCursorToPoint
-// path still returns backend errors synchronously; only the opt-in animated
-// path degrades to best-effort.
+// the last writer wins. stop() fences on injectSem so a bypassed direct warp is
+// reliably ordered after any in-flight animation step — a canceled tween can
+// never land back at an intermediate point after the warp. Backend move errors
+// during an animation are best-effort and not reported through
+// WaitForCursorIdle — matching darwin, whose native move call cannot fail back
+// to Go. The direct (non-smooth) MoveCursorToPoint path still returns backend
+// errors synchronously; only the opt-in animated path degrades to best-effort.
 //
 // Completion is tracked per *session*, not per request. A session begins when
 // an idle animator receives a target and ends when the queue drains. All
@@ -88,13 +90,24 @@ type smoothCursorAnimator struct {
 	stopCh chan struct{}
 	done   *cursorAnimationDone // current session completion; nil only between stop() and the next session
 	busy   bool                 // a session is in progress (worker actively draining toward a target)
+
+	// injectSem is a size-1 semaphore serializing actual backend injection (one
+	// step at a time) and is the ordering handoff to stop(): the worker holds it
+	// across each step and re-checks stopCh under it, so once stop() acquires it
+	// no canceled step is mid-flight and none will start. It is never held
+	// together with mu.
+	injectSem chan struct{}
 }
 
 func newSmoothCursorAnimator(
 	pos func() image.Point,
 	move func(image.Point) error,
 ) *smoothCursorAnimator {
-	return &smoothCursorAnimator{pos: pos, move: move}
+	return &smoothCursorAnimator{
+		pos:       pos,
+		move:      move,
+		injectSem: make(chan struct{}, 1),
+	}
 }
 
 // stop cancels any in-flight animation and releases waiters. It is called on
@@ -116,6 +129,39 @@ func (a *smoothCursorAnimator) stop() {
 	a.mu.Unlock()
 
 	done.close()
+
+	// Order a bypassed direct warp after any in-flight animation step. stopCh is
+	// already closed above, so once we hold injectSem: any step that was
+	// mid-injection has finished (it releases the token on the way out), and any
+	// step that has not yet injected will see the closed stopCh (in stepMove) and
+	// skip. The caller's subsequent moveCursorDirect therefore lands last.
+	a.injectSem <- struct{}{}
+
+	<-a.injectSem
+}
+
+// stepMove injects one animation step while holding injectSem, re-checking
+// stopCh so a step cannot inject once the session is stopped. This, paired with
+// stop()'s injectSem barrier, guarantees a canceled tween never warps the cursor
+// after a bypassed direct move. It returns false when the step was skipped due
+// to stop.
+func (a *smoothCursorAnimator) stepMove(point image.Point, stopCh <-chan struct{}) bool {
+	a.injectSem <- struct{}{}
+	defer func() { <-a.injectSem }()
+
+	select {
+	case <-stopCh:
+		return false
+	default:
+	}
+
+	// Best-effort, matching darwin (whose native move cannot fail back to Go):
+	// a failed backend warp during the opt-in animation is not surfaced through
+	// WaitForCursorIdle. The direct MoveCursorToPoint path still returns backend
+	// errors synchronously.
+	_ = a.move(point)
+
+	return true
 }
 
 // wait blocks until the current session settles or ctx is canceled. It returns
@@ -266,11 +312,9 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		// Best-effort, matching darwin (whose native move cannot fail back to
-		// Go): a failed backend warp during the opt-in animation is not
-		// surfaced through WaitForCursorIdle. The direct MoveCursorToPoint path
-		// still returns backend errors synchronously.
-		_ = a.move(intermediate)
+		if !a.stepMove(intermediate, stopCh) {
+			return
+		}
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)
