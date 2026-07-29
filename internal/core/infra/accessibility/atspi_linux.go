@@ -195,7 +195,11 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 		zap.String("app", c.name(conn, accRef{Name: frame.Name, Path: atspiRootPath})),
 		zap.String("frameTitle", c.name(conn, frame)))
 
-	return &atspiWindow{ref: frame, valid: true}, nil
+	// Record the compositor's focused app_id at selection time so ClickableNodes
+	// can detect a focus change before applying window-origin geometry.
+	focusedAppID, _ := linux.WaylandFocusedAppID()
+
+	return &atspiWindow{ref: frame, valid: true, focusedAppID: focusedAppID}, nil
 }
 
 // FrontmostAndPopoverWindows returns the active window (popovers are part of
@@ -249,7 +253,7 @@ func (c *ATSPIClient) ClickableNodes(
 	)
 
 	frameRect, frameOK := c.extents(conn, win.ref)
-	if frameOK {
+	if frameOK && c.focusStableSince(win.focusedAppID) {
 		offX, offY, haveOrigin = c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
 	}
 
@@ -464,6 +468,21 @@ func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
 	return conn, nil
 }
 
+// focusStableSince reports whether the compositor's focused app_id still equals
+// the value captured when the window was selected. A mismatch means focus
+// changed before the geometry query, so the compositor's origin belongs to a
+// different window and must not be applied to this frame. When no live app_id
+// is available (X11/GNOME) there is nothing to compare, so it returns true and
+// the window-origin source's own size guard governs the offset.
+func (c *ATSPIClient) focusStableSince(selectedAppID string) bool {
+	current, ok := linux.WaylandFocusedAppID()
+	if !ok {
+		return true
+	}
+
+	return current == selectedAppID
+}
+
 // children returns the AT-SPI children of an accessible. It prefers the bulk
 // GetChildren method and falls back to ChildCount + GetChildAtIndex for older
 // toolkits that do not expose GetChildren.
@@ -623,10 +642,15 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	focusedAppID, haveFocused := linux.WaylandFocusedAppID()
 
 	var (
-		// Frame whose application matches the compositor's focused app_id — the
-		// most reliable signal on Wayland, so it wins over the ACTIVE heuristic.
-		focusedShowing   accRef
-		haveFocusedMatch bool
+		// Frames whose application matches the compositor's focused app_id — the
+		// most reliable signal on Wayland, so they win over the ACTIVE heuristic.
+		// When that app has several visible windows, prefer the one the app's own
+		// toolkit marks ACTIVE (reliable within a single app, unlike the cross-app
+		// ACTIVE state) so a background window of the focused app cannot win.
+		focusedActiveShowing accRef
+		haveFocusedActive    bool
+		focusedShowing       accRef
+		haveFocusedShowing   bool
 
 		activeShowing accRef
 		haveAS        bool
@@ -678,10 +702,18 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 			}
 
 			// The application the compositor reports as focused wins outright,
-			// regardless of the (unreliable) AT-SPI ACTIVE state.
-			if matchesFocused && showing && !haveFocusedMatch {
-				focusedShowing = frame
-				haveFocusedMatch = true
+			// regardless of the (unreliable) cross-app AT-SPI ACTIVE state. Among
+			// that app's visible windows, prefer the one it marks ACTIVE.
+			if matchesFocused && showing {
+				if active && !haveFocusedActive {
+					focusedActiveShowing = frame
+					haveFocusedActive = true
+				}
+
+				if !haveFocusedShowing {
+					focusedShowing = frame
+					haveFocusedShowing = true
+				}
 			}
 
 			if active && showing && !haveAS {
@@ -702,7 +734,9 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	}
 
 	switch {
-	case haveFocusedMatch:
+	case haveFocusedActive:
+		return focusedActiveShowing, true
+	case haveFocusedShowing:
 		return focusedShowing, true
 	case haveAS:
 		return activeShowing, true
@@ -833,6 +867,11 @@ func rolesSet(roles []string) map[string]struct{} {
 type atspiWindow struct {
 	ref   accRef
 	valid bool
+	// focusedAppID is the compositor's focused app_id captured when this window
+	// was selected (empty on X11/GNOME). ClickableNodes compares it against the
+	// live focused app_id so a focus change between selection and the geometry
+	// query does not offset hints by an unrelated window's origin.
+	focusedAppID string
 }
 
 func (w *atspiWindow) Release()     {}
