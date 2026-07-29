@@ -314,4 +314,21 @@ CGRect NeruGetScreenBoundsByName(const char *name, int *found);
 /// @return Current cursor position
 CGPoint NeruGetCurrentCursorPosition(void);
 
+/// Report whether the macOS Accessibility Zoom feature is currently zoomed in
+/// @return true when the screen is magnified by Accessibility Zoom
+bool NeruIsScreenZoomed(void);
+
+/// Get the on-screen region of the Accessibility Zoom viewport
+/// @param outViewport Receives the visible rectangle in global CG coordinates
+/// @return 1 when zoomed in and outViewport was written, 0 otherwise
+int NeruGetZoomViewport(CGRect *outViewport);
+
+/// Pan the Accessibility Zoom viewport by the smallest amount that brings the
+/// given point on screen, mirroring what dragging a real mouse into the edge of
+/// the viewport does. No-op when not zoomed in.
+/// @param target Point that must end up visible, in global CG coordinates
+/// @note Panning moves the cursor with the viewport, so call this *before*
+///       positioning the cursor, never after.
+void NeruEnsureZoomViewportContainsPoint(CGPoint target);
+
 #endif  // ACCESSIBILITY_H

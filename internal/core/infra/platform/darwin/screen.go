@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"image"
+	"math"
 	"unsafe"
 )
 
@@ -88,6 +89,34 @@ func ScreenBoundsByName(name string) (image.Rectangle, bool) {
 // IsMissionControlActive returns true if Mission Control is active.
 func IsMissionControlActive() bool {
 	return bool(C.NeruIsMissionControlActive())
+}
+
+// IsScreenZoomed reports whether the macOS Accessibility Zoom feature is
+// currently zoomed in. Cursor positioning does not depend on this — synthetic
+// mouse events are posted at the session tap so they bypass the window server's
+// zoom coordinate transform — but it is useful when diagnosing pointer bugs.
+func IsScreenZoomed() bool {
+	return bool(C.NeruIsScreenZoomed())
+}
+
+// ZoomViewport returns the region of the screen that the Accessibility Zoom
+// viewport currently shows, in global CG coordinates. The viewport edges are
+// fractional, so this is the smallest integer rectangle that fully contains it.
+// The second return value is false when the screen is not zoomed in, or when the
+// SkyLight zoom SPI that backs it is unavailable.
+func ZoomViewport() (image.Rectangle, bool) {
+	var viewport C.CGRect
+
+	if C.NeruGetZoomViewport(&viewport) == 0 {
+		return image.Rectangle{}, false
+	}
+
+	return image.Rect(
+		int(math.Floor(float64(viewport.origin.x))),
+		int(math.Floor(float64(viewport.origin.y))),
+		int(math.Ceil(float64(viewport.origin.x+viewport.size.width))),
+		int(math.Ceil(float64(viewport.origin.y+viewport.size.height))),
+	), true
 }
 
 // FocusedWindowBounds returns the bounds of the focused (frontmost) window.

@@ -19,10 +19,12 @@
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
 void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
+	NeruEnsureZoomViewportContainsPoint(position);
+
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
 	if (move) {
 		CGEventSetFlags(move, 0);
-		CGEventPost(kCGHIDEventTap, move);
+		CGEventPost(kNeruMouseEventTapLocation, move);
 		CFRelease(move);
 
 		CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
@@ -33,10 +35,12 @@ void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
 void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) {
+	NeruEnsureZoomViewportContainsPoint(position);
+
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
 	if (move) {
 		CGEventSetFlags(move, 0);
-		CGEventPost(kCGHIDEventTap, move);
+		CGEventPost(kNeruMouseEventTapLocation, move);
 		CFRelease(move);
 	}
 }
@@ -59,7 +63,7 @@ int NeruPerformLeftMouseUpAtCursor(void) {
 
 	// Clear all modifier flags to ensure clean mouse up
 	CGEventSetFlags(up, 0);
-	CGEventPost(kCGHIDEventTap, up);
+	CGEventPost(kNeruMouseEventTapLocation, up);
 	CFRelease(up);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
@@ -108,10 +112,10 @@ static int performClickAtPosition(
 
 	// Post mouse down, allow the system to process it, then post mouse up.
 	// Give the event loop a short moment to register the down event before sending up.
-	CGEventPost(kCGHIDEventTap, down);
+	CGEventPost(kNeruMouseEventTapLocation, down);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
-	CGEventPost(kCGHIDEventTap, up);
+	CGEventPost(kNeruMouseEventTapLocation, up);
 	CFRelease(down);
 	CFRelease(up);
 
@@ -206,10 +210,10 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 
 	// Post mouse down and allow a short moment before posting mouse up to ensure
 	// the system attributes the down/up pair to the target location.
-	CGEventPost(kCGHIDEventTap, down);
+	CGEventPost(kNeruMouseEventTapLocation, down);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
-	CGEventPost(kCGHIDEventTap, up);
+	CGEventPost(kNeruMouseEventTapLocation, up);
 	CFRelease(down);
 	CFRelease(up);
 
@@ -252,7 +256,7 @@ int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 
 	// Set modifier flags (0 = no modifiers for clean mouse down)
 	CGEventSetFlags(down, flags);
-	CGEventPost(kCGHIDEventTap, down);
+	CGEventPost(kNeruMouseEventTapLocation, down);
 	CFRelease(down);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
@@ -272,7 +276,7 @@ int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
 
 	// Set modifier flags (0 = no modifiers for clean mouse up)
 	CGEventSetFlags(up, flags);
-	CGEventPost(kCGHIDEventTap, up);
+	CGEventPost(kNeruMouseEventTapLocation, up);
 	CFRelease(up);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
