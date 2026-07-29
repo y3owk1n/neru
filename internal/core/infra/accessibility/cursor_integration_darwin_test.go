@@ -98,3 +98,62 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 		}
 	}
 }
+
+// TestDirectMoveOverridesInFlightAnimation requires a direct move to win against
+// a smooth animation it interrupts.
+//
+// Canceling the animator closes its stop channel, but a worker that has already
+// passed its cancellation check can still post one more step. That step lands
+// after the direct move and drags the cursor back toward the abandoned target —
+// and, while zoomed, drags the zoom viewport with it, which nothing afterwards
+// corrects. The interruption is timing-dependent, so sweep the delay across a
+// whole animation rather than trying a single one.
+func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	bounds := darwinplatform.ActiveScreenBounds()
+	if bounds.Empty() {
+		t.Skip("no active screen bounds")
+	}
+
+	startPos := darwinplatform.CursorPosition()
+	defer darwinplatform.MoveMouse(startPos, true)
+
+	animationTarget := image.Point{
+		X: bounds.Min.X + bounds.Dx()*9/10,
+		Y: bounds.Min.Y + bounds.Dy()*9/10,
+	}
+	directTarget := image.Point{
+		X: bounds.Min.X + bounds.Dx()/6,
+		Y: bounds.Min.Y + bounds.Dy()/4,
+	}
+
+	const (
+		maxInterruptDelayMs = 40
+		repeats             = 2
+	)
+
+	for delayMs := range maxInterruptDelayMs + 1 {
+		for range repeats {
+			darwinplatform.MoveMouseSmooth(animationTarget, 20, eventMouseMoved)
+			time.Sleep(time.Duration(delayMs) * time.Millisecond)
+			darwinplatform.MoveMouse(directTarget, true)
+
+			time.Sleep(60 * time.Millisecond)
+
+			landed := darwinplatform.CursorPosition()
+			if landed != directTarget {
+				t.Fatalf(
+					"interrupting a smooth move after %dms left the cursor at %v, want %v (off by %v) — "+
+						"a canceled animation step landed after the direct move",
+					delayMs,
+					landed,
+					directTarget,
+					landed.Sub(directTarget),
+				)
+			}
+		}
+	}
+}

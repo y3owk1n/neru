@@ -497,7 +497,7 @@ detect_mission_control = true
 > While zoomed in, the window server rewrites the location of pointer-motion events that enter at the HID event tap, reading the posted point as a coordinate in zoomed-viewport space (`landed = zoomOrigin + (posted - displayCenter) / zoomFactor`). Neru posts mouse events at the session tap instead, which sits above that transform, so positioning is exact whether or not zoom is engaged. Reading the cursor position was never affected.
 
 > [!NOTE]
-> Only real pointer-device movement pans the zoom viewport — no synthetic event does, at any event tap. `UAZoomChangeFocus` does not help either: it drives the keyboard-focus and text-insertion-point paths, so it is a no-op when zoom is set to follow the mouse pointer. Neru therefore pans the viewport itself before each cursor move, by the smallest amount that brings the target on screen, which reproduces the edge-panning behaviour of a real mouse. It uses SkyLight's zoom SPI resolved at runtime; if a future macOS removes it, cursor positioning stays correct and only the follow behaviour is lost.
+> Only real pointer-device movement pans the zoom viewport — no synthetic event does, at any event tap. `UAZoomChangeFocus` does not help either: it drives the keyboard-focus and text-insertion-point paths, so it is a no-op when zoom is set to follow the mouse pointer. Neru therefore pans the viewport itself before each cursor move, by the smallest amount that brings the target on screen, which reproduces the edge-panning behavior of a real mouse. It uses SkyLight's zoom SPI resolved at runtime; if a future macOS removes it, cursor positioning stays correct and only the follow behavior is lost.
 
 ---
 
