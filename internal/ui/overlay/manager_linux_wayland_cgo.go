@@ -350,7 +350,7 @@ func (o *wlrootsOverlay) DrawHints(
 		)
 		radius := style.BorderRadius()
 		if radius < 0 {
-			radius = badgeHeight / centeredRectDivisor
+			radius = min(badgeHeight/centeredRectDivisor, hintAutoRadiusMax)
 		}
 		if radius > 0 {
 			o.drawRoundedRect(
