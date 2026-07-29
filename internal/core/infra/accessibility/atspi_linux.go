@@ -786,19 +786,71 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		}
 	}
 
-	// The AT-SPI ACTIVE state reliably marks the compositor-focused window only
-	// on KWin/KDE; on wlroots compositors it is set inconsistently across
-	// background frames.
-	activeStateIdentifiesFocus := platform.DetectLinuxBackend() == platform.BackendWaylandKDE
+	return selectFrame(frameCandidates{
+		focusedTitleFrame:    focusedTitleFrame,
+		haveFocusedTitle:     haveFocusedTitleMatch,
+		focusedActiveShowing: focusedActiveShowing,
+		haveFocusedActive:    haveFocusedActive,
+		focusedShowing:       focusedShowing,
+		haveFocusedShowing:   haveFocusedShowing,
+		activeShowing:        activeShowing,
+		haveActiveShowing:    haveAS,
+		activeAny:            activeAny,
+		haveActiveAny:        haveAA,
+		showingAny:           showingAny,
+		haveShowingAny:       haveSA,
+		shellShowing:         shellShowing,
+		haveShell:            haveShell,
+		haveFocused:          haveFocused,
+		// The AT-SPI ACTIVE state reliably marks the compositor-focused window
+		// only on KWin/KDE; on wlroots it is set inconsistently across frames.
+		activeStateIdentifiesFocus: platform.DetectLinuxBackend() == platform.BackendWaylandKDE,
+	})
+}
 
+// frameCandidates holds the frames found during a findActiveFrame walk, ranked
+// by how reliably each identifies the focused window, plus the compositor
+// signals needed to choose between them.
+type frameCandidates struct {
+	// Matched the compositor's focused app_id, in preference order.
+	focusedTitleFrame    accRef // title also matched the focused toplevel
+	haveFocusedTitle     bool
+	focusedActiveShowing accRef // marked ACTIVE by its own toolkit
+	haveFocusedActive    bool
+	focusedShowing       accRef // first showing frame of the focused app
+	haveFocusedShowing   bool
+
+	// Cross-application ACTIVE/SHOWING fallbacks (reliable only on KDE).
+	activeShowing     accRef
+	haveActiveShowing bool
+	activeAny         accRef
+	haveActiveAny     bool
+	showingAny        accRef
+	haveShowingAny    bool
+
+	// Desktop shell, used only as a last resort when nothing is focused.
+	shellShowing accRef
+	haveShell    bool
+
+	// haveFocused is true when the compositor reported a focused app_id.
+	haveFocused bool
+	// activeStateIdentifiesFocus is true only where the AT-SPI ACTIVE state
+	// reliably marks the focused window (KWin/KDE).
+	activeStateIdentifiesFocus bool
+}
+
+// selectFrame chooses the focused frame from the ranked candidates. It is the
+// pure decision half of findActiveFrame, split out so the ordering can be
+// unit-tested without a live AT-SPI bus.
+func selectFrame(cand frameCandidates) (accRef, bool) {
 	switch {
-	case haveFocusedTitleMatch:
-		return focusedTitleFrame, true
-	case haveFocusedActive:
-		return focusedActiveShowing, true
-	case haveFocusedShowing:
-		return focusedShowing, true
-	case haveFocused:
+	case cand.haveFocusedTitle:
+		return cand.focusedTitleFrame, true
+	case cand.haveFocusedActive:
+		return cand.focusedActiveShowing, true
+	case cand.haveFocusedShowing:
+		return cand.focusedShowing, true
+	case cand.haveFocused:
 		// A focused app_id was reported but no AT-SPI frame of that application
 		// matched (name differs from the app_id, or it exposes no AT-SPI). On
 		// KWin/KDE the ACTIVE state still marks the focused window, so an ACTIVE
@@ -806,23 +858,23 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		// org.gnome.Nautilus). When no frame is ACTIVE the focused app exposes no
 		// AT-SPI, so return nothing rather than an unrelated SHOWING or shell
 		// window. On wlroots the ACTIVE state is unreliable, so return nothing.
-		if activeStateIdentifiesFocus && haveAS {
-			return activeShowing, true
+		if cand.activeStateIdentifiesFocus && cand.haveActiveShowing {
+			return cand.activeShowing, true
 		}
 
-		if activeStateIdentifiesFocus && haveAA {
-			return activeAny, true
+		if cand.activeStateIdentifiesFocus && cand.haveActiveAny {
+			return cand.activeAny, true
 		}
 
 		return accRef{}, false
-	case haveAS:
-		return activeShowing, true
-	case haveAA:
-		return activeAny, true
-	case haveSA:
-		return showingAny, true
-	case haveShell:
-		return shellShowing, true
+	case cand.haveActiveShowing:
+		return cand.activeShowing, true
+	case cand.haveActiveAny:
+		return cand.activeAny, true
+	case cand.haveShowingAny:
+		return cand.showingAny, true
+	case cand.haveShell:
+		return cand.shellShowing, true
 	default:
 		return accRef{}, false
 	}
