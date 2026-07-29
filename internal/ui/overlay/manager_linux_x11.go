@@ -298,44 +298,31 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
 		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 
-		// hint.Position() is the element center (set in modes/hints.go), so the
-		// badge is centered horizontally on it and placed above / on / below the
-		// center to match the macOS placement behavior.
-		centerX := hint.Position().X
-		centerY := hint.Position().Y
-		switch style.Placement() {
-		case "top":
-			centerY = hint.Position().Y - hintPlacementGap - badgeHeight/centeredRectDivisor
-		case "bottom":
-			centerY = hint.Position().Y + hintPlacementGap + badgeHeight/centeredRectDivisor
-		}
-
-		badge := image.Rect(
-			centerX-badgeWidth/centeredRectDivisor,
-			centerY-badgeHeight/centeredRectDivisor,
-			centerX+badgeWidth/centeredRectDivisor,
-			centerY+badgeHeight/centeredRectDivisor,
-		)
 		radius := style.BorderRadius()
 		if radius < 0 {
 			radius = min(badgeHeight/centeredRectDivisor, hintAutoRadiusMax)
 		}
-		if radius > 0 {
-			o.drawRoundedRect(
-				badge,
-				float64(radius),
-				parseHexColor(style.BackgroundColor()),
-				parseHexColor(style.BorderColor()),
-				float64(max(style.BorderWidth(), 0)),
-			)
-		} else {
-			o.drawRect(
-				badge,
-				parseHexColor(style.BackgroundColor()),
-				parseHexColor(style.BorderColor()),
-				float64(max(style.BorderWidth(), 0)),
-			)
-		}
+		// Cap the radius so a top/bottom badge keeps a flat edge for the tail.
+		radius = hintBadgeRadius(radius, badgeWidth, style.Placement())
+
+		// hint.Position() is the element center (set in modes/hints.go). The
+		// badge is centered horizontally on it and placed above / on / below the
+		// center to match macOS; top/bottom placement also draws a connector
+		// arrow pointing back at the target.
+		badge, arrow, hasArrow := hintBadgePlacement(
+			hint.Position(), badgeWidth, badgeHeight, radius, style.Placement(),
+		)
+
+		fill := parseHexColor(style.BackgroundColor())
+		border := parseHexColor(style.BorderColor())
+		borderWidth := float64(max(style.BorderWidth(), 0))
+
+		// Badge and connector tail are drawn as one filled+stroked outline so
+		// translucent colors don't double-composite at the junction.
+		o.drawHintBadge(
+			badge, float64(radius), hintTailEdge(badge, arrow, hasArrow), arrow,
+			fill, border, borderWidth,
+		)
 		o.drawTextCentered(
 			label, badge,
 			style.FontFamily(),
@@ -867,6 +854,22 @@ func (o *x11Overlay) drawRoundedRect(
 		C.double(bounds.Min.X), C.double(bounds.Min.Y),
 		C.double(bounds.Dx()), C.double(bounds.Dy()),
 		C.double(radius),
+		C.uint(fill), C.uint(border), C.double(lineWidth),
+	)
+}
+
+func (o *x11Overlay) drawHintBadge(
+	badge image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
+	fill uint32, border uint32, lineWidth float64,
+) {
+	C.neru_x11_overlay_hint_badge(
+		o.raw,
+		C.double(badge.Min.X), C.double(badge.Min.Y),
+		C.double(badge.Dx()), C.double(badge.Dy()),
+		C.double(radius),
+		C.int(edge),
+		C.double(arrow.baseLeft.X), C.double(arrow.baseRight.X),
+		C.double(arrow.tip.X), C.double(arrow.tip.Y),
 		C.uint(fill), C.uint(border), C.double(lineWidth),
 	)
 }

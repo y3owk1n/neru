@@ -31,6 +31,9 @@ void neru_x11_overlay_rect(
 void neru_x11_overlay_rounded_rect(
     NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
     unsigned int stroke, double stroke_width);
+void neru_x11_overlay_hint_badge(
+    NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, int edge, double a_left,
+    double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke, double stroke_width);
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color);

@@ -198,6 +198,79 @@ void neru_x11_overlay_rounded_rect(
 	cairo_restore(cr);
 }
 
+// neru_x11_hint_badge_path builds a rounded-rectangle path with an optional
+// triangular tail merged into one edge, as a single closed outline. edge: 0 =
+// no tail, 1 = tail on the top edge (apex above), 2 = tail on the bottom edge
+// (apex below). The tail base (a_left..a_right) is clamped to the edge's flat
+// span so it never runs onto a rounded corner; if no room remains the tail is
+// dropped. Building badge and tail as one path lets the caller fill and stroke
+// once, avoiding the double-composited seam a separate overlaid triangle causes
+// with translucent colors.
+static void neru_x11_hint_badge_path(
+    cairo_t *cr, double x, double y, double w, double h, double radius, int edge, double a_left, double a_right,
+    double tip_x, double tip_y) {
+	double r = radius;
+	double max_r = (w < h ? w : h) / 2.0;
+	if (r > max_r)
+		r = max_r;
+	if (r < 0)
+		r = 0;
+
+	double flat_left = x + r;
+	double flat_right = x + w - r;
+	if (edge != 0) {
+		if (a_left < flat_left)
+			a_left = flat_left;
+		if (a_right > flat_right)
+			a_right = flat_right;
+		if (a_left >= a_right)
+			edge = 0;
+	}
+
+	const double deg = 0.0174532925199432957692;
+	cairo_new_sub_path(cr);
+	cairo_move_to(cr, flat_left, y);
+	if (edge == 1) {
+		cairo_line_to(cr, a_left, y);
+		cairo_line_to(cr, tip_x, tip_y);
+		cairo_line_to(cr, a_right, y);
+	}
+	cairo_line_to(cr, flat_right, y);
+	if (r > 0)
+		cairo_arc(cr, x + w - r, y + r, r, -90.0 * deg, 0.0 * deg);
+	cairo_line_to(cr, x + w, y + h - r);
+	if (r > 0)
+		cairo_arc(cr, x + w - r, y + h - r, r, 0.0 * deg, 90.0 * deg);
+	if (edge == 2) {
+		cairo_line_to(cr, a_right, y + h);
+		cairo_line_to(cr, tip_x, tip_y);
+		cairo_line_to(cr, a_left, y + h);
+	}
+	cairo_line_to(cr, flat_left, y + h);
+	if (r > 0)
+		cairo_arc(cr, x + r, y + h - r, r, 90.0 * deg, 180.0 * deg);
+	cairo_line_to(cr, x, y + r);
+	if (r > 0)
+		cairo_arc(cr, x + r, y + r, r, 180.0 * deg, 270.0 * deg);
+	cairo_close_path(cr);
+}
+
+// neru_x11_overlay_hint_badge fills and strokes a hint badge with an optional
+// connector tail as one continuous outline (see neru_x11_hint_badge_path).
+void neru_x11_overlay_hint_badge(
+    NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, int edge, double a_left,
+    double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke, double stroke_width) {
+	cairo_t *cr = overlay->cr;
+	cairo_save(cr);
+	neru_x11_hint_badge_path(cr, x, y, width, height, radius, edge, a_left, a_right, tip_x, tip_y);
+	neru_x11_overlay_color(cr, fill);
+	cairo_fill_preserve(cr);
+	neru_x11_overlay_color(cr, stroke);
+	cairo_set_line_width(cr, stroke_width);
+	cairo_stroke(cr);
+	cairo_restore(cr);
+}
+
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color) {
