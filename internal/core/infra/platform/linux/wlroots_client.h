@@ -140,7 +140,6 @@ int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
 // window (no focus commit can interleave). Returns 1 when a focused app_id is
 // available, 0 otherwise. The title disambiguates multiple windows of the
 // focused application, which share an app_id.
-int neru_wlr_focused_app_identity(
-    NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len);
+int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len);
 
 #endif /* WLROOTS_CLIENT_H */

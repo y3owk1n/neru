@@ -1286,8 +1286,7 @@ int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len) {
 	return ok;
 }
 
-int neru_wlr_focused_app_identity(
-    NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len) {
+int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len) {
 	if (!c || !app_out || app_len <= 0 || !title_out || title_len <= 0)
 		return 0;
 
