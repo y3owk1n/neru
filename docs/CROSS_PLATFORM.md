@@ -569,7 +569,7 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 | **Screen Enumeration**              | ✅                          | ✅ (XRandR)        | ✅ (xdg-output)           | ✅ (xdg-output)          | ✅ (xdg-output)   | ✅ (EnumDisplayMonitors) |
 | **Cursor Position**                 | ✅                          | ✅                 | ✅ (sync surface)         | ✅ (sync surface)        | ❌                | ✅                       |
 | **Cursor Move**                     | ✅                          | ✅ (XTest)         | ✅ (zwlr_virtual_pointer) | ✅ (libei)               | ❌                | ✅ (SetCursorPos)        |
-| **Cursor Smooth Animation**         | ✅                          | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
+| **Cursor Smooth Animation**         | ✅                          | ✅                 | ✅                        | ✅                       | ❌                | ❌                       |
 | **Scroll Smooth Animation**         | ✅                          | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
 | **Accessibility Element Discovery** | ✅ (AXUIElement)            | ⚠️ (AT-SPI walk)   | ⚠️ (AT-SPI walk)          | ⚠️ (AT-SPI walk)         | 🟡 (no injection) | ✅ (UIA initial)         |
 | **Accessibility Click/Scroll**      | ✅                          | ✅ (XTest)         | ✅ (virtual-pointer)      | ✅ (libei)               | 🟡                | ✅ (UIA initial)         |
@@ -584,6 +584,22 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 | **Font Resolution**                 | ✅ (NSFont)                 | ✅ (fontconfig)    | ✅ (fontconfig)           | ✅ (fontconfig)          | ✅ (fontconfig)   | ✅ (DirectWrite)         |
 | **System Cursor Hide**              | ✅ (CGDisplayHideCursor)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
 | **Monitor Select Panels**           | ✅ (native Cocoa panels)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
+
+**Smooth cursor animation on Linux:** off by default and opt-in via
+`smooth_cursor.move_mouse_enabled` (the same cross-platform
+`SmoothCursorConfig` macOS uses). When enabled, `SystemAdapter.MoveCursorToPoint`
+routes through `smoothCursorAnimator` (`mouse_animator_linux.go`) — a single
+worker goroutine that samples the current position once, then steps the direct
+per-backend warp (XTest on X11, `zwlr_virtual_pointer` on wlroots, libei on KDE)
+toward the target with linear interpolation, and `WaitForCursorIdle` now blocks
+until it settles instead of returning immediately. This mirrors the darwin
+animator (coalescing, latest-target-wins), but drives discrete warps rather than
+a Quartz event stream, so there is no drag-event distinction. It applies to the
+same flows macOS animates — grid/recursive-grid cursor-follow, `move_mouse`, and
+selection moves; clicks stay instant. On Wayland the interpolation start point
+comes from the client-side cursor cache; a stale read only skews the glide path,
+never the final landing point (the last step lands exactly on the target).
+GNOME/Mutter has no injection path, so it stays unsupported there.
 
 **Focused App PID on Wayland:** wlroots and KDE sessions resolve the focused
 window through the `wlr-foreign-toplevel-management` protocol, which exposes the
@@ -693,7 +709,7 @@ to unoffset (window-relative) coordinates rather than misplacing hints.
 | ----------------------------- | -------------------------------------------------- | -------------------------------------- | ------------------------------------------- | ----------------------------------------- |
 | **Grid transition animation** | CoreAnimation 120Hz, ease-in-out + linear fallback | Goroutine 120fps, easeInOut smoothstep | Goroutine 120fps, easeInOut smoothstep      | ❌                                        |
 | **Mouse action indicator**    | CoreAnimation CABasicAnimation (scale+opacity)     | ❌                                     | ❌                                          | Goroutine 60fps, custom cubic easing, SDF |
-| **Smooth cursor animation**   | ✅ (goroutine, configurable easing, tween)         | ❌                                     | ❌                                          | ❌                                        |
+| **Smooth cursor animation**   | ✅ (goroutine, configurable easing, tween)         | ✅ (goroutine, stepped warp)           | ✅ (goroutine, stepped warp)                | ❌                                        |
 | **Smooth scroll animation**   | ✅ (goroutine, ease-out cubic)                     | ❌                                     | ❌                                          | ❌                                        |
 | **Animation frame rate**      | 120fps (NSTimer display link)                      | 120fps (ticker)                        | ~120fps                                     | 60fps (16ms ticker)                       |
 | **Thread model**              | Main thread dispatch (dispatch_async/sync)         | `renderMu sync.Mutex`                  | `displayMu sync.Mutex` (shared w/ renderMu) | Dedicated UI thread (`LockOSThread`)      |
@@ -835,7 +851,7 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 | **Right click**         | ✅                                   | ✅ (XTest button 3)       | ✅                                                                               | ✅                         |
 | **Middle click**        | ✅                                   | ✅ (XTest button 2)       | ✅                                                                               | ✅                         |
 | **Scroll**              | ✅ (CGScrollWheelEvent)              | ✅ (XTest button 4/5)     | ✅ (zwlr_virtual_pointer axis)                                                   | ✅ (SendInput mouse wheel) |
-| **Smooth animation**    | ✅ (mouse_animator.go, configurable) | ❌                        | ❌                                                                               | ❌                         |
+| **Smooth animation**    | ✅ (mouse_animator.go, configurable) | ✅ (mouse_animator_linux.go) | ✅ (mouse_animator_linux.go)                                                  | ❌                         |
 | **Wayland cursor sync** | N/A                                  | N/A                       | ✅ (brief map of transparent layer surface to capture `wl_pointer.enter` coords) | N/A                        |
 
 ### Mode Feature Coverage
@@ -941,7 +957,7 @@ Windows has pure Go implementations for all subsystems (see the Port Capability 
 2. **Notifications** — no Windows toast notifications
 3. **Tree walking depth** — UIA tree is shallow; needs deeper traversal for complex apps
 4. **Grid transition animation** — not implemented (macOS and Linux have it)
-5. **Smooth cursor/scroll animation** — not implemented (macOS only)
+5. **Smooth cursor/scroll animation** — not implemented (smooth cursor exists on macOS + Linux; smooth scroll is macOS-only)
 6. **Modifier passthrough, PostModifierEvent** — no-ops
 7. **Scroll horizontal** — `ScrollAtCursor` ignores `deltaX` (vertical only)
 8. **Virtual pointer overlay** — stub only
@@ -956,8 +972,7 @@ The following features exist on exactly one platform:
 | Feature                   | Location                                                                                | Reason Not Cross-Platform                                                                        |
 | ------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | System cursor hide/show   | `internal/app/modes/cursor_darwin.go`                                                   | Uses `CGDisplayHideCursor` / `CGDisplayShowCursor` (Quartz). Other platforms have no equivalent. |
-| Smooth cursor animation   | `internal/core/infra/platform/darwin/mouse_animator.go`                                 | Quartz event-level animation tracking. Requires platform-specific cursor event stream.           |
-| Smooth scroll animation   | `internal/core/infra/platform/darwin/scroll_animator.go`                                | Same — platform scroll event stream                                                              |
+| Smooth scroll animation   | `internal/core/infra/platform/darwin/scroll_animator.go`                                | Platform scroll event stream. (Smooth **cursor** animation is now cross-platform on Linux too — see `mouse_animator_linux.go`.) |
 | Vision framework strategy | `internal/core/ports/vision.go` + `internal/core/infra/platform/darwin/vision_darwin.m` | macOS-only `VNRequest` / `VGImageRequestHandler` APIs                                            |
 | Monitor select panels     | `internal/app/modes/monitor_select_overlay_darwin.go`                                   | Uses Cocoa NSPanel per display. Not implemented on other platforms.                              |
 | Screen sharing hide       | `internal/core/infra/platform/darwin/overlay_darwin.m`                                  | NSWindow sharing level property (Quartz only)                                                    |
