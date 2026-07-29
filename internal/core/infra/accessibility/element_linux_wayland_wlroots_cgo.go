@@ -25,8 +25,17 @@ func wlrootsFocusedApplicationIdentity() (string, int) {
 		return "", 0
 	}
 
-	// No standard Wayland protocol for querying focused app.
-	// Fall through — the caller will try the XWayland fallback if DISPLAY is set.
+	// The wlr-foreign-toplevel-management protocol (wlroots + KWin/KDE) reports
+	// the focused toplevel's app_id but not its PID, so the PID is 0. app_id is
+	// the identifier used for per-app configuration lookups; when a caller needs
+	// a real PID it falls back to the XWayland path if DISPLAY is set.
+	appID, ok := linux.WaylandFocusedAppID()
+	if ok && appID != "" {
+		return appID, 0
+	}
+
+	// No focused app_id available (e.g. GNOME/Mutter has no such manager, or
+	// nothing is focused yet). Fall through to the XWayland fallback.
 	return "", 0
 }
 

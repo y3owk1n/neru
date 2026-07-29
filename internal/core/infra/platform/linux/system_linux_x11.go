@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"unsafe"
 
@@ -107,39 +105,6 @@ func x11FocusedApplicationPID() (int, error) {
 	}
 
 	return int(pid), nil
-}
-
-func linuxApplicationNameByPID(pid int) (string, error) {
-	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "comm"))
-	if err != nil {
-		return "", derrors.Wrapf(
-			err,
-			derrors.CodeActionFailed,
-			"failed to read /proc/%d/comm",
-			pid,
-		)
-	}
-
-	return strings.TrimSpace(string(data)), nil
-}
-
-func linuxApplicationBundleIDByPID(pid int) (string, error) {
-	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
-	if err != nil {
-		return "", derrors.Wrapf(
-			err,
-			derrors.CodeActionFailed,
-			"failed to read /proc/%d/cmdline",
-			pid,
-		)
-	}
-
-	parts := strings.Split(string(data), "\x00")
-	if len(parts) == 0 || parts[0] == "" {
-		return linuxApplicationNameByPID(pid)
-	}
-
-	return filepath.Base(parts[0]), nil
 }
 
 func x11Monitors() ([]x11Monitor, error) {

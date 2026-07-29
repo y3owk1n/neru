@@ -67,3 +67,14 @@ func WaylandModifierEvent(modifier string, isDown bool) error {
 func WaylandKeyEvent(keycode uint32, pressed bool) error {
 	return waylandKeyEvent(keycode, pressed)
 }
+
+// WaylandFocusedAppID returns the app_id of the focused toplevel, tracked via
+// the wlr-foreign-toplevel-management protocol. It works on wlroots
+// compositors (Sway, Hyprland, niri, COSMIC) and KWin/KDE, which all implement
+// that protocol; GNOME/Mutter does not, so the bool is false there. The bool
+// is also false when nothing is focused yet or CGO is disabled. app_id is the
+// identifier Neru uses for per-app configuration on Wayland; the protocol does
+// not expose a PID.
+func WaylandFocusedAppID() (string, bool) {
+	return wlrootsFocusedAppID()
+}

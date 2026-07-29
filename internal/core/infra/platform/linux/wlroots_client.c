@@ -13,6 +13,7 @@
 #include <xkbcommon/xkbcommon.h>
 
 // Include wlroots protocol headers relative to this package.
+#include "wlr_protocol/foreign-toplevel.h"
 #include "wlr_protocol/layer-shell.h"
 #include "wlr_protocol/relative-pointer-unstable-v1.h"
 #include "wlr_protocol/virtual-keyboard.h"
@@ -459,6 +460,221 @@ static const struct zxdg_output_v1_listener neru_xdg_output_listener = {
     .description = neru_xdg_output_description,
 };
 
+// ---------- Foreign-toplevel management ----------
+//
+// Wayland exposes no core protocol for "which application is focused". The
+// wlr-foreign-toplevel-management protocol (implemented by wlroots compositors
+// and KWin/KDE, but not Mutter/GNOME) fills the gap: the compositor streams a
+// handle per toplevel window and marks exactly one with the ACTIVATED state.
+// We track every handle and cache the activated one's app_id, which Neru uses
+// as the focused application's bundle identifier for per-app configuration.
+//
+// All callbacks below run on the dispatch thread; they take toplevel_mutex to
+// stay consistent with neru_wlr_focused_app_id, which reads under the same
+// lock from a Go goroutine.
+
+static void neru_wlr_toplevel_lock(NeruWlrootsClient *c) {
+	if (c->toplevel_mutex_ready)
+		pthread_mutex_lock(&c->toplevel_mutex);
+}
+
+static void neru_wlr_toplevel_unlock(NeruWlrootsClient *c) {
+	if (c->toplevel_mutex_ready)
+		pthread_mutex_unlock(&c->toplevel_mutex);
+}
+
+static NeruToplevel *neru_wlr_find_toplevel(NeruWlrootsClient *c, struct zwlr_foreign_toplevel_handle_v1 *handle) {
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->handle == handle)
+			return t;
+	}
+	return NULL;
+}
+
+// Recompute the cached focused app_id from the committed per-toplevel state.
+// The last activated toplevel carrying a non-empty app_id wins; if none is
+// activated the cache is cleared. Callers must hold toplevel_mutex.
+static void neru_wlr_recompute_focused(NeruWlrootsClient *c) {
+	const char *found = NULL;
+	NeruToplevel *t;
+	wl_list_for_each(t, &c->toplevels, link) {
+		if (t->activated && t->app_id[0] != '\0')
+			found = t->app_id;
+	}
+	if (found) {
+		strncpy(c->focused_app_id, found, NERU_APP_ID_LEN - 1);
+		c->focused_app_id[NERU_APP_ID_LEN - 1] = '\0';
+	} else {
+		c->focused_app_id[0] = '\0';
+	}
+}
+
+static void neru_wlr_toplevel_title(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, const char *title) {
+	(void)data;
+	(void)handle;
+	(void)title;
+}
+
+static void neru_wlr_toplevel_app_id(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, const char *app_id) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c || !app_id)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
+	if (t) {
+		// Buffer until `done` so app_id and state commit atomically.
+		strncpy(t->pending_app_id, app_id, NERU_APP_ID_LEN - 1);
+		t->pending_app_id[NERU_APP_ID_LEN - 1] = '\0';
+		t->has_pending_app_id = 1;
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_toplevel_output_enter(
+    void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, struct wl_output *output) {
+	(void)data;
+	(void)handle;
+	(void)output;
+}
+
+static void neru_wlr_toplevel_output_leave(
+    void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, struct wl_output *output) {
+	(void)data;
+	(void)handle;
+	(void)output;
+}
+
+static void neru_wlr_toplevel_state(
+    void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, struct wl_array *state) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	// The state event carries the full current state set each time, so derive
+	// pending_activated fresh rather than toggling.
+	int activated = 0;
+	uint32_t *entry;
+	wl_array_for_each(entry, state) {
+		if (*entry == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED)
+			activated = 1;
+	}
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
+	if (t)
+		t->pending_activated = activated;
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_toplevel_done(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
+	if (t) {
+		if (t->has_pending_app_id) {
+			strncpy(t->app_id, t->pending_app_id, NERU_APP_ID_LEN - 1);
+			t->app_id[NERU_APP_ID_LEN - 1] = '\0';
+			t->has_pending_app_id = 0;
+		}
+		t->activated = t->pending_activated;
+		neru_wlr_recompute_focused(c);
+	}
+	neru_wlr_toplevel_unlock(c);
+}
+
+static void neru_wlr_toplevel_closed(void *data, struct zwlr_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t = neru_wlr_find_toplevel(c, handle);
+	if (t) {
+		wl_list_remove(&t->link);
+		free(t);
+		neru_wlr_recompute_focused(c);
+	}
+	neru_wlr_toplevel_unlock(c);
+	zwlr_foreign_toplevel_handle_v1_destroy(handle);
+}
+
+static void neru_wlr_toplevel_parent(
+    void *data, struct zwlr_foreign_toplevel_handle_v1 *handle, struct zwlr_foreign_toplevel_handle_v1 *parent) {
+	(void)data;
+	(void)handle;
+	(void)parent;
+}
+
+static const struct zwlr_foreign_toplevel_handle_v1_listener neru_wlr_toplevel_listener = {
+    .title = neru_wlr_toplevel_title,
+    .app_id = neru_wlr_toplevel_app_id,
+    .output_enter = neru_wlr_toplevel_output_enter,
+    .output_leave = neru_wlr_toplevel_output_leave,
+    .state = neru_wlr_toplevel_state,
+    .done = neru_wlr_toplevel_done,
+    .closed = neru_wlr_toplevel_closed,
+    .parent = neru_wlr_toplevel_parent,
+};
+
+static void neru_wlr_manager_toplevel(
+    void *data, struct zwlr_foreign_toplevel_manager_v1 *manager, struct zwlr_foreign_toplevel_handle_v1 *handle) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)manager;
+	if (!c || !handle)
+		return;
+
+	NeruToplevel *node = calloc(1, sizeof(*node));
+	if (!node) {
+		// Out of memory — drop tracking for this window rather than leak the
+		// handle. Losing one window's focus signal is preferable to a crash.
+		zwlr_foreign_toplevel_handle_v1_destroy(handle);
+		return;
+	}
+	node->handle = handle;
+
+	neru_wlr_toplevel_lock(c);
+	wl_list_insert(&c->toplevels, &node->link);
+	neru_wlr_toplevel_unlock(c);
+
+	zwlr_foreign_toplevel_handle_v1_add_listener(handle, &neru_wlr_toplevel_listener, c);
+}
+
+static void neru_wlr_manager_finished(void *data, struct zwlr_foreign_toplevel_manager_v1 *manager) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)manager;
+	if (!c)
+		return;
+
+	// The compositor has invalidated the manager, so every tracked handle and
+	// the cached focus are now stale. Release each handle proxy (its own
+	// `destroy` request — `finished` invalidates only the manager, not the
+	// handles) and free the nodes so nothing leaks and focused-app queries stop
+	// returning a dead window's app_id. Runs on the dispatch thread, serialized
+	// with the handle callbacks; once destroyed a proxy dispatches no further
+	// events, so a late `closed` is a safe no-op.
+	neru_wlr_toplevel_lock(c);
+	NeruToplevel *t;
+	NeruToplevel *tmp;
+	wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
+		wl_list_remove(&t->link);
+		if (t->handle)
+			zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
+		free(t);
+	}
+	c->focused_app_id[0] = '\0';
+	neru_wlr_toplevel_unlock(c);
+
+	// Do not destroy the manager proxy here: the server destroys it right after
+	// `finished`, so sending its `stop` destructor request would target a dead
+	// object. Just drop our reference; wl_display_disconnect reaps the proxy.
+	c->toplevel_mgr = NULL;
+}
+
+static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_listener = {
+    .toplevel = neru_wlr_manager_toplevel,
+    .finished = neru_wlr_manager_finished,
+};
+
 // ---------- Registry listener ----------
 
 static void neru_wlr_registry_global(
@@ -491,6 +707,9 @@ static void neru_wlr_registry_global(
 	} else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
 		c->xdg_output_mgr =
 		    wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 3 < version ? 3 : version);
+	} else if (strcmp(interface, "zwlr_foreign_toplevel_manager_v1") == 0) {
+		c->toplevel_mgr =
+		    wl_registry_bind(registry, name, &zwlr_foreign_toplevel_manager_v1_interface, 3 < version ? 3 : version);
 	}
 }
 
@@ -574,6 +793,13 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		return NULL;
 	}
 
+	// Guards the foreign-toplevel bookkeeping; must be ready before the
+	// manager listener starts delivering toplevel/handle events below. The
+	// list head must be initialized before any toplevel event can insert.
+	wl_list_init(&c->toplevels);
+	pthread_mutex_init(&c->toplevel_mutex, NULL);
+	c->toplevel_mutex_ready = 1;
+
 	c->registry = wl_display_get_registry(c->display);
 	wl_registry_add_listener(c->registry, &neru_wlr_registry_listener, c);
 
@@ -594,6 +820,15 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	if (c->rel_ptr_mgr && c->pointer) {
 		c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
 		zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
+	}
+
+	// Subscribe to foreign-toplevel events. Binding the manager makes the
+	// compositor replay a `toplevel` event for every existing window; a
+	// roundtrip drains that initial burst (plus each handle's app_id/state/
+	// done) so the focused app_id is populated before the daemon needs it.
+	if (c->toplevel_mgr) {
+		zwlr_foreign_toplevel_manager_v1_add_listener(c->toplevel_mgr, &neru_wlr_manager_listener, c);
+		wl_display_roundtrip(c->display);
 	}
 
 	// Initialize xdg_output for each screen.
@@ -644,6 +879,27 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	}
 	if (c->rel_ptr) {
 		zwp_relative_pointer_v1_destroy(c->rel_ptr);
+	}
+	// Tear down foreign-toplevel tracking. The dispatch thread is already
+	// joined at this point, so no callbacks can race these destroys. The list
+	// may be empty (e.g. after a manager `finished` event cleared it).
+	if (c->toplevel_mutex_ready) {
+		NeruToplevel *t;
+		NeruToplevel *tmp;
+		wl_list_for_each_safe(t, tmp, &c->toplevels, link) {
+			wl_list_remove(&t->link);
+			if (t->handle)
+				zwlr_foreign_toplevel_handle_v1_destroy(t->handle);
+			free(t);
+		}
+	}
+	if (c->toplevel_mgr) {
+		zwlr_foreign_toplevel_manager_v1_destroy(c->toplevel_mgr);
+		c->toplevel_mgr = NULL;
+	}
+	if (c->toplevel_mutex_ready) {
+		pthread_mutex_destroy(&c->toplevel_mutex);
+		c->toplevel_mutex_ready = 0;
 	}
 	if (c->xkb_keymap) {
 		xkb_keymap_unref(c->xkb_keymap);
@@ -988,4 +1244,23 @@ int neru_wlr_key(NeruWlrootsClient *c, uint32_t keycode, int pressed) {
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
 	return 1;
+}
+
+int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c) { return c && c->toplevel_mgr != NULL; }
+
+int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len) {
+	if (!c || !out || out_len <= 0)
+		return 0;
+
+	int ok = 0;
+	neru_wlr_toplevel_lock(c);
+	if (c->focused_app_id[0] != '\0') {
+		strncpy(out, c->focused_app_id, (size_t)(out_len - 1));
+		out[out_len - 1] = '\0';
+		ok = 1;
+	} else {
+		out[0] = '\0';
+	}
+	neru_wlr_toplevel_unlock(c);
+	return ok;
 }

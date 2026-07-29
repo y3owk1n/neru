@@ -45,13 +45,14 @@ overlay, `accessibility/kwin_geometry_linux.go`, `accessibility/atspi_linux.go`.
 
 ### Protocol support (KWin 6.6.4, measured)
 
-| Protocol                          | Purpose                   | KWin 6.6.4 |
-| --------------------------------- | ------------------------- | ---------- |
-| `zwlr_layer_shell_v1`             | Overlay surfaces          | yes (v5)   |
-| `zxdg_output_manager_v1`          | Screen geometry           | yes (v3)   |
-| `zwlr_virtual_pointer_v1`         | Pointer move / click      | **no**     |
-| `zwp_virtual_keyboard_manager_v1` | Sticky-modifier injection | **no**     |
-| `org_kde_kwin_fake_input`         | KWin-native emulation     | **no**     |
+| Protocol                              | Purpose                   | KWin 6.6.4 |
+| ------------------------------------- | ------------------------- | ---------- |
+| `zwlr_layer_shell_v1`                 | Overlay surfaces          | yes (v5)   |
+| `zxdg_output_manager_v1`              | Screen geometry           | yes (v3)   |
+| `zwlr_foreign_toplevel_manager_v1`    | Focused-app app_id        | yes (v3)   |
+| `zwlr_virtual_pointer_v1`             | Pointer move / click      | **no**     |
+| `zwp_virtual_keyboard_manager_v1`     | Sticky-modifier injection | **no**     |
+| `org_kde_kwin_fake_input`             | KWin-native emulation     | **no**     |
 
 See [Checking compositor protocols](#checking-compositor-protocols) for the
 `wayland-info` one-liner.
@@ -163,6 +164,7 @@ device (libei), while real hardware shows the physical device path.
 | Keyboard capture during modes | `evdev` on `/dev/input/event*` (requires `input` group)                                                           |
 | Global hotkeys                | Compositor config (`bind` / `bindsym` / `spawn-sh`)                                                               |
 | Cursor position               | Client-side cache (Wayland hides global pointer); "agitation" via layer-shell + virtual pointer wiggle at startup |
+| Focused app                   | `zwlr_foreign_toplevel_manager_v1` app_id (no PID; `FocusedApplicationPID` best-effort matches app_id against `/proc`) |
 
 Code slots: `system_linux_wayland_wlroots_*.go`, shared wlroots C client.
 

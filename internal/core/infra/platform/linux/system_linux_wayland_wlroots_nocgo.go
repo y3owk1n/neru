@@ -117,6 +117,13 @@ func wlrootsHasVirtualPointer() (bool, error) {
 	)
 }
 
+// wlrootsFocusedAppID is unavailable without CGO — the foreign-toplevel client
+// lives in the CGO build. Reports "no focused app_id" so callers fall through
+// to their XWayland fallback.
+func wlrootsFocusedAppID() (string, bool) {
+	return "", false
+}
+
 func wlrootsSetCursor(point image.Point) error {
 	_ = point
 
