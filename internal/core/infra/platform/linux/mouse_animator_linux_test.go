@@ -166,6 +166,100 @@ func TestSmoothCursorAnimatorPropagatesMoveError(t *testing.T) {
 	}
 }
 
+// TestSmoothCursorAnimatorWaiterTracksSupersedingTarget guards the coalescing
+// race: a waiter that attaches while an earlier target animates must not be
+// released until the cursor reaches the *latest* target, even when the queued
+// target is superseded mid-flight. With per-request completion this waiter
+// returned early at the intermediate/previous position.
+func TestSmoothCursorAnimatorWaiterTracksSupersedingTarget(t *testing.T) {
+	t.Parallel()
+
+	// Slow the moves so the animation spans the follow-up enqueues.
+	rec := &recorder{start: image.Point{X: 0, Y: 0}}
+	slowMove := func(p image.Point) error {
+		time.Sleep(2 * time.Millisecond)
+
+		return rec.move(p)
+	}
+
+	animator := newSmoothCursorAnimator(rec.pos, slowMove)
+
+	final := image.Point{X: 900, Y: 900}
+
+	// Start a long first animation, then attach a waiter mid-flight.
+	animator.animateTo(image.Point{X: 120, Y: 120}, 20, 400, 1.0)
+
+	waitResult := make(chan error, 1)
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		waitResult <- animator.wait(ctx)
+	}()
+
+	// Supersede the target twice while the session is still animating.
+	time.Sleep(6 * time.Millisecond)
+	animator.animateTo(image.Point{X: 500, Y: 500}, 20, 400, 1.0)
+	time.Sleep(6 * time.Millisecond)
+	animator.animateTo(final, 20, 400, 1.0)
+
+	err := <-waitResult
+	if err != nil {
+		t.Fatalf("wait returned error: %v", err)
+	}
+
+	last, ok := rec.last()
+	if !ok {
+		t.Fatal("expected at least one move to be injected")
+	}
+
+	if last != final {
+		t.Fatalf(
+			"waiter released before reaching the superseding target: got %v want %v",
+			last,
+			final,
+		)
+	}
+}
+
+// TestSmoothCursorAnimatorErrorVisibleToLateWaiter guards the completion-erase
+// race: an error that occurs before the caller reaches WaitForCursorIdle must
+// still be observable. The animation is allowed to fail and fully settle before
+// wait is called.
+func TestSmoothCursorAnimatorErrorVisibleToLateWaiter(t *testing.T) {
+	t.Parallel()
+
+	moved := make(chan struct{}, 1)
+	failingMove := func(_ image.Point) error {
+		select {
+		case moved <- struct{}{}:
+		default:
+		}
+
+		return errMoveFailed
+	}
+	pos := func() image.Point {
+		return image.Point{}
+	}
+
+	animator := newSmoothCursorAnimator(pos, failingMove)
+	animator.animateTo(image.Point{X: 400, Y: 400}, 8, 60, 0.1)
+
+	// Wait until the (failing) move has run and the session has had time to
+	// settle, so wait() is a genuinely "late" caller.
+	<-moved
+	time.Sleep(20 * time.Millisecond)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if !errors.Is(err, errMoveFailed) {
+		t.Fatalf("late waiter did not observe the move error: got %v want %v", err, errMoveFailed)
+	}
+}
+
 // TestSmoothCursorAnimatorConcurrentStopAndAnimate guards the animateTo/stop
 // race: a bypassed move (stop) must never strand a smooth request on an
 // orphaned channel with an unclosed done. Run with -race. The test passes if it
