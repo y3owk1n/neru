@@ -17,6 +17,7 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 type wlrootsOverlay struct {
@@ -80,6 +81,8 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 func (o *wlrootsOverlay) Flush() {}
 
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+
+func (o *wlrootsOverlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 
 func (o *wlrootsOverlay) cancelAnimation()               {}
 func (o *wlrootsOverlay) setDisplayMu(_ *sync.Mutex)     {}

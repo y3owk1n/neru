@@ -347,6 +347,135 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 	C.neru_x11_overlay_flush(o.raw)
 }
 
+// DrawMouseActionIndicator animates a transient click indicator centered on
+// point. It runs on this overlay's dedicated indicator window, independent of
+// the mode overlay's show/hide lifecycle, so it survives the mode exit that
+// immediately follows a click.
+func (o *x11Overlay) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	// Cancel any in-flight indicator animation before starting a new one.
+	o.cancelAnimation()
+
+	duration := time.Duration(style.DurationMS) * time.Millisecond
+	if duration <= 0 {
+		duration = defaultMouseActionDuration
+	}
+
+	animStop := make(chan struct{})
+	animDone := make(chan struct{})
+	o.animStop = animStop
+	o.animDone = animDone
+
+	C.neru_x11_overlay_show(o.raw)
+	o.startMouseActionAnimation(point, style, duration, animStop, animDone)
+}
+
+func (o *x11Overlay) startMouseActionAnimation(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+	duration time.Duration,
+	stopCh chan struct{},
+	doneCh chan struct{},
+) {
+	startTime := time.Now()
+
+	fillBase := parseHexColor(style.BackgroundColor)
+	borderBase := parseHexColor(style.BorderColor)
+	lineWidth := float64(max(style.BorderWidth, 0))
+	baseSize := float64(max(style.Size, 1))
+	isSquare := style.Shape == "square"
+
+	renderFrame := func(rawProgress float64) {
+		eased := applyEasing(style.Easing, rawProgress)
+		scale := max(lerp(style.StartScale, style.EndScale, eased), 0)
+		opacity := lerp(style.StartOpacity, style.EndOpacity, eased)
+		diameter := baseSize * scale
+		rect := mouseActionIndicatorRect(point, diameter)
+		fill := applyOpacity(fillBase, opacity)
+		border := applyOpacity(borderBase, opacity)
+
+		C.neru_x11_overlay_clear_buffered(o.raw)
+		if isSquare {
+			o.drawRect(rect, fill, border, lineWidth)
+		} else {
+			o.drawRoundedRect(rect, diameter/centeredRectDivisor, fill, border, lineWidth)
+		}
+		C.neru_x11_overlay_flush(o.raw)
+	}
+
+	go func() {
+		defer close(doneCh)
+		defer func() {
+			o.cancelMu.Lock()
+			if o.animStop == stopCh {
+				o.animStop = nil
+			}
+			if o.animDone == doneCh {
+				o.animDone = nil
+			}
+			o.cancelMu.Unlock()
+		}()
+
+		for {
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			elapsed := time.Since(startTime)
+			rawProgress := min(float64(elapsed)/float64(duration), 1.0)
+
+			renderStart := time.Now()
+
+			if o.renderMu != nil {
+				o.renderMu.Lock()
+				select {
+				case <-stopCh:
+					o.renderMu.Unlock()
+
+					return
+				default:
+				}
+			}
+			renderFrame(rawProgress)
+			if o.renderMu != nil {
+				o.renderMu.Unlock()
+			}
+
+			if rawProgress >= 1.0 {
+				// Finished: clear and unmap the dedicated window so the fully
+				// faded indicator does not linger on screen.
+				if o.renderMu != nil {
+					o.renderMu.Lock()
+				}
+				C.neru_x11_overlay_clear(o.raw)
+				C.neru_x11_overlay_hide(o.raw)
+				if o.renderMu != nil {
+					o.renderMu.Unlock()
+				}
+
+				return
+			}
+
+			sleepFor := animationFrameDur - time.Since(renderStart)
+			if sleepFor > 0 {
+				select {
+				case <-stopCh:
+					return
+				case <-time.After(sleepFor):
+				}
+			}
+		}
+	}()
+}
+
 // unexported helpers
 
 func (o *x11Overlay) setRenderMu(mu *sync.Mutex) {

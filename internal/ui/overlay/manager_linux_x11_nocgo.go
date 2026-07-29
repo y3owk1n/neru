@@ -13,6 +13,7 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 type x11Overlay struct {
@@ -74,6 +75,8 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 func (o *x11Overlay) Flush() {}
 
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+
+func (o *x11Overlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 
 func (o *x11Overlay) cancelAnimation()          {}
 func (o *x11Overlay) setRenderMu(_ *sync.Mutex) {}
