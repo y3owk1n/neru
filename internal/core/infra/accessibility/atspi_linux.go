@@ -644,6 +644,12 @@ func isNonTargetSurfaceApp(name string) bool {
 // over the ACTIVE heuristic. When no app_id is available (X11, GNOME, or the
 // focused app exposes no AT-SPI frame) we fall back to the ACTIVE-state
 // heuristic: prefer ACTIVE+SHOWING, then any ACTIVE, then any SHOWING frame.
+//
+// If a focused app_id is reported but no AT-SPI application matched it, the
+// ACTIVE fallback is only trusted when exactly one application reports an
+// ACTIVE frame (so ACTIVE unambiguously identifies the focused window, as on
+// KWin/KDE). Where several — or no — applications report ACTIVE (wlroots) the
+// fallback would target a background window, so no frame is returned instead.
 func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
@@ -673,6 +679,13 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		// cursor move cannot hijack a still-showing real application window.
 		shellShowing accRef
 		haveShell    bool
+
+		// appsWithActive counts distinct non-shell applications reporting an
+		// ACTIVE frame. On KWin/KDE exactly one does (the focused window), so
+		// ACTIVE reliably identifies the focused app; on wlroots several
+		// background frames report ACTIVE, making it unreliable. Used to decide
+		// whether the ACTIVE fallback is trustworthy when no app_id matched.
+		appsWithActive int
 	)
 
 	for _, app := range c.children(conn, root) {
@@ -690,6 +703,7 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 
 		isShell := isDesktopShellApp(appName)
 		matchesFocused := haveFocused && appMatchesFocusedID(appName, focusedAppID)
+		appHasActive := false
 
 		for _, frame := range c.children(conn, app) {
 			role := c.roleName(conn, frame)
@@ -709,6 +723,10 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 				}
 
 				continue
+			}
+
+			if active {
+				appHasActive = true
 			}
 
 			// The application the compositor reports as focused wins outright,
@@ -741,6 +759,10 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 				haveSA = true
 			}
 		}
+
+		if appHasActive {
+			appsWithActive++
+		}
 	}
 
 	switch {
@@ -748,6 +770,20 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 		return focusedActiveShowing, true
 	case haveFocusedShowing:
 		return focusedShowing, true
+	case haveFocused && appsWithActive != 1:
+		// The compositor reports a focused application but no AT-SPI application
+		// matched it. The ACTIVE/SHOWING heuristic would return a *different*
+		// application's frame, so trust it only when ACTIVE unambiguously
+		// identifies one application (exactly one active app — as on KWin/KDE,
+		// where the focused window is the sole ACTIVE one). Otherwise (wlroots
+		// reports several active frames, or none) selecting any of them would
+		// target a background window, so return no frame (shell as a last
+		// resort) and let hints simply not appear.
+		if haveShell {
+			return shellShowing, true
+		}
+
+		return accRef{}, false
 	case haveAS:
 		return activeShowing, true
 	case haveAA:
