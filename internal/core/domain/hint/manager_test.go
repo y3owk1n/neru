@@ -36,8 +36,10 @@ func TestManager_Filtering(t *testing.T) {
 	}{
 		{"empty input", "", 3, ""},
 		{"partial match A", "A", 3, ""},
-		{"exact match AA", "AA", 1, "AA"},
-		{"exact match AB", "AB", 1, "AB"},
+		// An exact match consumes the typed label, so the filter is empty
+		// again and FilteredHints reports the full set.
+		{"exact match AA", "AA", 3, "AA"},
+		{"exact match AB", "AB", 3, "AB"},
 		{"no match AD", "AD", 3, ""},
 	}
 
@@ -76,6 +78,10 @@ func TestManager_Filtering(t *testing.T) {
 					t.Errorf("Expected exact match for %s, got nil", testCase.wantMatched)
 				} else if match.Label() != testCase.wantMatched {
 					t.Errorf("Expected exact match %s, got %s", testCase.wantMatched, match.Label())
+				}
+
+				if manager.CurrentInput() != "" {
+					t.Errorf("Expected input consumed after exact match, got %q", manager.CurrentInput())
 				}
 			} else if found {
 				t.Errorf("Expected no exact match, got %s", match.Label())

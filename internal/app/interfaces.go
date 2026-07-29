@@ -37,6 +37,8 @@ type Watcher interface {
 	Stop()
 	OnActivate(callback appwatcher.AppCallback)
 	OnDeactivate(callback appwatcher.AppCallback)
+	OnFrontAppSwitch(callback appwatcher.AppCallback)
+	OnMenuTrackingChanged(callback func())
 	OnTerminate(callback appwatcher.AppCallback)
 	OnScreenParametersChanged(callback func())
 	OnMissionControlActivated(callback func())

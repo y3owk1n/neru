@@ -182,6 +182,30 @@ func (h *Handler) activateHintModeInternal(
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
+	// Auto-refresh debounce gate. Every refresh path that re-enters through
+	// this function (a --repeat re-activation, a passthrough re-scan, a bound
+	// `hints` re-launch, a cycle-hint re-scan, and the debounced observer)
+	// passes through it. When the debounce is idle, the refresh scans
+	// immediately, so a manual refresh is never delayed. When a scan already
+	// ran inside the current debounce window, the gate schedules a single
+	// trailing scan instead of scanning again now. The automatic refresh
+	// re-enters with autoRefreshScanning set and skips the gate. When
+	// auto_refresh is off, every path scans immediately. The screen-change
+	// refresh does not come through here. It has its own path in
+	// RefreshHintsForScreenChange, and a screen change keeps the same focused
+	// app, so the observer stays correctly targeted.
+	if isRefresh && !h.autoRefreshScanning && h.autoRefreshEnabledLocked() {
+		if !h.admitHintRefresh() {
+			return
+		}
+	}
+
+	// An activation that gets this far replaces the visible hint set, so any
+	// pending label selection from a multi-match search confirm is over. The
+	// automatic refresh never reaches here while one is pending, because its
+	// fire holds on the mid-typing check instead.
+	h.hintLabelSelectionPending = false
+
 	// Reset cycle index on refresh since the hint list is regenerated
 	if isRefresh {
 		h.cycleHintIndex = -1
@@ -411,15 +435,7 @@ func (h *Handler) activateHintModeInternal(
 		splitWordVal,
 	)
 	if domainHintsErr != nil {
-		h.logger.Error(
-			"Failed to show hints",
-			zap.Error(domainHintsErr),
-			zap.String("action", actionString),
-		)
-
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.handleHintScanErrorLocked(domainHintsErr, actionString, isRefresh)
 
 		return
 	}
@@ -443,7 +459,13 @@ func (h *Handler) activateHintModeInternal(
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
-		if isRefresh {
+		if isRefresh && h.autoRefreshScanning {
+			// A debounced auto-refresh that momentarily finds nothing (a page
+			// mid-load) keeps the hints session alive. Publish an empty hint set so
+			// the overlay, routing, and indicator polling stay consistent until the
+			// next change repopulates the hints.
+			h.publishEmptyHintsLocked()
+		} else if isRefresh {
 			h.exitModeLocked()
 		}
 
@@ -541,7 +563,32 @@ func (h *Handler) activateHintModeInternal(
 		}
 	}
 
+	// Point the auto-refresh observer at the focused app. This runs on every
+	// activation, so the observer follows focus after a refresh. A same-app
+	// refresh changes nothing, and when auto_refresh is disabled this disarms
+	// the observer instead.
+	h.updateAutoRefreshObservers(bundleID)
+
 	h.startIndicatorPolling(domain.ModeHints)
+}
+
+// handleHintScanErrorLocked logs a failed hint scan and decides what happens
+// to the session. When a manual refresh fails, the mode exits. When an
+// automatic refresh fails, the session keeps its current hints and indicator
+// polling resumes, so the mode indicator stays live until the next change
+// retries the scan. Caller must hold h.mu.
+func (h *Handler) handleHintScanErrorLocked(err error, actionString string, isRefresh bool) {
+	h.logger.Error(
+		"Failed to show hints",
+		zap.Error(err),
+		zap.String("action", actionString),
+	)
+
+	if isRefresh && !h.autoRefreshScanning {
+		h.exitModeLocked()
+	} else if isRefresh {
+		h.startIndicatorPolling(domain.ModeHints)
+	}
 }
 
 // ensureScreenCapturePermissionsLocked checks and requests screen capture permissions.

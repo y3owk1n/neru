@@ -195,6 +195,26 @@ func (a *App) setupAppWatcherCallbacks() {
 		a.handleAppActivation(bundleID)
 	})
 
+	// A front-application switch covers focus moving to another regular app.
+	// During a hints session it feeds the auto-refresh, so the hints follow
+	// the newly focused app.
+	a.appWatcher.OnFrontAppSwitch(func(_, _ string) {
+		if a.modes != nil {
+			a.modes.RefreshAfterFocusChange()
+		}
+	})
+
+	// A menu tracking change covers the surfaces that never emit workspace or
+	// accessibility events: menu bar menus, third-party status item menus,
+	// Control Center panels, and the Notification Center panel. It fires on
+	// both open and close, so a refresh also clears the hints of a panel that
+	// just went away.
+	a.appWatcher.OnMenuTrackingChanged(func() {
+		if a.modes != nil {
+			a.modes.RefreshAfterFocusChange()
+		}
+	})
+
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
 		a.handleScreenParametersChange()
@@ -202,6 +222,10 @@ func (a *App) setupAppWatcherCallbacks() {
 
 	// Watch for Mission Control activated events
 	a.appWatcher.OnMissionControlActivated(func() {
+		if a.modes != nil {
+			a.modes.RefreshAfterFocusChange()
+		}
+
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlActivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control activated: executing actions",
@@ -215,6 +239,10 @@ func (a *App) setupAppWatcherCallbacks() {
 
 	// Watch for Mission Control deactivated events
 	a.appWatcher.OnMissionControlDeactivated(func() {
+		if a.modes != nil {
+			a.modes.RefreshAfterFocusChange()
+		}
+
 		cfg := a.configSnapshot()
 		if len(cfg.Hints.OnMissionControlDeactivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control deactivated: executing actions",

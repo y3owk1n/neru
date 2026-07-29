@@ -19,6 +19,8 @@ type MockAppWatcher struct {
 	terminateCalls     []AppEvent
 	activateCalls      []AppEvent
 	deactivateCalls    []AppEvent
+	frontSwitchCalls   []AppEvent
+	menuTrackingCalls  atomic.Int64
 	screenChangeCalls  atomic.Int64
 	mcActivatedCalls   atomic.Int64
 	mcDeactivatedCalls atomic.Int64
@@ -44,6 +46,14 @@ func (m *MockAppWatcher) HandleActivate(appName, bundleID string) {
 
 func (m *MockAppWatcher) HandleDeactivate(appName, bundleID string) {
 	m.deactivateCalls = append(m.deactivateCalls, AppEvent{appName, bundleID})
+}
+
+func (m *MockAppWatcher) HandleFrontAppSwitch(appName, bundleID string) {
+	m.frontSwitchCalls = append(m.frontSwitchCalls, AppEvent{appName, bundleID})
+}
+
+func (m *MockAppWatcher) HandleMenuTrackingChanged() {
+	m.menuTrackingCalls.Add(1)
 }
 
 func (m *MockAppWatcher) HandleScreenParametersChanged() {

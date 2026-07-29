@@ -11,9 +11,11 @@ import (
 type AppCallback func(appName string, bundleID string)
 
 // Watcher monitors application lifecycle events and dispatches them to registered callbacks.
-// It tracks application launches, terminations, activations, deactivations, and screen changes.
-// On macOS events come from the NSWorkspace observer via the platform dispatch layer.
-// On other platforms the watcher is a no-op until platform support is implemented.
+// It tracks application launches, terminations, activations, deactivations,
+// front-application switches, and screen changes. On macOS events come from
+// the NSWorkspace observer and the Carbon front-application-switch handler via
+// the platform dispatch layer. On other platforms the watcher is a no-op until
+// platform support is implemented.
 type Watcher struct {
 	mu sync.RWMutex
 	// Callbacks for different events
@@ -21,6 +23,8 @@ type Watcher struct {
 	terminateCallbacks     []AppCallback
 	activateCallbacks      []AppCallback
 	deactivateCallbacks    []AppCallback
+	frontSwitchCallbacks   []AppCallback
+	menuTrackingCallbacks  []func()
 	screenChangeCallbacks  []func()
 	mcActivatedCallbacks   []func()
 	mcDeactivatedCallbacks []func()
@@ -104,6 +108,28 @@ func (w *Watcher) OnDeactivate(callback AppCallback) {
 	w.deactivateCallbacks = append(w.deactivateCallbacks, callback)
 }
 
+// OnFrontAppSwitch registers a callback for front-application switch events.
+// The switch fires whenever the process owning key focus changes, including
+// for UI agents such as Notification Center and Control Center, which take
+// key focus without emitting activation events.
+func (w *Watcher) OnFrontAppSwitch(callback AppCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.frontSwitchCallbacks = append(w.frontSwitchCallbacks, callback)
+}
+
+// OnMenuTrackingChanged registers a callback for menu tracking change events.
+// One fires when any system-wide menu tracking session begins or ends: a menu
+// bar menu, a third-party status item menu, a Control Center panel, or the
+// Notification Center panel.
+func (w *Watcher) OnMenuTrackingChanged(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.menuTrackingCallbacks = append(w.menuTrackingCallbacks, callback)
+}
+
 // OnScreenParametersChanged registers a callback for screen parameter change events.
 // The callback is executed when display configuration changes (resolution, arrangement, etc.).
 func (w *Watcher) OnScreenParametersChanged(callback func()) {
@@ -155,6 +181,20 @@ func (w *Watcher) HandleActivate(appName, bundleID string) {
 func (w *Watcher) HandleDeactivate(appName, bundleID string) {
 	w.dispatchAppEvent("App watcher: Application deactivated", appName, bundleID,
 		func(w *Watcher) []AppCallback { return w.deactivateCallbacks })
+}
+
+// HandleFrontAppSwitch processes front-application switch events from the platform layer.
+// It dispatches the event to all registered front-switch callbacks.
+func (w *Watcher) HandleFrontAppSwitch(appName, bundleID string) {
+	w.dispatchAppEvent("App watcher: Front application switched", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.frontSwitchCallbacks })
+}
+
+// HandleMenuTrackingChanged processes menu tracking change events from the platform layer.
+// It dispatches the event to all registered menu tracking callbacks.
+func (w *Watcher) HandleMenuTrackingChanged() {
+	w.dispatchVoidEvent("App watcher: Menu tracking changed",
+		func(w *Watcher) []func() { return w.menuTrackingCallbacks })
 }
 
 // HandleScreenParametersChanged processes screen parameter change events from the platform layer.

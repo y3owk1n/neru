@@ -342,6 +342,29 @@ func (c *Config) ValidateHints() error {
 		return err
 	}
 
+	err = validateHintsAutoRefresh(c.Hints.AutoRefresh)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateHintsAutoRefresh checks the [hints.auto_refresh] section. When
+// auto_refresh is enabled, the minimum refresh delay must be non-negative.
+// A disabled section is not checked further.
+func validateHintsAutoRefresh(autoRefresh HintsAutoRefresh) error {
+	if !autoRefresh.Enabled {
+		return nil
+	}
+
+	if autoRefresh.MinRefreshDelayMs < 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"hints.auto_refresh.min_refresh_delay_ms must be non-negative",
+		)
+	}
+
 	return nil
 }
 

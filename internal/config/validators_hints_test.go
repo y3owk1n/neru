@@ -199,3 +199,35 @@ func TestLabelDirectionForApp(t *testing.T) {
 		t.Errorf("LabelDirectionForApp(empty global) = %q, want %q", got, dirNormal)
 	}
 }
+
+func TestValidateHints_AutoRefreshDefaultsAreValidWhenEnabled(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.AutoRefresh.Enabled = true
+
+	// The default section must satisfy validation, so a user who only flips
+	// enabled = true gets a working config.
+	if err := cfg.ValidateHints(); err != nil {
+		t.Fatalf("ValidateHints() rejected the default auto_refresh config: %v", err)
+	}
+}
+
+func TestValidateHints_AutoRefreshDisabledSkipsValidation(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.AutoRefresh.Enabled = false
+	cfg.Hints.AutoRefresh.MinRefreshDelayMs = -1
+
+	// When disabled, the section is inert and its contents are not constrained.
+	if err := cfg.ValidateHints(); err != nil {
+		t.Fatalf("ValidateHints() should not validate a disabled auto_refresh: %v", err)
+	}
+}
+
+func TestValidateHints_AutoRefreshRejectsNegativeMinRefreshDelay(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.AutoRefresh.Enabled = true
+	cfg.Hints.AutoRefresh.MinRefreshDelayMs = -5
+
+	if err := cfg.ValidateHints(); err == nil {
+		t.Fatal("ValidateHints() expected error for a negative min_refresh_delay_ms")
+	}
+}

@@ -202,6 +202,12 @@ func (h *Handler) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
+				// A completed selection supersedes any scheduled refresh work.
+				// Clearing the debounce and settle state here makes the gate in
+				// the activation below admit an immediate scan, so the
+				// re-activation is never deferred behind observer chatter.
+				h.stopAutoRefreshTimer()
+
 				h.activateHintModeInternal(
 					nil,
 					nil,
@@ -326,9 +332,12 @@ func (h *Handler) confirmHintSearch() {
 		// When a pending action is configured and more than one hint matches
 		// the search query, just close the search overlay without executing
 		// the action. This lets the user type the exact hint label to select
-		// an element instead of blindly acting on the first match.
+		// an element instead of blindly acting on the first match. The pending
+		// selection holds auto-refresh so the filtered set stays put while the
+		// label is typed.
 		if ctx.PendingAction() != nil && visibleHints.Count() > 1 {
 			h.cycleHintIndex = -1
+			h.hintLabelSelectionPending = true
 
 			return
 		}
@@ -341,6 +350,10 @@ func (h *Handler) confirmHintSearch() {
 	}
 
 	h.cycleHintIndex = -1
+
+	// Typing just ended, so release any refresh that was held while the search
+	// query was being typed.
+	h.resumeHeldRefreshLocked()
 }
 
 func (h *Handler) cancelHintSearch() {
@@ -363,6 +376,10 @@ func (h *Handler) cancelHintSearch() {
 
 	h.overlayManager.HideHintSearchInput()
 	h.cycleHintIndex = -1
+
+	// Typing just ended, so release any refresh that was held while the search
+	// query was being typed.
+	h.resumeHeldRefreshLocked()
 }
 
 func (h *Handler) drawHintSearchInput() {

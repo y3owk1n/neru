@@ -16,7 +16,6 @@
 - [Cycle Through Modes with One Hotkey](#cycle-through-modes-with-one-hotkey)
 - [Bind a Shortcut to a Specific UI Element](#bind-a-shortcut-to-a-specific-ui-element)
 - [Disabling All Built-In Hotkeys](#disabling-all-built-in-hotkeys)
-- [Give Browser Content Time To Load Before Refreshing Hints](#give-browser-content-time-to-load-before-refreshing-hints)
 - [Checking the Accessibility Tree on macOS](#checking-the-accessibility-tree-on-macos)
 - [Running a Custom Configuration via App Bundle](#running-a-custom-configuration-via-app-bundle)
 - [Edit Config File Directly](#edit-config-file-directly)
@@ -291,33 +290,6 @@ To disable all built-in hotkeys (e.g. when using an external hotkey daemon like 
 ctrl - f : neru hints
 ctrl - g : neru grid
 ctrl - r : neru hints --action right_click
-```
-
-## Give Browser Content Time To Load Before Refreshing Hints
-
-Some browser-like apps need a short delay after a click so the page content can finish updating before Neru refreshes hints. Override just that app's hint hotkeys:
-
-```toml
-[[hints.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = {
-	"Return" = ["action left_click", "action sleep 0.8", "hints"],
-	"Shift+L" = "__disabled__"
-}
-```
-
-This merges on top of `[hints.hotkeys]`, so only the keys listed here change for Brave Browser. Everything else keeps using your normal hint bindings.
-
-You can use the same pattern for grid and recursive_grid modes:
-
-```toml
-[[grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "Return" = "action left_click" }
-
-[[recursive_grid.app_configs]]
-bundle_id = "com.brave.Browser"
-hotkeys = { "u" = "action left_click" }
 ```
 
 ## Checking the Accessibility Tree on macOS

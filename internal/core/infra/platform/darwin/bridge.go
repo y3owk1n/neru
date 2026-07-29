@@ -226,6 +226,27 @@ func handleAppDeactivate(appName *C.char, bundleID *C.char) {
 	)
 }
 
+//export handleFrontAppSwitched
+func handleFrontAppSwitched(appName *C.char, bundleID *C.char) {
+	dispatchAppWatcherAppEvent(
+		"handleFrontAppSwitched",
+		"Forwarding front app switch event",
+		appName,
+		bundleID,
+		func(w AppWatcherInterface, name, id string) { w.HandleFrontAppSwitch(name, id) },
+	)
+}
+
+//export handleMenuTrackingChanged
+func handleMenuTrackingChanged() {
+	dispatchAppWatcherVoidEvent(
+		"handleMenuTrackingChanged",
+		"Forwarding menu tracking change event",
+		true,
+		func(w AppWatcherInterface) { w.HandleMenuTrackingChanged() },
+	)
+}
+
 //export handleScreenParametersChanged
 func handleScreenParametersChanged() {
 	dispatchAppWatcherVoidEvent(

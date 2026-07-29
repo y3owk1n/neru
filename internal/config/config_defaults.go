@@ -15,6 +15,10 @@ const (
 	DefaultHintBoundaryBorderRadius = -1
 	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
 	DefaultHintBoundaryBorderWidth = 1
+	// DefaultAutoRefreshMinDelayMs is the default minimum refresh delay, in
+	// milliseconds, for hints auto-refresh. It matches the modes package's
+	// runtime fallback.
+	DefaultAutoRefreshMinDelayMs = 150
 	// DefaultVisionRequestTimeoutMS is the default Vision request timeout.
 	DefaultVisionRequestTimeoutMS = 5000
 	// DefaultVisionMinimumConfidence keeps all Vision observations by default.
@@ -447,6 +451,11 @@ func newDefaultConfig() *Config {
 			VisibleCheckEnabled:  false,
 
 			AppConfigs: []AppConfig{},
+
+			AutoRefresh: HintsAutoRefresh{
+				Enabled:           true,
+				MinRefreshDelayMs: DefaultAutoRefreshMinDelayMs,
+			},
 		},
 		Grid: GridConfig{
 			Enabled: true,
