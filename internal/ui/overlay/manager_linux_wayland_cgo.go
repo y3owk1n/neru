@@ -347,16 +347,12 @@ func (o *wlrootsOverlay) DrawHints(
 		border := parseHexColor(style.BorderColor())
 		borderWidth := float64(max(style.BorderWidth(), 0))
 
-		if radius > 0 {
-			o.drawRoundedRect(badge, float64(radius), fill, border, borderWidth)
-		} else {
-			o.drawRect(badge, fill, border, borderWidth)
-		}
-		// Draw the arrow after the badge so its fill hides the badge edge where
-		// the two meet, leaving a seamless tail.
-		if hasArrow {
-			o.drawArrow(arrow, fill, border, borderWidth)
-		}
+		// Badge and connector tail are drawn as one filled+stroked outline so
+		// translucent colors don't double-composite at the junction.
+		o.drawHintBadge(
+			badge, float64(radius), hintTailEdge(badge, arrow, hasArrow), arrow,
+			fill, border, borderWidth,
+		)
 		o.drawTextCentered(
 			label, badge,
 			style.FontFamily(),
@@ -1019,15 +1015,18 @@ func (o *wlrootsOverlay) drawRoundedRect(
 	)
 }
 
-func (o *wlrootsOverlay) drawArrow(
-	arrow hintArrowTriangle,
+func (o *wlrootsOverlay) drawHintBadge(
+	badge image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
 	fill uint32, border uint32, lineWidth float64,
 ) {
-	C.neru_wayland_overlay_triangle(
+	C.neru_wayland_overlay_hint_badge(
 		o.raw,
-		C.double(arrow.baseLeft.X), C.double(arrow.baseLeft.Y),
+		C.double(badge.Min.X), C.double(badge.Min.Y),
+		C.double(badge.Dx()), C.double(badge.Dy()),
+		C.double(radius),
+		C.int(edge),
+		C.double(arrow.baseLeft.X), C.double(arrow.baseRight.X),
 		C.double(arrow.tip.X), C.double(arrow.tip.Y),
-		C.double(arrow.baseRight.X), C.double(arrow.baseRight.Y),
 		C.uint(fill), C.uint(border), C.double(lineWidth),
 	)
 }

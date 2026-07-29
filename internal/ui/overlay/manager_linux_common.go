@@ -1039,6 +1039,14 @@ func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rec
 	)
 }
 
+// Hint connector tail edge, matching the C hint-badge renderer: which badge
+// edge the triangular tail is merged into (0 = none).
+const (
+	hintTailNone   = 0
+	hintTailTop    = 1 // tail on the badge's top edge, apex above (placement "bottom")
+	hintTailBottom = 2 // tail on the badge's bottom edge, apex below (placement "top")
+)
+
 // hintArrowTriangle holds the three vertices of a hint connector arrow in
 // screen coordinates: the two base corners flush with the badge edge and the
 // tip pointing at the target element.
@@ -1046,6 +1054,21 @@ type hintArrowTriangle struct {
 	baseLeft  image.Point
 	tip       image.Point
 	baseRight image.Point
+}
+
+// hintTailEdge reports which badge edge the connector tail merges into, so the
+// renderer can build the badge and tail as one outline. It returns hintTailNone
+// when there is no arrow.
+func hintTailEdge(badge image.Rectangle, arrow hintArrowTriangle, hasArrow bool) int {
+	if !hasArrow {
+		return hintTailNone
+	}
+
+	if arrow.tip.Y < badge.Min.Y {
+		return hintTailTop
+	}
+
+	return hintTailBottom
 }
 
 // hintBadgePlacement computes the badge rect for a hint given its target point

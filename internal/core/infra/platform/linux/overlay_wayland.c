@@ -811,38 +811,81 @@ void neru_wayland_overlay_rounded_rect(
 	}
 }
 
-// neru_wayland_overlay_triangle draws the hint connector arrow on every output.
-// Like the X11 variant it fills the closed triangle then strokes only the two
-// edges meeting at the apex (x1,y1), leaving the base seamless under the badge
-// so the arrow reads as a tail attached to the badge.
-void neru_wayland_overlay_triangle(
-    NeruWaylandOverlay *overlay, double x0, double y0, double x1, double y1, double x2, double y2, unsigned int fill,
-    unsigned int stroke, double stroke_width) {
+// neru_wayland_hint_badge_path mirrors neru_x11_hint_badge_path: a rounded rect
+// with an optional triangular tail merged into one edge as a single closed
+// outline. edge: 0 = none, 1 = top-edge tail (apex above), 2 = bottom-edge tail
+// (apex below). The tail base is clamped to the edge's flat span. Coordinates
+// are surface-local (the caller applies the per-output offset).
+static void neru_wayland_hint_badge_path(
+    cairo_t *cr, double x, double y, double w, double h, double radius, int edge, double a_left, double a_right,
+    double tip_x, double tip_y) {
+	double r = radius;
+	double max_r = (w < h ? w : h) / 2.0;
+	if (r > max_r)
+		r = max_r;
+	if (r < 0)
+		r = 0;
+
+	double flat_left = x + r;
+	double flat_right = x + w - r;
+	if (edge != 0) {
+		if (a_left < flat_left)
+			a_left = flat_left;
+		if (a_right > flat_right)
+			a_right = flat_right;
+		if (a_left >= a_right)
+			edge = 0;
+	}
+
+	const double deg = 0.0174532925199432957692;
+	cairo_new_sub_path(cr);
+	cairo_move_to(cr, flat_left, y);
+	if (edge == 1) {
+		cairo_line_to(cr, a_left, y);
+		cairo_line_to(cr, tip_x, tip_y);
+		cairo_line_to(cr, a_right, y);
+	}
+	cairo_line_to(cr, flat_right, y);
+	if (r > 0)
+		cairo_arc(cr, x + w - r, y + r, r, -90.0 * deg, 0.0 * deg);
+	cairo_line_to(cr, x + w, y + h - r);
+	if (r > 0)
+		cairo_arc(cr, x + w - r, y + h - r, r, 0.0 * deg, 90.0 * deg);
+	if (edge == 2) {
+		cairo_line_to(cr, a_right, y + h);
+		cairo_line_to(cr, tip_x, tip_y);
+		cairo_line_to(cr, a_left, y + h);
+	}
+	cairo_line_to(cr, flat_left, y + h);
+	if (r > 0)
+		cairo_arc(cr, x + r, y + h - r, r, 90.0 * deg, 180.0 * deg);
+	cairo_line_to(cr, x, y + r);
+	if (r > 0)
+		cairo_arc(cr, x + r, y + r, r, 180.0 * deg, 270.0 * deg);
+	cairo_close_path(cr);
+}
+
+// neru_wayland_overlay_hint_badge fills and strokes a hint badge with an
+// optional connector tail as one continuous outline on every output.
+void neru_wayland_overlay_hint_badge(
+    NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, int edge,
+    double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke,
+    double stroke_width) {
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (!scr->cr)
 			continue;
 
-		double sx0 = x0 - scr->x, sy0 = y0 - scr->y;
-		double sx1 = x1 - scr->x, sy1 = y1 - scr->y;
-		double sx2 = x2 - scr->x, sy2 = y2 - scr->y;
-
 		cairo_t *cr = scr->cr;
 		cairo_save(cr);
-		cairo_move_to(cr, sx0, sy0);
-		cairo_line_to(cr, sx1, sy1);
-		cairo_line_to(cr, sx2, sy2);
-		cairo_close_path(cr);
+		neru_wayland_hint_badge_path(
+		    cr, x - scr->x, y - scr->y, width, height, radius, edge, a_left - scr->x, a_right - scr->x, tip_x - scr->x,
+		    tip_y - scr->y);
 		neru_wayland_overlay_color(cr, fill);
-		cairo_fill(cr);
-		if (stroke_width > 0.0) {
-			cairo_move_to(cr, sx0, sy0);
-			cairo_line_to(cr, sx1, sy1);
-			cairo_line_to(cr, sx2, sy2);
-			neru_wayland_overlay_color(cr, stroke);
-			cairo_set_line_width(cr, stroke_width);
-			cairo_stroke(cr);
-		}
+		cairo_fill_preserve(cr);
+		neru_wayland_overlay_color(cr, stroke);
+		cairo_set_line_width(cr, stroke_width);
+		cairo_stroke(cr);
 		cairo_restore(cr);
 	}
 }

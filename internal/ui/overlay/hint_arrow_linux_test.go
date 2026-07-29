@@ -142,6 +142,31 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 	}
 }
 
+func TestHintTailEdge(t *testing.T) {
+	target := image.Pt(200, 150)
+
+	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, "bottom")
+	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailTop {
+		t.Errorf(
+			"bottom placement (arrow points up) should merge the tail into the top edge, got %d",
+			edge,
+		)
+	}
+
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, "top")
+	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailBottom {
+		t.Errorf(
+			"top placement (arrow points down) should merge the tail into the bottom edge, got %d",
+			edge,
+		)
+	}
+
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, "center")
+	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailNone {
+		t.Errorf("center placement should have no tail, got %d", edge)
+	}
+}
+
 func assertArrowSymmetry(t *testing.T, arrow hintArrowTriangle, centerX int) {
 	t.Helper()
 
