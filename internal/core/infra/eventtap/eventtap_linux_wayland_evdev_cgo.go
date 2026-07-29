@@ -976,10 +976,7 @@ drainStale:
 			// latched after the grab ends.
 			for code, mods := range state.passthroughHeld {
 				delete(state.passthroughHeld, code)
-
-				for _, mod := range slices.Backward(mods) {
-					_ = linux.WaylandModifierEvent(mod, false)
-				}
+				et.releasePassthroughModifiers(mods)
 			}
 
 			capture.ungrabAll()
@@ -1135,10 +1132,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		// with another passthrough key or a sticky hold stays down).
 		if mods, ok := state.passthroughHeld[event.code]; ok {
 			delete(state.passthroughHeld, event.code)
-
-			for _, mod := range slices.Backward(mods) {
-				_ = linux.WaylandModifierEvent(mod, false)
-			}
+			et.releasePassthroughModifiers(mods)
 
 			return
 		}
@@ -1166,6 +1160,17 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
+	// A key already owned by passthrough keeps routing its repeats to the app for
+	// as long as it is physically held, regardless of the current modifier state.
+	// Releasing a modifier mid-hold must not reclassify the key back into Neru
+	// (the virtual modifier stays held until the physical key-up). Keyed by code,
+	// so this runs before key-name resolution.
+	if _, held := state.passthroughHeld[event.code]; held {
+		et.passthroughEvdevChord(state, event.code, false)
+
+		return
+	}
+
 	key := et.xkbEvdevKeyName(capture, event.code)
 	if key == "" {
 		return
@@ -1179,10 +1184,9 @@ func (et *EventTap) handleWaylandEvdevEvent(
 	// Modifier passthrough: when an unbound Ctrl/Alt/Cmd chord should reach the
 	// focused application, re-inject it through the virtual keyboard (a distinct
 	// device from the EVIOCGRAB'd physical keyboard, so it does not re-enter this
-	// reader) and skip Neru's own dispatch.
-	if et.shouldPassthroughChord(key) {
-		et.passthroughEvdevChord(state, event.code, event.value == evdevValuePress)
-
+	// reader) and skip Neru's own dispatch. If injection fails, fall through to
+	// normal dispatch rather than silently dropping the shortcut.
+	if et.shouldPassthroughChord(key) && et.passthroughEvdevChord(state, event.code, true) {
 		return
 	}
 
@@ -1190,29 +1194,59 @@ func (et *EventTap) handleWaylandEvdevEvent(
 }
 
 // passthroughEvdevChord re-injects a modifier chord to the focused application
-// through the zwp_virtual_keyboard_v1 path. On the initial press it holds the
-// currently-held modifiers down (refcounted by the wlroots modifier dispatcher)
-// and taps the base keycode, records the hold so the physical release can drop
-// those modifiers, and notifies the mode layer once. On auto-repeat it re-taps
-// only the base key, leaving the modifiers held so the app sees a steadily-held
-// modifier instead of it flapping around every repeat. Injection is best-effort
-// (a failed event is dropped) since there is no meaningful recovery mid-chord.
-func (et *EventTap) passthroughEvdevChord(state *waylandEvdevKeyState, code uint16, isPress bool) {
+// through the zwp_virtual_keyboard_v1 path and reports whether it was delivered.
+// On the initial press it holds the currently-held modifiers down (refcounted by
+// the wlroots modifier dispatcher) and taps the base keycode, records the hold so
+// the physical release can drop those modifiers, and notifies the mode layer
+// once. On auto-repeat it re-taps only the base key, leaving the modifiers held
+// so the app sees a steadily-held modifier instead of it flapping around every
+// repeat.
+//
+// It returns false when the essential injection (a held modifier or the base-key
+// press) failed on the initial press, having rolled back any modifiers it pressed
+// so none stays latched; the caller then falls back to normal dispatch rather
+// than reporting a delivered shortcut. Returns true once the key is owned by
+// passthrough — a dropped auto-repeat is tolerated, since the key stays owned and
+// its modifiers held until the physical release either way.
+func (et *EventTap) passthroughEvdevChord(
+	state *waylandEvdevKeyState,
+	code uint16,
+	isPress bool,
+) bool {
 	if _, held := state.passthroughHeld[code]; held && !isPress {
 		// Auto-repeat: modifiers are already held; just re-tap the base key.
 		_ = linux.WaylandKeyEvent(uint32(code), true)
 		_ = linux.WaylandKeyEvent(uint32(code), false)
 
-		return
+		return true
 	}
 
 	mods := heldPassthroughModifiers(state)
 
+	// Press the held modifiers, remembering which actually took so a
+	// mid-sequence failure can be unwound without leaving one latched.
+	pressed := make([]string, 0, len(mods))
+
 	for _, mod := range mods {
-		_ = linux.WaylandModifierEvent(mod, true)
+		err := linux.WaylandModifierEvent(mod, true)
+		if err != nil {
+			et.releasePassthroughModifiers(pressed)
+
+			return false
+		}
+
+		pressed = append(pressed, mod)
 	}
 
-	_ = linux.WaylandKeyEvent(uint32(code), true)
+	// The app acts on the key-down (the chord is delivered there); a failed
+	// key-up only leaves cleanup pending, so only the down gates success.
+	keyDownErr := linux.WaylandKeyEvent(uint32(code), true)
+	if keyDownErr != nil {
+		et.releasePassthroughModifiers(pressed)
+
+		return false
+	}
+
 	_ = linux.WaylandKeyEvent(uint32(code), false)
 
 	if state.passthroughHeld == nil {
@@ -1222,6 +1256,18 @@ func (et *EventTap) passthroughEvdevChord(state *waylandEvdevKeyState, code uint
 	state.passthroughHeld[code] = mods
 
 	et.firePassthroughCallback()
+
+	return true
+}
+
+// releasePassthroughModifiers releases the given modifiers in reverse press
+// order (refcounted, so a modifier shared with another passthrough key or a
+// sticky hold stays down). Used both to unwind a failed press and to drop a
+// held chord's modifiers on release/shutdown.
+func (et *EventTap) releasePassthroughModifiers(mods []string) {
+	for _, mod := range slices.Backward(mods) {
+		_ = linux.WaylandModifierEvent(mod, false)
+	}
 }
 
 // passthroughModifierCount is the number of distinct modifier groups
