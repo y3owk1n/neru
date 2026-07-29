@@ -250,11 +250,11 @@ func (c *ATSPIClient) ClickableNodes(
 
 	start := time.Now()
 
-	// If focus changed since this window was selected, the frame is stale:
-	// walking it would surface hints for a now-background window (and any
-	// geometry would belong to a different window). Return nothing so hints do
-	// not target the wrong surface. When no focused app_id is available
-	// (X11/GNOME) there is nothing to compare, so the walk proceeds.
+	// Early-out: if focus already changed since this window was selected, the
+	// frame is stale, so skip the (subprocess-spawning) geometry query below and
+	// return nothing. When no focused app_id is available (X11/GNOME) there is
+	// nothing to compare, so the walk proceeds. The stability is re-checked after
+	// the geometry query to close the race window described there.
 	if !c.focusStableSince(win.focusedAppID, win.focusedTitle) {
 		return nil, nil
 	}
@@ -282,6 +282,14 @@ func (c *ATSPIClient) ClickableNodes(
 			offY = originY - frameRect.Min.Y
 			haveOrigin = true
 		}
+	}
+
+	// originFor reads the *current* focused window's geometry, so a focus change
+	// between the early-out above and that read would pair this frame with a
+	// different (equally sized) window's origin. Re-verify stability and abort if
+	// focus moved, rather than walk a stale frame or apply a mismatched origin.
+	if !c.focusStableSince(win.focusedAppID, win.focusedTitle) {
+		return nil, nil
 	}
 
 	out := make([]AXNode, 0, atspiClickableNodesCap)
