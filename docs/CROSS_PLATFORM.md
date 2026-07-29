@@ -571,12 +571,12 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 | **Cursor Move**                     | ✅                          | ✅ (XTest)         | ✅ (zwlr_virtual_pointer) | ✅ (libei)               | ❌                | ✅ (SetCursorPos)        |
 | **Cursor Smooth Animation**         | ✅                          | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
 | **Scroll Smooth Animation**         | ✅                          | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
-| **Accessibility Element Discovery** | ✅ (AXUIElement)            | 🟡 (AT-SPI stub)   | 🟡 (AT-SPI stub)          | 🟡 (AT-SPI stub)         | 🟡 (AT-SPI stub)  | ✅ (UIA initial)         |
-| **Accessibility Click/Scroll**      | ✅                          | 🟡                 | 🟡                        | 🟡                       | 🟡                | ✅ (UIA initial)         |
+| **Accessibility Element Discovery** | ✅ (AXUIElement)            | ⚠️ (AT-SPI walk)   | ⚠️ (AT-SPI walk)          | ⚠️ (AT-SPI walk)         | 🟡 (no injection) | ✅ (UIA initial)         |
+| **Accessibility Click/Scroll**      | ✅                          | ✅ (XTest)         | ✅ (virtual-pointer)      | ✅ (libei)               | 🟡                | ✅ (UIA initial)         |
 | **Overlay**                         | ✅ (Cocoa NSPanel)          | ✅ (X11 Cairo)     | ✅ (wl-layer Cairo)       | ✅ (wl-layer Cairo)      | ❌                | ✅ (Layered HWND)        |
 | **Global Hotkeys**                  | ✅ (CGEventTap)             | ✅ (XGrabKey)      | ✅ (evdev grab)           | ✅ (evdev grab)          | ❌                | ✅ (RegisterHotKey)      |
 | **Keyboard Event Capture**          | ✅ (CGEventTap)             | ✅ (XGrabKeyboard) | ✅ (evdev + wl-keyboard)  | ✅ (evdev + wl-keyboard) | ❌                | ✅ (WH_KEYBOARD_LL)      |
-| **App Watcher**                     | ✅ (NSWorkspace)            | 🟡                 | 🟡                        | 🟡                       | 🟡                | 🟡                       |
+| **App Watcher**                     | ✅ (NSWorkspace)            | ✅ (WM_CLASS poll) | ✅ (toplevel app_id poll)  | ✅ (toplevel app_id poll) | 🟡 (no source)    | 🟡                       |
 | **Dark Mode Detection**             | ✅ (Cocoa)                  | ✅ (xdg-portal)    | ✅ (xdg-portal)           | ✅ (kdeglobals)          | ✅ (xdg-portal)   | ✅ (registry)            |
 | **Secure Input Detection**          | ✅                          | 🟡 (always false)  | 🟡 (always false)         | 🟡 (always false)        | 🟡 (always false) | 🟡 (always false)        |
 | **Native Notifications**            | ✅ (NSAlert/UNNotification) | 🟡                 | 🟡                        | 🟡                       | 🟡                | 🟡                       |
@@ -593,6 +593,79 @@ its PID — Wayland clients cannot read another client's process credentials.
 against `/proc`; when no process matches it returns `CodeNotSupported` with the
 app_id rather than a fabricated number. GNOME/Mutter does not implement the
 protocol, so it stays a stub there (use an X11 session under GNOME).
+
+**App Watcher on Linux:** macOS receives focus changes from an NSWorkspace
+observer; Linux has no equivalent push API, so the watcher
+(`internal/core/infra/appwatcher/platform_linux.go`) **polls** the focused
+application's identity every 400ms and dispatches activate/deactivate events
+when it changes. The identity comes from
+`platform/linux.FocusedAppID(backend)`: the active window's **WM_CLASS** on X11
+(`neru_x11_get_window_class`) and the focused toplevel's **app_id** on Wayland
+wlroots/KDE (`wlr-foreign-toplevel-management`, reusing the same source as
+Focused App PID). This drives per-app global-hotkey switching
+(`App.handleAppActivation`), which previously never fired on Linux. GNOME/Mutter
+exposes no focused-app source, so the poll yields nothing and no events fire
+there — per-app hotkey switching needs an X11 session under GNOME. Only
+activate/deactivate are emitted; launch, terminate, screen-parameter, and
+Mission Control events remain macOS-only.
+
+**Accessibility on Linux (⚠️, not a stub):** hints-mode element discovery is
+implemented via AT-SPI over D-Bus. `ATSPIClient` (`atspi_linux.go`) enables
+assistive-tech mode, finds the active frame, and walks its tree
+(`ClickableNodes`) for clickable elements, mapping AT-SPI roles to Neru's AX
+role vocabulary. This is the client the Linux adapter actually uses
+(`platform_client_linux.go` → `Adapter.ClickableElements` → `client.ClickableNodes`);
+the `TreeNode`/`BuildTree` stub in `tree_linux.go` is the macOS-style tree API
+and is **not** on the Linux hints path. Click/scroll then inject at the hint
+point through the embedded `InfraAXClient` — XTest on X11, `zwlr_virtual_pointer`
+on wlroots, libei on KDE, plus evdev/uinput for Wayland scroll. It is marked ⚠️
+rather than ✅ because coverage depends on each app exposing AT-SPI (Qt/GTK do
+with accessibility enabled; some toolkits expose little), and there is no
+Vision/OCR fallback like macOS. AT-SPI discovery itself is display-server
+independent, but GNOME/Mutter has no usable injection path, so hints are not
+usable there (use an X11 session under GNOME).
+
+**Chromium/Electron apps on Linux:** Chromium-based apps (Chrome, Electron,
+and forks such as Helium) do **not** expose their web-content accessibility
+tree over AT-SPI by default — they gate it behind their own runtime detection
+and, unlike macOS, there is no per-app attribute Neru can toggle to force it on
+(the macOS `AXManualAccessibility` nudge in `electron.EnsureAccessibility` is a
+no-op on Linux). The result is an AT-SPI frame with a single empty child, so
+hints find nothing inside such windows. The reliable workaround is to launch the
+app with `--force-renderer-accessibility` (e.g. `chromium --force-renderer-accessibility`),
+which forces the full web tree. Native GTK/Qt apps and Firefox expose their tree
+without this flag. This is a Chromium behavior, not a Neru limitation.
+
+**Active-window selection on Wayland:** the AT-SPI `ACTIVE` state is unreliable
+on wlroots compositors (niri, Sway, Hyprland) — the focused window can report
+`ACTIVE=false` while background frames report `ACTIVE=true`. Neru therefore
+selects the AT-SPI frame by matching the compositor's focused **app_id** (from
+`wlr-foreign-toplevel-management`, the same source as Focused App PID / the app
+watcher), falling back to the `ACTIVE`/`SHOWING` heuristic only on X11, GNOME,
+or when no app_id is available. See `findActiveFrame` in `atspi_linux.go`.
+
+**Window-origin offset on Wayland:** a Wayland client cannot know its own
+on-screen position, so AT-SPI reports element coordinates relative to the
+window. To place the hint overlay correctly, neru offsets those by the focused
+window's screen origin, supplied by a compositor-specific `windowOriginSource`
+(`window_origin_linux.go`), selected by environment:
+
+- **KDE / KWin** — a small KWin script pushes the focused window's geometry over
+  D-Bus (`kwin_geometry_linux.go`).
+- **niri** (`NIRI_SOCKET`) — `niri msg -j focused-window`/`focused-output`.
+  Works for **floating** windows (niri populates `tile_pos_in_workspace_view`)
+  and **fullscreen** windows (whose frame sits at the output origin with no
+  offset needed). For **tiled** windows — including a maximized column
+  (`maximize-column`, the default `Mod+F`) — niri does not expose the on-screen
+  position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so neru
+  falls back to unoffset coordinates and hints are misaligned there. Use a
+  floating window, or true fullscreen (`fullscreen-window`), for aligned hints.
+- **Sway** (`SWAYSOCK`) — `swaymsg -t get_tree`, focused node `rect + window_rect`.
+- **Hyprland** (`HYPRLAND_INSTANCE_SIGNATURE`) — `hyprctl -j activewindow` `at`/`size`.
+
+Each source verifies the reported window size matches the AT-SPI frame (a focus
+change can race the query) and is best-effort — an unavailable origin degrades
+to unoffset (window-relative) coordinates rather than misplacing hints.
 
 ### Overlay Rendering
 
@@ -674,10 +747,10 @@ Key files:
 | **Backend**                | AXUIElement (via CGO ObjC bridge)                                                                                                                                                        | AT-SPI via D-Bus (pure Go)                                              | UI Automation via COM (pure Go)                                                      |
 | **Adapter location**       | `internal/core/infra/accessibility/element_darwin.go`                                                                                                                                    | `internal/core/infra/accessibility/element_linux.go` + `atspi_linux.go` | `internal/core/infra/accessibility/element_windows.go` + `uia_windows.go`            |
 | **Client**                 | `InfraAXClient` wraps Element/TreeNode → ObjC bridge                                                                                                                                     | `ATSPIClient` → D-Bus `org.a11y.atspi`                                  | `UIAClient` → raw COM vtable calls                                                   |
-| **Tree building**          | Full recursive tree walk of AXUIElement hierarchy (`tree.go`). Collects from: frontmost window, popover windows, menubar, dock, notification center, Stage Manager, PIP, screen capture. | Stub — `ClickableNodes` returns `(nil, nil)` (`tree_linux.go`).         | Shallow UIA tree walk returning root-level clickable nodes (`tree_windows.go`).      |
-| **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | Stub.                                                                   | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
-| **Strategy support**       | `config.StrategyAX` (default), `config.StrategyVision` (macOS Vision Framework).                                                                                                         | AX only.                                                                | AX only.                                                                             |
-| **Popover / menu support** | ✅ (AXOrientation-based popover detection, menubar walking).                                                                                                                             | 🟡                                                                      | 🟡                                                                                   |
+| **Tree building**          | Full recursive tree walk of AXUIElement hierarchy (`tree.go`). Collects from: frontmost window, popover windows, menubar, dock, notification center, Stage Manager, PIP, screen capture. | Recursive AT-SPI D-Bus walk of the active frame (`ATSPIClient.ClickableNodes`, `atspi_linux.go`), depth/node capped. The `tree_linux.go` `BuildTree` stub is the macOS-style API and is not on this path. | Shallow UIA tree walk returning root-level clickable nodes (`tree_windows.go`).      |
+| **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | AT-SPI role → AX role mapping, SHOWING-state + on-screen extents check; coverage depends on the app's AT-SPI support. | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
+| **Strategy support**       | `config.StrategyAX` (default), `config.StrategyVision` (macOS Vision Framework).                                                                                                         | AX only (no Vision/OCR fallback).                                       | AX only.                                                                             |
+| **Popover / menu support** | ✅ (AXOrientation-based popover detection, menubar walking).                                                                                                                             | ⚠️ (popovers/menus in the active frame's AT-SPI subtree are walked; no separate menubar/dock collection). | 🟡                                                                                   |
 | **Focused application**    | ✅ (NSWorkspace + AXUIElement).                                                                                                                                                          | ✅ (X11: `_NET_ACTIVE_WINDOW`; Wayland: `wlr-foreign-toplevel` app_id on wlroots/KDE, XWayland fallback). | ✅ (Win32 `GetForegroundWindow`).                                                    |
 
 #### Action Execution
@@ -706,12 +779,19 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 5. Deduplicates overlapping elements
 6. Filters by size, position, visibility, and excluded apps
 
-**Linux** (`tree_linux.go`) is a stub:
+**Linux** (`atspi_linux.go`) walks the AT-SPI tree over D-Bus:
 
-- Returns immediately with no elements
-- AT-SPI client (`atspi_linux.go`) connects via D-Bus but tree queries are stubbed
-- The `collectClickableNodes` function returns nil
-- Element structs in `element_linux.go` implement cursor/scroll/click but tree queries are stubs
+- `ATSPIClient.FrontmostWindow` finds the active frame (ACTIVE + SHOWING state)
+  across registered applications, skipping virtual keyboards and system surfaces
+- `ClickableNodes` recursively walks that frame's subtree (depth/node capped),
+  keeping SHOWING elements whose mapped AX role is in the requested set
+- AT-SPI role names are mapped to Neru's AX role vocabulary
+  (`atspiToAXRole`) so the shared filter pipeline matches them
+- On Wayland it offsets element extents by the focused window's screen origin
+  (via the KWin geometry bridge) since AT-SPI reports window-relative coords
+- Element structs in `element_linux.go` implement cursor/scroll/click injection
+- The `tree_linux.go` `BuildTree`/`TreeNode` API is a stub, but it is the
+  macOS-style tree path and is **not** used by the Linux adapter
 
 **Windows** (`tree_windows.go`):
 
@@ -764,12 +844,12 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 
 | Feature                        | macOS                                                             | Linux                                       | Windows                         |
 | ------------------------------ | ----------------------------------------------------------------- | ------------------------------------------- | ------------------------------- |
-| **Element discovery**          | ✅ Full AXUIElement tree walk + Vision framework                  | 🟡 (stub — returns no elements)             | ⚠️ (UIA initial — shallow tree) |
-| **Multi-letter labels**        | ✅                                                                | N/A (no elements)                           | ✅                              |
-| **Label filtering / search**   | ✅ (interactive search with `/` prefix, role filter, text filter) | N/A                                         | ✅                              |
-| **Split word**                 | ✅                                                                | N/A                                         | ✅                              |
-| **Label direction**            | ✅ (configurable: horizontal, vertical, row-major, col-major)     | N/A                                         | ✅                              |
-| **Hide unmatched**             | ✅                                                                | N/A                                         | ✅                              |
+| **Element discovery**          | ✅ Full AXUIElement tree walk + Vision framework                  | ⚠️ (AT-SPI walk; toolkit-dependent)         | ⚠️ (UIA initial — shallow tree) |
+| **Multi-letter labels**        | ✅                                                                | ✅ (shared alphabet logic)                  | ✅                              |
+| **Label filtering / search**   | ✅ (interactive search with `/` prefix, role filter, text filter) | ✅ (logic shared; no search input badge)    | ✅                              |
+| **Split word**                 | ✅                                                                | ✅                                          | ✅                              |
+| **Label direction**            | ✅ (configurable: horizontal, vertical, row-major, col-major)     | ✅                                          | ✅                              |
+| **Hide unmatched**             | ✅                                                                | ✅                                          | ✅                              |
 | **Strategy selection**         | `ax` (default), `vision` (macOS Vision Framework)                 | `ax` only                                   | `ax` only                       |
 | **Vision fallback**            | ✅ (AX → Vision → combined)                                       | N/A (Vision is macOS-only)                  | N/A                             |
 | **Per-app strategy overrides** | ✅                                                                | N/A                                         | N/A                             |
@@ -780,7 +860,7 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 | **Scroll at element**          | ✅ (CGScrollWheelEvent)                                           | 🟡                                          | 🟡                              |
 | **Menubar elements**           | ✅                                                                | 🟡                                          | 🟡                              |
 | **Dock elements**              | ✅                                                                | N/A                                         | N/A                             |
-| **Popup/popover elements**     | ✅ (AXOrientation-based)                                          | 🟡                                          | 🟡                              |
+| **Popup/popover elements**     | ✅ (AXOrientation-based)                                          | ⚠️ (walked when in active frame's subtree)  | 🟡                              |
 | **Hint overlay arrows**        | ✅ (top/bottom arrow indicators on labels)                        | ❌                                          | ❌                              |
 | **Boundary highlight**         | ✅                                                                | ✅ (Cairo)                                  | ✅ (SDF)                        |
 | **Search input badge**         | ✅                                                                | ❌                                          | ✅                              |
@@ -788,8 +868,13 @@ All 8 action types from `internal/core/domain/action/action.go` are dispatched v
 **Implementation note:** On macOS, hints work fully because AXUIElement tree
 walking gives a complete picture of clickable elements on screen. On Windows,
 the UIA integration provides initial element coverage but the tree is shallow.
-On Linux, AT-SPI integration is stubbed — no clickable elements can be
-discovered.
+On Linux, hints work via an AT-SPI (D-Bus) walk of the active frame, so coverage
+depends on the app exposing AT-SPI (Qt/GTK apps with accessibility enabled do;
+some toolkits expose little) and there is no Vision/OCR fallback. Chromium/Electron
+apps expose nothing unless launched with `--force-renderer-accessibility`, and
+GNOME/Mutter has no usable injection path, so hints are not usable there. See the
+Linux accessibility notes under [Port Capability Matrix](#port-capability-matrix)
+for details.
 
 #### Grid Mode
 

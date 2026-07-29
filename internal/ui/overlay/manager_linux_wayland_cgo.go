@@ -330,13 +330,16 @@ func (o *wlrootsOverlay) DrawHints(
 		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
 		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
 
-		centerX := hint.Position().X + hint.Size().X/centeredRectDivisor
-		centerY := hint.Position().Y + hint.Size().Y/centeredRectDivisor
+		// hint.Position() is the element center (set in modes/hints.go), so the
+		// badge is centered horizontally on it and placed above / on / below the
+		// center to match the macOS placement behavior.
+		centerX := hint.Position().X
+		centerY := hint.Position().Y
 		switch style.Placement() {
 		case "top":
-			centerY = hint.Position().Y
+			centerY = hint.Position().Y - hintPlacementGap - badgeHeight/centeredRectDivisor
 		case "bottom":
-			centerY = hint.Position().Y + hint.Size().Y
+			centerY = hint.Position().Y + hintPlacementGap + badgeHeight/centeredRectDivisor
 		}
 
 		badge := image.Rect(
@@ -347,7 +350,7 @@ func (o *wlrootsOverlay) DrawHints(
 		)
 		radius := style.BorderRadius()
 		if radius < 0 {
-			radius = badgeHeight / centeredRectDivisor
+			radius = min(badgeHeight/centeredRectDivisor, hintAutoRadiusMax)
 		}
 		if radius > 0 {
 			o.drawRoundedRect(

@@ -4,6 +4,7 @@ package linux
 
 /*
 #cgo linux pkg-config: x11 xtst xrandr
+#include <stdlib.h>
 #include "x11_system.h"
 */
 import "C"
@@ -105,6 +106,36 @@ func x11FocusedApplicationPID() (int, error) {
 	}
 
 	return int(pid), nil
+}
+
+// x11FocusedAppID returns the WM_CLASS "class" of the active X11 window, used
+// as the per-app bundle identifier (matching accessibility's focused-app
+// identity on X11). The bool is false when DISPLAY is unset, no window is
+// active, or the window exposes no WM_CLASS.
+func x11FocusedAppID() (string, bool) {
+	display, err := x11OpenDisplay()
+	if err != nil {
+		return "", false
+	}
+	defer C.neru_x11_close_display(display) //nolint:nlreturn
+
+	var window C.Window
+	if C.neru_x11_get_active_window(display, &window) == 0 { //nolint:nlreturn
+		return "", false
+	}
+
+	className := C.neru_x11_get_window_class(display, window) //nolint:nlreturn
+	if className == nil {
+		return "", false
+	}
+	defer C.free(unsafe.Pointer(className)) //nolint:nlreturn
+
+	appID := C.GoString(className)
+	if appID == "" {
+		return "", false
+	}
+
+	return appID, true
 }
 
 func x11Monitors() ([]x11Monitor, error) {

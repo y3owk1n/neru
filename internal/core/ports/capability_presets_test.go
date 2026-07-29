@@ -32,12 +32,13 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 		capabilities        ports.PlatformCapabilities
 		accessibilityStatus ports.FeatureStatus
 	}{
-		// Linux accessibility (AT-SPI) is still a stub; Windows now discovers
-		// clickable elements via UI Automation.
+		// Linux discovers clickable elements via an AT-SPI (D-Bus) tree walk;
+		// Windows discovers them via UI Automation. Notifications remain stubbed
+		// on both (asserted below).
 		{
 			name:                "linux",
 			capabilities:        ports.LinuxCapabilities(),
-			accessibilityStatus: ports.FeatureStatusStub,
+			accessibilityStatus: ports.FeatureStatusSupported,
 		},
 		{
 			name:                "windows",

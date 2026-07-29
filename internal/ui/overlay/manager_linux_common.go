@@ -48,6 +48,13 @@ const (
 	centeredRectDivisor                    = 2
 	centeredRectHalf                       = 0.5
 	paddingMultiplier                      = 2
+	// hintPlacementGap is the pixel gap between a hint badge and its target
+	// point for top/bottom placement, mirroring the macOS overlay.
+	hintPlacementGap = 1
+	// hintAutoRadiusMax caps the auto (border_radius = -1) hint badge corner
+	// radius so labels get a subtle rounded corner rather than a full pill,
+	// matching the macOS overlay's MIN(height/2, 6).
+	hintAutoRadiusMax = 6
 
 	stickyBadgeClearPadding = 3
 )

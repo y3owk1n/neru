@@ -811,9 +811,55 @@ void neru_wayland_overlay_rounded_rect(
 	}
 }
 
+// neru_resolve_font_family returns a font family cairo's toy API can actually
+// render, substituting a generic fallback when the requested family fails.
+//
+// This guards against a subtle, catastrophic failure mode: on some
+// cairo/fontconfig setups (e.g. certain Nix closures on non-NixOS hosts)
+// cairo_show_text with a specific family name — even a common one like
+// "DejaVu Sans" — fails with CAIRO_STATUS_NO_MEMORY, which permanently poisons
+// the cairo context so every subsequent draw silently no-ops. Generic families
+// ("sans-serif", "monospace", ...) resolve fine there. We probe the requested
+// family on a throwaway context (never touching a real buffer context, so a
+// failure cannot poison it) and fall back to "sans-serif" when it fails. The
+// result is cached for the last family, since a single draw pass uses one
+// family for all its glyphs.
+static const char *neru_resolve_font_family(const char *family) {
+	static char cache_key[128];
+	static char cache_val[128];
+	static int cache_valid = 0;
+
+	if (family == NULL || family[0] == '\0')
+		return "sans-serif";
+
+	if (cache_valid && strncmp(cache_key, family, sizeof(cache_key)) == 0)
+		return cache_val;
+
+	const char *resolved = family;
+
+	cairo_surface_t *probe = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 8, 8);
+	cairo_t *cr = cairo_create(probe);
+	cairo_select_font_face(cr, family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(cr, 10.0);
+	cairo_move_to(cr, 0.0, 6.0);
+	cairo_show_text(cr, "A");
+	if (cairo_status(cr) != CAIRO_STATUS_SUCCESS)
+		resolved = "sans-serif";
+	cairo_destroy(cr);
+	cairo_surface_destroy(probe);
+
+	snprintf(cache_key, sizeof(cache_key), "%s", family);
+	snprintf(cache_val, sizeof(cache_val), "%s", resolved);
+	cache_valid = 1;
+
+	return cache_val;
+}
+
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color) {
+	const char *resolved_family = neru_resolve_font_family(font_family);
+
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (!scr->cr)
@@ -826,7 +872,7 @@ void neru_wayland_overlay_text(
 		cairo_t *cr = scr->cr;
 		cairo_text_extents_t extents;
 		cairo_save(cr);
-		cairo_select_font_face(cr, font_family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+		cairo_select_font_face(cr, resolved_family, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 		cairo_set_font_size(cr, font_size);
 		cairo_text_extents(cr, text, &extents);
 		neru_wayland_overlay_color(cr, color);

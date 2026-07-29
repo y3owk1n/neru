@@ -57,6 +57,11 @@ type AXClient interface {
 	SetClickableRoles(roles []string)
 	ClickableRoles() []string
 	IsMissionControlActive() bool
+	// SupportsSupplementaryElements reports whether the platform exposes the
+	// macOS-specific auxiliary surfaces hints can also scan (Dock, menu bar,
+	// Notification Center, Stage Manager, Picture-in-Picture, screen-capture
+	// UI). False on Linux/Windows so those collectors are skipped.
+	SupportsSupplementaryElements() bool
 
 	// Close releases any resources held by the client (e.g. D-Bus connections
 	// or AT-SPI accessibility status).

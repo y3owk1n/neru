@@ -30,6 +30,10 @@ func x11FocusedApplicationPID() (int, error) {
 	)
 }
 
+func x11FocusedAppID() (string, bool) {
+	return "", false
+}
+
 func x11ActiveScreenBounds() (image.Rectangle, error) {
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,
