@@ -227,6 +227,8 @@ static void *neru_x11_focus_loop(void *arg) {
 	fds[1].fd = m->quit_pipe[0];
 	fds[1].events = POLLIN;
 
+	int connection_lost = 0;
+
 	for (;;) {
 		fds[0].revents = 0;
 		fds[1].revents = 0;
@@ -236,14 +238,16 @@ static void *neru_x11_focus_loop(void *arg) {
 			if (errno == EINTR) {
 				continue;
 			}
+			connection_lost = 1;
 			break;
 		}
 
 		if (fds[1].revents & POLLIN) {
-			break;  // stop() signaled.
+			break;  // stop() signaled — clean exit; stop() closes the pipes.
 		}
 
 		if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			connection_lost = 1;
 			break;  // X connection died.
 		}
 
@@ -265,6 +269,17 @@ static void *neru_x11_focus_loop(void *arg) {
 			ssize_t n = write(m->event_pipe[1], &b, 1);
 			(void)n;  // Best-effort: EAGAIN means a prior byte is still unread.
 		}
+	}
+
+	// If the X connection died (as opposed to a clean stop), close the event
+	// pipe's write end so the Go reader observes POLLHUP and restores its
+	// polling fallback instead of silently degrading to the safety-sample
+	// interval. Cleared to -1 so a later stop()'s close is a no-op (no
+	// double-close of a possibly-reused fd). Safe without locking: only this
+	// thread writes the pipe, and it has stopped writing by here.
+	if (connection_lost && m->event_pipe[1] >= 0) {
+		close(m->event_pipe[1]);
+		m->event_pipe[1] = -1;
 	}
 
 	return NULL;

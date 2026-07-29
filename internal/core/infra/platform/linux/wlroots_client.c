@@ -764,6 +764,7 @@ static const struct wl_registry_listener neru_wlr_registry_listener = {
 
 static void *neru_wlr_dispatch_loop(void *arg) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)arg;
+	int connection_lost = 0;
 	while (c->dispatch_running) {
 		// Non-blocking prepare-read under lock
 		pthread_mutex_lock(&c->display_mutex);
@@ -791,11 +792,13 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 			// still needs to pthread_join this thread.
 			wl_display_cancel_read(c->display);
 			pthread_mutex_unlock(&c->display_mutex);
+			connection_lost = 1;
 			break;
 		}
 		if (pfd.revents & POLLIN) {
 			if (wl_display_read_events(c->display) < 0) {
 				pthread_mutex_unlock(&c->display_mutex);
+				connection_lost = 1;
 				break;
 			}
 			wl_display_dispatch_pending(c->display);
@@ -804,6 +807,18 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		}
 		pthread_mutex_unlock(&c->display_mutex);
 	}
+
+	// If the compositor connection broke (not a clean disconnect, which exits
+	// via dispatch_running == 0), close the focus pipe's write end so the Go
+	// reader observes POLLHUP and restores its polling fallback rather than
+	// silently degrading to the safety-sample interval. Set to -1 so
+	// neru_wlr_disconnect's later close is a no-op. Safe without extra locking:
+	// this thread is the only pipe writer and has stopped dispatching by here.
+	if (connection_lost && c->focus_pipe[1] >= 0) {
+		close(c->focus_pipe[1]);
+		c->focus_pipe[1] = -1;
+	}
+
 	return NULL;
 }
 
