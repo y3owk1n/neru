@@ -27,12 +27,19 @@ const (
 
 // SystemAdapter is a Linux system adapter.
 type SystemAdapter struct {
-	backend string
+	backend        string
+	cursorAnimator *smoothCursorAnimator
 }
 
 // NewSystemAdapter creates a new SystemAdapter.
 func NewSystemAdapter(backend string) *SystemAdapter {
-	return &SystemAdapter{backend: backend}
+	adapter := &SystemAdapter{backend: backend}
+	adapter.cursorAnimator = newSmoothCursorAnimator(
+		adapter.currentCursorPosition,
+		adapter.moveCursorDirect,
+	)
+
+	return adapter
 }
 
 // PlatformLabel returns "linux/<backend>" (e.g. "linux/x11", "linux/wayland-kde").
@@ -203,23 +210,36 @@ func (s *SystemAdapter) FocusedWindowBounds(
 }
 
 // MoveCursorToPoint moves the mouse cursor to the specified point on Linux.
-// TODO(linux): implement using XTest (X11) or libinput (Wayland).
+//
+// When smooth cursor is enabled (config smooth_cursor.move_mouse_enabled) and
+// the caller has not requested a bypass, the move is animated by the shared
+// cursor animator, which steps moveCursorDirect over time; callers that need
+// the cursor settled before acting pair this with WaitForCursorIdle. Otherwise
+// (bypass, disabled, or no config wired) it warps directly. The animator is a
+// no-op wrapper on the direct path, so behavior is unchanged unless the user
+// opts into smooth cursor. Backend routing lives in moveCursorDirect.
 func (s *SystemAdapter) MoveCursorToPoint(
 	ctx context.Context,
 	point image.Point,
 	bypassSmooth bool,
 ) error {
-	if s.backend == backendX11 {
-		return x11MoveCursorToPoint(point)
+	cfg := currentLinuxConfig()
+	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
+		s.cursorAnimator.animateTo(
+			point,
+			cfg.SmoothCursor.Steps,
+			cfg.SmoothCursor.MaxDuration,
+			cfg.SmoothCursor.DurationPerPixel,
+		)
+
+		return nil
 	}
 
-	if s.waylandUsesWlrClientStack() {
-		// Route through the Wayland input dispatcher so KDE (no virtual
-		// pointer) uses libei while wlroots compositors use the native path.
-		return waylandMoveCursorToPoint(point)
-	}
+	// A direct warp must win over any in-flight animation, matching the darwin
+	// behavior where every non-smooth move stops the animator first.
+	s.cursorAnimator.stop()
 
-	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
+	return s.moveCursorDirect(point)
 }
 
 // MoveCursorBy uses native relative motion when the Wayland backend supports it.
@@ -236,9 +256,11 @@ func (s *SystemAdapter) MoveCursorBy(
 	return false, nil
 }
 
-// WaitForCursorIdle returns immediately on Linux until smooth cursor support exists.
+// WaitForCursorIdle blocks until any in-flight smooth cursor animation settles,
+// or ctx is canceled. It returns immediately when no animation is active — the
+// common case on the direct (non-smooth) move path.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
-	return nil
+	return s.cursorAnimator.wait(ctx)
 }
 
 // CursorPosition returns the current cursor position on Linux.
@@ -308,6 +330,36 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // ShowNotification displays a lightweight notification on Linux.
 // TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
+
+// moveCursorDirect performs a single instantaneous cursor warp, routing to the
+// backend-specific injector. It is the shared sink for both the direct move
+// path and each step of the smooth animator.
+func (s *SystemAdapter) moveCursorDirect(point image.Point) error {
+	if s.backend == backendX11 {
+		return x11MoveCursorToPoint(point)
+	}
+
+	if s.waylandUsesWlrClientStack() {
+		// Route through the Wayland input dispatcher so KDE (no virtual
+		// pointer) uses libei while wlroots compositors use the native path.
+		return waylandMoveCursorToPoint(point)
+	}
+
+	return derrors.New(derrors.CodeNotSupported, "MoveCursorToPoint not yet implemented on linux")
+}
+
+// currentCursorPosition returns the current cursor position for the animator,
+// collapsing the error to a zero point. The animator samples this once per
+// request to seed interpolation; a bad read only skews the glide path, never
+// the final landing point (the last step lands exactly on the target).
+func (s *SystemAdapter) currentCursorPosition() image.Point {
+	point, err := s.CursorPosition(context.Background())
+	if err != nil {
+		return image.Point{}
+	}
+
+	return point
+}
 
 // waylandUsesWlrClientStack is true when the session uses the same Wayland
 // client protocols as wlroots (layer shell, xdg-output, virtual pointer, etc.).

@@ -1100,7 +1100,9 @@ On Linux, the indicator renders the symbols `❖⇧⌥⌃`. If they appear as `[
 
 ## [smooth_cursor]
 
-Animates cursor movement between positions.
+Animates cursor movement between positions. Supported on macOS and Linux
+(X11, Wayland wlroots/KDE); GNOME/Wayland and Windows fall back to instant
+movement.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
