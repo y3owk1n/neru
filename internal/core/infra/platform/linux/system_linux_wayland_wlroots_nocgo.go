@@ -124,8 +124,8 @@ func wlrootsFocusedAppID() (string, bool) {
 	return "", false
 }
 
-func wlrootsFocusedAppTitle() (string, bool) {
-	return "", false
+func wlrootsFocusedAppIdentity() (string, string, bool) {
+	return "", "", false
 }
 
 func wlrootsSetCursor(point image.Point) error {

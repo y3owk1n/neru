@@ -1286,18 +1286,24 @@ int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len) {
 	return ok;
 }
 
-int neru_wlr_focused_app_title(NeruWlrootsClient *c, char *out, int out_len) {
-	if (!c || !out || out_len <= 0)
+int neru_wlr_focused_app_identity(
+    NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len) {
+	if (!c || !app_out || app_len <= 0 || !title_out || title_len <= 0)
 		return 0;
 
 	int ok = 0;
+	// Read app_id and title under a single lock so they always describe the same
+	// toplevel; a focus commit cannot interleave between them.
 	neru_wlr_toplevel_lock(c);
-	if (c->focused_title[0] != '\0') {
-		strncpy(out, c->focused_title, (size_t)(out_len - 1));
-		out[out_len - 1] = '\0';
+	if (c->focused_app_id[0] != '\0') {
+		strncpy(app_out, c->focused_app_id, (size_t)(app_len - 1));
+		app_out[app_len - 1] = '\0';
+		strncpy(title_out, c->focused_title, (size_t)(title_len - 1));
+		title_out[title_len - 1] = '\0';
 		ok = 1;
 	} else {
-		out[0] = '\0';
+		app_out[0] = '\0';
+		title_out[0] = '\0';
 	}
 	neru_wlr_toplevel_unlock(c);
 	return ok;

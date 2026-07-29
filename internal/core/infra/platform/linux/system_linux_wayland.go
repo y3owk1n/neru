@@ -79,10 +79,11 @@ func WaylandFocusedAppID() (string, bool) {
 	return wlrootsFocusedAppID()
 }
 
-// WaylandFocusedAppTitle returns the title of the focused toplevel (via
-// wlr-foreign-toplevel-management), used to disambiguate multiple windows of
-// the focused application, which share an app_id. The bool is false when no
-// title is available (GNOME/Mutter, nothing focused, or CGO disabled).
-func WaylandFocusedAppTitle() (string, bool) {
-	return wlrootsFocusedAppTitle()
+// WaylandFocusedAppIdentity returns the focused toplevel's app_id and title
+// together (via wlr-foreign-toplevel-management), read under a single lock so
+// they always describe the same window. The title disambiguates multiple
+// windows of the focused application, which share an app_id. The bool is false
+// when nothing is focused (GNOME/Mutter, or CGO disabled).
+func WaylandFocusedAppIdentity() (string, string, bool) {
+	return wlrootsFocusedAppIdentity()
 }

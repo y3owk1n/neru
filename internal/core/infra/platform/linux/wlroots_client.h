@@ -135,10 +135,12 @@ int neru_wlr_has_toplevel_manager(NeruWlrootsClient *c);
 // focused, or the focused toplevel has no app_id yet).
 int neru_wlr_focused_app_id(NeruWlrootsClient *c, char *out, int out_len);
 
-// neru_wlr_focused_app_title copies the title of the currently-activated
-// toplevel into out (NUL-terminated, capped at out_len). Returns 1 when a
-// non-empty focused title is available, 0 otherwise. Used to disambiguate
-// multiple windows of the focused application, which share an app_id.
-int neru_wlr_focused_app_title(NeruWlrootsClient *c, char *out, int out_len);
+// neru_wlr_focused_app_identity copies the app_id and title of the currently-
+// activated toplevel under a single lock, so the two always describe the same
+// window (no focus commit can interleave). Returns 1 when a focused app_id is
+// available, 0 otherwise. The title disambiguates multiple windows of the
+// focused application, which share an app_id.
+int neru_wlr_focused_app_identity(
+    NeruWlrootsClient *c, char *app_out, int app_len, char *title_out, int title_len);
 
 #endif /* WLROOTS_CLIENT_H */

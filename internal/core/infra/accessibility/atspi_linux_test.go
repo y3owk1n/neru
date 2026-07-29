@@ -88,13 +88,12 @@ func TestTitleMatchesFocused(t *testing.T) {
 func TestSelectFrame(t *testing.T) {
 	// Distinct refs so the test can tell which candidate was chosen.
 	var (
-		title    = accRef{Name: "title"}
-		fActive  = accRef{Name: "focused-active"}
-		fShowing = accRef{Name: "focused-showing"}
-		active   = accRef{Name: "active"}
-		activeA  = accRef{Name: "active-any"}
-		showing  = accRef{Name: "showing"}
-		shell    = accRef{Name: "shell"}
+		fTitle  = accRef{Name: "focused-title"}
+		fShow   = accRef{Name: "focused-showing"}
+		active  = accRef{Name: "active"}
+		activeA = accRef{Name: "active-any"}
+		showing = accRef{Name: "showing"}
+		shell   = accRef{Name: "shell"}
 	)
 
 	cases := []struct {
@@ -104,35 +103,57 @@ func TestSelectFrame(t *testing.T) {
 		wantOK bool
 	}{
 		{
-			name: "focused title match wins over everything",
+			name: "unique title match wins even with sibling windows",
 			cand: frameCandidates{
-				focusedTitleFrame: title, haveFocusedTitle: true,
-				focusedActiveShowing: fActive, haveFocusedActive: true,
+				focusedTitleFrame: fTitle, focusedTitleCount: 1,
+				focusedShowingFrame: fShow, focusedShowingCount: 3,
 				activeShowing: active, haveActiveShowing: true,
 				haveFocused: true,
 			},
-			want: title, wantOK: true,
+			want: fTitle, wantOK: true,
 		},
 		{
-			name: "focused active beats focused showing",
+			name: "single showing window is unambiguous without a title match",
 			cand: frameCandidates{
-				focusedActiveShowing: fActive, haveFocusedActive: true,
-				focusedShowing: fShowing, haveFocusedShowing: true,
-				haveFocused: true,
-			},
-			want: fActive, wantOK: true,
-		},
-		{
-			name: "focused showing beats cross-app active",
-			cand: frameCandidates{
-				focusedShowing: fShowing, haveFocusedShowing: true,
+				focusedShowingFrame: fShow, focusedShowingCount: 1,
 				activeShowing: active, haveActiveShowing: true,
 				haveFocused: true,
 			},
-			want: fShowing, wantOK: true,
+			want: fShow, wantOK: true,
 		},
 		{
-			name: "KDE unmatched focus uses active frame",
+			name: "ambiguous title (duplicate siblings) on KDE uses ACTIVE",
+			cand: frameCandidates{
+				focusedTitleFrame: fTitle, focusedTitleCount: 2,
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				activeShowing: active, haveActiveShowing: true,
+				haveFocused: true, activeStateIdentifiesFocus: true,
+			},
+			want: active, wantOK: true,
+		},
+		{
+			name: "ambiguous title on wlroots returns nothing (no sibling guess)",
+			cand: frameCandidates{
+				focusedTitleFrame: fTitle, focusedTitleCount: 2,
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				activeShowing: active, haveActiveShowing: true,
+				haveFocused: true, activeStateIdentifiesFocus: false,
+			},
+			want: accRef{}, wantOK: false,
+		},
+		{
+			name: "multi-window no title match on wlroots returns nothing",
+			cand: frameCandidates{
+				focusedShowingFrame: fShow, focusedShowingCount: 2,
+				activeShowing: active, haveActiveShowing: true,
+				showingAny: showing, haveShowingAny: true,
+				shellShowing: shell, haveShell: true,
+				haveFocused: true, activeStateIdentifiesFocus: false,
+			},
+			want: accRef{}, wantOK: false,
+		},
+		{
+			name: "name-mismatched app (no focused frame) on KDE uses ACTIVE",
 			cand: frameCandidates{
 				activeShowing: active, haveActiveShowing: true,
 				showingAny: showing, haveShowingAny: true,
@@ -142,21 +163,11 @@ func TestSelectFrame(t *testing.T) {
 			want: active, wantOK: true,
 		},
 		{
-			name: "KDE unmatched focus with no active returns nothing (not showing/shell)",
+			name: "KDE unmatched focus with no ACTIVE returns nothing (not showing/shell)",
 			cand: frameCandidates{
 				showingAny: showing, haveShowingAny: true,
 				shellShowing: shell, haveShell: true,
 				haveFocused: true, activeStateIdentifiesFocus: true,
-			},
-			want: accRef{}, wantOK: false,
-		},
-		{
-			name: "wlroots unmatched focus returns nothing even with active frame",
-			cand: frameCandidates{
-				activeShowing: active, haveActiveShowing: true,
-				showingAny: showing, haveShowingAny: true,
-				shellShowing: shell, haveShell: true,
-				haveFocused: true, activeStateIdentifiesFocus: false,
 			},
 			want: accRef{}, wantOK: false,
 		},

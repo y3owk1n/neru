@@ -196,11 +196,11 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 		zap.String("app", c.name(conn, accRef{Name: frame.Name, Path: atspiRootPath})),
 		zap.String("frameTitle", c.name(conn, frame)))
 
-	// Record the compositor's focused app_id and title at selection time so
-	// ClickableNodes can detect a focus change (including a same-application
-	// window switch) before walking or offsetting the frame.
-	focusedAppID, _ := linux.WaylandFocusedAppID()
-	focusedTitle, _ := linux.WaylandFocusedAppTitle()
+	// Record the compositor's focused app_id and title (read together so they
+	// describe one window) at selection time, so ClickableNodes can detect a
+	// focus change — including a same-application window switch — before walking
+	// or offsetting the frame.
+	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
 
 	return &atspiWindow{
 		ref:          frame,
@@ -512,18 +512,12 @@ func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
 // cannot distinguish sibling windows, so a switch between them is not detected —
 // there is no distinguishing information to use.
 func (c *ATSPIClient) focusStableSince(selectedAppID, selectedTitle string) bool {
-	currentAppID, ok := linux.WaylandFocusedAppID()
+	currentAppID, currentTitle, ok := linux.WaylandFocusedAppIdentity()
 	if !ok {
 		return true
 	}
 
-	if currentAppID != selectedAppID {
-		return false
-	}
-
-	currentTitle, _ := linux.WaylandFocusedAppTitle()
-
-	return currentTitle == selectedTitle
+	return currentAppID == selectedAppID && currentTitle == selectedTitle
 }
 
 // children returns the AT-SPI children of an accessible. It prefers the bulk
@@ -686,24 +680,25 @@ func isNonTargetSurfaceApp(name string) bool {
 func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
-	// Compositor-reported focused app_id (Wayland wlroots/KWin); empty on X11,
-	// GNOME, or when nothing is focused yet. The focused title disambiguates
-	// multiple windows of the focused application, which share an app_id.
-	focusedAppID, haveFocused := linux.WaylandFocusedAppID()
-	focusedTitle, haveFocusedTitle := linux.WaylandFocusedAppTitle()
+	// Compositor-reported focused app_id and title (read together so they
+	// describe one window); empty on X11, GNOME, or when nothing is focused yet.
+	// The title disambiguates multiple windows of the focused application, which
+	// share an app_id.
+	focusedAppID, focusedTitle, haveFocused := linux.WaylandFocusedAppIdentity()
+	haveFocusedTitle := focusedTitle != ""
 
 	var (
-		// Frames whose application matches the compositor's focused app_id — the
-		// most reliable signal on Wayland, so they win over the ACTIVE heuristic.
-		// When that app has several visible windows, prefer the one whose title
-		// matches the focused toplevel's title, then the one the toolkit marks
-		// ACTIVE, so a background window of the focused app cannot win.
-		focusedTitleFrame     accRef
-		haveFocusedTitleMatch bool
-		focusedActiveShowing  accRef
-		haveFocusedActive     bool
-		focusedShowing        accRef
-		haveFocusedShowing    bool
+		// Frames of the application the compositor reports as focused. A window
+		// of that app is only chosen when uniquely identified: exactly one of its
+		// windows matches the focused toplevel's title, or it has a single showing
+		// window. When several windows share (or lack) the title, no unique match
+		// exists and selection defers to the compositor ACTIVE state (reliable
+		// only on KDE) rather than guessing a sibling.
+		focusedTitleFrame   accRef
+		focusedTitleCount   int // windows of the focused app matching the title
+		focusedShowingFrame accRef
+		haveFocusedShowing  bool
+		focusedShowingCount int // showing windows of the focused app
 
 		activeShowing accRef
 		haveAS        bool
@@ -754,26 +749,23 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 				continue
 			}
 
-			// The application the compositor reports as focused wins outright,
-			// regardless of the (unreliable) cross-app AT-SPI ACTIVE state. Among
-			// that app's visible windows, prefer the one whose title matches the
-			// focused toplevel, then the one it marks ACTIVE, then the first
-			// showing one.
+			// Count the focused application's showing windows and how many match
+			// the focused toplevel's title, so selectFrame can tell a unique
+			// identification from an ambiguous one.
 			if matchesFocused && showing {
-				if haveFocusedTitle && !haveFocusedTitleMatch &&
-					titleMatchesFocused(c.name(conn, frame), focusedTitle) {
-					focusedTitleFrame = frame
-					haveFocusedTitleMatch = true
-				}
-
-				if active && !haveFocusedActive {
-					focusedActiveShowing = frame
-					haveFocusedActive = true
-				}
+				focusedShowingCount++
 
 				if !haveFocusedShowing {
-					focusedShowing = frame
+					focusedShowingFrame = frame
 					haveFocusedShowing = true
+				}
+
+				if haveFocusedTitle && titleMatchesFocused(c.name(conn, frame), focusedTitle) {
+					focusedTitleCount++
+
+					if focusedTitleCount == 1 {
+						focusedTitleFrame = frame
+					}
 				}
 			}
 
@@ -795,21 +787,19 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 	}
 
 	return selectFrame(frameCandidates{
-		focusedTitleFrame:    focusedTitleFrame,
-		haveFocusedTitle:     haveFocusedTitleMatch,
-		focusedActiveShowing: focusedActiveShowing,
-		haveFocusedActive:    haveFocusedActive,
-		focusedShowing:       focusedShowing,
-		haveFocusedShowing:   haveFocusedShowing,
-		activeShowing:        activeShowing,
-		haveActiveShowing:    haveAS,
-		activeAny:            activeAny,
-		haveActiveAny:        haveAA,
-		showingAny:           showingAny,
-		haveShowingAny:       haveSA,
-		shellShowing:         shellShowing,
-		haveShell:            haveShell,
-		haveFocused:          haveFocused,
+		focusedTitleFrame:   focusedTitleFrame,
+		focusedTitleCount:   focusedTitleCount,
+		focusedShowingFrame: focusedShowingFrame,
+		focusedShowingCount: focusedShowingCount,
+		activeShowing:       activeShowing,
+		haveActiveShowing:   haveAS,
+		activeAny:           activeAny,
+		haveActiveAny:       haveAA,
+		showingAny:          showingAny,
+		haveShowingAny:      haveSA,
+		shellShowing:        shellShowing,
+		haveShell:           haveShell,
+		haveFocused:         haveFocused,
 		// The AT-SPI ACTIVE state reliably marks the compositor-focused window
 		// only on KWin/KDE; on wlroots it is set inconsistently across frames.
 		activeStateIdentifiesFocus: platform.DetectLinuxBackend() == platform.BackendWaylandKDE,
@@ -820,13 +810,12 @@ func (c *ATSPIClient) findActiveFrame(conn *dbus.Conn) (accRef, bool) {
 // by how reliably each identifies the focused window, plus the compositor
 // signals needed to choose between them.
 type frameCandidates struct {
-	// Matched the compositor's focused app_id, in preference order.
-	focusedTitleFrame    accRef // title also matched the focused toplevel
-	haveFocusedTitle     bool
-	focusedActiveShowing accRef // marked ACTIVE by its own toolkit
-	haveFocusedActive    bool
-	focusedShowing       accRef // first showing frame of the focused app
-	haveFocusedShowing   bool
+	// Frames of the compositor-focused application, with the counts needed to
+	// tell a unique identification from an ambiguous one.
+	focusedTitleFrame   accRef // first window whose title matched the focused toplevel
+	focusedTitleCount   int    // windows of the focused app matching that title
+	focusedShowingFrame accRef // first showing window of the focused app
+	focusedShowingCount int    // showing windows of the focused app
 
 	// Cross-application ACTIVE/SHOWING fallbacks (reliable only on KDE).
 	activeShowing     accRef
@@ -852,20 +841,23 @@ type frameCandidates struct {
 // unit-tested without a live AT-SPI bus.
 func selectFrame(cand frameCandidates) (accRef, bool) {
 	switch {
-	case cand.haveFocusedTitle:
+	case cand.focusedTitleCount == 1:
+		// Exactly one window of the focused app carries the focused toplevel's
+		// title — an unambiguous match (works on any compositor).
 		return cand.focusedTitleFrame, true
-	case cand.haveFocusedActive:
-		return cand.focusedActiveShowing, true
-	case cand.haveFocusedShowing:
-		return cand.focusedShowing, true
+	case cand.focusedShowingCount == 1:
+		// The focused app has a single showing window, so it is unambiguous even
+		// without a title match.
+		return cand.focusedShowingFrame, true
 	case cand.haveFocused:
-		// A focused app_id was reported but no AT-SPI frame of that application
-		// matched (name differs from the app_id, or it exposes no AT-SPI). On
-		// KWin/KDE the ACTIVE state still marks the focused window, so an ACTIVE
-		// frame is it (catches name-mismatched apps such as GTK "Files" vs
-		// org.gnome.Nautilus). When no frame is ACTIVE the focused app exposes no
-		// AT-SPI, so return nothing rather than an unrelated SHOWING or shell
-		// window. On wlroots the ACTIVE state is unreliable, so return nothing.
+		// A focused app_id was reported but its window could not be uniquely
+		// identified — no AT-SPI frame matched (name differs from the app_id, or
+		// it exposes no AT-SPI), or several sibling windows share/lack the title.
+		// On KWin/KDE the ACTIVE state still marks the focused window, so an
+		// ACTIVE frame is it (covers name-mismatched apps such as GTK "Files" vs
+		// org.gnome.Nautilus and duplicate-title siblings). On wlroots ACTIVE is
+		// unreliable, so return nothing rather than guess a sibling or a
+		// background window.
 		if cand.activeStateIdentifiesFocus && cand.haveActiveShowing {
 			return cand.activeShowing, true
 		}

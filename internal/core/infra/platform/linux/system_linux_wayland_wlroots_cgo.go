@@ -192,14 +192,15 @@ func wlrootsFocusedAppID() (string, bool) {
 // wlrootsFocusedTitleBufferSize matches NERU_TITLE_LEN in wlroots_client.h.
 const wlrootsFocusedTitleBufferSize = 512
 
-// wlrootsFocusedAppTitle returns the title of the currently activated (focused)
-// toplevel. The bool is false when no manager is present or nothing is focused.
-// The title disambiguates multiple windows of the focused application, which
-// share an app_id.
-func wlrootsFocusedAppTitle() (string, bool) {
+// wlrootsFocusedAppIdentity returns the app_id and title of the currently
+// activated (focused) toplevel, read together under a single lock so they
+// always describe the same window. The bool is false when no manager is present
+// or nothing is focused. The title disambiguates multiple windows of the
+// focused application, which share an app_id.
+func wlrootsFocusedAppIdentity() (string, string, bool) {
 	err := ensureWlrootsState()
 	if err != nil {
-		return "", false
+		return "", "", false
 	}
 
 	globalWlrootsState.mu.RLock()
@@ -207,17 +208,26 @@ func wlrootsFocusedAppTitle() (string, bool) {
 
 	client := globalWlrootsState.client
 	if client == nil {
-		return "", false
+		return "", "", false
 	}
 
-	buf := make([]C.char, wlrootsFocusedTitleBufferSize)
-	bufLen := C.int(wlrootsFocusedTitleBufferSize)
+	appBuf := make([]C.char, wlrootsFocusedAppIDBufferSize)
+	titleBuf := make([]C.char, wlrootsFocusedTitleBufferSize)
+	appLen := C.int(wlrootsFocusedAppIDBufferSize)
+	titleLen := C.int(wlrootsFocusedTitleBufferSize)
 
-	if C.neru_wlr_focused_app_title(client, &buf[0], bufLen) == 0 { //nolint:nlreturn
-		return "", false
+	found := C.neru_wlr_focused_app_identity( //nolint:nlreturn
+		client,
+		&appBuf[0],
+		appLen,
+		&titleBuf[0],
+		titleLen, //nolint:nlreturn
+	)
+	if found == 0 {
+		return "", "", false
 	}
 
-	return C.GoString(&buf[0]), true
+	return C.GoString(&appBuf[0]), C.GoString(&titleBuf[0]), true
 }
 
 // wlrootsSetCursor mirrors an externally-injected pointer position (e.g. a
