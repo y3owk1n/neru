@@ -194,6 +194,13 @@ var validNamedKeys = map[string]bool{
 	"F18": true,
 	"F19": true,
 	"F20": true,
+	// F21-F24 have no macOS virtual keycode (Carbon stops at F20), so they are
+	// Linux/Windows only. They stay in the shared set so a config file can be
+	// shared across platforms without failing validation.
+	"F21": true,
+	"F22": true,
+	"F23": true,
+	"F24": true,
 }
 
 // validNamedKeysLower is a precomputed lowercase lookup for IsValidNamedKey.

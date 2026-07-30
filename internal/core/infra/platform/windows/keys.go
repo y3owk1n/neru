@@ -9,6 +9,7 @@ package windows
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -40,6 +41,14 @@ const (
 	vkControl  = 0x11
 	vkMenu     = 0x12
 	vkShift    = 0x10
+
+	// Function keys occupy a contiguous VK range: VK_F1 (0x70) through
+	// VK_F24 (0x87). They are handled arithmetically rather than as 24
+	// separate constants.
+	vkF1              = 0x70
+	vkF24             = 0x87
+	functionKeyCount  = vkF24 - vkF1 + 1
+	functionKeyPrefix = "f"
 
 	// mapvkVkToChar is MapVirtualKey's MAPVK_VK_TO_CHAR mode: translate a
 	// virtual-key code to its unshifted character for the active keyboard
@@ -145,6 +154,10 @@ func KeyNameFromVirtualKey(virtualKey uint32) string {
 		if virtualKey >= 0x41 && virtualKey <= 0x5A {
 			return strings.ToLower(string(rune(virtualKey)))
 		}
+
+		if name := functionKeyName(virtualKey); name != "" {
+			return name
+		}
 		// OEM/punctuation keys (e.g. "`", "/", "-") are layout-dependent: the
 		// same character lives on different VK codes across keyboard layouts.
 		// Translate via the active layout so hotkeys like "`" match regardless
@@ -155,6 +168,32 @@ func KeyNameFromVirtualKey(virtualKey uint32) string {
 	}
 
 	return ""
+}
+
+// functionKeyName returns the Neru display name ("F1" - "F24") for a function
+// key virtual-key code, or "" when the code is not in the function key range.
+func functionKeyName(vk uint32) string {
+	if vk < vkF1 || vk > vkF24 {
+		return ""
+	}
+
+	return "F" + strconv.Itoa(int(vk-vkF1)+1)
+}
+
+// functionKeyVirtualKey resolves a lowercase function key name ("f1" - "f24")
+// to its virtual-key code. The second result is false for any other name.
+func functionKeyVirtualKey(name string) (uint32, bool) {
+	digits, ok := strings.CutPrefix(name, functionKeyPrefix)
+	if !ok || digits == "" {
+		return 0, false
+	}
+
+	index, err := strconv.Atoi(digits)
+	if err != nil || index < 1 || index > functionKeyCount {
+		return 0, false
+	}
+
+	return uint32(vkF1 + index - 1), true
 }
 
 // charNameFromVirtualKey maps a virtual-key code to its unshifted printable
@@ -267,7 +306,9 @@ func ModifierNameFromVirtualKey(virtualKey uint32) string {
 }
 
 func nameToVirtualKey(name string) (uint32, bool) {
-	switch strings.ToLower(strings.TrimSpace(name)) {
+	lowered := strings.ToLower(strings.TrimSpace(name))
+
+	switch lowered {
 	case "return", "enter":
 		return vkReturn, true
 	case "space":
@@ -287,6 +328,10 @@ func nameToVirtualKey(name string) (uint32, bool) {
 	case "down":
 		return vkDown, true
 	default:
+		if vk, ok := functionKeyVirtualKey(lowered); ok {
+			return vk, true
+		}
+
 		if len(name) == 1 {
 			keyRune := rune(name[0])
 			if unicode.IsLetter(keyRune) {

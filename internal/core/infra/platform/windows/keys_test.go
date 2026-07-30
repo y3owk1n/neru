@@ -2,7 +2,11 @@
 
 package windows //nolint:testpackage // exercises unexported key translation helpers directly
 
-import "testing"
+import (
+	"strconv"
+	"strings"
+	"testing"
+)
 
 func TestKeyComboFromBaseAndModifiers(t *testing.T) {
 	t.Parallel()
@@ -60,6 +64,50 @@ func TestKeyNameFromVirtualKeyLetters(t *testing.T) {
 
 	if got := ModifierNameFromVirtualKey(vkLShift); got != modNameShift {
 		t.Fatalf("ModifierNameFromVirtualKey(vkLShift) = %q, want shift", got)
+	}
+}
+
+func TestFunctionKeyRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	// F1-F24 are contiguous from VK_F1, so the whole range must round-trip
+	// between the hook's name lookup and hotkey parsing. F21-F24 in particular
+	// exist only on Windows and Linux (macOS has no virtual keycode for them).
+	for index := 1; index <= functionKeyCount; index++ {
+		want := "F" + strconv.Itoa(index)
+		wantVK := uint32(vkF1 + index - 1)
+
+		if got := KeyNameFromVirtualKey(wantVK); got != want {
+			t.Fatalf("KeyNameFromVirtualKey(%#x) = %q, want %q", wantVK, got, want)
+		}
+
+		// Config files and the CLI both accept lowercase spellings.
+		for _, spelling := range []string{want, strings.ToLower(want)} {
+			virtualKey, resolved := nameToVirtualKey(spelling)
+			if !resolved || virtualKey != wantVK {
+				t.Fatalf("nameToVirtualKey(%q) = %#x ok=%v, want %#x",
+					spelling, virtualKey, resolved, wantVK)
+			}
+		}
+	}
+
+	// Function keys are not modifiers and must not be reported as such.
+	if got := ModifierNameFromVirtualKey(vkF1); got != "" {
+		t.Fatalf("ModifierNameFromVirtualKey(vkF1) = %q, want empty", got)
+	}
+}
+
+func TestFunctionKeyOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"f0", "f25", "f", "f1x", "fa"} {
+		if virtualKey, resolved := functionKeyVirtualKey(name); resolved {
+			t.Errorf("functionKeyVirtualKey(%q) = %#x ok=true, want false", name, virtualKey)
+		}
+	}
+
+	if got := functionKeyName(vkF24 + 1); got != "" {
+		t.Errorf("functionKeyName(%#x) = %q, want empty", vkF24+1, got)
 	}
 }
 
