@@ -30,10 +30,18 @@ func (n *niriOriginSource) start() {}
 
 // niriWindow mirrors the fields of `niri msg -j focused-window` we use.
 type niriWindow struct {
-	Layout struct {
+	WindowID int `json:"id"`
+	Layout   struct {
 		WindowSize             []int     `json:"window_size"`                //nolint:tagliatelle // niri wire format is snake_case.
 		TilePosInWorkspaceView []float64 `json:"tile_pos_in_workspace_view"` //nolint:tagliatelle // niri wire format is snake_case.
 	} `json:"layout"`
+}
+
+// niriWindow mirrors the fields of `niri msg -j window-geometries` we use.
+type niriWindowGeometry struct {
+	WindowID int `json:"id"`
+	X        int `json:"x"`
+	Y        int `json:"y"`
 }
 
 // niriOutput mirrors the fields of `niri msg -j focused-output` we use.
@@ -59,9 +67,12 @@ func (n *niriOriginSource) originFor(frameW, frameH int) (int, int, bool) {
 }
 
 // niriComputeOrigin derives the focused window's screen origin from niri's
-// focused-window + focused-output data. It reports no origin for tiled windows
-// (tile_pos_in_workspace_view absent — niri#2381) and when the window size does
-// not match the AT-SPI frame (a focus change raced the query).
+// focused-window + focused-output data. It reports no origin for windows when
+// the window size does not match the AT-SPI frame (a focus change raced the
+// query).
+//
+// For tiled windows, it uses `niri msg -j window-geometries`
+// (https://github.com/niri-wm/niri/pull/3305)
 func niriComputeOrigin(
 	win niriWindow,
 	out niriOutput,
@@ -70,12 +81,27 @@ func niriComputeOrigin(
 ) (int, int, bool) {
 	tile := win.Layout.TilePosInWorkspaceView
 	if len(tile) < coordPairLen {
-		logger.Debug("niri origin unavailable: tiled window (niri#2381)")
+		// only query for geometries if the window is tiled
+		var geometries []niriWindowGeometry
+		if !compositorJSON(&geometries, "niri", "msg", "-j", "window-geometries") {
+			return 0, 0, false
+		}
 
-		return 0, 0, false
+		originX := 0
+
+		originY := 0
+		for _, geometry := range geometries {
+			if geometry.WindowID == win.WindowID {
+				originX = geometry.X
+				originY = geometry.Y
+			}
+		}
+
+		return originX, originY, true
 	}
 
 	if len(win.Layout.WindowSize) < coordPairLen ||
+		// window is floating
 		absInt(win.Layout.WindowSize[0]-frameW) > windowOriginSizeTolerance ||
 		absInt(win.Layout.WindowSize[1]-frameH) > windowOriginSizeTolerance {
 		logger.Debug("niri origin rejected: window size does not match AT-SPI frame",
