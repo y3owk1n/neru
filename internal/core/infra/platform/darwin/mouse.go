@@ -62,10 +62,14 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 }
 
 // EnsureMouseUp releases every mouse button Neru is currently holding down.
+//
+// MouseUp owns the bookkeeping: it clears a button only once the release has
+// actually been posted. A button whose release fails therefore stays recorded as
+// held, so the next release retries it, rather than being forgotten while the
+// window server still holds it — which would leave a toggle pressing it again.
 func EnsureMouseUp() {
 	for _, button := range heldButtons.HeldButtons() {
 		_ = MouseUp(button)
-		heldButtons.Clear(button)
 	}
 }
 
