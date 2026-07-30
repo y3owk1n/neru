@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -229,16 +230,28 @@ func TestHintService_ShowHints(t *testing.T) {
 						roles[role] = true
 					}
 
-					if !roles[element.Role("AXButton")] {
-						t.Error("expected global role AXButton to be present")
+					// The filter carries native role names for the running
+					// platform, so expectations are resolved the same way.
+					wantGlobal := element.ResolveRolesForCurrentPlatform([]string{"button"}).Native
+					wantApp := element.ResolveRolesForCurrentPlatform([]string{"heading"}).Native
+
+					for _, role := range wantGlobal {
+						if !roles[element.Role(role)] {
+							t.Errorf("expected global role %q to be present", role)
+						}
 					}
 
-					if !roles[element.Role("AXHeading")] {
-						t.Error("expected app-specific role AXHeading to be present")
+					for _, role := range wantApp {
+						if !roles[element.Role(role)] {
+							t.Errorf("expected app-specific role %q to be present", role)
+						}
 					}
 
-					if len(roles) != 2 {
-						t.Errorf("expected exactly 2 roles, got %v", filter.Roles)
+					if len(roles) != len(wantGlobal)+len(wantApp) {
+						t.Errorf(
+							"expected exactly %d roles, got %v",
+							len(wantGlobal)+len(wantApp), filter.Roles,
+						)
 					}
 
 					return testElements, nil
@@ -250,11 +263,11 @@ func TestHintService_ShowHints(t *testing.T) {
 				return gen
 			},
 			config: config.HintsConfig{
-				ClickableRoles: []string{"AXButton"},
+				ClickableRoles: []string{"button"},
 				AppConfigs: []config.AppConfig{
 					{
 						BundleID:            "net.imput.helium",
-						AdditionalClickable: []string{"AXHeading"},
+						AdditionalClickable: []string{"heading"},
 					},
 				},
 			},
@@ -511,7 +524,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		mockSystem,
 		generator,
 		config.HintsConfig{
-			ClickableRoles:                []string{string(element.RoleButton)},
+			ClickableRoles:                []string{string(element.SemanticButton)},
 			IncludeMenubarHints:           true,
 			AdditionalMenubarHintsTargets: []string{"Clock"},
 			IncludeDockHints:              true,
@@ -921,5 +934,148 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 
 	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
 		t.Errorf("expected invalid input error, got: %v", err)
+	}
+}
+
+// TestHintService_GenerateHintsRoleFilterResolvingToNothing pins the behavior
+// of a role filter that is configured but resolves to no native role on this
+// platform — for example a config carrying only Linux entries, run on macOS.
+//
+// An empty ports.ElementFilter.Roles means "match every role", so the naive
+// outcome is that an unusable filter hints *everything*. It must hint nothing.
+func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
+	testElements := []*element.Element{
+		mustNewElement("elem1", image.Rect(10, 10, 50, 50)),
+		mustNewElement("elem2", image.Rect(60, 10, 100, 50)),
+	}
+
+	tests := []struct {
+		name        string
+		roles       []string
+		filterRoles []string
+	}{
+		{
+			name:  "configured roles all belong to another platform",
+			roles: []string{"atspi:push button", "uia:Button"},
+		},
+		{
+			name:        "role flag entries are unresolvable",
+			roles:       []string{string(element.SemanticButton)},
+			filterRoles: []string{"AXButton"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := &mocks.MockAccessibilityPort{}
+			mockAcc.ClickableElementsFunc = func(
+				_ context.Context,
+				_ ports.ElementFilter,
+			) ([]*element.Element, error) {
+				return testElements, nil
+			}
+
+			generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+			service := services.NewHintService(
+				mockAcc,
+				&mocks.MockOverlayPort{},
+				&mocks.MockSystemPort{},
+				generator,
+				config.HintsConfig{ClickableRoles: testCase.roles},
+				logger.Get(),
+				nil,
+			)
+
+			hints, err := service.GenerateHints(
+				context.Background(),
+				testCase.filterRoles,
+				nil,
+				"com.example.app",
+				"",
+				"",
+				false,
+			)
+			if err != nil {
+				t.Fatalf("GenerateHints() unexpected error: %v", err)
+			}
+
+			if len(hints) != 0 {
+				t.Errorf(
+					"GenerateHints() returned %d hints for an unusable role filter, want 0",
+					len(hints),
+				)
+			}
+		})
+	}
+}
+
+// TestHintService_GenerateHintsRoleFlagOverridesConfig covers the happy path of
+// `neru hints --role ...`: the flag replaces the configured roles entirely and
+// is resolved through the same vocabulary, so it accepts semantic names and
+// vocabulary-prefixed native names alike.
+func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
+	testElements := []*element.Element{
+		mustNewElement("elem1", image.Rect(10, 10, 50, 50)),
+	}
+
+	var captured []element.Role
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		captured = filter.Roles
+
+		return testElements, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{},
+		generator,
+		config.HintsConfig{
+			ClickableRoles: []string{string(element.SemanticButton)},
+		},
+		logger.Get(),
+		nil,
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(),
+		[]string{string(element.SemanticLink)},
+		nil,
+		"com.example.app",
+		"",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	want := element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticLink)},
+	).Native
+	if len(want) == 0 {
+		t.Skip("link has no native role on this platform")
+	}
+
+	for _, role := range want {
+		if !slices.Contains(captured, element.Role(role)) {
+			t.Errorf("filter.Roles = %v, missing overridden role %q", captured, role)
+		}
+	}
+
+	// The configured role must not survive the override.
+	for _, role := range element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticButton)},
+	).Native {
+		if slices.Contains(captured, element.Role(role)) {
+			t.Errorf("filter.Roles = %v, configured role %q leaked past the override",
+				captured, role)
+		}
 	}
 }

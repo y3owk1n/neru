@@ -21,22 +21,29 @@ additional_menubar_hints_targets = [
     "com.y3owk1n.neru",
 ]
 clickable_roles = [
-    "AXButton",
-	"AXMenuButton",
-    "AXComboBox",
-    "AXCheckBox",
-    "AXRadioButton",
-    "AXLink",
-    "AXPopUpButton",
-    "AXTextField",
-    "AXSlider",
-    "AXTabButton",
-    "AXSwitch",
-    "AXDisclosureTriangle",
-    "AXTextArea",
-    "AXMenuItem",
-    "AXCell",
-    "AXRow",
+    ## Semantic role names. They resolve to each platform's native
+    ## accessibility vocabulary, so this list works on macOS, Linux and Windows.
+    ## Run `neru roles` for the full vocabulary and how it resolves here.
+    "button",
+    "menu_button",
+    "popup_button",
+    "combo_box",
+    "checkbox",
+    "radio",
+    "switch",
+    "disclosure",
+    "link",
+    "text_field",
+    "text_area",
+    "slider",
+    "tab",
+    "menu_item",
+    "cell",
+    "row",
+    ## Native roles are addressed through their vocabulary prefix
+    ## (`ax:` macOS, `atspi:` Linux, `uia:` Windows). Entries for other
+    ## platforms are ignored rather than rejected.
+    "ax:AXGenericElement",
 ]
 ignore_clickable_check = false
 
@@ -53,7 +60,7 @@ ignore_clickable_check = false
 ## macOS example:
 # [[hints.app_configs]]
 # bundle_id = "com.brave.Browser"
-# additional_clickable_roles = ["AXTabGroup"]
+# additional_clickable_roles = ["ax:AXTabGroup"]
 # ignore_clickable_check = false
 # hotkeys = {
 # 	"Return" = "action left_click",

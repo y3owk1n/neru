@@ -11,10 +11,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 const (
-	isDarwinRuntime = runtime.GOOS == "darwin"
+	goosDarwin      = "darwin"
+	isDarwinRuntime = runtime.GOOS == goosDarwin
 
 	testBundleIDA       = "com.example.app"
 	testBundleIDB       = "com.other.app"
@@ -152,7 +154,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{TestRoleButton, "AXMenuBarItem"},
+			want:     []string{TestRoleButton, "menubar_item"},
 		},
 		{
 			name: "with dock hints",
@@ -163,7 +165,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{TestRoleButton, "AXDockItem"},
+			want:     []string{TestRoleButton, "dock_item"},
 		},
 		{
 			name: "with both menubar and dock hints",
@@ -175,7 +177,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				},
 			},
 			bundleID: testBundleIDA,
-			want:     []string{TestRoleButton, "AXMenuBarItem", "AXDockItem"},
+			want:     []string{TestRoleButton, "menubar_item", "dock_item"},
 		},
 		{
 			name: "empty roles filtered out",
@@ -211,23 +213,29 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 					AppConfigs: []config.AppConfig{
 						{
 							BundleID:            "com.chrome.app",
-							AdditionalClickable: []string{"AXTabGroup"},
+							AdditionalClickable: []string{TestRoleTabGroup},
 						},
 						{
 							BundleID:            "com.firefox.app",
-							AdditionalClickable: []string{"AXWebArea"},
+							AdditionalClickable: []string{TestRoleWebArea},
 						},
 					},
 				},
 			},
 			bundleID: "com.chrome.app",
-			want:     []string{TestRoleButton, TestRoleLink, "AXTabGroup"},
+			want:     []string{TestRoleButton, TestRoleLink, TestRoleTabGroup},
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			got := testCase.config.ClickableRolesForApp(testCase.bundleID)
+
+			// ClickableRolesForApp returns native role names for the running
+			// platform, so the expectation is resolved the same way. This keeps
+			// the assertion about merge behavior rather than about which
+			// platform the test happens to run on.
+			want := element.ResolveRolesForCurrentPlatform(testCase.want).Native
 
 			// Convert to maps for comparison since order doesn't matter
 			gotMap := make(map[string]bool)
@@ -236,7 +244,7 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 			}
 
 			wantMap := make(map[string]bool)
-			for _, role := range testCase.want {
+			for _, role := range want {
 				wantMap[role] = true
 			}
 
@@ -244,10 +252,10 @@ func TestConfig_ClickableRolesForApp(t *testing.T) {
 				t.Errorf(
 					"ClickableRolesForApp() length = %d, want %d",
 					len(got),
-					len(testCase.want),
+					len(want),
 				)
 				t.Errorf("Got: %v", got)
-				t.Errorf("Want: %v", testCase.want)
+				t.Errorf("Want: %v", want)
 
 				return
 			}
@@ -995,5 +1003,72 @@ func TestNormalizeKeyForComparison_CJKInputMethodScenarios(t *testing.T) {
 					testCase.desc, testCase.input, got, testCase.expected)
 			}
 		})
+	}
+}
+
+// TestConfig_ClickableRolesForApp_MixedVocabulary covers app-config merging in
+// the presence of the role vocabulary. Merging happens on the entries as
+// written, resolution afterwards, so two different entries can legitimately
+// expand onto the same native role and must not produce duplicates.
+func TestConfig_ClickableRolesForApp_MixedVocabulary(t *testing.T) {
+	cfg := config.Config{
+		Hints: config.HintsConfig{
+			ClickableRoles: []string{TestRoleTextField, TestRoleButton},
+			AppConfigs: []config.AppConfig{
+				{
+					BundleID: testBundleIDA,
+					AdditionalClickable: []string{
+						// Resolves onto the same native role as text_field on
+						// Linux and Windows; distinct only on macOS.
+						"text_area",
+						// Already in the base list: must not duplicate.
+						TestRoleButton,
+						// Applies on exactly one platform.
+						"ax:AXGenericElement",
+						"atspi:page tab list",
+						"uia:Custom",
+					},
+				},
+			},
+		},
+	}
+
+	got := cfg.ClickableRolesForApp(testBundleIDA)
+
+	seen := make(map[string]int, len(got))
+	for _, role := range got {
+		seen[role]++
+	}
+
+	for role, count := range seen {
+		if count > 1 {
+			t.Errorf("ClickableRolesForApp() returned %q %d times, want once", role, count)
+		}
+	}
+
+	// Whatever the platform, the base roles must survive the merge.
+	for _, want := range element.ResolveRolesForCurrentPlatform(
+		[]string{TestRoleTextField, TestRoleButton},
+	).Native {
+		if seen[want] == 0 {
+			t.Errorf("ClickableRolesForApp() = %v, missing base role %q", got, want)
+		}
+	}
+
+	// Exactly one of the three prefixed entries applies here; the other two
+	// must resolve to nothing rather than leaking across platforms.
+	exclusive := map[string]string{
+		goosDarwin: "AXGenericElement",
+		"linux":    "page tab list",
+		"windows":  "Custom",
+	}
+
+	for goos, name := range exclusive {
+		switch {
+		case goos == runtime.GOOS && seen[name] == 0:
+			t.Errorf("ClickableRolesForApp() = %v, missing platform-native role %q", got, name)
+		case goos != runtime.GOOS && seen[name] > 0:
+			t.Errorf("ClickableRolesForApp() = %v, leaked %s-only role %q", got, goos, name)
+		}
 	}
 }

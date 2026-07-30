@@ -129,7 +129,8 @@ Uses the macOS Accessibility API (`axtree`) or Vision Framework (`vision`) to di
 
 `--hide-on-empty-search` -- Hide all hints when search is empty (requires `--search`).
 
-`--role <role>` -- Filter by AX role. Comma-separated (e.g. `AXButton,AXLink`).
+`--role <role>` -- Filter by role. Comma-separated (e.g. `button,link`). Accepts the same
+vocabulary as `hints.clickable_roles`; run `neru roles` to list it.
 
 `--text <text>` -- Filter by text content. Case-insensitive substring match. Comma-separated for OR.
 
@@ -149,7 +150,7 @@ neru hints --action left_click
 neru hints --action left_click --modifier shift
 neru hints --action left_click --repeat
 neru hints --search
-neru hints --role AXButton --text submit
+neru hints --role button --text submit
 neru hints --strategy vision --split-word
 ```
 
@@ -601,7 +602,7 @@ The key uses dotted TOML path notation matching your config file (e.g. `hints.hi
 | boolean | `true`                                 |
 | float   | `0.5`                                  |
 | color   | `"#FF0000AA"` or `{"light":"#000","dark":"#FFF"}` |
-| array   | `"AXButton,AXLink"` or `'["AXButton","AXLink"]'` |
+| array   | `"button,link"` or `'["button","link"]'` |
 
 **EXAMPLES**
 
@@ -609,7 +610,7 @@ The key uses dotted TOML path notation matching your config file (e.g. `hints.hi
 neru config set hints.hint_characters "asdfghjkl"
 neru config set hints.ui.font_size 14
 neru config set general.passthrough_unbounded_keys true
-neru config set hints.clickable_roles "AXButton,AXLink"
+neru config set hints.clickable_roles "button,link"
 neru config set scroll.scroll_step 50
 neru config set --no-reload recursive_grid.grid_cols 3
 neru config set --no-reload recursive_grid.keys "abcdefghijkl"

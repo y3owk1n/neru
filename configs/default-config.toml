@@ -63,23 +63,29 @@ include_pip_hints = false
 include_screen_capture_hints = false
 detect_mission_control = false
 clickable_roles = [
-    "AXButton",
-	"AXMenuButton",
-    "AXComboBox",
-    "AXCheckBox",
-    "AXRadioButton",
-    "AXLink",
-    "AXPopUpButton",
-    "AXTextField",
-    "AXSlider",
-    "AXTabButton",
-    "AXSwitch",
-    "AXDisclosureTriangle",
-    "AXTextArea",
-    "AXMenuItem",
-    "AXCell",
-    "AXRow",
-	"AXGenericElement",
+    ## Semantic role names. They resolve to each platform's native
+    ## accessibility vocabulary, so this list works on macOS, Linux and Windows.
+    ## Run `neru roles` for the full vocabulary and how it resolves here.
+    "button",
+    "menu_button",
+    "popup_button",
+    "combo_box",
+    "checkbox",
+    "radio",
+    "switch",
+    "disclosure",
+    "link",
+    "text_field",
+    "text_area",
+    "slider",
+    "tab",
+    "menu_item",
+    "cell",
+    "row",
+    ## Native roles are addressed through their vocabulary prefix
+    ## (`ax:` macOS, `atspi:` Linux, `uia:` Windows). Entries for other
+    ## platforms are ignored rather than rejected.
+    "ax:AXGenericElement",
 ]
 ignore_clickable_check = false
 visible_check_enabled = false

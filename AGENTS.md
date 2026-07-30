@@ -8,6 +8,7 @@ Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-
 - **Bridge**: Objective-C macOS integration layer
 - **Adapter**: Port implementation for external systems
 - **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/core/ports/accessibility.go))
+- **Semantic role**: Platform-neutral role name written in `hints.clickable_roles` (`button`, `text_field`). Resolved to each platform's native accessibility vocabulary — AX on macOS, AT-SPI on Linux, UI Automation on Windows — at config load. Native roles are addressed by prefix (`ax:`, `atspi:`, `uia:`). See [vocabulary.go](internal/core/domain/element/vocabulary.go)
 
 ## Architecture & Cross-Platform
 
@@ -32,6 +33,7 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 - **Navigation Logic**: [internal/app/modes/](internal/app/modes/)
 - **Coordinate Conversion**: [conversion.go](internal/ui/coordinates/conversion.go)
 - **Error Definitions**: [errors.go](internal/core/errors/errors.go)
+- **Role Vocabulary**: [vocabulary.go](internal/core/domain/element/vocabulary.go) — adapters emit native role names; only config resolution translates
 - **Native macOS Logic**: [internal/core/infra/platform/darwin/](internal/core/infra/platform/darwin/)
 
 ### Contextual Shortcuts

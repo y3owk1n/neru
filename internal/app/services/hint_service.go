@@ -133,18 +133,34 @@ func (s *HintService) GenerateHints(
 		}
 	}
 
-	// Use filterRoles if provided, otherwise use configured roles
-	var roles []string
+	// Use filterRoles if provided, otherwise use configured roles. requested
+	// holds the entries as written, before resolution, so that "no filter at
+	// all" stays distinguishable from "a filter that resolved to nothing".
+	var roles, requested []string
+
 	if len(filterRoles) > 0 {
-		roles = filterRoles
+		// `neru hints --role ...` accepts the same vocabulary as the config and
+		// is resolved the same way.
+		requested = filterRoles
+
+		resolution := element.ResolveRolesForCurrentPlatform(filterRoles)
+		roles = resolution.Native
+
 		s.logger.Debug("Using override roles from activation options",
-			zap.Strings("roles", roles))
+			zap.Int("requested", len(requested)),
+			zap.Int("role_count", len(roles)))
+
+		for _, message := range resolution.FatalMessages() {
+			s.logger.Warn("Ignoring role filter entry", zap.String("reason", message))
+		}
 	} else {
+		requested = cfg.MergedForApp(bundleID).ClickableRoles
 		roles = cfg.ClickableRolesForApp(bundleID)
+
 		s.logger.Debug("Resolved clickable roles for hints",
 			zap.String("bundle_id", bundleID),
-			zap.Int("role_count", len(roles)),
-			zap.Strings("roles", roles))
+			zap.Int("requested", len(requested)),
+			zap.Int("role_count", len(roles)))
 	}
 
 	filter.Roles = make([]element.Role, 0, len(roles))
@@ -154,6 +170,21 @@ func (s *HintService) GenerateHints(
 		}
 
 		filter.Roles = append(filter.Roles, element.Role(role))
+	}
+
+	// An empty filter.Roles means "match every role" to both the accessibility
+	// filter and the vision path. That is the right reading when no roles were
+	// configured, but the opposite of what was asked for when every configured
+	// entry belongs to another platform — hinting everything is worse than
+	// hinting nothing, and hides the misconfiguration. `neru roles --explain`
+	// and `neru doctor` report the cause.
+	if len(filter.Roles) == 0 && len(requested) > 0 {
+		s.logger.Warn(
+			"No configured role applies on this platform; showing no hints",
+			zap.Int("requested", len(requested)),
+		)
+
+		return nil, nil
 	}
 
 	filter.IncludeMenubar = cfg.IncludeMenubarHints

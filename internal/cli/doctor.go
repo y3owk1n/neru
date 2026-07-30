@@ -28,6 +28,8 @@ can use it to verify accessibility permissions before launching.`,
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
 		// --- client-side checks (no daemon needed) --------------------------
+		PrintClickableRolesCheck(cmd)
+
 		endpointPath := ipc.SocketPath()
 
 		if !ipc.IsServerRunning() {

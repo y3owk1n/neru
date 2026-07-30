@@ -302,7 +302,7 @@ hotkeys = { "Cmd+1" = ["action move_mouse --window --x -1000 --y -1000", "action
 ```toml
 [[app_configs]]
 bundle_id = "com.anthropic.claudefordesktop"
-hotkeys = { "Cmd+1" = ["hints --role AXButton --text Home --action left_click", "action feed --mode a"] }
+hotkeys = { "Cmd+1" = ["hints --role button --text Home --action left_click", "action feed --mode a"] }
 ```
 
 `action feed --mode a` presses the first hint label. Which element gets `a` depends on your hint configuration (menu-bar hints, label direction, and so on), so confirm it lands on the element you mean. This method is precise when the element is unique, and fragile when the text is common. A button labelled "Code" is easy to confuse with every "Copy code" button in the same window. When a view's hint filter is too ambiguous to trust, fall back to the window-relative form for that key.

@@ -165,7 +165,7 @@ To revert all overrides at once, delete the override file and run `neru config r
 | boolean | `neru config set scroll.invert_scroll true`    |
 | float   | `neru config set hints.vision.minimum_confidence 0.3` |
 | color   | `neru config set hints.ui.background_color "#FF0000AA"` |
-| array   | `neru config set hints.clickable_roles "AXButton,AXLink"` |
+| array   | `neru config set hints.clickable_roles "button,link"` |
 
 > **Tip:** Use `neru config dump | jq` to explore the full config structure and find the dotted path for any setting.
 
@@ -538,9 +538,84 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#7-neru-hin
 | `on_mission_control_activated`     | string/array | `nil`                   | Action(s) to execute when Mission Control opens                                                                                                                                                                                                                                                                                      |
 | `on_mission_control_deactivated`   | string/array | `nil`                   | Action(s) to execute when Mission Control closes                                                                                                                                                                                                                                                                                     |
 | `additional_menubar_hints_targets` | array        | macOS-specific defaults | Extra menubar bundle IDs                                                                                                                                                                                                                                                                                                             |
-| `clickable_roles`                  | array        | macOS-specific defaults | AX roles that generate hints                                                                                                                                                                                                                                                                                                         |
+| `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                                                                                                                                                                                                  |
 | `ignore_clickable_check`           | bool         | `false`                 | Skip clickability heuristic                                                                                                                                                                                                                                                                                                          |
 | `visible_check_enabled`            | bool         | `false`                 | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                                                                                                                                                                                            |
+
+### Clickable roles
+
+`hints.clickable_roles` decides which accessibility elements get a hint. Each platform
+exposes a different role vocabulary — macOS uses AX roles, Linux uses AT-SPI role names,
+Windows uses UI Automation control types — so entries are written in neru's own semantic
+vocabulary and resolved to the native names of whichever platform neru is running on.
+
+```toml
+[hints]
+clickable_roles = ["button", "link", "text_field"]
+```
+
+The same list works on every platform. Run `neru roles` to see the vocabulary and how each
+name resolves here, and `neru roles --explain` to see how your own config resolves.
+
+#### Semantic roles
+
+| Semantic       | macOS (`ax:`)          | Linux (`atspi:`)                        | Windows (`uia:`)      |
+| -------------- | ---------------------- | --------------------------------------- | --------------------- |
+| `button`       | `AXButton`             | `push button`, `button`, `toggle button` | `Button`, `SplitButton` |
+| `menu_button`  | `AXMenuButton`         | `push button menu`                      | —                     |
+| `popup_button` | `AXPopUpButton`        | `combo box`                             | `ComboBox`            |
+| `combo_box`    | `AXComboBox`           | `combo box`                             | `ComboBox`            |
+| `link`         | `AXLink`               | `link`                                  | `Hyperlink`           |
+| `checkbox`     | `AXCheckBox`           | `check box`, `check menu item`          | `CheckBox`            |
+| `radio`        | `AXRadioButton`        | `radio button`, `radio menu item`       | `RadioButton`         |
+| `switch`       | `AXSwitch`             | `switch`, `toggle button`               | —                     |
+| `disclosure`   | `AXDisclosureTriangle` | —                                       | —                     |
+| `text_field`   | `AXTextField`          | `entry`, `password text`                | `Edit`                |
+| `text_area`    | `AXTextArea`           | `entry`                                 | `Edit`                |
+| `search_field` | `AXSearchField`        | `entry`                                 | `Edit`                |
+| `slider`       | `AXSlider`             | `slider`                                | `Slider`              |
+| `stepper`      | `AXIncrementor`        | `spin button`                           | `Spinner`             |
+| `tab`          | `AXTabButton`          | `page tab`                              | `TabItem`             |
+| `menu_item`    | `AXMenuItem`           | `menu item`                             | `MenuItem`            |
+| `menubar_item` | `AXMenuBarItem`        | —                                       | —                     |
+| `dock_item`    | `AXDockItem`           | —                                       | —                     |
+| `cell`         | `AXCell`               | `table cell`                            | `DataItem`            |
+| `row`          | `AXRow`                | `table row`                             | `TreeItem`            |
+| `list_item`    | `AXRow`                | `list item`                             | `ListItem`            |
+| `image`        | `AXImage`              | `image`, `icon`                         | `Image`               |
+| `static_text`  | `AXStaticText`         | `static`, `label`, `text`               | `Text`                |
+| `heading`      | `AXHeading`            | `heading`                               | —                     |
+| `color_well`   | `AXColorWell`          | `color chooser`                         | —                     |
+| `toolbar_button` | `AXToolbarButton`    | —                                       | —                     |
+
+A `—` means the platform has no equivalent; that entry is ignored there and reported by
+`neru roles --explain` and `neru doctor`.
+
+#### Native roles
+
+The semantic vocabulary is deliberately not exhaustive. Any native role can be addressed
+directly through its vocabulary prefix:
+
+```toml
+clickable_roles = [
+    "button",
+    "ax:AXDisclosureTriangle",   # macOS only
+    "atspi:page tab list",       # Linux only
+    "uia:Custom",                # Windows only
+]
+```
+
+Prefixed entries that belong to another platform are ignored rather than rejected, so one
+config file can serve several machines. This is the escape hatch for toolkits that expose
+little role information — many legacy Win32 and WinForms controls surface only as
+`uia:Pane`, `uia:Custom` or `uia:Document`, and hinting them requires naming them directly.
+
+Unprefixed entries must be semantic roles. An unrecognised one is a configuration error,
+which is what makes typos visible:
+
+```
+hints.clickable_roles: unknown role "AXButton": use "button"
+```
 
 ### UI
 
@@ -683,7 +758,7 @@ You can also mix directions per-app via `[hints.app_configs]` or per-activation 
 | `bundle_id`                  | string | App bundle ID                                                                                                                                                                             |
 | `strategy`                   | string | Override element detection strategy for this app (`"axtree"` or `"vision"`). Empty string = use global `hints.strategy`.                                                                  |
 | `label_direction`            | string | Override hint label algorithm for this app (`"normal"` or `"reverse"`). Empty string = use global `hints.label_direction`. See [Choosing a label direction](#choosing-a-label-direction). |
-| `additional_clickable_roles` | array  | Extra AX roles to treat as clickable                                                                                                                                                      |
+| `additional_clickable_roles` | array  | Extra roles to treat as clickable, same vocabulary as [`clickable_roles`](#clickable-roles)                                                                                              |
 | `ignore_clickable_check`     | bool   | Skip clickability heuristic for this app                                                                                                                                                  |
 | `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                                                                                                                   |
 | `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                                                                                                                     |
@@ -693,7 +768,7 @@ You can also mix directions per-app via `[hints.app_configs]` or per-activation 
 bundle_id = "com.apple.Safari"
 strategy = "vision"
 label_direction = "reverse"
-additional_clickable_roles = ["AXLink"]
+additional_clickable_roles = ["link"]
 ignore_clickable_check = true
 visible_check_enabled = true
 ```

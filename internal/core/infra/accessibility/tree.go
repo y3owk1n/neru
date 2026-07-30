@@ -201,6 +201,10 @@ func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {
 	o.filterFunc = fn
 }
 
+// SetRoles is a no-op on macOS: the AX tree is walked with its own filters and
+// role selection happens in FindClickableElements.
+func (o *TreeOptions) SetRoles(_ map[string]struct{}) {}
+
 // SetMaxDepth sets the max depth for tree traversal.
 func (o *TreeOptions) SetMaxDepth(depth int) {
 	o.maxDepth = depth

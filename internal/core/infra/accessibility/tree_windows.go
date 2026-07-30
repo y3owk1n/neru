@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 // TreeNode represents a node in the accessibility element hierarchy. On Windows
@@ -73,7 +72,7 @@ func (n *TreeNode) FindClickableElements(
 		}
 
 		if node.info != nil && node.info.clickable {
-			if windowsRoleMatchesFilter(node.info.role, keptRoles) {
+			if _, ok := keptRoles[node.info.role]; ok || len(keptRoles) == 0 {
 				out = append(out, node)
 			}
 		}
@@ -97,6 +96,10 @@ func (n *TreeNode) Release(_ map[*Element]struct{}) {}
 type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
+	// Roles is the set of UIA control-type names to enumerate. An empty set
+	// falls back to the shipped defaults. It is applied during enumeration so
+	// unwanted controls are rejected before their properties are read.
+	Roles map[string]struct{}
 }
 
 // DefaultTreeOptions returns the default tree options.
@@ -117,10 +120,13 @@ func (o *TreeOptions) SetConfigProvider(_ config.Provider) {}
 // SetFilterFunc is a no-op on Windows.
 func (o *TreeOptions) SetFilterFunc(_ func(*ElementInfo) bool) {}
 
+// SetRoles records the UIA control-type names to enumerate.
+func (o *TreeOptions) SetRoles(roles map[string]struct{}) { o.Roles = roles }
+
 // BuildTree enumerates the clickable controls under the given window element
 // via UI Automation and returns a root node with one child per control. For
 // non-window elements (no HWND) it returns an empty root.
-func BuildTree(_ context.Context, root *Element, _ TreeOptions) (*TreeNode, error) {
+func BuildTree(_ context.Context, root *Element, opts TreeOptions) (*TreeNode, error) {
 	if root == nil {
 		return &TreeNode{}, nil
 	}
@@ -136,7 +142,7 @@ func BuildTree(_ context.Context, root *Element, _ TreeOptions) (*TreeNode, erro
 		return rootNode, nil
 	}
 
-	controls := enumerateClickableElements(root.hwnd)
+	controls := enumerateClickableElements(root.hwnd, opts.Roles)
 
 	children := make([]*TreeNode, 0, len(controls))
 
@@ -172,43 +178,3 @@ func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
 
 // ReleaseTree is a no-op: Windows nodes hold no live COM references.
 func ReleaseTree(_ *TreeNode) {}
-
-// windowsUIAToAXRole maps legacy UIA control-type names that may still appear
-// in user configs to the AX-style roles assigned during enumeration.
-var windowsUIAToAXRole = map[string]string{
-	"Button":      string(element.RoleButton),
-	"CheckBox":    string(element.RoleCheckBox),
-	"RadioButton": string(element.RoleRadioButton),
-	"Hyperlink":   string(element.RoleLink),
-	"ComboBox":    string(element.RoleComboBox),
-	"Edit":        string(element.RoleTextField),
-	"Slider":      string(element.RoleSlider),
-	"TabItem":     string(element.RoleTabButton),
-	"MenuItem":    string(element.RoleMenuItem),
-	"DataItem":    string(element.RoleCell),
-	"ListItem":    string(element.RoleCell),
-	"TreeItem":    string(element.RoleRow),
-	"Spinner":     string(element.RoleIncrementor),
-	"SplitButton": string(element.RoleButton),
-}
-
-// windowsRoleMatchesFilter reports whether elementRole satisfies keptRoles.
-// An empty keptRoles set accepts every clickable element. Configured roles
-// may use either AX-style names or legacy UIA control-type names.
-func windowsRoleMatchesFilter(elementRole string, keptRoles map[string]struct{}) bool {
-	if len(keptRoles) == 0 {
-		return true
-	}
-
-	if _, ok := keptRoles[elementRole]; ok {
-		return true
-	}
-
-	for configRole := range keptRoles {
-		if axRole, ok := windowsUIAToAXRole[configRole]; ok && axRole == elementRole {
-			return true
-		}
-	}
-
-	return false
-}

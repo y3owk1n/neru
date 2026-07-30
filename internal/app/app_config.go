@@ -122,9 +122,12 @@ func (a *App) prepareForConfigUpdate() {
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
 	if loadResult.Config.Hints.Enabled {
+		roles := loadResult.Config.Hints.ResolvedClickableRoles()
+
 		a.logger.Debug("Updating clickable roles",
-			zap.Int("count", len(loadResult.Config.Hints.ClickableRoles)))
-		infra.SetClickableRoles(loadResult.Config.Hints.ClickableRoles, a.logger)
+			zap.Int("configured", len(loadResult.Config.Hints.ClickableRoles)),
+			zap.Int("resolved", len(roles)))
+		infra.SetClickableRoles(roles, a.logger)
 	}
 }
 

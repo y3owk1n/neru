@@ -628,8 +628,9 @@ Mission Control events remain macOS-only.
 **Accessibility on Linux (⚠️, not a stub):** hints-mode element discovery is
 implemented via AT-SPI over D-Bus. `ATSPIClient` (`atspi_linux.go`) enables
 assistive-tech mode, finds the active frame, and walks its tree
-(`ClickableNodes`) for clickable elements, mapping AT-SPI roles to Neru's AX
-role vocabulary. This is the client the Linux adapter actually uses
+(`ClickableNodes`) for clickable elements, emitting native AT-SPI role names.
+Configured roles are resolved into that vocabulary at config load, so both
+sides of the filter speak AT-SPI. This is the client the Linux adapter actually uses
 (`platform_client_linux.go` → `Adapter.ClickableElements` → `client.ClickableNodes`);
 the `TreeNode`/`BuildTree` stub in `tree_linux.go` is the macOS-style tree API
 and is **not** on the Linux hints path. Click/scroll then inject at the hint
@@ -764,7 +765,7 @@ Key files:
 | **Adapter location**       | `internal/core/infra/accessibility/element_darwin.go`                                                                                                                                    | `internal/core/infra/accessibility/element_linux.go` + `atspi_linux.go` | `internal/core/infra/accessibility/element_windows.go` + `uia_windows.go`            |
 | **Client**                 | `InfraAXClient` wraps Element/TreeNode → ObjC bridge                                                                                                                                     | `ATSPIClient` → D-Bus `org.a11y.atspi`                                  | `UIAClient` → raw COM vtable calls                                                   |
 | **Tree building**          | Full recursive tree walk of AXUIElement hierarchy (`tree.go`). Collects from: frontmost window, popover windows, menubar, dock, notification center, Stage Manager, PIP, screen capture. | Recursive AT-SPI D-Bus walk of the active frame (`ATSPIClient.ClickableNodes`, `atspi_linux.go`), depth/node capped. The `tree_linux.go` `BuildTree` stub is the macOS-style API and is not on this path. | Shallow UIA tree walk returning root-level clickable nodes (`tree_windows.go`).      |
-| **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | AT-SPI role → AX role mapping, SHOWING-state + on-screen extents check; coverage depends on the app's AT-SPI support. | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
+| **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | Native AT-SPI role matching, SHOWING-state + on-screen extents check; coverage depends on the app's AT-SPI support. | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
 | **Strategy support**       | `config.StrategyAX` (default), `config.StrategyVision` (macOS Vision Framework).                                                                                                         | AX only (no Vision/OCR fallback).                                       | AX only.                                                                             |
 | **Popover / menu support** | ✅ (AXOrientation-based popover detection, menubar walking).                                                                                                                             | ⚠️ (popovers/menus in the active frame's AT-SPI subtree are walked; no separate menubar/dock collection). | 🟡                                                                                   |
 | **Focused application**    | ✅ (NSWorkspace + AXUIElement).                                                                                                                                                          | ✅ (X11: `_NET_ACTIVE_WINDOW`; Wayland: `wlr-foreign-toplevel` app_id on wlroots/KDE, XWayland fallback). | ✅ (Win32 `GetForegroundWindow`).                                                    |
@@ -817,9 +818,10 @@ left-most held button — a single event cannot describe more than one.
 - `ATSPIClient.FrontmostWindow` finds the active frame (ACTIVE + SHOWING state)
   across registered applications, skipping virtual keyboards and system surfaces
 - `ClickableNodes` recursively walks that frame's subtree (depth/node capped),
-  keeping SHOWING elements whose mapped AX role is in the requested set
-- AT-SPI role names are mapped to Neru's AX role vocabulary
-  (`atspiToAXRole`) so the shared filter pipeline matches them
+  keeping SHOWING elements whose AT-SPI role is in the requested set
+- Configured roles are resolved from the semantic vocabulary into native
+  AT-SPI names before they reach the client
+  (`element.ResolveRoles`), so the shared filter pipeline matches them
 - On Wayland it offsets element extents by the focused window's screen origin
   (via the KWin geometry bridge) since AT-SPI reports window-relative coords
 - Element structs in `element_linux.go` implement cursor/scroll/click injection

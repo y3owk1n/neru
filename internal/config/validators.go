@@ -8,8 +8,29 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
+
+// validateClickableRoles rejects role entries that name neither a semantic role
+// nor a native role in a known vocabulary. Entries that are well-formed but
+// belong to another platform are accepted silently here and reported by
+// `neru roles` / `neru doctor`, so one config can serve several machines.
+func validateClickableRoles(field string, roles []string) error {
+	resolution := element.ResolveRolesForCurrentPlatform(roles)
+
+	messages := resolution.FatalMessages()
+	if len(messages) == 0 {
+		return nil
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidConfig,
+		"%s: %s (run `neru roles` for the accepted role names)",
+		field,
+		strings.Join(messages, "; "),
+	)
+}
 
 // maxFontSize is the maximum font size accepted by the config validator.
 // Values above this can overflow C.int (int32) on Darwin or platform int on
@@ -100,6 +121,21 @@ func (c *Config) ValidateHints() error {
 			"hints.clickable_roles cannot be empty when hints are enabled")
 	}
 
+	err := validateClickableRoles("hints.clickable_roles", c.Hints.ClickableRoles)
+	if err != nil {
+		return err
+	}
+
+	for _, appConfig := range c.Hints.AppConfigs {
+		err = validateClickableRoles(
+			"hints.app_configs.additional_clickable_roles",
+			appConfig.AdditionalClickable,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "hint_characters cannot be empty")
 	}
@@ -135,7 +171,7 @@ func (c *Config) ValidateHints() error {
 		seen[upper] = struct{}{}
 	}
 
-	err := validateColors([]colorField{
+	err = validateColors([]colorField{
 		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
 		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},

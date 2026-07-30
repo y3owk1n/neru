@@ -1,62 +1,54 @@
 //go:build windows
 
-package accessibility //nolint:testpackage // exercises unexported windowsRoleMatchesFilter
+package accessibility //nolint:testpackage // exercises unexported defaultClickableRoles
 
 import (
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
-func TestWindowsRoleMatchesFilter(t *testing.T) {
+// TestDefaultClickableRoles_ResolvesToUIANames checks the enumeration fallback
+// used when a caller supplies no role filter. It must resolve to real UIA
+// control-type names, otherwise hints are blank whenever the role set is empty.
+func TestDefaultClickableRoles_ResolvesToUIANames(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name        string
-		elementRole string
-		keptRoles   map[string]struct{}
-		want        bool
-	}{
-		{
-			name:        "empty filter accepts all",
-			elementRole: string(element.RoleButton),
-			keptRoles:   nil,
-			want:        true,
-		},
-		{
-			name:        "direct AX match",
-			elementRole: string(element.RoleButton),
-			keptRoles:   map[string]struct{}{string(element.RoleButton): {}},
-			want:        true,
-		},
-		{
-			name:        "legacy UIA name matches AX role",
-			elementRole: string(element.RoleTextField),
-			keptRoles:   map[string]struct{}{"Edit": {}},
-			want:        true,
-		},
-		{
-			name:        "unrelated roles do not match",
-			elementRole: string(element.RoleButton),
-			keptRoles:   map[string]struct{}{string(element.RoleLink): {}},
-			want:        false,
-		},
+	if len(defaultClickableRoles) == 0 {
+		t.Fatal("defaultClickableRoles is empty; enumeration would find nothing")
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+	names := slices.Collect(maps.Values(controlTypeNames))
 
-			got := windowsRoleMatchesFilter(testCase.elementRole, testCase.keptRoles)
-			if got != testCase.want {
-				t.Fatalf(
-					"windowsRoleMatchesFilter(%q, %v) = %v, want %v",
-					testCase.elementRole,
-					testCase.keptRoles,
-					got,
-					testCase.want,
-				)
-			}
-		})
+	for role := range defaultClickableRoles {
+		if !slices.Contains(names, role) {
+			t.Errorf("defaultClickableRoles contains %q, which is not a UIA control type", role)
+		}
+	}
+
+	for _, want := range []string{"Button", "Edit", "Hyperlink"} {
+		if _, ok := defaultClickableRoles[want]; !ok {
+			t.Errorf("defaultClickableRoles missing %q", want)
+		}
+	}
+}
+
+// TestResolveRoles_WindowsNativeEntriesPassThrough covers the escape hatch that
+// makes neru usable in legacy Win32 and WinForms applications, whose controls
+// surface as Pane, Custom or Document and have no semantic role.
+func TestResolveRoles_WindowsNativeEntriesPassThrough(t *testing.T) {
+	t.Parallel()
+
+	resolution := element.ResolveRoles([]string{"button", "uia:Custom", "uia:Pane"}, "windows")
+	if resolution.HasFatal() {
+		t.Fatalf("unexpected fatal diagnostics: %v", resolution.FatalMessages())
+	}
+
+	for _, want := range []string{"Button", "SplitButton", "Custom", "Pane"} {
+		if !slices.Contains(resolution.Native, want) {
+			t.Errorf("resolution %v missing %q", resolution.Native, want)
+		}
 	}
 }

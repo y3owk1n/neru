@@ -10,6 +10,7 @@ package accessibility
 import (
 	"image"
 	"runtime"
+	"strconv"
 	"syscall"
 	"unsafe"
 
@@ -97,24 +98,56 @@ const (
 	vtArrayGetElement = 4
 )
 
-// UI Automation CONTROLTYPEID values for the controls neru treats as
-// clickable hint targets.
-const (
-	ctButton      = 50000
-	ctCheckBox    = 50002
-	ctComboBox    = 50003
-	ctEdit        = 50004
-	ctHyperlink   = 50005
-	ctListItem    = 50007
-	ctMenuItem    = 50011
-	ctRadioButton = 50013
-	ctSlider      = 50015
-	ctSpinner     = 50016
-	ctTabItem     = 50019
-	ctTreeItem    = 50024
-	ctDataItem    = 50029
-	ctSplitButton = 50031
-)
+// controlTypeNames maps UI Automation CONTROLTYPEID values to the programmatic
+// names behind the UIA_*ControlTypeId constants. These names — not the
+// localized LocalizedControlType, which changes with the system language — are
+// the vocabulary users address with the "uia:" prefix.
+//
+// The range is contiguous and stable: 50000 is Button and 50040 is AppBar, the
+// last control type added (Windows 8).
+var controlTypeNames = map[int32]string{
+	50000: "Button",
+	50001: "Calendar",
+	50002: "CheckBox",
+	50003: "ComboBox",
+	50004: "Edit",
+	50005: "Hyperlink",
+	50006: "Image",
+	50007: "ListItem",
+	50008: "List",
+	50009: "Menu",
+	50010: "MenuBar",
+	50011: "MenuItem",
+	50012: "ProgressBar",
+	50013: "RadioButton",
+	50014: "ScrollBar",
+	50015: "Slider",
+	50016: "Spinner",
+	50017: "StatusBar",
+	50018: "Tab",
+	50019: "TabItem",
+	50020: "Text",
+	50021: "ToolBar",
+	50022: "ToolTip",
+	50023: "Tree",
+	50024: "TreeItem",
+	50025: "Custom",
+	50026: "Group",
+	50027: "Thumb",
+	50028: "DataGrid",
+	50029: "DataItem",
+	50030: "Document",
+	50031: "SplitButton",
+	50032: "Window",
+	50033: "Pane",
+	50034: "Header",
+	50035: "HeaderItem",
+	50036: "Table",
+	50037: "TitleBar",
+	50038: "Separator",
+	50039: "SemanticZoom",
+	50040: "AppBar",
+}
 
 // winRect mirrors the Win32 RECT returned by get_CurrentBoundingRectangle.
 type winRect struct {
@@ -155,7 +188,11 @@ func failed(hresult uintptr) bool {
 // enumerateClickableElements returns the on-screen, clickable controls of the
 // given top-level window handle. It returns nil on any failure; callers treat
 // an empty result as "no hints", never as a crash.
-func enumerateClickableElements(hwnd uintptr) []winElement {
+func enumerateClickableElements(hwnd uintptr, keptRoles map[string]struct{}) []winElement {
+	if len(keptRoles) == 0 {
+		keptRoles = defaultClickableRoles
+	}
+
 	if hwnd == 0 {
 		return nil
 	}
@@ -214,7 +251,7 @@ func enumerateClickableElements(hwnd uintptr) []winElement {
 	}
 	defer comCall(array, vtRelease)
 
-	return collectArray(array)
+	return collectArray(array, keptRoles)
 }
 
 // createAutomation creates the default IUIAutomation instance.
@@ -237,7 +274,7 @@ func createAutomation() unsafe.Pointer {
 
 // collectArray walks an IUIAutomationElementArray and extracts the clickable
 // controls. Each element is released as soon as its data is copied out.
-func collectArray(array unsafe.Pointer) []winElement {
+func collectArray(array unsafe.Pointer, keptRoles map[string]struct{}) []winElement {
 	var length int32
 
 	hresult := comCall(array, vtArrayGetLength, uintptr(unsafe.Pointer(&length)))
@@ -255,7 +292,7 @@ func collectArray(array unsafe.Pointer) []winElement {
 			continue
 		}
 
-		extracted, ok := extractWinElement(element)
+		extracted, ok := extractWinElement(element, keptRoles)
 
 		comCall(element, vtRelease)
 
@@ -268,15 +305,27 @@ func collectArray(array unsafe.Pointer) []winElement {
 }
 
 // extractWinElement copies the relevant properties from a single UIA element.
-// It returns ok=false for non-clickable, offscreen, or zero-size controls.
-func extractWinElement(element unsafe.Pointer) (winElement, bool) {
+// It returns ok=false for offscreen or zero-size controls, and for controls
+// whose role is not in keptRoles.
+//
+// Role selection happens here rather than downstream because UIA is queried
+// with a true condition: the whole subtree comes back, and rejecting an
+// element before its bounds and name are read saves three cross-process COM
+// calls per unwanted element.
+func extractWinElement(element unsafe.Pointer, keptRoles map[string]struct{}) (winElement, bool) {
 	var controlType int32
 	if failed(comCall(element, vtGetCurrentControlType, uintptr(unsafe.Pointer(&controlType)))) {
 		return winElement{}, false
 	}
 
-	role, clickable := mapControlType(controlType)
-	if !clickable {
+	role, known := controlTypeName(controlType)
+	if !known {
+		// Unknown provider-specific control type: keep it addressable by id
+		// rather than dropping it outright.
+		role = strconv.FormatInt(int64(controlType), 10)
+	}
+
+	if _, ok := keptRoles[role]; !ok {
 		return winElement{}, false
 	}
 
@@ -318,39 +367,29 @@ func currentName(element unsafe.Pointer) string {
 	return name
 }
 
-// mapControlType maps UI Automation CONTROLTYPEID values onto the shared
-// AX-style role names for the controls neru treats as clickable hint targets.
-func mapControlType(controlType int32) (string, bool) {
-	switch controlType {
-	case ctButton:
-		return string(element.RoleButton), true
-	case ctCheckBox:
-		return string(element.RoleCheckBox), true
-	case ctComboBox:
-		return string(element.RoleComboBox), true
-	case ctEdit:
-		return string(element.RoleTextField), true
-	case ctHyperlink:
-		return string(element.RoleLink), true
-	case ctListItem:
-		return string(element.RoleCell), true
-	case ctMenuItem:
-		return string(element.RoleMenuItem), true
-	case ctRadioButton:
-		return string(element.RoleRadioButton), true
-	case ctSlider:
-		return string(element.RoleSlider), true
-	case ctSpinner:
-		return string(element.RoleIncrementor), true
-	case ctTabItem:
-		return string(element.RoleTabButton), true
-	case ctTreeItem:
-		return string(element.RoleRow), true
-	case ctDataItem:
-		return string(element.RoleCell), true
-	case ctSplitButton:
-		return string(element.RoleButton), true
-	default:
+// controlTypeName returns the programmatic name for a UIA CONTROLTYPEID. The
+// second result is false for ids outside the known range, which a third-party
+// provider may still report; those elements carry the numeric id so they remain
+// addressable rather than silently disappearing.
+func controlTypeName(controlType int32) (string, bool) {
+	name, ok := controlTypeNames[controlType]
+	if !ok {
 		return roleUnknown, false
 	}
+
+	return name, true
 }
+
+// defaultClickableRoles is used when the caller supplies no role filter. It is
+// the shipped default role list resolved into UIA control-type names, so the
+// fallback and a default configuration select exactly the same elements.
+var defaultClickableRoles = func() map[string]struct{} {
+	resolution := element.ResolveRoles(element.DefaultClickableRoles, "windows")
+
+	set := make(map[string]struct{}, len(resolution.Native))
+	for _, native := range resolution.Native {
+		set[native] = struct{}{}
+	}
+
+	return set
+}()
