@@ -15,32 +15,46 @@
 
 #pragma mark - Mouse Functions
 
-/// Lock making "pan the zoom viewport, then post the move" indivisible.
+/// Lock making "pan the zoom viewport, then post the event" indivisible.
 ///
-/// Cursor moves are issued concurrently — each hotkey press dispatches its own
-/// goroutine, repeat-while-held runs another, and IPC actions run on the IPC
-/// goroutine — and those paths do not share a lock. Two interleaved moves could
-/// otherwise pan for one target and then post the other, leaving the cursor at a
-/// correct coordinate but outside the magnified region, where nothing corrects
-/// it until the next move.
+/// Cursor operations are issued concurrently — each hotkey press dispatches its
+/// own goroutine, repeat-while-held runs another, and IPC actions run on the IPC
+/// goroutine — and those paths do not share a lock. Two interleaved operations
+/// could otherwise pan for one target and then post the other, leaving the
+/// cursor at a correct coordinate but outside the magnified region, where
+/// nothing corrects it until the next move.
+///
+/// Every posted event that carries a position takes this, button events
+/// included: they reposition the cursor just as a move does, so a click whose
+/// button events escaped the lock could still land outside the magnified region
+/// even though the move preceding it was itself atomic. Each pan/post pair being
+/// individually consistent is what guarantees that whichever one happens to go
+/// last leaves the cursor and the viewport agreeing.
 static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
+
+/// Pan the zoom viewport to reveal a point and post an event positioned there
+/// @param event Event to post; its location must already be set to position
+/// @param position Position the event acts at
+static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
+	os_unfair_lock_lock(&mouseMoveLock);
+
+	NeruEnsureZoomViewportContainsPoint(position);
+	CGEventPost(kNeruMouseEventTapLocation, event);
+
+	os_unfair_lock_unlock(&mouseMoveLock);
+}
 
 /// Pan the zoom viewport to reveal a point and post a mouse move there
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
 static void postMouseMoveLocked(CGPoint position, CGEventType eventType) {
-	os_unfair_lock_lock(&mouseMoveLock);
-
-	NeruEnsureZoomViewportContainsPoint(position);
-
 	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
-	if (move) {
-		CGEventSetFlags(move, 0);
-		CGEventPost(kNeruMouseEventTapLocation, move);
-		CFRelease(move);
-	}
+	if (!move)
+		return;
 
-	os_unfair_lock_unlock(&mouseMoveLock);
+	CGEventSetFlags(move, 0);
+	postPositionedEventLocked(move, position);
+	CFRelease(move);
 }
 
 /// Move mouse cursor to position with specified event type
@@ -77,7 +91,7 @@ int NeruPerformLeftMouseUpAtCursor(void) {
 
 	// Clear all modifier flags to ensure clean mouse up
 	CGEventSetFlags(up, 0);
-	CGEventPost(kNeruMouseEventTapLocation, up);
+	postPositionedEventLocked(up, currentPos);
 	CFRelease(up);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
@@ -126,10 +140,10 @@ static int performClickAtPosition(
 
 	// Post mouse down, allow the system to process it, then post mouse up.
 	// Give the event loop a short moment to register the down event before sending up.
-	CGEventPost(kNeruMouseEventTapLocation, down);
+	postPositionedEventLocked(down, pos);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
-	CGEventPost(kNeruMouseEventTapLocation, up);
+	postPositionedEventLocked(up, pos);
 	CFRelease(down);
 	CFRelease(up);
 
@@ -224,10 +238,10 @@ int NeruPerformLeftClickAtPosition(CGPoint position, bool restoreCursor, CGEvent
 
 	// Post mouse down and allow a short moment before posting mouse up to ensure
 	// the system attributes the down/up pair to the target location.
-	CGEventPost(kNeruMouseEventTapLocation, down);
+	postPositionedEventLocked(down, position);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickDownUpDelay, false);
 
-	CGEventPost(kNeruMouseEventTapLocation, up);
+	postPositionedEventLocked(up, position);
 	CFRelease(down);
 	CFRelease(up);
 
@@ -270,7 +284,7 @@ int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
 
 	// Set modifier flags (0 = no modifiers for clean mouse down)
 	CGEventSetFlags(down, flags);
-	CGEventPost(kNeruMouseEventTapLocation, down);
+	postPositionedEventLocked(down, position);
 	CFRelease(down);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
@@ -290,7 +304,7 @@ int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
 
 	// Set modifier flags (0 = no modifiers for clean mouse up)
 	CGEventSetFlags(up, flags);
-	CGEventPost(kNeruMouseEventTapLocation, up);
+	postPositionedEventLocked(up, position);
 	CFRelease(up);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
