@@ -166,7 +166,8 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
-	defer x11ReleaseModifiers(display, modifiers) //nolint:nlreturn
+	// Runs before the display is closed: defers unwind last-in first-out.
+	defer x11ReleaseModifiers(display, modifiers)
 
 	if C.neru_ax_button(display, x11Button(button), 0) == 0 { //nolint:nlreturn
 		return derrors.Newf(
