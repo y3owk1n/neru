@@ -221,11 +221,13 @@ func (c *ATSPIClient) activeWindowMatching(focusedAppID, focusedTitle string) (a
 		return accRef{}, false
 	}
 
-	// When both titles are known, they must name the same window, so a switch
-	// between sibling windows of one application (shared app_id) is not mistaken
-	// for a cache hit.
-	if focusedTitle != "" && active.title != "" &&
-		!titleMatchesFocused(active.title, focusedTitle) {
+	// When the compositor reports a title, it must name the cached window, so a
+	// switch between sibling windows of one application (shared app_id) is not
+	// mistaken for a cache hit. A cached window with no title cannot be confirmed
+	// against a titled focus, so it is rejected rather than trusted — otherwise a
+	// failed title read would let a stale sibling pass.
+	if focusedTitle != "" &&
+		(active.title == "" || !titleMatchesFocused(active.title, focusedTitle)) {
 		return accRef{}, false
 	}
 

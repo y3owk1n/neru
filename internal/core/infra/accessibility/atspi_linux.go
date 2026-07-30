@@ -890,6 +890,15 @@ func (c *ATSPIClient) ensureA11yEnabled() error {
 
 // ensureA11yConn lazily connects to the dedicated AT-SPI bus.
 func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Re-check closed while holding mu, not before it. Close sets closed (under
+	// a11yMu) before its own mu section runs, so once Close's teardown has
+	// completed, any ensureA11yConn that then acquires mu sees closed==true and
+	// bails — it cannot publish a fresh connection that Close would never clean
+	// up. If instead this call wins mu first, it publishes c.a11y and Close's
+	// later mu section closes that connection. Either ordering leaks nothing.
 	c.a11yMu.Lock()
 	closed := c.closed
 	c.a11yMu.Unlock()
@@ -897,9 +906,6 @@ func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
 	if closed {
 		return nil, errClientClosed
 	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	if c.a11yReady && c.a11y != nil && c.a11y.Connected() {
 		return c.a11y, nil
@@ -1550,15 +1556,40 @@ func (c *ATSPIClient) findFocusedApps(
 
 	var matches []int
 
-	for index := range matchCh {
-		matches = append(matches, index)
-
-		// One match resolves the focused app in the common case; stop probing the
-		// rest of the bus so an unresponsive app never gates the result.
-		cancel()
-
-		break
+	// Block for the first match, then drain any others already delivered before
+	// canceling. The common case is a single application (its multiple windows
+	// are frames *within* one AT-SPI app, counted later by scanApps), so this
+	// returns promptly. Draining still catches other co-active apps that share the
+	// app_id, so a genuinely ambiguous focus is reported as ambiguous rather than
+	// silently resolved to whichever app answered first. A matching app that only
+	// responds after the drain is not counted — acceptable, since that requires
+	// two distinct apps sharing one app_id with no title to disambiguate them.
+	first, ok := <-matchCh
+	if !ok {
+		return matches
 	}
+
+	matches = append(matches, first)
+
+	for drained := false; !drained; {
+		select {
+		case index, more := <-matchCh:
+			if !more {
+				drained = true
+
+				break
+			}
+
+			matches = append(matches, index)
+		default:
+			drained = true
+		}
+	}
+
+	// Stop probing the rest of the bus so an unresponsive app never gates the
+	// result; the background goroutine drains and closes matchCh after the
+	// canceled probes return.
+	cancel()
 
 	return matches
 }
