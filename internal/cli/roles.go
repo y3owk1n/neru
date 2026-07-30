@@ -135,11 +135,15 @@ func runRolesExplain(cmd *cobra.Command) error {
 	return nil
 }
 
-// PrintClickableRolesCheck reports how the configured clickable roles resolve
-// on this platform. It is a client-side doctor check: a config whose roles all
-// belong to another platform loads cleanly but produces no hints at all, which
-// is otherwise invisible until a user reports a blank overlay.
-func PrintClickableRolesCheck(cmd *cobra.Command) {
+// printClickableRolesCheck reports how the configured clickable roles resolve
+// on this platform, and returns whether they are usable. It is a client-side
+// doctor check: a config whose roles all belong to another platform loads
+// cleanly but produces no hints at all, which is otherwise invisible until a
+// user reports a blank overlay.
+//
+// The result feeds the doctor exit status, so a health check run from a script
+// fails on a configuration that cannot hint anything.
+func printClickableRolesCheck(cmd *cobra.Command) bool {
 	svc := config.NewService(config.DefaultConfig(), "", nil, nil)
 
 	path := configPath
@@ -151,7 +155,7 @@ func PrintClickableRolesCheck(cmd *cobra.Command) {
 	if loadResult.ValidationError != nil {
 		cmd.Printf("  ❌ %-24s %s\n", "clickable_roles", "config invalid: see neru config validate")
 
-		return
+		return false
 	}
 
 	resolution := element.ResolveRolesForCurrentPlatform(
@@ -163,7 +167,7 @@ func PrintClickableRolesCheck(cmd *cobra.Command) {
 			"no roles apply on "+runtime.GOOS+"; hints would be empty")
 		cmd.Printf("  %-27s %s\n", "", "run: neru roles --explain")
 
-		return
+		return false
 	}
 
 	cmd.Printf("  ✅ %-24s %d entries → %d native roles on %s\n",
@@ -172,6 +176,8 @@ func PrintClickableRolesCheck(cmd *cobra.Command) {
 	if ignored := len(resolution.IgnoredMessages()); ignored > 0 {
 		cmd.Printf("  %-27s %d entries do not apply here (neru roles --explain)\n", "", ignored)
 	}
+
+	return true
 }
 
 // explainEntry renders the resolution of a single configured entry.
