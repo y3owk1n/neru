@@ -53,6 +53,9 @@ type smoothCursorAnimator struct {
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
 	done   *cursorAnimationDone
+	// generation is bumped by stop() to invalidate steps from the animation
+	// being canceled. See postIfCurrent.
+	generation uint64
 }
 
 var cursorAnimator smoothCursorAnimator
@@ -65,12 +68,48 @@ func (a *smoothCursorAnimator) stop() {
 	a.stopCh = nil
 	a.done = nil
 
+	// Closing stopCh on its own is not enough to stop the worker: it can already
+	// have passed its cancellation check and be about to post a step, which then
+	// lands after whatever replaced this animation and drags the cursor — and
+	// the zoom viewport — back toward the abandoned target. Bumping the
+	// generation under the same lock the worker posts under closes that window.
+	a.generation++
+
 	if stopCh != nil {
 		close(stopCh)
 	}
 	a.mu.Unlock()
 
 	done.close()
+}
+
+// currentGeneration returns the animation generation in effect right now.
+func (a *smoothCursorAnimator) currentGeneration() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.generation
+}
+
+// postIfCurrent posts one cursor move, but only if the animation that produced
+// it has not been canceled in the meantime. The check and the post share the
+// lock with stop(), so once stop() has returned no further step can escape.
+func (a *smoothCursorAnimator) postIfCurrent(
+	generation uint64,
+	point image.Point,
+	eventType uint32,
+) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.generation != generation {
+		return false
+	}
+
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
+	C.NeruPostMouseMoveEvent(pos, C.CGEventType(eventType))
+
+	return true
 }
 
 func (a *smoothCursorAnimator) wait(ctx context.Context) error {
@@ -164,6 +203,7 @@ func (a *smoothCursorAnimator) runRequest(
 	timer *time.Timer,
 ) {
 restart:
+	generation := a.currentGeneration()
 	start := CursorPosition()
 	distance := math.Hypot(float64(req.end.X-start.X), float64(req.end.Y-start.Y))
 
@@ -205,8 +245,11 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		pos := C.CGPoint{x: C.double(intermediate.X), y: C.double(intermediate.Y)}
-		C.NeruPostMouseMoveEvent(pos, C.CGEventType(req.eventType))
+		if !a.postIfCurrent(generation, intermediate, req.eventType) {
+			req.done.close()
+
+			return
+		}
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)

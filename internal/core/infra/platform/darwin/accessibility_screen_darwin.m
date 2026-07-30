@@ -6,7 +6,9 @@
 //
 
 #import "accessibility.h"
+#import "accessibility_constants.h"
 
+#import <ApplicationServices/ApplicationServices.h>
 #import <Cocoa/Cocoa.h>
 
 #pragma mark - Mission Control Detection State
@@ -157,7 +159,7 @@ int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
 			return 0;
 
 		CGEventSetLocation(scrollEvent, pos);
-		CGEventPost(kCGHIDEventTap, scrollEvent);
+		CGEventPost(kNeruMouseEventTapLocation, scrollEvent);
 		CFRelease(scrollEvent);
 		return 1;
 	}
@@ -501,6 +503,12 @@ CGRect NeruGetScreenBoundsByName(const char *name, int *found) {
 		return cgFrame;
 	}
 }
+
+/// Report whether the macOS Accessibility Zoom feature is currently zoomed in
+/// @return true when the screen is magnified by Accessibility Zoom
+/// @note Used for diagnostics — cursor positioning is zoom-independent because
+///       synthetic mouse events are posted at kNeruMouseEventTapLocation.
+bool NeruIsScreenZoomed(void) { return UAZoomEnabled(); }
 
 /// Get current cursor position
 /// @return Current cursor position

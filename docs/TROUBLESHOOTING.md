@@ -487,6 +487,18 @@ detect_mission_control = true
 > [!NOTE]
 > Mission Control detection uses `CGWindowListCopyWindowInfo` to check for Dock overlay windows. It works on macOS 14+ (Sonoma) and 15+ (Sequoia/Tahoe). On macOS 13 and earlier, it looks for a "Mission Control" app window instead.
 
+### Accessibility Zoom: cursor lands in the wrong place
+
+**Symptom:** with macOS Accessibility Zoom (System Settings → Accessibility → Zoom) zoomed in, hints, grid movement, `move_mouse`, dragging and scrolling all send the cursor somewhere other than the target, while overlays still draw correctly. Or the cursor lands correctly but the magnified view does not follow it, so it disappears off screen.
+
+**Solution:** update to a build that posts synthetic mouse events at the session event tap and pans the zoom viewport itself. If you still see it, file an issue with your macOS version and zoom factor.
+
+> [!NOTE]
+> While zoomed in, the window server rewrites the location of pointer-motion events that enter at the HID event tap, reading the posted point as a coordinate in zoomed-viewport space (`landed = zoomOrigin + (posted - displayCenter) / zoomFactor`). Neru posts mouse events at the session tap instead, which sits above that transform, so positioning is exact whether or not zoom is engaged. Reading the cursor position was never affected.
+
+> [!NOTE]
+> Only real pointer-device movement pans the zoom viewport — no synthetic event does, at any event tap. `UAZoomChangeFocus` does not help either: it drives the keyboard-focus and text-insertion-point paths, so it is a no-op when zoom is set to follow the mouse pointer. Neru therefore pans the viewport itself before each cursor move, by the smallest amount that brings the target on screen, which reproduces the edge-panning behavior of a real mouse. It uses SkyLight's zoom SPI resolved at runtime; if a future macOS removes it, cursor positioning stays correct and only the follow behavior is lost.
+
 ---
 
 ## Keyboard Layout Issues
