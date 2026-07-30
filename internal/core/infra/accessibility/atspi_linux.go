@@ -274,6 +274,13 @@ func (c *ATSPIClient) FrontmostWindow(ctx context.Context) (AXWindow, error) {
 		return nil, err
 	}
 
+	// Attach a scan diagnostic so the bounded frame-selection reads can flag a
+	// fatal AT-SPI failure (a timeout, a closed connection, or the registry/app
+	// leaving the bus). Without it a registry that stops responding looks like
+	// "no active frame" and hints show nothing with no error.
+	diag := &atspiScanDiag{}
+	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
+
 	// Read the compositor's focused app_id and title once (together so they
 	// describe one window) and use this single snapshot both to select the frame
 	// and to record it on the window. Reading it again after selection could
@@ -283,6 +290,14 @@ func (c *ATSPIClient) FrontmostWindow(ctx context.Context) (AXWindow, error) {
 
 	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {
+		// Distinguish a genuine "nothing focused" from an AT-SPI failure during
+		// selection: only the latter recorded a scan-fatal error. A frame that
+		// *was* found is returned even if some other app errored mid-scan.
+		ferr := diag.fatalErr()
+		if ferr != nil {
+			return nil, scanFailureError(ferr)
+		}
+
 		c.logger.Debug("AT-SPI: no active frame found")
 
 		// No active frame: hand back an empty window so the adapter simply
