@@ -287,12 +287,13 @@ func (a *Adapter) ClickableElements(
 
 				windowsWg.Wait()
 
-				// If the window scan failed and produced nothing, hand the error
-				// up to the caller (not as this source's return value, which would
-				// abort the whole collection and throw away other sources' work).
-				// It is only surfaced if the *grand total* is empty — see the
-				// windowsSourceErr check after all sources join.
-				if len(allElements) == 0 && firstWindowErr != nil {
+				// Hand any window-scan error up to the caller rather than
+				// returning it as this source's value (which would abort the whole
+				// collection and throw away other sources' work). It is surfaced
+				// only if the *grand total* across every source is empty — see the
+				// windowsSourceErr check after all sources join — so a failure that
+				// still left some elements to show degrades to a Warn log instead.
+				if firstWindowErr != nil {
 					mutex.Lock()
 					if windowsSourceErr == nil {
 						windowsSourceErr = firstWindowErr

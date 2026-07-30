@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
@@ -340,6 +341,12 @@ func (c *ATSPIClient) ClickableNodes(
 		return nil, err
 	}
 
+	// Attach a per-scan diagnostic so the leaf D-Bus helpers can flag a per-call
+	// timeout. It lets an empty result caused by an unresponsive app surface as a
+	// clear timeout below instead of looking like a window with no elements.
+	diag := &atspiScanDiag{}
+	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
+
 	start := time.Now()
 
 	// Early-out: if focus already changed since this window was selected, the
@@ -412,6 +419,16 @@ func (c *ATSPIClient) ClickableNodes(
 		zap.Int("offsetY", offY),
 		zap.Bool("haveOrigin", haveOrigin),
 		zap.Duration("elapsed", time.Since(start)))
+
+	// An empty scan is normal for a window with nothing clickable, but if we got
+	// here because reads kept hitting the per-call deadline, the app is slow or
+	// unresponsive to accessibility queries — report that rather than silently
+	// showing no hints. A partial result (some nodes collected) is returned as-is.
+	if len(out) == 0 && diag.timedOut.Load() {
+		return nil, derrors.New(derrors.CodeTimeout,
+			"AT-SPI element scan timed out; the app may be slow or "+
+				"unresponsive to accessibility queries")
+	}
 
 	return out, nil
 }
@@ -872,6 +889,32 @@ func (c *ATSPIClient) focusStableSince(selectedAppID, selectedTitle string) bool
 	return currentAppID == selectedAppID && currentTitle == selectedTitle
 }
 
+// atspiScanDiag records diagnostics for a single ClickableNodes scan. It rides
+// on the scan context so the leaf D-Bus helpers can flag a per-call timeout
+// without threading an extra parameter through the whole walk. A scan that ends
+// up empty because the app stopped answering accessibility queries can then
+// report an actionable timeout instead of a silent empty result.
+type atspiScanDiag struct {
+	timedOut atomic.Bool
+}
+
+// atspiScanDiagKey is the context key for the active scan's *atspiScanDiag.
+type atspiScanDiagKey struct{}
+
+// noteCallErr flags the scan as timed out when err is a per-call context
+// deadline (godbus surfaces the raw context.DeadlineExceeded). Non-timeout
+// errors, and contexts with no diag attached (e.g. the frame-selection reads in
+// findActiveFrame), are ignored.
+func (c *ATSPIClient) noteCallErr(ctx context.Context, err error) {
+	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
+		return
+	}
+
+	if d, ok := ctx.Value(atspiScanDiagKey{}).(*atspiScanDiag); ok {
+		d.timedOut.Store(true)
+	}
+}
+
 // children returns the AT-SPI children of an accessible. It prefers the bulk
 // GetChildren method and falls back to ChildCount + GetChildAtIndex for older
 // toolkits that do not expose GetChildren.
@@ -888,6 +931,8 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 		return kids
 	}
 
+	c.noteCallErr(ctx, err)
+
 	var countVar dbus.Variant
 
 	countCtx, cancelCount := context.WithTimeout(ctx, atspiCallTimeout)
@@ -896,6 +941,8 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 	propErr := obj.CallWithContext(countCtx, atspiPropertiesGet, 0,
 		atspiAccessibleIfc, "ChildCount").Store(&countVar)
 	if propErr != nil {
+		c.noteCallErr(ctx, propErr)
+
 		return nil
 	}
 
@@ -911,6 +958,8 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 		cancelChild()
 
 		if err != nil {
+			c.noteCallErr(ctx, err)
+
 			continue
 		}
 
@@ -930,6 +979,8 @@ func (c *ATSPIClient) roleName(ctx context.Context, conn *dbus.Conn, ref accRef)
 	err := conn.Object(ref.Name, ref.Path).
 		CallWithContext(callCtx, atspiAccessibleIfc+".GetRoleName", 0).Store(&name)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return ""
 	}
 
@@ -946,6 +997,8 @@ func (c *ATSPIClient) name(ctx context.Context, conn *dbus.Conn, ref accRef) str
 	err := conn.Object(ref.Name, ref.Path).
 		CallWithContext(callCtx, atspiPropertiesGet, 0, atspiAccessibleIfc, "Name").Store(&val)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return ""
 	}
 
@@ -964,6 +1017,8 @@ func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef,
 	err := conn.Object(ref.Name, ref.Path).
 		CallWithContext(callCtx, atspiAccessibleIfc+".GetState", 0).Store(&states)
 	if err != nil || len(states) == 0 {
+		c.noteCallErr(ctx, err)
+
 		return false
 	}
 
@@ -989,6 +1044,8 @@ func (c *ATSPIClient) extents(
 	err := conn.Object(ref.Name, ref.Path).
 		CallWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return image.Rectangle{}, false
 	}
 
