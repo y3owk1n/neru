@@ -591,6 +591,13 @@ func (c *ATSPIClient) collectViaCollection(
 		c.logger.Debug("AT-SPI Collection.GetMatches unavailable; falling back to walk",
 			zap.Error(err))
 
+		// GetMatches runs on the full scan budget rather than a per-call
+		// deadline, so it is the one scan call the leaf helpers don't cover.
+		// Record a scan-fatal error (a deadline, or the app leaving the bus)
+		// here so an empty fallback walk still surfaces it; a benign
+		// "Collection not implemented" error is ignored and the walk proceeds.
+		c.noteCallErr(ctx, err)
+
 		return nil, false
 	}
 
