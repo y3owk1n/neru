@@ -157,12 +157,16 @@ func x11MouseUpAtPoint(
 	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), false, false)
 }
 
-func x11MouseUp(button action.MouseButton) error {
+// x11MouseUp releases button at the cursor, then releases modifiers — the set
+// its press is holding, which nothing else will undo.
+func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	display, err := x11ActionDisplay()
 	if err != nil {
 		return err
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
+
+	defer x11ReleaseModifiers(display, modifiers) //nolint:nlreturn
 
 	if C.neru_ax_button(display, x11Button(button), 0) == 0 { //nolint:nlreturn
 		return derrors.Newf(

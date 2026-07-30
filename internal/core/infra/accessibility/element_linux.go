@@ -352,12 +352,21 @@ func MouseDownAtPoint(
 }
 
 // MouseUpAtPoint releases the given mouse button at the point.
+//
+// A press holds its modifiers until the matching release, so the release has to
+// undo the set recorded at press time rather than whatever this call was given —
+// releasing a modified press with a bare "up" action would otherwise leave the
+// modifier logically held. The wlroots path applies the same rule internally.
 func MouseUpAtPoint(
 	point image.Point,
 	button action.MouseButton,
 	modifiers action.Modifiers,
 ) error {
 	if currentLinuxBackend() == linuxBackendX11 {
+		if heldModifiers, wasHeld := linuxHeldButtons.DownModifiers(button); wasHeld {
+			modifiers = heldModifiers
+		}
+
 		err := x11MouseUpAtPoint(point, button, modifiers)
 		if err == nil {
 			linuxHeldButtons.Clear(button)
@@ -378,10 +387,14 @@ func MouseUpAtPoint(
 	return nil
 }
 
-// MouseUp releases the given mouse button at the cursor.
+// MouseUp releases the given mouse button at the cursor, together with the
+// modifiers its press is holding. This is the idle-cleanup path, so a modified
+// press that is never explicitly released still leaves nothing held.
 func MouseUp(button action.MouseButton) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		err := x11MouseUp(button)
+		heldModifiers, _ := linuxHeldButtons.DownModifiers(button)
+
+		err := x11MouseUp(button, heldModifiers)
 		if err == nil {
 			linuxHeldButtons.Clear(button)
 		}

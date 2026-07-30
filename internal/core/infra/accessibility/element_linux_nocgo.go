@@ -82,8 +82,8 @@ func x11MouseUpAtPoint(
 	)
 }
 
-func x11MouseUp(button action.MouseButton) error {
-	_ = button
+func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
+	_, _ = button, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"X11 mouse up requires CGO-enabled Linux builds",
