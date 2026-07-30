@@ -771,18 +771,35 @@ Key files:
 
 #### Action Execution
 
-All 8 action types from `internal/core/domain/action/action.go` are dispatched via `InfraAXClient.PerformAction`:
+Every action type in `internal/core/domain/action/action.go` is dispatched via `InfraAXClient.PerformAction`:
 
 | Action                  | macOS                                                | Linux                                                                | Windows                                                            |
 | ----------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | **Click at point**      | ✅ (`CGEventPost` via ObjC bridge)                   | ✅ (XTest btn 1 / zwlr_virtual_pointer)                              | ✅ (UIA pattern + `SendInput`)                                     |
 | **Right click**         | ✅ (`CGEventPost` right mouse down/up)               | ✅ (XTest btn 3 / zwlr_virtual_pointer)                              | ✅ (`SendInput` right button)                                      |
 | **Middle click**        | ✅ (`CGEventPost` middle mouse down/up)              | ✅ (XTest btn 2 / zwlr_virtual_pointer)                              | ✅ (`SendInput` middle button)                                     |
-| **Mouse down**          | ✅ (`CGEventPost` left mouse down)                   | ✅ (XTest btn 1 press / zwlr_virtual_pointer press)                  | ✅ (`SendInput` left down)                                         |
-| **Mouse up**            | ✅ (`CGEventPost` left mouse up)                     | ✅ (XTest btn 1 release / zwlr_virtual_pointer release)              | ✅ (`SendInput` left up)                                           |
+| **Mouse down (any button)** | ✅ (`CGEventPost` left/right/other mouse down)   | ✅ (XTest btn 1/2/3 press / zwlr_virtual_pointer press)              | ✅ (`SendInput` left/right/middle down)                            |
+| **Mouse up (any button)**   | ✅ (`CGEventPost` left/right/other mouse up)     | ✅ (XTest btn 1/2/3 release / zwlr_virtual_pointer release)          | ✅ (`SendInput` left/right/middle up)                              |
+| **Drag while held**     | ✅ (move posts the matching `*MouseDragged` type)    | ✅ (pointer warp with the button held)                               | ✅ (`SetCursorPos` with the button held)                           |
 | **Move mouse to point** | ✅ (`CGEventPost` mouse move)                        | ✅ (XTest `XWarpPointer` / zwlr_virtual_pointer)                     | ✅ (`SetCursorPos`)                                                |
 | **Move mouse relative** | ✅ (same as absolute, delta applied)                 | ✅ (same as absolute, delta applied)                                 | ✅ (same as absolute, delta applied)                               |
 | **Scroll at cursor**    | ✅ (`CGEventCreateScrollWheelEvent` + `CGEventPost`) | ✅ (X11: XTest btn 4/5; Wayland: evdev uinput + wlr virtual-pointer) | ✅ vertical only (`SendInput` `MOUSEEVENTF_WHEEL`; deltaX ignored) |
+
+**Held mouse buttons:** press and release are separate actions, so every backend
+has to remember what it pressed. That bookkeeping is shared rather than
+per-platform: each adapter keeps a
+[`mousestate.Tracker`](../internal/core/infra/platform/mousestate/tracker.go)
+recording which buttons are down, where they were pressed, and with which
+modifiers. It drives three behaviors identically everywhere — toggle actions
+resolve against it (held → release, free → press), `EnsureMouseUp` releases
+every held button when Neru returns to idle, and on macOS it selects the drag
+event type for cursor moves. macOS is the only backend where a move needs that
+distinction: Quartz requires `kCGEventLeftMouseDragged` /
+`kCGEventRightMouseDragged` / `kCGEventOtherMouseDragged` (with a matching
+button number) instead of `kCGEventMouseMoved`, while X11, Wayland, and Windows
+warp the pointer and the compositor or OS infers the drag from the held button.
+When several buttons are held at once, a macOS move is attributed to the
+left-most held button — a single event cannot describe more than one.
 
 #### Tree Building Comparison
 
@@ -867,6 +884,8 @@ backend-specific. The blacklist keeps chosen chords consumed, and
 | **Left click**          | ✅ (CGEventPost)                     | ✅ (XTest button 1)       | ✅ (zwlr_virtual_pointer button)                                                 | ✅ (SendInput)             |
 | **Right click**         | ✅                                   | ✅ (XTest button 3)       | ✅                                                                               | ✅                         |
 | **Middle click**        | ✅                                   | ✅ (XTest button 2)       | ✅                                                                               | ✅                         |
+| **Hold / release button** | ✅ (left, right, middle)           | ✅ (XTest button 1/2/3)   | ✅ (zwlr_virtual_pointer BTN_LEFT/RIGHT/MIDDLE)                                  | ✅ (SendInput down/up)     |
+| **Drag while held**     | ✅ (`*MouseDragged` event type)      | ✅ (warp with button held) | ✅ (warp with button held)                                                      | ✅ (warp with button held) |
 | **Scroll**              | ✅ (CGScrollWheelEvent)              | ✅ (XTest button 4/5)     | ✅ (zwlr_virtual_pointer axis)                                                   | ✅ (SendInput mouse wheel) |
 | **Smooth animation**    | ✅ (mouse_animator.go, configurable) | ✅ (mouse_animator_linux.go) | ✅ (mouse_animator_linux.go)                                                  | ❌                         |
 | **Wayland cursor sync** | N/A                                  | N/A                       | ✅ (brief map of transparent layer surface to capture `wl_pointer.enter` coords) | N/A                        |
@@ -890,6 +909,7 @@ backend-specific. The blacklist keeps chosen chords consumed, and
 | **Hover**                      | ✅                                                                | 🟡                                          | 🟡                              |
 | **Right click**                | ✅                                                                | ✅ (XTest button 3)                         | ✅ (SendInput right)            |
 | **Middle click**               | ✅                                                                | ✅ (XTest button 2)                         | ✅ (SendInput middle)           |
+| **Hold button at element**     | ✅ (`--action left_mouse_down` etc.)                              | ✅ (XTest button press)                     | ✅ (SendInput down)             |
 | **Scroll at element**          | ✅ (CGScrollWheelEvent)                                           | 🟡                                          | 🟡                              |
 | **Menubar elements**           | ✅                                                                | 🟡                                          | 🟡                              |
 | **Dock elements**              | ✅                                                                | N/A                                         | N/A                             |

@@ -18,7 +18,11 @@ import (
 )
 
 // kCGEventMouseMoved, as passed through to the CGEvent bridge.
-const eventMouseMoved = 5
+const (
+	eventMouseMoved = 5
+	// buttonLeft is kCGMouseButtonLeft; plain moves ignore the button.
+	buttonLeft = 0
+)
 
 // TestSmoothCursorSettlesOnTarget drives the smooth-cursor animator to a spread
 // of absolute points and requires it to settle exactly on each one.
@@ -62,7 +66,7 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 	)
 
 	for _, target := range targets {
-		darwinplatform.MoveMouseSmooth(target, 20, eventMouseMoved)
+		darwinplatform.MoveMouseSmooth(target, 20, eventMouseMoved, buttonLeft)
 
 		var landed image.Point
 
@@ -138,7 +142,7 @@ func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
 
 	for delayMs := range maxInterruptDelayMs + 1 {
 		for range repeats {
-			darwinplatform.MoveMouseSmooth(animationTarget, 20, eventMouseMoved)
+			darwinplatform.MoveMouseSmooth(animationTarget, 20, eventMouseMoved, buttonLeft)
 			time.Sleep(time.Duration(delayMs) * time.Millisecond)
 			darwinplatform.MoveMouse(directTarget, true)
 

@@ -591,27 +591,12 @@ func (e *Element) ScrollBounds() image.Rectangle {
 	}
 }
 
-// SetLeftMouseDown sets the left mouse button down state.
-func SetLeftMouseDown(down bool, position image.Point) {
-	darwin.SetLeftMouseDown(down, position)
+// IsMouseButtonDown returns whether the given mouse button is held down.
+func IsMouseButtonDown(button action.MouseButton) bool {
+	return darwin.IsMouseButtonDown(button)
 }
 
-// IsLeftMouseDown returns whether the left mouse button is down.
-func IsLeftMouseDown() bool {
-	return darwin.IsLeftMouseDown()
-}
-
-// GetLastMouseDownPosition ret down occurred.
-func GetLastMouseDownPosition() image.Point {
-	return darwin.GetLastMouseDownPosition()
-}
-
-// ClearLeftMouseDownState clears the left mouse button down state.
-func ClearLeftMouseDownState() {
-	darwin.ClearLeftMouseDownState()
-}
-
-// EnsureMouseUp ensures that if the left mouse button is down, it is released.
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
 // This should be called before any action that is incompatible with a drag operation.
 func EnsureMouseUp() {
 	darwin.EnsureMouseUp()
@@ -625,7 +610,7 @@ func MoveMouseToPoint(point image.Point, bypassSmooth bool) {
 
 // MoveMouseToPointSmooth moves the cursor smoothly to a specific screen point.
 func MoveMouseToPointSmooth(end image.Point, steps int, eventType C.CGEventType) {
-	darwin.MoveMouseSmooth(end, steps, uint32(eventType))
+	darwin.MoveMouseSmooth(end, steps, uint32(eventType), uint32(C.kCGMouseButtonLeft))
 }
 
 // LeftClickAtPoint performs a left mouse click at the specified point.
@@ -643,19 +628,27 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 	return darwin.MiddleClickAtPoint(point, restoreCursor, modifiers)
 }
 
-// LeftMouseDownAtPoint performs a left mouse down action at the specified point.
-func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
-	return darwin.LeftMouseDownAtPoint(point, modifiers)
+// MouseDownAtPoint presses and holds the given mouse button at the specified point.
+func MouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	return darwin.MouseDownAtPoint(point, button, modifiers)
 }
 
-// LeftMouseUpAtPoint performs a left mouse up action at the specified point.
-func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
-	return darwin.LeftMouseUpAtPoint(point, modifiers)
+// MouseUpAtPoint releases the given mouse button at the specified point.
+func MouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	return darwin.MouseUpAtPoint(point, button, modifiers)
 }
 
-// LeftMouseUp performs a left mouse up action at the current cursor position.
-func LeftMouseUp() error {
-	return darwin.LeftMouseUp()
+// MouseUp releases the given mouse button at the current cursor position.
+func MouseUp(button action.MouseButton) error {
+	return darwin.MouseUp(button)
 }
 
 // ScrollAtCursor scrolls the element at the current cursor position by the specified deltas.

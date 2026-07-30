@@ -12,9 +12,12 @@ const (
 	testMiddleClick       = "middle_click"
 	testMouseDown         = "mouse_down"
 	testMouseUp           = "mouse_up"
+	testLeftMouseDown     = "left_mouse_down"
+	testLeftMouseUp       = "left_mouse_up"
 	testMoveMouse         = "move_mouse"
 	testMoveMouseRelative = "move_mouse_relative"
 	testScroll            = "scroll"
+	testUnknown           = "unknown"
 )
 
 func TestParseType(t *testing.T) {
@@ -26,8 +29,10 @@ func TestParseType(t *testing.T) {
 		{testLeftClick, action.TypeLeftClick, false},
 		{testRightClick, action.TypeRightClick, false},
 		{testMiddleClick, action.TypeMiddleClick, false},
-		{testMouseDown, action.TypeMouseDown, false},
-		{testMouseUp, action.TypeMouseUp, false},
+		{testMouseDown, action.TypeLeftMouseDown, false},
+		{testMouseUp, action.TypeLeftMouseUp, false},
+		{testLeftMouseDown, action.TypeLeftMouseDown, false},
+		{testLeftMouseUp, action.TypeLeftMouseUp, false},
 		{testMoveMouse, action.TypeMoveMouse, false},
 		{testMoveMouseRelative, action.TypeMoveMouseRelative, false},
 		{testScroll, action.TypeScroll, false},
@@ -68,12 +73,12 @@ func TestType_String(t *testing.T) {
 		{action.TypeLeftClick, testLeftClick},
 		{action.TypeRightClick, testRightClick},
 		{action.TypeMiddleClick, testMiddleClick},
-		{action.TypeMouseDown, testMouseDown},
-		{action.TypeMouseUp, testMouseUp},
+		{action.TypeLeftMouseDown, testLeftMouseDown},
+		{action.TypeLeftMouseUp, testLeftMouseUp},
 		{action.TypeMoveMouse, testMoveMouse},
 		{action.TypeMoveMouseRelative, testMoveMouseRelative},
 		{action.TypeScroll, testScroll},
-		{action.Type(999), "unknown"},
+		{action.Type(999), testUnknown},
 	}
 
 	for _, testCase := range tests {
@@ -94,8 +99,8 @@ func TestType_IsClick(t *testing.T) {
 		{action.TypeLeftClick, true},
 		{action.TypeRightClick, true},
 		{action.TypeMiddleClick, true},
-		{action.TypeMouseDown, false},
-		{action.TypeMouseUp, false},
+		{action.TypeLeftMouseDown, false},
+		{action.TypeLeftMouseUp, false},
 		{action.TypeMoveMouse, false},
 		{action.TypeScroll, false},
 	}
@@ -118,8 +123,8 @@ func TestType_IsMouseButton(t *testing.T) {
 		{action.TypeLeftClick, true},
 		{action.TypeRightClick, true},
 		{action.TypeMiddleClick, true},
-		{action.TypeMouseDown, true},
-		{action.TypeMouseUp, true},
+		{action.TypeLeftMouseDown, true},
+		{action.TypeLeftMouseUp, true},
 		{action.TypeMoveMouse, false},
 		{action.TypeScroll, false},
 	}
@@ -142,8 +147,8 @@ func TestType_IsMoveMouse(t *testing.T) {
 		{action.TypeLeftClick, false},
 		{action.TypeRightClick, false},
 		{action.TypeMiddleClick, false},
-		{action.TypeMouseDown, false},
-		{action.TypeMouseUp, false},
+		{action.TypeLeftMouseDown, false},
+		{action.TypeLeftMouseUp, false},
 		{action.TypeMoveMouse, true},
 		{action.TypeMoveMouseRelative, true},
 		{action.TypeScroll, false},
@@ -162,8 +167,8 @@ func TestType_IsMoveMouse(t *testing.T) {
 func TestAllTypes(t *testing.T) {
 	types := action.AllTypes()
 
-	if len(types) != 8 {
-		t.Errorf("AllTypes() returned %d types, want 8", len(types))
+	if len(types) != 15 {
+		t.Errorf("AllTypes() returned %d types, want 15", len(types))
 	}
 
 	// Check that all types are unique
@@ -181,8 +186,15 @@ func TestAllTypes(t *testing.T) {
 		action.TypeLeftClick,
 		action.TypeRightClick,
 		action.TypeMiddleClick,
-		action.TypeMouseDown,
-		action.TypeMouseUp,
+		action.TypeLeftMouseDown,
+		action.TypeLeftMouseUp,
+		action.TypeRightMouseDown,
+		action.TypeRightMouseUp,
+		action.TypeMiddleMouseDown,
+		action.TypeMiddleMouseUp,
+		action.TypeLeftMouseToggle,
+		action.TypeRightMouseToggle,
+		action.TypeMiddleMouseToggle,
 		action.TypeMoveMouse,
 		action.TypeMoveMouseRelative,
 		action.TypeScroll,
@@ -332,8 +344,8 @@ func TestIsScrollSubAction(t *testing.T) {
 func TestKnownNames(t *testing.T) {
 	names := action.KnownNames()
 
-	if len(names) != 8 {
-		t.Errorf("KnownNames() returned %d names, want 8", len(names))
+	if len(names) != 15 {
+		t.Errorf("KnownNames() returned %d names, want 15", len(names))
 	}
 
 	// Check that all names are unique
@@ -351,8 +363,15 @@ func TestKnownNames(t *testing.T) {
 		action.NameLeftClick,
 		action.NameRightClick,
 		action.NameMiddleClick,
-		action.NameMouseDown,
-		action.NameMouseUp,
+		action.NameLeftMouseDown,
+		action.NameLeftMouseUp,
+		action.NameRightMouseDown,
+		action.NameRightMouseUp,
+		action.NameMiddleMouseDown,
+		action.NameMiddleMouseUp,
+		action.NameLeftMouseToggle,
+		action.NameRightMouseToggle,
+		action.NameMiddleMouseToggle,
 		action.NameMoveMouse,
 		action.NameMoveMouseRelative,
 		action.NameScroll,
@@ -409,8 +428,8 @@ func TestType_ToName(t *testing.T) {
 		{action.TypeLeftClick, action.NameLeftClick},
 		{action.TypeRightClick, action.NameRightClick},
 		{action.TypeMiddleClick, action.NameMiddleClick},
-		{action.TypeMouseDown, action.NameMouseDown},
-		{action.TypeMouseUp, action.NameMouseUp},
+		{action.TypeLeftMouseDown, action.NameLeftMouseDown},
+		{action.TypeLeftMouseUp, action.NameLeftMouseUp},
 		{action.TypeMoveMouse, action.NameMoveMouse},
 		{action.TypeMoveMouseRelative, action.NameMoveMouseRelative},
 		{action.TypeScroll, action.NameScroll},
@@ -436,8 +455,10 @@ func TestName_ToType(t *testing.T) {
 		{action.NameLeftClick, action.TypeLeftClick, false},
 		{action.NameRightClick, action.TypeRightClick, false},
 		{action.NameMiddleClick, action.TypeMiddleClick, false},
-		{action.NameMouseDown, action.TypeMouseDown, false},
-		{action.NameMouseUp, action.TypeMouseUp, false},
+		{action.NameMouseDown, action.TypeLeftMouseDown, false},
+		{action.NameMouseUp, action.TypeLeftMouseUp, false},
+		{action.NameLeftMouseDown, action.TypeLeftMouseDown, false},
+		{action.NameLeftMouseUp, action.TypeLeftMouseUp, false},
 		{action.NameMoveMouse, action.TypeMoveMouse, false},
 		{action.NameMoveMouseRelative, action.TypeMoveMouseRelative, false},
 		{action.NameScroll, action.TypeScroll, false},

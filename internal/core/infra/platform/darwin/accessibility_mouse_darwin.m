@@ -46,9 +46,10 @@ static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 
 /// Pan the zoom viewport to reveal a point and post a mouse move there
 /// @param position Target position
-/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-static void postMouseMoveLocked(CGPoint position, CGEventType eventType) {
-	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, kCGMouseButtonLeft);
+/// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
+/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+static void postMouseMoveLocked(CGPoint position, CGEventType eventType, CGMouseButton button) {
+	CGEventRef move = CGEventCreateMouseEvent(NULL, eventType, position, button);
 	if (!move)
 		return;
 
@@ -57,27 +58,47 @@ static void postMouseMoveLocked(CGPoint position, CGEventType eventType) {
 	CFRelease(move);
 }
 
-/// Move mouse cursor to position with specified event type
+/// Move mouse cursor to position with specified event type and drag button
 /// @param position Target position
-/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
-	postMouseMoveLocked(position, eventType);
+/// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
+/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+void NeruMoveMouseWithTypeAndButton(CGPoint position, CGEventType eventType, CGMouseButton button) {
+	postMouseMoveLocked(position, eventType, button);
 
 	// Deliberately outside the lock: this spins the run loop for milliseconds,
 	// and serialising that would stall every other cursor path.
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseMoveDelay, false);
 }
 
+/// Move mouse cursor to position with specified event type
+/// @param position Target position
+/// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
+void NeruMoveMouseWithType(CGPoint position, CGEventType eventType) {
+	NeruMoveMouseWithTypeAndButton(position, eventType, kCGMouseButtonLeft);
+}
+
+/// Post a single mouse move event (non-blocking, for async animation)
+/// @param position Target position
+/// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
+/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+void NeruPostMouseMoveEventWithButton(CGPoint position, CGEventType eventType, CGMouseButton button) {
+	postMouseMoveLocked(position, eventType, button);
+}
+
 /// Post a single mouse move event (non-blocking, for async animation)
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
-void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) { postMouseMoveLocked(position, eventType); }
+void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType) {
+	postMouseMoveLocked(position, eventType, kCGMouseButtonLeft);
+}
 
 #pragma mark - Mouse Action Functions
 
-/// Release the left button without moving
+/// Release a button without moving
+/// @param upEvent Mouse up event type matching button
+/// @param button Mouse button to release
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseUpAtCursor(void) {
+int NeruPerformMouseUpAtCursor(CGEventType upEvent, CGMouseButton button) {
 	CGEventRef currentEvent = CGEventCreate(NULL);
 	if (!currentEvent)
 		return 0;
@@ -85,7 +106,7 @@ int NeruPerformLeftMouseUpAtCursor(void) {
 	CGPoint currentPos = CGEventGetLocation(currentEvent);
 	CFRelease(currentEvent);
 
-	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, currentPos, kCGMouseButtonLeft);
+	CGEventRef up = CGEventCreateMouseEvent(NULL, upEvent, currentPos, button);
 	if (!up)
 		return 0;
 
@@ -271,42 +292,46 @@ int NeruPerformMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEve
 	    position, kCGEventOtherMouseDown, kCGEventOtherMouseUp, kCGMouseButtonCenter, restoreCursor, flags);
 }
 
-/// Perform left mouse down at position
+/// Post a single button event at a position
 /// @param position Target position
+/// @param buttonEvent Mouse down or up event type matching button
+/// @param button Mouse button the event belongs to
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags) {
+static int performButtonEventAtPosition(
+    CGPoint position, CGEventType buttonEvent, CGMouseButton button, CGEventFlags flags) {
 	NeruMoveMouseWithType(position, kCGEventMouseMoved);
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 
-	CGEventRef down = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, position, kCGMouseButtonLeft);
-	if (!down)
+	CGEventRef event = CGEventCreateMouseEvent(NULL, buttonEvent, position, button);
+	if (!event)
 		return 0;
 
-	// Set modifier flags (0 = no modifiers for clean mouse down)
-	CGEventSetFlags(down, flags);
-	postPositionedEventLocked(down, position);
-	CFRelease(down);
+	// Set modifier flags (0 = no modifiers for a clean press/release)
+	CGEventSetFlags(event, flags);
+	postPositionedEventLocked(event, position);
+	CFRelease(event);
 
 	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
 	return 1;
 }
 
-/// Perform left mouse up at position
+/// Perform a mouse down at position
 /// @param position Target position
+/// @param downEvent Mouse down event type matching button
+/// @param button Mouse button to press
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags) {
-	NeruMoveMouseWithType(position, kCGEventMouseMoved);
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
+int NeruPerformMouseDownAtPosition(CGPoint position, CGEventType downEvent, CGMouseButton button, CGEventFlags flags) {
+	return performButtonEventAtPosition(position, downEvent, button, flags);
+}
 
-	CGEventRef up = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, position, kCGMouseButtonLeft);
-	if (!up)
-		return 0;
-
-	// Set modifier flags (0 = no modifiers for clean mouse up)
-	CGEventSetFlags(up, flags);
-	postPositionedEventLocked(up, position);
-	CFRelease(up);
-
-	CFRunLoopRunInMode(kCFRunLoopDefaultMode, kNeruMouseClickProcessingDelay, false);
-	return 1;
+/// Perform a mouse up at position
+/// @param position Target position
+/// @param upEvent Mouse up event type matching button
+/// @param button Mouse button to release
+/// @param flags CGEventFlags for modifier keys (0 for none)
+/// @return 1 on success, 0 on failure
+int NeruPerformMouseUpAtPosition(CGPoint position, CGEventType upEvent, CGMouseButton button, CGEventFlags flags) {
+	return performButtonEventAtPosition(position, upEvent, button, flags);
 }

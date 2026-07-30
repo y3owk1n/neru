@@ -6,6 +6,9 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// unknownLabel is the String() result for values outside the defined enums.
+const unknownLabel = "unknown"
+
 // Type represents the type of action to perform on a UI element.
 type Type int
 
@@ -16,17 +19,192 @@ const (
 	TypeRightClick
 	// TypeMiddleClick performs a middle mouse click.
 	TypeMiddleClick
-	// TypeMouseDown performs a mouse down event.
-	TypeMouseDown
-	// TypeMouseUp performs a mouse up event.
-	TypeMouseUp
+	// TypeLeftMouseDown presses and holds the left mouse button.
+	TypeLeftMouseDown
+	// TypeLeftMouseUp releases the left mouse button.
+	TypeLeftMouseUp
 	// TypeMoveMouse moves the mouse cursor to a specific point (absolute).
 	TypeMoveMouse
 	// TypeMoveMouseRelative moves the mouse cursor relative to current position.
 	TypeMoveMouseRelative
 	// TypeScroll performs a scroll action.
 	TypeScroll
+	// TypeRightMouseDown presses and holds the right mouse button.
+	TypeRightMouseDown
+	// TypeRightMouseUp releases the right mouse button.
+	TypeRightMouseUp
+	// TypeMiddleMouseDown presses and holds the middle mouse button.
+	TypeMiddleMouseDown
+	// TypeMiddleMouseUp releases the middle mouse button.
+	TypeMiddleMouseUp
+	// TypeLeftMouseToggle releases the left mouse button when held, presses it otherwise.
+	TypeLeftMouseToggle
+	// TypeRightMouseToggle releases the right mouse button when held, presses it otherwise.
+	TypeRightMouseToggle
+	// TypeMiddleMouseToggle releases the middle mouse button when held, presses it otherwise.
+	TypeMiddleMouseToggle
 )
+
+// MouseButton identifies a physical mouse button.
+type MouseButton int
+
+const (
+	// ButtonLeft is the left mouse button.
+	ButtonLeft MouseButton = iota
+	// ButtonRight is the right mouse button.
+	ButtonRight
+	// ButtonMiddle is the middle mouse button.
+	ButtonMiddle
+)
+
+// String returns the string representation of the mouse button.
+func (b MouseButton) String() string {
+	switch b {
+	case ButtonLeft:
+		return "left"
+	case ButtonRight:
+		return "right"
+	case ButtonMiddle:
+		return "middle"
+	default:
+		return unknownLabel
+	}
+}
+
+// MouseButtons returns every mouse button in release priority order.
+func MouseButtons() []MouseButton {
+	return []MouseButton{ButtonLeft, ButtonRight, ButtonMiddle}
+}
+
+// MousePhase describes which part of a button press a mouse action performs.
+type MousePhase int
+
+const (
+	// PhaseClick presses and releases the button in one action.
+	PhaseClick MousePhase = iota
+	// PhaseDown presses and holds the button.
+	PhaseDown
+	// PhaseUp releases a held button.
+	PhaseUp
+	// PhaseToggle presses the button when it is up and releases it when it is held.
+	PhaseToggle
+)
+
+// String returns the string representation of the mouse phase.
+func (p MousePhase) String() string {
+	switch p {
+	case PhaseClick:
+		return "click"
+	case PhaseDown:
+		return "down"
+	case PhaseUp:
+		return "up"
+	case PhaseToggle:
+		return "toggle"
+	default:
+		return unknownLabel
+	}
+}
+
+// ParsePhase parses the value of the --state flag into a mouse phase.
+// Only the down and up phases are expressible as --state values; click is the
+// absence of the flag and toggle has its own --toggle flag.
+func ParsePhase(phaseString string) (MousePhase, error) {
+	switch phaseString {
+	case "down":
+		return PhaseDown, nil
+	case "up":
+		return PhaseUp, nil
+	default:
+		return 0, derrors.Newf(
+			derrors.CodeInvalidInput,
+			"unknown mouse button state: %s (expected down or up)",
+			phaseString,
+		)
+	}
+}
+
+// MouseButtonPhase decomposes a mouse button action type into the button it
+// acts on and the phase it performs. The second return value is false for
+// action types that are not mouse button actions.
+func (t Type) MouseButtonPhase() (MouseButton, MousePhase, bool) {
+	switch t {
+	case TypeLeftClick:
+		return ButtonLeft, PhaseClick, true
+	case TypeRightClick:
+		return ButtonRight, PhaseClick, true
+	case TypeMiddleClick:
+		return ButtonMiddle, PhaseClick, true
+	case TypeLeftMouseDown:
+		return ButtonLeft, PhaseDown, true
+	case TypeLeftMouseUp:
+		return ButtonLeft, PhaseUp, true
+	case TypeRightMouseDown:
+		return ButtonRight, PhaseDown, true
+	case TypeRightMouseUp:
+		return ButtonRight, PhaseUp, true
+	case TypeMiddleMouseDown:
+		return ButtonMiddle, PhaseDown, true
+	case TypeMiddleMouseUp:
+		return ButtonMiddle, PhaseUp, true
+	case TypeLeftMouseToggle:
+		return ButtonLeft, PhaseToggle, true
+	case TypeRightMouseToggle:
+		return ButtonRight, PhaseToggle, true
+	case TypeMiddleMouseToggle:
+		return ButtonMiddle, PhaseToggle, true
+	case TypeMoveMouse, TypeMoveMouseRelative, TypeScroll:
+		return 0, 0, false
+	default:
+		return 0, 0, false
+	}
+}
+
+// MouseButtonName returns the action name that performs the given phase on the
+// given button. The second return value is false for combinations that have no
+// name (there is no phase outside the four defined ones).
+func MouseButtonName(button MouseButton, phase MousePhase) (Name, bool) {
+	switch phase {
+	case PhaseClick:
+		switch button {
+		case ButtonLeft:
+			return NameLeftClick, true
+		case ButtonRight:
+			return NameRightClick, true
+		case ButtonMiddle:
+			return NameMiddleClick, true
+		}
+	case PhaseDown:
+		switch button {
+		case ButtonLeft:
+			return NameLeftMouseDown, true
+		case ButtonRight:
+			return NameRightMouseDown, true
+		case ButtonMiddle:
+			return NameMiddleMouseDown, true
+		}
+	case PhaseUp:
+		switch button {
+		case ButtonLeft:
+			return NameLeftMouseUp, true
+		case ButtonRight:
+			return NameRightMouseUp, true
+		case ButtonMiddle:
+			return NameMiddleMouseUp, true
+		}
+	case PhaseToggle:
+		switch button {
+		case ButtonLeft:
+			return NameLeftMouseToggle, true
+		case ButtonRight:
+			return NameRightMouseToggle, true
+		case ButtonMiddle:
+			return NameMiddleMouseToggle, true
+		}
+	}
+
+	return "", false
+}
 
 // String returns the string representation of the action type.
 func (t Type) String() string {
@@ -37,10 +215,24 @@ func (t Type) String() string {
 		return "right_click"
 	case TypeMiddleClick:
 		return "middle_click"
-	case TypeMouseDown:
-		return "mouse_down"
-	case TypeMouseUp:
-		return "mouse_up"
+	case TypeLeftMouseDown:
+		return "left_mouse_down"
+	case TypeLeftMouseUp:
+		return "left_mouse_up"
+	case TypeRightMouseDown:
+		return "right_mouse_down"
+	case TypeRightMouseUp:
+		return "right_mouse_up"
+	case TypeMiddleMouseDown:
+		return "middle_mouse_down"
+	case TypeMiddleMouseUp:
+		return "middle_mouse_up"
+	case TypeLeftMouseToggle:
+		return "left_mouse_toggle"
+	case TypeRightMouseToggle:
+		return "right_mouse_toggle"
+	case TypeMiddleMouseToggle:
+		return "middle_mouse_toggle"
 	case TypeMoveMouse:
 		return "move_mouse"
 	case TypeMoveMouseRelative:
@@ -48,7 +240,7 @@ func (t Type) String() string {
 	case TypeScroll:
 		return "scroll"
 	default:
-		return "unknown"
+		return unknownLabel
 	}
 }
 
@@ -61,10 +253,27 @@ func ParseType(actionString string) (Type, error) {
 		return TypeRightClick, nil
 	case "middle_click":
 		return TypeMiddleClick, nil
-	case "mouse_down":
-		return TypeMouseDown, nil
-	case "mouse_up":
-		return TypeMouseUp, nil
+	// mouse_down / mouse_up are the original left-button spellings, from
+	// before the right and middle buttons could be pressed and released. They
+	// stay accepted so existing configs keep working.
+	case "left_mouse_down", "mouse_down":
+		return TypeLeftMouseDown, nil
+	case "left_mouse_up", "mouse_up":
+		return TypeLeftMouseUp, nil
+	case "right_mouse_down":
+		return TypeRightMouseDown, nil
+	case "right_mouse_up":
+		return TypeRightMouseUp, nil
+	case "middle_mouse_down":
+		return TypeMiddleMouseDown, nil
+	case "middle_mouse_up":
+		return TypeMiddleMouseUp, nil
+	case "left_mouse_toggle":
+		return TypeLeftMouseToggle, nil
+	case "right_mouse_toggle":
+		return TypeRightMouseToggle, nil
+	case "middle_mouse_toggle":
+		return TypeMiddleMouseToggle, nil
 	case "move_mouse":
 		return TypeMoveMouse, nil
 	case "move_mouse_relative":
@@ -83,8 +292,9 @@ func (t Type) IsClick() bool {
 
 // IsMouseButton returns true if the action involves a mouse button.
 func (t Type) IsMouseButton() bool {
-	return t == TypeLeftClick || t == TypeRightClick || t == TypeMiddleClick ||
-		t == TypeMouseDown || t == TypeMouseUp
+	_, _, ok := t.MouseButtonPhase()
+
+	return ok
 }
 
 // IsMoveMouse returns true if the action moves the mouse cursor.
@@ -97,8 +307,15 @@ var allTypes = []Type{
 	TypeLeftClick,
 	TypeRightClick,
 	TypeMiddleClick,
-	TypeMouseDown,
-	TypeMouseUp,
+	TypeLeftMouseDown,
+	TypeLeftMouseUp,
+	TypeRightMouseDown,
+	TypeRightMouseUp,
+	TypeMiddleMouseDown,
+	TypeMiddleMouseUp,
+	TypeLeftMouseToggle,
+	TypeRightMouseToggle,
+	TypeMiddleMouseToggle,
 	TypeMoveMouse,
 	TypeMoveMouseRelative,
 	TypeScroll,
@@ -123,10 +340,36 @@ const (
 	NameRightClick Name = "right_click"
 	// NameMiddleClick represents the middle click action.
 	NameMiddleClick Name = "middle_click"
-	// NameMouseDown represents the mouse down action.
+	// NameLeftMouseDown represents the left mouse button down action.
+	NameLeftMouseDown Name = "left_mouse_down"
+	// NameLeftMouseUp represents the left mouse button up action.
+	NameLeftMouseUp Name = "left_mouse_up"
+	// NameMouseDown is the original spelling of NameLeftMouseDown, from before
+	// the right and middle buttons could be pressed and released.
+	//
+	// Deprecated: use NameLeftMouseDown; "mouse_down" is still accepted from
+	// configs and IPC callers.
 	NameMouseDown Name = "mouse_down"
-	// NameMouseUp represents the mouse up action.
+	// NameMouseUp is the original spelling of NameLeftMouseUp, from before the
+	// right and middle buttons could be pressed and released.
+	//
+	// Deprecated: use NameLeftMouseUp; "mouse_up" is still accepted from
+	// configs and IPC callers.
 	NameMouseUp Name = "mouse_up"
+	// NameRightMouseDown represents the right mouse button down action.
+	NameRightMouseDown Name = "right_mouse_down"
+	// NameRightMouseUp represents the right mouse button up action.
+	NameRightMouseUp Name = "right_mouse_up"
+	// NameMiddleMouseDown represents the middle mouse button down action.
+	NameMiddleMouseDown Name = "middle_mouse_down"
+	// NameMiddleMouseUp represents the middle mouse button up action.
+	NameMiddleMouseUp Name = "middle_mouse_up"
+	// NameLeftMouseToggle represents the left mouse button toggle action.
+	NameLeftMouseToggle Name = "left_mouse_toggle"
+	// NameRightMouseToggle represents the right mouse button toggle action.
+	NameRightMouseToggle Name = "right_mouse_toggle"
+	// NameMiddleMouseToggle represents the middle mouse button toggle action.
+	NameMiddleMouseToggle Name = "middle_mouse_toggle"
 	// NameMoveMouse represents the mouse move action.
 	NameMoveMouse Name = "move_mouse"
 	// NameMoveMouseRelative represents the relative mouse move action.
@@ -186,8 +429,15 @@ var knownNames = []Name{
 	NameLeftClick,
 	NameRightClick,
 	NameMiddleClick,
-	NameMouseDown,
-	NameMouseUp,
+	NameLeftMouseDown,
+	NameLeftMouseUp,
+	NameRightMouseDown,
+	NameRightMouseUp,
+	NameMiddleMouseDown,
+	NameMiddleMouseUp,
+	NameLeftMouseToggle,
+	NameRightMouseToggle,
+	NameMiddleMouseToggle,
 	NameMoveMouse,
 	NameMoveMouseRelative,
 	NameScroll,
@@ -272,8 +522,17 @@ func IsKnownName(name Name) bool {
 	case NameLeftClick,
 		NameRightClick,
 		NameMiddleClick,
+		NameLeftMouseDown,
+		NameLeftMouseUp,
 		NameMouseDown,
 		NameMouseUp,
+		NameRightMouseDown,
+		NameRightMouseUp,
+		NameMiddleMouseDown,
+		NameMiddleMouseUp,
+		NameLeftMouseToggle,
+		NameRightMouseToggle,
+		NameMiddleMouseToggle,
 		NameMoveMouse,
 		NameMoveMouseRelative,
 		NameScroll,
@@ -302,7 +561,11 @@ func IsScrollSubAction(name string) bool {
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown:
 		return true
 	case NameLeftClick, NameRightClick, NameMiddleClick,
+		NameLeftMouseDown, NameLeftMouseUp,
 		NameMouseDown, NameMouseUp,
+		NameRightMouseDown, NameRightMouseUp,
+		NameMiddleMouseDown, NameMiddleMouseUp,
+		NameLeftMouseToggle, NameRightMouseToggle, NameMiddleMouseToggle,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
@@ -336,10 +599,24 @@ func (t Type) ToName() Name {
 		return NameRightClick
 	case TypeMiddleClick:
 		return NameMiddleClick
-	case TypeMouseDown:
-		return NameMouseDown
-	case TypeMouseUp:
-		return NameMouseUp
+	case TypeLeftMouseDown:
+		return NameLeftMouseDown
+	case TypeLeftMouseUp:
+		return NameLeftMouseUp
+	case TypeRightMouseDown:
+		return NameRightMouseDown
+	case TypeRightMouseUp:
+		return NameRightMouseUp
+	case TypeMiddleMouseDown:
+		return NameMiddleMouseDown
+	case TypeMiddleMouseUp:
+		return NameMiddleMouseUp
+	case TypeLeftMouseToggle:
+		return NameLeftMouseToggle
+	case TypeRightMouseToggle:
+		return NameRightMouseToggle
+	case TypeMiddleMouseToggle:
+		return NameMiddleMouseToggle
 	case TypeMoveMouse:
 		return NameMoveMouse
 	case TypeMoveMouseRelative:
@@ -360,10 +637,24 @@ func (n Name) ToType() (Type, error) {
 		return TypeRightClick, nil
 	case NameMiddleClick:
 		return TypeMiddleClick, nil
-	case NameMouseDown:
-		return TypeMouseDown, nil
-	case NameMouseUp:
-		return TypeMouseUp, nil
+	case NameLeftMouseDown, NameMouseDown:
+		return TypeLeftMouseDown, nil
+	case NameLeftMouseUp, NameMouseUp:
+		return TypeLeftMouseUp, nil
+	case NameRightMouseDown:
+		return TypeRightMouseDown, nil
+	case NameRightMouseUp:
+		return TypeRightMouseUp, nil
+	case NameMiddleMouseDown:
+		return TypeMiddleMouseDown, nil
+	case NameMiddleMouseUp:
+		return TypeMiddleMouseUp, nil
+	case NameLeftMouseToggle:
+		return TypeLeftMouseToggle, nil
+	case NameRightMouseToggle:
+		return TypeRightMouseToggle, nil
+	case NameMiddleMouseToggle:
+		return TypeMiddleMouseToggle, nil
 	case NameMoveMouse:
 		return TypeMoveMouse, nil
 	case NameMoveMouseRelative:

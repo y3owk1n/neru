@@ -12,8 +12,8 @@ const (
 	testConvLeftClick   = "left_click"
 	testConvRightClick  = "right_click"
 	testConvMiddleClick = "middle_click"
-	testConvMouseDown   = "mouse_down"
-	testConvMouseUp     = "mouse_up"
+	testConvMouseDown   = "left_mouse_down"
+	testConvMouseUp     = "left_mouse_up"
 	testConvMoveMouse   = "move_mouse"
 	testConvScroll      = "scroll"
 )
@@ -79,12 +79,12 @@ func TestActionString(t *testing.T) {
 		},
 		{
 			name:   "mouse up",
-			action: action.TypeMouseUp,
+			action: action.TypeLeftMouseUp,
 			want:   testConvMouseUp,
 		},
 		{
 			name:   "mouse down",
-			action: action.TypeMouseDown,
+			action: action.TypeLeftMouseDown,
 			want:   testConvMouseDown,
 		},
 		{
@@ -141,13 +141,13 @@ func TestActionFromString(t *testing.T) {
 		{
 			name:       testConvMouseUp,
 			actionStr:  testConvMouseUp,
-			wantAction: action.TypeMouseUp,
+			wantAction: action.TypeLeftMouseUp,
 			wantOk:     true,
 		},
 		{
 			name:       testConvMouseDown,
 			actionStr:  testConvMouseDown,
-			wantAction: action.TypeMouseDown,
+			wantAction: action.TypeLeftMouseDown,
 			wantOk:     true,
 		},
 		{
@@ -218,8 +218,8 @@ func TestActionStringRoundTrip(t *testing.T) {
 	actions := []action.Type{
 		action.TypeLeftClick,
 		action.TypeRightClick,
-		action.TypeMouseUp,
-		action.TypeMouseDown,
+		action.TypeLeftMouseUp,
+		action.TypeLeftMouseDown,
 		action.TypeMiddleClick,
 		action.TypeMoveMouse,
 		action.TypeScroll,

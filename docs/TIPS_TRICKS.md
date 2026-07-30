@@ -11,6 +11,7 @@
 - [Restore Cursor Position After Mode Exit](#restore-cursor-position-after-mode-exit)
 - [Custom Mouse Movement Step Size](#custom-mouse-movement-step-size)
 - [Click, sleep, move](#click-sleep-move)
+- [Drag with Any Mouse Button](#drag-with-any-mouse-button)
 - [Target Menus Without Moving the Real Cursor](#target-menus-without-moving-the-real-cursor)
 - [Mode Toggle (On/Off)](#mode-toggle-onoff)
 - [Cycle Through Modes with One Hotkey](#cycle-through-modes-with-one-hotkey)
@@ -130,6 +131,52 @@ On some apps (e.g. Discord), it requires you to wait for a bit after clicking be
 [recursive_grid.hotkeys]
 # Click, sleep for a bit, and then only reset (that moves the cursor to center in recursive grid mode)
 "Ctrl+J" = ["action left_click", "action sleep 0.05", "action reset"]
+```
+
+## Drag with Any Mouse Button
+
+Click actions take `--state down` and `--state up`, so a drag is just "press
+here, move there, release". This works for the left, right, and middle button —
+right-drag creates shortcuts on Windows, and middle-drag pans the canvas in
+apps like TouchDesigner, Blender, and Photoshop.
+
+```toml
+[recursive_grid.hotkeys]
+# Press at the current selection, then navigate and release somewhere else
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
+
+"Shift+O" = "action right_click --state down"
+"Shift+P" = "action right_click --state up"
+
+"Shift+K" = "action middle_click --state down"
+"Shift+J" = "action middle_click --state up"
+```
+
+`Shift+I` / `Shift+U` are the shipped defaults for the left button; the right and
+middle bindings above are additions.
+
+If two keys per button is too many, `--toggle` presses the button when it is
+free and releases it when it is held, so one key covers the whole drag:
+
+```toml
+[recursive_grid.hotkeys]
+"Shift+I" = "action left_click --toggle"
+"Shift+O" = "action right_click --toggle"
+"Shift+K" = "action middle_click --toggle"
+```
+
+Moving the cursor while a button is held emits drag events for that button, so
+the usual grid and hint navigation keys steer the drag. Any button Neru is
+holding is released when it returns to idle, so pressing `Esc` mid-drag never
+leaves a button stuck down.
+
+To start a drag from a hinted element instead of a grid selection, use the
+action name form — mode `--action` takes names, not flags:
+
+```toml
+[hotkeys]
+"Primary+Shift+D" = "hints --action left_mouse_down"
 ```
 
 ## Target Menus Without Moving the Real Cursor
