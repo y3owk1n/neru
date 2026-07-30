@@ -11,14 +11,12 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/mousestate"
 	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 )
 
-var (
-	windowsMouseDownMu  sync.RWMutex
-	windowsMouseDown    bool
-	windowsMouseDownPos image.Point
-)
+// windowsHeldButtons records which mouse buttons Neru is currently holding down.
+var windowsHeldButtons mousestate.Tracker
 
 // Element represents a UI element for Windows.
 //
@@ -236,44 +234,15 @@ func FrontmostWindow() *Element {
 	}
 }
 
-// SetLeftMouseDown sets the left mouse down state.
-func SetLeftMouseDown(down bool, position image.Point) {
-	windowsMouseDownMu.Lock()
-	defer windowsMouseDownMu.Unlock()
-
-	windowsMouseDown = down
-	windowsMouseDownPos = position
+// IsMouseButtonDown returns whether the given mouse button is held down.
+func IsMouseButtonDown(button action.MouseButton) bool {
+	return windowsHeldButtons.IsDown(button)
 }
 
-// IsLeftMouseDown returns whether the left mouse button is down.
-func IsLeftMouseDown() bool {
-	windowsMouseDownMu.RLock()
-	defer windowsMouseDownMu.RUnlock()
-
-	return windowsMouseDown
-}
-
-// GetLastMouseDownPosition returns the last mouse down position.
-func GetLastMouseDownPosition() image.Point {
-	windowsMouseDownMu.RLock()
-	defer windowsMouseDownMu.RUnlock()
-
-	return windowsMouseDownPos
-}
-
-// ClearLeftMouseDownState clears the mouse down state.
-func ClearLeftMouseDownState() {
-	windowsMouseDownMu.Lock()
-	defer windowsMouseDownMu.Unlock()
-
-	windowsMouseDown = false
-	windowsMouseDownPos = image.Point{}
-}
-
-// EnsureMouseUp ensures the mouse is up.
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
 func EnsureMouseUp() {
-	if IsLeftMouseDown() {
-		_ = LeftMouseUp()
+	for _, button := range windowsHeldButtons.HeldButtons() {
+		_ = MouseUp(button)
 	}
 }
 
@@ -309,38 +278,46 @@ func MiddleClickAtPoint(
 	return winplatform.MiddleClickAt(point)
 }
 
-// LeftMouseDownAtPoint presses the mouse.
-func LeftMouseDownAtPoint(point image.Point, _ action.Modifiers) error {
-	err := winplatform.LeftMouseDown(point)
+// MouseDownAtPoint presses and holds the given mouse button at the point.
+func MouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	err := winplatform.MouseDown(point, button)
 	if err != nil {
 		return err
 	}
 
-	SetLeftMouseDown(true, point)
+	windowsHeldButtons.SetDown(button, point, modifiers)
 
 	return nil
 }
 
-// LeftMouseUpAtPoint releases the mouse.
-func LeftMouseUpAtPoint(point image.Point, _ action.Modifiers) error {
-	err := winplatform.LeftMouseUp(point)
+// MouseUpAtPoint releases the given mouse button at the point.
+func MouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	_ action.Modifiers,
+) error {
+	err := winplatform.MouseUp(point, button)
 	if err != nil {
 		return err
 	}
 
-	ClearLeftMouseDownState()
+	windowsHeldButtons.Clear(button)
 
 	return nil
 }
 
-// LeftMouseUp releases the mouse.
-func LeftMouseUp() error {
+// MouseUp releases the given mouse button at the cursor.
+func MouseUp(button action.MouseButton) error {
 	pos, err := winplatform.CurrentCursorPosition()
 	if err != nil {
 		return err
 	}
 
-	return LeftMouseUpAtPoint(pos, 0)
+	return MouseUpAtPoint(pos, button, 0)
 }
 
 // ScrollAtCursor scrolls the mouse.

@@ -19,6 +19,11 @@ import (
 const (
 	moveMonitor     = "move_monitor"
 	moveMouse       = "move_mouse"
+	leftClick       = "left_click"
+	rightClick      = "right_click"
+	scrollUp        = "scroll_up"
+	stateDown       = "down"
+	flagStateDown   = flagState + "=" + stateDown
 	fooStr          = "foo"
 	waitForModeExit = "wait_for_mode_exit"
 )
@@ -139,7 +144,7 @@ func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: actionCmd,
-		Args:   []string{"left_click", flagBail},
+		Args:   []string{leftClick, flagBail},
 	})
 
 	if resp.Success {
@@ -756,7 +761,7 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 	// Chain containing 'feed'
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: actionCmd,
-		Args:   []string{"left_click,feed"},
+		Args:   []string{leftClick + ",feed"},
 	})
 	if resp.Success {
 		t.Fatal("expected chain validation to fail for feed action")
@@ -765,7 +770,7 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 	// Chain containing 'sleep'
 	resp = controller.handleAction(context.Background(), ipc.Command{
 		Action: actionCmd,
-		Args:   []string{"left_click,sleep"},
+		Args:   []string{leftClick + ",sleep"},
 	})
 	if resp.Success {
 		t.Fatal("expected chain validation to fail for sleep action")
@@ -774,7 +779,7 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 	// Chain containing 'cycle_hint'
 	resp = controller.handleAction(context.Background(), ipc.Command{
 		Action: actionCmd,
-		Args:   []string{"left_click,cycle_hint"},
+		Args:   []string{leftClick + ",cycle_hint"},
 	})
 	if resp.Success {
 		t.Fatal("expected chain validation to fail for cycle_hint action")

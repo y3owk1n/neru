@@ -116,10 +116,22 @@ int NeruGetElementCenter(void *element, CGPoint *outPoint);
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
 void NeruMoveMouseWithType(CGPoint position, CGEventType eventType);
 
+/// Move mouse cursor to position, attributing drags to a specific button
+/// @param position Target position
+/// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
+/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+void NeruMoveMouseWithTypeAndButton(CGPoint position, CGEventType eventType, CGMouseButton button);
+
 /// Post a single mouse move event (for async animation)
 /// @param position Target position
 /// @param eventType CGEvent type (kCGEventMouseMoved or kCGEventLeftMouseDragged)
 void NeruPostMouseMoveEvent(CGPoint position, CGEventType eventType);
+
+/// Post a single mouse move event, attributing drags to a specific button
+/// @param position Target position
+/// @param eventType CGEvent type (kCGEventMouseMoved or a *MouseDragged type)
+/// @param button Button the drag belongs to; ignored for kCGEventMouseMoved
+void NeruPostMouseMoveEventWithButton(CGPoint position, CGEventType eventType, CGMouseButton button);
 
 /// Check if element has click action
 /// @param element Element reference
@@ -260,21 +272,27 @@ int NeruPerformRightClickAtPosition(CGPoint position, bool restoreCursor, CGEven
 /// @return 1 on success, 0 on failure
 int NeruPerformMiddleClickAtPosition(CGPoint position, bool restoreCursor, CGEventFlags flags);
 
-/// Perform left mouse down at position
+/// Perform a mouse down at position
 /// @param position Target position
+/// @param downEvent Mouse down event type matching button
+/// @param button Mouse button to press
 /// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseDownAtPosition(CGPoint position, CGEventFlags flags);
+int NeruPerformMouseDownAtPosition(CGPoint position, CGEventType downEvent, CGMouseButton button, CGEventFlags flags);
 
-/// Perform left mouse up at position
+/// Perform a mouse up at position
 /// @param position Target position
+/// @param upEvent Mouse up event type matching button
+/// @param button Mouse button to release
 /// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseUpAtPosition(CGPoint position, CGEventFlags flags);
+int NeruPerformMouseUpAtPosition(CGPoint position, CGEventType upEvent, CGMouseButton button, CGEventFlags flags);
 
-/// Perform left mouse up at cursor position
+/// Perform a mouse up at the cursor position
+/// @param upEvent Mouse up event type matching button
+/// @param button Mouse button to release
 /// @return 1 on success, 0 on failure
-int NeruPerformLeftMouseUpAtCursor(void);
+int NeruPerformMouseUpAtCursor(CGEventType upEvent, CGMouseButton button);
 
 #pragma mark - Screen Functions
 

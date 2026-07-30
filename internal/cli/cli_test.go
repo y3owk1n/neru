@@ -154,6 +154,15 @@ func TestCommandInitialization(t *testing.T) {
 		"right_click":         false,
 		"mouse_up":            false,
 		"mouse_down":          false,
+		"left_mouse_down":     false,
+		"left_mouse_up":       false,
+		"left_mouse_toggle":   false,
+		"right_mouse_down":    false,
+		"right_mouse_up":      false,
+		"right_mouse_toggle":  false,
+		"middle_mouse_down":   false,
+		"middle_mouse_up":     false,
+		"middle_mouse_toggle": false,
 		"middle_click":        false,
 		"move_mouse":          false,
 		"move_mouse_relative": false,
@@ -300,5 +309,90 @@ func TestLaunchCommandExecution(t *testing.T) {
 	err := launchCmd.RunE(launchCmd, []string{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildClickActionCommand_HasButtonPhaseFlags(t *testing.T) {
+	cmd := cli.BuildClickActionCommand("test", "short desc", "long desc", []string{"left_click"})
+
+	for _, flagName := range []string{"state", "toggle", "modifier", "selection", "bare"} {
+		if cmd.Flags().Lookup(flagName) == nil {
+			t.Errorf("BuildClickActionCommand() missing --%s flag", flagName)
+		}
+	}
+}
+
+func TestBuildActionCommand_HasNoButtonPhaseFlags(t *testing.T) {
+	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"}, true)
+
+	for _, flagName := range []string{"state", "toggle"} {
+		if cmd.Flags().Lookup(flagName) != nil {
+			t.Errorf("BuildActionCommand() should not define --%s", flagName)
+		}
+	}
+}
+
+func TestClickActionCommands_HaveButtonPhaseFlags(t *testing.T) {
+	clickCommands := map[string]bool{
+		"left_click":   false,
+		"right_click":  false,
+		"middle_click": false,
+	}
+
+	for _, cmd := range cli.ActionCmd.Commands() {
+		if _, ok := clickCommands[cmd.Use]; !ok {
+			continue
+		}
+
+		clickCommands[cmd.Use] = true
+
+		if cmd.Flags().Lookup("state") == nil {
+			t.Errorf("action %s is missing the --state flag", cmd.Use)
+		}
+
+		if cmd.Flags().Lookup("toggle") == nil {
+			t.Errorf("action %s is missing the --toggle flag", cmd.Use)
+		}
+	}
+
+	for name, found := range clickCommands {
+		if !found {
+			t.Errorf("click action %s not registered on ActionCmd", name)
+		}
+	}
+}
+
+// TestButtonPhaseAliasCommands_AreHiddenAndComplete pins that every press,
+// release, and toggle action name is reachable from the CLI (so a string that
+// works in a config also works in a terminal) without cluttering help output.
+func TestButtonPhaseAliasCommands_AreHiddenAndComplete(t *testing.T) {
+	wantHidden := map[string]bool{
+		"left_mouse_down":     false,
+		"left_mouse_up":       false,
+		"left_mouse_toggle":   false,
+		"right_mouse_down":    false,
+		"right_mouse_up":      false,
+		"right_mouse_toggle":  false,
+		"middle_mouse_down":   false,
+		"middle_mouse_up":     false,
+		"middle_mouse_toggle": false,
+	}
+
+	for _, cmd := range cli.ActionCmd.Commands() {
+		if _, ok := wantHidden[cmd.Use]; !ok {
+			continue
+		}
+
+		wantHidden[cmd.Use] = true
+
+		if !cmd.Hidden {
+			t.Errorf("action %s should be hidden so help output steers users to the flags", cmd.Use)
+		}
+	}
+
+	for name, found := range wantHidden {
+		if !found {
+			t.Errorf("action %s not registered on ActionCmd", name)
+		}
 	}
 }

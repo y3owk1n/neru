@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"image"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
 const (
@@ -128,24 +130,42 @@ func MiddleClickAt(point image.Point) error {
 	return sendMouseInput(mouseeventfMiddleUp, 0)
 }
 
-// LeftMouseDown presses the left button at the given point.
-func LeftMouseDown(point image.Point) error {
-	err := moveCursorTo(point)
-	if err != nil {
-		return err
+// mouseButtonFlags returns the SendInput down and up flags for a mouse button.
+func mouseButtonFlags(button action.MouseButton) (downFlag, upFlag uint32) {
+	switch button {
+	case action.ButtonRight:
+		return mouseeventfRightDown, mouseeventfRightUp
+	case action.ButtonMiddle:
+		return mouseeventfMiddleDown, mouseeventfMiddleUp
+	case action.ButtonLeft:
+		fallthrough
+	default:
+		return mouseeventfLeftDown, mouseeventfLeftUp
 	}
-
-	return sendMouseInput(mouseeventfLeftDown, 0)
 }
 
-// LeftMouseUp releases the left button at the given point.
-func LeftMouseUp(point image.Point) error {
+// MouseDown presses the given button at the given point.
+func MouseDown(point image.Point, button action.MouseButton) error {
 	err := moveCursorTo(point)
 	if err != nil {
 		return err
 	}
 
-	return sendMouseInput(mouseeventfLeftUp, 0)
+	downFlag, _ := mouseButtonFlags(button)
+
+	return sendMouseInput(downFlag, 0)
+}
+
+// MouseUp releases the given button at the given point.
+func MouseUp(point image.Point, button action.MouseButton) error {
+	err := moveCursorTo(point)
+	if err != nil {
+		return err
+	}
+
+	_, upFlag := mouseButtonFlags(button)
+
+	return sendMouseInput(upFlag, 0)
 }
 
 // ScrollWheel scrolls vertically at the current cursor position.

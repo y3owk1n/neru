@@ -43,6 +43,7 @@ type cursorRequest struct {
 	end              image.Point
 	steps            int
 	eventType        uint32
+	button           uint32
 	maxDuration      int
 	durationPerPixel float64
 	done             *cursorAnimationDone
@@ -98,6 +99,7 @@ func (a *smoothCursorAnimator) postIfCurrent(
 	generation uint64,
 	point image.Point,
 	eventType uint32,
+	button uint32,
 ) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -107,7 +109,7 @@ func (a *smoothCursorAnimator) postIfCurrent(
 	}
 
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	C.NeruPostMouseMoveEvent(pos, C.CGEventType(eventType))
+	C.NeruPostMouseMoveEventWithButton(pos, C.CGEventType(eventType), C.CGMouseButton(button))
 
 	return true
 }
@@ -129,7 +131,7 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 	}
 }
 
-func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType uint32) {
+func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType, button uint32) {
 	cfg := currentConfig()
 	maxDuration := 200
 	durationPerPixel := 0.1
@@ -143,6 +145,7 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType u
 		end:              end,
 		steps:            steps,
 		eventType:        eventType,
+		button:           button,
 		maxDuration:      maxDuration,
 		durationPerPixel: durationPerPixel,
 		done:             done,
@@ -245,7 +248,7 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
-		if !a.postIfCurrent(generation, intermediate, req.eventType) {
+		if !a.postIfCurrent(generation, intermediate, req.eventType, req.button) {
 			req.done.close()
 
 			return

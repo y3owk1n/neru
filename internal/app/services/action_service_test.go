@@ -360,3 +360,82 @@ func TestMoveCursorToPointAndWait_WaitsForCursorIdle(t *testing.T) {
 		t.Fatal("MoveCursorToPointAndWait() expected WaitForCursorIdle to be called")
 	}
 }
+
+// TestPerformActionAtPoint_MouseActionIndicatorMatchesDeprecatedName pins that a
+// config written before the buttons were spelled out ("mouse_down") still
+// matches the left press action, which now reports itself as left_mouse_down.
+func TestPerformActionAtPoint_MouseActionIndicatorMatchesDeprecatedName(t *testing.T) {
+	ctx := context.Background()
+
+	acc := &portmocks.MockAccessibilityPort{
+		PerformActionAtPointFunc: func(
+			context.Context,
+			action.Type,
+			image.Point,
+			action.Modifiers,
+		) error {
+			return nil
+		},
+	}
+
+	drawn := false
+	overlay := &portmocks.MockOverlayPort{
+		DrawMouseActionIndicatorFunc: func(image.Point, ports.MouseActionIndicatorStyle) {
+			drawn = true
+		},
+	}
+
+	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
+	cfg := config.DefaultConfig().MouseAction
+	cfg.Enabled = true
+	cfg.Actions = []string{"mouse_down"}
+	service.UpdateConfig(cfg)
+
+	err := service.PerformActionAtPoint(ctx, "left_mouse_down", image.Point{X: 5, Y: 6}, 0)
+	if err != nil {
+		t.Fatalf("PerformActionAtPoint() error = %v", err)
+	}
+
+	if !drawn {
+		t.Fatal("expected mouse action indicator to be drawn for the deprecated config name")
+	}
+}
+
+// TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry pins that
+// a typo in the config list does not match anything (and does not panic).
+func TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry(t *testing.T) {
+	ctx := context.Background()
+
+	acc := &portmocks.MockAccessibilityPort{
+		PerformActionAtPointFunc: func(
+			context.Context,
+			action.Type,
+			image.Point,
+			action.Modifiers,
+		) error {
+			return nil
+		},
+	}
+
+	drawn := false
+	overlay := &portmocks.MockOverlayPort{
+		DrawMouseActionIndicatorFunc: func(image.Point, ports.MouseActionIndicatorStyle) {
+			drawn = true
+		},
+	}
+
+	service := services.NewActionService(acc, overlay, &portmocks.MockSystemPort{}, zap.NewNop())
+	cfg := config.DefaultConfig().MouseAction
+	cfg.Enabled = true
+	cfg.Actions = []string{"not_an_action"}
+	service.UpdateConfig(cfg)
+
+	err := service.PerformActionAtPoint(ctx, "right_mouse_toggle", image.Point{X: 5, Y: 6}, 0)
+	if err != nil {
+		t.Fatalf("PerformActionAtPoint() error = %v", err)
+	}
+
+	if drawn {
+		t.Fatal("expected no indicator for an unrecognized config entry")
+	}
+}

@@ -115,10 +115,15 @@ func (s *ActionService) PerformActionAtPoint(
 	return nil
 }
 
+// mouseActionIndicatorIncludes reports whether the configured action list names
+// actionType. Entries are compared as parsed action types so that deprecated
+// spellings in existing configs (mouse_down, mouse_up) keep matching.
 func mouseActionIndicatorIncludes(actions []string, actionType action.Type) bool {
-	actionName := actionType.String()
+	return slices.ContainsFunc(actions, func(configured string) bool {
+		configuredType, parseErr := action.ParseType(configured)
 
-	return slices.Contains(actions, actionName)
+		return parseErr == nil && configuredType == actionType
+	})
 }
 
 // IsFocusedAppExcluded checks if the currently focused application is in the exclusion list.

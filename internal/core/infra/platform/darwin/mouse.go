@@ -9,79 +9,100 @@ import "C"
 
 import (
 	"image"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/mousestate"
 )
 
-var (
-	mouseDown    bool
-	mouseDownPos image.Point
-	mouseDownMu  sync.RWMutex
-)
+// heldButtons records which mouse buttons Neru is currently holding down.
+var heldButtons mousestate.Tracker
 
-// SetLeftMouseDown sets the left mouse button down state.
-func SetLeftMouseDown(down bool, pos image.Point) {
-	mouseDownMu.Lock()
-	defer mouseDownMu.Unlock()
-	mouseDown = down
-	mouseDownPos = pos
+// cgButtonEvents maps a domain mouse button onto the CGEvent types and button
+// number that address it.
+type cgButtonEvents struct {
+	down    C.CGEventType
+	up      C.CGEventType
+	dragged C.CGEventType
+	button  C.CGMouseButton
 }
 
-// IsLeftMouseDown returns whether the left mouse button is down.
-func IsLeftMouseDown() bool {
-	mouseDownMu.RLock()
-	defer mouseDownMu.RUnlock()
-
-	return mouseDown
-}
-
-// GetLastMouseDownPosition returns the last position where mouse down occurred.
-func GetLastMouseDownPosition() image.Point {
-	mouseDownMu.RLock()
-	defer mouseDownMu.RUnlock()
-
-	return mouseDownPos
-}
-
-// ClearLeftMouseDownState clears the left mouse button down state.
-func ClearLeftMouseDownState() {
-	mouseDownMu.Lock()
-	defer mouseDownMu.Unlock()
-	mouseDown = false
-	mouseDownPos = image.Point{}
-}
-
-// EnsureMouseUp ensures that if the left mouse button is down, it is released.
-func EnsureMouseUp() {
-	if IsLeftMouseDown() {
-		_ = LeftMouseUp()
-		ClearLeftMouseDownState()
+// eventsForButton returns the CGEvent types addressing the given button.
+func eventsForButton(button action.MouseButton) cgButtonEvents {
+	switch button {
+	case action.ButtonRight:
+		return cgButtonEvents{
+			down:    C.kCGEventRightMouseDown,
+			up:      C.kCGEventRightMouseUp,
+			dragged: C.kCGEventRightMouseDragged,
+			button:  C.kCGMouseButtonRight,
+		}
+	case action.ButtonMiddle:
+		return cgButtonEvents{
+			down:    C.kCGEventOtherMouseDown,
+			up:      C.kCGEventOtherMouseUp,
+			dragged: C.kCGEventOtherMouseDragged,
+			button:  C.kCGMouseButtonCenter,
+		}
+	case action.ButtonLeft:
+		fallthrough
+	default:
+		return cgButtonEvents{
+			down:    C.kCGEventLeftMouseDown,
+			up:      C.kCGEventLeftMouseUp,
+			dragged: C.kCGEventLeftMouseDragged,
+			button:  C.kCGMouseButtonLeft,
+		}
 	}
+}
+
+// IsMouseButtonDown returns whether the given mouse button is down.
+func IsMouseButtonDown(button action.MouseButton) bool {
+	return heldButtons.IsDown(button)
+}
+
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
+func EnsureMouseUp() {
+	for _, button := range heldButtons.HeldButtons() {
+		_ = MouseUp(button)
+		heldButtons.Clear(button)
+	}
+}
+
+// dragEventType returns the event type a cursor move should be posted with, and
+// the button it belongs to. Moving while a button is held has to be posted as a
+// drag of that button or the application never sees the drag. When several
+// buttons are held the left-most held button wins; a single move event cannot
+// describe more than one.
+func dragEventType() (C.CGEventType, C.CGMouseButton) {
+	held := heldButtons.HeldButtons()
+	if len(held) == 0 {
+		return C.kCGEventMouseMoved, C.kCGMouseButtonLeft
+	}
+
+	events := eventsForButton(held[0])
+
+	return events.dragged, events.button
 }
 
 // MoveMouse moves the mouse cursor to the specified point.
 // If bypassSmooth is true, smooth cursor configuration is bypassed.
 func MoveMouse(point image.Point, bypassSmooth bool) {
-	var eventType C.CGEventType = C.kCGEventMouseMoved
-	if IsLeftMouseDown() {
-		eventType = C.kCGEventLeftMouseDragged
-	}
+	eventType, button := dragEventType()
 
 	cfg := currentConfig()
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
-		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, uint32(eventType))
+		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, uint32(eventType), uint32(button))
 	} else {
 		cursorAnimator.stop()
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-		C.NeruMoveMouseWithType(pos, eventType)
+		C.NeruMoveMouseWithTypeAndButton(pos, eventType, button)
 	}
 }
 
 // MoveMouseSmooth moves the mouse cursor smoothly to the specified point.
-func MoveMouseSmooth(end image.Point, steps int, eventType uint32) {
-	cursorAnimator.animateTo(end, steps, eventType)
+func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
+	cursorAnimator.animateTo(end, steps, eventType, button)
 }
 
 // CursorPosition returns the current cursor position.
@@ -157,20 +178,34 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 	return nil
 }
 
-// LeftMouseDownAtPoint performs a left mouse down action at the specified point.
-func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+// MouseDownAtPoint presses and holds the given mouse button at the specified point.
+func MouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	cursorAnimator.stop()
 
-	SetLeftMouseDown(true, point)
+	// Recorded before posting so that a move racing the press is still posted
+	// as a drag; the state is rolled back when the press fails.
+	heldButtons.SetDown(button, point, modifiers)
 
+	events := eventsForButton(button)
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.NeruPerformLeftMouseDownAtPosition(pos, modifiersToCGEventFlags(modifiers))
+
+	result := C.NeruPerformMouseDownAtPosition(
+		pos,
+		events.down,
+		events.button,
+		modifiersToCGEventFlags(modifiers),
+	)
 	if result == 0 {
-		ClearLeftMouseDownState()
+		heldButtons.Clear(button)
 
 		return derrors.Newf(
 			derrors.CodeActionFailed,
-			"failed to perform left-mouse-down at position (%d, %d)",
+			"failed to perform %s-mouse-down at position (%d, %d)",
+			button,
 			point.X,
 			point.Y,
 		)
@@ -179,36 +214,54 @@ func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	return nil
 }
 
-// LeftMouseUpAtPoint performs a left mouse up action at the specified point.
-func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
+// MouseUpAtPoint releases the given mouse button at the specified point.
+func MouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	cursorAnimator.stop()
 
+	events := eventsForButton(button)
 	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	result := C.NeruPerformLeftMouseUpAtPosition(pos, modifiersToCGEventFlags(modifiers))
+
+	result := C.NeruPerformMouseUpAtPosition(
+		pos,
+		events.up,
+		events.button,
+		modifiersToCGEventFlags(modifiers),
+	)
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
-			"failed to perform left-mouse-up at position (%d, %d)",
+			"failed to perform %s-mouse-up at position (%d, %d)",
+			button,
 			point.X,
 			point.Y,
 		)
 	}
 
-	ClearLeftMouseDownState()
+	heldButtons.Clear(button)
 
 	return nil
 }
 
-// LeftMouseUp performs a left mouse up action at the current cursor position.
-func LeftMouseUp() error {
+// MouseUp releases the given mouse button at the current cursor position.
+func MouseUp(button action.MouseButton) error {
 	cursorAnimator.stop()
 
-	result := C.NeruPerformLeftMouseUpAtCursor()
+	events := eventsForButton(button)
+
+	result := C.NeruPerformMouseUpAtCursor(events.up, events.button)
 	if result == 0 {
-		return derrors.New(derrors.CodeActionFailed, "failed to perform left-mouse-up at cursor")
+		return derrors.Newf(
+			derrors.CodeActionFailed,
+			"failed to perform %s-mouse-up at cursor",
+			button,
+		)
 	}
 
-	ClearLeftMouseDownState()
+	heldButtons.Clear(button)
 
 	return nil
 }

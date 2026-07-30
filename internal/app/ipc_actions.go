@@ -52,12 +52,16 @@ const (
 	flagName      = "--name"
 	flagBare      = "--bare"
 	flagBail      = "--bail"
+	flagState     = "--state"
+	flagToggle    = "--toggle"
 
 	msgActionServiceNotAvailable            = "action service not available"
 	msgModesHandlerNotAvailable             = "modes handler not available"
 	msgSelectionRequiresActiveSelection     = "--selection requires an active mode selection"
 	msgMoveMonitorDoesNotSupportTheseFlags  = "move_monitor does not support these flags"
 	msgSelectionAndBareCannotBeUsedTogether = "--selection and --bare cannot be used together"
+	msgStateOnlyOnClicks                    = "--state and --toggle are only supported with " +
+		"left_click, right_click, and middle_click"
 
 	// interActionDelay is the pause between actions in a comma-separated chain.
 	// This gives the OS time to process each click before the next one arrives,
@@ -107,6 +111,9 @@ type parsedActionArgs struct {
 	stepsOverride  int
 	hasSteps       bool
 	useBail        bool
+	stateStr       string
+	hasState       bool
+	useToggle      bool
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -232,6 +239,20 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.useSelection = true
 		case arg == flagBare:
 			parsed.useBare = true
+		case strings.HasPrefix(arg, flagState) && (arg == flagState || arg[len(flagState)] == '='):
+			val, newIdx, ok := extractStringFlag(rawArgs, idx, flagState)
+			idx = newIdx
+
+			if !ok || val == "" {
+				parseErr = true
+
+				break
+			}
+
+			parsed.stateStr = val
+			parsed.hasState = true
+		case arg == flagToggle:
+			parsed.useToggle = true
 		case arg == flagPrevious:
 			parsed.usePrevious = true
 		case arg == "--backward":
@@ -308,6 +329,16 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
+	// A click action carrying --state or --toggle is a request for one half of
+	// that click, so it is dispatched as the matching press/release/toggle
+	// action from here on. The requested name is kept for the reply.
+	requestedActionName := actionName
+
+	actionName, phaseErrResp := resolveMouseButtonPhase(actionName, parsed)
+	if phaseErrResp != nil {
+		return *phaseErrResp
+	}
+
 	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
 	// These only require scrollService, so dispatch before the actionService nil check.
 	if action.IsScrollSubAction(actionName) {
@@ -368,46 +399,10 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
-	isMouseButton := actionName == string(action.NameLeftClick) ||
-		actionName == string(action.NameRightClick) ||
-		actionName == string(action.NameMiddleClick) ||
-		actionName == string(action.NameMouseDown) ||
-		actionName == string(action.NameMouseUp)
-	isPointTargetedAction := isMoveMouse || isMouseButton
 
-	// Validation order matters:
-	// 1. Reject coordinate flags on non-mouse-move actions.
-	// 2. Reject --modifier on non-mouse-button actions.
-	// 3. Reject --x/--y mixed with --dx/--dy (always invalid).
-	// 4. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
-	// 5. Reject --center on non-move_mouse actions.
-	// 6. Reject --selection mixed with explicit move targeting.
-	// 7. Require --x AND --y when --center is absent for move_mouse.
-	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
-
-	if !isMoveMouse && !isMoveMouseRelative &&
-		(parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY) {
-		return ipc.Response{
-			Success: false,
-			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.usePrevious || parsed.hasMonitorName {
-		return ipc.Response{
-			Success: false,
-			Message: "--previous and --name are only supported with move_monitor",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if modifiers != 0 && !isMouseButton {
-		return ipc.Response{
-			Success: false,
-			Message: "--modifier is only supported with click and mouse button actions",
-			Code:    ipc.CodeInvalidInput,
-		}
+	flagErrResp := validateActionFlags(actionName, parsed, modifiers)
+	if flagErrResp != nil {
+		return *flagErrResp
 	}
 
 	// Merge sticky modifiers AFTER the explicit --modifier validation above,
@@ -416,98 +411,6 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	if h.modesHandler != nil {
 		stickyMods := h.modesHandler.StickyModifiers()
 		modifiers |= stickyMods
-	}
-
-	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
-		(parsed.hasDX || parsed.hasDY) {
-		return ipc.Response{
-			Success: false,
-			Message: "use either --x/--y or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasCenter && (parsed.hasDX || parsed.hasDY) {
-		return ipc.Response{
-			Success: false,
-			Message: "use either --center or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasWindow && (parsed.hasDX || parsed.hasDY) {
-		return ipc.Response{
-			Success: false,
-			Message: "use either --window or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasCenter && !isMoveMouse {
-		return ipc.Response{
-			Success: false,
-			Message: "--center is only supported with move_mouse",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasWindow && !isMoveMouse {
-		return ipc.Response{
-			Success: false,
-			Message: "--window is only supported with move_mouse",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasCenter && parsed.hasWindow {
-		return ipc.Response{
-			Success: false,
-			Message: "--center and --window cannot be used together",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useSelection && parsed.useBare {
-		return ipc.Response{
-			Success: false,
-			Message: msgSelectionAndBareCannotBeUsedTogether,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useSelection && (!isMoveMouse && !isMouseButton) {
-		return ipc.Response{
-			Success: false,
-			Message: "--selection is only supported with move_mouse, scroll, and mouse button actions",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useBare && !isPointTargetedAction {
-		return ipc.Response{
-			Success: false,
-			Message: "--bare is only supported with move_mouse, scroll, and mouse button actions",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useSelection &&
-		(parsed.hasCenter || parsed.hasWindow || parsed.hasX || parsed.hasY) {
-		return ipc.Response{
-			Success: false,
-			Message: "--selection cannot be combined with --x, --y, --center, or --window",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if isMoveMouse && !parsed.hasCenter && !parsed.hasWindow &&
-		!parsed.useSelection &&
-		((parsed.hasX && !parsed.hasY) || (!parsed.hasX && parsed.hasY)) {
-		return ipc.Response{
-			Success: false,
-			Message: "move_mouse requires both --x and --y when using absolute coordinates",
-			Code:    ipc.CodeInvalidInput,
-		}
 	}
 
 	if isMoveMouse && parsed.hasCenter {
@@ -667,9 +570,239 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 
 	return ipc.Response{
 		Success: true,
-		Message: actionName + " performed",
+		Message: requestedActionName + " performed",
 		Code:    ipc.CodeOK,
 	}
+}
+
+// validateActionFlags rejects flag combinations the named action cannot honor.
+//
+// Validation order matters:
+//  1. Reject coordinate flags on non-mouse-move actions.
+//  2. Reject --modifier on non-mouse-button actions.
+//  3. Reject --x/--y mixed with --dx/--dy (always invalid).
+//  4. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
+//  5. Reject --center on non-move_mouse actions.
+//  6. Reject --selection mixed with explicit move targeting.
+//  7. Require --x AND --y when --center is absent for move_mouse.
+//
+// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+//
+// modifiers are the explicitly requested ones; sticky modifiers are merged by
+// the caller afterwards so they cannot trip the --modifier check.
+func validateActionFlags(
+	actionName string,
+	parsed parsedActionArgs,
+	modifiers action.Modifiers,
+) *ipc.Response {
+	isMoveMouse := actionName == string(action.NameMoveMouse)
+	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
+	isMouseButton := isMouseButtonActionName(actionName)
+	isPointTargetedAction := isMoveMouse || isMouseButton
+
+	// 1. Reject coordinate flags on non-mouse-move actions.
+	// 2. Reject --modifier on non-mouse-button actions.
+	// 3. Reject --x/--y mixed with --dx/--dy (always invalid).
+	// 4. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
+	// 5. Reject --center on non-move_mouse actions.
+	// 6. Reject --selection mixed with explicit move targeting.
+	// 7. Require --x AND --y when --center is absent for move_mouse.
+	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+
+	if !isMoveMouse && !isMoveMouseRelative &&
+		(parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY) {
+		return &ipc.Response{
+			Success: false,
+			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.usePrevious || parsed.hasMonitorName {
+		return &ipc.Response{
+			Success: false,
+			Message: "--previous and --name are only supported with move_monitor",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if modifiers != 0 && !isMouseButton {
+		return &ipc.Response{
+			Success: false,
+			Message: "--modifier is only supported with click and mouse button actions",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
+		(parsed.hasDX || parsed.hasDY) {
+		return &ipc.Response{
+			Success: false,
+			Message: "use either --x/--y or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasCenter && (parsed.hasDX || parsed.hasDY) {
+		return &ipc.Response{
+			Success: false,
+			Message: "use either --center or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasWindow && (parsed.hasDX || parsed.hasDY) {
+		return &ipc.Response{
+			Success: false,
+			Message: "use either --window or --dx/--dy, not both",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasCenter && !isMoveMouse {
+		return &ipc.Response{
+			Success: false,
+			Message: "--center is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasWindow && !isMoveMouse {
+		return &ipc.Response{
+			Success: false,
+			Message: "--window is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.hasCenter && parsed.hasWindow {
+		return &ipc.Response{
+			Success: false,
+			Message: "--center and --window cannot be used together",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useSelection && parsed.useBare {
+		return &ipc.Response{
+			Success: false,
+			Message: msgSelectionAndBareCannotBeUsedTogether,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useSelection && (!isMoveMouse && !isMouseButton) {
+		return &ipc.Response{
+			Success: false,
+			Message: "--selection is only supported with move_mouse, scroll, and mouse button actions",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useBare && !isPointTargetedAction {
+		return &ipc.Response{
+			Success: false,
+			Message: "--bare is only supported with move_mouse, scroll, and mouse button actions",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useSelection &&
+		(parsed.hasCenter || parsed.hasWindow || parsed.hasX || parsed.hasY) {
+		return &ipc.Response{
+			Success: false,
+			Message: "--selection cannot be combined with --x, --y, --center, or --window",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if isMoveMouse && !parsed.hasCenter && !parsed.hasWindow &&
+		!parsed.useSelection &&
+		((parsed.hasX && !parsed.hasY) || (!parsed.hasX && parsed.hasY)) {
+		return &ipc.Response{
+			Success: false,
+			Message: "move_mouse requires both --x and --y when using absolute coordinates",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return nil
+}
+
+// isMouseButtonActionName reports whether the action name presses, releases,
+// toggles, or clicks a mouse button.
+func isMouseButtonActionName(actionName string) bool {
+	actionType, typeErr := action.ParseType(actionName)
+	if typeErr != nil {
+		return false
+	}
+
+	return actionType.IsMouseButton()
+}
+
+// resolveMouseButtonPhase maps a click action carrying --state or --toggle onto
+// the action that performs that phase of the click (for example left_click with
+// --state down becomes mouse_down). Actions carrying neither flag are returned
+// unchanged; every other action rejects the flags.
+func resolveMouseButtonPhase(
+	actionName string,
+	parsed parsedActionArgs,
+) (string, *ipc.Response) {
+	if !parsed.hasState && !parsed.useToggle {
+		return actionName, nil
+	}
+
+	if parsed.hasState && parsed.useToggle {
+		return "", &ipc.Response{
+			Success: false,
+			Message: "--state and --toggle cannot be used together",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	actionType, typeErr := action.ParseType(actionName)
+	if typeErr != nil {
+		return "", &ipc.Response{
+			Success: false,
+			Message: msgStateOnlyOnClicks,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	button, phase, isMouseButton := actionType.MouseButtonPhase()
+	if !isMouseButton || phase != action.PhaseClick {
+		return "", &ipc.Response{
+			Success: false,
+			Message: msgStateOnlyOnClicks,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	targetPhase := action.PhaseToggle
+
+	if parsed.hasState {
+		parsedPhase, phaseErr := action.ParsePhase(parsed.stateStr)
+		if phaseErr != nil {
+			return "", &ipc.Response{
+				Success: false,
+				Message: phaseErr.Error(),
+				Code:    ipc.CodeInvalidInput,
+			}
+		}
+
+		targetPhase = parsedPhase
+	}
+
+	resolved, ok := action.MouseButtonName(button, targetPhase)
+	if !ok {
+		return "", &ipc.Response{
+			Success: false,
+			Message: msgStateOnlyOnClicks,
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return string(resolved), nil
 }
 
 func (h *IPCControllerActions) handleFeedAction(args []string) ipc.Response {

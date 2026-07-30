@@ -102,7 +102,7 @@ neru config set <key> <value>   # Change a single value at runtime (see below)
 neru config reset <key>         # Remove a single override (reverts to base config)
 ```
 
-See [CLI.md](CLI.md#configuration-management) for full flag documentation.
+See [CLI.md](CLI.md#13-neru-config) for full flag documentation.
 
 ---
 
@@ -249,7 +249,7 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown` |
 | Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                 |
 
-See [CLI.md](CLI.md#feed-keys) for a full key reference with key codes and platform behavior.
+See [CLI.md](CLI.md#12f-feed) for a full key reference with key codes and platform behavior.
 
 Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.
 
@@ -396,12 +396,14 @@ Inside a mode, the dispatch order is:
 
 ### Action Reference
 
-All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#action-commands) for full flag documentation.
+All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#12-neru-action) for full flag documentation.
 
 | Category    | Actions                                                                                |
 | ----------- | -------------------------------------------------------------------------------------- |
 | Click       | `left_click`, `right_click`, `middle_click`                                            |
-| Mouse       | `mouse_down`, `mouse_up`, `move_mouse`, `move_mouse_relative`                          |
+| Button hold | `left_mouse_down`, `left_mouse_up`, `right_mouse_down`, `right_mouse_up`, `middle_mouse_down`, `middle_mouse_up` |
+| Button toggle | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                     |
+| Mouse       | `move_mouse`, `move_mouse_relative`                                                    |
 | Scroll      | `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`                              |
 | Page        | `page_up`, `page_down`, `go_top`, `go_bottom`                                          |
 | Keyboard    | `feed`                                                                                 |
@@ -411,8 +413,11 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
-- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#clicks))
-- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#scrolling))
+- Click actions accept `--state down` / `--state up` to press and release the button as separate hotkeys, and `--toggle` to do whichever comes next from a single hotkey. `"action right_click --state down"` and `"action right_mouse_down"` are the same action written two ways; the flag form is the documented spelling, and the name form is what a mode `--action` takes (`hints --action right_mouse_down`)
+- Any button Neru is holding is released automatically when it returns to idle
+- `mouse_down` and `mouse_up` are the original spellings of `left_mouse_down` and `left_mouse_up`. They still work in configs, but new configs should use the explicit names
+- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#12a-left_click-right_click-middle_click))
+- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#12d-scroll_up-scroll_down-scroll_left-scroll_right))
 - `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 
 #### Feed Keys
@@ -432,7 +437,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 ]
 ```
 
-Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#feed-keys) for syntax, supported key names, and platform behavior.
+Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#12f-feed) for syntax, supported key names, and platform behavior.
 
 #### Composition Example
 
@@ -512,7 +517,7 @@ Labels clickable UI elements with short overlay labels. By default uses the macO
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
-Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#hints-mode))
+Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#7-neru-hints))
 
 ### Options
 
@@ -669,7 +674,7 @@ The `label_direction` setting controls how multi-character hint labels are enume
 - Many hints clustered in one region of the screen. `reverse` spreads the _first_ character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
 - Workflows that consistently need more than `len(hint_characters)` hints.
 
-You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#hints-mode).
+You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#7-neru-hints).
 
 ### Per-App Config
 
@@ -699,7 +704,7 @@ visible_check_enabled = true
 
 Divides the screen into a labelled coordinate grid.
 
-Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#grid-mode)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#8-neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
@@ -751,7 +756,7 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 Narrows the active area with each keypress for precise cursor placement.
 
-Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#recursive-grid-mode)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#9-neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
@@ -969,10 +974,15 @@ font_family = ""
 
 Transient visual marker at mouse action locations. macOS only; other platforms accept the config and no-op.
 
-| Option    | Type     | Default                                                                   | Description        |
-| --------- | -------- | ------------------------------------------------------------------------- | ------------------ |
-| `enabled` | bool     | `false`                                                                   | Enable indicators  |
-| `actions` | string[] | `["left_click", "right_click", "middle_click", "mouse_down", "mouse_up"]` | Triggering actions |
+| Option    | Type     | Default                                       | Description        |
+| --------- | -------- | --------------------------------------------- | ------------------ |
+| `enabled` | bool     | `false`                                       | Enable indicators  |
+| `actions` | string[] | every click, press, release, and toggle action | Triggering actions |
+
+`actions` accepts any mouse button action from the [Action Reference](#action-reference):
+`left_click`, `right_click`, `middle_click`, the six `*_mouse_down` / `*_mouse_up`
+actions, and the three `*_mouse_toggle` actions. The deprecated `mouse_down` and
+`mouse_up` spellings still match the left button's press and release.
 
 ### UI
 

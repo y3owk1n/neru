@@ -5,20 +5,16 @@ package accessibility
 import (
 	"image"
 	"os"
-	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/mousestate"
 )
 
-type wlrootsPointerState struct {
-	mu                 sync.RWMutex
-	mouseDown          bool
-	mouseDownModifiers action.Modifiers
-}
-
-var globalWlrootsPointerState = &wlrootsPointerState{}
+// globalWlrootsPointerState records the modifiers each held button was pressed
+// with, so that the matching release can undo exactly those modifiers.
+var globalWlrootsPointerState mousestate.Tracker
 
 func wlrootsFocusedApplicationIdentity() (string, int) {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
@@ -82,29 +78,48 @@ func wlrootsMiddleClickAtPoint(
 	return wlrootsClickButtonAtPoint(point, restoreCursor, modifiers, linux.WlrBtnMiddle)
 }
 
-func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+// wlrootsButton maps a domain mouse button to its wlroots button code.
+func wlrootsButton(button action.MouseButton) int {
+	switch button {
+	case action.ButtonRight:
+		return linux.WlrBtnRight
+	case action.ButtonMiddle:
+		return linux.WlrBtnMiddle
+	case action.ButtonLeft:
+		fallthrough
+	default:
+		return linux.WlrBtnLeft
+	}
+}
+
+func wlrootsMouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	err := wlrootsPressModifiers(modifiers)
 	if err != nil {
 		return err
 	}
 
-	err = linux.WaylandButtonEvent(point, linux.WlrBtnLeft, true)
+	err = linux.WaylandButtonEvent(point, wlrootsButton(button), true)
 	if err != nil {
 		_ = wlrootsReleaseModifiers(modifiers)
 
 		return err
 	}
 
-	globalWlrootsPointerState.mu.Lock()
-	globalWlrootsPointerState.mouseDown = true
-	globalWlrootsPointerState.mouseDownModifiers = modifiers
-	globalWlrootsPointerState.mu.Unlock()
+	globalWlrootsPointerState.SetDown(button, point, modifiers)
 
 	return nil
 }
 
-func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
-	heldModifiers, hadMouseDown := wlrootsMouseDownModifiers()
+func wlrootsMouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	heldModifiers, hadMouseDown := globalWlrootsPointerState.DownModifiers(button)
 	if hadMouseDown {
 		modifiers = heldModifiers
 	} else {
@@ -118,15 +133,12 @@ func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) er
 		_ = wlrootsReleaseModifiers(modifiers)
 	}()
 
-	err := linux.WaylandButtonEvent(point, linux.WlrBtnLeft, false)
+	err := linux.WaylandButtonEvent(point, wlrootsButton(button), false)
 	if err != nil {
 		return err
 	}
 
-	globalWlrootsPointerState.mu.Lock()
-	globalWlrootsPointerState.mouseDown = false
-	globalWlrootsPointerState.mouseDownModifiers = 0
-	globalWlrootsPointerState.mu.Unlock()
+	globalWlrootsPointerState.Clear(button)
 
 	return nil
 }
@@ -230,10 +242,10 @@ func wlrootsReleaseModifiers(modifiers action.Modifiers) error {
 	return firstErr
 }
 
-func wlrootsLeftMouseUp() error {
-	modifiers, hadMouseDown := wlrootsMouseDownModifiers()
+func wlrootsMouseUp(button action.MouseButton) error {
+	modifiers, hadMouseDown := globalWlrootsPointerState.DownModifiers(button)
 
-	err := linux.WaylandButtonRelease(linux.WlrBtnLeft)
+	err := linux.WaylandButtonRelease(wlrootsButton(button))
 	if err != nil {
 		return err
 	}
@@ -242,19 +254,9 @@ func wlrootsLeftMouseUp() error {
 		_ = wlrootsReleaseModifiers(modifiers)
 	}
 
-	globalWlrootsPointerState.mu.Lock()
-	globalWlrootsPointerState.mouseDown = false
-	globalWlrootsPointerState.mouseDownModifiers = 0
-	globalWlrootsPointerState.mu.Unlock()
+	globalWlrootsPointerState.Clear(button)
 
 	return nil
-}
-
-func wlrootsMouseDownModifiers() (action.Modifiers, bool) {
-	globalWlrootsPointerState.mu.RLock()
-	defer globalWlrootsPointerState.mu.RUnlock()
-
-	return globalWlrootsPointerState.mouseDownModifiers, globalWlrootsPointerState.mouseDown
 }
 
 // wlrootsScrollScale mirrors the uinput scroll scaling constant so

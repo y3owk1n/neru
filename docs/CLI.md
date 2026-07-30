@@ -115,7 +115,7 @@ Uses the macOS Accessibility API (`axtree`) or Vision Framework (`vision`) to di
 
 `-h`, `--help` -- Print help
 
-`-a`, `--action <action>` -- Action on selection. Commas chain multiple actions (e.g. `left_click,left_click` for double-click). Valid: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`.
+`-a`, `--action <action>` -- Action on selection. Commas chain multiple actions (e.g. `left_click,left_click` for double-click). Valid: `left_click`, `right_click`, `middle_click`, `left_mouse_down`, `left_mouse_up`, `right_mouse_down`, `right_mouse_up`, `middle_mouse_down`, `middle_mouse_up`, `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`.
 
 `-t`, `--toggle` -- Toggle mode on/off.
 
@@ -165,7 +165,7 @@ Divide the screen into a labelled coordinate grid. Type row+column labels to jum
 
 `-h`, `--help` -- Print help
 
-`-a`, `--action <action>` -- Action on selection. Valid: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`.
+`-a`, `--action <action>` -- Action on selection. Valid: `left_click`, `right_click`, `middle_click`, `left_mouse_down`, `left_mouse_up`, `right_mouse_down`, `right_mouse_up`, `middle_mouse_down`, `middle_mouse_up`, `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`.
 
 `-t`, `--toggle` -- Toggle mode on/off.
 
@@ -195,7 +195,7 @@ Divide the screen into cells. Each keypress narrows the active area recursively.
 
 `-h`, `--help` -- Print help
 
-`-a`, `--action <action>` -- Action on selection. Valid: `left_click`, `right_click`, `middle_click`, `mouse_down`, `mouse_up`.
+`-a`, `--action <action>` -- Action on selection. Valid: `left_click`, `right_click`, `middle_click`, `left_mouse_down`, `left_mouse_up`, `right_mouse_down`, `right_mouse_up`, `middle_mouse_down`, `middle_mouse_up`, `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`.
 
 `-t`, `--toggle` -- Toggle mode on/off.
 
@@ -282,11 +282,11 @@ neru monitor_select --toggle
 
 One-shot commands that operate independently of active modes. All require a running daemon.
 
-### 12a. left_click, right_click, middle_click, mouse_down, mouse_up
+### 12a. left_click, right_click, middle_click
 
-`neru action <click-type> [-h|--help] [--modifier <mod>] [--selection] [--bare]`
+`neru action <click-type> [-h|--help] [--modifier <mod>] [--selection] [--bare] [--state <down|up>] [--toggle]`
 
-Perform a mouse click or button press.
+Perform a mouse click, or press and release the button as separate actions.
 
 **OPTIONS**
 
@@ -295,6 +295,14 @@ Perform a mouse click or button press.
 `--selection` -- Target the active mode selection.
 
 `--bare` -- Use the cursor position even when a mode selection exists.
+
+`--state <down|up>` -- Perform only one half of the click: `down` presses and holds the button, `up` releases it. Without this flag the button is pressed and released in one action.
+
+`--toggle` -- Release the button when it is held, press and hold it otherwise. Useful for binding a whole drag to a single key.
+
+`--state` and `--toggle` cannot be combined, and are only accepted by the three click actions.
+
+Held buttons are released automatically when Neru returns to idle.
 
 **EXAMPLES**
 
@@ -305,6 +313,21 @@ neru action left_click --modifier cmd,shift
 neru action right_click --modifier alt
 ```
 
+Drag workflows press at the start point and release at the destination:
+
+```bash
+neru action left_click --state down     # Start a left drag
+neru action right_click --state down    # Start a right drag
+neru action middle_click --state down   # Start a middle drag (canvas panning)
+neru action middle_click --state up     # Release it
+```
+
+`--toggle` performs whichever half comes next, so one binding covers both:
+
+```bash
+neru action left_click --toggle         # Press if free, release if held
+```
+
 Commas chain multiple click actions directly:
 
 ```bash
@@ -312,6 +335,37 @@ neru action left_click,left_click             # Double-click
 neru action left_click,left_click,left_click  # Triple-click
 neru hints --action left_click,left_click     # Same, via mode --action
 ```
+
+`--state` and `--toggle` are flags, so they cannot appear in a comma chain or in a
+mode `--action`. Each combination also has an action name, which works anywhere a
+name is expected — a mode `--action`, a hotkey action string, or `neru action`
+directly:
+
+| Flag form                      | Action name           |
+| ------------------------------ | --------------------- |
+| `left_click --state down`      | `left_mouse_down`     |
+| `left_click --state up`        | `left_mouse_up`       |
+| `left_click --toggle`          | `left_mouse_toggle`   |
+| `right_click --state down`     | `right_mouse_down`    |
+| `right_click --state up`       | `right_mouse_up`      |
+| `right_click --toggle`         | `right_mouse_toggle`  |
+| `middle_click --state down`    | `middle_mouse_down`   |
+| `middle_click --state up`      | `middle_mouse_up`     |
+| `middle_click --toggle`        | `middle_mouse_toggle` |
+
+```bash
+neru hints --action right_mouse_down     # press the right button on the hinted element
+neru action right_mouse_down             # same as right_click --state down
+```
+
+### 12a-1. mouse_down, mouse_up (deprecated)
+
+`mouse_down` and `mouse_up` are the original left-button spellings, from before
+the right and middle buttons could be pressed and released. They still work
+everywhere `left_mouse_down` and `left_mouse_up` do — including in existing
+configs — and the CLI prints a deprecation warning on stderr pointing at the
+replacement. Use `neru action left_click --state down` and
+`neru action left_click --state up` instead.
 
 ### 12b. move_mouse
 

@@ -93,8 +93,8 @@ visible_check_enabled = false
 "Shift+L" = "action left_click"
 "Shift+R" = "action right_click"
 "Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
 "Up" = "action move_mouse_relative --dx=0 --dy=-10"
 "Down" = "action move_mouse_relative --dx=0 --dy=10"
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
@@ -166,8 +166,8 @@ enable_gc = false                           # Periodic memory cleanup (adds CPU 
 "Shift+L" = "action left_click"
 "Shift+R" = "action right_click"
 "Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
 "Up" = "action move_mouse_relative --dx=0 --dy=-10"
 "Down" = "action move_mouse_relative --dx=0 --dy=10"
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
@@ -201,8 +201,8 @@ duration_ms = 50                            # Recursive-grid animation duration 
 "Shift+L" = "action left_click"
 "Shift+R" = "action right_click"
 "Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
 "Up" = "action move_mouse_relative --dx=0 --dy=-10"
 "Down" = "action move_mouse_relative --dx=0 --dy=10"
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
@@ -235,7 +235,20 @@ font_family = ""
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#mouse_action_indicator
 [mouse_action_indicator]
 enabled = false                             # Disabled by default
-actions = ["left_click", "right_click", "middle_click", "mouse_down", "mouse_up"]
+actions = [
+  "left_click",
+  "right_click",
+  "middle_click",
+  "left_mouse_down",
+  "left_mouse_up",
+  "right_mouse_down",
+  "right_mouse_up",
+  "middle_mouse_down",
+  "middle_mouse_up",
+  "left_mouse_toggle",
+  "right_mouse_toggle",
+  "middle_mouse_toggle",
+]
 
 [mouse_action_indicator.ui]
 size = 36
@@ -293,8 +306,8 @@ invert_scroll = false                       # Invert scroll direction (for tools
 "Shift+L" = "action left_click"
 "Shift+R" = "action right_click"
 "Shift+M" = "action middle_click"
-"Shift+I" = "action mouse_down"
-"Shift+U" = "action mouse_up"
+"Shift+I" = "action left_click --state down"
+"Shift+U" = "action left_click --state up"
 "Up" = "action move_mouse_relative --dx=0 --dy=-10"
 "Down" = "action move_mouse_relative --dx=0 --dy=10"
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"

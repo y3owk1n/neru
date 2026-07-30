@@ -127,25 +127,48 @@ func x11MiddleClickAtPoint(
 	return x11ClickButtonAtPoint(point, restoreCursor, modifiers, mouseButtonMiddle)
 }
 
-func x11LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
-	return x11MouseButtonAtPoint(point, modifiers, 1, true, false)
+// x11Button maps a domain mouse button to its X11 button number.
+func x11Button(button action.MouseButton) C.uint {
+	switch button {
+	case action.ButtonRight:
+		return mouseButtonRight
+	case action.ButtonMiddle:
+		return mouseButtonMiddle
+	case action.ButtonLeft:
+		fallthrough
+	default:
+		return mouseButtonLeft
+	}
 }
 
-func x11LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
-	return x11MouseButtonAtPoint(point, modifiers, 1, false, false)
+func x11MouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), true, false)
 }
 
-func x11LeftMouseUp() error {
+func x11MouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), false, false)
+}
+
+func x11MouseUp(button action.MouseButton) error {
 	display, err := x11ActionDisplay()
 	if err != nil {
 		return err
 	}
 	defer C.neru_ax_close_display(display) //nolint:nlreturn
 
-	if C.neru_ax_button(display, 1, 0) == 0 { //nolint:nlreturn
-		return derrors.New(
+	if C.neru_ax_button(display, x11Button(button), 0) == 0 { //nolint:nlreturn
+		return derrors.Newf(
 			derrors.CodeActionFailed,
-			"failed to release left mouse button on X11",
+			"failed to release %s mouse button on X11",
+			button,
 		)
 	}
 

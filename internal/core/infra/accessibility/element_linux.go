@@ -5,7 +5,6 @@ package accessibility
 import (
 	"image"
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
+	"github.com/y3owk1n/neru/internal/core/infra/platform/mousestate"
 )
 
 // Element represents a UI element for Linux (e.g., AT-SPI).
@@ -22,11 +22,8 @@ type Element struct {
 	pid              int
 }
 
-var (
-	linuxMouseDown    bool
-	linuxMouseDownPos image.Point
-	linuxMouseDownMu  sync.RWMutex
-)
+// linuxHeldButtons records which mouse buttons Neru is currently holding down.
+var linuxHeldButtons mousestate.Tracker
 
 func abs(v int) int {
 	if v < 0 {
@@ -267,44 +264,15 @@ func (e *Element) BundleIdentifier() string { return e.bundleIdentifier }
 // ScrollBounds returns the scroll bounds (Linux stub).
 func (e *Element) ScrollBounds() image.Rectangle { return image.Rectangle{} }
 
-// SetLeftMouseDown sets the left mouse down state.
-func SetLeftMouseDown(down bool, pos image.Point) {
-	linuxMouseDownMu.Lock()
-	defer linuxMouseDownMu.Unlock()
-
-	linuxMouseDown = down
-	linuxMouseDownPos = pos
+// IsMouseButtonDown returns whether the given mouse button is held down.
+func IsMouseButtonDown(button action.MouseButton) bool {
+	return linuxHeldButtons.IsDown(button)
 }
 
-// IsLeftMouseDown returns whether the left mouse button is down.
-func IsLeftMouseDown() bool {
-	linuxMouseDownMu.RLock()
-	defer linuxMouseDownMu.RUnlock()
-
-	return linuxMouseDown
-}
-
-// GetLastMouseDownPosition returns the last mouse down position.
-func GetLastMouseDownPosition() image.Point {
-	linuxMouseDownMu.RLock()
-	defer linuxMouseDownMu.RUnlock()
-
-	return linuxMouseDownPos
-}
-
-// ClearLeftMouseDownState clears the mouse down state.
-func ClearLeftMouseDownState() {
-	linuxMouseDownMu.Lock()
-	defer linuxMouseDownMu.Unlock()
-
-	linuxMouseDown = false
-	linuxMouseDownPos = image.Point{}
-}
-
-// EnsureMouseUp ensures the mouse is up.
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
 func EnsureMouseUp() {
-	if IsLeftMouseDown() {
-		_ = LeftMouseUp()
+	for _, button := range linuxHeldButtons.HeldButtons() {
+		_ = MouseUp(button)
 	}
 }
 
@@ -356,21 +324,25 @@ func MiddleClickAtPoint(point image.Point, restoreCursor bool, modifiers action.
 	return nil
 }
 
-// LeftMouseDownAtPoint performs a left mouse down.
-func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
+// MouseDownAtPoint presses and holds the given mouse button at the point.
+func MouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		err := x11LeftMouseDownAtPoint(point, modifiers)
+		err := x11MouseDownAtPoint(point, button, modifiers)
 		if err == nil {
-			SetLeftMouseDown(true, point)
+			linuxHeldButtons.SetDown(button, point, modifiers)
 		}
 
 		return err
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		err := wlrootsLeftMouseDownAtPoint(point, modifiers)
+		err := wlrootsMouseDownAtPoint(point, button, modifiers)
 		if err == nil {
-			SetLeftMouseDown(true, point)
+			linuxHeldButtons.SetDown(button, point, modifiers)
 		}
 
 		return err
@@ -379,21 +351,25 @@ func LeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
 	return nil
 }
 
-// LeftMouseUpAtPoint performs a left mouse up.
-func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
+// MouseUpAtPoint releases the given mouse button at the point.
+func MouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		err := x11LeftMouseUpAtPoint(point, modifiers)
+		err := x11MouseUpAtPoint(point, button, modifiers)
 		if err == nil {
-			ClearLeftMouseDownState()
+			linuxHeldButtons.Clear(button)
 		}
 
 		return err
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		err := wlrootsLeftMouseUpAtPoint(point, modifiers)
+		err := wlrootsMouseUpAtPoint(point, button, modifiers)
 		if err == nil {
-			ClearLeftMouseDownState()
+			linuxHeldButtons.Clear(button)
 		}
 
 		return err
@@ -402,21 +378,21 @@ func LeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
 	return nil
 }
 
-// LeftMouseUp performs a left mouse up at cursor.
-func LeftMouseUp() error {
+// MouseUp releases the given mouse button at the cursor.
+func MouseUp(button action.MouseButton) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		err := x11LeftMouseUp()
+		err := x11MouseUp(button)
 		if err == nil {
-			ClearLeftMouseDownState()
+			linuxHeldButtons.Clear(button)
 		}
 
 		return err
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
-		err := wlrootsLeftMouseUp()
+		err := wlrootsMouseUp(button)
 		if err == nil {
-			ClearLeftMouseDownState()
+			linuxHeldButtons.Clear(button)
 		}
 
 		return err

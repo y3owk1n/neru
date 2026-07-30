@@ -205,10 +205,30 @@ func BuildActionCommand(
 	params []string,
 	allowTargetOverride bool,
 ) *cobra.Command {
+	return buildActionCommand(use, short, long, params, allowTargetOverride, false)
+}
+
+// BuildClickActionCommand creates an action cobra command for a mouse button,
+// adding the --state and --toggle flags that select which half of the click to
+// perform.
+func BuildClickActionCommand(use, short, long string, params []string) *cobra.Command {
+	return buildActionCommand(use, short, long, params, true, true)
+}
+
+// buildActionCommand creates an action cobra command. allowButtonPhase adds the
+// --state and --toggle flags, which only mouse button actions accept.
+func buildActionCommand(
+	use, short, long string,
+	params []string,
+	allowTargetOverride bool,
+	allowButtonPhase bool,
+) *cobra.Command {
 	var (
 		modifier  string
 		selection bool
 		bare      bool
+		state     string
+		toggle    bool
 	)
 
 	cmd := &cobra.Command{
@@ -226,6 +246,21 @@ func BuildActionCommand(
 				)
 			}
 
+			if state != "" && toggle {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--state and --toggle cannot be used together",
+				)
+			}
+
+			if state != "" && state != "down" && state != "up" {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"invalid --state %q: expected down or up",
+					state,
+				)
+			}
+
 			args := make([]string, 0, len(params)+1)
 			args = append(args, params...)
 
@@ -239,6 +274,14 @@ func BuildActionCommand(
 
 			if bare {
 				args = append(args, "--bare")
+			}
+
+			if state != "" {
+				args = append(args, "--state="+state)
+			}
+
+			if toggle {
+				args = append(args, "--toggle")
 			}
 
 			return sendCommand(cmd, "action", args)
@@ -260,6 +303,21 @@ func BuildActionCommand(
 			"bare",
 			false,
 			"Use the current cursor position even when a mode selection exists",
+		)
+	}
+
+	if allowButtonPhase {
+		cmd.Flags().StringVar(
+			&state,
+			"state",
+			"",
+			"Perform only one half of the click: down presses and holds, up releases",
+		)
+		cmd.Flags().BoolVar(
+			&toggle,
+			"toggle",
+			false,
+			"Release the button when it is held, press and hold it otherwise",
 		)
 	}
 

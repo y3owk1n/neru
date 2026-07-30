@@ -61,23 +61,32 @@ func wlrootsMiddleClickAtPoint(
 	)
 }
 
-func wlrootsLeftMouseDownAtPoint(point image.Point, modifiers action.Modifiers) error {
-	_, _ = point, modifiers
+func wlrootsMouseDownAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	_, _, _ = point, button, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",
 	)
 }
 
-func wlrootsLeftMouseUpAtPoint(point image.Point, modifiers action.Modifiers) error {
-	_, _ = point, modifiers
+func wlrootsMouseUpAtPoint(
+	point image.Point,
+	button action.MouseButton,
+	modifiers action.Modifiers,
+) error {
+	_, _, _ = point, button, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",
 	)
 }
 
-func wlrootsLeftMouseUp() error {
+func wlrootsMouseUp(button action.MouseButton) error {
+	_ = button
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",

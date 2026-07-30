@@ -233,10 +233,11 @@ func (c *InfraAXClient) PerformAction(
 		EnsureMouseUp()
 
 		performActionErr = MiddleClickAtPoint(point, restoreCursor, modifiers)
-	case action.TypeMouseDown:
-		performActionErr = LeftMouseDownAtPoint(point, modifiers)
-	case action.TypeMouseUp:
-		performActionErr = LeftMouseUpAtPoint(point, modifiers)
+	case action.TypeLeftMouseDown, action.TypeLeftMouseUp,
+		action.TypeRightMouseDown, action.TypeRightMouseUp,
+		action.TypeMiddleMouseDown, action.TypeMiddleMouseUp,
+		action.TypeLeftMouseToggle, action.TypeRightMouseToggle, action.TypeMiddleMouseToggle:
+		performActionErr = performMouseButtonAction(actionType, point, modifiers)
 	case action.TypeMoveMouse, action.TypeMoveMouseRelative:
 		MoveMouseToPoint(point, false)
 
@@ -257,6 +258,38 @@ func (c *InfraAXClient) PerformAction(
 	}
 
 	return nil
+}
+
+// performMouseButtonAction presses or releases the button addressed by
+// actionType. Toggle actions resolve against the button state recorded by the
+// platform adapter: held buttons are released, free buttons are pressed.
+func performMouseButtonAction(
+	actionType action.Type,
+	point image.Point,
+	modifiers action.Modifiers,
+) error {
+	button, phase, ok := actionType.MouseButtonPhase()
+	if !ok {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"not a mouse button action: %s",
+			actionType,
+		)
+	}
+
+	if phase == action.PhaseToggle {
+		if IsMouseButtonDown(button) {
+			phase = action.PhaseUp
+		} else {
+			phase = action.PhaseDown
+		}
+	}
+
+	if phase == action.PhaseUp {
+		return MouseUpAtPoint(point, button, modifiers)
+	}
+
+	return MouseDownAtPoint(point, button, modifiers)
 }
 
 // Scroll performs a scroll action.
