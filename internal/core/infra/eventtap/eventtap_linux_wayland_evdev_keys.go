@@ -93,6 +93,18 @@ const (
 	evdevKeyDelete     uint16 = 111
 	evdevKeyLeftMeta   uint16 = 125
 	evdevKeyRightMeta  uint16 = 126
+	evdevKeyF13        uint16 = 183
+	evdevKeyF14        uint16 = 184
+	evdevKeyF15        uint16 = 185
+	evdevKeyF16        uint16 = 186
+	evdevKeyF17        uint16 = 187
+	evdevKeyF18        uint16 = 188
+	evdevKeyF19        uint16 = 189
+	evdevKeyF20        uint16 = 190
+	evdevKeyF21        uint16 = 191
+	evdevKeyF22        uint16 = 192
+	evdevKeyF23        uint16 = 193
+	evdevKeyF24        uint16 = 194
 
 	evdevModifierShift = "shift"
 	evdevModifierCtrl  = "ctrl"
@@ -136,6 +148,18 @@ const (
 	evdevKeyNameF10       = "F10"
 	evdevKeyNameF11       = "F11"
 	evdevKeyNameF12       = "F12"
+	evdevKeyNameF13       = "F13"
+	evdevKeyNameF14       = "F14"
+	evdevKeyNameF15       = "F15"
+	evdevKeyNameF16       = "F16"
+	evdevKeyNameF17       = "F17"
+	evdevKeyNameF18       = "F18"
+	evdevKeyNameF19       = "F19"
+	evdevKeyNameF20       = "F20"
+	evdevKeyNameF21       = "F21"
+	evdevKeyNameF22       = "F22"
+	evdevKeyNameF23       = "F23"
+	evdevKeyNameF24       = "F24"
 )
 
 var evdevModifierNames = map[uint16]string{
@@ -182,6 +206,18 @@ var evdevKeyNames = map[uint16]string{
 	evdevKeyF10:        evdevKeyNameF10,
 	evdevKeyF11:        evdevKeyNameF11,
 	evdevKeyF12:        evdevKeyNameF12,
+	evdevKeyF13:        evdevKeyNameF13,
+	evdevKeyF14:        evdevKeyNameF14,
+	evdevKeyF15:        evdevKeyNameF15,
+	evdevKeyF16:        evdevKeyNameF16,
+	evdevKeyF17:        evdevKeyNameF17,
+	evdevKeyF18:        evdevKeyNameF18,
+	evdevKeyF19:        evdevKeyNameF19,
+	evdevKeyF20:        evdevKeyNameF20,
+	evdevKeyF21:        evdevKeyNameF21,
+	evdevKeyF22:        evdevKeyNameF22,
+	evdevKeyF23:        evdevKeyNameF23,
+	evdevKeyF24:        evdevKeyNameF24,
 	evdevKeyU:          "u",
 	evdevKeyV:          "v",
 	evdevKeyW:          "w",

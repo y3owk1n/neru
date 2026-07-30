@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -880,6 +882,40 @@ func TestCanonicalHotkeyForPlatform(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+// TestIsValidNamedKey_FunctionKeys pins the full F1-F24 range as valid named
+// keys, case-insensitively, and confirms F25 is not silently accepted.
+func TestIsValidNamedKey_FunctionKeys(t *testing.T) {
+	for index := 1; index <= 24; index++ {
+		display := "F" + strconv.Itoa(index)
+		lower := strings.ToLower(display)
+
+		t.Run(display, func(t *testing.T) {
+			if !config.IsValidNamedKey(display) {
+				t.Errorf("IsValidNamedKey(%q) = false, want true", display)
+			}
+
+			if !config.IsValidNamedKey(lower) {
+				t.Errorf("IsValidNamedKey(%q) = false, want true", lower)
+			}
+
+			canonical, recognized := config.CanonicalNamedKeyForm(lower)
+			if !recognized || canonical != display {
+				t.Errorf(
+					"CanonicalNamedKeyForm(%q) = (%q, %t), want (%q, true)",
+					lower,
+					canonical,
+					recognized,
+					display,
+				)
+			}
+		})
+	}
+
+	if config.IsValidNamedKey("F25") {
+		t.Error(`IsValidNamedKey("F25") = true, want false`)
 	}
 }
 

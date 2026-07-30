@@ -247,7 +247,7 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 | Symbols    | `` ` ``, `-`, `=`, `[`, `]`, `\`, `;`, `'`, `,`, `.`, `/`          |
 | Named      | `Space`, `Return`, `Enter`, `Escape`, `Tab`, `Delete`, `Backspace` |
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown` |
-| Function   | `F1`–`F20`                                                         |
+| Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                 |
 
 See [CLI.md](CLI.md#feed-keys) for a full key reference with key codes and platform behavior.
 

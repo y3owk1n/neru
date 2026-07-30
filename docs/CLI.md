@@ -412,7 +412,7 @@ Chords use `+` (e.g. `ctrl+c`, `Cmd+Shift+P`). `space` for a literal space key.
 
 **ARGUMENTS**
 
-`<key>` -- One or more keys or chords. Supported names: letters `a`–`z`, numbers `0`–`9`, symbols (`=`, `-`, `[`, `]`, etc.), named keys (`space`, `return`, `escape`, `tab`, `delete`), navigation (`left`, `right`, `up`, `down`, `pageup`, `home`, `end`), function (`f1`–`f20`), chord modifiers (`cmd`, `shift`, `alt`, `ctrl`, `LeftCmd`, `RightShift`).
+`<key>` -- One or more keys or chords. Supported names: letters `a`–`z`, numbers `0`–`9`, symbols (`=`, `-`, `[`, `]`, etc.), named keys (`space`, `return`, `escape`, `tab`, `delete`), navigation (`left`, `right`, `up`, `down`, `pageup`, `home`, `end`), function (`f1`–`f24`; `f21`–`f24` on Linux and Windows only), chord modifiers (`cmd`, `shift`, `alt`, `ctrl`, `LeftCmd`, `RightShift`).
 
 **EXAMPLES**
 

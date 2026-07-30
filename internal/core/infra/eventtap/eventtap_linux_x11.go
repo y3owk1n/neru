@@ -200,6 +200,64 @@ func x11KeysymName(keysym C.KeySym) string {
 	case C.XK_Down:
 		return "Down"
 	default:
+		return x11FunctionKeysymName(keysym)
+	}
+}
+
+// x11FunctionKeysymName maps the F1-F24 keysyms to their Neru display names.
+// XLookupString yields no character for function keys, so they only reach the
+// handler through this lookup.
+func x11FunctionKeysymName(keysym C.KeySym) string {
+	switch keysym {
+	case C.XK_F1:
+		return evdevKeyNameF1
+	case C.XK_F2:
+		return evdevKeyNameF2
+	case C.XK_F3:
+		return evdevKeyNameF3
+	case C.XK_F4:
+		return evdevKeyNameF4
+	case C.XK_F5:
+		return evdevKeyNameF5
+	case C.XK_F6:
+		return evdevKeyNameF6
+	case C.XK_F7:
+		return evdevKeyNameF7
+	case C.XK_F8:
+		return evdevKeyNameF8
+	case C.XK_F9:
+		return evdevKeyNameF9
+	case C.XK_F10:
+		return evdevKeyNameF10
+	case C.XK_F11:
+		return evdevKeyNameF11
+	case C.XK_F12:
+		return evdevKeyNameF12
+	case C.XK_F13:
+		return evdevKeyNameF13
+	case C.XK_F14:
+		return evdevKeyNameF14
+	case C.XK_F15:
+		return evdevKeyNameF15
+	case C.XK_F16:
+		return evdevKeyNameF16
+	case C.XK_F17:
+		return evdevKeyNameF17
+	case C.XK_F18:
+		return evdevKeyNameF18
+	case C.XK_F19:
+		return evdevKeyNameF19
+	case C.XK_F20:
+		return evdevKeyNameF20
+	case C.XK_F21:
+		return evdevKeyNameF21
+	case C.XK_F22:
+		return evdevKeyNameF22
+	case C.XK_F23:
+		return evdevKeyNameF23
+	case C.XK_F24:
+		return evdevKeyNameF24
+	default:
 		return ""
 	}
 }
