@@ -28,7 +28,7 @@ func TestDefaultClickableRoles_ResolvesToUIANames(t *testing.T) {
 		}
 	}
 
-	for _, want := range []string{"Button", "Edit", "Hyperlink"} {
+	for _, want := range []string{uiaControlButton, uiaControlEdit, uiaControlHyperlink} {
 		if _, ok := defaultClickableRoles[want]; !ok {
 			t.Errorf("defaultClickableRoles missing %q", want)
 		}
@@ -46,7 +46,7 @@ func TestResolveRoles_WindowsNativeEntriesPassThrough(t *testing.T) {
 		t.Fatalf("unexpected fatal diagnostics: %v", resolution.FatalMessages())
 	}
 
-	for _, want := range []string{"Button", "SplitButton", "Custom", "Pane"} {
+	for _, want := range []string{uiaControlButton, uiaControlSplitButton, uiaControlCustom, uiaControlPane} {
 		if !slices.Contains(resolution.Native, want) {
 			t.Errorf("resolution %v missing %q", resolution.Native, want)
 		}

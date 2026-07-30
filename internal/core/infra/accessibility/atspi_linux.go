@@ -108,156 +108,194 @@ const (
 	collectionMaxWorkers = 16
 )
 
-// atspiRoleNameToID maps AT-SPI role names, as returned by
-// Accessible.GetRoleName, to their AtspiRole id — the declaration-order index
-// in atspi-constants.h. Ids are needed to build the Collection.GetMatches role
-// bitfield, so any role missing here forces the slow per-node walk instead.
-//
-// The enum is ABI-stable (append-only), so these are fixed. The table is
-// complete as of AT-SPI 2.50 (ATSPI_ROLE_PUSH_BUTTON_MENU, the highest id
-// below, is the last member); newer roles simply fall back to the walk.
-var atspiRoleNameToID = map[string]int32{
-	"invalid":               0,
-	"accelerator label":     1,
-	"alert":                 2,
-	"animation":             3,
-	"arrow":                 4,
-	"calendar":              5,
-	"canvas":                6,
-	"check box":             7,
-	"check menu item":       8,
-	"color chooser":         9,
-	"column header":         10,
-	"combo box":             11,
-	"date editor":           12,
-	"desktop icon":          13,
-	"desktop frame":         14,
-	"dial":                  15,
-	"dialog":                16,
-	"directory pane":        17,
-	"drawing area":          18,
-	"file chooser":          19,
-	"filler":                20,
-	"focus traversable":     21,
-	"font chooser":          22,
-	"frame":                 23,
-	"glass pane":            24,
-	"html container":        25,
-	"icon":                  26,
-	"image":                 27,
-	"internal frame":        28,
-	"label":                 29,
-	"layered pane":          30,
-	"list":                  31,
-	"list item":             32,
-	"menu":                  33,
-	"menu bar":              34,
-	"menu item":             35,
-	"option pane":           36,
-	"page tab":              37,
-	"page tab list":         38,
-	"panel":                 39,
-	"password text":         40,
-	"popup menu":            41,
-	"progress bar":          42,
-	"push button":           43,
-	"radio button":          44,
-	"radio menu item":       45,
-	"root pane":             46,
-	"row header":            47,
-	"scroll bar":            48,
-	"scroll pane":           49,
-	"separator":             50,
-	"slider":                51,
-	"spin button":           52,
-	"split pane":            53,
-	"status bar":            54,
-	"table":                 55,
-	"table cell":            56,
-	"table column header":   57,
-	"table row header":      58,
-	"tearoff menu item":     59,
-	"terminal":              60,
-	"text":                  61,
-	"toggle button":         62,
-	"tool bar":              63,
-	"tool tip":              64,
-	"tree":                  65,
-	"tree table":            66,
-	"unknown":               67,
-	"viewport":              68,
-	"window":                69,
-	"extended":              70,
-	"header":                71,
-	"footer":                72,
-	"paragraph":             73,
-	"ruler":                 74,
-	"application":           75,
-	"autocomplete":          76,
-	"editbar":               77,
-	"embedded":              78,
-	"entry":                 79,
-	"chart":                 80,
-	"caption":               81,
-	"document frame":        82,
-	"heading":               83,
-	"page":                  84,
-	"section":               85,
-	"redundant object":      86,
-	"form":                  87,
-	"link":                  88,
-	"input method window":   89,
-	"table row":             90,
-	"tree item":             91,
-	"document spreadsheet":  92,
-	"document presentation": 93,
-	"document text":         94,
-	"document web":          95,
-	"document email":        96,
-	"comment":               97,
-	"list box":              98,
-	"grouping":              99,
-	"image map":             100,
-	"notification":          101,
-	"info bar":              102,
-	"level bar":             103,
-	"title bar":             104,
-	"block quote":           105,
-	"audio":                 106,
-	"video":                 107,
-	"definition":            108,
-	"article":               109,
-	"landmark":              110,
-	"log":                   111,
-	"marquee":               112,
-	"math":                  113,
-	"rating":                114,
-	"timer":                 115,
-	"static":                116,
-	"math fraction":         117,
-	"math root":             118,
-	"subscript":             119,
-	"superscript":           120,
-	"description list":      121,
-	"description term":      122,
-	"description value":     123,
-	"footnote":              124,
-	"content deletion":      125,
-	"content insertion":     126,
-	"mark":                  127,
-	"suggestion":            128,
-	"push button menu":      129,
-	"switch":                130,
+// atspiRoleFrame is the AT-SPI role of a top-level application window, used
+// both as a vocabulary entry and to recognize window elements during frame
+// selection.
+const atspiRoleFrame = "frame"
 
-	// Compatibility aliases. Accessible.GetRoleName returns the GEnum nick of
-	// the role with hyphens replaced by spaces, so id 43 reports "button" on
-	// current at-spi2-core (ATSPI_ROLE_BUTTON) and "push button" on releases
-	// predating that rename. Both are accepted so one config works either way.
-	// "menu button" is accepted because users reach for it before the less
-	// obvious "push button menu".
-	"button":      43,
-	"menu button": 129,
+// Role names that appear both in the ordered list below and in the alias map.
+const (
+	atspiRolePushButton     = "push button"
+	atspiRolePushButtonMenu = "push button menu"
+)
+
+// atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so a
+// name's index in this slice is its AtspiRole id. Ids are needed to build the
+// Collection.GetMatches role bitfield, and deriving them from position rather
+// than writing them out makes a gap or a duplicate impossible.
+//
+// A name is the GEnum nick of the role with hyphens replaced by spaces, which
+// is exactly what Accessible.GetRoleName returns. The enum is ABI-stable
+// (append-only), so existing entries never move; the list is complete through
+// ATSPI_ROLE_SWITCH, and roles added later fall back to the per-node walk
+// instead of the Collection query.
+//
+// Inserting or removing a line shifts every id after it, so
+// TestAtspiRoleNameToIDAnchors pins ids spread across the enum.
+var atspiRoleNames = []string{
+	"invalid",
+	"accelerator label",
+	"alert",
+	"animation",
+	"arrow",
+	"calendar",
+	"canvas",
+	"check box",
+	"check menu item",
+	"color chooser",
+	"column header",
+	"combo box",
+	"date editor",
+	"desktop icon",
+	"desktop frame",
+	"dial",
+	"dialog",
+	"directory pane",
+	"drawing area",
+	"file chooser",
+	"filler",
+	"focus traversable",
+	"font chooser",
+	atspiRoleFrame,
+	"glass pane",
+	"html container",
+	"icon",
+	"image",
+	"internal frame",
+	"label",
+	"layered pane",
+	"list",
+	"list item",
+	"menu",
+	"menu bar",
+	"menu item",
+	"option pane",
+	"page tab",
+	"page tab list",
+	"panel",
+	"password text",
+	"popup menu",
+	"progress bar",
+	atspiRolePushButton,
+	"radio button",
+	"radio menu item",
+	"root pane",
+	"row header",
+	"scroll bar",
+	"scroll pane",
+	"separator",
+	"slider",
+	"spin button",
+	"split pane",
+	"status bar",
+	"table",
+	"table cell",
+	"table column header",
+	"table row header",
+	"tearoff menu item",
+	"terminal",
+	"text",
+	"toggle button",
+	"tool bar",
+	"tool tip",
+	"tree",
+	"tree table",
+	"unknown",
+	"viewport",
+	"window",
+	"extended",
+	"header",
+	"footer",
+	"paragraph",
+	"ruler",
+	"application",
+	"autocomplete",
+	"editbar",
+	"embedded",
+	"entry",
+	"chart",
+	"caption",
+	"document frame",
+	"heading",
+	"page",
+	"section",
+	"redundant object",
+	"form",
+	"link",
+	"input method window",
+	"table row",
+	"tree item",
+	"document spreadsheet",
+	"document presentation",
+	"document text",
+	"document web",
+	"document email",
+	"comment",
+	"list box",
+	"grouping",
+	"image map",
+	"notification",
+	"info bar",
+	"level bar",
+	"title bar",
+	"block quote",
+	"audio",
+	"video",
+	"definition",
+	"article",
+	"landmark",
+	"log",
+	"marquee",
+	"math",
+	"rating",
+	"timer",
+	"static",
+	"math fraction",
+	"math root",
+	"subscript",
+	"superscript",
+	"description list",
+	"description term",
+	"description value",
+	"footnote",
+	"content deletion",
+	"content insertion",
+	"mark",
+	"suggestion",
+	atspiRolePushButtonMenu,
+	"switch",
 }
+
+// atspiRoleNameAliases map an accepted spelling onto the canonical role name it
+// shares an id with.
+//
+// Id 43 is ATSPI_ROLE_BUTTON on current at-spi2-core and was
+// ATSPI_ROLE_PUSH_BUTTON before it was renamed, and the name reported for it
+// has historically been "push button". Rather than depend on which spelling a
+// given release reports, both are accepted so one config works on either.
+// "menu button" is accepted because users reach for it before the less obvious
+// "push button menu".
+var atspiRoleNameAliases = map[string]string{
+	"button":      atspiRolePushButton,
+	"menu button": atspiRolePushButtonMenu,
+}
+
+// atspiRoleNameToID indexes atspiRoleNames by name, with the aliases folded in.
+var atspiRoleNameToID = func() map[string]int32 {
+	ids := make(map[string]int32, len(atspiRoleNames)+len(atspiRoleNameAliases))
+
+	for index, name := range atspiRoleNames {
+		ids[name] = int32(index)
+	}
+
+	for alias, canonical := range atspiRoleNameAliases {
+		if id, ok := ids[canonical]; ok {
+			ids[alias] = id
+		}
+	}
+
+	return ids
+}()
 
 // accRef is the AT-SPI (bus-name, object-path) reference returned by
 // GetChildren and the registry root.
@@ -1175,7 +1213,7 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 // isWindowRole reports whether an AT-SPI role name denotes a top-level window
 // (the only frames hint selection considers).
 func isWindowRole(role string) bool {
-	return role == "frame" || role == "window" || role == "dialog"
+	return role == atspiRoleFrame || role == "window" || role == "dialog"
 }
 
 // roleName returns the AT-SPI localized-independent role name (e.g. "push button").
@@ -2025,7 +2063,7 @@ type atspiWindow struct {
 }
 
 func (w *atspiWindow) Release()     {}
-func (w *atspiWindow) Role() string { return "frame" }
+func (w *atspiWindow) Role() string { return atspiRoleFrame }
 
 // atspiNode implements AXNode for a clickable AT-SPI element.
 type atspiNode struct {

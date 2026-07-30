@@ -36,7 +36,7 @@ func TestEnumerateClickableElementsIntegration(t *testing.T) {
 		}
 
 		// Roles must be the native UIA control-type names the config vocabulary
-		// resolves to, never the AX-style names neru used to synthesise here.
+		// resolves to, never the AX-style names neru used to synthesize here.
 		if _, ok := defaultClickableRoles[elem.role]; !ok {
 			t.Errorf(
 				"element %d has role %q, which is not in the default role set",

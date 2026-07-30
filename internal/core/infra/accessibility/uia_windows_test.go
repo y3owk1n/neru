@@ -23,20 +23,20 @@ func TestControlTypeName(t *testing.T) {
 		wantName    string
 		wantKnown   bool
 	}{
-		{"button", 50000, "Button", true},
+		{"button", 50000, uiaControlButton, true},
 		{"checkbox", 50002, "CheckBox", true},
 		{"combobox", 50003, "ComboBox", true},
-		{"edit", 50004, "Edit", true},
-		{"hyperlink", 50005, "Hyperlink", true},
+		{"edit", 50004, uiaControlEdit, true},
+		{"hyperlink", 50005, uiaControlHyperlink, true},
 		{"menu item", 50011, "MenuItem", true},
 		{"radio button", 50013, "RadioButton", true},
 		{"tab item", 50019, "TabItem", true},
-		{"split button", 50031, "SplitButton", true},
+		{"split button", 50031, uiaControlSplitButton, true},
 		// Control types that were previously discarded are now named, so a
 		// config can address them through the uia: prefix.
 		{"text", 50020, "Text", true},
-		{"custom", 50025, "Custom", true},
-		{"pane", 50033, "Pane", true},
+		{"custom", 50025, uiaControlCustom, true},
+		{"pane", 50033, uiaControlPane, true},
 		{"document", 50030, "Document", true},
 		{"last known control type", 50040, "AppBar", true},
 		{"unknown control type", 99999, roleUnknown, false},
@@ -72,19 +72,19 @@ func TestControlTypeNamesAreContiguous(t *testing.T) {
 
 	seen := make(map[string]int32, len(controlTypeNames))
 
-	for id := int32(first); id <= last; id++ {
-		name, ok := controlTypeNames[id]
+	for controlType := int32(first); controlType <= last; controlType++ {
+		name, ok := controlTypeNames[controlType]
 		if !ok {
-			t.Errorf("controlTypeNames lacks id %d", id)
+			t.Errorf("controlTypeNames lacks id %d", controlType)
 
 			continue
 		}
 
 		if previous, duplicate := seen[name]; duplicate {
-			t.Errorf("controlTypeNames has %q for both %d and %d", name, previous, id)
+			t.Errorf("controlTypeNames has %q for both %d and %d", name, previous, controlType)
 		}
 
-		seen[name] = id
+		seen[name] = controlType
 	}
 
 	if len(controlTypeNames) != last-first+1 {

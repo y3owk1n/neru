@@ -364,43 +364,45 @@ func TestAtspiRoleNameToIDCoversTheVocabulary(t *testing.T) {
 	}
 }
 
-// atspiRoleNameAliases are names accepted for a role that
-// Accessible.GetRoleName reports under a different string. They deliberately
-// duplicate an id, so the contiguity check excludes them.
-var atspiRoleNameAliases = map[string]struct{}{
-	"button":      {}, // id 43 also reports as "push button" on older at-spi2
-	"menu button": {}, // id 129 reports as "push button menu"
-}
+// TestAtspiRoleNames_CoverTheEnum checks the role list against the shape of the
+// AtspiRole enum. Ids are the slice indices, so gaps and duplicates cannot
+// occur by construction; what can still go wrong is a name being added or
+// dropped, which shifts every id after it. Pinning the length and the last
+// entry catches that, and TestAtspiRoleNameToIDAnchors catches a reordering.
+// ATSPI_ROLE_LAST_DEFINED (131) is a sentinel and must not be listed.
+func TestAtspiRoleNames_CoverTheEnum(t *testing.T) {
+	const lastRoleID = 130 // ATSPI_ROLE_SWITCH
 
-// TestAtspiRoleNameToIDIsContiguous checks the table against the shape of the
-// AtspiRole enum: ids 0 through ATSPI_ROLE_SWITCH (130) each appear exactly
-// once. A mistyped id would leave a gap and shift a role onto the wrong name,
-// which would silently select the wrong elements on the Collection fast path.
-// ATSPI_ROLE_LAST_DEFINED (131) is a sentinel and must not be present.
-func TestAtspiRoleNameToIDIsContiguous(t *testing.T) {
-	const lastRole = 130
-
-	byID := make(map[int32]string, len(atspiRoleNameToID))
-
-	for name, roleID := range atspiRoleNameToID {
-		if _, alias := atspiRoleNameAliases[name]; alias {
-			continue
-		}
-
-		if existing, duplicate := byID[roleID]; duplicate {
-			t.Errorf("id %d is used by both %q and %q", roleID, existing, name)
-		}
-
-		byID[roleID] = name
-
-		if roleID > lastRole {
-			t.Errorf("role %q has id %d, beyond ATSPI_ROLE_SWITCH (%d)", name, roleID, lastRole)
-		}
+	if len(atspiRoleNames) != lastRoleID+1 {
+		t.Errorf(
+			"atspiRoleNames has %d entries, want %d (ids 0..%d)",
+			len(atspiRoleNames), lastRoleID+1, lastRoleID,
+		)
 	}
 
-	for roleID := int32(0); roleID <= lastRole; roleID++ {
-		if _, ok := byID[roleID]; !ok {
-			t.Errorf("no role name mapped to AtspiRole id %d", roleID)
+	if last := atspiRoleNames[len(atspiRoleNames)-1]; last != "switch" {
+		t.Errorf("last role name = %q, want \"switch\" (ATSPI_ROLE_SWITCH)", last)
+	}
+
+	seen := make(map[string]int, len(atspiRoleNames))
+
+	for index, name := range atspiRoleNames {
+		if previous, duplicate := seen[name]; duplicate {
+			t.Errorf("role name %q appears at both %d and %d", name, previous, index)
+		}
+
+		seen[name] = index
+	}
+
+	// Every alias must point at a name that exists, or it silently resolves to
+	// nothing and the spelling it exists to accept stops working.
+	for alias, canonical := range atspiRoleNameAliases {
+		if _, ok := seen[canonical]; !ok {
+			t.Errorf("alias %q points at unknown role name %q", alias, canonical)
+		}
+
+		if _, ok := atspiRoleNameToID[alias]; !ok {
+			t.Errorf("alias %q is missing from atspiRoleNameToID", alias)
 		}
 	}
 }
@@ -411,23 +413,23 @@ func TestAtspiRoleNameToIDIsContiguous(t *testing.T) {
 // anchors, spread across the enum, catch a bad transcription.
 func TestAtspiRoleNameToIDAnchors(t *testing.T) {
 	anchors := map[string]int32{
-		"check box":        7,
-		"check menu item":  8,
-		"combo box":        11,
-		"list item":        32,
-		"menu item":        35,
-		"page tab":         37,
-		"password text":    40,
-		"push button":      43,
-		"radio button":     44,
-		"radio menu item":  45,
-		"slider":           51,
-		"table cell":       56,
-		"toggle button":    62,
-		"entry":            79,
-		"link":             88,
-		"table row":        90,
-		"push button menu": 129,
+		"check box":             7,
+		"check menu item":       8,
+		"combo box":             11,
+		"list item":             32,
+		"menu item":             35,
+		"page tab":              37,
+		"password text":         40,
+		atspiRolePushButton:     43,
+		"radio button":          44,
+		"radio menu item":       45,
+		"slider":                51,
+		"table cell":            56,
+		"toggle button":         62,
+		"entry":                 79,
+		"link":                  88,
+		"table row":             90,
+		atspiRolePushButtonMenu: 129,
 	}
 
 	for name, want := range anchors {

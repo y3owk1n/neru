@@ -98,6 +98,16 @@ const (
 	vtArrayGetElement = 4
 )
 
+// UI Automation control-type names referenced from more than one place.
+const (
+	uiaControlButton      = "Button"
+	uiaControlEdit        = "Edit"
+	uiaControlHyperlink   = "Hyperlink"
+	uiaControlCustom      = "Custom"
+	uiaControlSplitButton = "SplitButton"
+	uiaControlPane        = "Pane"
+)
+
 // controlTypeNames maps UI Automation CONTROLTYPEID values to the programmatic
 // names behind the UIA_*ControlTypeId constants. These names — not the
 // localized LocalizedControlType, which changes with the system language — are
@@ -106,12 +116,12 @@ const (
 // The range is contiguous and stable: 50000 is Button and 50040 is AppBar, the
 // last control type added (Windows 8).
 var controlTypeNames = map[int32]string{
-	50000: "Button",
+	50000: uiaControlButton,
 	50001: "Calendar",
 	50002: "CheckBox",
 	50003: "ComboBox",
-	50004: "Edit",
-	50005: "Hyperlink",
+	50004: uiaControlEdit,
+	50005: uiaControlHyperlink,
 	50006: "Image",
 	50007: "ListItem",
 	50008: "List",
@@ -131,15 +141,15 @@ var controlTypeNames = map[int32]string{
 	50022: "ToolTip",
 	50023: "Tree",
 	50024: "TreeItem",
-	50025: "Custom",
+	50025: uiaControlCustom,
 	50026: "Group",
 	50027: "Thumb",
 	50028: "DataGrid",
 	50029: "DataItem",
 	50030: "Document",
-	50031: "SplitButton",
+	50031: uiaControlSplitButton,
 	50032: "Window",
-	50033: "Pane",
+	50033: uiaControlPane,
 	50034: "Header",
 	50035: "HeaderItem",
 	50036: "Table",
