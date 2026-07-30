@@ -56,6 +56,21 @@ const (
 	atspiMaxDepth = 40
 	atspiMaxNodes = 2000
 
+	// atspiCallTimeout bounds a single AT-SPI D-Bus round-trip. A healthy
+	// toolkit answers each read (role, extents, name, children, state) in
+	// single-digit milliseconds; this only trips when an app is wedged or not
+	// answering accessibility queries. Without it a single hung call would
+	// consume the whole element-scan budget and the CLI would give up with a
+	// bare timeout (or the daemon would log a broken-pipe write after the
+	// client disconnected). Bounding each call lets a stuck node be dropped and
+	// the scan continue.
+	atspiCallTimeout = 500 * time.Millisecond
+
+	// atspiPropertiesGet is the standard D-Bus Properties.Get method, called
+	// with a context so a wedged property read cannot block indefinitely (the
+	// godbus GetProperty convenience method has no context-aware variant).
+	atspiPropertiesGet = "org.freedesktop.DBus.Properties.Get"
+
 	// Capacity hint for the clickable-node slice: most windows fit well under
 	// this and the slice grows if a dense tree exceeds it.
 	atspiClickableNodesCap = 128
@@ -247,7 +262,7 @@ func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPICl
 }
 
 // FrontmostWindow returns the active top-level window via AT-SPI.
-func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
+func (c *ATSPIClient) FrontmostWindow(ctx context.Context) (AXWindow, error) {
 	err := c.ensureA11yEnabled()
 	if err != nil {
 		c.logger.Warn("Failed to enable AT-SPI accessibility", zap.Error(err))
@@ -265,7 +280,7 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 	// ClickableNodes stability check accept a stale frame.
 	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
 
-	frame, ok := c.findActiveFrame(conn, focusedAppID, focusedTitle)
+	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {
 		c.logger.Debug("AT-SPI: no active frame found")
 
@@ -276,8 +291,8 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 
 	c.logger.Debug("AT-SPI: selected active frame",
 		zap.String("bus", frame.Name),
-		zap.String("app", c.name(conn, accRef{Name: frame.Name, Path: atspiRootPath})),
-		zap.String("frameTitle", c.name(conn, frame)))
+		zap.String("app", c.name(ctx, conn, accRef{Name: frame.Name, Path: atspiRootPath})),
+		zap.String("frameTitle", c.name(ctx, conn, frame)))
 
 	return &atspiWindow{
 		ref:          frame,
@@ -346,7 +361,7 @@ func (c *ATSPIClient) ClickableNodes(
 		haveOrigin bool
 	)
 
-	frameRect, frameOK := c.extents(conn, win.ref)
+	frameRect, frameOK := c.extents(ctx, conn, win.ref)
 	if frameOK {
 		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
 		if ok {
@@ -607,7 +622,7 @@ func (c *ATSPIClient) collectViaCollection(
 				return
 			}
 
-			node := c.materializeMatch(conn, ref, roleSet, offX, offY)
+			node := c.materializeMatch(ctx, conn, ref, roleSet, offX, offY)
 			if node != nil {
 				results[slot] = node
 
@@ -646,6 +661,7 @@ func (c *ATSPIClient) collectViaCollection(
 // extents). It mirrors the walk's emit filter and is safe for concurrent use —
 // it only issues reads over the shared connection, which godbus multiplexes.
 func (c *ATSPIClient) materializeMatch(
+	ctx context.Context,
 	conn *dbus.Conn,
 	ref accRef,
 	roleSet map[string]struct{},
@@ -653,7 +669,7 @@ func (c *ATSPIClient) materializeMatch(
 ) *atspiNode {
 	// Re-verify the role maps into the requested set: a toolkit may return a role
 	// we did not ask for, and this keeps parity with the walk's filter.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(conn, ref))]
+	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
 	if !mappable {
 		return nil
 	}
@@ -662,7 +678,7 @@ func (c *ATSPIClient) materializeMatch(
 		return nil
 	}
 
-	rect, valid := c.extents(conn, ref)
+	rect, valid := c.extents(ctx, conn, ref)
 	if !valid {
 		return nil
 	}
@@ -670,7 +686,7 @@ func (c *ATSPIClient) materializeMatch(
 	return &atspiNode{
 		id:    string(ref.Path) + "@" + ref.Name,
 		role:  axRole,
-		title: c.name(conn, ref),
+		title: c.name(ctx, conn, ref),
 		rect:  rect.Add(image.Pt(offX, offY)),
 	}
 }
@@ -859,17 +875,26 @@ func (c *ATSPIClient) focusStableSince(selectedAppID, selectedTitle string) bool
 // children returns the AT-SPI children of an accessible. It prefers the bulk
 // GetChildren method and falls back to ChildCount + GetChildAtIndex for older
 // toolkits that do not expose GetChildren.
-func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
+func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef) []accRef {
 	obj := conn.Object(ref.Name, ref.Path)
 
 	var kids []accRef
 
-	err := obj.Call(atspiAccessibleIfc+".GetChildren", 0).Store(&kids)
+	childrenCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
+	err := obj.CallWithContext(childrenCtx, atspiAccessibleIfc+".GetChildren", 0).Store(&kids)
 	if err == nil {
 		return kids
 	}
 
-	countVar, propErr := obj.GetProperty(atspiAccessibleIfc + ".ChildCount")
+	var countVar dbus.Variant
+
+	countCtx, cancelCount := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancelCount()
+
+	propErr := obj.CallWithContext(countCtx, atspiPropertiesGet, 0,
+		atspiAccessibleIfc, "ChildCount").Store(&countVar)
 	if propErr != nil {
 		return nil
 	}
@@ -878,7 +903,13 @@ func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
 	for i := range count {
 		var child accRef
 
-		err := obj.Call(atspiAccessibleIfc+".GetChildAtIndex", 0, i).Store(&child)
+		childCtx, cancelChild := context.WithTimeout(ctx, atspiCallTimeout)
+
+		err := obj.CallWithContext(childCtx, atspiAccessibleIfc+".GetChildAtIndex", 0, i).
+			Store(&child)
+
+		cancelChild()
+
 		if err != nil {
 			continue
 		}
@@ -890,11 +921,14 @@ func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
 }
 
 // roleName returns the AT-SPI localized-independent role name (e.g. "push button").
-func (c *ATSPIClient) roleName(conn *dbus.Conn, ref accRef) string {
+func (c *ATSPIClient) roleName(ctx context.Context, conn *dbus.Conn, ref accRef) string {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var name string
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiAccessibleIfc+".GetRoleName", 0).Store(&name)
+		CallWithContext(callCtx, atspiAccessibleIfc+".GetRoleName", 0).Store(&name)
 	if err != nil {
 		return ""
 	}
@@ -903,9 +937,14 @@ func (c *ATSPIClient) roleName(conn *dbus.Conn, ref accRef) string {
 }
 
 // name returns the accessible Name property (used as the element title).
-func (c *ATSPIClient) name(conn *dbus.Conn, ref accRef) string {
-	val, err := conn.Object(ref.Name, ref.Path).
-		GetProperty(atspiAccessibleIfc + ".Name")
+func (c *ATSPIClient) name(ctx context.Context, conn *dbus.Conn, ref accRef) string {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
+	var val dbus.Variant
+
+	err := conn.Object(ref.Name, ref.Path).
+		CallWithContext(callCtx, atspiPropertiesGet, 0, atspiAccessibleIfc, "Name").Store(&val)
 	if err != nil {
 		return ""
 	}
@@ -916,11 +955,14 @@ func (c *ATSPIClient) name(conn *dbus.Conn, ref accRef) string {
 }
 
 // stateHas reports whether the accessible has the given AT-SPI state bit set.
-func (c *ATSPIClient) stateHas(conn *dbus.Conn, ref accRef, bit uint) bool {
+func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef, bit uint) bool {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var states []uint32
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiAccessibleIfc+".GetState", 0).Store(&states)
+		CallWithContext(callCtx, atspiAccessibleIfc+".GetState", 0).Store(&states)
 	if err != nil || len(states) == 0 {
 		return false
 	}
@@ -934,11 +976,18 @@ func (c *ATSPIClient) stateHas(conn *dbus.Conn, ref accRef, bit uint) bool {
 }
 
 // extents returns the on-screen rectangle of an accessible.
-func (c *ATSPIClient) extents(conn *dbus.Conn, ref accRef) (image.Rectangle, bool) {
+func (c *ATSPIClient) extents(
+	ctx context.Context,
+	conn *dbus.Conn,
+	ref accRef,
+) (image.Rectangle, bool) {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var ext atspiExtents
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
+		CallWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
 	if err != nil {
 		return image.Rectangle{}, false
 	}
@@ -1017,6 +1066,7 @@ func isNonTargetSurfaceApp(name string) bool {
 // (empty on X11, GNOME, or when nothing is focused), used so the selected frame
 // and the identity recorded for the stability check come from the same read.
 func (c *ATSPIClient) findActiveFrame(
+	ctx context.Context,
 	conn *dbus.Conn,
 	focusedAppID, focusedTitle string,
 ) (accRef, bool) {
@@ -1053,8 +1103,8 @@ func (c *ATSPIClient) findActiveFrame(
 		haveShell    bool
 	)
 
-	for _, app := range c.children(conn, root) {
-		appName := c.name(conn, app)
+	for _, app := range c.children(ctx, conn, root) {
+		appName := c.name(ctx, conn, app)
 
 		// Skip surfaces that are never valid hint targets and that steal the
 		// ACTIVE state right after a libei cursor move: on-screen virtual
@@ -1069,14 +1119,14 @@ func (c *ATSPIClient) findActiveFrame(
 		isShell := isDesktopShellApp(appName)
 		matchesFocused := haveFocused && appMatchesFocusedID(appName, focusedAppID)
 
-		for _, frame := range c.children(conn, app) {
-			role := c.roleName(conn, frame)
+		for _, frame := range c.children(ctx, conn, app) {
+			role := c.roleName(ctx, conn, frame)
 			if role != "frame" && role != "window" && role != "dialog" {
 				continue
 			}
 
-			active := c.stateHas(conn, frame, atspiStateActive)
-			showing := c.stateHas(conn, frame, atspiStateShowing)
+			active := c.stateHas(ctx, conn, frame, atspiStateActive)
+			showing := c.stateHas(ctx, conn, frame, atspiStateShowing)
 
 			// The desktop shell never wins the active-frame race; it is kept
 			// aside and only used if no real application frame is found.
@@ -1100,7 +1150,7 @@ func (c *ATSPIClient) findActiveFrame(
 					haveFocusedShowing = true
 				}
 
-				if haveFocusedTitle && titleMatchesFocused(c.name(conn, frame), focusedTitle) {
+				if haveFocusedTitle && titleMatchesFocused(c.name(ctx, conn, frame), focusedTitle) {
 					focusedTitleCount++
 
 					if focusedTitleCount == 1 {
@@ -1296,25 +1346,25 @@ func (c *ATSPIClient) walk(
 	// Translate the AT-SPI role into Neru's AX vocabulary, then match against
 	// the requested role set (also AX names). This keeps the whole pipeline,
 	// including the downstream Adapter.MatchesFilter, speaking one vocabulary.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(conn, ref))]
+	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
 
 	if mappable {
-		if _, ok := roles[axRole]; ok && c.stateHas(conn, ref, atspiStateShowing) {
-			if rect, valid := c.extents(conn, ref); valid {
+		if _, ok := roles[axRole]; ok && c.stateHas(ctx, conn, ref, atspiStateShowing) {
+			if rect, valid := c.extents(ctx, conn, ref); valid {
 				// AT-SPI reports window-relative coords on Wayland; offset by the
 				// focused window's screen origin from the KWin bridge.
 				rect = rect.Add(image.Pt(offX, offY))
 				*out = append(*out, &atspiNode{
 					id:    string(ref.Path) + "@" + ref.Name,
 					role:  axRole,
-					title: c.name(conn, ref),
+					title: c.name(ctx, conn, ref),
 					rect:  rect,
 				})
 			}
 		}
 	}
 
-	for _, child := range c.children(conn, ref) {
+	for _, child := range c.children(ctx, conn, ref) {
 		c.walk(ctx, conn, child, roles, depth+1, out, visited, offX, offY)
 	}
 }
