@@ -245,6 +245,16 @@ type ATSPIClient struct {
 	closed    bool // true after Close() runs; prevents re-activation
 	savedIsOn bool // original IsEnabled before our first enable
 	savedSrOn bool // original ScreenReaderEnabled before our first enable
+
+	// Event-driven active-window cache. A background listener records the AT-SPI
+	// window that most recently emitted a window:activate event, so frame
+	// selection can skip the registry scan entirely when the cached window still
+	// matches the compositor's focused toplevel. See atspi_events_linux.go.
+	activeMu     sync.Mutex
+	activeWindow *atspiActiveWindow // nil until the first window:activate arrives
+	eventsReady  bool               // true once the listener is registered on c.a11y
+	eventsStop   chan struct{}      // closed to stop the listener goroutine
+	eventsClosed bool               // true after Close; blocks starting a new listener
 }
 
 // NewATSPIClient builds the Linux accessibility client. AT-SPI is not
@@ -273,6 +283,10 @@ func (c *ATSPIClient) FrontmostWindow(ctx context.Context) (AXWindow, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Start (once) the window:activate listener so subsequent frame selections can
+	// read the event-tracked active window instead of scanning the registry.
+	c.ensureA11yEvents(conn)
 
 	// Attach a scan diagnostic so the bounded frame-selection reads can flag a
 	// fatal AT-SPI failure (a timeout, a closed connection, or the registry/app
@@ -543,6 +557,18 @@ func (c *ATSPIClient) Close() error {
 			c.logger.Warn("Failed to restore AT-SPI a11y status", zap.Error(err))
 		}
 	}
+
+	// Stop the window:activate listener goroutine before the connection closes,
+	// and block any in-flight ensureA11yEvents from starting a new one.
+	c.activeMu.Lock()
+	if c.eventsStop != nil {
+		close(c.eventsStop)
+		c.eventsStop = nil
+	}
+
+	c.eventsReady = false
+	c.eventsClosed = true
+	c.activeMu.Unlock()
 
 	c.mu.Lock()
 	if c.a11y != nil {
@@ -867,6 +893,20 @@ func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Re-check closed while holding mu, not before it. Close sets closed (under
+	// a11yMu) before its own mu section runs, so once Close's teardown has
+	// completed, any ensureA11yConn that then acquires mu sees closed==true and
+	// bails — it cannot publish a fresh connection that Close would never clean
+	// up. If instead this call wins mu first, it publishes c.a11y and Close's
+	// later mu section closes that connection. Either ordering leaks nothing.
+	c.a11yMu.Lock()
+	closed := c.closed
+	c.a11yMu.Unlock()
+
+	if closed {
+		return nil, errClientClosed
+	}
+
 	if c.a11yReady && c.a11y != nil && c.a11y.Connected() {
 		return c.a11y, nil
 	}
@@ -891,6 +931,23 @@ func (c *ATSPIClient) ensureA11yConn() (*dbus.Conn, error) {
 
 	c.a11y = conn
 	c.a11yReady = true
+
+	// The window:activate listener is bound to the previous connection. Stop the
+	// old goroutine, force a re-register on the new connection, and drop the
+	// now-unreachable cached window. Closing the old stop here (rather than relying
+	// on the old connection's signal channel closing) keeps listener lifetime
+	// independent of godbus internals.
+	c.activeMu.Lock()
+
+	if c.eventsStop != nil {
+		close(c.eventsStop)
+		c.eventsStop = nil
+	}
+
+	c.eventsReady = false
+	c.activeWindow = nil
+
+	c.activeMu.Unlock()
 
 	return conn, nil
 }
@@ -1059,6 +1116,12 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 	return kids
 }
 
+// isWindowRole reports whether an AT-SPI role name denotes a top-level window
+// (the only frames hint selection considers).
+func isWindowRole(role string) bool {
+	return role == "frame" || role == "window" || role == "dialog"
+}
+
 // roleName returns the AT-SPI localized-independent role name (e.g. "push button").
 func (c *ATSPIClient) roleName(ctx context.Context, conn *dbus.Conn, ref accRef) string {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
@@ -1097,8 +1160,10 @@ func (c *ATSPIClient) name(ctx context.Context, conn *dbus.Conn, ref accRef) str
 	return s
 }
 
-// stateHas reports whether the accessible has the given AT-SPI state bit set.
-func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef, bit uint) bool {
+// states reads the AT-SPI state bitfield of an accessible in a single GetState
+// round-trip. Callers pull individual bits with atspiStateBit, so a frame's
+// ACTIVE and SHOWING state come from one call rather than two.
+func (c *ATSPIClient) states(ctx context.Context, conn *dbus.Conn, ref accRef) ([]uint32, bool) {
 	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
 	defer cancel()
 
@@ -1109,15 +1174,43 @@ func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef,
 	if err != nil || len(states) == 0 {
 		c.noteCallErr(ctx, err)
 
-		return false
+		return nil, false
 	}
 
+	return states, true
+}
+
+// atspiStateBit reports whether the given AT-SPI state bit is set in a state
+// bitfield returned by GetState.
+func atspiStateBit(states []uint32, bit uint) bool {
 	word := bit / atspiBitsPerWord
 	if int(word) >= len(states) {
 		return false
 	}
 
 	return states[word]&(1<<(bit%atspiBitsPerWord)) != 0
+}
+
+// stateHas reports whether the accessible has the given AT-SPI state bit set.
+func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef, bit uint) bool {
+	states, ok := c.states(ctx, conn, ref)
+	if !ok {
+		return false
+	}
+
+	return atspiStateBit(states, bit)
+}
+
+// frameStates reads a frame's ACTIVE and SHOWING state from a single GetState
+// call, halving the per-frame state round-trips during frame selection.
+// The two results are the ACTIVE and SHOWING states, in that order.
+func (c *ATSPIClient) frameStates(ctx context.Context, conn *dbus.Conn, ref accRef) (bool, bool) {
+	states, ok := c.states(ctx, conn, ref)
+	if !ok {
+		return false, false
+	}
+
+	return atspiStateBit(states, atspiStateActive), atspiStateBit(states, atspiStateShowing)
 }
 
 // extents returns the on-screen rectangle of an accessible.
@@ -1219,68 +1312,398 @@ func (c *ATSPIClient) findActiveFrame(
 ) (accRef, bool) {
 	root := accRef{Name: atspiRegistryDest, Path: atspiRootPath}
 
+	start := time.Now()
+
+	// Fastest path: an event-tracked active window that still matches the
+	// compositor's focused toplevel. The background window:activate listener keeps
+	// this current, so a match resolves the frame with zero registry scanning. It
+	// is validated against the live focus identity, so a stale or missing cache
+	// simply falls through to the scan below — never a wrong window.
+	if frame, ok := c.activeWindowMatching(focusedAppID, focusedTitle); ok {
+		c.logFrameSelection(start, "event-cache", 0, 0)
+
+		return frame, true
+	}
+
 	// The title disambiguates multiple windows of the focused application, which
 	// share an app_id.
 	haveFocused := focusedAppID != ""
 	haveFocusedTitle := focusedTitle != ""
 
-	var (
-		// Frames of the application the compositor reports as focused. A window
-		// of that app is only chosen when uniquely identified: exactly one of its
-		// windows matches the focused toplevel's title, or it has a single showing
-		// window. When several windows share (or lack) the title, no unique match
-		// exists and selection defers to the compositor ACTIVE state (reliable
-		// only on KDE) rather than guessing a sibling.
-		focusedTitleFrame   accRef
-		focusedTitleCount   int // windows of the focused app matching the title
-		focusedShowingFrame accRef
-		haveFocusedShowing  bool
-		focusedShowingCount int // showing windows of the focused app
+	// The AT-SPI ACTIVE state reliably marks the compositor-focused window only
+	// on KWin/KDE; on wlroots it is set inconsistently across frames.
+	activeStateIdentifiesFocus := platform.DetectLinuxBackend() == platform.BackendWaylandKDE
 
-		activeShowing accRef
-		haveAS        bool
-		activeAny     accRef
-		haveAA        bool
-		showingAny    accRef
-		haveSA        bool
-		// Desktop-shell (plasmashell) frames are only used as a last resort —
-		// see isDesktopShellApp — so a desktop that goes ACTIVE right after a
-		// cursor move cannot hijack a still-showing real application window.
-		shellShowing accRef
-		haveShell    bool
-	)
+	apps := c.children(ctx, conn, root)
 
-	for _, app := range c.children(ctx, conn, root) {
-		appName := c.name(ctx, conn, app)
+	// Fast path: when the compositor reports a focused app_id, resolve the window
+	// from that one application's frames. The focused app is located with a
+	// cancel-on-match name probe (findFocusedApps) that stops the instant a match
+	// is seen, so a single wedged background app — common on a desktop with many
+	// open windows — can no longer floor the probe at the per-call timeout. Every
+	// other app on the bus is skipped. The cross-application ACTIVE/SHOWING
+	// fallbacks selectFrame would build from the other apps are never consulted
+	// while a focused app_id is present, except the KWin/KDE ACTIVE fallback used
+	// when the focused app cannot be uniquely resolved (handled by the full scan
+	// below).
+	if haveFocused {
+		matches := c.findFocusedApps(ctx, conn, apps, focusedAppID)
+		if len(matches) > 0 {
+			metas := make([]appMeta, len(apps))
+			for index := range metas {
+				metas[index].skip = true
+			}
+
+			for _, index := range matches {
+				metas[index] = appMeta{matchesFocused: true}
+			}
+
+			scans, scanned := c.scanApps(
+				ctx,
+				conn,
+				apps,
+				metas,
+				haveFocusedTitle,
+				focusedTitle,
+				true,
+			)
+			cand := mergeFrameScan(scans)
+
+			if cand.focusedTitleCount == 1 {
+				c.logFrameSelection(start, "focused-title", len(apps), scanned)
+
+				return cand.focusedTitleFrame, true
+			}
+
+			if cand.focusedShowingCount == 1 {
+				c.logFrameSelection(start, "focused-showing", len(apps), scanned)
+
+				return cand.focusedShowingFrame, true
+			}
+		}
+
+		if !activeStateIdentifiesFocus {
+			// wlroots: the ACTIVE-state fallback is unreliable, so a focused app
+			// that cannot be uniquely resolved yields no frame — and there is no
+			// reason to scan the rest of the bus.
+			c.logFrameSelection(start, "focused-unresolved", len(apps), 0)
+
+			return accRef{}, false
+		}
+
+		// KWin/KDE: fall through to the cross-application ACTIVE fallback, which
+		// needs every app's frames.
+	}
+
+	// Full scan: no focused app_id (X11/GNOME), or KWin/KDE with a focused app
+	// that could not be uniquely resolved and needs the cross-app ACTIVE state.
+	// This path names every app, so a wedged app can still cost one timeout — but
+	// it is reached only without a usable focused app_id, not on the wlroots hot
+	// path above.
+	names := c.appNames(ctx, conn, apps)
+
+	metas := make([]appMeta, len(apps))
+
+	for index := range apps {
+		appName := names[index]
 
 		// Skip surfaces that are never valid hint targets and that steal the
 		// ACTIVE state right after a libei cursor move: on-screen virtual
 		// keyboards (e.g. the maliit "plasma-keyboard"), the XWayland video
-		// bridge, and the portal consent dialog. Being iterated before the real
-		// app, any of these would otherwise be picked as the focused window and
-		// kill the overlay on re-activation.
+		// bridge, and the portal consent dialog.
 		if isVirtualKeyboardApp(appName) || isNonTargetSurfaceApp(appName) {
+			metas[index].skip = true
+
 			continue
 		}
 
-		isShell := isDesktopShellApp(appName)
-		matchesFocused := haveFocused && appMatchesFocusedID(appName, focusedAppID)
+		metas[index].isShell = isDesktopShellApp(appName)
+		metas[index].matchesFocused = haveFocused && !metas[index].isShell &&
+			appMatchesFocusedID(appName, focusedAppID)
+	}
 
-		for _, frame := range c.children(ctx, conn, app) {
-			role := c.roleName(ctx, conn, frame)
-			if role != "frame" && role != "window" && role != "dialog" {
-				continue
+	scans, scanned := c.scanApps(ctx, conn, apps, metas, haveFocusedTitle, focusedTitle, false)
+
+	cand := mergeFrameScan(scans)
+	cand.haveFocused = haveFocused
+	cand.activeStateIdentifiesFocus = activeStateIdentifiesFocus
+
+	frame, ok := selectFrame(cand)
+
+	c.logFrameSelection(start, "full-scan", len(apps), scanned)
+
+	return frame, ok
+}
+
+// appMeta classifies one AT-SPI application for frame selection: whether it is
+// skipped entirely, is the desktop shell, or is the compositor-focused app.
+type appMeta struct {
+	skip           bool
+	isShell        bool
+	matchesFocused bool
+}
+
+// scannedFrame is one frame of an application captured during the registry scan,
+// with the state bits frame selection needs.
+type scannedFrame struct {
+	ref          accRef
+	active       bool
+	showing      bool
+	titleMatches bool
+}
+
+// appFramesScan holds one application's scanned frames plus the classification
+// needed to merge them into frameCandidates in registry order.
+type appFramesScan struct {
+	scanned        bool
+	isShell        bool
+	matchesFocused bool
+	frames         []scannedFrame
+}
+
+// appNames reads the accessible Name of every application concurrently. Names
+// are latency-bound D-Bus reads that godbus multiplexes over the one connection,
+// so overlapping them turns an O(apps) sequential probe into one bounded by the
+// slowest single reply. The bounded semaphore caps in-flight calls so a busy
+// desktop cannot flood the a11y bus.
+func (c *ATSPIClient) appNames(ctx context.Context, conn *dbus.Conn, apps []accRef) []string {
+	names := make([]string, len(apps))
+
+	sem := make(chan struct{}, collectionMaxWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for index, app := range apps {
+		waitGroup.Add(1)
+
+		sem <- struct{}{}
+
+		go func(slot int, app accRef) {
+			defer waitGroup.Done()
+			defer func() { <-sem }()
+
+			names[slot] = c.name(ctx, conn, app)
+		}(index, app)
+	}
+
+	waitGroup.Wait()
+
+	return names
+}
+
+// findFocusedApps returns the indices of the applications whose name matches the
+// compositor's focused app_id. It probes names concurrently and stops the moment
+// a match is seen (canceling the outstanding probes), so a single wedged
+// background app cannot stall the probe at the per-call timeout — the failure
+// mode on a desktop with many open windows, where every frame selection would
+// otherwise pay ~atspiCallTimeout waiting on the same unresponsive app. Virtual
+// keyboards, non-target surfaces, and the desktop shell are never focus matches
+// and are excluded. A no-match probe still waits for every app (there is nothing
+// to short-circuit on), but that path yields no frame anyway.
+func (c *ATSPIClient) findFocusedApps(
+	ctx context.Context,
+	conn *dbus.Conn,
+	apps []accRef,
+	focusedAppID string,
+) []int {
+	probeCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	matchCh := make(chan int, len(apps))
+
+	go func() {
+		sem := make(chan struct{}, collectionMaxWorkers)
+
+		var waitGroup sync.WaitGroup
+
+		for index, app := range apps {
+			if probeCtx.Err() != nil {
+				break
 			}
 
-			active := c.stateHas(ctx, conn, frame, atspiStateActive)
-			showing := c.stateHas(ctx, conn, frame, atspiStateShowing)
+			waitGroup.Add(1)
 
-			// The desktop shell never wins the active-frame race; it is kept
-			// aside and only used if no real application frame is found.
-			if isShell {
-				if showing && !haveShell {
-					shellShowing = frame
-					haveShell = true
+			sem <- struct{}{}
+
+			go func(index int, app accRef) {
+				defer waitGroup.Done()
+				defer func() { <-sem }()
+
+				if probeCtx.Err() != nil {
+					return
+				}
+
+				name := c.name(probeCtx, conn, app)
+				if name == "" ||
+					isVirtualKeyboardApp(name) ||
+					isNonTargetSurfaceApp(name) ||
+					isDesktopShellApp(name) {
+					return
+				}
+
+				if appMatchesFocusedID(name, focusedAppID) {
+					select {
+					case matchCh <- index:
+					case <-probeCtx.Done():
+					}
+				}
+			}(index, app)
+		}
+
+		waitGroup.Wait()
+		close(matchCh)
+	}()
+
+	var matches []int
+
+	// Block for the first match, then drain any others already delivered before
+	// canceling. The common case is a single application (its multiple windows
+	// are frames *within* one AT-SPI app, counted later by scanApps), so this
+	// returns promptly. Draining still catches other co-active apps that share the
+	// app_id, so a genuinely ambiguous focus is reported as ambiguous rather than
+	// silently resolved to whichever app answered first. A matching app that only
+	// responds after the drain is not counted — acceptable, since that requires
+	// two distinct apps sharing one app_id with no title to disambiguate them.
+	first, ok := <-matchCh
+	if !ok {
+		return matches
+	}
+
+	matches = append(matches, first)
+
+	for drained := false; !drained; {
+		select {
+		case index, more := <-matchCh:
+			if !more {
+				drained = true
+
+				break
+			}
+
+			matches = append(matches, index)
+		default:
+			drained = true
+		}
+	}
+
+	// Stop probing the rest of the bus so an unresponsive app never gates the
+	// result; the background goroutine drains and closes matchCh after the
+	// canceled probes return.
+	cancel()
+
+	return matches
+}
+
+// scanApps reads the frames of the selected applications concurrently, returning
+// one appFramesScan per app in registry order (unscanned apps keep a zero value)
+// and the total number of frames scanned. When onlyMatching is set, only the
+// compositor-focused application(s) are scanned — the fast path — otherwise every
+// non-skipped app is. Each goroutine writes its own slot, so no lock is needed.
+func (c *ATSPIClient) scanApps(
+	ctx context.Context,
+	conn *dbus.Conn,
+	apps []accRef,
+	metas []appMeta,
+	haveFocusedTitle bool,
+	focusedTitle string,
+	onlyMatching bool,
+) ([]appFramesScan, int) {
+	results := make([]appFramesScan, len(apps))
+
+	sem := make(chan struct{}, collectionMaxWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for index := range apps {
+		meta := metas[index]
+		if meta.skip || (onlyMatching && !meta.matchesFocused) {
+			continue
+		}
+
+		waitGroup.Add(1)
+
+		sem <- struct{}{}
+
+		go func(slot int, meta appMeta) {
+			defer waitGroup.Done()
+			defer func() { <-sem }()
+
+			results[slot] = c.scanOneApp(
+				ctx,
+				conn,
+				apps[slot],
+				meta,
+				haveFocusedTitle,
+				focusedTitle,
+			)
+		}(index, meta)
+	}
+
+	waitGroup.Wait()
+
+	framesScanned := 0
+	for i := range results {
+		framesScanned += len(results[i].frames)
+	}
+
+	return results, framesScanned
+}
+
+// scanOneApp reads an application's window/dialog frames and their ACTIVE/SHOWING
+// state (one GetState per frame), plus the title of the focused app's showing
+// frames so a sibling window can be disambiguated. It is safe for concurrent use:
+// it only issues reads over the shared connection, which godbus multiplexes.
+func (c *ATSPIClient) scanOneApp(
+	ctx context.Context,
+	conn *dbus.Conn,
+	app accRef,
+	meta appMeta,
+	haveFocusedTitle bool,
+	focusedTitle string,
+) appFramesScan {
+	res := appFramesScan{scanned: true, isShell: meta.isShell, matchesFocused: meta.matchesFocused}
+
+	for _, frame := range c.children(ctx, conn, app) {
+		role := c.roleName(ctx, conn, frame)
+		if !isWindowRole(role) {
+			continue
+		}
+
+		active, showing := c.frameStates(ctx, conn, frame)
+
+		scanned := scannedFrame{ref: frame, active: active, showing: showing}
+
+		// Only the focused app's showing frames need a title read, and only to
+		// disambiguate its sibling windows.
+		if meta.matchesFocused && showing && haveFocusedTitle {
+			scanned.titleMatches = titleMatchesFocused(c.name(ctx, conn, frame), focusedTitle)
+		}
+
+		res.frames = append(res.frames, scanned)
+	}
+
+	return res
+}
+
+// mergeFrameScan folds the per-app scans into frameCandidates in registry order,
+// reproducing the original sequential selection exactly: the desktop shell is
+// held aside, the focused app's showing/title-matching windows are counted, and
+// the first ACTIVE/SHOWING frames become the cross-application fallbacks.
+func mergeFrameScan(scans []appFramesScan) frameCandidates {
+	var cand frameCandidates
+
+	for _, scan := range scans {
+		if !scan.scanned {
+			continue
+		}
+
+		for _, frame := range scan.frames {
+			// The desktop shell never wins the active-frame race; it is kept aside
+			// and only used if no real application frame is found.
+			if scan.isShell {
+				if frame.showing && !cand.haveShell {
+					cand.shellShowing = frame.ref
+					cand.haveShell = true
 				}
 
 				continue
@@ -1289,58 +1712,50 @@ func (c *ATSPIClient) findActiveFrame(
 			// Count the focused application's showing windows and how many match
 			// the focused toplevel's title, so selectFrame can tell a unique
 			// identification from an ambiguous one.
-			if matchesFocused && showing {
-				focusedShowingCount++
+			if scan.matchesFocused && frame.showing {
+				cand.focusedShowingCount++
 
-				if !haveFocusedShowing {
-					focusedShowingFrame = frame
-					haveFocusedShowing = true
+				if cand.focusedShowingCount == 1 {
+					cand.focusedShowingFrame = frame.ref
 				}
 
-				if haveFocusedTitle && titleMatchesFocused(c.name(ctx, conn, frame), focusedTitle) {
-					focusedTitleCount++
+				if frame.titleMatches {
+					cand.focusedTitleCount++
 
-					if focusedTitleCount == 1 {
-						focusedTitleFrame = frame
+					if cand.focusedTitleCount == 1 {
+						cand.focusedTitleFrame = frame.ref
 					}
 				}
 			}
 
-			if active && showing && !haveAS {
-				activeShowing = frame
-				haveAS = true
+			if frame.active && frame.showing && !cand.haveActiveShowing {
+				cand.activeShowing = frame.ref
+				cand.haveActiveShowing = true
 			}
 
-			if active && !haveAA {
-				activeAny = frame
-				haveAA = true
+			if frame.active && !cand.haveActiveAny {
+				cand.activeAny = frame.ref
+				cand.haveActiveAny = true
 			}
 
-			if showing && !haveSA {
-				showingAny = frame
-				haveSA = true
+			if frame.showing && !cand.haveShowingAny {
+				cand.showingAny = frame.ref
+				cand.haveShowingAny = true
 			}
 		}
 	}
 
-	return selectFrame(frameCandidates{
-		focusedTitleFrame:   focusedTitleFrame,
-		focusedTitleCount:   focusedTitleCount,
-		focusedShowingFrame: focusedShowingFrame,
-		focusedShowingCount: focusedShowingCount,
-		activeShowing:       activeShowing,
-		haveActiveShowing:   haveAS,
-		activeAny:           activeAny,
-		haveActiveAny:       haveAA,
-		showingAny:          showingAny,
-		haveShowingAny:      haveSA,
-		shellShowing:        shellShowing,
-		haveShell:           haveShell,
-		haveFocused:         haveFocused,
-		// The AT-SPI ACTIVE state reliably marks the compositor-focused window
-		// only on KWin/KDE; on wlroots it is set inconsistently across frames.
-		activeStateIdentifiesFocus: platform.DetectLinuxBackend() == platform.BackendWaylandKDE,
-	})
+	return cand
+}
+
+// logFrameSelection records how frame selection resolved and how much of the bus
+// it had to scan, so a slow selection on a busy desktop is visible in the logs.
+func (c *ATSPIClient) logFrameSelection(start time.Time, path string, apps, framesScanned int) {
+	c.logger.Debug("AT-SPI frame selection complete",
+		zap.String("path", path),
+		zap.Int("apps", apps),
+		zap.Int("framesScanned", framesScanned),
+		zap.Duration("elapsed", time.Since(start)))
 }
 
 // frameCandidates holds the frames found during a findActiveFrame walk, ranked
