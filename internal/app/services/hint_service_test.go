@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -121,7 +122,7 @@ func TestHintService_ShowHints(t *testing.T) {
 						elem, _ := element.NewElement(
 							element.ID(fmt.Sprintf("elem%d", index)),
 							image.Rect(index*10, index*10, index*10+40, index*10+40),
-							element.RoleButton,
+							nativeButtonRole,
 						)
 						elements[index] = elem
 					}
@@ -868,8 +869,23 @@ func TestHintService_Health(t *testing.T) {
 }
 
 // Helper functions.
+// nativeButtonRole is the accessibility role a button reports on the platform
+// running the tests. Configured roles resolve to native names, so an element
+// built with a role from another platform would silently stop matching a
+// config that asks for "button".
+var nativeButtonRole = func() element.Role {
+	native := element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticButton)},
+	).Native
+	if len(native) == 0 {
+		return element.RoleButton
+	}
+
+	return element.Role(native[0])
+}()
+
 func mustNewElement(id string, bounds image.Rectangle) *element.Element {
-	element, elementErr := element.NewElement(element.ID(id), bounds, element.RoleButton)
+	element, elementErr := element.NewElement(element.ID(id), bounds, nativeButtonRole)
 	if elementErr != nil {
 		panic(elementErr)
 	}
@@ -956,7 +972,7 @@ func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
 	}{
 		{
 			name:  "configured roles all belong to another platform",
-			roles: []string{"atspi:push button", "uia:Button"},
+			roles: foreignRolesForCurrentPlatform(),
 		},
 		{
 			name:        "role flag entries are unresolvable",
@@ -967,6 +983,10 @@ func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			if len(testCase.roles) == 0 {
+				t.Skipf("no foreign role set defined for %s", runtime.GOOS)
+			}
+
 			mockAcc := &mocks.MockAccessibilityPort{}
 			mockAcc.ClickableElementsFunc = func(
 				_ context.Context,
@@ -1078,4 +1098,15 @@ func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
 				captured, role)
 		}
 	}
+}
+
+// foreignRolesForCurrentPlatform returns native role entries that belong to
+// platforms other than the one running the tests, so they resolve to nothing
+// here. Returns nil on a platform with no accessibility backend.
+func foreignRolesForCurrentPlatform() []string {
+	return map[string][]string{
+		"darwin":  {"atspi:push button", "uia:Button"},
+		"linux":   {"ax:AXButton", "uia:Button"},
+		"windows": {"ax:AXButton", "atspi:push button"},
+	}[runtime.GOOS]
 }
