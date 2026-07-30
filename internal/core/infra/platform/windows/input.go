@@ -130,17 +130,23 @@ func MiddleClickAt(point image.Point) error {
 	return sendMouseInput(mouseeventfMiddleUp, 0)
 }
 
-// mouseButtonFlags returns the SendInput down and up flags for a mouse button.
-func mouseButtonFlags(button action.MouseButton) (downFlag, upFlag uint32) {
+// buttonFlags holds the SendInput flags that press and release one mouse button.
+type buttonFlags struct {
+	down uint32
+	up   uint32
+}
+
+// flagsForButton returns the SendInput flags addressing the given button.
+func flagsForButton(button action.MouseButton) buttonFlags {
 	switch button {
 	case action.ButtonRight:
-		return mouseeventfRightDown, mouseeventfRightUp
+		return buttonFlags{down: mouseeventfRightDown, up: mouseeventfRightUp}
 	case action.ButtonMiddle:
-		return mouseeventfMiddleDown, mouseeventfMiddleUp
+		return buttonFlags{down: mouseeventfMiddleDown, up: mouseeventfMiddleUp}
 	case action.ButtonLeft:
 		fallthrough
 	default:
-		return mouseeventfLeftDown, mouseeventfLeftUp
+		return buttonFlags{down: mouseeventfLeftDown, up: mouseeventfLeftUp}
 	}
 }
 
@@ -151,9 +157,7 @@ func MouseDown(point image.Point, button action.MouseButton) error {
 		return err
 	}
 
-	downFlag, _ := mouseButtonFlags(button)
-
-	return sendMouseInput(downFlag, 0)
+	return sendMouseInput(flagsForButton(button).down, 0)
 }
 
 // MouseUp releases the given button at the given point.
@@ -163,9 +167,7 @@ func MouseUp(point image.Point, button action.MouseButton) error {
 		return err
 	}
 
-	_, upFlag := mouseButtonFlags(button)
-
-	return sendMouseInput(upFlag, 0)
+	return sendMouseInput(flagsForButton(button).up, 0)
 }
 
 // ScrollWheel scrolls vertically at the current cursor position.
