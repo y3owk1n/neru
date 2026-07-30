@@ -15,7 +15,15 @@ import (
 
 const (
 	// DefaultIPCTimeoutSeconds is the default IPC timeout in seconds.
-	DefaultIPCTimeoutSeconds = 5
+	//
+	// This is the client-side ceiling for a full request/response round-trip
+	// and MUST stay comfortably larger than the daemon's own per-request work
+	// budget — notably the hints element scan (modes.HintTimeout, 5s) plus
+	// activation overhead. If the client gives up first, it disconnects and the
+	// daemon logs a spurious "broken pipe" when it finally writes the response
+	// (which the client is no longer there to read). The headroom keeps a slow
+	// (but not wedged) accessibility backend from tripping that race.
+	DefaultIPCTimeoutSeconds = 10
 )
 
 var (
@@ -27,8 +35,10 @@ var (
 	// GitCommit is set via ldflags at build time.
 	GitCommit = "unknown"
 	// BuildDate is set via ldflags at build time.
-	BuildDate  = "unknown"
-	timeoutSec = 5
+	BuildDate = "unknown"
+	// timeoutSec is overridden by the --timeout flag (default
+	// DefaultIPCTimeoutSeconds); kept in sync so any pre-parse use matches.
+	timeoutSec = DefaultIPCTimeoutSeconds
 
 	// CLI utilities.
 	formatter *cliutil.OutputFormatter

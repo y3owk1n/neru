@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -299,8 +301,27 @@ func (s *Server) handleConnection(connection net.Conn) {
 
 	connectionDeadline = encoder.Encode(response)
 	if connectionDeadline != nil {
-		logger.Error("Failed to encode response", zap.Error(connectionDeadline))
+		if isPeerGoneErr(connectionDeadline) {
+			// The client already disconnected before we could reply — almost
+			// always because it hit its own request timeout while the handler
+			// was still working. That is the client's decision, not a daemon
+			// fault, so log it quietly instead of as an error.
+			logger.Debug("Client disconnected before response was sent",
+				zap.Error(connectionDeadline))
+		} else {
+			logger.Error("Failed to encode response", zap.Error(connectionDeadline))
+		}
 	}
+}
+
+// isPeerGoneErr reports whether err is the expected result of writing to a
+// connection whose peer has already gone away (broken pipe, connection reset,
+// or an already-closed pipe/connection). These are benign races, not faults.
+func isPeerGoneErr(err error) bool {
+	return errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, io.ErrClosedPipe)
 }
 
 // Client provides an interface for sending commands to the IPC server.

@@ -141,6 +141,11 @@ func (a *Adapter) ClickableElements(
 		// Pre-allocate with estimated capacity for typical web page
 		allElements = make([]*element.Element, 0, TypicalElementCount)
 		firstError  error
+		// windowsSourceErr records a window-scan failure without aborting the
+		// whole collection. It is surfaced only if *no* source produced any
+		// elements (see below), so a transient per-window error can't discard
+		// elements other sources gathered in parallel (dock, menubar, …).
+		windowsSourceErr error
 	)
 
 	// Check Mission Control state once to ensure consistency across all code paths
@@ -212,8 +217,24 @@ func (a *Adapter) ClickableElements(
 
 				var windowsMutex sync.Mutex
 
+				// First error from any window. It is only surfaced if *no* window
+				// yields elements (see below): a transient failure on one popover
+				// must not discard hints the frontmost window did produce, but a
+				// hard failure (e.g. the AT-SPI bus is unreachable) that leaves us
+				// with nothing must be reported rather than silently look like an
+				// empty window.
+				var firstWindowErr error
+
 				// Semaphore to cap concurrent window processing goroutines
 				windowSem := make(chan struct{}, maxConcurrentWindows)
+
+				recordWindowErr := func(err error) {
+					windowsMutex.Lock()
+					if firstWindowErr == nil {
+						firstWindowErr = err
+					}
+					windowsMutex.Unlock()
+				}
 
 				processWindow := func(window AXWindow) {
 					defer windowsWg.Done()
@@ -226,6 +247,9 @@ func (a *Adapter) ClickableElements(
 						0,
 					)
 					if clickableNodesErr != nil {
+						a.logger.Warn("Failed to collect clickable nodes from window",
+							zap.Error(clickableNodesErr))
+						recordWindowErr(clickableNodesErr)
 						window.Release()
 
 						return
@@ -237,6 +261,9 @@ func (a *Adapter) ClickableElements(
 						filter,
 					)
 					if processErr != nil {
+						a.logger.Warn("Failed to process clickable nodes from window",
+							zap.Error(processErr))
+						recordWindowErr(processErr)
 						window.Release()
 
 						return
@@ -259,6 +286,20 @@ func (a *Adapter) ClickableElements(
 				}
 
 				windowsWg.Wait()
+
+				// Hand any window-scan error up to the caller rather than
+				// returning it as this source's value (which would abort the whole
+				// collection and throw away other sources' work). It is surfaced
+				// only if the *grand total* across every source is empty — see the
+				// windowsSourceErr check after all sources join — so a failure that
+				// still left some elements to show degrades to a Warn log instead.
+				if firstWindowErr != nil {
+					mutex.Lock()
+					if windowsSourceErr == nil {
+						windowsSourceErr = firstWindowErr
+					}
+					mutex.Unlock()
+				}
 
 				return allElements, nil
 			})
@@ -347,11 +388,24 @@ func (a *Adapter) ClickableElements(
 	select {
 	case <-done:
 	case <-ctx.Done():
-		return nil, derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+		// Distinguish a real timeout ("...timed out") from a cancellation
+		// ("...canceled") instead of collapsing both into a bare message — a
+		// timeout here usually means the accessibility backend was slow or
+		// unresponsive, which is the actionable signal.
+		return nil, derrors.WrapContextCanceled(ctx, "element collection")
 	}
 
 	if firstError != nil {
 		return nil, firstError
+	}
+
+	// Surface a window-scan failure only when nothing at all was collected —
+	// across every source. When some source did yield elements we return those
+	// and keep the failure to the Warn log, degrading rather than failing hard.
+	// On Linux (no supplementary sources) this is the path that turns a dead or
+	// unreachable AT-SPI bus into a clear error instead of a silent empty result.
+	if len(allElements) == 0 && windowsSourceErr != nil {
+		return nil, derrors.WrapAccessibilityFailed(windowsSourceErr, "collect window elements")
 	}
 
 	// Log reason for empty results when Mission Control is active

@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
 )
@@ -55,6 +56,21 @@ const (
 	// Walk bounds to keep D-Bus traffic sane on deep trees.
 	atspiMaxDepth = 40
 	atspiMaxNodes = 2000
+
+	// atspiCallTimeout bounds a single AT-SPI D-Bus round-trip. A healthy
+	// toolkit answers each read (role, extents, name, children, state) in
+	// single-digit milliseconds; this only trips when an app is wedged or not
+	// answering accessibility queries. Without it a single hung call would
+	// consume the whole element-scan budget and the CLI would give up with a
+	// bare timeout (or the daemon would log a broken-pipe write after the
+	// client disconnected). Bounding each call lets a stuck node be dropped and
+	// the scan continue.
+	atspiCallTimeout = 500 * time.Millisecond
+
+	// atspiPropertiesGet is the standard D-Bus Properties.Get method, called
+	// with a context so a wedged property read cannot block indefinitely (the
+	// godbus GetProperty convenience method has no context-aware variant).
+	atspiPropertiesGet = "org.freedesktop.DBus.Properties.Get"
 
 	// Capacity hint for the clickable-node slice: most windows fit well under
 	// this and the slice grows if a dense tree exceeds it.
@@ -247,7 +263,7 @@ func NewATSPIClient(logger *zap.Logger, configProvider config.Provider) *ATSPICl
 }
 
 // FrontmostWindow returns the active top-level window via AT-SPI.
-func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
+func (c *ATSPIClient) FrontmostWindow(ctx context.Context) (AXWindow, error) {
 	err := c.ensureA11yEnabled()
 	if err != nil {
 		c.logger.Warn("Failed to enable AT-SPI accessibility", zap.Error(err))
@@ -258,6 +274,13 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 		return nil, err
 	}
 
+	// Attach a scan diagnostic so the bounded frame-selection reads can flag a
+	// fatal AT-SPI failure (a timeout, a closed connection, or the registry/app
+	// leaving the bus). Without it a registry that stops responding looks like
+	// "no active frame" and hints show nothing with no error.
+	diag := &atspiScanDiag{}
+	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
+
 	// Read the compositor's focused app_id and title once (together so they
 	// describe one window) and use this single snapshot both to select the frame
 	// and to record it on the window. Reading it again after selection could
@@ -265,8 +288,16 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 	// ClickableNodes stability check accept a stale frame.
 	focusedAppID, focusedTitle, _ := linux.WaylandFocusedAppIdentity()
 
-	frame, ok := c.findActiveFrame(conn, focusedAppID, focusedTitle)
+	frame, ok := c.findActiveFrame(ctx, conn, focusedAppID, focusedTitle)
 	if !ok {
+		// Distinguish a genuine "nothing focused" from an AT-SPI failure during
+		// selection: only the latter recorded a scan-fatal error. A frame that
+		// *was* found is returned even if some other app errored mid-scan.
+		ferr := diag.fatalErr()
+		if ferr != nil {
+			return nil, scanFailureError(ferr)
+		}
+
 		c.logger.Debug("AT-SPI: no active frame found")
 
 		// No active frame: hand back an empty window so the adapter simply
@@ -276,8 +307,8 @@ func (c *ATSPIClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
 
 	c.logger.Debug("AT-SPI: selected active frame",
 		zap.String("bus", frame.Name),
-		zap.String("app", c.name(conn, accRef{Name: frame.Name, Path: atspiRootPath})),
-		zap.String("frameTitle", c.name(conn, frame)))
+		zap.String("app", c.name(ctx, conn, accRef{Name: frame.Name, Path: atspiRootPath})),
+		zap.String("frameTitle", c.name(ctx, conn, frame)))
 
 	return &atspiWindow{
 		ref:          frame,
@@ -325,6 +356,12 @@ func (c *ATSPIClient) ClickableNodes(
 		return nil, err
 	}
 
+	// Attach a per-scan diagnostic so the leaf D-Bus helpers can flag a per-call
+	// timeout. It lets an empty result caused by an unresponsive app surface as a
+	// clear timeout below instead of looking like a window with no elements.
+	diag := &atspiScanDiag{}
+	ctx = context.WithValue(ctx, atspiScanDiagKey{}, diag)
+
 	start := time.Now()
 
 	// Early-out: if focus already changed since this window was selected, the
@@ -346,7 +383,7 @@ func (c *ATSPIClient) ClickableNodes(
 		haveOrigin bool
 	)
 
-	frameRect, frameOK := c.extents(conn, win.ref)
+	frameRect, frameOK := c.extents(ctx, conn, win.ref)
 	if frameOK {
 		originX, originY, ok := c.windowOrigin.originFor(frameRect.Dx(), frameRect.Dy())
 		if ok {
@@ -397,6 +434,17 @@ func (c *ATSPIClient) ClickableNodes(
 		zap.Int("offsetY", offY),
 		zap.Bool("haveOrigin", haveOrigin),
 		zap.Duration("elapsed", time.Since(start)))
+
+	// An empty scan is normal for a window with nothing clickable, but if we got
+	// here because reads kept failing fatally — the app timed out, exited, or
+	// dropped its accessibility connection — report that rather than silently
+	// showing no hints. A partial result (some nodes collected) is returned as-is.
+	if len(out) == 0 {
+		ferr := diag.fatalErr()
+		if ferr != nil {
+			return nil, scanFailureError(ferr)
+		}
+	}
 
 	return out, nil
 }
@@ -558,6 +606,13 @@ func (c *ATSPIClient) collectViaCollection(
 		c.logger.Debug("AT-SPI Collection.GetMatches unavailable; falling back to walk",
 			zap.Error(err))
 
+		// GetMatches runs on the full scan budget rather than a per-call
+		// deadline, so it is the one scan call the leaf helpers don't cover.
+		// Record a scan-fatal error (a deadline, or the app leaving the bus)
+		// here so an empty fallback walk still surfaces it; a benign
+		// "Collection not implemented" error is ignored and the walk proceeds.
+		c.noteCallErr(ctx, err)
+
 		return nil, false
 	}
 
@@ -607,7 +662,7 @@ func (c *ATSPIClient) collectViaCollection(
 				return
 			}
 
-			node := c.materializeMatch(conn, ref, roleSet, offX, offY)
+			node := c.materializeMatch(ctx, conn, ref, roleSet, offX, offY)
 			if node != nil {
 				results[slot] = node
 
@@ -646,6 +701,7 @@ func (c *ATSPIClient) collectViaCollection(
 // extents). It mirrors the walk's emit filter and is safe for concurrent use —
 // it only issues reads over the shared connection, which godbus multiplexes.
 func (c *ATSPIClient) materializeMatch(
+	ctx context.Context,
 	conn *dbus.Conn,
 	ref accRef,
 	roleSet map[string]struct{},
@@ -653,7 +709,7 @@ func (c *ATSPIClient) materializeMatch(
 ) *atspiNode {
 	// Re-verify the role maps into the requested set: a toolkit may return a role
 	// we did not ask for, and this keeps parity with the walk's filter.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(conn, ref))]
+	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
 	if !mappable {
 		return nil
 	}
@@ -662,7 +718,7 @@ func (c *ATSPIClient) materializeMatch(
 		return nil
 	}
 
-	rect, valid := c.extents(conn, ref)
+	rect, valid := c.extents(ctx, conn, ref)
 	if !valid {
 		return nil
 	}
@@ -670,7 +726,7 @@ func (c *ATSPIClient) materializeMatch(
 	return &atspiNode{
 		id:    string(ref.Path) + "@" + ref.Name,
 		role:  axRole,
-		title: c.name(conn, ref),
+		title: c.name(ctx, conn, ref),
 		rect:  rect.Add(image.Pt(offX, offY)),
 	}
 }
@@ -856,21 +912,127 @@ func (c *ATSPIClient) focusStableSince(selectedAppID, selectedTitle string) bool
 	return currentAppID == selectedAppID && currentTitle == selectedTitle
 }
 
+// atspiScanDiag records diagnostics for a single ClickableNodes scan. It rides
+// on the scan context so the leaf D-Bus helpers can report a scan-fatal failure
+// (a per-call timeout, a closed connection, or the target app disappearing from
+// the bus) without threading an extra parameter through the whole walk. A scan
+// that ends up empty for one of those reasons can then surface an actionable
+// error instead of a silent empty result; benign per-node errors are ignored.
+type atspiScanDiag struct {
+	mu  sync.Mutex
+	err error
+}
+
+// note records the first scan-fatal error. Safe for concurrent use by the
+// materialize/walk goroutines.
+func (d *atspiScanDiag) note(err error) {
+	d.mu.Lock()
+	if d.err == nil {
+		d.err = err
+	}
+	d.mu.Unlock()
+}
+
+// fatalErr returns the first scan-fatal error, or nil. Call after the scan's
+// goroutines have joined.
+func (d *atspiScanDiag) fatalErr() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.err
+}
+
+// atspiScanDiagKey is the context key for the active scan's *atspiScanDiag.
+type atspiScanDiagKey struct{}
+
+// D-Bus error names that mean the scan cannot make progress: the target
+// application has left the bus, or its connection is gone. Deliberately NOT
+// including UnknownMethod (GetChildren has a fallback) or per-node errors on a
+// stale node, so an otherwise-healthy — or genuinely empty — window is never
+// misreported as a failure.
+const (
+	atspiErrServiceUnknown = "org.freedesktop.DBus.Error.ServiceUnknown"
+	atspiErrNoReply        = "org.freedesktop.DBus.Error.NoReply"
+	atspiErrDisconnected   = "org.freedesktop.DBus.Error.Disconnected"
+)
+
+// isScanFatalErr reports whether err means the whole scan is failing rather than
+// a single benign node: a per-call context deadline, a closed connection, or the
+// application having disappeared from the bus.
+func isScanFatalErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, dbus.ErrClosed) {
+		return true
+	}
+
+	if dbusErr, ok := errors.AsType[dbus.Error](err); ok {
+		switch dbusErr.Name {
+		case atspiErrServiceUnknown, atspiErrNoReply, atspiErrDisconnected:
+			return true
+		}
+	}
+
+	return false
+}
+
+// noteCallErr records a scan-fatal error on the scan's diagnostic (if one is
+// attached to ctx). Benign errors, and contexts with no diag attached (e.g. the
+// frame-selection reads in findActiveFrame), are ignored.
+func (c *ATSPIClient) noteCallErr(ctx context.Context, err error) {
+	if !isScanFatalErr(err) {
+		return
+	}
+
+	if d, ok := ctx.Value(atspiScanDiagKey{}).(*atspiScanDiag); ok {
+		d.note(err)
+	}
+}
+
+// scanFailureError turns a scan-fatal error into a user-facing hints error,
+// distinguishing an unresponsive app (per-call deadline) from one that has gone.
+func scanFailureError(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return derrors.New(derrors.CodeTimeout,
+			"AT-SPI element scan timed out; the app may be slow or "+
+				"unresponsive to accessibility queries")
+	}
+
+	return derrors.Wrap(err, derrors.CodeAccessibilityFailed,
+		"AT-SPI element scan failed; the app may have exited or lost its "+
+			"accessibility connection")
+}
+
 // children returns the AT-SPI children of an accessible. It prefers the bulk
 // GetChildren method and falls back to ChildCount + GetChildAtIndex for older
 // toolkits that do not expose GetChildren.
-func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
+func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef) []accRef {
 	obj := conn.Object(ref.Name, ref.Path)
 
 	var kids []accRef
 
-	err := obj.Call(atspiAccessibleIfc+".GetChildren", 0).Store(&kids)
+	childrenCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
+	err := obj.CallWithContext(childrenCtx, atspiAccessibleIfc+".GetChildren", 0).Store(&kids)
 	if err == nil {
 		return kids
 	}
 
-	countVar, propErr := obj.GetProperty(atspiAccessibleIfc + ".ChildCount")
+	c.noteCallErr(ctx, err)
+
+	var countVar dbus.Variant
+
+	countCtx, cancelCount := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancelCount()
+
+	propErr := obj.CallWithContext(countCtx, atspiPropertiesGet, 0,
+		atspiAccessibleIfc, "ChildCount").Store(&countVar)
 	if propErr != nil {
+		c.noteCallErr(ctx, propErr)
+
 		return nil
 	}
 
@@ -878,8 +1040,16 @@ func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
 	for i := range count {
 		var child accRef
 
-		err := obj.Call(atspiAccessibleIfc+".GetChildAtIndex", 0, i).Store(&child)
+		childCtx, cancelChild := context.WithTimeout(ctx, atspiCallTimeout)
+
+		err := obj.CallWithContext(childCtx, atspiAccessibleIfc+".GetChildAtIndex", 0, i).
+			Store(&child)
+
+		cancelChild()
+
 		if err != nil {
+			c.noteCallErr(ctx, err)
+
 			continue
 		}
 
@@ -890,12 +1060,17 @@ func (c *ATSPIClient) children(conn *dbus.Conn, ref accRef) []accRef {
 }
 
 // roleName returns the AT-SPI localized-independent role name (e.g. "push button").
-func (c *ATSPIClient) roleName(conn *dbus.Conn, ref accRef) string {
+func (c *ATSPIClient) roleName(ctx context.Context, conn *dbus.Conn, ref accRef) string {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var name string
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiAccessibleIfc+".GetRoleName", 0).Store(&name)
+		CallWithContext(callCtx, atspiAccessibleIfc+".GetRoleName", 0).Store(&name)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return ""
 	}
 
@@ -903,10 +1078,17 @@ func (c *ATSPIClient) roleName(conn *dbus.Conn, ref accRef) string {
 }
 
 // name returns the accessible Name property (used as the element title).
-func (c *ATSPIClient) name(conn *dbus.Conn, ref accRef) string {
-	val, err := conn.Object(ref.Name, ref.Path).
-		GetProperty(atspiAccessibleIfc + ".Name")
+func (c *ATSPIClient) name(ctx context.Context, conn *dbus.Conn, ref accRef) string {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
+	var val dbus.Variant
+
+	err := conn.Object(ref.Name, ref.Path).
+		CallWithContext(callCtx, atspiPropertiesGet, 0, atspiAccessibleIfc, "Name").Store(&val)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return ""
 	}
 
@@ -916,12 +1098,17 @@ func (c *ATSPIClient) name(conn *dbus.Conn, ref accRef) string {
 }
 
 // stateHas reports whether the accessible has the given AT-SPI state bit set.
-func (c *ATSPIClient) stateHas(conn *dbus.Conn, ref accRef, bit uint) bool {
+func (c *ATSPIClient) stateHas(ctx context.Context, conn *dbus.Conn, ref accRef, bit uint) bool {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var states []uint32
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiAccessibleIfc+".GetState", 0).Store(&states)
+		CallWithContext(callCtx, atspiAccessibleIfc+".GetState", 0).Store(&states)
 	if err != nil || len(states) == 0 {
+		c.noteCallErr(ctx, err)
+
 		return false
 	}
 
@@ -934,12 +1121,21 @@ func (c *ATSPIClient) stateHas(conn *dbus.Conn, ref accRef, bit uint) bool {
 }
 
 // extents returns the on-screen rectangle of an accessible.
-func (c *ATSPIClient) extents(conn *dbus.Conn, ref accRef) (image.Rectangle, bool) {
+func (c *ATSPIClient) extents(
+	ctx context.Context,
+	conn *dbus.Conn,
+	ref accRef,
+) (image.Rectangle, bool) {
+	callCtx, cancel := context.WithTimeout(ctx, atspiCallTimeout)
+	defer cancel()
+
 	var ext atspiExtents
 
 	err := conn.Object(ref.Name, ref.Path).
-		Call(atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
+		CallWithContext(callCtx, atspiComponentIfc+".GetExtents", 0, atspiCoordScreen).Store(&ext)
 	if err != nil {
+		c.noteCallErr(ctx, err)
+
 		return image.Rectangle{}, false
 	}
 
@@ -1017,6 +1213,7 @@ func isNonTargetSurfaceApp(name string) bool {
 // (empty on X11, GNOME, or when nothing is focused), used so the selected frame
 // and the identity recorded for the stability check come from the same read.
 func (c *ATSPIClient) findActiveFrame(
+	ctx context.Context,
 	conn *dbus.Conn,
 	focusedAppID, focusedTitle string,
 ) (accRef, bool) {
@@ -1053,8 +1250,8 @@ func (c *ATSPIClient) findActiveFrame(
 		haveShell    bool
 	)
 
-	for _, app := range c.children(conn, root) {
-		appName := c.name(conn, app)
+	for _, app := range c.children(ctx, conn, root) {
+		appName := c.name(ctx, conn, app)
 
 		// Skip surfaces that are never valid hint targets and that steal the
 		// ACTIVE state right after a libei cursor move: on-screen virtual
@@ -1069,14 +1266,14 @@ func (c *ATSPIClient) findActiveFrame(
 		isShell := isDesktopShellApp(appName)
 		matchesFocused := haveFocused && appMatchesFocusedID(appName, focusedAppID)
 
-		for _, frame := range c.children(conn, app) {
-			role := c.roleName(conn, frame)
+		for _, frame := range c.children(ctx, conn, app) {
+			role := c.roleName(ctx, conn, frame)
 			if role != "frame" && role != "window" && role != "dialog" {
 				continue
 			}
 
-			active := c.stateHas(conn, frame, atspiStateActive)
-			showing := c.stateHas(conn, frame, atspiStateShowing)
+			active := c.stateHas(ctx, conn, frame, atspiStateActive)
+			showing := c.stateHas(ctx, conn, frame, atspiStateShowing)
 
 			// The desktop shell never wins the active-frame race; it is kept
 			// aside and only used if no real application frame is found.
@@ -1100,7 +1297,7 @@ func (c *ATSPIClient) findActiveFrame(
 					haveFocusedShowing = true
 				}
 
-				if haveFocusedTitle && titleMatchesFocused(c.name(conn, frame), focusedTitle) {
+				if haveFocusedTitle && titleMatchesFocused(c.name(ctx, conn, frame), focusedTitle) {
 					focusedTitleCount++
 
 					if focusedTitleCount == 1 {
@@ -1296,25 +1493,25 @@ func (c *ATSPIClient) walk(
 	// Translate the AT-SPI role into Neru's AX vocabulary, then match against
 	// the requested role set (also AX names). This keeps the whole pipeline,
 	// including the downstream Adapter.MatchesFilter, speaking one vocabulary.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(conn, ref))]
+	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
 
 	if mappable {
-		if _, ok := roles[axRole]; ok && c.stateHas(conn, ref, atspiStateShowing) {
-			if rect, valid := c.extents(conn, ref); valid {
+		if _, ok := roles[axRole]; ok && c.stateHas(ctx, conn, ref, atspiStateShowing) {
+			if rect, valid := c.extents(ctx, conn, ref); valid {
 				// AT-SPI reports window-relative coords on Wayland; offset by the
 				// focused window's screen origin from the KWin bridge.
 				rect = rect.Add(image.Pt(offX, offY))
 				*out = append(*out, &atspiNode{
 					id:    string(ref.Path) + "@" + ref.Name,
 					role:  axRole,
-					title: c.name(conn, ref),
+					title: c.name(ctx, conn, ref),
 					rect:  rect,
 				})
 			}
 		}
 	}
 
-	for _, child := range c.children(conn, ref) {
+	for _, child := range c.children(ctx, conn, ref) {
 		c.walk(ctx, conn, child, roles, depth+1, out, visited, offX, offY)
 	}
 }
