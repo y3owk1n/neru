@@ -2,8 +2,11 @@
 
 This guide covers installation methods for Neru, with the most complete support on macOS.
 
+**Related:** [CLI Reference](CLI.md) · [Configuration Reference](CONFIGURATION.md) ·
+[Linux setup](LINUX_SETUP.md) · [Troubleshooting](TROUBLESHOOTING.md)
+
 > [!NOTE]
-> macOS is the primary supported platform. Linux builds are available through the Nix flake (uses release artifacts when available, falls back to source build), and direct source builds. See the [Platform Support section in README.md](../README.md#💻-platform-support) for details.
+> macOS is the primary supported platform. Linux builds are available through the Nix flake (uses release artifacts when available, falls back to source build), and direct source builds. See the [Platform Support section in README.md](../README.md#platform-support) for details.
 
 ---
 

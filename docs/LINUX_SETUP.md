@@ -3,8 +3,11 @@
 Prepare a Linux host to **build, test, and deploy** Neru. This guide covers
 dependencies, permissions, building, validation, and generic troubleshooting.
 
-For per-desktop-environment implementation details, design decisions, and
-DE-specific known issues, see [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+Per-desktop-environment implementation details and DE-specific known issues live
+in [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+
+**Related:** [Linux desktops](./LINUX_DESKTOPS.md) ·
+[Cross-Platform Guide](./CROSS_PLATFORM.md) · [Installation](./INSTALLATION.md)
 
 ---
 
@@ -40,13 +43,17 @@ Host changes required before Neru runs correctly (not code changes):
 | #   | Adjustment                                                  | Why                                   | Backends  | Persists?               |
 | --- | ----------------------------------------------------------- | ------------------------------------- | --------- | ----------------------- |
 | 1   | Install [build dependencies](#build-dependencies)           | CGO backends and runtime libs         | All Linux | Yes                     |
-| 2   | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture on Wayland   | Wayland   | Yes (re-login required) |
-| 3   | Bind `neru <mode>` in compositor keybindings                | Wayland has no global-hotkey protocol | Wayland   | Yes (user config)       |
+| 2   | Add user to `input` group: `sudo usermod -aG input "$USER"` | `evdev` keyboard capture **and Neru's own global hotkeys** on Wayland | Wayland | Yes (re-login required) |
+| 3   | Bind `neru <mode>` in compositor keybindings                | Only needed if you skip item 2        | Wayland   | Yes (user config)       |
 
 Notes:
 
 - X11 only needs item 1; global hotkeys work via `XGrabKey` from Neru config.
 - Item 2 takes effect after a full logout/login or reboot.
+- Item 3 is a **fallback, not a requirement**: with item 2 in place Neru's own
+  `[hotkeys]` config works on Wayland through a passive evdev listener. Bind in
+  the compositor only if you would rather not grant `/dev/input` access. See
+  [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 - Item 3 cannot be automated by a package; ship example snippets where helpful.
 
 ---
@@ -232,7 +239,11 @@ validating locally on Linux.
 
 **X11:** Hotkeys in `config.toml` work via `XGrabKey`.
 
-**Wayland:** Bind `neru <mode>` in the compositor. Examples:
+**Wayland:** Hotkeys in `config.toml` also work, through a passive `evdev`
+listener, provided the daemon can read `/dev/input` (see item 2 above). If you
+would rather not grant that access, bind `neru <mode>` in the compositor
+instead — see [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
+Compositor examples:
 
 Sway (`~/.config/sway/config`):
 
@@ -301,7 +312,10 @@ systemctl --user enable --now neru
 
 ## Known limitations
 
-1. **Wayland global hotkeys** — Configured in the compositor, not in Neru config.
+1. **Wayland global hotkeys** — Neru's own `[hotkeys]` config works via a passive
+   evdev listener, which needs `input`-group access and a CGO build; otherwise
+   bind the modes in your compositor instead. See
+   [Global hotkeys on Wayland](./LINUX_DESKTOPS.md#global-hotkeys-on-wayland).
 2. **Hints need AT-SPI** — Grid and scroll work without it; hints coverage varies
    by app. DE-specific coordinate details: [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 3. **Dark mode** — Via `org.freedesktop.appearance` portal, with session-specific

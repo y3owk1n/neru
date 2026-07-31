@@ -1,6 +1,12 @@
 # Development Guide
 
-Contributing to Neru: build instructions, architecture overview, and contribution guidelines.
+How to set up a development environment, build, test, and contribute to Neru.
+
+For the architectural reference see [ARCHITECTURE.md](ARCHITECTURE.md); for
+platform-specific work see [CROSS_PLATFORM.md](CROSS_PLATFORM.md#contributor-guide).
+
+**Related:** [Architecture](ARCHITECTURE.md) ·
+[Coding Standards](CODING_STANDARDS.md) · [Cross-Platform Guide](CROSS_PLATFORM.md)
 
 ---
 
@@ -166,10 +172,24 @@ For the best development experience, we recommend:
 | Test   | `just test-integration` | Run integration tests              |
 | Test   | `just test-race`        | Run all tests with race detection  |
 | Test   | `just test-all`         | Run all tests (unit + integration) |
+| Test   | `just test-race-unit`   | Run unit tests with race detection |
+| Test   | `just test-race-integration` | Run integration tests with race detection |
 | Lint   | `just lint`             | Run linters                        |
-| Format | `just fmt`              | Format code                        |
-| Run    | `just run`              | Build and run the application      |
+| Lint   | `just vet`              | Run `go vet`                       |
+| Format | `just fmt`              | Format Go and Objective-C code     |
+| Format | `just fmt-check`        | Check Objective-C formatting       |
+| Docs   | `just genman`           | Generate man pages                 |
 | Clean  | `just clean`            | Remove build artifacts             |
+
+There is no `just run` recipe — build first, then launch the daemon directly:
+
+```bash
+just build
+./bin/neru launch
+```
+
+Run `just --list` for the full set, including the Wayland protocol generation
+and icon recipes.
 
 ### Debugging
 
@@ -403,18 +423,12 @@ go test -tags=integration ./internal/core/infra/accessibility/
 
 ## Architecture Overview
 
-### What Neru Does
-
-Neru is a keyboard-driven navigation tool that enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts. macOS is the primary supported platform; Linux and Windows support is in progress (see [ARCHITECTURE.md](ARCHITECTURE.md)).
-
-**Four Navigation Modes:**
-
-- **Hints Mode**: Uses macOS Accessibility APIs to identify clickable elements and overlay hint labels
-- **Grid Mode**: Divides the screen into a grid system for coordinate-based navigation
-- **Scroll Mode**: Provides Vim-style scrolling at the cursor position
-- **Recursive Grid Mode**: Recursive cell navigation with center preview and reset/backtrack support
-
-All modes support various actions and can be configured extensively through TOML configuration files.
+This section covers only what you need in order to *add code*. The
+architectural reference — layers, component diagrams, data flow, coordinate
+systems, the "One Rule", and platform status — lives in
+[ARCHITECTURE.md](ARCHITECTURE.md), and per-platform feature support lives in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#feature-parity-reference). Neither is
+repeated here.
 
 ### Mode Interface Contract
 
@@ -422,65 +436,58 @@ Neru uses a standardized `Mode` interface to ensure consistent behavior across a
 
 #### Interface Definition
 
+The live interface is defined in
+[internal/app/modes/handler.go](../internal/app/modes/handler.go):
+
 ```go
 type Mode interface {
-    // Activate initializes and starts the mode with optional action parameters
-    Activate(action *string)
+    // Activate activates the mode with an optional pending action.
+    Activate(opts ModeActivationOptions)
 
-    // HandleKey processes keyboard input during normal mode operation
+    // HandleKey processes a key press within the mode's context.
     HandleKey(key string)
 
-    // HandleActionKey processes keyboard input when in action sub-mode
-    HandleActionKey(key string)
-
-    // Exit performs cleanup and deactivates the mode
+    // Exit performs mode-specific cleanup and deactivation.
     Exit()
 
-    // ToggleActionMode switches between normal mode and action sub-mode
-    ToggleActionMode()
-
-    // ModeType returns the domain mode type identifier
+    // ModeType returns the domain mode type this implementation represents.
     ModeType() domain.Mode
 }
 ```
 
-#### Implementation Pattern
+`ModeActivationOptions` ([hints.go](../internal/app/modes/hints.go)) carries
+every per-activation override — `Action`, `Modifier`, `OnExit`, `Repeat`,
+`CursorFollowSelection`, `ZoomToDepth`, `FilterRoles`, `FilterTextContains`,
+`Search`, `HideOnEmptySearch`, `Strategy`, `LabelDirection`, `Toggle`,
+`SplitWord`. Adding a new CLI flag that varies a mode's activation usually means
+adding a field here rather than a new interface method.
 
-All mode implementations follow this pattern:
-
-1. **Struct Definition**: Create a struct that holds a reference to the Handler
-2. **Constructor**: Provide a `NewXXXMode(handler *Handler)` constructor
-3. **Interface Methods**: Implement all required interface methods
-4. **Registration**: Register the mode in `Handler.NewHandler()`
+> **Locking contract.** `Activate`, `HandleKey`, and `Exit` are all called with
+> the handler's `h.mu` **already held** by the public entry point
+> (`ActivateMode`, `HandleKeyPress`, `ExitMode`). Inside a mode, use only the
+> `*Locked` helpers (`setModeLocked`, `exitModeLocked`, …) — calling a public
+> `SetMode*` / `ExitMode` method self-deadlocks. See
+> [ARCHITECTURE.md](ARCHITECTURE.md) for the full lock ordering.
 
 #### Method Contracts
 
-##### `Activate(action *string)`
+##### `Activate(opts ModeActivationOptions)`
 
 - **Purpose**: Initialize the mode and set it as the active mode
-- **Parameters**: Optional action string for pending actions
 - **Responsibilities**:
     - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
     - Show mode-specific overlays/UI
-    - Initialize mode-specific state
+    - Initialize mode-specific state from `opts`
     - Log mode activation at `info`; keep routing and redraw details at `debug`
 
 ##### `HandleKey(key string)`
 
-- **Purpose**: Process keyboard input during normal mode operation
+- **Purpose**: Process keyboard input while the mode is active
 - **Parameters**: Single key string (e.g., "a", "j", "escape")
 - **Responsibilities**:
     - Route keys to appropriate handlers
     - Update mode state based on input
     - Handle mode-specific navigation logic
-
-##### `HandleActionKey(key string)`
-
-- **Purpose**: Process keyboard input when in action sub-mode
-- **Parameters**: Single key string representing action selection
-- **Responsibilities**:
-    - Delegate to `handler.handleActionKey()` for action execution
-    - Handle action-specific key mappings
 
 ##### `Exit()`
 
@@ -490,93 +497,81 @@ All mode implementations follow this pattern:
     - Reset mode-specific state
     - Perform mode-specific cleanup only (common cleanup is handled by `exitModeLocked`)
 
-##### `ToggleActionMode()`
-
-- **Purpose**: Switch between normal mode and action sub-mode
-- **Responsibilities**:
-    - Delegate to handler's toggle method (e.g., `toggleActionModeForHints()`)
-    - Handle mode-specific action mode transitions
-
 ##### `ModeType()`
 
 - **Purpose**: Return the domain mode identifier
 - **Returns**: `domain.Mode` enum value (e.g., `domain.ModeHints`)
 
-#### Implementation Examples
+#### Implementation Pattern
 
-##### Basic Mode Structure
+Modes are **not** written as bare structs implementing four methods by hand.
+Two shared building blocks cover almost every case:
+
+- **`baseMode`** ([base.go](../internal/app/modes/base.go)) — holds the handler
+  and mode type, and supplies default no-op implementations of `Activate`,
+  `HandleKey`, and `Exit` plus a real `ModeType`. Embed it and override only
+  what differs.
+- **`GenericMode`** ([generic_mode.go](../internal/app/modes/generic_mode.go)) —
+  embeds `baseMode` and takes a `ModeBehavior` struct of optional
+  `ActivateFunc` / `HandleKeyFunc` / `ExitFunc` callbacks. When a callback is
+  nil it falls back to the handler's standard flow for that mode type.
+
+The result is that a mode is usually just a constructor supplying behavior.
+`ScrollMode` in full:
 
 ```go
-type ExampleMode struct {
-    handler *Handler
+type ScrollMode struct {
+    *GenericMode
 }
 
-func NewExampleMode(handler *Handler) *ExampleMode {
-    return &ExampleMode{handler: handler}
-}
-
-func (m *ExampleMode) ModeType() domain.Mode {
-    return domain.ModeExample
-}
-
-func (m *ExampleMode) Activate(action *string) {
-    // NOTE: Activate is called with h.mu already held (via ActivateModeWithAction).
-    // Use the *Locked helpers — never the public SetMode* methods (deadlock).
-    m.handler.setModeLocked(domain.ModeExample, overlay.ModeExample)
-    // Show example overlay
-    // Initialize state
-    m.handler.logger.Info("Example mode activated", zap.String("mode", "example"))
-}
-
-func (m *ExampleMode) HandleKey(key string) {
-    // NOTE: HandleKey is called with h.mu already held (via HandleKeyPress).
-    // Use exitModeLocked — never the public SetModeIdle (deadlock).
-    switch key {
-    case "escape":
-        m.handler.exitModeLocked()
-    // Handle other keys...
+func NewScrollMode(handler *Handler) *ScrollMode {
+    behavior := ModeBehavior{
+        ActivateFunc: func(handler *Handler, _ ModeActivationOptions) {
+            // Called with h.mu held — use *Locked helpers only.
+            handler.StartInteractiveScroll()
+            handler.startIndicatorPolling(domain.ModeScroll)
+        },
+        ExitFunc: func(handler *Handler) {
+            handler.stopIndicatorPolling()
+            handler.stopHeldRepeatLocked()
+            handler.clearAndHideOverlay()
+            // ... reset mode-specific state
+        },
     }
-}
 
-func (m *ExampleMode) HandleActionKey(key string) {
-    m.handler.handleActionKey(key, "Example")
-}
-
-func (m *ExampleMode) Exit() {
-    // Hide overlays
-    // Reset state
-}
-
-func (m *ExampleMode) ToggleActionMode() {
-    m.handler.toggleActionModeForExample()
+    return &ScrollMode{
+        GenericMode: NewGenericMode(handler, domain.ModeScroll, "ScrollMode", behavior),
+    }
 }
 ```
 
+Reach for a hand-written struct embedding `baseMode` only when the mode needs
+its own fields or a `HandleKey` too involved for a callback.
+
 ##### Registration Pattern
 
+Modes are registered in the map built by `NewHandler`
+([handler.go](../internal/app/modes/handler.go)):
+
 ```go
-func NewHandler(...) *Handler {
-    handler := &Handler{...}
-    handler.modes = map[domain.Mode]Mode{
-        domain.ModeHints:  NewHintsMode(handler),
-        domain.ModeGrid:   NewGridMode(handler),
-        domain.ModeAction: NewActionMode(handler),
-        domain.ModeScroll: NewScrollMode(handler),
-        // Add new modes here
-    }
-    return handler
+handler.modes = map[domain.Mode]Mode{
+    domain.ModeHints:         NewHintsMode(handler),
+    domain.ModeGrid:          NewGridMode(handler),
+    domain.ModeScroll:        NewScrollMode(handler),
+    domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
+    domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
+    // Add new modes here
 }
 ```
 
 #### Best Practices
 
 1. **Consistent Naming**: Use `XXXMode` for struct names, `NewXXXMode` for constructors
-2. **Handler Reference**: Always store a reference to the Handler for accessing services
-3. **State Management**: Use the Handler's state management methods
+2. **Reuse the building blocks**: Prefer `GenericMode` + `ModeBehavior`; embed `baseMode` when you need custom fields
+3. **Respect the lock**: Only `*Locked` helpers inside `Activate` / `HandleKey` / `Exit`
 4. **Logging**: Log mode activation and real failures; keep key handling, redraws, and routine routing at `debug`
 5. **Error Handling**: Handle errors gracefully, don't panic
 6. **Resource Cleanup**: Always clean up overlays and state in `Exit()`
-7. **Action Mode Support**: Implement `ToggleActionMode()` even if not used
 
 #### Adding New Modes
 
@@ -619,7 +614,7 @@ Cross-platform file-slot conventions follow the naming rules in
 **Configuration Options:**
 
 1. Add fields to `internal/config/config.go` structs
-2. Update `commonDefaultConfig()` with shared defaults; add platform-specific defaults to `internal/config/config_<os>.go`
+2. Update `newDefaultConfig()` in `internal/config/config_defaults.go` with shared defaults; add platform overrides to `applyPlatformDefaults()` in `internal/config/config_<os>.go`
 3. Add validation in `Validate*()` methods
 4. Update `configs/` examples and [CONFIGURATION.md](CONFIGURATION.md)
 

@@ -1,9 +1,10 @@
 # Linux Desktop Environments
 
 Per-desktop-environment (DE) implementation notes for Neru on Linux: how each
-compositor is wired, important design decisions, and known issues. For building,
-installing dependencies, and preparing a host to run Neru, see
-[LINUX_SETUP.md](./LINUX_SETUP.md).
+compositor is wired, important design decisions, and known issues.
+
+**Related:** [Linux setup](./LINUX_SETUP.md) ·
+[Cross-Platform Guide](./CROSS_PLATFORM.md) · [Troubleshooting](./TROUBLESHOOTING.md)
 
 ---
 
@@ -13,6 +14,7 @@ installing dependencies, and preparing a host to run Neru, see
 - [wlroots compositors](#wlroots-compositors)
 - [X11 sessions](#x11-sessions)
 - [GNOME (not supported)](#gnome-not-supported)
+- [Global hotkeys on Wayland](#global-hotkeys-on-wayland)
 - [Checking compositor protocols](#checking-compositor-protocols)
 
 ---
@@ -33,7 +35,7 @@ KWin does **not** implement `zwlr_virtual_pointer_v1` (confirmed on KWin 6.6.4 v
 | Pointer / click / scroll        | `libei` via `org.freedesktop.portal.RemoteDesktop`                      | Only input path KWin exposes for third-party automation                            |
 | Key feeding (`action feed`)     | `libei` via `org.freedesktop.portal.RemoteDesktop`                     | Keyboard device must be granted in portal; defaults to pointer-only               |
 | Hints (AT-SPI)                  | AT-SPI D-Bus + KWin geometry bridge                                     | AT-SPI coords are window-relative; bridge maps to global compositor space          |
-| Global hotkeys                  | Compositor keybindings only                                             | Wayland has no global-hotkey protocol; user binds `neru <mode>` in System Settings |
+| Global hotkeys                  | Passive `evdev` read of `/dev/input/event*`, else compositor keybindings | Wayland has no global-hotkey protocol; Neru reads keyboards directly when permitted |
 | Systray                         | D-Bus StatusNotifierItem + `com.canonical.dbusmenu`                     | Matches KDE/GNOME tray hosts; no GTK dependency                                    |
 
 Routing lives in `system_linux_wayland_input.go`: if the compositor advertises
@@ -64,8 +66,11 @@ See [Checking compositor protocols](#checking-compositor-protocols) for the
    every fresh daemon start** (reboot, logout, relaunch): `liboeffis` does not
    expose restore-token / `persist_mode`, so KDE cannot persist the grant across
    launches.
-2. **Hotkeys** — Bind in **System Settings -> Shortcuts -> Custom Shortcuts**.
-   Use the absolute path to the binary so KWin resolves it reliably:
+2. **Hotkeys** — Neru's own `[hotkeys]` config works on KDE Wayland when the
+   daemon can read `/dev/input` (see [Global hotkeys on Wayland](#global-hotkeys-on-wayland)).
+   If you would rather not grant that access, bind the modes in **System
+   Settings → Shortcuts → Custom Shortcuts** instead. Use the absolute path to
+   the binary so KWin resolves it reliably:
 
     | Action         | Command                                      |
     | -------------- | -------------------------------------------- |
@@ -163,7 +168,7 @@ device (libei), while real hardware shows the physical device path.
 | Sticky modifiers              | `zwp_virtual_keyboard_v1` when available                                                                          |
 | Key feeding (`action feed`)   | `zwp_virtual_keyboard_v1` — same virtual keyboard path as sticky modifiers                                        |
 | Keyboard capture during modes | `evdev` on `/dev/input/event*` (requires `input` group)                                                           |
-| Global hotkeys                | Compositor config (`bind` / `bindsym` / `spawn-sh`)                                                               |
+| Global hotkeys                | Passive `evdev` read of Neru's own `[hotkeys]`; compositor config (`bind` / `bindsym` / `spawn-sh`) as fallback   |
 | Cursor position               | Client-side cache (Wayland hides global pointer); "agitation" via layer-shell + virtual pointer wiggle at startup |
 | Focused app                   | `zwlr_foreign_toplevel_manager_v1` app_id (no PID; `FocusedApplicationPID` best-effort matches app_id against `/proc`) |
 
@@ -209,6 +214,43 @@ and systemd deployment.
 GNOME Shell uses private protocols instead of wlr layer-shell / virtual pointer.
 Future work targets libei (same family as KDE) plus a GNOME Shell extension.
 See `internal/core/infra/platform/linux/wayland_gnome/PLACEHOLDER.md`.
+
+The daemon does not start in a GNOME Wayland session: `platform.NewSystemPort`
+returns `CodeNotSupported` during the first initialization phase rather than
+running in a degraded state. Use a **GNOME X11 session** instead — everything
+works there through the `x11` backend.
+
+---
+
+## Global hotkeys on Wayland
+
+Applies to both KDE and wlroots; X11 is unaffected (it uses `XGrabKey`).
+
+No Wayland protocol lets an ordinary client register a global hotkey. Neru
+therefore has two paths, and prefers the first:
+
+1. **Neru's own `[hotkeys]` config**, via a **passive** `evdev` listener that
+   reads `/dev/input/event*`. It never grabs devices or injects anything, so the
+   focused application still receives every key. While a mode is active the
+   in-mode event tap grabs the same devices, so the listener goes quiet until
+   the mode exits.
+2. **Compositor keybindings** — bind `neru hints`, `neru grid`, etc. in your
+   compositor config or System Settings. Always available, no permissions
+   needed, and the right choice if you prefer not to grant `/dev/input` access.
+
+Path 1 requires two things:
+
+- **Read access to `/dev/input`** — add your user to the `input` group and
+  re-login (see [LINUX_SETUP.md](./LINUX_SETUP.md)), or grant narrower access
+  via udev/ACL.
+- **A CGO build** — evdev support is compiled out when `CGO_ENABLED=0`, leaving
+  a no-op stub. Official Linux builds enable CGO.
+
+On startup the daemon logs which path it took: `"Wayland global hotkeys enabled
+via evdev; config keybindings are active"` on success, or a warning naming both
+the `input` group and the compositor-binding fallback on failure. The hotkey
+manager health-check re-initializes the listener if it dies or ends up with zero
+devices.
 
 ---
 

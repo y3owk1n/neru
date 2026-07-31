@@ -1,11 +1,35 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-Common issues and solutions for Neru.
+Symptoms, causes, and fixes for common Neru problems.
+
+**Related:** [CLI Reference](CLI.md) · [Configuration Reference](CONFIGURATION.md) ·
+[Linux setup](LINUX_SETUP.md#troubleshooting)
+
+> **Platform note:** the examples below use macOS paths and, in a few places,
+> macOS-only features (Mission Control, Accessibility Zoom, Activity Monitor).
+> The diagnosis steps themselves apply everywhere — substitute your platform's
+> [log path](#log-file-locations). For Linux-specific setup problems (evdev
+> permissions, portal consent, compositor support) see
+> [LINUX_SETUP.md](./LINUX_SETUP.md#troubleshooting) and
+> [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+
+---
+
+## Log File Locations
+
+`[logging].log_file` overrides this; when unset the default is:
+
+| Platform | Path                                     |
+| -------- | ---------------------------------------- |
+| macOS    | `~/Library/Logs/neru/app.log`            |
+| Linux    | `~/.local/state/neru/log/app.log`        |
+| Windows  | `%LOCALAPPDATA%\neru\log\app.log`        |
 
 ---
 
 ## Table of Contents
 
+- [Log File Locations](#log-file-locations)
 - [Quick Diagnosis](#quick-diagnosis)
 - [Installation & Setup](#installation--setup)
 - [Permissions](#permissions)
@@ -36,7 +60,7 @@ neru doctor
 # 3. Test basic functionality
 neru hints  # Should show hints
 
-# 4. Check logs
+# 4. Check logs (macOS path; see Log File Locations for Linux/Windows)
 tail -20 ~/Library/Logs/neru/app.log
 ```
 

@@ -3,6 +3,9 @@
 This roadmap keeps the next improvements visible for contributors and helps
 separate "stable on macOS today" from "portable by design, still incomplete".
 
+**Related:** [Cross-Platform Guide](CROSS_PLATFORM.md#feature-parity-reference) ·
+[Development Guide](DEVELOPMENT.md) · [Architecture](ARCHITECTURE.md)
+
 ---
 
 ## Table of Contents
@@ -26,30 +29,38 @@ separate "stable on macOS today" from "portable by design, still incomplete".
 - Linux (X11):
     - [x] native overlay rendering
     - [x] screen and cursor management
-    - [x] keyboard event capture & global hotkeys
-    - [ ] AT-SPI accessibility integration (shared)
-    - [ ] notifications and active app detection
+    - [x] keyboard event capture & global hotkeys (`XGrabKeyboard` / `XGrabKey`)
+    - [x] AT-SPI accessibility integration (shared)
+    - [x] active app detection & app watcher (event-driven)
+    - [ ] freedesktop notifications and alerts
 - Linux (Wayland wlroots):
     - [x] native layer-shell overlay rendering
     - [x] virtual pointer injection and cursor discovery
     - [x] keyboard event capture
-    - [ ] AT-SPI accessibility integration (shared)
-    - [ ] notifications and active app detection
-- Linux (Wayland GNOME):
-    - [ ] input injection (libei or GNOME shell extension)
-    - [ ] native overlay rendering
-    - [ ] global hotkeys & event capture
+    - [x] global hotkeys (passive evdev read of Neru's own config)
+    - [x] AT-SPI accessibility integration (shared)
+    - [x] active app detection & app watcher (`wlr-foreign-toplevel` app_id)
+    - [ ] freedesktop notifications and alerts
 - Linux (Wayland KDE Plasma):
     - [x] input injection (libei via RemoteDesktop portal)
     - [x] native overlay rendering (wlr-layer-shell + Cairo)
-    - [x] global hotkeys & event capture (evdev passive grab)
-    - [ ] app watcher / focus tracking
+    - [x] global hotkeys & event capture (passive evdev read)
+    - [x] app watcher / focus tracking
+    - [ ] persist the RemoteDesktop portal grant across daemon restarts
+    - [ ] freedesktop notifications and alerts
+- Linux (Wayland GNOME) — not supported; the daemon refuses to start:
+    - [ ] input injection (libei or GNOME shell extension)
+    - [ ] native overlay rendering
+    - [ ] global hotkeys & event capture
+    - [ ] focused-app source (Mutter exposes no `wlr-foreign-toplevel` equivalent)
 - Windows:
-    - [x] UI Automation integration — initial coverage
+    - [x] UI Automation integration — initial coverage (shallow tree)
     - [x] screen and cursor management
     - [x] global hotkeys and keyboard event capture
     - [x] native overlay rendering — layered Win32 window + GDI
-    - [ ] notifications and app watching
+    - [ ] app watcher (foreground-window notifications) and display hotplug events
+    - [ ] toast notifications
+    - [ ] `monitor_select` mode, grid transition animation, horizontal scroll
 
 ## Contributor Priorities
 

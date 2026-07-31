@@ -1,38 +1,118 @@
-# Configuration Guide
+# Configuration Reference
 
-Neru uses TOML for configuration. No config file is required — Neru works out of the box with sensible defaults. Only define the options you want to change; all other defaults are preserved automatically.
+Complete reference for every Neru configuration option.
 
-> "The daemon" refers to the background process started with `neru launch`.
+Neru is configured in TOML. No config file is required: Neru runs on built-in
+defaults. Define only the options you want to change — every option left out
+keeps its default. "The daemon" below means the process started by
+`neru launch`.
+
+**Related:** [CLI Reference](CLI.md) · [Tips & Tricks](TIPS_TRICKS.md) ·
+[Troubleshooting](TROUBLESHOOTING.md)
 
 ---
 
 ## Table of Contents
 
+**Getting started**
+
 - [Quick Start](#quick-start)
 - [Config File Location](#config-file-location)
 - [Managing Your Config](#managing-your-config)
 - [Runtime Config Changes](#runtime-config-changes)
+
+**Shared concepts**
+
 - [Color Format](#color-format)
 - [Hotkeys](#hotkeys)
-- [General](#general)
-- [Theme](#theme)
-- [Hints](#hints)
-- [Grid](#grid)
-- [Recursive Grid](#recursive_grid)
-- [Scroll](#scroll)
-- [Monitor Select](#monitor_select)
-- [Virtual Pointer](#virtual_pointer)
-- [Mouse Action Indicator](#mouse_action_indicator)
-- [Mode Indicator](#mode_indicator)
-- [Sticky Modifiers](#sticky_modifiers)
-- [Per-App Global Hotkey Overrides](#per-app-global-hotkey-overrides)
-- [Smooth Cursor](#smooth_cursor)
-- [Smooth Scroll](#smooth_scroll)
-- [Held Repeat](#held_repeat)
-- [Systray](#systray)
-- [Logging](#logging)
+
+**Sections**
+
+| Section                                       | Controls                                     |
+| --------------------------------------------- | -------------------------------------------- |
+| [`[general]`](#general)                       | Global behaviour, passthrough, `exec` shell   |
+| [`[theme]`](#theme)                           | Base palette all components derive from       |
+| [`[hints]`](#hints)                           | Hints mode and element discovery              |
+| [`[grid]`](#grid)                             | Grid mode                                     |
+| [`[recursive_grid]`](#recursive_grid)         | Recursive grid mode                           |
+| [`[scroll]`](#scroll)                         | Scroll mode and step sizes                    |
+| [`[monitor_select]`](#monitor_select)         | Display picker                                |
+| [`[virtual_pointer]`](#virtual_pointer)       | On-screen pointer indicator                   |
+| [`[mouse_action_indicator]`](#mouse_action_indicator) | Click feedback animation              |
+| [`[mode_indicator]`](#mode_indicator)         | Active-mode badge                             |
+| [`[sticky_modifiers]`](#sticky_modifiers)     | Sticky modifier badge                         |
+| [`[smooth_cursor]`](#smooth_cursor)           | Animated cursor movement                      |
+| [`[smooth_scroll]`](#smooth_scroll)           | Animated scrolling                            |
+| [`[held_repeat]`](#held_repeat)               | Key-repeat while held                         |
+| [`[systray]`](#systray)                       | System tray icon                              |
+| [`[logging]`](#logging)                       | Log level, file, rotation                     |
 
 ---
+
+## How to read this reference
+
+Each section below documents one TOML table. Options are listed in a table with
+this shape:
+
+| Column        | Meaning                                                   |
+| ------------- | --------------------------------------------------------- |
+| `Option`      | The key, written as it appears in the TOML table           |
+| `Type`        | `bool`, `int`, `float`, `string`, `array`, `color`, `map`  |
+| `Default`     | The built-in value used when the key is absent             |
+| `Description` | What the option does                                       |
+
+Nested tables are written with their full path, so `[hints.ui]` means a `[ui]`
+table inside `[hints]`. Options marked as overridable per app can also appear
+inside an `app_configs` entry for that section.
+
+**Platform support.** Sections and options whose behaviour is not identical on
+all three platforms carry a `Platforms:` line. Anything without one behaves the
+same on macOS, Linux, and Windows. Unsupported options are still accepted and
+validated rather than rejected, so one config file can be shared across
+machines — but see the table below for what each one does instead, because a
+few (notably `hints.strategy`) fail silently rather than degrading. The full
+list is in [Platform-specific options](#platform-specific-options).
+
+On Linux, "supported" means an X11 session or a Wayland session on wlroots or
+KWin. GNOME Wayland is not supported at all; the daemon exits at startup.
+
+---
+
+## Platform-specific options
+
+Every option not listed here behaves the same on all three platforms.
+
+| Option or section                        | macOS | Linux | Windows | Behaviour when unsupported                          |
+| ---------------------------------------- | :---: | :---: | :-----: | ---------------------------------------------------- |
+| `general.kb_layout_to_use`                | Yes   | No    | No      | Ignored; layout is detected automatically.           |
+| `general.hide_overlay_in_screen_share`    | Yes   | No    | No      | Ignored.                                             |
+| `general.passthrough_unbounded_keys`      | Yes   | Partial | No    | Linux: Wayland evdev backend only, not X11. Windows: ignored. |
+| `general.should_exit_after_passthrough`   | Yes   | Partial | No    | Follows `passthrough_unbounded_keys`.                |
+| `hints.strategy = "vision"`               | Yes   | No    | No      | Accepted by validation everywhere, but detection returns nothing and no hints appear. Set `axtree` on Linux and Windows. |
+| `[hints.vision]`                          | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_menubar_hints`             | Yes   | No    | No      | Ignored; no equivalent surface exists.               |
+| `hints.additional_menubar_hints_targets`  | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_dock_hints`                | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_nc_hints`                  | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_stage_manager_hints`       | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_pip_hints`                 | Yes   | No    | No      | Ignored.                                             |
+| `hints.include_screen_capture_hints`      | Yes   | No    | No      | Ignored.                                             |
+| `hints.detect_mission_control`            | Yes   | No    | No      | Ignored.                                             |
+| `hints.on_mission_control_activated`      | Yes   | No    | No      | Never fires.                                         |
+| `hints.on_mission_control_deactivated`    | Yes   | No    | No      | Never fires.                                         |
+| `[hints.search_input_ui]`                 | Yes   | No    | Yes     | Linux: search filtering works, but the input badge is not drawn. |
+| `[monitor_select]`                        | Yes   | Yes   | No      | Windows: the mode returns `ERR_NOT_SUPPORTED`.       |
+| `[virtual_pointer]`                       | Yes   | No    | No      | Ignored; pairs with macOS-only cursor hiding.        |
+| `[smooth_cursor]`                         | Yes   | Yes   | No      | Windows: cursor moves instantly.                     |
+| `[smooth_scroll]`                         | Yes   | No    | No      | Linux and Windows: scrolling is instant.             |
+| `[recursive_grid.animation]`              | Yes   | Yes   | No      | Windows: depth transitions are not animated.         |
+
+Accessibility coverage for hints also differs in kind rather than by option; see
+[Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+
+---
+
+# Getting started
 
 ## Quick Start
 
@@ -102,7 +182,7 @@ neru config set <key> <value>   # Change a single value at runtime (see below)
 neru config reset <key>         # Remove a single override (reverts to base config)
 ```
 
-See [CLI.md](CLI.md#13-neru-config) for full flag documentation.
+See [CLI.md](CLI.md#configuration-commands) for full flag documentation.
 
 ---
 
@@ -180,6 +260,8 @@ To revert all overrides at once, delete the override file and run `neru config r
 
 ---
 
+# Shared concepts
+
 ## Color Format
 
 Colors use hex notation with optional alpha transparency.
@@ -249,7 +331,7 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown` |
 | Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                 |
 
-See [CLI.md](CLI.md#12f-feed) for a full key reference with key codes and platform behavior.
+See [CLI.md](CLI.md#neru-action-feed) for a full key reference with key codes and platform behavior.
 
 Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 500ms timeout.
 
@@ -332,7 +414,7 @@ On Linux, put the `WM_CLASS` or `app_id` in the `bundle_id` field. Matching is c
 
 > **Heads up:** Linux identity strings vary by toolkit and distribution. GTK, Qt, Electron, and XWayland apps often report a `WM_CLASS`/`app_id` you would not guess (e.g. `Google-chrome`, `code`, `org.kde.konsole`). Always confirm with the commands above rather than assuming a reverse-DNS name.
 
-**GNOME/Mutter on Wayland is not supported.** Mutter implements no focused-app protocol (no `wlr-foreign-toplevel-management`), so Neru cannot tell which application is focused and per-app overrides never apply there. GNOME on **X11** works normally, as do all wlroots compositors and KWin/KDE on Wayland. See [CROSS_PLATFORM.md](./CROSS_PLATFORM.md) for the backend matrix.
+**GNOME/Mutter on Wayland is not supported at all** — the daemon exits at startup rather than running without per-app support, partly because Mutter implements no focused-app protocol (no `wlr-foreign-toplevel-management`) for Neru to identify the focused window with. GNOME on **X11** works normally, as do all wlroots compositors and KWin/KDE on Wayland. See [CROSS_PLATFORM.md](./CROSS_PLATFORM.md) for the backend matrix.
 
 Where the compositor or X11 exposes a focus-change signal, Neru applies per-app overrides the instant you switch windows; otherwise it re-checks the focused app a few times per second.
 
@@ -396,7 +478,7 @@ Inside a mode, the dispatch order is:
 
 ### Action Reference
 
-All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#12-neru-action) for full flag documentation.
+All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#actions) for full flag documentation.
 
 | Category    | Actions                                                                                |
 | ----------- | -------------------------------------------------------------------------------------- |
@@ -414,12 +496,13 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
 - Click actions accept `--state down` / `--state up` to press and release the button as separate hotkeys, and `--toggle` to do whichever comes next from a single hotkey. `"action right_click --state down"` and `"action right_mouse_down"` are the same action written two ways; the flag form is the documented spelling, and the name form is what a mode `--action` takes (`hints --action right_mouse_down`)
-- Click actions can be chained with commas to produce multi-click sequences at one target point: `"action left_click,left_click"` double-clicks, `"action left_click,left_click,left_click"` triple-clicks. Only mouse button actions are allowed in a chain, and the names must not be separated by spaces (see [CLI.md](CLI.md#12a-left_click-right_click-middle_click))
+- Click actions can be chained with commas to produce multi-click sequences at one target point: `"action left_click,left_click"` double-clicks, `"action left_click,left_click,left_click"` triple-clicks. Only mouse button actions are allowed in a chain, and the names must not be separated by spaces (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
 - Any button Neru is holding is released automatically when it returns to idle
 - `mouse_down` and `mouse_up` are the original spellings of `left_mouse_down` and `left_mouse_up`. They still work in configs, but new configs should use the explicit names
-- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#12a-left_click-right_click-middle_click))
-- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#12d-scroll_up-scroll_down-scroll_left-scroll_right))
+- Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
+- `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#neru-action-scroll_up-scroll_down-scroll_left-scroll_right))
 - `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
+- `sleep` is the exception among those: it works only in hotkey bindings (`"action sleep 0.5"`), **not** as a terminal command, and it cannot appear in a comma-separated chain. See [CLI.md](CLI.md#action-sleep-hotkey-bindings-only)
 
 #### Feed Keys
 
@@ -438,7 +521,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 ]
 ```
 
-Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#12f-feed) for syntax, supported key names, and platform behavior.
+Use `--mode` to route keys through Neru's active mode/action pipeline instead of the OS. See [CLI.md](CLI.md#neru-action-feed) for syntax, supported key names, and platform behavior.
 
 #### Composition Example
 
@@ -455,7 +538,12 @@ Use `--bail` to abort the chain when the mode exits without a selection (e.g., u
 
 ---
 
+# Sections
+
 ## [general]
+
+Global behaviour that is not tied to a single mode: app exclusions, keyboard
+layout, shortcut passthrough, and the shell used by `exec` hotkeys.
 
 | Option                                 | Type   | Default       | Description                                                                                       |
 | -------------------------------------- | ------ | ------------- | ------------------------------------------------------------------------------------------------- |
@@ -518,7 +606,7 @@ Labels clickable UI elements with short overlay labels. By default uses the macO
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
-Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#7-neru-hints))
+Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#neru-hints))
 
 ### Options
 
@@ -536,8 +624,8 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#7-neru-hin
 | `include_pip_hints`                | bool         | `false`                 | Show hints on Picture in Picture controls                                                                                                                                                                                                                                                                                            |
 | `include_screen_capture_hints`     | bool         | `false`                 | Show hints on Screen Capture controls                                                                                                                                                                                                                                                                                                |
 | `detect_mission_control`           | bool         | `false`                 | Enable Mission Control state detection                                                                                                                                                                                                                                                                                               |
-| `on_mission_control_activated`     | string/array | `nil`                   | Action(s) to execute when Mission Control opens                                                                                                                                                                                                                                                                                      |
-| `on_mission_control_deactivated`   | string/array | `nil`                   | Action(s) to execute when Mission Control closes                                                                                                                                                                                                                                                                                     |
+| `on_mission_control_activated`     | string/array | none                    | Action(s) to execute when Mission Control opens                                                                                                                                                                                                                                                                                      |
+| `on_mission_control_deactivated`   | string/array | none                    | Action(s) to execute when Mission Control closes                                                                                                                                                                                                                                                                                     |
 | `additional_menubar_hints_targets` | array        | macOS-specific defaults | Extra menubar bundle IDs                                                                                                                                                                                                                                                                                                             |
 | `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                                                                                                                                                                                                  |
 | `ignore_clickable_check`           | bool         | `false`                 | Skip clickability heuristic                                                                                                                                                                                                                                                                                                          |
@@ -750,7 +838,7 @@ The `label_direction` setting controls how multi-character hint labels are enume
 - Many hints clustered in one region of the screen. `reverse` spreads the _first_ character of each label evenly across the alphabet, so labels rarely share a prefix and the hint key (the visible character) is less likely to be occluded by another element.
 - Workflows that consistently need more than `len(hint_characters)` hints.
 
-You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#7-neru-hints).
+You can also mix directions per-app via `[hints.app_configs]` or per-activation via `neru hints --label-direction`. See the [per-app config table](#per-app-config) and [CLI reference](CLI.md#neru-hints).
 
 ### Per-App Config
 
@@ -780,7 +868,7 @@ visible_check_enabled = true
 
 Divides the screen into a labelled coordinate grid.
 
-Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#8-neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-grid)). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
@@ -832,7 +920,7 @@ See [per-app hotkey overrides](#per-app-hotkey-overrides).
 
 Narrows the active area with each keypress for precise cursor placement.
 
-Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#9-neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
+Cursor behavior: `neru recursive_grid --cursor-selection-mode follow|hold` (see [CLI.md](CLI.md#neru-recursive_grid)). Auto-zoom to a specific depth on activation with `--zoom-to-depth <n>` (e.g. `neru recursive_grid --zoom-to-depth 3`). Default hotkeys include `` ` `` for `toggle-cursor-follow-selection`.
 
 ### Options
 
@@ -972,6 +1060,8 @@ hotkeys = { "k" = "action scroll_up", "j" = "action scroll_down" }
 
 Interactive display picking mode. Shows per-monitor overlay badges labelled with selectable characters. Monitors are sorted in a fixed spatial order (top-to-bottom, left-to-right).
 
+**Platforms:** macOS · Linux. Not implemented on Windows.
+
 | Option       | Type   | Default       | Description                        |
 | ------------ | ------ | ------------- | ---------------------------------- |
 | `enabled`    | bool   | `false`       | Enable interactive monitor picking |
@@ -1026,7 +1116,13 @@ backdrop_color = ""
 
 ## [virtual_pointer]
 
-A small character rendered at the cursor when the system cursor is hidden. macOS only.
+A small character rendered at the cursor position when the system cursor is
+hidden.
+
+**Platforms:** macOS only. This section pairs with `hide_cursor`, which has no
+cross-platform equivalent, so it is a no-op on Linux and Windows. The separate
+virtual-pointer indicator drawn inside the recursive-grid overlay works on all
+platforms and is configured under [`[recursive_grid]`](#recursive_grid).
 
 ### UI
 
@@ -1048,7 +1144,11 @@ font_family = ""
 
 ## [mouse_action_indicator]
 
-Transient visual marker at mouse action locations. macOS only; other platforms accept the config and no-op.
+Transient visual marker drawn at the point of a mouse action.
+
+**Platforms:** all. The animation is implemented natively per platform —
+CoreAnimation on macOS, a 120fps goroutine on Linux, and a 60fps goroutine on
+Windows — so timing may differ slightly.
 
 | Option    | Type     | Default                                       | Description        |
 | --------- | -------- | --------------------------------------------- | ------------------ |
@@ -1205,8 +1305,7 @@ On Linux, the indicator renders the symbols `❖⇧⌥⌃`. If they appear as `[
 ## [smooth_cursor]
 
 Animates cursor movement between positions. Supported on macOS and Linux
-(X11, Wayland wlroots/KDE); GNOME/Wayland and Windows fall back to instant
-movement.
+(X11, Wayland wlroots/KDE); Windows falls back to instant movement.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
@@ -1227,7 +1326,9 @@ duration_per_pixel = 0.1
 
 ## [smooth_scroll]
 
-Splits scroll deltas into chunked ease-out events for visual feedback. macOS only; other platforms fall back to instant scrolling.
+Splits scroll deltas into chunked ease-out events for visual feedback.
+
+**Platforms:** macOS only. Linux and Windows fall back to instant scrolling.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
@@ -1267,6 +1368,9 @@ interval_ms = 50
 
 ## [systray]
 
+The system tray icon and its menu. Changing `enabled` requires a full daemon
+restart; `neru config reload` does not create or remove the icon.
+
 | Option    | Type | Default | Description                |
 | --------- | ---- | ------- | -------------------------- |
 | `enabled` | bool | `true`  | Show/hide the systray icon |
@@ -1276,6 +1380,9 @@ interval_ms = 50
 ---
 
 ## [logging]
+
+Log level, destination, and rotation. File paths per platform are listed in
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md#log-file-locations).
 
 | Option                 | Type   | Default  | Description                                       |
 | ---------------------- | ------ | -------- | ------------------------------------------------- |

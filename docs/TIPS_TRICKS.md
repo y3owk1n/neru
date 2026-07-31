@@ -1,5 +1,13 @@
 # Tips & Tricks
 
+Worked configuration recipes for common workflows. Each entry states the goal,
+then the configuration that achieves it.
+
+For the full option reference see [CONFIGURATION.md](CONFIGURATION.md); for
+command flags see [CLI.md](CLI.md).
+
+**Related:** [Configuration Reference](CONFIGURATION.md) · [CLI Reference](CLI.md)
+
 ---
 
 ## Table of Contents

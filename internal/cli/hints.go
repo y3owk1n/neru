@@ -45,10 +45,10 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --action left_click           Select a hint to click once
     neru hints --action left_click --repeat  Click multiple elements in sequence
     neru hints --search                      Start with search input shown
-    neru hints --search --hide-on-empty-search Start search with hints hidden until you type
+    neru hints --search --hide-on-empty-search  Start search with hints hidden until you type
     neru hints --role AXButton               Hint only buttons
     neru hints --strategy vision             Use Vision Framework detection
-    neru hints --strategy vision --split-word Use vision strategy with word-level splitting
+    neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
     neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,
 

@@ -105,7 +105,7 @@ Once you're done with the installation, you can just run the `Neru.app` (macOS) 
 
 ## Pick your mode
 
-Four modes, one tool — mix and match as the situation calls for it.
+Five modes, one tool — mix and match as the situation calls for it.
 
 <table>
 <tr>
@@ -124,14 +124,18 @@ Four modes, one tool — mix and match as the situation calls for it.
 </tr>
 </table>
 
-| Mode                  | Hotkey            | How it works                                                       | Best for                                         |
-| :-------------------- | :---------------- | :----------------------------------------------------------------- | :----------------------------------------------- |
-| **Recursive Grid** ⭐ | `Cmd+Shift+C`     | Divides screen into cells; narrow down with home-row keys          | Everything — any app, canvas, or game            |
-| **Hints**             | `Cmd+Shift+Space` | Labels every clickable element via Accessibility API or Vision OCR | Native apps, Electron (VS Code, Slack), Figma    |
-| **Grid**              | `Cmd+Shift+G`     | Jump directly to a cell by row + column label                      | Fast coarse movement across large monitors       |
-| **Scroll**            | `Cmd+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages                | Reading docs and code without lifting your hands |
+| Mode                  | Default hotkey        | How it works                                                       | Best for                                         |
+| :-------------------- | :-------------------- | :----------------------------------------------------------------- | :----------------------------------------------- |
+| **Recursive Grid** ⭐ | `Primary+Shift+C`     | Divides screen into cells; narrow down with home-row keys          | Everything — any app, canvas, or game            |
+| **Hints**             | `Primary+Shift+Space` | Labels every clickable element via Accessibility API or Vision OCR | Native apps, Electron (VS Code, Slack), Figma    |
+| **Grid**              | `Primary+Shift+G`     | Jump directly to a cell by row + column label                      | Fast coarse movement across large monitors       |
+| **Scroll**            | `Primary+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages                | Reading docs and code without lifting your hands |
+| **Monitor Select**    | _unbound_             | Labels each display; type a label to jump the cursor there         | Multi-monitor setups                             |
 
-All bindings are fully remappable — Colemak, Dvorak, whatever you're on. → [Configuration Guide](docs/CONFIGURATION.md#hotkeys)
+`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Monitor Select
+ships without a default binding — bind `monitor_select` to any key you like.
+
+All bindings are fully remappable — Colemak, Dvorak, whatever you're on. → [Configuration Reference](docs/CONFIGURATION.md#hotkeys)
 
 ---
 
@@ -156,7 +160,7 @@ neru config validate  # check for errors before applying
 neru config reload    # apply changes without restarting
 ```
 
-→ [CLI Guide](docs/CLI.md) · [Configuration Guide](docs/CONFIGURATION.md) · [Config Showcases](docs/CONFIG_SHOWCASES.md)
+→ [CLI Reference](docs/CLI.md) · [Configuration Reference](docs/CONFIGURATION.md) · [Config Showcases](docs/CONFIG_SHOWCASES.md)
 
 ---
 
@@ -208,11 +212,20 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 | Recursive Grid            |  ✅   |  ✅   |   ✅    |
 | Grid                      |  ✅   |  ✅   |   ✅    |
 | Vim-Style Scroll          |  ✅   |  ✅   |   ✅    |
-| Hints (Accessibility API) |  ✅   |  🔲   |   ✅    |
+| Hints (Accessibility API) |  ✅   |  🔵   |   🔵    |
 | Hints (Vision OCR)        |  ✅   |  🔲   |   🔲    |
 | Direct Mouse Injection    |  ✅   |  ✅   |   ✅    |
 | Global Hotkeys            |  ✅   |  ✅   |   ✅    |
 | Native Overlays           |  ✅   |  ✅   |   ✅    |
+| Monitor Select            |  ✅   |  ✅   |   🔲    |
+
+✅ full · 🔵 works with limits · 🔲 not available
+
+**Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
+on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
+need `--force-renderer-accessibility`). On **Windows**, UI Automation coverage is
+initial and the tree walk is shallow. **Linux requires X11 or Wayland on
+wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 
@@ -222,15 +235,18 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 
 Everything you need to go deep:
 
-| Guide                                      | What's in it                                          |
-| :----------------------------------------- | :---------------------------------------------------- |
-| [Installation](docs/INSTALLATION.md)       | Homebrew, Nix, prebuilt binaries, source, permissions |
-| [CLI](docs/CLI.md)                         | Every command and flag                                |
-| [Configuration](docs/CONFIGURATION.md)     | Keybindings, themes, overlays, all settings           |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)       | Power-user patterns and setups                        |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and fixes                               |
-| [Roadmap](docs/ROADMAP.md)                 | What's coming                                         |
-| [Contributing](CONTRIBUTING.md)            | PRs and bug reports                                   |
+| Guide                                          | What's in it                                              |
+| :--------------------------------------------- | :-------------------------------------------------------- |
+| [Installation](docs/INSTALLATION.md)           | Homebrew, Nix, prebuilt binaries, source, permissions     |
+| [CLI Reference](docs/CLI.md)                   | Every command, flag, and argument                         |
+| [Configuration Reference](docs/CONFIGURATION.md) | Every option, with types, defaults, and platform support |
+| [Tips & Tricks](docs/TIPS_TRICKS.md)           | Worked configuration recipes                              |
+| [Config Showcases](docs/CONFIG_SHOWCASES.md)   | Real setups shared by the community                       |
+| [Troubleshooting](docs/TROUBLESHOOTING.md)     | Common issues and fixes                                   |
+| [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | What works on each platform, and how it is implemented    |
+| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, and per-desktop notes          |
+| [Roadmap](docs/ROADMAP.md)                     | What's coming                                             |
+| [Contributing](CONTRIBUTING.md)                | PRs and bug reports                                       |
 
 ---
 
