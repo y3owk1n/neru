@@ -36,11 +36,10 @@ const (
 // goroutine that can never be stopped by key release and would run until the
 // mode exits. Emitting the synthetic key-up immediately after the press tears
 // that repeat down while still letting the initial action fire once. For any
-// non-repeating key the release is a no-op (the key-up branch of
-// HandleKeyPress returns early when nothing is repeating).
+// non-repeating key the release is a no-op (the key-up branch returns early
+// when nothing is repeating). The press and release run under a single lock
+// hold so no concurrent key event can observe the transient repeat.
 func (h *Handler) HandleFedKeyPress(key string) {
-	h.HandleKeyPress(key)
-
 	// The key-up handler compares against the modifier-free base key, so strip
 	// any modifier prefix before synthesizing the release.
 	base := key
@@ -48,7 +47,15 @@ func (h *Handler) HandleFedKeyPress(key string) {
 		base = base[i+1:]
 	}
 
-	h.HandleKeyPress(keyUpPrefix + base)
+	// Hold the lock across both the press and the synthetic release so the pair
+	// is atomic. Otherwise a concurrent physical event-tap key could interleave
+	// between them and act on held-repeat state the press just changed (or the
+	// release could cancel a repeat a physical key still holds).
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.handleKeyPressLocked(key)
+	h.handleKeyPressLocked(keyUpPrefix + base)
 }
 
 // HandleKeyPress dispatches key events by current mode.
@@ -56,6 +63,13 @@ func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.handleKeyPressLocked(key)
+}
+
+// handleKeyPressLocked contains the key-dispatch logic. The caller must hold
+// h.mu; the whole body runs under the lock so held-repeat and modifier-toggle
+// state stays consistent across the dispatch.
+func (h *Handler) handleKeyPressLocked(key string) {
 	// Handle key-up events for held-key repeat suppression.
 	// The eventtap emits modifier-free key names on key-up, so we compare
 	// only the base key name (last segment after "+") case-insensitively.
