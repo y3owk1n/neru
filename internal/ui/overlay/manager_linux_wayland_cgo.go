@@ -38,6 +38,13 @@ type wlrootsOverlay struct {
 	cachedGrid     *domainGrid.Grid
 	cachedStyle    gridcomponent.Style
 
+	// originOffset is the active screen's top-left origin in global
+	// coordinates. Grid, recursive-grid and hint content arrives in
+	// screen-local coordinates (origin 0,0); adding this offset places it on
+	// the correct output of the desktop-spanning surface. Absolute-coordinate
+	// draws (badges, monitor_select, the click indicator) do not apply it.
+	originOffset image.Point
+
 	displayMu *sync.Mutex
 
 	stopCh chan struct{}
@@ -215,6 +222,13 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 		return
 	}
 
+	// Translate the screen-local bounds and virtual-pointer position onto the
+	// active output. Everything downstream (cell rects, animation from/to
+	// rects, the pointer) derives from these, so the whole frame lands on the
+	// right monitor.
+	bounds = o.offset(bounds)
+	virtualPointer.Position = virtualPointer.Position.Add(o.originOffset)
+
 	C.neru_wayland_overlay_setup_buffers(o.raw)
 	shouldAnimate := animEnabled && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
@@ -352,12 +366,15 @@ func (o *wlrootsOverlay) DrawHints(
 	C.neru_wayland_overlay_clear(o.raw)
 	fontSize := float64(max(style.FontSize(), 1))
 	for _, hint := range hintsSlice {
+		// hint.Position() is the element center in screen-local coordinates;
+		// translate it onto the active output.
+		pos := hint.Position().Add(o.originOffset)
 		if style.BoundaryHighlightEnabled() {
 			boundary := image.Rect(
-				hint.Position().X-hint.Size().X/2,
-				hint.Position().Y-hint.Size().Y/2,
-				hint.Position().X+hint.Size().X/2,
-				hint.Position().Y+hint.Size().Y/2,
+				pos.X-hint.Size().X/2,
+				pos.Y-hint.Size().Y/2,
+				pos.X+hint.Size().X/2,
+				pos.Y+hint.Size().Y/2,
 			)
 			o.drawRect(
 				boundary,
@@ -385,12 +402,12 @@ func (o *wlrootsOverlay) DrawHints(
 		// Cap the radius so a top/bottom badge keeps a flat edge for the tail.
 		radius = hintBadgeRadius(radius, badgeWidth, style.Placement())
 
-		// hint.Position() is the element center (set in modes/hints.go). The
-		// badge is centered horizontally on it and placed above / on / below the
-		// center to match macOS; top/bottom placement also draws a connector
-		// arrow pointing back at the target.
+		// pos is the element center (set in modes/hints.go). The badge is
+		// centered horizontally on it and placed above / on / below the center
+		// to match macOS; top/bottom placement also draws a connector arrow
+		// pointing back at the target.
 		badge, arrow, hasArrow := hintBadgePlacement(
-			hint.Position(), badgeWidth, badgeHeight, radius, style.Placement(),
+			pos, badgeWidth, badgeHeight, radius, style.Placement(),
 		)
 
 		fill := parseHexColor(style.BackgroundColor())
@@ -978,8 +995,9 @@ func (o *wlrootsOverlay) redrawGrid() {
 			text = style.MatchedTextColor
 			border = style.MatchedBorderColor
 		}
-		o.drawRect(cell.Bounds(), fill, border, style.LineWidth)
-		o.drawTextCentered(label, cell.Bounds(),
+		cellBounds := o.offset(cell.Bounds())
+		o.drawRect(cellBounds, fill, border, style.LineWidth)
+		o.drawTextCentered(label, cellBounds,
 			style.LabelFontName, style.LabelFontSize, text)
 	}
 
@@ -990,6 +1008,8 @@ func (o *wlrootsOverlay) redrawGrid() {
 }
 
 func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
+	// bounds is screen-local; place the subgrid on the active output.
+	bounds = o.offset(bounds)
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
 		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
@@ -1037,6 +1057,21 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 			index++
 		}
 	}
+}
+
+// setOriginOffset stores the active screen origin used to translate
+// screen-local grid/recursive-grid/hint coordinates onto the correct output.
+func (o *wlrootsOverlay) setOriginOffset(origin image.Point) {
+	if o == nil {
+		return
+	}
+
+	o.originOffset = origin
+}
+
+// offset translates a screen-local rectangle into global desktop coordinates.
+func (o *wlrootsOverlay) offset(r image.Rectangle) image.Rectangle {
+	return r.Add(o.originOffset)
 }
 
 func (o *wlrootsOverlay) drawRect(

@@ -149,7 +149,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 	}
 
 	// Store screen bounds for coordinate conversion
-	h.screenBounds = screenBounds
+	h.setScreenBounds(screenBounds)
 
 	// Normalize normalizedBounds to window-local coordinates using helper function
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)

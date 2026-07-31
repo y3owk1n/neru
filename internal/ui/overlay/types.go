@@ -73,6 +73,9 @@ func (n *NoOpManager) ClearCache() {}
 // ResizeToActiveScreen is a no-op implementation.
 func (n *NoOpManager) ResizeToActiveScreen() {}
 
+// SetActiveScreenOrigin is a no-op implementation.
+func (n *NoOpManager) SetActiveScreenOrigin(origin image.Point) {}
+
 // SwitchTo is a no-op implementation.
 func (n *NoOpManager) SwitchTo(next Mode) {}
 
@@ -225,6 +228,13 @@ type ManagerInterface interface {
 	Clear()
 	ClearCache()
 	ResizeToActiveScreen()
+	// SetActiveScreenOrigin informs the overlay of the active screen's
+	// top-left origin in global coordinates. Backends whose overlay surfaces
+	// span the whole desktop (Linux X11 / Wayland) use it to translate the
+	// screen-local coordinates of grid, recursive-grid and hint content onto
+	// the correct monitor. It is a no-op where each screen has its own overlay
+	// window positioned at the screen origin (macOS).
+	SetActiveScreenOrigin(origin image.Point)
 	SwitchTo(next Mode)
 	Subscribe(fn func(StateChange)) uint64
 	Unsubscribe(id uint64)

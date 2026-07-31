@@ -249,7 +249,7 @@ func (h *Handler) activateHintModeInternal(
 		}
 	}
 
-	h.screenBounds = activeScreenBounds
+	h.setScreenBounds(activeScreenBounds)
 	// On a fresh activation, clear leftover overlay content (e.g. scroll highlights)
 	// before drawing hints. A refresh keeps its overlay so the existing labels persist
 	// until the redraw draws the new set over them.
@@ -594,7 +594,7 @@ func (h *Handler) ensureScreenCapturePermissionsLocked(
 		b, err := h.system.ScreenBounds(h.ctx)
 		if err == nil {
 			activeScreenBounds = b
-			h.screenBounds = activeScreenBounds
+			h.setScreenBounds(activeScreenBounds)
 		}
 	}
 

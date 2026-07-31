@@ -132,7 +132,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 					boundsCancel()
 
 					if boundsErr == nil && newBounds != h.screenBounds {
-						h.screenBounds = newBounds
+						h.setScreenBounds(newBounds)
 						// Must unlock before resizing overlays — the resize
 						// dispatches to the main queue and we must not hold
 						// h.mu across that call.

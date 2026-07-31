@@ -170,6 +170,9 @@ func (m *mockOverlayManager) ClearCache() {}
 // ResizeToActiveScreen implements OverlayManager.
 func (m *mockOverlayManager) ResizeToActiveScreen() {}
 
+// SetActiveScreenOrigin implements OverlayManager.
+func (m *mockOverlayManager) SetActiveScreenOrigin(_ image.Point) {}
+
 // SwitchTo implements OverlayManager.
 func (m *mockOverlayManager) SwitchTo(mode overlay.Mode) {
 	m.mu.Lock()
