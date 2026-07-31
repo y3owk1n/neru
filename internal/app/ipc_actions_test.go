@@ -160,6 +160,35 @@ func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
 	}
 }
 
+func TestHandleAction_FeedModeWithoutModesHandler(t *testing.T) {
+	controller := &IPCControllerActions{logger: zap.NewNop()}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: actionCmd,
+		Args:   []string{"feed", "--mode", "o"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(feed --mode o) expected failure with nil modes handler, got success")
+	}
+
+	if resp.Code != ipc.CodeActionFailed {
+		t.Fatalf(
+			"handleAction(feed --mode o) code = %q, want %q",
+			resp.Code,
+			ipc.CodeActionFailed,
+		)
+	}
+
+	if resp.Message != msgModesHandlerNotAvailable {
+		t.Fatalf(
+			"handleAction(feed --mode o) message = %q, want %q",
+			resp.Message,
+			msgModesHandlerNotAvailable,
+		)
+	}
+}
+
 func TestParseActionArgs_BareFlag(t *testing.T) {
 	parsed, parseErr := parseActionArgs([]string{"--bare"})
 	if parseErr {

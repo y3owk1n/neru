@@ -27,11 +27,55 @@ const (
 	keyPartOption = "option"
 )
 
+// HandleFedKeyPress dispatches a key that was injected over IPC (e.g. via
+// `action feed --mode`) as a discrete press-and-release.
+//
+// Unlike a physical keystroke, a fed key has no eventtap-generated
+// `__keyup_...` companion. Without a matching release, a fed key bound to a
+// held-repeat action (scroll/page/relative-move) would start a repeat
+// goroutine that can never be stopped by key release and would run until the
+// mode exits. Emitting the synthetic key-up immediately after the press tears
+// that repeat down while still letting the initial action fire once.
+//
+// The release is synthesized only when the fed press itself started a repeat
+// (a transition from no repeat to an active one). A repeat that was already
+// running belongs to a physically held key, so the fed key must not cancel it;
+// and when the fed key starts no repeat the release would be a no-op anyway.
+// The press and the conditional release run under a single lock hold so no
+// concurrent key event can interleave or observe a transient repeat.
+func (h *Handler) HandleFedKeyPress(key string) {
+	// The key-up handler compares against the modifier-free base key, so strip
+	// any modifier prefix before synthesizing the release.
+	base := key
+	if i := strings.LastIndex(base, "+"); i >= 0 {
+		base = base[i+1:]
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	repeatBefore := h.heldRepeatingKey
+	h.handleKeyPressLocked(key)
+
+	// Only release a repeat this fed press just started; leave any pre-existing
+	// (physically held) repeat untouched.
+	if repeatBefore == "" && h.heldRepeatingKey != "" {
+		h.handleKeyPressLocked(keyUpPrefix + base)
+	}
+}
+
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.handleKeyPressLocked(key)
+}
+
+// handleKeyPressLocked contains the key-dispatch logic. The caller must hold
+// h.mu; the whole body runs under the lock so held-repeat and modifier-toggle
+// state stays consistent across the dispatch.
+func (h *Handler) handleKeyPressLocked(key string) {
 	// Handle key-up events for held-key repeat suppression.
 	// The eventtap emits modifier-free key names on key-up, so we compare
 	// only the base key name (last segment after "+") case-insensitively.

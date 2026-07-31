@@ -873,6 +873,14 @@ func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Respons
 		}
 	}
 
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
 	keys := make([]string, 0, len(args))
 	for _, arg := range args {
 		key := strings.TrimSpace(arg)
@@ -899,7 +907,7 @@ func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Respons
 			}
 		}
 
-		h.modesHandler.HandleKeyPress(normalized)
+		h.modesHandler.HandleFedKeyPress(normalized)
 	}
 
 	return ipc.Response{

@@ -2,6 +2,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"sync/atomic"
 	"testing"
@@ -136,6 +137,107 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 	if got := handler.hints.Context.SearchQuery(); got != "/" {
 		t.Fatalf("search query = %q, want %q", got, "/")
 	}
+}
+
+// newHeldRepeatTestHandler builds a handler in recursive-grid mode where "j" is
+// bound to a held-repeat action, with long delays so the repeat goroutine
+// blocks on its initial timer and never dispatches during the test.
+func newHeldRepeatTestHandler() *Handler {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	return &Handler{
+		ctx: context.Background(),
+		config: &configpkg.Config{
+			RecursiveGrid: configpkg.RecursiveGridConfig{
+				Hotkeys: map[string]configpkg.StringOrStringArray{
+					"j": {"action scroll_down"},
+				},
+			},
+			HeldRepeat: configpkg.HeldRepeatConfig{
+				Enabled:      true,
+				InitialDelay: 10_000,
+				Interval:     10_000,
+			},
+		},
+		logger:        zap.NewNop(),
+		appState:      appState,
+		modifierState: state.NewModifierState(),
+		modes: map[domain.Mode]Mode{
+			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
+		},
+		screenBounds: image.Rect(0, 0, 100, 100),
+		executeHotkeyAction: func(_, _ string) error {
+			return nil
+		},
+	}
+}
+
+// TestHandleFedKeyPressStopsOwnHeldRepeat verifies that a key injected via
+// `action feed --mode` does not leave its own held-repeat goroutine running. A
+// fed key has no physical key-up, so HandleFedKeyPress must synthesize the
+// release that tears down the repeat the fed press started.
+func TestHandleFedKeyPressStopsOwnHeldRepeat(t *testing.T) {
+	t.Parallel()
+
+	handler := newHeldRepeatTestHandler()
+
+	handler.HandleFedKeyPress("j")
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if handler.heldRepeatingKey != "" {
+		t.Fatalf(
+			"fed key left a held repeat active; heldRepeatingKey = %q, want empty",
+			handler.heldRepeatingKey,
+		)
+	}
+
+	if handler.heldRepeatingCancel != nil {
+		t.Fatal("fed key left the held-repeat cancel func set")
+	}
+}
+
+// TestHandleFedKeyPressPreservesPhysicalHeldRepeat verifies that feeding a key
+// that matches a repeat a physically held key already started does not cancel
+// that repeat. The fed key owns only repeats it starts itself.
+func TestHandleFedKeyPressPreservesPhysicalHeldRepeat(t *testing.T) {
+	t.Parallel()
+
+	handler := newHeldRepeatTestHandler()
+
+	// Simulate a physical hold that started a repeat.
+	handler.HandleKeyPress("j")
+
+	handler.mu.Lock()
+	startedKey := handler.heldRepeatingKey
+	handler.mu.Unlock()
+
+	if startedKey != "j" {
+		t.Fatalf(
+			"physical press did not start held repeat; heldRepeatingKey = %q, want %q",
+			startedKey,
+			"j",
+		)
+	}
+
+	// Feeding the same key must not cancel the physically held repeat.
+	handler.HandleFedKeyPress("j")
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if handler.heldRepeatingKey != "j" {
+		t.Fatalf(
+			"fed key canceled a physically held repeat; heldRepeatingKey = %q, want %q",
+			handler.heldRepeatingKey,
+			"j",
+		)
+	}
+
+	// Stop the still-running repeat goroutine so it does not outlive the test.
+	handler.stopHeldRepeatLocked()
 }
 
 func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
