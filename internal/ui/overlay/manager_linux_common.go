@@ -269,6 +269,15 @@ func (m *Manager) Clear() {
 // cross-mode cache state.
 func (m *Manager) ClearCache() {}
 
+// scaleBadgeFont returns a copy of style with its font size multiplied by the
+// backend scale, so badgeBounds computes a rect matching the scaled draw.
+func scaleBadgeFont(style overlayBadgeStyle, scale float64) overlayBadgeStyle {
+	scaled := style
+	scaled.fontSize = style.fontSize * scale
+
+	return scaled
+}
+
 // ResizeToActiveScreen resizes the overlay to the active screen.
 func (m *Manager) ResizeToActiveScreen() {
 	m.renderMu.Lock()
@@ -530,7 +539,7 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 
 	m.clearModeIndicatorBadgeLocked()
 
-	rect := badgeBounds(posX, posY, label, style)
+	rect := badgeBounds(posX, posY, label, scaleBadgeFont(style, m.overlayScale()))
 	m.modeIndicatorBadgeRect = expandRect(rect, stickyBadgeClearPadding)
 	m.modeIndicatorBadgeVisible = true
 
@@ -563,7 +572,7 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 
 	m.clearStickyBadgeLocked()
 	m.stickyBadgeRect = expandRect(
-		badgeBounds(posX, posY, symbols, style),
+		badgeBounds(posX, posY, symbols, scaleBadgeFont(style, m.overlayScale())),
 		stickyBadgeClearPadding,
 	)
 	m.stickyBadgeVisible = true
@@ -786,6 +795,227 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 	return linuxOverlayBackendUnknown
 }
 
+// MonitorSelectTarget is one selectable monitor rendered by the monitor_select
+// overlay: a labeled panel centered on the monitor's bounds.
+type MonitorSelectTarget struct {
+	Bounds           image.Rectangle
+	Label            string
+	Subtitle         string
+	Selected         bool
+	MatchedPrefixLen int
+}
+
+// MonitorSelectStyle carries the resolved (theme-applied) appearance for the
+// monitor_select overlay. Colors are hex strings, parsed by the backend, to
+// mirror how the hints/grid styles are threaded.
+type MonitorSelectStyle struct {
+	FontSize           int
+	SubtitleFontSize   int
+	FontFamily         string
+	SubtitleFontFamily string
+	BorderRadius       int
+	PaddingX           int
+	PaddingY           int
+	BorderWidth        int
+	BackgroundColor    string
+	TextColor          string
+	MatchedTextColor   string
+	BorderColor        string
+	BackdropColor      string
+	SubtitleTextColor  string
+}
+
+const (
+	// These mirror the macOS overlay (monitor_select_overlay_darwin.m) so the
+	// Linux monitor_select UI matches darwin: auto padding derived from the label
+	// font when the config uses the -1 sentinel, a small label/subtitle gap, an
+	// 80% cap on panel size relative to the monitor, and default font sizes.
+	monitorSelectLabelGap       = 4
+	monitorSelectAutoPadXMin    = 24
+	monitorSelectAutoPadYMin    = 12
+	monitorSelectAutoPadXRatio  = 0.3
+	monitorSelectAutoPadYRatio  = 0.15
+	monitorSelectMaxFraction    = 0.8
+	monitorSelectMaxRadius      = 16
+	monitorSelectDefaultFont    = 96
+	monitorSelectDefaultSubFont = 18
+)
+
+// monitorSelectFontOr returns the configured font size, or a default when unset
+// (<= 0), matching the macOS overlay's fallbacks (96 label / 18 subtitle).
+func monitorSelectFontOr(value, fallback int) float64 {
+	if value <= 0 {
+		return float64(fallback)
+	}
+
+	return float64(value)
+}
+
+// monitorSelectPanelLayout computes, in device pixels, the centered panel rect,
+// the label/subtitle text rects, and the corner radius — mirroring the macOS
+// overlay's sizing so the Linux monitor_select UI matches darwin. Padding and
+// radius honor the same "auto" (-1) config sentinels. scale is the backend HiDPI
+// factor (X11 Xft.dpi; 1 on Wayland, which scales via the compositor buffer).
+func monitorSelectPanelLayout(
+	monitor image.Rectangle, label, subtitle string, style MonitorSelectStyle, scale float64,
+) (image.Rectangle, image.Rectangle, image.Rectangle, float64) {
+	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont) * scale
+	subFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont) * scale
+
+	// Auto padding from the label font when the config uses -1 (matching darwin).
+	padX := float64(style.PaddingX) * scale
+	if style.PaddingX < 0 {
+		padX = math.Max(
+			monitorSelectAutoPadXMin*scale,
+			math.Round(labelFont*monitorSelectAutoPadXRatio),
+		)
+	}
+
+	padY := float64(style.PaddingY) * scale
+	if style.PaddingY < 0 {
+		padY = math.Max(
+			monitorSelectAutoPadYMin*scale,
+			math.Round(labelFont*monitorSelectAutoPadYRatio),
+		)
+	}
+
+	labelW := estimateTextWidth(label, labelFont)
+	labelH := estimateTextHeight(labelFont)
+
+	subW, subH, gap := 0, 0, 0
+	if subtitle != "" {
+		subW = estimateTextWidth(subtitle, subFont)
+		subH = estimateTextHeight(subFont)
+		gap = int(math.Round(float64(monitorSelectLabelGap) * scale))
+	}
+
+	panelW := max(labelW, subW) + int(padX)*paddingMultiplier
+
+	panelH := labelH + int(padY)*paddingMultiplier
+	if subtitle != "" {
+		panelH += subH + gap
+	}
+
+	// Cap the panel to a fraction of the monitor, matching darwin.
+	if maxW := int(float64(monitor.Dx()) * monitorSelectMaxFraction); panelW > maxW {
+		panelW = maxW
+	}
+
+	if maxH := int(float64(monitor.Dy()) * monitorSelectMaxFraction); panelH > maxH {
+		panelH = maxH
+	}
+
+	centerX := monitor.Min.X + monitor.Dx()/centeredRectDivisor
+	centerY := monitor.Min.Y + monitor.Dy()/centeredRectDivisor
+	panel := image.Rect(
+		centerX-panelW/centeredRectDivisor, centerY-panelH/centeredRectDivisor,
+		centerX+panelW/centeredRectDivisor, centerY+panelH/centeredRectDivisor,
+	)
+
+	// Corner radius: auto = min(panelH/2, 16), matching darwin.
+	radius := float64(style.BorderRadius) * scale
+	if style.BorderRadius < 0 {
+		radius = math.Min(float64(panelH)/centeredRectDivisor, monitorSelectMaxRadius*scale)
+	}
+
+	// Vertically center the label (+ subtitle) block within the panel.
+	totalTextH := labelH
+	if subtitle != "" {
+		totalTextH += gap + subH
+	}
+
+	textTop := panel.Min.Y + (panelH-totalTextH)/centeredRectDivisor
+
+	labelRect := image.Rect(panel.Min.X, textTop, panel.Max.X, textTop+labelH)
+
+	subtitleRect := image.Rectangle{}
+	if subtitle != "" {
+		subTop := labelRect.Max.Y + gap
+		subtitleRect = image.Rect(panel.Min.X, subTop, panel.Max.X, subTop+subH)
+	}
+
+	return panel, labelRect, subtitleRect, radius
+}
+
+// monitorSelectDrawSpec holds the once-parsed colors and base (unscaled) font
+// sizes shared by both backends' DrawMonitorSelect. Base font sizes are passed
+// to drawTextCentered, which applies the backend scale (X11) or none (Wayland).
+// Like darwin, every panel's label uses the single text color (matched/selected
+// state is not visually distinguished).
+type monitorSelectDrawSpec struct {
+	backdrop     uint32
+	background   uint32
+	border       uint32
+	text         uint32
+	subtitleText uint32
+	borderWidth  float64
+	labelFont    float64
+	subtitleFont float64
+	hasBackdrop  bool
+}
+
+func newMonitorSelectDrawSpec(style MonitorSelectStyle) monitorSelectDrawSpec {
+	return monitorSelectDrawSpec{
+		backdrop:     parseHexColor(style.BackdropColor),
+		background:   parseHexColor(style.BackgroundColor),
+		border:       parseHexColor(style.BorderColor),
+		text:         parseHexColor(style.TextColor),
+		subtitleText: parseHexColor(style.SubtitleTextColor),
+		borderWidth:  float64(max(style.BorderWidth, 1)),
+		labelFont:    monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont),
+		subtitleFont: monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont),
+		hasBackdrop:  strings.TrimSpace(style.BackdropColor) != "",
+	}
+}
+
+// monitorSelectSubtitleFamily falls back to the primary font family when no
+// dedicated subtitle family is configured.
+func monitorSelectSubtitleFamily(style MonitorSelectStyle) string {
+	if style.SubtitleFontFamily != "" {
+		return style.SubtitleFontFamily
+	}
+
+	return style.FontFamily
+}
+
+// DrawMonitorSelect renders one labeled panel per monitor for the interactive
+// monitor picker, then shows the overlay. Unlike macOS (one NSPanel per display)
+// this reuses the shared spanning X11 window / per-output layer-shell surfaces.
+func (m *Manager) DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error {
+	if m.wlroots != nil {
+		m.wlroots.cancelAnimation()
+	} else if m.x11 != nil {
+		m.x11.cancelAnimation()
+	}
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.DrawMonitorSelect(targets, style)
+		m.x11.Show()
+
+		return nil
+	}
+
+	if m.wlroots != nil {
+		m.wlroots.DrawMonitorSelect(targets, style)
+		m.wlroots.Show()
+
+		return nil
+	}
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"monitor_select overlay not implemented on linux backend",
+	)
+}
+
+// HideMonitorSelect hides the monitor_select overlay, clearing its panels.
+func (m *Manager) HideMonitorSelect() {
+	m.Hide()
+}
+
 type overlayColors struct {
 	background uint32
 	border     uint32
@@ -852,6 +1082,18 @@ func (m *Manager) DrawMouseActionIndicator(
 		m.wlrootsIndicator.DrawMouseActionIndicator(point, style)
 	case linuxOverlayBackendUnknown:
 	}
+}
+
+// overlayScale returns the active backend's HiDPI UI scale. The X11 overlay
+// enlarges fonts/geometry by this factor (Xft.dpi based); Wayland renders in
+// logical units and scales via the compositor buffer, so it returns 1. The
+// manager uses it to size badge clear rects consistently with what is drawn.
+func (m *Manager) overlayScale() float64 {
+	if m.x11 != nil {
+		return m.x11.Scale()
+	}
+
+	return 1
 }
 
 func (m *Manager) clearStickyBadgeLocked() {

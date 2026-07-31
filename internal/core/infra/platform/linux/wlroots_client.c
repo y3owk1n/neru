@@ -715,6 +715,18 @@ static const struct zwlr_foreign_toplevel_manager_v1_listener neru_wlr_manager_l
 
 // ---------- Registry listener ----------
 
+// neru_wlr_screen_signal pushes a display-configuration-change notification to
+// Go. The write is non-blocking, so a full pipe (a byte still unread) drops this
+// one via EAGAIN — the reader re-enumerates the live screen list on the next
+// wake regardless, so no state is lost.
+static void neru_wlr_screen_signal(NeruWlrootsClient *c) {
+	if (c && c->screen_pipe_ready && c->screen_pipe[1] >= 0) {
+		char b = 1;
+		ssize_t n = write(c->screen_pipe[1], &b, 1);
+		(void)n;
+	}
+}
+
 static void neru_wlr_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
@@ -739,7 +751,17 @@ static void neru_wlr_registry_global(
 		if (c->nr_screens < NERU_MAX_OUTPUTS) {
 			NeruWaylandScreen *scr = &c->screens[c->nr_screens];
 			memset(scr, 0, sizeof(*scr));
+			scr->registry_name = name;
 			scr->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 3 < version ? 3 : version);
+			// On runtime hotplug (after the initial connect) wire the new output's
+			// xdg_output immediately so its logical geometry populates, and wake Go
+			// to re-enumerate. During the initial discovery roundtrip c->connected
+			// is still 0: xdg_output is set up in bulk below and no event is fired.
+			if (c->connected && c->xdg_output_mgr) {
+				scr->xdg_output = zxdg_output_manager_v1_get_xdg_output(c->xdg_output_mgr, scr->wl_output);
+				zxdg_output_v1_add_listener(scr->xdg_output, &neru_xdg_output_listener, scr);
+				neru_wlr_screen_signal(c);
+			}
 			c->nr_screens++;
 		}
 	} else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
@@ -752,7 +774,45 @@ static void neru_wlr_registry_global(
 }
 
 static void neru_wlr_registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
-	// TODO: handle hotplug.
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	(void)registry;
+	if (!c) {
+		return;
+	}
+
+	// Find the output whose registry global id was just removed and drop it,
+	// compacting the array so nr_screens stays dense. Destroy its xdg_output
+	// (has a destructor request) and the wl_output proxy client-side, then wake
+	// Go to re-enumerate the remaining outputs.
+	for (int i = 0; i < c->nr_screens; i++) {
+		if (c->screens[i].wl_output == NULL || c->screens[i].registry_name != name) {
+			continue;
+		}
+
+		NeruWaylandScreen *scr = &c->screens[i];
+		if (scr->xdg_output) {
+			zxdg_output_v1_destroy(scr->xdg_output);
+		}
+		if (scr->wl_output) {
+			wl_proxy_destroy((struct wl_proxy *)scr->wl_output);
+		}
+
+		for (int j = i; j < c->nr_screens - 1; j++) {
+			c->screens[j] = c->screens[j + 1];
+			// The moved screen's xdg_output listener still carries the old slot
+			// address as user_data; re-point it to the new slot so later
+			// logical_position/size/name events update the correct output rather
+			// than a neighbor's (or the freed tail) slot.
+			if (c->screens[j].xdg_output) {
+				zxdg_output_v1_set_user_data(c->screens[j].xdg_output, &c->screens[j]);
+			}
+		}
+		c->nr_screens--;
+		memset(&c->screens[c->nr_screens], 0, sizeof(NeruWaylandScreen));
+
+		neru_wlr_screen_signal(c);
+		break;
+	}
 }
 
 static const struct wl_registry_listener neru_wlr_registry_listener = {
@@ -818,6 +878,10 @@ static void *neru_wlr_dispatch_loop(void *arg) {
 		close(c->focus_pipe[1]);
 		c->focus_pipe[1] = -1;
 	}
+	if (connection_lost && c->screen_pipe[1] >= 0) {
+		close(c->screen_pipe[1]);
+		c->screen_pipe[1] = -1;
+	}
 
 	return NULL;
 }
@@ -871,6 +935,24 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 				fcntl(c->focus_pipe[i], F_SETFD, fdflags | FD_CLOEXEC);
 		}
 		c->focus_pipe_ready = 1;
+	}
+
+	// Self-pipe for pushing display-configuration changes to Go. Same lifecycle
+	// and non-blocking semantics as focus_pipe above. Non-fatal on failure: Go
+	// simply receives no hotplug events and the overlay follows the cursor as
+	// before.
+	c->screen_pipe[0] = -1;
+	c->screen_pipe[1] = -1;
+	if (pipe(c->screen_pipe) == 0) {
+		for (int i = 0; i < 2; i++) {
+			int flags = fcntl(c->screen_pipe[i], F_GETFL, 0);
+			if (flags != -1)
+				fcntl(c->screen_pipe[i], F_SETFL, flags | O_NONBLOCK);
+			int fdflags = fcntl(c->screen_pipe[i], F_GETFD, 0);
+			if (fdflags != -1)
+				fcntl(c->screen_pipe[i], F_SETFD, fdflags | FD_CLOEXEC);
+		}
+		c->screen_pipe_ready = 1;
 	}
 
 	c->registry = wl_display_get_registry(c->display);
@@ -955,6 +1037,16 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 		c->focus_pipe[0] = -1;
 		c->focus_pipe[1] = -1;
 		c->focus_pipe_ready = 0;
+	}
+
+	if (c->screen_pipe_ready) {
+		if (c->screen_pipe[0] >= 0)
+			close(c->screen_pipe[0]);
+		if (c->screen_pipe[1] >= 0)
+			close(c->screen_pipe[1]);
+		c->screen_pipe[0] = -1;
+		c->screen_pipe[1] = -1;
+		c->screen_pipe_ready = 0;
 	}
 
 	if (c->vptr) {
@@ -1297,12 +1389,34 @@ void neru_wlr_set_cursor(NeruWlrootsClient *c, int x, int y) {
 int neru_wlr_screen_count(NeruWlrootsClient *c) {
 	if (!c)
 		return 0;
-	return c->nr_screens;
+
+	// The dispatch thread mutates nr_screens/screens[] (registry add/remove and
+	// xdg_output geometry callbacks) while holding display_mutex — it runs the
+	// wayland callbacks inside wl_display_dispatch_pending under that lock. Take
+	// the same lock here so a hotplug re-enumeration from Go never reads a torn
+	// count. The critical section touches no wayland call, so it cannot deadlock
+	// with the dispatch thread.
+	pthread_mutex_lock(&c->display_mutex);
+	int count = c->nr_screens;
+	pthread_mutex_unlock(&c->display_mutex);
+
+	return count;
 }
 
 int neru_wlr_screen_info(NeruWlrootsClient *c, int idx, int *x, int *y, int *w, int *h, char *name_out, int name_len) {
-	if (!c || idx < 0 || idx >= c->nr_screens)
+	if (!c || idx < 0)
 		return 0;
+
+	// Read screens[idx] under the same display_mutex the dispatch thread holds
+	// while writing it (see neru_wlr_screen_count). The index is re-validated
+	// inside the lock because a concurrent hotplug-remove can shrink nr_screens.
+	pthread_mutex_lock(&c->display_mutex);
+	if (idx >= c->nr_screens) {
+		pthread_mutex_unlock(&c->display_mutex);
+
+		return 0;
+	}
+
 	NeruWaylandScreen *scr = &c->screens[idx];
 	*x = scr->x;
 	*y = scr->y;
@@ -1310,6 +1424,8 @@ int neru_wlr_screen_info(NeruWlrootsClient *c, int idx, int *x, int *y, int *w, 
 	*h = scr->h;
 	strncpy(name_out, scr->name, (size_t)(name_len - 1));
 	name_out[name_len - 1] = '\0';
+	pthread_mutex_unlock(&c->display_mutex);
+
 	return 1;
 }
 
@@ -1377,4 +1493,10 @@ int neru_wlr_focus_event_fd(NeruWlrootsClient *c) {
 	if (!c || !c->focus_pipe_ready)
 		return -1;
 	return c->focus_pipe[0];
+}
+
+int neru_wlr_screen_event_fd(NeruWlrootsClient *c) {
+	if (!c || !c->screen_pipe_ready)
+		return -1;
+	return c->screen_pipe[0];
 }

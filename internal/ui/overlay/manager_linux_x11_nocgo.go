@@ -76,6 +76,10 @@ func (o *x11Overlay) Flush() {}
 
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *x11Overlay) Scale() float64 { return 1 }
+
+func (o *x11Overlay) DrawMonitorSelect([]MonitorSelectTarget, MonitorSelectStyle) {}
+
 func (o *x11Overlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 
 func (o *x11Overlay) cancelAnimation()          {}

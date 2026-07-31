@@ -88,9 +88,10 @@ See [Checking compositor protocols](#checking-compositor-protocols) for the
   requires keyboard capability from the RemoteDesktop portal. The portal defaults
   to pointer-only; if keyboard is not granted, `neru action feed` returns
   `CodeNotSupported` with a clear message.
-- **Screen geometry cached at startup** — Resolution changes after launch
-  (monitor hotplug, VM resize) require a daemon relaunch. Same limitation as
-  other Wayland backends; tracked for live refresh.
+- **Monitor hotplug tracked live** — Plugging or unplugging a monitor is
+  detected (via `wl_output` add/remove) and the overlay follows without a
+  relaunch. A resolution or scale change to an *existing* monitor is picked up
+  on the next mode activation.
 - **Hints coverage** — Depends on each app exposing an AT-SPI tree. Grid and
   scroll work without AT-SPI.
 
@@ -183,8 +184,9 @@ Code slots: `system_linux_wayland_wlroots_*.go`, shared wlroots C client.
 - **`evdev` access** — Without membership in the `input` group (or tighter
   udev/ACL), Neru falls back to overlay-focused keyboard capture; modified
   clicks may degrade.
-- **Screen geometry cached at startup** — Relaunch after resolution or monitor
-  changes.
+- **Monitor hotplug tracked live** — Adding or removing a monitor is detected
+  and the overlay follows; a relaunch is only needed for a resolution/scale
+  change to an existing monitor on Wayland.
 
 ---
 

@@ -169,6 +169,63 @@ func x11FocusEventFD() (int, bool) {
 	return int(fd), true
 }
 
+var (
+	x11ScreenMonitorMu   sync.Mutex
+	x11ScreenMonitorInst *C.NeruX11ScreenMonitor
+)
+
+// x11ScreenEventFD lazily starts the X11 RandR screen-change monitor and returns
+// a readable fd that becomes ready when the display configuration changes
+// (monitors added/removed/resized/moved). ok is false when X11 or the RandR
+// extension is unavailable. The monitor is process-global and persists for the
+// daemon lifetime, matching x11FocusEventFD; the fd is owned by the monitor and
+// callers must not close it.
+func x11ScreenEventFD() (int, bool) {
+	x11ScreenMonitorMu.Lock()
+	defer x11ScreenMonitorMu.Unlock()
+
+	if x11ScreenMonitorInst == nil {
+		x11ScreenMonitorInst = C.neru_x11_screen_monitor_start()
+		if x11ScreenMonitorInst == nil {
+			return -1, false
+		}
+	}
+
+	fd := C.neru_x11_screen_monitor_fd(x11ScreenMonitorInst) //nolint:nlreturn
+	if fd < 0 {
+		return -1, false
+	}
+
+	return int(fd), true
+}
+
+// x11FocusedWindowBounds returns the global bounds of the currently focused
+// window via _NET_ACTIVE_WINDOW. found is false (with a nil error) when there is
+// no active window or its geometry could not be queried, so callers fall back to
+// the active-screen bounds.
+func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
+	display, err := x11OpenDisplay()
+	if err != nil {
+		return image.Rectangle{}, false, err
+	}
+	defer C.neru_x11_close_display(display) //nolint:nlreturn
+
+	var posX, posY, width, height C.int
+	found := C.neru_x11_get_focused_window_bounds(
+		display, &posX, &posY, &width, &height, //nolint:nlreturn
+	)
+	if found == 0 {
+		return image.Rectangle{}, false, nil
+	}
+
+	return image.Rect(
+		int(posX),
+		int(posY),
+		int(posX+width),
+		int(posY+height),
+	), true, nil
+}
+
 func x11Monitors() ([]x11Monitor, error) {
 	display, err := x11OpenDisplay()
 	if err != nil {

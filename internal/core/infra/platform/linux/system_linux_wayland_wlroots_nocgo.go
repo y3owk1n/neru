@@ -134,6 +134,16 @@ func wlrootsFocusEventFD() (int, bool) {
 	return -1, false
 }
 
+// wlrootsScreenEventFD is unavailable without CGO — the wlroots client lives in
+// the CGO build. Callers receive no display-configuration-change events.
+func wlrootsScreenEventFD() (int, bool) {
+	return -1, false
+}
+
+// wlrootsRefreshScreens is a no-op without CGO — there is no wlroots client to
+// re-enumerate.
+func wlrootsRefreshScreens() {}
+
 func wlrootsSetCursor(point image.Point) error {
 	_ = point
 

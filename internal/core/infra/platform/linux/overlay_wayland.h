@@ -13,9 +13,15 @@
 
 typedef struct {
 	int x, y, width, height;
-	int scale;
+	int scale;  // legacy integer wl_output.scale (fallback when no fractional-scale)
+	// fractional_scale_120 is the compositor's preferred scale as a numerator over
+	// 120 (e.g. 180 == 1.5x), from wp_fractional_scale_v1. 0 means not received; the
+	// integer `scale` path is used until it arrives.
+	int fractional_scale_120;
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
+	struct wp_viewport *viewport;                     // scales the over-rendered buffer to logical size
+	struct wp_fractional_scale_v1 *fractional_scale;  // per-surface preferred-scale source
 
 	struct wl_surface *wl_surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
@@ -52,6 +58,8 @@ typedef struct {
 	struct wl_shm *shm;
 	struct zxdg_output_manager_v1 *xdg_output_mgr;
 	struct zwlr_layer_shell_v1 *layer_shell;
+	struct wp_viewporter *viewporter;                       // NULL when compositor lacks wp_viewporter
+	struct wp_fractional_scale_manager_v1 *fractional_mgr;  // NULL when compositor lacks fractional-scale
 	struct wl_seat *wl_seat;
 	struct wl_keyboard *wl_keyboard;
 

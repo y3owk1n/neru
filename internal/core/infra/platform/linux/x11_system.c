@@ -161,6 +161,34 @@ NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count) {
 	return result;
 }
 
+int neru_x11_get_focused_window_bounds(Display *display, int *x, int *y, int *w, int *h) {
+	Window window;
+	if (neru_x11_get_active_window(display, &window) == 0) {
+		return 0;
+	}
+
+	XWindowAttributes attrs;
+	if (XGetWindowAttributes(display, window, &attrs) == 0) {
+		return 0;
+	}
+
+	// attrs.x/y are relative to the parent; translate the window origin into
+	// root coordinates so the bounds are global across a multi-monitor layout.
+	int root_x = 0;
+	int root_y = 0;
+	Window child;
+	if (XTranslateCoordinates(display, window, attrs.root, 0, 0, &root_x, &root_y, &child) == 0) {
+		return 0;
+	}
+
+	*x = root_x;
+	*y = root_y;
+	*w = attrs.width;
+	*h = attrs.height;
+
+	return 1;
+}
+
 void neru_x11_free_monitors(NeruX11Monitor *monitors, int count) {
 	if (monitors == NULL) {
 		return;
@@ -345,6 +373,181 @@ int neru_x11_focus_monitor_fd(NeruX11FocusMonitor *monitor) {
 }
 
 void neru_x11_focus_monitor_stop(NeruX11FocusMonitor *monitor) {
+	if (monitor == NULL) {
+		return;
+	}
+
+	if (monitor->thread_started) {
+		char b = 1;
+		ssize_t n = write(monitor->quit_pipe[1], &b, 1);
+		(void)n;
+		pthread_join(monitor->thread, NULL);
+		monitor->thread_started = 0;
+	}
+
+	neru_x11_close_pipe(monitor->event_pipe);
+	neru_x11_close_pipe(monitor->quit_pipe);
+
+	if (monitor->display != NULL) {
+		XCloseDisplay(monitor->display);
+		monitor->display = NULL;
+	}
+
+	free(monitor);
+}
+
+// ---------- Screen-configuration monitor (RandR) ----------
+
+struct NeruX11ScreenMonitor {
+	Display *display;
+	Window root;
+	int randr_event_base;
+	int event_pipe[2];  // [0] read (exposed to Go), [1] write (thread)
+	int quit_pipe[2];   // [0] read (thread), [1] write (stop)
+	pthread_t thread;
+	int thread_started;
+};
+
+// The monitor thread blocks in poll() on the X11 connection and the quit pipe.
+// On each RRScreenChangeNotify it keeps Xlib's cached configuration current
+// (XRRUpdateConfiguration) and writes a byte to the event pipe (coalescing a
+// burst into one signal); the Go reader re-enumerates monitors on wake.
+static void *neru_x11_screen_loop(void *arg) {
+	NeruX11ScreenMonitor *m = (NeruX11ScreenMonitor *)arg;
+	int xfd = ConnectionNumber(m->display);
+
+	struct pollfd fds[2];
+	fds[0].fd = xfd;
+	fds[0].events = POLLIN;
+	fds[1].fd = m->quit_pipe[0];
+	fds[1].events = POLLIN;
+
+	int connection_lost = 0;
+
+	for (;;) {
+		fds[0].revents = 0;
+		fds[1].revents = 0;
+
+		int pr = poll(fds, 2, -1);
+		if (pr < 0) {
+			if (errno == EINTR) {
+				continue;
+			}
+			connection_lost = 1;
+			break;
+		}
+
+		if (fds[1].revents & POLLIN) {
+			break;  // stop() signaled — clean exit; stop() closes the pipes.
+		}
+
+		if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			connection_lost = 1;
+			break;  // X connection died.
+		}
+
+		if (!(fds[0].revents & POLLIN)) {
+			continue;
+		}
+
+		int changed = 0;
+		while (XPending(m->display) > 0) {
+			XEvent ev;
+			XNextEvent(m->display, &ev);
+			// Let Xlib refresh its cached screen configuration so a subsequent
+			// XRRGetMonitors on any connection reflects the new layout.
+			XRRUpdateConfiguration(&ev);
+			if (ev.type == m->randr_event_base + RRScreenChangeNotify) {
+				changed = 1;
+			}
+		}
+
+		if (changed) {
+			char b = 1;
+			ssize_t n = write(m->event_pipe[1], &b, 1);
+			(void)n;  // Best-effort: EAGAIN means a prior byte is still unread.
+		}
+	}
+
+	// If the X connection died (as opposed to a clean stop), close the event
+	// pipe's write end so the Go reader observes POLLHUP. Cleared to -1 so a
+	// later stop()'s close is a no-op. Safe without locking: only this thread
+	// writes the pipe, and it has stopped writing by here.
+	if (connection_lost && m->event_pipe[1] >= 0) {
+		close(m->event_pipe[1]);
+		m->event_pipe[1] = -1;
+	}
+
+	return NULL;
+}
+
+NeruX11ScreenMonitor *neru_x11_screen_monitor_start(void) {
+	if (getenv("DISPLAY") == NULL) {
+		return NULL;
+	}
+
+	Display *display = XOpenDisplay(NULL);
+	if (display == NULL) {
+		return NULL;
+	}
+
+	int event_base = 0;
+	int error_base = 0;
+	if (XRRQueryExtension(display, &event_base, &error_base) == 0) {
+		XCloseDisplay(display);
+		return NULL;  // RandR unavailable — no screen-change events to deliver.
+	}
+
+	NeruX11ScreenMonitor *m = calloc(1, sizeof(NeruX11ScreenMonitor));
+	if (m == NULL) {
+		XCloseDisplay(display);
+		return NULL;
+	}
+
+	m->display = display;
+	m->root = neru_x11_root_window(display);
+	m->randr_event_base = event_base;
+	m->event_pipe[0] = -1;
+	m->event_pipe[1] = -1;
+	m->quit_pipe[0] = -1;
+	m->quit_pipe[1] = -1;
+
+	if (pipe(m->event_pipe) != 0 || pipe(m->quit_pipe) != 0) {
+		neru_x11_close_pipe(m->event_pipe);
+		neru_x11_close_pipe(m->quit_pipe);
+		XCloseDisplay(display);
+		free(m);
+		return NULL;
+	}
+
+	neru_x11_set_nonblock_cloexec(m->event_pipe[0]);
+	neru_x11_set_nonblock_cloexec(m->event_pipe[1]);
+	neru_x11_set_nonblock_cloexec(m->quit_pipe[0]);
+	neru_x11_set_nonblock_cloexec(m->quit_pipe[1]);
+
+	XRRSelectInput(display, m->root, RRScreenChangeNotifyMask);
+	XFlush(display);
+
+	if (pthread_create(&m->thread, NULL, neru_x11_screen_loop, m) != 0) {
+		neru_x11_close_pipe(m->event_pipe);
+		neru_x11_close_pipe(m->quit_pipe);
+		XCloseDisplay(display);
+		free(m);
+		return NULL;
+	}
+	m->thread_started = 1;
+
+	return m;
+}
+
+int neru_x11_screen_monitor_fd(NeruX11ScreenMonitor *monitor) {
+	if (monitor == NULL) {
+		return -1;
+	}
+	return monitor->event_pipe[0];
+}
+
+void neru_x11_screen_monitor_stop(NeruX11ScreenMonitor *monitor) {
 	if (monitor == NULL) {
 		return;
 	}

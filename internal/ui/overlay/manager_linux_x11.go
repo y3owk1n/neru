@@ -28,7 +28,12 @@ import (
 )
 
 type x11Overlay struct {
-	raw            *C.NeruX11Overlay
+	raw *C.NeruX11Overlay
+	// scale is the desktop-wide HiDPI UI factor from Xft.dpi (>= 1.0). X11 has a
+	// single device-pixel coordinate space and no per-monitor scale, so hint/label
+	// positions stay in device pixels and only element sizes (fonts, stroke widths,
+	// badge geometry) are multiplied by this factor for legibility on HiDPI screens.
+	scale          float64
 	logger         *zap.Logger
 	currentPrefix  string
 	hideUnmatched  bool
@@ -57,7 +62,18 @@ func newX11Overlay(logger *zap.Logger) *x11Overlay {
 		return nil
 	}
 
-	return &x11Overlay{raw: raw, logger: logger}
+	scale := float64(C.neru_x11_overlay_scale(raw)) //nolint:nlreturn
+	if scale <= 0 {
+		scale = 1
+	}
+
+	return &x11Overlay{raw: raw, logger: logger, scale: scale}
+}
+
+// Scale exposes the overlay's HiDPI scale so the manager can size badge
+// geometry (and its clear rects) consistently with what the overlay renders.
+func (o *x11Overlay) Scale() float64 {
+	return o.s()
 }
 
 func (o *x11Overlay) Healthy() bool {
@@ -249,7 +265,11 @@ func (o *x11Overlay) DrawBadge(
 	if fontSize <= 0 {
 		fontSize = 14
 	}
-	rect := badgeBounds(posX, posY, text, style)
+	// Size the badge from the scaled font so it fits the text drawTextCentered
+	// renders. The manager sizes its clear rect with the same factor (Scale()).
+	scaledStyle := style
+	scaledStyle.fontSize = fontSize * o.s()
+	rect := badgeBounds(posX, posY, text, scaledStyle)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
 	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
@@ -259,6 +279,48 @@ func (o *x11Overlay) Flush() {
 	if o == nil || o.raw == nil {
 		return
 	}
+	C.neru_x11_overlay_flush(o.raw)
+}
+
+// DrawMonitorSelect renders one centered, labeled panel per monitor for the
+// interactive monitor picker. Panels reuse the existing rounded-rect + text
+// primitives (no dedicated C), and are sized from the scaled font (see
+// monitorSelectPanelLayout) so they stay legible on HiDPI. The label is drawn
+// with the matched/selected color when it has a matched prefix or is selected.
+func (o *x11Overlay) DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	o.cancelAnimation()
+	o.hasLast = false
+	C.neru_x11_overlay_clear(o.raw)
+
+	spec := newMonitorSelectDrawSpec(style)
+	for _, target := range targets {
+		if target.Bounds.Empty() {
+			continue
+		}
+
+		if spec.hasBackdrop {
+			o.drawRect(target.Bounds, spec.backdrop, 0, 0)
+		}
+
+		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
+			target.Bounds, target.Label, target.Subtitle, style, o.s(),
+		)
+		o.drawRoundedRect(panel, radius, spec.background, spec.border, spec.borderWidth)
+
+		o.drawTextCentered(target.Label, labelRect, style.FontFamily, spec.labelFont, spec.text)
+
+		if target.Subtitle != "" {
+			o.drawTextCentered(
+				target.Subtitle, subtitleRect,
+				monitorSelectSubtitleFamily(style), spec.subtitleFont, spec.subtitleText,
+			)
+		}
+	}
+
 	C.neru_x11_overlay_flush(o.raw)
 }
 
@@ -293,10 +355,14 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		}
 
 		label := hint.Label()
-		paddingX := resolveAutoPadding(fontSize, style.PaddingX(), true)
-		paddingY := resolveAutoPadding(fontSize, style.PaddingY(), false)
-		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
-		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
+		// Size the badge from the scaled font so it fits the text drawTextCentered
+		// renders (which applies the same o.s() factor). Position stays in device
+		// pixels; the badge grows around the target.
+		sfont := fontSize * o.s()
+		paddingX := resolveAutoPadding(sfont, style.PaddingX(), true)
+		paddingY := resolveAutoPadding(sfont, style.PaddingY(), false)
+		badgeWidth := estimateTextWidth(label, sfont) + paddingX*paddingMultiplier
+		badgeHeight := estimateTextHeight(sfont) + paddingY*paddingMultiplier
 
 		radius := style.BorderRadius()
 		if radius < 0 {
@@ -375,7 +441,7 @@ func (o *x11Overlay) startMouseActionAnimation(
 	fillBase := parseHexColor(style.BackgroundColor)
 	borderBase := parseHexColor(style.BorderColor)
 	lineWidth := float64(max(style.BorderWidth, 0))
-	baseSize := float64(max(style.Size, 1))
+	baseSize := float64(max(style.Size, 1)) * o.s()
 	isSquare := style.Shape == "square"
 
 	renderFrame := func(rawProgress float64) {
@@ -464,6 +530,15 @@ func (o *x11Overlay) startMouseActionAnimation(
 }
 
 // unexported helpers
+
+// s returns the overlay's HiDPI scale factor, guarding against a zero value.
+func (o *x11Overlay) s() float64 {
+	if o == nil || o.scale <= 0 {
+		return 1
+	}
+
+	return o.scale
+}
 
 func (o *x11Overlay) setRenderMu(mu *sync.Mutex) {
 	o.renderMu = mu
@@ -832,6 +907,9 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 	}
 }
 
+// Stroke widths scale with the HiDPI factor here so every draw path (grid,
+// hints, badges, indicator) gets consistent line weight without per-call-site
+// scaling. Element geometry that must fit scaled text is sized by the callers.
 func (o *x11Overlay) drawRect(
 	bounds image.Rectangle,
 	fill uint32, border uint32, lineWidth float64,
@@ -840,7 +918,7 @@ func (o *x11Overlay) drawRect(
 		o.raw,
 		C.double(bounds.Min.X), C.double(bounds.Min.Y),
 		C.double(bounds.Dx()), C.double(bounds.Dy()),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
@@ -854,7 +932,7 @@ func (o *x11Overlay) drawRoundedRect(
 		C.double(bounds.Min.X), C.double(bounds.Min.Y),
 		C.double(bounds.Dx()), C.double(bounds.Dy()),
 		C.double(radius),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
@@ -870,10 +948,14 @@ func (o *x11Overlay) drawHintBadge(
 		C.int(edge),
 		C.double(arrow.baseLeft.X), C.double(arrow.baseRight.X),
 		C.double(arrow.tip.X), C.double(arrow.tip.Y),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
+// drawTextCentered applies the HiDPI scale to the font size centrally, so every
+// label/badge caller passes its base (logical) font size and text renders at the
+// device-appropriate size. Callers that size geometry around the text must use
+// the same scaled font (fontSize * o.s()).
 func (o *x11Overlay) drawTextCentered(
 	text string, bounds image.Rectangle,
 	fontFamily string, fontSize float64, color uint32,
@@ -888,7 +970,7 @@ func (o *x11Overlay) drawTextCentered(
 		o.raw, cText, cFontFamily,
 		C.double(bounds.Min.X+bounds.Dx()/2),
 		C.double(bounds.Min.Y+bounds.Dy()/2),
-		C.double(fontSize), C.uint(color),
+		C.double(fontSize*o.s()), C.uint(color),
 	)
 }
 
@@ -896,7 +978,8 @@ func (o *x11Overlay) drawLabelBackground(
 	label string, cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
-	fontSize := style.LabelFontSize
+	// Match the scaled font that drawTextCentered renders for the label.
+	fontSize := style.LabelFontSize * o.s()
 	paddingX := resolveAutoPadding(fontSize,
 		style.LabelBackgroundPaddingX, true)
 	paddingY := resolveAutoPadding(fontSize,

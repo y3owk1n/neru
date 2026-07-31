@@ -1,12 +1,15 @@
 #include "overlay_wayland.h"
 
+#include "wlr_protocol/fractional-scale-v1.h"
 #include "wlr_protocol/layer-shell.h"
+#include "wlr_protocol/viewporter.h"
 #include "wlr_protocol/xdg-output.h"
 #include "wlr_protocol/xdg-shell.h"
 
 #include <cairo/cairo.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -140,6 +143,19 @@ static const struct wl_output_listener wl_output_listener = {
     .scale = neru_wl_output_scale,
 };
 
+// Per-surface fractional-scale listener. The compositor reports its preferred
+// scale as a numerator over 120 (e.g. 180 == 1.5x); we render the buffer at that
+// scale and let wp_viewport map it back down to the logical output size.
+static void neru_fractional_preferred_scale(
+    void *data, struct wp_fractional_scale_v1 *fractional_scale, uint32_t scale) {
+	NeruWaylandOverlayScreen *scr = (NeruWaylandOverlayScreen *)data;
+	scr->fractional_scale_120 = (int)scale;
+}
+
+static const struct wp_fractional_scale_v1_listener fractional_scale_listener = {
+    .preferred_scale = neru_fractional_preferred_scale,
+};
+
 static void neru_overlay_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
@@ -161,6 +177,10 @@ static void neru_overlay_registry_global(
 	} else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
 		overlay->xdg_output_mgr =
 		    wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 3 < version ? 3 : version);
+	} else if (strcmp(interface, "wp_viewporter") == 0) {
+		overlay->viewporter = wl_registry_bind(registry, name, &wp_viewporter_interface, 1);
+	} else if (strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
+		overlay->fractional_mgr = wl_registry_bind(registry, name, &wp_fractional_scale_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		overlay->wl_seat = wl_registry_bind(registry, name, &wl_seat_interface, 5);
 	}
@@ -448,6 +468,10 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 				munmap(scr->shm_datas[b], scr->shm_sizes[b]);
 		}
 		scr->num_buffers = 0;
+		if (scr->viewport)
+			wp_viewport_destroy(scr->viewport);
+		if (scr->fractional_scale)
+			wp_fractional_scale_v1_destroy(scr->fractional_scale);
 		if (scr->layer_surface)
 			zwlr_layer_surface_v1_destroy(scr->layer_surface);
 		if (scr->wl_surface)
@@ -460,6 +484,10 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 		xkb_state_unref(overlay->xkb_state);
 	if (overlay->xkb_ctx)
 		xkb_context_unref(overlay->xkb_ctx);
+	if (overlay->viewporter)
+		wp_viewporter_destroy(overlay->viewporter);
+	if (overlay->fractional_mgr)
+		wp_fractional_scale_manager_v1_destroy(overlay->fractional_mgr);
 	if (overlay->xdg_output_mgr)
 		zxdg_output_manager_v1_destroy(overlay->xdg_output_mgr);
 	if (overlay->layer_shell)
@@ -473,7 +501,7 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 
 static int neru_create_single_buffer(
     NeruWaylandOverlay *overlay, NeruWaylandOverlayScreen *scr, int buf_idx, int buf_width, int buf_height, int stride,
-    int scale) {
+    double scale) {
 	size_t buf_size = (size_t)stride * (size_t)buf_height;
 	int fd = create_shm_file(buf_size);
 	if (fd < 0)
@@ -525,6 +553,19 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		wl_surface_set_input_region(scr->wl_surface, empty_region);
 		wl_region_destroy(empty_region);
 
+		// Fractional-scale + viewport: over-render the buffer at the compositor's
+		// preferred fractional scale and let the viewport map it back to the
+		// logical output size. Both are optional; absence falls back to the
+		// integer wl_output.scale path in the buffer-creation loop below.
+		if (overlay->viewporter) {
+			scr->viewport = wp_viewporter_get_viewport(overlay->viewporter, scr->wl_surface);
+		}
+		if (overlay->fractional_mgr) {
+			scr->fractional_scale =
+			    wp_fractional_scale_manager_v1_get_fractional_scale(overlay->fractional_mgr, scr->wl_surface);
+			wp_fractional_scale_v1_add_listener(scr->fractional_scale, &fractional_scale_listener, scr);
+		}
+
 		scr->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 		    overlay->layer_shell, scr->wl_surface, scr->wl_output, ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "neru");
 
@@ -550,19 +591,40 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		wl_display_roundtrip(overlay->display);
 	}
 
+	// A second roundtrip lets the compositor deliver wp_fractional_scale_v1
+	// preferred_scale events for the surfaces just committed, so buffers below
+	// are sized at the correct fractional scale on first show.
+	if (new_surfaces && overlay->fractional_mgr) {
+		wl_display_roundtrip(overlay->display);
+	}
+
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (scr->num_buffers > 0)
 			continue;
 
-		int scale = scr->scale > 0 ? scr->scale : 1;
-		int buf_width = scr->width * scale;
-		int buf_height = scr->height * scale;
+		// Prefer fractional scaling (buffer over-rendered, then mapped down by the
+		// viewport). Fall back to the integer wl_output.scale + set_buffer_scale
+		// path when the compositor lacks the protocols or hasn't reported a scale.
+		int use_fractional = (scr->viewport != NULL && scr->fractional_scale_120 > 0);
+		double scale_factor;
+		int buf_width, buf_height;
+		int integer_scale = scr->scale > 0 ? scr->scale : 1;
+
+		if (use_fractional) {
+			scale_factor = (double)scr->fractional_scale_120 / 120.0;
+			buf_width = (int)ceil((double)scr->width * scale_factor);
+			buf_height = (int)ceil((double)scr->height * scale_factor);
+		} else {
+			scale_factor = (double)integer_scale;
+			buf_width = scr->width * integer_scale;
+			buf_height = scr->height * integer_scale;
+		}
 		size_t stride = ((size_t)buf_width) * 4u;
 
 		int ok = 0;
 		for (int b = 0; b < NERU_NUM_BUFFERS; b++) {
-			if (neru_create_single_buffer(overlay, scr, b, buf_width, buf_height, (int)stride, scale) == 0)
+			if (neru_create_single_buffer(overlay, scr, b, buf_width, buf_height, (int)stride, scale_factor) == 0)
 				ok++;
 		}
 		scr->num_buffers = ok;
@@ -577,8 +639,14 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 			scr->shm_size = scr->shm_sizes[0];
 		}
 
-		if (scr->wl_surface)
-			wl_surface_set_buffer_scale(scr->wl_surface, scale);
+		if (use_fractional) {
+			// The buffer is over-rendered; map it back onto the logical output
+			// size. buffer_scale stays at its default of 1 (the buffer dims are
+			// not an integer multiple of the logical size).
+			wp_viewport_set_destination(scr->viewport, scr->width, scr->height);
+		} else if (scr->wl_surface) {
+			wl_surface_set_buffer_scale(scr->wl_surface, integer_scale);
+		}
 	}
 }
 
@@ -609,6 +677,17 @@ void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 			wl_surface_attach(scr->wl_surface, NULL, 0, 0);
 			wl_surface_commit(scr->wl_surface);
 		}
+		// Destroy the viewport and fractional-scale objects: both are bound to the
+		// wl_surface, which is recreated (and re-queried) on the next show.
+		if (scr->viewport) {
+			wp_viewport_destroy(scr->viewport);
+			scr->viewport = NULL;
+		}
+		if (scr->fractional_scale) {
+			wp_fractional_scale_v1_destroy(scr->fractional_scale);
+			scr->fractional_scale = NULL;
+		}
+		scr->fractional_scale_120 = 0;
 		// Destroy layer surface to allow proper recreation on next show
 		if (scr->layer_surface) {
 			zwlr_layer_surface_v1_destroy(scr->layer_surface);
@@ -728,9 +807,28 @@ void neru_wayland_overlay_select_buffer(NeruWaylandOverlay *overlay, int index) 
 int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay) {
 	if (!overlay || overlay->nr_screens == 0)
 		return -1;
-	NeruWaylandOverlayScreen *scr = &overlay->screens[0];
-	for (int i = 0; i < scr->num_buffers; i++) {
-		if (!scr->busy[i])
+
+	// Return a buffer index the compositor has released on EVERY output, not just
+	// the first. Outputs can release buffers at different rates — most visibly a
+	// fractional-scale output, which holds its viewport-mapped buffer a frame
+	// longer — so selecting an index still busy on another output attaches a
+	// buffer the compositor already owns, leaving that output frozen on its last
+	// frame.
+	int min_buffers = overlay->screens[0].num_buffers;
+	for (int s = 1; s < overlay->nr_screens; s++) {
+		if (overlay->screens[s].num_buffers < min_buffers)
+			min_buffers = overlay->screens[s].num_buffers;
+	}
+
+	for (int i = 0; i < min_buffers; i++) {
+		int free_on_all = 1;
+		for (int s = 0; s < overlay->nr_screens; s++) {
+			if (overlay->screens[s].busy[i]) {
+				free_on_all = 0;
+				break;
+			}
+		}
+		if (free_on_all)
 			return i;
 	}
 	return -1;

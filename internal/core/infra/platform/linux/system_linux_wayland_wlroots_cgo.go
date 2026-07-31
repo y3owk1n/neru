@@ -50,46 +50,13 @@ type wlrootsState struct {
 
 var globalWlrootsState = &wlrootsState{}
 
-func ensureWlrootsState() error {
-	globalWlrootsState.mu.Lock()
-	defer globalWlrootsState.mu.Unlock()
-
-	if globalWlrootsState.ready {
-		return nil
-	}
-
-	if os.Getenv("WAYLAND_DISPLAY") == "" {
-		return derrors.New(
-			derrors.CodeNotSupported,
-			"WAYLAND_DISPLAY is not set; wlroots backend is unavailable",
-		)
-	}
-
-	client := C.neru_wlr_connect()
-	if client == nil {
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"failed to connect to Wayland compositor",
-		)
-	}
-
-	// zwlr_virtual_pointer_v1 is the native injection path (Sway, Hyprland,
-	// niri, River). KWin/KDE intentionally does not implement it, so its
-	// absence is no longer fatal: screen bounds and the overlay still come up
-	// via xdg_output + zwlr_layer_shell_v1, and pointer moves/clicks are routed
-	// through libei / the RemoteDesktop portal (connected lazily on first use).
-	hasVirtualPointer := C.neru_wlr_has_virtual_pointer(client) != 0 //nolint:nlreturn
-
-	// Initialize cursor position to screen center. Wayland has no
-	// protocol to query global pointer position, so we track it
-	// client-side via move_absolute only (matching warpd's pattern).
-	C.neru_wlr_init_cursor(client)
-
-	// Start dispatch thread after init_cursor to avoid reader_count
-	// conflicts with roundtrip calls during cursor discovery.
-	C.neru_wlr_start_dispatch(client) //nolint:nlreturn
-
-	// Populate screen list from the client.
+// readWlrootsScreens reads the current output list from the C client into Go
+// values. It mirrors the C-side neru_wlr_screen_count / neru_wlr_screen_info
+// reads used elsewhere (no C-side lock; the fields are only mutated on the
+// dispatch thread and read here best-effort). When no outputs are known it
+// returns a single default screen so the rest of the system has something to
+// work with.
+func readWlrootsScreens(client *C.NeruWlrootsClient) []wlrootsScreen {
 	count := int(C.neru_wlr_screen_count(client)) //nolint:nlreturn
 	screens := make([]wlrootsScreen, 0, count)
 
@@ -132,6 +99,99 @@ func ensureWlrootsState() error {
 			Bounds: image.Rect(0, 0, wlrootsDefaultWidth, wlrootsDefaultHeight),
 		})
 	}
+
+	return screens
+}
+
+// wlrootsRefreshScreens re-reads the output list from the C client into the Go
+// cache after a display-configuration change (hotplug). ScreenBounds and friends
+// read globalWlrootsState.screens, so this must run before the app re-queries
+// them on a screen-change event.
+func wlrootsRefreshScreens() {
+	err := ensureWlrootsState()
+	if err != nil {
+		return
+	}
+
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
+
+	if globalWlrootsState.client == nil {
+		return
+	}
+
+	globalWlrootsState.screens = readWlrootsScreens(globalWlrootsState.client)
+}
+
+// wlrootsScreenEventFD returns a readable file descriptor that becomes ready
+// whenever the display configuration changes (an output is added or removed), so
+// the app watcher can wake and re-enumerate instead of polling. ok is false when
+// the wlroots client is unavailable or exposes no pipe. The fd is owned by the
+// client and closed on disconnect; callers must poll it read-only and must not
+// close it.
+func wlrootsScreenEventFD() (int, bool) {
+	err := ensureWlrootsState()
+	if err != nil {
+		return -1, false
+	}
+
+	globalWlrootsState.mu.RLock()
+	defer globalWlrootsState.mu.RUnlock()
+
+	client := globalWlrootsState.client
+	if client == nil {
+		return -1, false
+	}
+
+	fd := C.neru_wlr_screen_event_fd(client) //nolint:nlreturn
+	if fd < 0 {
+		return -1, false
+	}
+
+	return int(fd), true
+}
+
+func ensureWlrootsState() error {
+	globalWlrootsState.mu.Lock()
+	defer globalWlrootsState.mu.Unlock()
+
+	if globalWlrootsState.ready {
+		return nil
+	}
+
+	if os.Getenv("WAYLAND_DISPLAY") == "" {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"WAYLAND_DISPLAY is not set; wlroots backend is unavailable",
+		)
+	}
+
+	client := C.neru_wlr_connect()
+	if client == nil {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to connect to Wayland compositor",
+		)
+	}
+
+	// zwlr_virtual_pointer_v1 is the native injection path (Sway, Hyprland,
+	// niri, River). KWin/KDE intentionally does not implement it, so its
+	// absence is no longer fatal: screen bounds and the overlay still come up
+	// via xdg_output + zwlr_layer_shell_v1, and pointer moves/clicks are routed
+	// through libei / the RemoteDesktop portal (connected lazily on first use).
+	hasVirtualPointer := C.neru_wlr_has_virtual_pointer(client) != 0 //nolint:nlreturn
+
+	// Initialize cursor position to screen center. Wayland has no
+	// protocol to query global pointer position, so we track it
+	// client-side via move_absolute only (matching warpd's pattern).
+	C.neru_wlr_init_cursor(client)
+
+	// Start dispatch thread after init_cursor to avoid reader_count
+	// conflicts with roundtrip calls during cursor discovery.
+	C.neru_wlr_start_dispatch(client) //nolint:nlreturn
+
+	// Populate screen list from the client.
+	screens := readWlrootsScreens(client)
 
 	globalWlrootsState.client = client
 	globalWlrootsState.screens = screens

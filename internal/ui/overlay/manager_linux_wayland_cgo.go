@@ -287,6 +287,54 @@ func (o *wlrootsOverlay) Flush() {
 	C.neru_wayland_overlay_flush(o.raw)
 }
 
+// DrawMonitorSelect renders one centered, labeled panel per monitor for the
+// interactive monitor picker, drawing on the per-output layer-shell surfaces.
+// Wayland renders in logical coordinates and scales via the compositor buffer,
+// so the panel layout uses scale 1 (see monitorSelectPanelLayout).
+func (o *wlrootsOverlay) DrawMonitorSelect(
+	targets []MonitorSelectTarget,
+	style MonitorSelectStyle,
+) {
+	if o == nil || o.raw == nil {
+		return
+	}
+
+	C.neru_wayland_overlay_setup_buffers(o.raw)
+	o.cancelAnimation()
+	o.hasLast = false
+	if !o.selectAvailableBuffer() {
+		return
+	}
+	C.neru_wayland_overlay_clear(o.raw)
+
+	spec := newMonitorSelectDrawSpec(style)
+	for _, target := range targets {
+		if target.Bounds.Empty() {
+			continue
+		}
+
+		if spec.hasBackdrop {
+			o.drawRect(target.Bounds, spec.backdrop, 0, 0)
+		}
+
+		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
+			target.Bounds, target.Label, target.Subtitle, style, 1,
+		)
+		o.drawRoundedRect(panel, radius, spec.background, spec.border, spec.borderWidth)
+
+		o.drawTextCentered(target.Label, labelRect, style.FontFamily, spec.labelFont, spec.text)
+
+		if target.Subtitle != "" {
+			o.drawTextCentered(
+				target.Subtitle, subtitleRect,
+				monitorSelectSubtitleFamily(style), spec.subtitleFont, spec.subtitleText,
+			)
+		}
+	}
+
+	C.neru_wayland_overlay_flush(o.raw)
+}
+
 func (o *wlrootsOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,

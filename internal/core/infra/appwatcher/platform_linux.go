@@ -47,9 +47,11 @@ const focusEventSafetyInterval = 3 * time.Second
 // darwin.SetAppWatcher registration. NewWatcher registers itself here via
 // platformRegisterWatcher.
 var globalLinuxWatcher = &linuxAppWatcher{
-	identity:  linux.FocusedAppID,
-	subscribe: linux.SubscribeFocusedApp,
-	interval:  focusPollInterval,
+	identity:        linux.FocusedAppID,
+	subscribe:       linux.SubscribeFocusedApp,
+	subscribeScreen: linux.SubscribeScreenChange,
+	refreshScreens:  linux.RefreshScreens,
+	interval:        focusPollInterval,
 }
 
 // linuxAppWatcher samples the focused-application identity and dispatches
@@ -62,7 +64,14 @@ type linuxAppWatcher struct {
 	// ok=false to select the polling fallback; injectable for tests. A nil
 	// subscribe also selects polling.
 	subscribe func(backend string) (int, bool)
-	interval  time.Duration
+	// subscribeScreen returns an fd that becomes readable on display-configuration
+	// changes (monitor hotplug/resize), or ok=false when none is available.
+	// A nil subscribeScreen disables screen-change watching (e.g. in tests).
+	subscribeScreen func(backend string) (int, bool)
+	// refreshScreens re-reads the display layout into the platform cache after a
+	// screen-change event, before the screen-parameters callback runs.
+	refreshScreens func(backend string)
+	interval       time.Duration
 
 	mu      sync.Mutex
 	watcher *Watcher
@@ -101,6 +110,14 @@ func (l *linuxAppWatcher) start() {
 	l.wg.Add(1)
 
 	go l.loop(ctx, backend)
+
+	// Watch display-configuration changes on a sibling goroutine so monitor
+	// hotplug/resize regenerates overlays without waiting on the focus loop.
+	if l.subscribeScreen != nil {
+		l.wg.Add(1)
+
+		go l.loopScreen(ctx, backend)
+	}
 }
 
 // stop halts the poll loop and waits for it to exit.
@@ -239,6 +256,93 @@ func (l *linuxAppWatcher) loopEvent(ctx context.Context, backend string, focusFD
 			l.tick(backend)
 
 			nextSafety = time.Now().Add(focusEventSafetyInterval)
+		}
+	}
+}
+
+// loopScreen blocks on the display-configuration-change fd and, on each wake,
+// refreshes the platform's screen cache and dispatches a screen-parameters
+// change to the Watcher (which regenerates overlays for the new layout). This is
+// the Linux equivalent of macOS's NSApplicationDidChangeScreenParameters
+// notification. When no fd is available (GNOME/Mutter, RandR-less X, or a nil
+// subscribe) it exits immediately — screen changes simply go unobserved, and the
+// overlay still follows the cursor. On fd hangup/error it exits rather than
+// spinning, since there is no cheap polling equivalent for layout changes.
+//
+// The fd is owned by the platform layer; we poll a dup so a close on that side
+// surfaces as POLLHUP instead of a use-after-close, mirroring loopEvent.
+func (l *linuxAppWatcher) loopScreen(ctx context.Context, backend string) {
+	defer l.wg.Done()
+
+	screenFD, ok := l.subscribeScreen(backend)
+	if !ok || screenFD < 0 {
+		l.watcher.logger.Debug("App watcher: no screen-change fd; display hotplug events disabled",
+			zap.String("backend", backend))
+
+		return
+	}
+
+	dupFD, err := unix.Dup(screenFD)
+	if err != nil {
+		l.watcher.logger.Warn("App watcher: dup screen fd failed; display hotplug events disabled",
+			zap.String("backend", backend),
+			zap.Error(err))
+
+		return
+	}
+
+	unix.CloseOnExec(dupFD)
+
+	defer func() { _ = unix.Close(dupFD) }()
+
+	l.watcher.logger.Debug("App watcher: using event-driven screen-change updates",
+		zap.String("backend", backend))
+
+	pollFDs := []unix.PollFd{{Fd: int32(dupFD), Events: unix.POLLIN}}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		_, err = unix.Poll(pollFDs, int(focusEventPollTimeout/time.Millisecond))
+		if err != nil {
+			if errors.Is(err, unix.EINTR) {
+				continue
+			}
+
+			l.watcher.logger.Warn(
+				"App watcher: screen fd poll failed; display hotplug events disabled",
+				zap.String("backend", backend),
+				zap.Error(err),
+			)
+
+			return
+		}
+
+		revents := pollFDs[0].Revents
+
+		if revents&(unix.POLLHUP|unix.POLLERR|unix.POLLNVAL) != 0 {
+			l.watcher.logger.Warn("App watcher: screen fd hung up; display hotplug events disabled",
+				zap.String("backend", backend))
+
+			return
+		}
+
+		if revents&unix.POLLIN != 0 {
+			drainFD(dupFD)
+
+			// Refresh the platform screen cache before the callback re-queries
+			// ScreenBounds/ScreenNames for the new layout.
+			if l.refreshScreens != nil {
+				l.refreshScreens(backend)
+			}
+
+			l.watcher.logger.Debug("App watcher: display configuration changed",
+				zap.String("backend", backend))
+			l.watcher.HandleScreenParametersChanged()
 		}
 	}
 }
