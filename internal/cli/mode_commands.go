@@ -329,9 +329,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"a",
 		"",
 		fmt.Sprintf(
-			"Action to perform on %s (%s). Commas chain multiple actions (e.g. left_click,left_click for double-click)",
+			"Mouse button action to perform on %s (%s). Commas chain multiple actions "+
+				"(e.g. left_click,left_click for double-click). Other actions, such as "+
+				"scroll or move_mouse, run via 'neru action <name>'",
 			config.ActionDesc,
-			action.SupportedNamesString(),
+			action.ModeActionNamesString(),
 		),
 	)
 

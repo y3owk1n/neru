@@ -76,7 +76,7 @@ For full details see:
 
 - [Development Guide](docs/DEVELOPMENT.md)
 - [System Architecture](docs/ARCHITECTURE.md)
-- [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md)
+- [Cross-Platform Guide](docs/CROSS_PLATFORM.md)
 
 ---
 
@@ -162,7 +162,7 @@ Neru is designed as a cross-platform tool with a strong emphasis on architectura
 If you are working on Linux or Windows support:
 
 - Check the current [Platform Status](docs/ARCHITECTURE.md#platform-status) in the architecture guide.
-- Start with the [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md).
+- Start with the [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md#contributor-guide).
 - Implement in the existing platform slot instead of inventing new file layout.
 - For Linux, prefer the reserved backend files: `*_linux_common.go`, `*_linux_x11.go`, and `*_linux_wayland.go`.
 - Follow the patterns established in the macOS implementation where applicable, but keep macOS-specific assumptions out of shared code.

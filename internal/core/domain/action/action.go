@@ -463,6 +463,28 @@ func SupportedNamesString() string {
 	return strings.Join(strs, ", ")
 }
 
+// ModeActionNamesString returns the comma-separated action names accepted by a
+// mode's --action flag, for use in help text.
+//
+// A mode performs its pending action at the selected point once the selection
+// is made, which only mouse button actions can do. The set is derived from the
+// same IsMouseButton predicate the CLI validates against, so help text cannot
+// drift from what is actually accepted.
+func ModeActionNamesString() string {
+	var names []string
+
+	for _, name := range KnownNames() {
+		actionType, err := name.ToType()
+		if err != nil || !actionType.IsMouseButton() {
+			continue
+		}
+
+		names = append(names, string(name))
+	}
+
+	return strings.Join(names, ", ")
+}
+
 // IsResetAction reports whether the given action is reset.
 func IsResetAction(name string) bool {
 	return Name(name) == NameReset

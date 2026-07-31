@@ -1,6 +1,13 @@
-# Neru Coding Standards
+# Coding Standards
 
-This document defines the coding standards and conventions for the Neru project. Following these standards ensures the codebase appears written by a single developer and maintains consistency across all files.
+Cross-cutting conventions for the Neru codebase: formatting, logging,
+documentation, and commits. Following them keeps the codebase reading as though
+one person wrote it.
+
+Language-specific rules live alongside this page: [Go conventions](go/CONVENTIONS.md),
+[Objective-C guidelines](go/OBJECTIVE_C.md), and [testing patterns](testing/TESTING_PATTERNS.md).
+
+**Related:** [Development Guide](DEVELOPMENT.md) · [Architecture](ARCHITECTURE.md)
 
 ---
 

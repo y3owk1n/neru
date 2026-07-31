@@ -1,6 +1,13 @@
-# Neru System Architecture
+# Architecture
 
-Neru is a keyboard-driven navigation tool for macOS (with Linux and Windows support in progress) built with Go and Objective-C. It enhances productivity by allowing users to quickly navigate and interact with UI elements using keyboard shortcuts.
+How Neru is structured internally: layers, boundaries, data flow, and the rules
+that keep platform code isolated.
+
+Neru is a keyboard-driven navigation tool written in Go with an Objective-C
+bridge on macOS. It runs as a daemon with a thin CLI client.
+
+**Related:** [Cross-Platform Guide](CROSS_PLATFORM.md) ·
+[Development Guide](DEVELOPMENT.md) · [Coding Standards](CODING_STANDARDS.md)
 
 ---
 
@@ -68,22 +75,22 @@ Violation of this rule is caught by `golangci-lint` using `depguard`.
 
 ## Platform Status
 
-> **Note:** This table is a quick-reference overview. For the full detailed
-> feature-level comparison, see [CROSS_PLATFORM.md](./CROSS_PLATFORM.md#feature-parity-reference).
+> **Note:** This is a one-paragraph-per-platform orientation. The authoritative
+> per-capability comparison — including per-Linux-backend detail — lives in
+> [CROSS_PLATFORM.md](./CROSS_PLATFORM.md#feature-parity-reference). Do not
+> duplicate that matrix here.
 
-| Capability               | macOS | Linux (X11) | Linux (wlroots) | Linux (KDE) | Linux (GNOME) | Windows  |
-| ------------------------ | ----- | ----------- | --------------- | ----------- | ------------- | -------- |
-| Screen bounds / cursor   | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
-| Global hotkeys           | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
-| Keyboard event tap       | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
-| Accessibility (elements) | ✅    | 🟡 (AT-SPI) | 🟡 (AT-SPI)     | 🟡 (AT-SPI) | 🟡 (AT-SPI)   | ✅ (UIA) |
-| UI overlays              | ✅    | ✅          | ✅              | ✅          | ❌            | ✅       |
-| App watcher              | ✅    | 🟡          | 🟡              | 🟡          | 🟡            | 🟡       |
-| Dark mode detection      | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
-| Notifications / alerts   | ✅    | 🟡          | 🟡              | 🟡          | 🟡            | 🟡       |
-| Config / log directories | ✅    | ✅          | ✅              | ✅          | ✅            | ✅       |
+| Platform    | Status           | Runtime backends                              | Notes                                                       |
+| ----------- | ---------------- | --------------------------------------------- | ----------------------------------------------------------- |
+| **macOS**   | Production-ready | Cocoa / Quartz (CGO)                          | Reference implementation; no known functional gaps           |
+| **Linux**   | Beta             | `x11`, `wayland-wlroots`, `wayland-kde`       | All modes work; notifications/alerts are stubs              |
+| **Windows** | Alpha            | Win32 / COM (pure Go)                         | Modes work; app watcher, notifications, `monitor_select` are stubs |
 
-✅ = Supported 🟡 = Stub (code exists, returns `CodeNotSupported`) ❌ = Not available
+**GNOME Wayland (`wayland-gnome`), unrecognized compositors (`wayland-other`),
+and sessions with neither `WAYLAND_DISPLAY` nor `DISPLAY` are not supported.**
+`platform.NewSystemPort` returns `CodeNotSupported` for them during the first
+initialization phase, so the daemon exits rather than running degraded. Under
+GNOME, use an X11 session.
 
 ---
 
@@ -114,8 +121,10 @@ Platform work should stay in these layers:
 - `internal/core/infra/hotkeys/`: global hotkey registration
 - `internal/core/infra/eventtap/`: keyboard event capture
 - `internal/core/infra/accessibility/`: platform accessibility integration
-- `internal/ui/overlay/`: overlay manager orchestration
-- `internal/app/components/*/overlay_*.go`: mode-specific overlay rendering
+- `internal/ui/overlay/`: overlay manager orchestration — **and all Linux and
+  Windows drawing**, which happens in the manager rather than per component
+- `internal/app/components/*/overlay_*.go`: mode-specific overlay rendering on
+  **macOS only**; the Linux and Windows files in these packages are style-only stubs
 
 Shared logic should stay in:
 
@@ -424,15 +433,16 @@ Neru uses `just` for build automation.
 
 - **GitHub Actions**: Runs linting, unit tests, and integration tests on every PR.
 - **Release Please**: Automatically manages versioning and generates GitHub releases upon merging to `main`.
-- **Cross-Compilation**: Go's native cross-compilation is used for Linux and Windows binaries (with `CGO_ENABLED=0`).
+- **Cross-Compilation**: Windows binaries cross-compile with `CGO_ENABLED=0`. Linux builds require `CGO_ENABLED=1` (X11/Wayland native backends) and must therefore run on a Linux host; macOS likewise requires CGO.
 
 ---
 
 ## Performance Considerations
 
 1. **Event Tap Latency**: The event tap callback is kept extremely lean to prevent system-wide keyboard lag. Heavy processing is deferred to Go routines.
-2. **Accessibility Caching**: Querying the macOS Accessibility API is expensive. Neru implements intelligent caching in the [accessibility/cache.go](../internal/core/infra/accessibility/cache.go) to minimize IPC overhead.
-3. **Native Rendering**: Overlays are rendered using native Cocoa APIs for GPU-accelerated, flicker-free UI.
+2. **Bounded accessibility walks**: Querying accessibility APIs is expensive, so tree traversal is bounded rather than exhaustive — `maxDepth` limits on the macOS walk ([client.go](../internal/core/infra/accessibility/client.go)) and depth/node caps on the Linux AT-SPI walk (`atspiMaxDepth` / `atspiMaxNodes` in [atspi_linux.go](../internal/core/infra/accessibility/atspi_linux.go)).
+3. **Caching**: A TTL/LRU cache for computed grid layouts ([grid/cache.go](../internal/core/domain/grid/cache.go)) and a cache of C string pointers for overlay styles ([style_cache.go](../internal/app/components/overlayutil/style_cache.go)) keep repeated activations off the hot path.
+4. **Native Rendering**: Overlays are rendered using native platform APIs — GPU-accelerated CoreAnimation on macOS, Cairo on Linux, GDI on Windows.
 
 ---
 

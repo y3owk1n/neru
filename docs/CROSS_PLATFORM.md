@@ -1,205 +1,500 @@
-# Cross-Platform Contributor Guide
+# Cross-Platform Guide
 
-This guide is the practical entry point for contributors working on Linux,
-Windows, or platform-neutral infrastructure in Neru.
+Neru runs on macOS, Linux, and Windows from one shared Go core. This document
+covers both sides of that:
 
-It explains:
+- **[Part 1 — Feature Parity Reference](#feature-parity-reference)**: what
+  actually works on each platform, and how it is implemented.
+- **[Part 2 — Contributor Guide](#contributor-guide)**: where platform code
+  lives, and how to add to it.
 
-- where platform code lives
-- how to choose the right file before writing code
-- how Linux backend splits work
-- when to use CGO
-- how to add a new platform capability safely
-- what tests and docs to update when you are done
-- **what actually works where** — see [Feature Parity Reference](#feature-parity-reference)
+Every claim in Part 1 is derived from code under `internal/core/infra/`,
+`internal/ui/overlay/`, and `internal/app/`. **If this document and the code
+disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
-For the higher-level design, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+**Related:** [Architecture](./ARCHITECTURE.md) · [Linux setup](./LINUX_SETUP.md) ·
+[Linux desktops](./LINUX_DESKTOPS.md) · [Development Guide](./DEVELOPMENT.md)
 
 ---
 
 ## Table of Contents
 
-- [Goals](#goals)
+**Part 1 — [Feature Parity Reference](#feature-parity-reference)**
+
+- [Platform Status](#platform-status)
+- [Capability Matrix](#capability-matrix)
+- [Input Injection](#input-injection)
+- [Keyboard Capture And Hotkeys](#keyboard-capture-and-hotkeys)
+- [Accessibility And Hints](#accessibility-and-hints)
+- [Overlay Rendering](#overlay-rendering)
+- [Mode Coverage](#mode-coverage)
+- [Platform Exclusives](#platform-exclusives)
+- [Known Gaps](#known-gaps)
+
+**Part 2 — [Contributor Guide](#contributor-guide)**
+
 - [First Stops](#first-stops)
-- [First 15 Minutes](#first-15-minutes)
 - [File Layout Rules](#file-layout-rules)
-- [Build And Test Commands](#build-and-test-commands)
 - [Where To Implement What](#where-to-implement-what)
+- [Build And Test Commands](#build-and-test-commands)
 - [Linux Backend Model](#linux-backend-model)
 - [Windows Model](#windows-model)
 - [CGO Guidance](#cgo-guidance)
 - [Hotkeys And Modifiers](#hotkeys-and-modifiers)
 - [Adding A New Capability](#adding-a-new-capability)
-- [Error Handling Rules](#error-handling-rules)
-- [Capability Reporting](#capability-reporting)
+- [Errors And Capability Reporting](#errors-and-capability-reporting)
 - [Testing Checklist](#testing-checklist)
 - [Documentation Checklist](#documentation-checklist)
-- [Suggested First Contributions](#suggested-first-contributions)
-- [What "Done" Looks Like](#what-done-looks-like)
-- [Feature Parity Reference](#feature-parity-reference)
-    - [Port Capability Matrix](#port-capability-matrix)
-    - [Overlay Rendering](#overlay-rendering)
-    - [Accessibility Systems](#accessibility-systems)
-    - [Input Handling](#input-handling)
-    - [Mode Feature Coverage](#mode-feature-coverage)
-    - [Linux Backend Breakdown](#linux-backend-breakdown)
-    - [Windows Feature Detail](#windows-feature-detail)
-    - [Platform-Specific Features](#platform-specific-features)
+- [Contributing Safely](#contributing-safely)
 
 ---
 
-## Goals
+# Feature Parity Reference
 
-Neru aims to make cross-platform work predictable and low-friction.
+## Platform Status
 
-The guiding principles are:
+| Aspect               | macOS (Darwin)              | Linux                                    | Windows                        |
+| -------------------- | --------------------------- | ---------------------------------------- | ------------------------------ |
+| **Status**           | Production-ready            | Beta                                     | Alpha (initial coverage)       |
+| **Build tag**        | `darwin`                    | `linux`                                  | `windows`                      |
+| **CGO**              | Required (Objective-C)      | Per-backend; most Linux backends need it | Not used (pure Go Win32 / COM) |
+| **Primary modifier** | `Cmd`                       | `Ctrl`                                   | `Ctrl`                         |
+| **Display stack**    | Cocoa / Quartz              | X11, or Wayland (wlroots / KWin)         | Win32 / DWM                    |
+| **Accessibility**    | AXUIElement                 | AT-SPI over D-Bus                        | UI Automation over COM         |
+| **Native product**   | Yes (`Neru.app`, codesigned)| Binary + install script                  | Binary                         |
+
+### Linux backends
+
+Linux is not one target. The live backend is detected once at startup from
+`XDG_CURRENT_DESKTOP`, `WAYLAND_DISPLAY`, and `DISPLAY`
+([linux_backend.go](../internal/core/infra/platform/linux_backend.go)):
+
+| Backend                | Detected when                                       | Status                       |
+| ---------------------- | --------------------------------------------------- | ---------------------------- |
+| `x11`                  | `DISPLAY` set, no `WAYLAND_DISPLAY`                 | Supported                    |
+| `wayland-wlroots`      | Sway, Hyprland, niri, River, Wayfire, or unset `XDG_CURRENT_DESKTOP` | Supported   |
+| `wayland-kde`          | `XDG_CURRENT_DESKTOP` contains `KDE`                | Supported                    |
+| `wayland-gnome`        | `XDG_CURRENT_DESKTOP` contains `GNOME`              | **Not supported**            |
+| `wayland-other`        | Any other Wayland compositor                        | **Not supported**            |
+| `unknown`              | Neither `WAYLAND_DISPLAY` nor `DISPLAY`             | **Not supported**            |
+
+> **GNOME Wayland does not run at all.** `platform.NewSystemPort` returns
+> `CodeNotSupported` for `wayland-gnome`, `wayland-other`, and `unknown`, and
+> that is the first step of daemon startup — the daemon exits instead of
+> starting in a degraded state. Mutter implements neither `wlr-layer-shell`
+> (overlays) nor `wlr-foreign-toplevel-management` (focused app), and exposes no
+> input-injection path Neru can use. **Use an X11 session under GNOME.** The
+> tables below therefore have no GNOME column: nothing runs there.
+
+---
+
+## Capability Matrix
+
+Status of each `ports.SystemPort`-level capability, with the mechanism that
+implements it. The KDE and wlroots columns differ only where noted; both are
+Wayland with `wlr-layer-shell` overlays.
+
+**Legend:** ✅ supported · ⚠️ works with known limits · 🟡 stub (`CodeNotSupported`
+or no-op) · ❌ no code path
+
+| Capability                    | macOS                    | Linux X11              | Linux Wayland (wlroots)      | Linux Wayland (KDE)     | Windows                      |
+| ----------------------------- | ------------------------ | ---------------------- | ---------------------------- | ----------------------- | ---------------------------- |
+| **Screen bounds / enumeration** | ✅ Cocoa               | ✅ XRandR              | ✅ xdg-output                | ✅ xdg-output           | ✅ `EnumDisplayMonitors`     |
+| **Display hotplug events**    | ✅ screen-params notif.  | ✅ RandR event fd      | ✅ `wl_output` events        | ✅ `wl_output` events   | 🟡                           |
+| **Focused app identity**      | ✅ NSWorkspace + AX      | ✅ `_NET_ACTIVE_WINDOW` / `WM_CLASS` | ⚠️ app_id only (see below) | ⚠️ app_id only     | ✅ `GetForegroundWindow`     |
+| **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | 🟡                           |
+| **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ sync-surface trick        | ✅ sync-surface trick   | ✅ `GetCursorPos`            |
+| **Cursor move**               | ✅ `CGWarpMouseCursorPosition` | ✅ XTest         | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SetCursorPos`            |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Smooth cursor animation**   | ✅                       | ✅ opt-in              | ✅ opt-in                    | ✅ opt-in               | ❌                           |
+| **Smooth scroll animation**   | ✅                       | ❌                     | ❌                           | ❌                      | ❌                           |
+| **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
+| **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
+| **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
+| **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
+| **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
+| **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
+| **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
+| **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem   | ✅ Win32 notification area | ✅                        |
+| **Native alerts**             | ✅ NSAlert               | 🟡                     | 🟡                           | 🟡                      | ✅ `MessageBoxW`             |
+| **Native notifications**      | ✅ UNNotification        | 🟡                     | 🟡                           | 🟡                      | 🟡                           |
+| **Secure input detection**    | ✅                       | 🟡 always false        | 🟡 always false              | 🟡 always false         | 🟡 always false              |
+| **System cursor hide**        | ✅ `CGDisplayHideCursor` | ❌                     | ❌                           | ❌                      | ❌                           |
+| **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
+
+¹ macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
+Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
+Cambria / Consolas and passes every other name through verbatim; an unavailable
+family falls back to whatever GDI substitutes.
+
+### Notes on the ⚠️ entries
+
+**Focused app on Wayland.** wlroots and KWin resolve the focused window through
+`wlr-foreign-toplevel-management`, which exposes the window's **app_id** — used
+as the bundle identifier for per-app config — but not its PID, because a Wayland
+client cannot read another client's process credentials.
+`SystemPort.FocusedApplicationPID` best-effort matches the app_id against
+`/proc`; with no match it returns `CodeNotSupported` carrying the app_id rather
+than a fabricated number.
+
+**App watcher.** macOS gets focus changes pushed from an NSWorkspace observer.
+Linux has no equivalent single API, so `appwatcher/platform_linux.go` subscribes
+to a backend focus-change fd (`linux.SubscribeFocusedApp`: X11 event fd, or the
+wlroots toplevel manager) and re-samples on each wake — near-instant per-app
+hotkey re-registration — with a 3s safety re-sample against coalesced events.
+When no fd is available it degrades to polling `FocusedAppID` every 400ms. The
+identity is the **WM_CLASS** (X11) or **app_id** (Wayland). A sibling goroutine
+watches a display-configuration fd and dispatches screen-parameter changes, so
+monitor hotplug regenerates overlays like it does on macOS. Only
+activate/deactivate/screen-params are emitted; launch, terminate, and Mission
+Control events remain macOS-only.
+
+**Global hotkeys on Wayland.** No Wayland protocol lets an ordinary client
+register a global hotkey, so Neru reads `/dev/input/event*` directly with a
+**passive** evdev listener — it does not grab devices or inject anything, so the
+focused app still receives every key
+([global_hotkey_linux_cgo.go](../internal/core/infra/eventtap/global_hotkey_linux_cgo.go)).
+Two conditions apply: the process needs read access to `/dev/input` (add your
+user to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a
+no-op stub. When the listener cannot start, Neru logs a warning pointing at both
+the `input` group and the fallback: bind `neru <mode>` as a compositor
+keybinding. While a mode is active the in-mode event tap grabs the same devices,
+so the listener naturally goes quiet until the mode exits.
+
+**Smooth cursor animation on Linux.** Off by default; opt in with
+`smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`
+macOS uses). When enabled, `SystemAdapter.MoveCursorToPoint` routes through
+`smoothCursorAnimator` ([mouse_animator_linux.go](../internal/core/infra/platform/linux/mouse_animator_linux.go)):
+one worker goroutine samples the current position, then steps the per-backend
+warp (XTest / `zwlr_virtual_pointer` / libei) toward the target by linear
+interpolation, and `WaitForCursorIdle` blocks until it settles. This mirrors the
+darwin animator (coalescing, latest-target-wins) but drives discrete warps
+rather than a Quartz event stream, so there is no drag-event distinction. It
+covers the same flows macOS animates — grid/recursive-grid cursor-follow,
+`move_mouse`, selection moves; clicks stay instant. On Wayland the interpolation
+start point comes from the client-side cursor cache, so a stale read only skews
+the glide path, never the landing point.
+
+---
+
+## Input Injection
+
+Every action type in
+[action.go](../internal/core/domain/action/action.go) — left/right/middle click,
+per-button down/up/toggle, absolute and relative moves, drag-while-held, and
+scroll — is dispatched through the shared `InfraAXClient.PerformAction`. The
+dispatch, the action set, and the mode logic that drives it are platform-neutral
+Go; only the final injection primitive differs:
+
+| Platform              | Primitive                                                      |
+| --------------------- | -------------------------------------------------------------- |
+| macOS                 | `CGEventPost` (+ `CGWarpMouseCursorPosition` for moves)         |
+| Linux X11             | XTest (`XWarpPointer`, buttons 1/2/3, scroll buttons 4/5)       |
+| Linux Wayland wlroots | `zwlr_virtual_pointer` (+ `/dev/uinput` for scroll)             |
+| Linux Wayland KDE     | libei via `org.freedesktop.portal.RemoteDesktop`                |
+| Windows               | `SendInput` / `SetCursorPos`                                    |
+
+**The one behavioral difference:** Windows `ScrollAtCursor` ignores `deltaX`, so
+horizontal scrolling is a no-op there. Everything else behaves the same on all
+three platforms.
+
+**Held mouse buttons.** Press and release are separate actions, so every backend
+must remember what it pressed — and that bookkeeping is shared, not
+per-platform. Each adapter keeps a
+[`mousestate.Tracker`](../internal/core/infra/platform/mousestate/tracker.go)
+recording which buttons are down, where, and with which modifiers. It drives
+three behaviors identically everywhere: toggle actions resolve against it (held
+→ release, free → press), `EnsureMouseUp` releases every held button when Neru
+returns to idle, and on macOS it selects the drag event type for cursor moves.
+macOS is the only backend needing that last distinction — Quartz requires
+`kCGEventLeftMouseDragged` / `RightMouseDragged` / `OtherMouseDragged` with a
+matching button number instead of `kCGEventMouseMoved`, while X11, Wayland, and
+Windows simply warp the pointer and let the compositor or OS infer the drag.
+When several buttons are held at once a macOS move is attributed to the
+left-most held button, since one event cannot describe more.
+
+---
+
+## Keyboard Capture And Hotkeys
+
+| Aspect                | macOS                  | Linux X11               | Linux Wayland                            | Windows                 |
+| --------------------- | ---------------------- | ----------------------- | ---------------------------------------- | ----------------------- |
+| **In-mode capture**   | `CGEventTapCreate`     | `XGrabKeyboard`         | evdev `EVIOCGRAB`, wl-keyboard fallback  | `WH_KEYBOARD_LL`        |
+| **Global hotkeys**    | Per-key CGEventTap     | `XGrabKey`              | Passive evdev read                       | `RegisterHotKey`        |
+| **CGO needed**        | Yes                    | Yes                     | Yes                                      | No                      |
+| **Press/release**     | ✅ separate callbacks  | ✅ KeyPress/KeyRelease  | ⚠️ press-only in some configs            | ✅ `WM_HOTKEY` flags    |
+| **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ❌ no-op                |
+| **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ❌ no-op                |
+| **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
+| **Capture files**     | `eventtap_darwin.go`   | `eventtap_linux_x11.go` | `eventtap_linux_wayland.go`, `..._evdev_cgo.go` | `eventtap_windows.go` |
+| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11.go`  | `manager_linux_common.go` + `eventtap/global_hotkey_linux_cgo.go` ³ | `manager_windows.go` |
+
+³ `hotkeys/manager_linux_wayland.go` is an empty placeholder — the Wayland
+hotkey path lives in the common manager, which delegates to the evdev listener
+in the eventtap package.
+
+**Modifier passthrough (Wayland evdev only).** While a mode is active Neru
+captures the keyboard exclusively, so shortcuts it does not bind (`Ctrl+C`,
+`Ctrl+Tab`) are normally swallowed. With `general.passthrough_unbounded_keys`,
+unbound Ctrl/Alt/Cmd chords are re-injected to the focused app instead. This
+works on the Wayland evdev backend because Neru holds `EVIOCGRAB` on the
+physical device but injects through a *separate* `zwp_virtual_keyboard_v1`,
+which bypasses that grab and reaches the app with no feedback loop (see
+`handleWaylandEvdevEvent` → `passthroughEvdevChord`). It is **not** available on
+X11 — an `XGrabKeyboard` routes Neru's own synthetic XTest events back to
+itself, and `XSendEvent` is ignored by most apps — nor on the rare wl-keyboard
+fallback, which has no injection path. Classification (blacklist,
+mode-intercepted keys, the mode's own hotkeys) and the post-passthrough hint
+refresh are shared in
+[passthrough.go](../internal/app/modes/passthrough.go); only the final
+re-injection is backend-specific. The blacklist keeps chosen chords consumed,
+and `general.should_exit_after_passthrough` exits the mode after a passthrough.
+
+---
+
+## Accessibility And Hints
+
+| Aspect                  | macOS                                       | Linux                                              | Windows                              |
+| ----------------------- | ------------------------------------------- | -------------------------------------------------- | ------------------------------------ |
+| **Backend**             | AXUIElement (CGO ObjC bridge)               | AT-SPI over D-Bus (pure Go)                        | UI Automation over COM (pure Go)     |
+| **Client**              | `InfraAXClient` → ObjC bridge               | `ATSPIClient` → `org.a11y.atspi`                   | `UIAClient` → raw COM vtables        |
+| **Files**               | `element_darwin.go`, `tree.go`              | `element_linux.go`, `atspi_linux.go`               | `element_windows.go`, `uia_windows.go`, `tree_windows.go` |
+| **Traversal**           | Full recursive walk of the AXUIElement hierarchy | Recursive walk of the active frame's subtree, depth/node capped | Shallow walk of root-level nodes |
+| **Sources collected**   | Frontmost + all windows, popovers, menubar, dock, notification center, Stage Manager, PIP | Active frame's subtree only          | Root element's children only         |
+| **Filtering**           | Role matching, size/position heuristics, excluded apps, dedup | Native AT-SPI roles, `SHOWING` state, on-screen extents | `IsControlElement` + `IsContentElement`, non-zero bounds |
+| **Strategies**          | `axtree` (default) and `vision`, incl. per-app overrides | `axtree` only                          | `axtree` only                        |
+| **Popovers / menus**    | ✅ dedicated detection                      | ⚠️ only if inside the active frame's subtree       | 🟡                                   |
+
+macOS builds the richest tree by a wide margin: it walks multiple window and
+system sources, applies per-app strategy overrides, can fall back to the Vision
+framework for OCR-discovered targets, and deduplicates overlapping elements.
+Linux and Windows each walk a single tree with no OCR fallback.
+
+**Linux is ⚠️, not a stub.** Hints genuinely work: `ATSPIClient` enables
+assistive-tech mode, finds the active frame, and walks it (`ClickableNodes`)
+emitting native AT-SPI role names. Configured roles are resolved into that same
+vocabulary at config load (`element.ResolveRoles`), so both sides of the filter
+speak AT-SPI. This is the path the Linux adapter actually uses
+(`platform_client_linux.go` → `Adapter.ClickableElements` → `client.ClickableNodes`);
+the `TreeNode` / `BuildTree` stub in `tree_linux.go` is the macOS-style tree API
+and is **not** on the Linux hints path. The ⚠️ is about coverage: it depends on
+each app exposing AT-SPI. Qt and GTK apps do with accessibility enabled; some
+toolkits expose almost nothing, and there is no Vision/OCR fallback.
+
+**Chromium and Electron apps on Linux.** Chromium-based apps (Chrome, Electron,
+forks such as Helium) do not expose their web-content tree over AT-SPI by
+default — they gate it behind their own runtime detection, and unlike macOS
+there is no per-app attribute Neru can toggle to force it (the macOS
+`AXManualAccessibility` nudge in `electron.EnsureAccessibility` is a no-op on
+Linux). The result is an AT-SPI frame with a single empty child, so hints find
+nothing inside such windows. Launch the app with
+`--force-renderer-accessibility` to force the full tree. Native GTK/Qt apps and
+Firefox need no flag. This is Chromium behavior, not a Neru limitation.
+
+**Picking the active frame on Wayland.** The AT-SPI `ACTIVE` state is unreliable
+on wlroots compositors (niri, Sway, Hyprland) — the focused window can report
+`ACTIVE=false` while background frames report `ACTIVE=true`. Neru therefore
+matches the AT-SPI frame against the compositor's focused **app_id** (from
+`wlr-foreign-toplevel-management`, the same source as the app watcher), falling
+back to the `ACTIVE`/`SHOWING` heuristic only on X11 or when no app_id is
+available. See `findActiveFrame` in `atspi_linux.go`.
+
+**Window-origin offset on Wayland.** A Wayland client cannot know its own
+on-screen position, so AT-SPI reports element coordinates relative to the
+window. Neru offsets them by the focused window's screen origin, supplied by a
+compositor-specific `windowOriginSource`
+([window_origin_linux.go](../internal/core/infra/accessibility/window_origin_linux.go)):
+
+| Compositor | Source                                                       | Limits                                                                                                                    |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| KDE / KWin | KWin script pushing focused-window geometry over D-Bus       | —                                                                                                                          |
+| niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
+| Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
+| Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
+
+Each source verifies the reported window size matches the AT-SPI frame (a focus
+change can race the query) and is best-effort: an unavailable origin degrades to
+unoffset window-relative coordinates rather than misplacing hints.
+
+---
+
+## Overlay Rendering
+
+### Architecture
+
+The three platforms split responsibility differently, which is the single most
+important thing to know before touching overlay code:
+
+- **macOS** — each component owns its own NSPanel. Component files such as
+  `components/hints/overlay_darwin.go` call the Objective-C bridge directly, and
+  rendering is GPU-backed via CoreAnimation.
+- **Linux and Windows** — component files are stubs holding only `Style` /
+  `BuildStyle`. All real rendering happens in the overlay **manager**
+  (`manager_linux_x11.go`, `manager_linux_wayland_cgo.go`, `manager_windows*.go`),
+  drawing every element into one shared surface.
+
+### Implementation
+
+| Aspect                | macOS                                    | Linux X11                              | Linux Wayland                                   | Windows                            |
+| --------------------- | ---------------------------------------- | -------------------------------------- | ------------------------------------------------ | ---------------------------------- |
+| **Window type**       | NSPanel, borderless non-activating       | override-redirect X11 window           | `wlr_layer_shell_v1` overlay surface             | layered `WS_POPUP` HWND            |
+| **Rendering**         | CoreAnimation (CALayer, GPU)             | Cairo on an Xlib surface (CPU)         | Cairo into SHM buffers (CPU)                     | GDI + software SDF, BGRA (CPU)     |
+| **Per-pixel alpha**   | clear color + non-opaque layer           | `CAIRO_OPERATOR_CLEAR`                 | `CAIRO_OPERATOR_CLEAR`                           | `AC_SRC_ALPHA` via `UpdateLayeredWindow` |
+| **Click-through**     | `setIgnoresMouseEvents:YES`              | XFixes empty input region              | empty `wl_surface` input region                  | `WS_EX_TRANSPARENT`                |
+| **Always on top**     | `NSScreenSaverWindowLevel`               | `_NET_WM_STATE_ABOVE` + `MapRaised`    | overlay layer                                    | `HWND_TOPMOST`                     |
+| **Focus prevention**  | non-activating panel                     | `override_redirect=YES`                | controlled keyboard interactivity                | `WS_EX_NOACTIVATE`                 |
+| **HiDPI**             | dynamic `contentsScale` + backing-change callback | `Xft.dpi`, one global factor  | `wl_output` scale + `wp_fractional_scale_v1` / `wp_viewporter` | not explicit           |
+| **Multi-monitor**     | per-display clamping, screen-change tracking | all monitors enumerated, per-monitor render, live RandR hotplug | one `wl_surface` per output (max 16), live hotplug | cursor-screen tracking, separate indicator/sticky windows |
+| **Buffers**           | layer-backed, OS-managed                 | single Cairo surface                   | triple-buffered SHM pool                         | single pixel buffer                |
+| **Rounded rects / borders** | NSBezierPath                       | Cairo arc path + stroke                | Cairo arc path + stroke                          | software SDF fill + multi-pass stroke |
+| **Text**              | NSFontManager                            | Cairo `select_font_face` / `show_text` | Cairo `select_font_face` / `show_text`           | GDI `CreateFontW` + `DrawTextW` + alpha composite |
+| **Coordinate origin** | bottom-left (Y-flipped in the adapter)   | top-left                               | top-left                                         | top-left (negative DIB height)     |
+| **Thread model**      | main-thread dispatch                     | `renderMu` mutex                       | `displayMu` mutex (shared with `renderMu`)       | dedicated UI thread (`LockOSThread`) |
+
+### Animation
+
+| Animation                    | macOS                                | Linux X11 / Wayland                | Windows                            |
+| ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
+| **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | ❌                                 |
+| **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
+| **Smooth cursor**            | ✅ configurable easing               | ✅ stepped warp (opt-in)           | ❌                                 |
+| **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
+
+---
+
+## Mode Coverage
+
+Mode logic — labelling, alphabets, matching, search filtering, grid subdivision,
+recursion depth, scroll amounts, cell navigation — is pure domain Go under
+`internal/core/domain/` and behaves **identically on all three platforms**. Only
+the rows below differ, and every difference traces to rendering or element
+discovery rather than the mode itself.
+
+| Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
+| ----------------- | ------------------------------ | -------------------------- | -------------------------- | --------------------------- |
+| **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, shallow tree      |
+| **Hints**         | `vision` strategy + per-app overrides | ✅                  | ❌ macOS-only              | ❌ macOS-only               |
+| **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
+| **Hints**         | Search input badge             | ✅                         | ❌ no-op                   | ✅                          |
+| **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ❌                          |
+| **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
+| **Grid**          | Sub-key preview                | ✅ centered mini-grid      | ✅ centered mini-grid      | ⚠️ single-line bottom text  |
+| **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
+| **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
+| **Scroll**        | Smooth scroll animation        | ✅                         | ❌                         | ❌                          |
+| **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | 🟡 `CodeNotSupported`       |
+
+Everything else is shared: multi-letter labels, label direction, hide-unmatched,
+split-word, interactive search *behavior* (only the on-screen badge differs),
+boundary highlight, mode indicator, sticky-modifier indicator, all pending
+actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
+
+> The **cursor-replacement virtual pointer** — the pointer drawn when the real
+> cursor is hidden — is separate from the recursive-grid indicator above and is
+> macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
+> it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
+
+---
+
+## Platform Exclusives
+
+Features available on exactly one platform, with why they do not port:
+
+| Feature                                   | Platform | Location                                                | Why it is exclusive                                          |
+| ----------------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| System cursor hide + virtual-pointer replacement | macOS | `modes/cursor_darwin.go`, `components/virtualpointer/overlay_darwin.go` | `CGDisplayHideCursor` has no X11/Wayland/Win32 equivalent |
+| Smooth scroll animation                   | macOS    | `platform/darwin/scroll_animator.go`                    | Needs a synthesizable continuous scroll event stream          |
+| Vision (OCR) hint strategy                | macOS    | `ports/vision.go`, `platform/darwin/vision_darwin.m`    | macOS-only `VNRequest` APIs                                   |
+| Screen-sharing hide                       | macOS    | `platform/darwin/overlay_darwin.m`                      | NSWindow sharing level is a Quartz concept                    |
+| Secure input detection                    | macOS    | `platform/darwin/secureinput.go`                        | `CGSessionCopyCurrentDictionary`, a private API               |
+
+Linux and Windows have no exclusive *user-facing* features — their unique
+elements (evdev, `zwlr_virtual_pointer`, libei, the Wayland sync-cursor surface,
+`WH_KEYBOARD_LL`, `RegisterHotKey`, SDF rendering) are platform *mechanisms*
+serving cross-platform features, and are listed in the
+[Capability Matrix](#capability-matrix).
+
+---
+
+## Known Gaps
+
+Work that is genuinely missing, as opposed to deliberately platform-specific.
+
+**Linux**
+
+1. Native notifications and alerts — stubs; target freedesktop D-Bus notifications
+2. Smooth scroll animation — not implemented
+3. GNOME/Mutter Wayland — unsupported; the daemon refuses to start
+4. Hints search input badge — no-op in the overlay manager
+5. Secure input detection — always false
+6. Wayland global hotkeys — need `input`-group access and a CGO build
+
+**Windows**
+
+1. App watcher — no foreground-window change notifications, so per-app config never re-applies
+2. Display hotplug — no screen-parameter change events
+3. Native notifications — no toast support
+4. UIA tree depth — shallow walk; complex apps under-report clickable elements
+5. Grid and recursive-grid transition animation — not implemented
+6. Smooth cursor and smooth scroll animation — not implemented
+7. Modifier passthrough and `PostModifierEvent` — no-ops
+8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+9. `monitor_select` mode — returns `CodeNotSupported`
+10. Font resolution — alias mapping only, no system font enumeration
+
+**macOS**
+
+No known functional gaps; it is the reference implementation.
+
+---
+
+# Contributor Guide
+
+Guiding principles:
 
 - shared business logic stays in pure Go
 - platform-specific code is easy to locate
 - Linux backend differences are explicit
 - contributors implement in existing slots instead of inventing new file layout
-- unsupported features fail clearly with `CodeNotSupported`
-
----
+- unsupported features fail loudly with `CodeNotSupported`
 
 ## First Stops
 
-Before changing code, read these files first:
+Read these before changing platform code:
 
-- [internal/core/infra/platform/profile.go](../internal/core/infra/platform/profile.go)
-- [internal/core/ports/system.go](../internal/core/ports/system.go)
-- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
-- [internal/core/ports/font.go](../internal/core/ports/font.go) — FontResolver port (fontconfig on Linux, NSFont on macOS)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [CONVENTIONS.md](./go/CONVENTIONS.md)
+- [platform/profile.go](../internal/core/infra/platform/profile.go) — per-subsystem backend family and CGO expectations
+- [ports/system.go](../internal/core/ports/system.go) — the main OS contract
+- [ports/capabilities.go](../internal/core/ports/capabilities.go) and [capability_presets.go](../internal/core/ports/capability_presets.go) — what `neru doctor` reports
+- [ports/font.go](../internal/core/ports/font.go) — FontResolver port
+- [ARCHITECTURE.md](./ARCHITECTURE.md) and [CONVENTIONS.md](./go/CONVENTIONS.md)
 
-If you are contributing Linux support, also inspect the reserved backend files in
-the package you plan to touch, such as:
-
-- `*_linux_common.go`
-- `*_linux_x11.go`
-- `*_linux_wayland.go`
-
----
-
-## First 15 Minutes
-
-If you are new to the codebase, this is the recommended startup path.
-
-### Any platform
-
-1. Read [profile.go](../internal/core/infra/platform/profile.go)
-2. Read the relevant port in `internal/core/ports/`
-3. Find the implementation slot you expect to touch
-4. Run:
-
-```bash
-just build
-just test-foundation
-```
-
-### Linux contributors
-
-1. Identify whether your work belongs in `common`, `x11`, or `wayland`
-2. Open the target file in that slot before writing code
-3. Build a Linux foundations binary from any host if needed:
-
-```bash
-just build-linux
-```
-
-4. If you are on Linux, also run:
-
-```bash
-just test
-```
-
-### Windows contributors
-
-1. Start in the `*_windows.go` slot for the package you are changing
-2. Build a Windows foundations binary from any host if needed:
-
-```bash
-just build-windows
-```
-
-3. If you are on Windows, run:
-
-```bash
-just test
-```
-
-### macOS contributors
-
-If your work touches the real native product path, run:
-
-```bash
-just build-darwin
-just test
-```
-
----
+Contributing Linux support? Also open the reserved backend files in the package
+you plan to touch (`*_linux_common.go`, `*_linux_x11.go`, `*_linux_wayland.go`)
+before writing anything.
 
 ## File Layout Rules
 
-Platform-specific files should make the intended implementation slot obvious.
+Platform files make the implementation slot obvious. Use these suffixes:
 
-Use these suffixes:
+| Suffix                            | Meaning                                                   |
+| --------------------------------- | --------------------------------------------------------- |
+| `*_darwin.go`                     | macOS                                                     |
+| `*_windows.go`                    | Windows                                                   |
+| `*_other.go`                      | non-target fallback for dispatch-style packages           |
+| `*_linux_common.go`               | Linux-shared wrapper, fallback, or backend routing        |
+| `*_linux_x11.go`                  | X11                                                       |
+| `*_linux_wayland.go`              | Wayland                                                   |
+| `*_linux_wayland_<compositor>.go` | one compositor family needing a distinct path             |
+| `*_cgo.go` / `*_nocgo.go`         | CGO and pure-Go variants of the same slot                 |
 
-- `*_darwin.go`: macOS implementation
-- `*_windows.go`: Windows implementation
-- `*_linux_common.go`: shared Linux wrapper or current fallback behavior
-- `*_linux_x11.go`: Linux X11 implementation slot
-- `*_linux_wayland.go`: Linux Wayland implementation slot
-- `*_linux_wayland_<compositor>.go`: Wayland compositor sub-slot when one
-  compositor family needs a distinct implementation (e.g.
-  `*_linux_wayland_wlroots.go`, `*_linux_wayland_kde.go`). Still the same
-  package + build tags; selection is at runtime (see Linux Backend Model).
-- `*_other.go`: non-target fallback for dispatch-style packages
+Two rules that save review cycles:
 
-App-level platform dispatch also follows this pattern. For example,
-per-hotkey CGEventTaps are re-registered on layout change (via
-`NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps
-key names to layout-aware keycodes.
-
-Do not create new ad hoc platform filenames if an existing slot already exists.
-
-Do not create fake empty `darwin` / `linux` / `windows` files just for symmetry.
-Only add a new file when there is a real new implementation slot.
-
----
-
-## Build And Test Commands
-
-These are the main contributor commands:
-
-| Goal                                            | Command                |
-| ----------------------------------------------- | ---------------------- |
-| build for current host                          | `just build`           |
-| build macOS binary on macOS                     | `just build-darwin`    |
-| build Linux foundations binary                  | `just build-linux`     |
-| build Windows foundations binary                | `just build-windows`   |
-| run focused cross-platform-safe tests           | `just test-foundation` |
-| run full unit + integration suite on current OS | `just test`            |
-| run lint checks                                 | `just lint`            |
-
-Notes:
-
-- `just build-linux` produces a Beta backend with overlay rendering, hints,
-  grid, scroll, input injection, multi-monitor (per-monitor rendering, HiDPI /
-  fractional scaling, live hotplug), and `monitor_select` on X11 and
-  wlroots/KWin Wayland; GNOME/Mutter Wayland stays unsupported.
-- `just build-windows` produces a binary with grid, recursive grid,
-  scroll, global hotkeys, mouse injection, IPC, and initial UIA accessibility.
-- `just release-ci-linux <version>` and `just release-ci-windows <version>` to release a version tagged binary in ci.
-- macOS remains the only fully native product path today.
-
----
+- **Do not invent new ad hoc platform filenames** when a slot already exists.
+- **Do not create empty `darwin` / `linux` / `windows` files for symmetry.** Add
+  a file only when there is a real implementation slot behind it.
 
 ## Where To Implement What
-
-Use this table as the default routing guide.
 
 | Capability                                                   | Primary location                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -207,832 +502,228 @@ Use this table as the default routing guide.
 | global hotkeys                                               | `internal/core/infra/hotkeys/`                               |
 | keyboard event capture                                       | `internal/core/infra/eventtap/`                              |
 | accessibility integration                                    | `internal/core/infra/accessibility/`                         |
-| overlay window orchestration                                 | `internal/ui/overlay/`                                       |
-| overlay rendering by mode                                    | `internal/app/components/*/overlay_*.go`                     |
-| app watcher / isolated platform hooks                        | dispatch-style `platform_*.go` files in the relevant package |
+| overlay window orchestration **and all Linux/Windows drawing** | `internal/ui/overlay/`                                     |
+| overlay rendering by mode (**macOS only**; stubs elsewhere)  | `internal/app/components/*/overlay_*.go`                     |
+| app watcher and other isolated platform hooks                | dispatch-style `platform_*.go` in the relevant package       |
 
-Examples:
+Worked examples:
 
-- X11 hotkeys belong in [manager_linux_x11.go](../internal/core/infra/hotkeys/manager_linux_x11.go)
-- Wayland keyboard capture belongs in [eventtap_linux_wayland.go](../internal/core/infra/eventtap/eventtap_linux_wayland.go)
-- shared Linux system fallbacks belong in [system_linux_common.go](../internal/core/infra/platform/linux/system_linux_common.go)
+- X11 hotkeys → [manager_linux_x11.go](../internal/core/infra/hotkeys/manager_linux_x11.go)
+- Wayland keyboard capture → [eventtap_linux_wayland.go](../internal/core/infra/eventtap/eventtap_linux_wayland.go)
+- shared Linux system fallbacks → [system_linux_common.go](../internal/core/infra/platform/linux/system_linux_common.go)
 
----
+## Build And Test Commands
+
+| Goal                                            | Command                |
+| ----------------------------------------------- | ---------------------- |
+| build for current host                          | `just build`           |
+| build macOS binary (on macOS)                   | `just build-darwin`    |
+| build Linux binary                              | `just build-linux`     |
+| build Windows binary                            | `just build-windows`   |
+| focused cross-platform-safe tests               | `just test-foundation` |
+| full unit + integration suite on current OS     | `just test`            |
+| lint                                            | `just lint`            |
+| tagged release binaries in CI                   | `just release-ci-linux <arch> <version>`, `just release-ci-windows <arch> <version>` |
+
+New to the codebase? `just build && just test-foundation` first, then find the
+slot you expect to touch before writing code. Cross-compiled binaries build from
+any host, but only the target OS can run `just test` meaningfully — integration
+tests are tagged per-OS.
 
 ## Linux Backend Model
 
-Linux is treated as a backend family, not a single target.
+Linux is a backend *family*, not a single target. Keep two axes separate:
 
-The expected split is:
+- **Compile-time axis (OS + CGO)** — expressed by build tags and file suffixes.
+  Build tags cannot distinguish compositors: KDE and GNOME are both `linux` +
+  Wayland at compile time. A suffix therefore never encodes a single desktop
+  environment on its own.
+- **Runtime axis (which compositor is live)** — expressed by the `LinuxBackend`
+  family in [linux_backend.go](../internal/core/infra/platform/linux_backend.go),
+  detected from environment variables and routed by `factory.go` plus dispatch
+  seams such as `system_linux_wayland_input.go`.
 
-- `common`: Linux-shared wrapper behavior, current fallback behavior, or backend selection
-- `x11`: X11-specific implementation
-- `wayland`: Wayland or compositor-specific implementation
+Within the compile-time axis, choose the slot by purpose:
 
-This does not mean every Linux package must fully implement both backends
-immediately. It means contributors should write code in the right slot from the
-start.
+| Slot      | Use for                                                                    |
+| --------- | -------------------------------------------------------------------------- |
+| `common`  | shared Linux types, shared fallbacks, backend detection/routing, helpers    |
+| `x11`     | X11 display enumeration, event capture, overlays, pointer queries and warps |
+| `wayland` | compositor capture/overlay behavior, layer-shell, output enumeration        |
 
-Use `common` for:
+Not every package must implement both backends immediately — but new code should
+land in the right slot from the start. Accessibility is the main exception: most
+Linux accessibility stays shared around AT-SPI even where other subsystems split.
 
-- shared Linux types
-- shared fallback behavior
-- backend detection or routing
-- helpers reused by both X11 and Wayland
+### Organize by mechanism, not by desktop
 
-Use `x11` for:
+Desktop environments share mechanisms, so the axis that actually varies is
+usually the mechanism:
 
-- X11 display enumeration
-- X11 event capture
-- X11 overlays
-- X11 cursor movement or pointer queries
-
-Use `wayland` for:
-
-- compositor-specific capture or overlay behavior
-- layer-shell integrations
-- Wayland-specific output enumeration or pointer behavior
-
-Accessibility is the main exception: much of Linux accessibility can stay
-shared around AT-SPI, even when other capabilities split by backend.
-
-### Wayland compositor backends (two axes)
-
-Wayland is not one target. KDE/KWin, the wlroots family (Sway, Hyprland, niri,
-COSMIC), and GNOME/Mutter differ in input, overlay, and hotkey mechanisms. Keep
-two axes separate:
-
-- **Compile-time axis** — OS + CGO. Expressed by build tags and the file
-  suffixes above. Build tags cannot distinguish compositors (KDE and GNOME are
-  both `linux` + Wayland at compile time), so the suffix never encodes a single
-  DE on its own.
-- **Runtime axis** — which compositor is live. Expressed by the `LinuxBackend`
-  family in [linux_backend.go](../internal/core/infra/platform/linux_backend.go)
-  (`BackendWaylandWlroots`, `BackendWaylandKDE`, `BackendWaylandGNOME`,
-  `BackendWaylandOther`), detected from `XDG_CURRENT_DESKTOP` and routed by the
-  factory + dispatch seams (e.g. `system_linux_wayland_input.go`).
-
-Per-DE behavior, protocol measurements, and known issues live in
-[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md). Host setup (deps, build, deploy) lives
-in [LINUX_SETUP.md](./LINUX_SETUP.md).
-
-Organize implementation by the axis that actually varies, which is usually the
-**mechanism**, not the DE, because DEs share mechanisms:
-
-- Input: KDE uses libei (RemoteDesktop portal); GNOME also uses libei; wlroots
-  and COSMIC use `zwlr_virtual_pointer`. So a libei backend can serve multiple
-  DEs — do not duplicate it per DE.
-- Overlay: layer-shell works on KDE, wlroots, and COSMIC; only GNOME/Mutter
+- **Input** — KDE and GNOME both use libei (RemoteDesktop portal); wlroots and
+  COSMIC use `zwlr_virtual_pointer`. One libei backend serves several DEs; do
+  not duplicate it per DE.
+- **Overlay** — layer-shell works on KDE, wlroots, and COSMIC; only GNOME/Mutter
   lacks it.
-- Genuinely DE-specific: active-window geometry (KWin D-Bus vs Mutter D-Bus)
-  and hotkey registration. Put these in DE-named files (e.g.
-  `kwin_geometry_linux.go`).
+- **Genuinely DE-specific** — active-window geometry (KWin D-Bus vs Mutter
+  D-Bus) and hotkey registration. These belong in DE-named files such as
+  `kwin_geometry_linux.go`.
 
-Use a `*_linux_wayland_<compositor>.go` sub-slot when a compositor family needs
-a distinct path that another family does not share. Current slots:
+Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
+needs a path no other family shares. Current sub-slots:
 `system_linux_wayland_wlroots_*.go` (virtual-pointer input) and
 `system_linux_wayland_kde_*.go` (libei input), with
 `system_linux_wayland_input.go` as the shared routing seam.
 
-To add a compositor (e.g. COSMIC): add a `LinuxBackend` value + detection in
-`linux_backend.go`, route it in the factory and the relevant dispatch seams,
-and only add a new `*_linux_wayland_<compositor>.go` slot if it cannot reuse an
+**To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
+in `linux_backend.go`, route it in the factory and the relevant dispatch seams,
+and add a new `*_linux_wayland_<compositor>.go` slot *only* if it cannot reuse an
 existing mechanism file.
 
----
+Per-DE decisions, measured protocol support, and known issues live in
+[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md); host setup lives in
+[LINUX_SETUP.md](./LINUX_SETUP.md).
 
 ## Windows Model
 
-Windows is currently treated as one backend family with basic support.
+Windows is one backend family with alpha-level support. Prefer:
 
-For now, prefer:
-
-- `*_windows.go` for the implementation slot
-- pure Go Win32 / COM bindings where practical
-
-Supported capabilities:
-
-- **grid, recursive grid, scroll** modes — layered GDI overlay, keyboard navigation
-- **direct mouse injection** — via `SendInput` / `SetCursorPos`
-- **global hotkeys** — via `RegisterHotKey`
-- **keyboard event capture** — via `WH_KEYBOARD_LL` hook
-- **accessibility** — UI Automation (UIA) COM-based integration (initial coverage)
-- **named-pipe IPC** — daemon CLI commands over `\\.\pipe\neru`
-
-Stubbed (not yet implemented):
-
-- notifications (Windows toast notifications)
-- app watcher (Win32 foreground-window notifications)
-- dark mode detection (personalization APIs)
+- `*_windows.go` as the implementation slot
+- pure Go Win32 / COM bindings (via `x/sys/windows` or syscall) over CGO
 
 Do not introduce additional Windows backend naming until there is a real reason.
-
----
+See [Known Gaps](#known-gaps) for the current Windows to-do list — several
+entries there are well-scoped starter tasks.
 
 ## CGO Guidance
 
-Do not decide CGO usage by OS alone.
-
-Use [profile.go](../internal/core/infra/platform/profile.go)
-as the source of truth for the current backend plan.
+**Do not decide CGO usage by OS alone.** CGO is a per-backend decision, and
+[profile.go](../internal/core/infra/platform/profile.go) is the source of truth.
 
 Current intent:
 
-- macOS: CGO required
-- Linux: backend-dependent
-- Windows: prefer pure Go first
+- **macOS** — CGO required throughout (Objective-C bridge)
+- **Linux** — backend-dependent; several backends already require it, and
+  `*_nocgo.go` variants must still compile and degrade honestly
+- **Windows** — pure Go first
 
 Good default instincts:
 
 - AT-SPI and freedesktop notifications should prefer pure Go / D-Bus paths
-- X11 may be possible in pure Go depending on library choice
-- some Wayland/compositor integrations may require CGO or native helpers
-- Win32 hotkeys, hooks, monitor APIs, and UIA should prefer pure Go bindings first
+- X11 may be feasible in pure Go depending on library choice
+- Wayland and compositor integrations often need CGO or native helpers
+- Win32 hotkeys, hooks, monitor APIs, and UIA should prefer pure Go bindings
 
-If you introduce a backend that changes the build story, update:
-
-- [profile.go](../internal/core/infra/platform/profile.go)
-- [justfile](../justfile)
-- this document
-
-When in doubt, make the build assumption explicit in your PR description and in
-the relevant backend comments.
-
----
+If you introduce a backend that changes the build story, update
+[profile.go](../internal/core/infra/platform/profile.go), the
+[justfile](../justfile), and this document — and state the build assumption
+explicitly in your PR description and the backend's package comments.
 
 ## Hotkeys And Modifiers
 
-Shared code should avoid hard-coding macOS conventions.
+Shared code must not hard-code macOS conventions:
 
-Use these rules:
-
-- Use `Primary` when you mean "main accelerator modifier"
+- use `Primary` when you mean "the main accelerator modifier"
 - `Primary` maps to `Cmd` on macOS and `Ctrl` on Linux/Windows
-- keep backend-specific key translation inside infra/platform code
-- do not spread X11, Wayland, Carbon, or Win32 naming into shared app logic
+- keep backend-specific key translation inside `infra/platform` code
+- never leak X11, Wayland, Carbon, or Win32 naming into shared app logic
 
-Relevant files:
+Relevant files: [config.go](../internal/config/config.go),
+[modifiers.go](../internal/core/domain/action/modifiers.go),
+[hotkeys.go](../internal/app/hotkeys.go).
 
-- [internal/config/config.go](../internal/config/config.go)
-- [internal/core/domain/action/modifiers.go](../internal/core/domain/action/modifiers.go)
-- [internal/app/hotkeys.go](../internal/app/hotkeys.go)
-
----
+On macOS, per-hotkey CGEventTaps are re-registered on keyboard-layout change
+(via `NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps key
+names to layout-aware keycodes.
 
 ## Adding A New Capability
 
-Use this flow.
+**If multiple services or app layers need it** (broad system capability):
 
-### Option A: Broad system capability
-
-If multiple services or app layers will need the capability:
-
-1. Add it to [internal/core/ports/system.go](../internal/core/ports/system.go)
+1. Add it to [ports/system.go](../internal/core/ports/system.go)
 2. Implement it in the darwin adapter
-3. Add Linux common fallback behavior in `system_linux_common.go`
-4. Add Windows fallback behavior in `system.go` under the Windows platform package
-5. If Linux needs backend-specific behavior, push that implementation into `system_linux_x11.go` or `system_linux_wayland.go`
+3. Add a Linux shared fallback in `system_linux_common.go`
+4. Add a Windows implementation or explicit stub in the Windows platform package
+5. Push backend-specific Linux behavior down into `system_linux_x11.go` or `system_linux_wayland.go`
 6. Update capability reporting if the support surface changed
 
-### Option B: Isolated package-only platform behavior
-
-If only one infra package needs the capability:
+**If only one infra package needs it** (isolated platform behavior):
 
 1. Keep the shared package code platform-agnostic
-2. Use `platform_darwin.go` and `platform_other.go` dispatch files when that pattern fits
-3. If Linux needs backend-specific behavior, add Linux backend files in that package instead of pushing the logic up into shared app code
+2. Use `platform_darwin.go` / `platform_other.go` dispatch files where that fits
+3. Add Linux backend files inside that package rather than pushing detection up
+   into shared app or service code
 
----
+## Errors And Capability Reporting
 
-## Error Handling Rules
-
-For unimplemented platform behavior, return `CodeNotSupported`.
-
-Example:
+Unimplemented platform behavior returns `CodeNotSupported` — never a silent
+no-op, unless the behavior is explicitly documented as best-effort:
 
 ```go
 return derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented on linux")
 ```
 
-Use clear messages that name the missing operation and platform.
+Name the missing operation and the platform in the message. Callers degrade
+gracefully via `derrors.IsNotSupported(err)`.
 
-Do not silently no-op unless the behavior is explicitly documented as best-effort.
-
-When a feature becomes real:
-
-- replace the `CodeNotSupported` return
-- update capability details
-- remove stale TODO wording if it no longer applies
-
----
-
-## Capability Reporting
-
-Capability reporting is part of the contributor contract, not just a user nicety.
-
-When you implement or partially implement a feature, review:
-
-- [internal/core/ports/capabilities.go](../internal/core/ports/capabilities.go)
-- [internal/core/ports/capability_presets.go](../internal/core/ports/capability_presets.go)
-- [internal/app/ipc_info.go](../internal/app/ipc_info.go)
-
-`neru doctor` should help contributors and users understand what is actually
-available on the current platform.
-
-If a feature remains incomplete, keep the capability honest.
-
----
+Capability reporting is part of the contract, not a user nicety — it is what
+`neru doctor` prints. When you implement or partially implement a feature,
+review [capabilities.go](../internal/core/ports/capabilities.go),
+[capability_presets.go](../internal/core/ports/capability_presets.go), and
+[ipc_info.go](../internal/app/ipc_info.go). A stub must report `stub`, not
+`supported` — and a shipped feature must stop reporting `stub`. When a feature
+becomes real: replace the `CodeNotSupported` return, update the capability
+detail, and delete TODO wording that no longer applies.
 
 ## Testing Checklist
 
-Every platform contribution should update tests at the right level.
+- **unit tests** for shared parsing, normalization, routing, or config logic
+  (`*_test.go`, using mocks from `internal/core/ports/mocks`)
+- **contract tests** pinning `CodeNotSupported` behavior and capability semantics
+- **integration tests** for real platform behavior, tagged per-OS
+  (`*_integration_linux_test.go`, `*_integration_darwin_test.go`,
+  `*_integration_windows_test.go`)
 
-Use this checklist:
+Questions your tests should answer:
 
-- unit tests for shared parsing, normalization, routing, or config logic
-- contract tests for unsupported behavior and capability semantics
-- integration tests for real platform behavior on the target OS
-
-Typical test placement:
-
-- `*_test.go`: shared or mocked logic
-- `*_integration_linux_test.go`: real Linux behavior
-- `*_integration_darwin_test.go`: real macOS behavior
-- `*_integration_windows_test.go`: real Windows behavior when added
-
-Good questions to answer in tests:
-
-- does the adapter return the right error when unsupported?
+- does the adapter return the right error when the feature is unsupported?
 - does the capability matrix reflect the new state?
-- does backend selection route to the right Linux slot?
+- does backend selection route to the intended Linux slot?
 - does shared logic stay platform-neutral?
-
----
 
 ## Documentation Checklist
 
-When you land platform work, update docs in the same PR.
+Land docs in the same PR as the platform work. Check:
 
-Usually that means checking these files:
-
-- [README.md](../README.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [README.md](../README.md) and [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [DEVELOPMENT.md](./DEVELOPMENT.md)
+- **this file** — the parity tables in Part 1
 - [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
 - [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md) — per-DE decisions and known issues
 - [CONVENTIONS.md](./go/CONVENTIONS.md)
 
-Update them when:
+Update them whenever the capability matrix, the backend plan, the build/CGO
+story, or a contributor-facing file naming pattern changes.
 
-- the capability matrix changed
-- the backend plan changed
-- the build or CGO story changed
-- a contributor-facing file naming pattern changed
+## Contributing Safely
 
----
-
-## Suggested First Contributions
-
-Good cross-platform starter tasks:
+**Good starter tasks:**
 
 - improve capability detail text for an existing platform slice
 - replace a Linux `CodeNotSupported` return with real X11 or AT-SPI behavior
 - add a contract test for a currently stubbed feature
-- add Linux or Windows integration test scaffolding
+- pick a numbered item from [Known Gaps](#known-gaps)
 - document missing backend assumptions in the package you are touching
 
-Higher-risk tasks:
+**Higher-risk — open or link an issue first:**
 
 - changing shared input semantics
 - introducing CGO to a backend that was previously pure Go
 - moving shared logic into platform packages
-- mixing backend detection into app/service code
-
-If your change falls into the higher-risk group, open or link an issue first.
-
----
-
-## What "Done" Looks Like
-
-A good platform PR usually leaves the repo better in five ways:
-
-- the implementation lives in the intended file slot
-- unsupported paths remain explicit and honest
-- capability reporting is updated
-- tests cover the new behavior or contract
-- docs tell the next contributor what changed
-
-That is the bar to aim for, even for small slices.
-
----
-
-## Feature Parity Reference
-
-This section provides a **ground-truth comparison** of what Neru does on
-macOS, Linux, and Windows.
-
-Every claim below is derived from code in `internal/core/infra/platform/`,
-`internal/core/infra/accessibility/`, `internal/core/infra/eventtap/`,
-`internal/core/infra/hotkeys/`, `internal/ui/overlay/`,
-`internal/app/components/`, and the capability presets at
-`internal/core/ports/capability_presets.go`. If a doc claim contradicts code,
-trust the code.
-
-### OS Support Overview
-
-| Aspect                  | macOS (Darwin)                       | Linux                                             | Windows                                  |
-| ----------------------- | ------------------------------------ | ------------------------------------------------- | ---------------------------------------- |
-| **Status**              | Production-ready                     | Beta (X11 & Wayland wlroots/KDE)                  | Alpha (initial coverage)                 |
-| **CGO Required**        | Yes (Objective-C bridge)             | Backend-dependent                                 | No (pure Go Win32/COM)                   |
-| **Build Tag**           | `darwin`                             | `linux`                                           | `windows`                                |
-| **Primary Modifier**    | `Cmd`                                | `Ctrl`                                            | `Ctrl`                                   |
-| **Display Server**      | Cocoa/Quartz                         | X11, Wayland (wlroots/KDE/GNOME)                  | Win32 Desktop Window Manager             |
-| **Accessibility API**   | AXUIElement (Cocoa)                  | AT-SPI (D-Bus)                                    | UI Automation (COM)                      |
-| **Overlay Window Type** | NSPanel (borderless, non-activating) | X11 override-redirect / wlr-layer-shell           | Layered HWND (WS_POPUP \| WS_EX_LAYERED) |
-| **Overlay Rendering**   | CoreAnimation (CALayer, GPU)         | Cairo (X11: Xlib surface; Wayland: SHM buffers)   | GDI + software SDF (BGRA bitmaps)        |
-| **Keyboard Capture**    | CGEventTap (Quartz event taps)       | XGrabKeyboard / evdev grab / layer-shell keyboard | WH_KEYBOARD_LL (SetWindowsHookEx)        |
-| **Global Hotkeys**      | Per-key CGEventTap                   | XGrabKey / evdev passive grab                     | RegisterHotKey                           |
-
-### Port Capability Matrix
-
-From `internal/core/ports/capability_presets.go` and actual adapter code.
-
-#### Legend
-
-- ✅ **Supported** — implemented and expected to work in production
-- 🟡 **Stub** — code path exists but returns `CodeNotSupported` or no-ops
-- ⚠️ **Partial** — works for some backends or has known gaps
-- ❌ **Not present** — no code path at all
-
-| Capability                          | macOS                       | Linux (X11)        | Linux (wlroots)           | Linux (KDE)              | Linux (GNOME)     | Windows                  |
-| ----------------------------------- | --------------------------- | ------------------ | ------------------------- | ------------------------ | ----------------- | ------------------------ |
-| **Focused App PID**                 | ✅                          | ✅                 | ⚠️ (app_id; PID best-effort) | ⚠️ (app_id; PID best-effort) | 🟡                | ✅                       |
-| **Screen Bounds**                   | ✅                          | ✅                 | ✅                        | ✅                       | ✅                | ✅                       |
-| **Screen Enumeration**              | ✅                          | ✅ (XRandR)        | ✅ (xdg-output)           | ✅ (xdg-output)          | ✅ (xdg-output)   | ✅ (EnumDisplayMonitors) |
-| **Cursor Position**                 | ✅                          | ✅                 | ✅ (sync surface)         | ✅ (sync surface)        | ❌                | ✅                       |
-| **Cursor Move**                     | ✅                          | ✅ (XTest)         | ✅ (zwlr_virtual_pointer) | ✅ (libei)               | ❌                | ✅ (SetCursorPos)        |
-| **Cursor Smooth Animation**         | ✅                          | ✅                 | ✅                        | ✅                       | ❌                | ❌                       |
-| **Scroll Smooth Animation**         | ✅                          | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
-| **Accessibility Element Discovery** | ✅ (AXUIElement)            | ⚠️ (AT-SPI walk)   | ⚠️ (AT-SPI walk)          | ⚠️ (AT-SPI walk)         | 🟡 (no injection) | ✅ (UIA initial)         |
-| **Accessibility Click/Scroll**      | ✅                          | ✅ (XTest)         | ✅ (virtual-pointer)      | ✅ (libei)               | 🟡                | ✅ (UIA initial)         |
-| **Overlay**                         | ✅ (Cocoa NSPanel)          | ✅ (X11 Cairo)     | ✅ (wl-layer Cairo)       | ✅ (wl-layer Cairo)      | ❌                | ✅ (Layered HWND)        |
-| **Global Hotkeys**                  | ✅ (CGEventTap)             | ✅ (XGrabKey)      | ✅ (evdev grab)           | ✅ (evdev grab)          | ❌                | ✅ (RegisterHotKey)      |
-| **Keyboard Event Capture**          | ✅ (CGEventTap)             | ✅ (XGrabKeyboard) | ✅ (evdev + wl-keyboard)  | ✅ (evdev + wl-keyboard) | ❌                | ✅ (WH_KEYBOARD_LL)      |
-| **App Watcher**                     | ✅ (NSWorkspace)            | ✅ (WM_CLASS poll) | ✅ (toplevel app_id poll)  | ✅ (toplevel app_id poll) | 🟡 (no source)    | 🟡                       |
-| **Dark Mode Detection**             | ✅ (Cocoa)                  | ✅ (xdg-portal)    | ✅ (xdg-portal)           | ✅ (kdeglobals)          | ✅ (xdg-portal)   | ✅ (registry)            |
-| **Secure Input Detection**          | ✅                          | 🟡 (always false)  | 🟡 (always false)         | 🟡 (always false)        | 🟡 (always false) | 🟡 (always false)        |
-| **Native Notifications**            | ✅ (NSAlert/UNNotification) | 🟡                 | 🟡                        | 🟡                       | 🟡                | 🟡                       |
-| **Native Alerts**                   | ✅ (NSAlert)                | 🟡                 | 🟡                        | 🟡                       | 🟡                | ✅ (Win32 MessageBox)    |
-| **Font Resolution**                 | ✅ (NSFont)                 | ✅ (fontconfig)    | ✅ (fontconfig)           | ✅ (fontconfig)          | ✅ (fontconfig)   | ✅ (DirectWrite)         |
-| **System Cursor Hide**              | ✅ (CGDisplayHideCursor)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
-| **Monitor Select Panels**           | ✅ (native Cocoa panels)    | ✅ (Cairo)         | ✅ (Cairo)                | ✅ (Cairo)               | ❌                | ❌                       |
-
-**Smooth cursor animation on Linux:** off by default and opt-in via
-`smooth_cursor.move_mouse_enabled` (the same cross-platform
-`SmoothCursorConfig` macOS uses). When enabled, `SystemAdapter.MoveCursorToPoint`
-routes through `smoothCursorAnimator` (`mouse_animator_linux.go`) — a single
-worker goroutine that samples the current position once, then steps the direct
-per-backend warp (XTest on X11, `zwlr_virtual_pointer` on wlroots, libei on KDE)
-toward the target with linear interpolation, and `WaitForCursorIdle` now blocks
-until it settles instead of returning immediately. This mirrors the darwin
-animator (coalescing, latest-target-wins), but drives discrete warps rather than
-a Quartz event stream, so there is no drag-event distinction. It applies to the
-same flows macOS animates — grid/recursive-grid cursor-follow, `move_mouse`, and
-selection moves; clicks stay instant. On Wayland the interpolation start point
-comes from the client-side cursor cache; a stale read only skews the glide path,
-never the final landing point (the last step lands exactly on the target).
-GNOME/Mutter has no injection path, so it stays unsupported there.
-
-**Focused App PID on Wayland:** wlroots and KDE sessions resolve the focused
-window through the `wlr-foreign-toplevel-management` protocol, which exposes the
-window's **app_id** (used as the bundle identifier for per-app config) but not
-its PID — Wayland clients cannot read another client's process credentials.
-`SystemPort.FocusedApplicationPID` therefore best-effort matches the app_id
-against `/proc`; when no process matches it returns `CodeNotSupported` with the
-app_id rather than a fabricated number. GNOME/Mutter does not implement the
-protocol, so it stays a stub there (use an X11 session under GNOME).
-
-**App Watcher on Linux:** macOS receives focus changes from an NSWorkspace
-observer; Linux has no equivalent push API, so the watcher
-(`internal/core/infra/appwatcher/platform_linux.go`) **polls** the focused
-application's identity every 400ms and dispatches activate/deactivate events
-when it changes. The identity comes from
-`platform/linux.FocusedAppID(backend)`: the active window's **WM_CLASS** on X11
-(`neru_x11_get_window_class`) and the focused toplevel's **app_id** on Wayland
-wlroots/KDE (`wlr-foreign-toplevel-management`, reusing the same source as
-Focused App PID). This drives per-app global-hotkey switching
-(`App.handleAppActivation`), which previously never fired on Linux. GNOME/Mutter
-exposes no focused-app source, so the poll yields nothing and no events fire
-there — per-app hotkey switching needs an X11 session under GNOME. Only
-activate/deactivate are emitted; launch, terminate, screen-parameter, and
-Mission Control events remain macOS-only.
-
-**Accessibility on Linux (⚠️, not a stub):** hints-mode element discovery is
-implemented via AT-SPI over D-Bus. `ATSPIClient` (`atspi_linux.go`) enables
-assistive-tech mode, finds the active frame, and walks its tree
-(`ClickableNodes`) for clickable elements, emitting native AT-SPI role names.
-Configured roles are resolved into that vocabulary at config load, so both
-sides of the filter speak AT-SPI. This is the client the Linux adapter actually uses
-(`platform_client_linux.go` → `Adapter.ClickableElements` → `client.ClickableNodes`);
-the `TreeNode`/`BuildTree` stub in `tree_linux.go` is the macOS-style tree API
-and is **not** on the Linux hints path. Click/scroll then inject at the hint
-point through the embedded `InfraAXClient` — XTest on X11, `zwlr_virtual_pointer`
-on wlroots, libei on KDE, plus evdev/uinput for Wayland scroll. It is marked ⚠️
-rather than ✅ because coverage depends on each app exposing AT-SPI (Qt/GTK do
-with accessibility enabled; some toolkits expose little), and there is no
-Vision/OCR fallback like macOS. AT-SPI discovery itself is display-server
-independent, but GNOME/Mutter has no usable injection path, so hints are not
-usable there (use an X11 session under GNOME).
-
-**Chromium/Electron apps on Linux:** Chromium-based apps (Chrome, Electron,
-and forks such as Helium) do **not** expose their web-content accessibility
-tree over AT-SPI by default — they gate it behind their own runtime detection
-and, unlike macOS, there is no per-app attribute Neru can toggle to force it on
-(the macOS `AXManualAccessibility` nudge in `electron.EnsureAccessibility` is a
-no-op on Linux). The result is an AT-SPI frame with a single empty child, so
-hints find nothing inside such windows. The reliable workaround is to launch the
-app with `--force-renderer-accessibility` (e.g. `chromium --force-renderer-accessibility`),
-which forces the full web tree. Native GTK/Qt apps and Firefox expose their tree
-without this flag. This is a Chromium behavior, not a Neru limitation.
-
-**Active-window selection on Wayland:** the AT-SPI `ACTIVE` state is unreliable
-on wlroots compositors (niri, Sway, Hyprland) — the focused window can report
-`ACTIVE=false` while background frames report `ACTIVE=true`. Neru therefore
-selects the AT-SPI frame by matching the compositor's focused **app_id** (from
-`wlr-foreign-toplevel-management`, the same source as Focused App PID / the app
-watcher), falling back to the `ACTIVE`/`SHOWING` heuristic only on X11, GNOME,
-or when no app_id is available. See `findActiveFrame` in `atspi_linux.go`.
-
-**Window-origin offset on Wayland:** a Wayland client cannot know its own
-on-screen position, so AT-SPI reports element coordinates relative to the
-window. To place the hint overlay correctly, neru offsets those by the focused
-window's screen origin, supplied by a compositor-specific `windowOriginSource`
-(`window_origin_linux.go`), selected by environment:
-
-- **KDE / KWin** — a small KWin script pushes the focused window's geometry over
-  D-Bus (`kwin_geometry_linux.go`).
-- **niri** (`NIRI_SOCKET`) — `niri msg -j focused-window`/`focused-output`.
-  Works for **floating** windows (niri populates `tile_pos_in_workspace_view`)
-  and **fullscreen** windows (whose frame sits at the output origin with no
-  offset needed). For **tiled** windows — including a maximized column
-  (`maximize-column`, the default `Mod+F`) — niri does not expose the on-screen
-  position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so neru
-  falls back to unoffset coordinates and hints are misaligned there. Use a
-  floating window, or true fullscreen (`fullscreen-window`), for aligned hints.
-- **Sway** (`SWAYSOCK`) — `swaymsg -t get_tree`, focused node `rect + window_rect`.
-- **Hyprland** (`HYPRLAND_INSTANCE_SIGNATURE`) — `hyprctl -j activewindow` `at`/`size`.
-
-Each source verifies the reported window size matches the AT-SPI frame (a focus
-change can race the query) and is best-effort — an unavailable origin degrades
-to unoffset (window-relative) coordinates rather than misplacing hints.
-
-### Overlay Rendering
-
-#### Visual Features
-
-| Feature               | macOS                                            | Linux X11                                 | Linux Wayland                                | Windows                                                   |
-| --------------------- | ------------------------------------------------ | ----------------------------------------- | -------------------------------------------- | --------------------------------------------------------- |
-| **Window type**       | NSPanel (borderless, non-activating)             | X11 override-redirect Window              | wlr_layer_shell_v1 overlay surface           | Win32 layered HWND                                        |
-| **Rendering API**     | CoreAnimation (CALayer, GPU)                     | Cairo (CPU, Xlib)                         | Cairo (CPU, SHM buffers)                     | GDI + software SDF (CPU, BGRA)                            |
-| **Per-pixel alpha**   | `[NSColor clearColor]` + layer opaque=NO         | `CAIRO_OPERATOR_CLEAR`                    | `CAIRO_OPERATOR_CLEAR`                       | `AC_SRC_ALPHA` via `UpdateLayeredWindow`                  |
-| **Click-through**     | `setIgnoresMouseEvents:YES`                      | XFixes empty input region                 | `wl_surface_set_input_region` (empty)        | `WS_EX_TRANSPARENT`                                       |
-| **Always on top**     | `NSScreenSaverWindowLevel`                       | `_NET_WM_STATE_ABOVE` + `MapRaised`       | `ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY`          | `HWND_TOPMOST`                                            |
-| **Focus prevention**  | Non-activating panel (returns NO)                | override_redirect=YES, no WM decorations  | Keyboard interactivity: controlled           | `WS_EX_NOACTIVATE`                                        |
-| **High-DPI / Retina** | Dynamic `contentsScale`, backing change callback | `Xft.dpi` UI scaling (single global factor) | `wl_output` scale + `wp_fractional_scale_v1`/`wp_viewporter` (crisp fractional) | Not explicit                                              |
-| **Multi-monitor**     | Clamps per display, screen change tracking       | Enumerates all monitors, per-monitor render, live RandR hotplug | Per-output `wl_surface` array (max 16), live `wl_output` hotplug | Cursor-screen tracking, separate indicator/sticky windows |
-| **Font rendering**    | NSFontManager (postscript/family names)          | Cairo `select_font_face` + `show_text`    | Cairo `select_font_face` + `show_text`       | GDI `CreateFontW` + `DrawTextW` + alpha composite         |
-| **Rounded rects**     | NSBezierPath (`bezierPathWithRoundedRect`)       | Cairo arc-based `rounded_path`            | Cairo arc-based `rounded_path`               | SDF `alphaFillRoundedRect` (software)                     |
-| **Borders**           | NSBezierPath stroke                              | Cairo stroke (`fill_preserve` + `stroke`) | Cairo stroke                                 | SDF multi-pass alpha `strokeRoundedRect`                  |
-| **Coordinate origin** | Bottom-left (Quartz → Y-flip)                    | Top-left                                  | Top-left                                     | Top-left (negative DIB height)                            |
-| **Buffer model**      | Layer-backed, OS-managed                         | Single cairo surface                      | Triple-buffered SHM pool (3 buffers)         | Single pixel buffer                                       |
-
-#### Animation & Interaction
-
-| Feature                       | macOS                                              | Linux X11                              | Linux Wayland                               | Windows                                   |
-| ----------------------------- | -------------------------------------------------- | -------------------------------------- | ------------------------------------------- | ----------------------------------------- |
-| **Grid transition animation** | CoreAnimation 120Hz, ease-in-out + linear fallback | Goroutine 120fps, easeInOut smoothstep | Goroutine 120fps, easeInOut smoothstep      | ❌                                        |
-| **Mouse action indicator**    | CoreAnimation CABasicAnimation (scale+opacity)     | Goroutine 120fps, scale+opacity fade   | Goroutine 120fps, scale+opacity fade        | Goroutine 60fps, custom cubic easing, SDF |
-| **Smooth cursor animation**   | ✅ (goroutine, configurable easing, tween)         | ✅ (goroutine, stepped warp)           | ✅ (goroutine, stepped warp)                | ❌                                        |
-| **Smooth scroll animation**   | ✅ (goroutine, ease-out cubic)                     | ❌                                     | ❌                                          | ❌                                        |
-| **Animation frame rate**      | 120fps (NSTimer display link)                      | 120fps (ticker)                        | ~120fps                                     | 60fps (16ms ticker)                       |
-| **Thread model**              | Main thread dispatch (dispatch_async/sync)         | `renderMu sync.Mutex`                  | `displayMu sync.Mutex` (shared w/ renderMu) | Dedicated UI thread (`LockOSThread`)      |
-
-#### Visual Elements Per Mode
-
-| Element                        | macOS                                        | Linux X11                        | Linux Wayland                    | Windows                             |
-| ------------------------------ | -------------------------------------------- | -------------------------------- | -------------------------------- | ----------------------------------- |
-| **Hint badges — rectangular**  | ✅ (with rounded rect + text)                | ✅ (Cairo rounded rect)          | ✅ (Cairo rounded rect)          | ✅ (SDF rounded rect)               |
-| **Hint arrows (top/bottom)**   | ✅ (1pt arrow height, NSBezierPath)          | ✅ (Cairo triangle tail)         | ✅ (Cairo triangle tail)         | ❌                                  |
-| **Hint boundary highlight**    | ✅ (rounded rect behind element border)      | ✅ (Cairo)                       | ✅ (Cairo)                       | ✅ (SDF, capped 4px radius)         |
-| **Hint search input overlay**  | ✅ (`/ query count/` rounded badge)          | ❌                               | ❌                               | ✅ (`/ query count/` rounded badge) |
-| **Grid cell labels**           | ✅                                           | ✅                               | ✅                               | ✅                                  |
-| **Grid sub-key preview**       | ✅ (centered mini-grid, auto-hide threshold) | ✅ (centered mini-grid)          | ✅ (centered mini-grid)          | ✅ (single-line bottom text)        |
-| **Grid auto-hide labels**      | ✅ (fontSize × multiplier threshold)         | ✅                               | ✅                               | ✅                                  |
-| **Recursive grid badge**       | ✅                                           | ✅ (Cairo)                       | ✅ (Cairo)                       | ✅ (SDF)                            |
-| **Mode indicator**             | ✅ (own NSPanel, positioned on cursor)       | ✅ (DrawBadge on shared overlay) | ✅ (DrawBadge on shared overlay) | ✅ (dedicated indicatorWin window)  |
-| **Sticky modifiers indicator** | ✅ (own NSPanel, sized to fit)               | ✅ (DrawBadge on shared overlay) | ✅ (DrawBadge on shared overlay) | ✅ (dedicated stickyWin window)     |
-| **Virtual pointer**            | ✅ (own NSPanel, animated w/ grid)           | ✅ (drawn in overlay)            | ✅ (drawn in overlay)            | 🟡                                  |
-| **Screen sharing hide**        | ✅ (NSWindowSharingNone/ReadOnly per window) | ❌                               | ❌                               | ❌                                  |
-
-#### Rendering Architecture
-
-The architecture differs fundamentally:
-
-**macOS (Darwin):** Each component owns its own NSPanel. The component
-overlay\_\*.go files (e.g., `hints/overlay_darwin.go`) directly call into
-Objective-C bridge functions. Full GPU-backed rendering via CoreAnimation.
-
-**Linux:** Component files are stubs (Style + BuildStyle only). Actual
-rendering happens in the manager (`manager_linux_x11.go`,
-`manager_linux_wayland_cgo.go`) which directly calls C Cairo rendering
-functions. All elements draw into a shared Cairo surface.
-
-**Windows:** Same pattern as Linux — component stubs, actual rendering in
-manager (`manager_windows.go`, `manager_windows_overlay.go`,
-`manager_windows_features.go`) via `winplatform.OverlayWindow` (GDI + SDF).
-
-Key files:
-
-- macOS component overlays: `internal/app/components/{hints,grid,modeindicator,virtualpointer}/overlay_darwin.go`
-- Linux component overlays: `internal/app/components/{hints,grid,recursivegrid,modeindicator,stickyindicator}/overlay_linux_*.go` (stubs; actual rendering in manager)
-- Windows component overlays: `internal/app/components/{hints,grid,recursivegrid,modeindicator,stickyindicator}/overlay_windows.go` (stubs; actual rendering in manager)
-
-### Accessibility Systems
-
-#### Element Discovery
-
-| Aspect                     | macOS                                                                                                                                                                                    | Linux                                                                   | Windows                                                                              |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Backend**                | AXUIElement (via CGO ObjC bridge)                                                                                                                                                        | AT-SPI via D-Bus (pure Go)                                              | UI Automation via COM (pure Go)                                                      |
-| **Adapter location**       | `internal/core/infra/accessibility/element_darwin.go`                                                                                                                                    | `internal/core/infra/accessibility/element_linux.go` + `atspi_linux.go` | `internal/core/infra/accessibility/element_windows.go` + `uia_windows.go`            |
-| **Client**                 | `InfraAXClient` wraps Element/TreeNode → ObjC bridge                                                                                                                                     | `ATSPIClient` → D-Bus `org.a11y.atspi`                                  | `UIAClient` → raw COM vtable calls                                                   |
-| **Tree building**          | Full recursive tree walk of AXUIElement hierarchy (`tree.go`). Collects from: frontmost window, popover windows, menubar, dock, notification center, Stage Manager, PIP, screen capture. | Recursive AT-SPI D-Bus walk of the active frame (`ATSPIClient.ClickableNodes`, `atspi_linux.go`), depth/node capped. The `tree_linux.go` `BuildTree` stub is the macOS-style API and is not on this path. | Shallow UIA tree walk returning root-level clickable nodes (`tree_windows.go`).      |
-| **Clickable filtering**    | Extensive: role matching, size/position heuristics, excluded apps list. Multiple strategy backends (AX + Vision).                                                                        | Native AT-SPI role matching, SHOWING-state + on-screen extents check; coverage depends on the app's AT-SPI support. | Basic: collects `IUIAutomationElement` with `IsControlElement` + `IsContentElement`. |
-| **Strategy support**       | `config.StrategyAX` (default), `config.StrategyVision` (macOS Vision Framework).                                                                                                         | AX only (no Vision/OCR fallback).                                       | AX only.                                                                             |
-| **Popover / menu support** | ✅ (AXOrientation-based popover detection, menubar walking).                                                                                                                             | ⚠️ (popovers/menus in the active frame's AT-SPI subtree are walked; no separate menubar/dock collection). | 🟡                                                                                   |
-| **Focused application**    | ✅ (NSWorkspace + AXUIElement).                                                                                                                                                          | ✅ (X11: `_NET_ACTIVE_WINDOW`; Wayland: `wlr-foreign-toplevel` app_id on wlroots/KDE, XWayland fallback). | ✅ (Win32 `GetForegroundWindow`).                                                    |
-
-#### Action Execution
-
-Every action type in `internal/core/domain/action/action.go` is dispatched via `InfraAXClient.PerformAction`:
-
-| Action                  | macOS                                                | Linux                                                                | Windows                                                            |
-| ----------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| **Click at point**      | ✅ (`CGEventPost` via ObjC bridge)                   | ✅ (XTest btn 1 / zwlr_virtual_pointer)                              | ✅ (UIA pattern + `SendInput`)                                     |
-| **Right click**         | ✅ (`CGEventPost` right mouse down/up)               | ✅ (XTest btn 3 / zwlr_virtual_pointer)                              | ✅ (`SendInput` right button)                                      |
-| **Middle click**        | ✅ (`CGEventPost` middle mouse down/up)              | ✅ (XTest btn 2 / zwlr_virtual_pointer)                              | ✅ (`SendInput` middle button)                                     |
-| **Mouse down (any button)** | ✅ (`CGEventPost` left/right/other mouse down)   | ✅ (XTest btn 1/2/3 press / zwlr_virtual_pointer press)              | ✅ (`SendInput` left/right/middle down)                            |
-| **Mouse up (any button)**   | ✅ (`CGEventPost` left/right/other mouse up)     | ✅ (XTest btn 1/2/3 release / zwlr_virtual_pointer release)          | ✅ (`SendInput` left/right/middle up)                              |
-| **Drag while held**     | ✅ (move posts the matching `*MouseDragged` type)    | ✅ (pointer warp with the button held)                               | ✅ (`SetCursorPos` with the button held)                           |
-| **Move mouse to point** | ✅ (`CGEventPost` mouse move)                        | ✅ (XTest `XWarpPointer` / zwlr_virtual_pointer)                     | ✅ (`SetCursorPos`)                                                |
-| **Move mouse relative** | ✅ (same as absolute, delta applied)                 | ✅ (same as absolute, delta applied)                                 | ✅ (same as absolute, delta applied)                               |
-| **Scroll at cursor**    | ✅ (`CGEventCreateScrollWheelEvent` + `CGEventPost`) | ✅ (X11: XTest btn 4/5; Wayland: evdev uinput + wlr virtual-pointer) | ✅ vertical only (`SendInput` `MOUSEEVENTF_WHEEL`; deltaX ignored) |
-
-**Held mouse buttons:** press and release are separate actions, so every backend
-has to remember what it pressed. That bookkeeping is shared rather than
-per-platform: each adapter keeps a
-[`mousestate.Tracker`](../internal/core/infra/platform/mousestate/tracker.go)
-recording which buttons are down, where they were pressed, and with which
-modifiers. It drives three behaviors identically everywhere — toggle actions
-resolve against it (held → release, free → press), `EnsureMouseUp` releases
-every held button when Neru returns to idle, and on macOS it selects the drag
-event type for cursor moves. macOS is the only backend where a move needs that
-distinction: Quartz requires `kCGEventLeftMouseDragged` /
-`kCGEventRightMouseDragged` / `kCGEventOtherMouseDragged` (with a matching
-button number) instead of `kCGEventMouseMoved`, while X11, Wayland, and Windows
-warp the pointer and the compositor or OS infers the drag from the held button.
-When several buttons are held at once, a macOS move is attributed to the
-left-most held button — a single event cannot describe more than one.
-
-#### Tree Building Comparison
-
-**macOS** (`tree.go`) builds the most comprehensive accessibility tree:
-
-1. Walks the full AXUIElement hierarchy from the frontmost application root
-2. Collects from: frontmost window, all windows, popovers, menu bar, dock, notification center
-3. Applies per-app strategy overrides and role-based filtering
-4. Supports multiple concurrent strategies (AX + Vision)
-5. Deduplicates overlapping elements
-6. Filters by size, position, visibility, and excluded apps
-
-**Linux** (`atspi_linux.go`) walks the AT-SPI tree over D-Bus:
-
-- `ATSPIClient.FrontmostWindow` finds the active frame (ACTIVE + SHOWING state)
-  across registered applications, skipping virtual keyboards and system surfaces
-- `ClickableNodes` recursively walks that frame's subtree (depth/node capped),
-  keeping SHOWING elements whose AT-SPI role is in the requested set
-- Configured roles are resolved from the semantic vocabulary into native
-  AT-SPI names before they reach the client
-  (`element.ResolveRoles`), so the shared filter pipeline matches them
-- On Wayland it offsets element extents by the focused window's screen origin
-  (via the KWin geometry bridge) since AT-SPI reports window-relative coords
-- Element structs in `element_linux.go` implement cursor/scroll/click injection
-- The `tree_linux.go` `BuildTree`/`TreeNode` API is a stub, but it is the
-  macOS-style tree path and is **not** used by the Linux adapter
-
-**Windows** (`tree_windows.go`):
-
-- Builds a shallow tree from the root `IUIAutomation` element
-- Uses `TreeWalker.GetFirstChildElement` / `GetNextSiblingElement` for traversal
-- Filters by bounding rectangle (skip zero-size elements)
-- Returns `IUAElement` wrappers with basic metadata
-- The `uia_windows.go` provides the raw COM client
-
-### Input Handling
-
-#### Keyboard Event Capture
-
-| Aspect                   | macOS                                            | Linux X11               | Linux Wayland                      | Windows                      |
-| ------------------------ | ------------------------------------------------ | ----------------------- | ---------------------------------- | ---------------------------- |
-| **Mechanism**            | `CGEventTapCreate` (Quartz)                      | `XGrabKeyboard`         | evdev grab + wl-keyboard           | `WH_KEYBOARD_LL` hook        |
-| **CGO required**         | Yes                                              | Yes                     | Yes (cgo path)                     | No                           |
-| **Modifier passthrough** | ✅ (CGEventTap callback can pass events through) | ❌ (grab is all-or-nothing) | ✅ (evdev only; re-inject via virtual kbd) | ❌ (no-op)                   |
-| **PostModifierEvent**    | ✅                                               | ✅                      | ✅                                 | ❌ (no-op)                   |
-| **Sticky modifiers**     | ✅                                               | ✅                      | ✅                                 | ✅                           |
-| **File**                 | `eventtap_darwin.go`                             | `eventtap_linux_x11.go` | `eventtap_linux_wayland.go` / `..._evdev_cgo.go` | `eventtap_windows.go`        |
-| **Event source**         | System-wide CGEvent stream                       | X11 grabbed keyboard    | `/dev/uinput` + wl_keyboard events | System-wide `WH_KEYBOARD_LL` |
-
-**Modifier passthrough on Linux (Wayland evdev only):** while a mode is active
-Neru captures the keyboard exclusively, so shortcuts it doesn't bind (e.g.
-`Ctrl+C`, `Ctrl+Tab`) are normally swallowed. With
-`general.passthrough_unbounded_keys`, unbound Ctrl/Alt/Cmd chords are instead
-re-injected to the focused app. This works on the **Wayland evdev** backend
-because Neru holds an `EVIOCGRAB` on the physical device but injects through a
-*separate* `zwp_virtual_keyboard_v1`, which bypasses that grab and reaches the
-app with no feedback loop (see `handleWaylandEvdevEvent` →
-`passthroughEvdevChord`). It is **not** available on **X11** — an `XGrabKeyboard`
-routes Neru's own synthetic XTest events back to itself, and `XSendEvent` is
-ignored by most apps — nor on the rare **wl-keyboard fallback**, which has no
-injection path. Classification (blacklist, mode-intercepted keys, the mode's own
-hotkeys) and the post-passthrough hint refresh are shared cross-platform in
-`internal/app/modes/passthrough.go`; only the final re-injection is
-backend-specific. The blacklist keeps chosen chords consumed, and
-`general.should_exit_after_passthrough` exits the mode after a passthrough.
-
-#### Global Hotkeys
-
-| Aspect                               | macOS                              | Linux X11                           | Linux Wayland                          | Windows                   |
-| ------------------------------------ | ---------------------------------- | ----------------------------------- | -------------------------------------- | ------------------------- |
-| **Mechanism**                        | Per-key CGEventTap                 | `XGrabKey`                          | evdev passive key grab (GrabKey ioctl) | `RegisterHotKey`          |
-| **CGO required**                     | Yes                                | Yes                                 | No (pure Go via evdev)                 | No                        |
-| **Press/release detection**          | ✅ (separate CGEventTap callbacks) | ✅ (X11 KeyPress/KeyRelease events) | ⚠️ (press only in some configs)        | ✅ (WM_HOTKEY with flags) |
-| **Individual hotkey enable/disable** | ✅                                 | ✅                                  | ✅                                     | ✅                        |
-| **File**                             | `manager_darwin.go`                | `manager_linux_x11.go`              | `manager_linux_wayland.go`             | `manager_windows.go`      |
-
-#### Cursor & Mouse
-
-| Aspect                  | macOS                                | Linux X11                 | Linux Wayland                                                                    | Windows                    |
-| ----------------------- | ------------------------------------ | ------------------------- | -------------------------------------------------------------------------------- | -------------------------- |
-| **Get position**        | ✅ (`CGEventGetLocation`)            | ✅ (XQueryPointer)        | ✅ (sync surface trick)                                                          | ✅ (GetCursorPos)          |
-| **Move to point**       | ✅ (`CGWarpMouseCursorPosition`)     | ✅ (XTest `XWarpPointer`) | ✅ (zwlr_virtual_pointer)                                                        | ✅ (SetCursorPos)          |
-| **Left click**          | ✅ (CGEventPost)                     | ✅ (XTest button 1)       | ✅ (zwlr_virtual_pointer button)                                                 | ✅ (SendInput)             |
-| **Right click**         | ✅                                   | ✅ (XTest button 3)       | ✅                                                                               | ✅                         |
-| **Middle click**        | ✅                                   | ✅ (XTest button 2)       | ✅                                                                               | ✅                         |
-| **Hold / release button** | ✅ (left, right, middle)           | ✅ (XTest button 1/2/3)   | ✅ (zwlr_virtual_pointer BTN_LEFT/RIGHT/MIDDLE)                                  | ✅ (SendInput down/up)     |
-| **Drag while held**     | ✅ (`*MouseDragged` event type)      | ✅ (warp with button held) | ✅ (warp with button held)                                                      | ✅ (warp with button held) |
-| **Scroll**              | ✅ (CGScrollWheelEvent)              | ✅ (XTest button 4/5)     | ✅ (zwlr_virtual_pointer axis)                                                   | ✅ (SendInput mouse wheel) |
-| **Smooth animation**    | ✅ (mouse_animator.go, configurable) | ✅ (mouse_animator_linux.go) | ✅ (mouse_animator_linux.go)                                                  | ❌                         |
-| **Wayland cursor sync** | N/A                                  | N/A                       | ✅ (brief map of transparent layer surface to capture `wl_pointer.enter` coords) | N/A                        |
-
-### Mode Feature Coverage
-
-#### Hints Mode
-
-| Feature                        | macOS                                                             | Linux                                       | Windows                         |
-| ------------------------------ | ----------------------------------------------------------------- | ------------------------------------------- | ------------------------------- |
-| **Element discovery**          | ✅ Full AXUIElement tree walk + Vision framework                  | ⚠️ (AT-SPI walk; toolkit-dependent)         | ⚠️ (UIA initial — shallow tree) |
-| **Multi-letter labels**        | ✅                                                                | ✅ (shared alphabet logic)                  | ✅                              |
-| **Label filtering / search**   | ✅ (interactive search with `/` prefix, role filter, text filter) | ✅ (logic shared; no search input badge)    | ✅                              |
-| **Split word**                 | ✅                                                                | ✅                                          | ✅                              |
-| **Label direction**            | ✅ (configurable: horizontal, vertical, row-major, col-major)     | ✅                                          | ✅                              |
-| **Hide unmatched**             | ✅                                                                | ✅                                          | ✅                              |
-| **Strategy selection**         | `ax` (default), `vision` (macOS Vision Framework)                 | `ax` only                                   | `ax` only                       |
-| **Vision fallback**            | ✅ (AX → Vision → combined)                                       | N/A (Vision is macOS-only)                  | N/A                             |
-| **Per-app strategy overrides** | ✅                                                                | N/A                                         | N/A                             |
-| **Click at point**             | ✅                                                                | ✅ (system mouse click via XTest/SendInput) | ✅ (SendInput)                  |
-| **Hover**                      | ✅                                                                | 🟡                                          | 🟡                              |
-| **Right click**                | ✅                                                                | ✅ (XTest button 3)                         | ✅ (SendInput right)            |
-| **Middle click**               | ✅                                                                | ✅ (XTest button 2)                         | ✅ (SendInput middle)           |
-| **Hold button at element**     | ✅ (`--action left_mouse_down` etc.)                              | ✅ (XTest button press)                     | ✅ (SendInput down)             |
-| **Scroll at element**          | ✅ (CGScrollWheelEvent)                                           | 🟡                                          | 🟡                              |
-| **Menubar elements**           | ✅                                                                | 🟡                                          | 🟡                              |
-| **Dock elements**              | ✅                                                                | N/A                                         | N/A                             |
-| **Popup/popover elements**     | ✅ (AXOrientation-based)                                          | ⚠️ (walked when in active frame's subtree)  | 🟡                              |
-| **Hint overlay arrows**        | ✅ (top/bottom arrow indicators on labels)                        | ✅ (Cairo triangle tail)                    | ❌                              |
-| **Boundary highlight**         | ✅                                                                | ✅ (Cairo)                                  | ✅ (SDF)                        |
-| **Search input badge**         | ✅                                                                | ❌                                          | ✅                              |
-
-**Implementation note:** On macOS, hints work fully because AXUIElement tree
-walking gives a complete picture of clickable elements on screen. On Windows,
-the UIA integration provides initial element coverage but the tree is shallow.
-On Linux, hints work via an AT-SPI (D-Bus) walk of the active frame, so coverage
-depends on the app exposing AT-SPI (Qt/GTK apps with accessibility enabled do;
-some toolkits expose little) and there is no Vision/OCR fallback. Chromium/Electron
-apps expose nothing unless launched with `--force-renderer-accessibility`, and
-GNOME/Mutter has no usable injection path, so hints are not usable there. See the
-Linux accessibility notes under [Port Capability Matrix](#port-capability-matrix)
-for details.
-
-#### Grid Mode
-
-| Feature                           | macOS                                  | Linux                   | Windows                 |
-| --------------------------------- | -------------------------------------- | ----------------------- | ----------------------- |
-| **Full-screen grid**              | ✅                                     | ✅                      | ✅                      |
-| **Character-labeled cells**       | ✅                                     | ✅                      | ✅                      |
-| **Cell navigation (type coords)** | ✅                                     | ✅                      | ✅                      |
-| **Subgrid (3×3 zoom)**            | ✅                                     | ✅                      | ✅                      |
-| **Hide unmatched cells**          | ✅                                     | ✅                      | ✅                      |
-| **Grid transition animation**     | ✅ (CoreAnimation 120Hz)               | ✅ (goroutine 120fps)   | ❌                      |
-| **Sub-key preview**               | ✅ (centered mini-grid)                | ✅ (centered mini-grid) | ✅ (single-line text)   |
-| **Auto-hide labels**              | ✅                                     | ✅                      | ✅                      |
-| **Cursor-follow on activation**   | ✅                                     | ✅                      | ✅                      |
-| **Pending action on cell**        | ✅ (click, right-click, hover, scroll) | ✅ (click, right-click) | ✅ (click, right-click) |
-
-#### Recursive Grid Mode
-
-| Feature                     | macOS              | Linux          | Windows |
-| --------------------------- | ------------------ | -------------- | ------- |
-| **Multi-depth zoom**        | ✅                 | ✅             | ✅      |
-| **Per-depth layout config** | ✅                 | ✅             | ✅      |
-| **Center preview**          | ✅                 | ✅             | ✅      |
-| **Backtrack navigation**    | ✅                 | ✅             | ✅      |
-| **Grid transition**         | ✅ (CoreAnimation) | ✅ (goroutine) | ❌      |
-
-#### Scroll Mode
-
-| Feature                     | macOS                                   | Linux | Windows |
-| --------------------------- | --------------------------------------- | ----- | ------- |
-| **Vim-style scrolling**     | ✅                                      | ✅    | ✅      |
-| **Scroll overlay**          | ✅                                      | ✅    | ✅      |
-| **Smooth scroll animation** | ✅ (scroll_animator.go, ease-out cubic) | ❌    | ❌      |
-| **Line-by-line**            | ✅                                      | ✅    | ✅      |
-| **Page-by-page**            | ✅                                      | ✅    | ✅      |
-| **Half-page**               | ✅                                      | ✅    | ✅      |
-| **Top/bottom**              | ✅                                      | ✅    | ✅      |
-| **Custom scroll amounts**   | ✅ (configurable)                       | ✅    | ✅      |
-
-#### Monitor Select Mode
-
-| Feature               | macOS                    | Linux                   | Windows                 |
-| --------------------- | ------------------------ | ----------------------- | ----------------------- |
-| **Panel per display** | ✅ (native Cocoa panels) | ✅ (Cairo; X11 + wlroots/KDE, not GNOME) | ❌ (`CodeNotSupported`) |
-| **Label navigation**  | ✅                       | ✅                      | ❌                      |
-| **Cursor jump**       | ✅                       | ✅                      | ❌                      |
-
-### Linux Backend Breakdown
-
-Linux runtime backend detection is via `XDG_CURRENT_DESKTOP`, `WAYLAND_DISPLAY`, and
-`DISPLAY` (see `internal/core/infra/platform/linux_backend.go`). See the Port
-Capability Matrix above for per-backend capability status and mechanisms.
-
-**GNOME Wayland:** Not supported. GNOME/Mutter lacks `wlr-layer-shell` and has
-no usable input injection path. Users should use the X11 session with GNOME.
-
-### Windows Feature Detail
-
-Windows has pure Go implementations for all subsystems (see the Port Capability Matrix above for mechanisms).
-
-**Known gaps on Windows:**
-
-1. **App watcher** — no foreground-window change watching
-2. **Notifications** — no Windows toast notifications
-3. **Tree walking depth** — UIA tree is shallow; needs deeper traversal for complex apps
-4. **Grid transition animation** — not implemented (macOS and Linux have it)
-5. **Smooth cursor/scroll animation** — not implemented (smooth cursor exists on macOS + Linux; smooth scroll is macOS-only)
-6. **Modifier passthrough, PostModifierEvent** — no-ops
-7. **Scroll horizontal** — `ScrollAtCursor` ignores `deltaX` (vertical only)
-8. **Virtual pointer overlay** — stub only
-9. **Monitor select** — not implemented
-
-### Platform-Specific Features
-
-The following features exist on exactly one platform:
-
-#### macOS-Only
-
-| Feature                   | Location                                                                                | Reason Not Cross-Platform                                                                        |
-| ------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| System cursor hide/show   | `internal/app/modes/cursor_darwin.go`                                                   | Uses `CGDisplayHideCursor` / `CGDisplayShowCursor` (Quartz). Other platforms have no equivalent. |
-| Smooth scroll animation   | `internal/core/infra/platform/darwin/scroll_animator.go`                                | Platform scroll event stream. (Smooth **cursor** animation is now cross-platform on Linux too — see `mouse_animator_linux.go`.) |
-| Vision framework strategy | `internal/core/ports/vision.go` + `internal/core/infra/platform/darwin/vision_darwin.m` | macOS-only `VNRequest` / `VGImageRequestHandler` APIs                                            |
-| Screen sharing hide       | `internal/core/infra/platform/darwin/overlay_darwin.m`                                  | NSWindow sharing level property (Quartz only)                                                    |
-| Secure input detection    | `internal/core/infra/platform/darwin/secureinput.go`                                    | Uses `CGSessionCopyCurrentDictionary` — private API                                              |
-
-#### Linux-Only
-
-| Feature                         | Location                                                                                       | Notes                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Wayland sync cursor surface     | `internal/core/infra/platform/linux/system_linux_wayland.go` `SyncCursorPosition()`            | Maps a transparent layer-shell surface to get `wl_pointer.enter` coordinates |
-| evdev scroll direct injection   | `internal/core/infra/eventtap/eventtap_linux_wayland_evdev_cgo.go` `IsUinputScrollAvailable()` | Direct `/dev/uinput` scroll; not available on macOS/Windows                  |
-| Linux backend detection         | `internal/core/infra/platform/linux_backend.go`                                                | `XDG_CURRENT_DESKTOP` / `WAYLAND_DISPLAY` / `DISPLAY` based routing          |
-| X11 event tap via XGrabKeyboard | `internal/core/infra/eventtap/eventtap_linux_x11.go`                                           | X11-specific mechanism                                                       |
-| Wayland focused-app app_id      | `internal/core/infra/platform/linux/wlroots_client.c` `neru_wlr_focused_app_id()`              | `wlr-foreign-toplevel-management` tracks the activated toplevel's app_id (wlroots/KDE) |
-
-#### Windows-Only
-
-| Feature                  | Location                                                | Notes                                                                    |
-| ------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `WH_KEYBOARD_LL` hook    | `internal/core/infra/eventtap/eventtap_windows.go`      | Low-level keyboard hook (different from macOS CGEventTap or Linux evdev) |
-| `RegisterHotKey` hotkeys | `internal/core/infra/hotkeys/manager_windows.go`        | Win32 `RegisterHotKey` API                                               |
-| SDF rendering            | `internal/core/infra/platform/windows/overlay_color.go` | Signed-distance-field rounded rectangle rendering (software)             |
-| GDI font compositing     | `internal/core/infra/platform/windows/overlay_ui.go`    | GDI `CreateFontW` + `DrawTextW` + alpha composite                        |
+- mixing backend detection into app or service code
+
+**A good platform PR** leaves the repo better in five ways: the implementation
+sits in the intended file slot, unsupported paths stay explicit and honest,
+capability reporting is updated, tests cover the new behavior or contract, and
+the docs tell the next contributor what changed. That is the bar even for small
+slices.
