@@ -198,6 +198,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 			&strategyOverride,
 			&labelDirectionOverride,
 			&splitWord,
+			nil, // preserve the stored --on-exit action across refresh
 		)
 	})
 	h.refreshHintsTimer = timer

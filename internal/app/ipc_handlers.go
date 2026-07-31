@@ -153,6 +153,7 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 type ModeActivationOptions struct {
 	Action                *string
 	Modifier              *string
+	OnExit                *string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	ZoomToDepth           *int
@@ -310,6 +311,23 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			actionArg := cmd.Args[startIdx]
 			opts.Action = &actionArg
+		case strings.HasPrefix(arg, "--on-exit="):
+			onExitArg := strings.TrimPrefix(arg, "--on-exit=")
+			opts.OnExit = &onExitArg
+		case arg == "--on-exit":
+			if startIdx+1 >= len(cmd.Args) {
+				resp := ipc.Response{
+					Success: false,
+					Message: "--on-exit requires a value",
+					Code:    ipc.CodeInvalidInput,
+				}
+
+				return opts, &resp
+			}
+
+			startIdx++
+			onExitArg := cmd.Args[startIdx]
+			opts.OnExit = &onExitArg
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
 			val, resp := parseCursorSelectionModeValue(
 				strings.TrimPrefix(arg, "--cursor-selection-mode="),
@@ -610,6 +628,7 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{
 		Action:                opts.Action,
 		Modifier:              opts.Modifier,
+		OnExit:                opts.OnExit,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		FilterRoles:           opts.FilterRoles,
@@ -638,6 +657,7 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 	h.modes.ActivateModeWithOptions(domain.ModeGrid, modes.ModeActivationOptions{
 		Action:                opts.Action,
 		Modifier:              opts.Modifier,
+		OnExit:                opts.OnExit,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		Toggle:                opts.Toggle,
@@ -659,6 +679,7 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, modes.ModeActivationOptions{
 		Action:                opts.Action,
 		Modifier:              opts.Modifier,
+		OnExit:                opts.OnExit,
 		Repeat:                opts.Repeat,
 		CursorFollowSelection: opts.CursorFollowSelection,
 		ZoomToDepth:           opts.ZoomToDepth,

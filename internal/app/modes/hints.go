@@ -38,6 +38,7 @@ func (h *Handler) currentHintStyleLocked() hints.StyleMode {
 type ModeActivationOptions struct {
 	Action                *string
 	Modifier              *string
+	OnExit                *string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	ZoomToDepth           *int
@@ -143,6 +144,7 @@ func (h *Handler) activateHintModeWithAction(
 	strategy *string,
 	labelDirection *string,
 	splitWord *bool,
+	onExit *string,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -155,6 +157,7 @@ func (h *Handler) activateHintModeWithAction(
 		strategy,
 		labelDirection,
 		splitWord,
+		onExit,
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
@@ -178,6 +181,7 @@ func (h *Handler) activateHintModeInternal(
 	strategyOverride *string,
 	labelDirectionOverride *string,
 	splitWordOverride *bool,
+	onExit *string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -269,6 +273,10 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetPendingAction(actionStr)
 			}
 
+			if onExit != nil {
+				h.hints.Context.SetOnExit(onExit)
+			}
+
 			if modifier != nil {
 				h.hints.Context.SetPendingModifier(modifier)
 			}
@@ -306,6 +314,7 @@ func (h *Handler) activateHintModeInternal(
 			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
+			h.hints.Context.SetOnExit(onExit)
 			h.hints.Context.SetPendingModifier(modifier)
 			h.hints.Context.SetRepeat(false)
 			h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(

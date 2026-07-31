@@ -11,6 +11,7 @@ import (
 type baseContext struct {
 	pendingAction         *string
 	pendingModifier       *string
+	onExit                *string
 	repeat                bool
 	cursorFollowSelection bool
 	selectedPoint         image.Point
@@ -25,6 +26,17 @@ func (c *baseContext) SetPendingAction(action *string) {
 // PendingAction returns the pending action to execute.
 func (c *baseContext) PendingAction() *string {
 	return c.pendingAction
+}
+
+// SetOnExit sets the action string to run when the pending action is fulfilled
+// and the mode exits back to idle through the action path.
+func (c *baseContext) SetOnExit(onExit *string) {
+	c.onExit = onExit
+}
+
+// OnExit returns the action string to run once the pending action is fulfilled.
+func (c *baseContext) OnExit() *string {
+	return c.onExit
 }
 
 // SetPendingModifier sets the modifier keys to apply when the pending action fires.
@@ -85,6 +97,7 @@ func (c *baseContext) SelectionPoint() (image.Point, bool) {
 func (c *baseContext) Reset() {
 	c.pendingAction = nil
 	c.pendingModifier = nil
+	c.onExit = nil
 	c.repeat = false
 	c.cursorFollowSelection = false
 	c.ClearSelectionPoint()

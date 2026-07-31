@@ -61,6 +61,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
+			onExitFlag, err := cmd.Flags().GetString("on-exit")
+			if err != nil {
+				return err
+			}
+
 			repeatFlag, err := cmd.Flags().GetBool("repeat")
 			if err != nil {
 				return err
@@ -159,6 +164,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				)
 			}
 
+			if strings.TrimSpace(onExitFlag) != "" && actionFlag == "" {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--on-exit requires --action (it runs only when the action is fulfilled)",
+				)
+			}
+
 			if hideOnEmptySearchFlag && !searchFlag {
 				return derrors.New(
 					derrors.CodeInvalidInput,
@@ -246,6 +258,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 
 			if modifierFlag != "" {
 				params = append(params, "--modifier="+modifierFlag)
+			}
+
+			if strings.TrimSpace(onExitFlag) != "" {
+				params = append(params, "--on-exit="+onExitFlag)
 			}
 
 			if repeatFlag {
@@ -337,6 +353,11 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"modifier",
 		"",
 		"Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)",
+	)
+	cmd.Flags().String(
+		"on-exit",
+		"",
+		"Command to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Requires --action; not run on manual escape/idle",
 	)
 	cmd.Flags().String(
 		"cursor-selection-mode",

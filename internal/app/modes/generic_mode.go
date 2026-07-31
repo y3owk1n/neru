@@ -57,6 +57,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Strategy,
 				opts.LabelDirection,
 				opts.SplitWord,
+				opts.OnExit,
 			)
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(
@@ -64,6 +65,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Modifier,
 				opts.Repeat,
 				opts.CursorFollowSelection,
+				opts.OnExit,
 			)
 		case domain.ModeRecursiveGrid:
 			m.handler.activateRecursiveGridModeWithAction(
@@ -72,6 +74,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 				opts.Repeat,
 				opts.CursorFollowSelection,
 				nil, // zoom is not re-applied on screen change
+				opts.OnExit,
 			)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()

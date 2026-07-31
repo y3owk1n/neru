@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
@@ -128,7 +129,77 @@ func (h *Handler) executeActionAtPoint(
 		h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
 	}
 
+	// Capture the mode's --on-exit action before exitModeLocked clears the
+	// context. It only runs when the action chain was fulfilled and the mode
+	// idled through this action path — never on manual escape or a switch.
+	onExit := h.currentModeOnExit()
+
 	h.exitModeLocked()
+
+	if !chainFailed {
+		h.runOnExit(onExit)
+	}
+}
+
+// currentModeOnExit returns the --on-exit action configured for the currently
+// active action mode, or nil when none is set or the mode has no context.
+func (h *Handler) currentModeOnExit() *string {
+	switch h.appState.CurrentMode() {
+	case domain.ModeHints:
+		if h.hints != nil && h.hints.Context != nil {
+			return h.hints.Context.OnExit()
+		}
+	case domain.ModeGrid:
+		if h.grid != nil && h.grid.Context != nil {
+			return h.grid.Context.OnExit()
+		}
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+			return h.recursiveGrid.Context.OnExit()
+		}
+	case domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
+		// These modes do not support a pending --action, so there is no
+		// --on-exit action to run.
+	}
+
+	return nil
+}
+
+// runOnExit dispatches the mode's --on-exit action after the pending action was
+// fulfilled. It reuses the hotkey action grammar ("action ...", "exec ...",
+// mode names) and runs asynchronously: executeHotkeyAction may route back
+// through IPC into ActivateModeWithOptions, which acquires h.mu — held by the
+// executeActionAtPoint caller.
+func (h *Handler) runOnExit(onExit *string) {
+	if onExit == nil || h.executeHotkeyAction == nil {
+		return
+	}
+
+	actionStr := strings.TrimSpace(*onExit)
+	if actionStr == "" {
+		return
+	}
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("panic in on-exit handler",
+					zap.Any("recover", r),
+					zap.String("action", actionStr))
+			}
+		}()
+
+		err := h.executeHotkeyAction("on-exit", actionStr)
+		if err != nil {
+			if derrors.IsCode(err, derrors.CodeChainBail) {
+				return
+			}
+
+			h.logger.Error("on-exit action failed",
+				zap.String("action", actionStr),
+				zap.Error(err))
+		}
+	}()
 }
 
 // moveCursorAndHandleAction moves the cursor to a point and executes any pending action.
@@ -213,6 +284,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 					&strategyOverride,
 					&labelDirectionOverride,
 					&splitWord,
+					nil, // preserve the stored --on-exit action across re-activation
 				)
 				// Restore repeat, action and modifier on the fresh context so subsequent
 				// selections continue the repeat cycle.
@@ -507,6 +579,7 @@ func (h *Handler) handleGridModeKey(key string) {
 					pendingModifier,
 					&repeat,
 					&cursorFollowSelection,
+					nil, // preserve the stored --on-exit action across re-activation
 				)
 			},
 		)

@@ -93,6 +93,7 @@ func (h *Handler) cleanupGridMode() {
 	// Nilling it causes a nil-pointer dereference on re-activation
 	// when SetGridInstanceValue dereferences the pointer.
 	h.grid.Context.SetPendingAction(nil)
+	h.grid.Context.SetOnExit(nil)
 	h.grid.Context.SetRepeat(false)
 
 	if h.grid.Manager != nil {
