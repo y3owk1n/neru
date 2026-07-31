@@ -27,7 +27,10 @@ import (
 // isUinputVirtualDevice); otherwise an active EVIOCGRAB would grab our injected
 // keys and loop them back into the event tap.
 
-var errUinputKeyboardSend = errors.New("failed to send uinput key event")
+var (
+	errUinputKeyboardSend    = errors.New("failed to send uinput key event")
+	errUinputKeyboardRelease = errors.New("failed to release uinput key (key may be latched)")
+)
 
 var (
 	uinputKeyboardOnce sync.Once
@@ -94,7 +97,7 @@ func feedKeyUinput(modifiers []string, keycode uint32) error {
 
 	for _, code := range codes {
 		if C.neru_uinput_key(uinputKeyboardFd, C.int(code), 1) == 0 {
-			releaseUinputKeys(pressed)
+			_ = releaseUinputKeys(pressed)
 
 			return errUinputKeyboardSend
 		}
@@ -102,27 +105,42 @@ func feedKeyUinput(modifiers []string, keycode uint32) error {
 		pressed = append(pressed, code)
 	}
 
-	// The app acts on the key-down, so only the down gates success; a failed
-	// key-up leaves only cleanup pending.
-	downOK := C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 1) != 0
-	if downOK {
-		_ = C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 0)
+	// A failed key-down means nothing was delivered: unwind the modifiers and
+	// report failure.
+	if C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 1) == 0 {
+		_ = releaseUinputKeys(pressed)
+
+		return errUinputKeyboardSend
 	}
 
-	releaseUinputKeys(pressed)
+	// The chord is delivered on the key-down; now release the main key and the
+	// modifiers. Always attempt every release so one failure can't strand the
+	// rest down, and surface any failure — a discarded release would leave a
+	// key latched on the reused device and silently corrupt later input.
+	releasedOK := C.neru_uinput_key(uinputKeyboardFd, C.int(keycode), 0) != 0
+	if !releaseUinputKeys(pressed) {
+		releasedOK = false
+	}
 
-	if !downOK {
-		return errUinputKeyboardSend
+	if !releasedOK {
+		return errUinputKeyboardRelease
 	}
 
 	return nil
 }
 
-// releaseUinputKeys releases the given keycodes in reverse press order. Errors
-// are ignored: a release failure only risks a latched virtual key, and there is
-// no recovery beyond retrying the same failing write.
-func releaseUinputKeys(codes []int) {
+// releaseUinputKeys releases the given keycodes in reverse press order,
+// attempting every release even when one fails, and reports whether all
+// succeeded. A failed release leaves a key latched on the reused device, so
+// callers surface it rather than assuming a clean chord.
+func releaseUinputKeys(codes []int) bool {
+	allReleased := true
+
 	for _, code := range slices.Backward(codes) {
-		_ = C.neru_uinput_key(uinputKeyboardFd, C.int(code), 0)
+		if C.neru_uinput_key(uinputKeyboardFd, C.int(code), 0) == 0 {
+			allReleased = false
+		}
 	}
+
+	return allReleased
 }
