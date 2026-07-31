@@ -35,10 +35,14 @@ const (
 // held-repeat action (scroll/page/relative-move) would start a repeat
 // goroutine that can never be stopped by key release and would run until the
 // mode exits. Emitting the synthetic key-up immediately after the press tears
-// that repeat down while still letting the initial action fire once. For any
-// non-repeating key the release is a no-op (the key-up branch returns early
-// when nothing is repeating). The press and release run under a single lock
-// hold so no concurrent key event can observe the transient repeat.
+// that repeat down while still letting the initial action fire once.
+//
+// The release is synthesized only when the fed press itself started a repeat
+// (a transition from no repeat to an active one). A repeat that was already
+// running belongs to a physically held key, so the fed key must not cancel it;
+// and when the fed key starts no repeat the release would be a no-op anyway.
+// The press and the conditional release run under a single lock hold so no
+// concurrent key event can interleave or observe a transient repeat.
 func (h *Handler) HandleFedKeyPress(key string) {
 	// The key-up handler compares against the modifier-free base key, so strip
 	// any modifier prefix before synthesizing the release.
@@ -47,15 +51,17 @@ func (h *Handler) HandleFedKeyPress(key string) {
 		base = base[i+1:]
 	}
 
-	// Hold the lock across both the press and the synthetic release so the pair
-	// is atomic. Otherwise a concurrent physical event-tap key could interleave
-	// between them and act on held-repeat state the press just changed (or the
-	// release could cancel a repeat a physical key still holds).
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	repeatBefore := h.heldRepeatingKey
 	h.handleKeyPressLocked(key)
-	h.handleKeyPressLocked(keyUpPrefix + base)
+
+	// Only release a repeat this fed press just started; leave any pre-existing
+	// (physically held) repeat untouched.
+	if repeatBefore == "" && h.heldRepeatingKey != "" {
+		h.handleKeyPressLocked(keyUpPrefix + base)
+	}
 }
 
 // HandleKeyPress dispatches key events by current mode.
