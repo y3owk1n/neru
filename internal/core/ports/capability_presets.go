@@ -72,7 +72,10 @@ func LinuxCapabilities() PlatformCapabilities {
 			"native notifications not implemented yet; target freedesktop notifications",
 		),
 		GlobalHotkeys: supportedCapability(
-			"global hotkeys available via X11 (Wayland relies on compositor bindings)",
+			"global hotkeys available via X11 XGrabKey; on Wayland via a passive " +
+				"evdev listener on /dev/input that honors neru's own keybindings " +
+				"(needs input-group access and a cgo build), falling back to " +
+				"compositor keybindings otherwise",
 		),
 		KeyboardEventTap: supportedCapability(
 			"keyboard event tap available via X11 grab and Wayland evdev/layer-shell " +
@@ -126,8 +129,9 @@ func WindowsCapabilities() PlatformCapabilities {
 		AppWatcher: stubCapability(
 			"app watcher not implemented yet; target Win32 foreground-window notifications",
 		),
-		DarkModeDetection: stubCapability(
-			"dark mode detection not implemented yet; target Windows personalization APIs",
+		DarkModeDetection: supportedCapability(
+			"dark mode detection available via the Windows personalization registry " +
+				"(Themes\\Personalize AppsUseLightTheme)",
 		),
 	}
 }
