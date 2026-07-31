@@ -414,6 +414,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
 - Click actions accept `--state down` / `--state up` to press and release the button as separate hotkeys, and `--toggle` to do whichever comes next from a single hotkey. `"action right_click --state down"` and `"action right_mouse_down"` are the same action written two ways; the flag form is the documented spelling, and the name form is what a mode `--action` takes (`hints --action right_mouse_down`)
+- Click actions can be chained with commas to produce multi-click sequences at one target point: `"action left_click,left_click"` double-clicks, `"action left_click,left_click,left_click"` triple-clicks. Only mouse button actions are allowed in a chain, and the names must not be separated by spaces (see [CLI.md](CLI.md#12a-left_click-right_click-middle_click))
 - Any button Neru is holding is released automatically when it returns to idle
 - `mouse_down` and `mouse_up` are the original spellings of `left_mouse_down` and `left_mouse_up`. They still work in configs, but new configs should use the explicit names
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#12a-left_click-right_click-middle_click))
