@@ -312,6 +312,18 @@ Omitted colors inherit Neru's theme-derived defaults and update in real time whe
 
 **Syntax:** `"Mod1+Mod2+Key" = "action"`
 
+**Defaults by platform.** macOS and Windows ship four launcher bindings:
+`Primary+Shift+Space` (hints), `Primary+Shift+G` (grid), `Primary+Shift+C`
+(recursive grid), and `Primary+Shift+S` (scroll). `monitor_select` has no
+default binding on any platform.
+
+**Linux ships no default global hotkeys at all.** They are cleared during
+startup because the defaults collide with common terminal and desktop shortcuts
+such as `Ctrl+Shift+C` (copy) and `Ctrl+Shift+V` (paste). Define the bindings
+you want in `[hotkeys]`, or bind `neru <mode>` in your compositor — see
+[Global hotkeys on Wayland](LINUX_DESKTOPS.md#global-hotkeys-on-wayland) for
+which of the two applies to your session.
+
 | Modifier  | Aliases                                 |
 | --------- | --------------------------------------- |
 | `Cmd`     | `Command`, `Super`, `Meta`              |

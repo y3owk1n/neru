@@ -207,7 +207,7 @@ listed under each command.
 
 | Flag                       | Shorthand | Type   | Default  | Description                                                                                                       |
 | -------------------------- | --------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `--action`                 | `-a`      | string |          | Action to perform on selection. Commas chain multiple actions (`left_click,left_click` is a double-click). See [action names](#action-names). |
+| `--action`                 | `-a`      | string |          | Mouse-button action to perform on selection — see [action names](#action-names) for the accepted set. Commas chain multiple actions (`left_click,left_click` is a double-click). |
 | `--toggle`                 | `-t`      | bool   | `false`  | Exit to idle if this mode is already active, otherwise enter it.                                                    |
 | `--repeat`                 | `-r`      | bool   | `false`  | Re-enter the mode after the action instead of exiting. Requires `--action`.                                         |
 | `--modifier`               |           | string |          | Comma-separated modifiers held during the action: `cmd`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`. Requires `--action`. |
@@ -434,8 +434,11 @@ a hotkey binding string, or `neru action` directly.
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep` — [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
 
-Mode `--action` accepts only the click, press, release, toggle, `move_mouse`,
-`move_mouse_relative`, and `scroll` names.
+**Mode `--action` accepts mouse-button names only** — the click, press, release,
+and toggle rows above, plus the deprecated `mouse_down` / `mouse_up`. Every
+other name, including `move_mouse`, `move_mouse_relative`, and `scroll`, is
+rejected with `ERR_INVALID_INPUT` and must be run as `neru action <name>` or
+bound as a hotkey action instead.
 
 ## Action platform support
 

@@ -132,8 +132,13 @@ Five modes, one tool — mix and match as the situation calls for it.
 | **Scroll**            | `Primary+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages                | Reading docs and code without lifting your hands |
 | **Monitor Select**    | _unbound_             | Labels each display; type a label to jump the cursor there         | Multi-monitor setups                             |
 
-`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Monitor Select
-ships without a default binding — bind `monitor_select` to any key you like.
+`Primary` is `Cmd` on macOS and `Ctrl` on Windows. Monitor Select ships without
+a default binding — bind `monitor_select` to any key you like.
+
+**On Linux there are no default global hotkeys.** They are cleared at startup to
+avoid colliding with terminal and desktop shortcuts such as `Ctrl+Shift+C`. Bind
+the modes yourself in `[hotkeys]`, or in your compositor — see
+[Global hotkeys on Linux](docs/CONFIGURATION.md#hotkeys).
 
 All bindings are fully remappable — Colemak, Dvorak, whatever you're on. → [Configuration Reference](docs/CONFIGURATION.md#hotkeys)
 
