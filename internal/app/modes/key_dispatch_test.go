@@ -2,6 +2,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"sync/atomic"
 	"testing"
@@ -135,6 +136,79 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 
 	if got := handler.hints.Context.SearchQuery(); got != "/" {
 		t.Fatalf("search query = %q, want %q", got, "/")
+	}
+}
+
+// TestHandleFedKeyPressStopsHeldRepeat verifies that a key injected via
+// `action feed --mode` does not leave a held-repeat goroutine running. A fed
+// key has no physical key-up, so the synthetic release emitted by
+// HandleFedKeyPress must tear down any repeat the press started.
+func TestHandleFedKeyPressStopsHeldRepeat(t *testing.T) {
+	t.Parallel()
+
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	handler := &Handler{
+		ctx: context.Background(),
+		config: &configpkg.Config{
+			RecursiveGrid: configpkg.RecursiveGridConfig{
+				Hotkeys: map[string]configpkg.StringOrStringArray{
+					"j": {"action scroll_down"},
+				},
+			},
+			HeldRepeat: configpkg.HeldRepeatConfig{
+				Enabled: true,
+				// Long delay so the repeat goroutine blocks on the initial
+				// timer and never dispatches during the test.
+				InitialDelay: 10_000,
+				Interval:     10_000,
+			},
+		},
+		logger:        zap.NewNop(),
+		appState:      appState,
+		modifierState: state.NewModifierState(),
+		modes: map[domain.Mode]Mode{
+			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
+		},
+		screenBounds: image.Rect(0, 0, 100, 100),
+		executeHotkeyAction: func(_, _ string) error {
+			return nil
+		},
+	}
+
+	// Sanity check: a plain press starts a held-repeat that a fed key would
+	// never be able to stop (no key-up ever arrives).
+	handler.HandleKeyPress("j")
+
+	handler.mu.Lock()
+	startedKey := handler.heldRepeatingKey
+	handler.mu.Unlock()
+
+	if startedKey != "j" {
+		t.Fatalf(
+			"held repeat not started by press; heldRepeatingKey = %q, want %q",
+			startedKey,
+			"j",
+		)
+	}
+
+	// Feeding the same key must leave no repeat active: the press re-arms it
+	// (suppressed as a duplicate) and the synthetic release tears it down.
+	handler.HandleFedKeyPress("j")
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if handler.heldRepeatingKey != "" {
+		t.Fatalf(
+			"held repeat still active after fed key; heldRepeatingKey = %q, want empty",
+			handler.heldRepeatingKey,
+		)
+	}
+
+	if handler.heldRepeatingCancel != nil {
+		t.Fatal("held repeat cancel func not cleared after fed key")
 	}
 }
 

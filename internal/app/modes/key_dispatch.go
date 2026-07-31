@@ -27,6 +27,30 @@ const (
 	keyPartOption = "option"
 )
 
+// HandleFedKeyPress dispatches a key that was injected over IPC (e.g. via
+// `action feed --mode`) as a discrete press-and-release.
+//
+// Unlike a physical keystroke, a fed key has no eventtap-generated
+// `__keyup_...` companion. Without a matching release, a fed key bound to a
+// held-repeat action (scroll/page/relative-move) would start a repeat
+// goroutine that can never be stopped by key release and would run until the
+// mode exits. Emitting the synthetic key-up immediately after the press tears
+// that repeat down while still letting the initial action fire once. For any
+// non-repeating key the release is a no-op (the key-up branch of
+// HandleKeyPress returns early when nothing is repeating).
+func (h *Handler) HandleFedKeyPress(key string) {
+	h.HandleKeyPress(key)
+
+	// The key-up handler compares against the modifier-free base key, so strip
+	// any modifier prefix before synthesizing the release.
+	base := key
+	if i := strings.LastIndex(base, "+"); i >= 0 {
+		base = base[i+1:]
+	}
+
+	h.HandleKeyPress(keyUpPrefix + base)
+}
+
 // HandleKeyPress dispatches key events by current mode.
 func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
