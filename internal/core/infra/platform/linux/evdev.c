@@ -256,18 +256,21 @@ int neru_uinput_key(int fd, int keycode, int pressed) {
 	if (fd < 0)
 		return 0;
 
-	struct input_event ev;
-	memset(&ev, 0, sizeof(ev));
-	ev.type = EV_KEY;
-	ev.code = (unsigned short)keycode;
-	ev.value = pressed ? 1 : 0;
-	ssize_t w1 = write(fd, &ev, sizeof(ev));
+	// Emit the key event and its SYN_REPORT in a single write so the pair is
+	// submitted atomically. If they were separate writes, a key-down could land
+	// while its SYN failed, leaving the event buffered until a later SYN
+	// committed it — latching the key even though this call reported failure.
+	struct input_event ev[2];
+	memset(ev, 0, sizeof(ev));
 
-	memset(&ev, 0, sizeof(ev));
-	ev.type = EV_SYN;
-	ev.code = SYN_REPORT;
-	ev.value = 0;
-	ssize_t w2 = write(fd, &ev, sizeof(ev));
+	ev[0].type = EV_KEY;
+	ev[0].code = (unsigned short)keycode;
+	ev[0].value = pressed ? 1 : 0;
 
-	return (w1 == sizeof(ev) && w2 == sizeof(ev)) ? 1 : 0;
+	ev[1].type = EV_SYN;
+	ev[1].code = SYN_REPORT;
+	ev[1].value = 0;
+
+	ssize_t written = write(fd, ev, sizeof(ev));
+	return (written == (ssize_t)sizeof(ev)) ? 1 : 0;
 }
