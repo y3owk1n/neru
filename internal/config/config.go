@@ -13,6 +13,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -52,10 +53,13 @@ func (s *StringOrStringArray) UnmarshalTOML(value any) error {
 	return nil
 }
 
-// Accessibility role constants.
+// Semantic role names injected into the clickable role list when the
+// corresponding hints flags are enabled. They are resolved to native role
+// names alongside the user's own entries; on platforms with no menu bar or
+// dock they resolve to nothing.
 const (
-	RoleMenuBarItem = "AXMenuBarItem"
-	RoleDockItem    = "AXDockItem"
+	RoleMenuBarItem = string(element.SemanticMenubarItem)
+	RoleDockItem    = string(element.SemanticDockItem)
 )
 
 // Mode name constants used in config lookups (HotkeysForMode, validation).
@@ -2087,9 +2091,11 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 	}
 }
 
-// ClickableRolesForApp returns the clickable roles for a specific app bundle ID.
-// Starts from the merged config (root + app overrides), then appends
-// AXMenuBarItem / AXDockItem when the corresponding hints flags are enabled.
+// ClickableRolesForApp returns the native accessibility role names to hint for
+// a specific app bundle ID. Starts from the merged config (root + app
+// overrides), appends the menubar / dock roles when the corresponding hints
+// flags are enabled, then resolves the whole list against the running
+// platform's accessibility vocabulary.
 func (c *HintsConfig) ClickableRolesForApp(bundleID string) []string {
 	merged := c.MergedForApp(bundleID)
 
@@ -2102,7 +2108,13 @@ func (c *HintsConfig) ClickableRolesForApp(bundleID string) []string {
 		merged.ClickableRoles = append(merged.ClickableRoles, RoleDockItem)
 	}
 
-	return merged.ClickableRoles
+	return element.ResolveRolesForCurrentPlatform(merged.ClickableRoles).Native
+}
+
+// ResolvedClickableRoles returns the native accessibility role names for the
+// root hints config, without app-specific overrides.
+func (c *HintsConfig) ResolvedClickableRoles() []string {
+	return element.ResolveRolesForCurrentPlatform(c.ClickableRoles).Native
 }
 
 // StrategyForApp returns the element detection strategy for the given bundle ID.

@@ -163,7 +163,11 @@ osascript -e 'id of app "Your Browser"'
 
 This can happen when the element you're trying to select is small. If you encounter this, open an issue.
 
-Alternatively, make sure all relevant roles are enabled. If you've customized `hints.clickable_roles`, you can remove that customization or restore it to the original value from [default-config.toml](https://github.com/y3owk1n/neru/blob/3a8d3c848d63e6757b602cb4dc31fb532aa310d7/configs/default-config.toml#L65).
+Alternatively, make sure all relevant roles are enabled. Run `neru roles --explain` to see
+exactly which roles your config selects on this platform, and `neru roles` for the full
+vocabulary. If you've customized `hints.clickable_roles`, you can remove that customization
+or restore it to the original value from
+[default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml).
 
 Run `neru config reload` and then test.
 
@@ -176,7 +180,10 @@ clickable_roles = [
 
 ### Certain hints don't visually match any on-screen UI
 
-Neru may be generating hints for elements that are not directly visible to you, such as `AXRow` and `AXCell`. Copy the complete `clickable_roles` list from [default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml), then remove only those roles so the remaining defaults stay enabled.
+Neru may be generating hints for elements that are not directly visible to you, such as `row`
+and `cell`. Copy the complete `clickable_roles` list from
+[default-config.toml](https://github.com/y3owk1n/neru/blob/main/configs/default-config.toml),
+then remove only those roles so the remaining defaults stay enabled.
 
 Run `neru config reload` and then test.
 
@@ -462,7 +469,7 @@ pkill -9 neru
 ```toml
 [[hints.app_configs]]
 bundle_id = "com.adobe.illustrator"
-additional_clickable_roles = ["AXStaticText", "AXImage"]
+additional_clickable_roles = ["static_text", "image"]
 ignore_clickable_check = true
 ```
 

@@ -6,6 +6,8 @@ package accessibility
 import (
 	"slices"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 )
 
 const (
@@ -267,9 +269,9 @@ func TestDeriveTargetRoleIDs(t *testing.T) {
 		}
 	}
 
-	t.Run("AXButton maps to its several atspi roles (deduped)", func(t *testing.T) {
+	t.Run("the button semantic role expands to its atspi ids (deduped)", func(t *testing.T) {
 		// push button(43), button(43 -> deduped), toggle button(62).
-		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleButton: {}})
+		ids := deriveTargetRoleIDs(rolesSet(resolveLinuxRoles(t, "button")))
 		for _, want := range []int32{43, 62} {
 			if !slices.Contains(ids, want) {
 				t.Errorf("missing role id %d in %v", want, ids)
@@ -279,14 +281,13 @@ func TestDeriveTargetRoleIDs(t *testing.T) {
 		noDuplicates(t, ids)
 
 		if len(ids) != 2 {
-			t.Errorf("AXButton -> %v, want exactly ids {43, 62}", ids)
+			t.Errorf("button -> %v, want exactly ids {43, 62}", ids)
 		}
 	})
 
-	t.Run("AXMenuItem gathers all three menu-item roles", func(t *testing.T) {
-		// check menu item(8), radio menu item(45), menu item(35).
-		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleMenuItem: {}})
-		for _, want := range []int32{8, 45, 35} {
+	t.Run("checkbox gathers check box and check menu item", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(rolesSet(resolveLinuxRoles(t, "checkbox")))
+		for _, want := range []int32{7, 8} {
 			if !slices.Contains(ids, want) {
 				t.Errorf("missing role id %d in %v", want, ids)
 			}
@@ -295,8 +296,8 @@ func TestDeriveTargetRoleIDs(t *testing.T) {
 		noDuplicates(t, ids)
 	})
 
-	t.Run("AXTextField gathers entry and password text", func(t *testing.T) {
-		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleTextField: {}})
+	t.Run("text_field gathers entry and password text", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(rolesSet(resolveLinuxRoles(t, "text_field")))
 		for _, want := range []int32{79, 40} {
 			if !slices.Contains(ids, want) {
 				t.Errorf("missing role id %d in %v", want, ids)
@@ -304,8 +305,8 @@ func TestDeriveTargetRoleIDs(t *testing.T) {
 		}
 	})
 
-	t.Run("multiple AX roles union their ids", func(t *testing.T) {
-		ids := deriveTargetRoleIDs(map[string]struct{}{axRoleRow: {}, axRoleButton: {}})
+	t.Run("multiple semantic roles union their ids", func(t *testing.T) {
+		ids := deriveTargetRoleIDs(rolesSet(resolveLinuxRoles(t, "list_item", "row", "button")))
 		for _, want := range []int32{32, 90, 43, 62} { // list item, table row, push/toggle button
 			if !slices.Contains(ids, want) {
 				t.Errorf("missing role id %d in %v", want, ids)
@@ -315,32 +316,132 @@ func TestDeriveTargetRoleIDs(t *testing.T) {
 		noDuplicates(t, ids)
 	})
 
-	t.Run("raw AT-SPI names never match (parity with the walk)", func(t *testing.T) {
-		// deriveTargetRoleIDs keys on the AX values of atspiToAXRole, exactly like
-		// the walk, so a set of raw AT-SPI role names resolves to nothing.
-		ids := deriveTargetRoleIDs(map[string]struct{}{"spin button": {}, "toolbar": {}})
-		if len(ids) != 0 {
-			t.Errorf("atspi-name set -> %v, want none", ids)
+	t.Run("raw AT-SPI names resolve on the fast path", func(t *testing.T) {
+		// A native role addressed through the atspi: prefix must reach the
+		// Collection query rather than silently downgrading to the walk.
+		ids := deriveTargetRoleIDs(rolesSet(resolveLinuxRoles(t, "atspi:spin button")))
+		if !slices.Contains(ids, 52) {
+			t.Errorf("spin button -> %v, want id 52", ids)
 		}
 	})
 
 	t.Run("role with no atspi equivalent yields none", func(t *testing.T) {
-		ids := deriveTargetRoleIDs(map[string]struct{}{"AXUnknownWidget": {}})
+		ids := deriveTargetRoleIDs(map[string]struct{}{"not a real role": {}})
 		if len(ids) != 0 {
 			t.Errorf("unknown role -> %v, want none", ids)
 		}
 	})
 }
 
-func TestAtspiRoleNameToIDCoversAtspiToAXRole(t *testing.T) {
-	// Every AT-SPI role name that maps to an AX role (and is therefore hintable
-	// via the walk) must also have an AtspiRole id. If the two maps drift, the
-	// Collection fast path would silently miss that role type while the walk
-	// still finds it — a subtle correctness gap.
-	for atspiName := range atspiToAXRole {
-		if _, ok := atspiRoleNameToID[atspiName]; !ok {
-			t.Errorf("atspiToAXRole has %q but atspiRoleNameToID lacks it; "+
-				"Collection.GetMatches would not match that role", atspiName)
+// resolveLinuxRoles turns semantic or prefixed config entries into the native
+// AT-SPI role names the client works with, the same way config load does.
+func resolveLinuxRoles(t *testing.T, entries ...string) []string {
+	t.Helper()
+
+	resolution := element.ResolveRoles(entries, "linux")
+	if resolution.HasFatal() {
+		t.Fatalf("resolving %v: %v", entries, resolution.FatalMessages())
+	}
+
+	return resolution.Native
+}
+
+// TestAtspiRoleNameToIDCoversTheVocabulary pins the Collection fast path
+// against the semantic vocabulary. Every AT-SPI role name the vocabulary can
+// expand to must have an AtspiRole id, otherwise that role would be found by
+// the walk but silently missed by Collection.GetMatches.
+func TestAtspiRoleNameToIDCoversTheVocabulary(t *testing.T) {
+	for _, mapping := range element.RoleVocabulary {
+		for _, native := range mapping.ATSPI {
+			if _, ok := atspiRoleNameToID[native]; !ok {
+				t.Errorf(
+					"semantic role %q expands to AT-SPI role %q but atspiRoleNameToID "+
+						"lacks it; Collection.GetMatches would not match that role",
+					mapping.Semantic, native,
+				)
+			}
+		}
+	}
+}
+
+// TestAtspiRoleNames_CoverTheEnum checks the role list against the shape of the
+// AtspiRole enum. Ids are the slice indices, so gaps and duplicates cannot
+// occur by construction; what can still go wrong is a name being added or
+// dropped, which shifts every id after it. Pinning the length and the last
+// entry catches that, and TestAtspiRoleNameToIDAnchors catches a reordering.
+// ATSPI_ROLE_LAST_DEFINED (131) is a sentinel and must not be listed.
+func TestAtspiRoleNames_CoverTheEnum(t *testing.T) {
+	const lastRoleID = 130 // ATSPI_ROLE_SWITCH
+
+	if len(atspiRoleNames) != lastRoleID+1 {
+		t.Errorf(
+			"atspiRoleNames has %d entries, want %d (ids 0..%d)",
+			len(atspiRoleNames), lastRoleID+1, lastRoleID,
+		)
+	}
+
+	if last := atspiRoleNames[len(atspiRoleNames)-1]; last != "switch" {
+		t.Errorf("last role name = %q, want \"switch\" (ATSPI_ROLE_SWITCH)", last)
+	}
+
+	seen := make(map[string]int, len(atspiRoleNames))
+
+	for index, name := range atspiRoleNames {
+		if previous, duplicate := seen[name]; duplicate {
+			t.Errorf("role name %q appears at both %d and %d", name, previous, index)
+		}
+
+		seen[name] = index
+	}
+
+	// Every alias must point at a name that exists, or it silently resolves to
+	// nothing and the spelling it exists to accept stops working.
+	for alias, canonical := range atspiRoleNameAliases {
+		if _, ok := seen[canonical]; !ok {
+			t.Errorf("alias %q points at unknown role name %q", alias, canonical)
+		}
+
+		if _, ok := atspiRoleNameToID[alias]; !ok {
+			t.Errorf("alias %q is missing from atspiRoleNameToID", alias)
+		}
+	}
+}
+
+// TestAtspiRoleNameToIDAnchors verifies the reconstructed AtspiRole enum
+// against ids that were independently known before the table was completed. A
+// mistake in the enum ordering would shift every id after the error, so these
+// anchors, spread across the enum, catch a bad transcription.
+func TestAtspiRoleNameToIDAnchors(t *testing.T) {
+	anchors := map[string]int32{
+		"check box":             7,
+		"check menu item":       8,
+		"combo box":             11,
+		"list item":             32,
+		"menu item":             35,
+		"page tab":              37,
+		"password text":         40,
+		atspiRolePushButton:     43,
+		"radio button":          44,
+		"radio menu item":       45,
+		"slider":                51,
+		"table cell":            56,
+		"toggle button":         62,
+		"entry":                 79,
+		"link":                  88,
+		"table row":             90,
+		atspiRolePushButtonMenu: 129,
+	}
+
+	for name, want := range anchors {
+		got, ok := atspiRoleNameToID[name]
+		if !ok {
+			t.Errorf("atspiRoleNameToID lacks anchor role %q", name)
+
+			continue
+		}
+
+		if got != want {
+			t.Errorf("atspiRoleNameToID[%q] = %d, want %d", name, got, want)
 		}
 	}
 }

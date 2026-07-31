@@ -10,7 +10,12 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-var errDaemonUnreachable = errors.New("daemon unreachable")
+var (
+	errDaemonUnreachable = errors.New("daemon unreachable")
+	// errClickableRolesUnusable marks a configuration that loads but selects no
+	// accessibility role on this platform, so hints would find nothing.
+	errClickableRolesUnusable = errors.New("no clickable roles apply on this platform")
+)
 
 // DoctorCmd is the CLI doctor command.
 var DoctorCmd = &cobra.Command{
@@ -28,12 +33,25 @@ can use it to verify accessibility permissions before launching.`,
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
 		// --- client-side checks (no daemon needed) --------------------------
+		rolesUsable := printClickableRolesCheck(cmd)
+
 		endpointPath := ipc.SocketPath()
 
 		if !ipc.IsServerRunning() {
 			cmd.Printf("  ❌ %-24s %s\n", "ipc_endpoint", "not reachable: "+endpointPath)
 
-			return printClientDoctorWithoutDaemon(cmd)
+			err := printClientDoctorWithoutDaemon(cmd)
+			if err != nil {
+				return err
+			}
+
+			// Not every platform treats a stopped daemon as a failure, so the
+			// role check still has to be able to fail this branch.
+			if !rolesUsable {
+				return &silentError{err: errClickableRolesUnusable}
+			}
+
+			return nil
 		}
 
 		cmd.Printf("  ✅ %-24s %s\n", "ipc_endpoint", endpointPath)
@@ -60,7 +78,18 @@ can use it to verify accessibility permissions before launching.`,
 			return &silentError{err: err}
 		}
 
-		return err
+		if err != nil {
+			return err
+		}
+
+		// A healthy daemon running a config that selects no roles still cannot
+		// produce a hint, so the client-side failure has to reach the exit
+		// status or a scripted health check would treat it as fine.
+		if !rolesUsable {
+			return &silentError{err: errClickableRolesUnusable}
+		}
+
+		return nil
 	},
 }
 

@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
@@ -107,52 +108,194 @@ const (
 	collectionMaxWorkers = 16
 )
 
-// AtspiRole enum ids (declaration-order indices in atspi-constants.h), used to
-// build the Collection.GetMatches role bitfield. The enum is ABI-stable
-// (append-only), so these are fixed.
+// atspiRoleFrame is the AT-SPI role of a top-level application window, used
+// both as a vocabulary entry and to recognize window elements during frame
+// selection.
+const atspiRoleFrame = "frame"
+
+// Role names that appear both in the ordered list below and in the alias map.
 const (
-	atspiRolePushButton     = 43
-	atspiRoleToggleButton   = 62
-	atspiRolePushButtonMenu = 129
-	atspiRoleComboBox       = 11
-	atspiRoleCheckBox       = 7
-	atspiRoleCheckMenuItem  = 8
-	atspiRoleRadioButton    = 44
-	atspiRoleRadioMenuItem  = 45
-	atspiRoleLinkID         = 88
-	atspiRoleEntry          = 79
-	atspiRolePasswordText   = 40
-	atspiRoleSlider         = 51
-	atspiRolePageTab        = 37
-	atspiRoleMenuItemID     = 35
-	atspiRoleListItem       = 32
-	atspiRoleTableCell      = 56
-	atspiRoleTableRow       = 90
+	atspiRolePushButton     = "push button"
+	atspiRolePushButtonMenu = "push button menu"
 )
 
-// atspiRoleNameToID maps the AT-SPI role names Neru cares about (the keys of
-// atspiToAXRole) to their AtspiRole id, for building the Collection.GetMatches
-// role bitfield.
-var atspiRoleNameToID = map[string]int32{
-	"push button":     atspiRolePushButton,
-	"button":          atspiRolePushButton,
-	"toggle button":   atspiRoleToggleButton,
-	"menu button":     atspiRolePushButtonMenu,
-	"combo box":       atspiRoleComboBox,
-	"check box":       atspiRoleCheckBox,
-	"check menu item": atspiRoleCheckMenuItem,
-	"radio button":    atspiRoleRadioButton,
-	"radio menu item": atspiRoleRadioMenuItem,
-	"link":            atspiRoleLinkID,
-	"entry":           atspiRoleEntry,
-	"password text":   atspiRolePasswordText,
-	"slider":          atspiRoleSlider,
-	"page tab":        atspiRolePageTab,
-	"menu item":       atspiRoleMenuItemID,
-	"list item":       atspiRoleListItem,
-	"table cell":      atspiRoleTableCell,
-	"table row":       atspiRoleTableRow,
+// atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so a
+// name's index in this slice is its AtspiRole id. Ids are needed to build the
+// Collection.GetMatches role bitfield, and deriving them from position rather
+// than writing them out makes a gap or a duplicate impossible.
+//
+// A name is the GEnum nick of the role with hyphens replaced by spaces, which
+// is exactly what Accessible.GetRoleName returns. The enum is ABI-stable
+// (append-only), so existing entries never move; the list is complete through
+// ATSPI_ROLE_SWITCH, and roles added later fall back to the per-node walk
+// instead of the Collection query.
+//
+// Inserting or removing a line shifts every id after it, so
+// TestAtspiRoleNameToIDAnchors pins ids spread across the enum.
+var atspiRoleNames = []string{
+	"invalid",
+	"accelerator label",
+	"alert",
+	"animation",
+	"arrow",
+	"calendar",
+	"canvas",
+	"check box",
+	"check menu item",
+	"color chooser",
+	"column header",
+	"combo box",
+	"date editor",
+	"desktop icon",
+	"desktop frame",
+	"dial",
+	"dialog",
+	"directory pane",
+	"drawing area",
+	"file chooser",
+	"filler",
+	"focus traversable",
+	"font chooser",
+	atspiRoleFrame,
+	"glass pane",
+	"html container",
+	"icon",
+	"image",
+	"internal frame",
+	"label",
+	"layered pane",
+	"list",
+	"list item",
+	"menu",
+	"menu bar",
+	"menu item",
+	"option pane",
+	"page tab",
+	"page tab list",
+	"panel",
+	"password text",
+	"popup menu",
+	"progress bar",
+	atspiRolePushButton,
+	"radio button",
+	"radio menu item",
+	"root pane",
+	"row header",
+	"scroll bar",
+	"scroll pane",
+	"separator",
+	"slider",
+	"spin button",
+	"split pane",
+	"status bar",
+	"table",
+	"table cell",
+	"table column header",
+	"table row header",
+	"tearoff menu item",
+	"terminal",
+	"text",
+	"toggle button",
+	"tool bar",
+	"tool tip",
+	"tree",
+	"tree table",
+	"unknown",
+	"viewport",
+	"window",
+	"extended",
+	"header",
+	"footer",
+	"paragraph",
+	"ruler",
+	"application",
+	"autocomplete",
+	"editbar",
+	"embedded",
+	"entry",
+	"chart",
+	"caption",
+	"document frame",
+	"heading",
+	"page",
+	"section",
+	"redundant object",
+	"form",
+	"link",
+	"input method window",
+	"table row",
+	"tree item",
+	"document spreadsheet",
+	"document presentation",
+	"document text",
+	"document web",
+	"document email",
+	"comment",
+	"list box",
+	"grouping",
+	"image map",
+	"notification",
+	"info bar",
+	"level bar",
+	"title bar",
+	"block quote",
+	"audio",
+	"video",
+	"definition",
+	"article",
+	"landmark",
+	"log",
+	"marquee",
+	"math",
+	"rating",
+	"timer",
+	"static",
+	"math fraction",
+	"math root",
+	"subscript",
+	"superscript",
+	"description list",
+	"description term",
+	"description value",
+	"footnote",
+	"content deletion",
+	"content insertion",
+	"mark",
+	"suggestion",
+	atspiRolePushButtonMenu,
+	"switch",
 }
+
+// atspiRoleNameAliases map an accepted spelling onto the canonical role name it
+// shares an id with.
+//
+// Id 43 is ATSPI_ROLE_BUTTON on current at-spi2-core and was
+// ATSPI_ROLE_PUSH_BUTTON before it was renamed, and the name reported for it
+// has historically been "push button". Rather than depend on which spelling a
+// given release reports, both are accepted so one config works on either.
+// "menu button" is accepted because users reach for it before the less obvious
+// "push button menu".
+var atspiRoleNameAliases = map[string]string{
+	"button":      atspiRolePushButton,
+	"menu button": atspiRolePushButtonMenu,
+}
+
+// atspiRoleNameToID indexes atspiRoleNames by name, with the aliases folded in.
+var atspiRoleNameToID = func() map[string]int32 {
+	ids := make(map[string]int32, len(atspiRoleNames)+len(atspiRoleNameAliases))
+
+	for index, name := range atspiRoleNames {
+		ids[name] = int32(index)
+	}
+
+	for alias, canonical := range atspiRoleNameAliases {
+		if id, ok := ids[canonical]; ok {
+			ids[alias] = id
+		}
+	}
+
+	return ids
+}()
 
 // accRef is the AT-SPI (bus-name, object-path) reference returned by
 // GetChildren and the registry root.
@@ -169,62 +312,19 @@ type atspiExtents struct {
 	H int32
 }
 
-// AX role names that appear in more than one place in the role maps below.
-const (
-	axRoleButton    = "AXButton"
-	axRoleMenuItem  = "AXMenuItem"
-	axRoleTextField = "AXTextField"
-	axRoleRow       = "AXRow"
-)
+// defaultClickableRoles is used when the caller passes no explicit role filter.
+// It is the shipped default role list resolved into AT-SPI role names, so the
+// fallback and a default configuration select exactly the same elements.
+var defaultClickableRoles = func() map[string]struct{} {
+	resolution := element.ResolveRoles(element.DefaultClickableRoles, "linux")
 
-// atspiToAXRole maps AT-SPI role names (lowercase, as returned by
-// Accessible.GetRoleName) to the macOS-style "AX*" role names that Neru's config
-// and the cross-platform filter pipeline speak. Neru's clickable_roles config is
-// authored in AX vocabulary (AXButton, AXLink, ...) and Adapter.MatchesFilter
-// re-checks elem.Role() against those same AX names, so the AT-SPI client must
-// emit AX role names for any of this to match. Roles with no clickable AX
-// equivalent are intentionally absent so containers (section, heading, label)
-// are skipped.
-var atspiToAXRole = map[string]string{
-	"push button":     axRoleButton,
-	"button":          axRoleButton,
-	"toggle button":   axRoleButton,
-	"menu button":     "AXMenuButton",
-	"combo box":       "AXComboBox",
-	"check box":       "AXCheckBox",
-	"check menu item": axRoleMenuItem,
-	"radio button":    "AXRadioButton",
-	"radio menu item": axRoleMenuItem,
-	"link":            "AXLink",
-	"entry":           axRoleTextField,
-	"password text":   axRoleTextField,
-	"slider":          "AXSlider",
-	"page tab":        "AXTabButton",
-	"menu item":       axRoleMenuItem,
-	"list item":       axRoleRow,
-	"table cell":      "AXCell",
-	"table row":       axRoleRow,
-}
+	set := make(map[string]struct{}, len(resolution.Native))
+	for _, native := range resolution.Native {
+		set[strings.ToLower(native)] = struct{}{}
+	}
 
-// defaultClickableAXRoles is used when the caller passes no explicit role
-// filter. It mirrors the AX names in the shipped default config.
-var defaultClickableAXRoles = map[string]struct{}{
-	axRoleButton:    {},
-	"AXMenuButton":  {},
-	"AXComboBox":    {},
-	"AXCheckBox":    {},
-	"AXRadioButton": {},
-	"AXLink":        {},
-	"AXPopUpButton": {},
-	axRoleTextField: {},
-	"AXSlider":      {},
-	"AXTabButton":   {},
-	"AXSwitch":      {},
-	"AXTextArea":    {},
-	axRoleMenuItem:  {},
-	"AXCell":        {},
-	axRoleRow:       {},
-}
+	return set
+}()
 
 // ATSPIClient is the Linux AXClient. It walks the AT-SPI tree for hints and
 // delegates everything else (input injection, focused-app identity) to the
@@ -477,20 +577,17 @@ type atspiMatchRule struct {
 	Invert     bool
 }
 
-// deriveTargetRoleIDs returns the AtspiRole ids whose AX mapping is in roleSet —
-// exactly the roles the per-node walk would emit — so the Collection query has
-// identical semantics.
+// deriveTargetRoleIDs returns the AtspiRole ids for the requested role names —
+// exactly the roles the per-node walk would keep — so the Collection query has
+// identical semantics. Requested names with no known id are skipped; the caller
+// falls back to the walk when nothing resolves.
 func deriveTargetRoleIDs(roleSet map[string]struct{}) []int32 {
 	var ids []int32
 
 	seen := make(map[int32]struct{})
 
-	for atspiName, axRole := range atspiToAXRole {
-		if _, ok := roleSet[axRole]; !ok {
-			continue
-		}
-
-		roleID, ok := atspiRoleNameToID[atspiName]
+	for roleName := range roleSet {
+		roleID, ok := atspiRoleNameToID[roleName]
 		if !ok {
 			continue
 		}
@@ -733,14 +830,11 @@ func (c *ATSPIClient) materializeMatch(
 	roleSet map[string]struct{},
 	offX, offY int,
 ) *atspiNode {
-	// Re-verify the role maps into the requested set: a toolkit may return a role
-	// we did not ask for, and this keeps parity with the walk's filter.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
-	if !mappable {
-		return nil
-	}
+	// Re-verify the role is in the requested set: a toolkit may return a role we
+	// did not ask for, and this keeps parity with the walk's filter.
+	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
 
-	if _, ok := roleSet[axRole]; !ok {
+	if _, ok := roleSet[roleName]; !ok {
 		return nil
 	}
 
@@ -751,7 +845,7 @@ func (c *ATSPIClient) materializeMatch(
 
 	return &atspiNode{
 		id:    string(ref.Path) + "@" + ref.Name,
-		role:  axRole,
+		role:  roleName,
 		title: c.name(ctx, conn, ref),
 		rect:  rect.Add(image.Pt(offX, offY)),
 	}
@@ -1119,7 +1213,7 @@ func (c *ATSPIClient) children(ctx context.Context, conn *dbus.Conn, ref accRef)
 // isWindowRole reports whether an AT-SPI role name denotes a top-level window
 // (the only frames hint selection considers).
 func isWindowRole(role string) bool {
-	return role == "frame" || role == "window" || role == "dialog"
+	return role == atspiRoleFrame || role == "window" || role == "dialog"
 }
 
 // roleName returns the AT-SPI localized-independent role name (e.g. "push button").
@@ -1905,24 +1999,23 @@ func (c *ATSPIClient) walk(
 
 	*visited++
 
-	// Translate the AT-SPI role into Neru's AX vocabulary, then match against
-	// the requested role set (also AX names). This keeps the whole pipeline,
-	// including the downstream Adapter.MatchesFilter, speaking one vocabulary.
-	axRole, mappable := atspiToAXRole[strings.ToLower(c.roleName(ctx, conn, ref))]
+	// Match the AT-SPI role name against the requested set. Both sides are
+	// native AT-SPI names: configured roles are resolved into this vocabulary
+	// before they reach the client, and the node carries the native name
+	// downstream so Adapter.MatchesFilter compares like with like.
+	roleName := strings.ToLower(c.roleName(ctx, conn, ref))
 
-	if mappable {
-		if _, ok := roles[axRole]; ok && c.stateHas(ctx, conn, ref, atspiStateShowing) {
-			if rect, valid := c.extents(ctx, conn, ref); valid {
-				// AT-SPI reports window-relative coords on Wayland; offset by the
-				// focused window's screen origin from the KWin bridge.
-				rect = rect.Add(image.Pt(offX, offY))
-				*out = append(*out, &atspiNode{
-					id:    string(ref.Path) + "@" + ref.Name,
-					role:  axRole,
-					title: c.name(ctx, conn, ref),
-					rect:  rect,
-				})
-			}
+	if _, ok := roles[roleName]; ok && c.stateHas(ctx, conn, ref, atspiStateShowing) {
+		if rect, valid := c.extents(ctx, conn, ref); valid {
+			// AT-SPI reports window-relative coords on Wayland; offset by the
+			// focused window's screen origin from the KWin bridge.
+			rect = rect.Add(image.Pt(offX, offY))
+			*out = append(*out, &atspiNode{
+				id:    string(ref.Path) + "@" + ref.Name,
+				role:  roleName,
+				title: c.name(ctx, conn, ref),
+				rect:  rect,
+			})
 		}
 	}
 
@@ -1931,24 +2024,25 @@ func (c *ATSPIClient) walk(
 	}
 }
 
-// rolesSet converts the caller's AX role list into a lookup set, falling back
-// to the default clickable AX role set when empty. AX names are case-sensitive
-// (e.g. "AXButton") and must match the config and Adapter.MatchesFilter exactly,
-// so they are NOT lowercased.
+// rolesSet converts the caller's native AT-SPI role list into a lookup set,
+// falling back to the default clickable role set when empty. AT-SPI role names
+// are canonically lowercase, and both this set and the names read from
+// Accessible.GetRoleName are lowercased so a config written with different
+// casing still matches.
 func rolesSet(roles []string) map[string]struct{} {
 	if len(roles) == 0 {
-		return defaultClickableAXRoles
+		return defaultClickableRoles
 	}
 
 	set := make(map[string]struct{}, len(roles))
 	for _, r := range roles {
 		if trimmed := strings.TrimSpace(r); trimmed != "" {
-			set[trimmed] = struct{}{}
+			set[strings.ToLower(trimmed)] = struct{}{}
 		}
 	}
 
 	if len(set) == 0 {
-		return defaultClickableAXRoles
+		return defaultClickableRoles
 	}
 
 	return set
@@ -1969,7 +2063,7 @@ type atspiWindow struct {
 }
 
 func (w *atspiWindow) Release()     {}
-func (w *atspiWindow) Role() string { return "frame" }
+func (w *atspiWindow) Role() string { return atspiRoleFrame }
 
 // atspiNode implements AXNode for a clickable AT-SPI element.
 type atspiNode struct {

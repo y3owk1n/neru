@@ -392,6 +392,11 @@ func (c *InfraAXClient) buildClickableOpts(
 		}
 	}
 
+	// Backends that enumerate rather than walk a cached tree use the role set
+	// to prune before reading per-element properties; on the others this is a
+	// no-op and filtering happens in FindClickableElements.
+	opts.SetRoles(allowedRoles)
+
 	ignoreClickableCheck := false
 	if cfg := currentConfig(c.configProvider); cfg != nil {
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())

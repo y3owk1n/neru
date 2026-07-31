@@ -22,7 +22,9 @@ func TestEnumerateClickableElementsIntegration(t *testing.T) {
 		t.Skip("skipping: no foreground window (headless session)")
 	}
 
-	elements := enumerateClickableElements(hwnd)
+	// A nil role set falls back to the shipped defaults, which is what the
+	// hints path uses when no roles are configured.
+	elements := enumerateClickableElements(hwnd, nil)
 	if len(elements) == 0 {
 		t.Skip("skipping: foreground window exposed no clickable elements")
 	}
@@ -31,6 +33,15 @@ func TestEnumerateClickableElementsIntegration(t *testing.T) {
 	for idx, elem := range elements {
 		if elem.role == "" {
 			t.Errorf("element %d has empty role", idx)
+		}
+
+		// Roles must be the native UIA control-type names the config vocabulary
+		// resolves to, never the AX-style names neru used to synthesize here.
+		if _, ok := defaultClickableRoles[elem.role]; !ok {
+			t.Errorf(
+				"element %d has role %q, which is not in the default role set",
+				idx, elem.role,
+			)
 		}
 
 		if elem.bounds.Dx() <= 0 || elem.bounds.Dy() <= 0 {

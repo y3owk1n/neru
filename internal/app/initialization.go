@@ -51,9 +51,12 @@ func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 	// Apply clickable roles if hints are enabled
 	if cfg.Hints.Enabled {
+		roles := cfg.Hints.ResolvedClickableRoles()
+
 		logger.Debug("Applying clickable roles",
-			zap.Int("count", len(cfg.Hints.ClickableRoles)))
-		accessibilityAdapter.SetClickableRoles(cfg.Hints.ClickableRoles, logger)
+			zap.Int("configured", len(cfg.Hints.ClickableRoles)),
+			zap.Int("resolved", len(roles)))
+		accessibilityAdapter.SetClickableRoles(roles, logger)
 	}
 
 	return nil

@@ -24,6 +24,14 @@ type regionClassifier struct {
 	cfg config.HintsVisionConfig
 }
 
+// roleButton is the role assigned to a detected region. It is a native macOS
+// AX role name because vision detection only has a darwin backend
+// (adapter_other.go reports CodeNotSupported), so this is the vocabulary the
+// configured clickable roles resolve to on the only platform that runs it.
+//
+// A Linux or Windows vision backend must emit that platform's native role name
+// instead — "push button" or "Button" — since role filtering compares against
+// native names. See internal/core/domain/element/vocabulary.go.
 const roleButton = "AXButton"
 
 // Classify assigns a role to a detected region based on its geometry and

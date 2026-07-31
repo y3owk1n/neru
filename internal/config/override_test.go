@@ -135,7 +135,7 @@ func TestService_SaveOverrideFieldAndLoad(t *testing.T) {
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"
-clickable_roles = ["AXButton"]
+clickable_roles = ["button"]
 `
 
 	writeFileErr := os.WriteFile(configPath, []byte(configContent), 0o644)
@@ -208,7 +208,7 @@ func TestService_OverridePreservesOtherFields(t *testing.T) {
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"
-clickable_roles = ["AXButton"]
+clickable_roles = ["button"]
 
 [general]
 passthrough_unbounded_keys = false
@@ -245,9 +245,9 @@ passthrough_unbounded_keys = false
 	}
 
 	if len(reloaded.Config.Hints.ClickableRoles) != 1 ||
-		reloaded.Config.Hints.ClickableRoles[0] != "AXButton" {
+		reloaded.Config.Hints.ClickableRoles[0] != TestRoleButton {
 		t.Errorf(
-			"Expected clickable_roles=[AXButton], got %v",
+			"Expected clickable_roles=[button], got %v",
 			reloaded.Config.Hints.ClickableRoles,
 		)
 	}
@@ -261,7 +261,7 @@ func TestService_OverrideInvalidatesConfig(t *testing.T) {
 [hints]
 enabled = true
 hint_characters = "asdfghjkl"
-clickable_roles = ["AXButton"]
+clickable_roles = ["button"]
 `
 
 	writeFileErr := os.WriteFile(configPath, []byte(configContent), 0o644)

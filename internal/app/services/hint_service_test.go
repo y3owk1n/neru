@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -120,7 +122,7 @@ func TestHintService_ShowHints(t *testing.T) {
 						elem, _ := element.NewElement(
 							element.ID(fmt.Sprintf("elem%d", index)),
 							image.Rect(index*10, index*10, index*10+40, index*10+40),
-							element.RoleButton,
+							nativeButtonRole,
 						)
 						elements[index] = elem
 					}
@@ -229,16 +231,28 @@ func TestHintService_ShowHints(t *testing.T) {
 						roles[role] = true
 					}
 
-					if !roles[element.Role("AXButton")] {
-						t.Error("expected global role AXButton to be present")
+					// The filter carries native role names for the running
+					// platform, so expectations are resolved the same way.
+					wantGlobal := element.ResolveRolesForCurrentPlatform([]string{"button"}).Native
+					wantApp := element.ResolveRolesForCurrentPlatform([]string{"heading"}).Native
+
+					for _, role := range wantGlobal {
+						if !roles[element.Role(role)] {
+							t.Errorf("expected global role %q to be present", role)
+						}
 					}
 
-					if !roles[element.Role("AXHeading")] {
-						t.Error("expected app-specific role AXHeading to be present")
+					for _, role := range wantApp {
+						if !roles[element.Role(role)] {
+							t.Errorf("expected app-specific role %q to be present", role)
+						}
 					}
 
-					if len(roles) != 2 {
-						t.Errorf("expected exactly 2 roles, got %v", filter.Roles)
+					if len(roles) != len(wantGlobal)+len(wantApp) {
+						t.Errorf(
+							"expected exactly %d roles, got %v",
+							len(wantGlobal)+len(wantApp), filter.Roles,
+						)
 					}
 
 					return testElements, nil
@@ -250,11 +264,11 @@ func TestHintService_ShowHints(t *testing.T) {
 				return gen
 			},
 			config: config.HintsConfig{
-				ClickableRoles: []string{"AXButton"},
+				ClickableRoles: []string{"button"},
 				AppConfigs: []config.AppConfig{
 					{
 						BundleID:            "net.imput.helium",
-						AdditionalClickable: []string{"AXHeading"},
+						AdditionalClickable: []string{"heading"},
 					},
 				},
 			},
@@ -511,7 +525,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		mockSystem,
 		generator,
 		config.HintsConfig{
-			ClickableRoles:                []string{string(element.RoleButton)},
+			ClickableRoles:                []string{string(element.SemanticButton)},
 			IncludeMenubarHints:           true,
 			AdditionalMenubarHintsTargets: []string{"Clock"},
 			IncludeDockHints:              true,
@@ -855,8 +869,23 @@ func TestHintService_Health(t *testing.T) {
 }
 
 // Helper functions.
+// nativeButtonRole is the accessibility role a button reports on the platform
+// running the tests. Configured roles resolve to native names, so an element
+// built with a role from another platform would silently stop matching a
+// config that asks for "button".
+var nativeButtonRole = func() element.Role {
+	native := element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticButton)},
+	).Native
+	if len(native) == 0 {
+		return element.RoleButton
+	}
+
+	return element.Role(native[0])
+}()
+
 func mustNewElement(id string, bounds image.Rectangle) *element.Element {
-	element, elementErr := element.NewElement(element.ID(id), bounds, element.RoleButton)
+	element, elementErr := element.NewElement(element.ID(id), bounds, nativeButtonRole)
 	if elementErr != nil {
 		panic(elementErr)
 	}
@@ -922,4 +951,162 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 	if !derrors.IsCode(err, derrors.CodeInvalidInput) {
 		t.Errorf("expected invalid input error, got: %v", err)
 	}
+}
+
+// TestHintService_GenerateHintsRoleFilterResolvingToNothing pins the behavior
+// of a role filter that is configured but resolves to no native role on this
+// platform — for example a config carrying only Linux entries, run on macOS.
+//
+// An empty ports.ElementFilter.Roles means "match every role", so the naive
+// outcome is that an unusable filter hints *everything*. It must hint nothing.
+func TestHintService_GenerateHintsRoleFilterResolvingToNothing(t *testing.T) {
+	testElements := []*element.Element{
+		mustNewElement("elem1", image.Rect(10, 10, 50, 50)),
+		mustNewElement("elem2", image.Rect(60, 10, 100, 50)),
+	}
+
+	tests := []struct {
+		name        string
+		roles       []string
+		filterRoles []string
+	}{
+		{
+			name:  "configured roles all belong to another platform",
+			roles: foreignRolesForCurrentPlatform(),
+		},
+		{
+			name:        "role flag entries are unresolvable",
+			roles:       []string{string(element.SemanticButton)},
+			filterRoles: []string{"AXButton"},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			if len(testCase.roles) == 0 {
+				t.Skipf("no foreign role set defined for %s", runtime.GOOS)
+			}
+
+			mockAcc := &mocks.MockAccessibilityPort{}
+			mockAcc.ClickableElementsFunc = func(
+				_ context.Context,
+				_ ports.ElementFilter,
+			) ([]*element.Element, error) {
+				return testElements, nil
+			}
+
+			generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+			service := services.NewHintService(
+				mockAcc,
+				&mocks.MockOverlayPort{},
+				&mocks.MockSystemPort{},
+				generator,
+				config.HintsConfig{ClickableRoles: testCase.roles},
+				logger.Get(),
+				nil,
+			)
+
+			hints, err := service.GenerateHints(
+				context.Background(),
+				testCase.filterRoles,
+				nil,
+				"com.example.app",
+				"",
+				"",
+				false,
+			)
+			if err != nil {
+				t.Fatalf("GenerateHints() unexpected error: %v", err)
+			}
+
+			if len(hints) != 0 {
+				t.Errorf(
+					"GenerateHints() returned %d hints for an unusable role filter, want 0",
+					len(hints),
+				)
+			}
+		})
+	}
+}
+
+// TestHintService_GenerateHintsRoleFlagOverridesConfig covers the happy path of
+// `neru hints --role ...`: the flag replaces the configured roles entirely and
+// is resolved through the same vocabulary, so it accepts semantic names and
+// vocabulary-prefixed native names alike.
+func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
+	testElements := []*element.Element{
+		mustNewElement("elem1", image.Rect(10, 10, 50, 50)),
+	}
+
+	var captured []element.Role
+
+	mockAcc := &mocks.MockAccessibilityPort{}
+	mockAcc.ClickableElementsFunc = func(
+		_ context.Context,
+		filter ports.ElementFilter,
+	) ([]*element.Element, error) {
+		captured = filter.Roles
+
+		return testElements, nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
+	service := services.NewHintService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		&mocks.MockSystemPort{},
+		generator,
+		config.HintsConfig{
+			ClickableRoles: []string{string(element.SemanticButton)},
+		},
+		logger.Get(),
+		nil,
+	)
+
+	_, err := service.GenerateHints(
+		context.Background(),
+		[]string{string(element.SemanticLink)},
+		nil,
+		"com.example.app",
+		"",
+		"",
+		false,
+	)
+	if err != nil {
+		t.Fatalf("GenerateHints() unexpected error: %v", err)
+	}
+
+	want := element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticLink)},
+	).Native
+	if len(want) == 0 {
+		t.Skip("link has no native role on this platform")
+	}
+
+	for _, role := range want {
+		if !slices.Contains(captured, element.Role(role)) {
+			t.Errorf("filter.Roles = %v, missing overridden role %q", captured, role)
+		}
+	}
+
+	// The configured role must not survive the override.
+	for _, role := range element.ResolveRolesForCurrentPlatform(
+		[]string{string(element.SemanticButton)},
+	).Native {
+		if slices.Contains(captured, element.Role(role)) {
+			t.Errorf("filter.Roles = %v, configured role %q leaked past the override",
+				captured, role)
+		}
+	}
+}
+
+// foreignRolesForCurrentPlatform returns native role entries that belong to
+// platforms other than the one running the tests, so they resolve to nothing
+// here. Returns nil on a platform with no accessibility backend.
+func foreignRolesForCurrentPlatform() []string {
+	return map[string][]string{
+		"darwin":  {"atspi:push button", "uia:Button"},
+		"linux":   {"ax:AXButton", "uia:Button"},
+		"windows": {"ax:AXButton", "atspi:push button"},
+	}[runtime.GOOS]
 }

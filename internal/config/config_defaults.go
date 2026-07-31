@@ -1,6 +1,11 @@
 package config
 
-import "time"
+import (
+	"slices"
+	"time"
+
+	"github.com/y3owk1n/neru/internal/core/domain/element"
+)
 
 const (
 	// DefaultHintFontSize is the default font size for hints.
@@ -441,7 +446,10 @@ func newDefaultConfig() *Config {
 			OnMissionControlActivated:     nil,
 			OnMissionControlDeactivated:   nil,
 
-			ClickableRoles: []string{},
+			// Semantic role names resolve to each platform's native
+			// accessibility vocabulary at load time, so one default serves
+			// every platform. See internal/core/domain/element/vocabulary.go.
+			ClickableRoles: slices.Clone(element.DefaultClickableRoles),
 
 			IgnoreClickableCheck: false,
 			VisibleCheckEnabled:  false,

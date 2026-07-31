@@ -10,24 +10,4 @@ func applyPlatformDefaults(cfg *Config) {
 		"com.apple.systemuiserver",
 		"com.y3owk1n.neru",
 	)
-
-	cfg.Hints.ClickableRoles = append(cfg.Hints.ClickableRoles,
-		"AXButton",
-		"AXMenuButton",
-		"AXComboBox",
-		"AXCheckBox",
-		"AXRadioButton",
-		"AXLink",
-		"AXPopUpButton",
-		"AXTextField",
-		"AXSlider",
-		"AXTabButton",
-		"AXSwitch",
-		"AXDisclosureTriangle",
-		"AXTextArea",
-		"AXMenuItem",
-		"AXCell",
-		"AXRow",
-		"AXGenericElement",
-	)
 }
