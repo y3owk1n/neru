@@ -94,6 +94,20 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 		return
 	}
 
+	// Normalize --on-exit for external (re-)activations. This method is the sole
+	// entry point for user-driven activations (IPC, hotkeys, systray); internal
+	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
+	// call the activate* helpers directly with a nil onExit to preserve the
+	// stored callback. An omitted --on-exit on a fresh external command must
+	// clear any callback left over from a prior activation of the same mode
+	// rather than inheriting it, so a later completed action does not run a stale
+	// command. A nil pointer here means "clear"; the empty value is a no-op at
+	// dispatch time.
+	if opts.OnExit == nil {
+		empty := ""
+		opts.OnExit = &empty
+	}
+
 	modeImpl.Activate(opts)
 }
 

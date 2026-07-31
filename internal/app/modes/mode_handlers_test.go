@@ -76,6 +76,48 @@ func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	}
 }
 
+// optsRecordingMode is a minimal Mode used to capture the options an external
+// activation passes through ActivateModeWithOptions.
+type optsRecordingMode struct {
+	modeType domain.Mode
+	lastOpts ModeActivationOptions
+}
+
+func (m *optsRecordingMode) Activate(opts ModeActivationOptions) { m.lastOpts = opts }
+func (m *optsRecordingMode) HandleKey(string)                    {}
+func (m *optsRecordingMode) Exit()                               {}
+func (m *optsRecordingMode) ModeType() domain.Mode               { return m.modeType }
+
+func TestActivateModeWithOptions_OmittedOnExitClearsStaleCallback(t *testing.T) {
+	fake := &optsRecordingMode{modeType: domain.ModeGrid}
+	handler := &Handler{
+		logger:   zap.NewNop(),
+		appState: state.NewAppState(),
+		modes:    map[domain.Mode]Mode{domain.ModeGrid: fake},
+	}
+
+	// An external activation that omits --on-exit must reach the mode with a
+	// non-nil, empty OnExit so the refresh branch clears any stored callback
+	// rather than preserving it.
+	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{})
+
+	if fake.lastOpts.OnExit == nil {
+		t.Fatal("expected omitted --on-exit to be normalized to a non-nil clear value")
+	}
+
+	if *fake.lastOpts.OnExit != "" {
+		t.Fatalf("expected normalized on-exit to be empty, got %q", *fake.lastOpts.OnExit)
+	}
+
+	// An explicit --on-exit must pass through untouched.
+	want := "exec foo"
+	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{OnExit: &want})
+
+	if fake.lastOpts.OnExit == nil || *fake.lastOpts.OnExit != want {
+		t.Fatalf("expected on-exit %q to pass through, got %v", want, fake.lastOpts.OnExit)
+	}
+}
+
 func TestCurrentModeOnExit(t *testing.T) {
 	hintsExit := "action left_click"
 	gridExit := "exec grid-done"
