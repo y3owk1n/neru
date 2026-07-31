@@ -69,6 +69,16 @@ const waylandEvdevBusVirtual = 0x06
 
 var knownVirtualDevices = []string{"kanata"}
 
+// neruInjectionDevicePrefix identifies Neru's own synthetic uinput devices
+// (e.g. "neru-keyboard" from key feeding, "neru-scroll"). Capture must never
+// grab these: grabbing our injection keyboard would swallow fed keys before
+// they reach the focused app.
+const neruInjectionDevicePrefix = "neru-"
+
+func isNeruInjectionDevice(name string) bool {
+	return strings.HasPrefix(strings.ToLower(name), neruInjectionDevicePrefix)
+}
+
 func isUinputVirtualDevice(fd C.int, name string) bool {
 	bustype := int(C.neru_evdev_get_bustype(fd))
 	if bustype == waylandEvdevBusVirtual {
@@ -401,7 +411,7 @@ func (capture *waylandEvdevCapture) findVirtualDevice() *os.File {
 		}
 
 		name := C.GoString(&deviceName[0])
-		if !isUinputVirtualDevice(fileDescriptor, name) {
+		if !isUinputVirtualDevice(fileDescriptor, name) || isNeruInjectionDevice(name) {
 			_ = file.Close()
 
 			continue
@@ -1367,6 +1377,13 @@ var (
 	errUinputScroll  error
 )
 
+// uinputScrollMu serializes writes to the shared scroll device fd. A single
+// ScrollDeviceScroll emits three separate write() calls (hi-res, lo-res, SYN);
+// without this lock, two concurrent scroll requests (each on its own IPC
+// goroutine) could interleave those writes and deliver a malformed event
+// stream.
+var uinputScrollMu sync.Mutex
+
 func initUinputScroll() error {
 	var fd C.int
 	if C.neru_uinput_create_scroll(&fd) == 0 {
@@ -1397,11 +1414,15 @@ func IsUinputScrollAvailable() bool {
 
 // ScrollDeviceScroll sends a scroll event via the uinput virtual device.
 func ScrollDeviceScroll(axis, value int) error {
-	fd, err := getUinputScrollFd()
+	scrollFd, err := getUinputScrollFd()
 	if err != nil {
 		return err
 	}
-	if C.neru_uinput_scroll(C.int(fd), C.int(axis), C.int(value)) == 0 {
+
+	uinputScrollMu.Lock()
+	defer uinputScrollMu.Unlock()
+
+	if C.neru_uinput_scroll(C.int(scrollFd), C.int(axis), C.int(value)) == 0 {
 		return fmt.Errorf("%w", errUinputScrollSend)
 	}
 
@@ -1423,6 +1444,9 @@ func ScrollDeviceScrollBatch(axis int, values []int) error {
 	for i, v := range values {
 		cValues[i] = C.int(v)
 	}
+
+	uinputScrollMu.Lock()
+	defer uinputScrollMu.Unlock()
 
 	if C.neru_uinput_scroll_batch(
 		C.int(ufd),
