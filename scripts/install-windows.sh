@@ -57,7 +57,7 @@ run_ps() {
 # is macOS-only, so autostart is authored here, not by Neru. Runs under a bash
 # (e.g. Git Bash); `just` needs cygpath on PATH to translate the shebang, and
 # reg is called with MSYS2_ARG_CONV_EXCL so its /flags are not path-mangled.
-# Windows support is partial (grid, recursive grid, scroll, hotkeys, mouse
+# Windows support is alpha (grid, recursive grid, scroll, hotkeys, mouse
 # injection, UIA); see docs/CROSS_PLATFORM.md.
 arch="$(uname -m)"
 case "$arch" in
@@ -220,4 +220,6 @@ case "$run_reply" in
         echo "Skipped autostart. Start Neru with: neru launch"
         ;;
 esac
-echo "Windows support is partial; see docs/CROSS_PLATFORM.md."
+echo "Windows support is alpha: worth trying, not yet worth switching to."
+echo "Hint coverage is incomplete and per-app config does not re-apply."
+echo "See docs/CROSS_PLATFORM.md for what works today."

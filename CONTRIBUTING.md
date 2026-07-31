@@ -1,6 +1,15 @@
 # Contributing to Neru
 
-Thanks for your interest in contributing! Neru is a small project with an approachable codebase, and we welcome contributions of all kinds — code, docs, bug reports, config examples, or ideas.
+Thanks for your interest in contributing! Neru is a small project with an
+approachable codebase, and we welcome contributions of all kinds — code, docs,
+bug reports, config examples, or ideas.
+
+This document owns the **contribution process**: how to propose a change, how to
+commit it, and how to get it merged. The technical guides own the rest —
+[DEVELOPMENT.md](docs/DEVELOPMENT.md) for environment setup, building, and
+testing; [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the codebase is
+structured; [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for platform work; and
+[CODING_STANDARDS.md](docs/CODING_STANDARDS.md) for style.
 
 ---
 
@@ -8,13 +17,10 @@ Thanks for your interest in contributing! Neru is a small project with an approa
 
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
 - [Making Changes](#making-changes)
 - [Commit Messages](#commit-messages)
-- [Architecture & Cross-Platform](#architecture--cross-platform)
 - [Pull Requests](#pull-requests)
-- [Testing](#testing)
-- [Code Style](#code-style)
+- [Platform Work](#platform-work)
 - [Good First Contributions](#good-first-contributions)
 - [Reporting Bugs](#reporting-bugs)
 - [Feature Requests](#feature-requests)
@@ -23,60 +29,24 @@ Thanks for your interest in contributing! Neru is a small project with an approa
 
 ## Code of Conduct
 
-This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating you agree to uphold it. Please report unacceptable behavior via [GitHub Issues](https://github.com/y3owk1n/neru/issues) or by contacting [@y3owk1n](https://github.com/y3owk1n) directly.
+This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating
+you agree to uphold it. Please report unacceptable behavior via
+[GitHub Issues](https://github.com/y3owk1n/neru/issues) or by contacting
+[@y3owk1n](https://github.com/y3owk1n) directly.
 
 ---
 
 ## Getting Started
 
-1. **Search existing issues** — check if someone is already working on the same thing or if there's a related discussion.
-2. **Open an issue first** for non-trivial changes — this avoids wasted effort and lets us align on approach before you write code.
-3. **Small, focused PRs** are preferred over large, sweeping changes.
+1. **Search existing issues** — check whether someone is already working on the
+   same thing, or whether there's a related discussion.
+2. **Open an issue first** for non-trivial changes. This avoids wasted effort and
+   lets us align on approach before you write code.
+3. **Small, focused PRs** are preferred over large, sweeping ones.
 
----
-
-## Development Setup
-
-### Prerequisites
-
-- **Go 1.26+** — [Install Go](https://golang.org/dl/)
-- **Xcode Command Line Tools** — `xcode-select --install`
-- **Just** — command runner — `brew install just`
-- **golangci-lint** — linter — `brew install golangci-lint`
-
-### Recommended: Devbox
-
-[Devbox](https://www.jetify.com/devbox) provides an isolated environment with all tools pre-configured:
-
-```bash
-curl -fsSL https://get.jetify.com/devbox | bash
-devbox shell
-```
-
-### Clone & Verify
-
-```bash
-git clone https://github.com/y3owk1n/neru.git
-cd neru
-go version          # Should be 1.26+
-just --version
-golangci-lint --version
-just --list         # See all available commands
-```
-
-### Cross-Platform Setup
-
-Neru can be developed on any OS, but some features require platform-specific APIs.
-
-- **macOS**: Full environment support (CGo, Accessibility, Overlays).
-- **Linux**: backend-dependent. Some work can stay pure Go; X11/Wayland and compositor work may need additional native tooling depending on the backend you choose.
-- **Windows**: prefer pure-Go Win32/COM bindings first. A C compiler is not the default requirement unless a specific backend introduces that need.
-
-For full details see:
-
-- [Development Guide](docs/DEVELOPMENT.md)
-- [System Architecture](docs/ARCHITECTURE.md)
-- [Cross-Platform Guide](docs/CROSS_PLATFORM.md)
+Set up your environment by following
+[DEVELOPMENT.md](docs/DEVELOPMENT.md#development-setup) — Devbox is the
+recommended path and provides every tool pre-configured.
 
 ---
 
@@ -89,38 +59,47 @@ For full details see:
     git checkout -b feat/my-feature
     ```
 
-3. **Make your changes** following the [Coding Standards](docs/CODING_STANDARDS.md).
-4. **Add or update tests** for any new or changed functionality.
-5. **Run the pre-commit checklist**:
+3. **Make your changes**, following
+   [CODING_STANDARDS.md](docs/CODING_STANDARDS.md). Where new code belongs is
+   mapped out in [DEVELOPMENT.md](docs/DEVELOPMENT.md#adding-code).
+4. **Add or update tests.** All new code needs coverage — see
+   [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for the test tiers and
+   [TESTING_PATTERNS.md](docs/testing/TESTING_PATTERNS.md) for the patterns.
+5. **Run the pre-commit checks:**
 
     ```bash
-    just fmt            # Format code
-    just lint           # Run linters
-    just test           # Run unit tests
-    just build          # Verify build
+    just fmt      # format Go and Objective-C
+    just lint     # golangci-lint
+    just test     # unit + integration
+    just build    # verify the build
     ```
 
-   For Linux or Windows platform work, it is also reasonable to start with:
+    Doing Linux or Windows work? Start with `just test-foundation` and
+    `just build-linux` / `just build-windows`.
 
-    ```bash
-    just test-foundation
-    just build-linux     # or just build-windows
-    ```
-
-6. **Commit** using [conventional commits](#commit-messages).
-7. **Push** and open a pull request.
+6. **Update the docs** in the same PR. Each fact has one home — the
+   [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)
+   says which file owns what, so please update the owner rather than restating
+   it in a second place.
+7. **Commit** using [conventional commits](#commit-messages), then push and open
+   a pull request.
 
 ---
 
 ## Commit Messages
 
-We use [Conventional Commits](https://www.conventionalcommits.org/) to power automated releases via [Release Please](https://github.com/googleapis/release-please).
+We use [Conventional Commits](https://www.conventionalcommits.org/) to power
+automated releases via
+[Release Please](https://github.com/googleapis/release-please). **The commit
+subject is what ships in the changelog**, so write it for users.
 
 **Format:**
 
 ```
 <type>(<optional scope>): <subject>
+
 <optional body>
+
 <optional footer>
 ```
 
@@ -145,94 +124,69 @@ fix(hints): correct overlay positioning on multi-monitor setups
 docs: update configuration reference for scroll mode
 ```
 
----
+A fuller message earns its body by explaining *why*:
 
-## Architecture & Cross-Platform
+```
+feat: add grid-based navigation mode
 
-Neru is designed as a cross-platform tool with a strong emphasis on architectural separation. Before contributing code, especially for Linux or Windows support, please review the [System Architecture](docs/ARCHITECTURE.md).
+Implement grid-based navigation as an alternative to hints. Grid mode divides
+the screen into cells and allows precise cursor positioning without relying on
+the accessibility tree.
 
-### Key Architectural Rules
-
-1. **Platform Isolation**: OS-specific code must be strictly isolated. Non-darwin code must never import darwin-specific packages.
-2. **Hexagonal Architecture**: We use the Ports and Adapters pattern. Define interfaces (Ports) in `internal/core/ports` and implement them in `internal/core/infra`.
-3. **Build Tags**: Use Go build tags (e.g., `//go:build linux`) for OS-specific files.
-
-### Contributing to New Platforms
-
-If you are working on Linux or Windows support:
-
-- Check the current [Platform Status](docs/ARCHITECTURE.md#platform-status) in the architecture guide.
-- Start with the [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md#contributor-guide).
-- Implement in the existing platform slot instead of inventing new file layout.
-- For Linux, prefer the reserved backend files: `*_linux_common.go`, `*_linux_x11.go`, and `*_linux_wayland.go`.
-- Follow the patterns established in the macOS implementation where applicable, but keep macOS-specific assumptions out of shared code.
-
-### Cross-Platform PR Checklist
-
-For Linux, Windows, and shared platform work, a good PR usually does all of the following:
-
-1. Puts the implementation in the intended file slot.
-2. Keeps unsupported paths explicit with `CodeNotSupported` where needed.
-3. Updates capability reporting if support changed.
-4. Adds tests at the right level.
-5. Updates contributor-facing docs if file layout, backend assumptions, or build requirements changed.
+Closes #123
+```
 
 ---
 
 ## Pull Requests
 
-- **Title** should follow the same conventional commit format (e.g. `feat(hints): add multi-monitor support`).
-- **Description** should explain _what_ changed and _why_. Include screenshots or recordings for UI changes.
+- **Title** follows the same conventional commit format (e.g.
+  `feat(hints): add multi-monitor support`).
+- **Description** explains _what_ changed and _why_. Include screenshots or
+  recordings for UI changes.
 - **Keep PRs focused** — one logical change per PR.
 - **Link related issues** (e.g. `Closes #123`).
 - All CI checks (lint, test, build) must pass before merge.
-- A maintainer will review your PR. Be open to feedback and iterate.
+- A maintainer will review. Be open to feedback and iterate.
 
 ---
 
-## Testing
+## Platform Work
 
-Neru separates tests into unit and integration tests:
+Neru puts a strong emphasis on architectural separation, and platform changes
+are where that matters most. Before writing Linux or Windows code:
 
-| Type              | File pattern            | Command                 | Build tag     |
-| ----------------- | ----------------------- | ----------------------- | ------------- |
-| Unit tests        | `*_test.go`             | `just test`             | —             |
-| Integration tests | `*_integration_test.go` | `just test-integration` | `integration` |
+- Read [The "One Rule"](docs/ARCHITECTURE.md#the-one-rule) — non-darwin code must
+  never import the darwin platform package. It is enforced by both `depguard` and
+  an architecture test.
+- Check the current
+  [platform status](docs/CROSS_PLATFORM.md#platform-status) and
+  [capability matrix](docs/CROSS_PLATFORM.md#capability-matrix).
+- Work through the
+  [Cross-Platform Contributor Guide](docs/CROSS_PLATFORM.md#contributor-guide) —
+  it covers file slots, the Linux backend model, CGO guidance, and the bar a
+  platform PR has to clear.
 
-**Guidelines:**
-
-- All new code requires tests.
-- Use **table-driven tests** where possible.
-- Unit tests should be fast with no system dependencies — use mocks.
-- Integration tests use real macOS APIs and are tagged `//go:build integration`.
-- Run `just test-coverage` to check coverage locally.
-
-For detailed patterns see [Testing Patterns](docs/testing/TESTING_PATTERNS.md).
-
----
-
-## Code Style
-
-All code must follow the [Coding Standards](docs/CODING_STANDARDS.md):
-
-- **Go**: [Go Conventions](docs/go/CONVENTIONS.md) — imports, naming, error handling, receiver conventions.
-- **Objective-C**: [Objective-C Guidelines](docs/go/OBJECTIVE_C.md) — `.h`/`.m` files, memory management, naming.
-- Format with `just fmt` (uses `goimports` + `gofumpt`).
-- Lint with `just lint` (uses `golangci-lint`).
-- Add godoc comments for all exported symbols.
+Implement in the existing platform slot rather than inventing new file layout,
+and keep macOS-specific assumptions out of shared code.
 
 ---
 
 ## Good First Contributions
 
-Not sure where to start? These are great entry points:
+Not sure where to start?
 
-- 🐛 Bug fixes — check [open issues](https://github.com/y3owk1n/neru/issues)
+- 🐛 Bug fixes — check the [open issues](https://github.com/y3owk1n/neru/issues)
 - 📝 Documentation improvements or typo fixes
 - 📦 Config examples for common setups
 - 🎥 Demo videos or GIFs
 - ⚡ Performance improvements
 - 🧪 Additional test coverage
+
+For platform work specifically,
+[Contributing safely](docs/CROSS_PLATFORM.md#contributing-safely) lists
+well-scoped starter tasks — and the changes worth opening an issue about first.
+Longer-term direction is in [ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -240,11 +194,17 @@ Not sure where to start? These are great entry points:
 
 Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) with:
 
-1. **macOS version** and **Neru version** (`neru version`).
+1. **Your platform** (macOS/Linux/Windows and version; on Linux, your desktop
+   and session type) and **Neru version** (`neru version`).
 2. **Steps to reproduce** — minimal and specific.
 3. **Expected vs actual behavior**.
-4. **Logs** — run with `log_level = "debug"` and attach relevant lines from `~/Library/Logs/neru/app.log`.
+4. **Logs** — set `log_level = "debug"` and attach the relevant lines. Log paths
+   are listed in
+   [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#log-file-locations).
 5. **Screenshots or recordings** if the issue is visual.
+
+`neru doctor` output is useful too — it reports which capabilities your platform
+actually supports.
 
 See also: [Troubleshooting Guide](docs/TROUBLESHOOTING.md).
 
@@ -252,7 +212,8 @@ See also: [Troubleshooting Guide](docs/TROUBLESHOOTING.md).
 
 ## Feature Requests
 
-Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) or start a [Discussion](https://github.com/y3owk1n/neru/discussions) describing:
+Open a [GitHub Issue](https://github.com/y3owk1n/neru/issues/new) or start a
+[Discussion](https://github.com/y3owk1n/neru/discussions) describing:
 
 - **What** you'd like to see.
 - **Why** it would be useful (your use case).

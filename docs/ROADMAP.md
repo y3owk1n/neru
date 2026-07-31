@@ -1,79 +1,59 @@
 # Roadmap
 
-This roadmap keeps the next improvements visible for contributors and helps
-separate "stable on macOS today" from "portable by design, still incomplete".
+What we intend to work on next, and where help is most valuable.
+
+This document holds **intent and priority only**. It deliberately does not
+restate what currently works — that lives in one place, the
+[Capability Matrix](CROSS_PLATFORM.md#capability-matrix), with the outstanding
+per-platform items enumerated under
+[Known Gaps](CROSS_PLATFORM.md#known-gaps).
 
 **Related:** [Cross-Platform Guide](CROSS_PLATFORM.md#feature-parity-reference) ·
-[Development Guide](DEVELOPMENT.md) · [Architecture](ARCHITECTURE.md)
+[Contributing](../CONTRIBUTING.md) · [Architecture](ARCHITECTURE.md)
 
 ---
 
-## Table of Contents
+## Near term
 
-- [Near Term](#near-term)
-- [Cross-Platform Foundations](#cross-platform-foundations)
-- [Contributor Priorities](#contributor-priorities)
-- [Definition Of Done For New Platform Work](#definition-of-done-for-new-platform-work)
+Work that is not tied to any one platform:
 
----
-
-## Near Term
-
-- Strengthen macOS reliability around startup, config reloads, and mode transitions.
+- Strengthen macOS reliability around startup, config reloads, and mode
+  transitions.
 - Keep reducing global state to the minimum required by native bridge callbacks.
 - Expand contract tests around ports, adapters, and reload behavior.
-- Make unsupported platform capabilities fail loudly instead of silently no-oping.
+- Make unsupported platform capabilities fail loudly instead of silently
+  no-oping.
 
-## Cross-Platform Foundations
+## Cross-platform foundations
 
-- Linux (X11):
-    - [x] native overlay rendering
-    - [x] screen and cursor management
-    - [x] keyboard event capture & global hotkeys (`XGrabKeyboard` / `XGrabKey`)
-    - [x] AT-SPI accessibility integration (shared)
-    - [x] active app detection & app watcher (event-driven)
-    - [ ] freedesktop notifications and alerts
-- Linux (Wayland wlroots):
-    - [x] native layer-shell overlay rendering
-    - [x] virtual pointer injection and cursor discovery
-    - [x] keyboard event capture
-    - [x] global hotkeys (passive evdev read of Neru's own config)
-    - [x] AT-SPI accessibility integration (shared)
-    - [x] active app detection & app watcher (`wlr-foreign-toplevel` app_id)
-    - [ ] freedesktop notifications and alerts
-- Linux (Wayland KDE Plasma):
-    - [x] input injection (libei via RemoteDesktop portal)
-    - [x] native overlay rendering (wlr-layer-shell + Cairo)
-    - [x] global hotkeys & event capture (passive evdev read)
-    - [x] app watcher / focus tracking
-    - [ ] persist the RemoteDesktop portal grant across daemon restarts
-    - [ ] freedesktop notifications and alerts
-- Linux (Wayland GNOME) — not supported; the daemon refuses to start:
-    - [ ] input injection (libei or GNOME shell extension)
-    - [ ] native overlay rendering
-    - [ ] global hotkeys & event capture
-    - [ ] focused-app source (Mutter exposes no `wlr-foreign-toplevel` equivalent)
-- Windows:
-    - [x] UI Automation integration — initial coverage (shallow tree)
-    - [x] screen and cursor management
-    - [x] global hotkeys and keyboard event capture
-    - [x] native overlay rendering — layered Win32 window + GDI
-    - [ ] app watcher (foreground-window notifications) and display hotplug events
-    - [ ] toast notifications
-    - [ ] `monitor_select` mode, grid transition animation, horizontal scroll
+Linux is [beta and Windows alpha](CROSS_PLATFORM.md#what-the-labels-mean) —
+meaning Linux is good for daily driving, while Windows is worth trying but not
+yet worth switching to. Every remaining item is tracked as a numbered entry in
+[Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from there rather than
+from a duplicate list here, so the status you read is the status the code
+reports.
 
-## Contributor Priorities
+The two largest open areas:
 
-If you want to help, the highest-leverage areas are:
+- **Linux** — freedesktop notifications and alerts across all backends, and
+  persisting the KDE RemoteDesktop portal grant across daemon restarts.
+- **Windows** — foreground-window and display-hotplug events, which currently
+  block per-app config re-application and monitor tracking.
+
+GNOME Wayland remains unsupported; the daemon refuses to start there. Reviving
+it needs libei plus a GNOME Shell extension — see
+[LINUX_DESKTOPS.md](LINUX_DESKTOPS.md#gnome-not-supported).
+
+## Contributor priorities
+
+The highest-leverage areas, roughly in order:
 
 1. Platform adapter implementations in `internal/core/infra/platform`.
 2. Overlay implementations and capability reporting.
 3. Config reload regression coverage.
 4. Reducing compatibility globals behind explicit interfaces.
 
-## Definition Of Done For New Platform Work
-
-- Return real values instead of `CodeNotSupported`.
-- Add unit tests next to the implementation.
-- Add integration tests when the feature needs a real OS session.
-- Update `ARCHITECTURE.md` and user-facing docs when support changes.
+New to the codebase?
+[Contributing safely](CROSS_PLATFORM.md#contributing-safely) lists good starter
+tasks, the changes worth opening an issue for first, and the five-point bar a
+platform change has to clear before it lands.

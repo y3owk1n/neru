@@ -16,9 +16,11 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|      macOS       |      Linux       |     Windows      |
-| :--------------: | :--------------: | :--------------: |
-| Full featured ✅ |     Beta 🔵      | Basic support 🔵 |
+|    macOS    |      Linux       |      Windows      |
+| :---------: | :--------------: | :---------------: |
+|  Stable ✅  | Beta — daily 🔵  | Alpha — try it 🟡 |
+
+<sub>[What these mean](docs/CROSS_PLATFORM.md#what-the-labels-mean) — stable is fully featured, beta is good for daily driving, alpha is worth trying but not yet worth switching to.</sub>
 
 </div>
 
@@ -229,8 +231,9 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 **Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
 on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
 need `--force-renderer-accessibility`). On **Windows**, UI Automation coverage is
-initial and the tree walk is shallow. **Linux requires X11 or Wayland on
-wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
+initial and the tree walk is shallow, and per-app config does not re-apply when
+you change windows. **Linux requires X11 or Wayland on wlroots/KWin — GNOME
+Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 
@@ -240,18 +243,34 @@ wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 Everything you need to go deep:
 
+**Using Neru**
+
+| Guide                                            | What's in it                                             |
+| :----------------------------------------------- | :-------------------------------------------------------- |
+| [Installation](docs/INSTALLATION.md)             | Homebrew, Nix, prebuilt binaries, source, permissions     |
+| [CLI Reference](docs/CLI.md)                     | Every command, flag, and argument                         |
+| [Configuration Reference](docs/CONFIGURATION.md) | Every option, with types, defaults, and platform support  |
+| [Tips & Tricks](docs/TIPS_TRICKS.md)             | Worked configuration recipes                              |
+| [Config Showcases](docs/CONFIG_SHOWCASES.md)     | Real setups shared by the community                       |
+| [Troubleshooting](docs/TROUBLESHOOTING.md)       | Common issues and fixes                                   |
+
+**Platform support**
+
 | Guide                                          | What's in it                                              |
 | :--------------------------------------------- | :-------------------------------------------------------- |
-| [Installation](docs/INSTALLATION.md)           | Homebrew, Nix, prebuilt binaries, source, permissions     |
-| [CLI Reference](docs/CLI.md)                   | Every command, flag, and argument                         |
-| [Configuration Reference](docs/CONFIGURATION.md) | Every option, with types, defaults, and platform support |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)           | Worked configuration recipes                              |
-| [Config Showcases](docs/CONFIG_SHOWCASES.md)   | Real setups shared by the community                       |
-| [Troubleshooting](docs/TROUBLESHOOTING.md)     | Common issues and fixes                                   |
 | [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | What works on each platform, and how it is implemented    |
-| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, and per-desktop notes          |
-| [Roadmap](docs/ROADMAP.md)                     | What's coming                                             |
-| [Contributing](CONTRIBUTING.md)                | PRs and bug reports                                       |
+| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, building, deployment           |
+| [Linux Desktops](docs/LINUX_DESKTOPS.md)       | Per-desktop setup, protocol support, and known issues     |
+
+**Working on Neru**
+
+| Guide                                            | What's in it                                            |
+| :----------------------------------------------- | :-------------------------------------------------------- |
+| [Contributing](CONTRIBUTING.md)                  | How to propose, commit, and land a change                 |
+| [Development Guide](docs/DEVELOPMENT.md)         | Setup, building, testing, debugging, where code goes      |
+| [Architecture](docs/ARCHITECTURE.md)             | Layers, boundaries, data flow, platform isolation         |
+| [Coding Standards](docs/CODING_STANDARDS.md)     | Formatting, logging, documentation conventions            |
+| [Roadmap](docs/ROADMAP.md)                       | What's coming next                                        |
 
 ---
 

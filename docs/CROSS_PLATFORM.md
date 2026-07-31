@@ -53,9 +53,30 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 ## Platform Status
 
+### What the labels mean
+
+Three words carry the whole promise, so they are worth pinning down:
+
+**Stable** — fully featured. Everything Neru does works here. This is the
+reference implementation, and a gap on this platform is a bug.
+
+**Beta** — good for daily driving. Every navigation mode works and behaves the
+same as it does on a stable platform; what is missing sits around the edges
+(notifications, alerts, a few animations) rather than in your way.
+
+**Alpha** — worth trying, not yet worth switching to. Core navigation works, but
+hint coverage is incomplete and per-app config does not re-apply on focus
+change. You will notice the difference in ordinary use.
+
+Every claim behind these labels is enumerated in the
+[Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
+label and the matrix disagree, the matrix is right.
+
+### Per-platform
+
 | Aspect               | macOS (Darwin)              | Linux                                    | Windows                        |
 | -------------------- | --------------------------- | ---------------------------------------- | ------------------------------ |
-| **Status**           | Production-ready            | Beta                                     | Alpha (initial coverage)       |
+| **Status**           | **Stable**                  | **Beta**                                 | **Alpha**                      |
 | **Build tag**        | `darwin`                    | `linux`                                  | `windows`                      |
 | **CGO**              | Required (Objective-C)      | Per-backend; most Linux backends need it | Not used (pure Go Win32 / COM) |
 | **Primary modifier** | `Cmd`                       | `Ctrl`                                   | `Ctrl`                         |
@@ -514,21 +535,18 @@ Worked examples:
 
 ## Build And Test Commands
 
-| Goal                                            | Command                |
-| ----------------------------------------------- | ---------------------- |
-| build for current host                          | `just build`           |
-| build macOS binary (on macOS)                   | `just build-darwin`    |
-| build Linux binary                              | `just build-linux`     |
-| build Windows binary                            | `just build-windows`   |
-| focused cross-platform-safe tests               | `just test-foundation` |
-| full unit + integration suite on current OS     | `just test`            |
-| lint                                            | `just lint`            |
-| tagged release binaries in CI                   | `just release-ci-linux <arch> <version>`, `just release-ci-windows <arch> <version>` |
+Every build and test recipe is catalogued in
+[DEVELOPMENT.md](./DEVELOPMENT.md#common-tasks). Two apply specifically to
+platform work:
 
-New to the codebase? `just build && just test-foundation` first, then find the
-slot you expect to touch before writing code. Cross-compiled binaries build from
-any host, but only the target OS can run `just test` meaningfully — integration
-tests are tagged per-OS.
+- `just build && just test-foundation` — the cross-platform-safe baseline to run
+  before touching anything. Do that first, then find the slot you expect to
+  change before writing code.
+- `just release-ci-linux <arch> <version>` / `just release-ci-windows <arch>
+  <version>` — the tagged release binaries CI produces.
+
+Cross-compiled binaries build from any host, but only the target OS can run
+`just test` meaningfully — integration tests are tagged per-OS.
 
 ## Linux Backend Model
 
@@ -693,17 +711,22 @@ Questions your tests should answer:
 
 ## Documentation Checklist
 
-Land docs in the same PR as the platform work. Check:
+Land docs in the same PR as the platform work. Each fact has exactly one home —
+update the one that owns it rather than restating it elsewhere:
 
-- [README.md](../README.md) and [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [DEVELOPMENT.md](./DEVELOPMENT.md)
-- **this file** — the parity tables in Part 1
-- [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
-- [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md) — per-DE decisions and known issues
-- [CONVENTIONS.md](./go/CONVENTIONS.md)
+| What changed                                    | Update                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| A capability's status or mechanism              | **this file** — the parity tables in Part 1                   |
+| A gap closed or discovered                      | **this file** — [Known Gaps](#known-gaps)                     |
+| Desktop-specific setup, protocol support, or a DE workaround | [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md)         |
+| Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md) — keep DE-agnostic         |
+| A layer boundary, port contract, or data flow   | [ARCHITECTURE.md](./ARCHITECTURE.md)                          |
+| A build recipe or test tier                     | [DEVELOPMENT.md](./DEVELOPMENT.md)                            |
+| Go style, logging, or naming                    | [CONVENTIONS.md](./go/CONVENTIONS.md)                         |
+| What the project claims to support, at a glance | [README.md](../README.md)                                     |
 
-Update them whenever the capability matrix, the backend plan, the build/CGO
-story, or a contributor-facing file naming pattern changes.
+ARCHITECTURE.md deliberately does **not** track per-platform support — it
+describes shape, not status. Do not add a capability table there.
 
 ## Contributing Safely
 
