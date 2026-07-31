@@ -20,6 +20,7 @@ func (h *Handler) activateGridModeWithAction(
 	modifier *string,
 	repeat *bool,
 	cursorFollowSelection *bool,
+	onExit *string,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
@@ -94,6 +95,10 @@ func (h *Handler) activateGridModeWithAction(
 			h.grid.Context.SetPendingAction(actionStr)
 		}
 
+		if onExit != nil {
+			h.grid.Context.SetOnExit(onExit)
+		}
+
 		if modifier != nil {
 			h.grid.Context.SetPendingModifier(modifier)
 		}
@@ -107,6 +112,7 @@ func (h *Handler) activateGridModeWithAction(
 		}
 	} else {
 		h.grid.Context.SetPendingAction(actionStr)
+		h.grid.Context.SetOnExit(onExit)
 		h.grid.Context.SetPendingModifier(modifier)
 		h.grid.Context.SetRepeat(repeat != nil && *repeat)
 		h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(

@@ -38,6 +38,7 @@ func (h *Handler) currentHintStyleLocked() hints.StyleMode {
 type ModeActivationOptions struct {
 	Action                *string
 	Modifier              *string
+	OnExit                *string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	ZoomToDepth           *int
@@ -93,6 +94,20 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 		return
 	}
 
+	// Normalize --on-exit for external (re-)activations. This method is the sole
+	// entry point for user-driven activations (IPC, hotkeys, systray); internal
+	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
+	// call the activate* helpers directly with a nil onExit to preserve the
+	// stored callback. An omitted --on-exit on a fresh external command must
+	// clear any callback left over from a prior activation of the same mode
+	// rather than inheriting it, so a later completed action does not run a stale
+	// command. A nil pointer here means "clear"; the empty value is a no-op at
+	// dispatch time.
+	if opts.OnExit == nil {
+		empty := ""
+		opts.OnExit = &empty
+	}
+
 	modeImpl.Activate(opts)
 }
 
@@ -143,6 +158,7 @@ func (h *Handler) activateHintModeWithAction(
 	strategy *string,
 	labelDirection *string,
 	splitWord *bool,
+	onExit *string,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -155,6 +171,7 @@ func (h *Handler) activateHintModeWithAction(
 		strategy,
 		labelDirection,
 		splitWord,
+		onExit,
 	)
 
 	// Store repeat flag after activation so the context is already initialized.
@@ -178,6 +195,7 @@ func (h *Handler) activateHintModeInternal(
 	strategyOverride *string,
 	labelDirectionOverride *string,
 	splitWordOverride *bool,
+	onExit *string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
@@ -269,6 +287,10 @@ func (h *Handler) activateHintModeInternal(
 				h.hints.Context.SetPendingAction(actionStr)
 			}
 
+			if onExit != nil {
+				h.hints.Context.SetOnExit(onExit)
+			}
+
 			if modifier != nil {
 				h.hints.Context.SetPendingModifier(modifier)
 			}
@@ -306,6 +328,7 @@ func (h *Handler) activateHintModeInternal(
 			}
 		} else {
 			h.hints.Context.SetPendingAction(actionStr)
+			h.hints.Context.SetOnExit(onExit)
 			h.hints.Context.SetPendingModifier(modifier)
 			h.hints.Context.SetRepeat(false)
 			h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(

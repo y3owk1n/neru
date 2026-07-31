@@ -803,6 +803,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 				&strategyOverride,
 				&labelDirectionOverride,
 				&splitWord,
+				nil, // preserve the stored --on-exit action across re-activation
 			)
 
 			// Restore state so subsequent cycles continue to execute the action

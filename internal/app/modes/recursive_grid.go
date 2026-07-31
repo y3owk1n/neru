@@ -24,6 +24,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	repeat *bool,
 	cursorFollowSelection *bool,
 	zoomToDepth *int,
+	onExit *string,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
@@ -129,6 +130,10 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 				h.recursiveGrid.Context.SetPendingAction(actionStr)
 			}
 
+			if onExit != nil {
+				h.recursiveGrid.Context.SetOnExit(onExit)
+			}
+
 			if modifier != nil {
 				h.recursiveGrid.Context.SetPendingModifier(modifier)
 			}
@@ -142,6 +147,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 			}
 		} else {
 			h.recursiveGrid.Context.SetPendingAction(actionStr)
+			h.recursiveGrid.Context.SetOnExit(onExit)
 			h.recursiveGrid.Context.SetPendingModifier(modifier)
 			h.recursiveGrid.Context.SetRepeat(repeat != nil && *repeat)
 			h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
@@ -286,6 +292,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 					&repeat,
 					&cursorFollowSelection,
 					nil, // zoom is not re-applied on repeat
+					nil, // preserve the stored --on-exit action across re-activation
 				)
 			},
 		)
