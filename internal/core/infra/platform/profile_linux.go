@@ -27,7 +27,8 @@ func linuxKDEProfile() Profile {
 			Name: "evdev from /dev/input (requires input group; bind triggers in KDE System Settings)",
 		},
 		KeyboardCapture: BackendPlan{
-			Name: "evdev capture + libei input via RemoteDesktop portal (consent per daemon launch)",
+			Name: "evdev capture + key injection via uinput when /dev/uinput is writable, " +
+				"else libei via RemoteDesktop portal (consent per daemon launch)",
 		},
 		Overlay: BackendPlan{
 			Name: "wlr-layer-shell via KWin",

@@ -205,3 +205,69 @@ int neru_uinput_scroll_batch(int fd, int axis, int *values, int count) {
 	free(events);
 	return (written == (ssize_t)total) ? 1 : 0;
 }
+
+int neru_uinput_create_keyboard(int *out_fd) {
+	int fd = open("/dev/uinput", O_RDWR);
+	if (fd < 0) {
+		fd = open("/dev/input/uinput", O_RDWR);
+	}
+	if (fd < 0) {
+		return 0;
+	}
+
+	if (ioctl(fd, UI_SET_EVBIT, EV_KEY) < 0 || ioctl(fd, UI_SET_EVBIT, EV_SYN) < 0) {
+		close(fd);
+		return 0;
+	}
+
+	// Advertise the full keyboard keycode range so any code a feed sequence
+	// emits (letters, digits, function keys, modifiers, punctuation) is a
+	// valid event on this device. KEY_MAX bounds the evdev keycode space.
+	for (int code = 1; code < KEY_MAX; code++) {
+		if (ioctl(fd, UI_SET_KEYBIT, code) < 0) {
+			close(fd);
+			return 0;
+		}
+	}
+
+	struct uinput_setup usetup;
+	memset(&usetup, 0, sizeof(usetup));
+	// BUS_VIRTUAL marks this device as synthetic so Neru's own evdev capture
+	// (isUinputVirtualDevice) skips it — otherwise EVIOCGRAB would grab our
+	// injected keys and loop them straight back into the event tap.
+	usetup.id.bustype = BUS_VIRTUAL;
+	usetup.id.vendor = 0x1234;
+	usetup.id.product = 0x5679;
+	strcpy(usetup.name, "neru-keyboard");
+	if (ioctl(fd, UI_DEV_SETUP, &usetup) < 0) {
+		close(fd);
+		return 0;
+	}
+	if (ioctl(fd, UI_DEV_CREATE) < 0) {
+		close(fd);
+		return 0;
+	}
+
+	*out_fd = fd;
+	return 1;
+}
+
+int neru_uinput_key(int fd, int keycode, int pressed) {
+	if (fd < 0)
+		return 0;
+
+	struct input_event ev;
+	memset(&ev, 0, sizeof(ev));
+	ev.type = EV_KEY;
+	ev.code = (unsigned short)keycode;
+	ev.value = pressed ? 1 : 0;
+	ssize_t w1 = write(fd, &ev, sizeof(ev));
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = EV_SYN;
+	ev.code = SYN_REPORT;
+	ev.value = 0;
+	ssize_t w2 = write(fd, &ev, sizeof(ev));
+
+	return (w1 == sizeof(ev) && w2 == sizeof(ev)) ? 1 : 0;
+}

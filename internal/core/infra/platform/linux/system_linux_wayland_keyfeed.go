@@ -112,6 +112,14 @@ func FeedKey(key string) error {
 		return err
 	}
 
+	// Prefer the uinput virtual keyboard when /dev/uinput is writable: it works
+	// uniformly across X11, wlroots, and KWin and avoids the compositor-specific
+	// protocols (KDE's RemoteDesktop portal in particular). Only when we lack
+	// evdev injection access do we fall back to the compositor backends.
+	if uinputKeyboardAvailable() {
+		return feedKeyUinput(modifiers, keycode)
+	}
+
 	hasVKB, err := wlrootsHasVirtualKeyboard()
 	if err != nil {
 		return err
@@ -122,6 +130,29 @@ func FeedKey(key string) error {
 	}
 
 	return feedKeyLibei(modifiers, keycode)
+}
+
+// uinputModifierCodes resolves canonical modifier names (as produced by
+// parseKeyString) to their evdev keycodes for uinput injection, preserving
+// order. It reuses libeiModifierKeycodes, which is a provider-agnostic
+// modifier-name→keycode table despite its name.
+func uinputModifierCodes(modifiers []string) ([]int, error) {
+	codes := make([]int, 0, len(modifiers))
+
+	for _, modifier := range modifiers {
+		code, ok := libeiModifierKeycodes[modifier]
+		if !ok {
+			return nil, derrors.Newf(
+				derrors.CodeNotSupported,
+				"unsupported modifier %q for uinput injection",
+				modifier,
+			)
+		}
+
+		codes = append(codes, code)
+	}
+
+	return codes, nil
 }
 
 func feedKeyWlroots(modifiers []string, keycode uint32) error {
