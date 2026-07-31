@@ -727,6 +727,38 @@ static void neru_wlr_screen_signal(NeruWlrootsClient *c) {
 	}
 }
 
+// wl_output listener for the system client. Only `done` is meaningful: the
+// compositor sends it after a batch of output property changes — including,
+// per xdg-output v3, *after* the xdg_output logical geometry events. Signalling
+// Go here (rather than from registry_global on bind) means a hotplugged output
+// is re-enumerated once its geometry has actually arrived, not with zero bounds;
+// it also fires on resolution/scale changes to an existing output. user_data is
+// the stable client pointer, so array compaction never invalidates it.
+static void neru_wlr_output_geometry(
+    void *data, struct wl_output *output, int32_t x, int32_t y, int32_t phys_w, int32_t phys_h, int32_t subpixel,
+    const char *make, const char *model, int32_t transform) {}
+
+static void neru_wlr_output_mode(
+    void *data, struct wl_output *output, uint32_t flags, int32_t width, int32_t height, int32_t refresh) {}
+
+static void neru_wlr_output_scale(void *data, struct wl_output *output, int32_t factor) {}
+
+static void neru_wlr_output_done(void *data, struct wl_output *output) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	// Skip the initial discovery burst (connected == 0); that enumeration is
+	// read synchronously by ensureWlrootsState. Only runtime changes wake Go.
+	if (c && c->connected) {
+		neru_wlr_screen_signal(c);
+	}
+}
+
+static const struct wl_output_listener neru_wlr_output_listener = {
+    .geometry = neru_wlr_output_geometry,
+    .mode = neru_wlr_output_mode,
+    .done = neru_wlr_output_done,
+    .scale = neru_wlr_output_scale,
+};
+
 static void neru_wlr_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
@@ -753,14 +785,17 @@ static void neru_wlr_registry_global(
 			memset(scr, 0, sizeof(*scr));
 			scr->registry_name = name;
 			scr->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 3 < version ? 3 : version);
+			// wl_output.done wakes Go once the output's geometry is current (both
+			// on hotplug and on later resolution/scale changes) — see the listener.
+			wl_output_add_listener(scr->wl_output, &neru_wlr_output_listener, c);
 			// On runtime hotplug (after the initial connect) wire the new output's
-			// xdg_output immediately so its logical geometry populates, and wake Go
-			// to re-enumerate. During the initial discovery roundtrip c->connected
-			// is still 0: xdg_output is set up in bulk below and no event is fired.
+			// xdg_output immediately so its logical geometry populates. During the
+			// initial discovery roundtrip c->connected is still 0: xdg_output is set
+			// up in bulk below. Go is woken by wl_output.done, not from here, so the
+			// re-enumeration reads real geometry rather than a zero-area record.
 			if (c->connected && c->xdg_output_mgr) {
 				scr->xdg_output = zxdg_output_manager_v1_get_xdg_output(c->xdg_output_mgr, scr->wl_output);
 				zxdg_output_v1_add_listener(scr->xdg_output, &neru_xdg_output_listener, scr);
-				neru_wlr_screen_signal(c);
 			}
 			c->nr_screens++;
 		}

@@ -156,45 +156,6 @@ static const struct wp_fractional_scale_v1_listener fractional_scale_listener = 
     .preferred_scale = neru_fractional_preferred_scale,
 };
 
-static void neru_overlay_registry_global(
-    void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
-	NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
-
-	if (strcmp(interface, "wl_compositor") == 0) {
-		overlay->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
-	} else if (strcmp(interface, "wl_shm") == 0) {
-		overlay->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
-	} else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
-		overlay->layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
-	} else if (strcmp(interface, "wl_output") == 0) {
-		if (overlay->nr_screens < NERU_MAX_OUTPUTS) {
-			NeruWaylandOverlayScreen *scr = &overlay->screens[overlay->nr_screens];
-			scr->scale = 1;
-			scr->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 3 < version ? 3 : version);
-			wl_output_add_listener(scr->wl_output, &wl_output_listener, scr);
-			overlay->nr_screens++;
-		}
-	} else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
-		overlay->xdg_output_mgr =
-		    wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 3 < version ? 3 : version);
-	} else if (strcmp(interface, "wp_viewporter") == 0) {
-		overlay->viewporter = wl_registry_bind(registry, name, &wp_viewporter_interface, 1);
-	} else if (strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
-		overlay->fractional_mgr = wl_registry_bind(registry, name, &wp_fractional_scale_manager_v1_interface, 1);
-	} else if (strcmp(interface, "wl_seat") == 0) {
-		overlay->wl_seat = wl_registry_bind(registry, name, &wl_seat_interface, 5);
-	}
-}
-
-static void neru_overlay_registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
-	// No-op
-}
-
-static const struct wl_registry_listener overlay_registry_listener = {
-    .global = neru_overlay_registry_global,
-    .global_remove = neru_overlay_registry_global_remove,
-};
-
 static void neru_xdg_output_logical_position(void *data, struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
 	NeruWaylandOverlayScreen *scr = (NeruWaylandOverlayScreen *)data;
 	scr->x = x;
@@ -219,6 +180,139 @@ static const struct zxdg_output_v1_listener xdg_output_listener = {
     .done = neru_xdg_output_done,
     .name = neru_xdg_output_name,
     .description = neru_xdg_output_description,
+};
+
+// neru_overlay_release_screen frees every wayland/cairo/shm resource for one
+// output and leaves the slot inert (all pointers NULL, num_buffers 0). Used on
+// runtime output removal. The slot is tombstoned rather than compacted out of
+// the array because the xdg_output / wl_output / fractional_scale / wl_buffer
+// listeners all carry this slot's *address* as user_data; shifting slots would
+// dangle them. Every draw/buffer loop skips inert slots (wl_output/cr NULL), and
+// a later hotplug-add reuses the slot.
+static void neru_overlay_release_screen(NeruWaylandOverlayScreen *scr) {
+	for (int b = 0; b < scr->num_buffers; b++) {
+		if (scr->crs[b])
+			cairo_destroy(scr->crs[b]);
+		if (scr->cairo_surfaces[b])
+			cairo_surface_destroy(scr->cairo_surfaces[b]);
+		if (scr->buffers[b])
+			wl_buffer_destroy(scr->buffers[b]);
+		if (scr->shm_datas[b])
+			munmap(scr->shm_datas[b], scr->shm_sizes[b]);
+		scr->crs[b] = NULL;
+		scr->cairo_surfaces[b] = NULL;
+		scr->buffers[b] = NULL;
+		scr->shm_datas[b] = NULL;
+		scr->shm_sizes[b] = 0;
+		scr->busy[b] = 0;
+	}
+	scr->num_buffers = 0;
+	scr->buffer = NULL;
+	scr->cairo_surface = NULL;
+	scr->cr = NULL;
+	scr->shm_data = NULL;
+	scr->shm_size = 0;
+	scr->current_buffer = -1;
+	scr->width = 0;
+	scr->height = 0;
+	scr->fractional_scale_120 = 0;
+	if (scr->viewport) {
+		wp_viewport_destroy(scr->viewport);
+		scr->viewport = NULL;
+	}
+	if (scr->fractional_scale) {
+		wp_fractional_scale_v1_destroy(scr->fractional_scale);
+		scr->fractional_scale = NULL;
+	}
+	if (scr->layer_surface) {
+		zwlr_layer_surface_v1_destroy(scr->layer_surface);
+		scr->layer_surface = NULL;
+	}
+	if (scr->wl_surface) {
+		wl_surface_destroy(scr->wl_surface);
+		scr->wl_surface = NULL;
+	}
+	if (scr->xdg_output) {
+		zxdg_output_v1_destroy(scr->xdg_output);
+		scr->xdg_output = NULL;
+	}
+	if (scr->wl_output) {
+		wl_output_destroy(scr->wl_output);
+		scr->wl_output = NULL;
+	}
+	scr->registry_name = 0;
+}
+
+static void neru_overlay_registry_global(
+    void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
+	NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
+
+	if (strcmp(interface, "wl_compositor") == 0) {
+		overlay->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+	} else if (strcmp(interface, "wl_shm") == 0) {
+		overlay->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
+	} else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
+		overlay->layer_shell = wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
+	} else if (strcmp(interface, "wl_output") == 0) {
+		// Reuse an inert slot left by a previous hotplug-remove, else append.
+		NeruWaylandOverlayScreen *scr = NULL;
+		for (int i = 0; i < overlay->nr_screens; i++) {
+			if (overlay->screens[i].wl_output == NULL) {
+				scr = &overlay->screens[i];
+				break;
+			}
+		}
+		if (scr == NULL && overlay->nr_screens < NERU_MAX_OUTPUTS) {
+			scr = &overlay->screens[overlay->nr_screens];
+			overlay->nr_screens++;
+		}
+		if (scr != NULL) {
+			memset(scr, 0, sizeof(*scr));
+			scr->registry_name = name;
+			scr->scale = 1;
+			scr->current_buffer = -1;
+			scr->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 3 < version ? 3 : version);
+			wl_output_add_listener(scr->wl_output, &wl_output_listener, scr);
+			// Past initial setup, the bulk xdg_output loop in
+			// neru_wayland_overlay_new has already run, so wire this output's
+			// xdg_output here to populate its logical geometry.
+			if (overlay->outputs_configured && overlay->xdg_output_mgr) {
+				scr->xdg_output = zxdg_output_manager_v1_get_xdg_output(overlay->xdg_output_mgr, scr->wl_output);
+				zxdg_output_v1_add_listener(scr->xdg_output, &xdg_output_listener, scr);
+			}
+		}
+	} else if (strcmp(interface, "zxdg_output_manager_v1") == 0) {
+		overlay->xdg_output_mgr =
+		    wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 3 < version ? 3 : version);
+	} else if (strcmp(interface, "wp_viewporter") == 0) {
+		overlay->viewporter = wl_registry_bind(registry, name, &wp_viewporter_interface, 1);
+	} else if (strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
+		overlay->fractional_mgr = wl_registry_bind(registry, name, &wp_fractional_scale_manager_v1_interface, 1);
+	} else if (strcmp(interface, "wl_seat") == 0) {
+		overlay->wl_seat = wl_registry_bind(registry, name, &wl_seat_interface, 5);
+	}
+}
+
+static void neru_overlay_registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
+	NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
+	if (!overlay)
+		return;
+
+	// An output was unplugged. Tear down its surface/buffers/objects so it no
+	// longer participates in cross-output buffer selection (a lingering output's
+	// unreleased buffers would stall available-buffer and freeze the remaining
+	// monitors). The slot is left inert and reused by a later hotplug-add.
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		if (overlay->screens[i].wl_output != NULL && overlay->screens[i].registry_name == name) {
+			neru_overlay_release_screen(&overlay->screens[i]);
+			break;
+		}
+	}
+}
+
+static const struct wl_registry_listener overlay_registry_listener = {
+    .global = neru_overlay_registry_global,
+    .global_remove = neru_overlay_registry_global_remove,
 };
 
 // Wayland keyboard listener for key events
@@ -429,6 +523,9 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 		scr->xdg_output = zxdg_output_manager_v1_get_xdg_output(overlay->xdg_output_mgr, scr->wl_output);
 		zxdg_output_v1_add_listener(scr->xdg_output, &xdg_output_listener, scr);
 	}
+	// Initial outputs are wired; a later hotplug-added output now wires its own
+	// xdg_output inline in neru_overlay_registry_global.
+	overlay->outputs_configured = 1;
 	wl_display_roundtrip(overlay->display);  // get screen sizes
 
 	// Setup seat listener for keyboard
@@ -537,6 +634,9 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 
+		if (scr->wl_output == NULL)
+			continue;  // Inert slot left by a removed output
+
 		if (scr->layer_surface)
 			continue;  // Already configured
 
@@ -602,6 +702,8 @@ void neru_wayland_overlay_setup_buffers(NeruWaylandOverlay *overlay) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (scr->num_buffers > 0)
 			continue;
+		if (scr->layer_surface == NULL)
+			continue;  // Inert slot, or dimensions not set yet — no surface to back
 
 		// Prefer fractional scaling (buffer over-rendered, then mapped down by the
 		// viewport). Fall back to the integer wl_output.scale + set_buffer_scale
@@ -808,21 +910,31 @@ int neru_wayland_overlay_available_buffer(NeruWaylandOverlay *overlay) {
 	if (!overlay || overlay->nr_screens == 0)
 		return -1;
 
-	// Return a buffer index the compositor has released on EVERY output, not just
-	// the first. Outputs can release buffers at different rates — most visibly a
-	// fractional-scale output, which holds its viewport-mapped buffer a frame
-	// longer — so selecting an index still busy on another output attaches a
-	// buffer the compositor already owns, leaving that output frozen on its last
-	// frame.
-	int min_buffers = overlay->screens[0].num_buffers;
-	for (int s = 1; s < overlay->nr_screens; s++) {
-		if (overlay->screens[s].num_buffers < min_buffers)
-			min_buffers = overlay->screens[s].num_buffers;
+	// Return a buffer index the compositor has released on every LIVE output.
+	// Outputs release buffers at different rates — most visibly a fractional-scale
+	// output, which holds its viewport-mapped buffer a frame longer — so an index
+	// still busy on another output attaches a buffer the compositor already owns,
+	// freezing that output. Inert slots left by a removed output (num_buffers == 0)
+	// are skipped; otherwise min_buffers would collapse to 0 and stall everything.
+	int min_buffers = 0;
+	int have_live = 0;
+	for (int s = 0; s < overlay->nr_screens; s++) {
+		int nb = overlay->screens[s].num_buffers;
+		if (nb <= 0)
+			continue;
+		if (!have_live || nb < min_buffers) {
+			min_buffers = nb;
+			have_live = 1;
+		}
 	}
+	if (!have_live)
+		return -1;
 
 	for (int i = 0; i < min_buffers; i++) {
 		int free_on_all = 1;
 		for (int s = 0; s < overlay->nr_screens; s++) {
+			if (overlay->screens[s].num_buffers <= 0)
+				continue;
 			if (overlay->screens[s].busy[i]) {
 				free_on_all = 0;
 				break;

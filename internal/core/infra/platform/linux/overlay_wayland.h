@@ -12,6 +12,7 @@
 #define NERU_NUM_BUFFERS 3
 
 typedef struct {
+	uint32_t registry_name;  // wl_registry global id, for matching on output removal
 	int x, y, width, height;
 	int scale;  // legacy integer wl_output.scale (fallback when no fractional-scale)
 	// fractional_scale_120 is the compositor's preferred scale as a numerator over
@@ -68,6 +69,11 @@ typedef struct {
 
 	NeruWaylandOverlayScreen screens[NERU_MAX_OUTPUTS];
 	int nr_screens;
+
+	// Set once neru_wayland_overlay_new has wired xdg_output for the initial
+	// outputs; afterwards a hotplug-added wl_output wires its own xdg_output
+	// inline in the registry handler rather than the bulk setup loop.
+	int outputs_configured;
 
 	int configured;
 	int keyboard_interactivity_set;
