@@ -272,7 +272,7 @@ func (h *Handler) RefreshHintsForScreenChange(
 	if h.system != nil {
 		b, err := h.system.ScreenBounds(ctx)
 		if err == nil {
-			h.screenBounds = b
+			h.setScreenBounds(b)
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to refresh screen bounds after screen change", zap.Error(err))
 		}
@@ -423,7 +423,7 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	if h.system != nil {
 		b, err := h.system.ScreenBounds(h.ctx)
 		if err == nil {
-			h.screenBounds = b
+			h.setScreenBounds(b)
 		} else if !derrors.IsNotSupported(err) {
 			h.logger.Warn("Failed to refresh screen bounds for recursive grid", zap.Error(err))
 		}
@@ -824,6 +824,20 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 	}
 
 	return nil
+}
+
+// setScreenBounds records the active screen bounds used for overlay coordinate
+// conversion and informs the overlay backend of that screen's global origin.
+// The grid, recursive-grid and hint overlays render in screen-local coordinates
+// (origin 0,0); on backends whose overlay spans the whole desktop (Linux X11
+// and Wayland) the origin lets them translate that content onto the correct
+// monitor. It is a no-op where each screen owns an overlay window (macOS).
+func (h *Handler) setScreenBounds(bounds image.Rectangle) {
+	h.screenBounds = bounds
+
+	if h.overlayManager != nil {
+		h.overlayManager.SetActiveScreenOrigin(bounds.Min)
+	}
 }
 
 func (h *Handler) startHintSearchLocked() error {

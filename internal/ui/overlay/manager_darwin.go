@@ -188,6 +188,11 @@ func (m *Manager) ResizeToActiveScreen() {
 // SetKeyboardCaptureEnabled is a no-op on Darwin.
 func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
 
+// SetActiveScreenOrigin is a no-op on Darwin. Each screen has its own overlay
+// window positioned at the screen origin, so overlay content already uses
+// window-local coordinates and needs no global translation.
+func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
+
 // SwitchTo transitions the overlay to the specified mode and notifies subscribers.
 func (m *Manager) SwitchTo(next Mode) {
 	m.mu.Lock()

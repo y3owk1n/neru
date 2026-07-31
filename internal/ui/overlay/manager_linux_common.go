@@ -290,6 +290,26 @@ func (m *Manager) ResizeToActiveScreen() {
 	}
 }
 
+// SetActiveScreenOrigin records the active screen's top-left origin (in global
+// coordinates) so the backend can translate screen-local overlay content — the
+// grid, recursive-grid and hint coordinates, which are normalized to a
+// screen-origin of (0,0) — onto the correct monitor. The Linux overlays span
+// the whole desktop (one X11 window / one layer-shell surface per output), so
+// without this offset that content is always composited at the global origin,
+// i.e. the leftmost monitor.
+func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.setOriginOffset(origin)
+	}
+
+	if m.wlroots != nil {
+		m.wlroots.setOriginOffset(origin)
+	}
+}
+
 // SwitchTo switches to a new mode.
 func (m *Manager) SwitchTo(next Mode) {
 	m.mu.Lock()

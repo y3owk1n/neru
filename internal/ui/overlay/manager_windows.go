@@ -177,6 +177,11 @@ func (m *Manager) ResizeToActiveScreen() {
 	}
 }
 
+// SetActiveScreenOrigin is a no-op on Windows. The overlay window is resized
+// and repositioned to the active screen, so its content uses window-local
+// coordinates and needs no global translation.
+func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
+
 // ActiveScreenBounds returns the overlay window bounds in screen coordinates.
 func (m *Manager) ActiveScreenBounds() (image.Rectangle, bool) {
 	m.renderMu.Lock()

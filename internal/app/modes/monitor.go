@@ -296,7 +296,7 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 		return
 	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
-	h.screenBounds = targetBounds
+	h.setScreenBounds(targetBounds)
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
 
 	characters := h.config.Grid.Characters
@@ -343,7 +343,7 @@ func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangl
 		return
 	}
 
-	h.screenBounds = targetBounds
+	h.setScreenBounds(targetBounds)
 
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
@@ -418,7 +418,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 		return
 	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
-	h.screenBounds = targetBounds
+	h.setScreenBounds(targetBounds)
 
 	filtered := filterHintsForScreen(domainHints, targetBounds)
 	if len(filtered) == 0 {

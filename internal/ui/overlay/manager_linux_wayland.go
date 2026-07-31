@@ -43,6 +43,7 @@ func (o *wlrootsOverlay) Destroy()                                              
 func (o *wlrootsOverlay) UpdateGridMatches(string)                               {}
 func (o *wlrootsOverlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
 func (o *wlrootsOverlay) SetHideUnmatched(bool)                                  {}
+func (o *wlrootsOverlay) setOriginOffset(image.Point)                            {}
 func (o *wlrootsOverlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
 func (o *wlrootsOverlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode) {
 }
