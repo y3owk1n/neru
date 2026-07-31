@@ -1462,6 +1462,40 @@ func validOpacity(value float64) bool {
 	return value >= 0 && value <= 1
 }
 
+// validateActionChain validates a comma-separated action chain such as
+// "left_click,left_click". The runtime executes chains at a single target
+// point, so only mouse button actions are accepted (see handleActionChain).
+func validateActionChain(chain string) error {
+	for name := range strings.SplitSeq(chain, ",") {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"empty action in comma-separated list: %s",
+				chain,
+			)
+		}
+
+		if !action.IsKnownName(action.Name(trimmed)) {
+			return derrors.Newf(derrors.CodeInvalidConfig, "unknown action subcommand: %s", trimmed)
+		}
+
+		// Known names without an executable type (sleep, feed, reset, ...) are
+		// not chainable either, so a ToType failure here is a chain violation
+		// rather than an unknown name.
+		actionType, err := action.Name(trimmed).ToType()
+		if err != nil || !actionType.IsMouseButton() {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s cannot be used in an action chain; only mouse button actions are allowed",
+				trimmed,
+			)
+		}
+	}
+
+	return nil
+}
+
 func validateHotkeyActionString(actionStr string) error {
 	trimmed := strings.TrimSpace(actionStr)
 	if trimmed == "" {
@@ -1479,6 +1513,10 @@ func validateHotkeyActionString(actionStr string) error {
 		}
 
 		name := args[0]
+		if strings.Contains(name, ",") {
+			return validateActionChain(name)
+		}
+
 		if action.IsKnownName(action.Name(name)) {
 			return nil
 		}

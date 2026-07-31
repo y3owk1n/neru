@@ -275,3 +275,96 @@ func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateHotkeyBindings_ActionChains tests that comma-separated action
+// chains (e.g. "action left_click,left_click") are accepted for mouse button
+// actions and rejected otherwise, matching the runtime chain rules.
+func TestValidateHotkeyBindings_ActionChains(t *testing.T) {
+	tests := []struct {
+		name    string
+		action  string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "double click chain",
+			action:  "action left_click,left_click",
+			wantErr: false,
+		},
+		{
+			name:    "triple click chain",
+			action:  "action left_click,left_click,left_click",
+			wantErr: false,
+		},
+		{
+			name:    "mixed button chain",
+			action:  "action left_click,right_click",
+			wantErr: false,
+		},
+		{
+			name:    "chain with flags",
+			action:  "action left_click,left_click --modifier shift",
+			wantErr: false,
+		},
+		{
+			name:    "chain with unknown action",
+			action:  "action left_click,not_an_action",
+			wantErr: true,
+			errMsg:  "unknown action subcommand: not_an_action",
+		},
+		{
+			name:    "chain with non mouse button action",
+			action:  "action left_click,scroll_down",
+			wantErr: true,
+			errMsg:  "only mouse button actions are allowed",
+		},
+		{
+			// sleep is a known action but has no executable type, so it must be
+			// reported as a chain violation rather than an unknown name.
+			name:    "chain with known but non chainable action",
+			action:  "action left_click,sleep",
+			wantErr: true,
+			errMsg:  "sleep cannot be used in an action chain",
+		},
+		{
+			name:    "chain of button hold actions",
+			action:  "action left_mouse_down,left_mouse_up",
+			wantErr: false,
+		},
+		{
+			name:    "chain of legacy button spellings",
+			action:  "action mouse_down,mouse_up",
+			wantErr: false,
+		},
+		{
+			name:    "chain with empty element",
+			action:  "action left_click,",
+			wantErr: true,
+			errMsg:  "empty action in comma-separated list",
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.Hotkeys.Bindings = map[string][]string{
+				"Ctrl+1": {testCase.action, config.CmdIdle},
+			}
+
+			err := cfg.ValidateHotkeyBindings()
+
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateHotkeyBindings() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+
+			if testCase.wantErr && testCase.errMsg != "" && err != nil {
+				if !strings.Contains(err.Error(), testCase.errMsg) {
+					t.Errorf(
+						"ValidateHotkeyBindings() error = %v, want error containing %q",
+						err,
+						testCase.errMsg,
+					)
+				}
+			}
+		})
+	}
+}
