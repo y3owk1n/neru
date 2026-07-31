@@ -218,18 +218,9 @@ go env GOARCH
 file bin/neru
 ```
 
-Run the standard checks before opening a PR:
-
-```bash
-just fmt
-just lint
-just vet
-just test
-just build
-```
-
-On Linux CI, lint uses `golangci-lint v2.12.2` — match that version when
-validating locally on Linux.
+Run the [pre-commit checks](../CONTRIBUTING.md#making-changes) before opening a
+PR. One Linux-specific note: CI lints with `golangci-lint v2.12.2`, so match
+that version when validating locally.
 
 ---
 
@@ -337,8 +328,9 @@ Running under X11 or a TTY. Neru uses the X11 backend when `DISPLAY` is set.
 
 ### "compositor does not support zwlr_virtual_pointer_v1"
 
-Common on GNOME; on KDE this is expected and input uses another path. See
-[LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
+Expected on KDE, where input routes through libei instead. On any other
+compositor it means there is no usable input path — see
+[Checking compositor protocols](./LINUX_DESKTOPS.md#checking-compositor-protocols).
 
 ### Overlay or hints wrong size after display change
 

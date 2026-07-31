@@ -17,9 +17,10 @@ Language-specific rules live alongside this page: [Go conventions](go/CONVENTION
 - [General Standards](#general-standards)
 - [Logging Standards](#logging-standards)
 - [Documentation Standards](#documentation-standards)
-- [Git Commit Standards](#git-commit-standards)
-- [Pre-commit Checklist](#pre-commit-checklist)
 - [References](#references)
+
+Commit conventions and the pre-commit checklist live in
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages).
 
 ## Quick Reference
 
@@ -39,26 +40,12 @@ All files must follow these basic formatting rules (enforced by `.editorconfig`)
 - **Trailing whitespace**: None
 - **Final newline**: Required
 
-### File Organization
-
-```
-neru/
-├── cmd/                    # Application entry points
-├── internal/               # Private application code
-│   ├── app/               # Application orchestration
-│   ├── cli/               # CLI commands
-│   ├── config/            # Configuration management
-│   ├── core/              # Core business logic and infrastructure
-│   └── ui/                # UI rendering
-├── configs/               # Configuration examples
-├── docs/                  # Documentation
-```
-
 ### Naming Conventions
 
 - **Directories**: lowercase, underscore-separated
 - **Files**: lowercase, underscore-separated
-- **Test files**: `*_test.go`, `*_integration_darwin_test.go`, `*_integration_linux_test.go`
+- **Test files**: see [TESTING_PATTERNS.md](./testing/TESTING_PATTERNS.md#test-file-naming)
+- **Platform files**: see [file layout rules](./CROSS_PLATFORM.md#file-layout-rules)
 
 ## Logging Standards
 
@@ -166,38 +153,6 @@ logger.Info("Hotkey matched", zap.Strings("actions", actions))
 // Typical hint count is 50-200 elements, so we start with 100.
 hints := make([]Hint, 0, 100)
 ```
-
-## Git Commit Standards
-
-### Commit Message Format
-
-```
-<type>: <subject>
-
-<body>
-
-<footer>
-```
-
-### Types
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Build process, dependencies, etc.
-
-## Pre-commit Checklist
-
-- [ ] Code is formatted (`just fmt`)
-- [ ] Linters pass (`just lint`)
-- [ ] Tests pass (`just test`)
-- [ ] Build succeeds (`just build`)
-- [ ] Documentation updated if needed
-- [ ] Commit message follows standards
 
 ## References
 

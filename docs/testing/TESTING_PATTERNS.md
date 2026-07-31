@@ -1,11 +1,19 @@
 # Testing Patterns
 
+Conventions for writing tests. Which recipe runs what is in
+[DEVELOPMENT.md](../DEVELOPMENT.md#common-tasks); the test tiers and what they
+cover are in [DEVELOPMENT.md](../DEVELOPMENT.md#testing).
+
 ## Test File Naming
 
 - Unit tests: `*_test.go` (no build tag required)
 - macOS integration tests: `*_integration_darwin_test.go` (tagged `//go:build integration && darwin`)
 - Linux integration tests: `*_integration_linux_test.go` (tagged `//go:build integration && linux`)
+- Windows integration tests: `*_integration_windows_test.go` (tagged `//go:build integration && windows`)
 - Examples: `*_example_test.go`
+
+Only the macOS slot is populated today — the Linux and Windows patterns are
+reserved for the first tests that land there.
 
 ## Test Function Naming
 
@@ -14,13 +22,6 @@ func TestService_Method(t *testing.T)
 func TestService_Method_EdgeCase(t *testing.T)
 func ExampleService_Method()
 ```
-
-## Test Types
-
-| Type        | Command                 | Purpose                                                                        |
-| ----------- | ----------------------- | ------------------------------------------------------------------------------ |
-| Unit        | `just test`             | Business logic, algorithms, validation with mocks                              |
-| Integration | `just test-integration` | Real platform APIs, file system, IPC (tagged `//go:build integration && <os>`) |
 
 ## When to Use Each Type
 
@@ -128,8 +129,6 @@ func TestMain(m *testing.M) {
 `*_integration_darwin_test.go` files are exempt from the "One Rule", so they may
 import `internal/core/infra/platform/darwin` directly.
 
-### Test Command Usage
-
-- `just test`: Runs all unit tests (platform-agnostic).
-- `just test-integration`: Runs integration tests for the **current OS**.
-- `just test-all`: Runs both unit and integration tests.
+Integration tests only run meaningfully on their target OS — the build tag
+excludes them everywhere else. See
+[DEVELOPMENT.md](../DEVELOPMENT.md#common-tasks) for the recipes.

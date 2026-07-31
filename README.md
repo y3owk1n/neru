@@ -240,18 +240,34 @@ wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
 
 Everything you need to go deep:
 
+**Using Neru**
+
+| Guide                                            | What's in it                                             |
+| :----------------------------------------------- | :-------------------------------------------------------- |
+| [Installation](docs/INSTALLATION.md)             | Homebrew, Nix, prebuilt binaries, source, permissions     |
+| [CLI Reference](docs/CLI.md)                     | Every command, flag, and argument                         |
+| [Configuration Reference](docs/CONFIGURATION.md) | Every option, with types, defaults, and platform support  |
+| [Tips & Tricks](docs/TIPS_TRICKS.md)             | Worked configuration recipes                              |
+| [Config Showcases](docs/CONFIG_SHOWCASES.md)     | Real setups shared by the community                       |
+| [Troubleshooting](docs/TROUBLESHOOTING.md)       | Common issues and fixes                                   |
+
+**Platform support**
+
 | Guide                                          | What's in it                                              |
 | :--------------------------------------------- | :-------------------------------------------------------- |
-| [Installation](docs/INSTALLATION.md)           | Homebrew, Nix, prebuilt binaries, source, permissions     |
-| [CLI Reference](docs/CLI.md)                   | Every command, flag, and argument                         |
-| [Configuration Reference](docs/CONFIGURATION.md) | Every option, with types, defaults, and platform support |
-| [Tips & Tricks](docs/TIPS_TRICKS.md)           | Worked configuration recipes                              |
-| [Config Showcases](docs/CONFIG_SHOWCASES.md)   | Real setups shared by the community                       |
-| [Troubleshooting](docs/TROUBLESHOOTING.md)     | Common issues and fixes                                   |
 | [Cross-Platform Guide](docs/CROSS_PLATFORM.md) | What works on each platform, and how it is implemented    |
-| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, and per-desktop notes          |
-| [Roadmap](docs/ROADMAP.md)                     | What's coming                                             |
-| [Contributing](CONTRIBUTING.md)                | PRs and bug reports                                       |
+| [Linux Setup](docs/LINUX_SETUP.md)             | Dependencies, permissions, building, deployment           |
+| [Linux Desktops](docs/LINUX_DESKTOPS.md)       | Per-desktop setup, protocol support, and known issues     |
+
+**Working on Neru**
+
+| Guide                                            | What's in it                                            |
+| :----------------------------------------------- | :-------------------------------------------------------- |
+| [Contributing](CONTRIBUTING.md)                  | How to propose, commit, and land a change                 |
+| [Development Guide](docs/DEVELOPMENT.md)         | Setup, building, testing, debugging, where code goes      |
+| [Architecture](docs/ARCHITECTURE.md)             | Layers, boundaries, data flow, platform isolation         |
+| [Coding Standards](docs/CODING_STANDARDS.md)     | Formatting, logging, documentation conventions            |
+| [Roadmap](docs/ROADMAP.md)                       | What's coming next                                        |
 
 ---
 

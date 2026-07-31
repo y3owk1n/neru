@@ -1,12 +1,14 @@
 # Development Guide
 
-How to set up a development environment, build, test, and contribute to Neru.
+How to set up a development environment, build, test, and debug Neru, and where
+to put new code.
 
-For the architectural reference see [ARCHITECTURE.md](ARCHITECTURE.md); for
-platform-specific work see [CROSS_PLATFORM.md](CROSS_PLATFORM.md#contributor-guide).
-
-**Related:** [Architecture](ARCHITECTURE.md) ·
-[Coding Standards](CODING_STANDARDS.md) · [Cross-Platform Guide](CROSS_PLATFORM.md)
+This guide owns the **local workflow**. Neighbouring documents own the rest:
+contribution process and commit conventions in
+[CONTRIBUTING.md](../CONTRIBUTING.md), the architectural reference in
+[ARCHITECTURE.md](ARCHITECTURE.md), per-platform support and platform file
+layout in [CROSS_PLATFORM.md](CROSS_PLATFORM.md), and style rules in
+[CODING_STANDARDS.md](CODING_STANDARDS.md). None of those are repeated here.
 
 ---
 
@@ -14,48 +16,40 @@ platform-specific work see [CROSS_PLATFORM.md](CROSS_PLATFORM.md#contributor-gui
 
 - [Quick Start](#quick-start)
 - [Development Setup](#development-setup)
+- [Common Tasks](#common-tasks)
 - [Building](#building)
-- [Testing Tiers](#testing-tiers)
 - [Testing](#testing)
-- [Architecture Overview](#architecture-overview)
-- [Contributing](#contributing)
+- [Debugging](#debugging)
+- [Adding Code](#adding-code)
 - [Release Process](#release-process)
-- [Development Tips](#development-tips)
-- [Troubleshooting](#troubleshooting)
 - [Resources](#resources)
 
 ---
 
 ## Quick Start
 
-Get Neru running locally in 5 minutes:
-
 ```bash
-# 1. Clone and setup
 git clone https://github.com/y3owk1n/neru.git
 cd neru
 
-# 2. Set up development environment
-
-## Option A: Using Devbox (Recommended)
-devbox shell
-
-See [Development Environment Options](#development-environment-options) for install details
-
-## Option B: Manual installation
-brew install just golangci-lint
-
-See [Development Environment Options](#development-environment-options) for install details
-
-# 3. Build and run
+devbox shell            # or: brew install go just golangci-lint llvm
 just build
-./bin/neru launch
-
-# 4. Test it works
-neru hints  # Should show hint overlays
+./bin/neru launch       # runs in the foreground
 ```
 
-**Need help?** See [INSTALLATION.md](INSTALLATION.md) for detailed setup instructions.
+Then from a second terminal:
+
+```bash
+./bin/neru hints        # should show hint overlays
+```
+
+There is no `just run` recipe — build first, then launch the daemon directly.
+The CLI talks to the running daemon over a socket, so both halves come from the
+same `./bin/neru` binary.
+
+For end-user installation (Homebrew, Nix, prebuilt binaries) see
+[INSTALLATION.md](INSTALLATION.md); for preparing a Linux host see
+[LINUX_SETUP.md](LINUX_SETUP.md).
 
 ---
 
@@ -63,258 +57,112 @@ neru hints  # Should show hint overlays
 
 ### Prerequisites
 
-- **Go 1.26+** - [Install Go](https://golang.org/dl/)
-- **Xcode Command Line Tools** - `xcode-select --install`
-- **Just** - Command runner ([Install](https://github.com/casey/just))
+- **Go 1.26+** — [Install Go](https://golang.org/dl/)
+- **Xcode Command Line Tools** (macOS) — `xcode-select --install`
+- **Just** — command runner — [install](https://github.com/casey/just)
+- **golangci-lint** — linter — [install](https://golangci-lint.run/usage/install/)
 
-    ```bash
-    brew install just
-    ```
+### Option A: Devbox (recommended)
 
-- **golangci-lint** - Linter ([Install](https://golangci-lint.run/usage/install/))
-
-    ```bash
-    brew install golangci-lint
-    ```
-
-### Development Environment Options
-
-For the best development experience, choose one of the following setup methods:
-
-#### Option A: Devbox (Recommended)
-
-[Devbox](https://www.jetify.com/devbox) provides an isolated development environment with all required tools pre-configured.
+[Devbox](https://www.jetify.com/devbox) provides an isolated environment with
+every tool pre-configured:
 
 ```bash
-# Install Devbox
 curl -fsSL https://get.jetify.com/devbox | bash
 
-# Option 1: Enter the development shell manually
-devbox shell
-
-# Option 2: Use direnv for automatic shell activation (recommended)
-# Install direnv: brew install direnv
-# Add to your shell: eval "$(direnv hook bash)" (or zsh/fish)
-# The .envrc file will automatically activate devbox when you cd into the project
+devbox shell            # enter the shell manually
 ```
 
-Devbox automatically installs and manages:
+Or let [direnv](https://direnv.net/) activate it automatically — install direnv,
+add `eval "$(direnv hook bash)"` (or zsh/fish) to your shell, and the `.envrc`
+in the repo root takes over whenever you `cd` in.
 
-- Go 1.26+
-- gopls (Go language server)
-- gotools, gofumpt, golines (Go formatting tools)
-- golangci-lint (linter)
-- just (command runner)
-- clang-tools (C/C++ tools for CGo)
+Devbox manages Go 1.26+, gopls, gotools, gofumpt, golines, golangci-lint, just,
+and clang-tools (for CGo).
 
-#### Option B: Manual Installation
-
-Install essential tools manually using Homebrew. Note that Devbox provides additional development tools (gopls, gofumpt, golines, etc.) that can be installed separately if desired.
+### Option B: Manual installation
 
 ```bash
 brew install go just golangci-lint llvm
 ```
 
-**Tool descriptions:**
-
-- `go` - Go compiler and toolchain (1.26+ required)
-- `just` - Command runner for build scripts
-- `golangci-lint` - Go linter and formatter
-- `llvm` - LLVM tools including clang-format for C/C++/Objective-C formatting (required for CGo code)
-
-**Optional additional tools** (install via `go install` if desired):
-
-- `gopls`: `go install golang.org/x/tools/gopls@latest`
-- `gofumpt`: `go install mvdan.cc/gofumpt@latest`
-- `golines`: `go install github.com/segmentio/golines@latest`
-
-### Clone Repository
+`llvm` supplies `clang-format` for Objective-C formatting. Devbox's extra tools
+are optional and installable on their own:
 
 ```bash
-git clone https://github.com/y3owk1n/neru.git
-cd neru
+go install golang.org/x/tools/gopls@latest
+go install mvdan.cc/gofumpt@latest
+go install github.com/segmentio/golines@latest
 ```
 
-### Verify Setup
+### Verify
 
 ```bash
-# Check Go version
-go version  # Should be 1.26+
-
-# Check tools
+go version              # 1.26+
 just --version
 golangci-lint --version
-
-# List available commands
-just --list
+just --list             # all available recipes
 ```
 
-### Development Environment
+An EditorConfig plugin is worth installing — `.editorconfig` carries the tab and
+line-ending rules that CI enforces.
 
-For the best development experience, we recommend:
+---
 
-1. **IDE Setup**: Use VS Code with Go extension or GoLand
-2. **EditorConfig**: Install EditorConfig plugin for consistent formatting
+## Common Tasks
 
-### Common Development Tasks
+Every build, test, and lint entry point goes through `just`. This table is the
+single reference for them; `just --list` shows the full set including the
+Wayland protocol generation and icon recipes.
 
-| Task   | Command                 | Description                        |
-| ------ | ----------------------- | ---------------------------------- |
-| Build  | `just build`            | Compile the application            |
-| Build  | `just build-darwin`     | Build a macOS binary on macOS      |
-| Build  | `just build-linux`      | Build a Linux foundations binary   |
-| Build  | `just build-windows`    | Build a Windows binary  |
-| Bundle | `just bundle`           | Package the macOS app bundle       |
-| Install| `just install`          | Install an already-built Neru; add `-y` to auto-accept (macOS/Linux/Windows) |
-| Test   | `just test`             | Run unit and integration tests     |
-| Test   | `just test-foundation`  | Run cross-platform-safe core tests |
-| Test   | `just test-unit`        | Run unit tests                     |
-| Test   | `just test-integration` | Run integration tests              |
-| Test   | `just test-race`        | Run all tests with race detection  |
-| Test   | `just test-all`         | Run all tests (unit + integration) |
-| Test   | `just test-race-unit`   | Run unit tests with race detection |
-| Test   | `just test-race-integration` | Run integration tests with race detection |
-| Lint   | `just lint`             | Run linters                        |
-| Lint   | `just vet`              | Run `go vet`                       |
-| Format | `just fmt`              | Format Go and Objective-C code     |
-| Format | `just fmt-check`        | Check Objective-C formatting       |
-| Docs   | `just genman`           | Generate man pages                 |
-| Clean  | `just clean`            | Remove build artifacts             |
+| Task    | Command                      | Description                                     |
+| ------- | ---------------------------- | ----------------------------------------------- |
+| Build   | `just build`                 | Compile for the current platform                |
+| Build   | `just build-darwin`          | Build a macOS binary (on macOS)                 |
+| Build   | `just build-linux [ARCH]`    | Build a Linux binary (defaults to amd64)        |
+| Build   | `just build-windows [ARCH]`  | Build a Windows binary                          |
+| Build   | `just build-version v1.0.0`  | Build with an explicit version string           |
+| Build   | `just release`               | Optimized, stripped release build               |
+| Bundle  | `just bundle`                | Release build + macOS `Neru.app` (ad-hoc signed) |
+| Install | `just install [-y]`          | Install an already-built Neru; `-y` auto-accepts |
+| Test    | `just test`                  | Unit + integration                              |
+| Test    | `just test-unit`             | Unit tests only                                 |
+| Test    | `just test-integration`      | Integration tests only                          |
+| Test    | `just test-foundation`       | Fast cross-platform-safe slice                  |
+| Test    | `just test-race`             | Unit + integration with `-race`                 |
+| Test    | `just test-race-unit`        | Unit tests with `-race`                         |
+| Test    | `just test-race-integration` | Integration tests with `-race`                  |
+| Test    | `just test-all`              | `test` **and** `test-race` — the full sweep     |
+| Lint    | `just lint`                  | `golangci-lint run`                             |
+| Lint    | `just vet`                   | `go vet`                                        |
+| Format  | `just fmt`                   | Format Go and Objective-C                       |
+| Format  | `just fmt-check`             | Check Objective-C formatting                    |
+| Docs    | `just genman`                | Generate man pages                              |
+| Clean   | `just clean`                 | Remove build artifacts                          |
 
-There is no `just run` recipe — build first, then launch the daemon directly:
+Targeting a single package or test:
 
 ```bash
-just build
-./bin/neru launch
+go test ./internal/core/domain/hint/
+go test -run TestHandler_HandleKey ./internal/app/modes/
+go test -tags=integration ./internal/core/infra/accessibility/
 ```
 
-Run `just --list` for the full set, including the Wayland protocol generation
-and icon recipes.
+Watch mode, if you have [entr](https://eradman.com/entrproject/):
 
-### Debugging
-
-To debug Neru during development:
-
-1. **Enable Debug Logging**:
-
-    ```toml
-    [logging]
-    log_level = "debug"
-    ```
-
-2. **View Logs**:
-
-    ```bash
-    # macOS
-    tail -f ~/Library/Logs/neru/app.log
-
-    # Linux
-    tail -f ~/.local/state/neru/log/app.log
-    ```
-
-3. **Use Delve Debugger**:
-
-    ```bash
-    dlv debug ./cmd/neru
-    ```
+```bash
+find . -name "*.go" | entr -r just test
+```
 
 ---
 
 ## Building
 
-Neru uses [Just](https://github.com/casey/just) as a command runner (alternative to Make).
-
-### Quick Start
+### Without Just
 
 ```bash
-# Development build
-just build
-
-# Run
-./bin/neru launch
-```
-
-### Build Commands
-
-```bash
-# Development build (auto-detects version from git tags)
-just build
-
-# Build target-specific contributor binaries
-just build-darwin
-just build-linux
-just build-windows
-
-# Release build (optimized, stripped)
-just release
-
-# Build app bundle (macOS .app)
-just bundle
-
-# Build with custom version
-just build-version v1.0.0
-
-# Clean build artifacts
-just clean
-```
-
-### Cross-Platform Contributor Baseline
-
-If you are starting Linux or Windows work, this is the recommended minimum
-smoke-test sequence:
-
-```bash
-just build
-just test-foundation
-```
-
-Then, depending on what you are targeting:
-
-- Linux: `just build-linux`
-- Windows: `just build-windows`
-- macOS: `just build-darwin`
-
-## Testing Tiers
-
-Neru uses a few different testing layers:
-
-1. Pure unit tests:
-   Shared Go logic with no native OS dependency.
-2. Contract tests:
-   Ports and adapters should agree on error semantics such as `CodeNotSupported`.
-3. Integration tests:
-   Real OS/native behavior behind `integration` build tags.
-4. Architecture tests:
-   Guardrails that protect package boundaries and platform isolation.
-
-When you add a stubbed platform feature, add or update a contract test so the
-unsupported behavior is explicit and stable until the real implementation lands.
-
-For cross-platform work, prefer shared terms over macOS-specific names:
-
-- `Primary` means the default accelerator modifier: `Cmd` on macOS, `Ctrl` on Linux/Windows.
-- Linux is not a single backend. Treat X11 and Wayland as separate infra concerns behind the same port.
-- Start backend decisions from `internal/core/infra/platform/profile.go` so contributors extend one source of truth.
-- Do not assume CGO based on OS alone. Check the backend plan first: some Linux and most early Windows integrations can stay pure Go, while macOS and some future Linux backends require CGO.
-
-For practical file-by-file contributor guidance, see [CROSS_PLATFORM.md](CROSS_PLATFORM.md).
-
-### Manual Build
-
-Without Just:
-
-```bash
-# Basic build
-go build -o bin/neru ./cmd/neru
-
-# With version info
 VERSION=$(git describe --tags --always --dirty)
-go build \
-  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version=$VERSION" \
-  -o bin/neru \
-  ./cmd/neru
 
-# For release (optimized)
 go build \
   -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version=$VERSION" \
   -trimpath \
@@ -322,122 +170,173 @@ go build \
   ./cmd/neru
 ```
 
-### Build Flags Explained
+- `-ldflags="-s -w"` — strip debug info and symbol table (smaller binary)
+- `-trimpath` — remove filesystem paths from the binary
+- `-X pkg.Var=value` — inject the version at build time
 
-- `-ldflags="-s -w"` - Strip debug info and symbol table (smaller binary)
-- `-trimpath` - Remove file system paths from binary
-- `-X pkg.Var=value` - Set string variable at build time (version injection)
+### Cross-platform baseline
+
+Starting Linux or Windows work? The minimum smoke test is:
+
+```bash
+just build
+just test-foundation
+```
+
+then `just build-linux` / `just build-windows` / `just build-darwin` for your
+target. Cross-compiled binaries build from any host, but only the target OS can
+run `just test` meaningfully — integration tests are tagged per-OS, and
+cross-compiling to Linux from macOS is not supported (CGO plus Linux headers).
+
+Backend, CGO, and modifier expectations are **not** per-OS constants; start from
+[profile.go](../internal/core/infra/platform/profile.go) and
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#cgo-guidance).
 
 ---
 
 ## Testing
 
-Neru has a comprehensive test suite with clear separation between unit tests and integration tests. For detailed testing guidelines and standards, see [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md).
+Neru has four testing layers:
 
-### Test Organization
+1. **Unit tests** — shared Go logic with no native OS dependency, using mocks
+   from `internal/core/ports/mocks`.
+2. **Contract tests** — ports and adapters agreeing on error semantics such as
+   `CodeNotSupported`.
+3. **Integration tests** — real OS/native behavior behind the `integration`
+   build tag.
+4. **Architecture tests** — guardrails protecting package boundaries and
+   platform isolation (`internal/architecture/`).
 
-| Test Type             | File Pattern              | Purpose                                                            | Command                 | Coverage                                           |
-| --------------------- | ------------------------- | ------------------------------------------------------------------ | ----------------------- | -------------------------------------------------- |
-| **Unit Tests**        | `*_test.go`               | Business logic with mocks (no build tag required)                  | `just test`             | 50+ tests covering algorithms, isolated components |
-| **Integration Tests** | `*_integration_*_test.go` | Real system interactions (tagged `//go:build integration && <os>`) | `just test-integration` | Tests covering platform APIs, IPC, file operations |
+When you add a stubbed platform feature, add or update a contract test so the
+unsupported behavior is explicit and stable until the real implementation lands.
 
-### Test File Naming Convention
+### Organization
 
-```text
-package_test.go                          # Unit tests (logic, mocks)
-package_integration_darwin_test.go       # macOS integration tests //go:build integration && darwin
-package_integration_linux_test.go        # Linux integration tests  //go:build integration && linux
-package_integration_windows_test.go      # Windows integration tests //go:build integration && windows
-```
+| Type            | File pattern                 | Build tag             | Command                 |
+| --------------- | ---------------------------- | --------------------- | ----------------------- |
+| **Unit**        | `*_test.go`                  | —                     | `just test-unit`        |
+| **Integration** | `*_integration_<os>_test.go` | `integration && <os>` | `just test-integration` |
 
-### Run Tests
+Tests are table-driven and named `TestType_Method_EdgeCase`. Detailed patterns
+live in [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md).
 
-```bash
-# Unit tests only (fast, CI)
-just test
+### What each layer covers
 
-# Integration tests only (comprehensive, local)
-just test-integration
+**Unit** — hint generation, grid calculations, element filtering, action
+processing, mode transitions, config parsing/validation/defaults, CLI argument
+handling, and pure-logic benchmarks. These run everywhere.
 
-# All tests (unit + integration)
-just test-all
-
-# With race detection
-just test-race
-```
-
-### Test Coverage Areas
-
-#### Unit Test Coverage
-
-- **Domain Logic**: Hint generation, grid calculations, element filtering
-- **Service Logic**: Action processing, mode transitions, configuration validation
-- **Adapter Interfaces**: Port implementations with mocked dependencies
-- **Configuration**: TOML parsing, validation, defaults
-- **CLI Logic**: Command parsing, argument validation
-- **Pure Logic Benchmarks**: Performance testing of algorithms without system calls
-
-#### Integration Test Coverage
-
-- **macOS Accessibility API**: Real UI element access, cursor control, mouse actions
-- **macOS Event Tap API**: Real global keyboard event interception
-- **macOS Hotkey API**: Real global hotkey registration/unregistration
-- **Unix Socket IPC**: Real inter-process communication
-- **macOS Overlay API**: Real window/overlay management
-- **File System Operations**: Real config file loading/reloading
-- **Component Coordination**: Real service-to-adapter interactions
-
-### Run Linter
-
-```bash
-# Run all linters
-just lint
-
-# Auto-fix issues
-golangci-lint run --fix
-```
-
-### Test During Development
-
-```bash
-# Watch mode (requires entr or similar)
-find . -name "*.go" | entr -r just test
-
-# Quick iteration with unit tests
-just build && just test
-
-# Full validation before commit
-just test && just lint && just build
-
-# Test specific package
-go test ./internal/core/domain/hint/
-
-# Test with verbose output
-go test -v ./internal/app/services/
-
-# Integration test specific component
-go test -tags=integration ./internal/core/infra/accessibility/
-```
+**Integration** — today these are **macOS only**: real Accessibility and event
+tap APIs, global hotkey registration, overlay and window management, Unix socket
+IPC, config file loading and reloading, and service-to-adapter coordination.
+`*_integration_linux_test.go` and `*_integration_windows_test.go` are the
+reserved slots — no such tests exist yet, so Linux and Windows behavior is
+currently pinned by unit and contract tests alone. Adding real ones is one of
+the more valuable contributions available.
 
 ---
 
-## Architecture Overview
+## Debugging
 
-This section covers only what you need in order to *add code*. The
-architectural reference — layers, component diagrams, data flow, coordinate
-systems, the "One Rule", and platform status — lives in
-[ARCHITECTURE.md](ARCHITECTURE.md), and per-platform feature support lives in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md#feature-parity-reference). Neither is
-repeated here.
+Enable debug logging in `~/.config/neru/config.toml`:
 
-### Mode Interface Contract
+```toml
+[logging]
+log_level = "debug"
+```
 
-Neru uses a standardized `Mode` interface to ensure consistent behavior across all navigation modes. This interface defines the contract that all mode implementations must follow.
+Then follow the log:
 
-#### Interface Definition
+```bash
+tail -f ~/Library/Logs/neru/app.log       # macOS
+tail -f ~/.local/state/neru/log/app.log   # Linux
+```
 
-The live interface is defined in
-[internal/app/modes/handler.go](../internal/app/modes/handler.go):
+For a step debugger:
+
+```bash
+dlv debug ./cmd/neru
+```
+
+What belongs at which log level — and what must never be logged — is in
+[CODING_STANDARDS.md](CODING_STANDARDS.md#logging-standards).
+
+---
+
+## Adding Code
+
+### Where things go
+
+| Directory                  | Role                                               |
+| -------------------------- | -------------------------------------------------- |
+| `internal/core/domain/`    | Pure business logic, entities, value objects       |
+| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay, Font) |
+| `internal/core/infra/`     | Platform-specific adapter implementations          |
+| `internal/app/`            | Application orchestration, services, modes         |
+| `internal/app/components/` | Mode-specific overlay rendering                    |
+| `internal/app/modes/`      | Navigation mode implementations                    |
+| `internal/ui/`             | Coordinate conversion, abstract rendering          |
+| `internal/cli/`            | Cobra CLI commands, IPC dispatch                   |
+| `internal/config/`         | TOML parsing, validation, defaults                 |
+
+Layer responsibilities and the boundaries between them are in
+[ARCHITECTURE.md](ARCHITECTURE.md#component-architecture); platform file-slot
+naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
+
+**Configuration options**
+
+1. Add fields to the structs in `internal/config/config.go`
+2. Shared defaults in `newDefaultConfig()` (`config_defaults.go`); platform
+   overrides in `applyPlatformDefaults()` (`config_<os>.go`)
+3. Validation in the `Validate*()` methods
+4. Update `configs/` examples and [CONFIGURATION.md](CONFIGURATION.md)
+
+**Actions**
+
+1. Define the action in `internal/core/domain/action/action.go`
+2. Implement logic in `internal/app/services/action_service.go`
+3. Wire pending-action dispatch in `internal/app/modes/mode_handlers.go` (the
+   per-mode files set it via `Context.SetPendingAction`)
+4. Update config and documentation
+
+**UI components**
+
+1. Create the component in `internal/app/components/`
+2. Implement rendering in `internal/ui/`
+3. macOS Objective-C goes in `internal/core/infra/platform/darwin/` behind
+   `//go:build darwin`, with a no-op stub elsewhere
+4. Register in `internal/app/component_factory.go` or
+   `internal/app/app_initialization.go`
+
+**CLI commands**
+
+1. Create the command file in `internal/cli/`
+2. Register it in an `init()` (see `internal/cli/root.go`)
+3. Add the matching IPC handler in `internal/app/ipc_handlers.go`
+4. Document in [CLI.md](CLI.md)
+
+### Dependency injection
+
+Wiring is manual and explicit — constructors take their dependencies, and
+`internal/app/app_initialization.go` assembles everything in numbered phases
+that unwind in reverse on failure.
+
+`app.New` takes functional options ([app_options.go](../internal/app/app_options.go)),
+which is how tests substitute doubles for the ports they need — `WithSystemPort`,
+`WithEventTap`, `WithIPCServer`, `WithOverlayManager`, `WithHotkeyService`,
+`WithWatcher`, plus `WithConfig` / `WithConfigPath` / `WithLogger`. An option
+that is not supplied falls back to the real adapter built during initialization.
+
+```go
+hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger, visionPort)
+gridService := services.NewGridService(overlayAdapter, systemPort, logger)
+actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, logger)
+```
+
+### Mode interface contract
+
+Every navigation mode implements `Mode`, defined in
+[handler.go](../internal/app/modes/handler.go):
 
 ```go
 type Mode interface {
@@ -459,65 +358,42 @@ type Mode interface {
 every per-activation override — `Action`, `Modifier`, `OnExit`, `Repeat`,
 `CursorFollowSelection`, `ZoomToDepth`, `FilterRoles`, `FilterTextContains`,
 `Search`, `HideOnEmptySearch`, `Strategy`, `LabelDirection`, `Toggle`,
-`SplitWord`. Adding a new CLI flag that varies a mode's activation usually means
-adding a field here rather than a new interface method.
+`SplitWord`. A new CLI flag that varies a mode's activation usually means a new
+field here rather than a new interface method.
 
 > **Locking contract.** `Activate`, `HandleKey`, and `Exit` are all called with
 > the handler's `h.mu` **already held** by the public entry point
-> (`ActivateMode`, `HandleKeyPress`, `ExitMode`). Inside a mode, use only the
+> (`ActivateMode`, `HandleKeyPress`, `ExitMode`). Inside a mode use only the
 > `*Locked` helpers (`setModeLocked`, `exitModeLocked`, …) — calling a public
-> `SetMode*` / `ExitMode` method self-deadlocks. See
-> [ARCHITECTURE.md](ARCHITECTURE.md) for the full lock ordering.
+> `SetMode*` / `ExitMode` method self-deadlocks. Full lock ordering is in
+> [ARCHITECTURE.md](ARCHITECTURE.md#mode-handler-locking).
 
-#### Method Contracts
+**Method contracts**
 
-##### `Activate(opts ModeActivationOptions)`
+- `Activate(opts)` — call `handler.setModeLocked()` to change app state, show
+  mode-specific overlays, initialize state from `opts`. Log activation at
+  `info`; keep routing and redraw detail at `debug`.
+- `HandleKey(key)` — route a single key string (`"a"`, `"j"`, `"escape"`) to the
+  right handler and update mode state.
+- `Exit()` — hide overlays, reset mode-specific state. Common cleanup is already
+  handled by `exitModeLocked`.
+- `ModeType()` — return the `domain.Mode` enum value (e.g. `domain.ModeHints`).
 
-- **Purpose**: Initialize the mode and set it as the active mode
-- **Responsibilities**:
-    - Call `handler.setModeLocked()` to change app state (caller holds `h.mu`)
-    - Show mode-specific overlays/UI
-    - Initialize mode-specific state from `opts`
-    - Log mode activation at `info`; keep routing and redraw details at `debug`
+**Implementation pattern**
 
-##### `HandleKey(key string)`
-
-- **Purpose**: Process keyboard input while the mode is active
-- **Parameters**: Single key string (e.g., "a", "j", "escape")
-- **Responsibilities**:
-    - Route keys to appropriate handlers
-    - Update mode state based on input
-    - Handle mode-specific navigation logic
-
-##### `Exit()`
-
-- **Purpose**: Clean up mode state and return to idle
-- **Responsibilities**:
-    - Hide overlays and UI elements
-    - Reset mode-specific state
-    - Perform mode-specific cleanup only (common cleanup is handled by `exitModeLocked`)
-
-##### `ModeType()`
-
-- **Purpose**: Return the domain mode identifier
-- **Returns**: `domain.Mode` enum value (e.g., `domain.ModeHints`)
-
-#### Implementation Pattern
-
-Modes are **not** written as bare structs implementing four methods by hand.
-Two shared building blocks cover almost every case:
+Modes are not written as bare structs implementing four methods by hand. Two
+shared building blocks cover almost every case:
 
 - **`baseMode`** ([base.go](../internal/app/modes/base.go)) — holds the handler
-  and mode type, and supplies default no-op implementations of `Activate`,
-  `HandleKey`, and `Exit` plus a real `ModeType`. Embed it and override only
-  what differs.
+  and mode type, supplies no-op `Activate` / `HandleKey` / `Exit` plus a real
+  `ModeType`. Embed it and override only what differs.
 - **`GenericMode`** ([generic_mode.go](../internal/app/modes/generic_mode.go)) —
-  embeds `baseMode` and takes a `ModeBehavior` struct of optional
-  `ActivateFunc` / `HandleKeyFunc` / `ExitFunc` callbacks. When a callback is
-  nil it falls back to the handler's standard flow for that mode type.
+  embeds `baseMode` and takes a `ModeBehavior` of optional `ActivateFunc` /
+  `HandleKeyFunc` / `ExitFunc` callbacks. A nil callback falls back to the
+  handler's standard flow for that mode type.
 
-The result is that a mode is usually just a constructor supplying behavior.
-`ScrollMode` in full:
+So a mode is usually just a constructor supplying behavior. `ScrollMode` in
+full:
 
 ```go
 type ScrollMode struct {
@@ -548,305 +424,51 @@ func NewScrollMode(handler *Handler) *ScrollMode {
 Reach for a hand-written struct embedding `baseMode` only when the mode needs
 its own fields or a `HandleKey` too involved for a callback.
 
-##### Registration Pattern
+**Adding a new mode**
 
-Modes are registered in the map built by `NewHandler`
-([handler.go](../internal/app/modes/handler.go)):
+1. Add the `Mode` constant to `internal/core/domain/domain_constants.go`
+2. Implement the `Mode` interface in `internal/app/modes/` — name it `XXXMode`
+   with a `NewXXXMode` constructor
+3. Register it in the map built by `NewHandler`:
 
-```go
-handler.modes = map[domain.Mode]Mode{
-    domain.ModeHints:         NewHintsMode(handler),
-    domain.ModeGrid:          NewGridMode(handler),
-    domain.ModeScroll:        NewScrollMode(handler),
-    domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
-    domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
-    // Add new modes here
-}
-```
+    ```go
+    handler.modes = map[domain.Mode]Mode{
+        domain.ModeHints:         NewHintsMode(handler),
+        domain.ModeGrid:          NewGridMode(handler),
+        domain.ModeScroll:        NewScrollMode(handler),
+        domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
+        domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
+        // Add new modes here
+    }
+    ```
 
-#### Best Practices
-
-1. **Consistent Naming**: Use `XXXMode` for struct names, `NewXXXMode` for constructors
-2. **Reuse the building blocks**: Prefer `GenericMode` + `ModeBehavior`; embed `baseMode` when you need custom fields
-3. **Respect the lock**: Only `*Locked` helpers inside `Activate` / `HandleKey` / `Exit`
-4. **Logging**: Log mode activation and real failures; keep key handling, redraws, and routine routing at `debug`
-5. **Error Handling**: Handle errors gracefully, don't panic
-6. **Resource Cleanup**: Always clean up overlays and state in `Exit()`
-
-#### Adding New Modes
-
-To add a new navigation mode:
-
-1. **Define Domain Mode**: Add to `internal/core/domain/modes.go`
-2. **Create Implementation**: Implement the Mode interface
-3. **Add CLI Command**: Create CLI command in `internal/cli/`
-4. **Update IPC**: Add handler in `internal/app/ipc_controller.go`
-5. **Register Mode**: Add to Handler's mode map
-6. **Add Tests**: Create unit and integration tests
-7. **Update Config**: Add hotkey defaults
-8. **Update Docs**: Document in [CLI.md](CLI.md) and [DEVELOPMENT.md](DEVELOPMENT.md)
-
-### Architecture Summary
-
-Neru follows a **Hexagonal Architecture (Ports and Adapters)** pattern. For the
-full architectural reference — layers, component diagrams, data flows, coordinate
-systems, and technology stack — see [ARCHITECTURE.md](ARCHITECTURE.md).
-
-The key project directories and their roles at a glance:
-
-| Directory                  | Role                                         |
-| -------------------------- | -------------------------------------------- |
-| `internal/core/domain/`    | Pure business logic, entities, value objects |
-| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay, Font) |
-| `internal/core/infra/`     | Platform-specific adapter implementations    |
-| `internal/app/`            | Application orchestration, services, modes   |
-| `internal/app/components/` | Mode-specific overlay rendering              |
-| `internal/app/modes/`      | Navigation mode implementations              |
-| `internal/ui/`             | Coordinate conversion, abstract rendering    |
-| `internal/cli/`            | Cobra CLI commands, IPC dispatch             |
-| `internal/config/`         | TOML parsing, validation, defaults           |
-
-Cross-platform file-slot conventions follow the naming rules in
-[CROSS_PLATFORM.md](CROSS_PLATFORM.md).
-
-### Where to Add New Code
-
-**Configuration Options:**
-
-1. Add fields to `internal/config/config.go` structs
-2. Update `newDefaultConfig()` in `internal/config/config_defaults.go` with shared defaults; add platform overrides to `applyPlatformDefaults()` in `internal/config/config_<os>.go`
-3. Add validation in `Validate*()` methods
-4. Update `configs/` examples and [CONFIGURATION.md](CONFIGURATION.md)
-
-**Navigation Modes:**
-
-1. Define domain entities in `internal/core/domain/`
-2. Create service in `internal/app/services/`
-3. Implement infrastructure in `internal/core/infra/`
-4. Add components in `internal/app/components/`
-5. Implement the `Mode` interface in `internal/app/modes/` (see `HintsMode`, `GridMode`, `ScrollMode` for examples)
-    - See also `RecursiveGridMode` for recursive grid navigation
-6. Register mode in the Handler's mode map in `internal/app/modes/handler.go`
-
-**Actions:**
-
-1. Define action in `internal/core/domain/action/`
-2. Implement logic in `internal/app/services/action_service.go`
-3. Add handling in `internal/app/modes/actions.go`
-4. Update config and documentation
-
-**UI Components:**
-
-1. Create components in `internal/app/components/`
-2. Implement rendering in `internal/ui/`
-3. Add macOS-specific Objective-C in `internal/core/infra/platform/darwin/` with a `//go:build darwin` tag; provide a no-op stub for other platforms
-4. Register in `internal/app/component_factory.go` or `internal/app/app_initialization.go`
-
-**CLI Commands:**
-
-1. Create command file in `internal/cli/`
-2. Register in `internal/cli/root.go`
-3. Document in [CLI.md](CLI.md)
-
-### Dependency Injection and Wiring
-
-Neru uses manual dependency injection for better testability and explicit dependency management:
-
-1. **Construction**: Dependencies are explicitly passed to constructors
-2. **Wiring**: `internal/app/app_initialization.go` wires all components together
-3. **Testing**: Dependencies can be mocked by passing test doubles in `NewWithDeps`
-4. **Ports**: Interfaces define contracts between layers
-
-Example of dependency injection in action:
-
-```go
-// In internal/app/initialization.go
-hintService := services.NewHintService(accAdapter, overlayAdapter, systemPort, hintGen, cfg.Hints, logger)
-gridService := services.NewGridService(overlayAdapter, systemPort, logger)
-actionService := services.NewActionService(accAdapter, overlayAdapter, systemPort, logger)
-```
-
----
-
-## Contributing
-
-### Development Workflow
-
-1. **Fork and clone** the repository
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make changes** following [CODING_STANDARDS.md](CODING_STANDARDS.md)
-4. **Add tests** for new functionality
-5. **Test thoroughly**: `just test && just lint && just build`
-6. **Commit conventionally**: `git commit -m "feat: description"`
-7. **Push and open PR** with description and screenshots
-
-### Before You Start
-
-- **Read the Architecture**: Understand layered design and code placement
-- **Check Existing Issues**: Search for similar work or start discussions
-- **Follow Standards**: See [CODING_STANDARDS.md](CODING_STANDARDS.md)
-- **Write Tests**: All new code needs appropriate test coverage
-- **Update Docs**: Keep documentation current with changes
-
-### Code Standards
-
-**All code must follow the [CODING_STANDARDS.md](CODING_STANDARDS.md) document.** See [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md) for test requirements.
-
-**Pre-commit Checklist:**
-
-- [ ] Code formatted (`just fmt`)
-- [ ] Linters pass (`just lint`)
-- [ ] Tests pass (`just test`)
-- [ ] Build succeeds (`just build`)
-- [ ] Documentation updated
-- [ ] Follows [CODING_STANDARDS.md](CODING_STANDARDS.md)
-
-**Key Requirements:**
-
-- Use `goimports` for import organization
-- Add godoc comments for exported symbols
-- Use custom error package with proper wrapping
-- Follow established naming patterns and receiver conventions
-
-### Testing Guidelines
-
-**All new code requires appropriate tests.** See [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md) for detailed guidelines.
-
-**Test Types:**
-
-- **Unit Tests**: Business logic, algorithms, validation (fast, no system deps)
-- **Integration Tests**: Real platform APIs, file system, IPC (tagged `//go:build integration && <os>`)
-
-**When to Use:**
-
-- **Unit Tests**: Business logic, config validation, component interfaces, pure algorithms
-- **Integration Tests**: Platform APIs, file operations, IPC, component coordination
-
-**Test Organization:**
-
-```
-package_test.go                        # Unit tests (logic, mocks)
-package_integration_darwin_test.go     # macOS integration tests //go:build integration && darwin
-package_integration_linux_test.go      # Linux integration tests  //go:build integration && linux
-package_integration_windows_test.go    # Windows integration tests //go:build integration && windows
-```
-
-### Documentation
-
-- **Update docs/** for significant changes
-- **Add godoc comments** for exported symbols
-- **Keep docs consistent** with code changes
-- **Include examples** where helpful
-
-### Commit Messages
-
-Use clear, descriptive commit messages following conventional commits:
-
-**Format:** `<type>(<scope>): <subject>`
-
-**Types:**
-
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Build process, dependencies, etc.
-
-**Good:**
-
-```
-feat: add grid-based navigation mode
-
-Implement grid-based navigation as an alternative to hint-based navigation.
-Grid mode divides the screen into cells and allows precise cursor positioning.
-
-Closes #123
-```
-
-**Bad:**
-
-```
-fix bug
-```
+4. Add the CLI command and IPC handler (see [CLI commands](#where-things-go))
+5. Add hotkey defaults to the config
+6. Add unit and integration tests
+7. Document in [CLI.md](CLI.md) and [CONFIGURATION.md](CONFIGURATION.md)
 
 ---
 
 ## Release Process
 
-Releases are being handled via [Release Please](https://github.com/googleapis/release-please) automatically.
+Releases are automated by
+[Release Please](https://github.com/googleapis/release-please). Merging the
+release PR builds and publishes the binaries on GitHub.
 
-### Version Numbering
-
-Neru uses semantic versioning: `vMAJOR.MINOR.PATCH`
-
-- **MAJOR** - Breaking changes
-- **MINOR** - New features (backward compatible)
-- **PATCH** - Bug fixes
-
-### Creating a Release
-
-Creating a release is just as easy as merging the release please PR, and it will build and publish the binaries on github.
+Versioning is semantic — `vMAJOR.MINOR.PATCH`: breaking changes, backward-
+compatible features, bug fixes. Because Release Please derives the changelog
+from commit subjects, the [conventional commit
+format](../CONTRIBUTING.md#commit-messages) is what ships to users.
 
 > [!NOTE]
-> Homebrew version bump is in a separate repo, it will be updated separately.
+> The Homebrew version bump lives in a separate repo and is updated separately.
 
 ---
-
-## Development Tips
-
-### Quick Iteration
-
-```bash
-# Build and run
-just build && ./bin/neru launch
-
-# Watch for changes (requires entr)
-ls **/*.go | entr -r sh -c 'just build && ./bin/neru launch'
-```
-
-### Debugging
-
-```bash
-# Enable debug logging in config
-[logging]
-log_level = "debug"
-
-# Watch logs (macOS)
-tail -f ~/Library/Logs/neru/app.log
-
-# Watch logs (Linux)
-tail -f ~/.local/state/neru/log/app.log
-```
-
-### Useful Commands
-
-```bash
-# Code quality
-just fmt          # Format code
-just lint         # Run linters
-just test         # Run tests
-
-# Dependencies
-go mod tidy       # Clean up modules
-go get -u ./...   # Update dependencies
-```
-
----
-
-## Troubleshooting
-
-- **Read existing code** - Well-structured codebase
-- **Check issues** - Search for similar problems
-- **Ask in discussions** - Open GitHub discussion for questions
-- **Open draft PR** - Get early feedback on approach
 
 ## Resources
 
-- **Go Documentation:** <https://golang.org/doc/>
-- **macOS Accessibility:** <https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref>
-- **TOML Spec:** <https://toml.io/>
-- **Cobra CLI:** <https://github.com/spf13/cobra>
-- **Just Command Runner:** <https://github.com/casey/just>
+- [Go Documentation](https://golang.org/doc/)
+- [macOS Accessibility API](https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref)
+- [TOML Spec](https://toml.io/)
+- [Cobra](https://github.com/spf13/cobra)
+- [Just](https://github.com/casey/just)

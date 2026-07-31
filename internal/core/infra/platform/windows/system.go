@@ -5,7 +5,7 @@
 // Most methods currently return CodeNotSupported because Windows support is a
 // work-in-progress. Contributors should replace each stub with a real
 // implementation and remove the CodeNotSupported return when done.
-// See docs/ARCHITECTURE.md for the contribution guide.
+// See docs/CROSS_PLATFORM.md for the contributor guide.
 //
 //nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package windows

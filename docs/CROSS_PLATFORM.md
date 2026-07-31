@@ -514,21 +514,18 @@ Worked examples:
 
 ## Build And Test Commands
 
-| Goal                                            | Command                |
-| ----------------------------------------------- | ---------------------- |
-| build for current host                          | `just build`           |
-| build macOS binary (on macOS)                   | `just build-darwin`    |
-| build Linux binary                              | `just build-linux`     |
-| build Windows binary                            | `just build-windows`   |
-| focused cross-platform-safe tests               | `just test-foundation` |
-| full unit + integration suite on current OS     | `just test`            |
-| lint                                            | `just lint`            |
-| tagged release binaries in CI                   | `just release-ci-linux <arch> <version>`, `just release-ci-windows <arch> <version>` |
+Every build and test recipe is catalogued in
+[DEVELOPMENT.md](./DEVELOPMENT.md#common-tasks). Two apply specifically to
+platform work:
 
-New to the codebase? `just build && just test-foundation` first, then find the
-slot you expect to touch before writing code. Cross-compiled binaries build from
-any host, but only the target OS can run `just test` meaningfully — integration
-tests are tagged per-OS.
+- `just build && just test-foundation` — the cross-platform-safe baseline to run
+  before touching anything. Do that first, then find the slot you expect to
+  change before writing code.
+- `just release-ci-linux <arch> <version>` / `just release-ci-windows <arch>
+  <version>` — the tagged release binaries CI produces.
+
+Cross-compiled binaries build from any host, but only the target OS can run
+`just test` meaningfully — integration tests are tagged per-OS.
 
 ## Linux Backend Model
 
@@ -693,17 +690,22 @@ Questions your tests should answer:
 
 ## Documentation Checklist
 
-Land docs in the same PR as the platform work. Check:
+Land docs in the same PR as the platform work. Each fact has exactly one home —
+update the one that owns it rather than restating it elsewhere:
 
-- [README.md](../README.md) and [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [DEVELOPMENT.md](./DEVELOPMENT.md)
-- **this file** — the parity tables in Part 1
-- [LINUX_SETUP.md](./LINUX_SETUP.md) — build, deps, deploy (keep DE-agnostic)
-- [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md) — per-DE decisions and known issues
-- [CONVENTIONS.md](./go/CONVENTIONS.md)
+| What changed                                    | Update                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------- |
+| A capability's status or mechanism              | **this file** — the parity tables in Part 1                   |
+| A gap closed or discovered                      | **this file** — [Known Gaps](#known-gaps)                     |
+| Desktop-specific setup, protocol support, or a DE workaround | [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md)         |
+| Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md) — keep DE-agnostic         |
+| A layer boundary, port contract, or data flow   | [ARCHITECTURE.md](./ARCHITECTURE.md)                          |
+| A build recipe or test tier                     | [DEVELOPMENT.md](./DEVELOPMENT.md)                            |
+| Go style, logging, or naming                    | [CONVENTIONS.md](./go/CONVENTIONS.md)                         |
+| What the project claims to support, at a glance | [README.md](../README.md)                                     |
 
-Update them whenever the capability matrix, the backend plan, the build/CGO
-story, or a contributor-facing file naming pattern changes.
+ARCHITECTURE.md deliberately does **not** track per-platform support — it
+describes shape, not status. Do not add a capability table there.
 
 ## Contributing Safely
 
