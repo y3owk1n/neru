@@ -16,9 +16,11 @@ _Built for the person who already remapped Caps Lock._
 
 **Free and open-source.** No subscription. No trial. No catch.
 
-|      macOS       |      Linux       |     Windows      |
-| :--------------: | :--------------: | :--------------: |
-| Full featured ✅ |     Beta 🔵      | Basic support 🔵 |
+|    macOS    |      Linux       |      Windows      |
+| :---------: | :--------------: | :---------------: |
+|  Stable ✅  | Beta — daily 🔵  | Alpha — try it 🟡 |
+
+<sub>[What these mean](docs/CROSS_PLATFORM.md#what-the-labels-mean) — stable is fully featured, beta is good for daily driving, alpha is worth trying but not yet worth switching to.</sub>
 
 </div>
 
@@ -229,8 +231,9 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 **Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
 on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
 need `--force-renderer-accessibility`). On **Windows**, UI Automation coverage is
-initial and the tree walk is shallow. **Linux requires X11 or Wayland on
-wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
+initial and the tree walk is shallow, and per-app config does not re-apply when
+you change windows. **Linux requires X11 or Wayland on wlroots/KWin — GNOME
+Wayland is not supported**; use a GNOME X11 session.
 
 → [Roadmap](docs/ROADMAP.md) · [Cross-platform details](docs/CROSS_PLATFORM.md)
 

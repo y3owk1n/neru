@@ -26,10 +26,12 @@ Work that is not tied to any one platform:
 
 ## Cross-platform foundations
 
-Linux is in beta and Windows in alpha. Every remaining item is tracked as a
-numbered entry in [Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from
-there rather than from a duplicate list here, so the status you read is the
-status the code reports.
+Linux is [beta and Windows alpha](CROSS_PLATFORM.md#what-the-labels-mean) —
+meaning Linux is good for daily driving, while Windows is worth trying but not
+yet worth switching to. Every remaining item is tracked as a numbered entry in
+[Known Gaps](CROSS_PLATFORM.md#known-gaps) — pick one from there rather than
+from a duplicate list here, so the status you read is the status the code
+reports.
 
 The two largest open areas:
 

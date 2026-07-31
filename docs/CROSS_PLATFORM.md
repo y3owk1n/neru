@@ -53,9 +53,30 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 ## Platform Status
 
+### What the labels mean
+
+Three words carry the whole promise, so they are worth pinning down:
+
+**Stable** — fully featured. Everything Neru does works here. This is the
+reference implementation, and a gap on this platform is a bug.
+
+**Beta** — good for daily driving. Every navigation mode works and behaves the
+same as it does on a stable platform; what is missing sits around the edges
+(notifications, alerts, a few animations) rather than in your way.
+
+**Alpha** — worth trying, not yet worth switching to. Core navigation works, but
+hint coverage is incomplete and per-app config does not re-apply on focus
+change. You will notice the difference in ordinary use.
+
+Every claim behind these labels is enumerated in the
+[Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
+label and the matrix disagree, the matrix is right.
+
+### Per-platform
+
 | Aspect               | macOS (Darwin)              | Linux                                    | Windows                        |
 | -------------------- | --------------------------- | ---------------------------------------- | ------------------------------ |
-| **Status**           | Production-ready            | Beta                                     | Alpha (initial coverage)       |
+| **Status**           | **Stable**                  | **Beta**                                 | **Alpha**                      |
 | **Build tag**        | `darwin`                    | `linux`                                  | `windows`                      |
 | **CGO**              | Required (Objective-C)      | Per-backend; most Linux backends need it | Not used (pure Go Win32 / COM) |
 | **Primary modifier** | `Cmd`                       | `Ctrl`                                   | `Ctrl`                         |
