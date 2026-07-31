@@ -198,11 +198,26 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 	)
 }
 
-// FocusedWindowBounds returns the bounds of the currently focused window on Linux.
-// TODO(linux): implement using AT-SPI or wmctrl.
+// FocusedWindowBounds returns the global bounds of the currently focused window
+// on Linux, used to constrain hint/vision detection to the active window's
+// monitor (matching darwin). X11 reads _NET_ACTIVE_WINDOW geometry directly.
+// Wayland has no protocol exposing another client's on-screen geometry, so it
+// queries the running wlroots-family compositor's IPC (niri/Sway/Hyprland);
+// KWin and GNOME return not-found and callers fall back to the active screen.
+//
+// found=false with a nil error means "no focused window bounds available" — a
+// normal fallback, not an error.
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
+	if s.backend == backendX11 {
+		return x11FocusedWindowBounds()
+	}
+
+	if s.waylandUsesWlrClientStack() {
+		return waylandFocusedWindowBounds()
+	}
+
 	return image.Rectangle{}, false, derrors.New(
 		derrors.CodeNotSupported,
 		"FocusedWindowBounds not yet implemented on linux backend "+s.backend,

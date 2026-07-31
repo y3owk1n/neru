@@ -356,6 +356,8 @@ fetch-protocols:
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/stable/xdg-shell/xdg-shell.xml" -o {{ PROTOCOL_DIR }}/xdg-shell.xml
     curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/unstable/relative-pointer/relative-pointer-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/relative-pointer-unstable-v1.xml
     curl -fsSL "https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/raw/master/unstable/wlr-foreign-toplevel-management-unstable-v1.xml" -o {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml
+    curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/stable/viewporter/viewporter.xml" -o {{ PROTOCOL_DIR }}/viewporter.xml
+    curl -fsSL "https://gitlab.freedesktop.org/wayland/wayland-protocols/-/raw/master/staging/fractional-scale/fractional-scale-v1.xml" -o {{ PROTOCOL_DIR }}/fractional-scale-v1.xml
     @echo "✓ Protocol XMLs downloaded to {{ PROTOCOL_DIR }}/"
 
 # Generate wayland-scanner files from XMLs
@@ -390,6 +392,14 @@ generate-protocols:
     # wlr-foreign-toplevel-management (unstable) — focused-app app_id tracking
     wayland-scanner client-header < {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/foreign-toplevel.h
     wayland-scanner private-code < {{ PROTOCOL_DIR }}/wlr-foreign-toplevel-management-unstable-v1.xml > {{ WLR_PROTOCOL_DIR }}/foreign-toplevel.c
+
+    # viewporter (stable) — maps an over-rendered buffer down to logical size for fractional scaling
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/viewporter.xml > {{ WLR_PROTOCOL_DIR }}/viewporter.c
+
+    # fractional-scale (staging) — compositor's preferred per-surface fractional scale
+    wayland-scanner client-header < {{ PROTOCOL_DIR }}/fractional-scale-v1.xml > {{ WLR_PROTOCOL_DIR }}/fractional-scale-v1.h
+    wayland-scanner private-code < {{ PROTOCOL_DIR }}/fractional-scale-v1.xml > {{ WLR_PROTOCOL_DIR }}/fractional-scale-v1.c
     @echo "✓ Protocol files generated in {{ WLR_PROTOCOL_DIR }}/"
 
 # Download and generate all Wayland protocols

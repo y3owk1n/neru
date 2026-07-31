@@ -17,6 +17,7 @@ typedef struct {
 	int state;
 	char name[128];
 	char name_valid;
+	uint32_t registry_name;  // wl_registry global id, so global_remove can match on hotplug
 	struct wl_output *wl_output;
 	struct zxdg_output_v1 *xdg_output;
 	struct wl_surface *discovery_surface;
@@ -86,6 +87,13 @@ typedef struct NeruWlrootsClient {
 	// thread never stalls under toplevel_mutex. Both are -1 until initialized.
 	int focus_pipe[2];
 	int focus_pipe_ready;
+
+	// screen_pipe is a self-pipe that pushes display-configuration changes
+	// (outputs added/removed via wl_registry global/global_remove) to Go, the
+	// same way focus_pipe pushes focus changes. Both ends are non-blocking so the
+	// dispatch thread never stalls; both are -1 until initialized.
+	int screen_pipe[2];
+	int screen_pipe_ready;
 
 	struct xkb_context *xkb_ctx;
 	struct xkb_keymap *xkb_keymap;
@@ -157,5 +165,13 @@ int neru_wlr_focused_app_identity(NeruWlrootsClient *c, char *app_out, int app_l
 // pipe is available. The fd is owned by the client and closed by
 // neru_wlr_disconnect; callers must not close it.
 int neru_wlr_focus_event_fd(NeruWlrootsClient *c);
+
+// neru_wlr_screen_event_fd returns a readable file descriptor that becomes
+// readable whenever the display configuration changes (an output is added or
+// removed). Callers poll it, drain the pending byte(s), then re-read the screen
+// list via neru_wlr_screen_count / neru_wlr_screen_info. Returns -1 when no pipe
+// is available. The fd is owned by the client and closed by neru_wlr_disconnect;
+// callers must not close it.
+int neru_wlr_screen_event_fd(NeruWlrootsClient *c);
 
 #endif /* WLROOTS_CLIENT_H */

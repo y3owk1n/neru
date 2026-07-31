@@ -18,7 +18,7 @@ _Built for the person who already remapped Caps Lock._
 
 |      macOS       |      Linux       |     Windows      |
 | :--------------: | :--------------: | :--------------: |
-| Full featured ✅ | Basic support 🔵 | Basic support 🔵 |
+| Full featured ✅ |     Beta 🔵      | Basic support 🔵 |
 
 </div>
 

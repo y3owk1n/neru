@@ -186,8 +186,10 @@ These are the main contributor commands:
 
 Notes:
 
-- `just build-linux` is currently best viewed as a
-  foundations smoke test while that platform is still mostly scaffolding.
+- `just build-linux` produces a Beta backend with overlay rendering, hints,
+  grid, scroll, input injection, multi-monitor (per-monitor rendering, HiDPI /
+  fractional scaling, live hotplug), and `monitor_select` on X11 and
+  wlroots/KWin Wayland; GNOME/Mutter Wayland stays unsupported.
 - `just build-windows` produces a binary with grid, recursive grid,
   scroll, global hotkeys, mouse injection, IPC, and initial UIA accessibility.
 - `just release-ci-linux <version>` and `just release-ci-windows <version>` to release a version tagged binary in ci.
@@ -583,7 +585,7 @@ From `internal/core/ports/capability_presets.go` and actual adapter code.
 | **Native Alerts**                   | ✅ (NSAlert)                | 🟡                 | 🟡                        | 🟡                       | 🟡                | ✅ (Win32 MessageBox)    |
 | **Font Resolution**                 | ✅ (NSFont)                 | ✅ (fontconfig)    | ✅ (fontconfig)           | ✅ (fontconfig)          | ✅ (fontconfig)   | ✅ (DirectWrite)         |
 | **System Cursor Hide**              | ✅ (CGDisplayHideCursor)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
-| **Monitor Select Panels**           | ✅ (native Cocoa panels)    | ❌                 | ❌                        | ❌                       | ❌                | ❌                       |
+| **Monitor Select Panels**           | ✅ (native Cocoa panels)    | ✅ (Cairo)         | ✅ (Cairo)                | ✅ (Cairo)               | ❌                | ❌                       |
 
 **Smooth cursor animation on Linux:** off by default and opt-in via
 `smooth_cursor.move_mouse_enabled` (the same cross-platform
@@ -696,8 +698,8 @@ to unoffset (window-relative) coordinates rather than misplacing hints.
 | **Click-through**     | `setIgnoresMouseEvents:YES`                      | XFixes empty input region                 | `wl_surface_set_input_region` (empty)        | `WS_EX_TRANSPARENT`                                       |
 | **Always on top**     | `NSScreenSaverWindowLevel`                       | `_NET_WM_STATE_ABOVE` + `MapRaised`       | `ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY`          | `HWND_TOPMOST`                                            |
 | **Focus prevention**  | Non-activating panel (returns NO)                | override_redirect=YES, no WM decorations  | Keyboard interactivity: controlled           | `WS_EX_NOACTIVATE`                                        |
-| **High-DPI / Retina** | Dynamic `contentsScale`, backing change callback | Not explicit                              | `wl_output` scale listener + `cairo_scale()` | Not explicit                                              |
-| **Multi-monitor**     | Clamps per display, screen change tracking       | Resize to active screen cursor            | Per-output `wl_surface` array (max 16)       | Cursor-screen tracking, separate indicator/sticky windows |
+| **High-DPI / Retina** | Dynamic `contentsScale`, backing change callback | `Xft.dpi` UI scaling (single global factor) | `wl_output` scale + `wp_fractional_scale_v1`/`wp_viewporter` (crisp fractional) | Not explicit                                              |
+| **Multi-monitor**     | Clamps per display, screen change tracking       | Enumerates all monitors, per-monitor render, live RandR hotplug | Per-output `wl_surface` array (max 16), live `wl_output` hotplug | Cursor-screen tracking, separate indicator/sticky windows |
 | **Font rendering**    | NSFontManager (postscript/family names)          | Cairo `select_font_face` + `show_text`    | Cairo `select_font_face` + `show_text`       | GDI `CreateFontW` + `DrawTextW` + alpha composite         |
 | **Rounded rects**     | NSBezierPath (`bezierPathWithRoundedRect`)       | Cairo arc-based `rounded_path`            | Cairo arc-based `rounded_path`               | SDF `alphaFillRoundedRect` (software)                     |
 | **Borders**           | NSBezierPath stroke                              | Cairo stroke (`fill_preserve` + `stroke`) | Cairo stroke                                 | SDF multi-pass alpha `strokeRoundedRect`                  |
@@ -973,9 +975,9 @@ for details.
 
 | Feature               | macOS                    | Linux                   | Windows                 |
 | --------------------- | ------------------------ | ----------------------- | ----------------------- |
-| **Panel per display** | ✅ (native Cocoa panels) | ❌ (`CodeNotSupported`) | ❌ (`CodeNotSupported`) |
-| **Label navigation**  | ✅                       | ❌                      | ❌                      |
-| **Cursor jump**       | ✅                       | ❌                      | ❌                      |
+| **Panel per display** | ✅ (native Cocoa panels) | ✅ (Cairo; X11 + wlroots/KDE, not GNOME) | ❌ (`CodeNotSupported`) |
+| **Label navigation**  | ✅                       | ✅                      | ❌                      |
+| **Cursor jump**       | ✅                       | ✅                      | ❌                      |
 
 ### Linux Backend Breakdown
 
@@ -1013,7 +1015,6 @@ The following features exist on exactly one platform:
 | System cursor hide/show   | `internal/app/modes/cursor_darwin.go`                                                   | Uses `CGDisplayHideCursor` / `CGDisplayShowCursor` (Quartz). Other platforms have no equivalent. |
 | Smooth scroll animation   | `internal/core/infra/platform/darwin/scroll_animator.go`                                | Platform scroll event stream. (Smooth **cursor** animation is now cross-platform on Linux too — see `mouse_animator_linux.go`.) |
 | Vision framework strategy | `internal/core/ports/vision.go` + `internal/core/infra/platform/darwin/vision_darwin.m` | macOS-only `VNRequest` / `VGImageRequestHandler` APIs                                            |
-| Monitor select panels     | `internal/app/modes/monitor_select_overlay_darwin.go`                                   | Uses Cocoa NSPanel per display. Not implemented on other platforms.                              |
 | Screen sharing hide       | `internal/core/infra/platform/darwin/overlay_darwin.m`                                  | NSWindow sharing level property (Quartz only)                                                    |
 | Secure input detection    | `internal/core/infra/platform/darwin/secureinput.go`                                    | Uses `CGSessionCopyCurrentDictionary` — private API                                              |
 

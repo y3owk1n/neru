@@ -40,6 +40,19 @@ func x11FocusEventFD() (int, bool) {
 	return -1, false
 }
 
+// x11ScreenEventFD is unavailable without CGO — the RandR monitor uses Xlib.
+// Callers receive no screen-change events.
+func x11ScreenEventFD() (int, bool) {
+	return -1, false
+}
+
+func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"X11 focused window bounds require CGO-enabled Linux builds",
+	)
+}
+
 func x11ActiveScreenBounds() (image.Rectangle, error) {
 	return image.Rectangle{}, derrors.New(
 		derrors.CodeNotSupported,

@@ -82,6 +82,8 @@ func (o *wlrootsOverlay) Flush() {}
 
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *wlrootsOverlay) DrawMonitorSelect([]MonitorSelectTarget, MonitorSelectStyle) {}
+
 func (o *wlrootsOverlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 
 func (o *wlrootsOverlay) cancelAnimation()               {}

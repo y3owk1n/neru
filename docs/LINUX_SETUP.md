@@ -308,7 +308,9 @@ systemctl --user enable --now neru
    fallbacks where the portal is unavailable.
 4. **Notifications** — May log instead of using `org.freedesktop.Notifications`.
 5. **Wayland modified clicks** — Need `evdev` access (see [keyboard permissions](#wayland-keyboard-capture-permissions)).
-6. **Screen geometry at startup** — Relaunch after resolution or monitor changes.
+6. **Monitor hotplug** — Adding/removing a monitor is tracked live (RandR on X11,
+   `wl_output` on Wayland) and the overlay follows; a relaunch is only needed for a
+   resolution/scale change to an existing monitor on Wayland.
 7. **DE-specific limits** (portal consent, protocol gaps): [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 
 ---
@@ -326,7 +328,9 @@ Common on GNOME; on KDE this is expected and input uses another path. See
 
 ### Overlay or hints wrong size after display change
 
-Geometry is read at daemon start. Relaunch: `neru stop` then `neru launch`.
+Monitor hotplug (add/remove) is tracked live. If the overlay is still wrong after
+a resolution or scale change to an existing monitor, relaunch: `neru stop` then
+`neru launch`.
 
 ### "failed to connect to Wayland compositor"
 
