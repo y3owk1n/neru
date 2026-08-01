@@ -380,6 +380,8 @@ const (
 	NameReset Name = "reset"
 	// NameBackspace performs a mode-aware backspace operation.
 	NameBackspace Name = "backspace"
+	// NameMoveCell slides the active mode's selection to a neighboring cell.
+	NameMoveCell Name = "move_cell"
 	// NameWaitForModeExit blocks until the current mode exits.
 	NameWaitForModeExit Name = "wait_for_mode_exit"
 	// NameSaveCursorPos saves the current cursor position for later restoration.
@@ -495,6 +497,11 @@ func IsBackspaceAction(name string) bool {
 	return Name(name) == NameBackspace
 }
 
+// IsMoveCellAction reports whether the given action is move_cell.
+func IsMoveCellAction(name string) bool {
+	return Name(name) == NameMoveCell
+}
+
 // IsWaitForModeExitAction reports whether the given action is wait_for_mode_exit.
 func IsWaitForModeExitAction(name string) bool {
 	return Name(name) == NameWaitForModeExit
@@ -558,7 +565,7 @@ func IsKnownName(name Name) bool {
 		NameMoveMouse,
 		NameMoveMouseRelative,
 		NameScroll,
-		NameReset, NameBackspace,
+		NameReset, NameBackspace, NameMoveCell,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
@@ -589,7 +596,8 @@ func IsScrollSubAction(name string) bool {
 		NameMiddleMouseDown, NameMiddleMouseUp,
 		NameLeftMouseToggle, NameRightMouseToggle, NameMiddleMouseToggle,
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
-		NameReset, NameBackspace, NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
+		NameReset, NameBackspace, NameMoveCell,
+		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints,
 		NameHideCursor, NameShowCursor:
 		return false
@@ -600,12 +608,13 @@ func IsScrollSubAction(name string) bool {
 
 // IsHeldRepeatAction reports whether the action name supports held-key repeat
 // (fires repeatedly while the key is held, with no initial delay).
-// Currently applies to scroll, page, and relative mouse move actions.
+// Currently applies to scroll, page, relative mouse move, and cell move actions.
 func IsHeldRepeatAction(name Name) bool {
 	switch name { //nolint:exhaustive
 	case NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NamePageUp, NamePageDown,
-		NameMoveMouseRelative:
+		NameMoveMouseRelative,
+		NameMoveCell:
 		return true
 	default:
 		return false
@@ -690,6 +699,7 @@ func (n Name) ToType() (Type, error) {
 		return TypeScroll, nil
 	case NameReset,
 		NameBackspace,
+		NameMoveCell,
 		NameWaitForModeExit,
 		NameSaveCursorPos,
 		NameRestoreCursorPos,

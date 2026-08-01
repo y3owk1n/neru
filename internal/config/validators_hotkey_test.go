@@ -368,3 +368,67 @@ func TestValidateHotkeyBindings_ActionChains(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHotkeys_MoveCell(t *testing.T) {
+	tests := []struct {
+		name    string
+		action  string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:   "equals form",
+			action: "action move_cell --direction=right",
+		},
+		{
+			name:   "space form",
+			action: "action move_cell --direction left",
+		},
+		{
+			name:   "with count",
+			action: "action move_cell --direction=up --count=2",
+		},
+		{
+			// Direction values are validated by the daemon when the action
+			// runs, not by config validation, which only knows action names.
+			name:   "unknown direction passes config validation",
+			action: "action move_cell --direction=sideways",
+		},
+		{
+			name:    "typo in the action name",
+			action:  "action move_cel --direction=right",
+			wantErr: true,
+			errMsg:  "unknown action subcommand: move_cel",
+		},
+		{
+			name:    "not chainable",
+			action:  "action left_click,move_cell",
+			wantErr: true,
+			errMsg:  "move_cell cannot be used in an action chain",
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.RecursiveGrid.Hotkeys = map[string]config.StringOrStringArray{
+				"Right": {testCase.action},
+			}
+
+			err := cfg.ValidateHotkeys()
+
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("ValidateHotkeys() error = %v, wantErr %v", err, testCase.wantErr)
+			}
+
+			if testCase.wantErr && testCase.errMsg != "" && err != nil {
+				if !strings.Contains(err.Error(), testCase.errMsg) {
+					t.Errorf(
+						"ValidateHotkeys() error = %v, want error containing %q",
+						err,
+						testCase.errMsg,
+					)
+				}
+			}
+		})
+	}
+}

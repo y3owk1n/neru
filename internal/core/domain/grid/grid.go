@@ -939,6 +939,21 @@ func (g *Grid) CellByCoordinate(coordinate string) *Cell {
 	return nil
 }
 
+// CellForPoint returns the cell containing point, or nil when no cell does.
+//
+// Cells are emitted region by region and a region running off the right or
+// bottom edge is clipped, so the cells do not always tile the whole bounds —
+// a point inside Bounds can still land on no cell.
+func (g *Grid) CellForPoint(point image.Point) *Cell {
+	for _, cell := range g.cells {
+		if point.In(cell.bounds) {
+			return cell
+		}
+	}
+
+	return nil
+}
+
 // HasCoordinatePrefix returns true if any coordinate starts with the given prefix.
 func (g *Grid) HasCoordinatePrefix(prefix string) bool {
 	prefix = strings.ToUpper(prefix)

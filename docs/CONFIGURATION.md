@@ -503,7 +503,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 | Keyboard    | `feed`                                                                                 |
 | Hints       | `search_hints`, `cycle_hint`, `cycle_hint --backward`                                  |
 | Delay       | `sleep <duration>` — plain numbers are seconds (`0.5`), explicit units: `500ms`, `1s`  |
-| Mode        | `reset`, `backspace`                                                                   |
+| Mode        | `reset`, `backspace`, `move_cell --direction <dir>`                                    |
 | Composition | `wait_for_mode_exit` (with optional `--bail`), `save_cursor_pos`, `restore_cursor_pos` |
 | Cursor      | `hide_cursor`, `show_cursor`                                                           |
 
@@ -513,7 +513,8 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 - `mouse_down` and `mouse_up` are the original spellings of `left_mouse_down` and `left_mouse_up`. They still work in configs, but new configs should use the explicit names
 - Use `--bare` (e.g. `"action left_click --bare"`) to target the cursor position instead of the current mode selection (see [CLI.md](CLI.md#neru-action-left_click-right_click-middle_click))
 - `scroll_up` / `scroll_down` support `--steps` (e.g. `"action scroll_down --steps 200"`) to override `scroll_step` (see [CLI.md](CLI.md#neru-action-scroll_up-scroll_down-scroll_left-scroll_right))
-- `reset`, `backspace`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
+- `move_cell` slides the grid or recursive-grid selection to a neighbouring cell on the same layer, e.g. `"action move_cell --direction=right"`. It takes an optional `--count`, and repeats while the key is held when [`[held_repeat]`](#held_repeat) is enabled (see [CLI.md](CLI.md#neru-action-move_cell))
+- `reset`, `backspace`, `move_cell`, `search_hints`, `cycle_hint`, `sleep`, `wait_for_mode_exit`, `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, and `show_cursor` are not valid mode `--action` values — use `neru action ...` or in hotkeys as `"action ..."`
 - `sleep` is the exception among those: it works only in hotkey bindings (`"action sleep 0.5"`), **not** as a terminal command, and it cannot appear in a comma-separated chain. See [CLI.md](CLI.md#action-sleep-hotkey-bindings-only)
 
 #### Feed Keys
@@ -1361,7 +1362,7 @@ duration_per_pixel = 1.0
 
 ## [held_repeat]
 
-Repeatedly dispatches scroll, page, and relative-mouse-move actions while the key is held, with a configurable initial delay and repeat interval. Disable held-key repeat entirely by setting `enabled = false`.
+Repeatedly dispatches scroll, page, relative-mouse-move, and `move_cell` actions while the key is held, with a configurable initial delay and repeat interval. Disable held-key repeat entirely by setting `enabled = false`.
 
 | Option             | Type | Default | Description                              |
 | ------------------ | ---- | ------- | ---------------------------------------- |

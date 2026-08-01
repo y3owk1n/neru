@@ -42,11 +42,19 @@ const (
 	flagBail      = "--bail"
 	flagState     = "--state"
 	flagToggle    = "--toggle"
+	flagDirection = "--direction"
+	flagCount     = "--count"
+	flagModifier  = "--modifier"
+	flagX         = "--x"
+	flagY         = "--y"
+	flagDX        = "--dx"
+	flagDY        = "--dy"
+	flagSteps     = "--steps"
+	flagBackward  = "--backward"
 
 	msgActionServiceNotAvailable            = "action service not available"
 	msgModesHandlerNotAvailable             = "modes handler not available"
 	msgSelectionRequiresActiveSelection     = "--selection requires an active mode selection"
-	msgMoveMonitorDoesNotSupportTheseFlags  = "move_monitor does not support these flags"
 	msgSelectionAndBareCannotBeUsedTogether = "--selection and --bare cannot be used together"
 	msgStateOnlyOnClicks                    = "--state and --toggle are only supported with " +
 		"left_click, right_click, and middle_click"
@@ -111,12 +119,12 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		}
 	}
 
-	if parsed.useBail && !action.IsWaitForModeExitAction(actionName) {
-		return ipc.Response{
-			Success: false,
-			Message: "--bail is only supported with wait_for_mode_exit",
-			Code:    ipc.CodeInvalidInput,
-		}
+	// Every action declares the flags it accepts (see actionFlagSupport), so
+	// this one check covers all of them and each handler only has to validate
+	// combinations of the flags it does accept.
+	flagSupportResp := rejectUnsupportedFlags(actionName, parsed)
+	if flagSupportResp != nil {
+		return *flagSupportResp
 	}
 
 	// A click action carrying --state or --toggle is a request for one half of
@@ -136,11 +144,15 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.IsResetAction(actionName) {
-		return h.handleResetAction(parsed)
+		return h.handleResetAction()
 	}
 
 	if action.IsBackspaceAction(actionName) {
-		return h.handleBackspaceAction(parsed)
+		return h.handleBackspaceAction()
+	}
+
+	if action.IsMoveCellAction(actionName) {
+		return h.handleMoveCellAction(parsed)
 	}
 
 	if action.IsWaitForModeExitAction(actionName) {
@@ -148,11 +160,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.IsSaveCursorPosAction(actionName) {
-		return h.handleSaveCursorPosAction(ctx, parsed)
+		return h.handleSaveCursorPosAction(ctx)
 	}
 
 	if action.IsRestoreCursorPosAction(actionName) {
-		return h.handleRestoreCursorPosAction(ctx, parsed)
+		return h.handleRestoreCursorPosAction(ctx)
 	}
 
 	if action.IsMoveMonitorAction(actionName) {
@@ -164,11 +176,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.IsSearchHintsAction(actionName) {
-		return h.handleSearchHintsAction(parsed)
+		return h.handleSearchHintsAction()
 	}
 
 	if action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName) {
-		return h.handleCursorVisibilityAction(parsed, action.IsHideCursorAction(actionName))
+		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName))
 	}
 
 	// Handle comma-separated action chains (e.g., "left_click,left_click")
@@ -190,7 +202,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	isMoveMouse := actionName == string(action.NameMoveMouse)
 	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
-	flagErrResp := validateActionFlags(actionName, parsed, modifiers)
+	flagErrResp := validateActionFlags(actionName, parsed)
 	if flagErrResp != nil {
 		return *flagErrResp
 	}

@@ -26,7 +26,7 @@ Available subcommands:
   Scroll actions:   scroll_up, scroll_down, scroll_left, scroll_right,
                     go_top, go_bottom, page_up, page_down
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor
-  Mode control:     reset, backspace, wait_for_mode_exit, cycle_hint
+  Mode control:     reset, backspace, move_cell, wait_for_mode_exit, cycle_hint
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Cursor visibility: hide_cursor, show_cursor
   Key injection:    feed
@@ -46,6 +46,7 @@ Examples:
   neru action middle_click --toggle             Press or release middle button
   neru action scroll_down --steps 5             Scroll down 5 steps
   neru action move_mouse --x 1920 --y 1080      Move to absolute position
+  neru action move_cell --direction right       Slide the selection one cell
   neru action feed ctrl+c                        Send Ctrl+C keystroke`,
 	DisableFlagParsing: true,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -408,6 +409,9 @@ at the current cursor location.`,
 // ActionCycleHintCmd cycles through visible hints in hints mode.
 var ActionCycleHintCmd = BuildCycleHintCommand()
 
+// ActionMoveCellCmd moves the active mode's selection to a neighboring cell.
+var ActionMoveCellCmd = BuildMoveCellCommand()
+
 func init() {
 	ActionCmd.AddCommand(ActionLeftClickCmd)
 	ActionCmd.AddCommand(ActionRightClickCmd)
@@ -437,6 +441,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageUpCmd)
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
+	ActionCmd.AddCommand(ActionMoveCellCmd)
 	ActionCmd.AddCommand(ActionHideCursorCmd)
 	ActionCmd.AddCommand(ActionShowCursorCmd)
 

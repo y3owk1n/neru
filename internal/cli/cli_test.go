@@ -184,6 +184,7 @@ func TestCommandInitialization(t *testing.T) {
 		"page_up":             false,
 		"page_down":           false,
 		"move_monitor":        false,
+		"move_cell":           false,
 		"cycle_hint":          false,
 		"hide_cursor":         false,
 		"show_cursor":         false,

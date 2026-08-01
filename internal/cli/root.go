@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
@@ -582,6 +583,63 @@ Positive values move right/down, negative values move left/up.`,
 	cmd.Flags().IntVar(&deltaY, "dy", 0, "Delta Y (pixels, positive=down, negative=up)")
 	_ = cmd.MarkFlagRequired("dx")
 	_ = cmd.MarkFlagRequired("dy")
+
+	return cmd
+}
+
+// BuildMoveCellCommand creates a move_cell cobra command that slides the
+// active mode's selection to a neighboring cell on the same layer.
+func BuildMoveCellCommand() *cobra.Command {
+	var (
+		direction string
+		count     int
+	)
+
+	cmd := &cobra.Command{
+		Use:   "move_cell",
+		Short: "Move the current selection to a neighboring cell",
+		Long: `Slide the active mode's selection one cell in a direction, without
+changing the active layer.
+
+In recursive-grid mode the highlighted region moves at the current depth,
+crossing into a neighboring parent region when it reaches the edge of its
+own. In grid mode an open subgrid moves to the neighboring cell.
+
+Movement stops at the screen edge instead of wrapping, and does nothing in
+modes that have no cell selection.
+
+Examples:
+  neru action move_cell --direction right
+  neru action move_cell --direction up --count 3`,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			_, dirErr := domain.ParseDirection(direction)
+			if dirErr != nil {
+				return dirErr
+			}
+
+			if count < 1 {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--count must be at least 1",
+				)
+			}
+
+			actionArgs := []string{
+				"move_cell",
+				"--direction=" + direction,
+				fmt.Sprintf("--count=%d", count),
+			}
+
+			return sendCommand(cmd, "action", actionArgs)
+		},
+	}
+
+	cmd.Flags().StringVar(&direction, "direction", "", "Direction to move (left, right, up, down)")
+	cmd.Flags().IntVar(&count, "count", 1, "Number of cells to move")
+	_ = cmd.MarkFlagRequired("direction")
 
 	return cmd
 }

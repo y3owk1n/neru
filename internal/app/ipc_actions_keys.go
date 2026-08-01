@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
@@ -127,15 +128,7 @@ func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Respons
 	}
 }
 
-func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		return ipc.Response{
-			Success: false,
-			Message: "backspace does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -149,22 +142,53 @@ func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ip
 	return ipc.Response{Success: true, Message: "mode backspace", Code: ipc.CodeOK}
 }
 
+// handleMoveCellAction slides the active mode's selection to a neighboring
+// cell on the same layer.
+func (h *IPCControllerActions) handleMoveCellAction(parsed parsedActionArgs) ipc.Response {
+	if !parsed.hasDirection {
+		return ipc.Response{
+			Success: false,
+			Message: "move_cell requires --direction (left, right, up, or down)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	direction, dirErr := domain.ParseDirection(parsed.directionStr)
+	if dirErr != nil {
+		return ipc.Response{
+			Success: false,
+			Message: dirErr.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	count := 1
+	if parsed.hasCount {
+		count = parsed.countVal
+	}
+
+	h.modesHandler.MoveCellCurrentMode(direction, count)
+
+	return ipc.Response{
+		Success: true,
+		Message: "mode cell move " + direction.String(),
+		Code:    ipc.CodeOK,
+	}
+}
+
 // handleCycleHintAction cycles through visible hints in hints mode.
 func (h *IPCControllerActions) handleCycleHintAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
-	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasWindow || parsed.useSelection ||
-		parsed.useBare || parsed.hasMonitorName || parsed.usePrevious ||
-		parsed.modifierStr != "" {
-		return ipc.Response{
-			Success: false,
-			Message: "cycle_hint does not support these flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -196,15 +220,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 }
 
 // handleSearchHintsAction activates text search in hints mode.
-func (h *IPCControllerActions) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
-	if hasUnsupportedFlags(parsed) || parsed.useBackward || parsed.hasWindow {
-		return ipc.Response{
-			Success: false,
-			Message: "search_hints does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleSearchHintsAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,

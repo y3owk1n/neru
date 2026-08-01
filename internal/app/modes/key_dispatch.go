@@ -549,7 +549,7 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 }
 
 // isHeldRepeatAction reports whether the action list contains a single
-// held-repeatable action (scroll, page, or relative mouse move).
+// held-repeatable action (scroll, page, relative mouse move, or cell move).
 func isHeldRepeatAction(actions []string) bool {
 	if len(actions) != 1 {
 		return false

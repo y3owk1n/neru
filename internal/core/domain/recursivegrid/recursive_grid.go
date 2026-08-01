@@ -54,6 +54,13 @@ type RecursiveGrid struct {
 	gridRows      int                 // Default number of grid rows
 	depthLayouts  map[int]DepthLayout // Per-depth layout overrides (sparse)
 	history       []image.Rectangle   // Stack of previous bounds for backtracking
+	// finalCell is the cell picked once the grid could no longer be divided.
+	// SelectCell leaves currentBounds untouched on that path so backtracking
+	// still restores the correct ancestor, which means the user's actual
+	// position lives here rather than in currentBounds.
+	finalCell Cell
+	// hasFinalCell reports whether finalCell holds a live selection.
+	hasFinalCell bool
 }
 
 // NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds
@@ -167,6 +174,35 @@ func (qg *RecursiveGrid) Divide() []image.Rectangle {
 	return ComputeGridCells(qg.currentBounds, layout.GridCols, layout.GridRows)
 }
 
+// rectCenter returns the center point of rect, rounded to nearest pixel and
+// guaranteed to lie inside rect.
+//
+// The clamp matters only for a rectangle one pixel wide or tall: rounding to
+// nearest puts its "center" on the exclusive Max edge, which belongs to the
+// neighboring cell. Cursor targets derived from such a cell would then address
+// the cell next door, and recursive subdivision reaches one-pixel cells with
+// the default minimum cell size of 1.
+func rectCenter(rect image.Rectangle) image.Point {
+	center := image.Point{
+		X: rect.Min.X + divRound(rect.Dx(), CenterDivisor),
+		Y: rect.Min.Y + divRound(rect.Dy(), CenterDivisor),
+	}
+
+	if rect.Empty() {
+		return center
+	}
+
+	return clampToRect(center, rect)
+}
+
+// clampToRect pulls point inside rect. rect must not be empty.
+func clampToRect(point image.Point, rect image.Rectangle) image.Point {
+	return image.Point{
+		X: min(max(point.X, rect.Min.X), rect.Max.X-1),
+		Y: min(max(point.Y, rect.Min.Y), rect.Max.Y-1),
+	}
+}
+
 // CellCenter returns the center point of the specified cell, rounded to nearest pixel.
 func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 	cells := qg.Divide()
@@ -176,12 +212,7 @@ func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
 		return qg.CurrentCenter()
 	}
 
-	selected := cells[idx]
-
-	return image.Point{
-		X: selected.Min.X + divRound(selected.Dx(), CenterDivisor),
-		Y: selected.Min.Y + divRound(selected.Dy(), CenterDivisor),
-	}
+	return rectCenter(cells[idx])
 }
 
 // SelectCell narrows the active area to the selected cell.
@@ -200,12 +231,15 @@ func (qg *RecursiveGrid) SelectCell(cell Cell) (image.Point, bool) {
 	selected := cells[idx]
 
 	// Compute center from the cell bounds before any state mutation.
-	center := image.Point{
-		X: selected.Min.X + divRound(selected.Dx(), CenterDivisor),
-		Y: selected.Min.Y + divRound(selected.Dy(), CenterDivisor),
-	}
+	center := rectCenter(selected)
 
 	if !qg.CanDivide() {
+		// The grid has bottomed out, so this cell is the final selection.
+		// Record it: currentBounds stays on the parent, so it is the only
+		// place the user's actual position is kept.
+		qg.finalCell = cell
+		qg.hasFinalCell = true
+
 		return center, true
 	}
 
@@ -235,10 +269,28 @@ func (qg *RecursiveGrid) CanDivide() bool {
 
 // CurrentCenter returns the center point of the current bounds, rounded to nearest pixel.
 func (qg *RecursiveGrid) CurrentCenter() image.Point {
-	return image.Point{
-		X: qg.currentBounds.Min.X + divRound(qg.currentBounds.Dx(), CenterDivisor),
-		Y: qg.currentBounds.Min.Y + divRound(qg.currentBounds.Dy(), CenterDivisor),
+	return rectCenter(qg.currentBounds)
+}
+
+// EffectiveBounds returns the rectangle the current selection occupies: the
+// final cell once the grid has bottomed out, otherwise the current bounds.
+// This is what same-layer movement steps by.
+func (qg *RecursiveGrid) EffectiveBounds() image.Rectangle {
+	if qg.hasFinalCell {
+		return qg.CellBounds(qg.finalCell)
 	}
+
+	return qg.currentBounds
+}
+
+// SelectionCenter returns the center of EffectiveBounds.
+func (qg *RecursiveGrid) SelectionCenter() image.Point {
+	return rectCenter(qg.EffectiveBounds())
+}
+
+// HasFinalCell reports whether a final (non-divisible) cell has been selected.
+func (qg *RecursiveGrid) HasFinalCell() bool {
+	return qg.hasFinalCell
 }
 
 // CurrentBounds returns the current active bounds.
@@ -283,6 +335,7 @@ func (qg *RecursiveGrid) Backtrack() bool {
 	qg.currentBounds = qg.history[lastIndex]
 	qg.history = qg.history[:lastIndex]
 	qg.depth--
+	qg.clearFinalCell()
 
 	return true
 }
@@ -297,6 +350,7 @@ func (qg *RecursiveGrid) Reset() {
 	qg.currentBounds = qg.initialBounds
 	qg.depth = 0
 	qg.history = qg.history[:0]
+	qg.clearFinalCell()
 }
 
 // RemapToNewBounds proportionally remaps all bounds (history + currentBounds)
@@ -408,4 +462,10 @@ func (qg *RecursiveGrid) ZoomToPoint(point image.Point, targetDepth int) (image.
 	}
 
 	return qg.CurrentCenter(), false
+}
+
+// clearFinalCell drops any recorded final-cell selection.
+func (qg *RecursiveGrid) clearFinalCell() {
+	qg.finalCell = 0
+	qg.hasFinalCell = false
 }
