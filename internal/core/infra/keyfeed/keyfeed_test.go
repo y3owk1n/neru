@@ -2,6 +2,7 @@ package keyfeed_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -33,12 +34,6 @@ func TestNormalizeKeyForFeed(t *testing.T) {
 			name:    "uppercase with explicit shift",
 			input:   shiftA,
 			want:    shiftA,
-			wantErr: false,
-		},
-		{
-			name:    "uppercase with cmd modifier - should NOT inject shift",
-			input:   "Cmd+A",
-			want:    "Cmd+A",
 			wantErr: false,
 		},
 		{
@@ -129,5 +124,41 @@ func TestAdapter_FeedHonorsCanceledContext(t *testing.T) {
 	err := adapter.Feed(ctx, "a")
 	if !derrors.IsCode(err, derrors.CodeContextCanceled) {
 		t.Errorf("Feed on canceled context = %v, want CodeContextCanceled", err)
+	}
+}
+
+// TestNormalizeKeyForFeed_ExplicitModifierSuppressesShiftInjection covers the
+// case the table cannot: an uppercase letter already carrying a modifier must
+// not have Shift added on top of it.
+//
+// It asserts the property rather than an exact string because the rendered
+// modifier name is platform-specific — config.CanonicalHotkeyForPlatform maps
+// "Cmd" to "Cmd" on macOS and "Super" elsewhere. Pinning "Cmd+A" here is what
+// made this test pass on macOS and fail on Linux.
+func TestNormalizeKeyForFeed_ExplicitModifierSuppressesShiftInjection(t *testing.T) {
+	t.Parallel()
+
+	for _, input := range []string{"Cmd+A", "Ctrl+A", "Alt+A", "Primary+A"} {
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := keyfeed.NormalizeKeyForFeed(input)
+			if err != nil {
+				t.Fatalf("NormalizeKeyForFeed(%q) error = %v, want nil", input, err)
+			}
+
+			if strings.Contains(got, "Shift") {
+				t.Errorf(
+					"NormalizeKeyForFeed(%q) = %q; Shift must not be injected when "+
+						"the key already carries a modifier",
+					input,
+					got,
+				)
+			}
+
+			if !strings.HasSuffix(got, "+A") {
+				t.Errorf("NormalizeKeyForFeed(%q) = %q, want it to still end in +A", input, got)
+			}
+		})
 	}
 }
