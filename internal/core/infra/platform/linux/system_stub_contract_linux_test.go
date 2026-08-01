@@ -224,9 +224,18 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 // is asserted with no display and no compositor — which means it runs on every
 // Linux CI job rather than only on a developer's desktop.
 //
-// The rule is the same one the whole capability surface rests on: a capability
-// reported supported must not answer CodeNotSupported, and one reported stub
-// must.
+// The two directions are not symmetric, because capabilities are live-probed and
+// downgraded on *any* probe failure, not only CodeNotSupported (see
+// probedCapability):
+//
+//   - A capability reported supported must not answer CodeNotSupported. This is
+//     strict: the probe returned success, so the direct call must too.
+//   - A capability reported stub must not silently succeed. Its direct call must
+//     return a non-nil error, but that error need not be CodeNotSupported: an
+//     implemented backend failing at runtime — an X11 session forced here with no
+//     queryable active window, a wedged display — downgrades to stub with a live
+//     CodeActionFailed, and the caller correctly sees that real failure. Only a
+//     stub that returned a zero value with nil would break the surface.
 func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 	// Every backend name that reaches the dispatch, including ones with no
 	// implementation, so both sides of the contract are exercised.
@@ -290,14 +299,16 @@ func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 						backend, check.key, err,
 					)
 
-				case !check.declared() && !notSupported:
-					// A stubbed capability that answers anything other than
-					// NotSupported breaks caller fallback. Note this tolerates a
-					// real success only if the capability is declared supported.
+				case !check.declared() && err == nil:
+					// A stubbed capability that silently succeeds breaks caller
+					// fallback: the caller acts on a zero value it believes is
+					// real. A stub may report CodeNotSupported (unimplemented) or
+					// a live failure (an implemented backend wedged at runtime) —
+					// both are honest — but it must never return nil.
 					t.Errorf(
-						"backend %q declares %q stubbed but the adapter did not return "+
-							"CodeNotSupported (got %v)",
-						backend, check.key, err,
+						"backend %q declares %q stubbed but the adapter succeeded; "+
+							"a stub must return an error rather than a zero value with nil",
+						backend, check.key,
 					)
 				}
 			}
