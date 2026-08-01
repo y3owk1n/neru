@@ -174,11 +174,32 @@ func (qg *RecursiveGrid) Divide() []image.Rectangle {
 	return ComputeGridCells(qg.currentBounds, layout.GridCols, layout.GridRows)
 }
 
-// rectCenter returns the center point of rect, rounded to nearest pixel.
+// rectCenter returns the center point of rect, rounded to nearest pixel and
+// guaranteed to lie inside rect.
+//
+// The clamp matters only for a rectangle one pixel wide or tall: rounding to
+// nearest puts its "center" on the exclusive Max edge, which belongs to the
+// neighboring cell. Cursor targets derived from such a cell would then address
+// the cell next door, and recursive subdivision reaches one-pixel cells with
+// the default minimum cell size of 1.
 func rectCenter(rect image.Rectangle) image.Point {
-	return image.Point{
+	center := image.Point{
 		X: rect.Min.X + divRound(rect.Dx(), CenterDivisor),
 		Y: rect.Min.Y + divRound(rect.Dy(), CenterDivisor),
+	}
+
+	if rect.Empty() {
+		return center
+	}
+
+	return clampToRect(center, rect)
+}
+
+// clampToRect pulls point inside rect. rect must not be empty.
+func clampToRect(point image.Point, rect image.Rectangle) image.Point {
+	return image.Point{
+		X: min(max(point.X, rect.Min.X), rect.Max.X-1),
+		Y: min(max(point.Y, rect.Min.Y), rect.Max.Y-1),
 	}
 }
 

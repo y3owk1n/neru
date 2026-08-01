@@ -405,3 +405,69 @@ func TestRecursiveGrid_MoveDirection_AfterScreenChange(t *testing.T) {
 	assert.Equal(t, image.Rect(400, 200, 600, 400), grid.EffectiveBounds(),
 		"movement should step by the remapped cell size")
 }
+
+// TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells pins the invariant
+// every cursor target depends on: the reported center of a selection must lie
+// inside that selection. Rounding to nearest breaks it for a one-pixel cell,
+// which puts the cursor — and any action targeting it — on the cell next door.
+func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
+	t.Run("after a directional move", func(t *testing.T) {
+		grid := recursivegrid.NewRecursiveGridWithLayers(
+			image.Rect(0, 0, 9, 9),
+			1, 1, 10, 3, 3,
+			nil,
+		)
+
+		descend(t, grid, 0, 0)
+		require.Equal(t, image.Rect(0, 0, 1, 1), grid.CurrentBounds())
+
+		_, moved := grid.MoveDirection(domain.DirectionRight, 3)
+		require.True(t, moved)
+
+		bounds := grid.EffectiveBounds()
+		center := grid.SelectionCenter()
+
+		assert.Truef(t, center.In(bounds),
+			"selection center %v is outside the selected cell %v", center, bounds)
+	})
+
+	t.Run("after selecting a final cell", func(t *testing.T) {
+		// A minimum size of 2 stops subdivision while the cells drawn at that
+		// depth are still one pixel, so the final cell is one pixel.
+		grid := recursivegrid.NewRecursiveGridWithLayers(
+			image.Rect(0, 0, 9, 9),
+			2, 2, 10, 3, 3,
+			nil,
+		)
+
+		_, complete := grid.SelectCell(0)
+		require.False(t, complete)
+
+		center, complete := grid.SelectCell(4)
+		require.True(t, complete)
+
+		bounds := grid.CellBounds(4)
+		require.Equal(t, image.Rect(1, 1, 2, 2), bounds)
+
+		assert.Truef(t, center.In(bounds),
+			"selected point %v is outside the final cell %v", center, bounds)
+		assert.Equal(t, center, grid.SelectionCenter(),
+			"SelectionCenter should agree with the point SelectCell returned")
+	})
+
+	t.Run("every cell of a one-pixel grid", func(t *testing.T) {
+		grid := recursivegrid.NewRecursiveGridWithLayers(
+			image.Rect(0, 0, 3, 3),
+			1, 1, 10, 3, 3,
+			nil,
+		)
+
+		for cell := range recursivegrid.Cell(9) {
+			bounds := grid.CellBounds(cell)
+			center := grid.CellCenter(cell)
+
+			assert.Truef(t, center.In(bounds),
+				"cell %d center %v is outside its bounds %v", cell, center, bounds)
+		}
+	})
+}

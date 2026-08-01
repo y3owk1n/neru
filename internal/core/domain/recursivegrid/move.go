@@ -38,17 +38,6 @@ func (qg *RecursiveGrid) restore(state gridState) {
 	qg.hasFinalCell = state.hasFinalCell
 }
 
-// clampToRect pulls point inside rect. rectCenter rounds up, which puts the
-// "center" of a one-pixel-wide or one-pixel-tall rectangle outside it — the
-// probe point would then resolve to the wrong cell, skipping a cell and
-// drifting diagonally. rect must not be empty.
-func clampToRect(point image.Point, rect image.Rectangle) image.Point {
-	return image.Point{
-		X: min(max(point.X, rect.Min.X), rect.Max.X-1),
-		Y: min(max(point.Y, rect.Min.Y), rect.Max.Y-1),
-	}
-}
-
 // MoveDirection slides the current selection one cell in dir, repeated count
 // times, without changing the active depth. Movement is spatial rather than
 // confined to the parent's cells: the selection crosses into a neighboring
@@ -85,7 +74,11 @@ func (qg *RecursiveGrid) moveOnce(dir domain.Direction) bool {
 
 	deltaX, deltaY := dir.Delta()
 	next := rect.Add(image.Point{X: deltaX * rect.Dx(), Y: deltaY * rect.Dy()})
-	target := clampToRect(rectCenter(next), next)
+
+	// rectCenter keeps the probe inside next, which matters for one-pixel
+	// cells: an unclamped center would resolve to the cell beyond the one we
+	// mean, skipping a cell and drifting diagonally.
+	target := rectCenter(next)
 
 	// Stop at the screen edge. At depth 0 with no final cell the selection is
 	// the whole screen, so every direction lands outside and this is a no-op.
