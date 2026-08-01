@@ -1,6 +1,3 @@
-// Package vision provides vision-based element detection using the
-// macOS Vision Framework. It implements ports.VisionPort with a
-// heuristic classifier for role assignment.
 package vision
 
 import (
@@ -27,6 +24,11 @@ func NewAdapter(logger *zap.Logger) ports.VisionPort {
 	}
 
 	return &Adapter{
-		logger: logger.Named("infra.vision"),
+		logger: logger.Named("vision"),
 	}
 }
+
+// Ensure Adapter implements ports.VisionPort. The non-darwin build satisfies it
+// with CodeNotSupported stubs (adapter_other.go), so this assertion holds on
+// every target and catches a signature drift in either half.
+var _ ports.VisionPort = (*Adapter)(nil)

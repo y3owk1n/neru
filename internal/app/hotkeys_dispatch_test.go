@@ -22,6 +22,7 @@ type fakeReleaseHotkeyManager struct {
 	press      map[string]hotkeys.Callback
 	release    map[string]hotkeys.Callback
 	viaRelease map[string]bool
+	ids        map[string]hotkeys.HotkeyID
 	nextID     hotkeys.HotkeyID
 }
 
@@ -30,6 +31,7 @@ func newFakeReleaseHotkeyManager() *fakeReleaseHotkeyManager {
 		press:      map[string]hotkeys.Callback{},
 		release:    map[string]hotkeys.Callback{},
 		viaRelease: map[string]bool{},
+		ids:        map[string]hotkeys.HotkeyID{},
 	}
 }
 
@@ -42,6 +44,7 @@ func (f *fakeReleaseHotkeyManager) Register(
 	f.nextID++
 	f.press[key] = callback
 	f.viaRelease[key] = false
+	f.ids[key] = f.nextID
 
 	return f.nextID, nil
 }
@@ -56,8 +59,29 @@ func (f *fakeReleaseHotkeyManager) RegisterWithRelease(
 	f.press[key] = press
 	f.release[key] = release
 	f.viaRelease[key] = true
+	f.ids[key] = f.nextID
 
 	return f.nextID, nil
+}
+
+// Unregister satisfies ports.HotkeyPort. The fake keys its maps by hotkey
+// string rather than ID, so this drops the single entry holding the ID.
+func (f *fakeReleaseHotkeyManager) Unregister(hotkeyID hotkeys.HotkeyID) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for key, id := range f.ids {
+		if id != hotkeyID {
+			continue
+		}
+
+		delete(f.press, key)
+		delete(f.release, key)
+		delete(f.viaRelease, key)
+		delete(f.ids, key)
+
+		return
+	}
 }
 
 func (f *fakeReleaseHotkeyManager) UnregisterAll() {
@@ -67,6 +91,7 @@ func (f *fakeReleaseHotkeyManager) UnregisterAll() {
 	f.press = map[string]hotkeys.Callback{}
 	f.release = map[string]hotkeys.Callback{}
 	f.viaRelease = map[string]bool{}
+	f.ids = map[string]hotkeys.HotkeyID{}
 }
 
 func (f *fakeReleaseHotkeyManager) pressCallback(key string) hotkeys.Callback {
@@ -113,21 +138,12 @@ func newDispatchTestApp(t *testing.T, cfg *config.Config, hkm HotkeyService) *Ap
 		config:        cfg,
 		appState:      appState,
 		hotkeyManager: hkm,
-		ipcController: NewIPCController(
-			nil, // hintService
-			nil, // gridService
-			nil, // actionService
-			nil, // scrollService
-			configService,
-			appState,
-			cfg,
-			nil, // modesHandler
-			nil, // systemPort
-			nil, // eventTap
-			nil, // ipcServer
-			nil, // reloadConfig
-			logger,
-		),
+		ipcController: NewIPCController(IPCControllerDeps{
+			ConfigService: configService,
+			AppState:      appState,
+			Config:        cfg,
+			Logger:        logger,
+		}),
 	}
 }
 

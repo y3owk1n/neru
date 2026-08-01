@@ -387,8 +387,31 @@ func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
 	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
 }
 
+// CheckScreenCapturePermission reports true: Linux does not gate screen capture
+// behind a permission.
+func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
+	return true
+}
+
+// RequestScreenCapturePermission reports granted without prompting: Linux has no
+// screen-recording permission to request.
+func (s *SystemAdapter) RequestScreenCapturePermission(
+	_ context.Context,
+) ports.ScreenCaptureConsent {
+	return ports.ScreenCaptureGranted
+}
+
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter keeps satisfying the optional SystemPort extensions it
+// opts into. Callers reach these by type assertion, so a signature drift would
+// otherwise silently downgrade Linux to the generic fallback path instead of
+// failing to compile.
+var (
+	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+	_ ports.CursorSynchronizer  = (*SystemAdapter)(nil)
+)
 
 // darkModeSource names which input produced a color-scheme value.
 type darkModeSource string

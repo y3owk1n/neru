@@ -173,10 +173,10 @@ else
     ldflags = [
       "-s"
       "-w"
-      "-X github.com/y3owk1n/neru/internal/cli.Version=${finalAttrs.version}"
+      "-X github.com/y3owk1n/neru/internal/buildinfo.Version=${finalAttrs.version}"
     ]
     ++ lib.optionals (commitHash != null) [
-      "-X github.com/y3owk1n/neru/internal/cli.GitCommit=${commitHash}"
+      "-X github.com/y3owk1n/neru/internal/buildinfo.GitCommit=${commitHash}"
     ];
 
     subPackages = [ "cmd/neru" ];

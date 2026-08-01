@@ -226,11 +226,11 @@ func (c *InfraAXClient) PerformAction(
 	case action.TypeLeftClick:
 		performActionErr = LeftClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeRightClick:
-		EnsureMouseUp()
+		ensureMouseUp()
 
 		performActionErr = RightClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeMiddleClick:
-		EnsureMouseUp()
+		ensureMouseUp()
 
 		performActionErr = MiddleClickAtPoint(point, restoreCursor, modifiers)
 	case action.TypeLeftMouseDown, action.TypeLeftMouseUp,
@@ -294,7 +294,7 @@ func performMouseButtonAction(
 
 // Scroll performs a scroll action.
 func (c *InfraAXClient) Scroll(deltaX, deltaY int) error {
-	EnsureMouseUp()
+	ensureMouseUp()
 
 	scrollErr := ScrollAtCursor(deltaX, deltaY)
 	if scrollErr != nil {

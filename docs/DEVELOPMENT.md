@@ -164,7 +164,7 @@ find . -name "*.go" | entr -r just test
 VERSION=$(git describe --tags --always --dirty)
 
 go build \
-  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/cli.Version=$VERSION" \
+  -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version=$VERSION" \
   -trimpath \
   -o bin/neru \
   ./cmd/neru

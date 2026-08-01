@@ -14,11 +14,9 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/electron"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
 const (
@@ -433,7 +431,14 @@ func (a *App) handleAdditionalAccessibility(bundleID string) {
 	go func() {
 		const maxRetries = 5
 		for range maxRetries {
-			if electron.EnsureAccessibility(bundleID, a.logger) {
+			ready, err := a.accessibility.PrimeApplication(a.ctx, bundleID)
+			if err != nil {
+				a.logger.Debug("Accessibility priming failed", zap.Error(err))
+
+				return
+			}
+
+			if ready {
 				return
 			}
 		}
@@ -475,7 +480,7 @@ func (a *App) waitForShutdown() error {
 	case <-a.stopChan:
 		// Programmatic stop requested (e.g. systray quit on Darwin).
 		// The systray event loop has already exited, so calling
-		// systray.Quit() again would dispatch to a dead run loop and
+		// platformQuit() again would dispatch to a dead run loop and
 		// hang until the timeout fires.
 		programmatic = true
 	}
@@ -494,7 +499,9 @@ func (a *App) waitForShutdown() error {
 	done := make(chan struct{})
 
 	go func() {
-		systray.Quit()
+		// platformQuit is the build-tagged dispatch (initialization_platform_*.go);
+		// calling infra's systray.Quit directly from here bypassed it.
+		platformQuit()
 		close(done)
 	}()
 

@@ -103,3 +103,23 @@ type GridConfig struct {
 	// HighlightedCell specifies which cell to highlight (-1 for none).
 	HighlightedCell int
 }
+
+// OverlayCapabilityReporter is an optional OverlayPort extension for managers
+// that can report their own support state.
+//
+// The overlay backend is the one subsystem whose availability is decided at
+// runtime rather than at build time: a Wayland manager may come up without
+// layer-shell, or an X11 manager without a usable display. OverlayPort.Health
+// asks the manager through this interface and reports CodeNotSupported with the
+// manager's own detail text.
+//
+// This used to be declared as overlay.CapabilityReporter inside the overlay
+// package, which meant Neru had two capability vocabularies. It lives here now
+// so the overlay entry in PlatformCapabilities and this reporter describe the
+// same thing.
+//
+// Managers that do not implement it are treated as healthy.
+type OverlayCapabilityReporter interface {
+	// OverlayCapabilities reports whether this manager can currently render.
+	OverlayCapabilities() FeatureCapability
+}

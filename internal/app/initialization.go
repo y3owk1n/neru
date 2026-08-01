@@ -15,10 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	visionAdapter "github.com/y3owk1n/neru/internal/core/infra/vision"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // initializeLogger initializes the application logger with the given configuration.
@@ -103,7 +102,7 @@ func initializeAdapters(
 	)
 
 	// Create overlay adapter for UI rendering
-	overlayPort := overlayAdapter.NewAdapter(
+	overlayPort := overlay.NewAdapter(
 		overlayManager,
 		newThemeProvider(systemPort),
 		systemPort,

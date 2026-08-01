@@ -1,22 +1,15 @@
 //go:build !darwin && !linux
 
-// Package keyfeed posts keyboard input directly to the host operating system.
 package keyfeed
 
 import derrors "github.com/y3owk1n/neru/internal/core/errors"
 
-// Feed is not implemented outside macOS and Linux yet.
-func Feed(_ string) error {
+// postKey reports that this platform has no key-injection path.
+//
+// Windows lands here today; the target is SendInput. The key_feed entry in
+// ports.PlatformCapabilities reports stub to match.
+func postKey(_ string) error {
 	return derrors.New(
-		derrors.CodeNotSupported,
-		"key feeding is only supported on macOS and Linux",
-	)
-}
-
-// NormalizeKeyForFeed normalizes a key string for feeding to the OS.
-// Not supported outside macOS and Linux.
-func NormalizeKeyForFeed(key string) (string, error) {
-	return "", derrors.New(
 		derrors.CodeNotSupported,
 		"key feeding is only supported on macOS and Linux",
 	)

@@ -9,7 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
-	uioverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 type overlayTestThemeProvider struct{}
@@ -17,11 +16,11 @@ type overlayTestThemeProvider struct{}
 func (t *overlayTestThemeProvider) IsDarkMode() bool { return false }
 
 type supportedManager struct {
-	uioverlay.NoOpManager
+	overlay.NoOpManager
 }
 
 type stubManager struct {
-	uioverlay.NoOpManager
+	overlay.NoOpManager
 }
 
 func (m *supportedManager) OverlayCapabilities() ports.FeatureCapability {
@@ -40,7 +39,7 @@ func (m *stubManager) OverlayCapabilities() ports.FeatureCapability {
 
 func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
-		&uioverlay.NoOpManager{},
+		&overlay.NoOpManager{},
 		&overlayTestThemeProvider{},
 		&portmocks.MockSystemPort{},
 		zap.NewNop(),

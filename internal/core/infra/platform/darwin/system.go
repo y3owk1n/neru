@@ -163,5 +163,26 @@ func (s *SystemAdapter) ShowNotification(title, message string) {
 	ShowNotification(title, message)
 }
 
+// CheckScreenCapturePermission reports whether macOS screen recording is
+// permitted, without prompting.
+func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
+	return CheckScreenCapturePermissions()
+}
+
+// RequestScreenCapturePermission shows the macOS screen-recording guidance and
+// reports the user's choice.
+func (s *SystemAdapter) RequestScreenCapturePermission(
+	_ context.Context,
+) ports.ScreenCaptureConsent {
+	switch ShowScreenCapturePermissionAlert() {
+	case screenCaptureAlertQuit:
+		return ports.ScreenCaptureQuit
+	case screenCaptureAlertCancel:
+		return ports.ScreenCaptureCanceled
+	default:
+		return ports.ScreenCaptureGranted
+	}
+}
+
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)

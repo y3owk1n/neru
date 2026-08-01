@@ -354,11 +354,20 @@ func TestSetApplicationAttribute(t *testing.T) {
 	}
 }
 
+// TestIsSecureInputEnabled exercises the CGO binding.
+//
+// The real value depends on whether a password field happens to be focused, so
+// this cannot assert a specific result. It does assert the probe is a stable
+// pure read — two calls with nothing between them must agree, which catches an
+// uninitialized bridge returning garbage.
 func TestIsSecureInputEnabled(t *testing.T) {
-	// Initialize logger for testing
 	darwin.InitializeLogger(zap.NewNop())
 
-	// This function should not panic - we can't control whether secure input
-	// is enabled in tests, but we can verify the CGO binding works
-	_ = darwin.IsSecureInputEnabled()
+	first := darwin.IsSecureInputEnabled()
+
+	for range 5 {
+		if darwin.IsSecureInputEnabled() != first {
+			t.Fatal("IsSecureInputEnabled() returned different values on consecutive calls")
+		}
+	}
 }

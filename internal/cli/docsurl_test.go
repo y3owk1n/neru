@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/cli"
+	"github.com/y3owk1n/neru/internal/buildinfo"
 )
 
 const (
@@ -64,7 +64,7 @@ func TestDocsURLUsesVersionTagOrMain(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			url := cli.DocsURL(testCase.path, testCase.version)
+			url := buildinfo.DocsURL(testCase.path, testCase.version)
 			if !strings.HasSuffix(url, testCase.wantSuffix) {
 				t.Errorf("docs URL = %q, want suffix %q", url, testCase.wantSuffix)
 			}

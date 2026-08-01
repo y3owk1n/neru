@@ -8,17 +8,17 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
-	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
-	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
-	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
 	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/modeindicator"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/stickyindicator"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 // mockEventTap is a mock implementation of ports.EventTapPort for testing.
@@ -291,6 +291,7 @@ func (m *mockOverlayManager) HideHintSearchInput() {}
 type mockHotkeyService struct {
 	mu         sync.RWMutex
 	registered map[string]hotkeys.Callback
+	ids        map[hotkeys.HotkeyID]string
 	nextID     hotkeys.HotkeyID
 }
 
@@ -305,11 +306,30 @@ func (m *mockHotkeyService) Register(
 		m.registered = make(map[string]hotkeys.Callback)
 	}
 
+	if m.ids == nil {
+		m.ids = make(map[hotkeys.HotkeyID]string)
+	}
+
 	m.registered[key] = callback
 	id := m.nextID
+	m.ids[id] = key
 	m.nextID++
 
 	return id, nil
+}
+
+// Unregister satisfies ports.HotkeyPort.
+func (m *mockHotkeyService) Unregister(hotkeyID hotkeys.HotkeyID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key, ok := m.ids[hotkeyID]
+	if !ok {
+		return
+	}
+
+	delete(m.registered, key)
+	delete(m.ids, hotkeyID)
 }
 
 func (m *mockHotkeyService) UnregisterAll() {
@@ -320,6 +340,7 @@ func (m *mockHotkeyService) UnregisterAll() {
 		m.registered = make(map[string]hotkeys.Callback)
 	}
 
+	m.ids = nil
 	m.nextID = 0
 }
 
@@ -330,14 +351,7 @@ func (m *mockHotkeyService) GetRegisteredCount() int {
 	return len(m.registered)
 }
 
-type mockAppWatcher struct{}
-
-func (m *mockAppWatcher) Start()                                {}
-func (m *mockAppWatcher) Stop()                                 {}
-func (m *mockAppWatcher) OnActivate(_ appwatcher.AppCallback)   {}
-func (m *mockAppWatcher) OnDeactivate(_ appwatcher.AppCallback) {}
-func (m *mockAppWatcher) OnTerminate(_ appwatcher.AppCallback)  {}
-func (m *mockAppWatcher) OnScreenParametersChanged(_ func())    {}
-func (m *mockAppWatcher) OnMissionControlActivated(_ func())    {}
-func (m *mockAppWatcher) OnMissionControlDeactivated(_ func())  {}
-func (m *mockAppWatcher) SetMCDetection(_ bool)                 {}
+// mockAppWatcher is the shared port mock. It used to be a hand-rolled fake
+// duplicating every AppWatcherPort method, which silently rotted whenever the
+// contract changed.
+type mockAppWatcher = portmocks.MockAppWatcherPort

@@ -548,6 +548,32 @@ func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
 	return a.excludedBundles[bundleID]
 }
 
+// ReleaseHeldButtons releases any mouse button this process still holds down.
+// The per-platform release lives in element_<os>.go; it is unexported because
+// only this adapter and the infra client may reach it.
+func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	ensureMouseUp()
+
+	return nil
+}
+
+// PrimeApplication waits briefly for the application's accessibility tree to
+// become queryable. The per-platform behavior lives in priming_darwin.go /
+// priming_other.go; see ports.TreePriming for why only macOS has work to do.
+func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, error) {
+	err := a.checkContext(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return primeApplication(bundleID, a.logger), nil
+}
+
 // Health checks if the accessibility permissions are granted.
 func (a *Adapter) Health(ctx context.Context) error {
 	// Check context

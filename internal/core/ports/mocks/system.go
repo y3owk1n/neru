@@ -9,28 +9,30 @@ import (
 
 // MockSystemPort is a mock implementation of ports.SystemPort.
 type MockSystemPort struct {
-	ConfigDirFunc                   func() (string, error)
-	UserDataDirFunc                 func() (string, error)
-	LogDirFunc                      func() (string, error)
-	FocusedAppPIDFunc               func(ctx context.Context) (int, error)
-	AppNameByPIDFunc                func(ctx context.Context, pid int) (string, error)
-	AppBundleIDByPIDFunc            func(ctx context.Context, pid int) (string, error)
-	ScreenBoundsFunc                func(ctx context.Context) (image.Rectangle, error)
-	ScreenBoundsByNameFunc          func(ctx context.Context, name string) (image.Rectangle, bool, error)
-	ScreenNamesFunc                 func(ctx context.Context) ([]string, error)
-	FocusedWindowBoundsFunc         func(ctx context.Context) (image.Rectangle, bool, error)
-	MoveCursorToPointFunc           func(ctx context.Context, point image.Point, bypassSmooth bool) error
-	WaitForCursorIdleFunc           func(ctx context.Context) error
-	CursorPositionFunc              func(ctx context.Context) (image.Point, error)
-	CheckPermissionsFunc            func(ctx context.Context) error
-	IsDarkModeFunc                  func() bool
-	IsSecureInputEnabledFunc        func() bool
-	ShowSecureInputNotificationFunc func()
-	ShowAlertFunc                   func(ctx context.Context, title, message string) error
-	ShowNotificationFunc            func(title, message string)
-	CapabilitiesFunc                func() ports.PlatformCapabilities
-	PlatformLabelFunc               func() string
-	HealthFunc                      func(ctx context.Context) error
+	ConfigDirFunc                      func() (string, error)
+	UserDataDirFunc                    func() (string, error)
+	LogDirFunc                         func() (string, error)
+	FocusedAppPIDFunc                  func(ctx context.Context) (int, error)
+	AppNameByPIDFunc                   func(ctx context.Context, pid int) (string, error)
+	AppBundleIDByPIDFunc               func(ctx context.Context, pid int) (string, error)
+	ScreenBoundsFunc                   func(ctx context.Context) (image.Rectangle, error)
+	ScreenBoundsByNameFunc             func(ctx context.Context, name string) (image.Rectangle, bool, error)
+	ScreenNamesFunc                    func(ctx context.Context) ([]string, error)
+	FocusedWindowBoundsFunc            func(ctx context.Context) (image.Rectangle, bool, error)
+	MoveCursorToPointFunc              func(ctx context.Context, point image.Point, bypassSmooth bool) error
+	WaitForCursorIdleFunc              func(ctx context.Context) error
+	CursorPositionFunc                 func(ctx context.Context) (image.Point, error)
+	CheckPermissionsFunc               func(ctx context.Context) error
+	CheckScreenCapturePermissionFunc   func(ctx context.Context) bool
+	RequestScreenCapturePermissionFunc func(ctx context.Context) ports.ScreenCaptureConsent
+	IsDarkModeFunc                     func() bool
+	IsSecureInputEnabledFunc           func() bool
+	ShowSecureInputNotificationFunc    func()
+	ShowAlertFunc                      func(ctx context.Context, title, message string) error
+	ShowNotificationFunc               func(title, message string)
+	CapabilitiesFunc                   func() ports.PlatformCapabilities
+	PlatformLabelFunc                  func() string
+	HealthFunc                         func(ctx context.Context) error
 }
 
 // ConfigDir is a mock implementation.
@@ -166,6 +168,28 @@ func (m *MockSystemPort) CheckPermissions(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// CheckScreenCapturePermission is a mock implementation. It reports granted by
+// default, matching every platform that does not gate screen capture.
+func (m *MockSystemPort) CheckScreenCapturePermission(ctx context.Context) bool {
+	if m.CheckScreenCapturePermissionFunc != nil {
+		return m.CheckScreenCapturePermissionFunc(ctx)
+	}
+
+	return true
+}
+
+// RequestScreenCapturePermission is a mock implementation. It reports granted
+// by default so tests never block on a permission flow they did not set up.
+func (m *MockSystemPort) RequestScreenCapturePermission(
+	ctx context.Context,
+) ports.ScreenCaptureConsent {
+	if m.RequestScreenCapturePermissionFunc != nil {
+		return m.RequestScreenCapturePermissionFunc(ctx)
+	}
+
+	return ports.ScreenCaptureGranted
 }
 
 // IsDarkMode is a mock implementation.

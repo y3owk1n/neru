@@ -5,7 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 )
 
 // CurrModeString returns the current mode as a string.
@@ -38,7 +38,7 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 }
 
 func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {
-	if h.setStickyModifierToggle == nil {
+	if !h.hasEventTap() {
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *Handler) SetModeIdle() {
 
 	h.setAppModeLocked(domain.ModeIdle)
 
-	if h.disableEventTap != nil {
+	if h.hasEventTap() {
 		h.disableEventTap()
 	}
 
@@ -78,7 +78,7 @@ func (h *Handler) SetModeIdle() {
 func (h *Handler) setModeLocked(appMode domain.Mode, overlayMode overlay.Mode) {
 	h.setAppModeLocked(appMode)
 
-	if h.enableEventTap != nil {
+	if h.hasEventTap() {
 		h.enableEventTap()
 	}
 

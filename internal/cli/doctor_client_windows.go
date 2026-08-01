@@ -32,28 +32,13 @@ func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {
 
 	cmd.Println("Platform capabilities:")
 	printCapabilityLine(cmd, "platform", caps.Platform, "")
-	printCapabilityLine(cmd, "process", string(caps.Process.Status), caps.Process.Detail)
-	printCapabilityLine(cmd, "screen", string(caps.Screen.Status), caps.Screen.Detail)
-	printCapabilityLine(cmd, "cursor", string(caps.Cursor.Status), caps.Cursor.Detail)
-	printCapabilityLine(
-		cmd,
-		"accessibility",
-		string(caps.Accessibility.Status),
-		caps.Accessibility.Detail,
-	)
-	printCapabilityLine(cmd, "overlay", string(caps.Overlay.Status), caps.Overlay.Detail)
-	printCapabilityLine(
-		cmd,
-		"global_hotkeys",
-		string(caps.GlobalHotkeys.Status),
-		caps.GlobalHotkeys.Detail,
-	)
-	printCapabilityLine(
-		cmd,
-		"keyboard_event_tap",
-		string(caps.KeyboardEventTap.Status),
-		caps.KeyboardEventTap.Detail,
-	)
+
+	// Iterating the registry keeps this listing complete by construction; it
+	// previously spelled out a subset and silently dropped notifications,
+	// app_watcher, and dark_mode_detection.
+	for _, entry := range caps.Entries() {
+		printCapabilityLine(cmd, string(entry.Key), string(entry.Status), entry.Detail)
+	}
 
 	cmd.Println()
 	cmd.Println("Live probes:")

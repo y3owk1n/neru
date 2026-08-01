@@ -25,10 +25,6 @@ type ActionService struct {
 	logger   *zap.Logger
 }
 
-type relativeCursorMover interface {
-	MoveCursorBy(ctx context.Context, delta image.Point) (bool, error)
-}
-
 // NewActionService creates a new action service.
 func NewActionService(
 	accessibility ports.AccessibilityPort,
@@ -219,6 +215,18 @@ func (s *ActionService) MoveMouseTo(
 	)
 }
 
+// ReleaseHeldButtons releases any mouse button Neru still holds down.
+//
+// Mode-exit paths call this so an interrupted drag does not leave the desktop
+// behaving as if a button were still pressed.
+func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
+	if s.accessibility == nil {
+		return nil
+	}
+
+	return s.accessibility.ReleaseHeldButtons(ctx)
+}
+
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
 // If bypassSmooth is true, smooth cursor animation is skipped (used for keyboard-driven movements).
 func (s *ActionService) MoveMouseRelative(
@@ -228,7 +236,9 @@ func (s *ActionService) MoveMouseRelative(
 ) error {
 	shouldBypass := len(bypassSmooth) > 0 && bypassSmooth[0]
 
-	if mover, ok := s.system.(relativeCursorMover); ok {
+	// Platforms that can apply the delta natively (ports.RelativeCursorMover)
+	// avoid the read-then-warp round trip below; everything else falls through.
+	if mover, ok := s.system.(ports.RelativeCursorMover); ok {
 		handled, err := mover.MoveCursorBy(ctx, image.Point{X: deltaX, Y: deltaY})
 		if handled {
 			if err != nil {

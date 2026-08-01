@@ -45,13 +45,55 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
-func TestIsServerRunning(_ *testing.T) {
-	// Test when server is not running
-	running := ipc.IsServerRunning()
+// TestIsServerRunning asserts the probe tracks a real server's lifecycle.
+//
+// It previously called IsServerRunning and discarded the result, so it could
+// not fail. The probe reads a process-wide socket, so this skips when a daemon
+// already owns it rather than fighting for the path.
+func TestIsServerRunning(t *testing.T) {
+	if ipc.IsServerRunning() {
+		t.Skip("a neru daemon already owns the IPC socket; skipping lifecycle assertions")
+	}
 
-	// We can't assert the value since it depends on system state
-	// Just verify it doesn't panic
-	_ = running
+	server, err := ipc.NewServer(
+		func(_ context.Context, _ ipc.Command) ipc.Response {
+			return ipc.Response{Success: true, Code: ipc.CodeOK}
+		},
+		zap.NewNop(),
+	)
+	if err != nil {
+		t.Fatalf("NewServer() error = %v, want nil", err)
+	}
+
+	server.Start()
+
+	t.Cleanup(func() {
+		_ = server.Stop()
+	})
+
+	// Start is asynchronous, so poll rather than assuming the listener is up.
+	deadline := time.Now().Add(3 * time.Second)
+	for !ipc.IsServerRunning() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if !ipc.IsServerRunning() {
+		t.Fatal("IsServerRunning() = false while a started server owns the socket")
+	}
+
+	err = server.Stop()
+	if err != nil {
+		t.Fatalf("Stop() error = %v, want nil", err)
+	}
+
+	deadline = time.Now().Add(3 * time.Second)
+	for ipc.IsServerRunning() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if ipc.IsServerRunning() {
+		t.Error("IsServerRunning() = true after the server stopped")
+	}
 }
 
 func TestNewServer(t *testing.T) {

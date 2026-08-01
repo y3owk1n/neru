@@ -34,21 +34,13 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		},
 	}
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		nil,
-		nil,
-		configService,
-		appState,
-		cfg,
-		nil,
-		system,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		System:        system,
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(
 		context.Background(),
@@ -79,6 +71,20 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 
 	if capabilities["overlay"] != string(ports.FeatureStatusStub) {
 		t.Fatalf("overlay capability = %v, want stub", capabilities["overlay"])
+	}
+
+	// The IPC response must carry every registered capability, not a
+	// hand-maintained subset. This is the seam that previously drifted: the
+	// Windows doctor listed eight of ten capabilities and nothing noticed.
+	for _, entry := range (ports.PlatformCapabilities{}).Entries() {
+		if _, present := capabilities[string(entry.Key)]; !present {
+			t.Errorf(
+				"capability %q (field %s) is missing from the status response; "+
+					"capabilitiesMap must iterate PlatformCapabilities.Entries()",
+				entry.Key,
+				entry.Field,
+			)
+		}
 	}
 
 	primaryMod, primaryModOK := profile["primary_modifier"].(string)
@@ -117,21 +123,13 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 		},
 	}
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		nil,
-		nil,
-		configService,
-		appState,
-		cfg,
-		nil,
-		system,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		System:        system,
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(
 		context.Background(),

@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/core/domain"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 // mockApp implements AppInterface for testing.
@@ -80,7 +81,7 @@ func TestNewComponent(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockApp := &mockApp{}
 
-	component := systray.NewComponent(mockApp, nil, logger)
+	component := systray.NewComponent(mockApp, &portmocks.MockSystrayPort{}, nil, logger)
 
 	if component == nil {
 		t.Fatal("NewComponent returned nil")
@@ -94,23 +95,55 @@ func TestComponent_OnReady(t *testing.T) {
 		gridEnabled:  true,
 	}
 
-	component := systray.NewComponent(mockApp, nil, logger)
+	tray := &portmocks.MockSystrayPort{}
+	component := systray.NewComponent(mockApp, tray, nil, logger)
 
-	// OnReady should not panic and set up menu items
-	// Note: We can't easily test systray.Run in unit tests
-	// as it requires a GUI environment
 	component.OnReady()
 
-	// Test completed without panic - menu items are initialized internally
+	// Before ports.SystrayPort existed this test could only assert "did not
+	// panic", because the menu was built against a process-global tray. The
+	// mock lets it assert what the user actually sees.
+	if tray.Tooltip() == "" {
+		t.Error("OnReady() set no tooltip on the tray")
+	}
+
+	items := tray.Items()
+	if len(items) == 0 {
+		t.Fatal("OnReady() created no menu items")
+	}
+
+	// Spot-check entries the menu must always carry, whatever else changes.
+	for _, want := range []string{"Help", "Config", "Activate Modes"} {
+		if tray.FindItem(want) == nil {
+			var titles []string
+			for _, item := range items {
+				if title := item.Title(); title != "" {
+					titles = append(titles, title)
+				}
+			}
+
+			t.Errorf("OnReady() built no %q item; got %v", want, titles)
+		}
+	}
 }
 
 func TestComponent_OnExit(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockApp := &mockApp{}
 
-	component := systray.NewComponent(mockApp, nil, logger)
+	tray := &portmocks.MockSystrayPort{}
+	component := systray.NewComponent(mockApp, tray, nil, logger)
 
-	// OnExit should not panic; cleanup is owned by the daemon host, not the
-	// systray component.
+	component.OnReady()
+
+	// Shutdown runs OnExit and Close on paths that can overlap, so both must
+	// tolerate being called more than once. A panic or a double-close here
+	// fails the test.
 	component.OnExit()
+	component.OnExit()
+	component.Close()
+
+	if tray.FindItem("Help") == nil {
+		t.Error("OnExit() should not tear down the menu the tray still owns")
+	}
 }

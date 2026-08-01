@@ -10,15 +10,10 @@ import (
 
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const waylandStopTimeout = 3 * time.Second
-
-// HotkeyID represents a unique identifier for a registered hotkey.
-type HotkeyID int
-
-// Callback defines the function signature for hotkey event handlers.
-type Callback func()
 
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 type Manager struct {
@@ -152,6 +147,12 @@ func (m *Manager) UnregisterAll() {
 // On non-Wayland backends (X11) it always returns true because there is no
 // passive evdev listener to monitor. Callers (the app health-check loop)
 // reinitialize the listener if this returns false.
+// Ensure the Linux Manager keeps satisfying the optional health-reporting
+// extension. The sleep/resume handler reaches it by type assertion, so a
+// signature drift would silently stop re-registering hotkeys after an X11
+// restart or compositor reload instead of failing to compile.
+var _ ports.HotkeyHealthReporter = (*Manager)(nil)
+
 func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

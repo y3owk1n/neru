@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/components/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -16,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 )
@@ -46,7 +46,8 @@ type App struct {
 	ConfigPath string
 	logger     *zap.Logger
 
-	systemPort ports.SystemPort
+	systemPort    ports.SystemPort
+	accessibility ports.AccessibilityPort
 
 	appState    *state.AppState
 	cursorState *state.CursorState
@@ -56,6 +57,7 @@ type App struct {
 	hotkeyManager  HotkeyService
 	eventTap       ports.EventTapPort
 	textInput      ports.TextInputPort
+	keyFeed        ports.KeyFeedPort
 	ipcServer      ports.IPCPort
 	appWatcher     Watcher
 

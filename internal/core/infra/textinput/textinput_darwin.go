@@ -21,6 +21,12 @@ import (
 
 	"go.uber.org/zap"
 
+	// Blank import links the Objective-C bridge that defines
+	// NeruStartHintSearchTextInput / NeruStopHintSearchTextInput. Without it the
+	// package compiles but fails to link on its own — which is why this package
+	// had no tests: `go test ./internal/core/infra/textinput/` could not build a
+	// test binary. keyfeed_darwin.go carries the same import for the same reason.
+	_ "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 

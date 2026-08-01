@@ -6,8 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 )
 
 // StartInteractiveScroll activates the interactive scroll mode,
@@ -37,7 +36,7 @@ func (h *Handler) StartInteractiveScroll() {
 		h.hotkeyLastKey = ""
 		h.hotkeyLastKeyTime = 0
 		h.clearStickyModifiers()
-		accessibility.EnsureMouseUp()
+		h.releaseHeldButtons()
 
 		h.suppressedModifiers = 0
 		h.suppressedUntil = time.Time{}

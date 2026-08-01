@@ -23,8 +23,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	linux "github.com/y3owk1n/neru/internal/core/infra/platform/linux"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 const (

@@ -36,10 +36,39 @@ type ScreenManagement interface {
 	CursorPosition(ctx context.Context) (image.Point, error)
 }
 
-// PermissionManagement defines the interface for accessibility permissions.
+// ScreenCaptureConsent is the user's answer to the screen-recording permission
+// prompt.
+type ScreenCaptureConsent int
+
+const (
+	// ScreenCaptureGranted means recording is permitted and the caller may proceed.
+	ScreenCaptureGranted ScreenCaptureConsent = iota
+	// ScreenCaptureCanceled means the user declined; the caller should abandon
+	// the operation but keep running.
+	ScreenCaptureCanceled
+	// ScreenCaptureQuit means the user asked to quit Neru entirely.
+	ScreenCaptureQuit
+)
+
+// PermissionManagement defines the interface for OS permission gates.
 type PermissionManagement interface {
 	// CheckPermissions verifies that accessibility permissions are granted.
 	CheckPermissions(ctx context.Context) error
+
+	// CheckScreenCapturePermission reports whether screen recording is
+	// permitted, without prompting.
+	//
+	// Only the vision hint strategy needs this, and only macOS gates screen
+	// capture behind a permission — platforms with no such gate report true.
+	CheckScreenCapturePermission(ctx context.Context) bool
+
+	// RequestScreenCapturePermission shows the platform's guidance for
+	// granting screen recording and reports what the user chose.
+	//
+	// It blocks on a modal dialog, so callers must not hold a lock across it.
+	// Platforms with no permission gate return ScreenCaptureGranted without
+	// showing anything.
+	RequestScreenCapturePermission(ctx context.Context) ScreenCaptureConsent
 }
 
 // FileSystemPort defines the interface for platform-specific file system operations.
@@ -109,4 +138,58 @@ type SystemPort interface {
 
 	// ShowNotification displays a lightweight toast/banner notification.
 	ShowNotification(title, message string)
+}
+
+// Optional SystemPort extensions.
+//
+// Some platforms can do a job better than the shared code can, but not every
+// platform can do it at all — so the capability cannot go on SystemPort without
+// forcing every adapter to carry a stub. These interfaces are the declared
+// alternative: an adapter opts in by implementing one, and the caller reaches
+// it with a type assertion against the interface *declared here*.
+//
+// The rules that keep this from becoming folklore:
+//
+//   - Declare the interface in this package, next to the port it extends.
+//     Never define one in the consuming package — a contributor on another
+//     platform has no way to discover an interface that lives in a service.
+//   - The caller must have a working fallback for adapters that do not
+//     implement it. An optional extension is an optimization or a
+//     platform-native shortcut, never the only path.
+//   - Document which adapters implement it and why the others cannot.
+//
+// See docs/CROSS_PLATFORM.md ("The three tiers") for when to reach for this
+// instead of adding a method to SystemPort.
+
+// RelativeCursorMover is an optional SystemPort extension for platforms that
+// can move the cursor by a delta natively, without a read-then-warp round trip.
+//
+// Implemented by the Linux adapter, where the Wayland backends have no
+// authoritative cursor-position query: reading the position and warping to
+// position+delta would compound the error in the client-side position cache,
+// so the backend applies the delta directly instead.
+//
+// Callers must fall back to CursorPosition + MoveCursorToPoint when the adapter
+// does not implement this, or when MoveCursorBy reports handled == false.
+type RelativeCursorMover interface {
+	// MoveCursorBy moves the cursor by delta from its current position.
+	// It returns handled == false when this particular backend cannot apply
+	// the delta natively, which means the caller should use its fallback.
+	MoveCursorBy(ctx context.Context, delta image.Point) (handled bool, err error)
+}
+
+// CursorSynchronizer is an optional SystemPort extension for platforms whose
+// cursor position is cached client-side and can drift from the compositor's.
+//
+// Implemented by the Linux adapter: on Wayland a client cannot query the
+// pointer position directly, so the adapter keeps a cache that a plain
+// user-driven mouse move invalidates. Modes call this before activation so the
+// first cursor-follow lands correctly.
+//
+// Callers must treat a missing implementation as "already in sync" — never as
+// an error.
+type CursorSynchronizer interface {
+	// SyncCursorPosition refreshes the adapter's cached cursor position from
+	// the platform's authoritative source.
+	SyncCursorPosition(ctx context.Context) error
 }

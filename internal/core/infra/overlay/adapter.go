@@ -6,19 +6,18 @@ import (
 
 	"go.uber.org/zap"
 
-	gridFeature "github.com/y3owk1n/neru/internal/app/components/grid"
-	overlayHints "github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	gridFeature "github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	overlayHints "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
-	manager uiOverlay.ManagerInterface
+	manager ManagerInterface
 	theme   config.ThemeProvider
 	system  ports.SystemPort
 	logger  *zap.Logger
@@ -26,7 +25,7 @@ type Adapter struct {
 
 // NewAdapter creates a new overlay adapter.
 func NewAdapter(
-	manager uiOverlay.ManagerInterface,
+	manager ManagerInterface,
 	theme config.ThemeProvider,
 	system ports.SystemPort,
 	logger *zap.Logger,
@@ -184,7 +183,7 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 
 // Health checks if the overlay manager is responsive.
 func (a *Adapter) Health(_ context.Context) error {
-	if reporter, ok := a.manager.(uiOverlay.CapabilityReporter); ok {
+	if reporter, ok := a.manager.(CapabilityReporter); ok {
 		capability := reporter.OverlayCapabilities()
 		if !capability.Supported() {
 			return derrors.New(derrors.CodeNotSupported, capability.Detail)

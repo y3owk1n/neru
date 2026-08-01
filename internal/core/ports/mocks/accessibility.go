@@ -21,6 +21,38 @@ type MockAccessibilityPort struct {
 	ScrollFunc               func(context.Context, int, int) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
+	PrimeApplicationFunc     func(context.Context, string) (bool, error)
+	ReleaseHeldButtonsFunc   func(context.Context) error
+	UpdateClickableRolesFunc func([]string)
+}
+
+// UpdateClickableRoles implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) UpdateClickableRoles(roles []string) {
+	if m.UpdateClickableRolesFunc != nil {
+		m.UpdateClickableRolesFunc(roles)
+	}
+}
+
+// ReleaseHeldButtons implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ReleaseHeldButtons(ctx context.Context) error {
+	if m.ReleaseHeldButtonsFunc != nil {
+		return m.ReleaseHeldButtonsFunc(ctx)
+	}
+
+	return nil
+}
+
+// PrimeApplication implements ports.AccessibilityPort. It reports ready by
+// default, matching every backend whose tree is eagerly available.
+func (m *MockAccessibilityPort) PrimeApplication(
+	ctx context.Context,
+	bundleID string,
+) (bool, error) {
+	if m.PrimeApplicationFunc != nil {
+		return m.PrimeApplicationFunc(ctx, bundleID)
+	}
+
+	return true, nil
 }
 
 // Health implements ports.AccessibilityPort.

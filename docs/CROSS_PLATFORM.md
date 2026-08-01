@@ -9,7 +9,7 @@ covers both sides of that:
   lives, and how to add to it.
 
 Every claim in Part 1 is derived from code under `internal/core/infra/`,
-`internal/ui/overlay/`, and `internal/app/`. **If this document and the code
+`internal/ui/`, and `internal/app/`. **If this document and the code
 disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 **Related:** [Architecture](./ARCHITECTURE.md) · [Linux setup](./LINUX_SETUP.md) ·
@@ -34,6 +34,7 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 **Part 2 — [Contributor Guide](#contributor-guide)**
 
 - [First Stops](#first-stops)
+- [The Three Tiers](#the-three-tiers)
 - [File Layout Rules](#file-layout-rules)
 - [Where To Implement What](#where-to-implement-what)
 - [Build And Test Commands](#build-and-test-commands)
@@ -88,7 +89,7 @@ label and the matrix disagree, the matrix is right.
 
 Linux is not one target. The live backend is detected once at startup from
 `XDG_CURRENT_DESKTOP`, `WAYLAND_DISPLAY`, and `DISPLAY`
-([linux_backend.go](../internal/core/infra/platform/linux_backend.go)):
+([backend_linux.go](../internal/core/infra/platform/backend_linux.go)):
 
 | Backend                | Detected when                                       | Status                       |
 | ---------------------- | --------------------------------------------------- | ---------------------------- |
@@ -137,12 +138,15 @@ or no-op) · ❌ no code path
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
-| **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem   | ✅ Win32 notification area | ✅                        |
+| **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
 | **Native alerts**             | ✅ NSAlert               | 🟡                     | 🟡                           | 🟡                      | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | 🟡                     | 🟡                           | 🟡                      | 🟡                           |
 | **Secure input detection**    | ✅                       | 🟡 always false        | 🟡 always false              | 🟡 always false         | 🟡 always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ❌                     | ❌                           | ❌                      | ❌                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
+| **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream fallback | 🟡 key-stream fallback       | 🟡 key-stream fallback  | 🟡 key-stream fallback       |
+| **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
+| **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 
 ¹ macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
 Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
@@ -248,8 +252,8 @@ left-most held button, since one event cannot describe more.
 | **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ❌ no-op                |
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ❌ no-op                |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
-| **Capture files**     | `eventtap_darwin.go`   | `eventtap_linux_x11.go` | `eventtap_linux_wayland.go`, `..._evdev_cgo.go` | `eventtap_windows.go` |
-| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11.go`  | `manager_linux_common.go` + `eventtap/global_hotkey_linux_cgo.go` ³ | `manager_windows.go` |
+| **Capture files**     | `eventtap_darwin.go`   | `eventtap_linux_x11_cgo.go` | `eventtap_linux_wayland_cgo.go`, `..._evdev_cgo.go` | `eventtap_windows.go` |
+| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11_cgo.go`  | `manager_linux_common.go` + `eventtap/global_hotkey_linux_cgo.go` ³ | `manager_windows.go` |
 
 ³ `hotkeys/manager_linux_wayland.go` is an empty placeholder — the Wayland
 hotkey path lives in the common manager, which delegates to the evdev listener
@@ -352,7 +356,7 @@ important thing to know before touching overlay code:
   rendering is GPU-backed via CoreAnimation.
 - **Linux and Windows** — component files are stubs holding only `Style` /
   `BuildStyle`. All real rendering happens in the overlay **manager**
-  (`manager_linux_x11.go`, `manager_linux_wayland_cgo.go`, `manager_windows*.go`),
+  (`manager_linux_x11_cgo.go`, `manager_linux_wayland_cgo.go`, `manager_windows*.go`),
   drawing every element into one shared surface.
 
 ### Implementation
@@ -484,30 +488,189 @@ Guiding principles:
 
 Read these before changing platform code:
 
+- [The Three Tiers](#the-three-tiers) — **start here**; it decides where your code goes
 - [platform/profile.go](../internal/core/infra/platform/profile.go) — per-subsystem backend family and CGO expectations
-- [ports/system.go](../internal/core/ports/system.go) — the main OS contract
-- [ports/capabilities.go](../internal/core/ports/capabilities.go) and [capability_presets.go](../internal/core/ports/capability_presets.go) — what `neru doctor` reports
+- [ports/system.go](../internal/core/ports/system.go) — the main OS contract, plus the optional-extension pattern
+- [ports/capabilities.go](../internal/core/ports/capabilities.go) and [capability_presets.go](../internal/core/ports/capability_presets.go) — the capability registry `neru doctor` reports
 - [ports/font.go](../internal/core/ports/font.go) — FontResolver port
+- [architecture/platform_slots_test.go](../internal/architecture/platform_slots_test.go) — the file-layout rules, as executable checks
 - [ARCHITECTURE.md](./ARCHITECTURE.md) and [CONVENTIONS.md](./go/CONVENTIONS.md)
 
 Contributing Linux support? Also open the reserved backend files in the package
 you plan to touch (`*_linux_common.go`, `*_linux_x11.go`, `*_linux_wayland.go`)
 before writing anything.
 
+## The Three Tiers
+
+Before choosing a file, choose a **tier**. Every platform-varying capability in
+Neru is expressed one of exactly three ways, and picking the wrong one is the
+most common way platform code becomes hard to navigate.
+
+The deciding question is **who needs the capability**:
+
+| Tier                            | Use when                                                              | Mechanism                                                                  |
+| ------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **1 — Port**                    | app, domain, or more than one infra package needs it                  | interface in `internal/core/ports`, adapter in `internal/core/infra`        |
+| **2 — In-package dispatch**     | exactly one infra package needs it                                    | build-tagged `platform_<os>.go` files, **unexported** functions             |
+| **3 — Optional port extension** | only some platforms can offer it, and the caller has a real fallback  | interface **declared in `ports`**, reached by type assertion                |
+
+### Tier 1 — Port
+
+The app and domain layers must never import an infra package to reach an OS
+capability. If they need it, it is a port.
+
+Requirements — all four, or it is not done:
+
+1. Interface in `internal/core/ports`, documented with what each platform is
+   expected to do and what a caller must do when it cannot.
+2. Adapter in `internal/core/infra/<subsystem>/`, with
+   `var _ ports.XPort = (*Adapter)(nil)`.
+3. Mock in `internal/core/ports/mocks/`. Hand-rolled fakes in `_test.go` files
+   rot silently when the contract changes — the shared mock does not.
+4. An entry in `ports.PlatformCapabilities` so `neru doctor` reports it.
+
+Current ports: `SystemPort`, `AccessibilityPort`, `OverlayPort`, `EventTapPort`,
+`HotkeyPort`, `IPCPort`, `VisionPort`, `TextInputPort`, `KeyFeedPort`,
+`AppWatcherPort`, `SystrayPort`, `FontResolver`.
+
+Optional extensions, reached by type assertion (Tier 3): `RelativeCursorMover`
+and `CursorSynchronizer` on `SystemPort`, `HotkeyReleaseRegistrar` and
+`HotkeyHealthReporter` on `HotkeyPort`, `OverlayKeyboardPassthroughReporter` on
+`EventTapPort`, and `OverlayCapabilityReporter` on `OverlayPort`.
+
+[`keyfeed`](../internal/core/infra/keyfeed/) is the reference example: shared
+normalization untagged in `keyfeed.go`, one unexported `postKey` per platform,
+`Adapter` implementing the port, capability entry, mock, contract tests.
+
+### Tier 2 — In-package dispatch
+
+A capability only one infra package uses does **not** become a port. Wrapping it
+in an interface buys no test seam and no substitutability — just indirection.
+
+Use build-tagged files inside that package with **unexported** functions:
+
+```go
+// platform_darwin.go
+func platformActiveScreenBounds() image.Rectangle { /* Cocoa */ }
+
+// platform_other.go
+func platformActiveScreenBounds() image.Rectangle { return image.Rectangle{} }
+```
+
+Keeping them unexported is the whole point: an exported one becomes another
+package's dependency, and the seam has quietly become a badly-specified port.
+
+Examples: `accessibility/priming_*.go`, `accessibility/supplementary_*.go`,
+`appwatcher/platform_*.go`, `ipc/transport_unix.go`.
+
+### Tier 3 — Optional port extension
+
+Some platforms can do a job better than shared code can, but not all can do it
+at all — so it cannot go on the base port without forcing every adapter to carry
+a stub. Declare a small interface **in `ports`, next to the port it extends**,
+and let the caller find it by type assertion:
+
+```go
+// ports/system.go
+type RelativeCursorMover interface {
+    MoveCursorBy(ctx context.Context, delta image.Point) (handled bool, err error)
+}
+
+// the caller always has a fallback
+if mover, ok := s.system.(ports.RelativeCursorMover); ok { /* fast path */ }
+```
+
+Two rules:
+
+- **Declare it in `ports`.** An interface defined in the consuming package is
+  undiscoverable — a contributor on another platform has no way to learn the
+  extension exists. This is why `relativeCursorMover` and `cursorSyncer` moved
+  out of `services` and `modes`.
+- **The caller must have a working fallback.** An optional extension is an
+  optimization or a platform-native shortcut, never the only path.
+
+Adapters opting in should assert it: `var _ ports.RelativeCursorMover =
+(*SystemAdapter)(nil)`. Callers reach these by type assertion, so a signature
+drift would otherwise silently downgrade the platform to the generic path
+instead of failing to compile.
+
+### Not ports
+
+Do not lift these behind interfaces: `platform/{darwin,linux,windows}`
+internals, `wlr_protocol`, overlay drawing in `internal/core/infra/overlay`, `logger`,
+and IPC transport. They are implementation, reached through a port that already
+exists.
+
+### Dependency direction
+
+The tiers only mean something if the arrows point one way. Three rules, all
+enforced by
+[layering_test.go](../internal/architecture/layering_test.go):
+
+| Rule                                                | Why |
+| --------------------------------------------------- | --- |
+| `internal/core/domain` imports no infra, app, or UI | domain is pure Go; a domain package that needs an OS cannot be unit-tested |
+| `internal/core/*` never imports `internal/app` or `internal/ui` | adapters implement ports; the hexagon has no upward edges |
+| app code reaches infra only through ports           | only the composition root knows which adapter exists |
+
+The third rule has three deliberate escapes, all narrow:
+
+- **Shared vocabulary** — `infra/ipc` (the CLI/daemon wire protocol),
+  `infra/logger`, `infra/platform` (the SystemPort factory plus the `Profile`
+  that `neru doctor` prints), and `infra/overlay` render models
+  (`overlay.Mode`, `hints.Hint`, `grid.Style`). These are data and plumbing,
+  not OS behavior — the behavior is behind `ports.OverlayPort`.
+- **Composition root** — `initialization.go`, `app_initialization_steps.go`,
+  `component_factory.go`, `cmd/neru/main.go`. Wiring adapters to ports is their
+  job.
+- **Build-tagged dispatch** — any `*_darwin.go` / `*_linux*.go` /
+  `*_windows.go` / `*_other.go` file in the app layer is Tier 2.
+
+Anything else is a violation. `knownLayeringExceptions` exists for edges that
+cannot be fixed in the same change; it is currently **empty**, and a second test
+fails if an entry stops being a real violation, so the list can only shrink.
+
+> The `internal/core/infra/overlay` package is the worked example. Its managers
+> used to live in `internal/ui/overlay` and imported `internal/app/components`
+> for their render models — an upward edge that nothing caught. Moving the
+> managers into infra made the inversion obvious, and the fix was to move the
+> render packages down to `internal/core/infra/overlay/render/` rather than
+> allow the edge.
+
 ## File Layout Rules
 
-Platform files make the implementation slot obvious. Use these suffixes:
+Once the tier is settled, the filename declares the slot. These rules are
+enforced by
+[platform_slots_test.go](../internal/architecture/platform_slots_test.go), so a
+violation fails `just test` rather than review:
 
 | Suffix                            | Meaning                                                   |
 | --------------------------------- | --------------------------------------------------------- |
 | `*_darwin.go`                     | macOS                                                     |
 | `*_windows.go`                    | Windows                                                   |
 | `*_other.go`                      | non-target fallback for dispatch-style packages           |
+| `*_unix.go`                       | the `!windows` side of a split (established Go convention) |
 | `*_linux_common.go`               | Linux-shared wrapper, fallback, or backend routing        |
 | `*_linux_x11.go`                  | X11                                                       |
 | `*_linux_wayland.go`              | Wayland                                                   |
 | `*_linux_wayland_<compositor>.go` | one compositor family needing a distinct path             |
 | `*_cgo.go` / `*_nocgo.go`         | CGO and pure-Go variants of the same slot                 |
+
+What the guardrail test checks:
+
+- A file constrained to exactly one GOOS must carry that OS as a name token.
+  Go's implicit suffix rule already prevents the forward mistake; this catches
+  the reverse — a `tree.go` that is secretly `//go:build darwin` is invisible to
+  anyone scanning the directory.
+- A file whose constraint is a pure negation is a fallback and must be named
+  `*_other.go`. `_stub.go`, `_stubs.go`, `_default.go`, `_fallback.go`,
+  `_noop.go` and friends are rejected — one slot, one spelling.
+- A file gated on cgo must say so: `*_cgo.go` or `*_nocgo.go`. Before this rule
+  a plain name usually meant the cgo variant, but in the overlay package it
+  meant the opposite, and reading the build tag was the only way to tell.
+- Every file in `platform/{darwin,linux,windows}/` declares its OS tag. Those
+  packages are exempt from the suffix rule — the directory carries the meaning —
+  which only holds if nothing untagged leaks in.
 
 Two rules that save review cycles:
 
@@ -523,14 +686,14 @@ Two rules that save review cycles:
 | global hotkeys                                               | `internal/core/infra/hotkeys/`                               |
 | keyboard event capture                                       | `internal/core/infra/eventtap/`                              |
 | accessibility integration                                    | `internal/core/infra/accessibility/`                         |
-| overlay window orchestration **and all Linux/Windows drawing** | `internal/ui/overlay/`                                     |
-| overlay rendering by mode (**macOS only**; stubs elsewhere)  | `internal/app/components/*/overlay_*.go`                     |
+| overlay window orchestration **and all Linux/Windows drawing** | `internal/core/infra/overlay/`                             |
+| overlay rendering by mode (**macOS only**; stubs elsewhere)  | `internal/core/infra/overlay/render/*/overlay_*.go`          |
 | app watcher and other isolated platform hooks                | dispatch-style `platform_*.go` in the relevant package       |
 
 Worked examples:
 
-- X11 hotkeys → [manager_linux_x11.go](../internal/core/infra/hotkeys/manager_linux_x11.go)
-- Wayland keyboard capture → [eventtap_linux_wayland.go](../internal/core/infra/eventtap/eventtap_linux_wayland.go)
+- X11 hotkeys → [manager_linux_x11_cgo.go](../internal/core/infra/hotkeys/manager_linux_x11_cgo.go)
+- Wayland keyboard capture → [eventtap_linux_wayland_cgo.go](../internal/core/infra/eventtap/eventtap_linux_wayland_cgo.go)
 - shared Linux system fallbacks → [system_linux_common.go](../internal/core/infra/platform/linux/system_linux_common.go)
 
 ## Build And Test Commands
@@ -557,7 +720,7 @@ Linux is a backend *family*, not a single target. Keep two axes separate:
   Wayland at compile time. A suffix therefore never encodes a single desktop
   environment on its own.
 - **Runtime axis (which compositor is live)** — expressed by the `LinuxBackend`
-  family in [linux_backend.go](../internal/core/infra/platform/linux_backend.go),
+  family in [backend_linux.go](../internal/core/infra/platform/backend_linux.go),
   detected from environment variables and routed by `factory.go` plus dispatch
   seams such as `system_linux_wayland_input.go`.
 
@@ -594,7 +757,7 @@ needs a path no other family shares. Current sub-slots:
 `system_linux_wayland_input.go` as the shared routing seam.
 
 **To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
-in `linux_backend.go`, route it in the factory and the relevant dispatch seams,
+in `backend_linux.go`, route it in the factory and the relevant dispatch seams,
 and add a new `*_linux_wayland_<compositor>.go` slot *only* if it cannot reuse an
 existing mechanism file.
 
@@ -656,21 +819,47 @@ names to layout-aware keycodes.
 
 ## Adding A New Capability
 
-**If multiple services or app layers need it** (broad system capability):
+Start from [The Three Tiers](#the-three-tiers) — the tier decides everything
+below.
 
-1. Add it to [ports/system.go](../internal/core/ports/system.go)
+**Tier 1, extending an existing port** (a new OS operation the app needs, and a
+port already covers that subsystem — e.g. another screen query):
+
+1. Add the method to the port, documenting what each platform should do
 2. Implement it in the darwin adapter
 3. Add a Linux shared fallback in `system_linux_common.go`
-4. Add a Windows implementation or explicit stub in the Windows platform package
-5. Push backend-specific Linux behavior down into `system_linux_x11.go` or `system_linux_wayland.go`
-6. Update capability reporting if the support surface changed
+4. Add a Windows implementation or explicit `CodeNotSupported` stub
+5. Push backend-specific Linux behavior down into `system_linux_x11_cgo.go` or
+   `system_linux_wayland.go`
+6. Add the method to the mock in `internal/core/ports/mocks/`
+7. Update capability reporting if the support surface changed
 
-**If only one infra package needs it** (isolated platform behavior):
+**Tier 1, a whole new port** (a subsystem no port covers yet): everything above,
+plus a new `internal/core/ports/<name>.go`, an adapter package under
+`internal/core/infra/`, a `PlatformCapabilities` field **and** its `Entries()`
+registration, and wiring in `app_initialization_steps.go`. Copy the shape of
+[`keyfeed`](../internal/core/infra/keyfeed/).
+
+**Tier 2, one infra package only** (isolated platform behavior):
 
 1. Keep the shared package code platform-agnostic
-2. Use `platform_darwin.go` / `platform_other.go` dispatch files where that fits
+2. Use `platform_darwin.go` / `platform_other.go` dispatch files, unexported
 3. Add Linux backend files inside that package rather than pushing detection up
    into shared app or service code
+
+**Tier 3, an optional extension:** declare the interface in `ports` beside the
+port it extends, implement it on the adapters that can, assert compliance with
+`var _ ports.X = (*SystemAdapter)(nil)`, and give the caller a fallback.
+
+### Adding a capability to `neru doctor`
+
+`PlatformCapabilities` is a registry, not just a struct. Add the field, add a
+`CapabilityKey` constant, and register the pair in `Entries()`. Every renderer
+(`neru doctor`, the IPC info map) iterates `Entries()`, so that is the only
+edit — and
+[capabilities_test.go](../internal/core/ports/capabilities_test.go) fails if a
+field is added without registering it. Then fill the entry in all three presets
+in [capability_presets.go](../internal/core/ports/capability_presets.go).
 
 ## Errors And Capability Reporting
 

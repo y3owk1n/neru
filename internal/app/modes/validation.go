@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -15,10 +16,6 @@ const (
 	// cursorSyncTimeout is the timeout for cursor sync before mode activation.
 	cursorSyncTimeout = 150 * time.Millisecond
 )
-
-type cursorSyncer interface {
-	SyncCursorPosition(ctx context.Context) error
-}
 
 // validateModeActivation performs common validation checks before mode activation.
 // Returns an error if the mode cannot be activated.
@@ -91,8 +88,11 @@ func (h *Handler) resetScrollContext() {
 	}
 }
 
+// syncCursorPositionForModeActivation refreshes the adapter's cached cursor
+// position when the platform keeps one. Adapters that do not implement
+// ports.CursorSynchronizer are already authoritative, so there is nothing to do.
 func (h *Handler) syncCursorPositionForModeActivation() {
-	syncer, ok := h.system.(cursorSyncer)
+	syncer, ok := h.system.(ports.CursorSynchronizer)
 	if !ok {
 		return
 	}

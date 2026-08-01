@@ -7,9 +7,8 @@ import (
 	"github.com/atotto/clipboard"
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/cli"
+	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/systray"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
@@ -48,6 +47,7 @@ type AppInterface interface {
 // Component encapsulates systray functionality.
 type Component struct {
 	app    AppInterface
+	tray   ports.SystrayPort
 	system ports.SystemPort
 	logger *zap.Logger
 
@@ -56,26 +56,26 @@ type Component struct {
 	cancel context.CancelFunc
 
 	// Menu items
-	mVersionCopy        *systray.MenuItem
-	mToggleDisable      *systray.MenuItem
-	mToggleEnable       *systray.MenuItem
-	mToggleScreenShare  *systray.MenuItem
-	mToggleScrollInvert *systray.MenuItem
-	mModes              *systray.MenuItem
-	mHints              *systray.MenuItem
-	mGrid               *systray.MenuItem
-	mRecursiveGrid      *systray.MenuItem
-	mConfig             *systray.MenuItem
-	mReloadConfig       *systray.MenuItem
-	mOpenConfig         *systray.MenuItem
-	mHelp               *systray.MenuItem
-	mSourceCode         *systray.MenuItem
-	mDocsConfig         *systray.MenuItem
-	mDocsCLI            *systray.MenuItem
-	mReportBug          *systray.MenuItem
-	mFeatureRequest     *systray.MenuItem
-	mDiscuss            *systray.MenuItem
-	mQuit               *systray.MenuItem
+	mVersionCopy        ports.SystrayMenuItem
+	mToggleDisable      ports.SystrayMenuItem
+	mToggleEnable       ports.SystrayMenuItem
+	mToggleScreenShare  ports.SystrayMenuItem
+	mToggleScrollInvert ports.SystrayMenuItem
+	mModes              ports.SystrayMenuItem
+	mHints              ports.SystrayMenuItem
+	mGrid               ports.SystrayMenuItem
+	mRecursiveGrid      ports.SystrayMenuItem
+	mConfig             ports.SystrayMenuItem
+	mReloadConfig       ports.SystrayMenuItem
+	mOpenConfig         ports.SystrayMenuItem
+	mHelp               ports.SystrayMenuItem
+	mSourceCode         ports.SystrayMenuItem
+	mDocsConfig         ports.SystrayMenuItem
+	mDocsCLI            ports.SystrayMenuItem
+	mReportBug          ports.SystrayMenuItem
+	mFeatureRequest     ports.SystrayMenuItem
+	mDiscuss            ports.SystrayMenuItem
+	mQuit               ports.SystrayMenuItem
 
 	// State update signaling (thread-safe communication)
 	stateUpdateSignal               chan struct{} // Signal that state changed
@@ -91,10 +91,16 @@ type Component struct {
 }
 
 // NewComponent creates a new systray component.
-func NewComponent(app AppInterface, system ports.SystemPort, logger *zap.Logger) *Component {
+func NewComponent(
+	app AppInterface,
+	tray ports.SystrayPort,
+	system ports.SystemPort,
+	logger *zap.Logger,
+) *Component {
 	ctx, cancel := context.WithCancel(context.Background())
 	component := &Component{
 		app:                      app,
+		tray:                     tray,
 		system:                   system,
 		logger:                   logger,
 		ctx:                      ctx,
@@ -157,9 +163,9 @@ func NewComponent(app AppInterface, system ports.SystemPort, logger *zap.Logger)
 
 // OnReady sets up the systray menu when the systray is ready.
 func (c *Component) OnReady() {
-	c.mVersionCopy = systray.AddMenuItem("Version: " + cli.Version)
+	c.mVersionCopy = c.tray.AddMenuItem("Version: " + buildinfo.Version)
 
-	c.mHelp = systray.AddMenuItem("Help")
+	c.mHelp = c.tray.AddMenuItem("Help")
 	c.mDocsConfig = c.mHelp.AddSubMenuItem("Config Docs")
 	c.mDocsCLI = c.mHelp.AddSubMenuItem("CLI Docs")
 	c.mHelp.AddSeparator()
@@ -168,9 +174,9 @@ func (c *Component) OnReady() {
 	c.mReportBug = c.mHelp.AddSubMenuItem("Report Bug")
 	c.mDiscuss = c.mHelp.AddSubMenuItem("Community Discussion")
 
-	systray.AddSeparator()
+	c.tray.AddSeparator()
 
-	c.mModes = systray.AddMenuItem("Activate Modes")
+	c.mModes = c.tray.AddMenuItem("Activate Modes")
 
 	c.mHints = c.mModes.AddSubMenuItem("Hints")
 	if !c.app.HintsEnabled() {
@@ -190,27 +196,27 @@ func (c *Component) OnReady() {
 		c.mRecursiveGrid.Disable()
 	}
 
-	systray.AddSeparator()
+	c.tray.AddSeparator()
 
-	c.mConfig = systray.AddMenuItem("Config")
+	c.mConfig = c.tray.AddMenuItem("Config")
 	c.mReloadConfig = c.mConfig.AddSubMenuItem("Reload")
 	c.mOpenConfig = c.mConfig.AddSubMenuItem("Open in Editor")
 
-	c.mToggleDisable = systray.AddMenuItem("Pause Neru")
-	c.mToggleEnable = systray.AddMenuItem("Resume Neru")
+	c.mToggleDisable = c.tray.AddMenuItem("Pause Neru")
+	c.mToggleEnable = c.tray.AddMenuItem("Resume Neru")
 	c.mToggleEnable.Hide() // Initially hide the enable option
 
-	systray.AddSeparator()
+	c.tray.AddSeparator()
 
-	c.mToggleScreenShare = systray.AddMenuItem("Screen Share: Visible")
-	c.mToggleScrollInvert = systray.AddMenuItem("Scroll Invert: Off")
+	c.mToggleScreenShare = c.tray.AddMenuItem("Screen Share: Visible")
+	c.mToggleScrollInvert = c.tray.AddMenuItem("Scroll Invert: Off")
 
-	systray.AddSeparator()
+	c.tray.AddSeparator()
 
-	c.mQuit = systray.AddMenuItem("Quit")
+	c.mQuit = c.tray.AddMenuItem("Quit")
 
 	// Clear text title once since we use an icon
-	systray.SetTitle("")
+	c.tray.SetTitle("")
 
 	// Initialize all state-dependent UI elements
 	c.updateMenuItems(c.app.IsEnabled())
@@ -247,13 +253,13 @@ func (c *Component) Close() {
 func (c *Component) updateMenuItems(enabled bool) {
 	// Update icon, tooltip, and menu items to show current status
 	if enabled {
-		systray.SetTemplateIcon(trayIcon, true)
-		systray.SetTooltip("Neru - Running")
+		c.tray.SetIcon(trayIcon, true)
+		c.tray.SetTooltip("Neru - Running")
 		c.mToggleDisable.Show()
 		c.mToggleEnable.Hide()
 	} else {
-		systray.SetTemplateIcon(trayIconDisabled, true)
-		systray.SetTooltip("Neru - Paused")
+		c.tray.SetIcon(trayIconDisabled, true)
+		c.tray.SetTooltip("Neru - Paused")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()
 	}
@@ -265,44 +271,47 @@ func (c *Component) handleEvents() {
 		select {
 		case <-c.ctx.Done():
 			return // Context canceled, exit goroutine
-		case <-c.mVersionCopy.ClickedCh:
+		case <-c.mVersionCopy.Clicked():
 			c.handleVersionCopy()
-		case <-c.mToggleDisable.ClickedCh:
+		case <-c.mToggleDisable.Clicked():
 			c.handleToggleEnable()
-		case <-c.mToggleEnable.ClickedCh:
+		case <-c.mToggleEnable.Clicked():
 			c.handleToggleEnable()
-		case <-c.mHints.ClickedCh:
+		case <-c.mHints.Clicked():
 			c.app.ActivateMode(domain.ModeHints)
-		case <-c.mGrid.ClickedCh:
+		case <-c.mGrid.Clicked():
 			c.app.ActivateMode(domain.ModeGrid)
-		case <-c.mRecursiveGrid.ClickedCh:
+		case <-c.mRecursiveGrid.Clicked():
 			c.app.ActivateMode(domain.ModeRecursiveGrid)
-		case <-c.mReloadConfig.ClickedCh:
+		case <-c.mReloadConfig.Clicked():
 			c.handleReloadConfig()
-		case <-c.mOpenConfig.ClickedCh:
+		case <-c.mOpenConfig.Clicked():
 			go c.handleOpenConfig()
-		case <-c.mSourceCode.ClickedCh:
+		case <-c.mSourceCode.Clicked():
 			go func() {
 				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru")
 				if err != nil {
 					c.logger.Error("Failed to open repository", zap.Error(err))
 				}
 			}()
-		case <-c.mDocsConfig.ClickedCh:
+		case <-c.mDocsConfig.Clicked():
 			go func() {
-				err := openExternal(c.ctx, cli.DocsURL("docs/CONFIGURATION.md", cli.Version))
+				err := openExternal(
+					c.ctx,
+					buildinfo.DocsURL("docs/CONFIGURATION.md", buildinfo.Version),
+				)
 				if err != nil {
 					c.logger.Error("Failed to open configuration docs", zap.Error(err))
 				}
 			}()
-		case <-c.mDocsCLI.ClickedCh:
+		case <-c.mDocsCLI.Clicked():
 			go func() {
-				err := openExternal(c.ctx, cli.DocsURL("docs/CLI.md", cli.Version))
+				err := openExternal(c.ctx, buildinfo.DocsURL("docs/CLI.md", buildinfo.Version))
 				if err != nil {
 					c.logger.Error("Failed to open CLI docs", zap.Error(err))
 				}
 			}()
-		case <-c.mFeatureRequest.ClickedCh:
+		case <-c.mFeatureRequest.Clicked():
 			go func() {
 				err := openExternal(
 					c.ctx,
@@ -312,7 +321,7 @@ func (c *Component) handleEvents() {
 					c.logger.Error("Failed to open feature request", zap.Error(err))
 				}
 			}()
-		case <-c.mReportBug.ClickedCh:
+		case <-c.mReportBug.Clicked():
 			go func() {
 				err := openExternal(
 					c.ctx,
@@ -322,18 +331,18 @@ func (c *Component) handleEvents() {
 					c.logger.Error("Failed to open bug report", zap.Error(err))
 				}
 			}()
-		case <-c.mDiscuss.ClickedCh:
+		case <-c.mDiscuss.Clicked():
 			go func() {
 				err := openExternal(c.ctx, "https://github.com/y3owk1n/neru/discussions")
 				if err != nil {
 					c.logger.Error("Failed to open community discussion", zap.Error(err))
 				}
 			}()
-		case <-c.mToggleScreenShare.ClickedCh:
+		case <-c.mToggleScreenShare.Clicked():
 			c.handleToggleScreenShare()
-		case <-c.mToggleScrollInvert.ClickedCh:
+		case <-c.mToggleScrollInvert.Clicked():
 			c.handleToggleScrollInvert()
-		case <-c.mQuit.ClickedCh:
+		case <-c.mQuit.Clicked():
 			c.app.Quit()
 
 			return
@@ -349,7 +358,7 @@ func (c *Component) handleEvents() {
 
 // handleVersionCopy copies the version to clipboard.
 func (c *Component) handleVersionCopy() {
-	writeToClipboardErr := clipboard.WriteAll(cli.Version)
+	writeToClipboardErr := clipboard.WriteAll(buildinfo.Version)
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
 	} else if c.system != nil {

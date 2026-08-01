@@ -183,7 +183,11 @@ func TestService_Replace(t *testing.T) {
 	}
 }
 
-func TestService_Concurrency(_ *testing.T) {
+// concurrencyProbeChars is a distinctive value the concurrency test writes
+// last, so the final read proves the service is still accepting updates.
+const concurrencyProbeChars = "xyz"
+
+func TestService_Concurrency(t *testing.T) {
 	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	var waitGroup sync.WaitGroup
@@ -214,6 +218,26 @@ func TestService_Concurrency(_ *testing.T) {
 	}
 
 	waitGroup.Wait()
+
+	// The race detector is the primary check. Also assert the service still
+	// returns a coherent, non-nil config and accepts a further update, so the
+	// test is not vacuous without -race.
+	settled := service.Get()
+	if settled == nil {
+		t.Fatal("Get() returned nil after concurrent updates")
+	}
+
+	final := config.DefaultConfig()
+	final.Hints.HintCharacters = concurrencyProbeChars
+
+	err := service.Update(final)
+	if err != nil {
+		t.Fatalf("Update() after concurrent access error = %v, want nil", err)
+	}
+
+	if got := service.Get().Hints.HintCharacters; got != concurrencyProbeChars {
+		t.Errorf("Get().Hints.HintCharacters = %q, want %q", got, concurrencyProbeChars)
+	}
 }
 
 func writeTempToml(t *testing.T, content string) string {

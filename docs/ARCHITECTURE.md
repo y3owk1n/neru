@@ -160,7 +160,7 @@ graph TD
     Ports --> Domain
     Infra -.->|Implements| Ports
     Platform -.->|Implements| Ports
-    UI --> Platform
+    UI --> Infra
 ```
 
 ### Layer responsibilities
@@ -176,7 +176,9 @@ graph TD
   owns lifecycle and navigation modes.
 - **Infrastructure** (`internal/core/infra`) — concrete port implementations on
   platform APIs.
-- **UI** (`internal/ui`) — coordinate transformation and abstract rendering.
+- **UI** (`internal/ui`) — coordinate transformation and the renderer facade
+  over the overlay adapter. The native overlay backends live in
+  `internal/core/infra/overlay`, not here.
 - **CLI** (`internal/cli`) — user commands, config loading, IPC to the daemon.
 
 A directory-by-directory map for placing new code is in
@@ -206,7 +208,7 @@ user-visible action.
 [factory.go](../internal/core/infra/platform/factory.go) and its build-tagged
 siblings are the only place that picks a `ports.SystemPort` implementation. On
 Linux there is a second, *runtime* axis on top of build tags:
-[linux_backend.go](../internal/core/infra/platform/linux_backend.go) detects the
+[backend_linux.go](../internal/core/infra/platform/backend_linux.go) detects the
 live compositor (wlroots / KDE / GNOME / other) and the factory routes to it.
 
 **4. Input processing**
@@ -415,7 +417,7 @@ its own.
 3. **Caching** — a TTL/LRU cache for computed grid layouts
    ([grid/cache.go](../internal/core/domain/grid/cache.go)) and a cache of C
    string pointers for overlay styles
-   ([style_cache.go](../internal/app/components/overlayutil/style_cache.go))
+   ([style_cache.go](../internal/core/infra/overlay/render/overlayutil/style_cache.go))
    keep repeated activations off the hot path.
 4. **Native rendering** — GPU-accelerated CoreAnimation on macOS, Cairo on
    Linux, GDI on Windows.

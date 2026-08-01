@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -62,7 +63,7 @@ func runConfigInit(cmd *cobra.Command, force bool) error {
 	cmd.Println("  5. Exit any mode:       Escape")
 	cmd.Println("")
 	cmd.Println("Edit the config file to customize hotkeys, colors, and behavior.")
-	cmd.Println("Full reference: " + DocsURL("docs/CONFIGURATION.md", Version))
+	cmd.Println("Full reference: " + buildinfo.DocsURL("docs/CONFIGURATION.md", buildinfo.Version))
 
 	return nil
 }

@@ -2,6 +2,7 @@
 package modes
 
 import (
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -10,7 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
 )
 
 func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *testing.T) {
@@ -21,21 +23,25 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 
 	var callOrder []string
 
+	eventTap := &portmocks.MockEventTapPort{
+		OnCall: func(label string) {
+			if strings.HasSuffix(label, "_down") {
+				t.Errorf("unexpected modifier down (%s) during cleanup", label)
+
+				return
+			}
+
+			callOrder = append(callOrder, label)
+		},
+	}
+
 	handler := &Handler{
 		logger:         zap.NewNop(),
 		config:         &configpkg.Config{},
 		appState:       appState,
 		modifierState:  state.NewModifierState(),
 		overlayManager: &overlay.NoOpManager{},
-		disableEventTap: func() {
-			callOrder = append(callOrder, "disable")
-		},
-		postModifierEvent: func(modifier string, isDown bool) {
-			callOrder = append(callOrder, modifier)
-			if isDown {
-				t.Fatalf("unexpected modifier down for %s during cleanup", modifier)
-			}
-		},
+		eventTap:       eventTap,
 	}
 
 	handler.modifierState.Toggle(action.ModCtrl)

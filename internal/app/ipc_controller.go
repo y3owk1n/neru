@@ -30,6 +30,7 @@ type IPCController struct {
 	System    ports.SystemPort
 	EventTap  ports.EventTapPort
 	IPCServer ports.IPCPort
+	KeyFeed   ports.KeyFeedPort
 
 	// Mode management
 	Modes *modes.Handler
@@ -49,44 +50,68 @@ type IPCController struct {
 	Handlers map[string]func(context.Context, ipc.Command) ipc.Response
 }
 
+// IPCControllerDeps collects everything NewIPCController needs.
+//
+// It is a struct rather than a positional parameter list because the list had
+// grown to fourteen arguments, most of them nil at any given call site — which
+// made every new port a mechanical edit across seven test files and made the
+// nils impossible to read. Zero values are valid: a nil service simply means
+// the corresponding commands report that it is unavailable, and EventTap and
+// IPCServer are legitimately nil until initialization phase 8 fills them in via
+// SetInfrastructure.
+type IPCControllerDeps struct {
+	// Services
+	HintService   *services.HintService
+	GridService   *services.GridService
+	ActionService *services.ActionService
+	ScrollService *services.ScrollService
+	ConfigService *config.Service
+
+	// State
+	AppState *state.AppState
+	Config   *config.Config
+
+	// Mode management
+	Modes *modes.Handler
+
+	// Infrastructure ports
+	System    ports.SystemPort
+	EventTap  ports.EventTapPort
+	IPCServer ports.IPCPort
+	KeyFeed   ports.KeyFeedPort
+
+	// ReloadConfig performs a full app-level config reload.
+	ReloadConfig func(ctx context.Context, configPath string) error
+
+	Logger *zap.Logger
+}
+
 // NewIPCController creates a new IPC controller with the given dependencies.
-func NewIPCController(
-	hintService *services.HintService,
-	gridService *services.GridService,
-	actionService *services.ActionService,
-	scrollService *services.ScrollService,
-	configService *config.Service,
-	appState *state.AppState,
-	config *config.Config,
-	modesHandler *modes.Handler,
-	systemPort ports.SystemPort,
-	eventTap ports.EventTapPort,
-	ipcServer ports.IPCPort,
-	reloadConfig func(ctx context.Context, configPath string) error,
-	logger *zap.Logger,
-) *IPCController {
+func NewIPCController(deps IPCControllerDeps) *IPCController {
+	logger := deps.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
 	ipcController := &IPCController{
-		HintService:   hintService,
-		GridService:   gridService,
-		ActionService: actionService,
-		ScrollService: scrollService,
-		ConfigService: configService,
-		AppState:      appState,
-		Modes:         modesHandler,
-		System:        systemPort,
-		EventTap:      eventTap,
-		IPCServer:     ipcServer,
-		ReloadConfig:  reloadConfig,
+		HintService:   deps.HintService,
+		GridService:   deps.GridService,
+		ActionService: deps.ActionService,
+		ScrollService: deps.ScrollService,
+		ConfigService: deps.ConfigService,
+		AppState:      deps.AppState,
+		Modes:         deps.Modes,
+		System:        deps.System,
+		EventTap:      deps.EventTap,
+		IPCServer:     deps.IPCServer,
+		KeyFeed:       deps.KeyFeed,
+		ReloadConfig:  deps.ReloadConfig,
 		Logger:        logger.Named("ipc.controller"),
 		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
 	// Register command handlers
-	ipcController.registerHandlers(config)
+	ipcController.registerHandlers(deps.Config)
 
 	return ipcController
 }
@@ -152,24 +177,26 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 		c.ScrollService,
 		c.Modes,
 		c.AppState,
+		c.KeyFeed,
 		c.Logger,
 	)
-	c.infoHandler = NewIPCControllerInfo(
-		c.ConfigService,
-		c.AppState,
-		cfg,
-		c.Modes,
-		c.HintService,
-		c.GridService,
-		c.ActionService,
-		c.ScrollService,
-		c.System,
-		c.EventTap,
-		c.IPCServer,
-		c.ReloadConfig,
-		c.Logger,
-		nil, // setConfigField — set below before RegisterHandlers
-	)
+	// SetConfigField stays zero here; SetConfigFieldCallback fills it in after
+	// construction, since the callback needs the fully built app.
+	c.infoHandler = NewIPCControllerInfo(IPCControllerInfoDeps{
+		ConfigService: c.ConfigService,
+		AppState:      c.AppState,
+		Config:        cfg,
+		Modes:         c.Modes,
+		HintService:   c.HintService,
+		GridService:   c.GridService,
+		ActionService: c.ActionService,
+		ScrollService: c.ScrollService,
+		System:        c.System,
+		EventTap:      c.EventTap,
+		IPCServer:     c.IPCServer,
+		ReloadConfig:  c.ReloadConfig,
+		Logger:        c.Logger,
+	})
 
 	// Register handlers from each component
 	lifecycleHandler.RegisterHandlers(c.Handlers)

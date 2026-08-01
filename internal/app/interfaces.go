@@ -3,46 +3,31 @@ package app
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
-	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// HotkeyService defines the interface for hotkey management.
-// It provides methods for registering and unregistering global hotkeys.
-type HotkeyService interface {
-	// Register registers a new hotkey with the given key string and callback.
-	// Returns a HotkeyID that can be used to unregister the hotkey later.
-	Register(keyString string, callback hotkeys.Callback) (hotkeys.HotkeyID, error)
-
-	// UnregisterAll unregisters all registered hotkeys.
-	UnregisterAll()
-}
-
-// HotkeyReleaseService is implemented by hotkey backends that can report release events.
-type HotkeyReleaseService interface {
-	RegisterWithRelease(
-		keyString string,
-		pressCallback hotkeys.Callback,
-		releaseCallback hotkeys.Callback,
-	) (hotkeys.HotkeyID, error)
-}
+// HotkeyService and HotkeyReleaseService are app-layer aliases for the hotkey
+// contracts. The contracts themselves live in ports so platform backends can
+// target them without importing the app package, and so the app layer no longer
+// has to name infra types (hotkeys.Callback, hotkeys.HotkeyID) in its own
+// signatures.
+type (
+	// HotkeyService registers global hotkeys.
+	HotkeyService = ports.HotkeyPort
+	// HotkeyReleaseService is the optional press/release extension, which
+	// only the macOS backend implements. Reach it by type assertion and fall
+	// back to HotkeyService.Register.
+	HotkeyReleaseService = ports.HotkeyReleaseRegistrar
+)
 
 // OverlayManager defines the interface for overlay window management.
 type OverlayManager = overlay.ManagerInterface
 
-// Watcher defines the interface for application lifecycle monitoring.
-type Watcher interface {
-	Start()
-	Stop()
-	OnActivate(callback appwatcher.AppCallback)
-	OnDeactivate(callback appwatcher.AppCallback)
-	OnTerminate(callback appwatcher.AppCallback)
-	OnScreenParametersChanged(callback func())
-	OnMissionControlActivated(callback func())
-	OnMissionControlDeactivated(callback func())
-	SetMCDetection(enabled bool)
-}
+// Watcher is the app-layer alias for the application lifecycle contract.
+// The contract itself lives in ports so platform backends can target it
+// without importing the app package.
+type Watcher = ports.AppWatcherPort
 
 // ModeService defines the common interface for mode-specific services.
 // This ensures grid, hints, and scroll services have identical APIs.

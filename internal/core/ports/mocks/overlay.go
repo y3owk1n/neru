@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"image"
+	"sync"
 
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/ports"
@@ -10,6 +11,10 @@ import (
 
 // MockOverlayPort is a mock implementation of ports.OverlayPort.
 type MockOverlayPort struct {
+	modeIndicatorMu sync.Mutex
+	modeIndicatorX  int
+	modeIndicatorY  int
+
 	ShowFunc      func()
 	ShowHintsFunc func(context.Context, []*hint.Interface) error
 	ShowGridFunc  func(ctx context.Context) error
@@ -56,10 +61,23 @@ func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
 	return nil
 }
 
+// LastModeIndicatorPosition returns the coordinates of the most recent
+// DrawModeIndicator call.
+func (m *MockOverlayPort) LastModeIndicatorPosition() (int, int) {
+	m.modeIndicatorMu.Lock()
+	defer m.modeIndicatorMu.Unlock()
+
+	return m.modeIndicatorX, m.modeIndicatorY
+}
+
 // DrawModeIndicator implements ports.OverlayPort.
-func (m *MockOverlayPort) DrawModeIndicator(x, y int) {
+func (m *MockOverlayPort) DrawModeIndicator(posX, posY int) {
+	m.modeIndicatorMu.Lock()
+	m.modeIndicatorX, m.modeIndicatorY = posX, posY
+	m.modeIndicatorMu.Unlock()
+
 	if m.DrawModeIndicatorFunc != nil {
-		m.DrawModeIndicatorFunc(x, y)
+		m.DrawModeIndicatorFunc(posX, posY)
 	}
 }
 
