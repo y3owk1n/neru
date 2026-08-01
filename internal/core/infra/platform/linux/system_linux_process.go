@@ -15,7 +15,7 @@ import (
 // entries the kernel exposes for every process, so the same implementation
 // serves X11 and every Wayland backend (and works without CGO). Only the
 // "which window is focused" question is display-server specific — see
-// system_linux_x11.go (X11) and system_linux_focused_pid.go (Wayland).
+// system_linux_x11_cgo.go (X11) and system_linux_focused_pid.go (Wayland).
 
 // linuxApplicationNameByPID returns the process name from /proc/<pid>/comm.
 func linuxApplicationNameByPID(pid int) (string, error) {

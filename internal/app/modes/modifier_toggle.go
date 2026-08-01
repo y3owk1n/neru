@@ -293,7 +293,7 @@ func (h *Handler) scheduleModifierToggle(mod action.Modifiers, downTime time.Tim
 			modName = keyPartCtrl
 		}
 
-		if modName != "" && h.postModifierEvent != nil {
+		if modName != "" && h.hasEventTap() {
 			h.postModifierEvent(modName, isDownNow)
 		}
 
@@ -329,7 +329,7 @@ func (h *Handler) clearStickyModifiers() {
 	}
 
 	mods := h.modifierState.Current()
-	if h.postModifierEvent != nil {
+	if h.hasEventTap() {
 		if mods.Has(action.ModCmd) {
 			h.postModifierEvent(keyPartCmd, false)
 		}

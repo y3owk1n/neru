@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin" // Link CGO implementations
-	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // Pin the main thread during package init so TestMain still runs on it.
@@ -24,11 +23,6 @@ func init() {
 // in a plain `go test` binary.
 func TestMain(m *testing.M) {
 	os.Exit(darwin.RunMainLoopForTesting(m.Run))
-}
-
-// TestEventTapAdapterImplementsPort verifies the adapter implements the port interface.
-func TestEventTapAdapterImplementsPort(_ *testing.T) {
-	var _ ports.EventTapPort = (*eventtap.Adapter)(nil)
 }
 
 // TestEventTapAdapterIntegration tests the event tap adapter.

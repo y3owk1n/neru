@@ -112,7 +112,7 @@ func (r *HotkeyRegistry) SetHotkeyRegistryLogger(logger *zap.Logger) {
 		logger = zap.NewNop()
 	}
 
-	r.logger = logger.Named("win32.hotkeys")
+	r.logger = logger.Named("hotkeys.win32")
 }
 
 // Register binds a hotkey string to a callback and returns a registry id.

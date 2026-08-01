@@ -8,12 +8,12 @@ import (
 
 	"go.uber.org/zap"
 
-	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	hintscomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 

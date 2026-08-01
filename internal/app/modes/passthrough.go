@@ -30,11 +30,11 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 		bundleID = h.focusedBundleID()
 	}
 
-	if h.setPassthroughCallback != nil {
+	if h.hasEventTap() {
 		h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
 	}
 
-	if h.setModifierPassthrough != nil {
+	if h.hasEventTap() {
 		blacklist := []string(nil)
 		if enabled {
 			blacklist = append(blacklist, h.config.General.PassthroughUnboundedKeysBlacklist...)
@@ -50,7 +50,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 		h.setModifierPassthrough(enabled, blacklist)
 	}
 
-	if h.setInterceptedModifierKeys == nil {
+	if !h.hasEventTap() {
 		return
 	}
 

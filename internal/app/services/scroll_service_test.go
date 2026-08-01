@@ -438,29 +438,53 @@ func TestScrollService_Hide(t *testing.T) {
 }
 
 func TestScrollService_UpdateConfig(t *testing.T) {
-	mockAcc := &mocks.MockAccessibilityPort{}
-	mockOverlay := &mocks.MockOverlayPort{}
-	logger := logger.Get()
+	var gotDeltaY int
 
-	initialConfig := config.ScrollConfig{
-		ScrollStep:     50,
-		ScrollStepFull: 1000,
+	mockAcc := &mocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, deltaY int) error {
+			gotDeltaY = deltaY
+
+			return nil
+		},
 	}
+	mockOverlay := &mocks.MockOverlayPort{}
+	log := logger.Get()
+
 	service := services.NewScrollService(
 		mockAcc,
 		mockOverlay,
 		&mocks.MockSystemPort{},
-		initialConfig,
-		logger,
+		config.ScrollConfig{ScrollStep: 50, ScrollStepFull: 1000},
+		log,
 	)
 
-	// Update config
-	newConfig := config.ScrollConfig{
-		ScrollStep:     100,
-		ScrollStepFull: 2000,
-	}
-	service.UpdateConfig(newConfig)
+	ctx := context.Background()
 
-	// Since config is private, we can't directly check, but ensure it doesn't crash.
-	// In a real scenario, we could test by calling methods that use config.
+	// Baseline: a normal-amount scroll uses the configured step.
+	err := service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0)
+	if err != nil {
+		t.Fatalf("Scroll() error = %v, want nil", err)
+	}
+
+	baseline := gotDeltaY
+	if baseline == 0 {
+		t.Fatal("Scroll() produced a zero delta; the test cannot detect a config change")
+	}
+
+	// UpdateConfig must change what a subsequent scroll actually emits — the
+	// point of the call, and what this test previously never checked.
+	service.UpdateConfig(config.ScrollConfig{ScrollStep: 100, ScrollStepFull: 2000})
+
+	err = service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0)
+	if err != nil {
+		t.Fatalf("Scroll() after UpdateConfig error = %v, want nil", err)
+	}
+
+	if gotDeltaY == baseline {
+		t.Errorf(
+			"Scroll() delta = %d both before and after UpdateConfig; the new "+
+				"ScrollStep was not applied",
+			gotDeltaY,
+		)
+	}
 }

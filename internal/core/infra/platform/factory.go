@@ -1,9 +1,7 @@
-// Package platform provides a factory for platform-specific infrastructure components.
-//
-// The NewSystemPort function is defined in build-tagged files
-// (factory_darwin.go, factory_linux.go, factory_windows.go) so that each
-// platform only imports its own adapter package. This avoids pulling in CGo
-// dependencies (platform/darwin) on non-macOS builds.
+// internal/core/infra/platform/factory.go
+// Cross-platform constants and errors shared by the build-tagged factory files.
+// The package comment lives in doc.go.
+
 package platform
 
 import (

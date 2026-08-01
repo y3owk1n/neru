@@ -11,12 +11,6 @@ import (
 	winplatform "github.com/y3owk1n/neru/internal/core/infra/platform/windows"
 )
 
-// HotkeyID represents a unique identifier for a registered hotkey.
-type HotkeyID int
-
-// Callback defines the function signature for hotkey event handlers.
-type Callback func()
-
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 type Manager struct {
 	callbacks map[HotkeyID]Callback

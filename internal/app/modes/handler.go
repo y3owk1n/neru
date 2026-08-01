@@ -9,9 +9,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -21,10 +18,13 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // Mode defines the interface that all navigation modes must implement.
@@ -82,20 +82,16 @@ type Handler struct {
 	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
 
-	enableEventTap             func()
-	disableEventTap            func()
-	setModifierPassthrough     func(enabled bool, blacklist []string)
-	setInterceptedModifierKeys func(keys []string)
-	setPassthroughCallback     func(cb func())
-	setStickyModifierToggle    func(enabled bool)
-	postModifierEvent          func(modifier string, isDown bool)
-	refreshHotkeys             func()
-	executeHotkeyAction        func(key, actionStr string) error
-	shutdown                   func()
-	refreshHintsTimer          *time.Timer
-	modeSession                uint64
-	hotkeyLastKey              string
-	hotkeyLastKeyTime          int64
+	// eventTap is nil until the app's phase 8 calls SetEventTap; every use
+	// goes through the nil-guarded helpers in eventtap.go.
+	eventTap            ports.EventTapPort
+	refreshHotkeys      func()
+	executeHotkeyAction func(key, actionStr string) error
+	shutdown            func()
+	refreshHintsTimer   *time.Timer
+	modeSession         uint64
+	hotkeyLastKey       string
+	hotkeyLastKeyTime   int64
 
 	textInput                  ports.TextInputPort
 	hintSearchTextInputActive  bool
@@ -144,38 +140,51 @@ type Handler struct {
 	heldRepeatingCancel context.CancelFunc
 }
 
-// NewHandler creates a new mode handler.
-func NewHandler(
-	ctx context.Context,
-	config *configpkg.Config,
-	logger *zap.Logger,
-	appState *state.AppState,
-	cursorState *state.CursorState,
-	overlayManager overlay.ManagerInterface,
-	renderer *ui.OverlayRenderer,
-	hintService *services.HintService,
-	gridService *services.GridService,
-	actionService *services.ActionService,
-	scrollService *services.ScrollService,
-	modeIndicatorService *modeindicator.Service,
-	stickyIndicatorService *stickyindicator.Service,
-	hintsComponent *components.HintsComponent,
-	grid *components.GridComponent,
-	scroll *components.ScrollComponent,
-	recursiveGridComponent *components.RecursiveGridComponent,
-	enableEventTap func(),
-	disableEventTap func(),
-	setModifierPassthrough func(enabled bool, blacklist []string),
-	setInterceptedModifierKeys func(keys []string),
-	setPassthroughCallback func(cb func()),
-	setStickyModifierToggle func(enabled bool),
-	postModifierEvent func(modifier string, isDown bool),
-	refreshHotkeys func(),
-	executeHotkeyAction func(key, actionStr string) error,
-	shutdown func(),
-	textInput ports.TextInputPort,
-	systemPort ports.SystemPort,
-) *Handler {
+// HandlerDeps collects everything NewHandler needs.
+//
+// It is a struct rather than a positional list because the list had reached
+// twenty-nine arguments, seven of which were closures that together formed an
+// open-coded ports.EventTapPort. Those seven are gone: the handler holds the
+// port itself, injected after construction via SetEventTap because the event
+// tap does not exist yet when the handler is built.
+type HandlerDeps struct {
+	Ctx context.Context //nolint:containedctx // root context, matches Handler.ctx
+
+	Config *configpkg.Config
+	Logger *zap.Logger
+
+	AppState    *state.AppState
+	CursorState *state.CursorState
+
+	OverlayManager overlay.ManagerInterface
+	Renderer       *ui.OverlayRenderer
+
+	HintService            *services.HintService
+	GridService            *services.GridService
+	ActionService          *services.ActionService
+	ScrollService          *services.ScrollService
+	ModeIndicatorService   *modeindicator.Service
+	StickyIndicatorService *stickyindicator.Service
+
+	HintsComponent         *components.HintsComponent
+	GridComponent          *components.GridComponent
+	ScrollComponent        *components.ScrollComponent
+	RecursiveGridComponent *components.RecursiveGridComponent
+
+	// RefreshHotkeys re-registers hotkeys for the focused app.
+	RefreshHotkeys func()
+	// ExecuteHotkeyAction runs a hotkey's action string.
+	ExecuteHotkeyAction func(key, actionStr string) error
+	// Shutdown quits the daemon.
+	Shutdown func()
+
+	TextInput ports.TextInputPort
+	System    ports.SystemPort
+}
+
+// NewHandler creates a mode handler from deps.
+func NewHandler(deps HandlerDeps) *Handler {
+	logger := deps.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -188,49 +197,42 @@ func NewHandler(
 	// any other error is logged as a warning.
 	var screenBounds image.Rectangle
 
-	if systemPort != nil {
+	if deps.System != nil {
 		var boundsErr error
 
-		screenBounds, boundsErr = systemPort.ScreenBounds(context.Background())
+		screenBounds, boundsErr = deps.System.ScreenBounds(context.Background())
 		if boundsErr != nil && !derrors.IsNotSupported(boundsErr) {
 			logger.Warn("Failed to get initial screen bounds", zap.Error(boundsErr))
 		}
 	}
 
 	handler := &Handler{
-		ctx:                        ctx,
-		config:                     config,
-		logger:                     logger,
-		appState:                   appState,
-		cursorState:                cursorState,
-		modifierState:              state.NewModifierState(),
-		overlayManager:             overlayManager,
-		renderer:                   renderer,
-		hintService:                hintService,
-		gridService:                gridService,
-		actionService:              actionService,
-		scrollService:              scrollService,
-		modeIndicatorService:       modeIndicatorService,
-		stickyIndicatorService:     stickyIndicatorService,
-		hints:                      hintsComponent,
-		grid:                       grid,
-		scroll:                     scroll,
-		recursiveGrid:              recursiveGridComponent,
-		screenBounds:               screenBounds,
-		enableEventTap:             enableEventTap,
-		disableEventTap:            disableEventTap,
-		setModifierPassthrough:     setModifierPassthrough,
-		setInterceptedModifierKeys: setInterceptedModifierKeys,
-		setPassthroughCallback:     setPassthroughCallback,
-		setStickyModifierToggle:    setStickyModifierToggle,
-		postModifierEvent:          postModifierEvent,
-		refreshHotkeys:             refreshHotkeys,
-		executeHotkeyAction:        executeHotkeyAction,
-		shutdown:                   shutdown,
-		textInput:                  textInput,
-		themeProvider:              systemPort,
-		system:                     systemPort,
-		cycleHintIndex:             -1,
+		ctx:                    deps.Ctx,
+		config:                 deps.Config,
+		logger:                 logger,
+		appState:               deps.AppState,
+		cursorState:            deps.CursorState,
+		modifierState:          state.NewModifierState(),
+		overlayManager:         deps.OverlayManager,
+		renderer:               deps.Renderer,
+		hintService:            deps.HintService,
+		gridService:            deps.GridService,
+		actionService:          deps.ActionService,
+		scrollService:          deps.ScrollService,
+		modeIndicatorService:   deps.ModeIndicatorService,
+		stickyIndicatorService: deps.StickyIndicatorService,
+		hints:                  deps.HintsComponent,
+		grid:                   deps.GridComponent,
+		scroll:                 deps.ScrollComponent,
+		recursiveGrid:          deps.RecursiveGridComponent,
+		screenBounds:           screenBounds,
+		refreshHotkeys:         deps.RefreshHotkeys,
+		executeHotkeyAction:    deps.ExecuteHotkeyAction,
+		shutdown:               deps.Shutdown,
+		textInput:              deps.TextInput,
+		themeProvider:          deps.System,
+		system:                 deps.System,
+		cycleHintIndex:         -1,
 	}
 
 	// Initialize mode implementations
@@ -933,7 +935,7 @@ func (h *Handler) startHintSearchLocked() error {
 
 		if started {
 			h.hintSearchTextInputActive = true
-			if h.disableEventTap != nil {
+			if h.hasEventTap() {
 				h.disableEventTap()
 				h.hintSearchEventTapDisabled = true
 			}
@@ -952,7 +954,7 @@ func (h *Handler) stopHintSearchTextInputLocked(keepEventTapDisabled bool) {
 
 	h.hintSearchTextInputActive = false
 
-	if h.hintSearchEventTapDisabled && h.enableEventTap != nil &&
+	if h.hintSearchEventTapDisabled && h.hasEventTap() &&
 		h.appState.CurrentMode() == domain.ModeHints && !keepEventTapDisabled {
 		h.enableEventTap()
 		h.hintSearchEventTapDisabled = false

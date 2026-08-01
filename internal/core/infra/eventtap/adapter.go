@@ -133,5 +133,20 @@ func (a *Adapter) Destroy() {
 	a.enabled = false
 }
 
-// Ensure Adapter implements ports.EventTapPort.
-var _ ports.EventTapPort = (*Adapter)(nil)
+// AllowsOverlayKeyboardPassthrough reports whether an indicator overlay can
+// safely drop exclusive keyboard capture.
+//
+// Both conditions must hold: a uinput scroll device is available to carry the
+// scroll events, and no evdev keyboard grab is active — on wlroots an overlay
+// grab deactivates the focused toplevel, which breaks the next hints refresh.
+// Non-Linux backends and the no-cgo Linux build report false.
+func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
+	return IsUinputScrollAvailable() && !IsWaylandEvdevKeyboardActive()
+}
+
+// Ensure Adapter implements ports.EventTapPort and the optional overlay
+// passthrough extension.
+var (
+	_ ports.EventTapPort                       = (*Adapter)(nil)
+	_ ports.OverlayKeyboardPassthroughReporter = (*Adapter)(nil)
+)

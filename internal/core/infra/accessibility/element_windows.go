@@ -239,8 +239,8 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 	return windowsHeldButtons.IsDown(button)
 }
 
-// EnsureMouseUp releases every mouse button Neru is currently holding down.
-func EnsureMouseUp() {
+// ensureMouseUp releases every mouse button Neru is currently holding down.
+func ensureMouseUp() {
 	for _, button := range windowsHeldButtons.HeldButtons() {
 		_ = MouseUp(button)
 	}

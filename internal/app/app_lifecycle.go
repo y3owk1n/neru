@@ -12,7 +12,9 @@ func (a *App) EnableEventTap() { a.enableEventTap() }
 // DisableEventTap disables the event tap.
 func (a *App) DisableEventTap() { a.disableEventTap() }
 
-// Helper methods for event tap control (used by callbacks)
+// enableEventTap / disableEventTap back the exported wrappers above.
+// The mode handler no longer routes through here — it holds
+// ports.EventTapPort directly (see modes/eventtap.go).
 
 func (a *App) enableEventTap() {
 	if a.eventTap != nil {
@@ -35,43 +37,5 @@ func (a *App) disableEventTap() {
 				a.logger.Error("Failed to disable event tap", zap.Error(err))
 			}
 		}
-	}
-}
-
-// setEventTapModifierPassthrough configures whether unbound modifier shortcuts
-// should pass through to macOS and which ones remain blacklisted.
-func (a *App) setEventTapModifierPassthrough(enabled bool, blacklist []string) {
-	if a.eventTap != nil {
-		a.eventTap.SetModifierPassthrough(enabled, blacklist)
-	}
-}
-
-// setEventTapInterceptedModifierKeys updates the modifier shortcuts the active
-// mode still wants Neru to consume.
-func (a *App) setEventTapInterceptedModifierKeys(keys []string) {
-	if a.eventTap != nil {
-		a.eventTap.SetInterceptedModifierKeys(keys)
-	}
-}
-
-// setEventTapPassthroughCallback registers a function invoked when a modifier
-// shortcut passes through to macOS.
-func (a *App) setEventTapPassthroughCallback(cb func()) {
-	if a.eventTap != nil {
-		a.eventTap.SetPassthroughCallback(cb)
-	}
-}
-
-// setEventTapStickyModifierToggle enables or disables sticky modifier toggle detection.
-func (a *App) setEventTapStickyModifierToggle(enabled bool) {
-	if a.eventTap != nil {
-		a.eventTap.SetStickyModifierToggle(enabled)
-	}
-}
-
-// postEventTapModifierEvent posts a synthetic modifier event to the event tap.
-func (a *App) postEventTapModifierEvent(modifier string, isDown bool) {
-	if a.eventTap != nil {
-		a.eventTap.PostModifierEvent(modifier, isDown)
 	}
 }

@@ -165,4 +165,14 @@ func TestRaceCondition(t *testing.T) {
 	})
 
 	waitGroup.Wait()
+
+	// The race detector is the primary check. Also assert the package still
+	// hands out a usable logger afterwards, so the test is not vacuous without
+	// -race.
+	if logger.Get() == nil {
+		t.Fatal("Get() returned nil after concurrent init/close")
+	}
+
+	// Logging must not panic on a closed logger.
+	logger.Get().Info("post-race smoke check")
 }

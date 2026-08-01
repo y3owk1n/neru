@@ -10,13 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/ports"
 )
-
-// TestIPCAdapterImplementsPort verifies the adapter implements the port interface.
-func TestIPCAdapterImplementsPort(_ *testing.T) {
-	var _ ports.IPCPort = (*ipc.Adapter)(nil)
-}
 
 // TestIPCAdapterIntegration tests the IPC adapter with real server.
 func TestIPCAdapterIntegration(t *testing.T) {

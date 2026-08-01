@@ -3,10 +3,10 @@ package app
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 )

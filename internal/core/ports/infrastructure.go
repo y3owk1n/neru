@@ -50,20 +50,25 @@ type EventTapPort interface {
 	Destroy()
 }
 
-// HotkeyPort defines the interface for global hotkey registration.
-// Implementations handle platform-specific hotkey APIs.
-type HotkeyPort interface {
-	// Register registers a hotkey with the given callback.
-	Register(ctx context.Context, hotkey string, callback func() error) error
-
-	// Unregister removes a previously registered hotkey.
-	Unregister(ctx context.Context, hotkey string) error
-
-	// UnregisterAll removes all registered hotkeys.
-	UnregisterAll(ctx context.Context) error
-
-	// IsRegistered returns true if the hotkey is currently registered.
-	IsRegistered(hotkey string) bool
+// OverlayKeyboardPassthroughReporter is an optional EventTapPort extension for
+// backends that can inject scroll without owning the keyboard.
+//
+// Indicator overlays would rather not hold exclusive keyboard capture, so that
+// scroll events reach the focused application. Whether dropping it is safe is a
+// backend question, and only the event tap can answer it: it needs both a
+// working uinput scroll device *and* no active evdev keyboard grab — on wlroots
+// an overlay grab deactivates the focused toplevel and breaks the next hints
+// refresh.
+//
+// Implemented by the Linux Wayland evdev backend. macOS, Windows, X11 and the
+// no-cgo Linux build cannot drop capture safely and do not implement it.
+//
+// Callers must treat a missing implementation as "keep exclusive capture" —
+// the conservative choice that always works.
+type OverlayKeyboardPassthroughReporter interface {
+	// AllowsOverlayKeyboardPassthrough reports whether an indicator overlay
+	// can safely give up exclusive keyboard capture right now.
+	AllowsOverlayKeyboardPassthrough() bool
 }
 
 // IPCPort defines the interface for inter-process communication.

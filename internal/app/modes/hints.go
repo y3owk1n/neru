@@ -7,14 +7,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 // debugElapsed logs the duration since start with the given message.
@@ -580,14 +580,14 @@ func (h *Handler) ensureScreenCapturePermissionsLocked(
 		return activeScreenBounds, bundleID, strategy, true
 	}
 
-	if platform.CheckScreenCapturePermissions() {
+	if h.system == nil || h.system.CheckScreenCapturePermission(h.ctx) {
 		return activeScreenBounds, bundleID, strategy, true
 	}
 
 	session := h.modeSession
 	h.mu.Unlock()
 
-	choice := platform.ShowScreenCapturePermissionAlert()
+	consent := h.system.RequestScreenCapturePermission(h.ctx)
 
 	h.mu.Lock()
 
@@ -600,13 +600,13 @@ func (h *Handler) ensureScreenCapturePermissionsLocked(
 		return activeScreenBounds, bundleID, strategy, false
 	}
 
-	if choice == platform.ScreenCapturePermissionStartupQuit {
+	if consent == ports.ScreenCaptureQuit {
 		h.shutdown()
 
 		return activeScreenBounds, bundleID, strategy, false
 	}
 
-	if choice == platform.ScreenCapturePermissionStartupCancel {
+	if consent == ports.ScreenCaptureCanceled {
 		h.exitModeLocked()
 
 		return activeScreenBounds, bundleID, strategy, false

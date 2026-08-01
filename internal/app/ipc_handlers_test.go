@@ -28,37 +28,19 @@ func newTestModesHandler(
 	appState *state.AppState,
 	actionService *services.ActionService,
 ) *modes.Handler {
-	return modes.NewHandler(
-		context.Background(),
-		cfg,
-		logger,
-		appState,
-		state.NewCursorState(),
-		nil,                     // overlayManager
-		nil,                     // renderer
-		nil,                     // hintService
-		nil,                     // gridService
-		actionService,           // actionService
-		nil,                     // scrollService
-		nil,                     // modeIndicatorService
-		nil,                     // stickyIndicatorService
-		nil,                     // hintsComponent
-		nil,                     // grid
-		nil,                     // scroll
-		nil,                     // recursiveGridComponent
-		func() {},               // enableEventTap
-		func() {},               // disableEventTap
-		func(bool, []string) {}, // setModifierPassthrough
-		func([]string) {},       // setInterceptedModifierKeys
-		func(func()) {},         // setPassthroughCallback
-		func(bool) {},           // setStickyModifierToggle
-		func(string, bool) {},   // postModifierEvent
-		func() {},               // refreshHotkeys
-		func(string, string) error { return nil }, // executeHotkeyAction
-		func() {}, // shutdown
-		nil,       // textInput
-		nil,       // systemPort
-	)
+	// Only the fields this test needs; every other dependency is legitimately
+	// the zero value, which the deps struct expresses by omission.
+	return modes.NewHandler(modes.HandlerDeps{
+		Ctx:                 context.Background(),
+		Config:              cfg,
+		Logger:              logger,
+		AppState:            appState,
+		CursorState:         state.NewCursorState(),
+		ActionService:       actionService,
+		RefreshHotkeys:      func() {},
+		ExecuteHotkeyAction: func(string, string) error { return nil },
+		Shutdown:            func() {},
+	})
 }
 
 func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) {
@@ -73,21 +55,14 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 		logger,
 	)
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		actionService,
-		nil,
-		configService,
-		appState,
-		cfg,
-		newTestModesHandler(cfg, logger, appState, actionService),
-		nil,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ActionService: actionService,
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
 		Action: actionGrid,
@@ -115,21 +90,14 @@ func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		actionService,
-		nil,
-		configService,
-		appState,
-		cfg,
-		newTestModesHandler(cfg, logger, appState, actionService),
-		nil,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ActionService: actionService,
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
 		Action: actionHints,
@@ -157,21 +125,14 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		actionService,
-		nil,
-		configService,
-		appState,
-		cfg,
-		newTestModesHandler(cfg, logger, appState, actionService),
-		nil,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ActionService: actionService,
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Logger:        logger,
+	})
 
 	disallowedActions := []string{
 		"move_monitor",
@@ -221,21 +182,14 @@ func TestExtractModeOptions_ModifierRequiresAction(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		actionService,
-		nil,
-		configService,
-		appState,
-		cfg,
-		newTestModesHandler(cfg, logger, appState, actionService),
-		nil,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ActionService: actionService,
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
 		Action: actionHints,
@@ -266,21 +220,14 @@ func TestExtractModeOptions_ModifierEmptyList(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(
-		nil,
-		nil,
-		actionService,
-		nil,
-		configService,
-		appState,
-		cfg,
-		newTestModesHandler(cfg, logger, appState, actionService),
-		nil,
-		nil,
-		nil,
-		nil,
-		logger,
-	)
+	controller := app.NewIPCController(app.IPCControllerDeps{
+		ActionService: actionService,
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Modes:         newTestModesHandler(cfg, logger, appState, actionService),
+		Logger:        logger,
+	})
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{
 		Action: actionHints,

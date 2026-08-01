@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
@@ -30,12 +31,6 @@ var (
 	configPath string
 	// LaunchFunc is set by main to handle daemon launch.
 	LaunchFunc func(configPath string)
-	// Version is set via ldflags at build time.
-	Version = "dev"
-	// GitCommit is set via ldflags at build time.
-	GitCommit = "unknown"
-	// BuildDate is set via ldflags at build time.
-	BuildDate = "unknown"
 	// timeoutSec is overridden by the --timeout flag (default
 	// DefaultIPCTimeoutSeconds); kept in sync so any pre-parse use matches.
 	timeoutSec = DefaultIPCTimeoutSeconds
@@ -55,7 +50,7 @@ vim-like navigation capabilities across applications using accessibility APIs.`,
   neru hints --action left_click     Activate hints mode with pending click
   neru action scroll_down --steps 3  Scroll down 3 steps`,
 	SilenceErrors: true,
-	Version:       Version,
+	Version:       buildinfo.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsRunningFromAppBundle() && len(args) == 0 {
 			launchProgram(cmd, configPath)
@@ -124,7 +119,7 @@ func init() {
 	// Set the build version for IPC version validation so both the CLI
 	// client and the daemon (which also imports this package) agree on
 	// the expected version.
-	ipc.SetBuildVersion(Version)
+	ipc.SetBuildVersion(buildinfo.Version)
 
 	// Override Cobra's default OutOrStderr() for cmd.Println so that
 	// primary command output goes to stdout (pipeable) while errors
@@ -137,9 +132,9 @@ func init() {
 	RootCmd.SetVersionTemplate(
 		fmt.Sprintf(
 			"Neru version %s\nGit commit: %s\nBuild date: %s\n",
-			Version,
-			GitCommit,
-			BuildDate,
+			buildinfo.Version,
+			buildinfo.GitCommit,
+			buildinfo.BuildDate,
 		),
 	)
 

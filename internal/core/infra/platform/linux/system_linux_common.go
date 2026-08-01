@@ -350,6 +350,20 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
 
+// CheckScreenCapturePermission reports true: Linux does not gate screen capture
+// behind a permission.
+func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
+	return true
+}
+
+// RequestScreenCapturePermission reports granted without prompting: Linux has no
+// screen-recording permission to request.
+func (s *SystemAdapter) RequestScreenCapturePermission(
+	_ context.Context,
+) ports.ScreenCaptureConsent {
+	return ports.ScreenCaptureGranted
+}
+
 // moveCursorDirect performs a single instantaneous cursor warp, routing to the
 // backend-specific injector. It is the shared sink for both the direct move
 // path and each step of the smooth animator.
@@ -389,6 +403,15 @@ func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter keeps satisfying the optional SystemPort extensions it
+// opts into. Callers reach these by type assertion, so a signature drift would
+// otherwise silently downgrade Linux to the generic fallback path instead of
+// failing to compile.
+var (
+	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+	_ ports.CursorSynchronizer  = (*SystemAdapter)(nil)
+)
 
 // darkModeSource names which input produced a color-scheme value.
 type darkModeSource string

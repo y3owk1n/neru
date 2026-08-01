@@ -9,11 +9,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
 )
 
 func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {

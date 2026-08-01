@@ -46,40 +46,6 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 	}
 }
 
-func TestMockConfigPort_Defaults(t *testing.T) {
-	mock := &mocks.MockConfigPort{}
-
-	config := mock.Get()
-	if config == nil {
-		t.Error("Get() should return a default config")
-	}
-
-	err := mock.Reload(context.Background(), "/test/path")
-	if err != nil {
-		t.Errorf("Reload() default should return nil, got %v", err)
-	}
-
-	ch := mock.Watch(context.Background())
-	select {
-	case cfg := <-ch:
-		if cfg == nil {
-			t.Error("Watch() should send a config on channel")
-		}
-	default:
-		t.Error("Watch() should immediately send a config")
-	}
-
-	err = mock.Validate(nil)
-	if err != nil {
-		t.Errorf("Validate() default should return nil, got %v", err)
-	}
-
-	path := mock.Path()
-	if path == "" {
-		t.Error("Path() should return a non-empty path")
-	}
-}
-
 func TestMockOverlayPort_Defaults(t *testing.T) {
 	mock := &mocks.MockOverlayPort{}
 

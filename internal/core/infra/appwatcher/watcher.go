@@ -4,11 +4,14 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// AppCallback defines the function signature for application event handlers.
-// It receives the application name and bundle identifier as parameters.
-type AppCallback func(appName string, bundleID string)
+// AppCallback is the application event handler signature. It aliases
+// ports.AppEventCallback so callbacks registered against the port and against
+// this package are the same type.
+type AppCallback = ports.AppEventCallback
 
 // Watcher monitors application lifecycle events and dispatches them to registered callbacks.
 // It tracks application launches, terminations, activations, deactivations, and screen changes.
@@ -217,3 +220,6 @@ func (w *Watcher) dispatchMCEvent(logMsg string, callbacks func(*Watcher) []func
 		callback()
 	}
 }
+
+// Ensure Watcher implements ports.AppWatcherPort.
+var _ ports.AppWatcherPort = (*Watcher)(nil)

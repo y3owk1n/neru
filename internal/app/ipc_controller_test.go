@@ -20,21 +20,12 @@ func newTestController() *app.IPCController {
 	logger, _ := zap.NewDevelopment()
 	configService := config.NewService(cfg, "", logger, nil)
 
-	return app.NewIPCController(
-		nil, // hintService
-		nil, // gridService
-		nil, // actionService
-		nil, // scrollService
-		configService,
-		appState,
-		cfg,
-		nil, // modesHandler
-		nil, // systemPort
-		nil, // eventTap
-		nil, // ipcServer
-		nil, // reloadConfig
-		logger,
-	)
+	return app.NewIPCController(app.IPCControllerDeps{
+		ConfigService: configService,
+		AppState:      appState,
+		Config:        cfg,
+		Logger:        logger,
+	})
 }
 
 func TestIPCController_HandlePing(t *testing.T) {

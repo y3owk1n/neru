@@ -136,42 +136,71 @@ func TestCursorState_SkipNextRestore(t *testing.T) {
 }
 
 // TestCursorState_Concurrency tests thread-safe access to cursor state.
-func TestCursorState_Concurrency(_ *testing.T) {
-	state := state.NewCursorState()
+// TestCursorState_Concurrency hammers the cursor state from many goroutines.
+// The race detector is the primary check; the post-run assertions make the test
+// meaningful under a plain `go test` too.
+// TestCursorState_Concurrency hammers the cursor state from many goroutines.
+// The race detector is the primary check; the post-run assertions make the test
+// meaningful under a plain `go test` too.
+func TestCursorState_Concurrency(t *testing.T) {
+	cursorState := state.NewCursorState()
 
 	var waitGroup sync.WaitGroup
 
-	// Concurrent reads and writes
 	for range 100 {
-		waitGroup.Add(3)
+		waitGroup.Add(4)
 
 		go func() {
 			defer waitGroup.Done()
 
-			state.Capture(image.Point{X: 100, Y: 200}, image.Rect(0, 0, 1920, 1080))
-			_ = state.IsCaptured()
+			cursorState.Capture(image.Point{X: 1, Y: 2}, image.Rect(0, 0, 100, 100))
 		}()
 
 		go func() {
 			defer waitGroup.Done()
 
-			_ = state.InitialPosition()
-			_ = state.InitialScreenBounds()
+			cursorState.Reset()
 		}()
 
 		go func() {
 			defer waitGroup.Done()
 
-			_ = state.ShouldMoveCursor()
+			_ = cursorState.ShouldMoveCursor()
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			cursorState.MarkActionPerformed()
 		}()
 	}
 
 	waitGroup.Wait()
+
+	// Reads must be self-consistent once writers are done, and the state must
+	// still respond to writes.
+	settled := cursorState.IsCaptured()
+	if cursorState.IsCaptured() != settled {
+		t.Fatal("IsCaptured() disagreed with itself with no writer running")
+	}
+
+	cursorState.Capture(image.Point{X: 7, Y: 9}, image.Rect(0, 0, 50, 50))
+
+	if !cursorState.IsCaptured() {
+		t.Error("Capture() after concurrent access did not take effect")
+	}
+
+	if got := cursorState.InitialPosition(); got != (image.Point{X: 7, Y: 9}) {
+		t.Errorf("InitialPosition() = %v, want (7,9)", got)
+	}
+
+	cursorState.Reset()
+
+	if cursorState.IsCaptured() {
+		t.Error("Reset() after concurrent access did not clear the capture")
+	}
 }
 
-// Stress tests for robustness.
-
-// TestCursorState_RapidStateTransitions tests rapid capture/release cycles.
 func TestCursorState_RapidStateTransitions(t *testing.T) {
 	state := state.NewCursorState()
 

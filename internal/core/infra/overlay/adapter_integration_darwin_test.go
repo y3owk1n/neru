@@ -11,8 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/core/ports"
-	overlayManager "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
@@ -22,11 +20,6 @@ type testThemeProvider struct {
 
 func (t *testThemeProvider) IsDarkMode() bool {
 	return t.darkMode
-}
-
-// TestOverlayAdapterImplementsPort verifies the adapter implements the port interface.
-func TestOverlayAdapterImplementsPort(_ *testing.T) {
-	var _ ports.OverlayPort = (*overlay.Adapter)(nil)
 }
 
 // TestOverlayAdapterIntegration tests the overlay adapter with real dependencies.
@@ -41,7 +34,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	// Setup
 	logger := logger.Get()
-	manager := overlayManager.Init(logger)
+	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
 
 	systemPort, systemPortErr := platform.NewSystemPort()
@@ -103,7 +96,7 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	}
 
 	logger := logger.Get()
-	manager := overlayManager.Init(logger)
+	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
 
 	systemPort, systemPortErr := platform.NewSystemPort()

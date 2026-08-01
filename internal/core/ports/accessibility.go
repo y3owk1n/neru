@@ -14,6 +14,22 @@ type ElementDiscovery interface {
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 }
 
+// RoleConfiguration defines the interface for reconfiguring which accessibility
+// roles count as clickable.
+//
+// It is separate from ElementDiscovery so a consumer that only reads elements
+// does not have to accept a mutator it will never call.
+type RoleConfiguration interface {
+	// UpdateClickableRoles replaces the set of roles treated as clickable.
+	// Config reload calls it when hints.clickable_roles changes.
+	//
+	// roles are native platform role names (AXButton, push-button,
+	// ControlType.Button), already resolved from the semantic vocabulary by
+	// element.RoleVocabulary. Backends that do not filter by role — where the
+	// tree walk decides clickability another way — accept and ignore them.
+	UpdateClickableRoles(roles []string)
+}
+
 // ActionExecution defines the interface for executing actions on UI elements.
 type ActionExecution interface {
 	// PerformAction executes an action on the specified element.
@@ -29,6 +45,18 @@ type ActionExecution interface {
 
 	// Scroll performs a scroll action at the current cursor position.
 	Scroll(ctx context.Context, deltaX, deltaY int) error
+
+	// ReleaseHeldButtons releases any mouse button this process is still
+	// holding down.
+	//
+	// Neru can leave a button held when a drag-style action is interrupted —
+	// the mode exits, the daemon is paused, or a chain bails between the
+	// press and the release. Without this the button stays down at the OS
+	// level and the desktop behaves as if the user were mid-drag.
+	//
+	// Implementations must be idempotent and safe to call when nothing is
+	// held, because it runs on every mode-exit path.
+	ReleaseHeldButtons(ctx context.Context) error
 }
 
 // ApplicationInfo defines the interface for getting application information.
@@ -45,6 +73,25 @@ type ApplicationInfo interface {
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
+// TreePriming defines the interface for readying an application's accessibility
+// tree before Neru queries it.
+type TreePriming interface {
+	// PrimeApplication reports whether the application identified by bundleID
+	// has an accessibility tree Neru can hint against, waiting briefly for one
+	// to appear.
+	//
+	// This exists for macOS: Electron, Chromium and Gecko apps build their tree
+	// asynchronously after being asked to expose one, so the first hints
+	// activation after focusing such an app would otherwise find nothing.
+	// Backends whose trees are eagerly available (AT-SPI, UI Automation) report
+	// true immediately — this is a genuine "nothing to do", not a stub, so it
+	// must not return CodeNotSupported.
+	//
+	// Callers may retry on false; implementations must be safe to call
+	// repeatedly and off the event-tap thread.
+	PrimeApplication(ctx context.Context, bundleID string) (bool, error)
+}
+
 // AccessibilityPort defines the interface for interacting with the platform
 // accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
 // Implementations handle all platform-specific bridge complexity and live in
@@ -54,8 +101,10 @@ type ApplicationInfo interface {
 type AccessibilityPort interface {
 	HealthCheck
 	ElementDiscovery
+	RoleConfiguration
 	ActionExecution
 	ApplicationInfo
+	TreePriming
 }
 
 // ElementFilter defines criteria for filtering UI elements.

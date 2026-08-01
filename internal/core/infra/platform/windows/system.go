@@ -1,12 +1,9 @@
 //go:build windows
 
-// Package windows provides Windows-specific implementations of infrastructure components.
-//
-// Most methods currently return CodeNotSupported because Windows support is a
-// work-in-progress. Contributors should replace each stub with a real
-// implementation and remove the CodeNotSupported return when done.
-// See docs/CROSS_PLATFORM.md for the contributor guide.
-//
+// internal/core/infra/platform/windows/system.go
+// SystemAdapter: the ports.SystemPort implementation for Windows.
+// The package comment lives in doc.go.
+
 //nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package windows
 
@@ -233,6 +230,20 @@ func (s *SystemAdapter) ShowAlert(_ context.Context, title, message string) erro
 // ShowNotification displays a lightweight notification on Windows.
 // TODO(windows): implement using Windows Toast Notifications API.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
+
+// CheckScreenCapturePermission reports true: Windows does not gate screen capture
+// behind a permission.
+func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
+	return true
+}
+
+// RequestScreenCapturePermission reports granted without prompting: Windows has no
+// screen-recording permission to request.
+func (s *SystemAdapter) RequestScreenCapturePermission(
+	_ context.Context,
+) ports.ScreenCaptureConsent {
+	return ports.ScreenCaptureGranted
+}
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)

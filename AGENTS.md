@@ -40,7 +40,7 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 
 - To understand **Mode** behavior: Read `internal/app/modes/base.go` and `handler.go`.
 - To understand **Accessibility**: Read `internal/core/ports/accessibility.go` (Port) and `internal/core/infra/accessibility/adapter.go` (Adapter).
-- To understand **Overlay** rendering: Read `internal/core/ports/overlay.go` and `internal/app/components/overlayutil/factory_darwin.go`.
+- To understand **Overlay** rendering: Read `internal/core/ports/overlay.go` and `internal/core/infra/overlay/render/overlayutil/factory_darwin.go`.
 
 ## Documentation
 

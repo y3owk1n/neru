@@ -14,12 +14,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 )
 
-// HotkeyID represents a unique identifier for a registered hotkey.
-type HotkeyID int
-
-// Callback defines the function signature for hotkey event handlers.
-type Callback func()
-
 type callbackPair struct {
 	press   Callback
 	release Callback

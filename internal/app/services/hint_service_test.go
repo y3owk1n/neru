@@ -626,10 +626,12 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 func TestHintService_UpdateGenerator(t *testing.T) {
 	mockAcc := &mocks.MockAccessibilityPort{}
 	mockOverlay := &mocks.MockOverlayPort{}
-	logger := logger.Get()
+	log := logger.Get()
 
-	// Initial generator
-	initialGen, _ := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionReverse)
+	initialGen, err := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionReverse)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error = %v", err)
+	}
 
 	service := services.NewHintService(
 		mockAcc,
@@ -637,17 +639,38 @@ func TestHintService_UpdateGenerator(t *testing.T) {
 		&mocks.MockSystemPort{},
 		initialGen,
 		config.HintsConfig{},
-		logger,
+		log,
 		nil,
 	)
 
-	// Update with new generator
-	newGen, _ := hint.NewAlphabetGenerator("efgh", hint.LabelDirectionReverse)
-	ctx := context.Background()
-	service.UpdateGenerator(ctx, newGen)
+	normal, err := hint.NewAlphabetGenerator("efgh", hint.LabelDirectionNormal)
+	if err != nil {
+		t.Fatalf("NewAlphabetGenerator() error = %v", err)
+	}
 
-	// Test with nil generator (should not crash)
-	service.UpdateGenerator(ctx, nil)
+	service.UpdateGenerator(context.Background(), normal)
+
+	// The registered generator must be retrievable under its own direction —
+	// this is what the per-activation `hints --label-direction` override reads.
+	got := service.Generator(hint.LabelDirectionNormal.String())
+	if got == nil {
+		t.Fatal("Generator(normal) = nil after UpdateGenerator")
+	}
+
+	if got.LabelDirection() != hint.LabelDirectionNormal {
+		t.Errorf(
+			"Generator(normal).LabelDirection() = %v, want %v",
+			got.LabelDirection(),
+			hint.LabelDirectionNormal,
+		)
+	}
+
+	// A nil generator must be ignored rather than wiping a live one.
+	service.UpdateGenerator(context.Background(), nil)
+
+	if service.Generator(hint.LabelDirectionNormal.String()) == nil {
+		t.Error("UpdateGenerator(nil) cleared the previously registered generator")
+	}
 }
 
 func TestHintService_GeneratorReturnsDirectionSpecificInstance(t *testing.T) {

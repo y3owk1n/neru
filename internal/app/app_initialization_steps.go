@@ -6,9 +6,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -20,7 +17,12 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
+	infrasystray "github.com/y3owk1n/neru/internal/core/infra/systray"
 	textinputadapter "github.com/y3owk1n/neru/internal/core/infra/textinput"
 	"github.com/y3owk1n/neru/internal/core/ports"
 	"github.com/y3owk1n/neru/internal/ui"
@@ -67,6 +69,10 @@ func initializeInfrastructure(app *App) error {
 		app.textInput = textinputadapter.NewAdapter(textinputadapter.NewTextInput(logger), logger)
 	}
 
+	if app.keyFeed == nil {
+		app.keyFeed = keyfeed.NewAdapter(logger)
+	}
+
 	// Install the platform font resolver. SetFontResolver makes the
 	// resolver available globally to every call site that builds an
 	// overlay style, so they do not have to thread the port through
@@ -89,6 +95,8 @@ func initializeServicesAndAdapters(app *App) error {
 	configurePlatformRuntimeConfigProviders(cfgService)
 
 	// Initialize adapters
+	// accAdapter is retained on the App because the focus-change path calls
+	// PrimeApplication directly, outside any service.
 	accAdapter, overlayAdapter := initializeAdapters(
 		app,
 		cfg,
@@ -97,6 +105,7 @@ func initializeServicesAndAdapters(app *App) error {
 		app.overlayManager,
 		app.systemPort,
 	)
+	app.accessibility = accAdapter
 
 	// Initialize services
 	hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, err := initializeServices(
@@ -265,7 +274,12 @@ func initializeUIComponents(app *App) error {
 
 // initializeSystrayComponent creates and configures the systray component.
 func initializeSystrayComponent(app *App) {
-	systrayComponent := systray.NewComponent(app, app.systemPort, app.logger)
+	systrayComponent := systray.NewComponent(
+		app,
+		infrasystray.NewAdapter(),
+		app.systemPort,
+		app.logger,
+	)
 	app.systrayComponent = systrayComponent
 }
 
@@ -324,15 +338,8 @@ func initializeModeHandler(app *App) {
 			recursivegrid *components.RecursiveGridComponent
 		}
 		callbacks struct {
-			enableEventTap             func()
-			disableEventTap            func()
-			setModifierPassthrough     func(enabled bool, blacklist []string)
-			setInterceptedModifierKeys func(keys []string)
-			setPassthroughCallback     func(cb func())
-			setStickyModifierToggle    func(enabled bool)
-			postModifierEvent          func(modifier string, isDown bool)
-			refreshHotkeys             func()
-			executeHotkeyAction        func(key, actionStr string) error
+			refreshHotkeys      func()
+			executeHotkeyAction func(key, actionStr string) error
 		}
 	}{
 		config:         cfg,
@@ -368,59 +375,38 @@ func initializeModeHandler(app *App) {
 			recursivegrid: app.recursiveGridComponent,
 		},
 		callbacks: struct {
-			enableEventTap             func()
-			disableEventTap            func()
-			setModifierPassthrough     func(enabled bool, blacklist []string)
-			setInterceptedModifierKeys func(keys []string)
-			setPassthroughCallback     func(cb func())
-			setStickyModifierToggle    func(enabled bool)
-			postModifierEvent          func(modifier string, isDown bool)
-			refreshHotkeys             func()
-			executeHotkeyAction        func(key, actionStr string) error
+			refreshHotkeys      func()
+			executeHotkeyAction func(key, actionStr string) error
 		}{
-			enableEventTap:             app.enableEventTap,
-			disableEventTap:            app.disableEventTap,
-			setModifierPassthrough:     app.setEventTapModifierPassthrough,
-			setInterceptedModifierKeys: app.setEventTapInterceptedModifierKeys,
-			setPassthroughCallback:     app.setEventTapPassthroughCallback,
-			setStickyModifierToggle:    app.setEventTapStickyModifierToggle,
-			postModifierEvent:          app.postEventTapModifierEvent,
-			refreshHotkeys:             func() { app.refreshHotkeysForAppOrCurrent("") },
-			executeHotkeyAction:        app.executeHotkeyAction,
+			refreshHotkeys:      func() { app.refreshHotkeysForAppOrCurrent("") },
+			executeHotkeyAction: app.executeHotkeyAction,
 		},
 	}
 
-	app.modes = modes.NewHandler(
-		app.ctx,
-		deps.config,
-		deps.logger,
-		deps.appState,
-		deps.cursorState,
-		deps.overlayManager,
-		deps.renderer,
-		deps.services.hint,
-		deps.services.grid,
-		deps.services.action,
-		deps.services.scroll,
-		deps.services.modeIndicator,
-		deps.services.stickyIndicator,
-		deps.components.hints,
-		deps.components.grid,
-		deps.components.scroll,
-		deps.components.recursivegrid,
-		deps.callbacks.enableEventTap,
-		deps.callbacks.disableEventTap,
-		deps.callbacks.setModifierPassthrough,
-		deps.callbacks.setInterceptedModifierKeys,
-		deps.callbacks.setPassthroughCallback,
-		deps.callbacks.setStickyModifierToggle,
-		deps.callbacks.postModifierEvent,
-		deps.callbacks.refreshHotkeys,
-		deps.callbacks.executeHotkeyAction,
-		app.Quit,
-		app.textInput,
-		app.systemPort,
-	)
+	app.modes = modes.NewHandler(modes.HandlerDeps{
+		Ctx:                    app.ctx,
+		Config:                 deps.config,
+		Logger:                 deps.logger,
+		AppState:               deps.appState,
+		CursorState:            deps.cursorState,
+		OverlayManager:         deps.overlayManager,
+		Renderer:               deps.renderer,
+		HintService:            deps.services.hint,
+		GridService:            deps.services.grid,
+		ActionService:          deps.services.action,
+		ScrollService:          deps.services.scroll,
+		ModeIndicatorService:   deps.services.modeIndicator,
+		StickyIndicatorService: deps.services.stickyIndicator,
+		HintsComponent:         deps.components.hints,
+		GridComponent:          deps.components.grid,
+		ScrollComponent:        deps.components.scroll,
+		RecursiveGridComponent: deps.components.recursivegrid,
+		RefreshHotkeys:         deps.callbacks.refreshHotkeys,
+		ExecuteHotkeyAction:    deps.callbacks.executeHotkeyAction,
+		Shutdown:               app.Quit,
+		TextInput:              app.textInput,
+		System:                 app.systemPort,
+	})
 }
 
 // initializeIPCController sets up the IPC controller for external communication.
@@ -429,21 +415,22 @@ func initializeModeHandler(app *App) {
 // SetConfigField callback is set after creation so the constructor's
 // signature stays stable for test callers.
 func initializeIPCController(app *App) {
-	app.ipcController = NewIPCController(
-		app.hintService,
-		app.gridService,
-		app.actionService,
-		app.scrollService,
-		app.configService,
-		app.appState,
-		app.config,
-		app.modes,
-		app.systemPort,
-		nil, // eventTap — set in Phase 8
-		nil, // ipcServer — set in Phase 8
-		app.ReloadConfig,
-		app.logger,
-	)
+	app.ipcController = NewIPCController(IPCControllerDeps{
+		HintService:   app.hintService,
+		GridService:   app.gridService,
+		ActionService: app.actionService,
+		ScrollService: app.scrollService,
+		ConfigService: app.configService,
+		AppState:      app.appState,
+		Config:        app.config,
+		Modes:         app.modes,
+		System:        app.systemPort,
+		// EventTap and IPCServer stay zero here; phase 8 fills them in
+		// through SetInfrastructure.
+		KeyFeed:      app.keyFeed,
+		ReloadConfig: app.ReloadConfig,
+		Logger:       app.logger,
+	})
 
 	// Set the config-set callback so runtime field changes propagate to
 	// app components (services, overlays, hotkeys, etc.). Uses the setter
@@ -520,6 +507,12 @@ func initializeEventTapAndIPC(app *App) error {
 	// references so the health handler can query their state.
 	if app.ipcController != nil {
 		app.ipcController.SetInfrastructure(app.eventTap, app.ipcServer)
+	}
+
+	// The mode handler is built in phase 7, before the event tap exists, so it
+	// receives the port here rather than through its constructor.
+	if app.modes != nil {
+		app.modes.SetEventTap(app.eventTap)
 	}
 
 	return nil

@@ -5,15 +5,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/components/grid"
-	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/modeindicator"
-	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
-	"github.com/y3owk1n/neru/internal/app/components/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	domainRecursiveGrid "github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/modeindicator"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/stickyindicator"
 )
 
 // HintsComponent encapsulates all hints-related functionality.

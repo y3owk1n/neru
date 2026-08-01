@@ -596,9 +596,9 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 	return darwin.IsMouseButtonDown(button)
 }
 
-// EnsureMouseUp releases every mouse button Neru is currently holding down.
+// ensureMouseUp releases every mouse button Neru is currently holding down.
 // This should be called before any action that is incompatible with a drag operation.
-func EnsureMouseUp() {
+func ensureMouseUp() {
 	darwin.EnsureMouseUp()
 }
 

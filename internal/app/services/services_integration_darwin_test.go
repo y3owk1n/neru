@@ -19,7 +19,6 @@ import (
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
-	uiOverlay "github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
@@ -278,7 +277,7 @@ func initializeRealAdapters(
 	)
 
 	// Initialize overlay manager (always use no-op for integration tests)
-	overlayManager := &uiOverlay.NoOpManager{}
+	overlayManager := &overlayAdapter.NoOpManager{}
 
 	// Initialize system port
 	systemPort, err := platform.NewSystemPort()

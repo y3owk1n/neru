@@ -1,0 +1,131 @@
+package recursivegrid
+
+import (
+	"image"
+
+	"github.com/y3owk1n/neru/internal/core/domain/recursivegrid"
+)
+
+// baseContext provides common functionality for mode component contexts.
+type baseContext struct {
+	pendingAction         *string
+	pendingModifier       *string
+	onExit                *string
+	repeat                bool
+	cursorFollowSelection bool
+	selectedPoint         image.Point
+	hasSelection          bool
+}
+
+// SetPendingAction sets the action to execute when mode selection is complete.
+func (c *baseContext) SetPendingAction(action *string) {
+	c.pendingAction = action
+}
+
+// PendingAction returns the pending action to execute.
+func (c *baseContext) PendingAction() *string {
+	return c.pendingAction
+}
+
+// SetOnExit sets the action string to run when the pending action is fulfilled
+// and the mode exits back to idle through the action path.
+func (c *baseContext) SetOnExit(onExit *string) {
+	c.onExit = onExit
+}
+
+// OnExit returns the action string to run once the pending action is fulfilled.
+func (c *baseContext) OnExit() *string {
+	return c.onExit
+}
+
+// SetPendingModifier sets the modifier keys to apply when the pending action fires.
+func (c *baseContext) SetPendingModifier(modifier *string) {
+	c.pendingModifier = modifier
+}
+
+// PendingModifier returns the modifier keys to apply when the pending action fires.
+func (c *baseContext) PendingModifier() *string {
+	return c.pendingModifier
+}
+
+// SetRepeat sets whether the mode should re-activate after performing the action.
+func (c *baseContext) SetRepeat(repeat bool) {
+	c.repeat = repeat
+}
+
+// Repeat returns whether the mode should re-activate after performing the action.
+func (c *baseContext) Repeat() bool {
+	return c.repeat
+}
+
+// SetCursorFollowSelection sets whether live selection updates should move the real cursor.
+func (c *baseContext) SetCursorFollowSelection(cursorFollowSelection bool) {
+	c.cursorFollowSelection = cursorFollowSelection
+}
+
+// CursorFollowSelection returns whether live selection updates should move the real cursor.
+func (c *baseContext) CursorFollowSelection() bool {
+	return c.cursorFollowSelection
+}
+
+// ToggleCursorFollowSelection flips the live cursor tracking state and returns the new value.
+func (c *baseContext) ToggleCursorFollowSelection() bool {
+	c.cursorFollowSelection = !c.cursorFollowSelection
+
+	return c.cursorFollowSelection
+}
+
+// SetSelectionPoint stores the active selection point for the mode.
+func (c *baseContext) SetSelectionPoint(point image.Point) {
+	c.selectedPoint = point
+	c.hasSelection = true
+}
+
+// ClearSelectionPoint removes the active selection point for the mode.
+func (c *baseContext) ClearSelectionPoint() {
+	c.selectedPoint = image.Point{}
+	c.hasSelection = false
+}
+
+// SelectionPoint returns the active selection point for the mode, if any.
+func (c *baseContext) SelectionPoint() (image.Point, bool) {
+	return c.selectedPoint, c.hasSelection
+}
+
+// Reset resets the base context to its initial state.
+func (c *baseContext) Reset() {
+	c.pendingAction = nil
+	c.pendingModifier = nil
+	c.onExit = nil
+	c.repeat = false
+	c.cursorFollowSelection = false
+	c.ClearSelectionPoint()
+}
+
+// Context holds the state and context for recursive_grid mode operations.
+type Context struct {
+	baseContext
+}
+
+// VirtualPointerState describes the recursive-grid virtual pointer state.
+type VirtualPointerState struct {
+	Visible   bool
+	Position  image.Point
+	Size      int
+	FillColor string
+	Char      string
+	FontName  string
+}
+
+// Reset resets the recursive_grid context to its initial state.
+func (c *Context) Reset() {
+	c.baseContext.Reset()
+}
+
+// Component holds the components for recursive_grid mode.
+type Component struct {
+	Manager *recursivegrid.Manager
+	Overlay *Overlay
+	Context *Context
+	Style   Style
+}

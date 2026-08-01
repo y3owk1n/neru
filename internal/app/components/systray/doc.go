@@ -1,7 +1,17 @@
-// Package systray provides the system tray icon and menu for Neru.
+// Package systray defines Neru's tray menu: which entries exist, what they
+// say, and what each one does.
 //
-// It exposes controls for application status, mode activation, and
-// configuration management. The underlying systray infrastructure
-// (internal/core/infra/systray) is platform-specific; on macOS it uses
-// Cocoa, on Linux/Windows the implementation is a stub until contributed.
+// That is application policy, so it lives here. The tray *mechanism* is a
+// platform capability behind ports.SystrayPort — NSStatusItem on macOS, the
+// D-Bus StatusNotifierItem + dbusmenu protocols on Linux, and Shell_NotifyIcon
+// on Windows, all implemented in internal/core/infra/systray. This package
+// names none of them: it receives the port and builds a menu against it.
+//
+// Two couplings this package deliberately does not have:
+//
+//   - It does not import internal/core/infra/systray. It used to, which made
+//     the menu depend on a concrete tray backend and left it untestable.
+//   - It does not import internal/cli for the version string. Build identity
+//     comes from internal/buildinfo, so an application component no longer
+//     depends on the outermost command layer.
 package systray

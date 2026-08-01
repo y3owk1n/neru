@@ -10,8 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.

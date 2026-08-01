@@ -8,7 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	infra "github.com/y3owk1n/neru/internal/core/infra/accessibility"
 )
 
 // SetConfigField applies a single runtime config field change with full
@@ -121,13 +120,13 @@ func (a *App) prepareForConfigUpdate() {
 
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
 func (a *App) applyAppSpecificConfigUpdates(loadResult *config.LoadResult) {
-	if loadResult.Config.Hints.Enabled {
+	if loadResult.Config.Hints.Enabled && a.accessibility != nil {
 		roles := loadResult.Config.Hints.ResolvedClickableRoles()
 
 		a.logger.Debug("Updating clickable roles",
 			zap.Int("configured", len(loadResult.Config.Hints.ClickableRoles)),
 			zap.Int("resolved", len(roles)))
-		infra.SetClickableRoles(roles, a.logger)
+		a.accessibility.UpdateClickableRoles(roles)
 	}
 }
 

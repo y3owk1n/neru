@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
-	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
@@ -19,7 +18,8 @@ import (
 	domainhint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	hintscomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 )
 
 type recordingMode struct {

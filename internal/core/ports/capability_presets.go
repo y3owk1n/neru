@@ -42,6 +42,14 @@ func DarwinCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"system dark mode detection available via Cocoa appearance APIs",
 		),
+		TextInput: supportedCapability(
+			"native hint-search field available via an NSTextField overlay",
+		),
+		Vision: supportedCapability(
+			"OCR element detection available via the Vision framework and ScreenCaptureKit",
+		),
+		KeyFeed: supportedCapability("key injection available via CGEventPost"),
+		Systray: supportedCapability("tray icon available via NSStatusItem"),
 	}
 }
 
@@ -95,6 +103,21 @@ func LinuxCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
 		),
+		TextInput: stubCapability(
+			"native hint-search field not implemented yet; hint search falls back " +
+				"to the event tap's key stream",
+		),
+		Vision: stubCapability(
+			"no OCR/vision element detection; hints come from AT-SPI only",
+		),
+		KeyFeed: supportedCapability(
+			"key injection via a uinput virtual keyboard when /dev/uinput is " +
+				"writable (works on X11, wlroots, and KWin), falling back to " +
+				"zwp_virtual_keyboard_v1 on wlroots compositors",
+		),
+		Systray: supportedCapability(
+			"tray icon available via the D-Bus StatusNotifierItem + dbusmenu protocols",
+		),
 	}
 }
 
@@ -132,6 +155,19 @@ func WindowsCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"dark mode detection available via the Windows personalization registry " +
 				"(Themes\\Personalize AppsUseLightTheme)",
+		),
+		TextInput: stubCapability(
+			"native hint-search field not implemented yet; hint search falls back " +
+				"to the event tap's key stream",
+		),
+		Vision: stubCapability(
+			"no OCR/vision element detection; hints come from UI Automation only",
+		),
+		KeyFeed: stubCapability(
+			"key injection not implemented yet; target SendInput",
+		),
+		Systray: supportedCapability(
+			"tray icon available via the Win32 notification area (Shell_NotifyIcon)",
 		),
 	}
 }

@@ -6,8 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 )
 
 const (
@@ -141,11 +140,11 @@ func (h *Handler) performCommonCleanup() {
 	// modifier still logically held.
 	h.clearStickyModifiers()
 
-	if h.disableEventTap != nil {
+	if h.hasEventTap() {
 		h.disableEventTap()
 	}
 
-	accessibility.EnsureMouseUp()
+	h.releaseHeldButtons()
 
 	h.setAppModeLocked(domain.ModeIdle)
 
@@ -182,4 +181,19 @@ func (h *Handler) handleCursorRestoration() {
 
 	// Always reset scroll context to ensure proper state cleanup when switching modes.
 	h.scroll.Context.Reset()
+}
+
+// releaseHeldButtons releases any mouse button left down by an interrupted
+// drag. It routes through the action service rather than reaching into the
+// accessibility infra package directly, and swallows the error because every
+// caller is already on a cleanup path where there is nothing left to abort.
+func (h *Handler) releaseHeldButtons() {
+	if h.actionService == nil {
+		return
+	}
+
+	err := h.actionService.ReleaseHeldButtons(h.ctx)
+	if err != nil {
+		h.logger.Debug("Failed to release held mouse buttons", zap.Error(err))
+	}
 }

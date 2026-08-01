@@ -8,6 +8,8 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
 const (
@@ -189,7 +191,7 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 		for attempt := 1; attempt <= maxRetries; attempt++ {
 			a.refreshHotkeysForAppOrCurrent("")
 
-			hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
+			hc, ok := a.hotkeyManager.(ports.HotkeyHealthReporter)
 			if !ok || hc.HealthCheck() {
 				healthy = true
 
@@ -268,7 +270,7 @@ func (a *App) verifyHotkeyHealth() {
 		return
 	}
 
-	hc, ok := a.hotkeyManager.(interface{ HealthCheck() bool })
+	hc, ok := a.hotkeyManager.(ports.HotkeyHealthReporter)
 	if !ok {
 		return
 	}

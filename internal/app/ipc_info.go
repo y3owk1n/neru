@@ -59,38 +59,52 @@ type IPCControllerInfo struct {
 	setConfigField func(ctx context.Context, key, value string) error
 }
 
-// NewIPCControllerInfo creates a new info/config command handler.
-func NewIPCControllerInfo(
-	configService *config.Service,
-	appState *state.AppState,
-	config *config.Config,
-	modes *modes.Handler,
-	hintService *services.HintService,
-	gridService *services.GridService,
-	actionService *services.ActionService,
-	scrollService *services.ScrollService,
-	systemPort ports.SystemPort,
-	eventTap ports.EventTapPort,
-	ipcServer ports.IPCPort,
-	reloadConfig func(ctx context.Context, configPath string) error,
-	logger *zap.Logger,
-	setConfigField func(ctx context.Context, key, value string) error,
-) *IPCControllerInfo {
+// IPCControllerInfoDeps collects everything NewIPCControllerInfo needs.
+//
+// The reasoning matches IPCControllerDeps: the positional list had reached fourteen
+// arguments, several nil at any given call site. Zero values are valid — a nil
+// service means the commands that need it report it as unavailable, and
+// EventTap and IPCServer are nil until initialization phase 8.
+type IPCControllerInfoDeps struct {
+	ConfigService *config.Service
+	AppState      *state.AppState
+	Config        *config.Config
+	Modes         *modes.Handler
+
+	HintService   *services.HintService
+	GridService   *services.GridService
+	ActionService *services.ActionService
+	ScrollService *services.ScrollService
+
+	System    ports.SystemPort
+	EventTap  ports.EventTapPort
+	IPCServer ports.IPCPort
+
+	// ReloadConfig performs a full app-level config reload.
+	ReloadConfig func(ctx context.Context, configPath string) error
+	// SetConfigField applies a runtime config field change.
+	SetConfigField func(ctx context.Context, key, value string) error
+
+	Logger *zap.Logger
+}
+
+// NewIPCControllerInfo creates the info/config command handler.
+func NewIPCControllerInfo(deps IPCControllerInfoDeps) *IPCControllerInfo {
 	return &IPCControllerInfo{
-		configService:  configService,
-		appState:       appState,
-		config:         config,
-		modes:          modes,
-		hintService:    hintService,
-		gridService:    gridService,
-		actionService:  actionService,
-		scrollService:  scrollService,
-		systemPort:     systemPort,
-		eventTap:       eventTap,
-		ipcServer:      ipcServer,
-		reloadConfig:   reloadConfig,
-		setConfigField: setConfigField,
-		logger:         logger,
+		configService:  deps.ConfigService,
+		appState:       deps.AppState,
+		config:         deps.Config,
+		modes:          deps.Modes,
+		hintService:    deps.HintService,
+		gridService:    deps.GridService,
+		actionService:  deps.ActionService,
+		scrollService:  deps.ScrollService,
+		systemPort:     deps.System,
+		eventTap:       deps.EventTap,
+		ipcServer:      deps.IPCServer,
+		reloadConfig:   deps.ReloadConfig,
+		setConfigField: deps.SetConfigField,
+		logger:         deps.Logger,
 	}
 }
 
@@ -600,18 +614,10 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		return map[string]any{}
 	}
 
-	out := map[string]any{
-		"platform":            capabilities.Platform,
-		"process":             capabilityString(capabilities.Process),
-		"screen":              capabilityString(capabilities.Screen),
-		"cursor":              capabilityString(capabilities.Cursor),
-		"accessibility":       capabilityString(capabilities.Accessibility),
-		"overlay":             capabilityString(capabilities.Overlay),
-		"notifications":       capabilityString(capabilities.Notifications),
-		"global_hotkeys":      capabilityString(capabilities.GlobalHotkeys),
-		"keyboard_event_tap":  capabilityString(capabilities.KeyboardEventTap),
-		"app_watcher":         capabilityString(capabilities.AppWatcher),
-		"dark_mode_detection": capabilityString(capabilities.DarkModeDetection),
+	out := map[string]any{"platform": capabilities.Platform}
+
+	for _, entry := range capabilities.Entries() {
+		out[string(entry.Key)] = capabilityString(entry.FeatureCapability)
 	}
 
 	// Surface dark-mode Detail as a sibling field so `neru doctor` can render
@@ -621,7 +627,7 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 	// description there, so gate on platform to keep it out of their output.
 	if detail := capabilities.DarkModeDetection.Detail; detail != "" &&
 		strings.HasPrefix(capabilities.Platform, "linux") {
-		out["dark_mode_detection"+detailSuffix] = detail
+		out[string(ports.CapabilityDarkModeDetection)+detailSuffix] = detail
 	}
 
 	return out

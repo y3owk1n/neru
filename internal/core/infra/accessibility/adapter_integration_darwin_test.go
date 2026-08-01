@@ -14,11 +14,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
 
-// TestAccessibilityAdapterImplementsPort verifies the adapter implements the port interface.
-func TestAccessibilityAdapterImplementsPort(_ *testing.T) {
-	var _ ports.AccessibilityPort = (*accessibility.Adapter)(nil)
-}
-
 // TestAccessibilityAdapterIntegration tests the accessibility adapter.
 // Note: This test requires accessibility permissions and might fail in headless CI.
 func TestAccessibilityAdapterIntegration(t *testing.T) {

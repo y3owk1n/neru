@@ -137,5 +137,16 @@ func TestModifierState_Concurrent(t *testing.T) {
 
 	waitGroup.Wait()
 
-	_ = modifierState.Current()
+	// The race detector is the primary check. Also assert the state is still
+	// coherent and mutable, so the test is not vacuous without -race.
+	settled := modifierState.Current()
+	if modifierState.Current() != settled {
+		t.Fatal("Current() disagreed with itself with no writer running")
+	}
+
+	modifierState.Reset()
+
+	if modifierState.Current() != 0 {
+		t.Errorf("Reset() after concurrent access left %v, want 0", modifierState.Current())
+	}
 }

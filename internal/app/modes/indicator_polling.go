@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/eventtap"
-	"github.com/y3owk1n/neru/internal/ui/overlay"
+	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 )
 
 const (
@@ -34,8 +33,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	// overlay must stay keyboard-passive (its grab would deactivate the focused
 	// app's toplevel on wlroots, breaking the next hints refresh), and the evdev
 	// path already keeps it that way.
-	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() &&
-		!eventtap.IsWaylandEvdevKeyboardActive() {
+	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
 		m.SetKeyboardCaptureEnabled(false)
 	}
 	// Ensure the mode indicator overlay covers the correct screen before
@@ -232,8 +230,7 @@ func (h *Handler) stopIndicatorPolling() {
 	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
 	// so a hints refresh (which stops indicator polling before rescanning) would
 	// re-read the wrong focused window and clear the hints.
-	if m := overlay.Get(); m != nil && eventtap.IsUinputScrollAvailable() &&
-		!eventtap.IsWaylandEvdevKeyboardActive() {
+	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
 		m.SetKeyboardCaptureEnabled(true)
 	}
 

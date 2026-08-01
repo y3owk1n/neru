@@ -1,4 +1,3 @@
-// Package textinput provides an adapter and stub for native text input.
 package textinput
 
 import (
@@ -56,3 +55,6 @@ func (a *Adapter) StopHintSearchSession(ctx context.Context) error {
 
 	return a.input.StopHintSearchSession(ctx)
 }
+
+// Ensure Adapter implements ports.TextInputPort.
+var _ ports.TextInputPort = (*Adapter)(nil)

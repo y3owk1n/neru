@@ -473,7 +473,7 @@ func TestAppState_HotkeyRefreshPending(t *testing.T) {
 }
 
 // TestAppState_Concurrency tests thread-safe access to state.
-func TestAppState_Concurrency(_ *testing.T) {
+func TestAppState_Concurrency(t *testing.T) {
 	_state := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
@@ -498,6 +498,19 @@ func TestAppState_Concurrency(_ *testing.T) {
 	}
 
 	waitGroup.Wait()
+
+	// The race detector is the primary check. Also assert the state stayed
+	// coherent and writable, so the test can actually fail without -race.
+	settled := _state.CurrentMode()
+	if _state.CurrentMode() != settled {
+		t.Fatal("CurrentMode() disagreed with itself with no writer running")
+	}
+
+	_state.SetEnabled(true)
+
+	if !_state.IsEnabled() {
+		t.Error("SetEnabled(true) after concurrent access did not take effect")
+	}
 }
 
 // Stress tests for robustness.
@@ -677,37 +690,51 @@ func TestAppState_StateInvariants(t *testing.T) {
 }
 
 // TestAppState_MultipleFlags tests concurrent modification of multiple flags.
-func TestAppState_MultipleFlags(_ *testing.T) {
-	_state := state.NewAppState()
+// TestAppState_MultipleFlags hammers the enabled flag from many goroutines.
+//
+// Its value is the race detector, but it also pins that the flag settles to a
+// readable, consistent value: it previously took `_ *testing.T` and so could
+// not report anything even if the state had been corrupted.
+func TestAppState_MultipleFlags(t *testing.T) {
+	appState := state.NewAppState()
 
 	var waitGroup sync.WaitGroup
 
-	// Concurrently modify enabled flag
 	for range 100 {
 		waitGroup.Add(2)
 
 		go func() {
 			defer waitGroup.Done()
 
-			_state.SetEnabled(true)
+			appState.SetEnabled(true)
 		}()
 
 		go func() {
 			defer waitGroup.Done()
 
-			_state.SetEnabled(false)
+			appState.SetEnabled(false)
 		}()
 	}
 
 	waitGroup.Wait()
 
-	// State should be consistent (either true or false, not corrupted)
-	_ = _state.IsEnabled() // Should not panic or return invalid value
+	// The winning writer is nondeterministic, but reads must agree with each
+	// other once writers are done.
+	settled := appState.IsEnabled()
+	for range 10 {
+		if appState.IsEnabled() != settled {
+			t.Fatal("IsEnabled() returned different values with no writer running")
+		}
+	}
+
+	// And the flag must still be writable afterwards.
+	appState.SetEnabled(true)
+
+	if !appState.IsEnabled() {
+		t.Error("SetEnabled(true) after concurrent access did not take effect")
+	}
 }
 
-// Callback tests for OnEnabledStateChanged and OffEnabledStateChanged.
-
-// TestAppState_OnEnabledStateChanged_Registration tests callback registration returns valid ID.
 func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
 	_state := state.NewAppState()
 
@@ -921,16 +948,76 @@ func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
 
 // TestAppState_OffEnabledStateChanged_InvalidID tests unsubscribing with invalid ID is no-op.
 func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
-	_state := state.NewAppState()
+	appState := state.NewAppState()
 
-	// Should not panic with non-existent ID
-	_state.OffEnabledStateChanged(9999)
+	// Removing IDs that were never issued must be a no-op, not a panic.
+	appState.OffEnabledStateChanged(9999)
+	appState.OffEnabledStateChanged(0)
 
-	// Should not panic with ID that was never issued
-	_state.OffEnabledStateChanged(0)
+	// The real risk is that a bogus removal corrupts the callback registry, so
+	// assert a subsequently registered callback still receives events.
+	//
+	// Two deliveries are in flight here and both are dispatched on their own
+	// goroutine, so their order is not guaranteed: registration fires an
+	// initial callback carrying the current state, and the flip below fires
+	// another. Collect until the flipped value arrives rather than assuming
+	// which lands first.
+	delivered := make(chan bool, 8)
+
+	subscriptionID := appState.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case delivered <- enabled:
+		default:
+		}
+	})
+
+	t.Cleanup(func() { appState.OffEnabledStateChanged(subscriptionID) })
+
+	want := !appState.IsEnabled()
+	appState.SetEnabled(want)
+
+	deadline := time.After(2 * time.Second)
+
+	for {
+		select {
+		case got := <-delivered:
+			if got == want {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("callback never received enabled = %v after removing non-existent IDs", want)
+		}
+	}
 }
 
-// TestAppState_OnEnabledStateChanged_Concurrent tests concurrent callback operations.
+// TestAppState_OnEnabledStateChanged_FiresInitialState pins the registration
+// contract the test above has to work around: subscribing delivers the current
+// state immediately, so a subscriber does not have to prime itself.
+func TestAppState_OnEnabledStateChanged_FiresInitialState(t *testing.T) {
+	appState := state.NewAppState()
+	initial := appState.IsEnabled()
+
+	delivered := make(chan bool, 1)
+
+	subscriptionID := appState.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case delivered <- enabled:
+		default:
+		}
+	})
+
+	t.Cleanup(func() { appState.OffEnabledStateChanged(subscriptionID) })
+
+	select {
+	case got := <-delivered:
+		if got != initial {
+			t.Errorf("initial callback delivered %v, want the current state %v", got, initial)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("registering a callback did not deliver the initial state")
+	}
+}
+
 func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping concurrent test in short mode")

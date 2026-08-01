@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra/doc"
 
+	"github.com/y3owk1n/neru/internal/buildinfo"
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
@@ -39,7 +40,7 @@ func main() {
 		Section: "1",
 		Date:    &now,
 		Manual:  "Neru Manual",
-		Source:  "Neru " + cli.Version,
+		Source:  "Neru " + buildinfo.Version,
 	}
 
 	err = doc.GenManTree(cli.RootCmd, header, outputDir)
