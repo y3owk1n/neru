@@ -12,6 +12,17 @@ import (
 
 const forbiddenImport = "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
 
+// skippedWalkDirs are the directories every repository walk in this package
+// skips: version control, build outputs and vendored third-party code, none of
+// which contain first-party source subject to these guardrails.
+var skippedWalkDirs = map[string]bool{
+	".git": true, "bin": true, "build": true,
+	"node_modules": true, "vendor": true,
+}
+
+// isSkippedWalkDir reports whether a directory should be pruned from a walk.
+func isSkippedWalkDir(name string) bool { return skippedWalkDirs[name] }
+
 func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	fileSet := token.NewFileSet()
@@ -22,8 +33,7 @@ func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 		}
 
 		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", "bin", "build":
+			if isSkippedWalkDir(entry.Name()) {
 				return filepath.SkipDir
 			}
 

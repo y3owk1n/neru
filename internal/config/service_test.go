@@ -163,8 +163,16 @@ func TestService_Replace(t *testing.T) {
 	ctx := t.Context()
 
 	watchCh := service.Watch(ctx)
-	// Drain initial notification.
-	<-watchCh
+
+	// Drain the initial notification. Bounded rather than a bare receive: if
+	// Watch ever stops emitting it, that is the regression this test exists
+	// around, and it should be reported as a failure instead of hanging until
+	// the package's test timeout kills every other test in the binary.
+	select {
+	case <-watchCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Watch() never delivered its initial notification")
+	}
 
 	modified := config.DefaultConfig()
 	modified.Hints.HintCharacters = "replaced"

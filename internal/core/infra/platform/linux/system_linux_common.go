@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -29,11 +30,12 @@ const (
 type SystemAdapter struct {
 	backend        string
 	cursorAnimator *smoothCursorAnimator
+	probes         *capabilityProbes
 }
 
 // NewSystemAdapter creates a new SystemAdapter.
 func NewSystemAdapter(backend string) *SystemAdapter {
-	adapter := &SystemAdapter{backend: backend}
+	adapter := &SystemAdapter{backend: backend, probes: newCapabilityProbes()}
 	adapter.cursorAnimator = newSmoothCursorAnimator(
 		adapter.currentCursorPosition,
 		adapter.moveCursorDirect,
@@ -75,6 +77,39 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 
 	value, source, ok := darkModePreference()
 	capabilities.DarkModeDetection = darkModeCapability(value, source, ok)
+
+	// Screen, cursor and process support is decided by what this binary and
+	// this session can actually reach, not by the build target. The static
+	// Linux preset claims all three are supported, which is wrong for a
+	// CGO_ENABLED=0 build, for a compositor with no wlroots client stack, and
+	// for a session where the display cannot be opened at all: the adapter
+	// answers CodeNotSupported while `neru doctor` says "supported", which is
+	// exactly backwards from what a user debugging Linux needs.
+	//
+	// Each one is settled by calling the same read-only entry point the
+	// capability describes, so the reported status cannot disagree with what a
+	// caller will observe. This mirrors how dark-mode detection is already
+	// live-probed here rather than declared; Capabilities is only reached by
+	// `neru doctor` and the IPC info response, so the extra reads are cheap
+	// relative to how often it runs.
+	capabilities.Process = s.probedCapability("focused-app inspection", capabilities.Process,
+		func() error {
+			_, err := s.FocusedApplicationPID(context.Background())
+
+			return err
+		})
+	capabilities.Screen = s.probedCapability("screen enumeration", capabilities.Screen,
+		func() error {
+			_, err := s.ScreenBounds(context.Background())
+
+			return err
+		})
+	capabilities.Cursor = s.probedCapability("cursor tracking", capabilities.Cursor,
+		func() error {
+			_, err := s.CursorPosition(context.Background())
+
+			return err
+		})
 
 	return capabilities
 }
@@ -362,6 +397,154 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 	_ context.Context,
 ) ports.ScreenCaptureConsent {
 	return ports.ScreenCaptureGranted
+}
+
+// capabilityProbeTimeout bounds how long a single capability probe may take
+// before it is treated as unavailable.
+const capabilityProbeTimeout = 2 * time.Second
+
+// probedCapability reports declared when probe succeeds, and a stub explaining
+// why when it does not.
+//
+// Any probe failure downgrades the capability, not just CodeNotSupported. The
+// question `neru doctor` answers is "does this work right now?", and a backend
+// that is compiled in but cannot open its display fails with CodeActionFailed —
+// reporting that as "supported" would be the same lie this probing exists to
+// remove. The detail distinguishes the cases so the user knows whether to
+// install something, start a session, or look at a broken display server.
+func (s *SystemAdapter) probedCapability(
+	feature string,
+	declared ports.FeatureCapability,
+	probe func() error,
+) ports.FeatureCapability {
+	completed, err := s.probes.run(feature, capabilityProbeTimeout, probe)
+
+	switch {
+	case !completed:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: feature + " is unavailable: the " + s.backendLabel() +
+				" backend did not respond within " + capabilityProbeTimeout.String() +
+				"; the display server may be wedged",
+		}
+	case err != nil:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: s.unavailableDetail(feature, err),
+		}
+	default:
+		return declared
+	}
+}
+
+// unavailableDetail explains why a probed capability is unavailable, in terms
+// the user can act on.
+func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
+	if !nativeBackendsCompiledIn {
+		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
+			"and wlroots client stacks are absent; use a CGO-enabled build"
+	}
+
+	if s.backend == "" {
+		return feature + " is unavailable: no display backend detected; start a session " +
+			"under X11, or a Wayland compositor with wlr-foreign-toplevel/layer-shell support"
+	}
+
+	if s.backend == backendX11 || s.waylandUsesWlrClientStack() {
+		// The backend is implemented, so this is a live failure rather than a
+		// gap — carry the underlying reason, which is the actionable part.
+		return feature + " is unavailable on linux backend " + s.backend + ": " + cause.Error()
+	}
+
+	return feature + " is not implemented on linux backend " + s.backend +
+		"; supported backends are x11, wayland-wlroots and wayland-kde"
+}
+
+// backendLabel names the backend for diagnostics, including the undetected case.
+func (s *SystemAdapter) backendLabel() string {
+	if s.backend == "" {
+		return "undetected"
+	}
+
+	return s.backend
+}
+
+// capabilityProbes serializes capability probing per feature.
+//
+// A probe that times out leaves its goroutine blocked in a native call that
+// cannot be canceled. Without this, every subsequent doctor, status or health
+// request against a wedged display server would start three more, so goroutines
+// and native handles would grow without bound for as long as the backend stayed
+// stuck. Holding one slot per feature caps the outstanding probes at exactly
+// one each, however often capabilities are requested.
+type capabilityProbes struct {
+	mu    sync.Mutex
+	state map[string]*probeRun
+}
+
+// probeRun tracks a single feature's probe slot and its most recent result.
+type probeRun struct {
+	inFlight bool
+	haveLast bool
+	lastErr  error
+}
+
+func newCapabilityProbes() *capabilityProbes {
+	return &capabilityProbes{state: make(map[string]*probeRun)}
+}
+
+// run probes feature, returning whether a result is available and what it was.
+//
+// When a probe from an earlier request is still stuck, run does not start
+// another: it reports the previous result if there is one, so a transiently
+// slow backend keeps answering with its last known state instead of degrading
+// every capability to "timed out".
+func (p *capabilityProbes) run(
+	feature string,
+	timeout time.Duration,
+	probe func() error,
+) (bool, error) {
+	p.mu.Lock()
+
+	run, ok := p.state[feature]
+	if !ok {
+		run = &probeRun{}
+		p.state[feature] = run
+	}
+
+	if run.inFlight {
+		haveLast, lastErr := run.haveLast, run.lastErr
+		p.mu.Unlock()
+
+		return haveLast, lastErr
+	}
+
+	run.inFlight = true
+	p.mu.Unlock()
+
+	done := make(chan error, 1)
+
+	go func() {
+		err := probe()
+
+		p.mu.Lock()
+		run.inFlight = false
+		run.haveLast = true
+		run.lastErr = err
+		p.mu.Unlock()
+
+		done <- err
+	}()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		return true, err
+	case <-timer.C:
+		return false, nil
+	}
 }
 
 // moveCursorDirect performs a single instantaneous cursor warp, routing to the

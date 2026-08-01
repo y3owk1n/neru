@@ -3,10 +3,41 @@ package state_test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
 )
+
+// callbackTimeout bounds how long a test waits for a subscriber callback.
+// Generous enough to survive a loaded CI machine, short enough that a callback
+// which never arrives is reported promptly.
+const callbackTimeout = 30 * time.Second
+
+// waitForCallbacks blocks until waitGroup reaches zero, failing the test if
+// that takes longer than callbackTimeout.
+//
+// A bare waitGroup.Wait() here would turn the very regression these tests exist
+// to catch — a callback that stops firing — into a silent hang that runs out
+// the whole package's test timeout and takes every other test in the binary
+// down with an unreadable goroutine dump. A bounded wait reports it as what it
+// is: this callback did not fire.
+func waitForCallbacks(t *testing.T, waitGroup *sync.WaitGroup, what string) {
+	t.Helper()
+
+	done := make(chan struct{})
+
+	go func() {
+		waitGroup.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(callbackTimeout):
+		t.Fatalf("timed out after %v waiting for %s", callbackTimeout, what)
+	}
+}
 
 func TestModifierState_Toggle(t *testing.T) {
 	modifierState := state.NewModifierState()
@@ -81,7 +112,7 @@ func TestModifierState_OnChange(t *testing.T) {
 		t.Error("Expected non-zero callback ID")
 	}
 
-	waitGroup.Wait()
+	waitForCallbacks(t, &waitGroup, "the initial OnChange callback")
 
 	if receivedMods != 0 {
 		t.Errorf("Expected initial callback with 0, got %v", receivedMods)
@@ -89,7 +120,7 @@ func TestModifierState_OnChange(t *testing.T) {
 
 	waitGroup.Add(1)
 	modifierState.Toggle(action.ModShift)
-	waitGroup.Wait()
+	waitForCallbacks(t, &waitGroup, "the callback for Toggle(ModShift)")
 
 	if receivedMods != action.ModShift {
 		t.Errorf("Expected ModShift, got %v", receivedMods)
@@ -114,7 +145,7 @@ func TestModifierState_OffChange(t *testing.T) {
 
 	// Wait for the initial async callback (fired by OnChange via goroutine)
 	// to complete before unsubscribing, so we don't race on receivedMods.
-	waitGroup.Wait()
+	waitForCallbacks(t, &waitGroup, "the initial OnChange callback")
 
 	modifierState.OffChange(subscriptionID)
 
@@ -135,7 +166,7 @@ func TestModifierState_Concurrent(t *testing.T) {
 		})
 	}
 
-	waitGroup.Wait()
+	waitForCallbacks(t, &waitGroup, "the concurrent Toggle goroutines")
 
 	// The race detector is the primary check. Also assert the state is still
 	// coherent and mutable, so the test is not vacuous without -race.

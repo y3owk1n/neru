@@ -69,15 +69,7 @@ func TestGridModeEndToEnd(t *testing.T) {
 	application.Stop()
 
 	// Wait for Run() to return
-	select {
-	case err := <-runDone:
-		if err != nil {
-			// Run() may return a context-canceled error after Stop(), which is expected
-			t.Logf("App Run() returned (expected after Stop): %v", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("App did not stop within timeout")
-	}
+	requireCleanShutdown(t, runDone, 5*time.Second)
 
 	t.Log("✅ Grid mode E2E test completed successfully")
 }

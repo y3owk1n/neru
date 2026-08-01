@@ -62,9 +62,28 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 			// Recreate grid if characters or labels changed
 			oldGrid := g.Manager.Grid()
 			if oldGrid != nil && cfg.Grid.Characters != "" {
-				charactersChanged := strings.ToUpper(cfg.Grid.Characters) != oldGrid.Characters()
-				rowLabelsChanged := strings.ToUpper(cfg.Grid.RowLabels) != oldGrid.RowLabels()
-				colLabelsChanged := strings.ToUpper(cfg.Grid.ColLabels) != oldGrid.ColLabels()
+				// Empty row/column labels in config mean "infer from
+				// characters", which is what NewGridWithLabels does when it
+				// builds the grid. Resolve them the same way before comparing:
+				// the grid stores the inferred labels, so comparing those
+				// against a bare "" would never match and every config reload
+				// would rebuild the grid — discarding in-flight grid input —
+				// even when nothing about the labels changed.
+				newCharacters := strings.ToUpper(cfg.Grid.Characters)
+
+				newRowLabels := newCharacters
+				if cfg.Grid.RowLabels != "" {
+					newRowLabels = strings.ToUpper(cfg.Grid.RowLabels)
+				}
+
+				newColLabels := newCharacters
+				if cfg.Grid.ColLabels != "" {
+					newColLabels = strings.ToUpper(cfg.Grid.ColLabels)
+				}
+
+				charactersChanged := newCharacters != oldGrid.Characters()
+				rowLabelsChanged := newRowLabels != oldGrid.RowLabels()
+				colLabelsChanged := newColLabels != oldGrid.ColLabels()
 
 				if charactersChanged || rowLabelsChanged || colLabelsChanged {
 					logger.Debug("Recreating grid due to config changes",

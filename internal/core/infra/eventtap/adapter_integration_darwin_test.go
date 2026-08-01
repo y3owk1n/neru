@@ -68,18 +68,67 @@ func TestEventTapAdapterIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("SetHandler", func(_ *testing.T) {
-		// SetHandler should not panic
-		adapter.SetHandler(func(_ string) {
-			// Handler
-		})
+	t.Run("SetHandler is inert and leaves the tap usable", func(t *testing.T) {
+		// On darwin the key handler is fixed when NewEventTap is called;
+		// Adapter.SetHandler is a deliberate no-op that only warns. Pin both
+		// halves of that contract: the replacement handler never runs, and
+		// calling it does not disturb the tap's enable state.
+		err := adapter.Enable(ctx)
+		if err != nil {
+			t.Fatalf("Enable() error = %v, want nil", err)
+		}
+
+		t.Cleanup(func() { _ = adapter.Disable(ctx) })
+
+		replaced := false
+
+		adapter.SetHandler(func(_ string) { replaced = true })
+
+		if replaced {
+			t.Error("handler passed to SetHandler was invoked; darwin SetHandler must stay inert")
+		}
+
+		if !adapter.IsEnabled() {
+			t.Error("IsEnabled() = false after SetHandler, want the tap to stay enabled")
+		}
 	})
 
-	t.Run("SetHotkeys", func(t *testing.T) {
-		// Test setting hotkeys
-		hotkeys := []string{"cmd+shift+k", "cmd+shift+l"}
-		adapter.SetHotkeys(hotkeys)
-		// Note: No direct way to verify hotkeys were set without internal access
+	t.Run("SetHotkeys accepts populated and empty sets", func(t *testing.T) {
+		err := adapter.Enable(ctx)
+		if err != nil {
+			t.Fatalf("Enable() error = %v, want nil", err)
+		}
+
+		t.Cleanup(func() { _ = adapter.Disable(ctx) })
+
+		// An empty slice is documented as valid (it clears monitoring), so
+		// cycling through populated -> empty -> populated must leave the tap
+		// enabled and usable rather than tearing it down.
+		for _, hotkeys := range [][]string{
+			{"cmd+shift+k", "cmd+shift+l"},
+			{},
+			nil,
+			{"cmd+shift+k"},
+		} {
+			adapter.SetHotkeys(hotkeys)
+
+			if !adapter.IsEnabled() {
+				t.Fatalf("IsEnabled() = false after SetHotkeys(%v), want true", hotkeys)
+			}
+		}
+	})
+
+	t.Run("SetKeyboardLayout reports whether the layout resolved", func(t *testing.T) {
+		// SetKeyboardLayout returns a bool precisely so callers can fall back
+		// when a configured layout does not exist. A backend that always
+		// returned true would silently accept typos in user config.
+		if adapter.SetKeyboardLayout("com.apple.keylayout.NotARealLayout") {
+			t.Error("SetKeyboardLayout(bogus layout) = true, want false")
+		}
+
+		if !adapter.SetKeyboardLayout("com.apple.keylayout.US") {
+			t.Error("SetKeyboardLayout(com.apple.keylayout.US) = false, want true")
+		}
 	})
 
 	t.Run("Destroy", func(t *testing.T) {

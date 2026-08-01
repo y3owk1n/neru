@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/domain/hint"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
@@ -68,56 +69,90 @@ func TestHintServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ShowHints integration", func(t *testing.T) {
-		// This tests the full pipeline: accessibility -> hint generation -> overlay
+		// This tests the full pipeline: accessibility -> hint generation -> overlay.
+		// Zero hints is a legitimate outcome (the machine may have no clickable
+		// elements on screen), but an error is not.
 		hints, err := hintService.ShowHints(ctx, nil, nil)
-
-		// Check that the service doesn't panic and returns some result
-		// In different environments, this may succeed or fail based on permissions/elements
 		if err != nil {
-			t.Logf("ShowHints failed (may be expected in some environments): %v", err)
-		} else {
-			t.Logf("ShowHints succeeded, found %d hints", len(hints))
-			// In test environment, it's normal to find 0 hints (no real UI elements)
-			// The overlay may or may not be visible depending on whether hints were found
-			if len(hints) == 0 {
-				t.Log("No hints found in test environment (expected)")
-			} else {
-				// If hints were found, overlay should be visible
-				if overlay.IsVisible() {
-					t.Logf("Overlay is visible after finding %d hints (expected)", len(hints))
-				} else {
-					t.Logf(
-						"Overlay is not visible after finding %d hints (unexpected but non-failing)",
-						len(hints),
-					)
-				}
+			t.Fatalf("ShowHints failed: %v", err)
+		}
+
+		// Whatever the pipeline produced must be individually addressable:
+		// every hint needs a non-empty, unique label and a real element, or the
+		// user cannot reach it by keyboard.
+		seen := make(map[string]int, len(hints))
+		for idx, generated := range hints {
+			if generated == nil {
+				t.Fatalf("hint %d is nil", idx)
 			}
+
+			if generated.Label() == "" {
+				t.Errorf("hint %d has an empty label", idx)
+			}
+
+			if prev, dup := seen[generated.Label()]; dup {
+				t.Errorf("hints %d and %d share label %q", prev, idx, generated.Label())
+			}
+
+			seen[generated.Label()] = idx
+
+			if generated.Element() == nil {
+				t.Errorf("hint %d (%q) has no element", idx, generated.Label())
+			}
+		}
+	})
+
+	t.Run("ShowHints leaves NoOpManager-backed overlay idle", func(t *testing.T) {
+		// initializeRealAdapters wires a NoOpManager whose Mode() is pinned to
+		// ModeIdle, and Adapter.IsVisible is defined as Mode() != idle. So the
+		// adapter must report not-visible no matter what was shown. If this
+		// starts failing, IsVisible has stopped delegating to the manager.
+		_, err := hintService.ShowHints(ctx, nil, nil)
+		if err != nil {
+			t.Fatalf("ShowHints failed: %v", err)
+		}
+
+		if overlay.IsVisible() {
+			t.Error("overlay reported visible while backed by NoOpManager")
 		}
 	})
 
 	t.Run("HideHints integration", func(t *testing.T) {
 		err := hintService.HideHints(ctx)
 		if err != nil {
-			t.Errorf("HideHints failed: %v", err)
-		} else {
-			// Verify overlay is hidden after HideHints
-			// Note: HideHints may not immediately hide if there are other overlays
-			t.Log("HideHints completed successfully")
+			t.Fatalf("HideHints failed: %v", err)
+		}
+
+		if overlay.IsVisible() {
+			t.Error("overlay still reports visible after HideHints")
+		}
+
+		// Hiding an already-hidden overlay must stay a no-op rather than
+		// erroring, since mode exit paths can call it more than once.
+		err = hintService.HideHints(ctx)
+		if err != nil {
+			t.Errorf("second HideHints failed, hide is not idempotent: %v", err)
 		}
 	})
 
 	t.Run("Service health check", func(t *testing.T) {
 		health := hintService.Health(ctx)
-		// Health returns a map of component health status
 		if health == nil {
-			t.Error("Expected health map, got nil")
+			t.Fatal("Health returned nil map")
 		}
-		// Log health status for debugging
-		for component, err := range health {
+
+		// Permissions were verified during setup, so every component the
+		// service reports on is expected to be healthy here.
+		for _, component := range []string{"accessibility", "overlay"} {
+			err, present := health[component]
+			if !present {
+				t.Errorf("Health is missing the %q component: got keys %v", component, health)
+
+				continue
+			}
+
 			if err != nil {
-				t.Logf("Component %s health: FAILED - %v", component, err)
-			} else {
-				t.Logf("Component %s health: OK", component)
+				t.Errorf("component %q reported unhealthy: %v", component, err)
 			}
 		}
 	})
@@ -145,14 +180,9 @@ func TestActionServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("PerformActionAtPoint left click", func(t *testing.T) {
-		// Test performing an action at a point
 		err := actionService.PerformActionAtPoint(ctx, "left_click", image.Point{X: 100, Y: 100}, 0)
 		if err != nil {
-			t.Logf("PerformActionAtPoint failed (may be expected in some environments): %v", err)
-			// Even on failure, verify the service handled it gracefully
-			t.Log("Service handled action attempt gracefully")
-		} else {
-			t.Log("Left click action performed successfully")
+			t.Fatalf("PerformActionAtPoint(left_click) failed: %v", err)
 		}
 	})
 
@@ -164,11 +194,34 @@ func TestActionServiceIntegration(t *testing.T) {
 			0,
 		)
 		if err != nil {
-			t.Logf("Right click failed (may be expected): %v", err)
-		} else {
-			t.Log("Right click action performed successfully")
+			t.Fatalf("PerformActionAtPoint(right_click) failed: %v", err)
 		}
 	})
+
+	t.Run("PerformActionAtPoint rejects an unknown action", func(t *testing.T) {
+		// The action string is parsed before any native call, so an unknown
+		// name must be reported rather than silently no-op'ing.
+		err := actionService.PerformActionAtPoint(
+			ctx,
+			"definitely_not_an_action",
+			image.Point{X: 10, Y: 10},
+			0,
+		)
+		if err == nil {
+			t.Fatal("expected an error for an unknown action name, got nil")
+		}
+
+		if code := derrors.GetCode(err); code != derrors.CodeInvalidConfig {
+			t.Errorf("unknown action: got code %q, want %q", code, derrors.CodeInvalidConfig)
+		}
+	})
+
+	// The exact-placement contract for cursor movement — the global
+	// top-left-origin, Y-down guarantee that a Y-flip regression would break —
+	// is asserted in internal/core/infra/accessibility, which owns cursor
+	// movement. It is deliberately not repeated here: both packages would be
+	// driving the one physical cursor, and `go test ./...` runs them
+	// concurrently, so each would intermittently fail the other.
 
 	t.Run("ExecuteAction on element", func(t *testing.T) {
 		// This tests the element-based action execution
@@ -184,9 +237,7 @@ func TestActionServiceIntegration(t *testing.T) {
 
 		err = actionService.ExecuteAction(ctx, testElement, action.TypeLeftClick)
 		if err != nil {
-			t.Logf("ExecuteAction failed (may be expected): %v", err)
-		} else {
-			t.Log("Element action executed successfully")
+			t.Fatalf("ExecuteAction failed: %v", err)
 		}
 	})
 }
@@ -213,14 +264,43 @@ func TestGridServiceIntegration(t *testing.T) {
 	t.Run("ShowGrid integration", func(t *testing.T) {
 		err := gridService.ShowGrid(ctx)
 		if err != nil {
-			t.Logf("ShowGrid failed: %v", err)
+			t.Fatalf("ShowGrid failed: %v", err)
+		}
+
+		// Re-showing must stay safe: the grid mode re-renders on screen change
+		// and monitor moves without hiding first.
+		err = gridService.ShowGrid(ctx)
+		if err != nil {
+			t.Errorf("second ShowGrid failed, show is not idempotent: %v", err)
 		}
 	})
 
 	t.Run("HideGrid integration", func(t *testing.T) {
 		err := gridService.HideGrid(ctx)
 		if err != nil {
-			t.Logf("HideGrid failed: %v", err)
+			t.Fatalf("HideGrid failed: %v", err)
+		}
+
+		if overlay.IsVisible() {
+			t.Error("overlay still reports visible after HideGrid")
+		}
+
+		err = gridService.HideGrid(ctx)
+		if err != nil {
+			t.Errorf("second HideGrid failed, hide is not idempotent: %v", err)
+		}
+	})
+
+	t.Run("Grid health check", func(t *testing.T) {
+		health := gridService.Health(ctx)
+		if health == nil {
+			t.Fatal("Health returned nil map")
+		}
+
+		for component, err := range health {
+			if err != nil {
+				t.Errorf("component %q reported unhealthy: %v", component, err)
+			}
 		}
 	})
 }
@@ -244,6 +324,55 @@ func TestScrollServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Scroll integration", func(t *testing.T) {
+		// Every direction/amount pair must reach the native scroll API without
+		// error, not just the one combination that happened to be wired up.
+		for _, dir := range []services.ScrollDirection{
+			services.ScrollDirectionUp,
+			services.ScrollDirectionDown,
+			services.ScrollDirectionLeft,
+			services.ScrollDirectionRight,
+		} {
+			for _, amount := range []services.ScrollAmount{
+				services.ScrollAmountChar,
+				services.ScrollAmountHalfPage,
+				services.ScrollAmountEnd,
+			} {
+				err := scrollService.Scroll(ctx, dir, amount, 0)
+				if err != nil {
+					t.Errorf("Scroll(dir=%d, amount=%d) failed: %v", dir, amount, err)
+				}
+			}
+		}
+	})
+
+	t.Run("Scroll honors a step override", func(t *testing.T) {
+		err := scrollService.Scroll(
+			ctx,
+			services.ScrollDirectionDown,
+			services.ScrollAmountChar,
+			7,
+		)
+		if err != nil {
+			t.Fatalf("Scroll with step override failed: %v", err)
+		}
+	})
+
+	t.Run("SetInvertScroll round-trips", func(t *testing.T) {
+		original := scrollService.IsScrollInverted()
+		t.Cleanup(func() { scrollService.SetInvertScroll(original) })
+
+		scrollService.SetInvertScroll(!original)
+
+		if got := scrollService.IsScrollInverted(); got != !original {
+			t.Fatalf(
+				"IsScrollInverted after SetInvertScroll(%t) = %t, want %t",
+				!original,
+				got,
+				!original,
+			)
+		}
+
+		// Inversion must not break the native path.
 		err := scrollService.Scroll(
 			ctx,
 			services.ScrollDirectionDown,
@@ -251,7 +380,18 @@ func TestScrollServiceIntegration(t *testing.T) {
 			0,
 		)
 		if err != nil {
-			t.Logf("Scroll failed (expected in some environments): %v", err)
+			t.Errorf("Scroll with inverted direction failed: %v", err)
+		}
+	})
+
+	t.Run("Hide integration", func(t *testing.T) {
+		err := scrollService.Hide(ctx)
+		if err != nil {
+			t.Fatalf("Hide failed: %v", err)
+		}
+
+		if overlay.IsVisible() {
+			t.Error("overlay still reports visible after scroll Hide")
 		}
 	})
 }
@@ -283,6 +423,14 @@ func initializeRealAdapters(
 	systemPort, err := platform.NewSystemPort()
 	if err != nil {
 		t.Fatalf("Failed to create system port: %v", err)
+	}
+
+	// Accessibility permission is the one legitimate reason these tests cannot
+	// run. Gate on it once, explicitly, so that every assertion below is
+	// allowed to be strict: from here on any error is a real failure.
+	permErr := systemPort.CheckPermissions(context.Background())
+	if permErr != nil {
+		t.Skipf("accessibility permission not granted, cannot run integration test: %v", permErr)
 	}
 
 	// Create overlay adapter

@@ -6,6 +6,7 @@ import (
 	"image"
 	"sync"
 	"testing"
+	"time"
 
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
@@ -111,14 +112,26 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 	}()
 
 	// Wait for a worker to begin processing a node, then cancel mid-flight
-	// while the worker is still blocked on Bounds().
-	<-started
+	// while the worker is still blocked on Bounds(). Both waits are bounded:
+	// "no worker ever started" and "the call never returned after cancellation"
+	// are precisely the regressions under test, and a bare receive would turn
+	// either into a hang that takes down the whole test binary.
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("no worker began processing a node")
+	}
+
 	cancel()
 
 	// Release the blocked worker so it can observe the canceled context.
 	close(release)
 
-	<-done
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("processClickableNodesConcurrent did not return after its context was canceled")
+	}
 
 	if err == nil {
 		t.Fatal("expected error from canceled context, got nil")

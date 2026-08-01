@@ -147,6 +147,13 @@ func NewGridWithLabels(
 	bounds image.Rectangle,
 	logger *zap.Logger,
 ) *Grid {
+	// Constructors in this tree accept a nil logger and fall back to a no-op
+	// rather than panicking on first use. Without this the daemon dies with a
+	// nil dereference on any path that builds a grid before logging is wired.
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
 	logger.Debug("Creating new grid",
 		zap.String("characters", characters),
 		zap.String("rowLabels", rowLabels),
@@ -311,6 +318,20 @@ func NewGridWithLabels(
 		// Update totalCells to match the actual grid dimensions
 		totalCells = gridRows * gridCols //nolint:ineffassign,staticcheck,wastedassign // totalCells is used later in calculateLabelLength
 	}
+
+	// Cells are emitted region by region, and a region that runs off the right
+	// or bottom edge is clipped — its unused capacity is forfeited. With a large
+	// character set there are far more region prefixes than the grid needs, so
+	// that waste is invisible. With a small one the regions run out mid-grid and
+	// generateCellsWithRegions stops early, leaving screen area with no cell at
+	// all: a 4-character set on 1000x3000 lost the bottom ~430px entirely.
+	//
+	// Shrink the grid until the regions can actually reach every cell. This only
+	// binds for small character sets; the default 25-character alphabet has
+	// hundreds of spare prefixes and comes through untouched.
+	gridCols, gridRows = fitToAvailableRegions(
+		gridCols, gridRows, numChars, numRowChars, numColChars, labelLength,
+	)
 
 	// Calculate base cell sizes and remainders
 	baseCellWidth := width / gridCols
@@ -679,6 +700,82 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 }
 
 // calculateLabelLength determines the optimal label length based on total cells and available characters.
+// regionShape returns how many columns and rows one region spans, and how many
+// distinct region prefixes the label scheme provides.
+//
+// These must agree with generateCellsWithRegions: it derives the same shape
+// from labelLength and bounds its loop by the same prefix count.
+func regionShape(numChars, numRowChars, numColChars, labelLength int) (int, int, int) {
+	switch labelLength {
+	case LabelLength2:
+		// One region character, and a region is a single row of columns.
+		return numColChars, 1, numChars
+	case LabelLength3:
+		// One region character spanning a full column-by-row block.
+		return numColChars, numRowChars, numChars
+	default:
+		// Two region characters, so the prefix space is squared.
+		return numColChars, numRowChars, numChars * numChars
+	}
+}
+
+// regionsNeeded returns how many regions it takes to cover a gridCols x
+// gridRows grid, counting a clipped edge region as a whole one because that is
+// how the fill loop consumes them.
+func regionsNeeded(gridCols, gridRows, regionCols, regionRows int) int {
+	if regionCols < 1 || regionRows < 1 {
+		return 0
+	}
+
+	perBand := (gridCols + regionCols - 1) / regionCols
+	bands := (gridRows + regionRows - 1) / regionRows
+
+	return perBand * bands
+}
+
+// fitToAvailableRegions shrinks the grid until every cell can be reached by an
+// available region prefix.
+//
+// It trims whichever axis currently costs the most regions, so the grid stays
+// as close to the screen's aspect ratio as the prefix budget allows, and never
+// shrinks below the minimum usable grid.
+func fitToAvailableRegions(
+	gridCols, gridRows, numChars, numRowChars, numColChars, labelLength int,
+) (int, int) {
+	regionCols, regionRows, availablePrefixes := regionShape(
+		numChars, numRowChars, numColChars, labelLength,
+	)
+
+	if regionCols < 1 || regionRows < 1 || availablePrefixes < 1 {
+		return gridCols, gridRows
+	}
+
+	for regionsNeeded(gridCols, gridRows, regionCols, regionRows) > availablePrefixes {
+		canTrimCols := gridCols > MinGridCols
+		canTrimRows := gridRows > MinGridRows
+
+		if !canTrimCols && !canTrimRows {
+			// Already at the floor; the caller's dimensions are the best
+			// available even if some cells go unlabeled.
+			break
+		}
+
+		// Trim the axis spanning more regions, so the grid degrades evenly
+		// rather than collapsing into a stripe.
+		colBands := (gridCols + regionCols - 1) / regionCols
+		rowBands := (gridRows + regionRows - 1) / regionRows
+
+		switch {
+		case canTrimCols && (!canTrimRows || colBands >= rowBands):
+			gridCols--
+		default:
+			gridRows--
+		}
+	}
+
+	return gridCols, gridRows
+}
+
 func calculateLabelLength(totalCells, numChars, numRowChars, numColChars int) int {
 	// If custom row/col labels are provided (numRowChars/numColChars != numChars), use more labels
 	if numRowChars != numChars || numColChars != numChars {

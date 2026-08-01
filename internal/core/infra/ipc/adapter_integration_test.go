@@ -78,10 +78,33 @@ func TestIPCAdapterIntegration(t *testing.T) {
 			t.Fatalf("First Start() error = %v, want nil", serverErr)
 		}
 
-		// Second start should handle gracefully (implementation dependent)
+		// Start is documented as idempotent: it returns nil when the server is
+		// already running rather than erroring or starting a second listener.
+		// The daemon relies on that during config reload, which re-runs the
+		// startup phase without tearing the socket down.
 		serverErr = adapter.Start(ctx)
-		// We don't assert error here as behavior may vary
-		_ = serverErr
+		if serverErr != nil {
+			t.Errorf("second Start() error = %v, want nil (Start must be idempotent)", serverErr)
+		}
+
+		// A single Stop must still fully stop it — the second Start must not
+		// have incremented a reference count that leaves the socket open.
+		serverErr = adapter.Stop(ctx)
+		if serverErr != nil {
+			t.Fatalf("Stop() error = %v, want nil", serverErr)
+		}
+
+		// Stop is idempotent too.
+		serverErr = adapter.Stop(ctx)
+		if serverErr != nil {
+			t.Errorf("second Stop() error = %v, want nil (Stop must be idempotent)", serverErr)
+		}
+
+		// And the adapter must be restartable after a clean stop.
+		serverErr = adapter.Start(ctx)
+		if serverErr != nil {
+			t.Errorf("Start() after Stop() error = %v, want nil", serverErr)
+		}
 	})
 }
 
