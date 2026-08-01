@@ -26,17 +26,6 @@ func (h *IPCControllerActions) handleScrollAction(
 		}
 	}
 
-	// Reject flags that are not applicable to scroll actions.
-	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
-		parsed.usePrevious {
-		return ipc.Response{
-			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if parsed.useSelection && parsed.useBare {
 		return ipc.Response{
 			Success: false,
@@ -50,14 +39,6 @@ func (h *IPCControllerActions) handleScrollAction(
 		return ipc.Response{
 			Success: false,
 			Message: "unknown scroll action: " + actionName,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasSteps && amount != services.ScrollAmountChar {
-		return ipc.Response{
-			Success: false,
-			Message: "--steps is only supported with scroll_up, scroll_down, scroll_left, and scroll_right",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

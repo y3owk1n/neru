@@ -102,15 +102,7 @@ func parseSleepDuration(durationStr string) (time.Duration, error) {
 	return time.Duration(secs * float64(time.Second)), nil
 }
 
-func (h *IPCControllerActions) handleResetAction(parsed parsedActionArgs) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		return ipc.Response{
-			Success: false,
-			Message: "reset does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleResetAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -128,14 +120,6 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		return ipc.Response{
-			Success: false,
-			Message: "wait_for_mode_exit does not support these flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if h.appState == nil {
 		return ipc.Response{
 			Success: false,
@@ -264,28 +248,10 @@ func (h *IPCControllerActions) handleActionChain(
 		modifiers |= stickyMods
 	}
 
-	// Reject coordinate flags (chains only support click actions at the cursor)
-	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasWindow || parsed.hasMonitorName || parsed.usePrevious {
-		return ipc.Response{
-			Success: false,
-			Message: "--x/--y/--dx/--dy/--center/--window flags are not supported in action chains",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if parsed.useSelection && parsed.useBare {
 		return ipc.Response{
 			Success: false,
 			Message: msgSelectionAndBareCannotBeUsedTogether,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useBail {
-		return ipc.Response{
-			Success: false,
-			Message: "--bail is not supported in action chains",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

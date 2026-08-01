@@ -18,6 +18,8 @@ Key mappings (warpd convention):
 Navigation:
   - Press cell key to narrow selection
   - Press backspace to backtrack
+  - Bind "action move_cell --direction=<dir>" to slide the selection to a
+    neighboring cell at the current depth
   - Press reset key (default: comma) to start over
   - Press exit key (default: escape) to exit mode
 

@@ -188,6 +188,81 @@ func (m *Manager) HandleBackspace() (image.Point, bool) {
 	return image.Point{}, false
 }
 
+// MoveDirection slides the selected cell count cells in dir and redraws the
+// subgrid over the new cell. It only applies while a subgrid is open — before
+// that no cell is selected, so there is nothing to move.
+//
+// Returns the resulting cell center and whether anything moved.
+func (m *Manager) MoveDirection(dir domain.Direction, count int) (image.Point, bool) {
+	if !m.inSubgrid || m.selectedCell == nil || m.grid == nil {
+		return image.Point{}, false
+	}
+
+	count = max(count, 1)
+
+	moved := false
+
+	for range count {
+		next := m.neighbourCell(m.selectedCell, dir)
+		if next == nil {
+			break
+		}
+
+		m.selectedCell = next
+		// Backspace out of a subgrid restores the main-grid input from
+		// mainGridInput, so it has to track the cell we actually landed on.
+		m.mainGridInput = next.Coordinate()
+		moved = true
+	}
+
+	center := m.selectedCell.Center()
+
+	m.Logger.Debug("Grid directional move",
+		zap.String("direction", dir.String()),
+		zap.Int("count", count),
+		zap.Bool("moved", moved))
+
+	if !moved {
+		return center, false
+	}
+
+	// A subgrid selection is a single keypress, so no partial input survives
+	// the move.
+	m.SetCurrentInput("")
+
+	if m.onShowSub != nil {
+		m.onShowSub(m.selectedCell)
+	}
+
+	return center, true
+}
+
+// neighbourCell returns the cell one cell-width from cell in dir, or nil when
+// that lands outside the grid.
+func (m *Manager) neighbourCell(cell *Cell, dir domain.Direction) *Cell {
+	bounds := cell.Bounds()
+	if bounds.Empty() {
+		return nil
+	}
+
+	deltaX, deltaY := dir.Delta()
+	next := bounds.Add(image.Point{X: deltaX * bounds.Dx(), Y: deltaY * bounds.Dy()})
+
+	// Probe the middle of the shifted rectangle. Truncating division rather
+	// than the cell's stored center, which rounds up and would sit outside a
+	// one-pixel-wide or one-pixel-tall rectangle and resolve to the wrong cell.
+	target := image.Point{
+		X: next.Min.X + next.Dx()/CenterDivisor,
+		Y: next.Min.Y + next.Dy()/CenterDivisor,
+	}
+
+	if !target.In(m.grid.Bounds()) {
+		return nil
+	}
+
+	return m.grid.CellForPoint(target)
+}
+
 // hasMatchingCoordinate checks if any grid cell coordinate starts with the given prefix.
 func (m *Manager) hasMatchingCoordinate(prefix string) bool {
 	if m.grid == nil {

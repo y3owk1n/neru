@@ -103,7 +103,7 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
 		t.Fatal("handleAction(move_monitor --x) expected failure")
 	}
 
-	if resp.Message != msgMoveMonitorDoesNotSupportTheseFlags {
+	if resp.Message != "--x is only supported with move_mouse" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -123,7 +123,7 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
 		t.Fatal("handleAction(move_monitor --selection) expected failure")
 	}
 
-	if resp.Message != msgMoveMonitorDoesNotSupportTheseFlags {
+	if resp.Message != flagRejectionMessage[flagSelection] {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -410,7 +410,7 @@ func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
 		t.Fatal("handleAction(move_mouse --window --dx) expected failure")
 	}
 
-	if resp.Message != "use either --window or --dx/--dy, not both" {
+	if resp.Message != "--dx is only supported with move_mouse_relative" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -457,7 +457,7 @@ func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
 		t.Fatal("handleAction(left_click --previous) expected failure")
 	}
 
-	if resp.Message != "--previous and --name are only supported with move_monitor" {
+	if resp.Message != "--previous is only supported with move_monitor" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -470,14 +470,14 @@ func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
 		Action: actionCmd,
-		Args:   []string{"reset", "--name=DELL"},
+		Args:   []string{resetAction, flagName + "=DELL"},
 	})
 
 	if resp.Success {
 		t.Fatal("handleAction(reset --name) expected failure")
 	}
 
-	if resp.Message != "reset does not support action flags" {
+	if resp.Message != "--name is only supported with move_monitor" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -504,7 +504,7 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 		t.Fatal("handleAction(scroll_down --previous) expected failure")
 	}
 
-	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags" {
+	if resp.Message != "--previous is only supported with move_monitor" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }

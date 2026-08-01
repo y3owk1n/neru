@@ -278,6 +278,11 @@ Takes only the [shared mode flags](#flags-shared-by-hints-grid-and-recursive_gri
 Grid size, labels, and appearance are configured under
 [`[grid]`](CONFIGURATION.md#grid).
 
+Typing a full label opens a 3x3 subgrid inside that cell. To correct an
+off-by-one label without retyping it, bind
+[`move_cell`](#neru-action-move_cell) — it moves the open subgrid to a
+neighbouring cell.
+
 **Examples**
 
 ```bash
@@ -302,6 +307,10 @@ neru recursive_grid [-a <action>] [-t] [-r] [--modifier <mods>]
 Each keypress subdivides the selected cell, so successive presses converge on a
 point. Depth limits and per-depth layout are configured under
 [`[recursive_grid]`](CONFIGURATION.md#recursive_grid).
+
+Backspace backtracks one level. To correct sideways instead of upwards, bind
+[`move_cell`](#neru-action-move_cell) — it slides the selection to a
+neighbouring cell without leaving the current depth.
 
 **Flags** — in addition to the [shared mode flags](#flags-shared-by-hints-grid-and-recursive_grid).
 
@@ -406,6 +415,10 @@ require a running daemon.
 neru action <subcommand> [flags]
 ```
 
+Each subcommand accepts only the flags documented in its own section. Passing
+any other flag fails with `ERR_INVALID_INPUT` and a message naming the actions
+that do accept it — flags are never accepted and then ignored.
+
 ## Targeting
 
 Point-targeted actions resolve their target in this order: the active mode
@@ -429,7 +442,7 @@ a hotkey binding string, or `neru action` directly.
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`                                                 |
 | Scroll   | `scroll`, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `cycle_hint`, `wait_for_mode_exit`                                            |
+| Mode     | `reset`, `backspace`, `move_cell`, `cycle_hint`, `wait_for_mode_exit`                               |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep` — [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
@@ -605,6 +618,56 @@ cursor to the new display.
 neru action move_monitor
 neru action move_monitor --previous
 neru action move_monitor --name "DELL U2720Q"
+```
+
+---
+
+## neru action move_cell
+
+Slide the active mode's selection to a neighbouring cell on the same layer.
+
+```
+neru action move_cell --direction left|right|up|down [--count <n>]
+```
+
+In **recursive-grid mode** the highlighted region moves at the current depth.
+Movement is spatial rather than confined to the region you drilled into: when
+the selection reaches the edge of its parent it crosses into the neighbouring
+one, and the depth you can backtrack through follows it. Once the grid has
+bottomed out (`max_depth` or `min_size_*`), the final cell moves instead.
+
+In **grid mode** an open subgrid moves to the neighbouring cell. Before a
+subgrid is open no cell is selected, so the action does nothing.
+
+Movement stops at the screen edge rather than wrapping. A `--count` that runs
+past the edge applies as many steps as fit. Modes with no cell selection —
+hints, scroll, idle — ignore the action.
+
+| Flag          | Type   | Default | Description                                    |
+| ------------- | ------ | ------- | ---------------------------------------------- |
+| `--direction` | string |         | Required. One of `left`, `right`, `up`, `down`. |
+| `--count`     | int    | `1`     | Number of cells to move. Must be at least 1.    |
+
+This action is held-key repeatable: with
+[`[held_repeat]`](CONFIGURATION.md#held_repeat) enabled (it is off by default),
+a hotkey bound to it slides continuously while the key is held.
+
+**Examples**
+
+```bash
+neru action move_cell --direction right
+neru action move_cell --direction up --count 3
+```
+
+Bound as hotkeys, using arrow keys because letters are already taken by cell
+selection:
+
+```toml
+[recursive_grid.hotkeys]
+"Left"  = "action move_cell --direction=left"
+"Right" = "action move_cell --direction=right"
+"Up"    = "action move_cell --direction=up"
+"Down"  = "action move_cell --direction=down"
 ```
 
 ---

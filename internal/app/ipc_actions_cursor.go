@@ -278,18 +278,7 @@ func (h *IPCControllerActions) currentSelectionPoint() (image.Point, bool) {
 	return h.modesHandler.CurrentSelectionPoint()
 }
 
-func (h *IPCControllerActions) handleSaveCursorPosAction(
-	ctx context.Context,
-	parsed parsedActionArgs,
-) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		return ipc.Response{
-			Success: false,
-			Message: "save_cursor_pos does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleSaveCursorPosAction(ctx context.Context) ipc.Response {
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
@@ -315,18 +304,7 @@ func (h *IPCControllerActions) handleSaveCursorPosAction(
 	return ipc.Response{Success: true, Message: "cursor position saved", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerActions) handleRestoreCursorPosAction(
-	ctx context.Context,
-	parsed parsedActionArgs,
-) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		return ipc.Response{
-			Success: false,
-			Message: "restore_cursor_pos does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleRestoreCursorPosAction(ctx context.Context) ipc.Response {
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
@@ -360,23 +338,7 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	return ipc.Response{Success: true, Message: "cursor restored", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerActions) handleCursorVisibilityAction(
-	parsed parsedActionArgs,
-	hide bool,
-) ipc.Response {
-	if hasUnsupportedFlags(parsed) {
-		actionName := "show_cursor"
-		if hide {
-			actionName = "hide_cursor"
-		}
-
-		return ipc.Response{
-			Success: false,
-			Message: actionName + " does not support action flags",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
+func (h *IPCControllerActions) handleCursorVisibilityAction(hide bool) ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -416,16 +378,6 @@ func (h *IPCControllerActions) handleMoveMonitorAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
-	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare {
-		return ipc.Response{
-			Success: false,
-			Message: msgMoveMonitorDoesNotSupportTheseFlags,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
 	if parsed.hasMonitorName {
 		if parsed.usePrevious {
 			return ipc.Response{

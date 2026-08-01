@@ -29,6 +29,15 @@ type parsedActionArgs struct {
 	stateStr       string
 	hasState       bool
 	useToggle      bool
+	directionStr   string
+	hasDirection   bool
+	countVal       int
+	hasCount       bool
+
+	// present records every flag that appeared, keyed by its canonical
+	// spelling, so rejectUnsupportedFlags can refuse flags the action does
+	// not accept without each handler keeping its own list.
+	present map[string]bool
 }
 
 func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelection bool) bool {
@@ -43,7 +52,9 @@ func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelectio
 		parsed.useBare
 }
 
-// extractStringFlag extracts a string value from --flag=value or --flag value form.
+// extractStringFlag extracts a string value from --flag=value or --flag value
+// form. Used by handleSleepAction, which parses its own argument because sleep
+// runs before the shared flag parsing.
 // It returns the value, the updated index, and whether the extraction succeeded.
 func extractStringFlag(rawArgs []string, idx int, prefix string) (string, int, bool) {
 	arg := rawArgs[idx]
@@ -62,251 +73,202 @@ func extractStringFlag(rawArgs []string, idx int, prefix string) (string, int, b
 	return "", idx, false
 }
 
-// extractIntFlag extracts an integer value from --flag=value or --flag value form.
-// It returns the value, the updated index, and whether the extraction succeeded.
-func extractIntFlag(rawArgs []string, idx int, prefix string) (int, int, bool) {
-	s, newIdx, ok := extractStringFlag(rawArgs, idx, prefix)
-	if !ok {
-		return 0, newIdx, false
-	}
+// flagSpec describes how one action flag is parsed.
+//
+// The parser is driven by actionFlagSpecs rather than a switch so that
+// recording the flag as present cannot be forgotten: parseActionArgs marks
+// every flag it recognizes in one place. A flag that is parsed but never
+// marked would slip past rejectUnsupportedFlags and be silently ignored.
+type flagSpec struct {
+	// takesValue reports whether the flag consumes a value, written either as
+	// --flag=value or as --flag value.
+	takesValue bool
+	// apply records the flag on parsed and reports whether value is acceptable.
+	// For valueless flags, value is empty.
+	apply func(parsed *parsedActionArgs, value string) bool
+}
 
-	val, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, newIdx, false
-	}
+// actionFlagSpecs is the set of flags `neru action` understands. Adding an
+// entry here is all it takes to parse a new flag; declaring which actions
+// accept it is a separate, mandatory step in actionFlagSupport.
+var actionFlagSpecs = map[string]flagSpec{
+	flagX: {
+		takesValue: true,
+		apply:      intoInt(func(p *parsedActionArgs, v int) { p.xVal, p.hasX = v, true }),
+	},
+	flagY: {
+		takesValue: true,
+		apply:      intoInt(func(p *parsedActionArgs, v int) { p.yVal, p.hasY = v, true }),
+	},
+	flagDX: {
+		takesValue: true,
+		apply:      intoInt(func(p *parsedActionArgs, v int) { p.deltaX, p.hasDX = v, true }),
+	},
+	flagDY: {
+		takesValue: true,
+		apply:      intoInt(func(p *parsedActionArgs, v int) { p.deltaY, p.hasDY = v, true }),
+	},
 
-	return val, newIdx, true
+	// --steps and --count are counts, so zero and negatives are rejected.
+	flagSteps: {takesValue: true, apply: intoPositiveInt(func(p *parsedActionArgs, v int) {
+		p.stepsOverride, p.hasSteps = v, true
+	})},
+	flagCount: {takesValue: true, apply: intoPositiveInt(func(p *parsedActionArgs, v int) {
+		p.countVal, p.hasCount = v, true
+	})},
+
+	flagModifier: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.modifierStr = v
+	})},
+	flagName: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.monitorName, p.hasMonitorName = v, true
+	})},
+	flagState: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.stateStr, p.hasState = v, true
+	})},
+	flagDirection: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.directionStr, p.hasDirection = v, true
+	})},
+
+	flagCenter:    {apply: intoFlag(func(p *parsedActionArgs) { p.hasCenter = true })},
+	flagWindow:    {apply: intoFlag(func(p *parsedActionArgs) { p.hasWindow = true })},
+	flagSelection: {apply: intoFlag(func(p *parsedActionArgs) { p.useSelection = true })},
+	flagBare:      {apply: intoFlag(func(p *parsedActionArgs) { p.useBare = true })},
+	flagToggle:    {apply: intoFlag(func(p *parsedActionArgs) { p.useToggle = true })},
+	flagPrevious:  {apply: intoFlag(func(p *parsedActionArgs) { p.usePrevious = true })},
+	flagBackward:  {apply: intoFlag(func(p *parsedActionArgs) { p.useBackward = true })},
+	flagBail:      {apply: intoFlag(func(p *parsedActionArgs) { p.useBail = true })},
+}
+
+// intoFlag adapts a valueless flag setter to flagSpec.apply.
+func intoFlag(set func(*parsedActionArgs)) func(*parsedActionArgs, string) bool {
+	return func(parsed *parsedActionArgs, _ string) bool {
+		set(parsed)
+
+		return true
+	}
+}
+
+// intoString adapts a string flag setter, rejecting an empty value.
+func intoString(set func(*parsedActionArgs, string)) func(*parsedActionArgs, string) bool {
+	return func(parsed *parsedActionArgs, value string) bool {
+		if value == "" {
+			return false
+		}
+
+		set(parsed, value)
+
+		return true
+	}
+}
+
+// intoInt adapts an integer flag setter. Negative values are allowed because
+// coordinates and deltas can point left or up.
+func intoInt(set func(*parsedActionArgs, int)) func(*parsedActionArgs, string) bool {
+	return func(parsed *parsedActionArgs, value string) bool {
+		number, err := strconv.Atoi(value)
+		if err != nil {
+			return false
+		}
+
+		set(parsed, number)
+
+		return true
+	}
+}
+
+// intoPositiveInt adapts an integer flag setter that requires a value of at
+// least one.
+func intoPositiveInt(set func(*parsedActionArgs, int)) func(*parsedActionArgs, string) bool {
+	return func(parsed *parsedActionArgs, value string) bool {
+		number, err := strconv.Atoi(value)
+		if err != nil || number <= 0 {
+			return false
+		}
+
+		set(parsed, number)
+
+		return true
+	}
 }
 
 // parseActionArgs parses flag arguments from an action IPC command.
-// Supports both --flag=value and --flag value forms.
+// Supports both --flag=value and --flag value forms. The second result reports
+// whether any argument was malformed.
 func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 	var parsed parsedActionArgs
 
 	parseErr := false
+
 	for idx := 0; idx < len(rawArgs); idx++ {
 		arg := rawArgs[idx]
-		switch {
-		case strings.HasPrefix(arg, "--modifier") && (arg == "--modifier" || arg[len("--modifier")] == '='):
-			val, newIdx, ok := extractStringFlag(rawArgs, idx, "--modifier")
-			idx = newIdx
 
-			if !ok || val == "" {
-				parseErr = true
+		name, inlineValue, hasInlineValue := strings.Cut(arg, "=")
 
-				break
-			}
-
-			parsed.modifierStr = val
-		case strings.HasPrefix(arg, "--x") && (arg == "--x" || arg[len("--x")] == '='):
-			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--x")
-			idx = newIdx
-
-			if !ok {
-				parseErr = true
-
-				break
-			}
-
-			parsed.xVal = val
-			parsed.hasX = true
-		case strings.HasPrefix(arg, "--y") && (arg == "--y" || arg[len("--y")] == '='):
-			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--y")
-			idx = newIdx
-
-			if !ok {
-				parseErr = true
-
-				break
-			}
-
-			parsed.yVal = val
-			parsed.hasY = true
-		case strings.HasPrefix(arg, "--dx") && (arg == "--dx" || arg[len("--dx")] == '='):
-			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dx")
-			idx = newIdx
-
-			if !ok {
-				parseErr = true
-
-				break
-			}
-
-			parsed.deltaX = val
-			parsed.hasDX = true
-		case strings.HasPrefix(arg, "--dy") && (arg == "--dy" || arg[len("--dy")] == '='):
-			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--dy")
-			idx = newIdx
-
-			if !ok {
-				parseErr = true
-
-				break
-			}
-
-			parsed.deltaY = val
-			parsed.hasDY = true
-		case arg == flagCenter:
-			parsed.hasCenter = true
-		case arg == flagWindow:
-			parsed.hasWindow = true
-		case arg == flagSelection:
-			parsed.useSelection = true
-		case arg == flagBare:
-			parsed.useBare = true
-		case strings.HasPrefix(arg, flagState) && (arg == flagState || arg[len(flagState)] == '='):
-			val, newIdx, ok := extractStringFlag(rawArgs, idx, flagState)
-			idx = newIdx
-
-			if !ok || val == "" {
-				parseErr = true
-
-				break
-			}
-
-			parsed.stateStr = val
-			parsed.hasState = true
-		case arg == flagToggle:
-			parsed.useToggle = true
-		case arg == flagPrevious:
-			parsed.usePrevious = true
-		case arg == "--backward":
-			parsed.useBackward = true
-		case arg == flagBail:
-			parsed.useBail = true
-		case strings.HasPrefix(arg, flagName) && (arg == flagName || arg[len(flagName)] == '='):
-			val, newIdx, ok := extractStringFlag(rawArgs, idx, flagName)
-			idx = newIdx
-
-			if !ok || val == "" {
-				parseErr = true
-
-				break
-			}
-
-			parsed.monitorName = val
-			parsed.hasMonitorName = true
-		case strings.HasPrefix(arg, "--steps") && (arg == "--steps" || arg[len("--steps")] == '='):
-			val, newIdx, ok := extractIntFlag(rawArgs, idx, "--steps")
-			idx = newIdx
-
-			if !ok || val <= 0 {
-				parseErr = true
-
-				break
-			}
-
-			parsed.stepsOverride = val
-			parsed.hasSteps = true
-		default:
+		spec, known := actionFlagSpecs[name]
+		if !known {
+			// Non-flag arguments are left for the action handlers; an
+			// unrecognized flag is an error.
 			if strings.HasPrefix(arg, "--") {
 				parseErr = true
 			}
+
+			continue
 		}
+
+		value := ""
+
+		switch {
+		case !spec.takesValue:
+			if hasInlineValue {
+				parseErr = true
+
+				continue
+			}
+		case hasInlineValue:
+			value = inlineValue
+		// A following argument is the value only when it is not itself a flag,
+		// so a missing value cannot swallow the next flag.
+		case idx+1 < len(rawArgs) && !strings.HasPrefix(rawArgs[idx+1], "--"):
+			idx++
+			value = rawArgs[idx]
+		default:
+			parseErr = true
+
+			continue
+		}
+
+		if !spec.apply(&parsed, value) {
+			parseErr = true
+
+			continue
+		}
+
+		parsed.markPresent(name)
 	}
 
 	return parsed, parseErr
 }
 
-// validateActionFlags rejects flag combinations the named action cannot honor.
+// validateActionFlags rejects flag *combinations* the named action cannot
+// honor. Whether an action accepts a flag at all is settled earlier by
+// rejectUnsupportedFlags, so everything here is about flags that are
+// individually valid but contradict each other:
 //
-// Validation order matters:
-//  1. Reject coordinate flags on non-mouse-move actions.
-//  2. Reject --modifier on non-mouse-button actions.
-//  3. Reject --x/--y mixed with --dx/--dy (always invalid).
-//  4. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
-//  5. Reject --center on non-move_mouse actions.
-//  6. Reject --selection mixed with explicit move targeting.
-//  7. Require --x AND --y when --center is absent for move_mouse.
+//  1. --center mixed with --window.
+//  2. --selection mixed with --bare or with explicit move targeting.
+//  3. move_mouse requires --x AND --y when neither --center nor --window is given.
+//
+// Combinations of coordinate and delta flags (--x with --dx, --center with
+// --dx) are not checked here: no action declares both families, so
+// rejectUnsupportedFlags refuses them first.
 //
 // Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
-//
-// modifiers are the explicitly requested ones; sticky modifiers are merged by
-// the caller afterwards so they cannot trip the --modifier check.
 func validateActionFlags(
 	actionName string,
 	parsed parsedActionArgs,
-	modifiers action.Modifiers,
 ) *ipc.Response {
 	isMoveMouse := actionName == string(action.NameMoveMouse)
-	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
-	isMouseButton := isMouseButtonActionName(actionName)
-	isPointTargetedAction := isMoveMouse || isMouseButton
-
-	// 1. Reject coordinate flags on non-mouse-move actions.
-	// 2. Reject --modifier on non-mouse-button actions.
-	// 3. Reject --x/--y mixed with --dx/--dy (always invalid).
-	// 4. Reject --center mixed with --dx/--dy (center uses --x/--y as offsets, not deltas).
-	// 5. Reject --center on non-move_mouse actions.
-	// 6. Reject --selection mixed with explicit move targeting.
-	// 7. Require --x AND --y when --center is absent for move_mouse.
-	// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
-
-	if !isMoveMouse && !isMoveMouseRelative &&
-		(parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY) {
-		return &ipc.Response{
-			Success: false,
-			Message: "--x/--y/--dx/--dy flags are only supported with move_mouse or move_mouse_relative",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.usePrevious || parsed.hasMonitorName {
-		return &ipc.Response{
-			Success: false,
-			Message: "--previous and --name are only supported with move_monitor",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if modifiers != 0 && !isMouseButton {
-		return &ipc.Response{
-			Success: false,
-			Message: "--modifier is only supported with click and mouse button actions",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if (isMoveMouse || isMoveMouseRelative) && (parsed.hasX || parsed.hasY) &&
-		(parsed.hasDX || parsed.hasDY) {
-		return &ipc.Response{
-			Success: false,
-			Message: "use either --x/--y or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasCenter && (parsed.hasDX || parsed.hasDY) {
-		return &ipc.Response{
-			Success: false,
-			Message: "use either --center or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasWindow && (parsed.hasDX || parsed.hasDY) {
-		return &ipc.Response{
-			Success: false,
-			Message: "use either --window or --dx/--dy, not both",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasCenter && !isMoveMouse {
-		return &ipc.Response{
-			Success: false,
-			Message: "--center is only supported with move_mouse",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.hasWindow && !isMoveMouse {
-		return &ipc.Response{
-			Success: false,
-			Message: "--window is only supported with move_mouse",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
 
 	if parsed.hasCenter && parsed.hasWindow {
 		return &ipc.Response{
@@ -320,22 +282,6 @@ func validateActionFlags(
 		return &ipc.Response{
 			Success: false,
 			Message: msgSelectionAndBareCannotBeUsedTogether,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useSelection && (!isMoveMouse && !isMouseButton) {
-		return &ipc.Response{
-			Success: false,
-			Message: "--selection is only supported with move_mouse, scroll, and mouse button actions",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	if parsed.useBare && !isPointTargetedAction {
-		return &ipc.Response{
-			Success: false,
-			Message: "--bare is only supported with move_mouse, scroll, and mouse button actions",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -360,10 +306,4 @@ func validateActionFlags(
 	}
 
 	return nil
-}
-
-func hasUnsupportedFlags(parsed parsedActionArgs) bool {
-	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
-		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare || parsed.usePrevious
 }

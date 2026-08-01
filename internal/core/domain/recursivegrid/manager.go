@@ -210,6 +210,29 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	return center, isComplete
 }
 
+// MoveDirection slides the current selection count cells in dir without
+// changing depth, and fires the update callback when the selection changed.
+// Returns the resulting selection center and whether anything moved.
+func (m *Manager) MoveDirection(dir domain.Direction, count int) (image.Point, bool) {
+	center, moved := m.grid.MoveDirection(dir, count)
+
+	m.Logger.Debug("Recursive-grid directional move",
+		zap.String("direction", dir.String()),
+		zap.Int("count", count),
+		zap.Int("depth", m.grid.CurrentDepth()),
+		zap.Bool("moved", moved))
+
+	if !moved {
+		return center, false
+	}
+
+	if m.onUpdate != nil {
+		m.onUpdate(center)
+	}
+
+	return center, true
+}
+
 // Reset clears the manager state and restores initial grid state.
 func (m *Manager) Reset() {
 	m.SetCurrentInput("")
