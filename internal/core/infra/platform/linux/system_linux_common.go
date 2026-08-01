@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -29,11 +30,12 @@ const (
 type SystemAdapter struct {
 	backend        string
 	cursorAnimator *smoothCursorAnimator
+	probes         *capabilityProbes
 }
 
 // NewSystemAdapter creates a new SystemAdapter.
 func NewSystemAdapter(backend string) *SystemAdapter {
-	adapter := &SystemAdapter{backend: backend}
+	adapter := &SystemAdapter{backend: backend, probes: newCapabilityProbes()}
 	adapter.cursorAnimator = newSmoothCursorAnimator(
 		adapter.currentCursorPosition,
 		adapter.moveCursorDirect,
@@ -415,7 +417,7 @@ func (s *SystemAdapter) probedCapability(
 	declared ports.FeatureCapability,
 	probe func() error,
 ) ports.FeatureCapability {
-	completed, err := probeWithin(capabilityProbeTimeout, probe)
+	completed, err := s.probes.run(feature, capabilityProbeTimeout, probe)
 
 	switch {
 	case !completed:
@@ -467,21 +469,72 @@ func (s *SystemAdapter) backendLabel() string {
 	return s.backend
 }
 
-// probeWithin runs probe, reporting whether it finished within timeout and, if
-// it did, the error it returned.
+// capabilityProbes serializes capability probing per feature.
 //
-// The native screen, cursor and process calls do not observe a context — they
-// enter Xlib or a Wayland roundtrip and return when they return — so a context
-// deadline passed down to them would bound nothing. Running the probe on its
-// own goroutine is what actually keeps `neru doctor` and the IPC info handler
-// responsive. The channel is buffered so a probe that finishes late still
-// delivers and exits rather than leaking permanently; only a probe that never
-// returns holds its goroutine, which is strictly better than blocking the
-// caller forever.
-func probeWithin(timeout time.Duration, probe func() error) (bool, error) {
+// A probe that times out leaves its goroutine blocked in a native call that
+// cannot be canceled. Without this, every subsequent doctor, status or health
+// request against a wedged display server would start three more, so goroutines
+// and native handles would grow without bound for as long as the backend stayed
+// stuck. Holding one slot per feature caps the outstanding probes at exactly
+// one each, however often capabilities are requested.
+type capabilityProbes struct {
+	mu    sync.Mutex
+	state map[string]*probeRun
+}
+
+// probeRun tracks a single feature's probe slot and its most recent result.
+type probeRun struct {
+	inFlight bool
+	haveLast bool
+	lastErr  error
+}
+
+func newCapabilityProbes() *capabilityProbes {
+	return &capabilityProbes{state: make(map[string]*probeRun)}
+}
+
+// run probes feature, returning whether a result is available and what it was.
+//
+// When a probe from an earlier request is still stuck, run does not start
+// another: it reports the previous result if there is one, so a transiently
+// slow backend keeps answering with its last known state instead of degrading
+// every capability to "timed out".
+func (p *capabilityProbes) run(
+	feature string,
+	timeout time.Duration,
+	probe func() error,
+) (bool, error) {
+	p.mu.Lock()
+
+	run, ok := p.state[feature]
+	if !ok {
+		run = &probeRun{}
+		p.state[feature] = run
+	}
+
+	if run.inFlight {
+		haveLast, lastErr := run.haveLast, run.lastErr
+		p.mu.Unlock()
+
+		return haveLast, lastErr
+	}
+
+	run.inFlight = true
+	p.mu.Unlock()
+
 	done := make(chan error, 1)
 
-	go func() { done <- probe() }()
+	go func() {
+		err := probe()
+
+		p.mu.Lock()
+		run.inFlight = false
+		run.haveLast = true
+		run.lastErr = err
+		p.mu.Unlock()
+
+		done <- err
+	}()
 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
