@@ -92,10 +92,25 @@ func TestGridManager_RouterIntegration(t *testing.T) {
 			t.Error("Expected not complete on escape")
 		}
 
-		// Test tab key - should handle subgrid navigation
+		// Tab is not one of the grid's coordinate characters and no subgrid is
+		// active here, so it must be rejected outright: no completion, and —
+		// just as important — no effect on the coordinate input the user has
+		// typed so far. An unmapped key that silently landed in the input
+		// buffer would desynchronise the overlay from the manager.
+		beforeInput := gridManager.CurrentInput()
+
 		resultTab := gridRouter.RouteKey("\t")
-		// Tab behavior depends on subgrid state, just ensure it doesn't crash
-		_ = resultTab
+
+		if resultTab.Complete() {
+			t.Errorf(
+				"Expected tab not to complete a selection, got target %v",
+				resultTab.TargetPoint(),
+			)
+		}
+
+		if got := gridManager.CurrentInput(); got != beforeInput {
+			t.Errorf("tab changed the coordinate input from %q to %q", beforeInput, got)
+		}
 	})
 }
 

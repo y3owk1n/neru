@@ -254,8 +254,7 @@ func goFiles(t *testing.T) []goFile {
 			}
 
 			if entry.IsDir() {
-				switch entry.Name() {
-				case ".git", "bin", "build", "node_modules":
+				if isSkippedWalkDir(entry.Name()) {
 					return filepath.SkipDir
 				}
 

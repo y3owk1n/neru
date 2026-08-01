@@ -78,10 +78,37 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("IsVisible", func(_ *testing.T) {
-		// IsVisible should return a boolean without error
-		visible := adapter.IsVisible()
-		_ = visible // Just verify it doesn't panic
+	t.Run("IsVisible tracks show and hide", func(t *testing.T) {
+		// Unlike the service-level tests, this runs against a real manager, so
+		// visibility is genuinely observable. The mode handler relies on this
+		// flag to decide whether an overlay still needs tearing down, so it
+		// must follow show/hide rather than being constant.
+		err := adapter.Hide(ctx)
+		if err != nil {
+			t.Fatalf("Hide() error = %v, want nil", err)
+		}
+
+		if adapter.IsVisible() {
+			t.Fatal("IsVisible() = true after Hide(), want false")
+		}
+
+		err = adapter.ShowGrid(ctx)
+		if err != nil {
+			t.Fatalf("ShowGrid() error = %v, want nil", err)
+		}
+
+		if !adapter.IsVisible() {
+			t.Error("IsVisible() = false after ShowGrid(), want true")
+		}
+
+		err = adapter.Hide(ctx)
+		if err != nil {
+			t.Fatalf("Hide() error = %v, want nil", err)
+		}
+
+		if adapter.IsVisible() {
+			t.Error("IsVisible() = true after Hide(), want false")
+		}
 	})
 }
 

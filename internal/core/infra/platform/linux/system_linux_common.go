@@ -76,7 +76,93 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	value, source, ok := darkModePreference()
 	capabilities.DarkModeDetection = darkModeCapability(value, source, ok)
 
+	// Screen, cursor and process support is decided by what this binary and
+	// this session can actually reach, not by the build target. The static
+	// Linux preset claims all three are supported, which is wrong for a
+	// CGO_ENABLED=0 build, for a compositor with no wlroots client stack, and
+	// for a session where the display cannot be opened at all: the adapter
+	// answers CodeNotSupported while `neru doctor` says "supported", which is
+	// exactly backwards from what a user debugging Linux needs.
+	//
+	// Each one is settled by calling the same read-only entry point the
+	// capability describes, so the reported status cannot disagree with what a
+	// caller will observe. This mirrors how dark-mode detection is already
+	// live-probed here rather than declared; Capabilities is only reached by
+	// `neru doctor` and the IPC info response, so the extra reads are cheap
+	// relative to how often it runs.
+	// Bounded so a wedged compositor cannot hang `neru doctor`, which is the
+	// command a user runs precisely when things are not working.
+	ctx, cancel := context.WithTimeout(context.Background(), capabilityProbeTimeout)
+	defer cancel()
+
+	capabilities.Process = s.probedCapability(capabilities.Process, "focused-app inspection",
+		func() error {
+			_, err := s.FocusedApplicationPID(ctx)
+
+			return err
+		})
+	capabilities.Screen = s.probedCapability(capabilities.Screen, "screen enumeration",
+		func() error {
+			_, err := s.ScreenBounds(ctx)
+
+			return err
+		})
+	capabilities.Cursor = s.probedCapability(capabilities.Cursor, "cursor tracking",
+		func() error {
+			_, err := s.CursorPosition(ctx)
+
+			return err
+		})
+
 	return capabilities
+}
+
+// capabilityProbeTimeout bounds each live capability probe.
+const capabilityProbeTimeout = 2 * time.Second
+
+// probedCapability returns declared unchanged when probe succeeds, and a stub
+// carrying an actionable reason when probe reports the feature is unavailable.
+//
+// Only CodeNotSupported downgrades the status. A transient failure — the
+// compositor busy, a socket hiccup — leaves the capability as declared, because
+// the feature exists and the next call may well work; reporting it as a
+// permanent stub would send the user chasing a fix that is not needed.
+func (s *SystemAdapter) probedCapability(
+	declared ports.FeatureCapability,
+	feature string,
+	probe func() error,
+) ports.FeatureCapability {
+	err := probe()
+	if err == nil || !derrors.IsNotSupported(err) {
+		return declared
+	}
+
+	return ports.FeatureCapability{
+		Status: ports.FeatureStatusStub,
+		Detail: s.unavailableDetail(feature),
+	}
+}
+
+// unavailableDetail explains why a probed capability is unavailable, in terms
+// the user can act on.
+func (s *SystemAdapter) unavailableDetail(feature string) string {
+	if !nativeBackendsCompiledIn {
+		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
+			"and wlroots client stacks are absent; use a CGO-enabled build"
+	}
+
+	if s.backend == "" {
+		return feature + " is unavailable: no display backend detected; start a session " +
+			"under X11, or a Wayland compositor with wlr-foreign-toplevel/layer-shell support"
+	}
+
+	if s.backend == backendX11 || s.waylandUsesWlrClientStack() {
+		return feature + " is unavailable on linux backend " + s.backend +
+			": the backend is supported but could not be reached (is the display server running?)"
+	}
+
+	return feature + " is not implemented on linux backend " + s.backend +
+		"; supported backends are x11, wayland-wlroots and wayland-kde"
 }
 
 // ConfigDir returns the Linux-specific configuration directory.

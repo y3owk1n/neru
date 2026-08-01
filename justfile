@@ -181,14 +181,43 @@ test-unit:
     @echo "Running unit tests..."
     go test -v ./...
 
-# Run a small cross-platform-safe test slice that avoids most native platform
-# integration requirements. Useful as a fast confidence check before or during
-
-# Linux/Windows work.
+# Run the cross-platform-safe test slice: every package that contains no
+# platform-tagged source at all, so its behavior is identical on macOS, Linux
+# and Windows. Useful as a fast confidence check before or during Linux/Windows
+# work — a failure here is a real cross-platform regression, not a
+# host-specific one.
+#
+# Keep this list in sync when adding a package; `just list-foundation-packages`
+# prints the set that currently qualifies.
 test-foundation:
     @echo "Running cross-platform foundation tests..."
-    go test ./internal/config ./internal/core/domain/action ./internal/core/ports
+    go test ./internal/config \
+        ./internal/app/components ./internal/app/components/scroll \
+        ./internal/app/services ./internal/app/services/modeindicator \
+        ./internal/app/services/stickyindicator \
+        ./internal/architecture ./internal/cli/cliutil \
+        ./internal/core/domain ./internal/core/domain/action \
+        ./internal/core/domain/element ./internal/core/domain/grid \
+        ./internal/core/domain/hint ./internal/core/domain/recursivegrid \
+        ./internal/core/domain/state ./internal/core/errors \
+        ./internal/core/infra/apptrace ./internal/core/infra/logger \
+        ./internal/core/infra/platform/mousestate \
+        ./internal/core/ports ./internal/core/ports/mocks \
+        ./internal/ui ./internal/ui/coordinates
     @echo "✓ Cross-platform foundation tests passed"
+
+# Print the packages that contain no platform-tagged source, i.e. the set
+# test-foundation should be running. Use it to spot drift after adding a package.
+list-foundation-packages:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for d in $(go list ./... | sed 's|github.com/y3owk1n/neru/||'); do
+        [ -d "$d" ] || continue
+        tagged=$(find "$d" -maxdepth 1 \( -name '*_darwin.go' -o -name '*_linux*.go' \
+            -o -name '*_windows.go' -o -name '*_other.go' \) | wc -l | tr -d ' ')
+        tests=$(find "$d" -maxdepth 1 -name '*_test.go' | wc -l | tr -d ' ')
+        [ "$tagged" = "0" ] && [ "$tests" != "0" ] && echo "./$d"
+    done
 
 # Run integration tests
 test-integration:
@@ -273,6 +302,85 @@ vet:
     @echo "Vetting code..."
     go vet ./...
     @echo "✓ Vet complete"
+
+# Vet the code as the other platforms see it.
+#
+# `just vet` only type-checks the host's build tags, so a change to shared code
+# that breaks the Linux or Windows build is invisible locally and only fails in
+# CI. This compiles every package *and its tests* for both other targets.
+#
+# CGO is off, so this covers the pure-Go and no-cgo backends. The cgo-only Linux
+# backends (X11, wlroots) still need a cross toolchain or CI to type-check.
+vet-cross:
+    @echo "Vetting for linux/amd64 (CGO off)..."
+    GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go vet ./...
+    @echo "Vetting for windows/amd64 (CGO off)..."
+    GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
+    @echo "✓ Cross-platform vet complete"
+
+# Actually run the Linux test suite locally, in a container.
+#
+# This is the strongest cross-platform check available without pushing: it
+# executes the linux-tagged tests — the stub contracts, the backend dispatch,
+# the linux-only packages — rather than only type-checking them.
+#
+# The image mirrors the Linux CI job: same native dev packages, CGO enabled, and
+# headless (no DISPLAY / WAYLAND_DISPLAY), so what passes here is what CI sees.
+# Docker caches the image after the first run.
+#
+# Requires a running Docker daemon.
+test-linux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building the Linux CI-equivalent image (cached after first run)..."
+    docker build -q -t neru-linux-ci - >/dev/null <<'DOCKERFILE'
+    FROM golang:1.26
+    RUN apt-get update -qq && apt-get install -y -qq \
+        libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
+        libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
+        libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        pkg-config >/dev/null 2>&1
+    DOCKERFILE
+    echo "Running the Linux test suite (CGO on, headless)..."
+    docker run --rm -v "$PWD":/src -w /src \
+        -e CGO_ENABLED=1 -e GOCACHE=/tmp/gocache -e GOMODCACHE=/tmp/gomod \
+        neru-linux-ci go test -count=1 -timeout 900s ./...
+    echo "✓ Linux test suite passed"
+
+# Same as test-linux but with CGO off, exercising the no-cgo Linux backends.
+test-linux-nocgo:
+    @echo "Running the Linux test suite in a container (CGO off)..."
+    docker run --rm -v "$PWD":/src -w /src \
+        -e CGO_ENABLED=0 -e GOCACHE=/tmp/gocache -e GOMODCACHE=/tmp/gomod \
+        golang:1.26 go test -count=1 -timeout 600s ./...
+    @echo "✓ Linux no-cgo test suite passed"
+
+# Compile every package *and its test binary* for Windows.
+#
+# Windows cannot be executed from a macOS or Linux host, so this is the
+# strongest available check: it catches everything `go vet` does plus anything
+# that only fails when the test binary is linked.
+test-windows-compile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Compiling Windows test binaries..."
+    failed=0
+    for pkg in $(go list ./...); do
+        if ! GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -c -o /dev/null "$pkg" >/tmp/neru-win.log 2>&1; then
+            if ! grep -q "no test files\|no non-test Go files\|build constraints exclude all Go files" /tmp/neru-win.log; then
+                echo "FAIL: $pkg"; cat /tmp/neru-win.log; failed=1
+            fi
+        fi
+    done
+    [ "$failed" = "0" ] || exit 1
+    echo "✓ Windows test binaries compile"
+
+# Everything that can be checked for other platforms without pushing.
+#
+# Deliberately excludes test-linux, which needs Docker — run that separately for
+# a real Linux execution rather than a type-check.
+check-cross: vet-cross test-windows-compile
+    @echo "✓ Cross-platform checks complete (run 'just test-linux' for a real Linux run)"
 
 # Download dependencies
 deps:

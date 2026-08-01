@@ -204,17 +204,7 @@ func TestFullUserWorkflowIntegration(t *testing.T) {
 	application.Stop()
 
 	// Wait for Run() to return
-	select {
-	case err := <-runDone:
-		if err != nil {
-			// Run() may return a context-canceled error after Stop(), which is expected
-			t.Logf("App Run() returned (expected after Stop): %v", err)
-		} else {
-			t.Log("✅ Application shut down gracefully")
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("Application did not stop within timeout")
-	}
+	requireCleanShutdown(t, runDone, 5*time.Second)
 
 	t.Log("✅ Full user workflow integration test completed successfully")
 }

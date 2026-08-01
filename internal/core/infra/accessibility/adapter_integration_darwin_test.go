@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/core/domain/element"
 	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
 	"github.com/y3owk1n/neru/internal/core/infra/logger"
 	darwinplatform "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
@@ -45,9 +46,30 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", err)
 		}
-		// Position should be within screen bounds (roughly)
-		// We can't strictly enforce this as cursor might be on another screen
-		_ = pos
+
+		// The cursor may legitimately sit on a secondary display, so the
+		// active screen's bounds are not a valid box to test against. What is
+		// always true under the shared coordinate contract (global top-left
+		// origin, Y down, unscaled pixels) is that the position is finite and
+		// plausible for a desktop. A backend that failed to read the position
+		// and returned CGPointZero-as-error, or that leaked Cocoa's
+		// bottom-left origin as a negative Y, fails here.
+		const sane = 100000
+
+		if pos.X < -sane || pos.X > sane || pos.Y < -sane || pos.Y > sane {
+			t.Errorf("CursorPosition() = %v, outside any plausible desktop coordinate range", pos)
+		}
+
+		// Reading twice without moving must be stable; a jittering read means
+		// the position is being derived from something other than HID state.
+		again, err := system.CursorPosition(ctx)
+		if err != nil {
+			t.Fatalf("second CursorPosition() error = %v, want nil", err)
+		}
+
+		if again != pos {
+			t.Errorf("CursorPosition() is unstable without a move: got %v then %v", pos, again)
+		}
 	})
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
@@ -65,14 +87,37 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			t.Errorf("MoveCursorToPoint() error = %v, want nil", startPosErr)
 		}
 
-		// Verify position (might be slightly off due to OS acceleration/constraints)
+		// This subtest uses the smooth-cursor path (bypassSmooth=false), so the
+		// cursor animates toward the target over several frames and its exact
+		// position at any instant is not assertable. What must hold is that it
+		// ends up at the target: "MoveCursorToPoint lands on the requested
+		// point" below pins exact placement for the direct path, and here we
+		// only require that the animated move converges rather than silently
+		// doing nothing.
+		deadline := time.Now().Add(time.Second)
+
 		newPos, newPosErr := system.CursorPosition(ctx)
 		if newPosErr != nil {
 			t.Fatalf("CursorPosition() error = %v, want nil", newPosErr)
 		}
 
-		// Just verify it moved or didn't error. Exact position check is flaky.
-		_ = newPos
+		for newPos != target && time.Now().Before(deadline) {
+			time.Sleep(5 * time.Millisecond)
+
+			newPos, newPosErr = system.CursorPosition(ctx)
+			if newPosErr != nil {
+				t.Fatalf("CursorPosition() error = %v, want nil", newPosErr)
+			}
+		}
+
+		if newPos != target {
+			t.Errorf(
+				"MoveCursorToPoint(%v) from %v settled at %v; the smooth move never reached its target",
+				target,
+				startPos,
+				newPos,
+			)
+		}
 	})
 
 	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
@@ -198,22 +243,58 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("ClickableElements", func(t *testing.T) {
-		// This is hard to test without a known window.
-		// We'll just call it and ensure it doesn't panic or return error (unless permissions missing).
+	t.Run("ClickableElements queries the live AX tree without error", func(t *testing.T) {
+		// A `go test` binary is not a foreground app with its own window, so
+		// the live AX tree usually yields zero elements here. That makes the
+		// element *count* unassertable, and any per-element loop vacuous — the
+		// filter semantics are pinned deterministically instead by
+		// TestAdapter_ClickableElements_FilterContract, which drives the same
+		// code through MockAXClient with known nodes.
+		//
+		// What only a live run can check is that the real Objective-C query
+		// path completes against the real AX API and returns a well-formed
+		// slice rather than erroring or handing back nil entries.
+		const minSide = 10
+
 		filter := ports.ElementFilter{
-			MinSize: image.Point{X: 10, Y: 10},
+			MinSize:      image.Point{X: minSide, Y: minSide},
+			ExcludeRoles: []element.Role{element.RoleWindow},
 		}
 
-		clickableElements, clickableElementsErr := adapter.ClickableElements(ctx, filter)
-		if clickableElementsErr != nil {
-			// It might error if no permissions or no focused window
-			t.Logf(
-				"ClickableElements() error = %v (expected if no permissions)",
-				clickableElementsErr,
-			)
-		} else {
-			t.Logf("Found %d elements", len(clickableElements))
+		clickableElements, err := adapter.ClickableElements(ctx, filter)
+		if err != nil {
+			t.Fatalf("ClickableElements() error = %v, want nil", err)
 		}
+
+		seen := make(map[element.ID]int, len(clickableElements))
+
+		for idx, found := range clickableElements {
+			if found == nil {
+				t.Fatalf("element %d is nil", idx)
+			}
+
+			if found.ID() == "" {
+				t.Errorf("element %d has an empty ID", idx)
+			}
+
+			if prev, dup := seen[found.ID()]; dup {
+				t.Errorf("elements %d and %d share ID %q", prev, idx, found.ID())
+			}
+
+			seen[found.ID()] = idx
+
+			if bounds := found.Bounds(); bounds.Dx() < minSide || bounds.Dy() < minSide {
+				t.Errorf(
+					"element %d (%q) has bounds %v, smaller than the requested MinSize %v",
+					idx, found.ID(), bounds, filter.MinSize,
+				)
+			}
+
+			if found.Role() == element.RoleWindow {
+				t.Errorf("element %d (%q) has an excluded role %q", idx, found.ID(), found.Role())
+			}
+		}
+
+		t.Logf("live AX tree yielded %d clickable elements", len(clickableElements))
 	})
 }
