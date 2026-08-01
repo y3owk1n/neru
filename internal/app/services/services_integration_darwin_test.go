@@ -6,7 +6,6 @@ import (
 	"context"
 	"image"
 	"testing"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -217,64 +216,12 @@ func TestActionServiceIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("cursor position round-trips through the real coordinate stack", func(t *testing.T) {
-		// This is the end-to-end check for the global top-left-origin, Y-down
-		// contract: a point written through MoveCursorToPoint must read back
-		// unchanged from CursorPosition. A regression in the darwin Y-flip
-		// (Cocoa is bottom-left origin) shows up here as a mirrored Y.
-		bounds, err := actionService.ScreenBounds(ctx)
-		if err != nil {
-			t.Fatalf("ScreenBounds failed: %v", err)
-		}
-
-		if bounds.Empty() {
-			t.Fatalf("ScreenBounds returned an empty rectangle: %v", bounds)
-		}
-
-		origin, err := actionService.CursorPosition(ctx)
-		if err != nil {
-			t.Fatalf("CursorPosition failed: %v", err)
-		}
-
-		t.Cleanup(func() {
-			// Leave the user's cursor where we found it.
-			_ = actionService.MoveCursorToPointAndWait(ctx, origin, true)
-		})
-
-		// Deliberately asymmetric in X and Y so a swapped or mirrored axis
-		// cannot coincidentally produce the right answer.
-		want := image.Point{
-			X: bounds.Min.X + bounds.Dx()/4,
-			Y: bounds.Min.Y + bounds.Dy()/3,
-		}
-
-		err = actionService.MoveCursorToPointAndWait(ctx, want, true)
-		if err != nil {
-			t.Fatalf("MoveCursorToPointAndWait(%v) failed: %v", want, err)
-		}
-
-		// CursorPosition reads HID state via CGEventGetLocation, which can lag
-		// a just-posted synthetic move by a few milliseconds. Poll to a
-		// deadline rather than reading once: the assertion stays strict (the
-		// cursor must actually arrive at `want`), it just tolerates the
-		// propagation delay instead of flaking on it.
-		got, err := actionService.CursorPosition(ctx)
-		deadline := time.Now().Add(2 * time.Second)
-
-		for err == nil && got != want && time.Now().Before(deadline) {
-			time.Sleep(5 * time.Millisecond)
-
-			got, err = actionService.CursorPosition(ctx)
-		}
-
-		if err != nil {
-			t.Fatalf("CursorPosition after move failed: %v", err)
-		}
-
-		if got != want {
-			t.Errorf("cursor position round-trip: moved to %v, read back %v", want, got)
-		}
-	})
+	// The exact-placement contract for cursor movement — the global
+	// top-left-origin, Y-down guarantee that a Y-flip regression would break —
+	// is asserted in internal/core/infra/accessibility, which owns cursor
+	// movement. It is deliberately not repeated here: both packages would be
+	// driving the one physical cursor, and `go test ./...` runs them
+	// concurrently, so each would intermittently fail the other.
 
 	t.Run("ExecuteAction on element", func(t *testing.T) {
 		// This tests the element-based action execution

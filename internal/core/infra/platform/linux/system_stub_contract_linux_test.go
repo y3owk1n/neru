@@ -5,6 +5,7 @@ package linux_test
 import (
 	"context"
 	"image"
+	"strings"
 	"testing"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -25,7 +26,7 @@ import (
 //
 // The methods here are exercised through an adapter built with a backend name
 // that matches no implemented backend, which is exactly the state a new or
-// unrecognised compositor produces. NewSystemAdapter takes the backend as a
+// unrecognized compositor produces. NewSystemAdapter takes the backend as a
 // plain string, so no compositor needs to be running for this to be meaningful.
 //
 // This file is tagged linux and therefore runs on the Linux CI runner. Adding a
@@ -34,7 +35,7 @@ import (
 // ports/capability_presets.go — see internal/core/infra/platform's
 // TestCapabilities_DeclaredStatusMatchesAdapterBehavior.
 
-// unimplementedBackend is a backend name no dispatch branch recognises, so
+// unimplementedBackend is a backend name no dispatch branch recognizes, so
 // every method falls through to its stub.
 const unimplementedBackend = "test-unimplemented-backend"
 
@@ -142,7 +143,7 @@ func TestSystemAdapter_NotSupportedErrorNamesTheBackend(t *testing.T) {
 				t.Fatalf("%s returned nil, expected a NotSupported error", testCase.name)
 			}
 
-			if !contains(err.Error(), unimplementedBackend) {
+			if !strings.Contains(err.Error(), unimplementedBackend) {
 				t.Errorf("%s error %q does not name the backend %q",
 					testCase.name, err.Error(), unimplementedBackend)
 			}
@@ -164,7 +165,8 @@ func TestSystemAdapter_StubsDoNotPanicOnACanceledContext(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			// A panic here fails the subtest; the assertion is that some error
 			// comes back rather than a zero value with nil.
-			if err := testCase.call(ctx, adapter); err == nil {
+			err := testCase.call(ctx, adapter)
+			if err == nil {
 				t.Errorf("%s with a canceled context returned nil", testCase.name)
 			}
 		})
@@ -342,7 +344,8 @@ func TestSystemAdapter_DowngradedCapabilitiesExplainWhy(t *testing.T) {
 
 		// The detail must name the backend or the missing prerequisite, not
 		// merely restate that the feature is unavailable.
-		if !contains(detail, unimplementedBackend) && !contains(detail, "CGO") {
+		if !strings.Contains(detail, unimplementedBackend) &&
+			!strings.Contains(detail, "CGO") {
 			t.Errorf(
 				"capability %q detail %q neither names the backend nor the missing "+
 					"prerequisite, so it is not actionable",
@@ -367,20 +370,4 @@ func TestSystemAdapter_MoveCursorToPointReportsNotSupported(t *testing.T) {
 		t.Errorf("MoveCursorToPoint returned %v (code %q), want CodeNotSupported",
 			err, derrors.GetCode(err))
 	}
-}
-
-// contains reports whether s contains substr, avoiding a strings import in a
-// file that otherwise needs none.
-func contains(s, substr string) bool {
-	if len(substr) == 0 {
-		return true
-	}
-
-	for i := 0; i+len(substr) <= len(s); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-
-	return false
 }

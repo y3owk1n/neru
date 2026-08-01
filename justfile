@@ -220,9 +220,13 @@ list-foundation-packages:
     done
 
 # Run integration tests
+# -p 1 runs one package binary at a time. Integration tests drive the real
+# cursor, keyboard and overlay, so two packages running concurrently fight over
+# one physical input device: a click in one package's test moves the cursor out
+# from under another package's cursor assertion, and either side can lose.
 test-integration:
     @echo "Running integration tests..."
-    go test -tags=integration -v ./...
+    go test -tags=integration -p 1 -v ./...
 
 # Run with race detection
 test-race: test-race-unit test-race-integration
@@ -234,9 +238,10 @@ test-race-unit:
     go test -race -v ./...
 
 # Run integration tests with race detection
+# See test-integration for why -p 1 is required here.
 test-race-integration:
     @echo "Running integration tests with race detection..."
-    go test -tags=integration -race -v ./...
+    go test -tags=integration -race -p 1 -v ./...
 
 test-all: test test-race
 
@@ -375,12 +380,48 @@ test-windows-compile:
     [ "$failed" = "0" ] || exit 1
     echo "✓ Windows test binaries compile"
 
+# Lint the code as the other platforms see it.
+#
+# `just lint` only lints the host's build tags, so a linter complaint in
+# linux- or windows-tagged source is invisible locally and first appears as a
+# red CI job. Reproducing it needs the Linux toolchain (CGO on, native dev
+# headers), so this runs in the same container image the Linux CI job uses, with
+# the golangci-lint version pinned in .github/workflows/ci.yml.
+#
+# Requires a running Docker daemon.
+lint-cross:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building the Linux lint image (cached after first run)..."
+    docker build -q -t neru-linux-ci - >/dev/null <<'BASE'
+    FROM golang:1.26
+    RUN apt-get update -qq && apt-get install -y -qq \
+        libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
+        libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
+        libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        pkg-config >/dev/null 2>&1
+    BASE
+    docker build -q -t neru-linux-lint - >/dev/null <<'LINT'
+    FROM neru-linux-ci
+    RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+    LINT
+    echo "Linting for linux/amd64 (CGO on)..."
+    docker run --rm -v "$PWD":/src -w /src \
+        -e GOCACHE=/tmp/gocache -e GOMODCACHE=/tmp/gomod -e GOLANGCI_LINT_CACHE=/tmp/glcache \
+        neru-linux-lint golangci-lint run
+    echo "Linting for windows/amd64 (CGO off)..."
+    docker run --rm -v "$PWD":/src -w /src \
+        -e GOOS=windows -e GOARCH=amd64 -e CGO_ENABLED=0 \
+        -e GOCACHE=/tmp/gocache -e GOMODCACHE=/tmp/gomod -e GOLANGCI_LINT_CACHE=/tmp/glcache \
+        neru-linux-lint golangci-lint run
+    echo "✓ Cross-platform lint complete"
+
 # Everything that can be checked for other platforms without pushing.
 #
-# Deliberately excludes test-linux, which needs Docker — run that separately for
-# a real Linux execution rather than a type-check.
+# Deliberately excludes lint-cross and test-linux, which need Docker — run those
+# separately for a real Linux lint and execution rather than a type-check.
 check-cross: vet-cross test-windows-compile
-    @echo "✓ Cross-platform checks complete (run 'just test-linux' for a real Linux run)"
+    @echo "✓ Cross-platform checks complete (run 'just lint-cross' and 'just test-linux' for real Linux runs)"
 
 # Download dependencies
 deps:

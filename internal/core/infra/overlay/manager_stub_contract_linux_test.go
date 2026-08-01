@@ -1,10 +1,10 @@
 //go:build linux
 
-// Reaching the stub path needs a Manager with no backend attached, and the
-// backend fields are unexported by design, so this is an internal test.
-//
 //nolint:testpackage
 package overlay
+
+// This is an internal test: reaching the stub path needs a Manager with no
+// backend attached, and the backend fields are unexported by design.
 
 import (
 	"image"
@@ -22,7 +22,7 @@ import (
 // The Linux overlay Manager dispatches every draw call to whichever backend
 // initialized — X11 or wlroots layer-shell — and falls through to a
 // CodeNotSupported stub when neither did. That happens on KWin and GNOME today,
-// and on any headless or unrecognised session.
+// and on any headless or unrecognized session.
 //
 // The mode handler treats an overlay draw failure as a reason to abandon mode
 // activation, and it distinguishes "this platform can't draw" from "drawing
@@ -105,7 +105,8 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 
 	testGrid := domainGrid.NewGrid("abc", image.Rect(0, 0, 800, 600), zap.NewNop())
 
-	if err := manager.DrawGrid(testGrid, "ab", grid.Style{}); !derrors.IsNotSupported(err) {
+	err := manager.DrawGrid(testGrid, "ab", grid.Style{})
+	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawGrid with a real grid returned %v, want CodeNotSupported", err)
 	}
 
@@ -113,18 +114,15 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 		hints.NewHint("aa", image.Point{X: 10, Y: 10}, image.Point{X: 20, Y: 10}, ""),
 	}
 
-	if err := manager.DrawHintsWithStyle(drawn, hints.StyleMode{}); !derrors.IsNotSupported(err) {
+	err = manager.DrawHintsWithStyle(drawn, hints.StyleMode{})
+	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawHintsWithStyle with real hints returned %v, want CodeNotSupported", err)
 	}
 
 	targets := []MonitorSelectTarget{{Label: "A", Bounds: image.Rect(0, 0, 800, 600)}}
 
-	if err := manager.DrawMonitorSelect(
-		targets,
-		MonitorSelectStyle{},
-	); !derrors.IsNotSupported(
-		err,
-	) {
+	err = manager.DrawMonitorSelect(targets, MonitorSelectStyle{})
+	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawMonitorSelect with real targets returned %v, want CodeNotSupported", err)
 	}
 }

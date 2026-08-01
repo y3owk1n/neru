@@ -120,7 +120,8 @@ func TestVisionAdapter_StubsAreStableAcrossCalls(t *testing.T) {
 	ctx := context.Background()
 
 	for i := range 3 {
-		if err := adapter.Health(ctx); !derrors.IsNotSupported(err) {
+		err := adapter.Health(ctx)
+		if !derrors.IsNotSupported(err) {
 			t.Fatalf("Health call %d returned %v, want CodeNotSupported every time", i+1, err)
 		}
 	}
@@ -136,7 +137,8 @@ func TestVisionAdapter_NilLoggerIsAccepted(t *testing.T) {
 	}
 
 	// Exercising a method proves the fallback logger is actually usable.
-	if err := adapter.Health(context.Background()); err == nil {
+	err := adapter.Health(context.Background())
+	if err == nil {
 		t.Error("Health returned nil off darwin")
 	}
 }

@@ -90,79 +90,26 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	// live-probed here rather than declared; Capabilities is only reached by
 	// `neru doctor` and the IPC info response, so the extra reads are cheap
 	// relative to how often it runs.
-	// Bounded so a wedged compositor cannot hang `neru doctor`, which is the
-	// command a user runs precisely when things are not working.
-	ctx, cancel := context.WithTimeout(context.Background(), capabilityProbeTimeout)
-	defer cancel()
-
-	capabilities.Process = s.probedCapability(capabilities.Process, "focused-app inspection",
+	capabilities.Process = s.probedCapability("focused-app inspection", capabilities.Process,
 		func() error {
-			_, err := s.FocusedApplicationPID(ctx)
+			_, err := s.FocusedApplicationPID(context.Background())
 
 			return err
 		})
-	capabilities.Screen = s.probedCapability(capabilities.Screen, "screen enumeration",
+	capabilities.Screen = s.probedCapability("screen enumeration", capabilities.Screen,
 		func() error {
-			_, err := s.ScreenBounds(ctx)
+			_, err := s.ScreenBounds(context.Background())
 
 			return err
 		})
-	capabilities.Cursor = s.probedCapability(capabilities.Cursor, "cursor tracking",
+	capabilities.Cursor = s.probedCapability("cursor tracking", capabilities.Cursor,
 		func() error {
-			_, err := s.CursorPosition(ctx)
+			_, err := s.CursorPosition(context.Background())
 
 			return err
 		})
 
 	return capabilities
-}
-
-// capabilityProbeTimeout bounds each live capability probe.
-const capabilityProbeTimeout = 2 * time.Second
-
-// probedCapability returns declared unchanged when probe succeeds, and a stub
-// carrying an actionable reason when probe reports the feature is unavailable.
-//
-// Only CodeNotSupported downgrades the status. A transient failure — the
-// compositor busy, a socket hiccup — leaves the capability as declared, because
-// the feature exists and the next call may well work; reporting it as a
-// permanent stub would send the user chasing a fix that is not needed.
-func (s *SystemAdapter) probedCapability(
-	declared ports.FeatureCapability,
-	feature string,
-	probe func() error,
-) ports.FeatureCapability {
-	err := probe()
-	if err == nil || !derrors.IsNotSupported(err) {
-		return declared
-	}
-
-	return ports.FeatureCapability{
-		Status: ports.FeatureStatusStub,
-		Detail: s.unavailableDetail(feature),
-	}
-}
-
-// unavailableDetail explains why a probed capability is unavailable, in terms
-// the user can act on.
-func (s *SystemAdapter) unavailableDetail(feature string) string {
-	if !nativeBackendsCompiledIn {
-		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
-			"and wlroots client stacks are absent; use a CGO-enabled build"
-	}
-
-	if s.backend == "" {
-		return feature + " is unavailable: no display backend detected; start a session " +
-			"under X11, or a Wayland compositor with wlr-foreign-toplevel/layer-shell support"
-	}
-
-	if s.backend == backendX11 || s.waylandUsesWlrClientStack() {
-		return feature + " is unavailable on linux backend " + s.backend +
-			": the backend is supported but could not be reached (is the display server running?)"
-	}
-
-	return feature + " is not implemented on linux backend " + s.backend +
-		"; supported backends are x11, wayland-wlroots and wayland-kde"
 }
 
 // ConfigDir returns the Linux-specific configuration directory.
@@ -448,6 +395,103 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 	_ context.Context,
 ) ports.ScreenCaptureConsent {
 	return ports.ScreenCaptureGranted
+}
+
+// capabilityProbeTimeout bounds how long a single capability probe may take
+// before it is treated as unavailable.
+const capabilityProbeTimeout = 2 * time.Second
+
+// probedCapability reports declared when probe succeeds, and a stub explaining
+// why when it does not.
+//
+// Any probe failure downgrades the capability, not just CodeNotSupported. The
+// question `neru doctor` answers is "does this work right now?", and a backend
+// that is compiled in but cannot open its display fails with CodeActionFailed —
+// reporting that as "supported" would be the same lie this probing exists to
+// remove. The detail distinguishes the cases so the user knows whether to
+// install something, start a session, or look at a broken display server.
+func (s *SystemAdapter) probedCapability(
+	feature string,
+	declared ports.FeatureCapability,
+	probe func() error,
+) ports.FeatureCapability {
+	completed, err := probeWithin(capabilityProbeTimeout, probe)
+
+	switch {
+	case !completed:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: feature + " is unavailable: the " + s.backendLabel() +
+				" backend did not respond within " + capabilityProbeTimeout.String() +
+				"; the display server may be wedged",
+		}
+	case err != nil:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: s.unavailableDetail(feature, err),
+		}
+	default:
+		return declared
+	}
+}
+
+// unavailableDetail explains why a probed capability is unavailable, in terms
+// the user can act on.
+func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
+	if !nativeBackendsCompiledIn {
+		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
+			"and wlroots client stacks are absent; use a CGO-enabled build"
+	}
+
+	if s.backend == "" {
+		return feature + " is unavailable: no display backend detected; start a session " +
+			"under X11, or a Wayland compositor with wlr-foreign-toplevel/layer-shell support"
+	}
+
+	if s.backend == backendX11 || s.waylandUsesWlrClientStack() {
+		// The backend is implemented, so this is a live failure rather than a
+		// gap — carry the underlying reason, which is the actionable part.
+		return feature + " is unavailable on linux backend " + s.backend + ": " + cause.Error()
+	}
+
+	return feature + " is not implemented on linux backend " + s.backend +
+		"; supported backends are x11, wayland-wlroots and wayland-kde"
+}
+
+// backendLabel names the backend for diagnostics, including the undetected case.
+func (s *SystemAdapter) backendLabel() string {
+	if s.backend == "" {
+		return "undetected"
+	}
+
+	return s.backend
+}
+
+// probeWithin runs probe, reporting whether it finished within timeout and, if
+// it did, the error it returned.
+//
+// The native screen, cursor and process calls do not observe a context — they
+// enter Xlib or a Wayland roundtrip and return when they return — so a context
+// deadline passed down to them would bound nothing. Running the probe on its
+// own goroutine is what actually keeps `neru doctor` and the IPC info handler
+// responsive. The channel is buffered so a probe that finishes late still
+// delivers and exits rather than leaking permanently; only a probe that never
+// returns holds its goroutine, which is strictly better than blocking the
+// caller forever.
+func probeWithin(timeout time.Duration, probe func() error) (bool, error) {
+	done := make(chan error, 1)
+
+	go func() { done <- probe() }()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case err := <-done:
+		return true, err
+	case <-timer.C:
+		return false, nil
+	}
 }
 
 // moveCursorDirect performs a single instantaneous cursor warp, routing to the
