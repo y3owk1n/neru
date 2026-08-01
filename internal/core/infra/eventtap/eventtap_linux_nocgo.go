@@ -33,19 +33,23 @@ func getUinputScrollFd() (int, error) {
 	return 0, errUinputScrollNoCGO("uinput scroll device")
 }
 
+// ScrollDeviceScroll reports that uinput scroll injection is compiled out.
 func ScrollDeviceScroll(_, _ int) error {
 	return errUinputScrollNoCGO("uinput scroll")
 }
 
+// ScrollDeviceScrollBatch reports that uinput scroll injection is compiled out.
 func ScrollDeviceScrollBatch(_ int, _ []int) error {
 	return errUinputScrollNoCGO("uinput scroll batch")
 }
 
+// IsUinputScrollAvailable reports false: uinput needs cgo.
 func IsUinputScrollAvailable() bool {
 	return false
 }
 
 // IsWaylandEvdevKeyboardActive is always false without CGO (no evdev grab).
+// IsWaylandEvdevKeyboardActive reports false: evdev capture needs cgo.
 func IsWaylandEvdevKeyboardActive() bool {
 	return false
 }

@@ -143,16 +143,16 @@ func (m *Manager) UnregisterAll() {
 	}
 }
 
-// HealthCheck returns true when the global hotkey listener is healthy.
-// On non-Wayland backends (X11) it always returns true because there is no
-// passive evdev listener to monitor. Callers (the app health-check loop)
-// reinitialize the listener if this returns false.
 // Ensure the Linux Manager keeps satisfying the optional health-reporting
 // extension. The sleep/resume handler reaches it by type assertion, so a
 // signature drift would silently stop re-registering hotkeys after an X11
 // restart or compositor reload instead of failing to compile.
 var _ ports.HotkeyHealthReporter = (*Manager)(nil)
 
+// HealthCheck returns true when the global hotkey listener is healthy.
+// On non-Wayland backends (X11) it always returns true because there is no
+// passive evdev listener to monitor. Callers (the app health-check loop)
+// reinitialize the listener if this returns false.
 func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

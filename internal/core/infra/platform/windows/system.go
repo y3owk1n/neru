@@ -3,7 +3,7 @@
 // internal/core/infra/platform/windows/system.go
 // SystemAdapter: the ports.SystemPort implementation for Windows.
 // The package comment lives in doc.go.
-//
+
 //nolint:godox // TODO comments are intentional contributor guidance for unimplemented stubs.
 package windows
 

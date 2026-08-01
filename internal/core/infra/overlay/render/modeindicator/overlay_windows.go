@@ -1,6 +1,5 @@
 //go:build windows
 
-// Package modeindicator provides mode indicator overlay components.
 package modeindicator
 
 import (

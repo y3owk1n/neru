@@ -449,8 +449,41 @@ func TestPackageCommentsAreReachableOnEveryTarget(t *testing.T) {
 	}
 }
 
-// hasPackageComment reports whether a file carries the package doc comment —
-// a comment group immediately preceding the package clause.
+// TestPackagesHaveExactlyOnePackageComment catches a package comment duplicated
+// across files.
+//
+// golangci-lint's godoclint check finds these, but only for the platform it is
+// running on: a duplicate in a windows-tagged file is invisible to a lint run on
+// macOS. This test parses every file regardless of build tags, so one run on any
+// host covers all targets — which is how the duplicates in the Windows overlay
+// render packages were found.
+func TestPackagesHaveExactlyOnePackageComment(t *testing.T) {
+	commentFiles := make(map[string][]string)
+
+	for _, file := range goFiles(t) {
+		if hasPackageComment(t, file.absPath) {
+			commentFiles[file.dir] = append(commentFiles[file.dir], file.base)
+		}
+	}
+
+	for dir, files := range commentFiles {
+		if len(files) > 1 {
+			slices.Sort(files)
+			t.Errorf(
+				"%s: %d files carry a package comment (%v); exactly one should — "+
+					"keep it in doc.go and demote the others to file comments by "+
+					"leaving a blank line before the package clause",
+				dir,
+				len(files),
+				files,
+			)
+		}
+	}
+}
+
+// hasPackageComment reports whether a file carries real package documentation —
+// a comment group immediately preceding the package clause, ignoring groups
+// that contain only tool directives.
 func hasPackageComment(t *testing.T, path string) bool {
 	t.Helper()
 
@@ -466,5 +499,19 @@ func hasPackageComment(t *testing.T, path string) bool {
 		t.Fatalf("ParseFile(%s) error = %v", path, err)
 	}
 
-	return parsed.Doc != nil
+	if parsed.Doc == nil {
+		return false
+	}
+
+	// A group of only tool directives documents nothing. They attach to the
+	// package clause because that is how they scope file-wide, so counting them
+	// would flag every file carrying a file-wide lint exemption.
+	for _, comment := range parsed.Doc.List {
+		text := strings.TrimSpace(strings.TrimPrefix(comment.Text, "//"))
+		if !strings.HasPrefix(text, "nolint:") && !strings.HasPrefix(text, "go:") {
+			return true
+		}
+	}
+
+	return false
 }

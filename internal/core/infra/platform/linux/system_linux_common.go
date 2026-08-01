@@ -350,6 +350,20 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 // TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
 func (s *SystemAdapter) ShowNotification(title, message string) {}
 
+// CheckScreenCapturePermission reports true: Linux does not gate screen capture
+// behind a permission.
+func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
+	return true
+}
+
+// RequestScreenCapturePermission reports granted without prompting: Linux has no
+// screen-recording permission to request.
+func (s *SystemAdapter) RequestScreenCapturePermission(
+	_ context.Context,
+) ports.ScreenCaptureConsent {
+	return ports.ScreenCaptureGranted
+}
+
 // moveCursorDirect performs a single instantaneous cursor warp, routing to the
 // backend-specific injector. It is the shared sink for both the direct move
 // path and each step of the smooth animator.
@@ -385,20 +399,6 @@ func (s *SystemAdapter) currentCursorPosition() image.Point {
 // KDE Plasma's KWin implements these for third-party clients; GNOME does not.
 func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
 	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
-}
-
-// CheckScreenCapturePermission reports true: Linux does not gate screen capture
-// behind a permission.
-func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
-	return true
-}
-
-// RequestScreenCapturePermission reports granted without prompting: Linux has no
-// screen-recording permission to request.
-func (s *SystemAdapter) RequestScreenCapturePermission(
-	_ context.Context,
-) ports.ScreenCaptureConsent {
-	return ports.ScreenCaptureGranted
 }
 
 // Ensure SystemAdapter implements ports.SystemPort.

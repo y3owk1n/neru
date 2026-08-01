@@ -711,6 +711,25 @@ platform work:
 Cross-compiled binaries build from any host, but only the target OS can run
 `just test` meaningfully — integration tests are tagged per-OS.
 
+### `just lint` only sees your own platform
+
+golangci-lint honours build tags, so a `//go:build linux` file is invisible to
+`just lint` on macOS. A change can be locally clean and still fail the Linux or
+Windows lint job. To reproduce one of those failures:
+
+```bash
+CGO_ENABLED=0 GOOS=linux golangci-lint run ./internal/...
+```
+
+Read the output with care. Without cgo, the `*_cgo.go` files are excluded, so
+anything they alone use is reported as `unused` and any helper they alone call
+with a second value is reported by `unparam`. Those are artifacts of the
+no-cgo build, not real findings — CI lints Linux with cgo enabled. Findings in
+plain-`linux` files (`funcorder`, `godoclint`, `revive`, and similar) are real.
+
+The cgo-only Linux paths cannot be linted from a non-Linux host at all. CI is
+the check for those.
+
 ## Linux Backend Model
 
 Linux is a backend *family*, not a single target. Keep two axes separate:

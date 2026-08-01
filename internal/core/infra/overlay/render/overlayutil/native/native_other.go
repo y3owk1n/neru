@@ -1,10 +1,11 @@
 //go:build !darwin
 
-// Package native provides platform-native memory helpers for overlay operations.
-//
-// On non-darwin platforms the overlay rendering pipeline is not active, so
-// all functions here are intentional no-ops. They exist so that overlayutil
-// compiles on every platform without importing platform/darwin.
+// internal/core/infra/overlay/render/overlayutil/native/native_other.go
+// Non-darwin slot: the overlay rendering pipeline does not pass C-heap
+// callback contexts here, so every function is an intentional no-op. They
+// exist so overlayutil compiles on every platform without importing
+// platform/darwin. The package comment lives in doc.go.
+
 package native
 
 import "unsafe"

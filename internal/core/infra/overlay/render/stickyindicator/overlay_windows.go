@@ -1,6 +1,5 @@
 //go:build windows
 
-// Package stickyindicator provides sticky modifiers indicator overlay components.
 package stickyindicator
 
 import (
