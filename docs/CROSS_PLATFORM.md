@@ -688,7 +688,13 @@ Two rules that save review cycles:
 ## Backend Packages
 
 A backend gets its own package once it is a real implementation rather than a
-handful of dispatch functions. `accessibility/atspi`, `eventtap/{darwin,linux,
+handful of dispatch functions. The test is whether every platform has something
+substantial to say. If one does and the others answer in eighty-line stubs,
+build-tagged files in one package are clearer — three directories where two
+hold stubs is ceremony, not navigation. That is why
+`overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}` stay
+as they are: each is one real renderer plus small stubs, and
+`overlay_linux_common.go` is already the obvious file to open. `accessibility/atspi`, `eventtap/{darwin,linux,
 windows}`, `hotkeys/{darwin,linux,windows}` and `systray/{darwin,linux,windows}`
 are all shaped this way: the directory names the platform, so the filenames
 inside do not have to, and `ls` answers "what do I touch for Wayland?".
