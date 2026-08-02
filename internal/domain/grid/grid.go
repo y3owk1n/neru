@@ -499,13 +499,16 @@ func generateCellsWithRegions(
 		gridRows = MaxGridRows
 	}
 
-	// One bounded value serves as the allocation size and as the loop's stop
-	// condition below, which recomputed the same product. Both dimensions are
-	// clamped to constants above, so it is at most MaxGridCols*MaxGridRows.
+	// cellCapacity is how many cells the grid can hold — the loop's stop
+	// condition. Both dimensions are clamped to constants above, so it is at
+	// most MaxGridCols*MaxGridRows.
 	cellCapacity := gridCols * gridRows
 
-	cells := make([]*Cell, cellCapacity)
-	cellIndex := 0
+	// Grown by append rather than pre-sized. The loop below fills an unknown
+	// prefix and the function used to return cells[:cellIndex], so the sized
+	// allocation was always an upper bound that the caller never saw: the
+	// index bookkeeping existed only to undo it.
+	var cells []*Cell
 
 	// Calculate region dimensions based on label length
 	// Each region represents a group of cells sharing the same prefix character(s)
@@ -652,8 +655,7 @@ func generateCellsWithRegions(
 						Y: yCoordinate + gridRound(cellHeight),
 					},
 				}
-				cells[cellIndex] = cell
-				cellIndex++
+				cells = append(cells, cell)
 			}
 		}
 
@@ -669,13 +671,12 @@ func generateCellsWithRegions(
 		regionIndex++
 
 		// Stop if we've filled the entire screen
-		if cellIndex >= cellCapacity {
+		if len(cells) >= cellCapacity {
 			break
 		}
 	}
 
-	// Return only the filled portion of the slice
-	return cells[:cellIndex]
+	return cells
 }
 
 // Candidate represents a valid grid configuration.
