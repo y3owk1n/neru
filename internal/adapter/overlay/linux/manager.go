@@ -1,6 +1,6 @@
 //go:build linux
 
-package overlay
+package linux
 
 import (
 	"image"
@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
@@ -86,8 +87,8 @@ type Manager struct {
 	logger *zap.Logger
 
 	mu     sync.RWMutex
-	mode   Mode
-	subs   map[uint64]func(StateChange)
+	mode   manager.Mode
+	subs   map[uint64]func(manager.StateChange)
 	nextID uint64
 
 	// renderMu serializes all rendering dispatch to the backend overlays.
@@ -136,37 +137,40 @@ var (
 
 // NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
-	manager := &Manager{
-		logger:                 logger,
-		mode:                   ModeIdle,
-		subs:                   make(map[uint64]func(StateChange), initialSubscriberCapacity),
+	instance := &Manager{
+		logger: logger,
+		mode:   manager.ModeIdle,
+		subs: make(
+			map[uint64]func(manager.StateChange),
+			initialSubscriberCapacity,
+		),
 		backend:                detectLinuxOverlayBackend(),
 		keyboardCaptureEnabled: true,
 	}
 
-	switch manager.backend {
+	switch instance.backend {
 	case linuxOverlayBackendX11:
-		manager.x11 = newX11Overlay(logger)
-		if manager.x11 != nil {
-			manager.x11.setRenderMu(&manager.renderMu)
+		instance.x11 = newX11Overlay(logger)
+		if instance.x11 != nil {
+			instance.x11.setRenderMu(&instance.renderMu)
 		}
 	case linuxOverlayBackendWaylandWlroots:
-		manager.wlroots = newWlrootsOverlay(logger)
+		instance.wlroots = newWlrootsOverlay(logger)
 
 		// Share renderMu with the wlroots overlay so the keyboard poller
 		// serializes wl_display access with the rendering path. The Wayland
 		// client API is not thread-safe.
 		// setDisplayMu must be called before startPoller — the poller reads
 		// displayMu on every iteration, so it must be visible before launch.
-		if manager.wlroots != nil {
-			manager.wlroots.setDisplayMu(&manager.renderMu)
-			manager.wlroots.startPoller()
+		if instance.wlroots != nil {
+			instance.wlroots.setDisplayMu(&instance.renderMu)
+			instance.wlroots.startPoller()
 		}
 	case linuxOverlayBackendUnknown:
 		return nil
 	}
 
-	return manager
+	return instance
 }
 
 // Get returns the global overlay Manager.
@@ -311,7 +315,7 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 }
 
 // SwitchTo switches to a new mode.
-func (m *Manager) SwitchTo(next Mode) {
+func (m *Manager) SwitchTo(next manager.Mode) {
 	m.mu.Lock()
 
 	prev := m.mode
@@ -325,11 +329,11 @@ func (m *Manager) SwitchTo(next Mode) {
 
 	m.mu.Unlock()
 
-	m.publish(StateChange{prev: prev, next: next})
+	m.publish(manager.NewStateChange(prev, next))
 }
 
 // Subscribe registers a callback for mode changes.
-func (m *Manager) Subscribe(subFn func(StateChange)) uint64 {
+func (m *Manager) Subscribe(subFn func(manager.StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -390,7 +394,7 @@ func (m *Manager) Destroy() {
 }
 
 // Mode returns the current mode.
-func (m *Manager) Mode() Mode {
+func (m *Manager) Mode() manager.Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -542,7 +546,7 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 	}
 
 	mode := m.Mode()
-	if mode == ModeIdle {
+	if mode == manager.ModeIdle {
 		return
 	}
 
@@ -815,36 +819,6 @@ func detectLinuxOverlayBackend() linuxOverlayBackend {
 	return linuxOverlayBackendUnknown
 }
 
-// MonitorSelectTarget is one selectable monitor rendered by the monitor_select
-// overlay: a labeled panel centered on the monitor's bounds.
-type MonitorSelectTarget struct {
-	Bounds           image.Rectangle
-	Label            string
-	Subtitle         string
-	Selected         bool
-	MatchedPrefixLen int
-}
-
-// MonitorSelectStyle carries the resolved (theme-applied) appearance for the
-// monitor_select overlay. Colors are hex strings, parsed by the backend, to
-// mirror how the hints/grid styles are threaded.
-type MonitorSelectStyle struct {
-	FontSize           int
-	SubtitleFontSize   int
-	FontFamily         string
-	SubtitleFontFamily string
-	BorderRadius       int
-	PaddingX           int
-	PaddingY           int
-	BorderWidth        int
-	BackgroundColor    string
-	TextColor          string
-	MatchedTextColor   string
-	BorderColor        string
-	BackdropColor      string
-	SubtitleTextColor  string
-}
-
 const (
 	// These mirror the macOS overlay (monitor_select_overlay_darwin.m) so the
 	// Linux monitor_select UI matches darwin: auto padding derived from the label
@@ -877,7 +851,10 @@ func monitorSelectFontOr(value, fallback int) float64 {
 // radius honor the same "auto" (-1) config sentinels. scale is the backend HiDPI
 // factor (X11 Xft.dpi; 1 on Wayland, which scales via the compositor buffer).
 func monitorSelectPanelLayout(
-	monitor image.Rectangle, label, subtitle string, style MonitorSelectStyle, scale float64,
+	monitor image.Rectangle,
+	label, subtitle string,
+	style manager.MonitorSelectStyle,
+	scale float64,
 ) (image.Rectangle, image.Rectangle, image.Rectangle, float64) {
 	labelFont := monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont) * scale
 	subFont := monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont) * scale
@@ -974,7 +951,7 @@ type monitorSelectDrawSpec struct {
 	hasBackdrop  bool
 }
 
-func newMonitorSelectDrawSpec(style MonitorSelectStyle) monitorSelectDrawSpec {
+func newMonitorSelectDrawSpec(style manager.MonitorSelectStyle) monitorSelectDrawSpec {
 	return monitorSelectDrawSpec{
 		backdrop:     parseHexColor(style.BackdropColor),
 		background:   parseHexColor(style.BackgroundColor),
@@ -990,7 +967,7 @@ func newMonitorSelectDrawSpec(style MonitorSelectStyle) monitorSelectDrawSpec {
 
 // monitorSelectSubtitleFamily falls back to the primary font family when no
 // dedicated subtitle family is configured.
-func monitorSelectSubtitleFamily(style MonitorSelectStyle) string {
+func monitorSelectSubtitleFamily(style manager.MonitorSelectStyle) string {
 	if style.SubtitleFontFamily != "" {
 		return style.SubtitleFontFamily
 	}
@@ -1001,7 +978,10 @@ func monitorSelectSubtitleFamily(style MonitorSelectStyle) string {
 // DrawMonitorSelect renders one labeled panel per monitor for the interactive
 // monitor picker, then shows the overlay. Unlike macOS (one NSPanel per display)
 // this reuses the shared spanning X11 window / per-output layer-shell surfaces.
-func (m *Manager) DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error {
+func (m *Manager) DrawMonitorSelect(
+	targets []manager.MonitorSelectTarget,
+	style manager.MonitorSelectStyle,
+) error {
 	if m.wlroots != nil {
 		m.wlroots.cancelAnimation()
 	} else if m.x11 != nil {
@@ -1146,10 +1126,10 @@ func (m *Manager) clearModeIndicatorBadgeLocked() {
 	m.modeIndicatorBadgeRect = image.Rectangle{}
 }
 
-func (m *Manager) publish(change StateChange) {
+func (m *Manager) publish(change manager.StateChange) {
 	m.mu.RLock()
 
-	subs := make([]func(StateChange), 0, len(m.subs))
+	subs := make([]func(manager.StateChange), 0, len(m.subs))
 	for _, fn := range m.subs {
 		subs = append(subs, fn)
 	}

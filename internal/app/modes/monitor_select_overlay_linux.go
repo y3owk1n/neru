@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -27,19 +28,27 @@ func (h *Handler) showMonitorSelectLocked() error {
 		)
 	}
 
+	selector, ok := manager.(overlaymanager.MonitorSelector)
+	if !ok {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"monitor_select overlay is unavailable on this Linux backend",
+		)
+	}
+
 	targets, style := h.monitorSelectRenderDataLocked()
 	if len(targets) == 0 {
-		manager.HideMonitorSelect()
+		selector.HideMonitorSelect()
 
 		return nil
 	}
 
-	return manager.DrawMonitorSelect(targets, style)
+	return selector.DrawMonitorSelect(targets, style)
 }
 
 func (h *Handler) hideMonitorSelectLocked() error {
-	if manager := overlay.Get(); manager != nil {
-		manager.HideMonitorSelect()
+	if selector, ok := overlay.Get().(overlaymanager.MonitorSelector); ok {
+		selector.HideMonitorSelect()
 	}
 
 	return nil

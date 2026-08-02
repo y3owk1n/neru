@@ -1,6 +1,6 @@
 //go:build linux && !cgo
 
-package overlay
+package linux
 
 import (
 	"image"
@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -79,7 +80,7 @@ func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyl
 
 func (o *x11Overlay) Scale() float64 { return 1 }
 
-func (o *x11Overlay) DrawMonitorSelect([]MonitorSelectTarget, MonitorSelectStyle) {}
+func (o *x11Overlay) DrawMonitorSelect([]manager.MonitorSelectTarget, manager.MonitorSelectStyle) {}
 
 func (o *x11Overlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 

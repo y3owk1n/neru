@@ -3,7 +3,7 @@
 // Unit tests for the pure easing/color helpers used by the Linux mouse-action
 // indicator. Native Cairo animation is covered by overlay integration tests.
 
-package overlay //nolint:testpackage // tests exercise unexported render helpers directly
+package linux //nolint:testpackage // tests exercise unexported render helpers directly
 
 import (
 	"image"

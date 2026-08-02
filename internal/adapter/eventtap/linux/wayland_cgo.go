@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 )
 
 func (et *EventTap) runWayland() {
@@ -31,10 +32,13 @@ func (et *EventTap) runWayland() {
 	}
 
 	// Enable keyboard capture on overlay when falling back from evdev.
-	// When evdev grab fails (e.g., compositor already grabbed devices),
-	// we need to explicitly request keyboard focus from the compositor.
-	mgr.SetKeyboardCaptureEnabled(true)
-	defer mgr.SetKeyboardCaptureEnabled(false)
+	// When evdev grab fails (e.g., compositor already grabbed devices), we need
+	// to explicitly request keyboard focus from the compositor. Only the Linux
+	// backends can, so it is an optional extension.
+	if capture, ok := mgr.(overlaymanager.KeyboardCaptureController); ok {
+		capture.SetKeyboardCaptureEnabled(true)
+		defer capture.SetKeyboardCaptureEnabled(false)
+	}
 
 	for {
 		select {

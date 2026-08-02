@@ -729,14 +729,15 @@ Two traps, both of which have bitten this repo:
 
 ### What is still shared, and why
 
-Two packages still hold more than one platform, each for a stated reason:
+One package still holds more than one platform:
 
 | Package | Why it has not been split |
 | ------- | -------------------------- |
-| `adapter/overlay` | Its managers are per-OS but its `ManagerInterface` is now platform-neutral, so the split is a mechanical application of the recipe above rather than a redesign. |
-| `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first. |
+| `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first — the same move `eventtap` needed, applied to `Element`, `ElementInfo`, `TreeNode` and `TreeOptions`. |
 
-The render styles used to be on this list and are not any more. `hints.StyleMode`
+`overlay` and the render styles used to be on this list. The styles were the
+blocker: unifying them made `manager.Interface` portable, and the overlay split
+then followed the recipe above without a redesign. `hints.StyleMode`
 was declared three times identically, so unifying it was a deletion.
 `grid.Style` and `recursivegrid.Style` genuinely differed — macOS held hex
 colour strings and ints where Linux and Windows held packed ARGB and floats —

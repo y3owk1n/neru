@@ -24,6 +24,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	linux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
@@ -834,7 +835,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 		C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
 	}
 
-	manager := overlay.Get()
+	// Only the Linux overlay backends can hold or release the keyboard.
+	overlayCapture, _ := overlay.Get().(overlaymanager.KeyboardCaptureController)
 
 	for capture.modifierKeysHeld() {
 		select {
@@ -854,8 +856,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 		held := make(map[uint16]bool)
 		queryAllPressedKeys(capture, held)
 		if len(held) > 0 {
-			if manager != nil {
-				manager.SetKeyboardCaptureEnabled(true)
+			if overlayCapture != nil {
+				overlayCapture.SetKeyboardCaptureEnabled(true)
 			}
 
 			deadline := time.After(waylandEvdevPreGrabTimeout)
@@ -871,8 +873,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 				select {
 				case <-et.stopCh:
 					ticker.Stop()
-					if manager != nil {
-						manager.SetKeyboardCaptureEnabled(false)
+					if overlayCapture != nil {
+						overlayCapture.SetKeyboardCaptureEnabled(false)
 					}
 
 					return true
@@ -889,8 +891,8 @@ func (et *EventTap) runWaylandEvdev() bool {
 			}
 			ticker.Stop()
 
-			if manager != nil {
-				manager.SetKeyboardCaptureEnabled(false)
+			if overlayCapture != nil {
+				overlayCapture.SetKeyboardCaptureEnabled(false)
 			}
 		}
 	}
@@ -918,13 +920,13 @@ func (et *EventTap) runWaylandEvdev() bool {
 		capture.startReaders()
 	})
 
-	if manager != nil {
+	if overlayCapture != nil {
 		// Keep the overlay keyboard-passive for the whole session and do NOT
 		// restore it to EXCLUSIVE on exit: the evdev grab owns the keyboard, so a
 		// layer-surface grab would only deactivate the focused app's toplevel on
 		// wlroots. Every subsequent mode therefore also starts from NONE. The
 		// non-evdev fallback (runWayland) raises EXCLUSIVE itself when it needs it.
-		manager.SetKeyboardCaptureEnabled(false)
+		overlayCapture.SetKeyboardCaptureEnabled(false)
 	}
 
 	if et.logger != nil {

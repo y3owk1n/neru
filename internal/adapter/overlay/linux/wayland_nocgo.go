@@ -1,6 +1,6 @@
 //go:build linux && !cgo
 
-package overlay
+package linux
 
 // Linux Wayland overlay manager backend placeholder.
 //
@@ -13,6 +13,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -83,7 +84,11 @@ func (o *wlrootsOverlay) Flush() {}
 
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
-func (o *wlrootsOverlay) DrawMonitorSelect([]MonitorSelectTarget, MonitorSelectStyle) {}
+func (o *wlrootsOverlay) DrawMonitorSelect(
+	[]manager.MonitorSelectTarget,
+	manager.MonitorSelectStyle,
+) {
+}
 
 func (o *wlrootsOverlay) DrawMouseActionIndicator(image.Point, ports.MouseActionIndicatorStyle) {}
 

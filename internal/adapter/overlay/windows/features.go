@@ -4,7 +4,7 @@
 // Win32/GDI rendering for hints and recursive-grid overlays on Windows.
 // Does not own window lifecycle or grid rendering (see manager_windows_overlay.go).
 
-package overlay
+package windows
 
 import (
 	"image"

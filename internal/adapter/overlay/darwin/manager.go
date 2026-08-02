@@ -1,10 +1,10 @@
 //go:build darwin
 
-package overlay
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#include "../platform/darwin/overlay.h"
+#include "../../platform/darwin/overlay.h"
 #include <stdlib.h>
 */
 import "C"
@@ -16,6 +16,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
@@ -50,8 +51,8 @@ type Manager struct {
 	window            C.OverlayWindow
 	logger            *zap.Logger
 	mu                sync.RWMutex
-	mode              Mode
-	subs              map[uint64]func(StateChange)
+	mode              manager.Mode
+	subs              map[uint64]func(manager.StateChange)
 	nextID            uint64
 	hideInScreenShare bool
 
@@ -65,31 +66,31 @@ type Manager struct {
 }
 
 var (
-	manager *Manager
-	once    sync.Once
+	instance *Manager
+	once     sync.Once
 )
 
 // Init initializes the singleton overlay manager with a new overlay window.
 func Init(logger *zap.Logger) *Manager {
 	once.Do(func() {
 		window := C.NeruCreateOverlayWindow()
-		manager = &Manager{
+		instance = &Manager{
 			window: window,
 			logger: logger,
-			mode:   ModeIdle,
+			mode:   manager.ModeIdle,
 			subs: make(
-				map[uint64]func(StateChange),
+				map[uint64]func(manager.StateChange),
 				DefaultSubscriberMapSize,
 			),
 		}
 	})
 
-	return manager
+	return instance
 }
 
-// Get returns the singleton instance of the overlay manager.
+// Get returns the singleton instance of the overlay instance.
 func Get() *Manager {
-	return manager
+	return instance
 }
 
 // WindowPtr returns the window pointer.
@@ -103,7 +104,7 @@ func (m *Manager) WaylandKeyboardChannel() <-chan string {
 }
 
 // Mode returns the current overlay mode.
-func (m *Manager) Mode() Mode {
+func (m *Manager) Mode() manager.Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -194,7 +195,7 @@ func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
 func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
 
 // SwitchTo transitions the overlay to the specified mode and notifies subscribers.
-func (m *Manager) SwitchTo(next Mode) {
+func (m *Manager) SwitchTo(next manager.Mode) {
 	m.mu.Lock()
 	prev := m.mode
 	if prev == next {
@@ -211,11 +212,11 @@ func (m *Manager) SwitchTo(next Mode) {
 			zap.String("next", string(next)),
 		)
 	}
-	m.publish(StateChange{prev: prev, next: next})
+	m.publish(manager.NewStateChange(prev, next))
 }
 
 // Subscribe registers a callback function to be notified of overlay mode changes.
-func (m *Manager) Subscribe(fn func(StateChange)) uint64 {
+func (m *Manager) Subscribe(fn func(manager.StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.nextID++
@@ -251,7 +252,7 @@ func (m *Manager) Destroy() {
 		m.recursiveGridOverlay = nil
 	}
 
-	// Mode indicator owns its own window, so use full Destroy().
+	// manager.Mode indicator owns its own window, so use full Destroy().
 	if m.modeIndicatorOverlay != nil {
 		m.modeIndicatorOverlay.Destroy()
 		m.modeIndicatorOverlay = nil
@@ -385,7 +386,7 @@ func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 	}
 
 	mode := m.Mode()
-	if mode == ModeIdle {
+	if mode == manager.ModeIdle {
 		return
 	}
 
@@ -399,7 +400,7 @@ func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, sym
 	}
 
 	mode := m.Mode()
-	if mode == ModeIdle {
+	if mode == manager.ModeIdle {
 		return
 	}
 
@@ -580,9 +581,9 @@ func (m *Manager) SetSharingType(hide bool) {
 }
 
 // publish publishes a state change to all subscribers.
-func (m *Manager) publish(event StateChange) {
+func (m *Manager) publish(event manager.StateChange) {
 	m.mu.Lock()
-	subs := make([]func(StateChange), len(m.subs))
+	subs := make([]func(manager.StateChange), len(m.subs))
 	index := 0
 	for _, sub := range m.subs {
 		subs[index] = sub

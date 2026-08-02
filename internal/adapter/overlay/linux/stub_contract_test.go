@@ -1,7 +1,7 @@
 //go:build linux
 
 //nolint:testpackage
-package overlay
+package linux
 
 // This is an internal test: reaching the stub path needs a Manager with no
 // backend attached, and the backend fields are unexported by design.
@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -73,7 +74,7 @@ func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing
 		{
 			name: "DrawMonitorSelect",
 			call: func(m *Manager) error {
-				return m.DrawMonitorSelect(nil, MonitorSelectStyle{})
+				return m.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})
 			},
 		},
 	}
@@ -101,11 +102,11 @@ func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing
 // with populated arguments, so a stub that only short-circuits on nil input
 // cannot pass by accident.
 func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
-	manager := noBackendManager()
+	mgr := noBackendManager()
 
 	testGrid := domainGrid.NewGrid("abc", image.Rect(0, 0, 800, 600), zap.NewNop())
 
-	err := manager.DrawGrid(testGrid, "ab", grid.Style{})
+	err := mgr.DrawGrid(testGrid, "ab", grid.Style{})
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawGrid with a real grid returned %v, want CodeNotSupported", err)
 	}
@@ -114,14 +115,14 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 		hints.NewHint("aa", image.Point{X: 10, Y: 10}, image.Point{X: 20, Y: 10}, ""),
 	}
 
-	err = manager.DrawHintsWithStyle(drawn, hints.StyleMode{})
+	err = mgr.DrawHintsWithStyle(drawn, hints.StyleMode{})
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawHintsWithStyle with real hints returned %v, want CodeNotSupported", err)
 	}
 
-	targets := []MonitorSelectTarget{{Label: "A", Bounds: image.Rect(0, 0, 800, 600)}}
+	targets := []manager.MonitorSelectTarget{{Label: "A", Bounds: image.Rect(0, 0, 800, 600)}}
 
-	err = manager.DrawMonitorSelect(targets, MonitorSelectStyle{})
+	err = mgr.DrawMonitorSelect(targets, manager.MonitorSelectStyle{})
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawMonitorSelect with real targets returned %v, want CodeNotSupported", err)
 	}
@@ -132,10 +133,10 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 // draw on screen-change events, and an inconsistent answer would let a later
 // attempt look like success.
 func TestLinuxOverlayManager_StubsAreRepeatable(t *testing.T) {
-	manager := noBackendManager()
+	mgr := noBackendManager()
 
 	for i := range 3 {
-		err := manager.DrawHintsWithStyle(nil, hints.StyleMode{})
+		err := mgr.DrawHintsWithStyle(nil, hints.StyleMode{})
 		if !derrors.IsNotSupported(err) {
 			t.Fatalf("DrawHintsWithStyle call %d returned %v, want CodeNotSupported every time",
 				i+1, err)

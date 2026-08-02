@@ -1,11 +1,11 @@
 //go:build linux && cgo
 
-package overlay
+package linux
 
 /*
-#cgo linux pkg-config: wayland-client cairo xkbcommon
+#cgo linux pkg-config: x11 xrender xfixes xext cairo
 #include <stdlib.h>
-#include "../platform/linux/overlay_wayland.h"
+#include "../../platform/linux/x11_overlay.h"
 */
 import "C"
 
@@ -18,18 +18,23 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
-	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-type wlrootsOverlay struct {
-	raw            *C.NeruWaylandOverlay
+type x11Overlay struct {
+	raw *C.NeruX11Overlay
+	// scale is the desktop-wide HiDPI UI factor from Xft.dpi (>= 1.0). X11 has a
+	// single device-pixel coordinate space and no per-monitor scale, so hint/label
+	// positions stay in device pixels and only element sizes (fonts, stroke widths,
+	// badge geometry) are multiplied by this factor for legibility on HiDPI screens.
+	scale          float64
 	logger         *zap.Logger
 	currentPrefix  string
 	hideUnmatched  bool
@@ -38,17 +43,14 @@ type wlrootsOverlay struct {
 	cachedGrid     *domainGrid.Grid
 	cachedStyle    gridcomponent.Style
 
-	// originOffset is the active screen's top-left origin in global
-	// coordinates. Grid, recursive-grid and hint content arrives in
-	// screen-local coordinates (origin 0,0); adding this offset places it on
-	// the correct output of the desktop-spanning surface. Absolute-coordinate
-	// draws (badges, monitor_select, the click indicator) do not apply it.
+	// originOffset is the active screen's top-left origin in global device
+	// pixels. Grid, recursive-grid and hint content arrives in screen-local
+	// coordinates (origin 0,0); adding this offset places it on the correct
+	// monitor of the desktop-spanning overlay window. Absolute-coordinate draws
+	// (badges, monitor_select, the click indicator) do not apply it.
 	originOffset image.Point
 
-	displayMu *sync.Mutex
-
-	stopCh chan struct{}
-	doneCh chan struct{}
+	renderMu *sync.Mutex
 
 	cancelMu         sync.Mutex
 	animStop         chan struct{}
@@ -62,32 +64,31 @@ type wlrootsOverlay struct {
 	currentAnimRects []image.Rectangle
 }
 
-func init() {
-	wlrootsKeyboardCh = make(chan string, keyboardChanBuffer)
-}
-
-func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
-	raw := C.neru_wayland_overlay_new()
+func newX11Overlay(logger *zap.Logger) *x11Overlay {
+	raw := C.neru_x11_overlay_new()
 	if raw == nil {
 		return nil
 	}
 
-	C.neru_wayland_overlay_setup_buffers(raw)
-	overlay := &wlrootsOverlay{
-		raw:    raw,
-		logger: logger,
-		stopCh: make(chan struct{}),
-		doneCh: make(chan struct{}),
+	scale := float64(C.neru_x11_overlay_scale(raw)) //nolint:nlreturn
+	if scale <= 0 {
+		scale = 1
 	}
 
-	return overlay
+	return &x11Overlay{raw: raw, logger: logger, scale: scale}
 }
 
-func (o *wlrootsOverlay) Healthy() bool {
+// Scale exposes the overlay's HiDPI scale so the manager can size badge
+// geometry (and its clear rects) consistently with what the overlay renders.
+func (o *x11Overlay) Scale() float64 {
+	return o.s()
+}
+
+func (o *x11Overlay) Healthy() bool {
 	return o != nil && o.raw != nil
 }
 
-func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
+func (o *x11Overlay) WindowPtr() unsafe.Pointer {
 	if o == nil {
 		return nil
 	}
@@ -95,82 +96,74 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(o.raw)
 }
 
-func (o *wlrootsOverlay) Show() {
+func (o *x11Overlay) Show() {
 	if o != nil && o.raw != nil {
-		C.neru_wayland_overlay_setup_buffers(o.raw)
-		C.neru_wayland_overlay_show(o.raw)
+		C.neru_x11_overlay_show(o.raw)
 	}
 }
 
-func (o *wlrootsOverlay) Hide() {
+func (o *x11Overlay) Hide() {
 	if o != nil && o.raw != nil {
 		o.cancelAnimation()
-		C.neru_wayland_overlay_hide(o.raw)
+		C.neru_x11_overlay_hide(o.raw)
 	}
 }
 
-func (o *wlrootsOverlay) Clear() {
+func (o *x11Overlay) Clear() {
 	if o != nil && o.raw != nil {
 		o.cancelAnimation()
 		o.hasLast = false
-		C.neru_wayland_overlay_clear(o.raw)
+		C.neru_x11_overlay_clear(o.raw)
 	}
 }
 
-func (o *wlrootsOverlay) ClearRect(rect image.Rectangle) {
+func (o *x11Overlay) ClearRect(rect image.Rectangle) {
 	if o != nil && o.raw != nil && !rect.Empty() {
-		C.neru_wayland_overlay_clear_rect(
+		C.neru_x11_overlay_clear_rect(
 			o.raw,
-			C.double(rect.Min.X),
-			C.double(rect.Min.Y),
-			C.double(rect.Dx()),
-			C.double(rect.Dy()),
+			C.int(rect.Min.X),
+			C.int(rect.Min.Y),
+			C.int(rect.Dx()),
+			C.int(rect.Dy()),
 		)
 	}
 }
 
-func (o *wlrootsOverlay) Resize() {
-	// Wayland layer shells auto-resize
-}
-
-func (o *wlrootsOverlay) Destroy() {
-	if o == nil || o.raw == nil {
-		return
+func (o *x11Overlay) Resize() {
+	if o != nil && o.raw != nil {
+		C.neru_x11_overlay_resize(o.raw)
 	}
-
-	o.cancelAnimation()
-	close(o.stopCh)
-	<-o.doneCh
-
-	C.neru_wayland_overlay_destroy(o.raw)
-	o.raw = nil
 }
 
-func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
+func (o *x11Overlay) Destroy() {
+	if o != nil && o.raw != nil {
+		o.cancelAnimation()
+		C.neru_x11_overlay_destroy(o.raw)
+		o.raw = nil
+	}
+}
+
+func (o *x11Overlay) UpdateGridMatches(prefix string) {
 	o.currentPrefix = strings.ToUpper(prefix)
 	o.redrawGrid()
 }
 
-func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
+func (o *x11Overlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
 	if o == nil || o.raw == nil || cell == nil {
 		return
 	}
 
 	o.currentSubgrid = cell
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.Clear()
-	if !o.selectAvailableBuffer() {
-		return
-	}
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *wlrootsOverlay) SetHideUnmatched(hide bool) {
+func (o *x11Overlay) SetHideUnmatched(hide bool) {
 	o.hideUnmatched = hide
 }
 
-func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
+func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
 	if o == nil || o.raw == nil || g == nil {
 		return
 	}
@@ -182,7 +175,7 @@ func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridco
 	o.redrawGrid()
 }
 
-func (o *wlrootsOverlay) DrawRecursiveGrid(
+func (o *x11Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
@@ -204,7 +197,7 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 }
 
 //nolint:mnd
-func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
+func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
@@ -223,15 +216,15 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	}
 
 	// Translate the screen-local bounds and virtual-pointer position onto the
-	// active output. Everything downstream (cell rects, animation from/to
+	// active monitor. Everything downstream (cell rects, animation from/to
 	// rects, the pointer) derives from these, so the whole frame lands on the
 	// right monitor.
 	bounds = o.offset(bounds)
 	virtualPointer.Position = virtualPointer.Position.Add(o.originOffset)
 
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 	shouldAnimate := animEnabled && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
+
 	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
 
 	if shouldAnimate {
@@ -273,7 +266,7 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	copy(o.lastRects, cellRects)
 }
 
-func (o *wlrootsOverlay) DrawBadge(
+func (o *x11Overlay) DrawBadge(
 	posX, posY int,
 	text string,
 	colors overlayColors,
@@ -283,43 +276,43 @@ func (o *wlrootsOverlay) DrawBadge(
 		return
 	}
 
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 	fontSize := style.fontSize
 	if fontSize <= 0 {
 		fontSize = 14
 	}
-	rect := badgeBounds(posX, posY, text, style)
+	// Size the badge from the scaled font so it fits the text drawTextCentered
+	// renders. The manager sizes its clear rect with the same factor (Scale()).
+	scaledStyle := style
+	scaledStyle.fontSize = fontSize * o.s()
+	rect := badgeBounds(posX, posY, text, scaledStyle)
 
 	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
 	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text)
 }
 
-func (o *wlrootsOverlay) Flush() {
+func (o *x11Overlay) Flush() {
 	if o == nil || o.raw == nil {
 		return
 	}
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
 // DrawMonitorSelect renders one centered, labeled panel per monitor for the
-// interactive monitor picker, drawing on the per-output layer-shell surfaces.
-// Wayland renders in logical coordinates and scales via the compositor buffer,
-// so the panel layout uses scale 1 (see monitorSelectPanelLayout).
-func (o *wlrootsOverlay) DrawMonitorSelect(
-	targets []MonitorSelectTarget,
-	style MonitorSelectStyle,
+// interactive monitor picker. Panels reuse the existing rounded-rect + text
+// primitives (no dedicated C), and are sized from the scaled font (see
+// monitorSelectPanelLayout) so they stay legible on HiDPI. The label is drawn
+// with the matched/selected color when it has a matched prefix or is selected.
+func (o *x11Overlay) DrawMonitorSelect(
+	targets []manager.MonitorSelectTarget,
+	style manager.MonitorSelectStyle,
 ) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.cancelAnimation()
 	o.hasLast = false
-	if !o.selectAvailableBuffer() {
-		return
-	}
-	C.neru_wayland_overlay_clear(o.raw)
+	C.neru_x11_overlay_clear(o.raw)
 
 	spec := newMonitorSelectDrawSpec(style)
 	for _, target := range targets {
@@ -332,7 +325,7 @@ func (o *wlrootsOverlay) DrawMonitorSelect(
 		}
 
 		panel, labelRect, subtitleRect, radius := monitorSelectPanelLayout(
-			target.Bounds, target.Label, target.Subtitle, style, 1,
+			target.Bounds, target.Label, target.Subtitle, style, o.s(),
 		)
 		o.drawRoundedRect(panel, radius, spec.background, spec.border, spec.borderWidth)
 
@@ -346,28 +339,21 @@ func (o *wlrootsOverlay) DrawMonitorSelect(
 		}
 	}
 
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *wlrootsOverlay) DrawHints(
-	hintsSlice []*hintscomponent.Hint,
-	style hintscomponent.StyleMode,
-) {
+func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscomponent.StyleMode) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
-	C.neru_wayland_overlay_setup_buffers(o.raw)
 	o.cancelAnimation()
 	o.hasLast = false
-	if !o.selectAvailableBuffer() {
-		return
-	}
-	C.neru_wayland_overlay_clear(o.raw)
+	C.neru_x11_overlay_clear(o.raw)
 	fontSize := float64(max(style.FontSize(), 1))
 	for _, hint := range hintsSlice {
 		// hint.Position() is the element center in screen-local coordinates;
-		// translate it onto the active output.
+		// translate it onto the active monitor.
 		pos := hint.Position().Add(o.originOffset)
 		if style.BoundaryHighlightEnabled() {
 			boundary := image.Rect(
@@ -390,10 +376,14 @@ func (o *wlrootsOverlay) DrawHints(
 		}
 
 		label := hint.Label()
-		paddingX := resolveAutoPadding(fontSize, style.PaddingX(), true)
-		paddingY := resolveAutoPadding(fontSize, style.PaddingY(), false)
-		badgeWidth := estimateTextWidth(label, fontSize) + paddingX*paddingMultiplier
-		badgeHeight := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
+		// Size the badge from the scaled font so it fits the text drawTextCentered
+		// renders (which applies the same o.s() factor). Position stays in device
+		// pixels; the badge grows around the target.
+		sfont := fontSize * o.s()
+		paddingX := resolveAutoPadding(sfont, style.PaddingX(), true)
+		paddingY := resolveAutoPadding(sfont, style.PaddingY(), false)
+		badgeWidth := estimateTextWidth(label, sfont) + paddingX*paddingMultiplier
+		badgeHeight := estimateTextHeight(sfont) + paddingY*paddingMultiplier
 
 		radius := style.BorderRadius()
 		if radius < 0 {
@@ -428,14 +418,14 @@ func (o *wlrootsOverlay) DrawHints(
 		)
 	}
 
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
 // DrawMouseActionIndicator animates a transient click indicator centered on
-// point. It runs on this overlay's dedicated indicator surface, independent of
+// point. It runs on this overlay's dedicated indicator window, independent of
 // the mode overlay's show/hide lifecycle, so it survives the mode exit that
 // immediately follows a click.
-func (o *wlrootsOverlay) DrawMouseActionIndicator(
+func (o *x11Overlay) DrawMouseActionIndicator(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
 ) {
@@ -444,8 +434,6 @@ func (o *wlrootsOverlay) DrawMouseActionIndicator(
 	}
 
 	// Cancel any in-flight indicator animation before starting a new one.
-	// (Must run without displayMu held: the animation goroutine may be blocked
-	// acquiring displayMu, and cancelAnimation waits for it to exit.)
 	o.cancelAnimation()
 
 	duration := time.Duration(style.DurationMS) * time.Millisecond
@@ -453,30 +441,16 @@ func (o *wlrootsOverlay) DrawMouseActionIndicator(
 		duration = defaultMouseActionDuration
 	}
 
-	// The keyboard poller runs concurrently on this overlay's wl_display under
-	// displayMu, so the surface setup/show here must take the same lock — the
-	// Wayland client API is not thread-safe.
-	if o.displayMu != nil {
-		o.displayMu.Lock()
-	}
-	C.neru_wayland_overlay_setup_buffers(o.raw)
-	// The indicator must never steal keyboard focus from the app it decorates.
-	C.neru_wayland_overlay_set_keyboard_capture(o.raw, C.int(0))
-	C.neru_wayland_overlay_show(o.raw)
-	C.neru_wayland_overlay_sync(o.raw)
-	if o.displayMu != nil {
-		o.displayMu.Unlock()
-	}
-
 	animStop := make(chan struct{})
 	animDone := make(chan struct{})
 	o.animStop = animStop
 	o.animDone = animDone
 
+	C.neru_x11_overlay_show(o.raw)
 	o.startMouseActionAnimation(point, style, duration, animStop, animDone)
 }
 
-func (o *wlrootsOverlay) startMouseActionAnimation(
+func (o *x11Overlay) startMouseActionAnimation(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
 	duration time.Duration,
@@ -488,7 +462,7 @@ func (o *wlrootsOverlay) startMouseActionAnimation(
 	fillBase := parseHexColor(style.BackgroundColor)
 	borderBase := parseHexColor(style.BorderColor)
 	lineWidth := float64(max(style.BorderWidth, 0))
-	baseSize := float64(max(style.Size, 1))
+	baseSize := float64(max(style.Size, 1)) * o.s()
 	isSquare := style.Shape == "square"
 
 	renderFrame := func(rawProgress float64) {
@@ -500,24 +474,13 @@ func (o *wlrootsOverlay) startMouseActionAnimation(
 		fill := applyOpacity(fillBase, opacity)
 		border := applyOpacity(borderBase, opacity)
 
-		C.neru_wayland_overlay_dispatch_pending(o.raw)
-		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-		if bufIdx < 0 {
-			C.neru_wayland_overlay_sync(o.raw)
-			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-		}
-		if bufIdx < 0 {
-			return
-		}
-		C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
-
-		C.neru_wayland_overlay_clear(o.raw)
+		C.neru_x11_overlay_clear_buffered(o.raw)
 		if isSquare {
 			o.drawRect(rect, fill, border, lineWidth)
 		} else {
 			o.drawRoundedRect(rect, diameter/centeredRectDivisor, fill, border, lineWidth)
 		}
-		C.neru_wayland_overlay_flush(o.raw)
+		C.neru_x11_overlay_flush(o.raw)
 	}
 
 	go func() {
@@ -545,30 +508,31 @@ func (o *wlrootsOverlay) startMouseActionAnimation(
 
 			renderStart := time.Now()
 
-			if o.displayMu != nil {
-				o.displayMu.Lock()
+			if o.renderMu != nil {
+				o.renderMu.Lock()
 				select {
 				case <-stopCh:
-					o.displayMu.Unlock()
+					o.renderMu.Unlock()
 
 					return
 				default:
 				}
 			}
 			renderFrame(rawProgress)
-			if o.displayMu != nil {
-				o.displayMu.Unlock()
+			if o.renderMu != nil {
+				o.renderMu.Unlock()
 			}
 
 			if rawProgress >= 1.0 {
-				// Finished: unmap the dedicated surface so the fully faded
-				// indicator does not linger on screen.
-				if o.displayMu != nil {
-					o.displayMu.Lock()
+				// Finished: clear and unmap the dedicated window so the fully
+				// faded indicator does not linger on screen.
+				if o.renderMu != nil {
+					o.renderMu.Lock()
 				}
-				C.neru_wayland_overlay_hide(o.raw)
-				if o.displayMu != nil {
-					o.displayMu.Unlock()
+				C.neru_x11_overlay_clear(o.raw)
+				C.neru_x11_overlay_hide(o.raw)
+				if o.renderMu != nil {
+					o.renderMu.Unlock()
 				}
 
 				return
@@ -586,50 +550,22 @@ func (o *wlrootsOverlay) startMouseActionAnimation(
 	}()
 }
 
-// selectAvailableBuffer picks a buffer that the compositor has released.
-// Falls back to sync (roundtrip) if none free, which forces release processing.
-func (o *wlrootsOverlay) selectAvailableBuffer() bool {
-	if o == nil || o.raw == nil {
-		return false
-	}
-	C.neru_wayland_overlay_dispatch_pending(o.raw)
-	bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-	if bufIdx < 0 {
-		C.neru_wayland_overlay_sync(o.raw)
-		bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-	}
-	if bufIdx < 0 {
-		return false
-	}
-	C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
-
-	return true
-}
-
 // unexported helpers
 
-func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
-	o.displayMu = mu
-}
-
-func (o *wlrootsOverlay) startPoller() {
-	go o.keyboardPoller()
-}
-
-func (o *wlrootsOverlay) setKeyboardCaptureEnabled(enabled bool) {
-	if o == nil || o.raw == nil {
-		return
+// s returns the overlay's HiDPI scale factor, guarding against a zero value.
+func (o *x11Overlay) s() float64 {
+	if o == nil || o.scale <= 0 {
+		return 1
 	}
 
-	cEnabled := C.int(0)
-	if enabled {
-		cEnabled = 1
-	}
-
-	C.neru_wayland_overlay_set_keyboard_capture(o.raw, cEnabled)
+	return o.scale
 }
 
-func (o *wlrootsOverlay) cancelAnimation() {
+func (o *x11Overlay) setRenderMu(mu *sync.Mutex) {
+	o.renderMu = mu
+}
+
+func (o *x11Overlay) cancelAnimation() {
 	o.cancelMu.Lock()
 
 	var doneCh chan struct{}
@@ -648,60 +584,8 @@ func (o *wlrootsOverlay) cancelAnimation() {
 	}
 }
 
-func (o *wlrootsOverlay) keyboardPoller() {
-	defer close(o.doneCh)
-
-	const pollInterval = 5 * time.Millisecond
-
-	for {
-		select {
-		case <-o.stopCh:
-			return
-		default:
-		}
-
-		var keys []string
-
-		if o.displayMu != nil {
-			o.displayMu.Lock()
-		}
-
-		if C.neru_wayland_overlay_poll(o.raw) < 0 { //nolint:nlreturn
-			if o.displayMu != nil {
-				o.displayMu.Unlock()
-			}
-
-			return
-		}
-
-		for {
-			key := C.neru_wayland_overlay_get_key(o.raw) //nolint:nlreturn
-			if key == nil {
-				break
-			}
-
-			keys = append(keys, C.GoString(key))
-		}
-
-		if o.displayMu != nil {
-			o.displayMu.Unlock()
-		}
-
-		if len(keys) > 0 {
-			for _, k := range keys {
-				select {
-				case wlrootsKeyboardCh <- k:
-				default:
-				}
-			}
-		} else {
-			time.Sleep(pollInterval)
-		}
-	}
-}
-
 //nolint:mnd,varnamelen
-func (o *wlrootsOverlay) buildFromRects(
+func (o *x11Overlay) buildFromRects(
 	toRects []image.Rectangle,
 	bounds image.Rectangle,
 ) []image.Rectangle {
@@ -752,7 +636,8 @@ func (o *wlrootsOverlay) buildFromRects(
 	return from
 }
 
-func (o *wlrootsOverlay) startGridAnimation(
+//nolint:varnamelen
+func (o *x11Overlay) startGridAnimation(
 	fromRects, toRects []image.Rectangle,
 	keyRunes, nextKeyRunes []rune,
 	nextGridCols, nextGridRows int,
@@ -762,11 +647,9 @@ func (o *wlrootsOverlay) startGridAnimation(
 	stopCh chan struct{},
 	doneCh chan struct{},
 ) {
-	C.neru_wayland_overlay_sync(o.raw)
-
 	startTime := time.Now()
 
-	renderFrame := func(rawProgress float64) bool {
+	renderFrame := func(rawProgress float64) {
 		if rawProgress >= 1.0 {
 			rawProgress = 1.0
 		}
@@ -784,26 +667,18 @@ func (o *wlrootsOverlay) startGridAnimation(
 			)
 		}
 
-		C.neru_wayland_overlay_dispatch_pending(o.raw)
-		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-		if bufIdx < 0 {
-			C.neru_wayland_overlay_sync(o.raw)
-			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
-		}
-		if bufIdx < 0 {
-			return false
-		}
-		C.neru_wayland_overlay_select_buffer(o.raw, bufIdx)
-
 		o.currentAnimRects = interpCells
 
-		C.neru_wayland_overlay_clear(o.raw)
+		C.neru_x11_overlay_clear_buffered(o.raw)
 		o.drawFrame(
-			interpCells, keyRunes, nextKeyRunes,
-			nextGridCols, nextGridRows, style, virtualPointer,
+			interpCells,
+			keyRunes,
+			nextKeyRunes,
+			nextGridCols,
+			nextGridRows,
+			style,
+			virtualPointer,
 		)
-
-		return true
 	}
 
 	go func() {
@@ -834,23 +709,20 @@ func (o *wlrootsOverlay) startGridAnimation(
 
 			renderStart := time.Now()
 
-			if o.displayMu != nil {
-				o.displayMu.Lock()
-				// Parent may have closed stopCh while we were waiting
-				// for the lock. Check here to avoid deadlock:
-				//   parent holds displayMu, waits for animDone
-				//   we   hold displayMu, parent waits for displayMu
+			mu := o.renderMu
+			if mu != nil {
+				mu.Lock()
 				select {
 				case <-stopCh:
-					o.displayMu.Unlock()
+					mu.Unlock()
 
 					return
 				default:
 				}
 			}
-			_ = renderFrame(rawProgress)
-			if o.displayMu != nil {
-				o.displayMu.Unlock()
+			renderFrame(rawProgress)
+			if mu != nil {
+				mu.Unlock()
 			}
 
 			if rawProgress >= 1.0 {
@@ -870,7 +742,7 @@ func (o *wlrootsOverlay) startGridAnimation(
 	}()
 }
 
-func (o *wlrootsOverlay) clearAndDraw(
+func (o *x11Overlay) clearAndDraw(
 	cellRects []image.Rectangle,
 	keys string, gridCols, gridRows int,
 	nextKeys string, nextGridCols, nextGridRows int,
@@ -886,15 +758,19 @@ func (o *wlrootsOverlay) clearAndDraw(
 	keyRunes := []rune(strings.ToUpper(keys))
 	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
 
-	if !o.selectAvailableBuffer() {
-		return
-	}
-	C.neru_wayland_overlay_clear(o.raw)
-	o.drawFrame(cellRects, keyRunes, nextKeyRunes,
-		nextGridCols, nextGridRows, style, virtualPointer)
+	C.neru_x11_overlay_clear(o.raw)
+	o.drawFrame(
+		cellRects,
+		keyRunes,
+		nextKeyRunes,
+		nextGridCols,
+		nextGridRows,
+		style,
+		virtualPointer,
+	)
 }
 
-func (o *wlrootsOverlay) drawFrame(
+func (o *x11Overlay) drawFrame(
 	cellRects []image.Rectangle,
 	keyRunes, nextKeyRunes []rune,
 	nextGridCols, nextGridRows int,
@@ -944,11 +820,11 @@ func (o *wlrootsOverlay) drawFrame(
 		o.drawVirtualPointer(virtualPointer)
 	}
 
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
 //nolint:mnd,varnamelen
-func (o *wlrootsOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPointerState) {
+func (o *x11Overlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPointerState) {
 	vpChar := vp.Char
 	if vpChar == "" {
 		vpChar = "\u25CF"
@@ -967,16 +843,12 @@ func (o *wlrootsOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoi
 		parseHexColor(vp.FillColor))
 }
 
-func (o *wlrootsOverlay) redrawGrid() {
+func (o *x11Overlay) redrawGrid() {
 	if o == nil || o.raw == nil || o.cachedGrid == nil {
 		return
 	}
 
-	C.neru_wayland_overlay_setup_buffers(o.raw)
-	if !o.selectAvailableBuffer() {
-		return
-	}
-	C.neru_wayland_overlay_clear(o.raw)
+	C.neru_x11_overlay_clear(o.raw)
 	style := o.cachedStyle
 	prefix := o.currentPrefix
 
@@ -1004,11 +876,11 @@ func (o *wlrootsOverlay) redrawGrid() {
 	if o.currentSubgrid != nil {
 		o.drawSubgrid(o.currentSubgrid.Bounds(), style)
 	}
-	C.neru_wayland_overlay_flush(o.raw)
+	C.neru_x11_overlay_flush(o.raw)
 }
 
-func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	// bounds is screen-local; place the subgrid on the active output.
+func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
+	// bounds is screen-local; place the subgrid on the active monitor.
 	bounds = o.offset(bounds)
 	keyRunes := []rune("ASDFGHJKL")
 	if o.sublayerKeys != "" {
@@ -1059,9 +931,12 @@ func (o *wlrootsOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent
 	}
 }
 
+// Stroke widths scale with the HiDPI factor here so every draw path (grid,
+// hints, badges, indicator) gets consistent line weight without per-call-site
+// scaling. Element geometry that must fit scaled text is sized by the callers.
 // setOriginOffset stores the active screen origin used to translate
-// screen-local grid/recursive-grid/hint coordinates onto the correct output.
-func (o *wlrootsOverlay) setOriginOffset(origin image.Point) {
+// screen-local grid/recursive-grid/hint coordinates onto the correct monitor.
+func (o *x11Overlay) setOriginOffset(origin image.Point) {
 	if o == nil {
 		return
 	}
@@ -1070,41 +945,41 @@ func (o *wlrootsOverlay) setOriginOffset(origin image.Point) {
 }
 
 // offset translates a screen-local rectangle into global desktop coordinates.
-func (o *wlrootsOverlay) offset(r image.Rectangle) image.Rectangle {
+func (o *x11Overlay) offset(r image.Rectangle) image.Rectangle {
 	return r.Add(o.originOffset)
 }
 
-func (o *wlrootsOverlay) drawRect(
+func (o *x11Overlay) drawRect(
 	bounds image.Rectangle,
 	fill uint32, border uint32, lineWidth float64,
 ) {
-	C.neru_wayland_overlay_rect(
+	C.neru_x11_overlay_rect(
 		o.raw,
 		C.double(bounds.Min.X), C.double(bounds.Min.Y),
 		C.double(bounds.Dx()), C.double(bounds.Dy()),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
-func (o *wlrootsOverlay) drawRoundedRect(
+func (o *x11Overlay) drawRoundedRect(
 	bounds image.Rectangle,
 	radius float64,
 	fill uint32, border uint32, lineWidth float64,
 ) {
-	C.neru_wayland_overlay_rounded_rect(
+	C.neru_x11_overlay_rounded_rect(
 		o.raw,
 		C.double(bounds.Min.X), C.double(bounds.Min.Y),
 		C.double(bounds.Dx()), C.double(bounds.Dy()),
 		C.double(radius),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
-func (o *wlrootsOverlay) drawHintBadge(
+func (o *x11Overlay) drawHintBadge(
 	badge image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
 	fill uint32, border uint32, lineWidth float64,
 ) {
-	C.neru_wayland_overlay_hint_badge(
+	C.neru_x11_overlay_hint_badge(
 		o.raw,
 		C.double(badge.Min.X), C.double(badge.Min.Y),
 		C.double(badge.Dx()), C.double(badge.Dy()),
@@ -1112,11 +987,15 @@ func (o *wlrootsOverlay) drawHintBadge(
 		C.int(edge),
 		C.double(arrow.baseLeft.X), C.double(arrow.baseRight.X),
 		C.double(arrow.tip.X), C.double(arrow.tip.Y),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(border), C.double(lineWidth*o.s()),
 	)
 }
 
-func (o *wlrootsOverlay) drawTextCentered(
+// drawTextCentered applies the HiDPI scale to the font size centrally, so every
+// label/badge caller passes its base (logical) font size and text renders at the
+// device-appropriate size. Callers that size geometry around the text must use
+// the same scaled font (fontSize * o.s()).
+func (o *x11Overlay) drawTextCentered(
 	text string, bounds image.Rectangle,
 	fontFamily string, fontSize float64, color uint32,
 ) {
@@ -1126,19 +1005,20 @@ func (o *wlrootsOverlay) drawTextCentered(
 	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
 	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
 
-	C.neru_wayland_overlay_text(
+	C.neru_x11_overlay_text(
 		o.raw, cText, cFontFamily,
 		C.double(bounds.Min.X+bounds.Dx()/2),
 		C.double(bounds.Min.Y+bounds.Dy()/2),
-		C.double(fontSize), C.uint(color),
+		C.double(fontSize*o.s()), C.uint(color),
 	)
 }
 
-func (o *wlrootsOverlay) drawLabelBackground(
+func (o *x11Overlay) drawLabelBackground(
 	label string, cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
-	fontSize := style.LabelFontSize()
+	// Match the scaled font that drawTextCentered renders for the label.
+	fontSize := style.LabelFontSize() * o.s()
 	paddingX := resolveAutoPadding(fontSize,
 		style.LabelBackgroundPaddingX(), true)
 	paddingY := resolveAutoPadding(fontSize,
@@ -1153,7 +1033,7 @@ func (o *wlrootsOverlay) drawLabelBackground(
 }
 
 //nolint:mnd
-func (o *wlrootsOverlay) drawSubKeyMiniGrid(
+func (o *x11Overlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
 	nextKeyRunes []rune,
 	nextGridCols int, nextGridRows int,

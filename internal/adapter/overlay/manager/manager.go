@@ -1,4 +1,4 @@
-package overlay
+package manager
 
 import (
 	"image"
@@ -39,6 +39,14 @@ type StateChange struct {
 	next Mode
 }
 
+// NewStateChange records a transition from prev to next.
+//
+// The fields stay unexported so a subscriber cannot rewrite the transition it
+// was handed; the backends construct one through here.
+func NewStateChange(prev, next Mode) StateChange {
+	return StateChange{prev: prev, next: next}
+}
+
 // Prev returns the previous mode.
 func (sc StateChange) Prev() Mode {
 	return sc.prev
@@ -49,11 +57,11 @@ func (sc StateChange) Next() Mode {
 	return sc.next
 }
 
-// NoOpManager is a no-op implementation of ManagerInterface for headless environments.
+// NoOpManager is a no-op implementation of Interface for headless environments.
 type NoOpManager struct{}
 
-// Ensure NoOpManager always implements ManagerInterface.
-var _ ManagerInterface = (*NoOpManager)(nil)
+// Ensure NoOpManager always implements Interface.
+var _ Interface = (*NoOpManager)(nil)
 
 // WaylandKeyboardChannel returns nil channel.
 func (n *NoOpManager) WaylandKeyboardChannel() <-chan string { return nil }
@@ -221,8 +229,57 @@ func (n *NoOpManager) OverlayCapabilities() ports.FeatureCapability {
 // vocabulary with the rest of the platform surface.
 type CapabilityReporter = ports.OverlayCapabilityReporter
 
-// ManagerInterface defines the interface for overlay window management.
-type ManagerInterface interface {
+// KeyboardCaptureController is the optional extension a backend implements
+// when its overlay surface can hold or release the keyboard.
+//
+// Only the Linux backends can: an evdev grab held by the overlay deactivates
+// the focused toplevel, so the indicator poller has to release it. Reach it by
+// type assertion and skip the behavior when the assertion fails, the same way
+// every other optional platform capability works.
+type KeyboardCaptureController interface {
+	SetKeyboardCaptureEnabled(enabled bool)
+}
+
+// MonitorSelectTarget is one selectable monitor rendered by the monitor_select
+// overlay: a labeled panel centered on the monitor's bounds.
+type MonitorSelectTarget struct {
+	Bounds           image.Rectangle
+	Label            string
+	Subtitle         string
+	Selected         bool
+	MatchedPrefixLen int
+}
+
+// MonitorSelectStyle carries the resolved (theme-applied) appearance for the
+// monitor_select overlay. Colors are hex strings, parsed by the backend, to
+// mirror how the hints/grid styles are threaded.
+type MonitorSelectStyle struct {
+	FontSize           int
+	SubtitleFontSize   int
+	FontFamily         string
+	SubtitleFontFamily string
+	BorderRadius       int
+	PaddingX           int
+	PaddingY           int
+	BorderWidth        int
+	BackgroundColor    string
+	TextColor          string
+	MatchedTextColor   string
+	BorderColor        string
+	BackdropColor      string
+	SubtitleTextColor  string
+}
+
+// MonitorSelector is the optional extension a backend implements when it can
+// draw the monitor-select overlay. Only the Linux backends do; elsewhere the
+// mode reports CodeNotSupported.
+type MonitorSelector interface {
+	DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error
+	HideMonitorSelect()
+}
+
+// Interface is the overlay window management contract.
+type Interface interface {
 	WaylandKeyboardChannel() <-chan string
 	Show()
 	Hide()

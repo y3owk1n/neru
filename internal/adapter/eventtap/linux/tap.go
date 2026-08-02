@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -151,8 +152,8 @@ func (et *EventTap) Enable() {
 		if err == nil {
 			// Scroll device created - disable exclusive keyboard
 			// so scroll events pass through to active application
-			if m := overlay.Get(); m != nil {
-				m.SetKeyboardCaptureEnabled(false)
+			if controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController); ok {
+				controller.SetKeyboardCaptureEnabled(false)
 			}
 		}
 	}()

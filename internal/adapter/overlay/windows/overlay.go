@@ -4,7 +4,7 @@
 // Win32 overlay backend used by the Windows overlay manager for grid rendering.
 // Does not manage singleton lifecycle or mode subscriptions.
 
-package overlay
+package windows
 
 import (
 	"image"

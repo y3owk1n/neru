@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package overlay
+package linux
 
 import (
 	"image"

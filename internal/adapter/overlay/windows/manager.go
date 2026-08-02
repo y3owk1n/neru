@@ -5,7 +5,7 @@
 // grid, hints, and recursive-grid overlays.
 // Does not implement keyboard capture (handled by the low-level keyboard hook).
 
-package overlay
+package windows
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
@@ -38,8 +39,8 @@ type Manager struct {
 	logger *zap.Logger
 
 	mu     sync.RWMutex
-	mode   Mode
-	subs   map[uint64]func(StateChange)
+	mode   manager.Mode
+	subs   map[uint64]func(manager.StateChange)
 	nextID uint64
 
 	renderMu sync.Mutex
@@ -78,8 +79,8 @@ var (
 func NewOverlayManager(logger *zap.Logger) *Manager {
 	return &Manager{
 		logger: logger,
-		mode:   ModeIdle,
-		subs:   make(map[uint64]func(StateChange), winInitialSubscriberCapacity),
+		mode:   manager.ModeIdle,
+		subs:   make(map[uint64]func(manager.StateChange), winInitialSubscriberCapacity),
 		win:    newWinOverlay(logger),
 	}
 }
@@ -195,19 +196,19 @@ func (m *Manager) ActiveScreenBounds() (image.Rectangle, bool) {
 }
 
 // SwitchTo switches overlay mode and notifies subscribers.
-func (m *Manager) SwitchTo(next Mode) {
+func (m *Manager) SwitchTo(next manager.Mode) {
 	m.mu.Lock()
 	prev := m.mode
 	m.mode = next
 	m.mu.Unlock()
 
 	if prev != next {
-		m.publish(StateChange{prev: prev, next: next})
+		m.publish(manager.NewStateChange(prev, next))
 	}
 }
 
 // Subscribe registers a callback for overlay mode changes.
-func (m *Manager) Subscribe(subFn func(StateChange)) uint64 {
+func (m *Manager) Subscribe(subFn func(manager.StateChange)) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -257,7 +258,7 @@ func (m *Manager) Destroy() {
 }
 
 // Mode returns the current overlay mode.
-func (m *Manager) Mode() Mode {
+func (m *Manager) Mode() manager.Mode {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -461,7 +462,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	}
 
 	mode := m.Mode()
-	if mode == ModeIdle {
+	if mode == manager.ModeIdle {
 		return
 	}
 
@@ -1028,7 +1029,7 @@ func scaleColorAlpha(hexColor string, opacity float64) uint32 {
 	return res
 }
 
-func (m *Manager) publish(change StateChange) {
+func (m *Manager) publish(change manager.StateChange) {
 	for _, sub := range m.subs {
 		sub(change)
 	}

@@ -4,7 +4,7 @@
 // Wayland overlays. Native Cairo rendering is covered by overlay integration
 // tests; here we only assert the geometry the C draw calls receive.
 
-package overlay //nolint:testpackage // tests exercise unexported render helpers directly
+package linux //nolint:testpackage // tests exercise unexported render helpers directly
 
 import (
 	"image"

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -33,9 +34,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	// overlay must stay keyboard-passive (its grab would deactivate the focused
 	// app's toplevel on wlroots, breaking the next hints refresh), and the evdev
 	// path already keeps it that way.
-	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
-		m.SetKeyboardCaptureEnabled(false)
-	}
+	setOverlayKeyboardCapture(h, false)
 	// Ensure the mode indicator overlay covers the correct screen before
 	// the goroutine starts drawing. Scroll and hints modes already call
 	// overlayManager.ResizeToActiveScreen() which covers this, but grid
@@ -230,9 +229,7 @@ func (h *Handler) stopIndicatorPolling() {
 	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
 	// so a hints refresh (which stops indicator polling before rescanning) would
 	// re-read the wrong focused window and clear the hints.
-	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
-		m.SetKeyboardCaptureEnabled(true)
-	}
+	setOverlayKeyboardCapture(h, true)
 
 	// Signal stop first.
 	if h.indicatorStopCh != nil {
@@ -321,4 +318,23 @@ func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Poi
 	}
 
 	return cursorPoint
+}
+
+// setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.
+//
+// Only the Linux backends can do this, so it is an optional extension reached
+// by type assertion: elsewhere the assertion fails and the call is a no-op,
+// which is the right behavior — no other backend's overlay takes the keyboard
+// away from the focused application in the first place.
+func setOverlayKeyboardCapture(h *Handler, enabled bool) {
+	if !h.allowsOverlayKeyboardPassthrough() {
+		return
+	}
+
+	controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController)
+	if !ok {
+		return
+	}
+
+	controller.SetKeyboardCaptureEnabled(enabled)
 }
