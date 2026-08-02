@@ -109,15 +109,27 @@ func isInnerLayer(relPath string) bool {
 // process-level plumbing, and routing them through an interface would add
 // indirection without adding a seam:
 //
-//   - infra/ipc      the CLI/daemon wire protocol (Command, Response, Code*).
-//     The CLI is a client of this protocol by definition.
-//   - infra/logger   logger construction and log-path resolution.
-//   - infra/platform the SystemPort factory and the contributor-facing Profile
-//     that `neru doctor` prints. Selecting an implementation is the composition
-//     root's job, and reporting the profile is diagnostics.
-//   - infra/overlay  overlay render models the app must name to draw
-//     (overlay.Mode, hints.Hint, grid.Style). These are data, not behavior;
-//     the behavior is behind ports.OverlayPort.
+//   - adapter/ipc      the CLI/daemon wire protocol (Command, Response,
+//     Code*). The CLI is a client of this protocol by definition.
+//
+//   - adapter/logger   logger construction and log-path resolution.
+//
+//   - adapter/platform the SystemPort factory and the contributor-facing
+//     Profile that `neru doctor` prints. Selecting an implementation is the
+//     composition root's job, and reporting the profile is diagnostics.
+//
+//   - adapter/overlay  two things, both data rather than behavior. The overlay
+//     vocabulary the app names to drive it (overlay.Mode, ManagerInterface,
+//     NoOpManager), and the render models it names to draw (hints.Hint,
+//     grid.Style). The behavior is behind ports.OverlayPort.
+//
+//     The render models are platform-neutral now and could live in the domain,
+//     which they could not while Style was declared once per platform. Moving
+//     them would not retire this entry — the overlay vocabulary and the
+//     process-wide accessors keep it — and it would split hints, grid and
+//     recursivegrid into a model half and a renderer half, two packages sharing
+//     one name, aliased at every site that uses both. The cohesion is worth
+//     more than the layer purity.
 var sharedInfraPackages = []string{
 	"internal/adapter/ipc",
 	"internal/adapter/logger",
