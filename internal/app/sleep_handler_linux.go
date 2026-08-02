@@ -174,22 +174,16 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 
 	a.ExitMode()
 
-	a.hotkeyRegistrationMu.Lock()
-
 	needReregister := a.appState.HotkeysRegistered()
 	if needReregister {
-		a.stopAllHotkeyRepeats()
-		a.hotkeyManager.UnregisterAll()
-		a.appState.SetHotkeysRegistered(false)
+		a.hotkeys.Unregister()
 	}
-
-	a.hotkeyRegistrationMu.Unlock()
 
 	if needReregister {
 		healthy := false
 
 		for attempt := 1; attempt <= maxRetries; attempt++ {
-			a.refreshHotkeysForAppOrCurrent("")
+			a.hotkeys.RefreshFor("")
 
 			hc, ok := a.hotkeyManager.(ports.HotkeyHealthReporter)
 			if !ok || hc.HealthCheck() {
@@ -204,11 +198,7 @@ func (a *App) reinitializeHotkeysWithParams(maxRetries int, retryDelay time.Dura
 					zap.Int("attempt", attempt),
 					zap.Int("max_retries", maxRetries),
 				)
-				a.hotkeyRegistrationMu.Lock()
-				a.stopAllHotkeyRepeats()
-				a.hotkeyManager.UnregisterAll()
-				a.appState.SetHotkeysRegistered(false)
-				a.hotkeyRegistrationMu.Unlock()
+				a.hotkeys.Unregister()
 				time.Sleep(retryDelay)
 			}
 		}

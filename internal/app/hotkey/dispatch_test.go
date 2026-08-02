@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private hotkey dispatch/registration behavior.
-package app
+package hotkey
 
 import (
 	"context"
@@ -11,12 +11,14 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// fakeReleaseHotkeyManager implements both HotkeyService and
-// HotkeyReleaseService so registerHotkeys drives the release path, and captures
+// fakeReleaseHotkeyManager implements both ports.HotkeyPort and
+// ports.HotkeyReleaseRegistrar so registerHotkeys drives the release path, and captures
 // the press/release callbacks per key so tests can invoke them.
 type fakeReleaseHotkeyManager struct {
 	mu         sync.Mutex
@@ -118,12 +120,12 @@ func (f *fakeReleaseHotkeyManager) registeredViaRelease(key string) (bool, bool)
 	return via, ok
 }
 
-// newDispatchTestApp builds a whitebox App wired with just enough for the
-// hotkey registration/dispatch paths: a config, app state, a nop logger, a
-// cancelable context, the given hotkey manager, and a real IPC controller
-// backed by nil services (so executeHotkeyAction resolves built-in commands
-// without any system dependency). modes is left nil.
-func newDispatchTestApp(t *testing.T, cfg *config.Config, hkm HotkeyService) *App {
+// newDispatchTestBinder builds a binder wired with just enough for the
+// registration and dispatch paths: a config, app state, a nop logger, a
+// cancelable context, the given hotkey manager, and a sequence executor backed
+// by a real IPC controller over nil services (so an action step resolves
+// built-in commands without any system dependency). Modes is left nil.
+func newDispatchTestBinder(t *testing.T, cfg *config.Config, hkm ports.HotkeyPort) *Binder {
 	t.Helper()
 
 	logger := zap.NewNop()
@@ -133,26 +135,36 @@ func newDispatchTestApp(t *testing.T, cfg *config.Config, hkm HotkeyService) *Ap
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	return &App{
-		ctx:           ctx,
-		logger:        logger,
-		config:        cfg,
-		appState:      appState,
-		hotkeyManager: hkm,
-		ipcController: ipcctrl.New(ipcctrl.Deps{
+	configOf := func() *config.Config { return cfg }
+	contextOf := func() context.Context { return ctx }
+
+	executor := sequence.NewExecutor(sequence.ExecutorDeps{
+		Commands: ipcctrl.New(ipcctrl.Deps{
 			ConfigService: configService,
 			AppState:      appState,
 			Config:        cfg,
 			Logger:        logger,
 		}),
-	}
+		Config:      configOf,
+		BaseContext: contextOf,
+		Logger:      logger,
+	})
+
+	return New(Deps{
+		Manager:     hkm,
+		State:       appState,
+		Config:      configOf,
+		RunSequence: executor.RunAndForget,
+		Context:     contextOf,
+		Logger:      logger,
+	})
 }
 
-func (a *App) repeatActive(key string) bool {
-	a.hotkeyRepeatMu.Lock()
-	defer a.hotkeyRepeatMu.Unlock()
+func (b *Binder) repeatActive(key string) bool {
+	b.hotkeyRepeatMu.Lock()
+	defer b.hotkeyRepeatMu.Unlock()
 
-	return a.hotkeyRepeatCancels[key] != nil
+	return b.hotkeyRepeatCancels[key] != nil
 }
 
 func TestEffectiveHeldHotkey(t *testing.T) {
@@ -221,7 +233,7 @@ func TestEffectiveHeldHotkey(t *testing.T) {
 			cfg := config.DefaultConfig()
 			cfg.HeldRepeat.Enabled = testCase.enabled
 
-			actions, repeat := (&App{}).effectiveHeldHotkey(
+			actions, repeat := (&Binder{}).effectiveHeldHotkey(
 				testCase.hasOverride, testCase.override, testCase.global, cfg,
 			)
 
@@ -246,7 +258,7 @@ func TestRegisterHotkeysUsesReleasePathWhenSupported(t *testing.T) {
 	}
 
 	fake := newFakeReleaseHotkeyManager()
-	app := newDispatchTestApp(t, cfg, fake)
+	app := newDispatchTestBinder(t, cfg, fake)
 
 	app.registerHotkeys("")
 
@@ -287,7 +299,7 @@ func TestDispatchModeAwareHeldHotkey_RepeatVsOnce(t *testing.T) {
 	}
 
 	fake := newFakeReleaseHotkeyManager()
-	app := newDispatchTestApp(t, cfg, fake)
+	app := newDispatchTestBinder(t, cfg, fake)
 	app.registerHotkeys("")
 
 	repeatKey := config.CanonicalHotkeyForPlatform("Ctrl+Alt+J")

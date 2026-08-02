@@ -9,8 +9,10 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -56,6 +58,7 @@ type App struct {
 	// Core services
 	overlayManager OverlayManager
 	hotkeyManager  HotkeyService
+	hotkeys        *hotkey.Binder
 	eventTap       ports.EventTapPort
 	textInput      ports.TextInputPort
 	keyFeed        ports.KeyFeedPort
@@ -63,6 +66,10 @@ type App struct {
 	appWatcher     Watcher
 
 	modes *modes.Handler
+
+	// sequenceExecutor runs action sequences. It is built during initialization
+	// from the App's own components; see newSequenceExecutor.
+	sequenceExecutor *sequence.Executor
 
 	// axClient is stored so it can be closed during Cleanup.
 	// On Linux this resets AT-SPI accessibility status and releases the
@@ -77,10 +84,6 @@ type App struct {
 	// configMu serializes access to config-dependent component state between
 	// concurrent writers (theme change observer, IPC config reload, systray reload).
 	configMu sync.RWMutex
-
-	hotkeyRepeatMu       sync.Mutex
-	hotkeyRepeatCancels  map[string]context.CancelFunc
-	hotkeyRegistrationMu sync.Mutex
 
 	// New Architecture Services
 	hintService            *services.HintService
@@ -113,9 +116,4 @@ type App struct {
 
 	// IPC Controller
 	ipcController *ipcctrl.Controller
-
-	// currentHotkeyBundleID tracks which app's global hotkey bindings are
-	// currently registered. Used by refreshHotkeysForAppOrCurrent to avoid
-	// unnecessary re-registration on focus changes to the same app.
-	currentHotkeyBundleID string
 }

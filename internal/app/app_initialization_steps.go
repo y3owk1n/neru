@@ -16,6 +16,7 @@ import (
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
+	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -379,7 +380,7 @@ func initializeModeHandler(app *App) {
 			refreshHotkeys        func()
 			executeActionSequence func(source string, steps []string)
 		}{
-			refreshHotkeys:        func() { app.refreshHotkeysForAppOrCurrent("") },
+			refreshHotkeys:        func() { app.hotkeys.RefreshFor("") },
 			executeActionSequence: app.runActionSequence,
 		},
 	}
@@ -433,6 +434,24 @@ func initializeIPCController(app *App) {
 		ExecuteSequence: app.executeActionSequenceWithPolicy,
 		ExecuteMacro:    app.executeMacro,
 		Logger:          app.logger,
+	})
+
+	// Build the sequence executor now that the controller it dispatches
+	// through exists. Until this point the App falls back to constructing one
+	// per call, which is correct but pays for it on every key press.
+	app.sequenceExecutor = app.newSequenceExecutor()
+
+	// The binder needs the executor, so it is built here rather than with the
+	// rest of the infrastructure.
+	app.hotkeys = hotkey.New(hotkey.Deps{
+		Manager:     app.hotkeyManager,
+		Modes:       app.modes,
+		State:       app.appState,
+		FocusedApp:  app.actionService,
+		Config:      app.configSnapshot,
+		RunSequence: app.runActionSequence,
+		Context:     func() context.Context { return app.ctx },
+		Logger:      app.logger,
 	})
 
 	// Set the config-set callback so runtime field changes propagate to
@@ -534,11 +553,7 @@ func cleanupInfrastructure(app *App) {
 
 	// Clean up hotkey service
 	if app.hotkeyManager != nil {
-		app.hotkeyRegistrationMu.Lock()
-		app.stopAllHotkeyRepeats()
-		app.hotkeyManager.UnregisterAll()
-		app.appState.SetHotkeysRegistered(false)
-		app.hotkeyRegistrationMu.Unlock()
+		app.hotkeys.Unregister()
 		app.hotkeyManager = nil
 	}
 

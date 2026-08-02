@@ -1,28 +1,26 @@
-package app
+package hotkey
 
 import (
 	"context"
-	"os/exec"
 	"strings"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// actionsReferenceDisabledMode reports whether any action in the list
+// ActionsReferenceDisabledMode reports whether any action in the list
 // activates a mode that is currently disabled in the configuration.
 // This ensures that multi-action bindings like ["exec echo test", "hints"]
 // are skipped entirely when hints is disabled, rather than only checking
 // the first action.
-func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
+func ActionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	hintsStr := domain.ModeString(domain.ModeHints)
 	gridStr := domain.ModeString(domain.ModeGrid)
 
@@ -45,8 +43,8 @@ func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 // registerHotkeys registers global hotkeys for the specified app bundle ID.
 // When bundleID is non-empty and per-app hotkey overrides are configured, the
 // app-specific bindings are used instead of the default [hotkeys] bindings.
-func (a *App) registerHotkeys(bundleID string) {
-	cfg := a.configSnapshot()
+func (b *Binder) registerHotkeys(bundleID string) {
+	cfg := b.settings()
 
 	bindings := cfg.Hotkeys.Bindings
 	if bundleID != "" && cfg.HasGlobalAppHotkeyOverrides() {
@@ -60,11 +58,11 @@ func (a *App) registerHotkeys(bundleID string) {
 			continue
 		}
 
-		if actionsReferenceDisabledMode(actions, cfg) {
+		if ActionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 
-		a.logger.Debug(
+		b.logger.Debug(
 			"Registering hotkey binding",
 			zap.String("key", trimmedKey),
 			zap.Int("action_count", len(actions)),
@@ -81,27 +79,27 @@ func (a *App) registerHotkeys(bundleID string) {
 		// override when the active mode binds this key, otherwise the global
 		// binding), which is only known at press time — so it cannot be made here,
 		// at registration, from the global action alone.
-		if releaseManager, ok := a.hotkeyManager.(HotkeyReleaseService); ok {
+		if releaseManager, ok := b.hotkeyManager.(ports.HotkeyReleaseRegistrar); ok {
 			_, registerHotkeyErr = releaseManager.RegisterWithRelease(
 				bindKey,
 				func() {
-					a.dispatchModeAwareHeldHotkey(bindKey, bindActions)
+					b.dispatchModeAwareHeldHotkey(bindKey, bindActions)
 				},
 				func() {
-					a.stopHotkeyRepeat(bindKey)
+					b.stopHotkeyRepeat(bindKey)
 				},
 			)
 		} else {
 			// Backend without release events (currently Windows and Linux): held-key
 			// repeat is not possible, so a single mode-aware dispatch is the whole
 			// behavior.
-			_, registerHotkeyErr = a.hotkeyManager.Register(bindKey, func() {
-				a.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
+			_, registerHotkeyErr = b.hotkeyManager.Register(bindKey, func() {
+				b.dispatchModeAwareHotkeyAsync(bindKey, bindActions)
 			})
 		}
 
 		if registerHotkeyErr != nil {
-			a.logger.Error(
+			b.logger.Error(
 				"Failed to register hotkey binding",
 				zap.String("key", trimmedKey),
 				zap.Strings("actions", actions),
@@ -128,22 +126,22 @@ func (a *App) registerHotkeys(bundleID string) {
 // key releases (and therefore cannot repeat while held). Backends that can
 // report releases use dispatchModeAwareHeldHotkey, which applies the same
 // override resolution and additionally repeats held-repeatable actions.
-func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
+func (b *Binder) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 	actions := globalActions
 
-	if a.modes != nil {
-		if overrideActions, ok := a.modes.ModeHotkeyOverride(key); ok {
+	if b.modes != nil {
+		if overrideActions, ok := b.modes.ModeHotkeyOverride(key); ok {
 			actions = overrideActions
 		}
 
 		// Suppress hotkey modifiers synchronously so the per-mode event tap
 		// sees them as suppressed before the debounce timer can fire.
-		if actionsContainModeSwitch(actions, a.configSnapshot()) {
-			a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
+		if actionsContainModeSwitch(actions, b.settings()) {
+			b.modes.SuppressModifiersForHotkey(ModifiersFromKey(key))
 		}
 	}
 
-	a.dispatchHotkeyActionsAsync(key, actions)
+	b.dispatchHotkeyActionsAsync(key, actions)
 }
 
 // dispatchModeAwareHeldHotkey handles a global hotkey press on backends that
@@ -153,37 +151,37 @@ func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 // single held-repeatable action and held-key repeat is enabled. The matching
 // release callback (stopHotkeyRepeat) cancels any repeat this started; it is a
 // no-op when nothing was started.
-func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
+func (b *Binder) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 	var (
 		override    []string
 		hasOverride bool
 	)
 
-	if a.modes != nil {
-		override, hasOverride = a.modes.ModeHotkeyOverride(key)
+	if b.modes != nil {
+		override, hasOverride = b.modes.ModeHotkeyOverride(key)
 	}
 
-	actions, repeat := a.effectiveHeldHotkey(
+	actions, repeat := b.effectiveHeldHotkey(
 		hasOverride,
 		override,
 		globalActions,
-		a.configSnapshot(),
+		b.settings(),
 	)
 
 	// Suppress hotkey modifiers synchronously so the per-mode event tap
 	// sees them as suppressed before the debounce timer can fire.
 	// This must happen before the async dispatch or startHotkeyRepeat.
-	if a.modes != nil && actionsContainModeSwitch(actions, a.configSnapshot()) {
-		a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
+	if b.modes != nil && actionsContainModeSwitch(actions, b.settings()) {
+		b.modes.SuppressModifiersForHotkey(ModifiersFromKey(key))
 	}
 
 	if repeat {
-		a.startHotkeyRepeat(key, actions)
+		b.startHotkeyRepeat(key, actions)
 
 		return
 	}
 
-	a.dispatchHotkeyActionsAsync(key, actions)
+	b.dispatchHotkeyActionsAsync(key, actions)
 }
 
 // effectiveHeldHotkey resolves which actions a global hotkey press should run
@@ -191,7 +189,7 @@ func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 // the global binding when present, and the repeat decision is then made from
 // the resolved actions — not from the global binding — so a per-mode override
 // takes precedence on the held-repeat path too.
-func (a *App) effectiveHeldHotkey(
+func (b *Binder) effectiveHeldHotkey(
 	hasOverride bool,
 	override, globalActions []string,
 	cfg *config.Config,
@@ -201,14 +199,14 @@ func (a *App) effectiveHeldHotkey(
 		actions = override
 	}
 
-	return actions, a.hotkeyActionsRepeatWhileHeld(actions, cfg)
+	return actions, b.hotkeyActionsRepeatWhileHeld(actions, cfg)
 }
 
-func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {
+func (b *Binder) dispatchHotkeyActionsAsync(key string, actions []string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				a.logger.Error(
+				b.logger.Error(
 					"panic in hotkey handler",
 					zap.Any("recover", r),
 					zap.String("key", key),
@@ -216,31 +214,31 @@ func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {
 			}
 		}()
 
-		a.runActionSequence(key, actions)
+		b.runActionSequence(key, actions)
 	}()
 }
 
-func (a *App) startHotkeyRepeat(key string, actions []string) {
-	cfg := a.configSnapshot().HeldRepeat
+func (b *Binder) startHotkeyRepeat(key string, actions []string) {
+	cfg := b.settings().HeldRepeat
 	if !cfg.Enabled {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(a.ctx)
+	ctx, cancel := context.WithCancel(b.context())
 
-	a.hotkeyRepeatMu.Lock()
+	b.hotkeyRepeatMu.Lock()
 
-	if a.hotkeyRepeatCancels == nil {
-		a.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
+	if b.hotkeyRepeatCancels == nil {
+		b.hotkeyRepeatCancels = make(map[string]context.CancelFunc)
 	}
 
-	oldCancel := a.hotkeyRepeatCancels[key]
+	oldCancel := b.hotkeyRepeatCancels[key]
 	if oldCancel != nil {
-		delete(a.hotkeyRepeatCancels, key)
+		delete(b.hotkeyRepeatCancels, key)
 	}
 
-	a.hotkeyRepeatCancels[key] = cancel
-	a.hotkeyRepeatMu.Unlock()
+	b.hotkeyRepeatCancels[key] = cancel
+	b.hotkeyRepeatMu.Unlock()
 
 	if oldCancel != nil {
 		oldCancel()
@@ -249,7 +247,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				a.logger.Error(
+				b.logger.Error(
 					"panic in repeating hotkey handler",
 					zap.Any("recover", r),
 					zap.String("key", key),
@@ -257,7 +255,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 			}
 		}()
 
-		a.runActionSequence(key, actions)
+		b.runActionSequence(key, actions)
 
 		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
 		defer initialTimer.Stop()
@@ -276,38 +274,38 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				a.runActionSequence(key, actions)
+				b.runActionSequence(key, actions)
 			}
 		}
 	}()
 }
 
-func (a *App) stopHotkeyRepeat(key string) {
-	a.hotkeyRepeatMu.Lock()
+func (b *Binder) stopHotkeyRepeat(key string) {
+	b.hotkeyRepeatMu.Lock()
 
-	cancel := a.hotkeyRepeatCancels[key]
+	cancel := b.hotkeyRepeatCancels[key]
 	if cancel != nil {
-		delete(a.hotkeyRepeatCancels, key)
+		delete(b.hotkeyRepeatCancels, key)
 	}
-	a.hotkeyRepeatMu.Unlock()
+	b.hotkeyRepeatMu.Unlock()
 
 	if cancel != nil {
 		cancel()
 	}
 }
 
-func (a *App) stopAllHotkeyRepeats() {
-	a.hotkeyRepeatMu.Lock()
-	cancels := a.hotkeyRepeatCancels
-	a.hotkeyRepeatCancels = nil
-	a.hotkeyRepeatMu.Unlock()
+func (b *Binder) stopAllHotkeyRepeats() {
+	b.hotkeyRepeatMu.Lock()
+	cancels := b.hotkeyRepeatCancels
+	b.hotkeyRepeatCancels = nil
+	b.hotkeyRepeatMu.Unlock()
 
 	for _, cancel := range cancels {
 		cancel()
 	}
 }
 
-func (a *App) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config) bool {
+func (b *Binder) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config) bool {
 	if !cfg.HeldRepeat.Enabled {
 		return false
 	}
@@ -324,7 +322,9 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config)
 	return action.IsHeldRepeatAction(action.Name(parts[1]))
 }
 
-func hotkeyModifiersFromKey(key string) action.Modifiers {
+// ModifiersFromKey reads the modifier part of a hotkey specification, so a
+// mode opened by that hotkey can suppress the modifiers still physically held.
+func ModifiersFromKey(key string) action.Modifiers {
 	var mods action.Modifiers
 
 	for part := range strings.SplitSeq(config.NormalizeKeyForComparison(key), "+") {
@@ -471,131 +471,32 @@ func splitArgs(input string) []string {
 	return config.SplitStepArgs(input)
 }
 
-// executeHotkeyAction executes a single action step, which can be either a
-// shell command or an IPC command. ctx carries the action sequence's nesting
-// depth into the IPC handlers, so a step that starts another sequence can be
-// stopped before it recurses without bound.
-func (a *App) executeHotkeyAction(ctx context.Context, key, actionStr string) error {
-	actionStr = strings.TrimSpace(actionStr)
-
-	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
-		return a.executeShellCommand(ctx, key, actionStr)
-	}
-
-	actionParts := splitArgs(actionStr)
-	actionStr = actionParts[0]
-	params := actionParts[1:]
-
-	if a.modes != nil {
-		switch actionStr {
-		case domain.ModeString(domain.ModeHints),
-			domain.ModeString(domain.ModeGrid),
-			domain.ModeString(domain.ModeRecursiveGrid),
-			domain.ModeString(domain.ModeScroll),
-			domain.ModeString(domain.ModeMonitorSelect):
-			hotkeyMods := hotkeyModifiersFromKey(key)
-			a.modes.SuppressModifiersUntilReleased(hotkeyMods)
-		}
-	}
-
-	ipcResponse := a.ipcController.HandleCommand(
-		ctx,
-		ipc.Command{Action: actionStr, Args: params},
-	)
-	if !ipcResponse.Success {
-		if ipcResponse.Code == ipc.CodeChainBail {
-			return derrors.New(derrors.CodeChainBail, ipcResponse.Message)
-		}
-
-		return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
-	}
-
-	a.logger.Debug(
-		"hotkey action executed",
-		zap.String("key", key),
-		zap.String("action", actionStr),
-	)
-
-	return nil
-}
-
-// executeShellCommand executes a shell command triggered by a hotkey.
-func (a *App) executeShellCommand(ctx context.Context, key, actionStr string) error {
-	cmdString := strings.TrimSpace(strings.TrimPrefix(actionStr, action.PrefixExec))
-	if cmdString == "" {
-		a.logger.Error("hotkey exec has empty command", zap.String("key", key))
-
-		return derrors.New(derrors.CodeInvalidInput, "empty command")
-	}
-
-	a.logger.Debug(
-		"Executing shell command from hotkey",
-		zap.String("key", key),
-		zap.String("cmd", cmdString),
-	)
-
-	execCtx, cancel := context.WithTimeout(ctx, domain.ShellCommandTimeout)
-	defer cancel()
-
-	cfg := a.configSnapshot()
-	shell := cfg.General.ExecShell
-	shellArgs := cfg.General.ExecShellArgs
-
-	args := make([]string, 0, len(shellArgs)+1)
-	args = append(args, shellArgs...)
-	args = append(args, cmdString)
-
-	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
-
-	commandOutput, commandErr := command.CombinedOutput()
-	if commandErr != nil {
-		a.logger.Error(
-			"hotkey exec failed",
-			zap.String("key", key),
-			zap.String("cmd", cmdString),
-			zap.ByteString("output", commandOutput),
-			zap.Error(commandErr),
-		)
-
-		return derrors.Wrap(commandErr, derrors.CodeInternal, "hotkey exec failed")
-	}
-
-	a.logger.Debug(
-		"hotkey exec completed",
-		zap.String("key", key),
-		zap.Int("cmd_length", len(cmdString)),
-		zap.Int("output_bytes", len(commandOutput)),
-	)
-
-	return nil
-}
-
 // refreshHotkeysForAppOrCurrent manages hotkey registration based on Neru's enabled state
 // and whether the currently focused application is excluded.
-func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
-	a.hotkeyRegistrationMu.Lock()
-	defer a.hotkeyRegistrationMu.Unlock()
+func (b *Binder) refreshHotkeysForAppOrCurrent(bundleID string) {
+	b.hotkeyRegistrationMu.Lock()
+	defer b.hotkeyRegistrationMu.Unlock()
 
-	if !a.appState.IsEnabled() {
-		if a.appState.HotkeysRegistered() {
-			a.logger.Debug("Neru disabled; unregistering hotkeys")
-			a.stopAllHotkeyRepeats()
-			a.hotkeyManager.UnregisterAll()
-			a.appState.SetHotkeysRegistered(false)
+	if !b.appState.IsEnabled() {
+		if b.appState.HotkeysRegistered() {
+			b.logger.Debug("Neru disabled; unregistering hotkeys")
+			b.stopAllHotkeyRepeats()
+			b.hotkeyManager.UnregisterAll()
+			b.appState.SetHotkeysRegistered(false)
 		}
 
 		return
 	}
 
-	cfg := a.configSnapshot()
+	cfg := b.settings()
 
 	if bundleID == "" {
 		// Use ActionService to get focused bundle ID
-		ctx := a.ctx
+		ctx := b.context()
 
 		var bundleIDErr error
 
-		bundleID, bundleIDErr = a.actionService.FocusedAppBundleID(ctx)
+		bundleID, bundleIDErr = b.actionService.FocusedAppBundleID(ctx)
 		if bundleIDErr != nil {
 			// Fail open: when the focused app can't be determined (always the
 			// case on Linux Wayland, which has no focus-query API), fall
@@ -604,9 +505,9 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 			// The next focus event re-evaluates per-app exclusion on platforms
 			// that support it. When exclusions are configured but cannot be
 			// enforced, warn so the user knows; otherwise this is routine.
-			logFn := a.logger.Debug
+			logFn := b.logger.Debug
 			if len(cfg.General.ExcludedApps) > 0 {
-				logFn = a.logger.Warn
+				logFn = b.logger.Warn
 			}
 
 			logFn(
@@ -620,32 +521,32 @@ func (a *App) refreshHotkeysForAppOrCurrent(bundleID string) {
 	}
 
 	if cfg.IsAppExcluded(bundleID) {
-		if a.appState.HotkeysRegistered() {
-			a.logger.Debug("Focused app excluded; unregistering global hotkeys",
+		if b.appState.HotkeysRegistered() {
+			b.logger.Debug("Focused app excluded; unregistering global hotkeys",
 				zap.String("bundle_id", bundleID))
-			a.stopAllHotkeyRepeats()
-			a.hotkeyManager.UnregisterAll()
-			a.appState.SetHotkeysRegistered(false)
+			b.stopAllHotkeyRepeats()
+			b.hotkeyManager.UnregisterAll()
+			b.appState.SetHotkeysRegistered(false)
 		}
 
 		return
 	}
 
-	if !a.appState.HotkeysRegistered() {
-		a.registerHotkeys(bundleID)
-		a.appState.SetHotkeysRegistered(true)
-		a.logger.Debug("Hotkeys registered",
+	if !b.appState.HotkeysRegistered() {
+		b.registerHotkeys(bundleID)
+		b.appState.SetHotkeysRegistered(true)
+		b.logger.Debug("Hotkeys registered",
 			zap.String("bundle_id", bundleID))
-	} else if bundleID != a.currentHotkeyBundleID && cfg.HasGlobalAppHotkeyOverrides() {
+	} else if bundleID != b.currentHotkeyBundleID && cfg.HasGlobalAppHotkeyOverrides() {
 		// Focus changed to a different app with possibly different hotkey
 		// bindings. Re-register with the new app's bindings.
-		a.stopAllHotkeyRepeats()
-		a.hotkeyManager.UnregisterAll()
-		a.registerHotkeys(bundleID)
-		a.logger.Debug("Hotkeys re-registered for app",
+		b.stopAllHotkeyRepeats()
+		b.hotkeyManager.UnregisterAll()
+		b.registerHotkeys(bundleID)
+		b.logger.Debug("Hotkeys re-registered for app",
 			zap.String("bundle_id", bundleID))
 	}
 
 	// Track which bundle ID's bindings are currently registered.
-	a.currentHotkeyBundleID = bundleID
+	b.currentHotkeyBundleID = bundleID
 }

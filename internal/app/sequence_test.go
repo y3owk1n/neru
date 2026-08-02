@@ -21,6 +21,7 @@ import (
 // a step exercises the real executeHotkeyAction path without depending on any
 // service.
 const (
+	leftClickStep       = "action left_click"
 	sequenceTestCommand = "step"
 
 	failureMessage = "boom"

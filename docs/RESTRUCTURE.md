@@ -185,8 +185,8 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 | 1 | `govulncheck` + coverage in CI | **done** | `-race` and `-trimpath` were already covered |
 | 2 | Flatten `core/`, rename `infra/` → `adapter/` | **done** | Pure move + import rewrite |
 | 3 | Render models → `internal/domain/render/` | **deferred** | Not a move — needs the per-platform `Style` types unified first ([why](#4-render-models-live-under-an-adapter)) |
-| 4 | Split `internal/app` → `ipcctrl`/`sequence` | **partly done** | 72 files → 48; hotkeys still wait on step 5 |
-| 5 | Shrink `*App` to consumer-defined interfaces | | Ongoing, not a single PR |
+| 4 | Split `internal/app` → `ipcctrl`/`sequence` | **done** | 72 files → 45 |
+| 5 | Shrink `*App` to consumer-defined interfaces | **done for hotkeys** | 119 → 106 methods; ongoing beyond that |
 | 6 | Backends as packages: accessibility → overlay → eventtap | | The cross-platform payoff |
 
 Step 2 also retired the word "infra" from the docs, dropped the empty
@@ -204,10 +204,28 @@ so the directory and the package name (`derrors`) finally agree.
   the App: nesting depth, failure policy, outcome. The executor itself stays in
   `internal/app` because running a step means dispatching it through the App.
 
-`hotkeys.go` did **not** come out, and should not until step 5: it hangs off
-`*App` for dispatch, so extracting it now would mean passing the whole App
-across the new boundary — trading one coupling for a wider one. It is not a
-naming problem, and it is not `internal/app/ipcctrl`'s problem.
+**On step 5.** `hotkeys.go` could not come out with the rest of step 4: it hangs
+off `*App` for dispatch. What blocked it was a cycle — the sequence executor's
+`executeStep` called `executeHotkeyAction`, and hotkeys called back into
+`runActionSequence`. They were one unit pretending to be two.
+
+Breaking it took two moves:
+
+1. `sequence.Executor` absorbed the executor half. Its five dependencies are all
+   functions or one-method interfaces (`CommandHandler` is just
+   `HandleCommand`), so the executor drives modes and IPC without importing
+   either.
+2. `internal/app/hotkey` then took the binding half, with the repeat
+   bookkeeping — two mutexes, a cancel table and a cached bundle identifier —
+   that had been sitting on `*App` where nothing else touched it.
+
+The interfaces `hotkey` needs are declared at the consumer and are two or three
+methods each: `ModeBindings` (2), `EnabledState` (3), `FocusedApp` (1). That is
+the whole point — the binder names what it calls, not the components it calls.
+
+`*App` is down from 119 methods to 106. The remainder is mostly the systray's
+`AppInterface`, which is legitimately wide because the menu really does toggle
+all of those things; narrowing it further is a menu redesign, not a refactor.
 
 `internal/ipc` in the target tree above is therefore `internal/app/ipcctrl`
 today: a package name of `ipc` would collide with `internal/adapter/ipc`, which

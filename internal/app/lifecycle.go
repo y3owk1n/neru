@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -71,7 +72,7 @@ func (a *App) Run() error {
 	a.appWatcher.Start()
 	a.logger.Info("App watcher started")
 
-	a.refreshHotkeysForAppOrCurrent("")
+	a.hotkeys.RefreshFor("")
 	a.logger.Info("Hotkeys initialized")
 
 	a.setupSleepObserver()
@@ -204,7 +205,7 @@ func (a *App) setupAppWatcherCallbacks() {
 		if len(cfg.Hints.OnMissionControlActivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control activated: executing actions",
 				zap.Int("action_count", len(cfg.Hints.OnMissionControlActivated)))
-			a.dispatchHotkeyActionsAsync(
+			a.hotkeys.RunActions(
 				"mission_control_activated",
 				cfg.Hints.OnMissionControlActivated,
 			)
@@ -217,7 +218,7 @@ func (a *App) setupAppWatcherCallbacks() {
 		if len(cfg.Hints.OnMissionControlDeactivated) > 0 && cfg.Hints.DetectMissionControl {
 			a.logger.Info("Mission Control deactivated: executing actions",
 				zap.Int("action_count", len(cfg.Hints.OnMissionControlDeactivated)))
-			a.dispatchHotkeyActionsAsync(
+			a.hotkeys.RunActions(
 				"mission_control_deactivated",
 				cfg.Hints.OnMissionControlDeactivated,
 			)
@@ -414,7 +415,7 @@ func (a *App) handleAppActivation(bundleID string) {
 	cfg := a.configSnapshot()
 
 	if a.appState.CurrentMode() == domain.ModeIdle {
-		go a.refreshHotkeysForAppOrCurrent(bundleID)
+		go a.hotkeys.RefreshFor(bundleID)
 	} else {
 		// Defer hotkey refresh to avoid re-entry during active modes
 		a.appState.SetHotkeyRefreshPending(true)
@@ -457,7 +458,7 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
-		if actionsReferenceDisabledMode(actions, cfg) {
+		if hotkey.ActionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 
@@ -588,11 +589,7 @@ func (a *App) Cleanup() {
 		a.unregisterLayoutChangeHandler()
 
 		if a.hotkeyManager != nil {
-			a.hotkeyRegistrationMu.Lock()
-			a.stopAllHotkeyRepeats()
-			a.hotkeyManager.UnregisterAll()
-			a.appState.SetHotkeysRegistered(false)
-			a.hotkeyRegistrationMu.Unlock()
+			a.hotkeys.Unregister()
 		}
 
 		if a.overlayManager != nil {

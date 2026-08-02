@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private hotkey helper behavior.
-package app
+package hotkey
 
 import (
 	"testing"
@@ -56,10 +56,10 @@ func TestHotkeyModifiersFromKey(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := hotkeyModifiersFromKey(testCase.key)
+			got := ModifiersFromKey(testCase.key)
 			if got != testCase.want {
 				t.Fatalf(
-					"hotkeyModifiersFromKey(%q) = %v, want %v",
+					"ModifiersFromKey(%q) = %v, want %v",
 					testCase.key,
 					got,
 					testCase.want,
@@ -156,7 +156,7 @@ func TestSplitArgs(t *testing.T) {
 }
 
 func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
-	app := &App{}
+	app := &Binder{}
 
 	cfg := config.DefaultConfig()
 	cfg.HeldRepeat.Enabled = true
@@ -224,7 +224,7 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 }
 
 func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
-	app := &App{}
+	app := &Binder{}
 
 	cfg := config.DefaultConfig()
 
@@ -352,13 +352,13 @@ func TestActionsReferenceDisabledModeSeesModesInsideRun(t *testing.T) {
 	cfg.Hints.Enabled = false
 
 	actions := []string{"run 'action save_cursor_pos' '" + hintsStep + "'"}
-	if !actionsReferenceDisabledMode(actions, cfg) {
+	if !ActionsReferenceDisabledMode(actions, cfg) {
 		t.Fatal("a disabled mode inside a run step should be detected")
 	}
 
 	cfg.Hints.Enabled = true
 
-	if actionsReferenceDisabledMode(actions, cfg) {
+	if ActionsReferenceDisabledMode(actions, cfg) {
 		t.Fatal("an enabled mode inside a run step should not be reported as disabled")
 	}
 }
