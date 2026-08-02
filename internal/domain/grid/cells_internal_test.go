@@ -45,11 +45,11 @@ func TestGenerateCellsWithRegionsSurvivesDegenerateDimensions(t *testing.T) {
 				zap.NewNop(),
 			)
 
-			// The clamp guarantees at least one cell's worth of capacity; what
-			// matters is that the call returned at all.
-			if cells == nil {
-				t.Error("generateCellsWithRegions returned nil")
-			}
+			// Reaching here at all is the assertion: every one of these inputs
+			// panicked before the clamp. The cell count is not pinned, because
+			// what a degenerate grid should contain is not what this is about —
+			// and an empty result is a legitimate answer.
+			t.Logf("returned %d cells", len(cells))
 		})
 	}
 }
