@@ -211,7 +211,27 @@ Linux there is a second, *runtime* axis on top of build tags:
 [backend_linux.go](../internal/adapter/platform/backend_linux.go) detects the
 live compositor (wlroots / KDE / GNOME / other) and the factory routes to it.
 
-**4. Input processing**
+**4. Where a platform's code lives**
+
+Each OS capability is a package under `internal/adapter/`. Where a backend is a
+real implementation rather than a few dispatch functions, it gets its own
+directory and the directory names the platform:
+
+```
+adapter/eventtap/{tap,darwin,linux,windows}          keyboard capture
+adapter/hotkeys/{darwin,linux,windows}               global hotkeys
+adapter/systray/{darwin,linux,windows}               tray icon
+adapter/accessibility/{ax,atspi,native}              element discovery
+adapter/platform/{darwin,linux,windows}              the native cgo bridges
+```
+
+The parent package holds the port adapter and a small build-tagged factory —
+the only place that knows which implementation exists. So "what do I touch to
+add a compositor?" is answered by `ls`, not by reading build tags. The
+convention, and which packages do not yet follow it, are in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#backend-packages).
+
+**5. Input processing**
 
 1. **OS** — [eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)
    captures low-level keyboard events (Linux/Windows have equivalents)

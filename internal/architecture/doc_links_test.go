@@ -19,14 +19,11 @@ import (
 // docsExemptFromLinkChecking are files that deliberately name paths which do
 // not exist.
 //
-// Only one qualifies, and only because its whole job is to describe a tree
-// that is being migrated: it records both where the code used to live and
-// where it is going. It is deleted when the migration finishes, and this
-// exemption goes with it. Nothing else belongs here — a doc that wants to name
-// a path that does not exist is a doc that is wrong.
-var docsExemptFromLinkChecking = map[string]string{
-	"docs/RESTRUCTURE.md": "records the pre-migration tree and the target tree by design",
-}
+// It is empty, which is the goal state. The one entry it ever held was a
+// migration document describing a tree that no longer existed; it was deleted
+// once the migration landed, and the exemption went with it. A doc that wants
+// to name a path that does not exist is a doc that is wrong.
+var docsExemptFromLinkChecking = map[string]string{}
 
 // repoPathPattern matches the two ways docs name a file: a markdown link
 // target, and an inline-code path. Both start at a top-level repo directory so

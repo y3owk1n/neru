@@ -7,5 +7,6 @@
 // element_*.go and tree_*.go declare. That is why macOS and Windows are not yet
 // separate packages: they are not separate implementations, they are the same
 // implementation over different types. Splitting them means parameterising the
-// shell over an interface first — see docs/RESTRUCTURE.md.
+// shell over an interface first — see the Backend Packages section of
+// docs/CROSS_PLATFORM.md.
 package native

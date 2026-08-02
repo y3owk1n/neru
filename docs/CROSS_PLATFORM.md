@@ -36,6 +36,7 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 - [First Stops](#first-stops)
 - [The Three Tiers](#the-three-tiers)
 - [File Layout Rules](#file-layout-rules)
+- [Backend Packages](#backend-packages)
 - [Where To Implement What](#where-to-implement-what)
 - [Build And Test Commands](#build-and-test-commands)
 - [Linux Backend Model](#linux-backend-model)
@@ -667,15 +668,78 @@ What the guardrail test checks:
 - A file gated on cgo must say so: `*_cgo.go` or `*_nocgo.go`. Before this rule
   a plain name usually meant the cgo variant, but in the overlay package it
   meant the opposite, and reading the build tag was the only way to tell.
-- Every file in `platform/{darwin,linux,windows}/` declares its OS tag. Those
-  packages are exempt from the suffix rule — the directory carries the meaning —
-  which only holds if nothing untagged leaks in.
+- Every file in a **single-platform package** declares its OS tag. Such a
+  package is exempt from the suffix rule — the directory carries the meaning —
+  which only holds if nothing untagged leaks in. The set of exempt directories
+  is derived from the tree, not listed: a directory earns the exemption when
+  every file in it targets the same one OS.
+- Every relative `#include` resolves
+  ([cgo_includes_test.go](../internal/architecture/cgo_includes_test.go)). This
+  one exists because a broken include is invisible to `go vet` and to
+  `just check-cross` — `CGO_ENABLED=0` skips the file — and only surfaces when
+  the target OS compiles with cgo on.
 
 Two rules that save review cycles:
 
 - **Do not invent new ad hoc platform filenames** when a slot already exists.
 - **Do not create empty `darwin` / `linux` / `windows` files for symmetry.** Add
   a file only when there is a real implementation slot behind it.
+
+## Backend Packages
+
+A backend gets its own package once it is a real implementation rather than a
+handful of dispatch functions. `accessibility/atspi`, `eventtap/{darwin,linux,
+windows}`, `hotkeys/{darwin,linux,windows}` and `systray/{darwin,linux,windows}`
+are all shaped this way: the directory names the platform, so the filenames
+inside do not have to, and `ls` answers "what do I touch for Wayland?".
+
+The parent package keeps the port adapter and a small build-tagged factory —
+usually ten lines — which is the only place that knows which implementation
+exists.
+
+### When a package resists being split
+
+Expect this, because it is the common case:
+
+> A package that looks like "shared code plus platform files" is usually one
+> generic shell specialised by build-tagged concrete types. It has no interface
+> seam, so there is nothing for a backend package to implement.
+
+`accessibility` was this (one client shell over per-OS `Element` and
+`TreeNode`), and so was `eventtap` (one adapter over a per-OS `EventTap`
+struct). The fix is three moves, in order:
+
+1. **Find the seam.** List the methods the shell calls on the platform type.
+   For `eventtap` that was ten — small enough to write down in one sitting.
+2. **Extract the contract into a leaf package** (`accessibility/ax`,
+   `eventtap/tap`). It has to be a leaf: the backends import it to satisfy it
+   and the factory imports the backends, so anything else is an import cycle.
+3. **Move each platform into a package behind a build-tagged factory.**
+
+Two traps, both of which have bitten this repo:
+
+- **Named function types do not interchange.** A method taking
+  `darwin.Callback` does not satisfy an interface wanting `func(string)`, even
+  though the underlying types are identical. Put callback types in the contract
+  package and have the backends use them.
+- **Typed nil.** A factory returning a concrete `*T` as an interface hands back
+  a non-nil interface holding a nil pointer, and every caller's `if x != nil`
+  silently passes. Check before returning; `staticcheck` reports this as
+  SA4023.
+
+### What is still shared, and why
+
+Three packages still hold more than one platform, each for a stated reason:
+
+| Package | Why it has not been split |
+| ------- | -------------------------- |
+| `adapter/overlay` | Its `ManagerInterface` names `grid.Style` and `hints.StyleMode`, which are declared once per OS. The contract cannot become platform-neutral until those are unified. |
+| `adapter/overlay/render/{grid,hints,recursivegrid}` | Each declares `Style` or `StyleMode` three times. Linux and Windows are byte-identical; only macOS differs, and only in representation — hex colour strings and ints against packed ARGB and floats. Unifying means one semantic `Style` plus a per-backend conversion at draw time, across roughly ninety read sites in the overlay managers. |
+| `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first. |
+
+All three are worth doing and none is a file move. Do them as their own
+changes, with the render `Style` unification first — it is the keystone that
+unblocks the other two.
 
 ## Where To Implement What
 

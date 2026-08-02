@@ -270,7 +270,6 @@ Everything you need to go deep:
 | [Development Guide](docs/DEVELOPMENT.md)         | Setup, building, testing, debugging, where code goes      |
 | [Architecture](docs/ARCHITECTURE.md)             | Layers, boundaries, data flow, platform isolation         |
 | [Coding Standards](docs/CODING_STANDARDS.md)     | Formatting, logging, documentation conventions            |
-| [Restructure Plan](docs/RESTRUCTURE.md)          | Where the package layout is heading, and in what order     |
 | [Roadmap](docs/ROADMAP.md)                       | What's coming next                                        |
 
 ---
