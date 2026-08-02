@@ -41,22 +41,28 @@ func TestEmbeddedDefaultConfig_Validates(t *testing.T) {
 	}
 }
 
-// TestExampleConfigs_Validate loads every config under configs/ the way the
-// daemon would. These files are copied by users verbatim, so a stale role
-// vocabulary in one of them is shipped breakage that no other test sees —
-// only default-config.toml is embedded and reachable through configs.DefaultConfig.
+// shippedExampleConfigs are the configs the project publishes under configs/.
+//
+// They are listed rather than globbed because the directory is also a working
+// area: a local config kept there for testing is not a project artifact, and
+// its problems are not this suite's business. Adding an example here is the
+// deliberate step that puts it under test.
+var shippedExampleConfigs = []string{
+	"default-config.toml",
+	"grid-only-config.toml",
+	"hints-only-config.toml",
+	"recursive-grid-only-config.toml",
+}
+
+// TestExampleConfigs_Validate loads each shipped config the way the daemon
+// would. These files are copied by users verbatim, so a stale role vocabulary
+// in one of them is shipped breakage that no other test sees — only
+// default-config.toml is embedded and reachable through configs.DefaultConfig.
 func TestExampleConfigs_Validate(t *testing.T) {
-	paths, err := filepath.Glob(filepath.Join("..", "..", "configs", "*.toml"))
-	if err != nil {
-		t.Fatalf("failed to glob example configs: %v", err)
-	}
+	for _, name := range shippedExampleConfigs {
+		path := filepath.Join("..", "..", "configs", name)
 
-	if len(paths) == 0 {
-		t.Fatal("no example configs found; the glob path is probably wrong")
-	}
-
-	for _, path := range paths {
-		t.Run(filepath.Base(path), func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			svc := config.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
 
 			result := svc.LoadWithValidation(path)

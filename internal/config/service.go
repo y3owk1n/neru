@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
@@ -231,6 +232,10 @@ type Service struct {
 	watchers      []chan<- *Config
 	logger        *zap.Logger
 	alertProvider AlertProvider
+	// alertShowing keeps at most one validation alert outstanding. The dialog
+	// is modal and no longer blocks the reload, so without this a run of
+	// failed reloads would stack dialogs and park a goroutine behind each.
+	alertShowing atomic.Bool
 
 	// defaults is the base configuration used as the starting point by
 	// LoadWithValidation. It is initialized from defaultConfigForDecoding()
