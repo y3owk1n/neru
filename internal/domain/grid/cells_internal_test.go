@@ -45,11 +45,23 @@ func TestGenerateCellsWithRegionsSurvivesDegenerateDimensions(t *testing.T) {
 				zap.NewNop(),
 			)
 
-			// Reaching here at all is the assertion: every one of these inputs
-			// panicked before the clamp. The cell count is not pinned, because
-			// what a degenerate grid should contain is not what this is about —
-			// and an empty result is a legitimate answer.
-			t.Logf("returned %d cells", len(cells))
+			// Reaching here at all is most of the point — every one of these
+			// inputs panicked before the clamp. The assertions pin the two
+			// things the clamp is supposed to guarantee: the result never
+			// exceeds what the clamped grid can hold, and it never contains a
+			// nil cell. The exact count is deliberately not pinned; what a
+			// degenerate grid should contain is not what this is about.
+			if len(cells) > MaxGridCols*MaxGridRows {
+				t.Errorf("returned %d cells, more than the clamped maximum", len(cells))
+			}
+
+			for i, cell := range cells {
+				if cell == nil {
+					t.Errorf("cell %d is nil", i)
+
+					break
+				}
+			}
 		})
 	}
 }
