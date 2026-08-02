@@ -4,8 +4,10 @@ package services_test
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -21,6 +23,49 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/platform"
 	"github.com/y3owk1n/neru/internal/core/ports"
 )
+
+// realAdapterTimeout bounds how long these tests wait on the real system.
+//
+// They drive live accessibility APIs against whatever window happens to be
+// focused, and that call can take arbitrarily long — with the screen locked,
+// where the focused "app" is the login window, it does not return at all.
+const realAdapterTimeout = 30 * time.Second
+
+// startAdapterWatchdog ends the test run with a diagnosis if a real system
+// call never comes back. Each subtest starts its own: a test function holds
+// several, and one budget shared across them would eventually blame a locked
+// screen for what is only a slow machine. Setup outside a subtest is left to
+// the go test -timeout backstop.
+//
+// A context deadline cannot do this job: several adapters take a context and
+// discard it, and the ones that honor it check it only before starting work,
+// so nothing interrupts a call already blocked inside the platform API.
+// Panicking is what turns an indefinite hang into something a reader can act
+// on — the message names the likely cause, and the stack dump that comes with
+// it names the call that is stuck.
+func startAdapterWatchdog(t *testing.T) {
+	t.Helper()
+
+	finished := make(chan struct{})
+	t.Cleanup(func() { close(finished) })
+
+	name := t.Name()
+
+	go func() {
+		select {
+		case <-finished:
+		case <-time.After(realAdapterTimeout):
+			panic(fmt.Sprintf(
+				"%s: a real system adapter did not answer within %s. "+
+					"This usually means the screen is locked, or the focused app is not "+
+					"responding to accessibility queries, rather than a fault in the code "+
+					"under test. The stack below shows which call is blocked.",
+				name,
+				realAdapterTimeout,
+			))
+		}
+	}()
+}
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
 type testThemeProvider struct {
@@ -69,6 +114,8 @@ func TestHintServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ShowHints integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		// This tests the full pipeline: accessibility -> hint generation -> overlay.
 		// Zero hints is a legitimate outcome (the machine may have no clickable
 		// elements on screen), but an error is not.
@@ -103,6 +150,8 @@ func TestHintServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("ShowHints leaves NoOpManager-backed overlay idle", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		// initializeRealAdapters wires a NoOpManager whose Mode() is pinned to
 		// ModeIdle, and Adapter.IsVisible is defined as Mode() != idle. So the
 		// adapter must report not-visible no matter what was shown. If this
@@ -118,6 +167,8 @@ func TestHintServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("HideHints integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := hintService.HideHints(ctx)
 		if err != nil {
 			t.Fatalf("HideHints failed: %v", err)
@@ -136,6 +187,8 @@ func TestHintServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("Service health check", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		health := hintService.Health(ctx)
 		if health == nil {
 			t.Fatal("Health returned nil map")
@@ -180,6 +233,8 @@ func TestActionServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("PerformActionAtPoint left click", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := actionService.PerformActionAtPoint(ctx, "left_click", image.Point{X: 100, Y: 100}, 0)
 		if err != nil {
 			t.Fatalf("PerformActionAtPoint(left_click) failed: %v", err)
@@ -187,6 +242,8 @@ func TestActionServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("PerformActionAtPoint right click", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := actionService.PerformActionAtPoint(
 			ctx,
 			"right_click",
@@ -199,6 +256,8 @@ func TestActionServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("PerformActionAtPoint rejects an unknown action", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		// The action string is parsed before any native call, so an unknown
 		// name must be reported rather than silently no-op'ing.
 		err := actionService.PerformActionAtPoint(
@@ -224,6 +283,8 @@ func TestActionServiceIntegration(t *testing.T) {
 	// concurrently, so each would intermittently fail the other.
 
 	t.Run("ExecuteAction on element", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		// This tests the element-based action execution
 		// Create a mock element using the constructor
 		testElement, err := element.NewElement(
@@ -262,6 +323,8 @@ func TestGridServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ShowGrid integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := gridService.ShowGrid(ctx)
 		if err != nil {
 			t.Fatalf("ShowGrid failed: %v", err)
@@ -276,6 +339,8 @@ func TestGridServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("HideGrid integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := gridService.HideGrid(ctx)
 		if err != nil {
 			t.Fatalf("HideGrid failed: %v", err)
@@ -292,6 +357,8 @@ func TestGridServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("Grid health check", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		health := gridService.Health(ctx)
 		if health == nil {
 			t.Fatal("Health returned nil map")
@@ -324,6 +391,8 @@ func TestScrollServiceIntegration(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Scroll integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		// Every direction/amount pair must reach the native scroll API without
 		// error, not just the one combination that happened to be wired up.
 		for _, dir := range []services.ScrollDirection{
@@ -346,6 +415,8 @@ func TestScrollServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("Scroll honors a step override", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := scrollService.Scroll(
 			ctx,
 			services.ScrollDirectionDown,
@@ -358,6 +429,8 @@ func TestScrollServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("SetInvertScroll round-trips", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		original := scrollService.IsScrollInverted()
 		t.Cleanup(func() { scrollService.SetInvertScroll(original) })
 
@@ -385,6 +458,8 @@ func TestScrollServiceIntegration(t *testing.T) {
 	})
 
 	t.Run("Hide integration", func(t *testing.T) {
+		startAdapterWatchdog(t)
+
 		err := scrollService.Hide(ctx)
 		if err != nil {
 			t.Fatalf("Hide failed: %v", err)
