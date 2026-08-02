@@ -28,7 +28,17 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()
 
-	ctx := context.Background()
+	// Bounded rather than context.Background(), but note what this does and
+	// does not buy: the AX client discards the context and calls straight into
+	// the Objective-C bridge, so the deadline cannot interrupt a query that is
+	// already wedged there. What it does do is stop the scan's per-source
+	// goroutines from starting further work once it has expired.
+	//
+	// The actual hang guard is runWithinBudget, which watches from outside the
+	// call. The budget is shared and sits far above the daemon's own per-scan
+	// ceiling (modes.HintTimeout, 5s), so neither can trip on a merely slow run.
+	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
+	defer cancel()
 
 	t.Run("ScreenBounds", func(t *testing.T) {
 		screenBounds, screenBoundsErr := system.ScreenBounds(ctx)
@@ -73,6 +83,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
@@ -121,6 +133,11 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
+		// Gated even though it only asserts the call returns no error: without
+		// the permission that call succeeds while the cursor never moves, so a
+		// pass here would say nothing about the path it exists to cover.
+		requireInputPermission(t)
+
 		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
@@ -137,6 +154,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint lands on the requested point", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// Regression guard for the macOS Accessibility Zoom interaction: when
 		// pointer-motion events are posted at the HID tap and the screen is
 		// zoomed in, the window server rewrites their location to
@@ -244,6 +263,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("ClickableElements queries the live AX tree without error", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// A `go test` binary is not a foreground app with its own window, so
 		// the live AX tree usually yields zero elements here. That makes the
 		// element *count* unassertable, and any per-element loop vacuous — the
@@ -261,7 +282,17 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			ExcludeRoles: []element.Role{element.RoleWindow},
 		}
 
-		clickableElements, err := adapter.ClickableElements(ctx, filter)
+		var (
+			clickableElements []*element.Element
+			err               error
+		)
+
+		// The scan is the one call here that can wedge, and the deadline on ctx
+		// cannot stop it — see runWithinBudget for why.
+		runWithinBudget(t, "ClickableElements", func() {
+			clickableElements, err = adapter.ClickableElements(ctx, filter)
+		})
+
 		if err != nil {
 			t.Fatalf("ClickableElements() error = %v, want nil", err)
 		}

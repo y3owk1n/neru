@@ -31,6 +31,19 @@ func TestManagerRegistersAgainstTheRealOS(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	// Creating a CGEventTap is behind the macOS Accessibility TCC gate, and a
+	// `go test` binary is not normally granted it. Without the grant every
+	// Register fails, which reads as "the hotkey manager is broken" when what
+	// is missing is the permission. Skipping says what actually happened; CI
+	// has the grant, so the real path is still exercised on every PR.
+	if !darwin.CheckAccessibilityPermissions() {
+		t.Skip(
+			"macOS Accessibility permission is not granted to this process, so a " +
+				"CGEventTap cannot be created; grant it under System Settings > " +
+				"Privacy & Security > Accessibility to run this",
+		)
+	}
+
 	log := logger.Get()
 	manager := hotkeys.NewManager(log)
 
