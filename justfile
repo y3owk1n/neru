@@ -452,11 +452,17 @@ vuln:
 # Unit tests only: integration tests need real permissions, a real screen and a
 # free socket, so including them would make the number depend on the machine
 # rather than on the code.
+#
+# -coverpkg=./... is what makes the number honest. Without it Go credits a
+# package only for the statements its own tests execute, so code that is
+# thoroughly exercised from a neighbouring package reads as zero. The action
+# sequence executor measured 0% that way and 77% this way; nothing about the
+# tests changed, only which package was asked.
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Running unit tests with coverage..."
-    go test -coverprofile=coverage.txt -covermode=atomic ./...
+    go test -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
     go tool cover -func=coverage.txt | tail -1
     echo "✓ Coverage profile written to coverage.txt"
 
