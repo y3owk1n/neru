@@ -95,6 +95,27 @@ func NewOutputFormatter() *OutputFormatter {
 	return &OutputFormatter{}
 }
 
+// PrintJSON prints a command's payload as indented JSON, for callers that are
+// scripts rather than people.
+//
+// It prints the payload alone rather than the IPC envelope around it: a script
+// asking for the state wants the state, and a failed command reports through
+// the exit status and stderr as every other command does.
+func (f *OutputFormatter) PrintJSON(cmd *cobra.Command, data any) error {
+	encoded, encodeErr := json.MarshalIndent(data, "", "  ")
+	if encodeErr != nil {
+		return derrors.Wrap(
+			encodeErr,
+			derrors.CodeSerializationFailed,
+			"failed to marshal command output",
+		)
+	}
+
+	cmd.Println(string(encoded))
+
+	return nil
+}
+
 // PrintStatus prints status information in a formatted way.
 func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 	cmd.Println("Neru Status:")

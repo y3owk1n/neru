@@ -3,13 +3,17 @@ package cliutil
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
 
-const testCgoRequired = "cgo_required"
+const (
+	testCgoRequired    = "cgo_required"
+	testPlatformDarwin = "darwin"
+)
 
 func TestIsHealthyHealthStatus(t *testing.T) {
 	testCases := []struct {
@@ -93,5 +97,56 @@ func TestPrintProfile(t *testing.T) {
 		if !strings.Contains(got, expectedLine) {
 			t.Fatalf("PrintProfile output missing %q in:\n%s", expectedLine, got)
 		}
+	}
+}
+
+// The JSON form is what a script reads, so it must be the payload itself —
+// parseable, and without the IPC envelope wrapped around it.
+func TestPrintJSON(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	formatter := NewOutputFormatter()
+
+	err := formatter.PrintJSON(cmd, map[string]any{
+		"enabled": true,
+		"mode":    "idle",
+		"nested":  map[string]any{"platform": testPlatformDarwin},
+	})
+	if err != nil {
+		t.Fatalf("PrintJSON() error = %v", err)
+	}
+
+	var decoded map[string]any
+
+	decodeErr := json.Unmarshal(output.Bytes(), &decoded)
+	if decodeErr != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", decodeErr, output.String())
+	}
+
+	if decoded["mode"] != "idle" || decoded["enabled"] != true {
+		t.Fatalf("decoded = %v, want the payload verbatim", decoded)
+	}
+
+	if !strings.Contains(output.String(), "\n  \"mode\"") {
+		t.Fatalf("output is not indented for reading:\n%s", output.String())
+	}
+}
+
+// A payload that cannot be encoded has to surface as an error rather than as
+// empty output a script would read as success.
+func TestPrintJSON_ReportsUnencodablePayload(t *testing.T) {
+	t.Parallel()
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	err := NewOutputFormatter().PrintJSON(cmd, make(chan int))
+	if err == nil {
+		t.Fatal("PrintJSON() = nil, want an error for an unencodable payload")
 	}
 }

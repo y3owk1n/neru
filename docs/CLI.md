@@ -168,10 +168,16 @@ Requires a running daemon. Returns to idle. No-op when no mode is active.
 Print the daemon state and current mode.
 
 ```
-neru status
+neru status [--json]
 ```
 
 Requires a running daemon.
+
+**Flags**
+
+| Flag     | Type | Default | Description                                     |
+| -------- | ---- | ------- | ----------------------------------------------- |
+| `--json` | bool | `false` | Print the status as a JSON object, for scripts. |
 
 **Output fields**
 
@@ -179,6 +185,33 @@ Requires a running daemon.
 | -------- | ------------------------------------------------------- |
 | `Status` | `running`, `disabled`                                   |
 | `Mode`   | `idle`, `hints`, `grid`, `recursive_grid`, `scroll`, `monitor_select` |
+
+**JSON output**
+
+`--json` prints the same state as an object, so a script does not have to parse
+the human form. The object goes to stdout on its own; errors go to stderr and
+set a non-zero exit status, so a pipeline never has to distinguish them:
+
+```bash
+$ neru status --json | jq -r .mode
+idle
+```
+
+The examples here and in [Tips & Tricks](TIPS_TRICKS.md) use
+[`jq`](https://jqlang.github.io/jq/) to read the object; any JSON tool does.
+
+| Key                                                     | Type   | Description                                              |
+| ------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `enabled`                                               | bool   | `false` after `neru stop`, `true` after `neru start`.     |
+| `mode`                                                  | string | The active mode, same values as `Mode` above.             |
+| `config`                                                | string | Path of the configuration file in use.                    |
+| `hints_enabled`, `grid_enabled`, `recursive_grid_enabled` | bool | Whether each mode is enabled in the configuration.        |
+| `capabilities`                                          | object | Per-subsystem support on this platform, as `neru doctor` reports it. |
+| `profile`                                               | object | The platform backend profile: which adapter serves each subsystem, and whether it needs CGO. |
+
+The six scalar keys above are the stable part of this output. `capabilities` and
+`profile` follow the platform support matrix and gain entries as subsystems are
+added, so read the keys you need rather than assuming the whole set.
 
 ---
 
@@ -1273,8 +1306,7 @@ compose with shell scripts and external hotkey daemons.
 **Toggle the daemon**
 
 ```bash
-STATUS=$(neru status | grep "Status:" | awk '{print $2}')
-if [ "$STATUS" = "running" ]; then
+if [ "$(neru status --json | jq -r .enabled)" = "true" ]; then
     neru stop
 else
     neru start
