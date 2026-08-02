@@ -389,3 +389,65 @@ func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 		t.Fatalf("encoded status does not report the scroll toggle:\n%s", encoded)
 	}
 }
+
+func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
+	controller := newToggleTestController(state.NewAppState(), nil)
+
+	// Empty is an empty object, not a null: a script indexing into it should
+	// not have to guard the container as well as the key.
+	before := statusField(t, controller, "saved_cursor_slots")
+	if slots, ok := before.(map[string]map[string]int); !ok || len(slots) != 0 {
+		t.Fatalf("saved_cursor_slots = %v (%T), want an empty object", before, before)
+	}
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"save_cursor_pos", "--slot=home"},
+	})
+	if !resp.Success {
+		t.Fatalf("save_cursor_pos = %+v, want success", resp)
+	}
+
+	after := statusField(t, controller, "saved_cursor_slots")
+
+	slots, ok := after.(map[string]map[string]int)
+	if !ok {
+		t.Fatalf("saved_cursor_slots = %T, want map[string]map[string]int", after)
+	}
+
+	home, present := slots["home"]
+	if !present {
+		t.Fatalf("saved_cursor_slots = %v, want an entry for home", slots)
+	}
+
+	// Lowercase x and y, not the X and Y that image.Point would encode.
+	if _, hasX := home["x"]; !hasX {
+		t.Fatalf("slot home = %v, want lowercase x and y keys", home)
+	}
+
+	if _, hasY := home["y"]; !hasY {
+		t.Fatalf("slot home = %v, want lowercase x and y keys", home)
+	}
+}
+
+// statusField reads one key out of the status payload.
+func statusField(t *testing.T, controller *app.IPCController, key string) any {
+	t.Helper()
+
+	resp := controller.HandleCommand(context.Background(), ipc.Command{Action: "status"})
+	if !resp.Success {
+		t.Fatalf("HandleCommand(status) = %+v, want success", resp)
+	}
+
+	status, ok := resp.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("status data = %T, want map[string]any", resp.Data)
+	}
+
+	value, present := status[key]
+	if !present {
+		t.Fatalf("status is missing %q", key)
+	}
+
+	return value
+}

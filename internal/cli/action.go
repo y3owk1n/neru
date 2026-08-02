@@ -280,22 +280,78 @@ without a completed selection (e.g. user presses Escape).`,
 	return cmd
 }()
 
+// actionCmdName is the IPC command every action subcommand dispatches through.
+// It is spelled here rather than taken from domain.CommandAction because the
+// package-level helpers in root.go take a parameter named "action", which would
+// shadow the action package this file imports.
+const actionCmdName = "action"
+
+// BuildCursorSlotActionCommand creates an action cobra command for
+// save_cursor_pos or restore_cursor_pos, whose only flag is --slot.
+//
+// It does not go through buildActionCommand because that one always offers
+// --modifier, which the daemon rejects for these two actions: a command should
+// not advertise a flag its own daemon refuses.
+func BuildCursorSlotActionCommand(use, short, long string, params []string) *cobra.Command {
+	var slot string
+
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Long:  long,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			args := make([]string, 0, len(params)+1)
+			args = append(args, params...)
+
+			if slot != "" {
+				if !action.IsValidCursorSlotName(slot) {
+					return derrors.Newf(
+						derrors.CodeInvalidInput,
+						"invalid --slot %q: names start with a letter and may contain "+
+							"letters, digits, underscores, and dashes",
+						slot,
+					)
+				}
+
+				args = append(args, "--slot="+slot)
+			}
+
+			return sendCommand(cmd, actionCmdName, args)
+		},
+	}
+
+	cmd.Flags().StringVar(&slot, "slot", "",
+		"Named slot to use instead of the default one")
+
+	return cmd
+}
+
 // ActionSaveCursorPosCmd saves cursor position for later restoration.
-var ActionSaveCursorPosCmd = BuildActionCommand(
+var ActionSaveCursorPosCmd = BuildCursorSlotActionCommand(
 	"save_cursor_pos",
 	"Save current cursor position",
-	`Save the current cursor position so it can be restored later with restore_cursor_pos.`,
+	`Save the current cursor position so it can be restored later with restore_cursor_pos.
+
+Without --slot the position goes to the slot named "default". Pass --slot to
+use a slot of your own, so a sequence that saves the cursor does not overwrite
+the save of a sequence it was invoked from. The occupied slots are reported by
+"neru status --json" under saved_cursor_slots.`,
 	[]string{"save_cursor_pos"},
-	false,
 )
 
 // ActionRestoreCursorPosCmd restores previously saved cursor position.
-var ActionRestoreCursorPosCmd = BuildActionCommand(
+var ActionRestoreCursorPosCmd = BuildCursorSlotActionCommand(
 	"restore_cursor_pos",
 	"Restore saved cursor position",
-	`Restore cursor position previously saved by save_cursor_pos.`,
+	`Restore cursor position previously saved by save_cursor_pos.
+
+Reads the slot named "default" unless --slot names another. Restoring consumes
+the slot, so a second restore of the same slot finds nothing and succeeds
+without moving the cursor.`,
 	[]string{"restore_cursor_pos"},
-	false,
 )
 
 // ActionHideCursorCmd hides the system cursor.

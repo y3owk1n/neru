@@ -188,12 +188,18 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
 	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
+	// The slots are IPC-session state with no dependencies, so the controller
+	// owns them: the actions handler writes them and the info handler reports
+	// them, and nothing outside this controller needs to reach them.
+	cursorSlots := state.NewCursorSlots()
+
 	actionsHandler := NewIPCControllerActions(
 		c.ActionService,
 		c.ScrollService,
 		c.Modes,
 		c.AppState,
 		c.KeyFeed,
+		cursorSlots,
 		c.Logger,
 	)
 	// SetConfigField stays zero here; SetConfigFieldCallback fills it in after
@@ -211,6 +217,7 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 		EventTap:      c.EventTap,
 		IPCServer:     c.IPCServer,
 		ReloadConfig:  c.ReloadConfig,
+		CursorSlots:   cursorSlots,
 		Logger:        c.Logger,
 	})
 

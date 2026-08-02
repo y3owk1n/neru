@@ -2,9 +2,7 @@ package app
 
 import (
 	"context"
-	"image"
 	"strings"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -26,9 +24,9 @@ type IPCControllerActions struct {
 	keyFeed       ports.KeyFeedPort
 	logger        *zap.Logger
 
-	savedCursorMu      sync.RWMutex
-	savedCursorPos     image.Point
-	savedCursorPresent bool
+	// cursorSlots holds the positions save_cursor_pos captured, by slot name.
+	// It is shared with the info handler, which reports the occupied slots.
+	cursorSlots *state.CursorSlots
 }
 
 const (
@@ -44,6 +42,7 @@ const (
 	flagToggle    = "--toggle"
 	flagDirection = "--direction"
 	flagCount     = "--count"
+	flagSlot      = "--slot"
 	flagModifier  = "--modifier"
 	flagX         = "--x"
 	flagY         = "--y"
@@ -51,6 +50,9 @@ const (
 	flagDY        = "--dy"
 	flagSteps     = "--steps"
 	flagBackward  = "--backward"
+
+	// slotDataKey names the slot a cursor action acted on, in its response data.
+	slotDataKey = "slot"
 
 	msgActionServiceNotAvailable            = "action service not available"
 	msgModesHandlerNotAvailable             = "modes handler not available"
@@ -72,14 +74,22 @@ func NewIPCControllerActions(
 	modesHandler *modes.Handler,
 	appState *state.AppState,
 	keyFeed ports.KeyFeedPort,
+	cursorSlots *state.CursorSlots,
 	logger *zap.Logger,
 ) *IPCControllerActions {
+	// A nil store would make every save panic rather than degrade, and the
+	// slots have no dependencies to be missing, so build one instead.
+	if cursorSlots == nil {
+		cursorSlots = state.NewCursorSlots()
+	}
+
 	return &IPCControllerActions{
 		actionService: actionService,
 		scrollService: scrollService,
 		modesHandler:  modesHandler,
 		appState:      appState,
 		keyFeed:       keyFeed,
+		cursorSlots:   cursorSlots,
 		logger:        logger,
 	}
 }
@@ -160,11 +170,11 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.IsSaveCursorPosAction(actionName) {
-		return h.handleSaveCursorPosAction(ctx)
+		return h.handleSaveCursorPosAction(ctx, parsed)
 	}
 
 	if action.IsRestoreCursorPosAction(actionName) {
-		return h.handleRestoreCursorPosAction(ctx)
+		return h.handleRestoreCursorPosAction(ctx, parsed)
 	}
 
 	if action.IsMoveMonitorAction(actionName) {

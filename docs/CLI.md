@@ -210,12 +210,14 @@ The examples here and in [Tips & Tricks](TIPS_TRICKS.md) use
 | `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
 | `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
 | `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` when no mode is running. |
+| `saved_cursor_slots`                                    | object | The occupied [cursor slots](#cursor-slots), each `{"x": …, "y": …}`. Empty object when none are saved. |
 | `capabilities`                                          | object | Per-subsystem support on this platform, as `neru doctor` reports it. |
 | `profile`                                               | object | The platform backend profile: which adapter serves each subsystem, and whether it needs CGO. |
 
-The nine scalar keys above are the stable part of this output. `capabilities`
-and `profile` follow the platform support matrix and gain entries as subsystems
-are added, so read the keys you need rather than assuming the whole set.
+Everything above except `capabilities` and `profile` is the stable part of this
+output. Those two follow the platform support matrix and gain entries as
+subsystems are added, so read the keys you need rather than assuming the whole
+set.
 
 ### Reading the toggles
 
@@ -873,8 +875,8 @@ recursive-grid backtracking.
 Cursor position and visibility.
 
 ```
-neru action save_cursor_pos
-neru action restore_cursor_pos
+neru action save_cursor_pos [--slot <name>]
+neru action restore_cursor_pos [--slot <name>]
 neru action hide_cursor
 neru action show_cursor
 ```
@@ -884,8 +886,53 @@ neru action show_cursor
 Windows.
 
 `save_cursor_pos` records the cursor position; `restore_cursor_pos` returns it
-there. `hide_cursor` and `show_cursor` control the visibility of the system
-cursor.
+there and consumes the record. `hide_cursor` and `show_cursor` control the
+visibility of the system cursor.
+
+**Flags**
+
+| Flag     | Type   | Default     | Description                                   |
+| -------- | ------ | ----------- | --------------------------------------------- |
+| `--slot` | string | `default`   | Named slot to save into or restore from.      |
+
+### Cursor slots
+
+A saved position goes into a named slot. Without `--slot` that slot is
+`default`, and `--slot default` means the same thing — the default has no
+privileges the others lack.
+
+Slots exist because one shared position is not enough once a sequence can
+invoke another one. A macro that saves the cursor, called from a sequence that
+also saved, would overwrite the caller's position; the caller's restore would
+then move the cursor somewhere it never asked for, with nothing to signal the
+collision. Give each one its own slot and they cannot interfere:
+
+```toml
+[macros]
+# Safe to call from a sequence that has itself saved the cursor.
+peek = [
+    "action save_cursor_pos --slot peek",
+    "action move_mouse --x 0 --y 0",
+    "action left_click",
+    "action restore_cursor_pos --slot peek",
+]
+```
+
+Slot names follow the same rule as macro names: start with a letter, then
+letters, digits, underscores, and dashes.
+
+**Restoring consumes the slot.** A second restore of the same slot finds
+nothing, succeeds, and moves nothing — so a sequence that restores twice is not
+an error a caller has to special-case. Save again to reuse the slot.
+
+The occupied slots are reported by `neru status --json`:
+
+```bash
+neru status --json | jq '.saved_cursor_slots'
+{
+  "default": { "x": 640, "y": 400 }
+}
+```
 
 ---
 

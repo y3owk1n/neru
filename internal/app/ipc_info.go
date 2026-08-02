@@ -48,6 +48,7 @@ type IPCControllerInfo struct {
 	eventTap      ports.EventTapPort
 	ipcServer     ports.IPCPort
 	reloadConfig  func(ctx context.Context, configPath string) error
+	cursorSlots   *state.CursorSlots
 	logger        *zap.Logger
 
 	// configMu protects config from concurrent read/write.
@@ -85,6 +86,9 @@ type IPCControllerInfoDeps struct {
 	// SetConfigField applies a runtime config field change.
 	SetConfigField func(ctx context.Context, key, value string) error
 
+	// CursorSlots is the store save_cursor_pos writes to, reported by status.
+	CursorSlots *state.CursorSlots
+
 	Logger *zap.Logger
 }
 
@@ -104,6 +108,7 @@ func NewIPCControllerInfo(deps IPCControllerInfoDeps) *IPCControllerInfo {
 		ipcServer:      deps.IPCServer,
 		reloadConfig:   deps.ReloadConfig,
 		setConfigField: deps.SetConfigField,
+		cursorSlots:    deps.CursorSlots,
 		logger:         deps.Logger,
 	}
 }
@@ -185,6 +190,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 		"scroll_inverted":         h.appState.IsScrollInverted(),
 		"hidden_for_screen_share": h.appState.IsHiddenForScreenShare(),
 		"cursor_follow_selection": h.cursorFollowSelection(),
+		"saved_cursor_slots":      h.savedCursorSlots(),
 	}
 
 	return ipc.Response{
@@ -214,6 +220,27 @@ func (h *IPCControllerInfo) cursorFollowSelection() *bool {
 	}
 
 	return &enabled
+}
+
+// savedCursorSlots reports the occupied cursor slots and the position each
+// holds, as an object keyed by slot name.
+//
+// The points are re-keyed to lowercase x and y rather than encoded straight
+// from image.Point, whose fields marshal as X and Y — the rest of this payload
+// is snake_case, and the shape a script reads should not depend on how the
+// position happens to be stored.
+func (h *IPCControllerInfo) savedCursorSlots() map[string]map[string]int {
+	slots := map[string]map[string]int{}
+
+	if h.cursorSlots == nil {
+		return slots
+	}
+
+	for name, pos := range h.cursorSlots.Snapshot() {
+		slots[name] = map[string]int{"x": pos.X, "y": pos.Y}
+	}
+
+	return slots
 }
 
 func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Response {
