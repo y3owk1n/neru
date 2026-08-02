@@ -285,12 +285,8 @@ func NewGridWithLabels(
 		gridRows = MaxGridRows
 	}
 
-	// Guard against integer overflow in cell allocation size.
-	if gridCols > math.MaxInt/gridRows {
-		gridCols = math.MaxInt / gridRows
-	}
-
-	// Calculate total cells needed to fill screen
+	// No overflow guard is needed: both dimensions are clamped to constants
+	// above, so the product is at most MaxGridCols*MaxGridRows.
 	totalCells := gridRows * gridCols
 
 	// Determine optimal label length based on total cells and available characters
@@ -472,20 +468,19 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	// Clamp both dimensions into [1, Max]. The upper bound prevents an absurd
-	// allocation; the lower bound is what keeps the two lines after it safe,
-	// because this function takes its dimensions as parameters rather than
-	// deriving them. A zero row count made the overflow guard below divide by
-	// zero, and a negative one made make() panic on a negative length.
+	// Clamp both dimensions into [1, Max]. This function takes its dimensions as
+	// parameters rather than deriving them, so it cannot assume a caller did:
+	// a zero row count used to divide by zero in the overflow guard that stood
+	// here, and a negative one reached make() with a negative length.
+	//
+	// The clamp is also what makes the allocation safe. Both bounds are
+	// constants, so the product is at most MaxGridCols*MaxGridRows and cannot
+	// overflow. The old guard divided MaxInt by the row count and assigned the
+	// result back to gridCols, which re-widened the very value the clamp had
+	// just bounded — dead code that made the allocation look unbounded to a
+	// static analyser, and did.
 	gridCols = min(max(gridCols, 1), MaxGridCols)
 	gridRows = min(max(gridRows, 1), MaxGridRows)
-
-	// With both dimensions clamped the product cannot overflow, but the guard
-	// stays: it is the invariant that makes the allocation below provably safe,
-	// and it costs one comparison per grid build.
-	if gridCols > math.MaxInt/gridRows {
-		gridCols = math.MaxInt / gridRows
-	}
 
 	cells := make([]*Cell, gridCols*gridRows)
 	cellIndex := 0
