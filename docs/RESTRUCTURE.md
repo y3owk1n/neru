@@ -106,11 +106,33 @@ would enforce for free.
 `layering_test.go` records it: every overlay backend imported
 `internal/app/components` for its render models, and the fix was to move those
 packages *down* into `internal/core/infra/overlay/render/`. So `hints.Hint` and
-`grid.Style` — plain data — now live under an adapter directory, imported by
-both the app and infra layers, which required carving out `sharedInfraPackages`
-to permit.
+`grid.Style` now live under an adapter directory, imported by both the app and
+adapter layers, which required carving out `sharedInfraPackages` to permit.
 
-That is the layering rule fighting the layout. Render models are domain data.
+**This is not a layout problem.** Moving the packages was the first instinct and
+it does not work, because the types are not all platform-neutral:
+
+| Symbol | Where declared | Neutral? |
+| ------ | -------------- | -------- |
+| `hints.Hint`, `hints.SearchInput*` | `hints/types.go` | yes |
+| `hints.Context`, `grid.Context` | `*/context.go` | yes |
+| `hints.StyleMode`, `grid.Style` | `overlay_darwin.go` **and** `overlay_linux_common.go` **and** `overlay_windows.go` | **no** — three build-tagged declarations |
+| `hints.BuildStyle`, `grid.BuildStyle` | same three files | **no** |
+
+The app layer names `grid.Style` and `hints.StyleMode` by value, and those are
+per-platform types. A domain package cannot hold three mutually-exclusive
+build-tagged definitions of one type without dragging platform tags into the
+domain, which is precisely what the domain layer exists to avoid.
+
+So `sharedInfraPackages` is load-bearing, not laziness. Removing it needs the
+per-platform `Style`/`StyleMode` types unified behind one neutral type, with the
+platform-specific fields converted adapter-side — a redesign with real behavior
+risk, not a move. The neutral half (`Hint`, `Context`, `SearchInput*`) *could*
+move on its own, but that splits each package in two, forces an import alias at
+every site that touches both halves, and still leaves the exception in place.
+
+**Verdict: deferred.** Do it as a type-design change when the styling code is
+being touched anyway, not as part of the layout migration.
 
 ---
 
@@ -162,7 +184,7 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 | - | ---- | ------ | ----- |
 | 1 | `govulncheck` + coverage in CI | **done** | `-race` and `-trimpath` were already covered |
 | 2 | Flatten `core/`, rename `infra/` → `adapter/` | **done** | Pure move + import rewrite |
-| 3 | Render models → `internal/domain/render/` | | Deletes a `sharedInfraPackages` exception |
+| 3 | Render models → `internal/domain/render/` | **deferred** | Not a move — needs the per-platform `Style` types unified first ([why](#4-render-models-live-under-an-adapter)) |
 | 4 | Split `internal/app` → `daemon`/`ipc`/`hotkey`/`sequence` | | IPC moves nearly free |
 | 5 | Shrink `*App` to consumer-defined interfaces | | Ongoing, not a single PR |
 | 6 | Backends as packages: accessibility → overlay → eventtap | | The cross-platform payoff |
