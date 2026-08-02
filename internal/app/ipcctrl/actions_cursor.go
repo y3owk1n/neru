@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -90,7 +90,7 @@ func resolveMouseButtonPhase(
 	return string(resolved), nil
 }
 
-func (h *IPCControllerActions) handleMoveMouseAction(
+func (h *ActionsHandler) handleMoveMouseAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) (*ipc.Response, error) {
@@ -152,7 +152,7 @@ func (h *IPCControllerActions) handleMoveMouseAction(
 	return nil, moveErr
 }
 
-func (h *IPCControllerActions) handlePointTargetedAction(
+func (h *ActionsHandler) handlePointTargetedAction(
 	ctx context.Context,
 	actionName string,
 	parsed parsedActionArgs,
@@ -195,7 +195,7 @@ func (h *IPCControllerActions) handlePointTargetedAction(
 	return nil, h.actionService.PerformActionAtPoint(ctx, actionName, targetPoint, modifiers)
 }
 
-func (h *IPCControllerActions) resolveMoveMousePoint(
+func (h *ActionsHandler) resolveMoveMousePoint(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) (image.Point, *ipc.Response) {
@@ -218,7 +218,7 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 	}
 }
 
-func (h *IPCControllerActions) resolveMouseActionPoint(
+func (h *ActionsHandler) resolveMouseActionPoint(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) (image.Point, *ipc.Response) {
@@ -235,7 +235,7 @@ func (h *IPCControllerActions) resolveMouseActionPoint(
 	return h.resolveCurrentCursorPoint(ctx)
 }
 
-func (h *IPCControllerActions) resolveCurrentCursorPoint(
+func (h *ActionsHandler) resolveCurrentCursorPoint(
 	ctx context.Context,
 ) (image.Point, *ipc.Response) {
 	cursorPos, posErr := h.actionService.CursorPosition(ctx)
@@ -252,7 +252,7 @@ func (h *IPCControllerActions) resolveCurrentCursorPoint(
 	return cursorPos, nil
 }
 
-func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Response) {
+func (h *ActionsHandler) resolveSelectionPoint() (image.Point, *ipc.Response) {
 	if h.modesHandler == nil {
 		return image.Point{}, &ipc.Response{
 			Success: false,
@@ -273,7 +273,7 @@ func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Respon
 	return targetPoint, nil
 }
 
-func (h *IPCControllerActions) currentSelectionPoint() (image.Point, bool) {
+func (h *ActionsHandler) currentSelectionPoint() (image.Point, bool) {
 	if h.modesHandler == nil {
 		return image.Point{}, false
 	}
@@ -304,7 +304,7 @@ func resolveCursorSlot(parsed parsedActionArgs) (string, *ipc.Response) {
 	return slot, nil
 }
 
-func (h *IPCControllerActions) handleSaveCursorPosAction(
+func (h *ActionsHandler) handleSaveCursorPosAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
@@ -340,7 +340,7 @@ func (h *IPCControllerActions) handleSaveCursorPosAction(
 	}
 }
 
-func (h *IPCControllerActions) handleRestoreCursorPosAction(
+func (h *ActionsHandler) handleRestoreCursorPosAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
@@ -388,7 +388,7 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(
 	}
 }
 
-func (h *IPCControllerActions) handleCursorVisibilityAction(hide bool) ipc.Response {
+func (h *ActionsHandler) handleCursorVisibilityAction(hide bool) ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -424,7 +424,7 @@ func (h *IPCControllerActions) handleCursorVisibilityAction(hide bool) ipc.Respo
 // handleMoveMonitorAction moves the cursor (and any active mode overlay)
 // to a specific monitor by name, or cycles to the next/previous monitor.
 // Without --name, cycles to the next monitor (use --previous to go backwards).
-func (h *IPCControllerActions) handleMoveMonitorAction(
+func (h *ActionsHandler) handleMoveMonitorAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {

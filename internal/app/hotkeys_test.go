@@ -4,6 +4,7 @@ package app
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -11,7 +12,13 @@ import (
 
 const (
 	actionScrollDown     = "action scroll_down"
+	leftClickStep        = "action left_click"
+	hintsStep            = "hints --action left_click"
 	builtInRetinaDisplay = "Built-in Retina Display"
+	actionCommand        = "action"
+	moveMonitorAction    = "move_monitor"
+	flagPreviousArg      = "--previous"
+	flagNameArg          = "--name"
 )
 
 func TestHotkeyModifiersFromKey(t *testing.T) {
@@ -71,37 +78,37 @@ func TestSplitArgs(t *testing.T) {
 		{
 			name:  "plain split, no quotes",
 			input: `action move_monitor --previous`,
-			want:  []string{actionCmd, moveMonitor, flagPrevious},
+			want:  []string{actionCommand, moveMonitorAction, flagPreviousArg},
 		},
 		{
 			name:  "double-quoted monitor name with space",
 			input: `action move_monitor --name "DELL U2720Q"`,
-			want:  []string{actionCmd, moveMonitor, flagName, "DELL U2720Q"},
+			want:  []string{actionCommand, moveMonitorAction, flagNameArg, "DELL U2720Q"},
 		},
 		{
 			name:  "single-quoted monitor name",
 			input: `action move_monitor --name 'Built-in Retina Display'`,
-			want:  []string{actionCmd, moveMonitor, flagName, builtInRetinaDisplay},
+			want:  []string{actionCommand, moveMonitorAction, flagNameArg, builtInRetinaDisplay},
 		},
 		{
 			name:  "equals form with double quotes",
 			input: `action move_monitor --name="DELL U2720Q"`,
-			want:  []string{actionCmd, moveMonitor, "--name=DELL U2720Q"},
+			want:  []string{actionCommand, moveMonitorAction, "--name=DELL U2720Q"},
 		},
 		{
 			name:  "single quote literal inside double quotes",
 			input: `action move_monitor --name "It's a Monitor"`,
-			want:  []string{actionCmd, moveMonitor, flagName, "It's a Monitor"},
+			want:  []string{actionCommand, moveMonitorAction, flagNameArg, "It's a Monitor"},
 		},
 		{
 			name:  "unclosed single quote is treated as closed token",
 			input: `action move_monitor --name 'DELL`,
-			want:  []string{actionCmd, moveMonitor, flagName, "DELL"},
+			want:  []string{actionCommand, moveMonitorAction, flagNameArg, "DELL"},
 		},
 		{
 			name:  "unclosed double quote is treated as closed token",
 			input: `action move_monitor --name "DELL`,
-			want:  []string{actionCmd, moveMonitor, flagName, "DELL"},
+			want:  []string{actionCommand, moveMonitorAction, flagNameArg, "DELL"},
 		},
 		{
 			name:  "empty string returns empty slice",
@@ -111,12 +118,12 @@ func TestSplitArgs(t *testing.T) {
 		{
 			name:  "multiple spaces are collapsed",
 			input: `action   move_monitor   --previous`,
-			want:  []string{actionCmd, moveMonitor, flagPrevious},
+			want:  []string{actionCommand, moveMonitorAction, flagPreviousArg},
 		},
 		{
 			name:  "trailing space produces trailing empty token ignored",
 			input: `action move_monitor --previous `,
-			want:  []string{actionCmd, moveMonitor, flagPrevious},
+			want:  []string{actionCommand, moveMonitorAction, flagPreviousArg},
 		},
 	}
 
@@ -374,7 +381,7 @@ func TestAnyBindingStep_StopsAtTheExecutorsNestingLimit(t *testing.T) {
 	if anyBindingStepAtDepth(
 		[]string{"run '" + mode + "'"},
 		nil,
-		maxSequenceDepth,
+		sequence.MaxDepth,
 		&budget,
 		names,
 	) {

@@ -59,8 +59,8 @@ current per-platform support is tracked in
 Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon;
 `neru hints`, `neru action left_click`, `neru config reload` and friends dial a
 Unix domain socket (`$TMPDIR/neru.sock`, mode 0600) or a Windows named pipe —
-see `internal/adapter/ipc` and `internal/app/ipc_controller.go` /
-`ipc_handlers.go`.
+see `internal/adapter/ipc` for the transport and
+`internal/app/ipcctrl` for the command handlers.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the

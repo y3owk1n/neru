@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-func (h *IPCControllerActions) handleFeedAction(
+func (h *ActionsHandler) handleFeedAction(
 	ctx context.Context,
 	args []string,
 ) ipc.Response {
@@ -75,7 +75,7 @@ func (h *IPCControllerActions) handleFeedAction(
 	}
 }
 
-func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Response {
+func (h *ActionsHandler) handleFeedToModeAction(args []string) ipc.Response {
 	if len(args) == 0 {
 		return ipc.Response{
 			Success: false,
@@ -128,7 +128,7 @@ func (h *IPCControllerActions) handleFeedToModeAction(args []string) ipc.Respons
 	}
 }
 
-func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
+func (h *ActionsHandler) handleBackspaceAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -144,7 +144,7 @@ func (h *IPCControllerActions) handleBackspaceAction() ipc.Response {
 
 // handleMoveCellAction slides the active mode's selection to a neighboring
 // cell on the same layer.
-func (h *IPCControllerActions) handleMoveCellAction(parsed parsedActionArgs) ipc.Response {
+func (h *ActionsHandler) handleMoveCellAction(parsed parsedActionArgs) ipc.Response {
 	if !parsed.hasDirection {
 		return ipc.Response{
 			Success: false,
@@ -185,7 +185,7 @@ func (h *IPCControllerActions) handleMoveCellAction(parsed parsedActionArgs) ipc
 }
 
 // handleCycleHintAction cycles through visible hints in hints mode.
-func (h *IPCControllerActions) handleCycleHintAction(
+func (h *ActionsHandler) handleCycleHintAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
@@ -220,7 +220,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 }
 
 // handleSearchHintsAction activates text search in hints mode.
-func (h *IPCControllerActions) handleSearchHintsAction() ipc.Response {
+func (h *ActionsHandler) handleSearchHintsAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,

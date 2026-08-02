@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -24,7 +24,7 @@ const modeExitPollInterval = 10 * time.Millisecond
 // mode session.
 const modeExitTimeout = 5 * time.Minute
 
-func (h *IPCControllerActions) handleSleepAction(
+func (h *ActionsHandler) handleSleepAction(
 	ctx context.Context,
 	args []string,
 ) ipc.Response {
@@ -120,7 +120,7 @@ func parseSleepDuration(durationStr string) (time.Duration, error) {
 	return time.Duration(secs * float64(time.Second)), nil
 }
 
-func (h *IPCControllerActions) handleResetAction() ipc.Response {
+func (h *ActionsHandler) handleResetAction() ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
 			Success: false,
@@ -134,7 +134,7 @@ func (h *IPCControllerActions) handleResetAction() ipc.Response {
 	return ipc.Response{Success: true, Message: "mode reset", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerActions) handleWaitForModeExitAction(
+func (h *ActionsHandler) handleWaitForModeExitAction(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) ipc.Response {
@@ -188,7 +188,7 @@ func (h *IPCControllerActions) handleWaitForModeExitAction(
 // at the same target point (e.g., "left_click,left_click" for a double-click).
 // The native click-counting layer automatically converts sequential clicks into
 // multi-click events (clickCount=2, clickCount=3...).
-func (h *IPCControllerActions) handleActionChain(
+func (h *ActionsHandler) handleActionChain(
 	ctx context.Context,
 	cmd ipc.Command,
 	parsed parsedActionArgs,

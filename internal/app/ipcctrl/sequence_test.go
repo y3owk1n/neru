@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests the private run-command handler.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -24,11 +25,11 @@ const (
 func TestHandleRun_RequiresSteps(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(
-		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+	handler := NewSequenceHandler(
+		func(context.Context, string, []string, sequence.Policy) sequence.Outcome {
 			t.Fatal("the executor must not run for an empty sequence")
 
-			return sequenceOutcome{}
+			return sequence.Outcome{}
 		},
 		nil,
 		zap.NewNop(),
@@ -46,7 +47,7 @@ func TestHandleRun_RequiresSteps(t *testing.T) {
 func TestHandleRun_ReportsMissingExecutor(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(nil, nil, zap.NewNop())
+	handler := NewSequenceHandler(nil, nil, zap.NewNop())
 
 	resp := handler.handleRun(context.Background(), ipc.Command{Args: []string{"idle"}})
 
@@ -60,11 +61,11 @@ func TestHandleRun_PassesTrimmedStepsToExecutor(t *testing.T) {
 
 	var got []string
 
-	handler := NewIPCControllerSequence(
-		func(_ context.Context, _ string, steps []string, _ sequencePolicy) sequenceOutcome {
+	handler := NewSequenceHandler(
+		func(_ context.Context, _ string, steps []string, _ sequence.Policy) sequence.Outcome {
 			got = slices.Clone(steps)
 
-			return sequenceOutcome{executed: len(steps)}
+			return sequence.Outcome{Executed: len(steps)}
 		},
 		nil,
 		zap.NewNop(),
@@ -89,27 +90,27 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		outcome  sequenceOutcome
+		outcome  sequence.Outcome
 		wantCode string
 	}{
 		{
 			name: "bail",
-			outcome: sequenceOutcome{
-				err:         derrors.New(derrors.CodeChainBail, "mode exited without selection"),
-				failedStep:  "action wait_for_mode_exit --bail",
-				failedIndex: 2,
-				executed:    2,
-				bailed:      true,
+			outcome: sequence.Outcome{
+				Err:         derrors.New(derrors.CodeChainBail, "mode exited without selection"),
+				FailedStep:  "action wait_for_mode_exit --bail",
+				FailedIndex: 2,
+				Executed:    2,
+				Bailed:      true,
 			},
 			wantCode: ipc.CodeChainBail,
 		},
 		{
 			name: "failed step",
-			outcome: sequenceOutcome{
-				err:         derrors.New(derrors.CodeIPCFailed, "boom"),
-				failedStep:  leftClickStep,
-				failedIndex: 1,
-				executed:    3,
+			outcome: sequence.Outcome{
+				Err:         derrors.New(derrors.CodeIPCFailed, "boom"),
+				FailedStep:  leftClickStep,
+				FailedIndex: 1,
+				Executed:    3,
 			},
 			wantCode: ipc.CodeActionFailed,
 		},
@@ -119,8 +120,8 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := NewIPCControllerSequence(
-				func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+			handler := NewSequenceHandler(
+				func(context.Context, string, []string, sequence.Policy) sequence.Outcome {
 					return testCase.outcome
 				},
 				nil,
@@ -139,7 +140,7 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 
 			// The reporting has to name the step the caller wrote, not the
 			// position the sequence happened to reach.
-			if !strings.Contains(resp.Message, testCase.outcome.failedStep) {
+			if !strings.Contains(resp.Message, testCase.outcome.FailedStep) {
 				t.Fatalf("message %q does not name the failing step", resp.Message)
 			}
 		})
@@ -151,7 +152,7 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 func TestHandleSleepAction_ReleasedOnCancel(t *testing.T) {
 	t.Parallel()
 
-	handler := &IPCControllerActions{logger: zap.NewNop()}
+	handler := &ActionsHandler{logger: zap.NewNop()}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -179,15 +180,15 @@ func TestHandleRun_StopOnErrorFlagIsAPolicyNotAStep(t *testing.T) {
 
 	var (
 		gotSteps  []string
-		gotPolicy sequencePolicy
+		gotPolicy sequence.Policy
 	)
 
-	handler := NewIPCControllerSequence(
-		func(_ context.Context, _ string, steps []string, policy sequencePolicy) sequenceOutcome {
+	handler := NewSequenceHandler(
+		func(_ context.Context, _ string, steps []string, policy sequence.Policy) sequence.Outcome {
 			gotSteps = slices.Clone(steps)
 			gotPolicy = policy
 
-			return sequenceOutcome{executed: len(steps)}
+			return sequence.Outcome{Executed: len(steps)}
 		},
 		nil,
 		zap.NewNop(),
@@ -201,8 +202,8 @@ func TestHandleRun_StopOnErrorFlagIsAPolicyNotAStep(t *testing.T) {
 		t.Fatalf("handleRun() = %+v, want success", resp)
 	}
 
-	if !gotPolicy.stopOnError {
-		t.Fatal("policy.stopOnError = false, want the flag to enable it")
+	if !gotPolicy.StopOnError {
+		t.Fatal("policy.StopOnError = false, want the flag to enable it")
 	}
 
 	want := []string{leftClickStep, hintsStep}
@@ -214,11 +215,11 @@ func TestHandleRun_StopOnErrorFlagIsAPolicyNotAStep(t *testing.T) {
 func TestHandleRun_StopOnErrorAloneIsNotASequence(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(
-		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+	handler := NewSequenceHandler(
+		func(context.Context, string, []string, sequence.Policy) sequence.Outcome {
 			t.Fatal("the executor must not run when the flag is the only argument")
 
-			return sequenceOutcome{}
+			return sequence.Outcome{}
 		},
 		nil,
 		zap.NewNop(),
@@ -236,11 +237,11 @@ func TestHandleRun_StopOnErrorAloneIsNotASequence(t *testing.T) {
 func TestHandleRun_ReportsASequenceThatNeverStarted(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(
-		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
-			return sequenceOutcome{
-				err:     derrors.New(derrors.CodeInvalidInput, "action sequence nested too deeply"),
-				stopped: true,
+	handler := NewSequenceHandler(
+		func(context.Context, string, []string, sequence.Policy) sequence.Outcome {
+			return sequence.Outcome{
+				Err:     derrors.New(derrors.CodeInvalidInput, "action sequence nested too deeply"),
+				Stopped: true,
 			}
 		},
 		nil,
@@ -263,13 +264,13 @@ func TestHandleRun_ReportsASequenceThatNeverStarted(t *testing.T) {
 func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(
-		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
-			return sequenceOutcome{
-				err:         derrors.New(derrors.CodeIPCFailed, "boom"),
-				failedStep:  leftClickStep,
-				failedIndex: 1,
-				executed:    1,
+	handler := NewSequenceHandler(
+		func(context.Context, string, []string, sequence.Policy) sequence.Outcome {
+			return sequence.Outcome{
+				Err:         derrors.New(derrors.CodeIPCFailed, "boom"),
+				FailedStep:  leftClickStep,
+				FailedIndex: 1,
+				Executed:    1,
 			}
 		},
 		nil,
@@ -286,7 +287,7 @@ func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
 func TestHandleMacro_RequiresAName(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(
+	handler := NewSequenceHandler(
 		nil,
 		func(context.Context, string, []string) error {
 			t.Fatal("the macro runner must not run without a name")
@@ -308,7 +309,7 @@ func TestHandleMacro_RequiresAName(t *testing.T) {
 func TestHandleMacro_ReportsMissingRunner(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(nil, nil, zap.NewNop())
+	handler := NewSequenceHandler(nil, nil, zap.NewNop())
 
 	resp := handler.handleMacro(context.Background(), ipc.Command{Args: []string{"zoom"}})
 
@@ -325,7 +326,7 @@ func TestHandleMacro_PassesArgumentsThroughUnsplit(t *testing.T) {
 		gotArgs []string
 	)
 
-	handler := NewIPCControllerSequence(
+	handler := NewSequenceHandler(
 		nil,
 		func(_ context.Context, name string, args []string) error {
 			gotName, gotArgs = name, slices.Clone(args)
@@ -384,7 +385,7 @@ func TestHandleMacro_MapsFailureOntoTheCodeThatDescribesIt(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			handler := NewIPCControllerSequence(
+			handler := NewSequenceHandler(
 				nil,
 				func(context.Context, string, []string) error {
 					return testCase.err
@@ -414,7 +415,7 @@ func TestRegisterHandlers_RegistersRunAndMacro(t *testing.T) {
 
 	handlers := make(map[string]func(context.Context, ipc.Command) ipc.Response)
 
-	NewIPCControllerSequence(nil, nil, zap.NewNop()).RegisterHandlers(handlers)
+	NewSequenceHandler(nil, nil, zap.NewNop()).RegisterHandlers(handlers)
 
 	for _, command := range []string{domain.CommandRun, domain.CommandMacro} {
 		if handlers[command] == nil {
@@ -431,7 +432,7 @@ func TestHandleMacro_PassesArgumentsThroughVerbatim(t *testing.T) {
 
 	var gotArgs []string
 
-	handler := NewIPCControllerSequence(
+	handler := NewSequenceHandler(
 		nil,
 		func(_ context.Context, _ string, args []string) error {
 			gotArgs = slices.Clone(args)

@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private IPC action parsing/dispatch helpers.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -85,10 +85,10 @@ func TestParseActionArgs_MoveCellFlags(t *testing.T) {
 }
 
 func TestHandleAction_MoveCellRequiresDirection(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveCell},
 	})
 
@@ -102,10 +102,10 @@ func TestHandleAction_MoveCellRequiresDirection(t *testing.T) {
 }
 
 func TestHandleAction_MoveCellRejectsUnknownDirection(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveCell, "--direction=sideways"},
 	})
 
@@ -132,10 +132,10 @@ func TestHandleAction_MoveCellRejectsUnsupportedFlags(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			controller := &IPCControllerActions{logger: zap.NewNop()}
+			controller := &ActionsHandler{logger: zap.NewNop()}
 
 			resp := controller.handleAction(context.Background(), ipc.Command{
-				Action: actionCmd,
+				Action: ActionCommand,
 				Args:   testCase.args,
 			})
 
@@ -151,14 +151,14 @@ func TestHandleAction_MoveCellRejectsUnsupportedFlags(t *testing.T) {
 }
 
 func TestHandleAction_MoveCellFlagsRejectedOnOtherActions(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	for _, args := range [][]string{
 		{leftClick, directionLeft},
 		{moveMouse, "--x=1", "--y=1", "--count=2"},
 	} {
 		resp := controller.handleAction(context.Background(), ipc.Command{
-			Action: actionCmd,
+			Action: ActionCommand,
 			Args:   args,
 		})
 
@@ -173,10 +173,10 @@ func TestHandleAction_MoveCellFlagsRejectedOnOtherActions(t *testing.T) {
 }
 
 func TestHandleAction_MoveCellWithoutModesHandler(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveCell, "--direction=right"},
 	})
 

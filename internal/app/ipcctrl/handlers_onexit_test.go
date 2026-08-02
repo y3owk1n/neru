@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private mode option parsing.
-package app
+package ipcctrl
 
 import (
 	"slices"
@@ -23,7 +23,7 @@ const (
 func TestExtractModeOptions_OnExitAccumulatesSteps(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerModes(nil, zap.NewNop())
+	handler := NewModesHandler(nil, zap.NewNop())
 
 	tests := []struct {
 		name string
@@ -84,7 +84,7 @@ func TestExtractModeOptions_OnExitAccumulatesSteps(t *testing.T) {
 func TestExtractModeOptions_OnExitRequiresValue(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerModes(nil, zap.NewNop())
+	handler := NewModesHandler(nil, zap.NewNop())
 
 	_, errResp := handler.extractModeOptions(ipc.Command{
 		Action: onExitTestMode,

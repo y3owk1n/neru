@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests the private cursor-slot handlers.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 // cursorSlotHarness drives the two cursor actions against a fake pointer, so a
 // test can say where the cursor is and see where a restore put it.
 type cursorSlotHarness struct {
-	handler *IPCControllerActions
+	handler *ActionsHandler
 	// position is what the next save captures.
 	position image.Point
 	// moves records every point a restore moved the cursor to.
@@ -40,7 +40,7 @@ func newCursorSlotHarness(t *testing.T) *cursorSlotHarness {
 		},
 	}
 
-	harness.handler = NewIPCControllerActions(
+	harness.handler = NewActionsHandler(
 		services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},

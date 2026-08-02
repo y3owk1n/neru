@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests the private toggle-state parsing and handlers.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -132,7 +132,7 @@ func TestHandleToggleScrollInvert_ConvergesOnRequestedState(t *testing.T) {
 			appState := state.NewAppState()
 			appState.SetScrollInverted(testCase.initial)
 
-			handler := NewIPCControllerScroll(appState, nil, zap.NewNop())
+			handler := NewScrollHandler(appState, nil, zap.NewNop())
 
 			resp := handler.handleToggleScrollInvert(
 				context.Background(),
@@ -157,7 +157,7 @@ func TestHandleToggleScrollInvert_RejectsBadState(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetScrollInverted(true)
 
-	handler := NewIPCControllerScroll(appState, nil, zap.NewNop())
+	handler := NewScrollHandler(appState, nil, zap.NewNop())
 
 	resp := handler.handleToggleScrollInvert(
 		context.Background(),
@@ -203,7 +203,7 @@ func TestHandleToggleScreenShare_ConvergesOnRequestedState(t *testing.T) {
 			appState := state.NewAppState()
 			appState.SetHiddenForScreenShare(testCase.initial)
 
-			handler := NewIPCControllerOverlay(appState, zap.NewNop())
+			handler := NewOverlayHandler(appState, zap.NewNop())
 
 			resp := handler.handleToggleScreenShare(
 				context.Background(),

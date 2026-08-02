@@ -315,7 +315,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 
 1. Create the command file in `internal/cli/`
 2. Register it in an `init()` (see `internal/cli/root.go`)
-3. Add the matching IPC handler in `internal/app/ipc_handlers.go`
+3. Add the matching IPC handler in `internal/app/ipcctrl/`
 4. Document in [CLI.md](CLI.md)
 
 ### Dependency injection

@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -19,8 +20,8 @@ type sequenceRunner func(
 	ctx context.Context,
 	source string,
 	steps []string,
-	policy sequencePolicy,
-) sequenceOutcome
+	policy sequence.Policy,
+) sequence.Outcome
 
 // macroRunner runs one named macro with its arguments and reports what
 // happened. It is the same call the executor makes for a "macro" step, injected
@@ -36,36 +37,36 @@ type macroRunner func(ctx context.Context, name string, args []string) error
 // repeat the per-step directive on each one.
 const stopOnErrorFlag = "--stop-on-error"
 
-// IPCControllerSequence handles the "run" command, which executes an action
+// SequenceHandler handles the "run" command, which executes an action
 // sequence on behalf of an external caller.
 //
 // Sequencing already backs every hotkey binding; this exposes the same
 // executor over IPC so that external drivers (skhd, Hammerspoon, shell
 // scripts) can compose steps in one call instead of paying a process spawn
 // per step and losing bail handling in between.
-type IPCControllerSequence struct {
+type SequenceHandler struct {
 	run      sequenceRunner
 	runMacro macroRunner
 	logger   *zap.Logger
 }
 
-// NewIPCControllerSequence creates a new sequence command handler. A nil runner
+// NewSequenceHandler creates a new sequence command handler. A nil runner
 // is valid: the corresponding command then reports that it is unavailable,
 // matching how the other handlers treat a missing dependency.
-func NewIPCControllerSequence(
+func NewSequenceHandler(
 	run sequenceRunner,
 	runMacro macroRunner,
 	logger *zap.Logger,
-) *IPCControllerSequence {
+) *SequenceHandler {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	return &IPCControllerSequence{run: run, runMacro: runMacro, logger: logger}
+	return &SequenceHandler{run: run, runMacro: runMacro, logger: logger}
 }
 
 // RegisterHandlers registers the sequence command handlers.
-func (h *IPCControllerSequence) RegisterHandlers(
+func (h *SequenceHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandRun] = h.handleRun
@@ -79,7 +80,7 @@ func (h *IPCControllerSequence) RegisterHandlers(
 // by writing the call as one string. Going through this command instead keeps
 // the arguments as the caller passed them, so an argument containing spaces or
 // quotes does not have to survive being quoted into a step and split back out.
-func (h *IPCControllerSequence) handleMacro(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *SequenceHandler) handleMacro(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) == 0 || strings.TrimSpace(cmd.Args[0]) == "" {
 		return ipc.Response{
 			Success: false,
@@ -137,7 +138,7 @@ func macroFailureCode(err error) string {
 }
 
 // handleRun executes the steps carried by the command, in order.
-func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *SequenceHandler) handleRun(ctx context.Context, cmd ipc.Command) ipc.Response {
 	args, policy := splitSequencePolicy(cmd.Args)
 
 	steps := nonBlankSteps(args)
@@ -162,43 +163,43 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 	outcome := h.run(ctx, domain.CommandRun, steps, policy)
 
 	switch {
-	case outcome.failedIndex == 0 && outcome.err != nil:
+	case outcome.FailedIndex == 0 && outcome.Err != nil:
 		// The sequence was refused before any step ran, so there is no step to
 		// name — nesting too deeply is the only way to get here today.
 		return ipc.Response{
 			Success: false,
-			Message: "sequence did not run: " + outcome.err.Error(),
+			Message: "sequence did not run: " + outcome.Err.Error(),
 			Code:    ipc.CodeInvalidInput,
 		}
-	case outcome.bailed:
+	case outcome.Bailed:
 		return ipc.Response{
 			Success: false,
 			Message: fmt.Sprintf(
 				"sequence stopped at step %d (%s): %s",
-				outcome.failedIndex,
-				outcome.failedStep,
-				outcome.err,
+				outcome.FailedIndex,
+				outcome.FailedStep,
+				outcome.Err,
 			),
 			Code: ipc.CodeChainBail,
 		}
-	case outcome.stopped:
+	case outcome.Stopped:
 		// Distinct from the case below: the steps after this one did not run,
 		// which a caller deciding what to clean up needs to know.
 		return ipc.Response{
 			Success: false,
 			Message: fmt.Sprintf(
 				"sequence stopped at step %d (%s): %s",
-				outcome.failedIndex,
-				outcome.failedStep,
-				outcome.err,
+				outcome.FailedIndex,
+				outcome.FailedStep,
+				outcome.Err,
 			),
 			Code: ipc.CodeActionFailed,
 		}
-	case outcome.err != nil:
+	case outcome.Err != nil:
 		// Only claim the sequence carried on when there was something after
 		// the failing step to carry on to.
 		tail := ""
-		if outcome.executed > outcome.failedIndex {
+		if outcome.Executed > outcome.FailedIndex {
 			tail = ", later steps still ran"
 		}
 
@@ -206,17 +207,17 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 			Success: false,
 			Message: fmt.Sprintf(
 				"step %d (%s) failed%s: %s",
-				outcome.failedIndex,
-				outcome.failedStep,
+				outcome.FailedIndex,
+				outcome.FailedStep,
 				tail,
-				outcome.err,
+				outcome.Err,
 			),
 			Code: ipc.CodeActionFailed,
 		}
 	default:
 		return ipc.Response{
 			Success: true,
-			Message: fmt.Sprintf("ran %d step(s)", outcome.executed),
+			Message: fmt.Sprintf("ran %d step(s)", outcome.Executed),
 			Code:    ipc.CodeOK,
 		}
 	}
@@ -224,14 +225,14 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 
 // splitSequencePolicy separates the sequence-wide policy flags from the steps.
 // The flags are consumed here rather than passed on, so a step never sees them.
-func splitSequencePolicy(args []string) ([]string, sequencePolicy) {
-	var policy sequencePolicy
+func splitSequencePolicy(args []string) ([]string, sequence.Policy) {
+	var policy sequence.Policy
 
 	remaining := make([]string, 0, len(args))
 
 	for _, arg := range args {
 		if strings.TrimSpace(arg) == stopOnErrorFlag {
-			policy.stopOnError = true
+			policy.StopOnError = true
 
 			continue
 		}

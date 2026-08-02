@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -25,19 +25,19 @@ func parseCSV(input string) []string {
 	return strings.Split(input, ",")
 }
 
-// IPCControllerLifecycle handles lifecycle-related IPC commands.
-type IPCControllerLifecycle struct {
+// LifecycleHandler handles lifecycle-related IPC commands.
+type LifecycleHandler struct {
 	appState *state.AppState
 	modes    *modes.Handler
 	logger   *zap.Logger
 }
 
-// NewIPCControllerLifecycle creates a new lifecycle command handler.
-func NewIPCControllerLifecycle(
+// NewLifecycleHandler creates a new lifecycle command handler.
+func NewLifecycleHandler(
 	appState *state.AppState,
 	modes *modes.Handler,
 	logger *zap.Logger,
-) *IPCControllerLifecycle {
+) *LifecycleHandler {
 	if appState == nil {
 		panic("appState cannot be nil")
 	}
@@ -46,7 +46,7 @@ func NewIPCControllerLifecycle(
 		panic("logger cannot be nil")
 	}
 
-	return &IPCControllerLifecycle{
+	return &LifecycleHandler{
 		appState: appState,
 		modes:    modes,
 		logger:   logger,
@@ -54,7 +54,7 @@ func NewIPCControllerLifecycle(
 }
 
 // RegisterHandlers registers lifecycle command handlers.
-func (h *IPCControllerLifecycle) RegisterHandlers(
+func (h *LifecycleHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandPing] = h.handlePing
@@ -62,13 +62,13 @@ func (h *IPCControllerLifecycle) RegisterHandlers(
 	handlers[domain.CommandStop] = h.handleStop
 }
 
-func (h *IPCControllerLifecycle) handlePing(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *LifecycleHandler) handlePing(_ context.Context, _ ipc.Command) ipc.Response {
 	h.logger.Debug("Received ping command")
 
 	return ipc.Response{Success: true, Message: "pong", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerLifecycle) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *LifecycleHandler) handleStart(_ context.Context, _ ipc.Command) ipc.Response {
 	h.logger.Info("Received start command")
 
 	if h.appState.IsEnabled() {
@@ -87,7 +87,7 @@ func (h *IPCControllerLifecycle) handleStart(_ context.Context, _ ipc.Command) i
 	return ipc.Response{Success: true, Message: "neru started", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerLifecycle) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *LifecycleHandler) handleStop(_ context.Context, _ ipc.Command) ipc.Response {
 	h.logger.Info("Received stop command")
 
 	if !h.appState.IsEnabled() {
@@ -111,22 +111,22 @@ func (h *IPCControllerLifecycle) handleStop(_ context.Context, _ ipc.Command) ip
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }
 
-// IPCControllerModes handles mode-related IPC commands.
-type IPCControllerModes struct {
+// ModesHandler handles mode-related IPC commands.
+type ModesHandler struct {
 	modes  *modes.Handler
 	logger *zap.Logger // Reserved for future logging needs (maintains consistency with other IPC controllers)
 }
 
-// NewIPCControllerModes creates a new mode command handler.
-func NewIPCControllerModes(modes *modes.Handler, logger *zap.Logger) *IPCControllerModes {
-	return &IPCControllerModes{
+// NewModesHandler creates a new mode command handler.
+func NewModesHandler(modes *modes.Handler, logger *zap.Logger) *ModesHandler {
+	return &ModesHandler{
 		modes:  modes,
 		logger: logger,
 	}
 }
 
 // RegisterHandlers registers mode command handlers.
-func (h *IPCControllerModes) RegisterHandlers(
+func (h *ModesHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers["hints"] = h.handleHints
@@ -141,7 +141,7 @@ func (h *IPCControllerModes) RegisterHandlers(
 const msgCursorSelectionModeRequires = "--cursor-selection-mode requires follow or hold"
 
 // modesUnavailableResponse returns a standardized response when modes handler is not available.
-func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
+func (h *ModesHandler) modesUnavailableResponse() ipc.Response {
 	return ipc.Response{
 		Success: false,
 		Message: msgModesHandlerNotAvailable,
@@ -195,7 +195,7 @@ func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
 // immediately.
 //
 //nolint:funlen
-func (h *IPCControllerModes) extractModeOptions(
+func (h *ModesHandler) extractModeOptions(
 	cmd ipc.Command,
 ) (ModeActivationOptions, *ipc.Response) {
 	var opts ModeActivationOptions
@@ -584,7 +584,7 @@ func (h *IPCControllerModes) extractModeOptions(
 	return opts, nil
 }
 
-func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleHints(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -644,7 +644,7 @@ func (h *IPCControllerModes) handleHints(ctx context.Context, cmd ipc.Command) i
 	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -666,7 +666,7 @@ func (h *IPCControllerModes) handleGrid(_ context.Context, cmd ipc.Command) ipc.
 	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleRecursiveGrid(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -689,7 +689,7 @@ func (h *IPCControllerModes) handleRecursiveGrid(_ context.Context, cmd ipc.Comm
 	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleScroll(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleScroll(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -706,7 +706,7 @@ func (h *IPCControllerModes) handleScroll(_ context.Context, cmd ipc.Command) ip
 	return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleMonitorSelect(_ context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleMonitorSelect(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -733,7 +733,7 @@ func (h *IPCControllerModes) handleMonitorSelect(_ context.Context, cmd ipc.Comm
 	return ipc.Response{Success: true, Message: "monitor_select mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *ModesHandler) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -743,7 +743,7 @@ func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Re
 	return ipc.Response{Success: true, Message: "idle mode activated", Code: ipc.CodeOK}
 }
 
-func (h *IPCControllerModes) handleToggleCursorFollowSelection(
+func (h *ModesHandler) handleToggleCursorFollowSelection(
 	_ context.Context,
 	cmd ipc.Command,
 ) ipc.Response {
@@ -858,28 +858,28 @@ func parseLabelDirectionValue(val string) (*string, *ipc.Response) {
 	return &val, nil
 }
 
-// IPCControllerOverlay handles overlay-related IPC commands.
-type IPCControllerOverlay struct {
+// OverlayHandler handles overlay-related IPC commands.
+type OverlayHandler struct {
 	appState *state.AppState
 	logger   *zap.Logger
 }
 
-// NewIPCControllerOverlay creates a new overlay command handler.
-func NewIPCControllerOverlay(appState *state.AppState, logger *zap.Logger) *IPCControllerOverlay {
-	return &IPCControllerOverlay{
+// NewOverlayHandler creates a new overlay command handler.
+func NewOverlayHandler(appState *state.AppState, logger *zap.Logger) *OverlayHandler {
+	return &OverlayHandler{
 		appState: appState,
 		logger:   logger,
 	}
 }
 
 // RegisterHandlers registers overlay command handlers.
-func (h *IPCControllerOverlay) RegisterHandlers(
+func (h *OverlayHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandToggleScreenShare] = h.handleToggleScreenShare
 }
 
-func (h *IPCControllerOverlay) handleToggleScreenShare(
+func (h *OverlayHandler) handleToggleScreenShare(
 	_ context.Context,
 	cmd ipc.Command,
 ) ipc.Response {
@@ -910,20 +910,20 @@ func (h *IPCControllerOverlay) handleToggleScreenShare(
 	}
 }
 
-// IPCControllerScroll handles scroll-related IPC commands.
-type IPCControllerScroll struct {
+// ScrollHandler handles scroll-related IPC commands.
+type ScrollHandler struct {
 	appState      *state.AppState
 	scrollService *services.ScrollService
 	logger        *zap.Logger
 }
 
-// NewIPCControllerScroll creates a new scroll command handler.
-func NewIPCControllerScroll(
+// NewScrollHandler creates a new scroll command handler.
+func NewScrollHandler(
 	appState *state.AppState,
 	scrollService *services.ScrollService,
 	logger *zap.Logger,
-) *IPCControllerScroll {
-	return &IPCControllerScroll{
+) *ScrollHandler {
+	return &ScrollHandler{
 		appState:      appState,
 		scrollService: scrollService,
 		logger:        logger,
@@ -931,13 +931,13 @@ func NewIPCControllerScroll(
 }
 
 // RegisterHandlers registers scroll command handlers.
-func (h *IPCControllerScroll) RegisterHandlers(
+func (h *ScrollHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandToggleScrollInvert] = h.handleToggleScrollInvert
 }
 
-func (h *IPCControllerScroll) handleToggleScrollInvert(
+func (h *ScrollHandler) handleToggleScrollInvert(
 	_ context.Context,
 	cmd ipc.Command,
 ) ipc.Response {

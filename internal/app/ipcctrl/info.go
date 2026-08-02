@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -34,8 +34,8 @@ const detailSuffix = "_detail"
 // config-set IPC handler (key and value).
 const minConfigSetArgs = 2
 
-// IPCControllerInfo handles info and config-related IPC commands.
-type IPCControllerInfo struct {
+// InfoHandler handles info and config-related IPC commands.
+type InfoHandler struct {
 	configService *config.Service
 	appState      *state.AppState
 	config        *config.Config
@@ -60,13 +60,13 @@ type IPCControllerInfo struct {
 	setConfigField func(ctx context.Context, key, value string) error
 }
 
-// IPCControllerInfoDeps collects everything NewIPCControllerInfo needs.
+// InfoHandlerDeps collects everything NewInfoHandler needs.
 //
-// The reasoning matches IPCControllerDeps: the positional list had reached fourteen
+// The reasoning matches Deps: the positional list had reached fourteen
 // arguments, several nil at any given call site. Zero values are valid — a nil
 // service means the commands that need it report it as unavailable, and
 // EventTap and IPCServer are nil until initialization phase 8.
-type IPCControllerInfoDeps struct {
+type InfoHandlerDeps struct {
 	ConfigService *config.Service
 	AppState      *state.AppState
 	Config        *config.Config
@@ -92,9 +92,9 @@ type IPCControllerInfoDeps struct {
 	Logger *zap.Logger
 }
 
-// NewIPCControllerInfo creates the info/config command handler.
-func NewIPCControllerInfo(deps IPCControllerInfoDeps) *IPCControllerInfo {
-	return &IPCControllerInfo{
+// NewInfoHandler creates the info/config command handler.
+func NewInfoHandler(deps InfoHandlerDeps) *InfoHandler {
+	return &InfoHandler{
 		configService:  deps.ConfigService,
 		appState:       deps.AppState,
 		config:         deps.Config,
@@ -114,7 +114,7 @@ func NewIPCControllerInfo(deps IPCControllerInfoDeps) *IPCControllerInfo {
 }
 
 // RegisterHandlers registers info/config command handlers.
-func (h *IPCControllerInfo) RegisterHandlers(
+func (h *InfoHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandStatus] = h.handleStatus
@@ -125,7 +125,7 @@ func (h *IPCControllerInfo) RegisterHandlers(
 }
 
 // ResolveConfigPath determines the configuration file path for status reporting.
-func (h *IPCControllerInfo) ResolveConfigPath() string {
+func (h *InfoHandler) ResolveConfigPath() string {
 	configPath := h.configService.GetConfigPath()
 
 	if configPath == "" {
@@ -148,7 +148,7 @@ func (h *IPCControllerInfo) ResolveConfigPath() string {
 }
 
 // UpdateConfig updates the stored config.
-func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
+func (h *InfoHandler) UpdateConfig(cfg *config.Config) {
 	h.configMu.Lock()
 	defer h.configMu.Unlock()
 
@@ -156,14 +156,14 @@ func (h *IPCControllerInfo) UpdateConfig(cfg *config.Config) {
 }
 
 // configSnapshot returns the current config pointer under a read lock.
-func (h *IPCControllerInfo) configSnapshot() *config.Config {
+func (h *InfoHandler) configSnapshot() *config.Config {
 	h.configMu.RLock()
 	defer h.configMu.RUnlock()
 
 	return h.config
 }
 
-func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
+func (h *InfoHandler) handleStatus(_ context.Context, _ ipc.Command) ipc.Response {
 	configPath := h.ResolveConfigPath()
 
 	cfg := h.configSnapshot()
@@ -209,7 +209,7 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 // means there is nothing to follow it with. A caller that treated the absence
 // as false would think it had read a state it can in fact only set once a mode
 // is running.
-func (h *IPCControllerInfo) cursorFollowSelection() *bool {
+func (h *InfoHandler) cursorFollowSelection() *bool {
 	if h.modes == nil {
 		return nil
 	}
@@ -229,7 +229,7 @@ func (h *IPCControllerInfo) cursorFollowSelection() *bool {
 // from image.Point, whose fields marshal as X and Y — the rest of this payload
 // is snake_case, and the shape a script reads should not depend on how the
 // position happens to be stored.
-func (h *IPCControllerInfo) savedCursorSlots() map[string]map[string]int {
+func (h *InfoHandler) savedCursorSlots() map[string]map[string]int {
 	slots := map[string]map[string]int{}
 
 	if h.cursorSlots == nil {
@@ -243,7 +243,7 @@ func (h *IPCControllerInfo) savedCursorSlots() map[string]map[string]int {
 	return slots
 }
 
-func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *InfoHandler) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Response {
 	// Support sub-commands like "config set ..." from hotkey bindings.
 	if len(cmd.Args) > 0 {
 		switch cmd.Args[0] {
@@ -283,7 +283,7 @@ func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) i
 	}
 }
 
-func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
+func (h *InfoHandler) handleReloadConfig(ctx context.Context, _ ipc.Command) ipc.Response {
 	if h.reloadConfig == nil {
 		h.logger.Error("Reload config callback is not set")
 
@@ -314,7 +314,7 @@ func (h *IPCControllerInfo) handleReloadConfig(ctx context.Context, _ ipc.Comman
 	}
 }
 
-func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
+func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Response {
 	hasErrors := false
 	// --- component checks ---------------------------------------------------
 	components := make(map[string]string)
@@ -450,7 +450,7 @@ func (h *IPCControllerInfo) handleHealth(ctx context.Context, _ ipc.Command) ipc
 	return response
 }
 
-func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *InfoHandler) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) < minConfigSetArgs {
 		return ipc.Response{
 			Success: false,
@@ -496,7 +496,7 @@ func (h *IPCControllerInfo) handleConfigSet(ctx context.Context, cmd ipc.Command
 
 // handleConfigSetNoReload updates the in-memory config and persists to the
 // override file without triggering mode exit or hotkey re-registration.
-func (h *IPCControllerInfo) handleConfigSetNoReload(
+func (h *InfoHandler) handleConfigSetNoReload(
 	_ context.Context,
 	key, value string,
 ) ipc.Response {
@@ -551,7 +551,7 @@ func (h *IPCControllerInfo) handleConfigSetNoReload(
 // the base config or default value on the next reload.  When --no-reload is
 // present the in-memory config is left alone so callers can batch multiple
 // resets before a final "neru config reload".
-func (h *IPCControllerInfo) handleConfigReset(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *InfoHandler) handleConfigReset(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) < 1 {
 		return ipc.Response{
 			Success: false,
@@ -595,7 +595,7 @@ func (h *IPCControllerInfo) handleConfigReset(ctx context.Context, cmd ipc.Comma
 // handleConfigSetInMemory updates the in-memory config without persisting.
 // This is the fallback path used when no app-level callback is registered
 // (e.g. in tests).
-func (h *IPCControllerInfo) handleConfigSetInMemory(
+func (h *InfoHandler) handleConfigSetInMemory(
 	_ context.Context,
 	key, value string,
 ) ipc.Response {
@@ -648,7 +648,7 @@ func (h *IPCControllerInfo) handleConfigSetInMemory(
 
 // configNotAvailableResponse returns a standardized response for when the
 // config is nil. Extracted as a helper to avoid repeating the string literal.
-func (h *IPCControllerInfo) configNotAvailableResponse() ipc.Response {
+func (h *InfoHandler) configNotAvailableResponse() ipc.Response {
 	return ipc.Response{
 		Success: false,
 		Message: "config not available",
@@ -656,7 +656,7 @@ func (h *IPCControllerInfo) configNotAvailableResponse() ipc.Response {
 	}
 }
 
-func (h *IPCControllerInfo) systemCapabilities() ports.PlatformCapabilities {
+func (h *InfoHandler) systemCapabilities() ports.PlatformCapabilities {
 	if h.systemPort != nil {
 		return h.systemPort.Capabilities()
 	}

@@ -185,13 +185,34 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 | 1 | `govulncheck` + coverage in CI | **done** | `-race` and `-trimpath` were already covered |
 | 2 | Flatten `core/`, rename `infra/` → `adapter/` | **done** | Pure move + import rewrite |
 | 3 | Render models → `internal/domain/render/` | **deferred** | Not a move — needs the per-platform `Style` types unified first ([why](#4-render-models-live-under-an-adapter)) |
-| 4 | Split `internal/app` → `daemon`/`ipc`/`hotkey`/`sequence` | | IPC moves nearly free |
+| 4 | Split `internal/app` → `ipcctrl`/`sequence` | **partly done** | 72 files → 48; hotkeys still wait on step 5 |
 | 5 | Shrink `*App` to consumer-defined interfaces | | Ongoing, not a single PR |
 | 6 | Backends as packages: accessibility → overlay → eventtap | | The cross-platform payoff |
 
 Step 2 also retired the word "infra" from the docs, dropped the empty
 `internal/core` doc-only package, and renamed `core/errors` to `internal/derrors`
 so the directory and the package name (`derrors`) finally agree.
+
+**On step 4:** `internal/app` is down from 72 files to 48. Two packages came out:
+
+- `internal/app/ipcctrl` — the command handlers. It came out cheaply because
+  `IPCController` already took a `Deps` struct instead of reaching for the App,
+  so the only edges to cut were four identifiers. Types dropped their
+  `IPCController` prefix (`ipcctrl.Controller`, `ipcctrl.Deps`,
+  `ipcctrl.NewModesHandler`), which the old flat package could not have.
+- `internal/app/sequence` — the parts of an action sequence that do not need
+  the App: nesting depth, failure policy, outcome. The executor itself stays in
+  `internal/app` because running a step means dispatching it through the App.
+
+`hotkeys.go` did **not** come out, and should not until step 5: it hangs off
+`*App` for dispatch, so extracting it now would mean passing the whole App
+across the new boundary — trading one coupling for a wider one. It is not a
+naming problem, and it is not `internal/app/ipcctrl`'s problem.
+
+`internal/ipc` in the target tree above is therefore `internal/app/ipcctrl`
+today: a package name of `ipc` would collide with `internal/adapter/ipc`, which
+every one of these files imports for `ipc.Command` and `ipc.Response`. A
+per-file import alias is a worse tax than a slightly longer package name.
 
 **On step 6:** do `accessibility` alone first and live with it for a release
 before touching `overlay` and `eventtap`. All three at once is a merge-conflict

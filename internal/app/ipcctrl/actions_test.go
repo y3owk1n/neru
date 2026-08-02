@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private IPC action parsing/dispatch helpers.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -89,13 +89,13 @@ func TestParseActionArgs_PreviousFlag(t *testing.T) {
 }
 
 func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMonitor, "--x=100"},
 	})
 
@@ -109,13 +109,13 @@ func TestHandleAction_MoveMonitorRejectsUnsupportedFlags_X(t *testing.T) {
 }
 
 func TestHandleAction_MoveMonitorRejectsUnsupportedFlags(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMonitor, "--selection"},
 	})
 
@@ -140,10 +140,10 @@ func TestParseActionArgs_BailFlag(t *testing.T) {
 }
 
 func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{leftClick, flagBail},
 	})
 
@@ -161,10 +161,10 @@ func TestHandleAction_RejectsBailOnNonWaitForModeExit(t *testing.T) {
 }
 
 func TestHandleAction_FeedModeWithoutModesHandler(t *testing.T) {
-	controller := &IPCControllerActions{logger: zap.NewNop()}
+	controller := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{"feed", "--mode", "o"},
 	})
 
@@ -336,13 +336,13 @@ func TestParseCSV(t *testing.T) {
 }
 
 func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMouse},
 	})
 
@@ -356,13 +356,13 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 }
 
 func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMouse, flagSelection},
 	})
 
@@ -376,13 +376,13 @@ func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.
 }
 
 func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMouse, flagCenter, flagWindow},
 	})
 
@@ -396,13 +396,13 @@ func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
 }
 
 func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{moveMouse, flagWindow, "--dx=10", "--dy=10"},
 	})
 
@@ -416,7 +416,7 @@ func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
 }
 
 func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 		scrollService: services.NewScrollService(
@@ -429,7 +429,7 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{"scroll_down", flagSelection},
 	})
 
@@ -443,13 +443,13 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 }
 
 func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{"left_click", flagPrevious},
 	})
 
@@ -463,13 +463,13 @@ func TestHandleAction_PreviousRejectedOnNonMoveMonitor(t *testing.T) {
 }
 
 func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{resetAction, flagName + "=DELL"},
 	})
 
@@ -483,7 +483,7 @@ func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
 }
 
 func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 		scrollService: services.NewScrollService(
@@ -496,7 +496,7 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{"scroll_down", flagPrevious},
 	})
 
@@ -704,13 +704,13 @@ func TestHandleAction_WaitForModeExitBail_NoSelection(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeIdle)
 
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: appState,
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{waitForModeExit, flagBail},
 	})
 
@@ -727,7 +727,7 @@ func TestHandleAction_WaitForModeExitBail_WithSelection(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeMonitorSelect)
 
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: appState,
 		logger:   zap.NewNop(),
 	}
@@ -736,7 +736,7 @@ func TestHandleAction_WaitForModeExitBail_WithSelection(t *testing.T) {
 
 	go func() {
 		respCh <- controller.handleAction(context.Background(), ipc.Command{
-			Action: actionCmd,
+			Action: ActionCommand,
 			Args:   []string{waitForModeExit, flagBail},
 		})
 	}()
@@ -762,13 +762,13 @@ func TestHandleAction_WaitForModeExitBail_StaleReasonCleared(t *testing.T) {
 	appState.SetModeExitReason(state.ModeExitReasonCompleted)
 	appState.ConsumeModeExitReason()
 
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: appState,
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{waitForModeExit, flagBail},
 	})
 
@@ -782,14 +782,14 @@ func TestHandleAction_WaitForModeExitBail_StaleReasonCleared(t *testing.T) {
 }
 
 func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	// Chain containing 'feed'
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{leftClick + ",feed"},
 	})
 	if resp.Success {
@@ -798,7 +798,7 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 
 	// Chain containing 'sleep'
 	resp = controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{leftClick + ",sleep"},
 	})
 	if resp.Success {
@@ -807,10 +807,14 @@ func TestHandleAction_ChainRejectsNonPointerActions(t *testing.T) {
 
 	// Chain containing 'cycle_hint'
 	resp = controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{leftClick + ",cycle_hint"},
 	})
 	if resp.Success {
 		t.Fatal("expected chain validation to fail for cycle_hint action")
 	}
 }
+
+// builtInRetinaDisplay is the display name the action tests use when they need
+// a screen that exists on every Mac.
+const builtInRetinaDisplay = "Built-in Retina Display"

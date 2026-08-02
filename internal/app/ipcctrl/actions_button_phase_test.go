@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private IPC action parsing/dispatch helpers.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -212,13 +212,13 @@ func TestResolveMouseButtonPhase_RejectsUnknownState(t *testing.T) {
 }
 
 func TestHandleAction_RejectsStateOnNonClickAction(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{scrollUp, flagStateDown},
 	})
 
@@ -232,13 +232,13 @@ func TestHandleAction_RejectsStateOnNonClickAction(t *testing.T) {
 }
 
 func TestHandleAction_RejectsStateAndToggleTogether(t *testing.T) {
-	controller := &IPCControllerActions{
+	controller := &ActionsHandler{
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 	}
 
 	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: actionCmd,
+		Action: ActionCommand,
 		Args:   []string{leftClick, flagStateDown, flagToggle},
 	})
 

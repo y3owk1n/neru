@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private IPC action flag tables.
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -257,10 +257,10 @@ func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			controller := &IPCControllerActions{logger: zap.NewNop()}
+			controller := &ActionsHandler{logger: zap.NewNop()}
 
 			resp := controller.handleAction(context.Background(), ipc.Command{
-				Action: actionCmd,
+				Action: ActionCommand,
 				Args:   testCase.args,
 			})
 

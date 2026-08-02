@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// IPCControllerActions handles action-related IPC commands.
-type IPCControllerActions struct {
+// ActionsHandler handles action-related IPC commands.
+type ActionsHandler struct {
 	actionService *services.ActionService
 	scrollService *services.ScrollService
 	modesHandler  *modes.Handler
@@ -30,7 +30,11 @@ type IPCControllerActions struct {
 }
 
 const (
-	actionCmd     = "action"
+	// ActionCommand is the IPC command that carries a mouse or key action.
+	// It is exported because the hotkey layer recognizes the same word when it
+	// decides whether a binding is an action step.
+	ActionCommand = "action"
+
 	flagCenter    = "--center"
 	flagWindow    = "--window"
 	flagSelection = "--selection"
@@ -67,8 +71,8 @@ const (
 	interActionDelay = 75 * time.Millisecond
 )
 
-// NewIPCControllerActions creates a new action command handler.
-func NewIPCControllerActions(
+// NewActionsHandler creates a new action command handler.
+func NewActionsHandler(
 	actionService *services.ActionService,
 	scrollService *services.ScrollService,
 	modesHandler *modes.Handler,
@@ -76,14 +80,14 @@ func NewIPCControllerActions(
 	keyFeed ports.KeyFeedPort,
 	cursorSlots *state.CursorSlots,
 	logger *zap.Logger,
-) *IPCControllerActions {
+) *ActionsHandler {
 	// A nil store would make every save panic rather than degrade, and the
 	// slots have no dependencies to be missing, so build one instead.
 	if cursorSlots == nil {
 		cursorSlots = state.NewCursorSlots()
 	}
 
-	return &IPCControllerActions{
+	return &ActionsHandler{
 		actionService: actionService,
 		scrollService: scrollService,
 		modesHandler:  modesHandler,
@@ -95,13 +99,13 @@ func NewIPCControllerActions(
 }
 
 // RegisterHandlers registers action command handlers.
-func (h *IPCControllerActions) RegisterHandlers(
+func (h *ActionsHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
-	handlers[actionCmd] = h.handleAction
+	handlers[ActionCommand] = h.handleAction
 }
 
-func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *ActionsHandler) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) == 0 {
 		return ipc.Response{
 			Success: false,

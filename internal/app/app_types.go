@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -111,7 +112,7 @@ type App struct {
 	renderer *ui.OverlayRenderer
 
 	// IPC Controller
-	ipcController *IPCController
+	ipcController *ipcctrl.Controller
 
 	// currentHotkeyBundleID tracks which app's global hotkey bindings are
 	// currently registered. Used by refreshHotkeysForAppOrCurrent to avoid

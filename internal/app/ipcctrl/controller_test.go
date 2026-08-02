@@ -1,4 +1,4 @@
-package app_test
+package ipcctrl_test
 
 import (
 	"context"
@@ -8,19 +8,19 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-func newTestController() *app.IPCController {
+func newTestController() *ipcctrl.Controller {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
 	configService := config.NewService(cfg, "", logger, nil)
 
-	return app.NewIPCController(app.IPCControllerDeps{
+	return ipcctrl.New(ipcctrl.Deps{
 		ConfigService: configService,
 		AppState:      appState,
 		Config:        cfg,

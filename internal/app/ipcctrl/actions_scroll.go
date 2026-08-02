@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 // handleScrollAction dispatches a scroll sub-action (scroll_up, page_down, etc.)
 // to the ScrollService.
-func (h *IPCControllerActions) handleScrollAction(
+func (h *ActionsHandler) handleScrollAction(
 	ctx context.Context,
 	actionName string,
 	parsed parsedActionArgs,

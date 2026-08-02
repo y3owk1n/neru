@@ -1,4 +1,4 @@
-package app_test
+package ipcctrl_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
@@ -56,7 +56,7 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 		logger,
 	)
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -91,7 +91,7 @@ func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -126,7 +126,7 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -183,7 +183,7 @@ func TestExtractModeOptions_ModifierRequiresAction(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -221,7 +221,7 @@ func TestExtractModeOptions_ModifierEmptyList(t *testing.T) {
 		logger,
 	)
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -252,7 +252,7 @@ func TestExtractModeOptions_ModifierEmptyList(t *testing.T) {
 func newToggleTestController(
 	appState *state.AppState,
 	executeMacro func(context.Context, string, []string) error,
-) *app.IPCController {
+) *ipcctrl.Controller {
 	cfg := config.DefaultConfig()
 	logger := zap.NewNop()
 	actionService := services.NewActionService(
@@ -262,7 +262,7 @@ func newToggleTestController(
 		logger,
 	)
 
-	return app.NewIPCController(app.IPCControllerDeps{
+	return ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
 		ConfigService: config.NewService(cfg, "", logger, nil),
 		AppState:      appState,
@@ -431,7 +431,7 @@ func TestHandleCommand_StatusReportsSavedCursorSlots(t *testing.T) {
 }
 
 // statusField reads one key out of the status payload.
-func statusField(t *testing.T, controller *app.IPCController, key string) any {
+func statusField(t *testing.T, controller *ipcctrl.Controller, key string) any {
 	t.Helper()
 
 	resp := controller.HandleCommand(context.Background(), ipc.Command{Action: "status"})

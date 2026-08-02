@@ -1,4 +1,4 @@
-package app
+package ipcctrl
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// IPCController handles IPC command routing and execution.
-type IPCController struct {
+// Controller handles IPC command routing and execution.
+type Controller struct {
 	// Services
 	HintService   *services.HintService
 	GridService   *services.GridService
@@ -52,13 +52,13 @@ type IPCController struct {
 	ExecuteMacro macroRunner
 
 	// Info handler for config updates
-	infoHandler *IPCControllerInfo
+	infoHandler *InfoHandler
 
 	// Command Handlers map
 	Handlers map[string]func(context.Context, ipc.Command) ipc.Response
 }
 
-// IPCControllerDeps collects everything NewIPCController needs.
+// Deps collects everything New needs.
 //
 // It is a struct rather than a positional parameter list because the list had
 // grown to fourteen arguments, most of them nil at any given call site — which
@@ -67,7 +67,7 @@ type IPCController struct {
 // the corresponding commands report that it is unavailable, and EventTap and
 // IPCServer are legitimately nil until initialization phase 8 fills them in via
 // SetInfrastructure.
-type IPCControllerDeps struct {
+type Deps struct {
 	// Services
 	HintService   *services.HintService
 	GridService   *services.GridService
@@ -100,14 +100,14 @@ type IPCControllerDeps struct {
 	Logger *zap.Logger
 }
 
-// NewIPCController creates a new IPC controller with the given dependencies.
-func NewIPCController(deps IPCControllerDeps) *IPCController {
+// New creates a new IPC controller with the given dependencies.
+func New(deps Deps) *Controller {
 	logger := deps.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	ipcController := &IPCController{
+	ipcController := &Controller{
 		HintService:     deps.HintService,
 		GridService:     deps.GridService,
 		ActionService:   deps.ActionService,
@@ -133,7 +133,7 @@ func NewIPCController(deps IPCControllerDeps) *IPCController {
 }
 
 // HandleCommand routes an IPC command to the appropriate handler.
-func (c *IPCController) HandleCommand(ctx context.Context, command ipc.Command) ipc.Response {
+func (c *Controller) HandleCommand(ctx context.Context, command ipc.Command) ipc.Response {
 	c.Logger.Debug(
 		"Handling IPC command",
 		zap.String("action", command.Action),
@@ -151,7 +151,7 @@ func (c *IPCController) HandleCommand(ctx context.Context, command ipc.Command) 
 }
 
 // UpdateConfig updates the stored config.
-func (c *IPCController) UpdateConfig(cfg *config.Config) {
+func (c *Controller) UpdateConfig(cfg *config.Config) {
 	if c.infoHandler != nil {
 		c.infoHandler.UpdateConfig(cfg)
 	}
@@ -161,7 +161,7 @@ func (c *IPCController) UpdateConfig(cfg *config.Config) {
 // and propagates it to the info handler. Must be called after construction
 // (e.g. from initializeIPCController) since the constructor's registerHandlers
 // runs before the callback can be set.
-func (c *IPCController) SetConfigFieldCallback(
+func (c *Controller) SetConfigFieldCallback(
 	cb func(ctx context.Context, key, value string) error,
 ) {
 	c.SetConfigField = cb
@@ -173,7 +173,7 @@ func (c *IPCController) SetConfigFieldCallback(
 // SetInfrastructure updates the infrastructure references on the controller
 // and its info handler. This is called after event tap and IPC server are
 // initialized (Phase 8), since the IPC controller is created earlier (Phase 7).
-func (c *IPCController) SetInfrastructure(eventTap ports.EventTapPort, ipcServer ports.IPCPort) {
+func (c *Controller) SetInfrastructure(eventTap ports.EventTapPort, ipcServer ports.IPCPort) {
 	c.EventTap = eventTap
 
 	c.IPCServer = ipcServer
@@ -184,16 +184,16 @@ func (c *IPCController) SetInfrastructure(eventTap ports.EventTapPort, ipcServer
 }
 
 // registerHandlers registers all command handlers by delegating to sub-controllers.
-func (c *IPCController) registerHandlers(cfg *config.Config) {
+func (c *Controller) registerHandlers(cfg *config.Config) {
 	// Initialize handler components
-	lifecycleHandler := NewIPCControllerLifecycle(c.AppState, c.Modes, c.Logger)
-	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
+	lifecycleHandler := NewLifecycleHandler(c.AppState, c.Modes, c.Logger)
+	modesHandler := NewModesHandler(c.Modes, c.Logger)
 	// The slots are IPC-session state with no dependencies, so the controller
 	// owns them: the actions handler writes them and the info handler reports
 	// them, and nothing outside this controller needs to reach them.
 	cursorSlots := state.NewCursorSlots()
 
-	actionsHandler := NewIPCControllerActions(
+	actionsHandler := NewActionsHandler(
 		c.ActionService,
 		c.ScrollService,
 		c.Modes,
@@ -204,7 +204,7 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	)
 	// SetConfigField stays zero here; SetConfigFieldCallback fills it in after
 	// construction, since the callback needs the fully built app.
-	c.infoHandler = NewIPCControllerInfo(IPCControllerInfoDeps{
+	c.infoHandler = NewInfoHandler(InfoHandlerDeps{
 		ConfigService: c.ConfigService,
 		AppState:      c.AppState,
 		Config:        cfg,
@@ -229,14 +229,14 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	c.infoHandler.RegisterHandlers(c.Handlers)
 
 	// Register overlay handler
-	overlayHandler := NewIPCControllerOverlay(c.AppState, c.Logger)
+	overlayHandler := NewOverlayHandler(c.AppState, c.Logger)
 	overlayHandler.RegisterHandlers(c.Handlers)
 
 	// Register scroll handler
-	scrollHandler := NewIPCControllerScroll(c.AppState, c.ScrollService, c.Logger)
+	scrollHandler := NewScrollHandler(c.AppState, c.ScrollService, c.Logger)
 	scrollHandler.RegisterHandlers(c.Handlers)
 
 	// Register action sequence handler
-	sequenceHandler := NewIPCControllerSequence(c.ExecuteSequence, c.ExecuteMacro, c.Logger)
+	sequenceHandler := NewSequenceHandler(c.ExecuteSequence, c.ExecuteMacro, c.Logger)
 	sequenceHandler.RegisterHandlers(c.Handlers)
 }

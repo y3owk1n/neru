@@ -1,4 +1,4 @@
-package app_test
+package ipcctrl_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -34,7 +34,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		},
 	}
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ConfigService: configService,
 		AppState:      appState,
 		Config:        cfg,
@@ -123,7 +123,7 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 		},
 	}
 
-	controller := app.NewIPCController(app.IPCControllerDeps{
+	controller := ipcctrl.New(ipcctrl.Deps{
 		ConfigService: configService,
 		AppState:      appState,
 		Config:        cfg,

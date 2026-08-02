@@ -16,6 +16,7 @@ import (
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -415,7 +416,7 @@ func initializeModeHandler(app *App) {
 // SetConfigField callback is set after creation so the constructor's
 // signature stays stable for test callers.
 func initializeIPCController(app *App) {
-	app.ipcController = NewIPCController(IPCControllerDeps{
+	app.ipcController = ipcctrl.New(ipcctrl.Deps{
 		HintService:   app.hintService,
 		GridService:   app.gridService,
 		ActionService: app.actionService,

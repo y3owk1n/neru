@@ -1,4 +1,4 @@
-package app_test
+package ipcctrl_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/app"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -26,7 +26,7 @@ func TestIPCControllerInfoDeps_ZeroValuesAreUsable(t *testing.T) {
 	cfg := config.DefaultConfig()
 	logger := zap.NewNop()
 
-	handler := app.NewIPCControllerInfo(app.IPCControllerInfoDeps{
+	handler := ipcctrl.NewInfoHandler(ipcctrl.InfoHandlerDeps{
 		ConfigService: config.NewService(cfg, "", logger, nil),
 		AppState:      state.NewAppState(),
 		Config:        cfg,
@@ -36,7 +36,7 @@ func TestIPCControllerInfoDeps_ZeroValuesAreUsable(t *testing.T) {
 	})
 
 	if handler == nil {
-		t.Fatal("NewIPCControllerInfo() = nil")
+		t.Fatal("NewInfoHandler() = nil")
 	}
 
 	handlers := make(map[string]func(context.Context, ipc.Command) ipc.Response)

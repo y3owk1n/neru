@@ -9,6 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -315,7 +317,7 @@ func (a *App) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Config)
 	}
 
 	parts := splitArgs(strings.TrimSpace(actions[0]))
-	if len(parts) < 2 || parts[0] != actionCmd {
+	if len(parts) < 2 || parts[0] != ipcctrl.ActionCommand {
 		return false
 	}
 
@@ -393,7 +395,7 @@ func anyBindingStep(actions []string, cfg *config.Config, pred func(step string)
 }
 
 // anyBindingStepAtDepth walks the steps of one sequence, recursing into nested
-// ones until maxSequenceDepth. Past that depth the executor refuses to start
+// ones until sequence.MaxDepth. Past that depth the executor refuses to start
 // the sequence, so its steps never run and the construct is left unexpanded.
 func anyBindingStepAtDepth(
 	actions []string,
@@ -435,7 +437,7 @@ func anyBindingStepAtDepth(
 // the step is an ordinary action or cannot be expanded — an unknown macro, or
 // nesting the executor would refuse anyway.
 func nestedSteps(step string, cfg *config.Config, depth int) []string {
-	if depth >= maxSequenceDepth {
+	if depth >= sequence.MaxDepth {
 		return nil
 	}
 

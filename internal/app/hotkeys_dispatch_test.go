@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -138,7 +139,7 @@ func newDispatchTestApp(t *testing.T, cfg *config.Config, hkm HotkeyService) *Ap
 		config:        cfg,
 		appState:      appState,
 		hotkeyManager: hkm,
-		ipcController: NewIPCController(IPCControllerDeps{
+		ipcController: ipcctrl.New(ipcctrl.Deps{
 			ConfigService: configService,
 			AppState:      appState,
 			Config:        cfg,
