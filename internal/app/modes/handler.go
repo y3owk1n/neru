@@ -84,14 +84,14 @@ type Handler struct {
 
 	// eventTap is nil until the app's phase 8 calls SetEventTap; every use
 	// goes through the nil-guarded helpers in eventtap.go.
-	eventTap            ports.EventTapPort
-	refreshHotkeys      func()
-	executeHotkeyAction func(key, actionStr string) error
-	shutdown            func()
-	refreshHintsTimer   *time.Timer
-	modeSession         uint64
-	hotkeyLastKey       string
-	hotkeyLastKeyTime   int64
+	eventTap              ports.EventTapPort
+	refreshHotkeys        func()
+	executeActionSequence func(source string, steps []string)
+	shutdown              func()
+	refreshHintsTimer     *time.Timer
+	modeSession           uint64
+	hotkeyLastKey         string
+	hotkeyLastKeyTime     int64
 
 	textInput                  ports.TextInputPort
 	hintSearchTextInputActive  bool
@@ -173,8 +173,11 @@ type HandlerDeps struct {
 
 	// RefreshHotkeys re-registers hotkeys for the focused app.
 	RefreshHotkeys func()
-	// ExecuteHotkeyAction runs a hotkey's action string.
-	ExecuteHotkeyAction func(key, actionStr string) error
+	// ExecuteActionSequence runs an ordered list of action steps. The daemon
+	// owns the sequencing rules (bail handling, error reporting), so a binding
+	// behaves the same whether it is dispatched from here or from anywhere
+	// else. source names the caller (a bind key, "on-exit") for logging.
+	ExecuteActionSequence func(source string, steps []string)
 	// Shutdown quits the daemon.
 	Shutdown func()
 
@@ -227,7 +230,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		recursiveGrid:          deps.RecursiveGridComponent,
 		screenBounds:           screenBounds,
 		refreshHotkeys:         deps.RefreshHotkeys,
-		executeHotkeyAction:    deps.ExecuteHotkeyAction,
+		executeActionSequence:  deps.ExecuteActionSequence,
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
 		themeProvider:          deps.System,

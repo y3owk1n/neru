@@ -43,6 +43,10 @@ type IPCController struct {
 	// If nil, the config is only updated in-memory.
 	SetConfigField func(ctx context.Context, key, value string) error
 
+	// ExecuteSequence runs an action sequence. If nil, the "run" command
+	// reports that sequencing is unavailable.
+	ExecuteSequence sequenceRunner
+
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
 
@@ -83,6 +87,9 @@ type IPCControllerDeps struct {
 	// ReloadConfig performs a full app-level config reload.
 	ReloadConfig func(ctx context.Context, configPath string) error
 
+	// ExecuteSequence runs an action sequence on behalf of the "run" command.
+	ExecuteSequence sequenceRunner
+
 	Logger *zap.Logger
 }
 
@@ -94,20 +101,21 @@ func NewIPCController(deps IPCControllerDeps) *IPCController {
 	}
 
 	ipcController := &IPCController{
-		HintService:   deps.HintService,
-		GridService:   deps.GridService,
-		ActionService: deps.ActionService,
-		ScrollService: deps.ScrollService,
-		ConfigService: deps.ConfigService,
-		AppState:      deps.AppState,
-		Modes:         deps.Modes,
-		System:        deps.System,
-		EventTap:      deps.EventTap,
-		IPCServer:     deps.IPCServer,
-		KeyFeed:       deps.KeyFeed,
-		ReloadConfig:  deps.ReloadConfig,
-		Logger:        logger.Named("ipc.controller"),
-		Handlers:      make(map[string]func(context.Context, ipc.Command) ipc.Response),
+		HintService:     deps.HintService,
+		GridService:     deps.GridService,
+		ActionService:   deps.ActionService,
+		ScrollService:   deps.ScrollService,
+		ConfigService:   deps.ConfigService,
+		AppState:        deps.AppState,
+		Modes:           deps.Modes,
+		System:          deps.System,
+		EventTap:        deps.EventTap,
+		IPCServer:       deps.IPCServer,
+		KeyFeed:         deps.KeyFeed,
+		ReloadConfig:    deps.ReloadConfig,
+		ExecuteSequence: deps.ExecuteSequence,
+		Logger:          logger.Named("ipc.controller"),
+		Handlers:        make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
 
 	// Register command handlers
@@ -212,4 +220,8 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	// Register scroll handler
 	scrollHandler := NewIPCControllerScroll(c.AppState, c.ScrollService, c.Logger)
 	scrollHandler.RegisterHandlers(c.Handlers)
+
+	// Register action sequence handler
+	sequenceHandler := NewIPCControllerSequence(c.ExecuteSequence, c.Logger)
+	sequenceHandler.RegisterHandlers(c.Handlers)
 }

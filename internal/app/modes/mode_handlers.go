@@ -12,7 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	hintscomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
@@ -141,9 +140,9 @@ func (h *Handler) executeActionAtPoint(
 	}
 }
 
-// currentModeOnExit returns the --on-exit action configured for the currently
-// active action mode, or nil when none is set or the mode has no context.
-func (h *Handler) currentModeOnExit() *string {
+// currentModeOnExit returns the --on-exit steps configured for the currently
+// active action mode, or nil when none are set or the mode has no context.
+func (h *Handler) currentModeOnExit() []string {
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints != nil && h.hints.Context != nil {
@@ -159,46 +158,34 @@ func (h *Handler) currentModeOnExit() *string {
 		}
 	case domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
 		// These modes do not support a pending --action, so there is no
-		// --on-exit action to run.
+		// --on-exit sequence to run.
 	}
 
 	return nil
 }
 
-// runOnExit dispatches the mode's --on-exit action after the pending action was
-// fulfilled. It reuses the hotkey action grammar ("action ...", "exec ...",
-// mode names) and runs asynchronously: executeHotkeyAction may route back
-// through IPC into ActivateModeWithOptions, which acquires h.mu — held by the
+// runOnExit dispatches the mode's --on-exit steps after the pending action was
+// fulfilled. They reuse the hotkey action grammar ("action ...", "exec ...",
+// mode names) and run asynchronously: a step may route back through IPC into
+// ActivateModeWithOptions, which acquires h.mu — held by the
 // executeActionAtPoint caller.
-func (h *Handler) runOnExit(onExit *string) {
-	if onExit == nil || h.executeHotkeyAction == nil {
+func (h *Handler) runOnExit(onExit []string) {
+	if len(onExit) == 0 || h.executeActionSequence == nil {
 		return
 	}
 
-	actionStr := strings.TrimSpace(*onExit)
-	if actionStr == "" {
-		return
-	}
+	steps := append([]string(nil), onExit...)
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				h.logger.Error("panic in on-exit handler",
 					zap.Any("recover", r),
-					zap.String("action", actionStr))
+					zap.Int("steps", len(steps)))
 			}
 		}()
 
-		err := h.executeHotkeyAction("on-exit", actionStr)
-		if err != nil {
-			if derrors.IsCode(err, derrors.CodeChainBail) {
-				return
-			}
-
-			h.logger.Error("on-exit action failed",
-				zap.String("action", actionStr),
-				zap.Error(err))
-		}
+		h.executeActionSequence("on-exit", steps)
 	}()
 }
 

@@ -30,6 +30,7 @@ const (
 	CommandStart                       = "start"
 	CommandStop                        = "stop"
 	CommandAction                      = "action"
+	CommandRun                         = "run"
 	CommandStatus                      = "status"
 	CommandConfig                      = "config"
 	CommandReloadConfig                = "reload"

@@ -31,15 +31,15 @@ func newTestModesHandler(
 	// Only the fields this test needs; every other dependency is legitimately
 	// the zero value, which the deps struct expresses by omission.
 	return modes.NewHandler(modes.HandlerDeps{
-		Ctx:                 context.Background(),
-		Config:              cfg,
-		Logger:              logger,
-		AppState:            appState,
-		CursorState:         state.NewCursorState(),
-		ActionService:       actionService,
-		RefreshHotkeys:      func() {},
-		ExecuteHotkeyAction: func(string, string) error { return nil },
-		Shutdown:            func() {},
+		Ctx:                   context.Background(),
+		Config:                cfg,
+		Logger:                logger,
+		AppState:              appState,
+		CursorState:           state.NewCursorState(),
+		ActionService:         actionService,
+		RefreshHotkeys:        func() {},
+		ExecuteActionSequence: func(string, []string) {},
+		Shutdown:              func() {},
 	})
 }
 

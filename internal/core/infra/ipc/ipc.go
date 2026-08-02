@@ -31,6 +31,12 @@ const (
 	// ConnectionReadTimeout is the timeout for reading from a connection.
 	ConnectionReadTimeout = 30 * time.Second
 
+	// ConnectionWriteTimeout bounds how long the server waits to hand a
+	// response to a client that has stopped reading. It is applied after the
+	// handler returns, so a long-running command does not spend the budget the
+	// reply needs.
+	ConnectionWriteTimeout = 5 * time.Second
+
 	// PingTimeout is the timeout for ping operations.
 	PingTimeout = 500 * time.Millisecond
 
@@ -235,9 +241,12 @@ func (s *Server) handleConnection(connection net.Conn) {
 		s.wg.Done()
 	}()
 
-	connectionDeadline := connection.SetDeadline(time.Now().Add(ConnectionReadTimeout))
-	if connectionDeadline != nil {
-		logger.Error("Failed to set connection deadline", zap.Error(connectionDeadline))
+	// Only the read side is bounded here: this guards a client that connects
+	// and never sends a command. The write side gets its own deadline once the
+	// handler has finished, in writeResponse.
+	deadlineErr := connection.SetReadDeadline(time.Now().Add(ConnectionReadTimeout))
+	if deadlineErr != nil {
+		logger.Error("Failed to set connection read deadline", zap.Error(deadlineErr))
 
 		return
 	}
@@ -247,20 +256,31 @@ func (s *Server) handleConnection(connection net.Conn) {
 
 	encoder := json.NewEncoder(connection)
 
+	// reply sends one response and reports the outcome. A client that has
+	// already gone away is the expected end of a command that outlived its
+	// caller's patience, so it is logged quietly; anything else is a fault.
+	reply := func(response Response) {
+		writeErr := writeResponse(connection, encoder, response)
+		switch {
+		case writeErr == nil:
+		case isPeerGoneErr(writeErr):
+			logger.Debug("Client disconnected before response was sent", zap.Error(writeErr))
+		default:
+			logger.Error("Failed to encode response", zap.Error(writeErr))
+		}
+	}
+
 	var cmd Command
 
 	decodeCommandErr := decoder.Decode(&cmd)
 	if decodeCommandErr != nil {
 		logger.Error("Failed to decode command", zap.Error(decodeCommandErr))
 
-		encodeErr := encoder.Encode(Response{
+		reply(Response{
 			Success: false,
 			Message: fmt.Sprintf("failed to decode command: %v", decodeCommandErr),
 			Code:    CodeInvalidInput,
 		})
-		if encodeErr != nil {
-			logger.Error("Failed to encode error response", zap.Error(encodeErr))
-		}
 
 		return
 	}
@@ -278,7 +298,7 @@ func (s *Server) handleConnection(connection net.Conn) {
 			zap.String("client_version", cmd.Version),
 			zap.String("server_version", serverVersion))
 
-		encodeErr := encoder.Encode(Response{
+		reply(Response{
 			Version: serverVersion,
 			Success: false,
 			Message: fmt.Sprintf(
@@ -288,9 +308,6 @@ func (s *Server) handleConnection(connection net.Conn) {
 			),
 			Code: CodeVersionMismatch,
 		})
-		if encodeErr != nil {
-			logger.Error("Failed to encode version mismatch response", zap.Error(encodeErr))
-		}
 
 		return
 	}
@@ -299,19 +316,24 @@ func (s *Server) handleConnection(connection net.Conn) {
 	// Always include server version in response
 	response.Version = serverVersion
 
-	connectionDeadline = encoder.Encode(response)
-	if connectionDeadline != nil {
-		if isPeerGoneErr(connectionDeadline) {
-			// The client already disconnected before we could reply — almost
-			// always because it hit its own request timeout while the handler
-			// was still working. That is the client's decision, not a daemon
-			// fault, so log it quietly instead of as an error.
-			logger.Debug("Client disconnected before response was sent",
-				zap.Error(connectionDeadline))
-		} else {
-			logger.Error("Failed to encode response", zap.Error(connectionDeadline))
-		}
+	reply(response)
+}
+
+// writeResponse sends one response to the client.
+//
+// The deadline set when the connection was accepted budgets the whole exchange,
+// including however long the handler ran. Handlers are allowed to take longer
+// than that — an action sequence can sleep, or wait for the user to finish a
+// mode — so the reply is given its own window here. Without it, a slow but
+// perfectly successful command would have its reply refused before it was even
+// attempted, and the caller would see a timeout for work that did happen.
+func writeResponse(connection net.Conn, encoder *json.Encoder, response Response) error {
+	deadlineErr := connection.SetWriteDeadline(time.Now().Add(ConnectionWriteTimeout))
+	if deadlineErr != nil {
+		return deadlineErr
 	}
+
+	return encoder.Encode(response)
 }
 
 // isPeerGoneErr reports whether err is the expected result of writing to a

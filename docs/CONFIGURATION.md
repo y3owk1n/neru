@@ -547,7 +547,9 @@ Use `--mode` to route keys through Neru's active mode/action pipeline instead of
 "Ctrl+Z" = ["monitor_select", "action wait_for_mode_exit --bail", "recursive_grid"]
 ```
 
-Use `--bail` to abort the chain when the mode exits without a selection (e.g., user presses Escape). Without `--bail`, `wait_for_mode_exit` always succeeds and the chain continues.
+Use `--bail` to abort the chain when the mode exits without a selection (e.g., user presses Escape). Without `--bail`, `wait_for_mode_exit` always succeeds and the chain continues. A step that fails for any other reason is logged and the chain continues.
+
+An array like the ones above is an *action sequence*. The same sequence, with the same rules, can also be written as a mode's `--on-exit` (repeat the flag once per step) or run from a script with [`neru run`](CLI.md#neru-run) — one executor backs all three, so a sequence that works in one place works in the others.
 
 ---
 

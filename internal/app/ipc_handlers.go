@@ -153,7 +153,7 @@ func (h *IPCControllerModes) modesUnavailableResponse() ipc.Response {
 type ModeActivationOptions struct {
 	Action                *string
 	Modifier              *string
-	OnExit                *string
+	OnExit                []string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	ZoomToDepth           *int
@@ -311,9 +311,10 @@ func (h *IPCControllerModes) extractModeOptions(
 			startIdx++
 			actionArg := cmd.Args[startIdx]
 			opts.Action = &actionArg
+		// --on-exit is repeatable: each occurrence appends one step to the
+		// sequence that runs once the pending action is fulfilled.
 		case strings.HasPrefix(arg, "--on-exit="):
-			onExitArg := strings.TrimPrefix(arg, "--on-exit=")
-			opts.OnExit = &onExitArg
+			opts.OnExit = append(opts.OnExit, strings.TrimPrefix(arg, "--on-exit="))
 		case arg == "--on-exit":
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
@@ -326,8 +327,7 @@ func (h *IPCControllerModes) extractModeOptions(
 			}
 
 			startIdx++
-			onExitArg := cmd.Args[startIdx]
-			opts.OnExit = &onExitArg
+			opts.OnExit = append(opts.OnExit, cmd.Args[startIdx])
 		case strings.HasPrefix(arg, "--cursor-selection-mode="):
 			val, resp := parseCursorSelectionModeValue(
 				strings.TrimPrefix(arg, "--cursor-selection-mode="),

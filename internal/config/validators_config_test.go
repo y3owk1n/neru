@@ -26,6 +26,21 @@ func TestConfigValidateHotkeys_Valid(t *testing.T) {
 	}
 }
 
+// "run" carries its own steps as quoted arguments, so a binding that uses it
+// has to validate like any other command rather than being rejected as
+// unknown.
+func TestConfigValidateHotkeys_RunSequence(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.Hotkeys["Enter"] = config.StringOrStringArray{
+		"run 'action left_click' 'action sleep 0.2' 'action restore_cursor_pos'",
+	}
+
+	err := cfg.ValidateHotkeys()
+	if err != nil {
+		t.Fatalf("ValidateHotkeys() unexpected error: %v", err)
+	}
+}
+
 func TestConfigValidateHotkeys_AppOverridePrefixConflict(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.Hotkeys["gg"] = config.StringOrStringArray{config.CmdLeftClick}

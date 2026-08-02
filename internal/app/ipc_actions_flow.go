@@ -24,7 +24,10 @@ const modeExitPollInterval = 10 * time.Millisecond
 // mode session.
 const modeExitTimeout = 5 * time.Minute
 
-func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
+func (h *IPCControllerActions) handleSleepAction(
+	ctx context.Context,
+	args []string,
+) ipc.Response {
 	durationStr := ""
 	for idx := 0; idx < len(args); idx++ {
 		arg := strings.TrimSpace(args[idx])
@@ -52,7 +55,22 @@ func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
 	}
 
 	h.logger.Debug("sleep action sleeping", zap.Duration("duration", duration))
-	time.Sleep(duration)
+
+	// Wait on a timer rather than time.Sleep so that a long pause inside an
+	// action sequence is released when the daemon shuts down instead of
+	// holding its goroutine to the end of the duration.
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ipc.Response{
+			Success: false,
+			Message: "sleep canceled: " + ctx.Err().Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	case <-timer.C:
+	}
 
 	return ipc.Response{
 		Success: true,
