@@ -499,7 +499,12 @@ func generateCellsWithRegions(
 		gridRows = MaxGridRows
 	}
 
-	cells := make([]*Cell, gridCols*gridRows)
+	// One bounded value serves as the allocation size and as the loop's stop
+	// condition below, which recomputed the same product. Both dimensions are
+	// clamped to constants above, so it is at most MaxGridCols*MaxGridRows.
+	cellCapacity := gridCols * gridRows
+
+	cells := make([]*Cell, cellCapacity)
 	cellIndex := 0
 
 	// Calculate region dimensions based on label length
@@ -664,7 +669,7 @@ func generateCellsWithRegions(
 		regionIndex++
 
 		// Stop if we've filled the entire screen
-		if cellIndex >= gridCols*gridRows {
+		if cellIndex >= cellCapacity {
 			break
 		}
 	}
