@@ -337,13 +337,24 @@ hotkeys = { "Cmd+1" = ["hints --role button --text Home --action left_click", "a
 
 Putting it together, a Claude view switcher scopes three keys to the app. `Cmd+1`, `Cmd+2`, and `Cmd+3` click the Home, Code, and Cowork buttons, each nudged to a different offset from the window's top-left corner:
 
+Only the offsets differ between the three, so name the sequence once in [`[macros]`](CONFIGURATION.md#macros) and pass them in:
+
 ```toml
+[macros]
+window_click = [
+    "action move_mouse --window --x -1000 --y -1000",
+    "action sleep 0.1",
+    "action move_mouse_relative --dx $1 --dy $2",
+    "action sleep 0.1",
+    "action left_click",
+]
+
 [[app_configs]]
 bundle_id = "com.anthropic.claudefordesktop"
 hotkeys = {
-    "Cmd+1" = ["action move_mouse --window --x -1000 --y -1000", "action sleep 0.1", "action move_mouse_relative --dx 100 --dy 70", "action sleep 0.1", "action left_click"],
-    "Cmd+2" = ["action move_mouse --window --x -1000 --y -1000", "action sleep 0.1", "action move_mouse_relative --dx 250 --dy 70", "action sleep 0.1", "action left_click"],
-    "Cmd+3" = ["action move_mouse --window --x -1000 --y -1000", "action sleep 0.1", "action move_mouse_relative --dx 400 --dy 70", "action sleep 0.1", "action left_click"]
+    "Cmd+1" = "macro window_click 100 70",
+    "Cmd+2" = "macro window_click 250 70",
+    "Cmd+3" = "macro window_click 400 70"
 }
 ```
 

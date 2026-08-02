@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
@@ -193,7 +194,7 @@ func (a *App) executeActionSequenceWithPolicy(
 
 		stepErr := directiveErr
 		if stepErr == nil {
-			stepErr = a.executeHotkeyAction(stepCtx, source, dispatchStep)
+			stepErr = a.executeStep(stepCtx, source, dispatchStep)
 		}
 
 		if stepErr == nil {
@@ -238,6 +239,83 @@ func (a *App) executeActionSequenceWithPolicy(
 	}
 
 	return outcome
+}
+
+// executeStep runs one step of a sequence: a macro invocation expands to the
+// sequence it names, anything else is dispatched as an action.
+func (a *App) executeStep(ctx context.Context, source, step string) error {
+	name, args, isMacro := config.ParseMacroCall(step)
+	if !isMacro {
+		return a.executeHotkeyAction(ctx, source, step)
+	}
+
+	return a.executeMacro(ctx, name, args)
+}
+
+// executeMacro runs the named macro's steps as a nested sequence.
+//
+// Running it nested rather than splicing its steps into the caller keeps two
+// things honest: the depth guard sees the nesting, so a macro that invokes
+// itself is stopped like any other runaway sequence; and the caller reports
+// failures against the step the author actually wrote ("macro foo 1 2") rather
+// than against an expanded position they never saw.
+func (a *App) executeMacro(ctx context.Context, name string, args []string) error {
+	if name == "" {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"macro requires a name (e.g. \"macro window_click 100 70\")",
+		)
+	}
+
+	// The table is read when the call runs, not pinned for the whole sequence,
+	// which is how every other step reads configuration — a scroll step takes
+	// the step size current at the time it fires. A reload mid-sequence
+	// therefore affects the calls after it, and a macro deleted by that reload
+	// fails here rather than running a definition the config no longer has.
+	// One body is read once and expanded once, so a single call is always
+	// internally consistent.
+	body, defined := a.configSnapshot().Macros[name]
+	if !defined {
+		return derrors.Newf(derrors.CodeInvalidInput, "no macro named %q", name)
+	}
+
+	if arity := config.MacroArity(body); len(args) != arity {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"macro %q takes %d argument(s), got %d",
+			name,
+			arity,
+			len(args),
+		)
+	}
+
+	// The nested sequence starts with its own policy: a macro decides for
+	// itself which of its steps are fatal, and its overall failure is what the
+	// caller sees.
+	outcome := a.executeActionSequenceWithPolicy(
+		ctx,
+		macroSource(name),
+		config.ExpandMacroSteps(body, args),
+		sequencePolicy{},
+	)
+
+	if outcome.err == nil {
+		return nil
+	}
+
+	// A bail inside a macro has to keep its meaning on the way out, or the
+	// caller would treat a canceled mode as an ordinary failure.
+	code := derrors.CodeActionFailed
+	if outcome.bailed {
+		code = derrors.CodeChainBail
+	}
+
+	return derrors.Wrapf(outcome.err, code, "macro %q", name)
+}
+
+// macroSource names a macro in logs the way it is written in the config.
+func macroSource(name string) string {
+	return config.MacroCommand + " " + name
 }
 
 // sequenceStepContext builds the context each step of a sequence runs under:

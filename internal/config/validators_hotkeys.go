@@ -49,6 +49,9 @@ func (c *Config) ValidateHotkeys() error {
 		{ModeNameGrid, c.Grid.Hotkeys},
 		{ModeNameRecursiveGrid, c.RecursiveGrid.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
+		// monitor_select binds keys like the other modes and dispatches them
+		// through the same executor, so its table is checked like theirs.
+		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
 	}
 
 	for _, mode := range modeHotkeys {
@@ -384,7 +387,10 @@ func validateHotkeyActionString(actionStr string) error {
 		// the sequence executes, not here: the steps arrive as a single quoted
 		// string per step, so splitting them apart correctly is the runtime's
 		// job, not the validator's.
-		CmdRun:
+		CmdRun,
+		// "macro" is checked against the [macros] table by ValidateMacros,
+		// which needs the whole config rather than one action string.
+		CmdMacro:
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

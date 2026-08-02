@@ -2,7 +2,6 @@
 package app
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
@@ -257,6 +256,12 @@ func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
 func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
 	t.Parallel()
 
+	cfg := config.DefaultConfig()
+	cfg.Macros = map[string]config.StringOrStringArray{
+		"open_hints": {"action save_cursor_pos", hintsStep},
+		"just_click": {leftClickStep},
+	}
+
 	tests := []struct {
 		name           string
 		actions        []string
@@ -278,6 +283,23 @@ func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
 			name:           "mode inside a nested run",
 			actions:        []string{`run 'run "hints"' 'action left_click'`},
 			wantModeSwitch: true,
+		},
+		{
+			// A macro body is as much part of what the binding does as an
+			// inline step is.
+			name:           "mode inside a macro",
+			actions:        []string{"macro open_hints"},
+			wantModeSwitch: true,
+		},
+		{
+			name:           "macro without a mode",
+			actions:        []string{"macro just_click"},
+			wantModeSwitch: false,
+		},
+		{
+			name:           "unknown macro names no mode",
+			actions:        []string{"macro not_defined"},
+			wantModeSwitch: false,
 		},
 		{
 			name:           "run without a mode",
@@ -305,7 +327,10 @@ func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := actionsContainModeSwitch(testCase.actions); got != testCase.wantModeSwitch {
+			if got := actionsContainModeSwitch(
+				testCase.actions,
+				cfg,
+			); got != testCase.wantModeSwitch {
 				t.Fatalf("actionsContainModeSwitch(%v) = %v, want %v",
 					testCase.actions, got, testCase.wantModeSwitch)
 			}
@@ -331,22 +356,70 @@ func TestActionsReferenceDisabledModeSeesModesInsideRun(t *testing.T) {
 	}
 }
 
-// The expansion must stop where the executor does: past the nesting limit a
+// The walk must stop where the executor does: past the nesting limit a
 // sequence is refused, so its steps never run and must not be reported as
 // things the binding does.
-func TestFlattenRunSteps_StopsAtTheExecutorsNestingLimit(t *testing.T) {
+func TestAnyBindingStep_StopsAtTheExecutorsNestingLimit(t *testing.T) {
 	t.Parallel()
 
 	mode := domain.ModeString(domain.ModeHints)
-	nested := []string{"run '" + mode + "'"}
+	names := func(step string) bool { return step == mode }
 
-	got := flattenRunStepsAtDepth(nested, 0)
-	if !slices.Equal(got, []string{mode}) {
-		t.Fatalf("below the limit: got %v, want the nested step expanded", got)
+	budget := maxInspectedSteps
+	if !anyBindingStepAtDepth([]string{"run '" + mode + "'"}, nil, 0, &budget, names) {
+		t.Fatal("below the limit: expected the nested step to be visited")
 	}
 
-	got = flattenRunStepsAtDepth(nested, maxSequenceDepth)
-	if !slices.Equal(got, nested) {
-		t.Fatalf("at the limit: got %v, want the run left unexpanded", got)
+	budget = maxInspectedSteps
+	if anyBindingStepAtDepth(
+		[]string{"run '" + mode + "'"},
+		nil,
+		maxSequenceDepth,
+		&budget,
+		names,
+	) {
+		t.Fatal("at the limit: expected the run to be left unexpanded")
+	}
+}
+
+// A binding whose macros fan out into each other multiplies at every level,
+// and this runs on the key-press path, so the walk is bounded rather than
+// trusted.
+func TestAnyBindingStep_IsBounded(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+
+	// Each level expands into eight calls to the next, which without a budget
+	// would visit thousands of steps before answering.
+	fanOut := func(next string) config.StringOrStringArray {
+		steps := make([]string, 0, 8)
+		for range 8 {
+			steps = append(steps, "macro "+next)
+		}
+
+		return steps
+	}
+
+	cfg.Macros = map[string]config.StringOrStringArray{
+		"a": fanOut("b"),
+		"b": fanOut("c"),
+		"c": fanOut("d"),
+		"d": {leftClickStep},
+	}
+
+	visited := 0
+	counted := func(string) bool {
+		visited++
+
+		return false
+	}
+
+	if anyBindingStep([]string{"macro a"}, cfg, counted) {
+		t.Fatal("no step names a mode, want false")
+	}
+
+	if visited > maxInspectedSteps {
+		t.Fatalf("visited %d steps, want no more than the %d budget", visited, maxInspectedSteps)
 	}
 }

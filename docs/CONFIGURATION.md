@@ -30,6 +30,7 @@ keeps its default. "The daemon" below means the process started by
 
 | Section                                       | Controls                                     |
 | --------------------------------------------- | -------------------------------------------- |
+| [`[macros]`](#macros)                         | Named action sequences reused across bindings |
 | [`[general]`](#general)                       | Global behaviour, passthrough, `exec` shell   |
 | [`[theme]`](#theme)                           | Base palette all components derive from       |
 | [`[hints]`](#hints)                           | Hints mode and element discovery              |
@@ -564,6 +565,70 @@ An array like the ones above is an *action sequence*. The same sequence, with th
 ---
 
 # Sections
+
+## [macros]
+
+Named action sequences. A macro is written once and invoked from any binding
+with `macro <name> [args...]`, which keeps a sequence used by several keys in
+one place instead of copied across them.
+
+These are written, not recorded: there is nothing to capture and replay, unlike
+the macros of a text editor. A macro is a named list of the same steps you would
+otherwise inline into the binding, with positional arguments.
+
+```toml
+[macros]
+# No arguments.
+click_and_exit = ["action left_click --bail-on-error", "idle"]
+
+# $1 and $2 are the first and second argument of the call.
+window_click = [
+    "action move_mouse --window --x -1000 --y -1000",
+    "action sleep 0.1",
+    "action move_mouse_relative --dx $1 --dy $2",
+    "action left_click",
+]
+
+[hints.hotkeys]
+"Enter" = "macro click_and_exit"
+
+[[app_configs]]
+bundle_id = "com.anthropic.claudefordesktop"
+hotkeys = { "Cmd+1" = "macro window_click 100 70" }
+```
+
+**Names** use letters, digits, `_` and `-`, and start with a letter.
+
+**Arguments** are positional: `$1`, `$2`, and so on, with `$$` for a literal
+dollar sign. Substitution is textual and happens before the step is split into
+arguments, so quote a placeholder that may contain spaces — `exec say "$1"` —
+exactly as you would in a shell.
+
+**Arity is checked when the config loads.** A call must pass exactly as many
+arguments as the body uses; an unknown name or the wrong count fails
+`neru config validate` rather than doing nothing when the key is pressed.
+
+The check reaches everywhere an action can be written: `[hotkeys]`, every
+`[<mode>.hotkeys]` table, the per-app overrides of both, the
+[Mission Control hooks](#hints), a macro body, and the steps carried inside a
+`run` or an `--on-exit`. So does the ordinary check that a step names a real
+command — a step is validated at whatever depth it appears.
+
+**A placeholder belongs in an argument, not in the command word.** A body step
+like `"$1 --action left_click"` is rejected at load, because a step whose
+command is only known at call time could not be validated at all.
+
+**A macro body is a sequence** like any other, so it can use
+[`--bail-on-error`](CLI.md#failure-policy), and it can call another macro. A
+macro that reaches itself is stopped by the same nesting limit that bounds
+`run` — five levels — rather than recursing.
+
+**A macro runs as a nested sequence**, so a failure inside it is reported to the
+caller as that one step failing. Mark the call with `--bail-on-error` when the
+rest of the calling sequence should not continue past it.
+
+Macros are not accepted as a mode's `--action`, which takes a mouse button
+name; use `--on-exit` for a sequence that follows the action.
 
 ## [general]
 

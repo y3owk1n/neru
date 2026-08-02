@@ -876,8 +876,9 @@ neru run <step> [step...]
 
 Each argument is one step, written exactly as it would be written in a hotkey
 binding: an action (`action left_click`), a mode (`hints --action left_click`),
-or a shell command (`exec open -a Safari`). The daemon executes the steps in
-order.
+a shell command (`exec open -a Safari`), or a named sequence from the
+[`[macros]`](CONFIGURATION.md#macros) table (`macro window_click 100 70`). The
+daemon executes the steps in order.
 
 This is the same executor that runs a multi-action hotkey binding, so a
 sequence behaves identically whether it is written in `[hotkeys]`, passed to
@@ -929,6 +930,11 @@ neru run --stop-on-error "action left_click" "action restore_cursor_pos"
 It works in any sequence — a hotkey binding, a mode's `--on-exit`, or `neru run`.
 Text that merely looks like the directive is left alone, so
 `exec sh -c "echo --bail-on-error"` still passes it through to the shell.
+
+The policy applies to the steps of one sequence. A step that runs a nested
+sequence — another `run`, or a [`macro`](CONFIGURATION.md#macros) — keeps its
+own policy inside; its overall failure is then reported to the caller as that
+one step failing, which an outer `--stop-on-error` or `--bail-on-error` acts on.
 
 A stopped sequence reports which step ended it and that the later steps did not
 run; a tolerated failure says the opposite, so the two are distinguishable by a
