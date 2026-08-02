@@ -479,8 +479,25 @@ func generateCellsWithRegions(
 	// result back to gridCols, which re-widened the very value the clamp had
 	// just bounded — dead code that made the allocation look unbounded to a
 	// static analyser, and did.
-	gridCols = min(max(gridCols, 1), MaxGridCols)
-	gridRows = min(max(gridRows, 1), MaxGridRows)
+	//
+	// Written as explicit comparisons rather than min/max: this is the form the
+	// rest of the file uses, and it is the form static analysis can follow to
+	// prove the bound on the allocation below.
+	if gridCols < 1 {
+		gridCols = 1
+	}
+
+	if gridCols > MaxGridCols {
+		gridCols = MaxGridCols
+	}
+
+	if gridRows < 1 {
+		gridRows = 1
+	}
+
+	if gridRows > MaxGridRows {
+		gridRows = MaxGridRows
+	}
 
 	cells := make([]*Cell, gridCols*gridRows)
 	cellIndex := 0
