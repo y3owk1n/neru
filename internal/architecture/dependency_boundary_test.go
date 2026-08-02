@@ -40,7 +40,7 @@ func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 			return nil
 		}
 
-		if filepath.Ext(path) != ".go" {
+		if filepath.Ext(path) != goExt {
 			return nil
 		}
 

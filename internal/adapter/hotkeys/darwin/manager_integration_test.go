@@ -1,13 +1,13 @@
 //go:build integration && darwin
 
-package hotkeys_test
+package darwin_test
 
 import (
 	"os"
 	"runtime"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
+	hotkeys "github.com/y3owk1n/neru/internal/adapter/hotkeys/darwin"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin" // Link CGO implementations
 )
@@ -47,7 +47,8 @@ func TestManagerRegistersAgainstTheRealOS(t *testing.T) {
 	log := logger.Get()
 	manager := hotkeys.NewManager(log)
 
-	hotkeys.SetGlobalManager(manager) // Required for C callbacks
+	// NewManager registers the manager for the C callbacks; clear it again so a
+	// later test does not fire into this one's manager.
 	defer hotkeys.SetGlobalManager(nil)
 
 	t.Cleanup(manager.UnregisterAll)
@@ -63,7 +64,7 @@ func TestManagerRegistersAgainstTheRealOS(t *testing.T) {
 		}
 
 		if hotkeyID == 0 {
-			t.Fatalf("Register(%q) returned zero HotkeyID", key)
+			t.Fatalf("Register(%q) returned zero ports.HotkeyID", key)
 		}
 
 		manager.Unregister(hotkeyID)

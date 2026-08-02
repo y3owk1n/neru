@@ -65,10 +65,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 
 // initializeHotkeyService creates the hotkey service.
 func initializeHotkeyService(logger *zap.Logger) HotkeyService {
-	hotkeyManager := hotkeys.NewManager(logger)
-	hotkeys.SetGlobalManager(hotkeyManager)
-
-	return hotkeyManager
+	return hotkeys.NewManager(logger)
 }
 
 // initializeAppWatcher creates the app watcher.

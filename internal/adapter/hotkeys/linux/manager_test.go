@@ -1,13 +1,13 @@
 //go:build linux
 
-package hotkeys_test
+package linux_test
 
 import (
 	"testing"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
+	hotkeys "github.com/y3owk1n/neru/internal/adapter/hotkeys/linux"
 )
 
 func TestLinuxManagerHealthCheck(t *testing.T) {

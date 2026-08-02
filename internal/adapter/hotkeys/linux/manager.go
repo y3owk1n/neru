@@ -1,6 +1,6 @@
 //go:build linux
 
-package hotkeys
+package linux
 
 import (
 	"sync"
@@ -17,11 +17,11 @@ const waylandStopTimeout = 3 * time.Second
 
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 type Manager struct {
-	callbacks map[HotkeyID]Callback
-	keys      map[HotkeyID]string
+	callbacks map[ports.HotkeyID]ports.HotkeyCallback
+	keys      map[ports.HotkeyID]string
 	logger    *zap.Logger
 	rawLogger *zap.Logger
-	nextID    HotkeyID
+	nextID    ports.HotkeyID
 	backend   platform.LinuxBackend
 	mu        sync.RWMutex
 
@@ -38,8 +38,8 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 
 	mgr := &Manager{
-		callbacks: make(map[HotkeyID]Callback),
-		keys:      make(map[HotkeyID]string),
+		callbacks: make(map[ports.HotkeyID]ports.HotkeyCallback),
+		keys:      make(map[ports.HotkeyID]string),
 		logger:    logger.Named("hotkeys"),
 		rawLogger: logger,
 		nextID:    1,
@@ -66,7 +66,10 @@ func isWaylandBackend(backend platform.LinuxBackend) bool {
 }
 
 // Register adds a new global hotkey (Linux stub).
-func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error) {
+func (m *Manager) Register(
+	keyString string,
+	callback ports.HotkeyCallback,
+) (ports.HotkeyID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -106,7 +109,7 @@ func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error
 }
 
 // Unregister removes a previously registered hotkey by its ID (Linux stub).
-func (m *Manager) Unregister(hotkeyID HotkeyID) {
+func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -135,8 +138,8 @@ func (m *Manager) UnregisterAll() {
 		m.unregisterAllX11Hotkeys()
 	}
 
-	m.callbacks = make(map[HotkeyID]Callback)
-	m.keys = make(map[HotkeyID]string)
+	m.callbacks = make(map[ports.HotkeyID]ports.HotkeyCallback)
+	m.keys = make(map[ports.HotkeyID]string)
 
 	if isWaylandBackend(m.backend) {
 		m.stopWayland()

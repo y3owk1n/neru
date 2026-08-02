@@ -7,25 +7,24 @@
 // only owns the transport and the item state.
 // Does not implement the darwin/Windows tray; those have their own backends.
 
-package systray
+package linux
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"sync"
 	"sync/atomic"
 
 	"github.com/godbus/dbus/v5"
+
+	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
 )
 
 // linuxTrayIconPNG is the colored brand tile shown in the KDE/GNOME system tray.
 // The macOS template glyph the shared menu passes is white-on-transparent with
 // alpha≈1 and is invisible when rendered as an SNI IconPixmap, so Linux uses
 // this asset instead (same approach as systray_windows.go).
-//
-//go:embed resources/tray-icon.png
-var linuxTrayIconPNG []byte
+var linuxTrayIconPNG = icon.Brand
 
 var (
 	menuItemsLock sync.RWMutex

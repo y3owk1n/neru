@@ -20,27 +20,27 @@ func NewAdapter() *Adapter {
 
 // SetTitle sets the text shown next to the tray icon.
 func (a *Adapter) SetTitle(title string) {
-	SetTitle(title)
+	setTitle(title)
 }
 
 // SetTooltip sets the icon's hover text.
 func (a *Adapter) SetTooltip(tooltip string) {
-	SetTooltip(tooltip)
+	setTooltip(tooltip)
 }
 
 // SetIcon sets the tray icon, optionally as a macOS template image.
 func (a *Adapter) SetIcon(icon []byte, template bool) {
-	SetTemplateIcon(icon, template)
+	setTemplateIcon(icon, template)
 }
 
 // AddMenuItem appends a top-level item.
 func (a *Adapter) AddMenuItem(title string) ports.SystrayMenuItem {
-	return menuItemAdapter{item: AddMenuItem(title)}
+	return menuItemAdapter{item: addMenuItem(title)}
 }
 
 // AddSeparator appends a top-level divider.
 func (a *Adapter) AddSeparator() {
-	AddSeparator()
+	addSeparator()
 }
 
 // menuItemAdapter adapts the backend *MenuItem to ports.SystrayMenuItem.
@@ -48,7 +48,7 @@ func (a *Adapter) AddSeparator() {
 // It is a value type wrapping a pointer, so passing it around costs nothing and
 // two adapters for the same item compare equal.
 type menuItemAdapter struct {
-	item *MenuItem
+	item *menuItem
 }
 
 // Clicked returns the item's click channel.

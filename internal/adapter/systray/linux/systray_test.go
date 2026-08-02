@@ -6,7 +6,7 @@
 // the systray loop creates its quit channel).
 // Does not test the D-Bus SNI/dbusmenu transport; that needs a session bus.
 
-package systray_test
+package linux_test
 
 import (
 	"testing"
@@ -14,6 +14,14 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/systray"
 )
+
+// resetState clears the tray's process-wide state after the test. The parent
+// package has its own copy for the backend-agnostic tests; duplicating three
+// lines is cheaper than exporting a test helper across a package boundary.
+func resetState(t *testing.T) {
+	t.Helper()
+	t.Cleanup(systray.ResetForTesting)
+}
 
 func TestQuitBeforeRunHeadlessDoesNotBlock(t *testing.T) {
 	resetState(t)

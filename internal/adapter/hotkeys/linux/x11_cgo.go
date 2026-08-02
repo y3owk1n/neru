@@ -1,11 +1,11 @@
 //go:build linux && cgo
 
-package hotkeys
+package linux
 
 /*
 #cgo linux pkg-config: x11
 #include <stdlib.h>
-#include "../platform/linux/x11_hotkeys.h"
+#include "../../platform/linux/x11_hotkeys.h"
 */
 import "C"
 
@@ -17,6 +17,7 @@ import (
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const x11HotkeyPollInterval = 10 * time.Millisecond
@@ -29,8 +30,8 @@ type x11HotkeyBinding struct {
 type x11HotkeyState struct {
 	display  *C.Display
 	root     C.Window
-	bindings map[HotkeyID]x11HotkeyBinding
-	ids      map[string]HotkeyID
+	bindings map[ports.HotkeyID]x11HotkeyBinding
+	ids      map[string]ports.HotkeyID
 	stopCh   chan struct{} // signals runX11HotkeyLoop to exit
 	doneCh   chan struct{} // closed when runX11HotkeyLoop has exited
 	once     sync.Once
@@ -38,7 +39,7 @@ type x11HotkeyState struct {
 
 var x11States sync.Map
 
-func (m *Manager) registerX11Hotkey(hotkeyID HotkeyID, keyString string) error {
+func (m *Manager) registerX11Hotkey(hotkeyID ports.HotkeyID, keyString string) error {
 	state, err := m.ensureX11State()
 	if err != nil {
 		return err
@@ -69,7 +70,7 @@ func (m *Manager) registerX11Hotkey(hotkeyID HotkeyID, keyString string) error {
 	return nil
 }
 
-func (m *Manager) unregisterX11Hotkey(hotkeyID HotkeyID) {
+func (m *Manager) unregisterX11Hotkey(hotkeyID ports.HotkeyID) {
 	stateAny, ok := x11States.Load(m)
 	if !ok {
 		return
@@ -144,8 +145,8 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 	state := &x11HotkeyState{
 		display:  display,
 		root:     C.neru_hotkeys_root_window(display), //nolint:nlreturn
-		bindings: make(map[HotkeyID]x11HotkeyBinding),
-		ids:      make(map[string]HotkeyID),
+		bindings: make(map[ports.HotkeyID]x11HotkeyBinding),
+		ids:      make(map[string]ports.HotkeyID),
 		stopCh:   make(chan struct{}),
 		doneCh:   make(chan struct{}),
 	}
@@ -192,7 +193,7 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		m.mu.RLock()
 		id, ok := state.ids[x11BindingKey(keycode, modifiers)]
 
-		var callback Callback
+		var callback ports.HotkeyCallback
 		if ok {
 			callback = m.callbacks[id]
 		}

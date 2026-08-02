@@ -1,13 +1,13 @@
 //go:build darwin
 
-package systray
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
 #cgo LDFLAGS: -framework Cocoa
 
 #include <stdlib.h>
-#include "../platform/darwin/systray.h"
+#include "../../platform/darwin/systray.h"
 */
 import "C"
 

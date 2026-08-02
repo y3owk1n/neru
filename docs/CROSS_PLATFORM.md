@@ -253,7 +253,7 @@ left-most held button, since one event cannot describe more.
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ❌ no-op                |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
 | **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/wayland_cgo.go`, `evdev_cgo.go` | `eventtap/windows/` |
-| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11_cgo.go`  | `manager_linux_common.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `manager_windows.go` |
+| **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `hotkeys/windows/` |
 
 ³ `hotkeys/manager_linux_wayland.go` is an empty placeholder — the Wayland
 hotkey path lives in the common manager, which delegates to the evdev listener
@@ -356,7 +356,7 @@ important thing to know before touching overlay code:
   rendering is GPU-backed via CoreAnimation.
 - **Linux and Windows** — component files are stubs holding only `Style` /
   `BuildStyle`. All real rendering happens in the overlay **manager**
-  (`manager_linux_x11_cgo.go`, `manager_linux_wayland_cgo.go`, `manager_windows*.go`),
+  (`hotkeys/linux/x11_cgo.go`, `overlay/manager_linux_wayland_cgo.go`, `overlay/manager_windows*.go`),
   drawing every element into one shared surface.
 
 ### Implementation
@@ -691,7 +691,7 @@ Two rules that save review cycles:
 
 Worked examples:
 
-- X11 hotkeys → [manager_linux_x11_cgo.go](../internal/adapter/hotkeys/manager_linux_x11_cgo.go)
+- X11 hotkeys → [x11_cgo.go](../internal/adapter/hotkeys/linux/x11_cgo.go)
 - Wayland keyboard capture → [wayland_cgo.go](../internal/adapter/eventtap/linux/wayland_cgo.go)
 - shared Linux system fallbacks → [system_linux_common.go](../internal/adapter/platform/linux/system_linux_common.go)
 

@@ -1,6 +1,6 @@
 //go:build darwin
 
-package hotkeys
+package darwin
 
 import (
 	"runtime"
@@ -12,21 +12,22 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 type callbackPair struct {
-	press   Callback
-	release Callback
+	press   ports.HotkeyCallback
+	release ports.HotkeyCallback
 	tap     unsafe.Pointer // per-hotkey CGEventTap handle
 }
 
 // Manager handles the registration, unregistration, and dispatching of global hotkeys.
 // It maintains a mapping of hotkey IDs to their corresponding callback functions.
 type Manager struct {
-	callbacks map[HotkeyID]callbackPair
+	callbacks map[ports.HotkeyID]callbackPair
 	mu        sync.RWMutex
 	logger    *zap.Logger
-	nextID    HotkeyID
+	nextID    ports.HotkeyID
 }
 
 // NewManager creates and initializes a new hotkey manager instance.
@@ -37,7 +38,7 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 
 	manager := &Manager{
-		callbacks: make(map[HotkeyID]callbackPair),
+		callbacks: make(map[ports.HotkeyID]callbackPair),
 		logger:    logger.Named("hotkeys"),
 		nextID:    1,
 	}
@@ -59,17 +60,20 @@ func NewManager(logger *zap.Logger) *Manager {
 
 // Register adds a new global hotkey that will trigger the provided callback when pressed.
 // The keyString parameter should follow the format "Cmd+Shift+X" or similar modifier combinations.
-// Returns the assigned HotkeyID and an error if registration fails.
-func (m *Manager) Register(keyString string, callback Callback) (HotkeyID, error) {
+// Returns the assigned ports.HotkeyID and an error if registration fails.
+func (m *Manager) Register(
+	keyString string,
+	callback ports.HotkeyCallback,
+) (ports.HotkeyID, error) {
 	return m.RegisterWithRelease(keyString, callback, nil)
 }
 
 // RegisterWithRelease adds a new global hotkey with press and optional release callbacks.
 func (m *Manager) RegisterWithRelease(
 	keyString string,
-	pressCallback Callback,
-	releaseCallback Callback,
-) (HotkeyID, error) {
+	pressCallback ports.HotkeyCallback,
+	releaseCallback ports.HotkeyCallback,
+) (ports.HotkeyID, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -119,7 +123,7 @@ func (m *Manager) RegisterWithRelease(
 
 // Unregister removes a previously registered hotkey by its ID.
 // After unregistering, the hotkey will no longer trigger its associated callback.
-func (m *Manager) Unregister(hotkeyID HotkeyID) {
+func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 	m.logger.Debug("Unregistering hotkey", zap.Int("id", int(hotkeyID)))
 
 	m.mu.Lock()
@@ -146,14 +150,14 @@ func (m *Manager) UnregisterAll() {
 		darwin.DestroyHotkeyTap(pair.tap)
 	}
 
-	m.callbacks = make(map[HotkeyID]callbackPair)
+	m.callbacks = make(map[ports.HotkeyID]callbackPair)
 
 	m.logger.Debug("Unregistered all hotkeys")
 }
 
 // handleCallback processes hotkey events received from the C callback.
 // It looks up the appropriate callback function and executes it in a goroutine.
-func (m *Manager) handleCallback(hotkeyID HotkeyID, eventKind darwin.HotkeyEventKind) {
+func (m *Manager) handleCallback(hotkeyID ports.HotkeyID, eventKind darwin.HotkeyEventKind) {
 	m.logger.Debug("Handling hotkey callback", zap.Int("id", int(hotkeyID)))
 
 	m.mu.RLock()
@@ -203,7 +207,7 @@ func SetGlobalManager(manager *Manager) {
 					zap.Int("id", hotkeyID),
 					zap.Int("event_kind", int(eventKind)))
 
-				go globalManager.handleCallback(HotkeyID(hotkeyID), eventKind)
+				go globalManager.handleCallback(ports.HotkeyID(hotkeyID), eventKind)
 			}
 		})
 	} else {

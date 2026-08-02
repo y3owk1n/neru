@@ -7,7 +7,7 @@
 // godbus to avoid pulling in a GTK build dependency for Linux CI.
 // Does not implement the darwin/Windows tray; those have their own backends.
 
-package systray
+package linux
 
 import (
 	"bytes"

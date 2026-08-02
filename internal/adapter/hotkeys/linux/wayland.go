@@ -1,6 +1,6 @@
 //go:build linux
 
-package hotkeys
+package linux
 
 // Linux Wayland hotkey backend placeholder.
 //

@@ -4,11 +4,10 @@
 // Win32 notification-area (system tray) icon + popup menu via pure syscall.
 // Does not implement macOS template-icon theming or per-item icons.
 
-package systray
+package windows
 
 import (
 	"bytes"
-	_ "embed"
 	"image"
 	"image/draw"
 	"image/png"
@@ -16,14 +15,14 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
 )
 
 // winTrayIconPNG is the colored brand tile shown in the notification area. The
 // macOS template glyph the shared menu passes is white-on-transparent and is
 // invisible on the Windows taskbar, so the Windows tray uses this instead.
-//
-//go:embed resources/tray-icon.png
-var winTrayIconPNG []byte
+var winTrayIconPNG = icon.Brand
 
 // Win32 message and shell constants.
 const (
