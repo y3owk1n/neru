@@ -745,13 +745,28 @@ func (h *IPCControllerModes) handleIdle(_ context.Context, _ ipc.Command) ipc.Re
 
 func (h *IPCControllerModes) handleToggleCursorFollowSelection(
 	_ context.Context,
-	_ ipc.Command,
+	cmd ipc.Command,
 ) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
 
-	enabled, ok := h.modes.ToggleCursorFollowSelection()
+	desired, errResponse := parseToggleState(
+		domain.CommandToggleCursorFollowSelection,
+		cmd.Args,
+	)
+	if errResponse != nil {
+		return *errResponse
+	}
+
+	// The preference belongs to the active mode's session rather than to the
+	// daemon, so unlike the other two toggles this one has nothing to set when
+	// no mode is running — including when --state named the state it wants.
+	enabled, ok := applyToggleStateWithResult(
+		desired,
+		h.modes.ToggleCursorFollowSelection,
+		h.modes.SetCursorFollowSelection,
+	)
 	if !ok {
 		return ipc.Response{
 			Success: false,
@@ -769,6 +784,7 @@ func (h *IPCControllerModes) handleToggleCursorFollowSelection(
 		Success: true,
 		Message: "cursor_follow_selection " + state,
 		Code:    ipc.CodeOK,
+		Data:    map[string]bool{"following": enabled},
 	}
 }
 
@@ -865,10 +881,21 @@ func (h *IPCControllerOverlay) RegisterHandlers(
 
 func (h *IPCControllerOverlay) handleToggleScreenShare(
 	_ context.Context,
-	_ ipc.Command,
+	cmd ipc.Command,
 ) ipc.Response {
-	// Atomically toggle to avoid check-then-act race
-	newState := h.appState.ToggleHiddenForScreenShare()
+	desired, errResponse := parseToggleState(domain.CommandToggleScreenShare, cmd.Args)
+	if errResponse != nil {
+		return *errResponse
+	}
+
+	// --state names the reported state, so "on" is hidden. Naming it after the
+	// visibility instead would invert between the flag and the status field.
+	newState := applyToggleState(
+		desired,
+		// Atomically toggle to avoid check-then-act race
+		h.appState.ToggleHiddenForScreenShare,
+		h.appState.SetHiddenForScreenShare,
+	)
 
 	status := "visible"
 	if newState {
@@ -912,10 +939,19 @@ func (h *IPCControllerScroll) RegisterHandlers(
 
 func (h *IPCControllerScroll) handleToggleScrollInvert(
 	_ context.Context,
-	_ ipc.Command,
+	cmd ipc.Command,
 ) ipc.Response {
-	// Atomically toggle to avoid check-then-act race
-	newState := h.appState.ToggleScrollInverted()
+	desired, errResponse := parseToggleState(domain.CommandToggleScrollInvert, cmd.Args)
+	if errResponse != nil {
+		return *errResponse
+	}
+
+	newState := applyToggleState(
+		desired,
+		// Atomically toggle to avoid check-then-act race
+		h.appState.ToggleScrollInverted,
+		h.appState.SetScrollInverted,
+	)
 
 	if h.scrollService != nil {
 		h.scrollService.SetInvertScroll(newState)

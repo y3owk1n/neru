@@ -150,3 +150,60 @@ func TestPrintJSON_ReportsUnencodablePayload(t *testing.T) {
 		t.Fatal("PrintJSON() = nil, want an error for an unencodable payload")
 	}
 }
+
+func TestPrintToggles(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	printToggles(cmd, map[string]any{
+		keyScrollInverted:        true,
+		keyHiddenForScreenShare:  false,
+		keyCursorFollowSelection: true,
+	})
+
+	got := output.String()
+
+	expectedLines := []string{
+		"  Scroll inverted: yes",
+		"  Screen share hidden: no",
+		"  Cursor follows selection: yes",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(got, expectedLine) {
+			t.Fatalf("printToggles output missing %q in:\n%s", expectedLine, got)
+		}
+	}
+}
+
+// A toggle with no state is skipped, not printed as off: cursor-follow-selection
+// is null while no mode is running, and "no" would name a state the daemon is
+// not in.
+func TestPrintToggles_SkipsAbsentState(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&output)
+
+	printToggles(cmd, map[string]any{
+		keyScrollInverted:        false,
+		keyHiddenForScreenShare:  false,
+		keyCursorFollowSelection: nil,
+	})
+
+	got := output.String()
+
+	if strings.Contains(got, "Cursor follows selection") {
+		t.Fatalf("printToggles printed a toggle that carries no state:\n%s", got)
+	}
+
+	if !strings.Contains(got, "  Scroll inverted: no") {
+		t.Fatalf("printToggles output missing the toggles that do carry state:\n%s", got)
+	}
+}

@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/core/domain"
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
@@ -29,6 +30,7 @@ func TestHandleRun_RequiresSteps(t *testing.T) {
 
 			return sequenceOutcome{}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -44,7 +46,7 @@ func TestHandleRun_RequiresSteps(t *testing.T) {
 func TestHandleRun_ReportsMissingExecutor(t *testing.T) {
 	t.Parallel()
 
-	handler := NewIPCControllerSequence(nil, zap.NewNop())
+	handler := NewIPCControllerSequence(nil, nil, zap.NewNop())
 
 	resp := handler.handleRun(context.Background(), ipc.Command{Args: []string{"idle"}})
 
@@ -64,6 +66,7 @@ func TestHandleRun_PassesTrimmedStepsToExecutor(t *testing.T) {
 
 			return sequenceOutcome{executed: len(steps)}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -120,6 +123,7 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 				func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
 					return testCase.outcome
 				},
+				nil,
 				zap.NewNop(),
 			)
 
@@ -185,6 +189,7 @@ func TestHandleRun_StopOnErrorFlagIsAPolicyNotAStep(t *testing.T) {
 
 			return sequenceOutcome{executed: len(steps)}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -215,6 +220,7 @@ func TestHandleRun_StopOnErrorAloneIsNotASequence(t *testing.T) {
 
 			return sequenceOutcome{}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -237,6 +243,7 @@ func TestHandleRun_ReportsASequenceThatNeverStarted(t *testing.T) {
 				stopped: true,
 			}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -265,6 +272,7 @@ func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
 				executed:    1,
 			}
 		},
+		nil,
 		zap.NewNop(),
 	)
 
@@ -272,5 +280,175 @@ func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
 
 	if strings.Contains(resp.Message, "later steps still ran") {
 		t.Fatalf("message %q claims steps ran after the last one", resp.Message)
+	}
+}
+
+func TestHandleMacro_RequiresAName(t *testing.T) {
+	t.Parallel()
+
+	handler := NewIPCControllerSequence(
+		nil,
+		func(context.Context, string, []string) error {
+			t.Fatal("the macro runner must not run without a name")
+
+			return nil
+		},
+		zap.NewNop(),
+	)
+
+	for _, args := range [][]string{nil, {}, {"  ", ""}} {
+		resp := handler.handleMacro(context.Background(), ipc.Command{Args: args})
+
+		if resp.Success || resp.Code != ipc.CodeInvalidInput {
+			t.Fatalf("handleMacro(%v) = %+v, want an invalid-input failure", args, resp)
+		}
+	}
+}
+
+func TestHandleMacro_ReportsMissingRunner(t *testing.T) {
+	t.Parallel()
+
+	handler := NewIPCControllerSequence(nil, nil, zap.NewNop())
+
+	resp := handler.handleMacro(context.Background(), ipc.Command{Args: []string{"zoom"}})
+
+	if resp.Success || resp.Code != ipc.CodeActionFailed {
+		t.Fatalf("handleMacro() = %+v, want an action-failed response", resp)
+	}
+}
+
+func TestHandleMacro_PassesArgumentsThroughUnsplit(t *testing.T) {
+	t.Parallel()
+
+	var (
+		gotName string
+		gotArgs []string
+	)
+
+	handler := NewIPCControllerSequence(
+		nil,
+		func(_ context.Context, name string, args []string) error {
+			gotName, gotArgs = name, slices.Clone(args)
+
+			return nil
+		},
+		zap.NewNop(),
+	)
+
+	// An argument containing spaces and both kinds of quote is exactly what a
+	// call written as one step string could not carry intact.
+	args := []string{"say_it", `hello "there" it's me`, "tail"}
+
+	resp := handler.handleMacro(context.Background(), ipc.Command{Args: args})
+	if !resp.Success {
+		t.Fatalf("handleMacro() = %+v, want success", resp)
+	}
+
+	if gotName != "say_it" {
+		t.Fatalf("macro name = %q, want %q", gotName, "say_it")
+	}
+
+	if !slices.Equal(gotArgs, args[1:]) {
+		t.Fatalf("macro args = %q, want %q", gotArgs, args[1:])
+	}
+}
+
+func TestHandleMacro_MapsFailureOntoTheCodeThatDescribesIt(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		err      error
+		wantCode string
+	}{
+		{
+			name:     "unknown macro",
+			err:      derrors.New(derrors.CodeInvalidInput, `no macro named "nope"`),
+			wantCode: ipc.CodeInvalidInput,
+		},
+		{
+			// A canceled mode is not a fault, and a caller chaining calls
+			// needs to tell the two apart.
+			name:     "canceled mode",
+			err:      derrors.New(derrors.CodeChainBail, "mode exited without selection"),
+			wantCode: ipc.CodeChainBail,
+		},
+		{
+			name:     "step failed",
+			err:      derrors.New(derrors.CodeActionFailed, "click failed"),
+			wantCode: ipc.CodeActionFailed,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler := NewIPCControllerSequence(
+				nil,
+				func(context.Context, string, []string) error {
+					return testCase.err
+				},
+				zap.NewNop(),
+			)
+
+			resp := handler.handleMacro(context.Background(), ipc.Command{Args: []string{"m"}})
+
+			if resp.Success {
+				t.Fatalf("handleMacro() = %+v, want failure", resp)
+			}
+
+			if resp.Code != testCase.wantCode {
+				t.Fatalf("code = %q, want %q", resp.Code, testCase.wantCode)
+			}
+
+			if !strings.Contains(resp.Message, testCase.err.Error()) {
+				t.Fatalf("message %q does not carry the underlying error", resp.Message)
+			}
+		})
+	}
+}
+
+func TestRegisterHandlers_RegistersRunAndMacro(t *testing.T) {
+	t.Parallel()
+
+	handlers := make(map[string]func(context.Context, ipc.Command) ipc.Response)
+
+	NewIPCControllerSequence(nil, nil, zap.NewNop()).RegisterHandlers(handlers)
+
+	for _, command := range []string{domain.CommandRun, domain.CommandMacro} {
+		if handlers[command] == nil {
+			t.Fatalf("no handler registered for %q", command)
+		}
+	}
+}
+
+// Macro arguments are data, not steps. Trimming them or dropping the blank ones
+// would rewrite an argument whose padding matters and shift every later
+// argument onto the wrong placeholder.
+func TestHandleMacro_PassesArgumentsThroughVerbatim(t *testing.T) {
+	t.Parallel()
+
+	var gotArgs []string
+
+	handler := NewIPCControllerSequence(
+		nil,
+		func(_ context.Context, _ string, args []string) error {
+			gotArgs = slices.Clone(args)
+
+			return nil
+		},
+		zap.NewNop(),
+	)
+
+	args := []string{"  say_it  ", " padded ", "", "third"}
+
+	resp := handler.handleMacro(context.Background(), ipc.Command{Args: args})
+	if !resp.Success {
+		t.Fatalf("handleMacro() = %+v, want success", resp)
+	}
+
+	if !slices.Equal(gotArgs, args[1:]) {
+		t.Fatalf("macro args = %q, want %q", gotArgs, args[1:])
 	}
 }

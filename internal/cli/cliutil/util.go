@@ -145,6 +145,7 @@ func (f *OutputFormatter) PrintStatus(cmd *cobra.Command, data any) error {
 		}
 
 		printProfile(cmd, statusData["profile"])
+		printToggles(cmd, statusData)
 	} else {
 		// Fallback to JSON output
 		jsonData, jsonDataErr := json.MarshalIndent(data, "  ", "  ")
@@ -311,6 +312,48 @@ func printDarkMode(cmd *cobra.Command, rawCapabilities any) {
 	}
 
 	cmd.Println("  Dark Mode: " + detail)
+}
+
+// Status payload keys for the runtime toggles, named as the daemon reports
+// them.
+const (
+	keyScrollInverted        = "scroll_inverted"
+	keyHiddenForScreenShare  = "hidden_for_screen_share"
+	keyCursorFollowSelection = "cursor_follow_selection"
+)
+
+// printToggles prints the runtime toggles that a toggle-* command can change.
+//
+// A toggle that carries no state is skipped rather than printed as off:
+// cursor-follow-selection only exists while a mode is running, and reading it
+// as "off" would suggest a state the daemon is not in.
+func printToggles(cmd *cobra.Command, statusData map[string]any) {
+	toggles := []struct {
+		label string
+		key   string
+	}{
+		{"Scroll inverted", keyScrollInverted},
+		{"Screen share hidden", keyHiddenForScreenShare},
+		{"Cursor follows selection", keyCursorFollowSelection},
+	}
+
+	for _, toggle := range toggles {
+		value, ok := statusData[toggle.key].(bool)
+		if !ok {
+			continue
+		}
+
+		cmd.Println("  " + toggle.label + ": " + yesNo(value))
+	}
+}
+
+// yesNo renders a toggle state for a human reader.
+func yesNo(value bool) string {
+	if value {
+		return "yes"
+	}
+
+	return "no"
 }
 
 func printProfile(cmd *cobra.Command, rawProfile any) {

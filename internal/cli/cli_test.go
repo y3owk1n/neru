@@ -121,6 +121,7 @@ func TestCommandInitialization(t *testing.T) {
 		"scroll":                         false,
 		cliTestAction:                    false,
 		"run <step> [step...]":           false,
+		"macro <name> [arg...]":          false,
 		cliTestStatus:                    false,
 		"doctor":                         false,
 		cliTestRoles:                     false,

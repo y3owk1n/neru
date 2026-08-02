@@ -178,6 +178,13 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 		"recursive_grid_enabled": cfg.RecursiveGrid.Enabled,
 		"capabilities":           capabilitiesMap(h.systemCapabilities()),
 		"profile":                profileMap(platform.CurrentProfile()),
+
+		// The runtime toggles. They are reported under the names the
+		// corresponding toggle-* command reports, so a caller can set one with
+		// --state and read back the field it just named.
+		"scroll_inverted":         h.appState.IsScrollInverted(),
+		"hidden_for_screen_share": h.appState.IsHiddenForScreenShare(),
+		"cursor_follow_selection": h.cursorFollowSelection(),
 	}
 
 	return ipc.Response{
@@ -186,6 +193,27 @@ func (h *IPCControllerInfo) handleStatus(_ context.Context, _ ipc.Command) ipc.R
 		Data:    status,
 		Code:    ipc.CodeOK,
 	}
+}
+
+// cursorFollowSelection reports the active mode's cursor-follow-selection
+// preference, or nil when no mode carries one.
+//
+// It is null rather than false in that case because the two are different
+// answers: false means a running mode is not following the selection, and null
+// means there is nothing to follow it with. A caller that treated the absence
+// as false would think it had read a state it can in fact only set once a mode
+// is running.
+func (h *IPCControllerInfo) cursorFollowSelection() *bool {
+	if h.modes == nil {
+		return nil
+	}
+
+	enabled, ok := h.modes.CursorFollowSelection()
+	if !ok {
+		return nil
+	}
+
+	return &enabled
 }
 
 func (h *IPCControllerInfo) handleConfig(ctx context.Context, cmd ipc.Command) ipc.Response {

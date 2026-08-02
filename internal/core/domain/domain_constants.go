@@ -25,12 +25,18 @@ const (
 )
 
 // IPC Commands.
+//
+// CommandMacro deliberately spells the same word as config.MacroCommand, which
+// names the step keyword inside a binding. A macro is invoked the same way
+// wherever it is written, so the two must not drift apart; they are separate
+// constants only because the domain package cannot import config.
 const (
 	CommandPing                        = "ping"
 	CommandStart                       = "start"
 	CommandStop                        = "stop"
 	CommandAction                      = "action"
 	CommandRun                         = "run"
+	CommandMacro                       = "macro"
 	CommandStatus                      = "status"
 	CommandConfig                      = "config"
 	CommandReloadConfig                = "reload"

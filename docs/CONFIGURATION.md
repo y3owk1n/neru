@@ -630,6 +630,15 @@ rest of the calling sequence should not continue past it.
 Macros are not accepted as a mode's `--action`, which takes a mouse button
 name; use `--on-exit` for a sequence that follows the action.
 
+**A macro is also reachable from outside**, with
+[`neru macro <name> [args...]`](CLI.md#neru-macro). The daemon runs it exactly
+as a binding does, so an external driver (skhd, Hammerspoon, a shell script)
+shares the same definition rather than keeping its own copy:
+
+```bash
+neru macro window_click 100 70
+```
+
 ## [general]
 
 Global behaviour that is not tied to a single mode: app exclusions, keyboard

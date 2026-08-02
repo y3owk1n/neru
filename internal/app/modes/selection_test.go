@@ -248,3 +248,97 @@ func TestClearCurrentSelectionPoint_ClearsOnlyActiveModeSelection(t *testing.T) 
 		t.Fatalf("grid selection = %v, %v; want (10,20), true", got, ok)
 	}
 }
+
+func TestSetCursorFollowSelection_ConvergesRatherThanFlipping(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial bool
+		set     bool
+	}{
+		{name: "on from off", initial: false, set: true},
+		// Setting the state it already holds must not flip it. This is the
+		// whole difference between the setter and the toggle.
+		{name: "on from on", initial: true, set: true},
+		{name: "off from on", initial: true, set: false},
+		{name: "off from off", initial: false, set: false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			appState := state.NewAppState()
+			appState.SetMode(domain.ModeHints)
+
+			handler := &Handler{
+				appState: appState,
+				logger:   zap.NewNop(),
+				hints: &components.HintsComponent{
+					Context: &hintscomponent.Context{},
+				},
+			}
+
+			handler.hints.Context.SetCursorFollowSelection(testCase.initial)
+
+			enabled, supported := handler.SetCursorFollowSelection(testCase.set)
+			if !supported {
+				t.Fatal("SetCursorFollowSelection() expected success in hints mode")
+			}
+
+			if enabled != testCase.set {
+				t.Fatalf("SetCursorFollowSelection(%t) = %t, want %t",
+					testCase.set, enabled, testCase.set)
+			}
+
+			if got := handler.hints.Context.CursorFollowSelection(); got != testCase.set {
+				t.Fatalf("context cursor follow = %t, want %t", got, testCase.set)
+			}
+		})
+	}
+}
+
+func TestCursorFollowSelection_ReadsWithoutChanging(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeGrid)
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		grid: &components.GridComponent{
+			Context: &gridcomponent.Context{},
+		},
+	}
+
+	handler.grid.Context.SetCursorFollowSelection(true)
+
+	for range 2 {
+		enabled, supported := handler.CursorFollowSelection()
+		if !supported {
+			t.Fatal("CursorFollowSelection() expected success in grid mode")
+		}
+
+		if !enabled {
+			t.Fatal("CursorFollowSelection() = false, want the state left as it was read")
+		}
+	}
+}
+
+func TestCursorFollowSelection_ReportsUnsupportedWithoutAMode(t *testing.T) {
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeIdle)
+
+	handler := &Handler{
+		appState: appState,
+		logger:   zap.NewNop(),
+		hints: &components.HintsComponent{
+			Context: &hintscomponent.Context{},
+		},
+	}
+
+	if _, supported := handler.CursorFollowSelection(); supported {
+		t.Fatal("CursorFollowSelection() reported support in idle mode")
+	}
+
+	// Naming the state you want does not conjure a session to hold it.
+	if _, supported := handler.SetCursorFollowSelection(true); supported {
+		t.Fatal("SetCursorFollowSelection() reported support in idle mode")
+	}
+}

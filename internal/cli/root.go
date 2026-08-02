@@ -205,6 +205,47 @@ func BuildSimpleCommand(use, short, long string, action string) *cobra.Command {
 	}
 }
 
+// BuildToggleCommand creates a cobra command for a runtime toggle, adding the
+// --state flag that asks for a state instead of flipping whatever is there.
+//
+// Flipping is right for a key binding, where the user sees the result and
+// presses again if it went the wrong way. A script has no such feedback loop,
+// so it needs to be able to name the state it wants — and to read it back from
+// "neru status --json", which reports every toggle these commands change.
+func BuildToggleCommand(use, short, long string, action string) *cobra.Command {
+	var state string
+
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Long:  long,
+		Args:  cobra.NoArgs,
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return requiresRunningInstance()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if state == "" {
+				return sendCommand(cmd, action, nil)
+			}
+
+			if state != "on" && state != "off" && state != "toggle" {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"invalid --state %q: expected on, off, or toggle",
+					state,
+				)
+			}
+
+			return sendCommand(cmd, action, []string{"--state=" + state})
+		},
+	}
+
+	cmd.Flags().StringVar(&state, "state", "",
+		"State to converge on: on, off, or toggle (default: toggle)")
+
+	return cmd
+}
+
 // BuildActionCommand creates an action cobra command with the given parameters.
 func BuildActionCommand(
 	use, short, long string,
