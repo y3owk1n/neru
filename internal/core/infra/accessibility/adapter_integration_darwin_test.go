@@ -28,12 +28,15 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()
 
-	// Bounded rather than context.Background(): every call below reaches the
-	// real AX API, and a scan of a slow or unresponsive frontmost window blocks
-	// in the Objective-C bridge. With no deadline that is not a slow test, it is
-	// `just test` never returning — and the run has to be killed by hand to find
-	// out which test it was. The budget is far above the daemon's own per-scan
-	// ceiling (modes.HintTimeout, 5s), so it can only trip on a real hang.
+	// Bounded rather than context.Background(), but note what this does and
+	// does not buy: the AX client discards the context and calls straight into
+	// the Objective-C bridge, so the deadline cannot interrupt a query that is
+	// already wedged there. What it does do is stop the scan's per-source
+	// goroutines from starting further work once it has expired.
+	//
+	// The actual hang guard is runWithinBudget, which watches from outside the
+	// call. The budget is shared and sits far above the daemon's own per-scan
+	// ceiling (modes.HintTimeout, 5s), so neither can trip on a merely slow run.
 	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
 	defer cancel()
 
@@ -279,7 +282,17 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 			ExcludeRoles: []element.Role{element.RoleWindow},
 		}
 
-		clickableElements, err := adapter.ClickableElements(ctx, filter)
+		var (
+			clickableElements []*element.Element
+			err               error
+		)
+
+		// The scan is the one call here that can wedge, and the deadline on ctx
+		// cannot stop it — see runWithinBudget for why.
+		runWithinBudget(t, "ClickableElements", func() {
+			clickableElements, err = adapter.ClickableElements(ctx, filter)
+		})
+
 		if err != nil {
 			t.Fatalf("ClickableElements() error = %v, want nil", err)
 		}
