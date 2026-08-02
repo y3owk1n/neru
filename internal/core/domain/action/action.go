@@ -1,6 +1,7 @@
 package action
 
 import (
+	"regexp"
 	"strings"
 
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
@@ -515,6 +516,17 @@ func IsSaveCursorPosAction(name string) bool {
 // IsRestoreCursorPosAction reports whether the given action is restore_cursor_pos.
 func IsRestoreCursorPosAction(name string) bool {
 	return Name(name) == NameRestoreCursorPos
+}
+
+// cursorSlotNamePattern is what a --slot value may be called. The rule matches
+// the one for macro names, so the two kinds of name a config author writes look
+// the same, and it keeps a mistyped flag (`--slot --center`) from quietly
+// becoming a slot rather than an error.
+var cursorSlotNamePattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
+
+// IsValidCursorSlotName reports whether name may be used as a cursor slot.
+func IsValidCursorSlotName(name string) bool {
+	return cursorSlotNamePattern.MatchString(name)
 }
 
 // IsHideCursorAction reports whether the given action is hide_cursor.

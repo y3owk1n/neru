@@ -2,12 +2,15 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"image"
+	"strings"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/core/domain/state"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
@@ -278,13 +281,44 @@ func (h *IPCControllerActions) currentSelectionPoint() (image.Point, bool) {
 	return h.modesHandler.CurrentSelectionPoint()
 }
 
-func (h *IPCControllerActions) handleSaveCursorPosAction(ctx context.Context) ipc.Response {
+// resolveCursorSlot returns the slot a cursor action names, or an error
+// response when the name is not one.
+func resolveCursorSlot(parsed parsedActionArgs) (string, *ipc.Response) {
+	if !parsed.hasSlot {
+		return state.DefaultCursorSlot, nil
+	}
+
+	slot := strings.TrimSpace(parsed.slotName)
+	if !action.IsValidCursorSlotName(slot) {
+		return "", &ipc.Response{
+			Success: false,
+			Message: fmt.Sprintf(
+				"invalid --slot %q: names start with a letter and may contain "+
+					"letters, digits, underscores, and dashes",
+				parsed.slotName,
+			),
+			Code: ipc.CodeInvalidInput,
+		}
+	}
+
+	return slot, nil
+}
+
+func (h *IPCControllerActions) handleSaveCursorPosAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+) ipc.Response {
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
 			Message: "action service not available",
 			Code:    ipc.CodeActionFailed,
 		}
+	}
+
+	slot, slotErr := resolveCursorSlot(parsed)
+	if slotErr != nil {
+		return *slotErr
 	}
 
 	pos, posErr := h.actionService.CursorPosition(ctx)
@@ -296,15 +330,20 @@ func (h *IPCControllerActions) handleSaveCursorPosAction(ctx context.Context) ip
 		}
 	}
 
-	h.savedCursorMu.Lock()
-	h.savedCursorPos = pos
-	h.savedCursorPresent = true
-	h.savedCursorMu.Unlock()
+	h.cursorSlots.Save(slot, pos)
 
-	return ipc.Response{Success: true, Message: "cursor position saved", Code: ipc.CodeOK}
+	return ipc.Response{
+		Success: true,
+		Message: "cursor position saved to slot " + slot,
+		Code:    ipc.CodeOK,
+		Data:    map[string]string{slotDataKey: slot},
+	}
 }
 
-func (h *IPCControllerActions) handleRestoreCursorPosAction(ctx context.Context) ipc.Response {
+func (h *IPCControllerActions) handleRestoreCursorPosAction(
+	ctx context.Context,
+	parsed parsedActionArgs,
+) ipc.Response {
 	if h.actionService == nil {
 		return ipc.Response{
 			Success: false,
@@ -313,13 +352,23 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(ctx context.Context)
 		}
 	}
 
-	h.savedCursorMu.RLock()
-	initialPos := h.savedCursorPos
-	present := h.savedCursorPresent
-	h.savedCursorMu.RUnlock()
+	slot, slotErr := resolveCursorSlot(parsed)
+	if slotErr != nil {
+		return *slotErr
+	}
 
+	// A restore consumes the slot, so the read and the clear are one operation
+	// — two restores racing on the same slot must not both move the cursor.
+	// The slot stays consumed if the move then fails, which keeps a failed
+	// restore from leaving a stale mark for a later one to trip over.
+	initialPos, present := h.cursorSlots.Take(slot)
 	if !present {
-		return ipc.Response{Success: true, Message: "no saved cursor position", Code: ipc.CodeOK}
+		return ipc.Response{
+			Success: true,
+			Message: "no saved cursor position in slot " + slot,
+			Code:    ipc.CodeOK,
+			Data:    map[string]string{slotDataKey: slot},
+		}
 	}
 
 	moveErr := h.actionService.MoveCursorToPoint(ctx, initialPos)
@@ -331,11 +380,12 @@ func (h *IPCControllerActions) handleRestoreCursorPosAction(ctx context.Context)
 		}
 	}
 
-	h.savedCursorMu.Lock()
-	h.savedCursorPresent = false
-	h.savedCursorMu.Unlock()
-
-	return ipc.Response{Success: true, Message: "cursor restored", Code: ipc.CodeOK}
+	return ipc.Response{
+		Success: true,
+		Message: "cursor restored from slot " + slot,
+		Code:    ipc.CodeOK,
+		Data:    map[string]string{slotDataKey: slot},
+	}
 }
 
 func (h *IPCControllerActions) handleCursorVisibilityAction(hide bool) ipc.Response {

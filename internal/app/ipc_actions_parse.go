@@ -33,6 +33,8 @@ type parsedActionArgs struct {
 	hasDirection   bool
 	countVal       int
 	hasCount       bool
+	slotName       string
+	hasSlot        bool
 
 	// present records every flag that appeared, keyed by its canonical
 	// spelling, so rejectUnsupportedFlags can refuse flags the action does
@@ -128,6 +130,9 @@ var actionFlagSpecs = map[string]flagSpec{
 	})},
 	flagDirection: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
 		p.directionStr, p.hasDirection = v, true
+	})},
+	flagSlot: {takesValue: true, apply: intoString(func(p *parsedActionArgs, v string) {
+		p.slotName, p.hasSlot = v, true
 	})},
 
 	flagCenter:    {apply: intoFlag(func(p *parsedActionArgs) { p.hasCenter = true })},
