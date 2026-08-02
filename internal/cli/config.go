@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
-
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
@@ -58,19 +56,7 @@ var configDumpCmd = &cobra.Command{
 			return derrors.New(derrors.CodeIPCFailed, ipcResponse.Message)
 		}
 
-		// Marshal pretty JSON
-		ipcResponseData, ipcResponseDataErr := json.MarshalIndent(ipcResponse.Data, "", "  ")
-		if ipcResponseDataErr != nil {
-			return derrors.Wrap(
-				ipcResponseDataErr,
-				derrors.CodeSerializationFailed,
-				"failed to marshal config",
-			)
-		}
-
-		cmd.Println(string(ipcResponseData))
-
-		return nil
+		return formatter.PrintJSON(cmd, ipcResponse.Data)
 	},
 }
 
