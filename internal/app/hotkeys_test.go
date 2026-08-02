@@ -2,9 +2,11 @@
 package app
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
 )
 
@@ -245,5 +247,106 @@ func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+// A binding may name a mode directly or carry it inside a "run" sequence.
+// Both spellings have to be visible to the callers that inspect a binding
+// before dispatching it, or a mode switch written as a sequence would skip
+// modifier suppression and the disabled-mode check.
+func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		actions        []string
+		wantModeSwitch bool
+	}{
+		{
+			name:           "direct mode",
+			actions:        []string{hintsStep},
+			wantModeSwitch: true,
+		},
+		{
+			name:           "mode inside run",
+			actions:        []string{"run 'action save_cursor_pos' '" + hintsStep + "'"},
+			wantModeSwitch: true,
+		},
+		{
+			// A run step may itself be a run, and the executor follows it, so a
+			// mode below the first level must still be visible here.
+			name:           "mode inside a nested run",
+			actions:        []string{`run 'run "hints"' 'action left_click'`},
+			wantModeSwitch: true,
+		},
+		{
+			name:           "run without a mode",
+			actions:        []string{"run 'action left_click' 'action sleep 0.2'"},
+			wantModeSwitch: false,
+		},
+		{
+			name:           "nested run without a mode",
+			actions:        []string{`run 'run "action left_click"' 'action sleep 0.2'`},
+			wantModeSwitch: false,
+		},
+		{
+			name:           "no mode at all",
+			actions:        []string{"action left_click", "exec true"},
+			wantModeSwitch: false,
+		},
+		{
+			name:           "blank actions",
+			actions:        []string{"", "   "},
+			wantModeSwitch: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := actionsContainModeSwitch(testCase.actions); got != testCase.wantModeSwitch {
+				t.Fatalf("actionsContainModeSwitch(%v) = %v, want %v",
+					testCase.actions, got, testCase.wantModeSwitch)
+			}
+		})
+	}
+}
+
+func TestActionsReferenceDisabledModeSeesModesInsideRun(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+	cfg.Hints.Enabled = false
+
+	actions := []string{"run 'action save_cursor_pos' '" + hintsStep + "'"}
+	if !actionsReferenceDisabledMode(actions, cfg) {
+		t.Fatal("a disabled mode inside a run step should be detected")
+	}
+
+	cfg.Hints.Enabled = true
+
+	if actionsReferenceDisabledMode(actions, cfg) {
+		t.Fatal("an enabled mode inside a run step should not be reported as disabled")
+	}
+}
+
+// The expansion must stop where the executor does: past the nesting limit a
+// sequence is refused, so its steps never run and must not be reported as
+// things the binding does.
+func TestFlattenRunSteps_StopsAtTheExecutorsNestingLimit(t *testing.T) {
+	t.Parallel()
+
+	mode := domain.ModeString(domain.ModeHints)
+	nested := []string{"run '" + mode + "'"}
+
+	got := flattenRunStepsAtDepth(nested, 0)
+	if !slices.Equal(got, []string{mode}) {
+		t.Fatalf("below the limit: got %v, want the nested step expanded", got)
+	}
+
+	got = flattenRunStepsAtDepth(nested, maxSequenceDepth)
+	if !slices.Equal(got, nested) {
+		t.Fatalf("at the limit: got %v, want the run left unexpanded", got)
 	}
 }

@@ -3,6 +3,7 @@ package modes
 
 import (
 	"image"
+	"slices"
 	"testing"
 	"time"
 
@@ -29,27 +30,25 @@ func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
 	}
 }
 
-func TestRunOnExit_DispatchesActionString(t *testing.T) {
-	got := make(chan string, 1)
+func TestRunOnExit_DispatchesEveryStepInOrder(t *testing.T) {
+	got := make(chan []string, 1)
 	handler := &Handler{
 		logger: zap.NewNop(),
-		executeHotkeyAction: func(_, actionStr string) error {
-			got <- actionStr
-
-			return nil
+		executeActionSequence: func(_ string, steps []string) {
+			got <- steps
 		},
 	}
 
-	onExit := "exec notify-send done"
-	handler.runOnExit(&onExit)
+	onExit := []string{"action sleep 0.2", "exec notify-send done"}
+	handler.runOnExit(onExit)
 
 	select {
-	case a := <-got:
-		if a != onExit {
-			t.Fatalf("on-exit dispatched %q, want %q", a, onExit)
+	case steps := <-got:
+		if !slices.Equal(steps, onExit) {
+			t.Fatalf("on-exit dispatched %v, want %v", steps, onExit)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("on-exit action was not dispatched")
+		t.Fatal("on-exit sequence was not dispatched")
 	}
 }
 
@@ -57,21 +56,17 @@ func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	called := make(chan struct{}, 1)
 	handler := &Handler{
 		logger: zap.NewNop(),
-		executeHotkeyAction: func(_, _ string) error {
+		executeActionSequence: func(_ string, _ []string) {
 			called <- struct{}{}
-
-			return nil
 		},
 	}
 
 	handler.runOnExit(nil)
-
-	blank := "   "
-	handler.runOnExit(&blank)
+	handler.runOnExit([]string{})
 
 	select {
 	case <-called:
-		t.Fatal("on-exit should not dispatch for nil or blank action")
+		t.Fatal("on-exit should not dispatch for nil or empty steps")
 	case <-time.After(100 * time.Millisecond):
 	}
 }
@@ -97,40 +92,40 @@ func TestActivateModeWithOptions_OmittedOnExitClearsStaleCallback(t *testing.T) 
 	}
 
 	// An external activation that omits --on-exit must reach the mode with a
-	// non-nil, empty OnExit so the refresh branch clears any stored callback
-	// rather than preserving it.
+	// non-nil, empty OnExit so the refresh branch clears any stored steps
+	// rather than preserving them.
 	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{})
 
 	if fake.lastOpts.OnExit == nil {
 		t.Fatal("expected omitted --on-exit to be normalized to a non-nil clear value")
 	}
 
-	if *fake.lastOpts.OnExit != "" {
-		t.Fatalf("expected normalized on-exit to be empty, got %q", *fake.lastOpts.OnExit)
+	if len(fake.lastOpts.OnExit) != 0 {
+		t.Fatalf("expected normalized on-exit to be empty, got %v", fake.lastOpts.OnExit)
 	}
 
-	// An explicit --on-exit must pass through untouched.
-	want := "exec foo"
-	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{OnExit: &want})
+	// Explicit --on-exit steps must pass through untouched, in order.
+	want := []string{"exec foo", "action sleep 0.1"}
+	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{OnExit: want})
 
-	if fake.lastOpts.OnExit == nil || *fake.lastOpts.OnExit != want {
-		t.Fatalf("expected on-exit %q to pass through, got %v", want, fake.lastOpts.OnExit)
+	if !slices.Equal(fake.lastOpts.OnExit, want) {
+		t.Fatalf("expected on-exit %v to pass through, got %v", want, fake.lastOpts.OnExit)
 	}
 }
 
 func TestCurrentModeOnExit(t *testing.T) {
-	hintsExit := "action left_click"
-	gridExit := "exec grid-done"
-	rgExit := domain.ModeString(domain.ModeRecursiveGrid)
+	hintsExit := []string{"action left_click", "action restore_cursor_pos"}
+	gridExit := []string{"exec grid-done"}
+	rgExit := []string{domain.ModeString(domain.ModeRecursiveGrid)}
 
 	hintsCtx := &hints.Context{}
-	hintsCtx.SetOnExit(&hintsExit)
+	hintsCtx.SetOnExit(hintsExit)
 
 	gridCtx := &grid.Context{}
-	gridCtx.SetOnExit(&gridExit)
+	gridCtx.SetOnExit(gridExit)
 
 	rgCtx := &recursivegrid.Context{}
-	rgCtx.SetOnExit(&rgExit)
+	rgCtx.SetOnExit(rgExit)
 
 	appState := state.NewAppState()
 	handler := &Handler{
@@ -142,7 +137,7 @@ func TestCurrentModeOnExit(t *testing.T) {
 
 	cases := []struct {
 		mode domain.Mode
-		want string
+		want []string
 	}{
 		{domain.ModeHints, hintsExit},
 		{domain.ModeGrid, gridExit},
@@ -152,8 +147,8 @@ func TestCurrentModeOnExit(t *testing.T) {
 		appState.SetMode(testCase.mode)
 
 		got := handler.currentModeOnExit()
-		if got == nil || *got != testCase.want {
-			t.Fatalf("currentModeOnExit() for %v = %v, want %q",
+		if !slices.Equal(got, testCase.want) {
+			t.Fatalf("currentModeOnExit() for %v = %v, want %v",
 				testCase.mode, got, testCase.want)
 		}
 	}

@@ -24,7 +24,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	repeat *bool,
 	cursorFollowSelection *bool,
 	zoomToDepth *int,
-	onExit *string,
+	onExit []string,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid

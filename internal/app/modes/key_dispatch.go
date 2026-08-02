@@ -10,7 +10,6 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/core/domain"
 	"github.com/y3owk1n/neru/internal/core/domain/action"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
 const (
@@ -294,7 +293,7 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 func (h *Handler) handleHotkey(key, bundleID string) (
 	[]string, string, bool,
 ) {
-	if h.executeHotkeyAction == nil {
+	if h.executeActionSequence == nil {
 		return nil, "", false
 	}
 
@@ -435,7 +434,7 @@ func (h *Handler) dispatchHotkeyActions(
 	// in hotkeys.go before any async dispatch occurs.
 
 	// Execute in a goroutine so the event tap callback returns quickly.
-	// This also avoids a deadlock: executeHotkeyAction may call
+	// This also avoids a deadlock: an action step may call
 	// ipcController.HandleCommand -> ActivateModeWithOptions which
 	// acquires h.mu, but we already hold it.
 	capturedKey := bindKey
@@ -451,24 +450,7 @@ func (h *Handler) dispatchHotkeyActions(
 			}
 		}()
 
-		for _, actionStr := range capturedActions {
-			trimmedAction := strings.TrimSpace(actionStr)
-			if trimmedAction == "" {
-				continue
-			}
-
-			err := h.executeHotkeyAction(capturedKey, trimmedAction)
-			if err != nil {
-				if derrors.IsCode(err, derrors.CodeChainBail) {
-					return
-				}
-
-				h.logger.Error("Hotkey action failed",
-					zap.String("key", capturedKey),
-					zap.String("action", trimmedAction),
-					zap.Error(err))
-			}
-		}
+		h.executeActionSequence(capturedKey, capturedActions)
 	}()
 }
 
@@ -529,20 +511,7 @@ func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				for _, actionStr := range capturedActions {
-					trimmedAction := strings.TrimSpace(actionStr)
-					if trimmedAction == "" {
-						continue
-					}
-
-					err := h.executeHotkeyAction(bindKey, trimmedAction)
-					if err != nil {
-						h.logger.Error("Held repeat action failed",
-							zap.String("key", bindKey),
-							zap.String("action", trimmedAction),
-							zap.Error(err))
-					}
-				}
+				h.executeActionSequence(bindKey, capturedActions)
 			}
 		}
 	}()

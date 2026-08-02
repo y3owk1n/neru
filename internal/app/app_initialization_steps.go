@@ -338,8 +338,8 @@ func initializeModeHandler(app *App) {
 			recursivegrid *components.RecursiveGridComponent
 		}
 		callbacks struct {
-			refreshHotkeys      func()
-			executeHotkeyAction func(key, actionStr string) error
+			refreshHotkeys        func()
+			executeActionSequence func(source string, steps []string)
 		}
 	}{
 		config:         cfg,
@@ -375,11 +375,11 @@ func initializeModeHandler(app *App) {
 			recursivegrid: app.recursiveGridComponent,
 		},
 		callbacks: struct {
-			refreshHotkeys      func()
-			executeHotkeyAction func(key, actionStr string) error
+			refreshHotkeys        func()
+			executeActionSequence func(source string, steps []string)
 		}{
-			refreshHotkeys:      func() { app.refreshHotkeysForAppOrCurrent("") },
-			executeHotkeyAction: app.executeHotkeyAction,
+			refreshHotkeys:        func() { app.refreshHotkeysForAppOrCurrent("") },
+			executeActionSequence: app.runActionSequence,
 		},
 	}
 
@@ -402,7 +402,7 @@ func initializeModeHandler(app *App) {
 		ScrollComponent:        deps.components.scroll,
 		RecursiveGridComponent: deps.components.recursivegrid,
 		RefreshHotkeys:         deps.callbacks.refreshHotkeys,
-		ExecuteHotkeyAction:    deps.callbacks.executeHotkeyAction,
+		ExecuteActionSequence:  deps.callbacks.executeActionSequence,
 		Shutdown:               app.Quit,
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
@@ -427,9 +427,10 @@ func initializeIPCController(app *App) {
 		System:        app.systemPort,
 		// EventTap and IPCServer stay zero here; phase 8 fills them in
 		// through SetInfrastructure.
-		KeyFeed:      app.keyFeed,
-		ReloadConfig: app.ReloadConfig,
-		Logger:       app.logger,
+		KeyFeed:         app.keyFeed,
+		ReloadConfig:    app.ReloadConfig,
+		ExecuteSequence: app.executeActionSequence,
+		Logger:          app.logger,
 	})
 
 	// Set the config-set callback so runtime field changes propagate to

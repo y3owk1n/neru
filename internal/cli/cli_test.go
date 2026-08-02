@@ -120,6 +120,7 @@ func TestCommandInitialization(t *testing.T) {
 		cliTestGrid:                      false,
 		"scroll":                         false,
 		cliTestAction:                    false,
+		"run <step> [step...]":           false,
 		cliTestStatus:                    false,
 		"doctor":                         false,
 		cliTestRoles:                     false,

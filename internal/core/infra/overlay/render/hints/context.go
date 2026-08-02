@@ -9,7 +9,7 @@ import (
 type baseContext struct {
 	pendingAction          *string
 	pendingModifier        *string
-	onExit                 *string
+	onExit                 []string
 	repeat                 bool
 	cursorFollowSelection  bool
 	filterRoles            []string
@@ -30,14 +30,14 @@ func (c *baseContext) PendingAction() *string {
 	return c.pendingAction
 }
 
-// SetOnExit sets the action string to run when the pending action is fulfilled
+// SetOnExit sets the action steps to run when the pending action is fulfilled
 // and the mode exits back to idle through the action path.
-func (c *baseContext) SetOnExit(onExit *string) {
+func (c *baseContext) SetOnExit(onExit []string) {
 	c.onExit = onExit
 }
 
-// OnExit returns the action string to run once the pending action is fulfilled.
-func (c *baseContext) OnExit() *string {
+// OnExit returns the action steps to run once the pending action is fulfilled.
+func (c *baseContext) OnExit() []string {
 	return c.onExit
 }
 

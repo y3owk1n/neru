@@ -31,6 +31,7 @@ command flags see [CLI.md](CLI.md).
 - [Edit Config File Directly](#edit-config-file-directly)
 - [Triggering Neru Actions from External Tools](#triggering-neru-actions-from-external-tools)
 - [Combining Hints with Other Actions](#combining-hints-with-other-actions)
+- [Run a Whole Workflow From One Command](#run-a-whole-workflow-from-one-command)
 - [Further Reading](#further-reading)
 
 ---
@@ -109,6 +110,18 @@ The old `restore_cursor_position` config field was removed. Compose the same beh
 ```
 
 This saves the cursor position, clicks, exits hints, waits for the mode to fully exit, then moves the cursor back.
+
+If the click comes from the mode's own `--action` rather than a key inside hints, put the tail in `--on-exit` instead. The flag is repeatable, so the whole sequence lives on the one binding that starts the mode:
+
+```toml
+[hotkeys]
+"Primary+Shift+Space" = [
+    "action save_cursor_pos",
+    "hints --action left_click --on-exit 'action restore_cursor_pos'",
+]
+```
+
+`--on-exit` steps run only after the action is fulfilled, so escaping out of hints leaves the cursor where you moved it rather than snapping it back.
 
 ## Custom Mouse Movement Step Size
 
@@ -437,6 +450,8 @@ neru hints
 
 This is handy when a Neru hotkey conflicts with an app's own shortcut and you'd rather let an external tool handle the trigger.
 
+For a whole workflow rather than a single action, see [Run a Whole Workflow From One Command](#run-a-whole-workflow-from-one-command).
+
 ## Combining Hints with Other Actions
 
 The `--action` flag on hints mode is not limited to `left_click`. You can pass other actions to change what happens when a hint label is completed:
@@ -448,6 +463,26 @@ The `--action` flag on hints mode is not limited to `left_click`. You can pass o
 ```
 
 Useful for apps where you frequently need a right-click menu (e.g. Finder, VS Code file tree) without moving your hands to the mouse.
+
+## Run a Whole Workflow From One Command
+
+A multi-action hotkey binding is an *action sequence*. `neru run` takes the same sequence from outside Neru, so a script or an external hotkey daemon can drive a workflow without spawning one `neru` process per step. Each argument is one step, written exactly as it would be written in a binding:
+
+```bash
+# Save the cursor, pick a target, click it, then put the cursor back
+neru run "action save_cursor_pos" "hints --action left_click" \
+         "action wait_for_mode_exit --bail" "action restore_cursor_pos"
+```
+
+`--bail` stops the sequence when you escape out of hints instead of selecting, so the trailing steps do not run and the command exits non-zero. Any other failing step is reported while the rest still run.
+
+Sequences that block — sleeps, `wait_for_mode_exit` — can outlast the default 10-second IPC timeout, so raise it for those:
+
+```bash
+neru --timeout 60 run "action left_click" "action sleep 0.8" hints
+```
+
+There is no upper bound beyond the one you pass: the daemon holds the reply until the sequence finishes. A sequence you do not want to wait on at all belongs in a hotkey binding instead, since bindings are dispatched in the background with no caller attached.
 
 ---
 

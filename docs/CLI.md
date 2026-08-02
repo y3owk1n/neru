@@ -21,6 +21,7 @@ The same content is available as manpages (`man neru`) after installation.
 - [Daemon lifecycle](#daemon-lifecycle) — `launch` · `start` · `stop` · `idle` · `status` · `doctor`
 - [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select`
 - [Actions](#actions) — `action` and its subcommands
+- [Sequences](#sequences) — `run`
 - [Configuration commands](#configuration-commands) — `config`
 - [Runtime toggles](#runtime-toggles)
 - [Utilities](#utilities) — `roles` · `services` · `docs`
@@ -88,6 +89,7 @@ Accepted by every command.
 | [`scroll`](#neru-scroll)                                     | Vim-style scrolling             | Yes | All |
 | [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | macOS · Linux |
 | [`action`](#actions)                                         | One-shot mouse/scroll/key input | Yes | All ² |
+| [`run`](#neru-run)                                           | Run several actions in order    | Yes | All |
 | [`config`](#configuration-commands)                          | Inspect and change config       | Mixed | All |
 | [`toggle-scroll-invert`](#neru-toggle-scroll-invert)         | Invert scroll direction         | Yes | All |
 | [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection) | Toggle cursor follow | Yes | All |
@@ -211,7 +213,7 @@ listed under each command.
 | `--toggle`                 | `-t`      | bool   | `false`  | Exit to idle if this mode is already active, otherwise enter it.                                                    |
 | `--repeat`                 | `-r`      | bool   | `false`  | Re-enter the mode after the action instead of exiting. Requires `--action`.                                         |
 | `--modifier`               |           | string |          | Comma-separated modifiers held during the action: `cmd`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`. Requires `--action`. |
-| `--on-exit`                |           | string |          | Command run after the action completes and the mode exits. Uses hotkey-binding syntax (`'action left_click'`, `'exec notify-send done'`). Requires `--action`. Not run when the mode is left manually via escape or `neru idle`. |
+| `--on-exit`                |           | string |          | Step run after the action completes and the mode exits. Uses hotkey-binding syntax (`'action left_click'`, `'exec notify-send done'`). Repeat the flag to run several steps in order, as one [action sequence](#neru-run). Requires `--action`. Not run when the mode is left manually via escape or `neru idle`. |
 | `--cursor-selection-mode`  |           | string | `follow` | `follow` moves the real cursor to the selection; `hold` leaves it in place.                                          |
 
 ---
@@ -221,7 +223,7 @@ listed under each command.
 Label clickable elements and act on the one you type.
 
 ```
-neru hints [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <command>]
+neru hints [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <step>]...
            [--cursor-selection-mode follow|hold] [-s] [--hide-on-empty-search]
            [--role <roles>] [--text <text>] [--strategy axtree|vision]
            [--label-direction normal|reverse] [--split-word] [-d]
@@ -268,7 +270,7 @@ neru hints --debug
 Divide the screen into a labelled coordinate grid.
 
 ```
-neru grid [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <command>]
+neru grid [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <step>]...
           [--cursor-selection-mode follow|hold]
 ```
 
@@ -300,7 +302,7 @@ Narrow the screen recursively, one keypress per level.
 
 ```
 neru recursive_grid [-a <action>] [-t] [-r] [--modifier <mods>]
-                    [--on-exit <command>] [--cursor-selection-mode follow|hold]
+                    [--on-exit <step>]... [--cursor-selection-mode follow|hold]
                     [--zoom-to-depth <depth>]
 ```
 
@@ -862,6 +864,66 @@ To pause inside a shell script, use the shell's own `sleep`.
 
 ---
 
+# Sequences
+
+## neru run
+
+Run several actions in order, in a single call.
+
+```
+neru run <step> [step...]
+```
+
+Each argument is one step, written exactly as it would be written in a hotkey
+binding: an action (`action left_click`), a mode (`hints --action left_click`),
+or a shell command (`exec open -a Safari`). The daemon executes the steps in
+order.
+
+This is the same executor that runs a multi-action hotkey binding, so a
+sequence behaves identically whether it is written in `[hotkeys]`, passed to
+`--on-exit`, or run here. Reach for it from an external driver (skhd,
+Hammerspoon, a shell script) that would otherwise spawn one `neru` process per
+step and lose the sequencing rules between them.
+
+**Sequencing rules**
+
+- Steps run in order; blank steps are rejected.
+- A step that asks the sequence to stop ends it. Today that is
+  `action wait_for_mode_exit --bail` after a mode was cancelled — the command
+  then exits with `ERR_CHAIN_BAIL`.
+- Any other failing step is reported, and the remaining steps still run. The
+  command exits with `ERR_ACTION_FAILED` naming the first failure.
+- A sequence may start another sequence, up to five levels deep. Deeper
+  nesting is refused rather than recursing.
+
+**Timeouts**
+
+The sequence runs while the caller waits, so a sequence containing sleeps or
+`wait_for_mode_exit` can outlast the default 10-second IPC timeout. Raise it
+with the global `--timeout` flag; the daemon holds the reply until the sequence
+finishes, however long that takes.
+
+A sequence that is not worth waiting on at all — one that ends with an
+interactive mode, say — is better bound to a hotkey, which is dispatched in the
+background with no caller attached.
+
+**Examples**
+
+```bash
+# Save the cursor, pick a target, click it, then put the cursor back
+neru run "action save_cursor_pos" "hints --action left_click" \
+         "action wait_for_mode_exit" "action restore_cursor_pos"
+
+# Click, wait for the app to settle, then re-scan for hints
+neru --timeout 30 run "action left_click" "action sleep 0.8" hints
+
+# Stop early when the user escapes out of hints instead of selecting
+neru run "hints --action left_click" "action wait_for_mode_exit --bail" \
+         "exec notify-send clicked"
+```
+
+---
+
 # Configuration commands
 
 Full option reference: [CONFIGURATION.md](CONFIGURATION.md).
@@ -1189,6 +1251,17 @@ ctrl - f : neru hints
 ctrl - g : neru grid
 ctrl - r : neru hints --action right_click
 ctrl - t : neru hints --action left_click --repeat
+```
+
+**Run several steps as one unit**
+
+Chaining `neru` invocations with `&&` spawns a process and opens a connection
+per step. [`neru run`](#neru-run) sends the whole sequence once and the daemon
+executes it in order, under the same rules a hotkey binding gets:
+
+```bash
+neru run "action save_cursor_pos" "hints --action left_click" \
+         "action wait_for_mode_exit --bail" "action restore_cursor_pos"
 ```
 
 ---

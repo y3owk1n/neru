@@ -36,6 +36,8 @@ const (
 
 // Common action command constants.
 const (
+	// CmdRun runs the rest of the binding as an ordered action sequence.
+	CmdRun                         = "run"
 	CmdToggleCursorFollowSelection = "toggle-cursor-follow-selection"
 	CmdMoveMouseUp                 = "action move_mouse_relative --dx=0 --dy=-10"
 )

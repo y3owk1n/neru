@@ -11,6 +11,24 @@ import (
 	derrors "github.com/y3owk1n/neru/internal/core/errors"
 )
 
+// validateOnExitSteps trims each --on-exit value and rejects blank ones, so a
+// quoting mistake fails at the CLI rather than silently dropping a step from
+// the sequence that runs once the mode's action is fulfilled.
+func validateOnExitSteps(values []string) ([]string, error) {
+	steps := make([]string, 0, len(values))
+
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return nil, derrors.New(derrors.CodeInvalidInput, "--on-exit steps cannot be empty")
+		}
+
+		steps = append(steps, trimmed)
+	}
+
+	return steps, nil
+}
+
 // ModeConfig holds configuration for creating a mode command.
 type ModeConfig struct {
 	Name                     string
@@ -61,7 +79,12 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return err
 			}
 
-			onExitFlag, err := cmd.Flags().GetString("on-exit")
+			onExitFlag, err := cmd.Flags().GetStringArray("on-exit")
+			if err != nil {
+				return err
+			}
+
+			onExitSteps, err := validateOnExitSteps(onExitFlag)
 			if err != nil {
 				return err
 			}
@@ -164,7 +187,7 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				)
 			}
 
-			if strings.TrimSpace(onExitFlag) != "" && actionFlag == "" {
+			if len(onExitSteps) > 0 && actionFlag == "" {
 				return derrors.New(
 					derrors.CodeInvalidInput,
 					"--on-exit requires --action (it runs only when the action is fulfilled)",
@@ -260,8 +283,8 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				params = append(params, "--modifier="+modifierFlag)
 			}
 
-			if strings.TrimSpace(onExitFlag) != "" {
-				params = append(params, "--on-exit="+onExitFlag)
+			for _, step := range onExitSteps {
+				params = append(params, "--on-exit="+step)
 			}
 
 			if repeatFlag {
@@ -356,10 +379,10 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		"",
 		"Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)",
 	)
-	cmd.Flags().String(
+	cmd.Flags().StringArray(
 		"on-exit",
-		"",
-		"Command to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Requires --action; not run on manual escape/idle",
+		nil,
+		"Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle",
 	)
 	cmd.Flags().String(
 		"cursor-selection-mode",

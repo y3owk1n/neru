@@ -4,7 +4,8 @@ package modes
 import (
 	"context"
 	"image"
-	"sync/atomic"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/y3owk1n/neru/internal/core/domain/element"
 	domainhint "github.com/y3owk1n/neru/internal/core/domain/hint"
 	"github.com/y3owk1n/neru/internal/core/domain/state"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/overlay"
 	hintscomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
 )
@@ -55,10 +55,8 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 			domain.ModeRecursiveGrid: mode,
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-		executeHotkeyAction: func(_, actionStr string) error {
-			hotkeyActions <- actionStr
-
-			return nil
+		executeActionSequence: func(_ string, steps []string) {
+			hotkeyActions <- strings.Join(steps, ",")
 		},
 	}
 	handler.modifierState.Toggle(action.ModCtrl)
@@ -103,10 +101,8 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 			Context: &hintscomponent.Context{},
 		},
 		modes: map[domain.Mode]Mode{},
-		executeHotkeyAction: func(_, actionStr string) error {
-			t.Fatalf("hotkey action should be skipped during hint search, got %q", actionStr)
-
-			return nil
+		executeActionSequence: func(_ string, steps []string) {
+			t.Fatalf("hotkey action should be skipped during hint search, got %v", steps)
 		},
 	}
 
@@ -166,10 +162,8 @@ func newHeldRepeatTestHandler() *Handler {
 		modes: map[domain.Mode]Mode{
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
 		},
-		screenBounds: image.Rect(0, 0, 100, 100),
-		executeHotkeyAction: func(_, _ string) error {
-			return nil
-		},
+		screenBounds:          image.Rect(0, 0, 100, 100),
+		executeActionSequence: func(_ string, _ []string) {},
 	}
 }
 
@@ -240,65 +234,38 @@ func TestHandleFedKeyPressPreservesPhysicalHeldRepeat(t *testing.T) {
 	handler.stopHeldRepeatLocked()
 }
 
-func TestDispatchHotkeyActions_AbortsOnBail(t *testing.T) {
+// The mode dispatcher hands the whole binding to the daemon's sequence
+// executor rather than stepping through it itself, so that a binding runs
+// under the same rules wherever it is dispatched from. The bail and
+// continue-on-error semantics are covered against the real executor in
+// internal/app.
+func TestDispatchHotkeyActions_ForwardsWholeSequence(t *testing.T) {
 	t.Parallel()
 
-	var callCount atomic.Int64
+	got := make(chan []string, 1)
 
 	handler := &Handler{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
-		executeHotkeyAction: func(_, actionStr string) error {
-			callCount.Add(1)
-
-			if callCount.Load() == 1 {
-				return derrors.New(derrors.CodeChainBail, "bail")
+		executeActionSequence: func(source string, steps []string) {
+			if source != "test-bind" {
+				t.Errorf("sequence source = %q, want %q", source, "test-bind")
 			}
 
-			return nil
+			got <- steps
 		},
 	}
 
-	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", []string{"first", "second"})
+	want := []string{"first", "second"}
+	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", want)
 
-	time.Sleep(50 * time.Millisecond)
-
-	if got := callCount.Load(); got != 1 {
-		t.Fatalf(
-			"executeHotkeyAction called %d times, want 1 (chain should abort on bail)",
-			got,
-		)
-	}
-}
-
-func TestDispatchHotkeyActions_ContinuesOnRegularError(t *testing.T) {
-	t.Parallel()
-
-	var callCount atomic.Int64
-
-	handler := &Handler{
-		logger:   zap.NewNop(),
-		appState: state.NewAppState(),
-		executeHotkeyAction: func(_, actionStr string) error {
-			callCount.Add(1)
-
-			if callCount.Load() == 1 {
-				return derrors.New(derrors.CodeIPCFailed, "generic error")
-			}
-
-			return nil
-		},
-	}
-
-	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", []string{"first", "second"})
-
-	time.Sleep(50 * time.Millisecond)
-
-	if got := callCount.Load(); got != 2 {
-		t.Fatalf(
-			"executeHotkeyAction called %d times, want 2 (chain should continue on regular error)",
-			got,
-		)
+	select {
+	case steps := <-got:
+		if !slices.Equal(steps, want) {
+			t.Fatalf("forwarded steps = %v, want %v", steps, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for the sequence to be dispatched")
 	}
 }
 

@@ -379,7 +379,12 @@ func validateHotkeyActionString(actionStr string) error {
 		ModeNameMonitorSelect,
 		"toggle-screen-share", CmdToggleCursorFollowSelection,
 		"toggle-scroll-invert",
-		"config":
+		"config",
+		// "run" takes its own steps as arguments. Each one is validated when
+		// the sequence executes, not here: the steps arrive as a single quoted
+		// string per step, so splitting them apart correctly is the runtime's
+		// job, not the validator's.
+		CmdRun:
 		return nil
 	default:
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown command: %s", trimmed)

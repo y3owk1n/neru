@@ -107,7 +107,7 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 	}
 
 	if action.Name(actionName) == action.NameSleep {
-		return h.handleSleepAction(cmd.Args[1:])
+		return h.handleSleepAction(ctx, cmd.Args[1:])
 	}
 
 	parsed, parseErr := parseActionArgs(cmd.Args[1:])

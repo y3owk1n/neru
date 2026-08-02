@@ -38,7 +38,7 @@ func (h *Handler) currentHintStyleLocked() hints.StyleMode {
 type ModeActivationOptions struct {
 	Action                *string
 	Modifier              *string
-	OnExit                *string
+	OnExit                []string
 	Repeat                *bool
 	CursorFollowSelection *bool
 	ZoomToDepth           *int
@@ -98,14 +98,14 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 	// entry point for user-driven activations (IPC, hotkeys, systray); internal
 	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
 	// call the activate* helpers directly with a nil onExit to preserve the
-	// stored callback. An omitted --on-exit on a fresh external command must
-	// clear any callback left over from a prior activation of the same mode
-	// rather than inheriting it, so a later completed action does not run a stale
-	// command. A nil pointer here means "clear"; the empty value is a no-op at
+	// stored steps. An omitted --on-exit on a fresh external command must
+	// clear any steps left over from a prior activation of the same mode
+	// rather than inheriting them, so a later completed action does not run a
+	// stale command. A nil slice reaching those helpers means "preserve"; the
+	// non-nil empty slice substituted here means "clear", and it is a no-op at
 	// dispatch time.
 	if opts.OnExit == nil {
-		empty := ""
-		opts.OnExit = &empty
+		opts.OnExit = []string{}
 	}
 
 	modeImpl.Activate(opts)
@@ -158,7 +158,7 @@ func (h *Handler) activateHintModeWithAction(
 	strategy *string,
 	labelDirection *string,
 	splitWord *bool,
-	onExit *string,
+	onExit []string,
 ) {
 	h.activateHintModeInternal(
 		action,
@@ -195,7 +195,7 @@ func (h *Handler) activateHintModeInternal(
 	strategyOverride *string,
 	labelDirectionOverride *string,
 	splitWordOverride *bool,
-	onExit *string,
+	onExit []string,
 ) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints

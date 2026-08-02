@@ -20,7 +20,7 @@ func (h *Handler) activateGridModeWithAction(
 	modifier *string,
 	repeat *bool,
 	cursorFollowSelection *bool,
-	onExit *string,
+	onExit []string,
 ) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid

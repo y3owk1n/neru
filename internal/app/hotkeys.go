@@ -25,13 +25,8 @@ func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	gridStr := domain.ModeString(domain.ModeGrid)
 
 	recursiveGridStr := domain.ModeString(domain.ModeRecursiveGrid)
-	for _, actionStr := range actions {
-		trimmed := strings.TrimSpace(actionStr)
-		if trimmed == "" {
-			continue
-		}
-
-		mode := strings.Fields(trimmed)[0]
+	for _, actionStr := range flattenRunSteps(actions) {
+		mode := commandOf(actionStr)
 		switch {
 		case mode == hintsStr && !cfg.Hints.Enabled:
 			return true
@@ -219,29 +214,8 @@ func (a *App) dispatchHotkeyActionsAsync(key string, actions []string) {
 			}
 		}()
 
-		a.dispatchHotkeyActions(key, actions)
+		a.runActionSequence(key, actions)
 	}()
-}
-
-func (a *App) dispatchHotkeyActions(key string, actions []string) {
-	for _, actionStr := range actions {
-		trimmedAction := strings.TrimSpace(actionStr)
-		if trimmedAction == "" {
-			continue
-		}
-
-		executeHotkeyActionErr := a.executeHotkeyAction(key, trimmedAction)
-		if executeHotkeyActionErr != nil {
-			if derrors.IsCode(executeHotkeyActionErr, derrors.CodeChainBail) {
-				return
-			}
-
-			a.logger.Error("hotkey action failed",
-				zap.String("key", key),
-				zap.String("action", trimmedAction),
-				zap.Error(executeHotkeyActionErr))
-		}
-	}
 }
 
 func (a *App) startHotkeyRepeat(key string, actions []string) {
@@ -281,7 +255,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 			}
 		}()
 
-		a.dispatchHotkeyActions(key, actions)
+		a.runActionSequence(key, actions)
 
 		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
 		defer initialTimer.Stop()
@@ -300,7 +274,7 @@ func (a *App) startHotkeyRepeat(key string, actions []string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				a.dispatchHotkeyActions(key, actions)
+				a.runActionSequence(key, actions)
 			}
 		}
 	}()
@@ -370,16 +344,10 @@ func hotkeyModifiersFromKey(key string) action.Modifiers {
 // actionsContainModeSwitch reports whether any action in the list is a
 // mode-switch action (hints, grid, recursive_grid, scroll, monitor_select).
 func actionsContainModeSwitch(actions []string) bool {
-	for _, actionStr := range actions {
-		trimmed := strings.TrimSpace(actionStr)
-		if trimmed == "" {
-			continue
-		}
-
+	for _, actionStr := range flattenRunSteps(actions) {
 		// The action format is "<mode_name>" with optional args, so split
 		// to get just the mode name for comparison.
-		mode := strings.Fields(trimmed)[0]
-		switch mode {
+		switch commandOf(actionStr) {
 		case domain.ModeString(domain.ModeHints),
 			domain.ModeString(domain.ModeGrid),
 			domain.ModeString(domain.ModeRecursiveGrid),
@@ -390,6 +358,58 @@ func actionsContainModeSwitch(actions []string) bool {
 	}
 
 	return false
+}
+
+// commandOf returns the command word of an action string, ignoring its flags.
+// It returns "" for a blank action.
+func commandOf(actionStr string) string {
+	fields := strings.Fields(strings.TrimSpace(actionStr))
+	if len(fields) == 0 {
+		return ""
+	}
+
+	return fields[0]
+}
+
+// flattenRunSteps expands "run <step>..." so that callers which inspect what a
+// binding does — mode-switch detection, disabled-mode skipping — see the steps
+// a run carries rather than the word "run". Blank actions are dropped.
+//
+// Expansion follows nesting as deep as the executor will, so a mode named below
+// the first run is not invisible to those checks.
+func flattenRunSteps(actions []string) []string {
+	return flattenRunStepsAtDepth(actions, 0)
+}
+
+// flattenRunStepsAtDepth expands the steps of one sequence, recursing into a
+// nested run until maxSequenceDepth. Past that depth the executor refuses to
+// start the sequence, so its steps never run and are left unexpanded — the
+// unexpanded "run ..." names no mode, which is exactly what the callers should
+// conclude about it.
+func flattenRunStepsAtDepth(actions []string, depth int) []string {
+	flattened := make([]string, 0, len(actions))
+
+	for _, actionStr := range actions {
+		trimmed := strings.TrimSpace(actionStr)
+		if trimmed == "" {
+			continue
+		}
+
+		if depth >= maxSequenceDepth || commandOf(trimmed) != domain.CommandRun {
+			flattened = append(flattened, trimmed)
+
+			continue
+		}
+
+		// splitArgs applies the same quoting rules the executor uses, so the
+		// steps seen here are the steps that will run.
+		flattened = append(
+			flattened,
+			flattenRunStepsAtDepth(splitArgs(trimmed)[1:], depth+1)...,
+		)
+	}
+
+	return flattened
 }
 
 func splitArgs(input string) []string {
@@ -433,12 +453,15 @@ func splitArgs(input string) []string {
 	return args
 }
 
-// executeHotkeyAction executes a hotkey action, which can be either a shell command or an IPC command.
-func (a *App) executeHotkeyAction(key, actionStr string) error {
+// executeHotkeyAction executes a single action step, which can be either a
+// shell command or an IPC command. ctx carries the action sequence's nesting
+// depth into the IPC handlers, so a step that starts another sequence can be
+// stopped before it recurses without bound.
+func (a *App) executeHotkeyAction(ctx context.Context, key, actionStr string) error {
 	actionStr = strings.TrimSpace(actionStr)
 
 	if actionStr == action.PrefixExec || strings.HasPrefix(actionStr, action.PrefixExec+" ") {
-		return a.executeShellCommand(key, actionStr)
+		return a.executeShellCommand(ctx, key, actionStr)
 	}
 
 	actionParts := splitArgs(actionStr)
@@ -458,7 +481,7 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 	}
 
 	ipcResponse := a.ipcController.HandleCommand(
-		a.ctx,
+		ctx,
 		ipc.Command{Action: actionStr, Args: params},
 	)
 	if !ipcResponse.Success {
@@ -479,7 +502,7 @@ func (a *App) executeHotkeyAction(key, actionStr string) error {
 }
 
 // executeShellCommand executes a shell command triggered by a hotkey.
-func (a *App) executeShellCommand(key, actionStr string) error {
+func (a *App) executeShellCommand(ctx context.Context, key, actionStr string) error {
 	cmdString := strings.TrimSpace(strings.TrimPrefix(actionStr, action.PrefixExec))
 	if cmdString == "" {
 		a.logger.Error("hotkey exec has empty command", zap.String("key", key))
@@ -493,7 +516,7 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 		zap.String("cmd", cmdString),
 	)
 
-	ctx, cancel := context.WithTimeout(a.ctx, domain.ShellCommandTimeout)
+	execCtx, cancel := context.WithTimeout(ctx, domain.ShellCommandTimeout)
 	defer cancel()
 
 	cfg := a.configSnapshot()
@@ -504,7 +527,7 @@ func (a *App) executeShellCommand(key, actionStr string) error {
 	args = append(args, shellArgs...)
 	args = append(args, cmdString)
 
-	command := exec.CommandContext(ctx, shell, args...) //nolint:gosec
+	command := exec.CommandContext(execCtx, shell, args...) //nolint:gosec
 
 	commandOutput, commandErr := command.CombinedOutput()
 	if commandErr != nil {
