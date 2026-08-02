@@ -5,9 +5,9 @@ package modes
 import (
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	configpkg "github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // showMonitorSelectLocked renders the interactive monitor picker on the shared

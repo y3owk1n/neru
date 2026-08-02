@@ -10,7 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // OverridePath returns the path to the override file derived from the given

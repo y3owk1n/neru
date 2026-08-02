@@ -196,13 +196,13 @@ test-foundation:
         ./internal/app/services ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \
         ./internal/architecture ./internal/cli/cliutil \
-        ./internal/core/domain ./internal/core/domain/action \
-        ./internal/core/domain/element ./internal/core/domain/grid \
-        ./internal/core/domain/hint ./internal/core/domain/recursivegrid \
-        ./internal/core/domain/state ./internal/core/errors \
-        ./internal/core/infra/apptrace ./internal/core/infra/logger \
-        ./internal/core/infra/platform/mousestate \
-        ./internal/core/ports ./internal/core/ports/mocks \
+        ./internal/domain ./internal/domain/action \
+        ./internal/domain/element ./internal/domain/grid \
+        ./internal/domain/hint ./internal/domain/recursivegrid \
+        ./internal/domain/state ./internal/derrors \
+        ./internal/adapter/apptrace ./internal/adapter/logger \
+        ./internal/adapter/platform/mousestate \
+        ./internal/ports ./internal/ports/mocks \
         ./internal/ui ./internal/ui/coordinates
     @echo "✓ Cross-platform foundation tests passed"
 
@@ -271,7 +271,7 @@ fmt-check:
         if [ $RESULT -ne 0 ] && [ -n "$FILTERED" ]; then
             EXIT_CODE=1
         fi
-    done < <(find internal/core/infra \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -print0)
+    done < <(find internal/adapter \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -print0)
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Some Objective-C files are not properly formatted. Run 'just fmt' to fix them."
         exit 1
@@ -299,7 +299,7 @@ fmt:
     golangci-lint fmt
     golangci-lint run --fix
     @echo "Formatting Objective-C files..."
-    @find internal/core/infra \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -exec sh -c 'case "$1" in *.c) af=file.c;; *) af=file.m;; esac; clang-format -i --style=file --assume-filename="$af" "$1"' _ {} \;
+    @find internal/adapter \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -exec sh -c 'case "$1" in *.c) af=file.c;; *) af=file.m;; esac; clang-format -i --style=file --assume-filename="$af" "$1"' _ {} \;
     @echo "✓ Format complete"
 
 # Lint code
@@ -534,7 +534,7 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
 # - wayland-protocols: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/master
 
 PROTOCOL_DIR := "protocol"
-WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
+WLR_PROTOCOL_DIR := "internal/adapter/platform/linux/wlr_protocol"
 
 # Download Wayland protocol XMLs from canonical upstream repositories
 fetch-protocols:

@@ -7,10 +7,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 

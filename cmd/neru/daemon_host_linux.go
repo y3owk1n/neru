@@ -5,9 +5,9 @@ package main
 import (
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/adapter/systray"
 	"github.com/y3owk1n/neru/internal/app"
-	"github.com/y3owk1n/neru/internal/core/infra/platform/linux"
-	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
 type linuxDaemonHost struct{}

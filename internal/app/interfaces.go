@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // HotkeyService and HotkeyReleaseService are app-layer aliases for the hotkey

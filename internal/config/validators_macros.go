@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // ValidateMacros checks the [macros] table and every macro call in the

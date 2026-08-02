@@ -13,7 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // validateAppConfigsHotkeys validates hotkeys in app_configs sections from raw config.

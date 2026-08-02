@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // AppConfigFieldValidator is a callback for validating mode-specific fields in AppConfig.

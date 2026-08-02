@@ -3,8 +3,8 @@ package app
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // bridgeThemeProvider implements config.ThemeProvider using a SystemPort.

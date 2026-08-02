@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/modes"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // Compile-time interface compliance check.

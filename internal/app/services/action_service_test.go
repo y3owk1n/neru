@@ -9,9 +9,9 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/ports"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/ports"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 const leftClickAction = "left_click"

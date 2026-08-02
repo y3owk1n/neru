@@ -1,7 +1,7 @@
 package modes
 
 import (
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.

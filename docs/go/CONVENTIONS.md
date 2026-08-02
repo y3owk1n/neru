@@ -46,7 +46,7 @@ Use aliases for packages with common names:
 import (
   "context"
 
-  "github.com/y3owk1n/neru/internal/core/domain"
+  "github.com/y3owk1n/neru/internal/domain"
   "go.uber.org/zap"
 )
 ```
@@ -88,7 +88,7 @@ func (s *Service) Get(id string) (*Item, error) {
 Use the `derrors` package for structured errors:
 
 ```go
-import derrors "github.com/y3owk1n/neru/internal/core/errors"
+import "github.com/y3owk1n/neru/internal/derrors"
 
 // Create new error
 return derrors.New(derrors.CodeInvalidConfig, "config validation failed")
@@ -181,9 +181,9 @@ package platform
 
 ### Platform Isolation
 
-- **The One Rule**: Non-darwin-tagged code must **never** import `internal/core/infra/platform/darwin`.
-- Use **Ports** ([internal/core/ports/](../../internal/core/ports/)) to define platform-agnostic interfaces.
-- Use **Adapters** ([internal/core/infra/](../../internal/core/infra/)) to implement those interfaces for specific platforms.
+- **The One Rule**: Non-darwin-tagged code must **never** import `internal/adapter/platform/darwin`.
+- Use **Ports** ([internal/ports/](../../internal/ports/)) to define platform-agnostic interfaces.
+- Use **Adapters** ([internal/adapter/](../../internal/adapter/)) to implement those interfaces for specific platforms.
 
 ### OS-Specific File Naming
 
@@ -197,7 +197,7 @@ package platform
 
 ### Platform Factory
 
-The `internal/core/infra/platform/` package uses build-tagged `factory_<os>.go` files to return the correct implementation of `ports.SystemPort`.
+The `internal/adapter/platform/` package uses build-tagged `factory_<os>.go` files to return the correct implementation of `ports.SystemPort`.
 
 ## See Also
 

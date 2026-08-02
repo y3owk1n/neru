@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/logger"
 )
 
 const (

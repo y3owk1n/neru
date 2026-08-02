@@ -160,12 +160,16 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 
 | # | Step | Status | Notes |
 | - | ---- | ------ | ----- |
-| 1 | `govulncheck` + coverage in CI | | `-race` and `-trimpath` already covered |
-| 2 | Flatten `core/`, rename `infra/` → `adapter/` | | Pure move + import rewrite |
+| 1 | `govulncheck` + coverage in CI | **done** | `-race` and `-trimpath` were already covered |
+| 2 | Flatten `core/`, rename `infra/` → `adapter/` | **done** | Pure move + import rewrite |
 | 3 | Render models → `internal/domain/render/` | | Deletes a `sharedInfraPackages` exception |
 | 4 | Split `internal/app` → `daemon`/`ipc`/`hotkey`/`sequence` | | IPC moves nearly free |
 | 5 | Shrink `*App` to consumer-defined interfaces | | Ongoing, not a single PR |
 | 6 | Backends as packages: accessibility → overlay → eventtap | | The cross-platform payoff |
+
+Step 2 also retired the word "infra" from the docs, dropped the empty
+`internal/core` doc-only package, and renamed `core/errors` to `internal/derrors`
+so the directory and the package name (`derrors`) finally agree.
 
 **On step 6:** do `accessibility` alone first and live with it for a release
 before touching `overlay` and `eventtap`. All three at once is a merge-conflict

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 const (
@@ -448,7 +448,7 @@ func newDefaultConfig() *Config {
 
 			// Semantic role names resolve to each platform's native
 			// accessibility vocabulary at load time, so one default serves
-			// every platform. See internal/core/domain/element/vocabulary.go.
+			// every platform. See internal/domain/element/vocabulary.go.
 			ClickableRoles: slices.Clone(element.DefaultClickableRoles),
 
 			IgnoreClickableCheck: false,

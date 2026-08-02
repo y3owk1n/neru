@@ -8,7 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // TestAppLifecycleIntegration tests complete app lifecycle from start to shutdown.

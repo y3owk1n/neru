@@ -7,7 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // TestAppInitializationWithRealComponentsIntegration tests that the app can be initialized with real system components.

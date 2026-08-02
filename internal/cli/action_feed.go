@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // ActionFeedCmd feeds one or more keys or key chords directly to the operating system.

@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // ErrUnhealthy is returned by PrintHealth when one or more components are unhealthy.

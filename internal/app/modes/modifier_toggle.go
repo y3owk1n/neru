@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 const modifierTogglePrefix = "__modifier_"

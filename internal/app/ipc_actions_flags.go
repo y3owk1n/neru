@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // Flag support is declarative: every action declares the flags it accepts and

@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // StringOrStringArray is a type that can unmarshal from either a TOML string

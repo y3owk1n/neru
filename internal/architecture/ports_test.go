@@ -32,8 +32,8 @@ var portsWithoutOwnMock = map[string]string{
 // up silently under-implementing HotkeyPort.
 func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports"))
-	mockNames := typeNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports", "mocks"))
+	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
+	mockNames := typeNamesIn(t, filepath.Join(repoRoot, "internal", "ports", "mocks"))
 
 	for _, name := range portNames {
 		if !strings.HasSuffix(name, "Port") {
@@ -46,7 +46,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 
 		if _, ok := mockNames["Mock"+name]; !ok {
 			t.Errorf(
-				"ports.%s has no Mock%s in internal/core/ports/mocks; every port "+
+				"ports.%s has no Mock%s in internal/ports/mocks; every port "+
 					"needs a mock (docs/CROSS_PLATFORM.md, Tier 1)",
 				name,
 				name,
@@ -59,7 +59,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 // interfaces it names.
 func TestMockExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports"))
+	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
 
 	declared := make(map[string]bool, len(portNames))
 	for _, name := range portNames {

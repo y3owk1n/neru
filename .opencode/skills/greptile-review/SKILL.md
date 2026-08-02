@@ -163,7 +163,7 @@ whole point: it stops the fix-one-find-two cycle.
 Grounded in `docs/CROSS_PLATFORM.md` and `docs/ARCHITECTURE.md`.
 
 - **The One Rule.** Non-darwin-tagged code must never import
-  `internal/core/infra/platform/darwin`. Enforced by `depguard`; confirm with
+  `internal/adapter/platform/darwin`. Enforced by `depguard`; confirm with
   `just lint`.
 - **Variant matrix is complete.** Every symbol used under a build tag has a
   definition under that tag. Check the cgo/nocgo split and every `GOOS`.

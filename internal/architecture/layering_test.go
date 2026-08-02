@@ -24,14 +24,14 @@ const modulePrefix = "github.com/y3owk1n/neru/"
 // A domain package that imports infra cannot be tested without an OS.
 func TestDomainStaysPure(t *testing.T) {
 	forbidden := []string{
-		"internal/core/infra",
+		"internal/adapter",
 		"internal/app",
 		"internal/ui",
 		"internal/cli",
 	}
 
 	for _, file := range goFiles(t) {
-		if !strings.HasPrefix(file.relPath, "internal/core/domain/") {
+		if !strings.HasPrefix(file.relPath, "internal/domain/") {
 			continue
 		}
 
@@ -42,7 +42,7 @@ func TestDomainStaysPure(t *testing.T) {
 				}
 
 				t.Errorf(
-					"%s imports %s; internal/core/domain must stay pure — "+
+					"%s imports %s; internal/domain must stay pure — "+
 						"depend on ports instead and let the composition root inject an adapter",
 					file.relPath,
 					imported,
@@ -52,17 +52,27 @@ func TestDomainStaysPure(t *testing.T) {
 	}
 }
 
+// innerLayers are the packages beneath the application layer: the pure domain,
+// the port contracts, the shared error vocabulary, and the adapters that
+// implement the ports. Nothing here may reach up.
+var innerLayers = []string{
+	"internal/domain/",
+	"internal/ports/",
+	"internal/derrors/",
+	"internal/adapter/",
+}
+
 // TestInfraDoesNotImportApp pins the direction of the hexagon: adapters
-// implement ports, so nothing under internal/core may reach up into the
-// application or UI layers.
+// implement ports, so no inner layer may reach up into the application or UI
+// layers.
 //
 // This inversion was real and invisible until the overlay managers moved into
-// infra: every overlay backend imported internal/app/components for its render
-// models. The fix was to move those render packages down into
-// internal/core/infra/overlay/render/, not to allow the edge.
+// the adapter layer: every overlay backend imported internal/app/components for
+// its render models. The fix was to move those render packages down, not to
+// allow the edge.
 func TestInfraDoesNotImportApp(t *testing.T) {
 	for _, file := range goFiles(t) {
-		if !strings.HasPrefix(file.relPath, "internal/core/") {
+		if !isInnerLayer(file.relPath) {
 			continue
 		}
 
@@ -73,14 +83,24 @@ func TestInfraDoesNotImportApp(t *testing.T) {
 			}
 
 			t.Errorf(
-				"%s imports %s; internal/core must not depend on the app or UI "+
-					"layer — move the shared type down into core, or invert the "+
-					"dependency with a port",
+				"%s imports %s; the domain, port and adapter layers must not "+
+					"depend on the app or UI layer — move the shared type down, "+
+					"or invert the dependency with a port",
 				file.relPath,
 				imported,
 			)
 		}
 	}
+}
+
+func isInnerLayer(relPath string) bool {
+	for _, layer := range innerLayers {
+		if strings.HasPrefix(relPath, layer) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // sharedInfraPackages may be imported from anywhere.
@@ -99,10 +119,10 @@ func TestInfraDoesNotImportApp(t *testing.T) {
 //     (overlay.Mode, hints.Hint, grid.Style). These are data, not behavior;
 //     the behavior is behind ports.OverlayPort.
 var sharedInfraPackages = []string{
-	"internal/core/infra/ipc",
-	"internal/core/infra/logger",
-	"internal/core/infra/platform",
-	"internal/core/infra/overlay",
+	"internal/adapter/ipc",
+	"internal/adapter/logger",
+	"internal/adapter/platform",
+	"internal/adapter/overlay",
 }
 
 // compositionRootFiles wire concrete adapters to ports. Reaching into infra is
@@ -149,7 +169,7 @@ func TestAppReachesInfraOnlyThroughPorts(t *testing.T) {
 		}
 
 		for _, imported := range importsOf(t, file.absPath) {
-			if !strings.HasPrefix(imported, "internal/core/infra") {
+			if !strings.HasPrefix(imported, "internal/adapter") {
 				continue
 			}
 
@@ -158,7 +178,7 @@ func TestAppReachesInfraOnlyThroughPorts(t *testing.T) {
 			}
 
 			t.Errorf(
-				"%s imports %s; application code must depend on internal/core/ports "+
+				"%s imports %s; application code must depend on internal/ports "+
 					"and let the composition root inject the adapter "+
 					"(docs/CROSS_PLATFORM.md, The Three Tiers)",
 				file.relPath,
@@ -185,7 +205,7 @@ func TestKnownLayeringExceptionsAreStillReal(t *testing.T) {
 		stillViolates := false
 
 		for _, imported := range importsOf(t, absPath) {
-			if strings.HasPrefix(imported, "internal/core/infra") &&
+			if strings.HasPrefix(imported, "internal/adapter") &&
 				!isSharedInfraPackage(imported) {
 				stillViolates = true
 

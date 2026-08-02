@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Every numeric config field is guarded by a range check, and every one of

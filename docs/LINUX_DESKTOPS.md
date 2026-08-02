@@ -225,7 +225,7 @@ backend.
 
 Future work targets libei (the same family as KDE) plus a GNOME Shell extension.
 See
-[wayland_gnome/PLACEHOLDER.md](../internal/core/infra/platform/linux/wayland_gnome/PLACEHOLDER.md).
+[wayland_gnome/PLACEHOLDER.md](../internal/adapter/platform/linux/wayland_gnome/PLACEHOLDER.md).
 
 ---
 

@@ -9,7 +9,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (

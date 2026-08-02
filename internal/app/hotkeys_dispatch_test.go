@@ -9,9 +9,9 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 // fakeReleaseHotkeyManager implements both HotkeyService and

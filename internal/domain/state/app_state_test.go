@@ -1,0 +1,1120 @@
+package state_test
+
+import (
+	"runtime"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
+)
+
+func TestNewAppState(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state == nil {
+		t.Fatal("NewAppState() returned nil")
+	}
+
+	if !_state.IsEnabled() {
+		t.Error("Expected new state to be enabled by default")
+	}
+
+	if _state.CurrentMode() != domain.ModeIdle {
+		t.Errorf("Expected initial mode to be ModeIdle, got %v", _state.CurrentMode())
+	}
+}
+
+func TestAppState_EnableDisable(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Test Enable
+	_state.Disable()
+
+	if _state.IsEnabled() {
+		t.Error("Expected state to be disabled")
+	}
+
+	_state.Enable()
+
+	if !_state.IsEnabled() {
+		t.Error("Expected state to be enabled")
+	}
+
+	// Test SetEnabled
+	_state.SetEnabled(false)
+
+	if _state.IsEnabled() {
+		t.Error("Expected state to be disabled after SetEnabled(false)")
+	}
+
+	_state.SetEnabled(true)
+
+	if !_state.IsEnabled() {
+		t.Error("Expected state to be enabled after SetEnabled(true)")
+	}
+}
+
+func TestAppState_Mode(t *testing.T) {
+	_state := state.NewAppState()
+
+	modes := []domain.Mode{
+		domain.ModeIdle,
+		domain.ModeHints,
+		domain.ModeGrid,
+	}
+
+	for _, mode := range modes {
+		_state.SetMode(mode)
+
+		if _state.CurrentMode() != mode {
+			t.Errorf("Expected mode %v, got %v", mode, _state.CurrentMode())
+		}
+	}
+}
+
+func TestAppState_ModeExitReason(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Initially should be None.
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("initial ConsumeModeExitReason() = %v, want ModeExitReasonNone", got)
+	}
+
+	// Set and consume Completed.
+	_state.SetModeExitReason(state.ModeExitReasonCompleted)
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonCompleted {
+		t.Fatalf("after Set(Completed) ConsumeModeExitReason() = %v, want Completed", got)
+	}
+
+	// Should be reset to None after consumption.
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("after consume ConsumeModeExitReason() = %v, want ModeExitReasonNone", got)
+	}
+
+	// Set and consume Canceled.
+	_state.SetModeExitReason(state.ModeExitReasonCancelled)
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonCancelled {
+		t.Fatalf(
+			"after Set(Canceled) ConsumeModeExitReason() = %v, want Canceled",
+			got,
+		)
+	}
+
+	// Double consume should return None (already reset).
+	_state.SetModeExitReason(state.ModeExitReasonCompleted)
+	_state.ConsumeModeExitReason() // consume once
+
+	if got := _state.ConsumeModeExitReason(); got != state.ModeExitReasonNone {
+		t.Fatalf("double consume = %v, want ModeExitReasonNone", got)
+	}
+}
+
+func TestAppState_HotkeysRegistered(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.HotkeysRegistered() {
+		t.Error("Expected hotkeys to not be registered initially")
+	}
+
+	_state.SetHotkeysRegistered(true)
+
+	if !_state.HotkeysRegistered() {
+		t.Error("Expected hotkeys to be registered")
+	}
+
+	_state.SetHotkeysRegistered(false)
+
+	if _state.HotkeysRegistered() {
+		t.Error("Expected hotkeys to not be registered")
+	}
+}
+
+func TestAppState_TrySetScreenChangeProcessing_SetsRetryFlag(t *testing.T) {
+	_state := state.NewAppState()
+
+	// First call should succeed.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected first TrySet to succeed")
+	}
+
+	// Second call should fail and set the pending-retry flag.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected second TrySet to fail while processing")
+	}
+
+	// Finish should report that a retry is pending and keep processing flag set.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return true (retry pending)")
+	}
+
+	// Processing flag should still be held — TrySet should fail.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail because processing flag is still held after retry")
+	}
+
+	// The failed TrySet above set pendingRetry again as a side effect.
+	// Drain it so we can test a truly clean finish.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error(
+			"Expected FinishScreenChangeProcessing to return true (side-effect retry from TrySet)",
+		)
+	}
+
+	// Now finish with no pending retry — processing flag should be cleared.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return false (no retry)")
+	}
+
+	// Processing flag is now cleared — TrySet should succeed.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after clean finish")
+	}
+
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected FinishScreenChangeProcessing to return false (no retry)")
+	}
+}
+
+func TestAppState_FinishScreenChangeProcessing_NoRetryByDefault(t *testing.T) {
+	_state := state.NewAppState()
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed")
+	}
+
+	// No concurrent event arrived, so finish should return false.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry when no concurrent event arrived")
+	}
+}
+
+func TestAppState_TrySetScreenChangeProcessing_MultipleRetries(t *testing.T) {
+	_state := state.NewAppState()
+
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected first TrySet to succeed")
+	}
+
+	// Multiple concurrent events should still result in a single retry.
+	for range 5 {
+		if _state.TrySetScreenChangeProcessing() {
+			t.Fatal("Expected TrySet to fail while processing")
+		}
+	}
+
+	// Only one retry should be reported; processing flag stays held.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error("Expected retry after multiple concurrent events")
+	}
+
+	// Processing flag is still held — TrySet should fail.
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail because processing flag is still held")
+	}
+
+	// The failed TrySet above set pendingRetry again as a side effect.
+	// Drain it so we can test a truly clean finish.
+	if !_state.FinishScreenChangeProcessing() {
+		t.Error(
+			"Expected FinishScreenChangeProcessing to return true (side-effect retry from TrySet)",
+		)
+	}
+
+	// Clean finish — no retry pending, processing flag cleared.
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry on clean finish")
+	}
+
+	// Now TrySet should succeed.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after clean finish")
+	}
+
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry on clean finish")
+	}
+}
+
+func TestAppState_ResetScreenChangeProcessing_ClearsBothFlags(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Acquire processing and set pending retry.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed")
+	}
+
+	if _state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to fail while processing")
+	}
+
+	// Reset should clear both flags unconditionally.
+	_state.ResetScreenChangeProcessing()
+
+	// After reset, TrySet should succeed again.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Fatal("Expected TrySet to succeed after Reset")
+	}
+
+	// And Finish should report no pending retry (the old pendingRetry was cleared by Reset).
+	if _state.FinishScreenChangeProcessing() {
+		t.Error("Expected no retry after Reset cleared pending flag")
+	}
+}
+
+// TestAppState_ScreenChangeProcessing_ConcurrentStress exercises the TrySet/Finish
+// protocol under heavy concurrent contention. The key invariant is that exactly one
+// goroutine "wins" TrySet at any given time, and the protocol never deadlocks or
+// corrupts state. Run with -race to verify mutex correctness.
+func TestAppState_ScreenChangeProcessing_ConcurrentStress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	const (
+		numProducers = 50
+		numCycles    = 200
+	)
+	// wins counts how many goroutines successfully acquired the processing flag.
+	var (
+		wins      sync.Map
+		waitGroup sync.WaitGroup
+	)
+	// Simulate the real handleScreenParametersChange pattern:
+	// each goroutine tries to acquire, processes in a loop draining retries,
+	// then releases.
+
+	for producer := range numProducers {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
+
+			for range numCycles {
+				if !_state.TrySetScreenChangeProcessing() {
+					// Another goroutine owns the flag; this is expected.
+					continue
+				}
+				// Record that this goroutine entered the critical section.
+				wins.Store(index, true)
+				// Simulate the retry-drain loop.
+				for {
+					// Simulate a small amount of work.
+					runtime.Gosched()
+
+					if !_state.FinishScreenChangeProcessing() {
+						break
+					}
+				}
+			}
+		}(producer)
+	}
+
+	waitGroup.Wait()
+	// After all goroutines finish, the processing flag must be cleared so new
+	// events can be handled.
+	if !_state.TrySetScreenChangeProcessing() {
+		t.Error("Expected processing flag to be cleared after all goroutines finished")
+	}
+	// Clean up.
+	_state.FinishScreenChangeProcessing()
+	// At least one goroutine should have won the flag at some point.
+	count := 0
+	wins.Range(func(_, _ any) bool {
+		count++
+
+		return true
+	})
+
+	if count == 0 {
+		t.Error("Expected at least one goroutine to acquire the processing flag")
+	}
+}
+
+// TestAppState_ScreenChangeProcessing_MutualExclusion verifies that only one
+// goroutine can be inside the critical section at a time by using an atomic
+// counter to detect concurrent entry.
+func TestAppState_ScreenChangeProcessing_MutualExclusion(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	const (
+		numGoroutines = 100
+		numCycles     = 100
+	)
+
+	var (
+		inside     atomic.Int32
+		violations atomic.Int32
+		waitGroup  sync.WaitGroup
+	)
+
+	for range numGoroutines {
+		waitGroup.Go(func() {
+			for range numCycles {
+				if !_state.TrySetScreenChangeProcessing() {
+					continue
+				}
+				// We are now the exclusive owner. If another goroutine is
+				// also inside, the counter will exceed 1.
+				if inside.Add(1) > 1 {
+					violations.Add(1)
+				}
+				// Simulate work.
+				runtime.Gosched()
+				inside.Add(-1)
+				// Drain retries.
+				for _state.FinishScreenChangeProcessing() {
+					if inside.Add(1) > 1 {
+						violations.Add(1)
+					}
+
+					runtime.Gosched()
+					inside.Add(-1)
+				}
+			}
+		})
+	}
+
+	waitGroup.Wait()
+
+	if v := violations.Load(); v > 0 {
+		t.Errorf("Mutual exclusion violated %d time(s)", v)
+	}
+}
+
+func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.GridOverlayNeedsRefresh() {
+		t.Error("Expected grid overlay refresh to be false initially")
+	}
+
+	_state.SetGridOverlayNeedsRefresh(true)
+
+	if !_state.GridOverlayNeedsRefresh() {
+		t.Error("Expected grid overlay to need refresh")
+	}
+
+	_state.SetGridOverlayNeedsRefresh(false)
+
+	if _state.GridOverlayNeedsRefresh() {
+		t.Error("Expected grid overlay to not need refresh")
+	}
+}
+
+func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.HintOverlayNeedsRefresh() {
+		t.Error("Expected hint overlay refresh to be false initially")
+	}
+
+	_state.SetHintOverlayNeedsRefresh(true)
+
+	if !_state.HintOverlayNeedsRefresh() {
+		t.Error("Expected hint overlay to need refresh")
+	}
+
+	_state.SetHintOverlayNeedsRefresh(false)
+
+	if _state.HintOverlayNeedsRefresh() {
+		t.Error("Expected hint overlay to not need refresh")
+	}
+}
+
+func TestAppState_RecursiveGridOverlayNeedsRefresh(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay refresh to be false initially")
+	}
+
+	_state.SetRecursiveGridOverlayNeedsRefresh(true)
+
+	if !_state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay to need refresh")
+	}
+
+	_state.SetRecursiveGridOverlayNeedsRefresh(false)
+
+	if _state.RecursiveGridOverlayNeedsRefresh() {
+		t.Error("Expected recursive-grid overlay to not need refresh")
+	}
+}
+
+func TestAppState_HotkeyRefreshPending(t *testing.T) {
+	_state := state.NewAppState()
+
+	if _state.HotkeyRefreshPending() {
+		t.Error("Expected hotkey refresh pending to be false initially")
+	}
+
+	_state.SetHotkeyRefreshPending(true)
+
+	if !_state.HotkeyRefreshPending() {
+		t.Error("Expected hotkey refresh to be pending")
+	}
+
+	_state.SetHotkeyRefreshPending(false)
+
+	if _state.HotkeyRefreshPending() {
+		t.Error("Expected hotkey refresh to not be pending")
+	}
+}
+
+// TestAppState_Concurrency tests thread-safe access to state.
+func TestAppState_Concurrency(t *testing.T) {
+	_state := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	// Concurrent reads and writes
+	for range 100 {
+		waitGroup.Add(2)
+
+		go func() {
+			defer waitGroup.Done()
+
+			_state.SetEnabled(true)
+			_ = _state.IsEnabled()
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			_state.SetMode(domain.ModeHints)
+			_ = _state.CurrentMode()
+		}()
+	}
+
+	waitGroup.Wait()
+
+	// The race detector is the primary check. Also assert the state stayed
+	// coherent and writable, so the test can actually fail without -race.
+	settled := _state.CurrentMode()
+	if _state.CurrentMode() != settled {
+		t.Fatal("CurrentMode() disagreed with itself with no writer running")
+	}
+
+	_state.SetEnabled(true)
+
+	if !_state.IsEnabled() {
+		t.Error("SetEnabled(true) after concurrent access did not take effect")
+	}
+}
+
+// Stress tests for robustness.
+
+// TestAppState_RapidModeTransitions tests rapid mode switching.
+func TestAppState_RapidModeTransitions(t *testing.T) {
+	_state := state.NewAppState()
+	modes := []domain.Mode{
+		domain.ModeIdle,
+		domain.ModeHints,
+		domain.ModeGrid,
+		domain.ModeIdle,
+	}
+
+	// Perform 1000 rapid mode transitions
+	for range 1000 {
+		for _, mode := range modes {
+			_state.SetMode(mode)
+
+			if _state.CurrentMode() != mode {
+				t.Errorf("Expected mode %v, got %v", mode, _state.CurrentMode())
+			}
+		}
+	}
+}
+
+// TestAppState_StateTransitionSequences tests valid state transition sequences.
+func TestAppState_StateTransitionSequences(t *testing.T) {
+	tests := []struct {
+		name      string
+		sequence  []domain.Mode
+		wantFinal domain.Mode
+	}{
+		{
+			name:      "idle -> hints -> idle",
+			sequence:  []domain.Mode{domain.ModeIdle, domain.ModeHints, domain.ModeIdle},
+			wantFinal: domain.ModeIdle,
+		},
+		{
+			name:      "idle -> grid -> idle",
+			sequence:  []domain.Mode{domain.ModeIdle, domain.ModeGrid, domain.ModeIdle},
+			wantFinal: domain.ModeIdle,
+		},
+		{
+			name:      "hints -> grid -> hints",
+			sequence:  []domain.Mode{domain.ModeHints, domain.ModeGrid, domain.ModeHints},
+			wantFinal: domain.ModeHints,
+		},
+		{
+			name: "complex sequence",
+			sequence: []domain.Mode{
+				domain.ModeIdle,
+				domain.ModeHints,
+				domain.ModeGrid,
+				domain.ModeHints,
+				domain.ModeIdle,
+			},
+			wantFinal: domain.ModeIdle,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			_state := state.NewAppState()
+
+			for _, mode := range testCase.sequence {
+				_state.SetMode(mode)
+
+				if _state.CurrentMode() != mode {
+					t.Errorf("After SetMode(%v), CurrentMode() = %v", mode, _state.CurrentMode())
+				}
+			}
+
+			if _state.CurrentMode() != testCase.wantFinal {
+				t.Errorf("Final mode = %v, want %v", _state.CurrentMode(), testCase.wantFinal)
+			}
+		})
+	}
+}
+
+// TestAppState_ConcurrentStressTest performs intensive concurrent operations.
+func TestAppState_ConcurrentStressTest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping stress test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	errors := make(chan error, 1000)
+
+	modes := []domain.Mode{domain.ModeIdle, domain.ModeHints, domain.ModeGrid}
+
+	// Run 1000 concurrent goroutines
+	for index := range 1000 {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
+
+			// Each goroutine performs multiple operations
+			for rangeIndex := range 10 {
+				// Toggle enabled state
+				_state.SetEnabled(index%2 == 0)
+
+				// We cannot assert state.IsEnabled() here due to concurrency.
+				// The goal is to ensure thread safety.
+
+				// Cycle through modes
+				mode := modes[rangeIndex%len(modes)]
+				_state.SetMode(mode)
+
+				// Read current state
+				_ = _state.CurrentMode()
+				_ = _state.IsEnabled()
+			}
+		}(index)
+	}
+
+	waitGroup.Wait()
+	close(errors)
+
+	// Check for any errors
+	for err := range errors {
+		t.Error(err)
+	}
+}
+
+// TestAppState_StateInvariants validates state invariants.
+func TestAppState_StateInvariants(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Invariant 1: New state should be enabled
+	if !_state.IsEnabled() {
+		t.Error("Invariant violated: new state should be enabled")
+	}
+
+	// Invariant 2: New state should be in ModeIdle
+	if _state.CurrentMode() != domain.ModeIdle {
+		t.Error("Invariant violated: new state should be in ModeIdle")
+	}
+
+	// Invariant 3: Disable() should set enabled to false
+	_state.Disable()
+
+	if _state.IsEnabled() {
+		t.Error("Invariant violated: Disable() should set enabled to false")
+	}
+
+	// Invariant 4: Enable() should set enabled to true
+	_state.Enable()
+
+	if !_state.IsEnabled() {
+		t.Error("Invariant violated: Enable() should set enabled to true")
+	}
+
+	// Invariant 5: SetMode() should update CurrentMode()
+	_state.SetMode(domain.ModeHints)
+
+	if _state.CurrentMode() != domain.ModeHints {
+		t.Error("Invariant violated: SetMode() should update CurrentMode()")
+	}
+
+	// Invariant 6: Mode should persist across enable/disable
+	_state.Disable()
+
+	if _state.CurrentMode() != domain.ModeHints {
+		t.Error("Invariant violated: mode should persist across disable")
+	}
+
+	_state.Enable()
+
+	if _state.CurrentMode() != domain.ModeHints {
+		t.Error("Invariant violated: mode should persist across enable")
+	}
+}
+
+// TestAppState_MultipleFlags tests concurrent modification of multiple flags.
+// TestAppState_MultipleFlags hammers the enabled flag from many goroutines.
+//
+// Its value is the race detector, but it also pins that the flag settles to a
+// readable, consistent value: it previously took `_ *testing.T` and so could
+// not report anything even if the state had been corrupted.
+func TestAppState_MultipleFlags(t *testing.T) {
+	appState := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	for range 100 {
+		waitGroup.Add(2)
+
+		go func() {
+			defer waitGroup.Done()
+
+			appState.SetEnabled(true)
+		}()
+
+		go func() {
+			defer waitGroup.Done()
+
+			appState.SetEnabled(false)
+		}()
+	}
+
+	waitGroup.Wait()
+
+	// The winning writer is nondeterministic, but reads must agree with each
+	// other once writers are done.
+	settled := appState.IsEnabled()
+	for range 10 {
+		if appState.IsEnabled() != settled {
+			t.Fatal("IsEnabled() returned different values with no writer running")
+		}
+	}
+
+	// And the flag must still be writable afterwards.
+	appState.SetEnabled(true)
+
+	if !appState.IsEnabled() {
+		t.Error("SetEnabled(true) after concurrent access did not take effect")
+	}
+}
+
+func TestAppState_OnEnabledStateChanged_Registration(t *testing.T) {
+	_state := state.NewAppState()
+
+	id := _state.OnEnabledStateChanged(func(enabled bool) {})
+
+	if id != 1 {
+		t.Errorf("Expected first callback ID to be 1, got %d", id)
+	}
+
+	// Register second callback
+	id2 := _state.OnEnabledStateChanged(func(enabled bool) {})
+
+	if id2 != 2 {
+		t.Errorf("Expected second callback ID to be 2, got %d", id2)
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_ImmediateInvocation tests callback is called immediately with current state.
+func TestAppState_OnEnabledStateChanged_ImmediateInvocation(t *testing.T) {
+	_state := state.NewAppState()
+
+	called := make(chan bool, 1)
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		called <- enabled
+	})
+
+	// Wait for immediate callback
+	select {
+	case enabled := <-called:
+		if !enabled {
+			t.Error("Expected immediate callback with enabled=true")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for immediate callback")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_StateChangeNotification tests callbacks are invoked on state changes.
+func TestAppState_OnEnabledStateChanged_StateChangeNotification(t *testing.T) {
+	_state := state.NewAppState()
+
+	called := make(chan bool, 1)
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called <- enabled:
+		default:
+		}
+	})
+
+	// Consume immediate callback
+	select {
+	case <-called:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Timeout waiting for initial callback")
+	}
+
+	// Change state
+	_state.SetEnabled(false)
+
+	// Wait for state change notification
+	select {
+	case enabled := <-called:
+		if enabled {
+			t.Error("Expected callback with enabled=false after state change")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for state change callback")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_NoNotificationOnSameState tests no callback when state doesn't change.
+func TestAppState_OnEnabledStateChanged_NoNotificationOnSameState(t *testing.T) {
+	_state := state.NewAppState()
+
+	callCount := 0
+
+	var callbackMutex sync.Mutex
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(1)
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		defer waitGroup.Done()
+
+		callbackMutex.Lock()
+
+		callCount++
+
+		callbackMutex.Unlock()
+	})
+
+	// Wait for initial callback
+	waitGroup.Wait()
+
+	callbackMutex.Lock()
+
+	if callCount != 1 {
+		t.Fatalf("Expected 1 initial callback, got %d", callCount)
+	}
+
+	callbackMutex.Unlock()
+
+	// Set same state (true -> true)
+	_state.SetEnabled(true)
+
+	callbackMutex.Lock()
+
+	if callCount != 1 {
+		t.Errorf("Expected still 1 callback after no-op state change, got %d", callCount)
+	}
+
+	callbackMutex.Unlock()
+}
+
+// TestAppState_OnEnabledStateChanged_MultipleCallbacks tests multiple callbacks are all invoked.
+func TestAppState_OnEnabledStateChanged_MultipleCallbacks(t *testing.T) {
+	_state := state.NewAppState()
+
+	called1 := make(chan bool, 1)
+	called2 := make(chan bool, 1)
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called1 <- enabled:
+		default:
+		}
+	})
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case called2 <- enabled:
+		default:
+		}
+	})
+
+	// Both should be called immediately
+	select {
+	case <-called1:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for callback 1")
+	}
+
+	select {
+	case <-called2:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Timeout waiting for callback 2")
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_NilCallback tests nil callback doesn't panic.
+func TestAppState_OnEnabledStateChanged_NilCallback(t *testing.T) {
+	_state := state.NewAppState()
+
+	// Should not panic and return 0
+	subscriptionID := _state.OnEnabledStateChanged(nil)
+
+	if subscriptionID != 0 {
+		t.Errorf("Expected nil callback to return 0, got %d", subscriptionID)
+	}
+
+	// State changes should not panic
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
+}
+
+// TestAppState_OffEnabledStateChanged_Unsubscribe tests unsubscribing removes callback.
+func TestAppState_OffEnabledStateChanged_Unsubscribe(t *testing.T) {
+	_state := state.NewAppState()
+
+	callbackCalled := make(chan bool, 2)
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(1)
+
+	subscriptionID := _state.OnEnabledStateChanged(func(enabled bool) {
+		defer waitGroup.Done()
+
+		select {
+		case callbackCalled <- enabled:
+		default:
+		}
+	})
+
+	// Wait for initial callback
+	waitGroup.Wait()
+
+	// Consume the initial callback value
+	select {
+	case <-callbackCalled:
+	default:
+	}
+
+	// Unsubscribe
+	_state.OffEnabledStateChanged(subscriptionID)
+
+	// Change state - callback should not be called
+	_state.SetEnabled(false)
+
+	// Verify callback was not invoked after unsubscribe
+	select {
+	case value := <-callbackCalled:
+		t.Errorf("Callback was invoked after unsubscribe with value: %v", value)
+	case <-time.After(100 * time.Millisecond):
+		// Expected: callback was not called
+	}
+}
+
+// TestAppState_OffEnabledStateChanged_InvalidID tests unsubscribing with invalid ID is no-op.
+func TestAppState_OffEnabledStateChanged_InvalidID(t *testing.T) {
+	appState := state.NewAppState()
+
+	// Removing IDs that were never issued must be a no-op, not a panic.
+	appState.OffEnabledStateChanged(9999)
+	appState.OffEnabledStateChanged(0)
+
+	// The real risk is that a bogus removal corrupts the callback registry, so
+	// assert a subsequently registered callback still receives events.
+	//
+	// Two deliveries are in flight here and both are dispatched on their own
+	// goroutine, so their order is not guaranteed: registration fires an
+	// initial callback carrying the current state, and the flip below fires
+	// another. Collect until the flipped value arrives rather than assuming
+	// which lands first.
+	delivered := make(chan bool, 8)
+
+	subscriptionID := appState.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case delivered <- enabled:
+		default:
+		}
+	})
+
+	t.Cleanup(func() { appState.OffEnabledStateChanged(subscriptionID) })
+
+	want := !appState.IsEnabled()
+	appState.SetEnabled(want)
+
+	deadline := time.After(2 * time.Second)
+
+	for {
+		select {
+		case got := <-delivered:
+			if got == want {
+				return
+			}
+		case <-deadline:
+			t.Fatalf("callback never received enabled = %v after removing non-existent IDs", want)
+		}
+	}
+}
+
+// TestAppState_OnEnabledStateChanged_FiresInitialState pins the registration
+// contract the test above has to work around: subscribing delivers the current
+// state immediately, so a subscriber does not have to prime itself.
+func TestAppState_OnEnabledStateChanged_FiresInitialState(t *testing.T) {
+	appState := state.NewAppState()
+	initial := appState.IsEnabled()
+
+	delivered := make(chan bool, 1)
+
+	subscriptionID := appState.OnEnabledStateChanged(func(enabled bool) {
+		select {
+		case delivered <- enabled:
+		default:
+		}
+	})
+
+	t.Cleanup(func() { appState.OffEnabledStateChanged(subscriptionID) })
+
+	select {
+	case got := <-delivered:
+		if got != initial {
+			t.Errorf("initial callback delivered %v, want the current state %v", got, initial)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("registering a callback did not deliver the initial state")
+	}
+}
+
+func TestAppState_OnEnabledStateChanged_Concurrent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping concurrent test in short mode")
+	}
+
+	_state := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	ids := make(chan uint64, 100)
+
+	// Concurrent registrations
+	for range 100 {
+		waitGroup.Go(func() {
+			id := _state.OnEnabledStateChanged(func(enabled bool) {})
+			ids <- id
+		})
+	}
+
+	waitGroup.Wait()
+	close(ids)
+
+	// Verify all IDs are unique
+	idMap := make(map[uint64]bool)
+
+	for id := range ids {
+		if idMap[id] {
+			t.Errorf("Duplicate callback ID: %d", id)
+		}
+
+		idMap[id] = true
+	}
+
+	// Concurrent unregistrations
+	waitGroup = sync.WaitGroup{}
+
+	for subscriptionID := range idMap {
+		waitGroup.Add(1)
+
+		go func(subID uint64) {
+			defer waitGroup.Done()
+
+			_state.OffEnabledStateChanged(subID)
+		}(subscriptionID)
+	}
+
+	waitGroup.Wait()
+
+	// State changes should not panic after all unsubscriptions
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
+}
+
+// TestAppState_CallbackValueCorrectness tests correct state value is passed to callbacks.
+func TestAppState_CallbackValueCorrectness(t *testing.T) {
+	_state := state.NewAppState()
+
+	var waitGroup sync.WaitGroup
+
+	receivedValues := make(map[bool]int)
+
+	var valuesMutex sync.Mutex
+
+	// Add to waitgroup before registration to catch goroutine callback
+	waitGroup.Add(1)
+
+	_state.OnEnabledStateChanged(func(enabled bool) {
+		defer waitGroup.Done()
+
+		valuesMutex.Lock()
+
+		receivedValues[enabled]++
+
+		valuesMutex.Unlock()
+	})
+
+	// Wait for initial callback
+	waitGroup.Wait()
+
+	// Reset for state change callbacks
+	waitGroup.Add(2)
+
+	_state.SetEnabled(false)
+	_state.SetEnabled(true)
+
+	// Wait for both state change callbacks
+	waitGroup.Wait()
+
+	valuesMutex.Lock()
+
+	defer valuesMutex.Unlock()
+
+	if receivedValues[true] != 2 {
+		t.Errorf("Expected 2 callbacks with true, got %d", receivedValues[true])
+	}
+
+	if receivedValues[false] != 1 {
+		t.Errorf("Expected 1 callback with false, got %d", receivedValues[false])
+	}
+}

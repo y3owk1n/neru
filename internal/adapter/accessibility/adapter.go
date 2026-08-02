@@ -1,0 +1,788 @@
+package accessibility
+
+import (
+	"context"
+	"image"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
+)
+
+const (
+	// TypicalElementCount is the estimated number of elements to pre-allocate.
+	TypicalElementCount = 50
+
+	// ConcurrentProcessingThreshold is the number of nodes that triggers concurrent processing.
+	ConcurrentProcessingThreshold = 100
+
+	// EstimatedFilteringRatio is the estimated ratio of nodes that pass the filter.
+	EstimatedFilteringRatio = 2
+
+	// contextCheckInterval is the interval for checking context cancellation.
+	contextCheckInterval = 100
+
+	// maxConcurrentWorkers is the maximum number of workers for processing.
+	maxConcurrentWorkers = 8
+
+	// maxConcurrentWindows caps goroutines spawned for per-window processing
+	// to prevent thread explosion when many windows are open.
+	maxConcurrentWindows = 4
+)
+
+// elementSlicePool is a pool of element slices for temporary use.
+var elementSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]*element.Element, 0, TypicalElementCount)
+
+		return &s
+	},
+}
+
+// Adapter implements ports.AccessibilityPort by wrapping the AXClient.
+// It converts between domain models and infrastructure types.
+type Adapter struct {
+	// logger for adapter.
+	logger               *zap.Logger
+	client               AXClient
+	excludedBundles      map[string]bool
+	clickableRoles       []string
+	detectMissionControl bool
+}
+
+// NewAdapter creates a new accessibility adapter.
+func NewAdapter(
+	logger *zap.Logger,
+	excludedBundles []string,
+	clickableRoles []string,
+	client AXClient,
+	detectMissionControl bool,
+) *Adapter {
+	excludedMap := make(map[string]bool, len(excludedBundles))
+	for _, bundle := range excludedBundles {
+		excludedMap[bundle] = true
+	}
+
+	return &Adapter{
+		logger:               logger,
+		client:               client,
+		excludedBundles:      excludedMap,
+		clickableRoles:       clickableRoles,
+		detectMissionControl: detectMissionControl,
+	}
+}
+
+// Logger returns the logger for the adapter.
+// It is used for testing mainly.
+func (a *Adapter) Logger() *zap.Logger {
+	return a.logger
+}
+
+// ClickableRoles returns the list of clickable roles.
+// It is used for testing mainly.
+func (a *Adapter) ClickableRoles() []string {
+	return a.clickableRoles
+}
+
+// ClickableElements retrieves all clickable UI elements matching the filter.
+func (a *Adapter) ClickableElements(
+	ctx context.Context,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	// Check context
+	err := a.checkContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pre-lowercase filter strings once to avoid repeating strings.ToLower on hot paths
+	if filter.TitleContains != "" {
+		filter.TitleContains = strings.ToLower(filter.TitleContains)
+	}
+
+	if filter.DescriptionContains != "" {
+		filter.DescriptionContains = strings.ToLower(filter.DescriptionContains)
+	}
+
+	if filter.ValueContains != "" {
+		filter.ValueContains = strings.ToLower(filter.ValueContains)
+	}
+
+	if len(filter.TextContainsList) > 0 {
+		loweredList := make([]string, len(filter.TextContainsList))
+		for i, text := range filter.TextContainsList {
+			loweredList[i] = strings.ToLower(text)
+		}
+
+		filter.TextContainsList = loweredList
+	}
+
+	a.logger.Debug("Getting clickable elements",
+		zap.Int("role_count", len(filter.Roles)),
+		zap.Bool("include_menubar", filter.IncludeMenubar),
+		zap.Bool("include_dock", filter.IncludeDock),
+		zap.Bool("include_notification_center", filter.IncludeNotificationCenter),
+		zap.Bool("include_stage_manager", filter.IncludeStageManager),
+		zap.Bool("include_pip", filter.IncludePIP),
+		zap.Bool("include_screen_capture", filter.IncludeScreenCapture))
+
+	adapterStart := time.Now()
+
+	var (
+		waitGroup sync.WaitGroup
+		mutex     sync.Mutex
+		// Pre-allocate with estimated capacity for typical web page
+		allElements = make([]*element.Element, 0, TypicalElementCount)
+		firstError  error
+		// windowsSourceErr records a window-scan failure without aborting the
+		// whole collection. It is surfaced only if *no* source produced any
+		// elements (see below), so a transient per-window error can't discard
+		// elements other sources gathered in parallel (dock, menubar, …).
+		windowsSourceErr error
+	)
+
+	// Check Mission Control state once to ensure consistency across all code paths
+	// Both the frontmost window check and supplementary elements check need the same value
+	// Use client's method to allow mocking in tests
+	// Only check if detect_mission_control config option is enabled
+	var missionControlActive bool
+	if a.detectMissionControl {
+		missionControlActive = a.client.IsMissionControlActive()
+	}
+
+	// Function to collect elements from a source — all sources fan out
+	// at the same level for maximum parallelism.
+	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
+		defer waitGroup.Done()
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		elements, err := queryFunc()
+		if err != nil {
+			mutex.Lock()
+
+			if firstError == nil {
+				firstError = derrors.Wrap(err, derrors.CodeAccessibilityFailed,
+					"failed to get elements from "+sourceName)
+			}
+
+			mutex.Unlock()
+
+			return
+		}
+
+		mutex.Lock()
+
+		allElements = append(allElements, elements...)
+
+		mutex.Unlock()
+
+		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
+	}
+
+	if !missionControlActive && !filter.SkipWindowElements {
+		// Query frontmost window AND popover windows
+		waitGroup.Add(1)
+
+		go func() {
+			collectElements("windows", func() ([]*element.Element, error) {
+				windowsToProcess, windowsErr := a.client.FrontmostAndPopoverWindows(ctx)
+				if windowsErr != nil {
+					return nil, windowsErr
+				}
+
+				if len(windowsToProcess) == 0 {
+					frontmost, frontmostErr := a.client.FrontmostWindow(ctx)
+					if frontmostErr != nil {
+						return nil, frontmostErr
+					}
+
+					windowsToProcess = []AXWindow{frontmost}
+				}
+
+				var allElements []*element.Element
+
+				var windowsWg sync.WaitGroup
+
+				var windowsMutex sync.Mutex
+
+				// First error from any window. It is only surfaced if *no* window
+				// yields elements (see below): a transient failure on one popover
+				// must not discard hints the frontmost window did produce, but a
+				// hard failure (e.g. the AT-SPI bus is unreachable) that leaves us
+				// with nothing must be reported rather than silently look like an
+				// empty window.
+				var firstWindowErr error
+
+				// Semaphore to cap concurrent window processing goroutines
+				windowSem := make(chan struct{}, maxConcurrentWindows)
+
+				recordWindowErr := func(err error) {
+					windowsMutex.Lock()
+					if firstWindowErr == nil {
+						firstWindowErr = err
+					}
+					windowsMutex.Unlock()
+				}
+
+				processWindow := func(window AXWindow) {
+					defer windowsWg.Done()
+					defer func() { <-windowSem }()
+
+					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
+						ctx,
+						window,
+						stringRoles(filter.Roles),
+						0,
+					)
+					if clickableNodesErr != nil {
+						a.logger.Warn("Failed to collect clickable nodes from window",
+							zap.Error(clickableNodesErr))
+						recordWindowErr(clickableNodesErr)
+						window.Release()
+
+						return
+					}
+
+					windowElements, processErr := a.processClickableNodes(
+						ctx,
+						clickableNodes,
+						filter,
+					)
+					if processErr != nil {
+						a.logger.Warn("Failed to process clickable nodes from window",
+							zap.Error(processErr))
+						recordWindowErr(processErr)
+						window.Release()
+
+						return
+					}
+
+					windowsMutex.Lock()
+
+					allElements = append(allElements, windowElements...)
+					windowsMutex.Unlock()
+
+					window.Release()
+				}
+
+				for _, window := range windowsToProcess {
+					windowSem <- struct{}{}
+
+					windowsWg.Add(1)
+
+					go processWindow(window)
+				}
+
+				windowsWg.Wait()
+
+				// Hand any window-scan error up to the caller rather than
+				// returning it as this source's value (which would abort the whole
+				// collection and throw away other sources' work). It is surfaced
+				// only if the *grand total* across every source is empty — see the
+				// windowsSourceErr check after all sources join — so a failure that
+				// still left some elements to show degrades to a Warn log instead.
+				if firstWindowErr != nil {
+					mutex.Lock()
+					if windowsSourceErr == nil {
+						windowsSourceErr = firstWindowErr
+					}
+					mutex.Unlock()
+				}
+
+				return allElements, nil
+			})
+		}()
+	}
+
+	// The Dock, menu bar, Notification Center, Stage Manager, Picture-in-Picture
+	// and screen-capture UI are macOS-specific surfaces resolved by system
+	// bundle ID. They do not exist on other platforms, so skip them entirely
+	// there rather than probing for nonexistent apps (which only logs failures).
+	if a.client.SupportsSupplementaryElements() {
+		// Menubar elements
+		if !missionControlActive && filter.IncludeMenubar {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("menubar", func() ([]*element.Element, error) {
+					return a.addMenubarElements(ctx, nil, filter), nil
+				})
+			}()
+		}
+
+		// Dock elements
+		if filter.IncludeDock {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("dock", func() ([]*element.Element, error) {
+					return a.addDockElements(ctx, nil), nil
+				})
+			}()
+		}
+
+		// Notification Center
+		if !missionControlActive && filter.IncludeNotificationCenter {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("notification_center", func() ([]*element.Element, error) {
+					return a.addNotificationCenterElements(ctx, nil), nil
+				})
+			}()
+		}
+
+		// Stage Manager
+		if !missionControlActive && filter.IncludeStageManager {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("stage_manager", func() ([]*element.Element, error) {
+					return a.addStageManagerElements(ctx, nil), nil
+				})
+			}()
+		}
+
+		// PIP
+		if !missionControlActive && filter.IncludePIP {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("pip", func() ([]*element.Element, error) {
+					return a.addPIPElements(ctx, nil), nil
+				})
+			}()
+		}
+
+		// Screen Capture
+		if !missionControlActive && filter.IncludeScreenCapture {
+			waitGroup.Add(1)
+
+			go func() {
+				collectElements("screen_capture", func() ([]*element.Element, error) {
+					return a.addScreenCaptureElements(ctx, nil), nil
+				})
+			}()
+		}
+	}
+
+	// Wait for all queries to complete or context to be canceled
+	done := make(chan struct{})
+	go func() {
+		waitGroup.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		// Distinguish a real timeout ("...timed out") from a cancellation
+		// ("...canceled") instead of collapsing both into a bare message — a
+		// timeout here usually means the accessibility backend was slow or
+		// unresponsive, which is the actionable signal.
+		return nil, derrors.WrapContextCanceled(ctx, "element collection")
+	}
+
+	if firstError != nil {
+		return nil, firstError
+	}
+
+	// Surface a window-scan failure only when nothing at all was collected —
+	// across every source. When some source did yield elements we return those
+	// and keep the failure to the Warn log, degrading rather than failing hard.
+	// On Linux (no supplementary sources) this is the path that turns a dead or
+	// unreachable AT-SPI bus into a clear error instead of a silent empty result.
+	if len(allElements) == 0 && windowsSourceErr != nil {
+		return nil, derrors.WrapAccessibilityFailed(windowsSourceErr, "collect window elements")
+	}
+
+	// Log reason for empty results when Mission Control is active
+	// This is intentional - we skip frontmost window query during MC
+	if len(allElements) == 0 && missionControlActive {
+		a.logger.Debug(
+			"No elements collected - Mission Control is active and no supplementary filters enabled",
+		)
+	}
+
+	elapsed := time.Since(adapterStart)
+	a.logger.Debug("Total elements collected",
+		zap.Int("count", len(allElements)),
+		zap.Duration("total", elapsed))
+
+	// Log warning if collection took too long
+	if elapsed > 2*time.Second {
+		a.logger.Warn("Clickable element collection was slow",
+			zap.Duration("elapsed", elapsed),
+			zap.Int("element_count", len(allElements)),
+		)
+	}
+
+	return allElements, nil
+}
+
+func stringRoles(roles []element.Role) []string {
+	if len(roles) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(roles))
+	for _, role := range roles {
+		result = append(result, string(role))
+	}
+
+	return result
+}
+
+// PerformAction executes an action on the specified element.
+func (a *Adapter) PerformAction(
+	ctx context.Context,
+	element *element.Element,
+	actionType action.Type,
+) error {
+	// Check context
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+	}
+
+	a.logger.Debug("Performing action",
+		zap.String("action", actionType.String()),
+		zap.String("element_id", string(element.ID())))
+
+	center := element.Center()
+
+	// Perform the action via client
+	performActionErr := a.client.PerformAction(actionType, center, false, 0)
+	if performActionErr != nil {
+		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
+	}
+
+	return nil
+}
+
+// PerformActionAtPoint executes an action at the specified point.
+func (a *Adapter) PerformActionAtPoint(
+	ctx context.Context,
+	actionType action.Type,
+	point image.Point,
+	modifiers action.Modifiers,
+) error {
+	// Check context
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	a.logger.Debug("Performing action at point",
+		zap.String("action", actionType.String()),
+		zap.Int("x", point.X),
+		zap.Int("y", point.Y),
+		zap.String("modifiers", modifiers.String()))
+
+	// Perform the action via client
+	performActionErr := a.client.PerformAction(actionType, point, false, modifiers)
+	if performActionErr != nil {
+		return derrors.Wrap(
+			performActionErr,
+			derrors.CodeActionFailed,
+			"failed to perform action at point",
+		)
+	}
+
+	return nil
+}
+
+// Scroll performs a scroll action at the current cursor position.
+func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
+	a.logger.Debug("Performing scroll",
+		zap.Int("deltaX", deltaX),
+		zap.Int("deltaY", deltaY))
+
+	scrollErr := a.client.Scroll(deltaX, deltaY)
+	if scrollErr != nil {
+		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
+	}
+
+	a.logger.Debug("Scroll completed")
+
+	return nil
+}
+
+// FocusedAppBundleID returns the bundle ID of the currently focused application.
+func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
+	// Check context
+	err := a.checkContext(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	focusedApp, focusedAppErr := a.client.FocusedApplication(ctx)
+	if focusedAppErr != nil {
+		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
+	}
+	defer focusedApp.Release()
+
+	bundleID := focusedApp.BundleIdentifier()
+	if bundleID == "" {
+		return "", derrors.New(derrors.CodeAccessibilityFailed, "failed to get bundle ID")
+	}
+
+	return bundleID, nil
+}
+
+// IsAppExcluded checks if the given bundle ID is in the exclusion list.
+func (a *Adapter) IsAppExcluded(_ context.Context, bundleID string) bool {
+	return a.excludedBundles[bundleID]
+}
+
+// ReleaseHeldButtons releases any mouse button this process still holds down.
+// The per-platform release lives in element_<os>.go; it is unexported because
+// only this adapter and the infra client may reach it.
+func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	ensureMouseUp()
+
+	return nil
+}
+
+// PrimeApplication waits briefly for the application's accessibility tree to
+// become queryable. The per-platform behavior lives in priming_darwin.go /
+// priming_other.go; see ports.TreePriming for why only macOS has work to do.
+func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, error) {
+	err := a.checkContext(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	return primeApplication(bundleID, a.logger), nil
+}
+
+// Health checks if the accessibility permissions are granted.
+func (a *Adapter) Health(ctx context.Context) error {
+	// Check context
+	err := a.checkContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !a.client.CheckPermissions() {
+		return derrors.New(derrors.CodeAccessibilityDenied,
+			"accessibility permissions not granted - please enable in System Preferences")
+	}
+
+	return nil
+}
+
+// UpdateClickableRoles updates the list of clickable roles.
+func (a *Adapter) UpdateClickableRoles(roles []string) {
+	a.logger.Debug("Updating clickable roles", zap.Int("count", len(roles)))
+	a.clickableRoles = roles
+	a.client.SetClickableRoles(roles)
+}
+
+// UpdateExcludedBundles updates the list of excluded bundle IDs.
+func (a *Adapter) UpdateExcludedBundles(bundles []string) {
+	a.logger.Debug("Updating excluded bundles", zap.Int("count", len(bundles)))
+
+	a.excludedBundles = make(map[string]bool, len(bundles))
+	for _, bundle := range bundles {
+		a.excludedBundles[bundle] = true
+	}
+}
+
+// checkContext checks if the context is canceled and returns an error if so.
+func (a *Adapter) checkContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
+	default:
+		return nil
+	}
+}
+
+// processClickableNodes converts and filters clickable nodes to domain elements.
+func (a *Adapter) processClickableNodes(
+	ctx context.Context,
+	clickableNodes []AXNode,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	// Get pooled slice and reset it
+	elementsPtr, ok := elementSlicePool.Get().(*[]*element.Element)
+	if !ok {
+		s := make([]*element.Element, 0, TypicalElementCount)
+		elementsPtr = &s
+	}
+
+	elements := (*elementsPtr)[:0] // Reset to zero length but keep capacity
+	defer func() {
+		// Clear references before returning to pool
+		for i := range elements {
+			elements[i] = nil
+		}
+
+		elementSlicePool.Put(elementsPtr)
+	}()
+
+	processStart := time.Now()
+	defer func() {
+		a.logger.Debug("TIMING: processClickableNodes",
+			zap.Duration("elapsed", time.Since(processStart)),
+			zap.Int("node_count", len(clickableNodes)),
+		)
+	}()
+
+	// Concurrent processing for large number of nodes
+	if len(clickableNodes) > ConcurrentProcessingThreshold {
+		return a.processClickableNodesConcurrent(ctx, clickableNodes, filter)
+	}
+
+	for index, node := range clickableNodes {
+		// Check context periodically
+		if index%contextCheckInterval == 0 {
+			err := a.checkContext(ctx)
+			if err != nil {
+				// Release remaining nodes that won't be processed.
+				for _, remaining := range clickableNodes[index:] {
+					remaining.Release()
+				}
+
+				return nil, err
+			}
+		}
+
+		elem, err := a.convertToDomainElement(node)
+
+		// Release the underlying AXUIElementRef now that data has been
+		// extracted (or conversion failed). The domain element is a pure
+		// value copy and no longer needs the native ref.
+		node.Release()
+
+		if err != nil {
+			a.logger.Warn("Failed to convert element", zap.Error(err))
+
+			continue
+		}
+
+		// Apply filter
+		if a.MatchesFilter(elem, filter) {
+			elements = append(elements, elem)
+		}
+	}
+
+	// Make a copy to return since we're returning the pooled slice
+	result := make([]*element.Element, len(elements))
+	copy(result, elements)
+
+	return result, nil
+}
+
+// processClickableNodesConcurrent processes nodes in parallel using a worker pool.
+func (a *Adapter) processClickableNodesConcurrent(
+	ctx context.Context,
+	nodes []AXNode,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	numWorkers := min(
+		// Use available parallelism
+		runtime.GOMAXPROCS(0),
+		// Cap to avoid diminishing returns
+		maxConcurrentWorkers)
+
+	chunkSize := (len(nodes) + numWorkers - 1) / numWorkers
+
+	type result struct {
+		elements []*element.Element
+	}
+
+	results := make(chan result, numWorkers)
+
+	var waitGroup sync.WaitGroup
+
+	for i := range numWorkers {
+		start := i * chunkSize
+
+		end := start + chunkSize
+		if start >= len(nodes) {
+			break
+		}
+
+		if end > len(nodes) {
+			end = len(nodes)
+		}
+
+		waitGroup.Add(1)
+
+		go func(chunk []AXNode) {
+			defer waitGroup.Done()
+
+			// Use local slice to avoid locking
+			localElements := make([]*element.Element, 0, len(chunk))
+
+			for idx, node := range chunk {
+				if idx%contextCheckInterval == 0 && ctx.Err() != nil {
+					// Release remaining nodes in this chunk that won't be processed.
+					for _, remaining := range chunk[idx:] {
+						remaining.Release()
+					}
+
+					return
+				}
+
+				elem, err := a.convertToDomainElement(node)
+
+				// Release the underlying AXUIElementRef now that data has been
+				// extracted (or conversion failed).
+				node.Release()
+
+				if err != nil {
+					continue
+				}
+
+				if a.MatchesFilter(elem, filter) {
+					localElements = append(localElements, elem)
+				}
+			}
+
+			results <- result{elements: localElements}
+		}(nodes[start:end])
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	// Pre-allocate based on input size estimate (conservative)
+	allElements := make([]*element.Element, 0, len(nodes)/EstimatedFilteringRatio)
+
+	for res := range results {
+		allElements = append(allElements, res.elements...)
+	}
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	return allElements, nil
+}
+
+// Ensure Adapter implements ports.AccessibilityPort.
+var _ ports.AccessibilityPort = (*Adapter)(nil)

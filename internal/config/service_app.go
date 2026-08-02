@@ -5,7 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // alertInvalidReload tells the user which file failed to load, without making

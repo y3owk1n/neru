@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // passthroughHintRefreshDelay is the delay before refreshing hints after a

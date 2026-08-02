@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
 // The toggle commands (toggle-scroll-invert, toggle-screen-share,

@@ -1,0 +1,94 @@
+package accessibility
+
+import (
+	"context"
+	"image"
+
+	"github.com/y3owk1n/neru/internal/domain/action"
+)
+
+// AXElement represents a generic accessibility element.
+type AXElement interface {
+	Release()
+}
+
+// AXWindow represents a window element.
+type AXWindow interface {
+	AXElement
+	Role() string
+}
+
+// AXClient defines the interface for accessibility operations.
+type AXClient interface {
+	// Window and App operations
+	FrontmostWindow(ctx context.Context) (AXWindow, error)
+	AllWindows(ctx context.Context) ([]AXWindow, error)
+	FrontmostAndPopoverWindows(ctx context.Context) ([]AXWindow, error)
+	FocusedApplication(ctx context.Context) (AXApp, error)
+	ApplicationByBundleID(ctx context.Context, bundleID string) (AXApp, error)
+	ClickableNodes(
+		ctx context.Context,
+		root AXElement,
+		roles []string,
+		maxDepth int,
+	) ([]AXNode, error)
+	MenuBarClickableElements(ctx context.Context, maxDepth int) ([]AXNode, error)
+	ClickableElementsFromBundleID(
+		ctx context.Context,
+		bundleID string,
+		roles []string,
+		maxDepth int,
+	) ([]AXNode, error)
+	ActiveScreenBounds() image.Rectangle
+
+	// Actions
+	PerformAction(
+		actionType action.Type,
+		p image.Point,
+		restoreCursor bool,
+		modifiers action.Modifiers,
+	) error
+	Scroll(deltaX, deltaY int) error
+	MoveMouse(p image.Point, bypassSmooth bool)
+	CursorPosition() image.Point
+
+	// System
+	CheckPermissions() bool
+	SetClickableRoles(roles []string)
+	ClickableRoles() []string
+	IsMissionControlActive() bool
+	// SupportsSupplementaryElements reports whether the platform exposes the
+	// macOS-specific auxiliary surfaces hints can also scan (Dock, menu bar,
+	// Notification Center, Stage Manager, Picture-in-Picture, screen-capture
+	// UI). False on Linux/Windows so those collectors are skipped.
+	SupportsSupplementaryElements() bool
+
+	// Close releases any resources held by the client (e.g. D-Bus connections
+	// or AT-SPI accessibility status).
+	Close() error
+}
+
+// AXAppInfo contains information about an application.
+type AXAppInfo struct {
+	Role  string
+	Title string
+}
+
+// AXApp represents an application element.
+type AXApp interface {
+	AXElement
+	BundleIdentifier() string
+	Info() (*AXAppInfo, error)
+}
+
+// AXNode represents a node in the accessibility tree.
+type AXNode interface {
+	ID() string
+	Bounds() image.Rectangle
+	Role() string
+	Title() string
+	Description() string
+	Value() string
+	IsClickable() bool
+	Release()
+}

@@ -42,13 +42,13 @@ linters:
         depguard:
             rules:
                 # Enforce the cross-platform architecture rule:
-                # Only files inside internal/core/infra/platform/darwin (which are
+                # Only files inside internal/adapter/platform/darwin (which are
                 # all build-tagged //go:build darwin) may import that package.
                 # All other code must go through ports.SystemPort or a
                 # platform-dispatch file (e.g. platform_darwin.go / platform_stub.go).
                 darwin-platform-import:
                     deny:
-                        - pkg: "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+                        - pkg: "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
                           desc: >
                               Do not import platform/darwin directly. Use ports.SystemPort
                               or create a build-tagged platform_darwin.go / platform_stub.go

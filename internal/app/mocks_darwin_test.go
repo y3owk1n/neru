@@ -8,17 +8,17 @@ import (
 	"sync"
 	"unsafe"
 
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/modeindicator"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/virtualpointer"
-	"github.com/y3owk1n/neru/internal/core/ports"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/ports"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // mockEventTap is a mock implementation of ports.EventTapPort for testing.

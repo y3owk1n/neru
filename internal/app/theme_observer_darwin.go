@@ -3,7 +3,7 @@
 package app
 
 import (
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
 
 // setupThemeObserver starts the macOS theme change observer and registers

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.

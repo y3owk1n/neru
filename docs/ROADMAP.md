@@ -48,7 +48,7 @@ it needs libei plus a GNOME Shell extension — see
 
 The highest-leverage areas, roughly in order:
 
-1. Platform adapter implementations in `internal/core/infra/platform`.
+1. Platform adapter implementations in `internal/adapter/platform`.
 2. Overlay implementations and capability reporting.
 3. Config reload regression coverage.
 4. Reducing compatibility globals behind explicit interfaces.

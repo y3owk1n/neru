@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/cli"
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // cliTestRoles is the roles command name as registered on RootCmd.

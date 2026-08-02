@@ -7,8 +7,8 @@ Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-
 - **Mode**: Navigation context (hints, grid, scroll, action)
 - **Bridge**: Objective-C macOS integration layer
 - **Adapter**: Port implementation for external systems
-- **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/core/ports/accessibility.go))
-- **Semantic role**: Platform-neutral role name written in `hints.clickable_roles` (`button`, `text_field`). Resolved to each platform's native accessibility vocabulary — AX on macOS, AT-SPI on Linux, UI Automation on Windows — at config load. Native roles are addressed by prefix (`ax:`, `atspi:`, `uia:`). See [vocabulary.go](internal/core/domain/element/vocabulary.go)
+- **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/ports/accessibility.go))
+- **Semantic role**: Platform-neutral role name written in `hints.clickable_roles` (`button`, `text_field`). Resolved to each platform's native accessibility vocabulary — AX on macOS, AT-SPI on Linux, UI Automation on Windows — at config load. Native roles are addressed by prefix (`ax:`, `atspi:`, `uia:`). See [vocabulary.go](internal/domain/element/vocabulary.go)
 
 ## Architecture & Cross-Platform
 
@@ -16,14 +16,14 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 
 ### The "One Rule"
 
-**Non-darwin-tagged code must never import `internal/core/infra/platform/darwin`.** This is enforced by `golangci-lint` using `depguard`.
+**Non-darwin-tagged code must never import `internal/adapter/platform/darwin`.** This is enforced by `golangci-lint` using `depguard`.
 
 ### File Organization for Platforms
 
-- **Ports**: [internal/core/ports/](internal/core/ports/)
-- **Infrastructure**: [internal/core/infra/](internal/core/infra/)
-- **Platform Factory**: [internal/core/infra/platform/factory.go](internal/core/infra/platform/factory.go) and build-tagged siblings.
-- **Platform Implementations**: [internal/core/infra/platform/darwin/](internal/core/infra/platform/darwin/), `linux/`, `windows/`.
+- **Ports**: [internal/ports/](internal/ports/)
+- **Adapters**: [internal/adapter/](internal/adapter/)
+- **Platform Factory**: [internal/adapter/platform/factory.go](internal/adapter/platform/factory.go) and build-tagged siblings.
+- **Platform Implementations**: [internal/adapter/platform/darwin/](internal/adapter/platform/darwin/), `linux/`, `windows/`.
 
 ## AI Assistant Exploration Tips
 
@@ -32,15 +32,15 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 - **App Startup**: [app_initialization.go](internal/app/app_initialization.go)
 - **Navigation Logic**: [internal/app/modes/](internal/app/modes/)
 - **Coordinate Conversion**: [conversion.go](internal/ui/coordinates/conversion.go)
-- **Error Definitions**: [errors.go](internal/core/errors/errors.go)
-- **Role Vocabulary**: [vocabulary.go](internal/core/domain/element/vocabulary.go) — adapters emit native role names; only config resolution translates
-- **Native macOS Logic**: [internal/core/infra/platform/darwin/](internal/core/infra/platform/darwin/)
+- **Error Definitions**: [errors.go](internal/derrors/errors.go)
+- **Role Vocabulary**: [vocabulary.go](internal/domain/element/vocabulary.go) — adapters emit native role names; only config resolution translates
+- **Native macOS Logic**: [internal/adapter/platform/darwin/](internal/adapter/platform/darwin/)
 
 ### Contextual Shortcuts
 
 - To understand **Mode** behavior: Read `internal/app/modes/base.go` and `handler.go`.
-- To understand **Accessibility**: Read `internal/core/ports/accessibility.go` (Port) and `internal/core/infra/accessibility/adapter.go` (Adapter).
-- To understand **Overlay** rendering: Read `internal/core/ports/overlay.go` and `internal/core/infra/overlay/render/overlayutil/factory_darwin.go`.
+- To understand **Accessibility**: Read `internal/ports/accessibility.go` (Port) and `internal/adapter/accessibility/adapter.go` (Adapter).
+- To understand **Overlay** rendering: Read `internal/ports/overlay.go` and `internal/adapter/overlay/render/overlayutil/factory_darwin.go`.
 
 ## Documentation
 

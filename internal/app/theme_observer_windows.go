@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform/windows"
+	"github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
 
 const themePollInterval = 2 * time.Second

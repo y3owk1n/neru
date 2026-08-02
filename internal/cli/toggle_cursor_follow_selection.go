@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/y3owk1n/neru/internal/core/domain"
+import "github.com/y3owk1n/neru/internal/domain"
 
 // ToggleCursorFollowSelectionCmd toggles cursor-follow-selection for the active mode session.
 var ToggleCursorFollowSelectionCmd = BuildToggleCommand(

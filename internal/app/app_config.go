@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
 // SetConfigField applies a single runtime config field change with full

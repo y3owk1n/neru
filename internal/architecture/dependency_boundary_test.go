@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const forbiddenImport = "github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
+const forbiddenImport = "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 
 // skippedWalkDirs are the directories every repository walk in this package
 // skips: version control, build outputs and vendored third-party code, none of

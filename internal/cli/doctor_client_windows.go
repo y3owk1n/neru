@@ -12,8 +12,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {

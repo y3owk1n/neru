@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // Semantic role names injected into the clickable role list when the

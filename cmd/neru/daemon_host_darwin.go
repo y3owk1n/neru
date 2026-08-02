@@ -3,8 +3,8 @@
 package main
 
 import (
+	"github.com/y3owk1n/neru/internal/adapter/systray"
 	"github.com/y3owk1n/neru/internal/app"
-	"github.com/y3owk1n/neru/internal/core/infra/systray"
 )
 
 type darwinDaemonHost struct{}

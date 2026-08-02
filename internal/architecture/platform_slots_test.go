@@ -31,9 +31,9 @@ var knownOS = []string{osDarwin, osLinux, osWindows}
 // but they must still declare an explicit build tag, which
 // TestPlatformPackagesTagEveryFile checks.
 var wholePlatformDirs = map[string]string{
-	"internal/core/infra/platform/darwin":  osDarwin,
-	"internal/core/infra/platform/linux":   osLinux,
-	"internal/core/infra/platform/windows": osWindows,
+	"internal/adapter/platform/darwin":  osDarwin,
+	"internal/adapter/platform/linux":   osLinux,
+	"internal/adapter/platform/windows": osWindows,
 }
 
 // fallbackSuffixes are the only legal names for a file whose build constraint

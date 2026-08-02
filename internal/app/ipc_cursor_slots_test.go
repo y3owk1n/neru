@@ -8,10 +8,10 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/services"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/domain/state"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // cursorSlotHarness drives the two cursor actions against a fake pointer, so a

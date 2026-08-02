@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/configs"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // linuxHotkeysBlock matches the default [hotkeys] section in default-config.toml.

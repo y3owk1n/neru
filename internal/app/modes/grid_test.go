@@ -8,15 +8,15 @@ import (
 
 	"go.uber.org/zap"
 
+	overlaypkg "github.com/y3owk1n/neru/internal/adapter/overlay"
+	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	overlaypkg "github.com/y3owk1n/neru/internal/core/infra/overlay"
-	gridcomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 	"github.com/y3owk1n/neru/internal/ui"
 )
 

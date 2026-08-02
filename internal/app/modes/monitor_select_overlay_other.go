@@ -2,7 +2,7 @@
 
 package modes
 
-import derrors "github.com/y3owk1n/neru/internal/core/errors"
+import "github.com/y3owk1n/neru/internal/derrors"
 
 func (h *Handler) showMonitorSelectLocked() error {
 	return derrors.New(
