@@ -10,6 +10,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// Overlay is the Linux hints overlay. Drawing happens in the overlay
+// manager's Cairo surface, so what is held here is the configuration and the
+// window handle the manager draws into.
 type Overlay struct {
 	window unsafe.Pointer
 	config config.HintsConfig

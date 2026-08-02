@@ -164,7 +164,7 @@ type Client struct {
 	eventsClosed bool               // true after Close; blocks starting a new listener
 }
 
-// NewATSPIClient builds the Linux accessibility client. AT-SPI is not
+// New builds the Linux accessibility client. AT-SPI is not
 // activated until ensureA11yEnabled is called (lazily on first hints request),
 // so hints-disabled sessions never touch the session-wide a11y status.
 func New(logger *zap.Logger, configProvider config.Provider) *Client {

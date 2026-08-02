@@ -16,6 +16,12 @@ jobs:
     checks:
         name: ${{ matrix.check }} (${{ matrix.os }})
         strategy:
+            # One failing check must not cancel the other twelve. With fail-fast
+            # a single Linux lint error cancelled every macOS job mid-install,
+            # and the run reported thirteen failures for one real problem —
+            # which is worse than no signal, because it hides which platforms
+            # were actually fine.
+            fail-fast: false
             matrix:
                 os: [macos-latest, ubuntu-latest, windows-latest]
                 # vuln runs on every OS: govulncheck is build-tag aware, so a

@@ -472,17 +472,17 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
-	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
-	if gridCols > MaxGridCols {
-		gridCols = MaxGridCols
-	}
+	// Clamp both dimensions into [1, Max]. The upper bound prevents an absurd
+	// allocation; the lower bound is what keeps the two lines after it safe,
+	// because this function takes its dimensions as parameters rather than
+	// deriving them. A zero row count made the overflow guard below divide by
+	// zero, and a negative one made make() panic on a negative length.
+	gridCols = min(max(gridCols, 1), MaxGridCols)
+	gridRows = min(max(gridRows, 1), MaxGridRows)
 
-	if gridRows > MaxGridRows {
-		gridRows = MaxGridRows
-	}
-
-	// Guard against integer overflow in cell allocation size.
+	// With both dimensions clamped the product cannot overflow, but the guard
+	// stays: it is the invariant that makes the allocation below provably safe,
+	// and it costs one comparison per grid build.
 	if gridCols > math.MaxInt/gridRows {
 		gridCols = math.MaxInt / gridRows
 	}
