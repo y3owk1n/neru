@@ -79,66 +79,140 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 	return false
 }
 
-// ToggleCursorFollowSelection toggles cursor-follow-selection for the active mode.
-func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
+// cursorFollowContext is the part of a mode's context that carries the
+// session's cursor-follow-selection preference. Hints, grid, and recursive grid
+// each have their own context type; this is the shape they share, so the
+// preference can be read and written without knowing which mode is active.
+type cursorFollowContext interface {
+	CursorFollowSelection() bool
+	SetCursorFollowSelection(cursorFollowSelection bool)
+	ToggleCursorFollowSelection() bool
+}
+
+// CursorFollowSelection reports whether the active mode's session follows the
+// selection with the real cursor. The second result is false when no mode that
+// carries the preference is active, which is the same condition under which
+// toggling it is refused.
+func (h *Handler) CursorFollowSelection() (bool, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		if h.hints == nil || h.hints.Context == nil {
-			return false, false
-		}
-
-		return h.hints.Context.ToggleCursorFollowSelection(), true
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Context == nil {
-			return false, false
-		}
-
-		enabled := h.grid.Context.ToggleCursorFollowSelection()
-
-		h.refreshGridVirtualPointerLocked()
-
-		if enabled {
-			if target, ok := h.grid.Context.SelectionPoint(); ok && h.actionService != nil {
-				moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, target)
-				if moveCursorErr != nil {
-					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
-				}
-			}
-		}
-
-		return enabled, true
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
-			return false, false
-		}
-
-		enabled := h.recursiveGrid.Context.ToggleCursorFollowSelection()
-
-		h.refreshRecursiveGridVirtualPointerLocked()
-
-		if enabled {
-			if target, ok := h.recursiveGrid.Context.SelectionPoint(); ok &&
-				h.actionService != nil {
-				moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, target)
-				if moveCursorErr != nil {
-					h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
-				}
-			}
-		}
-
-		return enabled, true
-	case domain.ModeIdle:
-		return false, false
-	case domain.ModeScroll:
-		return false, false
-	case domain.ModeMonitorSelect:
+	modeContext, ok := h.cursorFollowContextLocked()
+	if !ok {
 		return false, false
 	}
 
-	return false, false
+	return modeContext.CursorFollowSelection(), true
+}
+
+// ToggleCursorFollowSelection toggles cursor-follow-selection for the active mode.
+func (h *Handler) ToggleCursorFollowSelection() (bool, bool) {
+	return h.applyCursorFollowSelection(nil)
+}
+
+// SetCursorFollowSelection turns cursor-follow-selection on or off for the
+// active mode, so a caller that knows which state it wants can converge on it
+// rather than flipping whatever is there.
+func (h *Handler) SetCursorFollowSelection(enabled bool) (bool, bool) {
+	return h.applyCursorFollowSelection(&enabled)
+}
+
+// applyCursorFollowSelection sets the preference to desired, or toggles it when
+// desired is nil, and reports the resulting value.
+//
+// Setting the preference to the value it already holds still runs the
+// after-effects below. That is what makes the setter idempotent in the way a
+// caller needs: "on" always ends with the cursor on the selection, whether or
+// not it was already following.
+func (h *Handler) applyCursorFollowSelection(desired *bool) (bool, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	modeContext, ok := h.cursorFollowContextLocked()
+	if !ok {
+		return false, false
+	}
+
+	var enabled bool
+
+	if desired == nil {
+		enabled = modeContext.ToggleCursorFollowSelection()
+	} else {
+		modeContext.SetCursorFollowSelection(*desired)
+
+		enabled = *desired
+	}
+
+	// Grid and recursive grid draw a virtual pointer that is hidden while the
+	// real cursor follows the selection, and both carry a selection point the
+	// cursor should jump to when it starts following. Hints has neither: its
+	// preference only affects the selections made after it.
+	switch h.appState.CurrentMode() {
+	case domain.ModeGrid:
+		h.refreshGridVirtualPointerLocked()
+		h.moveCursorToSelectionLocked(enabled, h.grid.Context.SelectionPoint)
+	case domain.ModeRecursiveGrid:
+		h.refreshRecursiveGridVirtualPointerLocked()
+		h.moveCursorToSelectionLocked(enabled, h.recursiveGrid.Context.SelectionPoint)
+	case domain.ModeHints, domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
+	}
+
+	return enabled, true
+}
+
+// cursorFollowContextLocked returns the active mode's cursor-follow context, or
+// false when the active mode does not carry the preference.
+func (h *Handler) cursorFollowContextLocked() (cursorFollowContext, bool) {
+	switch h.appState.CurrentMode() {
+	case domain.ModeHints:
+		if h.hints == nil || h.hints.Context == nil {
+			return nil, false
+		}
+
+		return h.hints.Context, true
+	case domain.ModeGrid:
+		if h.grid == nil || h.grid.Context == nil {
+			return nil, false
+		}
+
+		return h.grid.Context, true
+	case domain.ModeRecursiveGrid:
+		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
+			return nil, false
+		}
+
+		return h.recursiveGrid.Context, true
+	case domain.ModeIdle:
+		return nil, false
+	case domain.ModeScroll:
+		return nil, false
+	case domain.ModeMonitorSelect:
+		return nil, false
+	}
+
+	return nil, false
+}
+
+// moveCursorToSelectionLocked moves the real cursor onto the mode's stored
+// selection point when the mode is following the selection. Turning the
+// preference off leaves the cursor where it is.
+func (h *Handler) moveCursorToSelectionLocked(
+	enabled bool,
+	selectionPoint func() (image.Point, bool),
+) {
+	if !enabled || h.actionService == nil {
+		return
+	}
+
+	target, ok := selectionPoint()
+	if !ok {
+		return
+	}
+
+	moveCursorErr := h.actionService.MoveCursorToPoint(h.ctx, target)
+	if moveCursorErr != nil {
+		h.logger.Error("Failed to move cursor", zap.Error(moveCursorErr))
+	}
 }
 
 func (h *Handler) refreshGridVirtualPointerLocked() {

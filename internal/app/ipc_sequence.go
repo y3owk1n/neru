@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/core/domain"
+	derrors "github.com/y3owk1n/neru/internal/core/errors"
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
@@ -21,6 +22,16 @@ type sequenceRunner func(
 	policy sequencePolicy,
 ) sequenceOutcome
 
+// macroRunner runs one named macro with its arguments and reports what
+// happened. It is the same call the executor makes for a "macro" step, injected
+// so the IPC layer does not reach back into the App.
+//
+// It takes the arguments already split rather than a step string because the
+// CLI hands them over split, and reassembling them into one step only to split
+// it again would put every argument through a round of quoting it does not need
+// to survive.
+type macroRunner func(ctx context.Context, name string, args []string) error
+
 // stopOnErrorFlag makes every step of a run fatal, so a script does not have to
 // repeat the per-step directive on each one.
 const stopOnErrorFlag = "--stop-on-error"
@@ -33,19 +44,24 @@ const stopOnErrorFlag = "--stop-on-error"
 // scripts) can compose steps in one call instead of paying a process spawn
 // per step and losing bail handling in between.
 type IPCControllerSequence struct {
-	run    sequenceRunner
-	logger *zap.Logger
+	run      sequenceRunner
+	runMacro macroRunner
+	logger   *zap.Logger
 }
 
 // NewIPCControllerSequence creates a new sequence command handler. A nil runner
-// is valid: the command then reports that sequencing is unavailable, matching
-// how the other handlers treat a missing dependency.
-func NewIPCControllerSequence(run sequenceRunner, logger *zap.Logger) *IPCControllerSequence {
+// is valid: the corresponding command then reports that it is unavailable,
+// matching how the other handlers treat a missing dependency.
+func NewIPCControllerSequence(
+	run sequenceRunner,
+	runMacro macroRunner,
+	logger *zap.Logger,
+) *IPCControllerSequence {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	return &IPCControllerSequence{run: run, logger: logger}
+	return &IPCControllerSequence{run: run, runMacro: runMacro, logger: logger}
 }
 
 // RegisterHandlers registers the sequence command handlers.
@@ -53,6 +69,71 @@ func (h *IPCControllerSequence) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers[domain.CommandRun] = h.handleRun
+	handlers[domain.CommandMacro] = h.handleMacro
+}
+
+// handleMacro runs the macro named by the command's first argument, passing the
+// rest as its arguments.
+//
+// A macro is already reachable as a step ("neru run 'macro zoom 3'"), but only
+// by writing the call as one string. Going through this command instead keeps
+// the arguments as the caller passed them, so an argument containing spaces or
+// quotes does not have to survive being quoted into a step and split back out.
+func (h *IPCControllerSequence) handleMacro(ctx context.Context, cmd ipc.Command) ipc.Response {
+	if len(cmd.Args) == 0 || strings.TrimSpace(cmd.Args[0]) == "" {
+		return ipc.Response{
+			Success: false,
+			Message: "macro requires a name (e.g., neru macro window_click)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.runMacro == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "macros are not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	// Only the name is trimmed. The arguments are the macro's data rather than
+	// steps, so they are passed on exactly as given: trimming them would
+	// silently rewrite an argument whose padding matters, and dropping the
+	// blank ones would shift every later argument onto the wrong placeholder.
+	name, macroArgs := strings.TrimSpace(cmd.Args[0]), cmd.Args[1:]
+
+	h.logger.Debug("Running macro", zap.Int("args", len(macroArgs)))
+
+	macroErr := h.runMacro(ctx, name, macroArgs)
+	if macroErr == nil {
+		return ipc.Response{
+			Success: true,
+			Message: fmt.Sprintf("ran macro %q", name),
+			Code:    ipc.CodeOK,
+		}
+	}
+
+	return ipc.Response{
+		Success: false,
+		Message: macroErr.Error(),
+		Code:    macroFailureCode(macroErr),
+	}
+}
+
+// macroFailureCode maps a macro failure onto the IPC code that describes it.
+//
+// The distinctions matter to a caller: a bail is a canceled mode rather than a
+// fault, and an invalid call (no such macro, wrong number of arguments) is
+// worth telling apart from a step that ran and failed.
+func macroFailureCode(err error) string {
+	switch {
+	case derrors.IsCode(err, derrors.CodeChainBail):
+		return ipc.CodeChainBail
+	case derrors.IsCode(err, derrors.CodeInvalidInput):
+		return ipc.CodeInvalidInput
+	default:
+		return ipc.CodeActionFailed
+	}
 }
 
 // handleRun executes the steps carried by the command, in order.

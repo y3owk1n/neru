@@ -47,6 +47,10 @@ type IPCController struct {
 	// reports that sequencing is unavailable.
 	ExecuteSequence sequenceRunner
 
+	// ExecuteMacro runs a named macro. If nil, the "macro" command reports
+	// that macros are unavailable.
+	ExecuteMacro macroRunner
+
 	// Info handler for config updates
 	infoHandler *IPCControllerInfo
 
@@ -90,6 +94,9 @@ type IPCControllerDeps struct {
 	// ExecuteSequence runs an action sequence on behalf of the "run" command.
 	ExecuteSequence sequenceRunner
 
+	// ExecuteMacro runs a named macro on behalf of the "macro" command.
+	ExecuteMacro macroRunner
+
 	Logger *zap.Logger
 }
 
@@ -114,6 +121,7 @@ func NewIPCController(deps IPCControllerDeps) *IPCController {
 		KeyFeed:         deps.KeyFeed,
 		ReloadConfig:    deps.ReloadConfig,
 		ExecuteSequence: deps.ExecuteSequence,
+		ExecuteMacro:    deps.ExecuteMacro,
 		Logger:          logger.Named("ipc.controller"),
 		Handlers:        make(map[string]func(context.Context, ipc.Command) ipc.Response),
 	}
@@ -222,6 +230,6 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	scrollHandler.RegisterHandlers(c.Handlers)
 
 	// Register action sequence handler
-	sequenceHandler := NewIPCControllerSequence(c.ExecuteSequence, c.Logger)
+	sequenceHandler := NewIPCControllerSequence(c.ExecuteSequence, c.ExecuteMacro, c.Logger)
 	sequenceHandler.RegisterHandlers(c.Handlers)
 }

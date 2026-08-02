@@ -21,7 +21,7 @@ The same content is available as manpages (`man neru`) after installation.
 - [Daemon lifecycle](#daemon-lifecycle) — `launch` · `start` · `stop` · `idle` · `status` · `doctor`
 - [Navigation modes](#navigation-modes) — `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select`
 - [Actions](#actions) — `action` and its subcommands
-- [Sequences](#sequences) — `run`
+- [Sequences](#sequences) — `run` · `macro`
 - [Configuration commands](#configuration-commands) — `config`
 - [Runtime toggles](#runtime-toggles)
 - [Utilities](#utilities) — `roles` · `services` · `docs`
@@ -90,6 +90,7 @@ Accepted by every command.
 | [`monitor_select`](#neru-monitor_select)                     | Jump the cursor to a display    | Yes | macOS · Linux |
 | [`action`](#actions)                                         | One-shot mouse/scroll/key input | Yes | All ² |
 | [`run`](#neru-run)                                           | Run several actions in order    | Yes | All |
+| [`macro`](#neru-macro)                                       | Run a named sequence from config | Yes | All |
 | [`config`](#configuration-commands)                          | Inspect and change config       | Mixed | All |
 | [`toggle-scroll-invert`](#neru-toggle-scroll-invert)         | Invert scroll direction         | Yes | All |
 | [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection) | Toggle cursor follow | Yes | All |
@@ -206,12 +207,35 @@ The examples here and in [Tips & Tricks](TIPS_TRICKS.md) use
 | `mode`                                                  | string | The active mode, same values as `Mode` above.             |
 | `config`                                                | string | Path of the configuration file in use.                    |
 | `hints_enabled`, `grid_enabled`, `recursive_grid_enabled` | bool | Whether each mode is enabled in the configuration.        |
+| `scroll_inverted`                                       | bool   | Set by [`toggle-scroll-invert`](#neru-toggle-scroll-invert). |
+| `hidden_for_screen_share`                               | bool   | Set by [`toggle-screen-share`](#neru-toggle-screen-share). `true` means hidden. |
+| `cursor_follow_selection`                               | bool or null | Set by [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection). `null` when no mode is running. |
 | `capabilities`                                          | object | Per-subsystem support on this platform, as `neru doctor` reports it. |
 | `profile`                                               | object | The platform backend profile: which adapter serves each subsystem, and whether it needs CGO. |
 
-The six scalar keys above are the stable part of this output. `capabilities` and
-`profile` follow the platform support matrix and gain entries as subsystems are
-added, so read the keys you need rather than assuming the whole set.
+The nine scalar keys above are the stable part of this output. `capabilities`
+and `profile` follow the platform support matrix and gain entries as subsystems
+are added, so read the keys you need rather than assuming the whole set.
+
+### Reading the toggles
+
+The three `toggle-*` commands change state that would otherwise be invisible.
+Each reports under the key above, so a script can set a state with `--state` and
+confirm it:
+
+```bash
+neru toggle-scroll-invert --state on
+neru status --json | jq -r .scroll_inverted   # true
+```
+
+`cursor_follow_selection` is `null` rather than `false` when no mode is running,
+because the two are different answers: `false` is a running mode that is not
+following the selection, `null` is that there is nothing to follow it with.
+Test for it before treating the value as a boolean:
+
+```bash
+neru status --json | jq -r 'if .cursor_follow_selection == null then "no mode" else .cursor_follow_selection end'
+```
 
 ---
 
@@ -1001,6 +1025,52 @@ neru run "hints --action left_click" "action wait_for_mode_exit --bail" \
 
 ---
 
+## neru macro
+
+Run a named sequence from the [`[macros]`](CONFIGURATION.md#macros) table.
+
+```
+neru macro <name> [arg...]
+```
+
+Requires a running daemon. The daemon runs the macro exactly as it would when a
+hotkey binding invokes `macro <name>`, so a sequence written once is available
+to bindings and to external drivers alike.
+
+Arguments fill the macro's positional placeholders (`$1`, `$2`, …), and the
+count must match the highest placeholder the body uses. They are passed through
+as given, so an argument containing spaces or quotes needs no quoting beyond
+what the shell already does:
+
+```bash
+neru macro say_it "hello there"
+```
+
+This is why the command exists alongside `neru run "macro say_it 'hello there'"`,
+which would work for that example but requires quoting the whole call into one
+step — something no argument containing both kinds of quote survives.
+
+**Exit status**
+
+Same as [`neru run`](#neru-run): `ERR_INVALID_INPUT` for an unknown macro or the
+wrong number of arguments, `ERR_CHAIN_BAIL` when a step cancelled the sequence,
+`ERR_ACTION_FAILED` when a step failed.
+
+**Timeouts**
+
+A macro containing sleeps or `wait_for_mode_exit` can outlast the default
+10-second IPC timeout, exactly as a `run` can. Raise it with `--timeout`.
+
+**Examples**
+
+```bash
+neru macro window_click
+neru macro zoom_click 3
+neru --timeout 30 macro click_and_settle
+```
+
+---
+
 # Configuration commands
 
 Full option reference: [CONFIGURATION.md](CONFIGURATION.md).
@@ -1165,16 +1235,45 @@ effect only after a full daemon restart.
 Each toggle changes daemon state for the current session only; the configured
 value is restored on restart.
 
+## The `--state` flag
+
+All three `toggle-*` commands accept `--state`, which names the state to end up
+in instead of flipping whatever is there:
+
+| Value              | Effect                                       |
+| ------------------ | -------------------------------------------- |
+| `on`               | Turn it on, whether or not it already was.   |
+| `off`              | Turn it off, whether or not it already was.  |
+| `toggle` (default) | Flip it. Same as passing no flag.            |
+
+Flipping is the right default for a key binding, where you see the result and
+press again if it went the wrong way. A script has no such feedback loop: it
+cannot tell a state it set from one a stray keypress set, and a binding pressed
+twice leaves the daemon somewhere the script does not expect. `--state` makes
+these commands idempotent, and `neru status --json` reports every state they
+change — see [Reading the toggles](#reading-the-toggles).
+
+`--state toggle` exists so a value can be passed straight through without the
+caller special-casing the flip:
+
+```toml
+[macros]
+scroll_invert = ["toggle-scroll-invert --state $1"]
+```
+
+---
+
 ## neru toggle-scroll-invert
 
 Invert the scroll direction.
 
 ```
-neru toggle-scroll-invert
+neru toggle-scroll-invert [--state on|off|toggle]
 ```
 
 Requires a running daemon. Overrides `scroll.invert_scroll` until restart. Also
-available from the systray menu.
+available from the systray menu. Reported as `scroll_inverted` by
+`neru status --json`.
 
 ---
 
@@ -1183,11 +1282,17 @@ available from the systray menu.
 Toggle whether the real cursor follows the selection.
 
 ```
-neru toggle-cursor-follow-selection
+neru toggle-cursor-follow-selection [--state on|off|toggle]
 ```
 
 Requires a running daemon. Applies to the active hints, grid, or
 recursive_grid session.
+
+The preference belongs to that session rather than to the daemon, so unlike the
+other two toggles this one fails when no mode is running — including when
+`--state` names the state it wants, since there is nothing yet to hold it.
+Reported as `cursor_follow_selection` by `neru status --json`, and `null` while
+no mode is running.
 
 ---
 
@@ -1196,12 +1301,16 @@ recursive_grid session.
 Hide or show overlays on shared screens.
 
 ```
-neru toggle-screen-share
+neru toggle-screen-share [--state on|off|toggle]
 ```
 
 **Platforms:** macOS only.
 
 Requires a running daemon. Hidden overlays remain visible locally.
+
+`--state on` hides the overlay and `--state off` shows it, matching the
+`hidden_for_screen_share` field of `neru status --json`: the flag names the
+state that is reported, not the visibility.
 
 Implemented with the deprecated `NSWindow.sharingType` API, so effectiveness
 depends on the macOS version and the screen-sharing application:
