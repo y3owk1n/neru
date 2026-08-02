@@ -222,13 +222,15 @@ adapter/eventtap/{tap,darwin,linux,windows}          keyboard capture
 adapter/hotkeys/{darwin,linux,windows}               global hotkeys
 adapter/systray/{darwin,linux,windows}               tray icon
 adapter/accessibility/{ax,atspi,native}              element discovery
+adapter/overlay/{manager,darwin,linux,windows}       overlay rendering
 adapter/platform/{darwin,linux,windows}              the native cgo bridges
 ```
 
 The parent package holds the port adapter and a small build-tagged factory —
 the only place that knows which implementation exists. So "what do I touch to
-add a compositor?" is answered by `ls`, not by reading build tags. The
-convention, and which packages do not yet follow it, are in
+add a compositor?" is answered by `ls`, not by reading build tags. When a
+backend earns its own package and when build-tagged files in one package are
+clearer is covered in
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#backend-packages).
 
 **5. Input processing**

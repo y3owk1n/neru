@@ -14,9 +14,8 @@ import (
 // target OS compiles the package with cgo on. On a macOS host that means a
 // Docker run or a red CI job, minutes later.
 //
-// It fires whenever a package moves a directory deeper, which is exactly what
-// splitting a backend into its own package does. It happened four separate
-// times while the adapter packages were being split.
+// It fires whenever a package changes depth relative to the headers it
+// includes, which is what moving a backend into its own directory does.
 //
 // The check is trivial because the answer is purely textual: resolve the path
 // against the including file's directory and stat it.

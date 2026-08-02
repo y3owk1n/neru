@@ -8,10 +8,10 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The recursive-grid style is declared once, for every platform. See the
-// matching comment in render/grid/style.go: the fields hold the values the
-// config writes, and the packed-ARGB and float forms that Cairo and GDI want
-// are accessors rather than a second, build-tagged copy of the struct.
+// The recursive-grid style is one type for every platform, shaped like the grid
+// style in render/grid/style.go: the fields hold the values the configuration
+// writes, and the packed-ARGB and float forms that Cairo and GDI want are
+// accessors that convert at the point of use.
 
 const (
 	minLineWidth = 1
@@ -48,10 +48,10 @@ type Style struct {
 
 // StyleOptions constructs a Style without a configuration.
 //
-// BuildStyle is how the daemon builds one. This exists for callers that need a
-// style with two or three fields set — overlay tests exercising the autohide
-// thresholds, mostly — which used to be a bare struct literal and stopped
-// compiling when the fields became unexported.
+// BuildStyle is how the daemon builds one, resolving every field from config
+// and theme. This is for callers that need a style with two or three fields
+// set and defaults elsewhere — overlay tests exercising the autohide
+// thresholds, mostly.
 type StyleOptions struct {
 	LineColor                       string
 	LineWidth                       int
@@ -243,8 +243,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 }
 
 // The accessors below serve backends that draw with packed ARGB and float
-// dimensions. They are the conversions those backends used to bake into the
-// style at build time.
+// dimensions: Cairo on Linux, GDI on Windows.
 
 // LineWidthF returns the cell border width as a float, clamped so a hairline
 // stays visible.

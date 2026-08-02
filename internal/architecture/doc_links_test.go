@@ -12,17 +12,15 @@ import (
 // documentation that says nothing: it sends a contributor to a path, the path
 // 404s, and now they distrust the rest of the page too.
 //
-// This is the cheapest guardrail in the repo and it catches the most common
-// review miss — a rename that updated the code and forgot the prose. Three
-// stale links were in the tree when this test was written.
+// It is the cheapest guardrail here and it catches the most common review
+// miss: a rename that updated the code and forgot the prose.
 
 // docsExemptFromLinkChecking are files that deliberately name paths which do
 // not exist.
 //
-// It is empty, which is the goal state. The one entry it ever held was a
-// migration document describing a tree that no longer existed; it was deleted
-// once the migration landed, and the exemption went with it. A doc that wants
-// to name a path that does not exist is a doc that is wrong.
+// It is empty, which is the goal state: a doc that wants to name a path that
+// does not exist is a doc that is wrong. An entry here should be temporary and
+// carry the reason it exists.
 var docsExemptFromLinkChecking = map[string]string{}
 
 // repoPathPattern matches the two ways docs name a file: a markdown link

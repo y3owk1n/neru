@@ -469,20 +469,16 @@ func generateCellsWithRegions(
 		zap.Int("label_length", labelLength))
 
 	// Clamp both dimensions into [1, Max]. This function takes its dimensions as
-	// parameters rather than deriving them, so it cannot assume a caller did:
-	// a zero row count used to divide by zero in the overflow guard that stood
-	// here, and a negative one reached make() with a negative length.
+	// parameters rather than deriving them, so it cannot assume a caller has
+	// bounded them: a zero row count or a negative one would otherwise reach
+	// the arithmetic and the allocation below.
 	//
-	// The clamp is also what makes the allocation safe. Both bounds are
-	// constants, so the product is at most MaxGridCols*MaxGridRows and cannot
-	// overflow. The old guard divided MaxInt by the row count and assigned the
-	// result back to gridCols, which re-widened the very value the clamp had
-	// just bounded — dead code that made the allocation look unbounded to a
-	// static analyser, and did.
+	// The clamp is also what keeps the cell count safe. Both bounds are
+	// constants, so the product is at most MaxGridCols*MaxGridRows.
 	//
-	// Written as explicit comparisons rather than min/max: this is the form the
-	// rest of the file uses, and it is the form static analysis can follow to
-	// prove the bound on the allocation below.
+	// Explicit comparisons rather than min/max: this is the form the rest of
+	// the file uses, and the form static analysis follows when proving the
+	// bound on the allocation.
 	if gridCols < 1 {
 		gridCols = 1
 	}
@@ -504,10 +500,10 @@ func generateCellsWithRegions(
 	// most MaxGridCols*MaxGridRows.
 	cellCapacity := gridCols * gridRows
 
-	// Grown by append rather than pre-sized. The loop below fills an unknown
-	// prefix and the function used to return cells[:cellIndex], so the sized
-	// allocation was always an upper bound that the caller never saw: the
-	// index bookkeeping existed only to undo it.
+	// Grown by append. How many cells the region walk below actually produces
+	// depends on how the regions tile the grid, so cellCapacity is a ceiling
+	// rather than a count — pre-sizing to it would return trailing nil entries
+	// the caller would have to trim.
 	var cells []*Cell
 
 	// Calculate region dimensions based on label length

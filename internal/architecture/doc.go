@@ -1,11 +1,10 @@
 // Package architecture holds the guardrails that keep the codebase's shape
 // honest. It has no runtime code — every file here is a test.
 //
-// The rules these enforce are all documented in prose elsewhere, and prose did
-// not hold them: every violation the layering tests now catch was present in
-// the tree before they were written. So each rule has a test, each test names
-// the document that owns the rule, and a violation fails `just test` instead of
-// waiting for someone to notice in review.
+// The rules these enforce are documented in prose elsewhere, and prose alone
+// does not hold them. So each rule also has a test, each test names the
+// document that owns the rule, and a violation fails `just test` instead of
+// waiting for someone to notice it in review.
 //
 // What is pinned:
 //

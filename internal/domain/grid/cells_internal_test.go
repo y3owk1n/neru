@@ -11,12 +11,9 @@ import (
 // the _internal_test.go suffix permits.
 //
 // generateCellsWithRegions takes its dimensions as parameters rather than
-// deriving them, so it cannot assume a caller clamped them. Before the clamp it
-// now applies, a zero row count divided by zero in the overflow guard and a
-// negative one reached make() with a negative length — both panics, in a
-// function on the grid-build path.
-//
-// CodeQL flagged the allocation; these are the inputs that make the flag real.
+// deriving them, so a caller can hand it anything. These are the inputs that
+// would reach the arithmetic and the allocation unbounded if the clamp were
+// not there: zero, negative, and larger than the grid can hold.
 func TestGenerateCellsWithRegionsSurvivesDegenerateDimensions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -45,12 +42,12 @@ func TestGenerateCellsWithRegionsSurvivesDegenerateDimensions(t *testing.T) {
 				zap.NewNop(),
 			)
 
-			// Reaching here at all is most of the point — every one of these
-			// inputs panicked before the clamp. The assertions pin the two
-			// things the clamp is supposed to guarantee: the result never
-			// exceeds what the clamped grid can hold, and it never contains a
-			// nil cell. The exact count is deliberately not pinned; what a
-			// degenerate grid should contain is not what this is about.
+			// Returning at all is most of the point: each of these inputs
+			// reaches arithmetic and an allocation that only the clamp keeps
+			// in range. The assertions pin what the clamp guarantees — a
+			// result no larger than the clamped grid can hold, and no nil
+			// cells. The exact count is left unpinned, since what a degenerate
+			// grid should contain is not what this covers.
 			if len(cells) > MaxGridCols*MaxGridRows {
 				t.Errorf("returned %d cells, more than the clamped maximum", len(cells))
 			}

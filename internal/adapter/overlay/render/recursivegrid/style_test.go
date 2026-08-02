@@ -18,9 +18,8 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 // TestBuildStyleResolvesThemeColors pins that each color comes from the
 // configured value for the active theme.
 //
-// It used to be a linux-only test asserting packed ARGB, because the style was
-// declared per platform and Linux held it pre-converted. The style is now the
-// same on every platform, so the test runs everywhere.
+// The style is one type on every platform, so this runs in every job rather
+// than only where a particular backend is built.
 func TestBuildStyleResolvesThemeColors(t *testing.T) {
 	cfg := config.DefaultConfig().RecursiveGrid
 
@@ -69,8 +68,8 @@ func TestBuildStyleResolvesThemeColors(t *testing.T) {
 // TestBuildStyleCarriesTheToggles pins that the boolean options come from the
 // configuration rather than from a hard-coded default.
 //
-// It sets them explicitly instead of reading DefaultConfig, because the
-// defaults are platform-specific and this test now runs on every platform.
+// It sets them explicitly rather than reading DefaultConfig, whose values for
+// these two differ by platform.
 func TestBuildStyleCarriesTheToggles(t *testing.T) {
 	for _, want := range []bool{true, false} {
 		cfg := config.DefaultConfig().RecursiveGrid
@@ -90,7 +89,8 @@ func TestBuildStyleCarriesTheToggles(t *testing.T) {
 }
 
 // TestStyleARGBAccessorsMatchTheHexValues pins the conversion the Cairo and GDI
-// backends rely on, which used to happen inside BuildStyle.
+// backends rely on: the packed form of a color must be the packed form of the
+// hex string beside it.
 func TestStyleARGBAccessorsMatchTheHexValues(t *testing.T) {
 	style := BuildStyle(config.DefaultConfig().RecursiveGrid, &mockThemeProvider{})
 

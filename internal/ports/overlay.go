@@ -113,10 +113,9 @@ type GridConfig struct {
 // asks the manager through this interface and reports CodeNotSupported with the
 // manager's own detail text.
 //
-// This used to be declared as overlay.CapabilityReporter inside the overlay
-// package, which meant Neru had two capability vocabularies. It lives here now
-// so the overlay entry in PlatformCapabilities and this reporter describe the
-// same thing.
+// It is declared here, beside the other capability contracts, so the overlay
+// entry in PlatformCapabilities and this reporter describe the same thing in
+// one vocabulary.
 //
 // Managers that do not implement it are treated as healthy.
 type OverlayCapabilityReporter interface {

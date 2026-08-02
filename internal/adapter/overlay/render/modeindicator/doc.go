@@ -6,7 +6,7 @@
 // internal/app/services/modeindicator.
 //
 // Drawing is per-platform (overlay_darwin.go, overlay_linux_*.go,
-// overlay_windows.go). This file is untagged so every target has a package
-// comment — the comment used to live in overlay_linux_common.go, which meant
-// macOS and Windows builds had none.
+// overlay_windows.go). This file carries no build tag, so the package comment
+// is present on every target rather than only the one whose drawing file
+// happens to hold it.
 package modeindicator

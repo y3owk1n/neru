@@ -7,7 +7,6 @@
 // malloc/free lifecycle. Everywhere else the functions are no-ops
 // (native_other.go).
 //
-// This file is untagged so every target has a package comment — the comment
-// used to live in native_darwin.go, which meant Linux and Windows builds had
-// none.
+// This file carries no build tag, so the package comment is present on every
+// target rather than only on macOS.
 package native

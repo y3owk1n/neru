@@ -5,14 +5,13 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The hint style is platform-neutral. It used to be declared three times, once
-// per platform behind a build tag, and the three copies were byte-identical —
-// which is what kept ManagerInterface from naming a portable type and kept the
-// render models pinned under the adapter layer.
+// The hint style is one type for every platform. Nothing about a hint's
+// appearance differs by operating system: the same font size, padding, radius
+// and colors describe it everywhere.
 //
-// Colors stay as the hex strings the config uses. A backend that needs packed
-// ARGB converts at draw time; that is a property of the drawing API, not of the
-// style.
+// Colors are the hex strings the configuration uses. A backend that draws with
+// packed ARGB converts at draw time, since that is a property of the drawing
+// API rather than of the style.
 
 // StyleMode represents the visual styling configuration for hint overlays.
 type StyleMode struct {

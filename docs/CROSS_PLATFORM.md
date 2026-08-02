@@ -632,10 +632,10 @@ cannot be fixed in the same change; it is currently **empty**, and a second test
 fails if an entry stops being a real violation, so the list can only shrink.
 
 > The `internal/adapter/overlay` package is the worked example. Its managers
-> used to sit in the UI layer and imported the app layer's render models — an
-> upward edge that nothing caught. Moving the managers down into the adapter
-> layer made the inversion obvious, and the fix was to move the render packages
-> down to `internal/adapter/overlay/render/` too, rather than allow the edge.
+> need render models to draw, and those models live beside them under
+> `internal/adapter/overlay/render/` rather than in the app layer. Put them
+> above the managers and every backend would import the app layer to draw — an
+> upward edge through the middle of the hexagon.
 
 ## File Layout Rules
 
@@ -687,42 +687,61 @@ Two rules that save review cycles:
 
 ## Backend Packages
 
-A backend gets its own package once it is a real implementation rather than a
-handful of dispatch functions. The test is whether every platform has something
-substantial to say. If one does and the others answer in eighty-line stubs,
-build-tagged files in one package are clearer — three directories where two
-hold stubs is ceremony, not navigation. That is why
-`overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}` stay
-as they are: each is one real renderer plus small stubs, and
-`overlay_linux_common.go` is already the obvious file to open. `accessibility/atspi`, `eventtap/{darwin,linux,
-windows}`, `hotkeys/{darwin,linux,windows}` and `systray/{darwin,linux,windows}`
-are all shaped this way: the directory names the platform, so the filenames
-inside do not have to, and `ls` answers "what do I touch for Wayland?".
+Every OS capability is a contract plus one directory per operating system, and
+each backend directory is named for its GOOS:
+
+```
+adapter/accessibility/{ax, atspi, native/{darwin,linux,windows}}
+adapter/eventtap/{tap, darwin, linux, windows}
+adapter/hotkeys/{darwin, linux, windows}
+adapter/systray/{darwin, linux, windows, icon}
+adapter/overlay/{manager, darwin, linux, windows}
+```
+
+The directory names the platform, so the filenames inside do not have to, and
+`ls` answers "what do I touch for Wayland?". Because the word `darwin` means the
+same thing in every one of them, the guardrails that key on it need no
+per-package list.
 
 The parent package keeps the port adapter and a small build-tagged factory —
 usually ten lines — which is the only place that knows which implementation
 exists.
 
-### When a package resists being split
+### When a backend does not earn a package
 
-Expect this, because it is the common case:
+The test is whether every platform has something substantial to say. If one does
+and the others answer in eighty-line stubs, build-tagged files in a single
+package are clearer: three directories where two hold stubs is ceremony rather
+than navigation.
 
-> A package that looks like "shared code plus platform files" is usually one
-> generic shell specialised by build-tagged concrete types. It has no interface
-> seam, so there is nothing for a backend package to implement.
+That is the case for
+`overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}`. Each
+is one real renderer plus small stubs, and `overlay_linux_common.go` is already
+the obvious file to open.
 
-`accessibility` was this (one client shell over per-OS `Element` and
-`TreeNode`), and so was `eventtap` (one adapter over a per-OS `EventTap`
-struct). The fix is three moves, in order:
+### Giving a capability its own packages
+
+A package that reads as "shared code plus platform files" is usually one generic
+shell specialised by build-tagged concrete types. It has no interface seam, so
+there is nothing for a backend package to implement, and creating one is three
+moves in order:
 
 1. **Find the seam.** List the methods the shell calls on the platform type.
-   For `eventtap` that was ten — small enough to write down in one sitting.
+   For `eventtap` that is ten — small enough to write down in one sitting.
 2. **Extract the contract into a leaf package** (`accessibility/ax`,
    `eventtap/tap`). It has to be a leaf: the backends import it to satisfy it
    and the factory imports the backends, so anything else is an import cycle.
 3. **Move each platform into a package behind a build-tagged factory.**
 
-Two traps, both of which have bitten this repo:
+When the shell talks to *package-level* symbols rather than to methods on a
+value, there is a cheaper route: alias instead of abstracting.
+`accessibility/native` works this way. Its shell is generic over `Element`,
+`ElementInfo`, `TreeNode`, `TreeOptions` and roughly forty package-level
+functions; each platform's files live in their own package and a build-tagged
+file aliases the four types and binds the functions, leaving the shell itself
+platform-agnostic without an interface.
+
+Two traps worth knowing before you start:
 
 - **Named function types do not interchange.** A method taking
   `darwin.Callback` does not satisfy an interface wanting `func(string)`, even
@@ -733,50 +752,34 @@ Two traps, both of which have bitten this repo:
   silently passes. Check before returning; `staticcheck` reports this as
   SA4023.
 
-### Every backend is now its own package
-
-There is no adapter left that mixes platforms. Each capability is a contract
-plus one directory per operating system, and every backend directory is named
-for its GOOS — `darwin`, `linux`, `windows` — so the same word means the same
-thing everywhere, and the guardrails that key on it need no per-package list.
-
-The last one to fall was `accessibility/native`, and it is worth knowing why it
-looked hardest and was not. Its shell is generic over `Element`, `ElementInfo`,
-`TreeNode` and `TreeOptions` plus roughly forty package-level functions —
-turning that into an interface would have been a real redesign. It did not need
-one: those symbols are already per-OS, so each platform's files moved into a
-package and a build-tagged file aliases the types and binds the functions. The
-shell did not change at all.
-
-That is the cheaper move whenever the shell talks to *package-level* symbols
-rather than to methods on a value: alias, do not abstract.
-
-### Where the render models live, and why they stay there
+### Where the render models live
 
 `hints.Hint`, `grid.Style` and the other render models sit under
-`adapter/overlay/render/`, not in the domain, and that is deliberate rather than
-unfinished.
+`adapter/overlay/render/` rather than in the domain, even though nothing about
+them is platform-specific.
 
-They could not move at all until the per-platform `Style` types were unified —
-a type declared once per build tag cannot live in a platform-neutral package.
-That is fixed, so the move is now possible. It is still not worth making:
+They stay there because `hints.Hint`, `hints.StyleMode` and `hints.Overlay` are
+one concept. Splitting them by layer produces two packages named `hints` —
+likewise `grid` and `recursivegrid` — which every site touching both halves must
+then alias. It would also not retire the `sharedInfraPackages` entry it appears
+aimed at: the app names `overlay.Mode`, `overlay.ManagerInterface` and the
+process-wide accessors from the same place. Three of the six render packages
+have no platform-neutral content at all.
 
-- `hints.Hint`, `hints.StyleMode` and `hints.Overlay` are one concept. Splitting
-  them by layer produces two packages named `hints` — likewise `grid` and
-  `recursivegrid` — which every site touching both halves must then alias.
-- It would not retire the `sharedInfraPackages` entry it appears to be aimed at.
-  The app also names `overlay.Mode`, `overlay.ManagerInterface` and the
-  process-wide accessors, and those keep the entry alive regardless.
-- Three of the six render packages have no neutral content to move.
+Cohesion beats layer purity here, and the layering guardrail records the same
+reasoning beside the exception itself.
 
-Cohesion beats layer purity here. The layering guardrail records the same
-reasoning next to the exception itself. `hints.StyleMode`
-was declared three times identically, so unifying it was a deletion.
-`grid.Style` and `recursivegrid.Style` genuinely differed — macOS held hex
-colour strings and ints where Linux and Windows held packed ARGB and floats —
-and now hold the semantic values with the conversions as accessors. That is
-what made `ManagerInterface` portable, and it is the pattern to reach for when
-a "platform-specific" type turns out to differ only in representation.
+### Styles are one type per concept
+
+`grid.Style`, `recursivegrid.Style` and `hints.StyleMode` are each declared once
+for every platform. Their fields hold the values the configuration writes — hex
+color strings, integer sizes — and the packed-ARGB and float forms that Cairo
+and GDI want are accessors that convert at the point of use.
+
+Keeping representation out of the struct is what lets `manager.Interface` name
+these types in a signature every platform shares. When a type looks
+platform-specific, check whether it differs in meaning or only in
+representation; the second kind belongs in an accessor.
 
 ## Where To Implement What
 

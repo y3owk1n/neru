@@ -8,19 +8,15 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The grid style is declared once, for every platform.
+// The grid style is one type for every platform.
 //
-// It used to be three build-tagged declarations. macOS held the values as the
-// config writes them — hex color strings, integer sizes — while Linux and
-// Windows held them pre-converted to packed ARGB and floats, because Cairo and
-// GDI want them that way. That is a property of the drawing API, not of the
-// style, and it was enough to make ManagerInterface name a type that differed
-// per platform, which in turn pinned the render models under the adapter layer
-// instead of in the domain.
+// Its fields hold the values the configuration writes: hex color strings and
+// integer sizes. Backends that draw with other representations — Cairo on Linux
+// and GDI on Windows both want packed ARGB and floats — get them from the
+// accessors further down, which convert at the point of use.
 //
-// So the fields hold the semantic values and the conversions are methods. A
-// backend calls the accessor that matches its drawing API and pays the same
-// conversion it paid before, at the same point.
+// Keeping the representation out of the struct is what lets manager.Interface
+// name this type in a signature every platform shares.
 
 const (
 	// minLineWidth keeps a hairline visible on backends that would otherwise
@@ -79,8 +75,7 @@ func (s Style) BorderColor() string { return s.borderColor }
 func (s Style) ShowLabels() bool { return s.showLabels }
 
 // The accessors below serve backends that draw with packed ARGB and float
-// dimensions (Cairo on Linux, GDI on Windows). They are the same conversions
-// those backends used to bake into the style at build time.
+// dimensions: Cairo on Linux, GDI on Windows.
 
 // LineWidth returns the border width as a float, clamped so a hairline stays
 // visible.

@@ -68,9 +68,9 @@ type Deps struct {
 
 // Binder owns hotkey registration and the held-key repeat loop.
 //
-// The repeat bookkeeping below used to live on the App, where it was four
-// fields that nothing outside this file touched. Moving it here is most of the
-// point of the package.
+// The repeat state below — the cancel table and the two mutexes — is private to
+// this file. A repeating key is a goroutine per key that has to be cancellable
+// from the event-tap thread, which is what the table and its lock are for.
 type Binder struct {
 	hotkeyManager     ports.HotkeyPort
 	modes             ModeBindings

@@ -18,10 +18,8 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 // TestBuildStyleResolvesThemeColors pins that each color comes from the
 // configured value for the active theme.
 //
-// It used to be a linux-only test asserting packed ARGB, because the style was
-// declared per platform and Linux held it pre-converted. The style is now the
-// same on every platform, so the test is too — and it runs everywhere instead
-// of only in the Linux job.
+// The style is one type on every platform, so this runs in every job rather
+// than only where a particular backend is built.
 func TestBuildStyleResolvesThemeColors(t *testing.T) {
 	cfg := config.DefaultConfig().Grid
 
@@ -75,7 +73,8 @@ func TestBuildStyleResolvesThemeColors(t *testing.T) {
 }
 
 // TestStyleARGBAccessorsMatchTheHexValues pins the conversion the Cairo and GDI
-// backends rely on, which used to happen inside BuildStyle.
+// backends rely on: the packed form of a color must be the packed form of the
+// hex string beside it.
 func TestStyleARGBAccessorsMatchTheHexValues(t *testing.T) {
 	style := BuildStyle(config.DefaultConfig().Grid, &mockThemeProvider{darkMode: false})
 
@@ -99,8 +98,9 @@ func TestStyleARGBAccessorsMatchTheHexValues(t *testing.T) {
 	}
 }
 
-// TestLineWidthKeepsAHairlineVisible pins the clamp the backends used to apply
-// when they built the style.
+// TestLineWidthKeepsAHairlineVisible pins the lower bound on stroke width.
+// A zero-width stroke rounds away to nothing on the backends that draw in
+// floats, so a border configured at zero still has to render.
 func TestLineWidthKeepsAHairlineVisible(t *testing.T) {
 	cfg := config.DefaultConfig().Grid
 	cfg.UI.BorderWidth = 0

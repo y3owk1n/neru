@@ -351,7 +351,7 @@ func (m *mockHotkeyService) GetRegisteredCount() int {
 	return len(m.registered)
 }
 
-// mockAppWatcher is the shared port mock. It used to be a hand-rolled fake
-// duplicating every AppWatcherPort method, which silently rotted whenever the
-// contract changed.
+// mockAppWatcher is the shared port mock. Aliasing the generated mock rather
+// than hand-rolling a fake means a change to AppWatcherPort breaks this at
+// compile time instead of leaving a stale stub that still satisfies nothing.
 type mockAppWatcher = portmocks.MockAppWatcherPort
