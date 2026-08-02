@@ -25,7 +25,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (
@@ -1020,103 +1019,4 @@ func (o *Overlay) drawGridCells(cellsGo []*domainGrid.Cell, currentInput string,
 	gridCellSlicePool.Put(cGridCellsPtr)
 	gridLabelSlicePool.Put(cLabelsPtr)
 	// Note: We don't free cached style strings - they're reused across draws
-}
-
-// Style represents the visual style for grid cells.
-type Style struct {
-	fontSize               int
-	fontFamily             string
-	borderWidth            int
-	backgroundColor        string
-	textColor              string
-	matchedTextColor       string
-	matchedBackgroundColor string
-	matchedBorderColor     string
-	borderColor            string
-}
-
-// FontSize returns the font size.
-func (s Style) FontSize() int {
-	return s.fontSize
-}
-
-// FontFamily returns the font family.
-func (s Style) FontFamily() string {
-	return s.fontFamily
-}
-
-// BorderWidth returns the border width.
-func (s Style) BorderWidth() int {
-	return s.borderWidth
-}
-
-// BackgroundColor returns the background color.
-func (s Style) BackgroundColor() string {
-	return s.backgroundColor
-}
-
-// TextColor returns the text color.
-func (s Style) TextColor() string {
-	return s.textColor
-}
-
-// MatchedTextColor returns the matched text color.
-func (s Style) MatchedTextColor() string {
-	return s.matchedTextColor
-}
-
-// MatchedBackgroundColor returns the matched background color.
-func (s Style) MatchedBackgroundColor() string {
-	return s.matchedBackgroundColor
-}
-
-// MatchedBorderColor returns the matched border color.
-func (s Style) MatchedBorderColor() string {
-	return s.matchedBorderColor
-}
-
-// BorderColor returns the border color.
-func (s Style) BorderColor() string {
-	return s.borderColor
-}
-
-// BuildStyle returns Style based on action name using the provided config.
-func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
-	style := Style{
-		fontSize:    cfg.UI.FontSize,
-		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily, true),
-		borderWidth: cfg.UI.BorderWidth,
-		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
-			theme,
-			config.GridBackgroundColorLight,
-			config.GridBackgroundColorDark,
-		),
-		textColor: cfg.UI.TextColor.ForTheme(
-			theme,
-			config.GridTextColorLight,
-			config.GridTextColorDark,
-		),
-		matchedTextColor: cfg.UI.MatchedTextColor.ForTheme(
-			theme,
-			config.GridMatchedTextColorLight,
-			config.GridMatchedTextColorDark,
-		),
-		matchedBackgroundColor: cfg.UI.MatchedBackgroundColor.ForTheme(
-			theme,
-			config.GridMatchedBackgroundColorLight,
-			config.GridMatchedBackgroundColorDark,
-		),
-		matchedBorderColor: cfg.UI.MatchedBorderColor.ForTheme(
-			theme,
-			config.GridMatchedBorderColorLight,
-			config.GridMatchedBorderColorDark,
-		),
-		borderColor: cfg.UI.BorderColor.ForTheme(
-			theme,
-			config.GridBorderColorLight,
-			config.GridBorderColorDark,
-		),
-	}
-
-	return style
 }

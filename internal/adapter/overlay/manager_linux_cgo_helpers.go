@@ -24,11 +24,11 @@ func shouldShowLabel(
 	cell image.Rectangle,
 	style recursivegrid.Style,
 ) bool {
-	if style.LabelAutohideMultiplier <= 0 {
+	if style.LabelAutohideMultiplier() <= 0 {
 		return true
 	}
 
-	threshold := style.LabelFontSize * style.LabelAutohideMultiplier
+	threshold := style.LabelFontSize() * style.LabelAutohideMultiplier()
 
 	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
@@ -39,15 +39,15 @@ func shouldShowSubKeyPreview(
 	subGridCols int,
 	subGridRows int,
 ) bool {
-	if !style.SubKeyPreview {
+	if !style.SubKeyPreview() {
 		return false
 	}
 
-	if style.SubKeyPreviewAutohideMultiplier <= 0 {
+	if style.SubKeyPreviewAutohideMultiplier() <= 0 {
 		return true
 	}
 
-	threshold := style.SubKeyPreviewFontSize * style.SubKeyPreviewAutohideMultiplier
+	threshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()
 	subCellW := float64(cell.Dx()) / float64(subGridCols)
 	subCellH := float64(cell.Dy()) / float64(subGridRows)
 

@@ -168,34 +168,36 @@ func TestShouldShowWinSubKeyPreview(t *testing.T) {
 		want  bool
 	}{
 		{
-			name:  "disabled",
-			style: recursivegridcomponent.Style{SubKeyPreview: false},
-			want:  false,
+			name: "disabled",
+			style: recursivegridcomponent.NewStyle(
+				recursivegridcomponent.StyleOptions{SubKeyPreview: false},
+			),
+			want: false,
 		},
 		{
 			name: "enabled without autohide",
-			style: recursivegridcomponent.Style{
+			style: recursivegridcomponent.NewStyle(recursivegridcomponent.StyleOptions{
 				SubKeyPreview:                   true,
 				SubKeyPreviewAutohideMultiplier: 0,
-			},
+			}),
 			want: true,
 		},
 		{
 			name: "enabled cell above threshold",
-			style: recursivegridcomponent.Style{
+			style: recursivegridcomponent.NewStyle(recursivegridcomponent.StyleOptions{
 				SubKeyPreview:                   true,
 				SubKeyPreviewFontSize:           10,
 				SubKeyPreviewAutohideMultiplier: 2, // threshold 20, cell 30 passes
-			},
+			}),
 			want: true,
 		},
 		{
 			name: "enabled cell below threshold",
-			style: recursivegridcomponent.Style{
+			style: recursivegridcomponent.NewStyle(recursivegridcomponent.StyleOptions{
 				SubKeyPreview:                   true,
 				SubKeyPreviewFontSize:           20,
 				SubKeyPreviewAutohideMultiplier: 2, // threshold 40, cell 30 fails
-			},
+			}),
 			want: false,
 		},
 	}

@@ -186,31 +186,31 @@ func (o *winOverlay) DrawRecursiveGrid(
 
 	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
 	for idx, cell := range cellRects {
-		if style.HighlightColor != 0 {
-			o.window.FillRect(cell, style.HighlightColor)
+		if style.HighlightColorARGB() != 0 {
+			o.window.FillRect(cell, style.HighlightColorARGB())
 		}
 
-		if style.LineWidth > 0 {
-			o.window.StrokeRect(cell, style.LineColor, style.LineWidth)
+		if style.LineWidthF() > 0 {
+			o.window.StrokeRect(cell, style.LineColorARGB(), style.LineWidthF())
 		}
 
 		if idx < len(keyRunes) {
-			label := style.LabelChar
+			label := style.LabelChar()
 			if label == "" {
 				label = string(keyRunes[idx])
 			}
 
 			if shouldShowWinLabel(cell, style) {
-				if style.LabelBackground {
+				if style.LabelBackground() {
 					o.drawRecursiveLabelBackground(label, cell, style)
 				}
 
 				o.drawTextCentered(
 					label,
 					cell,
-					ports.ResolveFont(style.LabelFontName, false),
-					style.LabelFontSize,
-					style.LabelFontColor,
+					ports.ResolveFont(style.FontFamily(), false),
+					style.LabelFontSize(),
+					style.TextColorARGB(),
 				)
 			}
 
@@ -275,19 +275,19 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
-	fontSize := style.LabelFontSize
-	paddingX := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingX, true)
-	paddingY := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingY, false)
+	fontSize := style.LabelFontSize()
+	paddingX := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingX(), true)
+	paddingY := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingY(), false)
 	width := estimateWinTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
 	height := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	rect := winCenteredRect(cell, width, height)
 
 	o.drawFilledRect(
 		rect,
-		style.LabelBackgroundColor,
-		style.LineColor,
-		max(style.LabelBackgroundBorderWidth, 0),
-		resolveWinBorderRadius(style.LabelBackgroundBorderRadius, rect, 0),
+		style.LabelBackgroundColorARGB(),
+		style.LineColorARGB(),
+		max(style.LabelBackgroundBorderWidthF(), 0),
+		resolveWinBorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
 	)
 }
 
@@ -296,14 +296,16 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegridcomponent.Style,
 ) {
-	previewLabel := style.SubKeyPreviewLabelChar
+	previewLabel := style.SubKeyPreviewLabelChar()
 	if previewLabel == "" {
 		previewLabel = label
 	}
 
 	previewRect := image.Rect(
 		cell.Min.X,
-		cell.Max.Y-estimateWinTextHeight(style.SubKeyPreviewFontSize)-winSubKeyPreviewPaddingBottom,
+		cell.Max.Y-estimateWinTextHeight(
+			style.SubKeyPreviewFontSizeF(),
+		)-winSubKeyPreviewPaddingBottom,
 		cell.Max.X,
 		cell.Max.Y,
 	)
@@ -311,32 +313,32 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	o.drawTextCentered(
 		previewLabel,
 		previewRect,
-		ports.ResolveFont(style.LabelFontName, false),
-		style.SubKeyPreviewFontSize,
-		style.SubKeyPreviewTextColor,
+		ports.ResolveFont(style.FontFamily(), false),
+		style.SubKeyPreviewFontSizeF(),
+		style.SubKeyPreviewTextColorARGB(),
 	)
 }
 
 func shouldShowWinLabel(cell image.Rectangle, style recursivegridcomponent.Style) bool {
-	if style.LabelAutohideMultiplier <= 0 {
+	if style.LabelAutohideMultiplier() <= 0 {
 		return true
 	}
 
-	threshold := style.LabelFontSize * style.LabelAutohideMultiplier
+	threshold := style.LabelFontSize() * style.LabelAutohideMultiplier()
 
 	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
 
 func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcomponent.Style) bool {
-	if !style.SubKeyPreview {
+	if !style.SubKeyPreview() {
 		return false
 	}
 
-	if style.SubKeyPreviewAutohideMultiplier <= 0 {
+	if style.SubKeyPreviewAutohideMultiplier() <= 0 {
 		return true
 	}
 
-	threshold := style.SubKeyPreviewFontSize * style.SubKeyPreviewAutohideMultiplier
+	threshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()
 
 	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }

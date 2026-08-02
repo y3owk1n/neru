@@ -773,7 +773,7 @@ func (o *x11Overlay) drawFrame(
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
-	drawSubPreview := style.SubKeyPreview && len(nextKeyRunes) > 0 &&
+	drawSubPreview := style.SubKeyPreview() && len(nextKeyRunes) > 0 &&
 		nextGridCols > 0 && nextGridRows > 0
 
 	for idx, cell := range cellRects {
@@ -781,26 +781,26 @@ func (o *x11Overlay) drawFrame(
 			continue
 		}
 
-		fill := style.HighlightColor
+		fill := style.HighlightColorARGB()
 		if fill == 0 {
 			fill = subgridCellBackground
 		}
 
-		o.drawRect(cell, fill, style.LineColor, style.LineWidth)
+		o.drawRect(cell, fill, style.LineColorARGB(), style.LineWidthF())
 		if idx < len(keyRunes) {
-			label := style.LabelChar
+			label := style.LabelChar()
 			if label == "" {
 				label = string(keyRunes[idx])
 			}
 
 			if shouldShowLabel(cell, style) {
-				if style.LabelBackground {
+				if style.LabelBackground() {
 					o.drawLabelBackground(label, cell, style)
 				}
 
 				o.drawTextCentered(
-					label, cell, style.LabelFontName,
-					style.LabelFontSize, style.LabelFontColor,
+					label, cell, style.FontFamily(),
+					style.LabelFontSize(), style.TextColorARGB(),
 				)
 			}
 
@@ -855,18 +855,18 @@ func (o *x11Overlay) redrawGrid() {
 			continue
 		}
 
-		fill := style.BackgroundColor
-		text := style.LabelFontColor
-		border := style.LineColor
+		fill := style.BackgroundColorARGB()
+		text := style.TextColorARGB()
+		border := style.LineColorARGB()
 		if matched && prefix != "" {
-			fill = style.MatchedBackgroundColor
-			text = style.MatchedTextColor
-			border = style.MatchedBorderColor
+			fill = style.MatchedBackgroundColorARGB()
+			text = style.MatchedTextColorARGB()
+			border = style.MatchedBorderColorARGB()
 		}
 		cellBounds := o.offset(cell.Bounds())
-		o.drawRect(cellBounds, fill, border, style.LineWidth)
+		o.drawRect(cellBounds, fill, border, style.LineWidth())
 		o.drawTextCentered(label, cellBounds,
-			style.LabelFontName, style.LabelFontSize, text)
+			style.FontFamily(), style.LabelFontSize(), text)
 	}
 
 	if o.currentSubgrid != nil {
@@ -914,13 +914,13 @@ func (o *x11Overlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				xBreaks[col], yBreaks[row],
 				xBreaks[col+1], yBreaks[row+1],
 			)
-			o.drawRect(cell, style.BackgroundColor,
-				style.LineColor, style.LineWidth)
+			o.drawRect(cell, style.BackgroundColorARGB(),
+				style.LineColorARGB(), style.LineWidth())
 			o.drawTextCentered(
 				string(keyRunes[index]), cell,
-				style.LabelFontName,
-				style.LabelFontSize*subgridFontScale,
-				style.LabelFontColor,
+				style.FontFamily(),
+				style.LabelFontSize()*subgridFontScale,
+				style.TextColorARGB(),
 			)
 			index++
 		}
@@ -1014,18 +1014,18 @@ func (o *x11Overlay) drawLabelBackground(
 	style recursivegridcomponent.Style,
 ) {
 	// Match the scaled font that drawTextCentered renders for the label.
-	fontSize := style.LabelFontSize * o.s()
+	fontSize := style.LabelFontSize() * o.s()
 	paddingX := resolveAutoPadding(fontSize,
-		style.LabelBackgroundPaddingX, true)
+		style.LabelBackgroundPaddingX(), true)
 	paddingY := resolveAutoPadding(fontSize,
-		style.LabelBackgroundPaddingY, false)
+		style.LabelBackgroundPaddingY(), false)
 	width := estimateTextWidth(label, fontSize) +
 		paddingX*paddingMultiplier
 	height := estimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier
 	rect := centeredRect(cell, width, height)
-	o.drawRect(rect, style.LabelBackgroundColor,
-		style.LineColor, max(style.LabelBackgroundBorderWidth, 0))
+	o.drawRect(rect, style.LabelBackgroundColorARGB(),
+		style.LineColorARGB(), max(style.LabelBackgroundBorderWidthF(), 0))
 }
 
 //nolint:mnd
@@ -1054,15 +1054,15 @@ func (o *x11Overlay) drawSubKeyMiniGrid(
 			return
 		}
 
-		subLabel := style.SubKeyPreviewLabelChar
+		subLabel := style.SubKeyPreviewLabelChar()
 		if subLabel == "" {
 			subLabel = string(nextKeyRunes[subIndex])
 		}
 
 		o.drawTextCentered(
 			subLabel, subCell,
-			style.LabelFontName, style.SubKeyPreviewFontSize,
-			style.SubKeyPreviewTextColor,
+			style.FontFamily(), style.SubKeyPreviewFontSizeF(),
+			style.SubKeyPreviewTextColorARGB(),
 		)
 		subIndex++
 	}

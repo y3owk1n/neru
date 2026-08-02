@@ -329,25 +329,25 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			continue
 		}
 
-		fill := style.BackgroundColor
-		text := style.LabelFontColor
+		fill := style.BackgroundColorARGB()
+		text := style.TextColorARGB()
 
-		border := style.LineColor
+		border := style.LineColorARGB()
 		if matched && prefix != "" {
-			fill = style.MatchedBackgroundColor
-			text = style.MatchedTextColor
-			border = style.MatchedBorderColor
+			fill = style.MatchedBackgroundColorARGB()
+			text = style.MatchedTextColorARGB()
+			border = style.MatchedBorderColorARGB()
 		}
 
 		o.drawCellFill(cell.Bounds(), fill)
-		o.drawCellBorder(cell.Bounds(), border, style.LineWidth)
+		o.drawCellBorder(cell.Bounds(), border, style.LineWidth())
 
-		if style.ShowLabels {
+		if style.ShowLabels() {
 			o.drawTextCentered(
 				label,
 				cell.Bounds(),
-				ports.ResolveFont(style.LabelFontName, false),
-				style.LabelFontSize,
+				ports.ResolveFont(style.FontFamily(), false),
+				style.LabelFontSize(),
 				text,
 			)
 		}
@@ -426,13 +426,13 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 				xBreaks[col+1],
 				yBreaks[row+1],
 			)
-			o.drawCellBorder(cell, style.LineColor, style.LineWidth)
+			o.drawCellBorder(cell, style.LineColorARGB(), style.LineWidth())
 			o.drawTextCentered(
 				string(keyRunes[index]),
 				cell,
-				ports.ResolveFont(style.LabelFontName, false),
-				style.LabelFontSize*winSubgridFontScale,
-				style.LabelFontColor,
+				ports.ResolveFont(style.FontFamily(), false),
+				style.LabelFontSize()*winSubgridFontScale,
+				style.TextColorARGB(),
 			)
 			index++
 		}

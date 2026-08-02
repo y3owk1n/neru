@@ -729,17 +729,20 @@ Two traps, both of which have bitten this repo:
 
 ### What is still shared, and why
 
-Three packages still hold more than one platform, each for a stated reason:
+Two packages still hold more than one platform, each for a stated reason:
 
 | Package | Why it has not been split |
 | ------- | -------------------------- |
-| `adapter/overlay` | Its `ManagerInterface` names `grid.Style` and `hints.StyleMode`, which are declared once per OS. The contract cannot become platform-neutral until those are unified. |
-| `adapter/overlay/render/{grid,recursivegrid}` | Each declares `Style` three times. Linux and Windows are byte-identical; only macOS differs, and only in representation — hex colour strings and ints against packed ARGB and floats. Unifying means one semantic `Style` plus a per-backend conversion at draw time, across roughly ninety read sites in the overlay managers. `hints` was the same shape except its three copies were *identical*, so unifying it was a deletion; that one is done. |
+| `adapter/overlay` | Its managers are per-OS but its `ManagerInterface` is now platform-neutral, so the split is a mechanical application of the recipe above rather than a redesign. |
 | `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first. |
 
-All three are worth doing and none is a file move. Do them as their own
-changes, with the render `Style` unification first — it is the keystone that
-unblocks the other two.
+The render styles used to be on this list and are not any more. `hints.StyleMode`
+was declared three times identically, so unifying it was a deletion.
+`grid.Style` and `recursivegrid.Style` genuinely differed — macOS held hex
+colour strings and ints where Linux and Windows held packed ARGB and floats —
+and now hold the semantic values with the conversions as accessors. That is
+what made `ManagerInterface` portable, and it is the pattern to reach for when
+a "platform-specific" type turns out to differ only in representation.
 
 ## Where To Implement What
 
