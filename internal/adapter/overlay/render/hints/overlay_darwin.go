@@ -22,7 +22,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 //export resizeHintCompletionCallback
@@ -94,97 +93,6 @@ type Overlay struct {
 	previousStyle StyleMode
 }
 
-// StyleMode represents the visual styling configuration for hint overlays.
-type StyleMode struct {
-	fontSize                 int
-	fontFamily               string
-	borderRadius             int
-	paddingX                 int
-	paddingY                 int
-	borderWidth              int
-	placement                string
-	backgroundColor          string
-	textColor                string
-	matchedTextColor         string
-	borderColor              string
-	boundaryHighlightEnabled bool
-	boundaryBorderWidth      int
-	boundaryBorderRadius     int
-	boundaryBackgroundColor  string
-	boundaryBorderColor      string
-}
-
-// FontSize returns the font size.
-func (s StyleMode) FontSize() int {
-	return s.fontSize
-}
-
-// FontFamily returns the font family.
-func (s StyleMode) FontFamily() string {
-	return s.fontFamily
-}
-
-// BorderRadius returns the border radius.
-func (s StyleMode) BorderRadius() int {
-	return s.borderRadius
-}
-
-// PaddingX returns the horizontal padding.
-func (s StyleMode) PaddingX() int {
-	return s.paddingX
-}
-
-// PaddingY returns the vertical padding.
-func (s StyleMode) PaddingY() int {
-	return s.paddingY
-}
-
-// BorderWidth returns the border width.
-func (s StyleMode) BorderWidth() int {
-	return s.borderWidth
-}
-
-// Placement returns the hint label placement relative to the target.
-func (s StyleMode) Placement() string {
-	return s.placement
-}
-
-// BackgroundColor returns the background color.
-func (s StyleMode) BackgroundColor() string {
-	return s.backgroundColor
-}
-
-// TextColor returns the text color.
-func (s StyleMode) TextColor() string {
-	return s.textColor
-}
-
-// MatchedTextColor returns the matched text color.
-func (s StyleMode) MatchedTextColor() string {
-	return s.matchedTextColor
-}
-
-// BorderColor returns the border color.
-func (s StyleMode) BorderColor() string {
-	return s.borderColor
-}
-
-// BoundaryHighlightEnabled returns whether target boundaries are drawn behind hints.
-func (s StyleMode) BoundaryHighlightEnabled() bool { return s.boundaryHighlightEnabled }
-
-// BoundaryBorderWidth returns the target boundary stroke width.
-func (s StyleMode) BoundaryBorderWidth() int { return s.boundaryBorderWidth }
-
-// BoundaryBorderRadius returns the target boundary corner radius.
-func (s StyleMode) BoundaryBorderRadius() int { return s.boundaryBorderRadius }
-
-// BoundaryBackgroundColor returns the target boundary fill color.
-func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroundColor }
-
-// BoundaryBorderColor returns the target boundary stroke color.
-func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
-
-// initPools initializes the object pools once.
 func initPools() {
 	hintPoolOnce.Do(func() {
 		hintDataPool = sync.Pool{New: func() any {
@@ -350,54 +258,6 @@ func (o *Overlay) DrawSearchInput(
 // HideSearchInput hides the hints search input.
 func (o *Overlay) HideSearchInput() {
 	C.NeruHideHintSearchInput(o.window)
-}
-
-// BuildStyle returns StyleMode based on action name using the provided config.
-func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
-	style := StyleMode{
-		fontSize:     cfg.UI.FontSize,
-		fontFamily:   ports.ResolveFont(cfg.UI.FontFamily, true),
-		borderRadius: cfg.UI.BorderRadius,
-		paddingX:     cfg.UI.PaddingX,
-		paddingY:     cfg.UI.PaddingY,
-		borderWidth:  cfg.UI.BorderWidth,
-		placement:    cfg.UI.Placement,
-		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
-			theme,
-			config.HintsBackgroundColorLight,
-			config.HintsBackgroundColorDark,
-		),
-		textColor: cfg.UI.TextColor.ForTheme(
-			theme,
-			config.HintsTextColorLight,
-			config.HintsTextColorDark,
-		),
-		matchedTextColor: cfg.UI.MatchedTextColor.ForTheme(
-			theme,
-			config.HintsMatchedTextColorLight,
-			config.HintsMatchedTextColorDark,
-		),
-		borderColor: cfg.UI.BorderColor.ForTheme(
-			theme,
-			config.HintsBorderColorLight,
-			config.HintsBorderColorDark,
-		),
-		boundaryHighlightEnabled: cfg.BoundaryHighlight.Enabled,
-		boundaryBorderWidth:      cfg.BoundaryHighlight.BorderWidth,
-		boundaryBorderRadius:     cfg.BoundaryHighlight.BorderRadius,
-		boundaryBackgroundColor: cfg.BoundaryHighlight.BackgroundColor.ForTheme(
-			theme,
-			config.HintsBoundaryBackgroundColorLight,
-			config.HintsBoundaryBackgroundColorDark,
-		),
-		boundaryBorderColor: cfg.BoundaryHighlight.BorderColor.ForTheme(
-			theme,
-			config.HintsBoundaryBorderColorLight,
-			config.HintsBoundaryBorderColorDark,
-		),
-	}
-
-	return style
 }
 
 // SetConfig sets the overlay configuration.

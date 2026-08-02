@@ -734,7 +734,7 @@ Three packages still hold more than one platform, each for a stated reason:
 | Package | Why it has not been split |
 | ------- | -------------------------- |
 | `adapter/overlay` | Its `ManagerInterface` names `grid.Style` and `hints.StyleMode`, which are declared once per OS. The contract cannot become platform-neutral until those are unified. |
-| `adapter/overlay/render/{grid,hints,recursivegrid}` | Each declares `Style` or `StyleMode` three times. Linux and Windows are byte-identical; only macOS differs, and only in representation — hex colour strings and ints against packed ARGB and floats. Unifying means one semantic `Style` plus a per-backend conversion at draw time, across roughly ninety read sites in the overlay managers. |
+| `adapter/overlay/render/{grid,recursivegrid}` | Each declares `Style` three times. Linux and Windows are byte-identical; only macOS differs, and only in representation — hex colour strings and ints against packed ARGB and floats. Unifying means one semantic `Style` plus a per-backend conversion at draw time, across roughly ninety read sites in the overlay managers. `hints` was the same shape except its three copies were *identical*, so unifying it was a deletion; that one is done. |
 | `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first. |
 
 All three are worth doing and none is a file move. Do them as their own
