@@ -1,6 +1,6 @@
 //go:build linux && !cgo
 
-package native
+package linux
 
 import (
 	"image"

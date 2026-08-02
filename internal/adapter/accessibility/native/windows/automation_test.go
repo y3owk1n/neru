@@ -4,7 +4,7 @@
 // Unit tests for the pure UIA control-type naming used by hint enumeration.
 // Does not exercise live UIA (see accessibility integration tests on WIN-VM).
 
-package native //nolint:testpackage // exercises unexported controlTypeName directly
+package windows //nolint:testpackage // exercises unexported controlTypeName directly
 
 import (
 	"maps"

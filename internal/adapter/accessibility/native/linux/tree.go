@@ -1,6 +1,6 @@
 //go:build linux
 
-package native
+package linux
 
 import (
 	"context"
@@ -77,3 +77,18 @@ func ProcessClickableNodes(root *TreeNode, cfg config.HintsConfig) []*TreeNode {
 
 // ReleaseTree releases the tree and its nodes to the pool (Linux stub).
 func ReleaseTree(root *TreeNode) {}
+
+// ReleaseTreeExcept releases all AXUIElementRefs in the tree except those
+// belonging to the keep list. This prevents leaking CFRetain'd refs from
+// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
+// to callers.
+func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
+	keepSet := make(map[*Element]struct{}, len(keep))
+	for _, node := range keep {
+		if node.Element() != nil {
+			keepSet[node.Element()] = struct{}{}
+		}
+	}
+
+	tree.Release(keepSet)
+}

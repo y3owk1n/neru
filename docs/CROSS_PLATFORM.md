@@ -727,17 +727,23 @@ Two traps, both of which have bitten this repo:
   silently passes. Check before returning; `staticcheck` reports this as
   SA4023.
 
-### What is still shared, and why
+### Every backend is now its own package
 
-One package still holds more than one platform:
+There is no adapter left that mixes platforms. Each capability is a contract
+plus one directory per operating system, and every backend directory is named
+for its GOOS — `darwin`, `linux`, `windows` — so the same word means the same
+thing everywhere, and the guardrails that key on it need no per-package list.
 
-| Package | Why it has not been split |
-| ------- | -------------------------- |
-| `accessibility/native` | macOS and Windows are not two implementations behind an interface; they are one implementation over two sets of build-tagged types. Separating them needs the shell parameterised over an element-source interface first — the same move `eventtap` needed, applied to `Element`, `ElementInfo`, `TreeNode` and `TreeOptions`. |
+The last one to fall was `accessibility/native`, and it is worth knowing why it
+looked hardest and was not. Its shell is generic over `Element`, `ElementInfo`,
+`TreeNode` and `TreeOptions` plus roughly forty package-level functions —
+turning that into an interface would have been a real redesign. It did not need
+one: those symbols are already per-OS, so each platform's files moved into a
+package and a build-tagged file aliases the types and binds the functions. The
+shell did not change at all.
 
-`overlay` and the render styles used to be on this list. The styles were the
-blocker: unifying them made `manager.Interface` portable, and the overlay split
-then followed the recipe above without a redesign. `hints.StyleMode`
+That is the cheaper move whenever the shell talks to *package-level* symbols
+rather than to methods on a value: alias, do not abstract. `hints.StyleMode`
 was declared three times identically, so unifying it was a deletion.
 `grid.Style` and `recursivegrid.Style` genuinely differed — macOS held hex
 colour strings and ints where Linux and Windows held packed ARGB and floats —

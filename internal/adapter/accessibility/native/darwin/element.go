@@ -1,10 +1,10 @@
 //go:build darwin
 
-package native
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../platform/darwin/accessibility.h"
+#include "../../../platform/darwin/accessibility.h"
 #include <stdlib.h>
 */
 import "C"
@@ -114,6 +114,14 @@ type ElementInfo struct {
 	hasShowMenuAction bool
 	preActionsFetched bool
 	pid               int
+}
+
+// NewElementInfo builds an ElementInfo from already-read attribute values.
+//
+// The fields stay unexported because only the AX bridge fills them in; this
+// exists so the shell's menu-bar filtering can be tested without a live tree.
+func NewElementInfo(role, subrole, title string) ElementInfo {
+	return ElementInfo{role: role, subrole: subrole, title: title}
 }
 
 // Position returns the element position.
@@ -596,9 +604,10 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 	return darwin.IsMouseButtonDown(button)
 }
 
-// ensureMouseUp releases every mouse button Neru is currently holding down.
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
 // This should be called before any action that is incompatible with a drag operation.
-func ensureMouseUp() {
+// EnsureMouseUp releases any mouse button left held.
+func EnsureMouseUp() {
 	darwin.EnsureMouseUp()
 }
 

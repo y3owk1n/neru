@@ -5,7 +5,7 @@
 // Does not perform actions or build a deep cached tree; it returns a flat
 // list of on-screen, clickable controls for the given top-level window.
 
-package native
+package windows
 
 import (
 	"image"

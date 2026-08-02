@@ -1,6 +1,6 @@
 //go:build windows
 
-package native //nolint:testpackage // exercises unexported defaultClickableRoles
+package windows //nolint:testpackage // exercises unexported defaultClickableRoles
 
 import (
 	"maps"

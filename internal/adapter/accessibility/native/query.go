@@ -87,7 +87,7 @@ func MenuBarClickableElements(
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
-	releaseTreeExcept(tree, elements)
+	ReleaseTreeExcept(tree, elements)
 
 	logger.Debug("Found menu bar clickable elements", zap.Int("count", len(elements)))
 
@@ -168,7 +168,7 @@ func ClickableElementsFromBundleID(
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
-	releaseTreeExcept(tree, elements)
+	ReleaseTreeExcept(tree, elements)
 
 	logger.Debug("Found clickable elements for application",
 		zap.String("bundle_id", bundleID),
@@ -187,19 +187,4 @@ func isAdditionalMenuBarElement(info *ElementInfo) bool {
 	default:
 		return false
 	}
-}
-
-// releaseTreeExcept releases all AXUIElementRefs in the tree except those
-// belonging to the keep list. This prevents leaking CFRetain'd refs from
-// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
-// to callers.
-func releaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
-	keepSet := make(map[*Element]struct{}, len(keep))
-	for _, node := range keep {
-		if node.Element() != nil {
-			keepSet[node.Element()] = struct{}{}
-		}
-	}
-
-	tree.Release(keepSet)
 }

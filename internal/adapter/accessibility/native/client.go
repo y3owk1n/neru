@@ -116,7 +116,7 @@ func (c *Client) ClickableNodes(
 
 	// Release tree nodes that are not part of the result to avoid
 	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
-	releaseTreeExcept(tree, clickableNodes)
+	ReleaseTreeExcept(tree, clickableNodes)
 
 	clickableNodesResult := make([]ax.Node, len(clickableNodes))
 

@@ -5,7 +5,7 @@
 // Does not run in default CI; execute on WIN-VM with a GUI app focused:
 // go test -tags=integration ./internal/adapter/accessibility/...
 
-package native //nolint:testpackage // exercises unexported enumerateClickableElements directly
+package windows //nolint:testpackage // exercises unexported enumerateClickableElements directly
 
 import (
 	"testing"

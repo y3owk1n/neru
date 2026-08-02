@@ -1,9 +1,12 @@
+//go:build darwin
+
 //nolint:testpackage
 package native
 
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/native/darwin"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -15,38 +18,27 @@ func TestIsAdditionalMenuBarElement(t *testing.T) {
 	}{
 		{
 			name: "allows menu bar container",
-			info: &ElementInfo{
-				role: string(element.RoleMenuBar),
-			},
+			info: elementInfo(string(element.RoleMenuBar), ""),
 			want: true,
 		},
 		{
 			name: "allows menu extras",
-			info: &ElementInfo{
-				role:    string(element.RoleMenuBarItem),
-				subrole: string(element.SubroleMenuExtra),
-			},
+			info: elementInfo(string(element.RoleMenuBarItem), string(element.SubroleMenuExtra)),
 			want: true,
 		},
 		{
 			name: "rejects normal app menu bar items",
-			info: &ElementInfo{
-				role: string(element.RoleMenuBarItem),
-			},
+			info: elementInfo(string(element.RoleMenuBarItem), ""),
 			want: false,
 		},
 		{
 			name: "allows menu container",
-			info: &ElementInfo{
-				role: string(element.RoleMenu),
-			},
+			info: elementInfo(string(element.RoleMenu), ""),
 			want: true,
 		},
 		{
 			name: "allows menu items",
-			info: &ElementInfo{
-				role: string(element.RoleMenuItem),
-			},
+			info: elementInfo(string(element.RoleMenuItem), ""),
 			want: true,
 		},
 	}
@@ -58,4 +50,11 @@ func TestIsAdditionalMenuBarElement(t *testing.T) {
 			}
 		})
 	}
+}
+
+// elementInfo builds the macOS attribute bundle the menu-bar filter reads.
+func elementInfo(role, subrole string) *ElementInfo {
+	info := darwin.NewElementInfo(role, subrole, "")
+
+	return &info
 }

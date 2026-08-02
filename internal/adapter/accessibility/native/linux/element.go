@@ -1,6 +1,6 @@
 //go:build linux
 
-package native
+package linux
 
 import (
 	"image"
@@ -269,8 +269,9 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 	return linuxHeldButtons.IsDown(button)
 }
 
-// ensureMouseUp releases every mouse button Neru is currently holding down.
-func ensureMouseUp() {
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
+// EnsureMouseUp releases any mouse button left held.
+func EnsureMouseUp() {
 	for _, button := range linuxHeldButtons.HeldButtons() {
 		_ = MouseUp(button)
 	}

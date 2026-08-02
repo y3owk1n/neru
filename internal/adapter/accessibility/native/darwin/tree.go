@@ -1,10 +1,10 @@
 //go:build darwin
 
-package native
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../../platform/darwin/accessibility.h"
+#include "../../../platform/darwin/accessibility.h"
 #include <stdlib.h>
 
 */
@@ -48,7 +48,7 @@ func rectFromInfo(info *ElementInfo) image.Rectangle {
 // bounds even when the root element has no position/size (e.g. an AXApplication).
 func screenBoundsOrRect(r image.Rectangle) image.Rectangle {
 	if r.Empty() {
-		return platformActiveScreenBounds()
+		return PlatformActiveScreenBounds()
 	}
 
 	return r
@@ -291,7 +291,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	// render below the bar itself and would be clipped otherwise.
 	windowBounds := screenBoundsOrRect(rectFromInfo(info))
 	if info.Role() == string(element.RoleMenuBar) {
-		windowBounds = platformActiveScreenBounds()
+		windowBounds = PlatformActiveScreenBounds()
 	}
 
 	// Auto-detect Chromium/Electron from root element's bundle ID for strict filtering.
@@ -315,7 +315,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 
 	select {
 	case <-ctx.Done():
-		releaseTreeExcept(node, nil)
+		ReleaseTreeExcept(node, nil)
 
 		return nil, derrors.Wrap(
 			ctx.Err(),
@@ -895,4 +895,19 @@ func (n *TreeNode) walkTreePostOrder(visit func(*TreeNode)) {
 		child.walkTreePostOrder(visit)
 	}
 	visit(n)
+}
+
+// ReleaseTreeExcept releases all AXUIElementRefs in the tree except those
+// belonging to the keep list. This prevents leaking CFRetain'd refs from
+// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
+// to callers.
+func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
+	keepSet := make(map[*Element]struct{}, len(keep))
+	for _, node := range keep {
+		if node.Element() != nil {
+			keepSet[node.Element()] = struct{}{}
+		}
+	}
+
+	tree.Release(keepSet)
 }

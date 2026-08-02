@@ -1,6 +1,6 @@
 //go:build windows
 
-package native
+package windows
 
 import (
 	"image"
@@ -239,8 +239,9 @@ func IsMouseButtonDown(button action.MouseButton) bool {
 	return windowsHeldButtons.IsDown(button)
 }
 
-// ensureMouseUp releases every mouse button Neru is currently holding down.
-func ensureMouseUp() {
+// EnsureMouseUp releases every mouse button Neru is currently holding down.
+// EnsureMouseUp releases any mouse button left held.
+func EnsureMouseUp() {
 	for _, button := range windowsHeldButtons.HeldButtons() {
 		_ = MouseUp(button)
 	}

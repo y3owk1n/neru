@@ -1,6 +1,6 @@
 //go:build windows
 
-package native
+package windows
 
 import (
 	"context"
@@ -178,3 +178,18 @@ func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
 
 // ReleaseTree is a no-op: Windows nodes hold no live COM references.
 func ReleaseTree(_ *TreeNode) {}
+
+// ReleaseTreeExcept releases all AXUIElementRefs in the tree except those
+// belonging to the keep list. This prevents leaking CFRetain'd refs from
+// NeruGetChildren/NeruGetVisibleRows that are stored in tree nodes but never returned
+// to callers.
+func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
+	keepSet := make(map[*Element]struct{}, len(keep))
+	for _, node := range keep {
+		if node.Element() != nil {
+			keepSet[node.Element()] = struct{}{}
+		}
+	}
+
+	tree.Release(keepSet)
+}

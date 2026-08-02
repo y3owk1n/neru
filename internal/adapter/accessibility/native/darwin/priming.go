@@ -7,7 +7,7 @@
 // an app would otherwise find nothing. This polls until a web-content role
 // appears. It does not enable accessibility; it only waits for the tree.
 
-package native
+package darwin
 
 import (
 	"time"
