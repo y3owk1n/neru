@@ -11,10 +11,19 @@ import (
 	"github.com/y3owk1n/neru/internal/core/infra/ipc"
 )
 
-// sequenceRunner executes an ordered list of action steps and reports what
-// happened. It is the daemon's action-sequence executor, injected so the IPC
-// layer does not reach back into the App.
-type sequenceRunner func(ctx context.Context, source string, steps []string) sequenceOutcome
+// sequenceRunner executes an ordered list of action steps under a failure
+// policy and reports what happened. It is the daemon's action-sequence
+// executor, injected so the IPC layer does not reach back into the App.
+type sequenceRunner func(
+	ctx context.Context,
+	source string,
+	steps []string,
+	policy sequencePolicy,
+) sequenceOutcome
+
+// stopOnErrorFlag makes every step of a run fatal, so a script does not have to
+// repeat the per-step directive on each one.
+const stopOnErrorFlag = "--stop-on-error"
 
 // IPCControllerSequence handles the "run" command, which executes an action
 // sequence on behalf of an external caller.
@@ -48,7 +57,9 @@ func (h *IPCControllerSequence) RegisterHandlers(
 
 // handleRun executes the steps carried by the command, in order.
 func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) ipc.Response {
-	steps := nonBlankSteps(cmd.Args)
+	args, policy := splitSequencePolicy(cmd.Args)
+
+	steps := nonBlankSteps(args)
 	if len(steps) == 0 {
 		return ipc.Response{
 			Success: false,
@@ -67,9 +78,17 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 
 	h.logger.Debug("Running action sequence", zap.Int("steps", len(steps)))
 
-	outcome := h.run(ctx, domain.CommandRun, steps)
+	outcome := h.run(ctx, domain.CommandRun, steps, policy)
 
 	switch {
+	case outcome.failedIndex == 0 && outcome.err != nil:
+		// The sequence was refused before any step ran, so there is no step to
+		// name — nesting too deeply is the only way to get here today.
+		return ipc.Response{
+			Success: false,
+			Message: "sequence did not run: " + outcome.err.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
 	case outcome.bailed:
 		return ipc.Response{
 			Success: false,
@@ -81,13 +100,34 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 			),
 			Code: ipc.CodeChainBail,
 		}
-	case outcome.err != nil:
+	case outcome.stopped:
+		// Distinct from the case below: the steps after this one did not run,
+		// which a caller deciding what to clean up needs to know.
 		return ipc.Response{
 			Success: false,
 			Message: fmt.Sprintf(
-				"step %d (%s) failed: %s",
+				"sequence stopped at step %d (%s): %s",
 				outcome.failedIndex,
 				outcome.failedStep,
+				outcome.err,
+			),
+			Code: ipc.CodeActionFailed,
+		}
+	case outcome.err != nil:
+		// Only claim the sequence carried on when there was something after
+		// the failing step to carry on to.
+		tail := ""
+		if outcome.executed > outcome.failedIndex {
+			tail = ", later steps still ran"
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: fmt.Sprintf(
+				"step %d (%s) failed%s: %s",
+				outcome.failedIndex,
+				outcome.failedStep,
+				tail,
 				outcome.err,
 			),
 			Code: ipc.CodeActionFailed,
@@ -99,6 +139,26 @@ func (h *IPCControllerSequence) handleRun(ctx context.Context, cmd ipc.Command) 
 			Code:    ipc.CodeOK,
 		}
 	}
+}
+
+// splitSequencePolicy separates the sequence-wide policy flags from the steps.
+// The flags are consumed here rather than passed on, so a step never sees them.
+func splitSequencePolicy(args []string) ([]string, sequencePolicy) {
+	var policy sequencePolicy
+
+	remaining := make([]string, 0, len(args))
+
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == stopOnErrorFlag {
+			policy.stopOnError = true
+
+			continue
+		}
+
+		remaining = append(remaining, arg)
+	}
+
+	return remaining, policy
 }
 
 // nonBlankSteps trims each step and drops the empty ones, so that a stray

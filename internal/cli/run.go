@@ -25,19 +25,34 @@ step that asks the sequence to stop — "action wait_for_mode_exit --bail" after
 the mode was canceled — ends it; any other failing step is reported while the
 remaining steps still run.
 
+To stop at a failure instead, end that step with --bail-on-error, or pass
+--stop-on-error to make every step in the sequence fatal.
+
 Sequences that block (sleeps, waits) can outlast the default IPC timeout. Raise
 it for those: neru --timeout 60 run ...
 
 Examples:
   neru run "action save_cursor_pos" hints
   neru run "action left_click" "action sleep 0.2" "action restore_cursor_pos"
-  neru run "hints --action left_click" "action wait_for_mode_exit --bail" "exec say done"`,
+  neru run "hints --action left_click" "action wait_for_mode_exit --bail" "exec say done"
+  neru run "action left_click --bail-on-error" idle
+  neru run --stop-on-error "action left_click" "action restore_cursor_pos"`,
 	Args: validateRunArgs,
 	PreRunE: func(_ *cobra.Command, _ []string) error {
 		return requiresRunningInstance()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return sendCommand(cmd, domain.CommandRun, args)
+		stopOnError, err := cmd.Flags().GetBool("stop-on-error")
+		if err != nil {
+			return err
+		}
+
+		params := args
+		if stopOnError {
+			params = append([]string{"--stop-on-error"}, args...)
+		}
+
+		return sendCommand(cmd, domain.CommandRun, params)
 	},
 }
 
@@ -61,5 +76,11 @@ func validateRunArgs(_ *cobra.Command, args []string) error {
 }
 
 func init() {
+	RunCmd.Flags().Bool(
+		"stop-on-error",
+		false,
+		"Stop the sequence at the first failing step, as if every step ended with --bail-on-error",
+	)
+
 	RootCmd.AddCommand(RunCmd)
 }

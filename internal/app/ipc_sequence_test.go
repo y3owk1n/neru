@@ -24,7 +24,7 @@ func TestHandleRun_RequiresSteps(t *testing.T) {
 	t.Parallel()
 
 	handler := NewIPCControllerSequence(
-		func(context.Context, string, []string) sequenceOutcome {
+		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
 			t.Fatal("the executor must not run for an empty sequence")
 
 			return sequenceOutcome{}
@@ -59,7 +59,7 @@ func TestHandleRun_PassesTrimmedStepsToExecutor(t *testing.T) {
 	var got []string
 
 	handler := NewIPCControllerSequence(
-		func(_ context.Context, _ string, steps []string) sequenceOutcome {
+		func(_ context.Context, _ string, steps []string, _ sequencePolicy) sequenceOutcome {
 			got = slices.Clone(steps)
 
 			return sequenceOutcome{executed: len(steps)}
@@ -117,7 +117,7 @@ func TestHandleRun_ReportsBailAndFailure(t *testing.T) {
 			t.Parallel()
 
 			handler := NewIPCControllerSequence(
-				func(context.Context, string, []string) sequenceOutcome {
+				func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
 					return testCase.outcome
 				},
 				zap.NewNop(),
@@ -165,5 +165,112 @@ func TestHandleSleepAction_ReleasedOnCancel(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("handleSleepAction() ignored a canceled context")
+	}
+}
+
+// The sequence-wide flag is consumed by the handler, so it never reaches the
+// executor as a step, and it turns on the stop policy.
+func TestHandleRun_StopOnErrorFlagIsAPolicyNotAStep(t *testing.T) {
+	t.Parallel()
+
+	var (
+		gotSteps  []string
+		gotPolicy sequencePolicy
+	)
+
+	handler := NewIPCControllerSequence(
+		func(_ context.Context, _ string, steps []string, policy sequencePolicy) sequenceOutcome {
+			gotSteps = slices.Clone(steps)
+			gotPolicy = policy
+
+			return sequenceOutcome{executed: len(steps)}
+		},
+		zap.NewNop(),
+	)
+
+	resp := handler.handleRun(context.Background(), ipc.Command{
+		Args: []string{stopOnErrorFlag, leftClickStep, hintsStep},
+	})
+
+	if !resp.Success {
+		t.Fatalf("handleRun() = %+v, want success", resp)
+	}
+
+	if !gotPolicy.stopOnError {
+		t.Fatal("policy.stopOnError = false, want the flag to enable it")
+	}
+
+	want := []string{leftClickStep, hintsStep}
+	if !slices.Equal(gotSteps, want) {
+		t.Fatalf("executor received %v, want %v", gotSteps, want)
+	}
+}
+
+func TestHandleRun_StopOnErrorAloneIsNotASequence(t *testing.T) {
+	t.Parallel()
+
+	handler := NewIPCControllerSequence(
+		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+			t.Fatal("the executor must not run when the flag is the only argument")
+
+			return sequenceOutcome{}
+		},
+		zap.NewNop(),
+	)
+
+	resp := handler.handleRun(context.Background(), ipc.Command{Args: []string{stopOnErrorFlag}})
+
+	if resp.Success || resp.Code != ipc.CodeInvalidInput {
+		t.Fatalf("handleRun() = %+v, want an invalid-input failure", resp)
+	}
+}
+
+// A sequence refused before it started has no step to point at, so the report
+// must not invent one.
+func TestHandleRun_ReportsASequenceThatNeverStarted(t *testing.T) {
+	t.Parallel()
+
+	handler := NewIPCControllerSequence(
+		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+			return sequenceOutcome{
+				err:     derrors.New(derrors.CodeInvalidInput, "action sequence nested too deeply"),
+				stopped: true,
+			}
+		},
+		zap.NewNop(),
+	)
+
+	resp := handler.handleRun(context.Background(), ipc.Command{Args: []string{leftClickStep}})
+
+	if resp.Success || resp.Code != ipc.CodeInvalidInput {
+		t.Fatalf("handleRun() = %+v, want an invalid-input failure", resp)
+	}
+
+	if strings.Contains(resp.Message, "step 0") {
+		t.Fatalf("message %q names a step that does not exist", resp.Message)
+	}
+}
+
+// "later steps still ran" must only appear when there were later steps: a
+// tolerated failure on the final step leaves nothing after it.
+func TestHandleRun_DoesNotClaimLaterStepsRanWhenThereWereNone(t *testing.T) {
+	t.Parallel()
+
+	handler := NewIPCControllerSequence(
+		func(context.Context, string, []string, sequencePolicy) sequenceOutcome {
+			return sequenceOutcome{
+				err:         derrors.New(derrors.CodeIPCFailed, "boom"),
+				failedStep:  leftClickStep,
+				failedIndex: 1,
+				executed:    1,
+			}
+		},
+		zap.NewNop(),
+	)
+
+	resp := handler.handleRun(context.Background(), ipc.Command{Args: []string{leftClickStep}})
+
+	if strings.Contains(resp.Message, "later steps still ran") {
+		t.Fatalf("message %q claims steps ran after the last one", resp.Message)
 	}
 }

@@ -97,6 +97,13 @@ The old `auto_exit_actions` config field was removed. Use a `hotkeys` array to c
 
 This works in any mode — hints, grid, recursive_grid, or scroll.
 
+By default the mode exits whether or not the click landed. Add `--bail-on-error` to the click so the sequence stops instead, leaving you in the mode to try again:
+
+```toml
+[hints.hotkeys]
+"Shift+L" = ["action left_click --bail-on-error", "idle"]
+```
+
 ## Restore Cursor Position After Mode Exit
 
 The old `restore_cursor_position` config field was removed. Compose the same behavior with action primitives:
