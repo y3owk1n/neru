@@ -133,8 +133,11 @@ Wayland protocol generation and icon recipes.
 | Test    | `just test-race-unit`        | Unit tests with `-race`                         |
 | Test    | `just test-race-integration` | Integration tests with `-race`                  |
 | Test    | `just test-all`              | `test` **and** `test-race` — the full sweep     |
+| Test    | `just coverage`              | Unit tests with coverage; prints the total      |
+| Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
 | Lint    | `just lint`                  | `golangci-lint run`                             |
 | Lint    | `just vet`                   | `go vet`                                        |
+| Lint    | `just vuln`                  | `govulncheck` — reachable CVEs in dependencies  |
 | Format  | `just fmt`                   | Format Go and Objective-C                       |
 | Format  | `just fmt-check`             | Check Objective-C formatting                    |
 | Docs    | `just genman`                | Generate man pages                              |
