@@ -631,11 +631,10 @@ cannot be fixed in the same change; it is currently **empty**, and a second test
 fails if an entry stops being a real violation, so the list can only shrink.
 
 > The `internal/adapter/overlay` package is the worked example. Its managers
-> used to live in `internal/ui/overlay` and imported `internal/app/components`
-> for their render models — an upward edge that nothing caught. Moving the
-> managers into the adapter layer made the inversion obvious, and the fix was to move the
-> render packages down to `internal/adapter/overlay/render/` rather than
-> allow the edge.
+> used to sit in the UI layer and imported the app layer's render models — an
+> upward edge that nothing caught. Moving the managers down into the adapter
+> layer made the inversion obvious, and the fix was to move the render packages
+> down to `internal/adapter/overlay/render/` too, rather than allow the edge.
 
 ## File Layout Rules
 
@@ -830,7 +829,7 @@ Shared code must not hard-code macOS conventions:
 
 Relevant files: [config.go](../internal/config/config.go),
 [modifiers.go](../internal/domain/action/modifiers.go),
-[hotkeys.go](../internal/app/hotkeys.go).
+[binder.go](../internal/app/hotkey/binder.go).
 
 On macOS, per-hotkey CGEventTaps are re-registered on keyboard-layout change
 (via `NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps key
@@ -896,7 +895,7 @@ Capability reporting is part of the contract, not a user nicety — it is what
 `neru doctor` prints. When you implement or partially implement a feature,
 review [capabilities.go](../internal/ports/capabilities.go),
 [capability_presets.go](../internal/ports/capability_presets.go), and
-[ipc_info.go](../internal/app/ipc_info.go). A stub must report `stub`, not
+[info.go](../internal/app/ipcctrl/info.go). A stub must report `stub`, not
 `supported` — and a shipped feature must stop reporting `stub`. When a feature
 becomes real: replace the `CodeNotSupported` return, update the capability
 detail, and delete TODO wording that no longer applies.
