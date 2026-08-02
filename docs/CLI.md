@@ -891,10 +891,48 @@ step and lose the sequencing rules between them.
 - A step that asks the sequence to stop ends it. Today that is
   `action wait_for_mode_exit --bail` after a mode was cancelled — the command
   then exits with `ERR_CHAIN_BAIL`.
-- Any other failing step is reported, and the remaining steps still run. The
+- A failing step is reported, and by default the remaining steps still run. The
   command exits with `ERR_ACTION_FAILED` naming the first failure.
+- To stop at a failure instead, end that step with `--bail-on-error`, or pass
+  `--stop-on-error` to make every step in the sequence fatal. See
+  [Failure policy](#failure-policy).
 - A sequence may start another sequence, up to five levels deep. Deeper
   nesting is refused rather than recursing.
+
+**Flags**
+
+| Flag              | Type | Default | Description                                                              |
+| ----------------- | ---- | ------- | ------------------------------------------------------------------------ |
+| `--stop-on-error` | bool | `false` | End the sequence at the first failing step, as if every step carried `--bail-on-error`. |
+
+### Failure policy
+
+By default a failing step is reported and the sequence carries on. That is
+rarely what a workflow wants: in `["action left_click", "idle"]` the mode exits
+even when the click failed.
+
+`--bail-on-error` marks one step as fatal. It is a sequencing directive rather
+than a flag of the action, so the daemon consumes it and the step runs without
+it. It must be the last thing in the step:
+
+```toml
+[hints.hotkeys]
+# Exit only if the click actually landed.
+"Shift+L" = ["action left_click --bail-on-error", "idle"]
+```
+
+```bash
+# Same policy for every step, without repeating the directive.
+neru run --stop-on-error "action left_click" "action restore_cursor_pos"
+```
+
+It works in any sequence — a hotkey binding, a mode's `--on-exit`, or `neru run`.
+Text that merely looks like the directive is left alone, so
+`exec sh -c "echo --bail-on-error"` still passes it through to the shell.
+
+A stopped sequence reports which step ended it and that the later steps did not
+run; a tolerated failure says the opposite, so the two are distinguishable by a
+script.
 
 **Timeouts**
 

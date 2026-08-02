@@ -187,7 +187,7 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 		},
 		{
 			name:    "click does not repeat",
-			actions: []string{"action left_click"},
+			actions: []string{leftClickStep},
 			want:    false,
 		},
 		{
@@ -286,12 +286,12 @@ func TestBindingInspectionSeesModesInsideRun(t *testing.T) {
 		},
 		{
 			name:           "nested run without a mode",
-			actions:        []string{`run 'run "action left_click"' 'action sleep 0.2'`},
+			actions:        []string{`run 'run leftClickStep' 'action sleep 0.2'`},
 			wantModeSwitch: false,
 		},
 		{
 			name:           "no mode at all",
-			actions:        []string{"action left_click", "exec true"},
+			actions:        []string{leftClickStep, "exec true"},
 			wantModeSwitch: false,
 		},
 		{

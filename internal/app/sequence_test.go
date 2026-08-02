@@ -21,6 +21,8 @@ import (
 const (
 	sequenceTestCommand = "step"
 
+	failureMessage = "boom"
+
 	stepOne   = "step one"
 	stepTwo   = "step two"
 	stepThree = "step three"
@@ -235,5 +237,165 @@ func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
 
 	if depth != maxSequenceDepth {
 		t.Fatalf("nested %d levels, want the guard to stop at %d", depth, maxSequenceDepth)
+	}
+}
+
+// A step marked fatal ends the sequence, while an unmarked failure beside it
+// does not — that is the whole point of making the policy explicit per step.
+func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
+	recorder := &stepRecorder{
+		respond: func(_ context.Context, step string) ipc.Response {
+			if step == stepTwo {
+				return ipc.Response{
+					Success: false,
+					Message: failureMessage,
+					Code:    ipc.CodeActionFailed,
+				}
+			}
+
+			return ipc.Response{Success: true, Code: ipc.CodeOK}
+		},
+	}
+	application := newSequenceTestApp(t, recorder)
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{stepOne, stepTwo + " " + bailOnErrorFlag, stepThree},
+	)
+
+	if !outcome.stopped {
+		t.Fatal("outcome.stopped = false, want the sequence to end at the fatal step")
+	}
+
+	if outcome.bailed {
+		t.Fatal("outcome.bailed = true, want false: a failure is not a chain bail")
+	}
+
+	// The directive is a sequencing instruction, so the step must be dispatched
+	// without it — the action's own flag parser would reject it.
+	want := []string{stepOne, stepTwo}
+	if got := recorder.recorded(); !slices.Equal(got, want) {
+		t.Fatalf("dispatched %v, want %v", got, want)
+	}
+}
+
+func TestExecuteActionSequence_StopOnErrorPolicyMarksEveryStep(t *testing.T) {
+	recorder := &stepRecorder{
+		respond: func(_ context.Context, step string) ipc.Response {
+			if step == stepOne {
+				return ipc.Response{
+					Success: false,
+					Message: failureMessage,
+					Code:    ipc.CodeActionFailed,
+				}
+			}
+
+			return ipc.Response{Success: true, Code: ipc.CodeOK}
+		},
+	}
+	application := newSequenceTestApp(t, recorder)
+
+	outcome := application.executeActionSequenceWithPolicy(
+		context.Background(),
+		"test",
+		[]string{stepOne, stepTwo},
+		sequencePolicy{stopOnError: true},
+	)
+
+	if !outcome.stopped || outcome.executed != 1 {
+		t.Fatalf("stopped = %v after %d steps, want a stop at the first",
+			outcome.stopped, outcome.executed)
+	}
+}
+
+func TestSplitBailOnError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		step      string
+		wantStep  string
+		wantFatal bool
+		wantErr   bool
+	}{
+		{
+			name:      "trailing directive is consumed",
+			step:      "action left_click " + bailOnErrorFlag,
+			wantStep:  leftClickStep,
+			wantFatal: true,
+		},
+		{
+			name:     "no directive",
+			step:     leftClickStep,
+			wantStep: leftClickStep,
+		},
+		{
+			// The text appears inside a quoted argument, so it belongs to the
+			// step rather than to the sequence.
+			name:     "quoted text is not a directive",
+			step:     `exec sh -c "echo ` + bailOnErrorFlag + `"`,
+			wantStep: `exec sh -c "echo ` + bailOnErrorFlag + `"`,
+		},
+		{
+			// Quoted as the final argument: the author wants the text, not the
+			// directive, so the step must reach the action unchanged.
+			name:     "quoted final token is an argument",
+			step:     `exec printf '` + bailOnErrorFlag + `'`,
+			wantStep: `exec printf '` + bailOnErrorFlag + `'`,
+		},
+		{
+			name:    "directive in the middle is rejected",
+			step:    "action left_click " + bailOnErrorFlag + " --bare",
+			wantErr: true,
+		},
+		{
+			name:     "directive alone is not a step",
+			step:     bailOnErrorFlag,
+			wantStep: bailOnErrorFlag,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotStep, gotFatal, gotErr := splitBailOnError(testCase.step)
+
+			if (gotErr != nil) != testCase.wantErr {
+				t.Fatalf("error = %v, wantErr = %v", gotErr, testCase.wantErr)
+			}
+
+			if testCase.wantErr {
+				return
+			}
+
+			if gotStep != testCase.wantStep || gotFatal != testCase.wantFatal {
+				t.Fatalf("splitBailOnError(%q) = (%q, %v), want (%q, %v)",
+					testCase.step, gotStep, gotFatal, testCase.wantStep, testCase.wantFatal)
+			}
+		})
+	}
+}
+
+// A misplaced directive must not be dispatched as though it were part of the
+// action, because the action's flag parser would reject it with a message that
+// says nothing about sequencing.
+func TestExecuteActionSequence_RejectsMisplacedDirective(t *testing.T) {
+	recorder := &stepRecorder{}
+	application := newSequenceTestApp(t, recorder)
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{stepOne + " " + bailOnErrorFlag + " --bare", stepTwo},
+	)
+
+	if !outcome.stopped || outcome.err == nil {
+		t.Fatalf("outcome = %+v, want a stop with an error", outcome)
+	}
+
+	if got := recorder.recorded(); len(got) != 0 {
+		t.Fatalf("dispatched %v, want nothing: the step was never valid", got)
 	}
 }
