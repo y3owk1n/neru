@@ -25,19 +25,19 @@ func actionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	gridStr := domain.ModeString(domain.ModeGrid)
 
 	recursiveGridStr := domain.ModeString(domain.ModeRecursiveGrid)
-	for _, actionStr := range flattenRunSteps(actions) {
-		mode := commandOf(actionStr)
-		switch {
+
+	return anyBindingStep(actions, cfg, func(step string) bool {
+		switch mode := commandOf(step); {
 		case mode == hintsStr && !cfg.Hints.Enabled:
 			return true
 		case mode == gridStr && !cfg.Grid.Enabled:
 			return true
 		case mode == recursiveGridStr && !cfg.RecursiveGrid.Enabled:
 			return true
+		default:
+			return false
 		}
-	}
-
-	return false
+	})
 }
 
 // registerHotkeys registers global hotkeys for the specified app bundle ID.
@@ -136,7 +136,7 @@ func (a *App) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 
 		// Suppress hotkey modifiers synchronously so the per-mode event tap
 		// sees them as suppressed before the debounce timer can fire.
-		if actionsContainModeSwitch(actions) {
+		if actionsContainModeSwitch(actions, a.configSnapshot()) {
 			a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
 		}
 	}
@@ -171,7 +171,7 @@ func (a *App) dispatchModeAwareHeldHotkey(key string, globalActions []string) {
 	// Suppress hotkey modifiers synchronously so the per-mode event tap
 	// sees them as suppressed before the debounce timer can fire.
 	// This must happen before the async dispatch or startHotkeyRepeat.
-	if a.modes != nil && actionsContainModeSwitch(actions) {
+	if a.modes != nil && actionsContainModeSwitch(actions, a.configSnapshot()) {
 		a.modes.SuppressModifiersForHotkey(hotkeyModifiersFromKey(key))
 	}
 
@@ -343,21 +343,21 @@ func hotkeyModifiersFromKey(key string) action.Modifiers {
 
 // actionsContainModeSwitch reports whether any action in the list is a
 // mode-switch action (hints, grid, recursive_grid, scroll, monitor_select).
-func actionsContainModeSwitch(actions []string) bool {
-	for _, actionStr := range flattenRunSteps(actions) {
+func actionsContainModeSwitch(actions []string, cfg *config.Config) bool {
+	return anyBindingStep(actions, cfg, func(step string) bool {
 		// The action format is "<mode_name>" with optional args, so split
 		// to get just the mode name for comparison.
-		switch commandOf(actionStr) {
+		switch commandOf(step) {
 		case domain.ModeString(domain.ModeHints),
 			domain.ModeString(domain.ModeGrid),
 			domain.ModeString(domain.ModeRecursiveGrid),
 			domain.ModeString(domain.ModeScroll),
 			domain.ModeString(domain.ModeMonitorSelect):
 			return true
+		default:
+			return false
 		}
-	}
-
-	return false
+	})
 }
 
 // commandOf returns the command word of an action string, ignoring its flags.
@@ -371,86 +371,102 @@ func commandOf(actionStr string) string {
 	return fields[0]
 }
 
-// flattenRunSteps expands "run <step>..." so that callers which inspect what a
-// binding does — mode-switch detection, disabled-mode skipping — see the steps
-// a run carries rather than the word "run". Blank actions are dropped.
+// maxInspectedSteps bounds how many steps a binding inspection will look at.
 //
-// Expansion follows nesting as deep as the executor will, so a mode named below
-// the first run is not invisible to those checks.
-func flattenRunSteps(actions []string) []string {
-	return flattenRunStepsAtDepth(actions, 0)
+// Expansion follows nested sequences, and a binding whose macros fan out into
+// each other multiplies at every level. That is a config nobody writes on
+// purpose, but the inspection runs on the key-press path, so it is bounded
+// rather than trusted: past the budget the answer is "no mode named here",
+// the same conclusion drawn for anything else that cannot be expanded.
+const maxInspectedSteps = 256
+
+// anyBindingStep reports whether pred holds for any step the binding will run,
+// looking inside the sequence constructs ("run", "macro") as deep as the
+// executor will follow them.
+//
+// It walks rather than expanding into a slice, so a match short-circuits and
+// nothing accumulates in memory — both callers only ever need the first hit.
+func anyBindingStep(actions []string, cfg *config.Config, pred func(step string) bool) bool {
+	budget := maxInspectedSteps
+
+	return anyBindingStepAtDepth(actions, cfg, 0, &budget, pred)
 }
 
-// flattenRunStepsAtDepth expands the steps of one sequence, recursing into a
-// nested run until maxSequenceDepth. Past that depth the executor refuses to
-// start the sequence, so its steps never run and are left unexpanded — the
-// unexpanded "run ..." names no mode, which is exactly what the callers should
-// conclude about it.
-func flattenRunStepsAtDepth(actions []string, depth int) []string {
-	flattened := make([]string, 0, len(actions))
-
+// anyBindingStepAtDepth walks the steps of one sequence, recursing into nested
+// ones until maxSequenceDepth. Past that depth the executor refuses to start
+// the sequence, so its steps never run and the construct is left unexpanded.
+func anyBindingStepAtDepth(
+	actions []string,
+	cfg *config.Config,
+	depth int,
+	budget *int,
+	pred func(step string) bool,
+) bool {
 	for _, actionStr := range actions {
 		trimmed := strings.TrimSpace(actionStr)
 		if trimmed == "" {
 			continue
 		}
 
-		if depth >= maxSequenceDepth || commandOf(trimmed) != domain.CommandRun {
-			flattened = append(flattened, trimmed)
+		if *budget <= 0 {
+			return false
+		}
+
+		*budget--
+
+		nested := nestedSteps(trimmed, cfg, depth)
+		if nested == nil {
+			if pred(trimmed) {
+				return true
+			}
 
 			continue
 		}
 
-		// splitArgs applies the same quoting rules the executor uses, so the
-		// steps seen here are the steps that will run.
-		flattened = append(
-			flattened,
-			flattenRunStepsAtDepth(splitArgs(trimmed)[1:], depth+1)...,
-		)
-	}
-
-	return flattened
-}
-
-func splitArgs(input string) []string {
-	var args []string
-
-	var current strings.Builder
-
-	inSingleQuote := false
-	inDoubleQuote := false
-
-	for _, char := range input {
-		switch char {
-		case '\'':
-			if !inDoubleQuote {
-				inSingleQuote = !inSingleQuote
-			} else {
-				current.WriteRune(char)
-			}
-		case '"':
-			if !inSingleQuote {
-				inDoubleQuote = !inDoubleQuote
-			} else {
-				current.WriteRune(char)
-			}
-		case ' ':
-			if inSingleQuote || inDoubleQuote {
-				current.WriteRune(char)
-			} else if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
-			}
-		default:
-			current.WriteRune(char)
+		if anyBindingStepAtDepth(nested, cfg, depth+1, budget, pred) {
+			return true
 		}
 	}
 
-	if current.Len() > 0 {
-		args = append(args, current.String())
+	return false
+}
+
+// nestedSteps returns the steps a "run" or "macro" step carries, or nil when
+// the step is an ordinary action or cannot be expanded — an unknown macro, or
+// nesting the executor would refuse anyway.
+func nestedSteps(step string, cfg *config.Config, depth int) []string {
+	if depth >= maxSequenceDepth {
+		return nil
 	}
 
-	return args
+	// splitArgs applies the same quoting rules the executor uses, so the steps
+	// seen here are the steps that will run.
+	switch commandOf(step) {
+	case domain.CommandRun:
+		return splitArgs(step)[1:]
+	case config.MacroCommand:
+		if cfg == nil {
+			return nil
+		}
+
+		name, args, _ := config.ParseMacroCall(step)
+
+		body, defined := cfg.Macros[name]
+		if !defined {
+			return nil
+		}
+
+		return config.ExpandMacroSteps(body, args)
+	default:
+		return nil
+	}
+}
+
+// splitArgs tokenises an action step. The rules belong to the step grammar
+// rather than to the hotkey layer, so they live in the config package, which
+// also needs them to read macro calls during validation.
+func splitArgs(input string) []string {
+	return config.SplitStepArgs(input)
 }
 
 // executeHotkeyAction executes a single action step, which can be either a

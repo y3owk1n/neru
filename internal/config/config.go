@@ -37,7 +37,12 @@ const (
 // Common action command constants.
 const (
 	// CmdRun runs the rest of the binding as an ordered action sequence.
-	CmdRun                         = "run"
+	CmdRun = "run"
+	// CmdMacro runs a named sequence from the [macros] table.
+	CmdMacro = MacroCommand
+	// OnExitFlag carries a step a mode runs once its action is fulfilled. It is
+	// repeatable, and its values are steps in their own right.
+	OnExitFlag                     = "--on-exit"
 	CmdToggleCursorFollowSelection = "toggle-cursor-follow-selection"
 	CmdMoveMouseUp                 = "action move_mouse_relative --dx=0 --dy=-10"
 )
@@ -177,23 +182,24 @@ var comboKeyAliases = map[string]string{
 
 // Config represents the complete application configuration structure.
 type Config struct {
-	General         GeneralConfig         `json:"general"         toml:"general"`
-	Theme           ThemeConfig           `json:"theme"           toml:"theme"`
-	Hotkeys         HotkeysConfig         `json:"hotkeys"         toml:"-"`
-	Hints           HintsConfig           `json:"hints"           toml:"hints"`
-	Grid            GridConfig            `json:"grid"            toml:"grid"`
-	RecursiveGrid   RecursiveGridConfig   `json:"recursiveGrid"   toml:"recursive_grid"`
-	MonitorSelect   MonitorSelectConfig   `json:"monitorSelect"   toml:"monitor_select"`
-	VirtualPointer  VirtualPointerConfig  `json:"virtualPointer"  toml:"virtual_pointer"`
-	MouseAction     MouseActionConfig     `json:"mouseAction"     toml:"mouse_action_indicator"`
-	Scroll          ScrollConfig          `json:"scroll"          toml:"scroll"`
-	ModeIndicator   ModeIndicatorConfig   `json:"modeIndicator"   toml:"mode_indicator"`
-	StickyModifiers StickyModifiersConfig `json:"stickyModifiers" toml:"sticky_modifiers"`
-	Logging         LoggingConfig         `json:"logging"         toml:"logging"`
-	SmoothCursor    SmoothCursorConfig    `json:"smoothCursor"    toml:"smooth_cursor"`
-	SmoothScroll    SmoothScrollConfig    `json:"smoothScroll"    toml:"smooth_scroll"`
-	HeldRepeat      HeldRepeatConfig      `json:"heldRepeat"      toml:"held_repeat"`
-	Systray         SystrayConfig         `json:"systray"         toml:"systray"`
+	General         GeneralConfig                  `json:"general"         toml:"general"`
+	Theme           ThemeConfig                    `json:"theme"           toml:"theme"`
+	Hotkeys         HotkeysConfig                  `json:"hotkeys"         toml:"-"`
+	Macros          map[string]StringOrStringArray `json:"macros"          toml:"macros"`
+	Hints           HintsConfig                    `json:"hints"           toml:"hints"`
+	Grid            GridConfig                     `json:"grid"            toml:"grid"`
+	RecursiveGrid   RecursiveGridConfig            `json:"recursiveGrid"   toml:"recursive_grid"`
+	MonitorSelect   MonitorSelectConfig            `json:"monitorSelect"   toml:"monitor_select"`
+	VirtualPointer  VirtualPointerConfig           `json:"virtualPointer"  toml:"virtual_pointer"`
+	MouseAction     MouseActionConfig              `json:"mouseAction"     toml:"mouse_action_indicator"`
+	Scroll          ScrollConfig                   `json:"scroll"          toml:"scroll"`
+	ModeIndicator   ModeIndicatorConfig            `json:"modeIndicator"   toml:"mode_indicator"`
+	StickyModifiers StickyModifiersConfig          `json:"stickyModifiers" toml:"sticky_modifiers"`
+	Logging         LoggingConfig                  `json:"logging"         toml:"logging"`
+	SmoothCursor    SmoothCursorConfig             `json:"smoothCursor"    toml:"smooth_cursor"`
+	SmoothScroll    SmoothScrollConfig             `json:"smoothScroll"    toml:"smooth_scroll"`
+	HeldRepeat      HeldRepeatConfig               `json:"heldRepeat"      toml:"held_repeat"`
+	Systray         SystrayConfig                  `json:"systray"         toml:"systray"`
 
 	// AppConfigs holds per-application overrides for global hotkeys, similar to
 	// per-mode [[<mode>.app_configs]].  Each entry can override or disable

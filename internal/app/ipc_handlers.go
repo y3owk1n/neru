@@ -313,9 +313,9 @@ func (h *IPCControllerModes) extractModeOptions(
 			opts.Action = &actionArg
 		// --on-exit is repeatable: each occurrence appends one step to the
 		// sequence that runs once the pending action is fulfilled.
-		case strings.HasPrefix(arg, "--on-exit="):
-			opts.OnExit = append(opts.OnExit, strings.TrimPrefix(arg, "--on-exit="))
-		case arg == "--on-exit":
+		case strings.HasPrefix(arg, config.OnExitFlag+"="):
+			opts.OnExit = append(opts.OnExit, strings.TrimPrefix(arg, config.OnExitFlag+"="))
+		case arg == config.OnExitFlag:
 			if startIdx+1 >= len(cmd.Args) {
 				resp := ipc.Response{
 					Success: false,

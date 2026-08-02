@@ -22,6 +22,7 @@ const (
 	sequenceTestCommand = "step"
 
 	failureMessage = "boom"
+	bailMessage    = "mode exited without selection"
 
 	stepOne   = "step one"
 	stepTwo   = "step two"
@@ -136,7 +137,7 @@ func TestExecuteActionSequence_StopsOnBail(t *testing.T) {
 			if step == stepTwo {
 				return ipc.Response{
 					Success: false,
-					Message: "mode exited without selection",
+					Message: bailMessage,
 					Code:    ipc.CodeChainBail,
 				}
 			}
@@ -397,5 +398,189 @@ func TestExecuteActionSequence_RejectsMisplacedDirective(t *testing.T) {
 
 	if got := recorder.recorded(); len(got) != 0 {
 		t.Fatalf("dispatched %v, want nothing: the step was never valid", got)
+	}
+}
+
+// macroTestApp is a sequence test app whose config defines the given macros.
+func macroTestApp(t *testing.T, recorder *stepRecorder, macros map[string][]string) *App {
+	t.Helper()
+
+	application := newSequenceTestApp(t, recorder)
+
+	table := make(map[string]config.StringOrStringArray, len(macros))
+	for name, steps := range macros {
+		table[name] = steps
+	}
+
+	application.config.Macros = table
+
+	return application
+}
+
+func TestExecuteActionSequence_ExpandsAMacro(t *testing.T) {
+	recorder := &stepRecorder{}
+	application := macroTestApp(t, recorder, map[string][]string{
+		"two": {stepOne, stepTwo},
+	})
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{"macro two", stepThree},
+	)
+
+	if outcome.err != nil {
+		t.Fatalf("outcome.err = %v, want nil", outcome.err)
+	}
+
+	// The caller counts the step it wrote, not the steps the macro carried.
+	if outcome.executed != 2 {
+		t.Fatalf("executed = %d, want 2", outcome.executed)
+	}
+
+	want := []string{stepOne, stepTwo, stepThree}
+	if got := recorder.recorded(); !slices.Equal(got, want) {
+		t.Fatalf("dispatched %v, want %v", got, want)
+	}
+}
+
+func TestExecuteActionSequence_SubstitutesMacroArguments(t *testing.T) {
+	recorder := &stepRecorder{}
+	application := macroTestApp(t, recorder, map[string][]string{
+		"say": {"step $2 $1"},
+	})
+
+	application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{"macro say alpha beta"},
+	)
+
+	want := []string{"step beta alpha"}
+	if got := recorder.recorded(); !slices.Equal(got, want) {
+		t.Fatalf("dispatched %v, want %v", got, want)
+	}
+}
+
+func TestExecuteActionSequence_RejectsBadMacroCalls(t *testing.T) {
+	tests := []struct {
+		name string
+		step string
+	}{
+		{name: "unknown macro", step: "macro nope"},
+		{name: "too few arguments", step: "macro needs_two alpha"},
+		{name: "too many arguments", step: "macro needs_two alpha beta gamma"},
+		{name: "no name", step: "macro"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := &stepRecorder{}
+			application := macroTestApp(t, recorder, map[string][]string{
+				"needs_two": {"step $1 $2"},
+			})
+
+			outcome := application.executeActionSequence(
+				context.Background(),
+				"test",
+				[]string{testCase.step},
+			)
+
+			if outcome.err == nil {
+				t.Fatalf("outcome.err = nil, want a rejection of %q", testCase.step)
+			}
+
+			if got := recorder.recorded(); len(got) != 0 {
+				t.Fatalf("dispatched %v, want nothing", got)
+			}
+		})
+	}
+}
+
+// A macro that invokes itself is a runaway sequence, and the depth guard is
+// what stops it — the same guard that bounds a nested run.
+func TestExecuteActionSequence_StopsASelfInvokingMacro(t *testing.T) {
+	recorder := &stepRecorder{}
+	application := macroTestApp(t, recorder, map[string][]string{
+		"loop": {stepOne, "macro loop"},
+	})
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{"macro loop"},
+	)
+
+	if outcome.err == nil {
+		t.Fatal("outcome.err = nil, want the depth guard to stop the recursion")
+	}
+
+	if got := len(recorder.recorded()); got != maxSequenceDepth-1 {
+		t.Fatalf("dispatched %d steps, want the guard to stop at %d", got, maxSequenceDepth-1)
+	}
+}
+
+// A canceled mode inside a macro must still read as a bail to the caller,
+// rather than as an ordinary failure it might carry on past.
+func TestExecuteActionSequence_PropagatesABailOutOfAMacro(t *testing.T) {
+	recorder := &stepRecorder{
+		respond: func(_ context.Context, step string) ipc.Response {
+			if step == stepOne {
+				return ipc.Response{
+					Success: false,
+					Message: bailMessage,
+					Code:    ipc.CodeChainBail,
+				}
+			}
+
+			return ipc.Response{Success: true, Code: ipc.CodeOK}
+		},
+	}
+	application := macroTestApp(t, recorder, map[string][]string{
+		"bails": {stepOne},
+	})
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{"macro bails", stepTwo},
+	)
+
+	if !outcome.bailed || !outcome.stopped {
+		t.Fatalf("outcome bailed=%v stopped=%v, want both", outcome.bailed, outcome.stopped)
+	}
+
+	if got := recorder.recorded(); !slices.Equal(got, []string{stepOne}) {
+		t.Fatalf("dispatched %v, want the sequence to stop after the macro", got)
+	}
+}
+
+// The bail directive is consumed before the call is parsed, so it must not be
+// mistaken for one of the macro's arguments.
+func TestExecuteActionSequence_BailDirectiveIsNotAMacroArgument(t *testing.T) {
+	recorder := &stepRecorder{
+		respond: func(_ context.Context, _ string) ipc.Response {
+			return ipc.Response{Success: false, Message: failureMessage, Code: ipc.CodeActionFailed}
+		},
+	}
+	application := macroTestApp(t, recorder, map[string][]string{
+		"needs_two": {"step $1 $2"},
+	})
+
+	outcome := application.executeActionSequence(
+		context.Background(),
+		"test",
+		[]string{"macro needs_two alpha beta " + bailOnErrorFlag, stepThree},
+	)
+
+	// The call is well-formed: it is the macro's own step that fails, and the
+	// directive makes that failure end the calling sequence.
+	if !outcome.stopped {
+		t.Fatalf("outcome = %+v, want the directive to stop the sequence", outcome)
+	}
+
+	want := []string{"step alpha beta"}
+	if got := recorder.recorded(); !slices.Equal(got, want) {
+		t.Fatalf("dispatched %v, want %v", got, want)
 	}
 }

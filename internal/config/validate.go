@@ -126,6 +126,13 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	// Validate macro definitions and every call to one. This runs last so a
+	// call is checked against a table that is already known to be sound.
+	err = c.ValidateMacros()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

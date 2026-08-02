@@ -45,6 +45,17 @@ text = "#E8EEFF"
 "Primary+Shift+C" = "recursive_grid"
 "Primary+Shift+S" = "scroll"
 
+# Macros — named action sequences, reused from any binding.
+# Written by hand, not recorded. $1, $2 ... are the call's arguments.
+# See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#macros
+#
+# [macros]
+# click_and_exit = ["action left_click --bail-on-error", "idle"]
+# click_at = ["action move_mouse --x $1 --y $2", "action left_click"]
+#
+# [hints.hotkeys]
+# "Enter" = "macro click_and_exit"
+
 # Hint mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#hints
 [hints]
