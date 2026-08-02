@@ -749,7 +749,28 @@ package and a build-tagged file aliases the types and binds the functions. The
 shell did not change at all.
 
 That is the cheaper move whenever the shell talks to *package-level* symbols
-rather than to methods on a value: alias, do not abstract. `hints.StyleMode`
+rather than to methods on a value: alias, do not abstract.
+
+### Where the render models live, and why they stay there
+
+`hints.Hint`, `grid.Style` and the other render models sit under
+`adapter/overlay/render/`, not in the domain, and that is deliberate rather than
+unfinished.
+
+They could not move at all until the per-platform `Style` types were unified —
+a type declared once per build tag cannot live in a platform-neutral package.
+That is fixed, so the move is now possible. It is still not worth making:
+
+- `hints.Hint`, `hints.StyleMode` and `hints.Overlay` are one concept. Splitting
+  them by layer produces two packages named `hints` — likewise `grid` and
+  `recursivegrid` — which every site touching both halves must then alias.
+- It would not retire the `sharedInfraPackages` entry it appears to be aimed at.
+  The app also names `overlay.Mode`, `overlay.ManagerInterface` and the
+  process-wide accessors, and those keep the entry alive regardless.
+- Three of the six render packages have no neutral content to move.
+
+Cohesion beats layer purity here. The layering guardrail records the same
+reasoning next to the exception itself. `hints.StyleMode`
 was declared three times identically, so unifying it was a deletion.
 `grid.Style` and `recursivegrid.Style` genuinely differed — macOS held hex
 colour strings and ints where Linux and Windows held packed ARGB and floats —
