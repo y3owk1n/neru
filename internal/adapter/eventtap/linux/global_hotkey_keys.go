@@ -5,7 +5,7 @@
 // so config keybindings and live evdev key events compare reliably.
 // Does NOT read devices or fire callbacks; that lives in the cgo listener.
 
-package eventtap
+package linux
 
 import (
 	"sort"

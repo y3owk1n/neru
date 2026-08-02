@@ -4,7 +4,7 @@
 // Tests that config-side and live-evdev-side chord spellings canonicalize equal.
 // Does NOT test device reading or callback dispatch.
 
-package eventtap //nolint:testpackage // white-box: exercises the unexported canonicalChordSignature.
+package linux //nolint:testpackage // white-box: exercises the unexported canonicalChordSignature.
 
 import "testing"
 

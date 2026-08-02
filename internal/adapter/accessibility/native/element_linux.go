@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/eventtap"
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/config"
@@ -453,7 +453,7 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 				remainingNotches--
 
 				if len(batch) >= maxBatchEvents || remainingNotches == 0 {
-					err := eventtap.ScrollDeviceScrollBatch(axis, batch)
+					err := eventtaplinux.ScrollDeviceScrollBatch(axis, batch)
 					if err != nil {
 						// uinput unavailable — add back unsent notches so the
 						// remaining delta is retried via wlroots virtual pointer

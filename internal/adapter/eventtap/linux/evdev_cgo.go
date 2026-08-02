@@ -1,10 +1,10 @@
 //go:build linux && cgo
 
-package eventtap
+package linux
 
 /*
-#include "../platform/linux/evdev.h"
-#include "../platform/linux/wayland_keymap.h"
+#include "../../platform/linux/evdev.h"
+#include "../../platform/linux/wayland_keymap.h"
 */
 import "C"
 

@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package eventtap
+package linux
 
 import (
 	"os"

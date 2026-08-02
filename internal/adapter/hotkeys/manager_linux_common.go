@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/eventtap"
+	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -27,7 +27,7 @@ type Manager struct {
 
 	// waylandHotkeys honors config keybindings on Wayland via passive evdev
 	// reads, since compositors do not expose global hotkeys to clients.
-	waylandHotkeys *eventtap.GlobalHotkeyListener
+	waylandHotkeys *eventtaplinux.GlobalHotkeyListener
 	waylandStarted bool
 }
 
@@ -47,7 +47,7 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 
 	if isWaylandBackend(mgr.backend) {
-		mgr.waylandHotkeys = eventtap.NewGlobalHotkeyListener(logger)
+		mgr.waylandHotkeys = eventtaplinux.NewGlobalHotkeyListener(logger)
 	}
 
 	return mgr
@@ -232,7 +232,7 @@ func (m *Manager) stopWayland() {
 
 	if !m.waylandHotkeys.StopWithTimeout(waylandStopTimeout) {
 		m.logger.Warn("Replacing stuck evdev hotkey listener with fresh instance")
-		m.waylandHotkeys = eventtap.NewGlobalHotkeyListener(m.rawLogger)
+		m.waylandHotkeys = eventtaplinux.NewGlobalHotkeyListener(m.rawLogger)
 	}
 
 	m.waylandStarted = false

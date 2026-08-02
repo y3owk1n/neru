@@ -1,7 +1,7 @@
 //go:build linux && cgo
 
 //nolint:testpackage // These tests validate unexported evdev translation helpers directly.
-package eventtap
+package linux
 
 import (
 	"strconv"

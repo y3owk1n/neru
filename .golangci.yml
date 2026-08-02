@@ -54,8 +54,13 @@ linters:
                               or create a build-tagged platform_darwin.go / platform_stub.go
                               pair in your package. See docs/ARCHITECTURE.md.
                     files:
-                        # Allow all files inside the darwin package (including tests)
-                        - "!**/platform/darwin/**"
+                        # Allow every file in a directory named darwin. Such a
+                        # package is darwin-only by construction, and
+                        # TestPlatformPackagesTagEveryFile fails if any file in
+                        # it lacks the build tag that makes that true. Matching
+                        # the directory rather than listing packages means a new
+                        # darwin backend needs no edit here.
+                        - "!**/darwin/**"
                         # Allow build-tagged dispatch files in any package
                         - "!**/*_darwin.go"
                         # Allow integration test files that explicitly link CGO

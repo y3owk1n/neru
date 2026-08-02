@@ -7,7 +7,7 @@
 // still receives the keys. While a mode is active the in-mode eventtap grabs the
 // same devices, so this listener naturally goes quiet until the mode exits.
 
-package eventtap
+package linux
 
 import (
 	"sync"

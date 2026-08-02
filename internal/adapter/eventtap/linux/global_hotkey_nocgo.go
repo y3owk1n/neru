@@ -4,7 +4,7 @@
 // No-op GlobalHotkeyListener for builds without cgo (evdev needs cgo).
 // Does nothing; exists only so the hotkey manager compiles without cgo.
 
-package eventtap
+package linux
 
 import (
 	"time"

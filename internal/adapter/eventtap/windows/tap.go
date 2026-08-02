@@ -1,6 +1,6 @@
 //go:build windows
 
-package eventtap
+package windows
 
 import (
 	"context"
@@ -9,24 +9,19 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
 
 const windowsKeyUpPrefix = "__keyup_"
-
-// Callback defines the function signature for handling key press events.
-type Callback func(key string)
-
-// PassthroughCallback is invoked when a modifier shortcut passes through to the system.
-type PassthroughCallback func()
 
 // EventTap represents a keyboard event interceptor on Windows.
 type EventTap struct {
 	logger *zap.Logger
 
 	mu                   sync.RWMutex
-	callback             Callback
-	passthroughCallback  PassthroughCallback
+	callback             tap.Callback
+	passthroughCallback  tap.PassthroughCallback
 	hotkeys              []string
 	stickyModifierToggle bool
 	enabled              bool
@@ -35,7 +30,7 @@ type EventTap struct {
 }
 
 // NewEventTap initializes a new event tap.
-func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
+func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -112,7 +107,7 @@ func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
 func (et *EventTap) SetInterceptedModifierKeys(_ []string) {}
 
 // SetPassthroughCallback sets the passthrough callback.
-func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
+func (et *EventTap) SetPassthroughCallback(cb tap.PassthroughCallback) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 

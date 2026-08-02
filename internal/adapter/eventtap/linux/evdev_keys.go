@@ -1,6 +1,6 @@
 //go:build linux
 
-package eventtap
+package linux
 
 import "strings"
 

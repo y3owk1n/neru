@@ -1,6 +1,6 @@
 //go:build linux
 
-package eventtap
+package linux
 
 import (
 	"os"
@@ -11,15 +11,9 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
-)
-
-type (
-	// Callback is invoked when a key event is intercepted.
-	Callback func(key string)
-	// PassthroughCallback is invoked when a modifier key is in passthrough mode.
-	PassthroughCallback func()
 )
 
 type pendingSyntheticModifierEvent struct {
@@ -70,8 +64,8 @@ type EventTap struct {
 	logger *zap.Logger
 
 	mu                   sync.RWMutex
-	callback             Callback
-	passthroughCallback  PassthroughCallback
+	callback             tap.Callback
+	passthroughCallback  tap.PassthroughCallback
 	hotkeys              []string
 	stickyModifierToggle bool
 	enabled              bool
@@ -122,7 +116,7 @@ type EventTap struct {
 }
 
 // NewEventTap creates a new EventTap instance.
-func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
+func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	tap := &EventTap{
 		logger:   logger,
 		callback: callback,
@@ -273,7 +267,7 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 }
 
 // SetPassthroughCallback sets the callback for passthrough mode.
-func (et *EventTap) SetPassthroughCallback(cb PassthroughCallback) {
+func (et *EventTap) SetPassthroughCallback(cb tap.PassthroughCallback) {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 

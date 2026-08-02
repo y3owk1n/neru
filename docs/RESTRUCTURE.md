@@ -187,7 +187,7 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 | 3 | Render models → `internal/domain/render/` | **deferred** | Not a move — needs the per-platform `Style` types unified first ([why](#4-render-models-live-under-an-adapter)) |
 | 4 | Split `internal/app` → `ipcctrl`/`sequence` | **done** | 72 files → 45 |
 | 5 | Shrink `*App` to consumer-defined interfaces | **done for hotkeys** | 119 → 106 methods; ongoing beyond that |
-| 6 | Backends as packages: accessibility → overlay → eventtap | **accessibility done** | AT-SPI is its own package; macOS/Windows need the shell parameterised first |
+| 6 | Backends as packages: accessibility → eventtap → overlay | **accessibility + eventtap done** | overlay remains; see the recipe below |
 
 Step 2 also retired the word "infra" from the docs, dropped the empty
 `internal/core` doc-only package, and renamed `core/errors` to `internal/derrors`
@@ -272,6 +272,51 @@ and the edit would look the same whether it was right or was hiding a package
 that is not actually single-platform.
 
 ---
+
+## The One Pattern Behind All of It
+
+Three packages resisted being split, and they resisted the same way. Naming it
+once is worth more than the individual fixes:
+
+> **A package that looks like "shared code plus platform files" is usually one
+> generic shell specialised by build-tagged concrete types.** It has no
+> interface seam, so there is nothing for a backend package to implement.
+
+`accessibility` was this (`InfraAXClient` over per-OS `Element`/`TreeNode`).
+`eventtap` was this (`Adapter` over a per-OS `EventTap` struct). Whether
+`overlay` is depends on one question, answered below.
+
+The fix is always the same three moves, in order:
+
+1. **Find the seam.** List the methods the shell calls on the platform type.
+   For `eventtap` that was ten; small enough to write down in one sitting.
+2. **Extract the contract into a leaf package** (`ax`, `tap`). It must be a
+   leaf, because the backends import it to satisfy it and the factory imports
+   the backends — anything else is an import cycle.
+3. **Move each platform's files into a package and add a build-tagged
+   factory.** The factory is ten lines and is the only place that knows which
+   implementation exists.
+
+Two traps, both hit for real:
+
+- **Named function types.** A method taking `darwin.Callback` does not satisfy
+  an interface wanting `func(string)`, even though the underlying types match.
+  Put the callback types in the contract package and have backends use them.
+- **Typed nil.** A factory that returns a concrete `*T` as an interface hands
+  back a non-nil interface holding a nil pointer, and every caller's
+  `if tap != nil` silently passes. Check before returning. `staticcheck`
+  catches this (SA4023) — it caught it here.
+
+### What overlay needs
+
+`overlay` is the last one, and it starts ahead: `ManagerInterface` in `types.go`
+already **is** the seam, and `Adapter` already takes it. So step 1 is done and
+step 2 is most of the work — `ManagerInterface` has to move to a leaf package,
+because `types.go` also holds render models that the app imports.
+
+The open question is whether the per-OS `Manager` structs share helpers the way
+`InfraAXClient` did. If they do not, overlay is the easiest of the three despite
+being the largest. Do it after this branch ships, not on top of it.
 
 ## Rules for Every Step
 

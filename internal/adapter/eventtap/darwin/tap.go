@@ -1,10 +1,10 @@
 //go:build darwin
 
-package eventtap
+package darwin
 
 /*
 #cgo CFLAGS: -x objective-c
-#include "../platform/darwin/eventtap.h"
+#include "../../platform/darwin/eventtap.h"
 #include <stdlib.h>
 
 extern void eventTapCallbackBridge(char* key, void* userData);
@@ -18,14 +18,9 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
-
-// Callback defines the function signature for handling key press events.
-type Callback func(key string)
-
-// PassthroughCallback is invoked when a modifier shortcut passes through to macOS.
-type PassthroughCallback func()
 
 type callbackEventKind uint8
 
@@ -37,7 +32,7 @@ const (
 type callbackEvent struct {
 	kind                callbackEventKind
 	key                 string
-	passthroughCallback PassthroughCallback
+	passthroughCallback tap.PassthroughCallback
 }
 
 // unboundedQueue is an infinite-capacity event queue.
@@ -96,8 +91,8 @@ type EventTap struct {
 	logger *zap.Logger
 
 	callbackMu          sync.RWMutex
-	callback            Callback
-	passthroughCallback PassthroughCallback
+	callback            tap.Callback
+	passthroughCallback tap.PassthroughCallback
 
 	queue        *unboundedQueue
 	stopDispatch chan struct{}
@@ -107,7 +102,7 @@ type EventTap struct {
 
 // NewEventTap initializes a new event tap for capturing global keyboard events.
 // Returns nil if the event tap cannot be created, typically due to missing Accessibility permissions.
-func NewEventTap(callback Callback, logger *zap.Logger) *EventTap {
+func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -260,7 +255,7 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 
 // SetPassthroughCallback registers a function to call when a modifier shortcut
 // passes through to macOS. Pass nil to clear the callback.
-func (et *EventTap) SetPassthroughCallback(callback PassthroughCallback) {
+func (et *EventTap) SetPassthroughCallback(callback tap.PassthroughCallback) {
 	if et.handle == nil {
 		et.logger.Warn("Cannot set passthrough callback on nil event tap")
 
@@ -381,7 +376,7 @@ func (et *EventTap) handleKeyCallback(key string) {
 	}
 }
 
-func (et *EventTap) handlePassthroughCallback(callback PassthroughCallback) {
+func (et *EventTap) handlePassthroughCallback(callback tap.PassthroughCallback) {
 	if callback != nil {
 		callback()
 	}
@@ -444,7 +439,7 @@ func (et *EventTap) enqueueKey(key string) {
 	})
 }
 
-func (et *EventTap) enqueuePassthrough(callback PassthroughCallback) {
+func (et *EventTap) enqueuePassthrough(callback tap.PassthroughCallback) {
 	if callback == nil {
 		return
 	}

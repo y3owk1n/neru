@@ -1,11 +1,11 @@
 //go:build linux && cgo
 
-package eventtap
+package linux
 
 /*
 #cgo linux pkg-config: x11 xtst
 #include <stdlib.h>
-#include "../platform/linux/x11_eventtap.h"
+#include "../../platform/linux/x11_eventtap.h"
 */
 import "C"
 

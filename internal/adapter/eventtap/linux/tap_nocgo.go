@@ -1,6 +1,6 @@
 //go:build linux && !cgo
 
-package eventtap
+package linux
 
 import "github.com/y3owk1n/neru/internal/derrors"
 

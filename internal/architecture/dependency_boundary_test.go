@@ -50,7 +50,14 @@ func TestNonDarwinFilesDoNotImportDarwinPlatformPackage(t *testing.T) {
 		}
 
 		slashed := filepath.ToSlash(relPath)
-		if strings.Contains(slashed, "/platform/darwin/") ||
+
+		// A file may reach the darwin bridge when it is darwin-only, and there
+		// are two ways to be darwin-only: the filename says so, or the whole
+		// directory does. Matching the directory rather than naming packages
+		// means a new darwin backend needs no edit here, and
+		// TestPlatformPackagesTagEveryFile is what keeps such a directory
+		// honest — every file in it must carry the build tag.
+		if strings.Contains(slashed, "/darwin/") ||
 			strings.HasSuffix(slashed, "_darwin.go") ||
 			strings.HasSuffix(slashed, "integration_darwin_test.go") {
 			return nil

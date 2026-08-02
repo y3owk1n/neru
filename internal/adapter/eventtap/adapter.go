@@ -6,19 +6,20 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Adapter implements ports.EventTapPort by wrapping the existing EventTap.
 type Adapter struct {
-	tap     *EventTap
+	tap     tap.Tap
 	logger  *zap.Logger
 	mu      sync.RWMutex
 	enabled bool
 }
 
 // NewAdapter creates a new event tap adapter.
-func NewAdapter(tap *EventTap, logger *zap.Logger) *Adapter {
+func NewAdapter(tap tap.Tap, logger *zap.Logger) *Adapter {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -141,7 +142,7 @@ func (a *Adapter) Destroy() {
 // grab deactivates the focused toplevel, which breaks the next hints refresh.
 // Non-Linux backends and the no-cgo Linux build report false.
 func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
-	return IsUinputScrollAvailable() && !IsWaylandEvdevKeyboardActive()
+	return overlayKeyboardPassthroughAllowed()
 }
 
 // Ensure Adapter implements ports.EventTapPort and the optional overlay

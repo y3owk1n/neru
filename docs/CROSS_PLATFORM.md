@@ -179,7 +179,7 @@ Control events remain macOS-only.
 register a global hotkey, so Neru reads `/dev/input/event*` directly with a
 **passive** evdev listener — it does not grab devices or inject anything, so the
 focused app still receives every key
-([global_hotkey_linux_cgo.go](../internal/adapter/eventtap/global_hotkey_linux_cgo.go)).
+([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go)).
 Two conditions apply: the process needs read access to `/dev/input` (add your
 user to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a
 no-op stub. When the listener cannot start, Neru logs a warning pointing at both
@@ -252,8 +252,8 @@ left-most held button, since one event cannot describe more.
 | **Modifier passthrough** | ✅                  | ❌ grab is all-or-nothing | ✅ evdev only                          | ❌ no-op                |
 | **`PostModifierEvent`** | ✅                   | ✅                      | ✅ (`zwp_virtual_keyboard_v1`)           | ❌ no-op                |
 | **Sticky modifiers**  | ✅                     | ✅                      | ✅                                       | ✅                      |
-| **Capture files**     | `eventtap_darwin.go`   | `eventtap_linux_x11_cgo.go` | `eventtap_linux_wayland_cgo.go`, `..._evdev_cgo.go` | `eventtap_windows.go` |
-| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11_cgo.go`  | `manager_linux_common.go` + `eventtap/global_hotkey_linux_cgo.go` ³ | `manager_windows.go` |
+| **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/wayland_cgo.go`, `evdev_cgo.go` | `eventtap/windows/` |
+| **Hotkey files**      | `manager_darwin.go`    | `manager_linux_x11_cgo.go`  | `manager_linux_common.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `manager_windows.go` |
 
 ³ `hotkeys/manager_linux_wayland.go` is an empty placeholder — the Wayland
 hotkey path lives in the common manager, which delegates to the evdev listener
@@ -692,7 +692,7 @@ Two rules that save review cycles:
 Worked examples:
 
 - X11 hotkeys → [manager_linux_x11_cgo.go](../internal/adapter/hotkeys/manager_linux_x11_cgo.go)
-- Wayland keyboard capture → [eventtap_linux_wayland_cgo.go](../internal/adapter/eventtap/eventtap_linux_wayland_cgo.go)
+- Wayland keyboard capture → [wayland_cgo.go](../internal/adapter/eventtap/linux/wayland_cgo.go)
 - shared Linux system fallbacks → [system_linux_common.go](../internal/adapter/platform/linux/system_linux_common.go)
 
 ## Build And Test Commands
