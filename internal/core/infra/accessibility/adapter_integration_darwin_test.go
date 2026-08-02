@@ -28,7 +28,14 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()
 
-	ctx := context.Background()
+	// Bounded rather than context.Background(): every call below reaches the
+	// real AX API, and a scan of a slow or unresponsive frontmost window blocks
+	// in the Objective-C bridge. With no deadline that is not a slow test, it is
+	// `just test` never returning — and the run has to be killed by hand to find
+	// out which test it was. The budget is far above the daemon's own per-scan
+	// ceiling (modes.HintTimeout, 5s), so it can only trip on a real hang.
+	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
+	defer cancel()
 
 	t.Run("ScreenBounds", func(t *testing.T) {
 		screenBounds, screenBoundsErr := system.ScreenBounds(ctx)
@@ -73,6 +80,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
@@ -121,6 +130,11 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint bypassSmooth", func(t *testing.T) {
+		// Gated even though it only asserts the call returns no error: without
+		// the permission that call succeeds while the cursor never moves, so a
+		// pass here would say nothing about the path it exists to cover.
+		requireInputPermission(t)
+
 		// Get current position
 		startPos, startPosErr := system.CursorPosition(ctx)
 		if startPosErr != nil {
@@ -137,6 +151,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("MoveCursorToPoint lands on the requested point", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// Regression guard for the macOS Accessibility Zoom interaction: when
 		// pointer-motion events are posted at the HID tap and the screen is
 		// zoomed in, the window server rewrites their location to
@@ -244,6 +260,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	})
 
 	t.Run("ClickableElements queries the live AX tree without error", func(t *testing.T) {
+		requireInputPermission(t)
+
 		// A `go test` binary is not a foreground app with its own window, so
 		// the live AX tree usually yields zero elements here. That makes the
 		// element *count* unassertable, and any per-element loop vacuous — the

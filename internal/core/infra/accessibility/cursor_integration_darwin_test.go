@@ -38,6 +38,8 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	requireInputPermission(t)
+
 	zoomed := darwinplatform.IsScreenZoomed()
 	if zoomed {
 		t.Log("Accessibility Zoom is engaged — exercising the zoomed path")
@@ -117,6 +119,8 @@ func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	requireInputPermission(t)
 
 	bounds := darwinplatform.ActiveScreenBounds()
 	if bounds.Empty() {

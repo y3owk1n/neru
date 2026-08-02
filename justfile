@@ -224,9 +224,17 @@ list-foundation-packages:
 # cursor, keyboard and overlay, so two packages running concurrently fight over
 # one physical input device: a click in one package's test moves the cursor out
 # from under another package's cursor assertion, and either side can lose.
+#
+# -count=1 disables the test cache. Go keys that cache on the inputs it can see
+# — sources, env, files read — and none of those change when the thing an
+# integration test actually depends on does: whether Accessibility permission is
+# granted, whether a daemon holds the socket, whether the screen is locked. A
+# result cached from a run under different conditions is then replayed as a
+# pass, which is worse than no result at all: it reports green for a run that
+# never happened.
 test-integration:
     @echo "Running integration tests..."
-    go test -tags=integration -p 1 -v ./...
+    go test -tags=integration -p 1 -count=1 -v ./...
 
 # Run with race detection
 test-race: test-race-unit test-race-integration
@@ -238,10 +246,10 @@ test-race-unit:
     go test -race -v ./...
 
 # Run integration tests with race detection
-# See test-integration for why -p 1 is required here.
+# See test-integration for why -p 1 and -count=1 are required here.
 test-race-integration:
     @echo "Running integration tests with race detection..."
-    go test -tags=integration -race -p 1 -v ./...
+    go test -tags=integration -race -p 1 -count=1 -v ./...
 
 test-all: test test-race
 
