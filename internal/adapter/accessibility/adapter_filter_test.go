@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -24,8 +25,8 @@ const (
 // filterTestNodes is the fixed cast of AX nodes every filter case runs against.
 // Each node is chosen so that at least one filter field can single it out, and
 // so that role, size and text constraints are independent of one another.
-func filterTestNodes() []accessibility.AXNode {
-	return []accessibility.AXNode{
+func filterTestNodes() []ax.Node {
+	return []ax.Node{
 		&accessibility.MockNode{
 			MockID:        idBigButton,
 			MockBounds:    image.Rect(0, 0, 100, 40),
@@ -67,7 +68,7 @@ func newFilterAdapter(t *testing.T) *accessibility.Adapter {
 	client := &accessibility.MockAXClient{
 		MockPermissions:     true,
 		MockFrontmostWindow: window,
-		MockAllWindows:      []accessibility.AXWindow{window},
+		MockAllWindows:      []ax.Window{window},
 		MockClickableNodes:  filterTestNodes(),
 	}
 
@@ -175,7 +176,7 @@ func TestAdapter_ClickableElements_FilterContract(t *testing.T) {
 }
 
 // TestAdapter_ClickableElements_PreservesNodeAttributes checks that the
-// AXNode -> element.Element conversion carries every attribute across. A
+// ax.Node -> element.Element conversion carries every attribute across. A
 // dropped bounds or role here would silently misplace every hint.
 func TestAdapter_ClickableElements_PreservesNodeAttributes(t *testing.T) {
 	adapter := newFilterAdapter(t)
@@ -225,7 +226,7 @@ func TestAdapter_ClickableElements_PropagatesClientError(t *testing.T) {
 	client := &accessibility.MockAXClient{
 		MockPermissions:       true,
 		MockFrontmostWindow:   window,
-		MockAllWindows:        []accessibility.AXWindow{window},
+		MockAllWindows:        []ax.Window{window},
 		MockClickableNodesErr: errTestAccessibility,
 	}
 

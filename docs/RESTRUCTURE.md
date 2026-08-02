@@ -187,7 +187,7 @@ are mechanical and low-risk; step 6 is the one that actually delivers the goal.
 | 3 | Render models → `internal/domain/render/` | **deferred** | Not a move — needs the per-platform `Style` types unified first ([why](#4-render-models-live-under-an-adapter)) |
 | 4 | Split `internal/app` → `ipcctrl`/`sequence` | **done** | 72 files → 45 |
 | 5 | Shrink `*App` to consumer-defined interfaces | **done for hotkeys** | 119 → 106 methods; ongoing beyond that |
-| 6 | Backends as packages: accessibility → overlay → eventtap | | The cross-platform payoff |
+| 6 | Backends as packages: accessibility → overlay → eventtap | **accessibility done** | AT-SPI is its own package; macOS/Windows need the shell parameterised first |
 
 Step 2 also retired the word "infra" from the docs, dropped the empty
 `internal/core` doc-only package, and renamed `core/errors` to `internal/derrors`
@@ -232,12 +232,44 @@ today: a package name of `ipc` would collide with `internal/adapter/ipc`, which
 every one of these files imports for `ipc.Command` and `ipc.Response`. A
 per-file import alias is a worse tax than a slightly longer package name.
 
-**On step 6:** do `accessibility` alone first and live with it for a release
-before touching `overlay` and `eventtap`. All three at once is a merge-conflict
-nightmare for anyone with an open branch, and accessibility is the one where the
-per-OS divergence is worst. Once it lands, most of `platform_slots_test.go` can
-be deleted — package boundaries enforce what the filename convention currently
-only checks.
+**On step 6.** Accessibility is split; `overlay` and `eventtap` are not, and
+should wait for a release. All three at once is a merge-conflict nightmare for
+anyone with an open branch.
+
+54 files in one package became four:
+
+| Package | Files | What it is |
+| ------- | ----- | ---------- |
+| `accessibility` | 15 | the `ports.AccessibilityPort` adapter, plus a build-tagged factory |
+| `accessibility/ax` | 2 | the contract every backend implements |
+| `accessibility/atspi` | 14 | the Linux AT-SPI backend, linux-only end to end |
+| `accessibility/native` | 25 | the OS-API client: AX, UIA, and Linux input/geometry |
+
+`ax` exists to break a cycle, and is the move that makes the rest possible: the
+backends must name `Client`/`Window`/`Node` to satisfy them, and the adapter
+that selects a backend must import the backends. Both now depend on a leaf.
+
+**`macos/` and `uia/` did not happen, and the reason matters.** `InfraAXClient`
+looked like shared code and is not: it is one generic shell specialised by
+build tag, over `Element`, `ElementInfo`, `TreeNode` and `TreeOptions` types
+declared once per OS. macOS and Windows are not two implementations behind one
+interface — they are one implementation over two sets of types. Splitting them
+means either duplicating ~570 lines of shell into each (it would drift) or
+parameterising the shell over an element-source interface, which is a redesign
+of the hint-scanning hot path. That is worth doing, and it is not a file move.
+
+So `native` still holds three platforms. What changed is that the *Linux
+backend* — the one where per-OS divergence was worst, and where adding a
+compositor happens — is now a directory a contributor can read end to end.
+
+**The guardrail got stronger, not weaker.** `platform_slots_test.go` required
+every build-constrained file to carry a `_linux` filename token, which is
+exactly the convention a single-platform package makes redundant. Rather than
+exempt `atspi`, the whole-platform directory set is now *derived* from the tree:
+a directory earns the exemption when every file in it targets the same single
+OS. A hand-maintained list would need editing for every future backend package,
+and the edit would look the same whether it was right or was hiding a package
+that is not actually single-platform.
 
 ---
 

@@ -329,7 +329,7 @@ available. See `findActiveFrame` in `atspi_linux.go`.
 on-screen position, so AT-SPI reports element coordinates relative to the
 window. Neru offsets them by the focused window's screen origin, supplied by a
 compositor-specific `windowOriginSource`
-([window_origin_linux.go](../internal/adapter/accessibility/window_origin_linux.go)):
+([window_origin_linux.go](../internal/adapter/accessibility/atspi/window_origin.go)):
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -685,7 +685,7 @@ Two rules that save review cycles:
 | screen bounds, cursor, dark mode, notifications, permissions | `internal/adapter/platform/<os>/`                         |
 | global hotkeys                                               | `internal/adapter/hotkeys/`                               |
 | keyboard event capture                                       | `internal/adapter/eventtap/`                              |
-| accessibility integration                                    | `internal/adapter/accessibility/`                         |
+| accessibility integration                                    | `internal/adapter/accessibility/` (`ax/`, `atspi/`, `native/`) |
 | overlay window orchestration **and all Linux/Windows drawing** | `internal/adapter/overlay/`                             |
 | overlay rendering by mode (**macOS only**; stubs elsewhere)  | `internal/adapter/overlay/render/*/overlay_*.go`          |
 | app watcher and other isolated platform hooks                | dispatch-style `platform_*.go` in the relevant package       |

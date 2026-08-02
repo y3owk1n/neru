@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
@@ -480,7 +481,7 @@ func initializeRealAdapters(
 	t.Helper()
 
 	// Create infrastructure client
-	axClient := accessibility.NewInfraAXClient(logger, nil)
+	axClient := native.New(logger, nil)
 
 	// Create base accessibility adapter
 	accAdapter := accessibility.NewAdapter(

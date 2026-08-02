@@ -10,6 +10,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -46,12 +48,12 @@ var elementSlicePool = sync.Pool{
 	},
 }
 
-// Adapter implements ports.AccessibilityPort by wrapping the AXClient.
+// Adapter implements ports.AccessibilityPort by wrapping the ax.Client.
 // It converts between domain models and infrastructure types.
 type Adapter struct {
 	// logger for adapter.
 	logger               *zap.Logger
-	client               AXClient
+	client               ax.Client
 	excludedBundles      map[string]bool
 	clickableRoles       []string
 	detectMissionControl bool
@@ -62,7 +64,7 @@ func NewAdapter(
 	logger *zap.Logger,
 	excludedBundles []string,
 	clickableRoles []string,
-	client AXClient,
+	client ax.Client,
 	detectMissionControl bool,
 ) *Adapter {
 	excludedMap := make(map[string]bool, len(excludedBundles))
@@ -208,7 +210,7 @@ func (a *Adapter) ClickableElements(
 						return nil, frontmostErr
 					}
 
-					windowsToProcess = []AXWindow{frontmost}
+					windowsToProcess = []ax.Window{frontmost}
 				}
 
 				var allElements []*element.Element
@@ -236,7 +238,7 @@ func (a *Adapter) ClickableElements(
 					windowsMutex.Unlock()
 				}
 
-				processWindow := func(window AXWindow) {
+				processWindow := func(window ax.Window) {
 					defer windowsWg.Done()
 					defer func() { <-windowSem }()
 
@@ -557,7 +559,7 @@ func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
 		return err
 	}
 
-	ensureMouseUp()
+	native.EnsureMouseUp()
 
 	return nil
 }
@@ -571,7 +573,7 @@ func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, 
 		return false, err
 	}
 
-	return primeApplication(bundleID, a.logger), nil
+	return native.PrimeApplication(bundleID, a.logger), nil
 }
 
 // Health checks if the accessibility permissions are granted.
@@ -620,7 +622,7 @@ func (a *Adapter) checkContext(ctx context.Context) error {
 // processClickableNodes converts and filters clickable nodes to domain elements.
 func (a *Adapter) processClickableNodes(
 	ctx context.Context,
-	clickableNodes []AXNode,
+	clickableNodes []ax.Node,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	// Get pooled slice and reset it
@@ -696,7 +698,7 @@ func (a *Adapter) processClickableNodes(
 // processClickableNodesConcurrent processes nodes in parallel using a worker pool.
 func (a *Adapter) processClickableNodesConcurrent(
 	ctx context.Context,
-	nodes []AXNode,
+	nodes []ax.Node,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
 	numWorkers := min(
@@ -729,7 +731,7 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 		waitGroup.Add(1)
 
-		go func(chunk []AXNode) {
+		go func(chunk []ax.Node) {
 			defer waitGroup.Done()
 
 			// Use local slice to avoid locking

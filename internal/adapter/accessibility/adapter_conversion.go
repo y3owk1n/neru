@@ -1,12 +1,13 @@
 package accessibility
 
 import (
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// convertToDomainElement converts an AXNode to a domain Element.
-func (a *Adapter) convertToDomainElement(node AXNode) (*element.Element, error) {
+// convertToDomainElement converts an ax.Node to a domain Element.
+func (a *Adapter) convertToDomainElement(node ax.Node) (*element.Element, error) {
 	if node == nil {
 		return nil, derrors.New(derrors.CodeInvalidInput, "node is nil")
 	}

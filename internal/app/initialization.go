@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	accessibilityNative "github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/appwatcher"
 	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
@@ -56,7 +57,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		logger.Debug("Applying clickable roles",
 			zap.Int("configured", len(cfg.Hints.ClickableRoles)),
 			zap.Int("resolved", len(roles)))
-		accessibilityAdapter.SetClickableRoles(roles, logger)
+		accessibilityNative.SetClickableRoles(roles, logger)
 	}
 
 	return nil

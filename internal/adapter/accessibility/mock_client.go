@@ -5,30 +5,31 @@ import (
 	"image"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// MockAXClient is a mock implementation of AXClient for testing.
+// MockAXClient is a mock implementation of ax.Client for testing.
 type MockAXClient struct {
 	mu sync.Mutex
 
-	MockFrontmostWindow    AXWindow
+	MockFrontmostWindow    ax.Window
 	MockFrontmostWindowErr error
-	MockAllWindows         []AXWindow
+	MockAllWindows         []ax.Window
 	MockAllWindowsErr      error
-	MockHintWindows        []AXWindow
+	MockHintWindows        []ax.Window
 	MockHintWindowsErr     error
 
-	MockFocusedApp    AXApp
+	MockFocusedApp    ax.App
 	MockFocusedAppErr error
 
-	MockClickableNodes    []AXNode
+	MockClickableNodes    []ax.Node
 	MockClickableNodesErr error
 
-	MockMenuBarNodes    []AXNode
+	MockMenuBarNodes    []ax.Node
 	MockMenuBarNodesErr error
 
-	MockBundleNodes    []AXNode
+	MockBundleNodes    []ax.Node
 	MockBundleNodesErr error
 
 	MockScreenBounds image.Rectangle
@@ -50,47 +51,47 @@ type MockAXClient struct {
 }
 
 // FrontmostWindow returns the configured frontmost window or error.
-func (m *MockAXClient) FrontmostWindow(_ context.Context) (AXWindow, error) {
+func (m *MockAXClient) FrontmostWindow(_ context.Context) (ax.Window, error) {
 	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
 }
 
 // AllWindows returns the configured windows or error.
-func (m *MockAXClient) AllWindows(_ context.Context) ([]AXWindow, error) {
+func (m *MockAXClient) AllWindows(_ context.Context) ([]ax.Window, error) {
 	return m.MockAllWindows, m.MockAllWindowsErr
 }
 
 // FrontmostAndPopoverWindows returns configured hint windows or falls back to
 // the frontmost window. When neither is configured, returns empty to match
 // production semantics (focused window + popover siblings, not arbitrary windows).
-func (m *MockAXClient) FrontmostAndPopoverWindows(_ context.Context) ([]AXWindow, error) {
+func (m *MockAXClient) FrontmostAndPopoverWindows(_ context.Context) ([]ax.Window, error) {
 	if m.MockHintWindows != nil || m.MockHintWindowsErr != nil {
 		return m.MockHintWindows, m.MockHintWindowsErr
 	}
 
 	if m.MockFrontmostWindow != nil {
-		return []AXWindow{m.MockFrontmostWindow}, m.MockFrontmostWindowErr
+		return []ax.Window{m.MockFrontmostWindow}, m.MockFrontmostWindowErr
 	}
 
 	return nil, nil
 }
 
 // FocusedApplication returns the configured focused application or error.
-func (m *MockAXClient) FocusedApplication(_ context.Context) (AXApp, error) {
+func (m *MockAXClient) FocusedApplication(_ context.Context) (ax.App, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr
 }
 
 // ApplicationByBundleID returns the configured application by bundle ID or error.
-func (m *MockAXClient) ApplicationByBundleID(_ context.Context, _ string) (AXApp, error) {
+func (m *MockAXClient) ApplicationByBundleID(_ context.Context, _ string) (ax.App, error) {
 	return m.MockFocusedApp, m.MockFocusedAppErr // Reuse focused app for simplicity or add specific field
 }
 
 // ClickableNodes returns the configured clickable nodes or error.
 func (m *MockAXClient) ClickableNodes(
 	_ context.Context,
-	_ AXElement,
+	_ ax.Element,
 	roles []string,
 	_ int,
-) ([]AXNode, error) {
+) ([]ax.Node, error) {
 	m.mu.Lock()
 	m.LastClickableNodesRoles = roles
 	m.ClickableNodesRolesHistory = append(m.ClickableNodesRolesHistory, roles)
@@ -100,7 +101,10 @@ func (m *MockAXClient) ClickableNodes(
 }
 
 // MenuBarClickableElements returns the configured menu bar nodes or error.
-func (m *MockAXClient) MenuBarClickableElements(_ context.Context, maxDepth int) ([]AXNode, error) {
+func (m *MockAXClient) MenuBarClickableElements(
+	_ context.Context,
+	maxDepth int,
+) ([]ax.Node, error) {
 	m.mu.Lock()
 	m.LastCalledMaxDepth = maxDepth
 	m.mu.Unlock()
@@ -114,7 +118,7 @@ func (m *MockAXClient) ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	maxDepth int,
-) ([]AXNode, error) {
+) ([]ax.Node, error) {
 	m.mu.Lock()
 	m.LastCalledBundleID = bundleID
 	m.LastCalledMaxDepth = maxDepth
@@ -188,19 +192,19 @@ func (m *MockAXClient) Close() error { return nil }
 
 // Mock implementations for Window, App, Node
 
-// MockWindow is a mock implementation of AXWindow.
+// MockWindow is a mock implementation of ax.Window.
 type MockWindow struct{}
 
 // Release is a no-op.
 func (w *MockWindow) Release() {}
 
-// Role returns "AXWindow".
-func (w *MockWindow) Role() string { return "AXWindow" }
+// Role returns "ax.Window".
+func (w *MockWindow) Role() string { return "ax.Window" }
 
-// MockApp is a mock implementation of AXApp.
+// MockApp is a mock implementation of ax.App.
 type MockApp struct {
 	MockBundleID string
-	MockInfo     *AXAppInfo
+	MockInfo     *ax.AppInfo
 }
 
 // Release is a no-op.
@@ -212,13 +216,13 @@ func (a *MockApp) BundleIdentifier() string {
 }
 
 // Info returns the configured app info.
-func (a *MockApp) Info() (*AXAppInfo, error) {
+func (a *MockApp) Info() (*ax.AppInfo, error) {
 	return a.MockInfo, nil
 }
 
-var _ AXNode = (*MockNode)(nil)
+var _ ax.Node = (*MockNode)(nil)
 
-// MockNode is a mock implementation of AXNode.
+// MockNode is a mock implementation of ax.Node.
 type MockNode struct {
 	MockID          string
 	MockBounds      image.Rectangle

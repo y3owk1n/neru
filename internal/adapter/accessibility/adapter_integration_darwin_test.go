@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	darwinplatform "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -23,7 +24,7 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 	}
 
 	log := logger.Get()
-	client := accessibility.NewInfraAXClient(log, nil)
+	client := native.New(log, nil)
 
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 	system := darwinplatform.NewSystemAdapter()

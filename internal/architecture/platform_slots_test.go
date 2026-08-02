@@ -30,10 +30,50 @@ var knownOS = []string{osDarwin, osLinux, osWindows}
 // the directory carries the meaning, so individual files need no OS suffix —
 // but they must still declare an explicit build tag, which
 // TestPlatformPackagesTagEveryFile checks.
-var wholePlatformDirs = map[string]string{
-	"internal/adapter/platform/darwin":  osDarwin,
-	"internal/adapter/platform/linux":   osLinux,
-	"internal/adapter/platform/windows": osWindows,
+//
+// The set is derived from the tree rather than listed by hand. A hand-written
+// list would have to be edited every time a backend becomes its own package,
+// and the edit would look identical whether it was correct or was papering over
+// a package that is not actually single-platform. Deriving it means the
+// exemption is only ever granted to a directory that has earned it.
+func wholePlatformDirs(t *testing.T) map[string]string {
+	t.Helper()
+
+	// candidates maps a directory to the single OS every constrained file in it
+	// targets, or to "" once a file contradicts that.
+	candidates := map[string]string{}
+
+	for _, file := range goFiles(t) {
+		if file.base == "doc.go" {
+			continue
+		}
+
+		constraints := parseConstraint(t, file.absPath)
+
+		targetOS := ""
+		if len(constraints.positiveOS) == 1 {
+			targetOS = constraints.positiveOS[0]
+		}
+
+		seen, known := candidates[file.dir]
+		switch {
+		case !known:
+			candidates[file.dir] = targetOS
+		case seen != targetOS:
+			// Mixed platforms, or a file with no single positive OS term.
+			candidates[file.dir] = ""
+		}
+	}
+
+	whole := map[string]string{}
+
+	for dir, targetOS := range candidates {
+		if targetOS != "" {
+			whole[dir] = targetOS
+		}
+	}
+
+	return whole
 }
 
 // fallbackSuffixes are the only legal names for a file whose build constraint
@@ -74,6 +114,8 @@ type fileConstraint struct {
 }
 
 func TestPlatformFilesUseTheDocumentedSlots(t *testing.T) {
+	whole := wholePlatformDirs(t)
+
 	for _, file := range goFiles(t) {
 		constraints := parseConstraint(t, file.absPath)
 		if !constraints.hasConstraint {
@@ -81,7 +123,7 @@ func TestPlatformFilesUseTheDocumentedSlots(t *testing.T) {
 		}
 
 		checkBannedFallbackName(t, file)
-		checkOSSuffixMatchesConstraint(t, file, constraints)
+		checkOSSuffixMatchesConstraint(t, file, constraints, whole)
 		checkFallbackName(t, file, constraints)
 		checkCgoSuffix(t, file, constraints)
 	}
@@ -108,7 +150,12 @@ func checkBannedFallbackName(t *testing.T, file goFile) {
 // OS but whose name does not say so — the reverse of the mistake Go's implicit
 // suffix rule already prevents. A file named tree.go that is secretly
 // darwin-only is invisible to anyone scanning the directory.
-func checkOSSuffixMatchesConstraint(t *testing.T, file goFile, constraints fileConstraint) {
+func checkOSSuffixMatchesConstraint(
+	t *testing.T,
+	file goFile,
+	constraints fileConstraint,
+	whole map[string]string,
+) {
 	t.Helper()
 
 	if len(constraints.positiveOS) != 1 {
@@ -117,7 +164,7 @@ func checkOSSuffixMatchesConstraint(t *testing.T, file goFile, constraints fileC
 		return
 	}
 
-	if _, whole := wholePlatformDirs[file.dir]; whole {
+	if _, single := whole[file.dir]; single {
 		return
 	}
 
@@ -191,9 +238,11 @@ func checkCgoSuffix(t *testing.T, file goFile, constraints fileConstraint) {
 // package is single-platform, which only holds if every file declares the tag.
 // An untagged file would compile into every build and break cross-compilation.
 func TestPlatformPackagesTagEveryFile(t *testing.T) {
+	whole := wholePlatformDirs(t)
+
 	for _, file := range goFiles(t) {
-		wantOS, whole := wholePlatformDirs[file.dir]
-		if !whole {
+		wantOS, single := whole[file.dir]
+		if !single {
 			continue
 		}
 

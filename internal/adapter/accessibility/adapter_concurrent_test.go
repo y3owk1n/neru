@@ -11,6 +11,7 @@ import (
 	"go.uber.org/goleak"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -30,7 +31,7 @@ func TestProcessClickableNodesConcurrent_CancelledBeforeStart(t *testing.T) {
 
 	nodeCount := ConcurrentProcessingThreshold + 50
 
-	nodes := make([]AXNode, nodeCount)
+	nodes := make([]ax.Node, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
 			MockID:     testID,
@@ -86,7 +87,7 @@ func TestProcessClickableNodesConcurrent_CancelledMidProcessing(t *testing.T) {
 		MockRole:   axButtonRole,
 	}
 
-	nodes := make([]AXNode, nodeCount)
+	nodes := make([]ax.Node, nodeCount)
 
 	nodes[0] = &holdNode{MockNode: *baseNode, started: started, release: release}
 	for i := 1; i < nodeCount; i++ {
@@ -148,7 +149,7 @@ func TestProcessClickableNodesConcurrent_HappyPath(t *testing.T) {
 
 	nodeCount := ConcurrentProcessingThreshold + 50
 
-	nodes := make([]AXNode, nodeCount)
+	nodes := make([]ax.Node, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
 			MockID:     testID,
@@ -176,7 +177,7 @@ func TestProcessClickableNodesConcurrent_BelowThreshold(t *testing.T) {
 	// Below the concurrent processing threshold — tests the sequential path
 	nodeCount := ConcurrentProcessingThreshold - 10
 
-	nodes := make([]AXNode, nodeCount)
+	nodes := make([]ax.Node, nodeCount)
 	for i := range nodeCount {
 		nodes[i] = &MockNode{
 			MockID:     testID,

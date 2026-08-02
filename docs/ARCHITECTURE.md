@@ -411,9 +411,9 @@ its own.
    system-wide keyboard lag; heavy processing is deferred to goroutines.
 2. **Bounded accessibility walks** — querying accessibility APIs is expensive, so
    traversal is bounded rather than exhaustive: `maxDepth` on the macOS walk
-   ([client.go](../internal/adapter/accessibility/client.go)), and
+   ([ax.go](../internal/adapter/accessibility/ax/ax.go)), and
    `atspiMaxDepth` / `atspiMaxNodes` on the Linux AT-SPI walk
-   ([atspi_linux.go](../internal/adapter/accessibility/atspi_linux.go)).
+   ([atspi/client.go](../internal/adapter/accessibility/atspi/client.go)).
 3. **Caching** — a TTL/LRU cache for computed grid layouts
    ([grid/cache.go](../internal/domain/grid/cache.go)) and a cache of C
    string pointers for overlay styles

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -329,16 +330,16 @@ func TestAdapter_PerformActionAtPoint(t *testing.T) {
 	}
 }
 
-// mockAXApp is a mock implementation of AXApp for testing.
+// mockAXApp is a mock implementation of ax.App for testing.
 type mockAXApp struct {
 	bundleID string
-	MockInfo *accessibility.AXAppInfo
+	MockInfo *ax.AppInfo
 }
 
 func (m *mockAXApp) Release()                 {}
 func (m *mockAXApp) BundleIdentifier() string { return m.bundleID }
 
-func (m *mockAXApp) Info() (*accessibility.AXAppInfo, error) { return m.MockInfo, nil }
+func (m *mockAXApp) Info() (*ax.AppInfo, error) { return m.MockInfo, nil }
 
 func TestAdapter_FocusedAppBundleID(t *testing.T) {
 	tests := []struct {
@@ -450,7 +451,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 	mockClient := &accessibility.MockAXClient{
 		MockPermissions:     true,
 		MockFrontmostWindow: mockWindow,
-		MockAllWindows:      []accessibility.AXWindow{mockWindow},
+		MockAllWindows:      []ax.Window{mockWindow},
 	}
 
 	initialRoles := []string{axButtonRole}
@@ -519,7 +520,7 @@ func TestAdapter_RolePassing(t *testing.T) {
 
 		// Need checking Info() role == AXApplication
 		if app, ok := mockClient.MockFocusedApp.(*mockAXApp); ok {
-			app.MockInfo = &accessibility.AXAppInfo{
+			app.MockInfo = &ax.AppInfo{
 				Role:  "AXApplication",
 				Title: "Dock",
 			}
