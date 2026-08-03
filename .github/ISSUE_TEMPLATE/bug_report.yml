@@ -8,7 +8,7 @@ body:
               Thanks for taking the time to report a bug!
               Please check [existing issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue) first to avoid duplicates.
 
-              > **Note:** Linux and Windows support is work-in-progress. If you're reporting a bug on those platforms, please check the [Platform Support](https://github.com/y3owk1n/neru#-platform-support) section first — many features are not yet implemented.
+              > **Note:** Linux and Windows support is work-in-progress. If you're reporting a bug on those platforms, please check the [Platform Support](https://github.com/y3owk1n/neru#platform-support) section first — many features are not yet implemented.
 
     - type: checkboxes
       attributes:

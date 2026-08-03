@@ -134,8 +134,8 @@ Five modes, one tool — mix and match as the situation calls for it.
 | **Scroll**            | `Primary+Shift+S`     | Vim-style `j`/`k` scrolling, `u`/`d` for half pages                | Reading docs and code without lifting your hands |
 | **Monitor Select**    | _unbound_             | Labels each display; type a label to jump the cursor there         | Multi-monitor setups                             |
 
-`Primary` is `Cmd` on macOS and `Ctrl` on Windows. Monitor Select ships without
-a default binding — bind `monitor_select` to any key you like.
+`Primary` is `Cmd` on macOS and `Ctrl` on Linux and Windows. Monitor Select
+ships without a default binding — bind `monitor_select` to any key you like.
 
 **On Linux there are no default global hotkeys.** They are cleared at startup to
 avoid colliding with terminal and desktop shortcuts such as `Ctrl+Shift+C`. Bind
@@ -276,15 +276,21 @@ Everything you need to go deep:
 
 ## Contributing
 
-Neru is written in Go and Objective-C with a clean, modular structure — adding a new feature or platform adapter is straightforward. Pull requests are very welcome.
+Neru is written in Go and Objective-C with a hexagonal architecture whose rules
+are **executable**: the guardrail tests in
+[`internal/architecture/`](internal/architecture/) pin the layering, platform
+isolation, port/mock parity, and even doc-link integrity — each with a comment
+explaining the real bug it prevents. If you break a rule, the failure message
+tells you how to fix it. Adding a feature or platform adapter is straightforward,
+and pull requests are very welcome.
 
 ```bash
 git checkout -b feature/your-feature
-just test && just lint
+just ci   # everything CI checks, locally
 # open a pull request
 ```
 
-→ [Development Guide](docs/DEVELOPMENT.md) · [Coding Standards](docs/CODING_STANDARDS.md)
+→ [Contributing Guide](CONTRIBUTING.md) · [Development Guide](docs/DEVELOPMENT.md) · [Coding Standards](docs/CODING_STANDARDS.md) · [Good first issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 ---
 
