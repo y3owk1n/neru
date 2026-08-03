@@ -4,7 +4,6 @@ import (
 	"context"
 	"image"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,6 +36,11 @@ const (
 	// maxConcurrentWindows caps goroutines spawned for per-window processing
 	// to prevent thread explosion when many windows are open.
 	maxConcurrentWindows = 4
+
+	// slowCollectionThreshold is how long a full element collection may take
+	// before it is worth a warning. Past this the delay is noticeable between
+	// pressing the hint hotkey and seeing labels.
+	slowCollectionThreshold = 2 * time.Second
 )
 
 // elementSlicePool is a pool of element slices for temporary use.
@@ -98,33 +102,12 @@ func (a *Adapter) ClickableElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
 ) ([]*element.Element, error) {
-	// Check context
-	err := a.checkContext(ctx)
-	if err != nil {
-		return nil, err
+	ctxErr := a.checkContext(ctx)
+	if ctxErr != nil {
+		return nil, ctxErr
 	}
 
-	// Pre-lowercase filter strings once to avoid repeating strings.ToLower on hot paths
-	if filter.TitleContains != "" {
-		filter.TitleContains = strings.ToLower(filter.TitleContains)
-	}
-
-	if filter.DescriptionContains != "" {
-		filter.DescriptionContains = strings.ToLower(filter.DescriptionContains)
-	}
-
-	if filter.ValueContains != "" {
-		filter.ValueContains = strings.ToLower(filter.ValueContains)
-	}
-
-	if len(filter.TextContainsList) > 0 {
-		loweredList := make([]string, len(filter.TextContainsList))
-		for i, text := range filter.TextContainsList {
-			loweredList[i] = strings.ToLower(text)
-		}
-
-		filter.TextContainsList = loweredList
-	}
+	filter = lowerFilter(filter)
 
 	a.logger.Debug("Getting clickable elements",
 		zap.Int("role_count", len(filter.Roles)),
@@ -137,301 +120,44 @@ func (a *Adapter) ClickableElements(
 
 	adapterStart := time.Now()
 
-	var (
-		waitGroup sync.WaitGroup
-		mutex     sync.Mutex
-		// Pre-allocate with estimated capacity for typical web page
-		allElements = make([]*element.Element, 0, TypicalElementCount)
-		firstError  error
-		// windowsSourceErr records a window-scan failure without aborting the
-		// whole collection. It is surfaced only if *no* source produced any
-		// elements (see below), so a transient per-window error can't discard
-		// elements other sources gathered in parallel (dock, menubar, …).
-		windowsSourceErr error
-	)
-
-	// Check Mission Control state once to ensure consistency across all code paths
-	// Both the frontmost window check and supplementary elements check need the same value
-	// Use client's method to allow mocking in tests
-	// Only check if detect_mission_control config option is enabled
+	// Mission Control is checked once so that every source below sees the same
+	// answer, rather than each deciding separately as the state changes under
+	// them.
 	var missionControlActive bool
 	if a.detectMissionControl {
 		missionControlActive = a.client.IsMissionControlActive()
 	}
 
-	// Function to collect elements from a source — all sources fan out
-	// at the same level for maximum parallelism.
-	collectElements := func(sourceName string, queryFunc func() ([]*element.Element, error)) {
-		defer waitGroup.Done()
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		elements, err := queryFunc()
-		if err != nil {
-			mutex.Lock()
-
-			if firstError == nil {
-				firstError = derrors.Wrap(err, derrors.CodeAccessibilityFailed,
-					"failed to get elements from "+sourceName)
-			}
-
-			mutex.Unlock()
-
-			return
-		}
-
-		mutex.Lock()
-
-		allElements = append(allElements, elements...)
-
-		mutex.Unlock()
-
-		a.logger.Debug("Collected elements from "+sourceName, zap.Int("count", len(elements)))
-	}
+	collector := newElementCollector(a.logger)
 
 	if !missionControlActive && !filter.SkipWindowElements {
-		// Query frontmost window AND popover windows
-		waitGroup.Add(1)
-
-		go func() {
-			collectElements("windows", func() ([]*element.Element, error) {
-				windowsToProcess, windowsErr := a.client.FrontmostAndPopoverWindows(ctx)
-				if windowsErr != nil {
-					return nil, windowsErr
-				}
-
-				if len(windowsToProcess) == 0 {
-					frontmost, frontmostErr := a.client.FrontmostWindow(ctx)
-					if frontmostErr != nil {
-						return nil, frontmostErr
-					}
-
-					windowsToProcess = []ax.Window{frontmost}
-				}
-
-				var allElements []*element.Element
-
-				var windowsWg sync.WaitGroup
-
-				var windowsMutex sync.Mutex
-
-				// First error from any window. It is only surfaced if *no* window
-				// yields elements (see below): a transient failure on one popover
-				// must not discard hints the frontmost window did produce, but a
-				// hard failure (e.g. the AT-SPI bus is unreachable) that leaves us
-				// with nothing must be reported rather than silently look like an
-				// empty window.
-				var firstWindowErr error
-
-				// Semaphore to cap concurrent window processing goroutines
-				windowSem := make(chan struct{}, maxConcurrentWindows)
-
-				recordWindowErr := func(err error) {
-					windowsMutex.Lock()
-					if firstWindowErr == nil {
-						firstWindowErr = err
-					}
-					windowsMutex.Unlock()
-				}
-
-				processWindow := func(window ax.Window) {
-					defer windowsWg.Done()
-					defer func() { <-windowSem }()
-
-					clickableNodes, clickableNodesErr := a.client.ClickableNodes(
-						ctx,
-						window,
-						stringRoles(filter.Roles),
-						0,
-					)
-					if clickableNodesErr != nil {
-						a.logger.Warn("Failed to collect clickable nodes from window",
-							zap.Error(clickableNodesErr))
-						recordWindowErr(clickableNodesErr)
-						window.Release()
-
-						return
-					}
-
-					windowElements, processErr := a.processClickableNodes(
-						ctx,
-						clickableNodes,
-						filter,
-					)
-					if processErr != nil {
-						a.logger.Warn("Failed to process clickable nodes from window",
-							zap.Error(processErr))
-						recordWindowErr(processErr)
-						window.Release()
-
-						return
-					}
-
-					windowsMutex.Lock()
-
-					allElements = append(allElements, windowElements...)
-					windowsMutex.Unlock()
-
-					window.Release()
-				}
-
-				for _, window := range windowsToProcess {
-					windowSem <- struct{}{}
-
-					windowsWg.Add(1)
-
-					go processWindow(window)
-				}
-
-				windowsWg.Wait()
-
-				// Hand any window-scan error up to the caller rather than
-				// returning it as this source's value (which would abort the whole
-				// collection and throw away other sources' work). It is surfaced
-				// only if the *grand total* across every source is empty — see the
-				// windowsSourceErr check after all sources join — so a failure that
-				// still left some elements to show degrades to a Warn log instead.
-				if firstWindowErr != nil {
-					mutex.Lock()
-					if windowsSourceErr == nil {
-						windowsSourceErr = firstWindowErr
-					}
-					mutex.Unlock()
-				}
-
-				return allElements, nil
-			})
-		}()
+		collector.start(ctx, "windows", func() ([]*element.Element, error) {
+			return a.collectWindowElements(ctx, filter, collector)
+		})
 	}
 
-	// The Dock, menu bar, Notification Center, Stage Manager, Picture-in-Picture
-	// and screen-capture UI are macOS-specific surfaces resolved by system
-	// bundle ID. They do not exist on other platforms, so skip them entirely
-	// there rather than probing for nonexistent apps (which only logs failures).
 	if a.client.SupportsSupplementaryElements() {
-		// Menubar elements
-		if !missionControlActive && filter.IncludeMenubar {
-			waitGroup.Add(1)
+		for _, source := range a.supplementarySources(ctx, filter) {
+			if !source.enabled {
+				continue
+			}
 
-			go func() {
-				collectElements("menubar", func() ([]*element.Element, error) {
-					return a.addMenubarElements(ctx, nil, filter), nil
-				})
-			}()
-		}
+			if missionControlActive && !source.duringMissionControl {
+				continue
+			}
 
-		// Dock elements
-		if filter.IncludeDock {
-			waitGroup.Add(1)
-
-			go func() {
-				collectElements("dock", func() ([]*element.Element, error) {
-					return a.addDockElements(ctx, nil), nil
-				})
-			}()
-		}
-
-		// Notification Center
-		if !missionControlActive && filter.IncludeNotificationCenter {
-			waitGroup.Add(1)
-
-			go func() {
-				collectElements("notification_center", func() ([]*element.Element, error) {
-					return a.addNotificationCenterElements(ctx, nil), nil
-				})
-			}()
-		}
-
-		// Stage Manager
-		if !missionControlActive && filter.IncludeStageManager {
-			waitGroup.Add(1)
-
-			go func() {
-				collectElements("stage_manager", func() ([]*element.Element, error) {
-					return a.addStageManagerElements(ctx, nil), nil
-				})
-			}()
-		}
-
-		// PIP
-		if !missionControlActive && filter.IncludePIP {
-			waitGroup.Add(1)
-
-			go func() {
-				collectElements("pip", func() ([]*element.Element, error) {
-					return a.addPIPElements(ctx, nil), nil
-				})
-			}()
-		}
-
-		// Screen Capture
-		if !missionControlActive && filter.IncludeScreenCapture {
-			waitGroup.Add(1)
-
-			go func() {
-				collectElements("screen_capture", func() ([]*element.Element, error) {
-					return a.addScreenCaptureElements(ctx, nil), nil
-				})
-			}()
+			collector.start(ctx, source.name, func() ([]*element.Element, error) {
+				return source.collect(), nil
+			})
 		}
 	}
 
-	// Wait for all queries to complete or context to be canceled
-	done := make(chan struct{})
-	go func() {
-		waitGroup.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-ctx.Done():
-		// Distinguish a real timeout ("...timed out") from a cancellation
-		// ("...canceled") instead of collapsing both into a bare message — a
-		// timeout here usually means the accessibility backend was slow or
-		// unresponsive, which is the actionable signal.
-		return nil, derrors.WrapContextCanceled(ctx, "element collection")
+	awaitErr := collector.await(ctx)
+	if awaitErr != nil {
+		return nil, awaitErr
 	}
 
-	if firstError != nil {
-		return nil, firstError
-	}
-
-	// Surface a window-scan failure only when nothing at all was collected —
-	// across every source. When some source did yield elements we return those
-	// and keep the failure to the Warn log, degrading rather than failing hard.
-	// On Linux (no supplementary sources) this is the path that turns a dead or
-	// unreachable AT-SPI bus into a clear error instead of a silent empty result.
-	if len(allElements) == 0 && windowsSourceErr != nil {
-		return nil, derrors.WrapAccessibilityFailed(windowsSourceErr, "collect window elements")
-	}
-
-	// Log reason for empty results when Mission Control is active
-	// This is intentional - we skip frontmost window query during MC
-	if len(allElements) == 0 && missionControlActive {
-		a.logger.Debug(
-			"No elements collected - Mission Control is active and no supplementary filters enabled",
-		)
-	}
-
-	elapsed := time.Since(adapterStart)
-	a.logger.Debug("Total elements collected",
-		zap.Int("count", len(allElements)),
-		zap.Duration("total", elapsed))
-
-	// Log warning if collection took too long
-	if elapsed > 2*time.Second {
-		a.logger.Warn("Clickable element collection was slow",
-			zap.Duration("elapsed", elapsed),
-			zap.Int("element_count", len(allElements)),
-		)
-	}
-
-	return allElements, nil
+	return a.finishCollection(collector, missionControlActive, adapterStart)
 }
 
 func stringRoles(roles []element.Role) []string {
@@ -788,3 +514,50 @@ func (a *Adapter) processClickableNodesConcurrent(
 
 // Ensure Adapter implements ports.AccessibilityPort.
 var _ ports.AccessibilityPort = (*Adapter)(nil)
+
+// finishCollection reports what every source together produced.
+func (a *Adapter) finishCollection(
+	collector *elementCollector,
+	missionControlActive bool,
+	start time.Time,
+) ([]*element.Element, error) {
+	if collector.firstError != nil {
+		return nil, collector.firstError
+	}
+
+	// A window-scan failure is surfaced only when nothing at all was collected,
+	// across every source. When some source did yield elements those are
+	// returned and the failure stays in the Warn log, degrading rather than
+	// failing hard. On Linux, where there are no supplementary sources, this is
+	// the path that turns a dead AT-SPI bus into a clear error instead of a
+	// silent empty result.
+	if len(collector.elements) == 0 && collector.windowsError != nil {
+		return nil, derrors.WrapAccessibilityFailed(
+			collector.windowsError,
+			"collect window elements",
+		)
+	}
+
+	if len(collector.elements) == 0 && missionControlActive {
+		// Not a failure: the frontmost window is deliberately skipped while
+		// Mission Control is up, so with no supplementary source enabled there
+		// is nothing left to collect.
+		a.logger.Debug(
+			"No elements collected - Mission Control is active and no supplementary filters enabled",
+		)
+	}
+
+	elapsed := time.Since(start)
+	a.logger.Debug("Total elements collected",
+		zap.Int("count", len(collector.elements)),
+		zap.Duration("total", elapsed))
+
+	if elapsed > slowCollectionThreshold {
+		a.logger.Warn("Clickable element collection was slow",
+			zap.Duration("elapsed", elapsed),
+			zap.Int("element_count", len(collector.elements)),
+		)
+	}
+
+	return collector.elements, nil
+}
