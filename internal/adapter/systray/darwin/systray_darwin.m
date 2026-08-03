@@ -4,8 +4,11 @@
 //
 //  Copyright © 2025 Neru. All rights reserved.
 //
+//  This implementation lives here (not in platform/darwin/) because CGo only
+//  compiles .m files co-located with the Go package that contains `import "C"`.
+//  The header stays in platform/darwin/ with the other macOS headers.
 
-#import "systray.h"
+#import "../../platform/darwin/systray.h"
 
 #import <Cocoa/Cocoa.h>
 
