@@ -3,7 +3,7 @@
 package textinput
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #include "../platform/darwin/textinput.h"
 #include <stdlib.h>
 

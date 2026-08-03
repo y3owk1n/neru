@@ -83,6 +83,9 @@ void *NeruGetApplicationByBundleId(const char *bundle_id) {
 
 	@autoreleasepool {
 		NSString *bundleIdStr = [NSString stringWithUTF8String:bundle_id];
+		if (!bundleIdStr) {
+			return NULL;
+		}
 		NSArray<NSRunningApplication *> *apps =
 		    [NSRunningApplication runningApplicationsWithBundleIdentifier:bundleIdStr];
 
@@ -117,6 +120,9 @@ char *NeruDetectBundleType(const char *bundle_id) {
 
 	@autoreleasepool {
 		NSString *bundleIdStr = [NSString stringWithUTF8String:bundle_id];
+		if (!bundleIdStr) {
+			return NULL;
+		}
 
 		// Find the app bundle on disk: try LaunchServices (installed apps) first,
 		// then NSRunningApplication (running apps that may not be in LS database,

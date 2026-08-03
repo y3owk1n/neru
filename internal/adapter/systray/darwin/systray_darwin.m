@@ -105,7 +105,9 @@ void NeruQuit(void) {
 		                                     subtype:0
 		                                       data1:0
 		                                       data2:0];
-		[NSApp postEvent:event atStart:YES];
+		if (event) {
+			[NSApp postEvent:event atStart:YES];
+		}
 	});
 }
 
@@ -132,7 +134,7 @@ void NeruSetIcon(const char *iconBytes, int length, bool isTemplate) {
 }
 
 void NeruSetTitle(const char *title) {
-	NSString *str = [NSString stringWithUTF8String:title];
+	NSString *str = [NSString stringWithUTF8String:title] ?: @"";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
@@ -142,7 +144,7 @@ void NeruSetTitle(const char *title) {
 }
 
 void NeruSetTooltip(const char *tooltip) {
-	NSString *str = [NSString stringWithUTF8String:tooltip];
+	NSString *str = [NSString stringWithUTF8String:tooltip] ?: @"";
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (appDelegate && appDelegate.statusItem) {
@@ -194,7 +196,7 @@ void runOnMainThread(void (^block)(void)) {
 #pragma mark - Menu Item Functions
 
 void NeruAddMenuItem(int menuId, const char *title, short disabled, short checked) {
-	NSString *titleStr = [NSString stringWithUTF8String:title];
+	NSString *titleStr = [NSString stringWithUTF8String:title] ?: @"";
 
 	runOnMainThread(^{
 		NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:titleStr action:@selector(itemClicked:) keyEquivalent:@""];
@@ -208,7 +210,7 @@ void NeruAddMenuItem(int menuId, const char *title, short disabled, short checke
 }
 
 void NeruAddSubMenuItem(int parentId, int menuId, const char *title, short disabled, short checked) {
-	NSString *titleStr = [NSString stringWithUTF8String:title];
+	NSString *titleStr = [NSString stringWithUTF8String:title] ?: @"";
 
 	runOnMainThread(^{
 		NSMenuItem *parent = findItemByTag(parentId);
@@ -285,7 +287,7 @@ void NeruSetItemDisabled(int menuId, short disabled) {
 }
 
 void NeruSetItemTitle(int menuId, const char *title) {
-	NSString *str = [NSString stringWithUTF8String:title];
+	NSString *str = [NSString stringWithUTF8String:title] ?: @"";
 
 	runOnMainThread(^{
 		NSMenuItem *item = findItemByTag(menuId);

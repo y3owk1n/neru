@@ -11,6 +11,20 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <Foundation/Foundation.h>
 
+// OWNERSHIP RULE — read before adding or calling element functions.
+//
+// Every AXUIElementRef handed to Go through this header (returned as void *,
+// written into an out-array, or produced by a traversal) is +1 retained and
+// the Go caller owns it: the caller must eventually balance it with
+// NeruReleaseElement (Element.Release()/ReleaseAll on the Go side), exactly
+// once. Functions that only *borrow* a ref the caller passed in must not
+// change its refcount. Per-function @note comments below call out the cases
+// that also return malloc'd memory the caller must free().
+//
+// ARC does not manage AX*/CF* refs, so a traversal that enqueues elements and
+// abandons them leaks kernel-backed objects — account for every ref you were
+// handed (see docs/go/OBJECTIVE_C.md, "Memory Management").
+
 #pragma mark - Element Information
 
 /// Structure containing information about an accessibility element
