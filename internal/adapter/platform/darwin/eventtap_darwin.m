@@ -759,6 +759,12 @@ void NeruDestroyHotkeyTap(HotkeyTapRef ref) {
 			CFRelease(tap->runLoopSource);
 		}
 		if (tap->eventTap) {
+			// CFRelease alone does not guarantee the underlying Mach port is
+			// torn down on the WindowServer/kernel side; CFMachPortInvalidate
+			// must be called first or the port can leak. This path runs on
+			// every app switch when per-app hotkey overrides are configured,
+			// so an un-invalidated port here leaks quickly.
+			CFMachPortInvalidate(tap->eventTap);
 			CFRelease(tap->eventTap);
 		}
 	};
@@ -1189,6 +1195,10 @@ void NeruDestroyEventTap(EventTap tap) {
 
 		// Release Core Foundation resources
 		if (context->eventTap) {
+			// See NeruDestroyHotkeyTap: invalidate the Mach port before
+			// releasing it, otherwise the underlying port can leak even
+			// though the CF wrapper's refcount reaches zero.
+			CFMachPortInvalidate(context->eventTap);
 			CFRelease(context->eventTap);
 			context->eventTap = NULL;
 		}
