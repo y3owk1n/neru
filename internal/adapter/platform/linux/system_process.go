@@ -13,7 +13,7 @@ import (
 
 // Inspecting a process by PID is display-server agnostic: procfs serves X11 and
 // every Wayland backend alike, without CGO. Only "which window is focused"
-// differs — see system_linux_x11_cgo.go and system_linux_focused_pid.go.
+// differs — see system_x11_cgo.go and system_focused_pid.go.
 //
 // linuxApplicationNameByPID returns the process name from /proc/<pid>/comm.
 func linuxApplicationNameByPID(pid int) (string, error) {

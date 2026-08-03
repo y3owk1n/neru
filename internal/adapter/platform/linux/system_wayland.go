@@ -11,7 +11,7 @@ var globalWlrootsModifierDispatcher = newWlrootsModifierDispatcher(waylandModifi
 // This and the other exported entry points here route to whichever injection
 // backend the running compositor supports: zwlr_virtual_pointer on wlroots, or
 // libei through the RemoteDesktop portal on KWin. The dispatch itself is in
-// system_linux_wayland_input.go.
+// system_wayland_input.go.
 func WaylandMoveCursorToPoint(point image.Point) error {
 	return waylandMoveCursorToPoint(point)
 }

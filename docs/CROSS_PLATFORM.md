@@ -191,7 +191,7 @@ so the listener naturally goes quiet until the mode exits.
 **Smooth cursor animation on Linux.** Off by default; opt in with
 `smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`
 macOS uses). When enabled, `SystemAdapter.MoveCursorToPoint` routes through
-`smoothCursorAnimator` ([mouse_animator_linux.go](../internal/adapter/platform/linux/mouse_animator_linux.go)):
+`smoothCursorAnimator` ([mouse_animator.go](../internal/adapter/platform/linux/mouse_animator.go)):
 one worker goroutine samples the current position, then steps the per-backend
 warp (XTest / `zwlr_virtual_pointer` / libei) toward the target by linear
 interpolation, and `WaitForCursorIdle` blocks until it settles. This mirrors the
@@ -797,7 +797,7 @@ Worked examples:
 
 - X11 hotkeys → [x11_cgo.go](../internal/adapter/hotkeys/linux/x11_cgo.go)
 - Wayland keyboard capture → [wayland_cgo.go](../internal/adapter/eventtap/linux/wayland_cgo.go)
-- shared Linux system fallbacks → [system_linux_common.go](../internal/adapter/platform/linux/system_linux_common.go)
+- shared Linux system fallbacks → [system_common.go](../internal/adapter/platform/linux/system_common.go)
 
 ## Build And Test Commands
 
@@ -844,7 +844,7 @@ Linux is a backend *family*, not a single target. Keep two axes separate:
 - **Runtime axis (which compositor is live)** — expressed by the `LinuxBackend`
   family in [backend_linux.go](../internal/adapter/platform/backend_linux.go),
   detected from environment variables and routed by `factory.go` plus dispatch
-  seams such as `system_linux_wayland_input.go`.
+  seams such as `system_wayland_input.go`.
 
 Within the compile-time axis, choose the slot by purpose:
 
@@ -876,7 +876,7 @@ Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
 needs a path no other family shares. Current sub-slots:
 `system_linux_wayland_wlroots_*.go` (virtual-pointer input) and
 `system_linux_wayland_kde_*.go` (libei input), with
-`system_linux_wayland_input.go` as the shared routing seam.
+`system_wayland_input.go` as the shared routing seam.
 
 **To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
 in `backend_linux.go`, route it in the factory and the relevant dispatch seams,
@@ -949,10 +949,10 @@ port already covers that subsystem — e.g. another screen query):
 
 1. Add the method to the port, documenting what each platform should do
 2. Implement it in the darwin adapter
-3. Add a Linux shared fallback in `system_linux_common.go`
+3. Add a Linux shared fallback in `system_common.go`
 4. Add a Windows implementation or explicit `CodeNotSupported` stub
-5. Push backend-specific Linux behavior down into `system_linux_x11_cgo.go` or
-   `system_linux_wayland.go`
+5. Push backend-specific Linux behavior down into `system_x11_cgo.go` or
+   `system_wayland.go`
 6. Add the method to the mock in `internal/ports/mocks/`
 7. Update capability reporting if the support surface changed
 

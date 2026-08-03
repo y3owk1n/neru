@@ -1,6 +1,5 @@
 //go:build linux && cgo
 
-// internal/adapter/platform/linux/cgo_linux.go
 // Compiles the native C bridge sources (.c) in this directory. Other packages
 // include the matching headers and blank-import this package so the linker
 // resolves bridge symbols from a single compilation unit.

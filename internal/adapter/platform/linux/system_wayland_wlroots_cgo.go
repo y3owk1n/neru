@@ -44,7 +44,7 @@ type wlrootsState struct {
 	// hasVirtualPointer reports whether the compositor advertises
 	// zwlr_virtual_pointer_v1. When false (notably KWin/KDE), pointer moves,
 	// clicks, and scrolls are injected through libei / the RemoteDesktop portal
-	// instead (see system_linux_wayland_kde_cgo.go).
+	// instead (see system_wayland_kde_cgo.go).
 	hasVirtualPointer bool
 }
 

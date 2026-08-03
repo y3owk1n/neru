@@ -84,7 +84,7 @@ func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 // org.freedesktop.portal.RemoteDesktop portal. The libei mechanism itself
 // (libei_client.c) is desktop-agnostic: if another compositor later routes
 // input through libei, factor the shared pieces out rather than copying them.
-// Runtime selection happens in system_linux_wayland_input.go.
+// Runtime selection happens in system_wayland_input.go.
 func libeiEnsure() error {
 	globalLibeiState.mu.Lock()
 	defer globalLibeiState.mu.Unlock()

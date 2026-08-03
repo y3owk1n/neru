@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/platform/linux/system_linux_focus_events.go
 // Event-driven focused-application change notifications for Linux. Complements
 // FocusedAppID (which reports the current identity) by exposing a file
 // descriptor that becomes readable whenever the focused app changes, so the app

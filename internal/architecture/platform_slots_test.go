@@ -210,7 +210,7 @@ func checkFallbackName(t *testing.T, file goFile, constraints fileConstraint) {
 // checkCgoSuffix requires a file gated on cgo to say so in its name.
 //
 // This one is worth the churn: before it existed, a plain name usually meant
-// the cgo variant (system_linux_x11.go beside system_linux_x11_nocgo.go) but
+// the cgo variant (system_linux_x11.go beside system_x11_nocgo.go) but
 // in internal/ui/overlay it meant the opposite — manager_linux_wayland.go was
 // the *nocgo* file sitting beside manager_linux_wayland_cgo.go. Reading the
 // build tag was the only way to tell which convention a package followed.
@@ -429,7 +429,7 @@ func appendUnique(values []string, value string) []string {
 }
 
 // hasNameToken reports whether the filename contains token as a whole
-// underscore-separated segment, so "system_linux_x11_cgo.go" matches both
+// underscore-separated segment, so "system_x11_cgo.go" matches both
 // "linux" and "cgo" but "linuxish.go" matches neither.
 func hasNameToken(base, token string) bool {
 	name := strings.TrimSuffix(base, ".go")

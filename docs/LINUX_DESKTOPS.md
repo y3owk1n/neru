@@ -38,7 +38,7 @@ go through the shared wlroots client (KWin does implement layer-shell), while
 all pointer and keyboard injection goes through **libei** via
 `org.freedesktop.portal.RemoteDesktop`.
 
-Routing lives in `system_linux_wayland_input.go` — if the compositor advertises
+Routing lives in `system_wayland_input.go` — if the compositor advertises
 `zwlr_virtual_pointer_v1` it uses the virtual pointer, otherwise libei. The two
 paths never overlap. Code slots: `system_linux_wayland_kde_*.go`,
 `accessibility/atspi/kwin_geometry.go`, `accessibility/atspi/client.go`.

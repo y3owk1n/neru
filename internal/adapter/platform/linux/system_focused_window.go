@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/platform/linux/system_linux_focused_window.go
 // Wayland focused-window bounds. A Wayland client cannot query another client's
 // on-screen geometry, so the focused window's global bounds come from the
 // running compositor's IPC: Hyprland (`hyprctl activewindow`), Sway
