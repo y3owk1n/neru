@@ -39,9 +39,8 @@
 ## General Checklist
 
 - [ ] Code formatted (`just fmt`)
-- [ ] Linters pass (`just lint`)
-- [ ] Tests pass (`just test`)
-- [ ] Build succeeds (`just build`)
+- [ ] `just ci` passes — the exact checks CI runs (format check, lint, vet,
+      tests including `-race`, vulnerability scan, build)
 - [ ] Tests added/updated for new or changed functionality
 - [ ] Documentation updated (if applicable)
 - [ ] Commit messages follow [conventional commits](https://www.conventionalcommits.org/)

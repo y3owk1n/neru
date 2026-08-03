@@ -226,8 +226,8 @@ live in [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md).
 ### What each layer covers
 
 **Unit** — hint generation, grid calculations, element filtering, action
-processing, mode transitions, config parsing/validation/defaults, CLI argument
-handling, and pure-logic benchmarks. These run everywhere.
+processing, mode transitions, config parsing/validation/defaults, and CLI
+argument handling. These run everywhere.
 
 **Integration** — today these are **macOS only**: real Accessibility and event
 tap APIs, global hotkey registration, overlay and window management, Unix socket
@@ -236,6 +236,26 @@ IPC, config file loading and reloading, and service-to-adapter coordination.
 reserved slots — no such tests exist yet, so Linux and Windows behavior is
 currently pinned by unit and contract tests alone. Adding real ones is one of
 the more valuable contributions available.
+
+### Running integration tests
+
+Integration tests exercise the **real OS**, and on macOS that has consequences
+worth knowing before your first run:
+
+- **They move your cursor and type keystrokes.** Don't run them while you're
+  typing in another window; the tests and you are sharing one physical input
+  device.
+- **Your terminal needs Accessibility permission** (System Settings → Privacy &
+  Security → Accessibility). Without it, accessibility- and event-tap-backed
+  tests fail with permission errors rather than skipping.
+- **Quit any running `neru` daemon first.** A live daemon holds the IPC socket,
+  which makes the IPC integration tests silently skip — a green run that tested
+  less than you think.
+- `just test-integration` runs with `-p 1` (one package at a time — concurrent
+  packages would fight over the one physical cursor) and `-count=1` (no test
+  cache — Go's cache can't see whether Accessibility was granted or a daemon
+  held the socket, so a cached pass may be from a run under different
+  conditions).
 
 ---
 
