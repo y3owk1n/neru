@@ -1,4 +1,4 @@
-//go:build linux
+//go:build !darwin
 
 package grid
 
@@ -12,21 +12,22 @@ import (
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// Overlay is the Linux grid overlay. Drawing happens in the overlay
-// manager's Cairo surface, so what is held here is the configuration and the
-// window handle the manager draws into.
+// Overlay is the non-darwin grid overlay. Drawing happens in the overlay
+// manager's native surface (Cairo on Linux, GDI on Windows), so what is
+// held here is the configuration and the window handle the manager draws
+// into.
 type Overlay struct {
 	window unsafe.Pointer
 	config config.GridConfig
 	logger *zap.Logger
 }
 
-// NewOverlay creates a new grid overlay instance (Linux stub).
+// NewOverlay creates a new grid overlay instance (non-darwin stub).
 func NewOverlay(cfg config.GridConfig, logger *zap.Logger) (*Overlay, error) {
 	return NewOverlayWithWindow(cfg, logger, nil), nil
 }
 
-// NewOverlayWithWindow creates a grid overlay instance using a shared window (Linux stub).
+// NewOverlayWithWindow creates a grid overlay instance using a shared window (non-darwin stub).
 func NewOverlayWithWindow(
 	cfg config.GridConfig,
 	logger *zap.Logger,
@@ -39,43 +40,43 @@ func NewOverlayWithWindow(
 	}
 }
 
-// DrawGrid draws the grid for the specified grid instance (Linux stub).
+// DrawGrid draws the grid for the specified grid instance (non-darwin stub).
 func (o *Overlay) DrawGrid(grid *domainGrid.Grid) error {
 	return nil
 }
 
-// Show shows the grid overlay (Linux stub).
+// Show shows the grid overlay (non-darwin stub).
 func (o *Overlay) Show() {}
 
-// Hide hides the grid overlay (Linux stub).
+// Hide hides the grid overlay (non-darwin stub).
 func (o *Overlay) Hide() {}
 
-// Destroy destroys the grid overlay (Linux stub).
+// Destroy destroys the grid overlay (non-darwin stub).
 func (o *Overlay) Destroy() {}
 
-// Clear clears the grid overlay (Linux stub).
+// Clear clears the grid overlay (non-darwin stub).
 func (o *Overlay) Clear() {}
 
-// ShowVirtualPointer is a Linux stub.
+// ShowVirtualPointer is a non-darwin stub.
 func (o *Overlay) ShowVirtualPointer(_ image.Point, _ int, _ string) {}
 
-// HideVirtualPointer is a Linux stub.
+// HideVirtualPointer is a non-darwin stub.
 func (o *Overlay) HideVirtualPointer() {}
 
-// SetConfig updates the grid configuration (Linux stub).
+// SetConfig updates the grid configuration (non-darwin stub).
 func (o *Overlay) SetConfig(cfg config.GridConfig) {
 	o.config = cfg
 }
 
-// SetVirtualPointerConfig stores the virtual pointer UI config (Linux stub).
+// SetVirtualPointerConfig stores the virtual pointer UI config (non-darwin stub).
 func (o *Overlay) SetVirtualPointerConfig(_ config.VirtualPointerUI, _ string) {}
 
-// Config returns the grid configuration (Linux stub).
+// Config returns the grid configuration (non-darwin stub).
 func (o *Overlay) Config() config.GridConfig {
 	return o.config
 }
 
-// Window returns the overlay window (Linux stub).
+// Window returns the overlay window (non-darwin stub).
 func (o *Overlay) Window() unsafe.Pointer {
 	return o.window
 }

@@ -1,4 +1,4 @@
-//go:build linux
+//go:build !darwin
 
 package stickyindicator
 
@@ -10,7 +10,10 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// Overlay manages the rendering of sticky modifiers indicator overlay (Linux stub).
+// Overlay manages the rendering of sticky modifiers indicator overlay
+// (non-darwin stub). Drawing happens in the overlay manager's native surface
+// (Cairo on Linux, GDI on Windows); this type only carries the configuration
+// and theme the manager resolves colors through.
 type Overlay struct {
 	uiConfig config.StickyModifiersUI
 	theme    config.ThemeProvider
@@ -18,7 +21,7 @@ type Overlay struct {
 	configMu sync.RWMutex
 }
 
-// NewOverlay creates a new sticky modifiers indicator overlay (Linux stub).
+// NewOverlay creates a new sticky modifiers indicator overlay (non-darwin stub).
 func NewOverlay(
 	uiConfig config.StickyModifiersUI,
 	theme config.ThemeProvider,
@@ -31,31 +34,31 @@ func NewOverlay(
 	}, nil
 }
 
-// Draw draws the sticky modifiers indicator at the specified position (Linux stub).
+// Draw draws the sticky modifiers indicator at the specified position (non-darwin stub).
 func (o *Overlay) Draw(x, y int, symbols string) {}
 
-// Show shows the sticky modifiers indicator overlay (Linux stub).
+// Show shows the sticky modifiers indicator overlay (non-darwin stub).
 func (o *Overlay) Show() {}
 
-// Hide hides the sticky modifiers indicator overlay (Linux stub).
+// Hide hides the sticky modifiers indicator overlay (non-darwin stub).
 func (o *Overlay) Hide() {}
 
-// Clear clears the sticky modifiers indicator overlay (Linux stub).
+// Clear clears the sticky modifiers indicator overlay (non-darwin stub).
 func (o *Overlay) Clear() {}
 
-// ResizeToActiveScreen resizes the sticky modifiers indicator overlay to the active screen (Linux stub).
+// ResizeToActiveScreen resizes the sticky modifiers indicator overlay to the active screen (non-darwin stub).
 func (o *Overlay) ResizeToActiveScreen() {}
 
-// Destroy destroys the sticky modifiers indicator overlay (Linux stub).
+// Destroy destroys the sticky modifiers indicator overlay (non-darwin stub).
 func (o *Overlay) Destroy() {}
 
-// Cleanup frees Go-side resources (Linux stub).
+// Cleanup frees Go-side resources (non-darwin stub).
 func (o *Overlay) Cleanup() {}
 
-// SetSharingType sets the window sharing type for screen sharing visibility (Linux stub).
+// SetSharingType sets the window sharing type for screen sharing visibility (non-darwin stub).
 func (o *Overlay) SetSharingType(_ bool) {}
 
-// SetConfig updates the overlay configuration (Linux stub).
+// SetConfig updates the overlay configuration (non-darwin stub).
 func (o *Overlay) SetConfig(cfg config.StickyModifiersUI) {
 	o.configMu.Lock()
 	defer o.configMu.Unlock()
