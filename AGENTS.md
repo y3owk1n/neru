@@ -4,7 +4,7 @@ Neru is a keyboard-driven navigation tool written in Go, with native bridges per
 
 ## Domain Concepts
 
-- **Mode**: Navigation context (hints, grid, recursive_grid, scroll, action)
+- **Mode**: Navigation context (hints, grid, recursive_grid, scroll, monitor_select; idle when none is active)
 - **Bridge**: Objective-C macOS integration layer
 - **Adapter**: Port implementation for external systems
 - **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/ports/accessibility.go))
@@ -16,7 +16,7 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 
 ### The "One Rule"
 
-**Non-darwin-tagged code must never import `internal/adapter/platform/darwin`.** This is enforced by `golangci-lint` using `depguard`.
+**Non-darwin-tagged code must never import `internal/adapter/platform/darwin`.** This is enforced twice: `depguard` in `.golangci.yml` and `internal/architecture/dependency_boundary_test.go` — `just lint` alone is not the only gate.
 
 ### File Organization for Platforms
 

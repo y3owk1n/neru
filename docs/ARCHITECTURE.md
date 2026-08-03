@@ -376,20 +376,29 @@ in sync with reality — a stub reporting `supported` is a bug.
 
 ## Platform Boundaries in the CLI Layer
 
-**`neru services`** — `internal/cli/services.go` carries `//go:build darwin`
-because it drives `launchctl` and macOS `.plist` files. On other platforms the
-command is simply never registered. Adding Linux service management means a new
-`services_linux.go` with `//go:build linux` implementing install/uninstall/
-start/stop over `systemctl`, registered in its own `init()`.
+**`neru services`** — the command itself is shared:
+[services.go](../internal/cli/services.go) registers `ServicesCmd`
+unconditionally and delegates to unexported helpers (`installService`,
+`startService`, …). The helpers are a Tier-2 dispatch pair:
+[services_darwin.go](../internal/cli/services_darwin.go) (`//go:build darwin`)
+drives `launchctl` and `.plist` files, while
+[services_other.go](../internal/cli/services_other.go) (`//go:build !darwin`)
+returns `CodeNotSupported`. Adding Linux service management means carving a
+`services_linux.go` out of the `!darwin` slot and implementing the same helpers
+over `systemctl` — registration is already shared, so no new `init()` is
+needed.
 
-**`IsRunningFromAppBundle`** — [root.go](../internal/cli/root.go) delegates to a
-build-tagged `isRunningFromAppBundle()`. On macOS it detects
-`.app/Contents/MacOS` paths so the daemon auto-starts when double-clicked in
-Finder; elsewhere it returns false.
+**`IsRunningFromAppBundle`** — [root.go](../internal/cli/root.go) delegates to
+a build-tagged implementation: [root_darwin.go](../internal/cli/root_darwin.go)
+detects `.app/Contents/MacOS` paths so the daemon auto-starts when
+double-clicked in Finder, [root_windows.go](../internal/cli/root_windows.go)
+detects launches from Explorer / the Start Menu, and
+[root_other.go](../internal/cli/root_other.go) returns false.
 
-**Main-thread locking** — on macOS `cmd/neru/main.go` calls
-`runtime.LockOSThread()` before anything else, required by Cocoa. Non-macOS
-builds omit it. Never add `LockOSThread` to shared code.
+**Main-thread locking** — on macOS
+[main_darwin.go](../cmd/neru/main_darwin.go) calls `runtime.LockOSThread()`
+before anything else, required by Cocoa. Non-macOS builds omit it. Never add
+`LockOSThread` to shared code.
 
 ---
 
