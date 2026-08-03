@@ -105,17 +105,16 @@ func (h *ActionsHandler) RegisterHandlers(
 	handlers[ActionCommand] = h.handleAction
 }
 
+// handleAction routes one `neru action ...` request to the handler for it.
 func (h *ActionsHandler) handleAction(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if len(cmd.Args) == 0 {
-		return ipc.Response{
-			Success: false,
-			Message: "action subcommand required (e.g., left_click, right_click)",
-			Code:    ipc.CodeInvalidInput,
-		}
+		return refuseAction("action subcommand required (e.g., left_click, right_click)")
 	}
 
 	actionName := cmd.Args[0]
 
+	// feed and sleep take their arguments raw rather than as flags, so they are
+	// dispatched before anything tries to parse flags out of them.
 	if action.IsFeedAction(actionName) {
 		return h.handleFeedAction(ctx, cmd.Args[1:])
 	}
@@ -124,21 +123,17 @@ func (h *ActionsHandler) handleAction(ctx context.Context, cmd ipc.Command) ipc.
 		return h.handleSleepAction(ctx, cmd.Args[1:])
 	}
 
-	parsed, parseErr := parseActionArgs(cmd.Args[1:])
-	if parseErr {
-		return ipc.Response{
-			Success: false,
-			Message: "invalid or missing flag value",
-			Code:    ipc.CodeInvalidInput,
-		}
+	parsed, parseFailed := parseActionArgs(cmd.Args[1:])
+	if parseFailed {
+		return refuseAction("invalid or missing flag value")
 	}
 
 	// Every action declares the flags it accepts (see actionFlagSupport), so
-	// this one check covers all of them and each handler only has to validate
-	// combinations of the flags it does accept.
-	flagSupportResp := rejectUnsupportedFlags(actionName, parsed)
-	if flagSupportResp != nil {
-		return *flagSupportResp
+	// this one check covers all of them and each handler below only has to
+	// validate combinations of the flags it does accept.
+	unsupported := rejectUnsupportedFlags(actionName, parsed)
+	if unsupported != nil {
+		return *unsupported
 	}
 
 	// A click action carrying --state or --toggle is a request for one half of
@@ -151,206 +146,117 @@ func (h *ActionsHandler) handleAction(ctx context.Context, cmd ipc.Command) ipc.
 		return *phaseErrResp
 	}
 
-	// Handle scroll sub-actions (scroll_up, scroll_down, etc.)
-	// These only require scrollService, so dispatch before the actionService nil check.
-	if action.IsScrollSubAction(actionName) {
-		return h.handleScrollAction(ctx, actionName, parsed)
+	namedResp, handled := h.dispatchByName(ctx, cmd, actionName, parsed)
+	if handled {
+		return namedResp
 	}
 
-	if action.IsResetAction(actionName) {
-		return h.handleResetAction()
-	}
+	return h.performTargetedAction(ctx, actionName, requestedActionName, parsed)
+}
 
-	if action.IsBackspaceAction(actionName) {
-		return h.handleBackspaceAction()
+// refuseAction builds the reply for a request that could not be used as given.
+func refuseAction(message string) ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: message,
+		Code:    ipc.CodeInvalidInput,
 	}
+}
 
-	if action.IsMoveCellAction(actionName) {
-		return h.handleMoveCellAction(parsed)
+// failAction builds the reply for a request that was understood but could not
+// be carried out.
+func failAction(message string) ipc.Response {
+	return ipc.Response{
+		Success: false,
+		Message: message,
+		Code:    ipc.CodeActionFailed,
 	}
+}
 
-	if action.IsWaitForModeExitAction(actionName) {
-		return h.handleWaitForModeExitAction(ctx, parsed)
+// dispatchByName routes the actions identified by their name alone. The second
+// result reports whether one of them matched; anything else acts on a point and
+// is handled after.
+func (h *ActionsHandler) dispatchByName(
+	ctx context.Context,
+	cmd ipc.Command,
+	actionName string,
+	parsed parsedActionArgs,
+) (ipc.Response, bool) {
+	switch {
+	// Scrolling needs only the scroll service, so it is dispatched ahead of
+	// everything that first checks for the action service.
+	case action.IsScrollSubAction(actionName):
+		return h.handleScrollAction(ctx, actionName, parsed), true
+
+	case action.IsResetAction(actionName):
+		return h.handleResetAction(), true
+
+	case action.IsBackspaceAction(actionName):
+		return h.handleBackspaceAction(), true
+
+	case action.IsMoveCellAction(actionName):
+		return h.handleMoveCellAction(parsed), true
+
+	case action.IsWaitForModeExitAction(actionName):
+		return h.handleWaitForModeExitAction(ctx, parsed), true
+
+	case action.IsSaveCursorPosAction(actionName):
+		return h.handleSaveCursorPosAction(ctx, parsed), true
+
+	case action.IsRestoreCursorPosAction(actionName):
+		return h.handleRestoreCursorPosAction(ctx, parsed), true
+
+	case action.IsMoveMonitorAction(actionName):
+		return h.handleMoveMonitorAction(ctx, parsed), true
+
+	case action.IsCycleHintAction(actionName):
+		return h.handleCycleHintAction(ctx, parsed), true
+
+	case action.IsSearchHintsAction(actionName):
+		return h.handleSearchHintsAction(), true
+
+	case action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName):
+		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName)), true
+
+	// A comma-separated chain produces a multi-click sequence through the
+	// native click-counting layer. Only mouse buttons may appear in one.
+	case strings.Contains(actionName, ","):
+		return h.handleActionChain(ctx, cmd, parsed), true
+
+	default:
+		return ipc.Response{}, false
 	}
+}
 
-	if action.IsSaveCursorPosAction(actionName) {
-		return h.handleSaveCursorPosAction(ctx, parsed)
-	}
-
-	if action.IsRestoreCursorPosAction(actionName) {
-		return h.handleRestoreCursorPosAction(ctx, parsed)
-	}
-
-	if action.IsMoveMonitorAction(actionName) {
-		return h.handleMoveMonitorAction(ctx, parsed)
-	}
-
-	if action.IsCycleHintAction(actionName) {
-		return h.handleCycleHintAction(ctx, parsed)
-	}
-
-	if action.IsSearchHintsAction(actionName) {
-		return h.handleSearchHintsAction()
-	}
-
-	if action.IsHideCursorAction(actionName) || action.IsShowCursorAction(actionName) {
-		return h.handleCursorVisibilityAction(action.IsHideCursorAction(actionName))
-	}
-
-	// Handle comma-separated action chains (e.g., "left_click,left_click")
-	// which produce multi-click sequences via the native click-counting layer.
-	// Only mouse button actions are allowed in chains.
-	if strings.Contains(actionName, ",") {
-		return h.handleActionChain(ctx, cmd, parsed)
-	}
-
+// performTargetedAction runs the actions that act on a point: the mouse moves
+// and the clicks.
+func (h *ActionsHandler) performTargetedAction(
+	ctx context.Context,
+	actionName string,
+	requestedActionName string,
+	parsed parsedActionArgs,
+) ipc.Response {
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
-		return ipc.Response{
-			Success: false,
-			Message: modErr.Error(),
-			Code:    ipc.CodeInvalidInput,
-		}
+		return refuseAction(modErr.Error())
 	}
-
-	isMoveMouse := actionName == string(action.NameMoveMouse)
-	isMoveMouseRelative := actionName == string(action.NameMoveMouseRelative)
 
 	flagErrResp := validateActionFlags(actionName, parsed)
 	if flagErrResp != nil {
 		return *flagErrResp
 	}
 
-	// Merge sticky modifiers AFTER the explicit --modifier validation above,
-	// so that active sticky modifiers don't cause false rejection of
-	// non-click actions like move_mouse or move_mouse_relative.
+	// Sticky modifiers merge only after the explicit --modifier validation
+	// above, so that an active sticky modifier cannot make a non-click action
+	// such as move_mouse look as though it were given a modifier it does not
+	// accept.
 	if h.modesHandler != nil {
-		stickyMods := h.modesHandler.StickyModifiers()
-		modifiers |= stickyMods
+		modifiers |= h.modesHandler.StickyModifiers()
 	}
 
-	if isMoveMouse && parsed.hasCenter {
-		if h.actionService == nil {
-			return ipc.Response{
-				Success: false,
-				Message: msgActionServiceNotAvailable,
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		offsetX, offsetY := parsed.xVal, parsed.yVal
-
-		h.logger.Debug("Moving mouse to center via IPC",
-			zap.Int("offsetX", offsetX),
-			zap.Int("offsetY", offsetY),
-		)
-
-		err := h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
-		if err != nil {
-			h.logger.Error("Failed to move mouse to center", zap.Error(err))
-
-			return ipc.Response{
-				Success: false,
-				Message: "failed to perform action: " + err.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		if h.modesHandler != nil &&
-			shouldClearSelectionAfterMoveMouse(parsed, false) {
-			h.modesHandler.ClearCurrentSelectionPoint()
-		}
-
-		return ipc.Response{
-			Success: true,
-			Message: actionName + " performed",
-			Code:    ipc.CodeOK,
-		}
-	}
-
-	if isMoveMouse && parsed.hasWindow {
-		if h.actionService == nil {
-			return ipc.Response{
-				Success: false,
-				Message: msgActionServiceNotAvailable,
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		offsetX, offsetY := parsed.xVal, parsed.yVal
-
-		h.logger.Debug("Moving mouse to window center via IPC",
-			zap.Int("offsetX", offsetX),
-			zap.Int("offsetY", offsetY),
-		)
-
-		err := h.actionService.MoveMouseToCenterOfWindow(ctx, offsetX, offsetY)
-		if err != nil {
-			h.logger.Error("Failed to move mouse to window center", zap.Error(err))
-
-			return ipc.Response{
-				Success: false,
-				Message: "failed to perform action: " + err.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		if h.modesHandler != nil &&
-			shouldClearSelectionAfterMoveMouse(parsed, false) {
-			h.modesHandler.ClearCurrentSelectionPoint()
-		}
-
-		return ipc.Response{
-			Success: true,
-			Message: actionName + " performed",
-			Code:    ipc.CodeOK,
-		}
-	}
-
-	if isMoveMouseRelative {
-		if h.actionService == nil {
-			return ipc.Response{
-				Success: false,
-				Message: msgActionServiceNotAvailable,
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		if !parsed.hasDX || !parsed.hasDY {
-			return ipc.Response{
-				Success: false,
-				Message: "move_mouse_relative requires --dx and --dy flags",
-				Code:    ipc.CodeInvalidInput,
-			}
-		}
-
-		h.logger.Debug("Moving mouse relative via IPC",
-			zap.Int("dx", parsed.deltaX),
-			zap.Int("dy", parsed.deltaY),
-		)
-
-		err := h.actionService.MoveMouseRelative(ctx, parsed.deltaX, parsed.deltaY, true)
-		if err != nil {
-			h.logger.Error("Failed to move mouse relative", zap.Error(err))
-
-			return ipc.Response{
-				Success: false,
-				Message: "failed to perform action: " + err.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		if h.modesHandler != nil {
-			if shouldClearSelectionAfterMoveMouse(parsed, false) {
-				h.modesHandler.ClearCurrentSelectionPoint()
-			}
-		}
-
-		return ipc.Response{
-			Success: true,
-			Message: actionName + " performed",
-			Code:    ipc.CodeOK,
-		}
+	moveResp, moved := h.dispatchMouseMove(ctx, actionName, parsed)
+	if moved {
+		return moveResp
 	}
 
 	h.logger.Debug("Performing action via IPC",
@@ -377,16 +283,121 @@ func (h *ActionsHandler) handleAction(ctx context.Context, cmd ipc.Command) ipc.
 	if err != nil {
 		h.logger.Error("Failed to perform action", zap.Error(err), zap.String("action", actionName))
 
-		return ipc.Response{
-			Success: false,
-			Message: "failed to perform action: " + err.Error(),
-			Code:    ipc.CodeActionFailed,
-		}
+		return failAction("failed to perform action: " + err.Error())
 	}
 
 	return ipc.Response{
 		Success: true,
 		Message: requestedActionName + " performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
+// mouseMove is one of the mouse moves that names its own destination rather
+// than taking a point.
+type mouseMove struct {
+	// requires is checked once the action service is known to exist, so that a
+	// missing service is still reported before a missing flag.
+	requires func() *ipc.Response
+
+	debugMessage string
+	failMessage  string
+	fields       []zap.Field
+
+	run func() error
+}
+
+// dispatchMouseMove runs the mouse moves that name their own destination: the
+// screen center, the focused window's center, or an offset from where the
+// cursor already is. The second result reports whether one of them applied.
+func (h *ActionsHandler) dispatchMouseMove(
+	ctx context.Context,
+	actionName string,
+	parsed parsedActionArgs,
+) (ipc.Response, bool) {
+	isMoveMouse := actionName == string(action.NameMoveMouse)
+	offsetX, offsetY := parsed.xVal, parsed.yVal
+
+	switch {
+	case isMoveMouse && parsed.hasCenter:
+		return h.runMouseMove(actionName, parsed, mouseMove{
+			debugMessage: "Moving mouse to center via IPC",
+			failMessage:  "Failed to move mouse to center",
+			fields:       []zap.Field{zap.Int("offsetX", offsetX), zap.Int("offsetY", offsetY)},
+			run: func() error {
+				return h.actionService.MoveMouseToCenter(ctx, offsetX, offsetY)
+			},
+		}), true
+
+	case isMoveMouse && parsed.hasWindow:
+		return h.runMouseMove(actionName, parsed, mouseMove{
+			debugMessage: "Moving mouse to window center via IPC",
+			failMessage:  "Failed to move mouse to window center",
+			fields:       []zap.Field{zap.Int("offsetX", offsetX), zap.Int("offsetY", offsetY)},
+			run: func() error {
+				return h.actionService.MoveMouseToCenterOfWindow(ctx, offsetX, offsetY)
+			},
+		}), true
+
+	case actionName == string(action.NameMoveMouseRelative):
+		return h.runMouseMove(actionName, parsed, mouseMove{
+			requires: func() *ipc.Response {
+				if parsed.hasDX && parsed.hasDY {
+					return nil
+				}
+
+				refusal := refuseAction("move_mouse_relative requires --dx and --dy flags")
+
+				return &refusal
+			},
+			debugMessage: "Moving mouse relative via IPC",
+			failMessage:  "Failed to move mouse relative",
+			fields:       []zap.Field{zap.Int("dx", parsed.deltaX), zap.Int("dy", parsed.deltaY)},
+			run: func() error {
+				return h.actionService.MoveMouseRelative(ctx, parsed.deltaX, parsed.deltaY, true)
+			},
+		}), true
+
+	default:
+		return ipc.Response{}, false
+	}
+}
+
+// runMouseMove carries out one mouse move. All of them share this shape: the
+// action service has to exist, a failure is reported the same way, and a move
+// that lands may clear the selection point the mode was holding.
+func (h *ActionsHandler) runMouseMove(
+	actionName string,
+	parsed parsedActionArgs,
+	move mouseMove,
+) ipc.Response {
+	if h.actionService == nil {
+		return failAction(msgActionServiceNotAvailable)
+	}
+
+	if move.requires != nil {
+		refusal := move.requires()
+		if refusal != nil {
+			return *refusal
+		}
+	}
+
+	h.logger.Debug(move.debugMessage, move.fields...)
+
+	err := move.run()
+	if err != nil {
+		h.logger.Error(move.failMessage, zap.Error(err))
+
+		return failAction("failed to perform action: " + err.Error())
+	}
+
+	if h.modesHandler != nil && shouldClearSelectionAfterMoveMouse(parsed, false) {
+		h.modesHandler.ClearCurrentSelectionPoint()
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: actionName + " performed",
 		Code:    ipc.CodeOK,
 	}
 }
