@@ -12,23 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The capability matrix in ports/capability_presets.go is a hand-written
-// declaration, and until now nothing tied it to what the adapters actually do.
-// The existing capability tests prove the registry is internally consistent —
-// every field is registered, keys are unique, entries read the right field —
-// but a capability could claim "supported" while its adapter returned
-// CodeNotSupported, or claim "stub" while the feature had quietly been
-// implemented, and every one of those tests would still pass.
-//
-// That matters because the matrix is the external contract: it is what
-// `neru doctor` prints and what the IPC info response serializes. A user
-// debugging "why don't hints work on Linux" is reading it.
-//
-// These tests run on whichever platform they are compiled for, so in CI each
-// of macOS, Linux and Windows checks its own declaration against its own
-// adapters. Adding a stub on one platform without downgrading its status — or
-// implementing one without promoting it — fails there.
-
 // systemCapabilityProbe pairs a capability with a cheap, side-effect-free call
 // that exercises the same subsystem, so the declared status can be compared
 // against what the adapter really does.
@@ -106,6 +89,23 @@ func newSystemPort(t *testing.T) ports.SystemPort {
 	return nil
 }
 
+// The capability matrix in ports/capability_presets.go is a hand-written
+// declaration, and until now nothing tied it to what the adapters actually do.
+// The existing capability tests prove the registry is internally consistent —
+// every field is registered, keys are unique, entries read the right field —
+// but a capability could claim "supported" while its adapter returned
+// CodeNotSupported, or claim "stub" while the feature had quietly been
+// implemented, and every one of those tests would still pass.
+//
+// That matters because the matrix is the external contract: it is what
+// `neru doctor` prints and what the IPC info response serializes. A user
+// debugging "why don't hints work on Linux" is reading it.
+//
+// These tests run on whichever platform they are compiled for, so in CI each
+// of macOS, Linux and Windows checks its own declaration against its own
+// adapters. Adding a stub on one platform without downgrading its status — or
+// implementing one without promoting it — fails there.
+//
 // TestCapabilities_DeclaredStatusMatchesAdapterBehavior is the cross-check the
 // matrix never had: a capability declared supported must not answer
 // CodeNotSupported, and one declared stub must.

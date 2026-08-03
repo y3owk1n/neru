@@ -8,18 +8,6 @@ import (
 	"testing"
 )
 
-// A relative #include that no longer resolves is the most expensive mistake in
-// this tree to find by hand: `go vet` does not see it (CGO_ENABLED=0 skips the
-// file), the cross-platform vet does not see it, and it only surfaces when the
-// target OS compiles the package with cgo on. On a macOS host that means a
-// Docker run or a red CI job, minutes later.
-//
-// It fires whenever a package changes depth relative to the headers it
-// includes, which is what moving a backend into its own directory does.
-//
-// The check is trivial because the answer is purely textual: resolve the path
-// against the including file's directory and stat it.
-
 var relativeIncludePattern = regexp.MustCompile(`#include\s+"(\.\.?/[^"]+)"`)
 
 // cgoSourceExtensions are the files a relative #include can appear in.
@@ -34,6 +22,17 @@ var cgoSourceExtensions = map[string]bool{
 	".c":  true,
 }
 
+// A relative #include that no longer resolves is the most expensive mistake in
+// this tree to find by hand: `go vet` does not see it (CGO_ENABLED=0 skips the
+// file), the cross-platform vet does not see it, and it only surfaces when the
+// target OS compiles the package with cgo on. On a macOS host that means a
+// Docker run or a red CI job, minutes later.
+//
+// It fires whenever a package changes depth relative to the headers it
+// includes, which is what moving a backend into its own directory does.
+//
+// The check is trivial because the answer is purely textual: resolve the path
+// against the including file's directory and stat it.
 func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 

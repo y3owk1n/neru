@@ -1,8 +1,0 @@
-//go:build linux
-
-package linux
-
-// Linux Wayland hotkey backend placeholder.
-//
-// Contributors should implement the compositor-specific Wayland hotkey backend
-// here instead of introducing a new Linux file later.

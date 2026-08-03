@@ -11,14 +11,13 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The interfaces below are declared here, at the consumer, rather than taken
-// from the components that satisfy them. Each names only what binding hotkeys
-// actually calls — two methods, or three — which is what let this package come
-// out of internal/app at all: the App passes its mode handler and its app
-// state, and neither one drags its package along.
-
 // ModeBindings reports what the active mode does with a key, and clears
 // modifiers left held by the hotkey that opened it.
+//
+// It is declared here, at the consumer, rather than taken from the component
+// that satisfies it, and names only the two methods binding hotkeys calls. That
+// is what let this package leave internal/app: the App passes its mode handler
+// without dragging the package along. The other interfaces here follow suit.
 type ModeBindings interface {
 	// ModeHotkeyOverride reports the actions the active mode binds to key, and
 	// whether it binds it at all.

@@ -20,7 +20,6 @@ import (
 // Every method is called here. The point is not the return values — they are
 // zero by definition — it is that the full surface is reachable without a
 // display and without panicking.
-
 func TestNoOpManager_AnswersEveryCallWithoutADisplay(t *testing.T) {
 	noOp := &manager.NoOpManager{}
 

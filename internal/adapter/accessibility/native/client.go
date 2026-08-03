@@ -406,8 +406,6 @@ func (c *Client) buildClickableOpts(
 	return opts, allowedRoles, ignoreClickableCheck
 }
 
-// Wrappers
-
 // InfraWindow wraps an Window.
 type InfraWindow struct {
 	element *Element

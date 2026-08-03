@@ -10,13 +10,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-// The mode commands. Each parses its flags through extractModeOptions in
-// modeoptions.go and then asks the mode handler to activate.
-
 // ModesHandler activates and exits the navigation modes on request.
 //
 // It holds no mode state of its own: the mode handler owns that, and this
-// translates a command and its flags into a call on it.
+// translates a command and its flags into a call on it. Flags are parsed by
+// extractModeOptions in modeoptions.go.
 type ModesHandler struct {
 	modes  *modes.Handler
 	logger *zap.Logger // Reserved for future logging needs (maintains consistency with other IPC controllers)
@@ -93,12 +91,6 @@ func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
 		}
 	}
 }
-
-// extractModeOptions extracts and validates the optional action and repeat
-// parameters from a mode IPC command. It returns the options and an optional
-// error response. If the response is non-nil the caller should return it
-// immediately.
-//
 
 func (h *ModesHandler) handleHints(ctx context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
@@ -303,5 +295,3 @@ func (h *ModesHandler) handleToggleCursorFollowSelection(
 		Data:    map[string]bool{"following": enabled},
 	}
 }
-
-// isValidStrategy checks that the given strategy value is one of the accepted

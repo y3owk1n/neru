@@ -3,9 +3,6 @@
 //nolint:testpackage
 package linux
 
-// This is an internal test: reaching the probe registry needs its unexported
-// type.
-
 import (
 	"errors"
 	"runtime"
@@ -13,6 +10,14 @@ import (
 	"testing"
 	"time"
 )
+
+// This is an internal test: reaching the probe registry needs its unexported
+// type.
+const testProbeTimeout = 20 * time.Millisecond
+
+// errProbeFailed is a static error so probe results can be compared with
+// errors.Is.
+var errProbeFailed = errors.New("probe failed")
 
 // Capability probing runs each native call on its own goroutine so a wedged
 // display server cannot hang `neru doctor` or an IPC info request. Those native
@@ -26,13 +31,7 @@ import (
 // mechanism itself rather than through the adapter: on any real backend the
 // probes return immediately, so an adapter-level test would pass whether the
 // cap existed or not.
-
-const testProbeTimeout = 20 * time.Millisecond
-
-// errProbeFailed is a static error so probe results can be compared with
-// errors.Is.
-var errProbeFailed = errors.New("probe failed")
-
+//
 // TestCapabilityProbes_WedgedProbeIsNotRestarted is the leak regression: while
 // one probe is stuck, further requests must not start another.
 func TestCapabilityProbes_WedgedProbeIsNotRestarted(t *testing.T) {

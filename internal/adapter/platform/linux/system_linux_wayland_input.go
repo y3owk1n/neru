@@ -10,22 +10,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// This file is the single routing seam between Neru's Wayland input requests
-// and the two non-overlapping injection backends:
-//
-//   - zwlr_virtual_pointer_v1 / zwp_virtual_keyboard_v1 (wlroots compositors:
-//     Sway, Hyprland, niri, River), implemented in the wlroots client.
-//   - libei via the org.freedesktop.portal.RemoteDesktop portal (KWin/KDE,
-//     which deliberately does not implement the wlroots input protocols),
-//     implemented in the libei client.
-//
-// Screen enumeration and the overlay still go through the wlroots client on
-// both families because KWin does implement zwlr_layer_shell_v1 and
-// zxdg_output_manager_v1. Only input differs, so the backend choice lives here
-// rather than inside either client. The cursor position is cached in the
-// wlroots client; after a libei move we mirror the new position back into that
-// cache so CursorPosition and screen resolution stay correct.
-
 // evdev KEY_* codes for the libei modifier keyboard path. KWin's RemoteDesktop
 // portal commonly grants only a pointer device, so libeiKey may still report
 // these as unsupported.
@@ -90,6 +74,20 @@ func libeiButtonRelease(button int) error {
 // When the session is established without a keyboard device, the function still
 // succeeds (pointer/click/scroll work) so that error messages about keyboard
 // availability come from the caller, not from this warm-up path.
+// WarmWaylandInput prepares the injection backend the running compositor needs.
+//
+// This file routes every Wayland input request to one of two non-overlapping
+// backends: zwlr_virtual_pointer_v1 and zwp_virtual_keyboard_v1 on wlroots
+// compositors (Sway, Hyprland, niri, River), or libei through the
+// org.freedesktop.portal.RemoteDesktop portal on KWin, which deliberately does
+// not implement the wlroots input protocols.
+//
+// Screens and the overlay still go through the wlroots client on both, since
+// KWin does implement zwlr_layer_shell_v1 and zxdg_output_manager_v1. Only
+// input differs, which is why the choice lives here rather than in either
+// client. The cursor position is cached in the wlroots client, so a libei move
+// mirrors the new position back into that cache to keep CursorPosition and
+// screen resolution correct.
 func WarmWaylandInput() error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil

@@ -4,14 +4,14 @@ package linux
 
 import "image"
 
-// Exported Wayland input entry points. These route to whichever injection
-// backend the running compositor supports (zwlr_virtual_pointer on wlroots, or
-// libei via the RemoteDesktop portal on KWin/KDE); see
-// system_linux_wayland_input.go for the dispatch.
-
 var globalWlrootsModifierDispatcher = newWlrootsModifierDispatcher(waylandModifierEvent)
 
 // WaylandMoveCursorToPoint moves the pointer to an absolute position.
+//
+// This and the other exported entry points here route to whichever injection
+// backend the running compositor supports: zwlr_virtual_pointer on wlroots, or
+// libei through the RemoteDesktop portal on KWin. The dispatch itself is in
+// system_linux_wayland_input.go.
 func WaylandMoveCursorToPoint(point image.Point) error {
 	return waylandMoveCursorToPoint(point)
 }

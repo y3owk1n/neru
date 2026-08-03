@@ -22,7 +22,7 @@ import (
 // These cases pin the routing rather than the work: with no services wired, each
 // request travels as far as the branch that reports what it needs, and that
 // report identifies the branch. Reordering the checks changes these answers.
-
+//
 // The action names and messages these cases repeat.
 const (
 	middleClick       = "middle_click"
@@ -305,13 +305,6 @@ func TestHandleAction_RoutesEveryRequest(t *testing.T) {
 	}
 }
 
-// The cases above run with no services wired, so each request travels only as
-// far as the branch that reports what it needs. That pins the routing but never
-// reaches a success path — and the success paths carry rules of their own: which
-// name the reply quotes, and whether a landed move clears the selection point.
-//
-// These cases wire a real ActionService over mocked ports so those paths run.
-
 // servedHandler is a handler whose action service works, so a move can succeed.
 func servedHandler() *ActionsHandler {
 	screen := image.Rect(0, 0, 1000, 800)
@@ -333,6 +326,12 @@ func servedHandler() *ActionsHandler {
 	}
 }
 
+// The cases above run with no services wired, so each request travels only as
+// far as the branch that reports what it needs. That pins the routing but never
+// reaches a success path — and the success paths carry rules of their own: which
+// name the reply quotes, and whether a landed move clears the selection point.
+//
+// These cases wire a real ActionService over mocked ports so those paths run.
 func TestHandleAction_SucceedingMoveReportsTheRequestedName(t *testing.T) {
 	tests := []struct {
 		name string

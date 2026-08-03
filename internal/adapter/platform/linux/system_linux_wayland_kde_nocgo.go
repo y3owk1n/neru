@@ -4,10 +4,10 @@ package linux
 
 import "github.com/y3owk1n/neru/internal/derrors"
 
-// KDE Plasma Wayland input slot (non-CGO stub). libei input injection requires
-// CGO; these stubs keep the Wayland input dispatcher buildable in the
-// (unsupported) non-CGO configuration.
-
+// libeiEnsure reports that libei input is unavailable.
+//
+// This is the KDE Plasma input slot built without CGO. libei injection needs
+// it, so every entry point here refuses.
 func libeiEnsure() error {
 	return derrors.New(
 		derrors.CodeNotSupported,

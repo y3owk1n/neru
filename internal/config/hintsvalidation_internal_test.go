@@ -2,17 +2,6 @@ package config
 
 import "testing"
 
-// ValidateHints reports the first problem it finds, so which problem a user is
-// told about depends on the order the checks run in. These cases record the
-// message for one broken setting at a time, and for a few configs broken in more
-// than one way at once — those last are what pin the order, including the
-// boundary-highlight checks sitting between the two halves of the search-input
-// checks.
-//
-// One case is not about failure at all: an unset placement is defaulted rather
-// than refused, so validating a config quietly writes to it.
-
-// badColor is a color no validator will accept.
 // placementSideways is a placement no validator accepts.
 const placementSideways = "sideways"
 
@@ -313,6 +302,17 @@ func hintsCases() []hintsCase {
 	}
 }
 
+// ValidateHints reports the first problem it finds, so which problem a user is
+// told about depends on the order the checks run in. These cases record the
+// message for one broken setting at a time, and for a few configs broken in more
+// than one way at once — those last are what pin the order, including the
+// boundary-highlight checks sitting between the two halves of the search-input
+// checks.
+//
+// One case is not about failure at all: an unset placement is defaulted rather
+// than refused, so validating a config quietly writes to it.
+//
+// badColor is a color no validator will accept.
 func TestValidateHints_ReportsTheFirstProblem(t *testing.T) {
 	for _, testCase := range hintsCases() {
 		t.Run(testCase.name, func(t *testing.T) {

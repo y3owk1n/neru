@@ -10,15 +10,15 @@ import (
 	"testing"
 )
 
+const modulePrefix = "github.com/y3owk1n/neru/"
+
 // These tests enforce the dependency direction documented in
 // docs/CROSS_PLATFORM.md ("The Three Tiers") and docs/ARCHITECTURE.md.
 //
 // The tier model is only worth anything if it holds. Prose did not hold it:
 // every violation these tests now catch was present in the tree before they
 // were written.
-
-const modulePrefix = "github.com/y3owk1n/neru/"
-
+//
 // TestDomainStaysPure pins the innermost layer. Domain is the pure-Go core: it
 // may depend on config and ports, never on an adapter or on application wiring.
 // A domain package that imports infra cannot be tested without an OS.

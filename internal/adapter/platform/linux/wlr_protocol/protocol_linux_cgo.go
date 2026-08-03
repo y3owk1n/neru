@@ -15,11 +15,11 @@
 // zwlr_layer_shell_v1_interface) must blank-import this package:
 //
 //	import _ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
+//
+// The pkg-config directive below supplies the wayland-client include path, so
+// the .c files cgo compiles from this directory resolve #include
+// "wayland-util.h". cgo compiles every .c file here automatically.
 package wlr_protocol
-
-// The #cgo directive supplies the wayland-client include path so the
-// auto-compiled .c files can resolve #include "wayland-util.h".
-// CGO automatically compiles every .c file in this directory.
 
 /*
 #cgo linux pkg-config: wayland-client

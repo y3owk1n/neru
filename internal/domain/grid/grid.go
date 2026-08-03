@@ -704,7 +704,6 @@ func calculateOptimalCellSizes(width, height int) (int, int) {
 	return minCellSize, maxCellSize
 }
 
-// calculateLabelLength determines the optimal label length based on total cells and available characters.
 // regionShape returns how many columns and rows one region spans, and how many
 // distinct region prefixes the label scheme provides.
 //
@@ -781,6 +780,8 @@ func fitToAvailableRegions(
 	return gridCols, gridRows
 }
 
+// calculateLabelLength picks the label length from the cell count and the
+// characters available to build labels from.
 func calculateLabelLength(totalCells, numChars, numRowChars, numColChars int) int {
 	// If custom row/col labels are provided (numRowChars/numColChars != numChars), use more labels
 	if numRowChars != numChars || numColChars != numChars {

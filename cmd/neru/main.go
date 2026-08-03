@@ -15,10 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// main is defined in main_os.go files (main_darwin.go / main_other.go)
-// so that platform-specific thread locking can be applied before any goroutines start.
-// This file contains only the shared daemon logic.
-
 type alertProvider struct {
 	system config.AlertProvider
 }

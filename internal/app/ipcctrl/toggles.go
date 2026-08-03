@@ -7,18 +7,13 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
-// The toggle commands (toggle-scroll-invert, toggle-screen-share,
-// toggle-cursor-follow-selection) flip a boolean. Flipping is the right default
-// for a key binding, where the user sees the result and presses again if it is
-// wrong, but it is the wrong primitive for a script: a driver that cannot read
-// the state can only guess at it, and a binding pressed twice by mistake leaves
-// the daemon somewhere the driver does not expect.
-//
-// --state lets those callers ask for the state they want instead. The states
-// are reported by "neru status --json" under the same names, so a driver can
-// check what it asked for.
-
 // toggleStateFlag names the state a toggle command should converge on.
+//
+// The toggle commands flip a boolean, which suits a key binding: the user sees
+// the result and presses again if it is wrong. It suits a script badly, since a
+// driver that cannot read the state can only guess, and a double press leaves
+// the daemon somewhere it does not expect. --state asks for a state instead,
+// under the same names "neru status --json" reports.
 const toggleStateFlag = "--state"
 
 // The values toggleStateFlag accepts.

@@ -8,14 +8,6 @@ import (
 	"testing"
 )
 
-// A comment that names a source file is a pointer, and a pointer that no longer
-// resolves is worse than no pointer: it sends a reader somewhere that does not
-// exist and costs them the time to work out which of the two is wrong.
-//
-// Renames break these silently. The compiler does not read comments, and a
-// grep for the old name finds only the stale comment itself, which reads like
-// confirmation that the file is still there.
-
 // bannerPattern matches a file's own path written as a comment near the top —
 // a header line restating where the file lives.
 var bannerPattern = regexp.MustCompile(`^// ((?:internal|cmd)/[A-Za-z0-9_./-]+\.go)\s*$`)
@@ -25,6 +17,14 @@ var bannerPattern = regexp.MustCompile(`^// ((?:internal|cmd)/[A-Za-z0-9_./-]+\.
 // enough.
 const bannerScanLines = 6
 
+// A comment that names a source file is a pointer, and a pointer that no longer
+// resolves is worse than no pointer: it sends a reader somewhere that does not
+// exist and costs them the time to work out which of the two is wrong.
+//
+// Renames break these silently. The compiler does not read comments, and a
+// grep for the old name finds only the stale comment itself, which reads like
+// confirmation that the file is still there.
+//
 // TestCommentPaths_HeadersMatchTheirFile catches a header comment left behind by a
 // rename. Not every file carries one; those that do must be right.
 func TestCommentPaths_HeadersMatchTheirFile(t *testing.T) {

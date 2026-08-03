@@ -11,16 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// The grid is built by a geometry pass (splitting the screen into rows and
-// columns, distributing the leftover pixels) and a labeling pass (assigning a
-// coordinate to each cell). Both are arithmetic-heavy, and a single off-by-one
-// in either still produces a plausible-looking grid — cells exist, coordinates
-// look right — while leaving dead pixels the user cannot click, overlapping
-// cells that shadow each other, or duplicate coordinates.
-//
-// These tests assert the structural invariants that must hold for every grid,
-// rather than pinning specific numbers for one screen size.
-
 // gridSizes covers ordinary displays plus the extreme aspect ratios the cell
 // sizing has a special branch for, and sizes that do not divide evenly by the
 // cell count so the remainder-distribution path is exercised.
@@ -50,6 +40,16 @@ func gridCaseName(bounds image.Rectangle, characters string) string {
 		bounds.Dx(), bounds.Dy(), bounds.Min.X, bounds.Min.Y, len(characters))
 }
 
+// The grid is built by a geometry pass (splitting the screen into rows and
+// columns, distributing the leftover pixels) and a labeling pass (assigning a
+// coordinate to each cell). Both are arithmetic-heavy, and a single off-by-one
+// in either still produces a plausible-looking grid — cells exist, coordinates
+// look right — while leaving dead pixels the user cannot click, overlapping
+// cells that shadow each other, or duplicate coordinates.
+//
+// These tests assert the structural invariants that must hold for every grid,
+// rather than pinning specific numbers for one screen size.
+//
 // TestGrid_CellsStayWithinBounds is the most basic geometric requirement: a
 // cell outside the screen cannot be clicked, and a cell that pokes past the
 // edge would place its center off-screen.

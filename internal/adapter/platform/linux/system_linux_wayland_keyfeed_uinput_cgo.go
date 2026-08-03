@@ -15,18 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// uinput keyboard injection. When /dev/uinput is writable, `action feed` posts
-// keystrokes through a synthetic keyboard device instead of the compositor's
-// virtual-keyboard / libei protocols. The device enters the input stack below
-// libinput, so the compositor routes the keys to the focused surface exactly
-// like a physical keypress — uniformly across X11, wlroots, and KWin — and
-// sidesteps the fragile RemoteDesktop portal consent path on KDE.
-//
-// The device is created lazily on first use and reused for the process
-// lifetime. It is tagged BUS_VIRTUAL so Neru's own evdev capture skips it (see
-// isUinputVirtualDevice); otherwise an active EVIOCGRAB would grab our injected
-// keys and loop them back into the event tap.
-
 var (
 	errUinputKeyboardSend    = errors.New("failed to send uinput key event")
 	errUinputKeyboardRelease = errors.New("failed to release uinput key (key may be latched)")
@@ -47,6 +35,18 @@ var uinputKeyboardMu sync.Mutex
 // ensureUinputKeyboard creates the synthetic keyboard device on first call and
 // caches the result. A creation failure (typically /dev/uinput not writable) is
 // remembered so callers fall through to the compositor backends.
+// ensureUinputKeyboard creates the synthetic keyboard on first use and reuses
+// it for the life of the process.
+//
+// When /dev/uinput is writable, `action feed` posts keystrokes through this
+// device instead of the compositor's virtual-keyboard or libei protocols. It
+// enters the input stack below libinput, so the compositor routes the keys to
+// the focused surface exactly like a physical press, uniformly across X11,
+// wlroots and KWin, and sidesteps the fragile RemoteDesktop consent path on KDE.
+//
+// The device is tagged BUS_VIRTUAL so Neru's own evdev capture skips it (see
+// isUinputVirtualDevice); an active EVIOCGRAB would otherwise grab the injected
+// keys and loop them back into the event tap.
 func ensureUinputKeyboard() error {
 	uinputKeyboardOnce.Do(func() {
 		var deviceFd C.int

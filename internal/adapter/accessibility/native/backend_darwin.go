@@ -4,11 +4,9 @@ package native
 
 import "github.com/y3owk1n/neru/internal/adapter/accessibility/native/darwin"
 
-// The element and tree layer for this platform lives in the macos package.
 // These aliases and forwards are the dispatch slot: the shell in client.go
-// and query.go is written once against these names, and the directory the
+// and query.go is written once against these names, and the directory an
 // implementation lives in says which platform it is.
-
 type (
 	// Element is this platform's accessibility element.
 	Element = darwin.Element

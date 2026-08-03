@@ -7,10 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/sequence"
 )
 
-// The action-sequence executor lives in internal/app/sequence. What is left
-// here is the App's binding to it: the dependencies only the App can supply,
-// and the thin methods the initialization wiring and the mode handler name.
-
 // newSequenceExecutor builds the executor from the App's own components.
 //
 // Every dependency is handed over as a function or a one-method interface, so

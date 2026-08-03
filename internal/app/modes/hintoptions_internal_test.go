@@ -14,13 +14,6 @@ const (
 	strategyAXTree = "axtree"
 )
 
-// A refresh and a fresh activation disagree about what an absent option means,
-// and getting that backwards is invisible until a user loses a flag they set.
-// On a refresh an absent option means "keep what is there", because a refresh
-// can be triggered by something that carries no options at all. On a fresh
-// activation it means "back to the default", because the user just issued a
-// command without that flag.
-
 // populatedContext is a context that already carries every option, so a case can
 // tell "kept" apart from "reset" for each of them.
 func populatedContext() *hints.Context {
@@ -43,6 +36,12 @@ func populatedContext() *hints.Context {
 	return ctx
 }
 
+// A refresh and a fresh activation disagree about what an absent option means,
+// and getting that backwards is invisible until a user loses a flag they set.
+// On a refresh an absent option means "keep what is there", because a refresh
+// can be triggered by something that carries no options at all. On a fresh
+// activation it means "back to the default", because the user just issued a
+// command without that flag.
 func TestApplyHintOptions_RefreshKeepsUnsetOptions(t *testing.T) {
 	ctx := populatedContext()
 

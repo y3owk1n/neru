@@ -3,9 +3,6 @@
 //nolint:testpackage
 package linux
 
-// This is an internal test: reaching the stub path needs a Manager with no
-// backend attached, and the backend fields are unexported by design.
-
 import (
 	"image"
 	"testing"
@@ -19,6 +16,12 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
+
+// noBackendManager returns a Manager in the state a session with no usable
+// display server produces.
+func noBackendManager() *Manager {
+	return &Manager{}
+}
 
 // The Linux overlay Manager dispatches every draw call to whichever backend
 // initialized — X11 or wlroots layer-shell — and falls through to a
@@ -36,13 +39,9 @@ import (
 // display connection, which also keeps them safe on a headless CI runner.
 // Deliberately not using Init(): it is a process-global sync.Once singleton
 // that probes for a display.
-
-// noBackendManager returns a Manager in the state a session with no usable
-// display server produces.
-func noBackendManager() *Manager {
-	return &Manager{}
-}
-
+//
+// This is an internal test: reaching the stub path needs a Manager with no
+// backend attached, and the backend fields are unexported by design.
 func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing.T) {
 	tests := []struct {
 		name string

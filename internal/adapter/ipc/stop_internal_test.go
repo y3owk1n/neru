@@ -8,16 +8,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// A listener whose Close never returns is not hypothetical: the Windows
-// named-pipe listener reaches that state when its close signal is consumed by an
-// accept that is aborting a connection, and the retry that follows waits for a
-// second signal nobody sends. The failure it produced was a daemon that could
-// not exit.
-//
-// The state is reachable only on Windows, but nothing about waiting on Close is
-// platform-specific, so it is reproduced here with a listener that simply never
-// returns from it.
-
 // stuckListener never returns from Close until it is released.
 type stuckListener struct {
 	release chan struct{}
@@ -66,6 +56,15 @@ func (l *promptListener) Close() error {
 
 func (*promptListener) Addr() net.Addr { return nil }
 
+// A listener whose Close never returns is not hypothetical: the Windows
+// named-pipe listener reaches that state when its close signal is consumed by an
+// accept that is aborting a connection, and the retry that follows waits for a
+// second signal nobody sends. The failure it produced was a daemon that could
+// not exit.
+//
+// The state is reachable only on Windows, but nothing about waiting on Close is
+// platform-specific, so it is reproduced here with a listener that simply never
+// returns from it.
 func TestServer_Stop_GivesUpOnAListenerThatWillNotClose(t *testing.T) {
 	listener := newStuckListener()
 	defer close(listener.release)

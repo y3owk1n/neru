@@ -8,18 +8,12 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The handler's event-tap access.
-//
-// These are ordinary methods over a ports.EventTapPort, so the contract the
-// handler depends on is the port itself rather than a set of injected closures.
-//
-// Every one tolerates a nil tap: the handler is built in initialization phase 7
-// and the event tap only exists in phase 8, and mode setup can run in tests
-// with no tap at all.
-
 // SetEventTap injects the event tap once infrastructure initialization has
 // created it. It mirrors IPCController.SetInfrastructure and must be called
 // before any mode is activated.
+//
+// Every method here tolerates a nil tap: the handler is built in phase 7 and
+// the tap only exists in phase 8, and mode setup can run in tests with none.
 func (h *Handler) SetEventTap(eventTap ports.EventTapPort) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

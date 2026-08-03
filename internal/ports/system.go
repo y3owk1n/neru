@@ -140,26 +140,20 @@ type SystemPort interface {
 	ShowNotification(title, message string)
 }
 
-// Optional SystemPort extensions.
-//
-// Some platforms can do a job better than the shared code, but not every
-// platform can do it at all, so the capability cannot go on SystemPort without
-// forcing every adapter to carry a stub. An adapter opts in by implementing one
-// of these instead, and the caller reaches it by type assertion.
-//
-// Three rules:
-//
-//   - Declare the interface here, beside the port it extends. One defined in
-//     the consuming package is undiscoverable to someone on another platform.
-//   - The caller needs a working fallback. An optional extension is an
-//     optimization or a native shortcut, never the only path.
-//   - Say which adapters implement it and why the others cannot.
-//
-// See docs/CROSS_PLATFORM.md ("The three tiers") for when to use one of these
-// rather than adding a method to SystemPort.
-
 // RelativeCursorMover is an optional SystemPort extension for platforms that
 // can move the cursor by a delta natively, without a read-then-warp round trip.
+//
+// It is the first of the optional extensions declared here. Some platforms can
+// do a job better than the shared code, but not every platform can do it at
+// all, so the capability cannot go on SystemPort without forcing every adapter
+// to carry a stub. An adapter opts in by implementing one of these, and the
+// caller reaches it by type assertion. Three rules keep that workable: declare
+// the interface here beside the port it extends, since one defined in the
+// consuming package is undiscoverable from another platform; give the caller a
+// working fallback, because an extension is an optimization and never the only
+// path; and say which adapters implement it and why the others cannot. See
+// docs/CROSS_PLATFORM.md ("The three tiers") for when to reach for one instead
+// of adding a method to SystemPort.
 //
 // Implemented by the Linux adapter, where the Wayland backends have no
 // authoritative cursor-position query: reading the position and warping to

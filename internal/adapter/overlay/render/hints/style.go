@@ -5,15 +5,12 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The hint style is one type for every platform. Nothing about a hint's
-// appearance differs by operating system: the same font size, padding, radius
-// and colors describe it everywhere.
+// StyleMode is the visual styling for hint overlays, one type for every
+// platform: nothing about a hint's appearance differs by operating system.
 //
-// Colors are the hex strings the configuration uses. A backend that draws with
-// packed ARGB converts at draw time, since that is a property of the drawing
-// API rather than of the style.
-
-// StyleMode is the visual styling configuration for hint overlays.
+// Colors are the hex strings the configuration uses. A backend drawing with
+// packed ARGB converts at draw time, that being a property of the drawing API
+// rather than of the style.
 type StyleMode struct {
 	fontSize                 int
 	fontFamily               string
@@ -80,8 +77,6 @@ func (s StyleMode) BoundaryBackgroundColor() string { return s.boundaryBackgroun
 
 // BoundaryBorderColor returns the target boundary stroke color.
 func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
-
-// Overlay manages the rendering of hint overlays using native platform APIs (Linux stub).
 
 // BuildStyle builds the hints style from the configuration .
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {

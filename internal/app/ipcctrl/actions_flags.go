@@ -10,17 +10,14 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// Flag support is declarative: every action declares the flags it accepts and
-// rejectUnsupportedFlags refuses everything else, once, before dispatch.
-//
-// This replaces a per-handler reject list in each action handler. Those lists
-// were maintained by hand and had drifted: backspace silently accepted
-// --steps, --toggle and --backward because they were added to the parser after
-// the list was written. A flag with no home in this table is now rejected for
-// every action, so the failure mode of forgetting an entry is a rejection
-// rather than a silently ignored flag.
-
 // Flags shared by several actions, named so the table stays readable.
+//
+// Flag support is declarative: an action declares what it accepts and
+// rejectUnsupportedFlags refuses the rest, once, before dispatch. The
+// per-handler reject lists this replaced had drifted — backspace silently
+// accepted --steps, --toggle and --backward, added to the parser after the list
+// was written. Forgetting an entry here is now a rejection, not a dropped
+// flag.
 var (
 	// pointTargetingFlags choose between the mode selection and the cursor.
 	pointTargetingFlags = []string{flagSelection, flagBare}

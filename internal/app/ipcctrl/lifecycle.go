@@ -12,9 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// Ping, start and stop: the commands that ask the daemon about itself
-// rather than about a mode.
-
 func parseCSV(input string) []string {
 	if input == "" {
 		return nil
@@ -108,5 +105,3 @@ func (h *LifecycleHandler) handleStop(_ context.Context, _ ipc.Command) ipc.Resp
 
 	return ipc.Response{Success: true, Message: "neru stopped", Code: ipc.CodeOK}
 }
-
-// ModesHandler handles mode-related IPC commands.

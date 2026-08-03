@@ -7,16 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
-// Cell indices reach these methods straight from a keypress: the key-to-cell
-// map is built from user-configurable key strings, and a stale or mismatched
-// layout override can yield an index outside the current depth's cell list.
-// Every accessor therefore guards the index and falls back to the current
-// bounds rather than indexing out of range.
-//
-// The guards were untested, which is the dangerous combination: an inverted
-// comparison in one of them turns a mistyped key into a panic that takes the
-// daemon down, and the tests would not have noticed.
-
 // outOfRangeCells returns indices that must always be rejected for a grid whose
 // current depth has cellCount cells.
 func outOfRangeCells(cellCount int) []recursivegrid.Cell {
@@ -33,6 +23,16 @@ func newGuardGrid() *recursivegrid.RecursiveGrid {
 	return recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 800, 600), 10, 10, 5)
 }
 
+// Cell indices reach these methods straight from a keypress: the key-to-cell
+// map is built from user-configurable key strings, and a stale or mismatched
+// layout override can yield an index outside the current depth's cell list.
+// Every accessor therefore guards the index and falls back to the current
+// bounds rather than indexing out of range.
+//
+// The guards were untested, which is the dangerous combination: an inverted
+// comparison in one of them turns a mistyped key into a panic that takes the
+// daemon down, and the tests would not have noticed.
+//
 // TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells pins the documented
 // fallback: an index outside the cell list yields the center of the current
 // bounds, and never panics.

@@ -8,11 +8,13 @@ import (
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
+// main starts the CLI, pinning the OS thread first.
+//
+// It lives in a per-platform file so the pinning happens before any goroutine
+// starts; main.go holds only the shared daemon logic.
 func main() {
-	// LockOSThread must be called before any goroutines are started.
-	// macOS Cocoa (NSApplication, NSWindow, etc.) requires all UI calls
-	// to happen on the thread that called LockOSThread — the OS main thread.
-	// This is a macOS-only requirement; Linux/Windows do not need it.
+	// Cocoa requires every UI call on the thread that called LockOSThread, so
+	// it has to run before anything else spawns a goroutine. macOS only.
 	runtime.LockOSThread()
 
 	cli.LaunchFunc = LaunchDaemon

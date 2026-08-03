@@ -11,15 +11,6 @@ import (
 	"testing"
 )
 
-// These guardrails keep the test suite honest. Both patterns they forbid used
-// to be widespread here, and both share the same failure mode: the test runs,
-// reports PASS, and would keep reporting PASS after the code under it broke.
-// A test that cannot fail is worse than no test, because it reads as coverage.
-//
-// If a genuinely untestable case turns up, express it as an explicit t.Skip
-// with a reason rather than as a silently-passing assertion — a skip is visible
-// in the test output, a swallowed error is not.
-
 // failCalls are the testing.TB methods that can actually fail (or visibly skip)
 // a test. Anything else leaves the test reporting success.
 var failCalls = map[string]bool{
@@ -29,6 +20,15 @@ var failCalls = map[string]bool{
 	"Skip": true, "Skipf": true, "SkipNow": true,
 }
 
+// These guardrails keep the test suite honest. Both patterns they forbid used
+// to be widespread here, and both share the same failure mode: the test runs,
+// reports PASS, and would keep reporting PASS after the code under it broke.
+// A test that cannot fail is worse than no test, because it reads as coverage.
+//
+// If a genuinely untestable case turns up, express it as an explicit t.Skip
+// with a reason rather than as a silently-passing assertion — a skip is visible
+// in the test output, a swallowed error is not.
+//
 // TestNoTestSwallowsAnErrorWithoutFailing forbids the
 //
 //	if err != nil { t.Logf("...", err) }

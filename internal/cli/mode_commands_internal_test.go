@@ -16,11 +16,6 @@ const (
 	cursorHold   = "hold"
 )
 
-// ipcArgs turns a mode command's flags into the request the daemon receives, so
-// these cases are the contract between the two halves of every mode command.
-// Until it was a function of its own the assembly ended in a socket write and
-// could not be checked at all.
-
 // hintsMode is a mode that declares every optional flag, so a case can set any
 // of them.
 func hintsMode() ModeConfig {
@@ -37,6 +32,10 @@ func hintsMode() ModeConfig {
 	}
 }
 
+// ipcArgs turns a mode command's flags into the request the daemon receives, so
+// these cases are the contract between the two halves of every mode command.
+// Until it was a function of its own the assembly ended in a socket write and
+// could not be checked at all.
 func TestIPCArgs_LeadsWithTheModeName(t *testing.T) {
 	args := modeFlags{}.ipcArgs(hintsMode())
 

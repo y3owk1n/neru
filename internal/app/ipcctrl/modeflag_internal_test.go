@@ -16,7 +16,7 @@ import (
 // These cases pin that every flag in the shared vocabulary is one this parser
 // actually acts on, so a flag added to modeflag without being wired in here, or
 // renamed on one side only, fails rather than going quietly dead.
-
+//
 // The wire literals these cases repeat. They are spelled out rather than built
 // from modeflag, so that a case still pins the exact text a user would type.
 const (

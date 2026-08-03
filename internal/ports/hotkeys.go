@@ -33,14 +33,10 @@ type HotkeyPort interface {
 	UnregisterAll()
 }
 
-// Optional HotkeyPort extensions.
-//
-// See the equivalent block in system.go for the rules; the same three apply
-// here — declare the interface in this package, give the caller a fallback, and
-// document which backends implement it.
-
 // HotkeyReleaseRegistrar is an optional HotkeyPort extension for backends that
 // can distinguish key press from key release.
+//
+// The rules for optional extensions are in system.go and apply here too.
 //
 // Implemented by the macOS manager, whose per-hotkey CGEventTaps see both
 // edges. X11's XGrabKey and Win32's RegisterHotKey deliver press only, so those

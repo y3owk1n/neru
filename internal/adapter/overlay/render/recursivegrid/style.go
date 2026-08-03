@@ -8,11 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The recursive-grid style is one type for every platform, shaped like the grid
-// style in render/grid/style.go: the fields hold the values the configuration
-// writes, and the packed-ARGB and float forms that Cairo and GDI want are
-// accessors that convert at the point of use.
-
 const (
 	minLineWidth = 1
 
@@ -251,9 +246,6 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 		subKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
 	}.packColors()
 }
-
-// The accessors below serve backends that draw with packed ARGB and float
-// dimensions: Cairo on Linux, GDI on Windows.
 
 // LineWidthF returns the cell border width as a float, clamped so a hairline
 // stays visible.

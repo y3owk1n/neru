@@ -11,8 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// The scroll command: inverting the scroll direction.
-
 // ScrollHandler handles scroll-related IPC commands.
 type ScrollHandler struct {
 	appState      *state.AppState

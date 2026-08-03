@@ -8,16 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// The Is<X>Action helpers are the routing table for CLI and IPC action
-// dispatch: each one claims a single action name, and the caller runs whichever
-// branch says yes. They are one-liners, which is exactly why they were
-// untested — and exactly why a slip in one is invisible. An inverted comparison
-// makes a predicate answer "yes" for every action except its own, silently
-// routing every unrelated action into that branch.
-//
-// Testing them as a cross-product (each predicate against every name) pins both
-// halves of the contract: it matches its own name, and it matches nothing else.
-
 // namedPredicate pairs a predicate with the single action name it must accept.
 type namedPredicate struct {
 	name      action.Name
@@ -40,6 +30,16 @@ func namedPredicates() []namedPredicate {
 	}
 }
 
+// The Is<X>Action helpers are the routing table for CLI and IPC action
+// dispatch: each one claims a single action name, and the caller runs whichever
+// branch says yes. They are one-liners, which is exactly why they were
+// untested — and exactly why a slip in one is invisible. An inverted comparison
+// makes a predicate answer "yes" for every action except its own, silently
+// routing every unrelated action into that branch.
+//
+// Testing them as a cross-product (each predicate against every name) pins both
+// halves of the contract: it matches its own name, and it matches nothing else.
+//
 // TestActionPredicates_MatchExactlyTheirOwnName runs every predicate against
 // every known action name plus a few near-misses, and requires each to accept
 // its own name and reject all others.

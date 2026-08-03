@@ -322,8 +322,6 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 	}, nil
 }
 
-// Helper methods
-
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
 	switch overlayType {
 	case "hints":

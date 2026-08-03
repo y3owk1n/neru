@@ -11,13 +11,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
 
-// Flag parsing for the mode commands.
+// extractModeOptions reads a mode command's flags into activation options.
 //
-// Both entry points reach here: the CLI sends the mode name as the first
-// argument, the hotkey path omits it, and extractModeOptions normalizes that
-// before reading the flags. The flag names themselves come from modeflag, which
-// is also what the CLI writes them from.
-
+// Both entry points reach it: the CLI sends the mode name as the first
+// argument and the hotkey path omits it, which newModeArgs normalizes. The flag
+// names come from modeflag, which is where the CLI writes them from too.
 func (h *ModesHandler) extractModeOptions(
 	cmd ipc.Command,
 ) (ModeActivationOptions, *ipc.Response) {
@@ -331,7 +329,8 @@ func validateModeOptions(opts ModeActivationOptions) *ipc.Response {
 	return nil
 }
 
-// values: "axtree" (default), "vision".
+// isValidStrategy reports whether v names a detection strategy: "axtree", the
+// default, or "vision".
 func isValidStrategy(v string) bool {
 	return v == config.StrategyAXTree || v == config.StrategyVision
 }

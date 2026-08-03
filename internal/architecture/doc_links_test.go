@@ -8,13 +8,6 @@ import (
 	"testing"
 )
 
-// Documentation that names a file which no longer exists is worse than
-// documentation that says nothing: it sends a contributor to a path, the path
-// 404s, and now they distrust the rest of the page too.
-//
-// It is the cheapest guardrail here and it catches the most common review
-// miss: a rename that updated the code and forgot the prose.
-
 // docsExemptFromLinkChecking are files that deliberately name paths which do
 // not exist.
 //
@@ -30,6 +23,12 @@ var repoPathPattern = regexp.MustCompile(
 	`(?:\]\(|` + "`" + `)((?:\.\./)*(?:internal|cmd|configs|scripts|resources|assets|protocol|nix)/[A-Za-z0-9_./-]+)`,
 )
 
+// Documentation that names a file which no longer exists is worse than
+// documentation that says nothing: it sends a contributor to a path, the path
+// 404s, and now they distrust the rest of the page too.
+//
+// It is the cheapest guardrail here and it catches the most common review
+// miss: a rename that updated the code and forgot the prose.
 func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 

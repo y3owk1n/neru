@@ -27,13 +27,6 @@ const roleUnknown = "AXUnknown"
 // without a `_, _, _ =` assignment (which trips dogsled).
 func discardCall(uintptr, uintptr, error) {}
 
-// CGO is disabled on Windows (see justfile), so UI Automation is driven
-// through raw COM vtable calls rather than a C wrapper. All COM work for a
-// single enumeration happens on one locked OS thread: CoInitialize, object
-// creation, property reads, and release. Every property is copied into a
-// plain Go value before the COM object is released, so no COM pointer ever
-// escapes this file or crosses a goroutine boundary.
-
 var (
 	modole32    = windows.NewLazySystemDLL("ole32.dll")
 	modoleaut32 = windows.NewLazySystemDLL("oleaut32.dll")
@@ -176,6 +169,14 @@ type winElement struct {
 
 // comCall invokes the method at vtable slot index on the COM object this.
 // It returns the HRESULT (or boolean/handle) in the low bits of the result.
+// comCall invokes the method at index in this object's COM vtable.
+//
+// CGO is disabled on Windows (see the justfile), so UI Automation is driven
+// through raw vtable calls rather than a C wrapper. All COM work for one
+// enumeration happens on a single locked OS thread — CoInitialize, object
+// creation, property reads, release — and every property is copied into a plain
+// Go value before its object is released, so no COM pointer escapes this file
+// or crosses a goroutine.
 func comCall(this unsafe.Pointer, index int, args ...uintptr) uintptr {
 	vtbl := *(*unsafe.Pointer)(this)
 	method := *(*uintptr)(unsafe.Add(vtbl, uintptr(index)*unsafe.Sizeof(uintptr(0))))

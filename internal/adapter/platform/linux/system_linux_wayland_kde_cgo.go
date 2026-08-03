@@ -15,15 +15,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// This file is the KDE Plasma Wayland input slot (compositor sub-slot "kde",
-// sibling to the "wlroots" slot). KWin does not implement
-// zwlr_virtual_pointer_v1, so input is injected through libei via the
-// org.freedesktop.portal.RemoteDesktop portal. The libei mechanism itself
-// (libei_client.c) is DE-agnostic; if another compositor (e.g. GNOME) later
-// routes input through libei, factor the shared pieces out rather than
-// duplicating them here. Runtime selection happens in
-// system_linux_wayland_input.go via the LinuxBackend family.
-
 // libeiConnectTimeoutMs bounds how long a lazy (mid-action) input op waits for
 // the libei/RemoteDesktop session. It MUST stay short: mid-action calls run on
 // the eventtap goroutine that holds the keyboard grab, so any blocking here
@@ -86,6 +77,14 @@ func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 // prompt is handled before any action, instead of blocking the first action
 // past the IPC timeout. This is the only path allowed to hold mu across the
 // long consent wait; mid-action input uses tryAcquire so it never blocks here.
+// libeiEnsure brings up the libei session this backend injects through.
+//
+// This file is the KDE Plasma input slot, sibling to the wlroots one. KWin does
+// not implement zwlr_virtual_pointer_v1, so input goes through libei via the
+// org.freedesktop.portal.RemoteDesktop portal. The libei mechanism itself
+// (libei_client.c) is desktop-agnostic: if another compositor later routes
+// input through libei, factor the shared pieces out rather than copying them.
+// Runtime selection happens in system_linux_wayland_input.go.
 func libeiEnsure() error {
 	globalLibeiState.mu.Lock()
 	defer globalLibeiState.mu.Unlock()

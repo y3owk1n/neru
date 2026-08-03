@@ -607,8 +607,6 @@ func (o *wlrootsOverlay) selectAvailableBuffer() bool {
 	return true
 }
 
-// unexported helpers
-
 func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
 	o.displayMu = mu
 }

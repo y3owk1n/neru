@@ -8,16 +8,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// The grid style is one type for every platform.
-//
-// Its fields hold the values the configuration writes: hex color strings and
-// integer sizes. Backends that draw with other representations — Cairo on Linux
-// and GDI on Windows both want packed ARGB and floats — get them from the
-// accessors further down, which convert at the point of use.
-//
-// Keeping the representation out of the struct is what lets manager.Interface
-// name this type in a signature every platform shares.
-
 const (
 	// minLineWidth keeps a hairline visible on backends that would otherwise
 	// round a zero-width stroke away.
@@ -83,9 +73,6 @@ func (s Style) BorderColor() string { return s.borderColor }
 
 // ShowLabels reports whether cell labels are drawn.
 func (s Style) ShowLabels() bool { return s.showLabels }
-
-// The accessors below serve backends that draw with packed ARGB and float
-// dimensions: Cairo on Linux, GDI on Windows.
 
 // LineWidth returns the border width as a float, clamped so a hairline stays
 // visible.

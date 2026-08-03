@@ -9,7 +9,6 @@ import (
 // Every text comparison the filter drives is done against a lowercased element
 // string, so a filter term that reaches matching with its original casing never
 // matches anything the user typed in mixed case.
-
 func TestLowerFilter_LowercasesEveryTextComparison(t *testing.T) {
 	lowered := lowerFilter(ports.ElementFilter{
 		TitleContains:       "Save As",

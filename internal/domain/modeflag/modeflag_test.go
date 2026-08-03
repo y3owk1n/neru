@@ -14,7 +14,6 @@ import (
 //
 // A failure means a user's existing binding stopped working. Update the case
 // only when that is what was intended.
-
 func TestAll_VocabularyIsWhatWasPublished(t *testing.T) {
 	published := []modeflag.Spec{
 		{Name: "action", Short: "a", TakesValue: true},

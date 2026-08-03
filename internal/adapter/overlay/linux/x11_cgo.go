@@ -550,8 +550,6 @@ func (o *x11Overlay) startMouseActionAnimation(
 	}()
 }
 
-// unexported helpers
-
 // s returns the overlay's HiDPI scale factor, guarding against a zero value.
 func (o *x11Overlay) s() float64 {
 	if o == nil || o.scale <= 0 {

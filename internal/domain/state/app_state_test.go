@@ -513,8 +513,6 @@ func TestAppState_Concurrency(t *testing.T) {
 	}
 }
 
-// Stress tests for robustness.
-
 // TestAppState_RapidModeTransitions tests rapid mode switching.
 func TestAppState_RapidModeTransitions(t *testing.T) {
 	_state := state.NewAppState()

@@ -10,11 +10,6 @@ import (
 	"testing"
 )
 
-// portsWithoutOwnMock are interfaces named *Port that are composed into a
-// larger port rather than injected on their own. They are exercised through
-// the mock of the port that embeds them, so a separate mock would be dead code.
-//
-// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
 const subInterfaceOfSystemPort = "sub-interface of SystemPort"
 
 var portsWithoutOwnMock = map[string]string{
@@ -24,6 +19,12 @@ var portsWithoutOwnMock = map[string]string{
 	"ThemeProviderPort": subInterfaceOfSystemPort,
 }
 
+// portsWithoutOwnMock are interfaces named *Port that are composed into a
+// larger port rather than injected on their own. They are exercised through
+// the mock of the port that embeds them, so a separate mock would be dead code.
+//
+// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
+//
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
 // docs/CROSS_PLATFORM.md: a port is not done until it has a mock.
 //

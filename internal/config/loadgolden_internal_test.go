@@ -12,19 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoadWithValidation turns a config file into the Config the whole daemon runs
-// on. Everything it does — merging hotkeys over defaults, honoring the disable
-// sentinel, reading per-mode sections, layering the override file — is only
-// visible in the Config that comes out.
-//
-// These cases record what a representative file *changed*, rather than the whole
-// config it produced. The defaults a load starts from vary by platform and even
-// by machine: Linux ships no global hotkeys at all so as not to collide with
-// terminal shortcuts, macOS adds its own menu-bar targets, and Windows builds
-// its exec shell path out of %SystemRoot%. A whole-config snapshot would encode
-// all of that and could only ever match the machine that recorded it. The change
-// a file makes is the same everywhere, and is also the thing worth pinning.
-
 // loadCase is one config file and the aspects of the load worth naming.
 type loadCase struct {
 	name     string
@@ -285,6 +272,19 @@ func configDelta(t *testing.T, baseline, loaded *Config) []string {
 	return lines
 }
 
+// LoadWithValidation turns a config file into the Config the whole daemon runs
+// on. Everything it does — merging hotkeys over defaults, honoring the disable
+// sentinel, reading per-mode sections, layering the override file — is only
+// visible in the Config that comes out.
+//
+// These cases record what a representative file *changed*, rather than the whole
+// config it produced. The defaults a load starts from vary by platform and even
+// by machine: Linux ships no global hotkeys at all so as not to collide with
+// terminal shortcuts, macOS adds its own menu-bar targets, and Windows builds
+// its exec shell path out of %SystemRoot%. A whole-config snapshot would encode
+// all of that and could only ever match the machine that recorded it. The change
+// a file makes is the same everywhere, and is also the thing worth pinning.
+//
 // TestLoadWithValidation_MatchesItsSnapshot compares what each config file
 // changed against a recorded list. Set UPDATE_GOLDEN=1 to re-record after an
 // intentional change, and read the diff carefully when it fails: it is the

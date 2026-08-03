@@ -201,9 +201,6 @@ type AlertProvider interface {
 	ShowAlert(ctx context.Context, title, message string) error
 }
 
-// Service manages application configuration with thread-safe access and change notifications.
-// This replaces the global configuration pattern with dependency injection.
-
 // safeSendConfig attempts to send a config without blocking.
 // Returns true if sent successfully, false if channel is full or closed.
 func safeSendConfig(_channel chan<- *Config, config *Config) bool {

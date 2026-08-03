@@ -891,7 +891,6 @@ func TestHintService_Health(t *testing.T) {
 	}
 }
 
-// Helper functions.
 // nativeButtonRole is the accessibility role a button reports on the platform
 // running the tests. Configured roles resolve to native names, so an element
 // built with a role from another platform would silently stop matching a

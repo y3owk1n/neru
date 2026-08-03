@@ -25,7 +25,6 @@ import (
 // all, with no error to explain why.
 //
 // Tagged !darwin, so this runs on both the Linux and Windows CI runners.
-
 func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()

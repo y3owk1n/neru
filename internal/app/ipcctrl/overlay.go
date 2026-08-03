@@ -10,9 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// The overlay command: hiding the overlay from screen sharing.
-
-// OverlayHandler handles overlay-related IPC commands.
+// OverlayHandler handles the overlay commands, which hide the overlay from
+// screen sharing.
 type OverlayHandler struct {
 	appState *state.AppState
 	logger   *zap.Logger

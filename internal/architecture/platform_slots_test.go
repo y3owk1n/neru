@@ -15,7 +15,7 @@ import (
 // docs/CROSS_PLATFORM.md ("File Layout Rules"). The rules exist so a
 // contributor can tell what a file is for from its name alone; without a
 // guardrail they drift back into ad hoc naming one PR at a time.
-
+//
 // knownOS lists the GOOS values the repo targets. "unix" is deliberately absent
 // — it is a build-tag family, not a GOOS, and is handled as a named slot below.
 const (
