@@ -1,21 +1,13 @@
 package recursivegrid
 
 import (
-	"strconv"
-	"strings"
-
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (
 	minLineWidth = 1
-
-	invalidColor = 0xFFFFFFFF
-	hexPairCount = 2
-	colorLen3    = 3
-	colorLen6    = 6
-	colorLen8    = 8
 )
 
 // Style is the resolved visual styling for the recursive-grid overlay.
@@ -288,36 +280,11 @@ func (s Style) ShowLabels() bool { return true }
 // as their last step, so no caller can produce a Style whose packed values
 // disagree with its hex ones.
 func (s Style) packColors() Style {
-	s.lineColorARGB = parseHexARGB(s.lineColor)
-	s.highlightColorARGB = parseHexARGB(s.highlightColor)
-	s.textColorARGB = parseHexARGB(s.textColor)
-	s.labelBackgroundColorARGB = parseHexARGB(s.labelBackgroundColor)
-	s.subKeyPreviewTextColorARGB = parseHexARGB(s.subKeyPreviewTextColor)
+	s.lineColorARGB = badge.ParseHexARGB(s.lineColor)
+	s.highlightColorARGB = badge.ParseHexARGB(s.highlightColor)
+	s.textColorARGB = badge.ParseHexARGB(s.textColor)
+	s.labelBackgroundColorARGB = badge.ParseHexARGB(s.labelBackgroundColor)
+	s.subKeyPreviewTextColorARGB = badge.ParseHexARGB(s.subKeyPreviewTextColor)
 
 	return s
-}
-
-// parseHexARGB converts a "#RGB", "#RRGGBB" or "#AARRGGBB" color to packed
-// ARGB, returning opaque white for anything it cannot read.
-func parseHexARGB(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
-
-	switch len(value) {
-	case colorLen3:
-		value = "FF" + strings.Repeat(string(value[0]), hexPairCount) +
-			strings.Repeat(string(value[1]), hexPairCount) +
-			strings.Repeat(string(value[2]), hexPairCount)
-	case colorLen6:
-		value = "FF" + value
-	case colorLen8:
-	default:
-		return invalidColor
-	}
-
-	parsed, err := strconv.ParseUint(value, 16, 32)
-	if err != nil {
-		return invalidColor
-	}
-
-	return uint32(parsed)
 }
