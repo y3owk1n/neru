@@ -1,10 +1,10 @@
 # AGENTS.md - Neru Development Guide
 
-Neru is a keyboard-driven navigation tool for macOS built with Go and Objective-C.
+Neru is a keyboard-driven navigation tool written in Go, with native bridges per platform (Objective-C on macOS, X11/Wayland/evdev on Linux, Win32 on Windows). macOS is the primary platform; Linux and Windows are partially supported.
 
 ## Domain Concepts
 
-- **Mode**: Navigation context (hints, grid, scroll, action)
+- **Mode**: Navigation context (hints, grid, recursive_grid, scroll, action)
 - **Bridge**: Objective-C macOS integration layer
 - **Adapter**: Port implementation for external systems
 - **Port**: Interface definition for system capabilities (e.g., [accessibility.go](internal/ports/accessibility.go))

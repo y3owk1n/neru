@@ -256,9 +256,9 @@ left-most held button, since one event cannot describe more.
 | **Capture files**     | `eventtap/darwin/`     | `eventtap/linux/x11_cgo.go` | `eventtap/linux/wayland_cgo.go`, `evdev_cgo.go` | `eventtap/windows/` |
 | **Hotkey files**      | `hotkeys/darwin/`      | `hotkeys/linux/x11_cgo.go`  | `hotkeys/linux/manager.go` + `eventtap/linux/global_hotkey_cgo.go` ³ | `hotkeys/windows/` |
 
-³ `hotkeys/manager_linux_wayland.go` is an empty placeholder — the Wayland
-hotkey path lives in the common manager, which delegates to the evdev listener
-in the eventtap package.
+³ There is no separate Wayland hotkey file — the Wayland path lives in the
+common `hotkeys/linux/manager.go`, which delegates to the evdev listener in the
+eventtap package.
 
 **Modifier passthrough (Wayland evdev only).** While a mode is active Neru
 captures the keyboard exclusively, so shortcuts it does not bind (`Ctrl+C`,
@@ -352,13 +352,14 @@ unoffset window-relative coordinates rather than misplacing hints.
 The three platforms split responsibility differently, which is the single most
 important thing to know before touching overlay code:
 
-- **macOS** — each component owns its own NSPanel. Component files such as
-  `components/hints/overlay_darwin.go` call the Objective-C bridge directly, and
-  rendering is GPU-backed via CoreAnimation.
-- **Linux and Windows** — component files are stubs holding only `Style` /
-  `BuildStyle`. All real rendering happens in the overlay **manager**
-  (`hotkeys/linux/x11_cgo.go`, `overlay/manager_linux_wayland_cgo.go`, `overlay/manager_windows*.go`),
-  drawing every element into one shared surface.
+- **macOS** — each render component owns its own NSPanel. Files such as
+  `adapter/overlay/render/hints/overlay_darwin.go` call the Objective-C bridge
+  directly, and rendering is GPU-backed via CoreAnimation.
+- **Linux and Windows** — the render components hold the shared `Style` and a
+  thin wrapper; all real rendering happens in the overlay **manager**
+  (`overlay/linux/x11_cgo.go`, `overlay/linux/wayland_cgo.go`,
+  `overlay/windows/manager.go`), drawing every element into one shared
+  surface.
 
 ### Implementation
 
@@ -429,7 +430,7 @@ Features available on exactly one platform, with why they do not port:
 
 | Feature                                   | Platform | Location                                                | Why it is exclusive                                          |
 | ----------------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| System cursor hide + virtual-pointer replacement | macOS | `modes/cursor_darwin.go`, `components/virtualpointer/overlay_darwin.go` | `CGDisplayHideCursor` has no X11/Wayland/Win32 equivalent |
+| System cursor hide + virtual-pointer replacement | macOS | `app/modes/cursor_darwin.go`, `adapter/overlay/render/virtualpointer/overlay_darwin.go` | `CGDisplayHideCursor` has no X11/Wayland/Win32 equivalent |
 | Smooth scroll animation                   | macOS    | `platform/darwin/scroll_animator.go`                    | Needs a synthesizable continuous scroll event stream          |
 | Vision (OCR) hint strategy                | macOS    | `ports/vision.go`, `platform/darwin/vision_darwin.m`    | macOS-only `VNRequest` APIs                                   |
 | Screen-sharing hide                       | macOS    | `platform/darwin/overlay_darwin.m`                      | NSWindow sharing level is a Quartz concept                    |
@@ -655,6 +656,12 @@ violation fails `just test` rather than review:
 | `*_linux_wayland.go`              | Wayland                                                   |
 | `*_linux_wayland_<compositor>.go` | one compositor family needing a distinct path             |
 | `*_cgo.go` / `*_nocgo.go`         | CGO and pure-Go variants of the same slot                 |
+
+Inside a package that is already one platform (`adapter/*/darwin`,
+`adapter/*/linux`, `adapter/platform/windows`, …) the OS token is dropped —
+the directory carries it. `overlay/linux/wayland_cgo.go` and
+`platform/linux/system_x11_cgo.go` keep only the axes that still vary; a
+`system_linux_x11_cgo.go` inside `platform/linux/` would say linux twice.
 
 What the guardrail test checks:
 
