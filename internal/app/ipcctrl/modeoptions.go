@@ -8,19 +8,15 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
 
 // Flag parsing for the mode commands.
 //
 // Both entry points reach here: the CLI sends the mode name as the first
-// argument and the hotkey path omits it, which extractModeOptions normalizes
-// before reading the flags.
-
-// Flag parsing for the mode commands.
-//
-// Both entry points reach here: the CLI sends the mode name as the first
 // argument, the hotkey path omits it, and extractModeOptions normalizes that
-// before reading the flags.
+// before reading the flags. The flag names themselves come from modeflag, which
+// is also what the CLI writes them from.
 
 func (h *ModesHandler) extractModeOptions(
 	cmd ipc.Command,
@@ -44,34 +40,34 @@ func (h *ModesHandler) extractModeOptions(
 // been set, and refused otherwise.
 func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
 	switch {
-	case args.is("--repeat", "-r"):
+	case args.is(modeflag.Repeat):
 		return setTrue(&opts.Repeat)
 
-	case args.is("--toggle", "-t"):
+	case args.is(modeflag.Toggle):
 		return setTrue(&opts.Toggle)
 
-	case args.is("--search", "-s"):
+	case args.is(modeflag.Search):
 		return setTrue(&opts.Search)
 
-	case args.is("--hide-on-empty-search"):
+	case args.is(modeflag.HideOnEmptySearch):
 		return setTrue(&opts.HideOnEmptySearch)
 
-	case args.is("--debug", "-d"):
+	case args.is(modeflag.Debug):
 		return nil
 
-	case args.is("--split-word"):
+	case args.is(modeflag.SplitWord):
 		return setTrue(&opts.SplitWord)
 
-	case args.is("--action", "-a"):
+	case args.is(modeflag.Action):
 		return readStringFlag(args, &opts.Action, "--action requires a value")
 
-	case args.is("--modifier"):
+	case args.is(modeflag.Modifier):
 		return readStringFlag(args, &opts.Modifier, "--modifier requires a value")
 
-	case args.is("--zoom-to-depth"):
+	case args.is(modeflag.ZoomToDepth):
 		return readZoomToDepth(args, opts)
 
-	case args.is(config.OnExitFlag):
+	case args.is(modeflag.OnExit):
 		value, resp := args.take("--on-exit requires a value")
 		if resp != nil {
 			return resp
@@ -83,7 +79,7 @@ func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
 
 		return nil
 
-	case args.is("--cursor-selection-mode"):
+	case args.is(modeflag.CursorSelectionMode):
 		value, resp := args.take(msgCursorSelectionModeRequires)
 		if resp != nil {
 			return resp
@@ -98,15 +94,15 @@ func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
 
 		return nil
 
-	case args.is("--role"):
+	case args.is(modeflag.Role):
 		return readListFlag(args, &opts.FilterRoles,
 			"--role requires a value (use comma-separated: --role=AXButton,AXLink)")
 
-	case args.is("--text"):
+	case args.is(modeflag.Text):
 		return readListFlag(args, &opts.FilterTextContains,
 			"--text requires a value (use comma-separated: --text=foo,bar)")
 
-	case args.is("--strategy"):
+	case args.is(modeflag.Strategy):
 		value, resp := args.take("--strategy requires a value: axtree or vision")
 		if resp != nil {
 			return resp
@@ -121,7 +117,7 @@ func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
 
 		return nil
 
-	case args.is("--label-direction"):
+	case args.is(modeflag.LabelDirection):
 		value, resp := args.take("--label-direction requires a value: reverse or normal")
 		if resp != nil {
 			return resp

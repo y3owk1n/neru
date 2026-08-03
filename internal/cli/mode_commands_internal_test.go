@@ -9,9 +9,11 @@ import (
 // The mode name, action and values these cases repeat.
 const (
 	modeHints    = "hints"
+	modeGrid     = "grid"
 	actLeftClick = "left_click"
 	modCmd       = "cmd"
 	stepScroll   = "scroll"
+	cursorHold   = "hold"
 )
 
 // ipcArgs turns a mode command's flags into the request the daemon receives, so
@@ -82,8 +84,8 @@ func TestIPCArgsCarriesEachFlag(t *testing.T) {
 		{"zoom to depth", modeFlags{zoomToDepth: 3}, "--zoom-to-depth=3"},
 		{
 			"cursor selection mode",
-			modeFlags{cursorSelectionMode: "hold"},
-			"--cursor-selection-mode=hold",
+			modeFlags{cursorSelectionMode: cursorHold},
+			"--cursor-selection-mode=" + cursorHold,
 		},
 	}
 
@@ -123,7 +125,7 @@ func TestIPCArgsRepeatsOnExitPerStep(t *testing.T) {
 // sent even when the value is set, which is what stops one mode's flags leaking
 // into another's request.
 func TestIPCArgsRespectsModeSupport(t *testing.T) {
-	plain := ModeConfig{Name: "grid"}
+	plain := ModeConfig{Name: modeGrid}
 
 	args := modeFlags{zoomToDepth: 3}.ipcArgs(plain)
 
@@ -167,7 +169,7 @@ func TestValidateAcceptsAWellFormedCommand(t *testing.T) {
 		repeat:              true,
 		search:              true,
 		hideOnEmptySearch:   true,
-		cursorSelectionMode: "hold",
+		cursorSelectionMode: cursorHold,
 		onExitSteps:         []string{stepScroll},
 	}
 

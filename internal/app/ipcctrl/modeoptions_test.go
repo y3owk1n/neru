@@ -85,7 +85,7 @@ func TestExtractModeOptionsReadsStringFlags(t *testing.T) {
 		{
 			name:  "action",
 			split: []string{flagAction, leftClick},
-			equal: []string{"--action=left_click"},
+			equal: []string{argActionLeftClick},
 			want:  leftClick,
 			get:   func(o ModeActivationOptions) *string { return o.Action },
 		},
@@ -94,7 +94,7 @@ func TestExtractModeOptionsReadsStringFlags(t *testing.T) {
 			// given with one here.
 			name:  "modifier",
 			split: []string{flagAction, leftClick, flagModifier, modifierCmd},
-			equal: []string{"--action=left_click", "--modifier=cmd"},
+			equal: []string{argActionLeftClick, argModifierCmd},
 			want:  modifierCmd,
 			get:   func(o ModeActivationOptions) *string { return o.Modifier },
 		},
@@ -153,7 +153,7 @@ func TestExtractModeOptionsReadsBoolFlags(t *testing.T) {
 		},
 		{
 			"search",
-			[]string{"--search"},
+			[]string{argSearch},
 			func(o ModeActivationOptions) *bool { return o.Search },
 			true,
 		},
@@ -172,7 +172,7 @@ func TestExtractModeOptionsReadsBoolFlags(t *testing.T) {
 		{
 			// --hide-on-empty-search qualifies --search, so it is given with it.
 			"hide on empty search",
-			[]string{"--search", flagHideOnEmpty},
+			[]string{argSearch, flagHideOnEmpty},
 			func(o ModeActivationOptions) *bool { return o.HideOnEmptySearch },
 			true,
 		},

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
 
 // modeArgs walks a mode command's arguments.
@@ -43,18 +44,15 @@ func (m *modeArgs) arg() string { return m.args[m.index] }
 // next moves to the following argument.
 func (m *modeArgs) next() { m.index++ }
 
-// is reports whether the current argument is the named flag, in any of the
-// spellings given — its long form, its short form, or the "--flag=" prefix.
-func (m *modeArgs) is(names ...string) bool {
-	arg := m.arg()
-
-	for _, name := range names {
-		if arg == name || strings.HasPrefix(arg, name+"=") {
-			return true
-		}
+// is reports whether the current argument is the named flag, in any spelling
+// that flag accepts.
+func (m *modeArgs) is(name modeflag.Name) bool {
+	spec, known := modeflag.Get(name)
+	if !known {
+		return false
 	}
 
-	return false
+	return spec.Match(m.arg())
 }
 
 // take reads the value belonging to the flag currently being read, in whichever

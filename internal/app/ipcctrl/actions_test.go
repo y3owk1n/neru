@@ -252,7 +252,7 @@ func TestParseActionArgs_ModifierCSV(t *testing.T) {
 	}{
 		{
 			name:       "single modifier",
-			args:       []string{"--modifier=cmd"},
+			args:       []string{argModifierCmd},
 			wantModStr: "cmd",
 		},
 		{
