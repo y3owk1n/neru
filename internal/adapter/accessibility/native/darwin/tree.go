@@ -115,7 +115,7 @@ func putTreeNode(node *TreeNode) {
 	treeNodePool.Put(node)
 }
 
-// TreeNode represents a node in the accessibility element hierarchy.
+// TreeNode is a node in the accessibility element hierarchy.
 //
 // After Release is called on the tree, non-kept nodes are recycled into
 // treeNodePool. Kept nodes (those in the keep set) have their children and

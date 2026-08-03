@@ -181,7 +181,7 @@ var comboKeyAliases = map[string]string{
 	"esc":       "escape",
 }
 
-// Config represents the complete application configuration structure.
+// Config is the complete application configuration structure.
 type Config struct {
 	General         GeneralConfig                  `json:"general"         toml:"general"`
 	Theme           ThemeConfig                    `json:"theme"           toml:"theme"`

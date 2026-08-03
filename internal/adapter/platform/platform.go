@@ -4,7 +4,7 @@ import (
 	"runtime"
 )
 
-// OS represents the operating system.
+// OS is the operating system.
 type OS string
 
 const (
@@ -14,7 +14,7 @@ const (
 	Linux OS = "linux"
 	// Windows represents Windows.
 	Windows OS = "windows"
-	// Unknown represents an unknown operating system.
+	// Unknown is an unknown operating system.
 	Unknown OS = "unknown"
 )
 

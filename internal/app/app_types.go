@@ -34,14 +34,14 @@ const (
 	ModeScroll = domain.ModeScroll
 )
 
-// SystrayComponent defines the interface for systray functionality.
+// SystrayComponent is the interface for systray functionality.
 type SystrayComponent interface {
 	OnReady()
 	OnExit()
 	Close()
 }
 
-// App represents the main application instance containing all state and dependencies.
+// App is the main application instance containing all state and dependencies.
 type App struct {
 	ctx        context.Context //nolint:containedctx // Root context for all App operations
 	cancel     context.CancelFunc

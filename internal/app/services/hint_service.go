@@ -323,7 +323,7 @@ func (s *HintService) RefreshHints(ctx context.Context) error {
 }
 
 // UpdateConfig updates the hints configuration.
-// This allows changing hint filter settings at runtime.
+// Hint filters can therefore change without a restart.
 func (s *HintService) UpdateConfig(config config.HintsConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

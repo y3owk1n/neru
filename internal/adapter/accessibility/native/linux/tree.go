@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// TreeNode represents a node in the accessibility element hierarchy (Linux stub).
+// TreeNode is a node in the accessibility element hierarchy (Linux stub).
 type TreeNode struct{}
 
 // Element returns the node's element (Linux stub).

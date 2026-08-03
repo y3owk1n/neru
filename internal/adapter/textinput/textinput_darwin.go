@@ -46,7 +46,7 @@ var (
 	globalTextInputMu sync.RWMutex
 )
 
-// NewTextInput creates a new TextInput instance.
+// NewTextInput creates a new TextInput.
 func NewTextInput(logger *zap.Logger) *TextInput {
 	textInput := &TextInput{logger: logger}
 

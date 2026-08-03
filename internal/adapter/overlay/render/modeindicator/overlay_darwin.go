@@ -59,7 +59,7 @@ type Overlay struct {
 	drawMu sync.Mutex
 }
 
-// NewOverlay initializes a new mode indicator overlay instance with its own window.
+// NewOverlay creates a new mode indicator overlay instance with its own window.
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
 	theme config.ThemeProvider,
@@ -137,7 +137,7 @@ func (o *Overlay) ResizeToActiveScreen() {
 // constants (e.g. "hints", "grid", "scroll", "recursive_grid").
 // The label text is resolved from config,
 // allowing users to customize (or hide) each mode's indicator text.
-// The caller is responsible for calling Show() once before the first draw
+// The caller handles calling Show() once before the first draw
 // (e.g. in startModeIndicatorPolling) rather than showing every tick.
 //
 // xCoordinate and yCoordinate are absolute Quartz screen coordinates.

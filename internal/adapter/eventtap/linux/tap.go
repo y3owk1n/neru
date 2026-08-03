@@ -116,7 +116,7 @@ type EventTap struct {
 	evdevWaylandCaptureInit sync.Mutex
 }
 
-// NewEventTap creates a new EventTap instance.
+// NewEventTap creates a new EventTap.
 func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	tap := &EventTap{
 		logger:   logger,

@@ -15,7 +15,7 @@ import (
 
 const windowsKeyUpPrefix = "__keyup_"
 
-// EventTap represents a keyboard event interceptor on Windows.
+// EventTap is a keyboard event interceptor on Windows.
 type EventTap struct {
 	logger *zap.Logger
 
@@ -29,7 +29,7 @@ type EventTap struct {
 	hook *winplatform.KeyboardHook
 }
 
-// NewEventTap initializes a new event tap.
+// NewEventTap creates a new event tap.
 func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	if logger == nil {
 		logger = zap.NewNop()

@@ -7,25 +7,25 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/hint"
 )
 
-// HintDisplay defines the interface for displaying hint overlays.
+// HintDisplay is the interface for displaying hint overlays.
 type HintDisplay interface {
 	// ShowHints displays hint labels on the screen.
 	ShowHints(ctx context.Context, hints []*hint.Interface) error
 }
 
-// GridDisplay defines the interface for displaying grid overlays.
+// GridDisplay is the interface for displaying grid overlays.
 type GridDisplay interface {
 	// ShowGrid displays the grid overlay.
 	ShowGrid(ctx context.Context) error
 }
 
-// HighlightDisplay defines the interface for displaying highlight overlays.
+// HighlightDisplay is the interface for displaying highlight overlays.
 type HighlightDisplay interface {
 	// DrawModeIndicator draws a mode indicator at the specified position.
 	DrawModeIndicator(x, y int)
 }
 
-// OverlayVisibility defines the interface for overlay visibility management.
+// OverlayVisibility is the interface for overlay visibility management.
 type OverlayVisibility interface {
 	// Show shows the overlay.
 	Show()
@@ -56,7 +56,7 @@ type MouseActionIndicatorStyle struct {
 	HideInScreenShare bool
 }
 
-// OverlayPort defines the interface for managing UI overlays.
+// OverlayPort is the interface for managing UI overlays.
 // Implementations handle the platform-specific rendering of hints and grids.
 type OverlayPort interface {
 	HealthCheck

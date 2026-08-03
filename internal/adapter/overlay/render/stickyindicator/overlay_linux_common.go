@@ -18,7 +18,7 @@ type Overlay struct {
 	configMu sync.RWMutex
 }
 
-// NewOverlay initializes a new sticky modifiers indicator overlay (Linux stub).
+// NewOverlay creates a new sticky modifiers indicator overlay (Linux stub).
 func NewOverlay(
 	uiConfig config.StickyModifiersUI,
 	theme config.ThemeProvider,

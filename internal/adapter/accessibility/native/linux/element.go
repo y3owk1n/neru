@@ -15,7 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// Element represents a UI element for Linux (e.g., AT-SPI).
+// Element is a UI element for Linux (e.g., AT-SPI).
 type Element struct {
 	bundleIdentifier string
 	title            string

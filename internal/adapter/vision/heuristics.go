@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// DetectedRegion represents a region of interest identified by a Vision
+// DetectedRegion is a region of interest identified by a Vision
 // Framework request. Multiple requests (text, rectangles, saliency) produce
 // overlapping regions that are merged into a single element.
 type DetectedRegion struct {

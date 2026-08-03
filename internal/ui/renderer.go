@@ -18,7 +18,7 @@ type OverlayRenderer struct {
 	recursiveGridStyle recursivegrid.Style
 }
 
-// NewOverlayRenderer initializes a new overlay renderer with the specified components.
+// NewOverlayRenderer creates a new overlay renderer with the specified components.
 func NewOverlayRenderer(
 	manager overlay.ManagerInterface,
 	hintStyle hints.StyleMode,

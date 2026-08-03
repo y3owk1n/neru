@@ -7,7 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Hint represents a hint to be displayed on the overlay.
+// Hint is a hint to be displayed on the overlay.
 type Hint struct {
 	label         string
 	position      image.Point
@@ -93,7 +93,7 @@ func (f SearchInputFrame) Width() int {
 	return f.width
 }
 
-// SearchInputStyle represents the visual styling configuration for hints search.
+// SearchInputStyle is the visual styling configuration for hints search.
 type SearchInputStyle struct {
 	fontSize        int
 	fontFamily      string

@@ -26,7 +26,7 @@ type Manager struct {
 	subKeys string
 }
 
-// NewManager initializes a new grid manager with the specified configuration.
+// NewManager creates a new grid manager with the specified configuration.
 func NewManager(
 	grid *Grid,
 	subRows int,

@@ -7,18 +7,18 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// Element represents a generic accessibility element.
+// Element is a generic accessibility element.
 type Element interface {
 	Release()
 }
 
-// Window represents a window element.
+// Window is a window element.
 type Window interface {
 	Element
 	Role() string
 }
 
-// Client defines the interface for accessibility operations.
+// Client is the interface for accessibility operations.
 type Client interface {
 	// Window and App operations
 	FrontmostWindow(ctx context.Context) (Window, error)
@@ -74,14 +74,14 @@ type AppInfo struct {
 	Title string
 }
 
-// App represents an application element.
+// App is an application element.
 type App interface {
 	Element
 	BundleIdentifier() string
 	Info() (*AppInfo, error)
 }
 
-// Node represents a node in the accessibility tree.
+// Node is a node in the accessibility tree.
 type Node interface {
 	ID() string
 	Bounds() image.Rectangle

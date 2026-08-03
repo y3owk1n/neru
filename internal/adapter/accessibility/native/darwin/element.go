@@ -25,7 +25,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// Element represents a UI element in the macOS accessibility hierarchy.
+// Element is a UI element in the macOS accessibility hierarchy.
 type Element struct {
 	ref unsafe.Pointer
 }

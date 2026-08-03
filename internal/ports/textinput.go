@@ -17,7 +17,7 @@ type TextInputFrame struct {
 	Height int
 }
 
-// TextInputPort defines the interface for native text input capabilities.
+// TextInputPort is the interface for native text input capabilities.
 type TextInputPort interface {
 	StartHintSearchSession(
 		ctx context.Context,

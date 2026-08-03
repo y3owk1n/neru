@@ -11,7 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// TreeNode represents a node in the accessibility element hierarchy. On Windows
+// TreeNode is a node in the accessibility element hierarchy. On Windows
 // the tree is shallow: a root window node whose children are the flat list of
 // clickable controls discovered via UI Automation. Each node owns a unique
 // *Element so callers can use the pointer identity as a stable element ID.

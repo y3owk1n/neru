@@ -168,8 +168,8 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	}
 
 	// On refresh, properly escape the active IME and clear search state first.
-	// This prevents the IME from becoming orphaned/unfocused during screen/space
-	// transitions where the OS moves focus to the frontmost app.
+	// Otherwise the IME is left orphaned during screen or space transitions,
+	// where the OS moves focus to the frontmost app.
 	if isRefresh && h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
 		h.cancelHintSearch()
 	}
@@ -210,7 +210,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	}
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
-	// This ensures proper positioning when switching between multiple displays.
+	// Otherwise the overlay lands on the display the mouse just left.
 	var activeScreenBounds image.Rectangle
 
 	if h.system != nil {

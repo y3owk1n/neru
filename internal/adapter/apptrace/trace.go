@@ -10,7 +10,7 @@ type contextKey struct{}
 
 var traceIDKey = contextKey{}
 
-// ID represents a unique trace identifier.
+// ID is a unique trace identifier.
 type ID string
 
 // NewID generates a new unique trace ID.

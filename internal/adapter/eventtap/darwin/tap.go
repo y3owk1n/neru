@@ -85,7 +85,7 @@ func (q *unboundedQueue) close() {
 	q.mu.Unlock()
 }
 
-// EventTap represents a keyboard event interceptor that captures global key presses.
+// EventTap is a keyboard event interceptor that captures global key presses.
 type EventTap struct {
 	handle C.EventTap
 	logger *zap.Logger
@@ -100,7 +100,7 @@ type EventTap struct {
 	dispatchWg   sync.WaitGroup
 }
 
-// NewEventTap initializes a new event tap for capturing global keyboard events.
+// NewEventTap creates a new event tap for capturing global keyboard events.
 // Returns nil if the event tap cannot be created, typically due to missing Accessibility permissions.
 func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 	if logger == nil {

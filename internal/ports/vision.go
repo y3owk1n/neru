@@ -8,7 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// VisionPort defines the interface for vision-based element detection using
+// VisionPort is the interface for vision-based element detection using
 // macOS Vision Framework (or platform equivalents). Implementations capture
 // screenshots and detect UI elements via text recognition, rectangle detection,
 // and saliency analysis.

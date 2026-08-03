@@ -21,7 +21,7 @@ const (
 	PrefixLengthCheck = 2
 )
 
-// Interface represents a labeled UI element for keyboard-driven navigation.
+// Interface is a labeled UI element for keyboard-driven navigation.
 // Hints are immutable after creation.
 type Interface struct {
 	label         string
@@ -121,7 +121,7 @@ type Generator interface {
 	LabelDirection() LabelDirection
 }
 
-// TrieNode represents a node in the hint trie for efficient prefix matching.
+// TrieNode is a node in the hint trie for efficient prefix matching.
 type TrieNode struct {
 	asciiChildren [26]*TrieNode // Optimized for A-Z
 	otherChildren map[rune]*TrieNode

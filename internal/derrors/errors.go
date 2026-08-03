@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Code represents a domain-specific error code.
+// Code is a domain-specific error code.
 type Code string
 
 // Error codes for different failure scenarios.
@@ -91,7 +91,7 @@ const (
 	CodeChainBail Code = "CHAIN_BAIL"
 )
 
-// Error represents a domain error with code, message, and optional cause.
+// Error is a domain error with code, message, and optional cause.
 type Error struct {
 	code    Code
 	message string

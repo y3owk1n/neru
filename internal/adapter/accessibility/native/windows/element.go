@@ -18,7 +18,7 @@ import (
 // windowsHeldButtons records which mouse buttons Neru is currently holding down.
 var windowsHeldButtons mousestate.Tracker
 
-// Element represents a UI element for Windows.
+// Element is a UI element for Windows.
 //
 // A window element carries the top-level HWND used to seed UI Automation
 // enumeration. Leaf elements (discovered controls) carry pre-extracted info

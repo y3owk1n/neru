@@ -13,7 +13,7 @@ import (
 // packed ARGB converts at draw time, since that is a property of the drawing
 // API rather than of the style.
 
-// StyleMode represents the visual styling configuration for hint overlays.
+// StyleMode is the visual styling configuration for hint overlays.
 type StyleMode struct {
 	fontSize                 int
 	fontFamily               string

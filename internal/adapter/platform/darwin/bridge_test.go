@@ -24,7 +24,7 @@ type MockAppWatcher struct {
 	mcDeactivatedCalls atomic.Int64
 }
 
-// AppEvent represents an app event.
+// AppEvent is an app event.
 type AppEvent struct {
 	appName  string
 	bundleID string

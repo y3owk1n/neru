@@ -236,7 +236,7 @@ func (a *App) syncScrollInvertConfig(cfg *config.Config) {
 }
 
 // syncInitialConfigToAppState syncs configuration values to AppState during startup.
-// This ensures AppState reflects the config file values before any runtime toggles.
+// AppState then reflects the config file before any runtime toggle is applied.
 func syncInitialConfigToAppState(app *App) {
 	cfg := app.configSnapshot()
 

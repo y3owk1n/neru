@@ -12,7 +12,7 @@ var (
 	solidColorRegex = regexp.MustCompile(`^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$`)
 )
 
-// Color represents a color that can be specified as either a single value
+// Color is a color that can be specified as either a single value
 // (same for both light/dark themes) or as separate light and dark values.
 type Color struct {
 	Light string `json:"light" toml:"light"`

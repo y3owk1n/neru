@@ -2,7 +2,7 @@ package ports
 
 import "context"
 
-// EventTapPort defines the interface for capturing keyboard events.
+// EventTapPort is the interface for capturing keyboard events.
 // Implementations handle platform-specific event monitoring.
 type EventTapPort interface {
 	// Enable starts capturing keyboard events.
@@ -71,7 +71,7 @@ type OverlayKeyboardPassthroughReporter interface {
 	AllowsOverlayKeyboardPassthrough() bool
 }
 
-// IPCPort defines the interface for inter-process communication.
+// IPCPort is the interface for inter-process communication.
 // Implementations handle the IPC server and client functionality.
 type IPCPort interface {
 	// Start starts the IPC server.

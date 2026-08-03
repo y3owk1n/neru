@@ -16,20 +16,20 @@ const (
 	CenterDivisor = 2
 )
 
-// Cell represents the index of a cell in the grid.
+// Cell is the index of a cell in the grid.
 // For 3x3 grids: 0=TL, 1=TM, 2=TR, 3=ML, 4=MM, 5=MR, 6=BL, 7=BM, 8=BR (named constants below are only for 2x2).
 // For CxR grids: indices 0 to (C*R-1) are ordered left-to-right, top-to-bottom.
 // The named constants (TopLeft, TopRight, etc.) are only meaningful for 2x2 grids.
 type Cell int
 
 const (
-	// TopLeft represents the upper-left cell in a 2x2 grid (index 0).
+	// TopLeft is the upper-left cell in a 2x2 grid (index 0).
 	TopLeft Cell = iota
-	// TopRight represents the upper-right cell in a 2x2 grid (index 1).
+	// TopRight is the upper-right cell in a 2x2 grid (index 1).
 	TopRight
-	// BottomLeft represents the lower-left cell in a 2x2 grid (index 2).
+	// BottomLeft is the lower-left cell in a 2x2 grid (index 2).
 	BottomLeft
-	// BottomRight represents the lower-right cell in a 2x2 grid (index 3).
+	// BottomRight is the lower-right cell in a 2x2 grid (index 3).
 	BottomRight
 )
 
@@ -42,7 +42,7 @@ type DepthLayout struct {
 	GridRows int
 }
 
-// RecursiveGrid represents the recursive grid state for cell-based navigation.
+// RecursiveGrid is the recursive grid state for cell-based navigation.
 type RecursiveGrid struct {
 	currentBounds image.Rectangle     // Current active area
 	initialBounds image.Rectangle     // Original screen bounds

@@ -45,7 +45,7 @@ type Overlay struct {
 	drawMu sync.Mutex
 }
 
-// NewOverlay initializes a new sticky modifiers indicator overlay.
+// NewOverlay creates a new sticky modifiers indicator overlay.
 func NewOverlay(
 	uiConfig config.StickyModifiersUI,
 	theme config.ThemeProvider,

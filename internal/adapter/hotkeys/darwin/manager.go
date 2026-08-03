@@ -30,7 +30,7 @@ type Manager struct {
 	nextID    ports.HotkeyID
 }
 
-// NewManager creates and initializes a new hotkey manager instance.
+// NewManager creates and creates a new hotkey manager instance.
 // The manager is ready to register hotkeys immediately after creation.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
@@ -184,7 +184,7 @@ func (m *Manager) handleCallback(hotkeyID ports.HotkeyID, eventKind darwin.Hotke
 }
 
 // Global manager instance for C callbacks.
-// This allows the C bridge function to forward events to the appropriate manager instance.
+// The C bridge uses it to forward an event to the right manager.
 var globalManager *Manager
 
 // SetGlobalManager assigns the global manager instance used by the C callback bridge.

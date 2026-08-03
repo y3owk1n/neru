@@ -64,7 +64,7 @@ var (
 	quitRequested bool
 )
 
-// MenuItem represents a menu item in the system tray (Linux).
+// MenuItem is a menu item in the system tray (Linux).
 type MenuItem struct {
 	ClickedCh chan struct{}
 	id        int

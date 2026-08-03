@@ -84,7 +84,7 @@ const (
 	PrefixLengthCheck = 2
 )
 
-// Grid represents a coordinate grid system for spatial navigation with optimized cell sizing.
+// Grid is a coordinate grid system for spatial navigation with optimized cell sizing.
 type Grid struct {
 	characters string          // Characters used for coordinates (e.g., "asdfghjkl")
 	rowChars   []rune          // Characters used for row labels
@@ -95,7 +95,7 @@ type Grid struct {
 	prefixes   map[string]bool // Set of all coordinate prefixes for fast lookup
 }
 
-// Cell represents a grid cell containing coordinate, bounds, and center point information.
+// Cell is a grid cell containing coordinate, bounds, and center point information.
 type Cell struct {
 	coordinate string          // 3-character coordinate (e.g., "AAA", "ABC")
 	bounds     image.Rectangle // Cell bounds
@@ -507,7 +507,7 @@ func generateCellsWithRegions(
 	var cells []*Cell
 
 	// Calculate region dimensions based on label length
-	// Each region represents a group of cells sharing the same prefix character(s)
+	// Each region is a group of cells sharing the same prefix character(s)
 	var regionCols, regionRows int
 
 	// Adjust region size based on label length and available characters
@@ -675,7 +675,7 @@ func generateCellsWithRegions(
 	return cells
 }
 
-// Candidate represents a valid grid configuration.
+// Candidate is a valid grid configuration.
 type Candidate struct {
 	cols, rows   int
 	cellW, cellH int

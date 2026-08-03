@@ -5,7 +5,7 @@ import (
 	"image"
 )
 
-// ScreenManagement defines the interface for screen and cursor operations.
+// ScreenManagement is the interface for screen and cursor operations.
 type ScreenManagement interface {
 	// ScreenBounds returns the bounds of the active screen.
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
@@ -50,7 +50,7 @@ const (
 	ScreenCaptureQuit
 )
 
-// PermissionManagement defines the interface for OS permission gates.
+// PermissionManagement is the interface for OS permission gates.
 type PermissionManagement interface {
 	// CheckPermissions verifies that accessibility permissions are granted.
 	CheckPermissions(ctx context.Context) error
@@ -71,7 +71,7 @@ type PermissionManagement interface {
 	RequestScreenCapturePermission(ctx context.Context) ScreenCaptureConsent
 }
 
-// FileSystemPort defines the interface for platform-specific file system operations.
+// FileSystemPort is the interface for platform-specific file system operations.
 type FileSystemPort interface {
 	// ConfigDir returns the platform-specific directory for configuration files.
 	ConfigDir() (string, error)
@@ -83,7 +83,7 @@ type FileSystemPort interface {
 	LogDir() (string, error)
 }
 
-// ProcessPort defines the interface for platform-specific process management.
+// ProcessPort is the interface for platform-specific process management.
 type ProcessPort interface {
 	// FocusedApplicationPID returns the PID of the currently focused application.
 	FocusedApplicationPID(ctx context.Context) (int, error)
@@ -95,13 +95,13 @@ type ProcessPort interface {
 	ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error)
 }
 
-// ThemeProviderPort defines the interface for platform-specific theme information.
+// ThemeProviderPort is the interface for platform-specific theme information.
 type ThemeProviderPort interface {
 	// IsDarkMode returns true if the platform's dark mode is currently active.
 	IsDarkMode() bool
 }
 
-// SecureInputPort defines the interface for secure input detection and notification.
+// SecureInputPort is the interface for secure input detection and notification.
 type SecureInputPort interface {
 	// IsSecureInputEnabled returns true if secure input mode is currently active
 	// (e.g. a password field is focused). On non-macOS platforms this always returns false.

@@ -189,7 +189,7 @@ func Reset() {
 }
 
 // Sync flushes any buffered log entries to their outputs.
-// This ensures that all pending log messages are written before the application exits.
+// Pending log messages are written before the process exits.
 func Sync() error {
 	logFileMu.RLock()
 

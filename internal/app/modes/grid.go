@@ -53,7 +53,7 @@ func (h *Handler) activateGridModeWithAction(
 	}
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
-	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
+	// Otherwise scroll highlights persist when switching from scroll to grid.
 	h.overlayManager.Clear()
 
 	h.appState.SetGridOverlayNeedsRefresh(false)
@@ -141,7 +141,7 @@ func (h *Handler) activateGridModeWithAction(
 	h.startIndicatorPolling(domain.ModeGrid)
 }
 
-// createGridInstance creates a new grid instance with proper bounds and characters.
+// createGridInstance creates a new grid with proper bounds and characters.
 func (h *Handler) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
 

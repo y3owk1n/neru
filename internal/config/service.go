@@ -189,7 +189,7 @@ func validateRawHotkeyTable(fieldName string, rawTable any) error {
 	return nil
 }
 
-// AlertProvider defines the interface for displaying native system alerts.
+// AlertProvider is the interface for displaying native system alerts.
 // This is used to break the import cycle between config and ports.
 type AlertProvider interface {
 	ShowAlert(ctx context.Context, title, message string) error

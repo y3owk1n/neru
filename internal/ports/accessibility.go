@@ -8,13 +8,13 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// ElementDiscovery defines the interface for discovering UI elements.
+// ElementDiscovery is the interface for discovering UI elements.
 type ElementDiscovery interface {
 	// ClickableElements retrieves all clickable UI elements matching the filter.
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
 }
 
-// RoleConfiguration defines the interface for reconfiguring which accessibility
+// RoleConfiguration is the interface for reconfiguring which accessibility
 // roles count as clickable.
 //
 // It is separate from ElementDiscovery so a consumer that only reads elements
@@ -30,7 +30,7 @@ type RoleConfiguration interface {
 	UpdateClickableRoles(roles []string)
 }
 
-// ActionExecution defines the interface for executing actions on UI elements.
+// ActionExecution is the interface for executing actions on UI elements.
 type ActionExecution interface {
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
@@ -59,7 +59,7 @@ type ActionExecution interface {
 	ReleaseHeldButtons(ctx context.Context) error
 }
 
-// ApplicationInfo defines the interface for getting application information.
+// ApplicationInfo is the interface for getting application information.
 type ApplicationInfo interface {
 	// FocusedAppBundleID returns the platform application identifier of the
 	// currently focused application. On macOS this is a bundle ID
@@ -73,7 +73,7 @@ type ApplicationInfo interface {
 	IsAppExcluded(ctx context.Context, bundleID string) bool
 }
 
-// TreePriming defines the interface for readying an application's accessibility
+// TreePriming is the interface for readying an application's accessibility
 // tree before Neru queries it.
 type TreePriming interface {
 	// PrimeApplication reports whether the application identified by bundleID
@@ -92,7 +92,7 @@ type TreePriming interface {
 	PrimeApplication(ctx context.Context, bundleID string) (bool, error)
 }
 
-// AccessibilityPort defines the interface for interacting with the platform
+// AccessibilityPort is the interface for interacting with the platform
 // accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
 // Implementations handle all platform-specific bridge complexity and live in
 // internal/adapter/accessibility/.

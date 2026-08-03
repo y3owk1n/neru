@@ -10,17 +10,17 @@ import (
 type Mode int
 
 const (
-	// ModeIdle represents the idle mode.
+	// ModeIdle is the idle mode.
 	ModeIdle Mode = iota
-	// ModeHints represents the hints mode.
+	// ModeHints is the hints mode.
 	ModeHints
-	// ModeGrid represents the grid mode.
+	// ModeGrid is the grid mode.
 	ModeGrid
-	// ModeScroll represents the scroll mode.
+	// ModeScroll is the scroll mode.
 	ModeScroll
-	// ModeRecursiveGrid represents the recursive-grid navigation mode.
+	// ModeRecursiveGrid is the recursive-grid navigation mode.
 	ModeRecursiveGrid
-	// ModeMonitorSelect represents the interactive monitor selection mode.
+	// ModeMonitorSelect is the interactive monitor selection mode.
 	ModeMonitorSelect
 )
 

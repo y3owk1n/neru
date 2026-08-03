@@ -15,11 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// ActionsReferenceDisabledMode reports whether any action in the list
-// activates a mode that is currently disabled in the configuration.
-// This ensures that multi-action bindings like ["exec echo test", "hints"]
-// are skipped entirely when hints is disabled, rather than only checking
-// the first action.
+// ActionsReferenceDisabledMode reports whether any action in the list activates
+// a mode that is disabled in the config. It checks every action, not just the
+// first, so ["exec echo test", "hints"] is skipped entirely when hints is off.
 func ActionsReferenceDisabledMode(actions []string, cfg *config.Config) bool {
 	hintsStr := domain.ModeString(domain.ModeHints)
 	gridStr := domain.ModeString(domain.ModeGrid)

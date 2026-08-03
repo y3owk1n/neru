@@ -23,7 +23,7 @@ type Manager struct {
 	mu        sync.RWMutex
 }
 
-// NewManager creates and initializes a new hotkey manager instance.
+// NewManager creates and creates a new hotkey manager instance.
 func NewManager(logger *zap.Logger) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()

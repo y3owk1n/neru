@@ -9,7 +9,7 @@ import (
 // ID uniquely identifies an element.
 type ID string
 
-// Role represents the accessibility role of an element.
+// Role is the accessibility role of an element.
 type Role string
 
 // Common accessibility roles.
@@ -58,7 +58,7 @@ const (
 	RoleGenericElement     Role = "AXGenericElement"
 )
 
-// Subrole represents the accessibility subrole of an element.
+// Subrole is the accessibility subrole of an element.
 type Subrole string
 
 // Common accessibility subroles.
@@ -66,7 +66,7 @@ const (
 	SubroleMenuExtra Subrole = "AXMenuExtra"
 )
 
-// Element represents a UI element in the accessibility tree (or detected
+// Element is a UI element in the accessibility tree (or detected
 // via vision). It is immutable after creation to ensure thread safety.
 type Element struct {
 	id          ID

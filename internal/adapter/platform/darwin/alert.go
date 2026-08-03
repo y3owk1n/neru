@@ -9,13 +9,13 @@ import "C"
 
 import "unsafe"
 
-// ConfigOnboardingChoice represents the user's choice in the config onboarding alert.
+// ConfigOnboardingChoice is the user's choice in the config onboarding alert.
 type ConfigOnboardingChoice int
 
-// ConfigValidationChoice represents the user's choice in the config validation error alert.
+// ConfigValidationChoice is the user's choice in the config validation error alert.
 type ConfigValidationChoice int
 
-// AccessibilityPermissionStartupChoice represents the user's choice in the startup permission alert.
+// AccessibilityPermissionStartupChoice is the user's choice in the startup permission alert.
 type AccessibilityPermissionStartupChoice int
 
 const (

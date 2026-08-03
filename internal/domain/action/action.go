@@ -10,7 +10,7 @@ import (
 // unknownLabel is the String() result for values outside the defined enums.
 const unknownLabel = "unknown"
 
-// Type represents the type of action to perform on a UI element.
+// Type is the type of action to perform on a UI element.
 type Type int
 
 const (
@@ -330,20 +330,20 @@ func AllTypes() []Type {
 	return result
 }
 
-// Name represents a named action that can be performed by the application.
+// Name is a named action that can be performed by the application.
 // This is used for configuration and user input, while Type is used for execution.
 type Name string
 
 const (
-	// NameLeftClick represents the left click action.
+	// NameLeftClick is the left click action.
 	NameLeftClick Name = "left_click"
-	// NameRightClick represents the right click action.
+	// NameRightClick is the right click action.
 	NameRightClick Name = "right_click"
-	// NameMiddleClick represents the middle click action.
+	// NameMiddleClick is the middle click action.
 	NameMiddleClick Name = "middle_click"
-	// NameLeftMouseDown represents the left mouse button down action.
+	// NameLeftMouseDown is the left mouse button down action.
 	NameLeftMouseDown Name = "left_mouse_down"
-	// NameLeftMouseUp represents the left mouse button up action.
+	// NameLeftMouseUp is the left mouse button up action.
 	NameLeftMouseUp Name = "left_mouse_up"
 	// NameMouseDown is the original spelling of NameLeftMouseDown, from before
 	// the right and middle buttons could be pressed and released.
@@ -357,25 +357,25 @@ const (
 	// Deprecated: use NameLeftMouseUp; "mouse_up" is still accepted from
 	// configs and IPC callers.
 	NameMouseUp Name = "mouse_up"
-	// NameRightMouseDown represents the right mouse button down action.
+	// NameRightMouseDown is the right mouse button down action.
 	NameRightMouseDown Name = "right_mouse_down"
-	// NameRightMouseUp represents the right mouse button up action.
+	// NameRightMouseUp is the right mouse button up action.
 	NameRightMouseUp Name = "right_mouse_up"
-	// NameMiddleMouseDown represents the middle mouse button down action.
+	// NameMiddleMouseDown is the middle mouse button down action.
 	NameMiddleMouseDown Name = "middle_mouse_down"
-	// NameMiddleMouseUp represents the middle mouse button up action.
+	// NameMiddleMouseUp is the middle mouse button up action.
 	NameMiddleMouseUp Name = "middle_mouse_up"
-	// NameLeftMouseToggle represents the left mouse button toggle action.
+	// NameLeftMouseToggle is the left mouse button toggle action.
 	NameLeftMouseToggle Name = "left_mouse_toggle"
-	// NameRightMouseToggle represents the right mouse button toggle action.
+	// NameRightMouseToggle is the right mouse button toggle action.
 	NameRightMouseToggle Name = "right_mouse_toggle"
-	// NameMiddleMouseToggle represents the middle mouse button toggle action.
+	// NameMiddleMouseToggle is the middle mouse button toggle action.
 	NameMiddleMouseToggle Name = "middle_mouse_toggle"
-	// NameMoveMouse represents the mouse move action.
+	// NameMoveMouse is the mouse move action.
 	NameMoveMouse Name = "move_mouse"
-	// NameMoveMouseRelative represents the relative mouse move action.
+	// NameMoveMouseRelative is the relative mouse move action.
 	NameMoveMouseRelative Name = "move_mouse_relative"
-	// NameScroll represents the scroll action.
+	// NameScroll is the scroll action.
 	NameScroll Name = "scroll"
 	// NameReset resets current mode state.
 	NameReset Name = "reset"
@@ -389,25 +389,25 @@ const (
 	NameSaveCursorPos Name = "save_cursor_pos"
 	// NameRestoreCursorPos restores cursor position saved by save_cursor_pos.
 	NameRestoreCursorPos Name = "restore_cursor_pos"
-	// NameScrollUp represents the scroll-up action.
+	// NameScrollUp is the scroll-up action.
 	NameScrollUp Name = "scroll_up"
-	// NameScrollDown represents the scroll-down action.
+	// NameScrollDown is the scroll-down action.
 	NameScrollDown Name = "scroll_down"
-	// NameScrollLeft represents the scroll-left action.
+	// NameScrollLeft is the scroll-left action.
 	NameScrollLeft Name = "scroll_left"
-	// NameScrollRight represents the scroll-right action.
+	// NameScrollRight is the scroll-right action.
 	NameScrollRight Name = "scroll_right"
 	// NameMoveMonitor moves the cursor (and any active overlay) to the next or previous connected monitor.
 	NameMoveMonitor Name = "move_monitor"
 	// NameFeed posts a key or key chord directly to the operating system.
 	NameFeed Name = "feed"
-	// NameGoTop represents the go-to-top action.
+	// NameGoTop is the go-to-top action.
 	NameGoTop Name = "go_top"
-	// NameGoBottom represents the go-to-bottom action.
+	// NameGoBottom is the go-to-bottom action.
 	NameGoBottom Name = "go_bottom"
-	// NamePageUp represents the page-up action.
+	// NamePageUp is the page-up action.
 	NamePageUp Name = "page_up"
-	// NamePageDown represents the page-down action.
+	// NamePageDown is the page-down action.
 	NamePageDown Name = "page_down"
 	// NameHideCursor hides the system cursor.
 	NameHideCursor Name = "hide_cursor"

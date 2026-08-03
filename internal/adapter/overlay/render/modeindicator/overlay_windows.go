@@ -18,7 +18,7 @@ type Overlay struct {
 	configMu        sync.RWMutex
 }
 
-// NewOverlay initializes a new mode indicator overlay instance with its own window (Windows stub).
+// NewOverlay creates a new mode indicator overlay instance with its own window (Windows stub).
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
 	theme config.ThemeProvider,

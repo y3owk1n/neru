@@ -15,25 +15,25 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Mode represents the overlay mode.
+// Mode is the overlay mode.
 type Mode string
 
 const (
-	// ModeIdle represents the idle mode.
+	// ModeIdle is the idle mode.
 	ModeIdle Mode = Mode(domain.ModeNameIdle)
-	// ModeHints represents the hints mode.
+	// ModeHints is the hints mode.
 	ModeHints Mode = Mode(domain.ModeNameHints)
-	// ModeGrid represents the grid mode.
+	// ModeGrid is the grid mode.
 	ModeGrid Mode = Mode(domain.ModeNameGrid)
-	// ModeScroll represents the scroll mode.
+	// ModeScroll is the scroll mode.
 	ModeScroll Mode = Mode(domain.ModeNameScroll)
-	// ModeRecursiveGrid represents the recursive-grid mode.
+	// ModeRecursiveGrid is the recursive-grid mode.
 	ModeRecursiveGrid Mode = Mode(domain.ModeNameRecursiveGrid)
-	// ModeMonitorSelect represents the monitor_select mode.
+	// ModeMonitorSelect is the monitor_select mode.
 	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
 )
 
-// StateChange represents a change in overlay mode.
+// StateChange is a change in overlay mode.
 type StateChange struct {
 	prev Mode
 	next Mode

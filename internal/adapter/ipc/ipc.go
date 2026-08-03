@@ -98,7 +98,7 @@ const (
 	CodeNotSupported = "ERR_NOT_SUPPORTED"
 )
 
-// Command represents a command sent through the IPC interface.
+// Command is a command sent through the IPC interface.
 type Command struct {
 	Version string         `json:"version,omitempty"`
 	Action  string         `json:"action"`
@@ -106,7 +106,7 @@ type Command struct {
 	Args    []string       `json:"args,omitempty"`
 }
 
-// Response represents a response returned through the IPC interface.
+// Response is a response returned through the IPC interface.
 type Response struct {
 	Version string `json:"version,omitempty"`
 	Success bool   `json:"success"`
@@ -115,7 +115,7 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-// StatusData represents the payload structure for status query responses.
+// StatusData is the payload structure for status query responses.
 type StatusData struct {
 	Enabled bool   `json:"enabled"`
 	Mode    string `json:"mode"`
@@ -131,7 +131,7 @@ type Server struct {
 	wg         sync.WaitGroup
 }
 
-// CommandHandler defines the interface for processing IPC commands.
+// CommandHandler is the interface for processing IPC commands.
 type CommandHandler func(ctx context.Context, cmd Command) Response
 
 // SocketPath returns the platform IPC endpoint path (Unix socket or named pipe).
@@ -139,7 +139,7 @@ func SocketPath() string {
 	return endpointPath()
 }
 
-// NewServer initializes a new IPC server instance with the specified handler.
+// NewServer creates a new IPC server instance with the specified handler.
 func NewServer(handler CommandHandler, logger *zap.Logger) (*Server, error) {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -391,7 +391,7 @@ type Client struct {
 	socketPath string
 }
 
-// NewClient initializes a new IPC client instance.
+// NewClient creates a new IPC client instance.
 func NewClient() *Client {
 	return &Client{
 		socketPath: SocketPath(),

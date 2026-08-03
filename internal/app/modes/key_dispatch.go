@@ -184,7 +184,7 @@ func (h *Handler) handleModeSpecificKey(key string) {
 
 // modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
 // hotkey overrides. That is the only situation requiring the focused app's
-// bundle ID to be resolved in order to select the correct per-mode hotkey table.
+// bundle ID to be resolved to select the correct per-mode hotkey table.
 func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
 	switch mode {
 	case domain.ModeHints:

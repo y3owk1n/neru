@@ -31,7 +31,7 @@ func (kr *KeyResult) Complete() bool {
 	return kr.complete
 }
 
-// NewRouter initializes a new grid router with the specified manager and logger.
+// NewRouter creates a new grid router with the specified manager and logger.
 func NewRouter(m *Manager, logger *zap.Logger) *Router {
 	return &Router{
 		Router:  domain.NewRouter(logger),

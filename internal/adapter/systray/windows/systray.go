@@ -164,7 +164,7 @@ type menuNode struct {
 	separator bool
 }
 
-// MenuItem represents a menu item in the system tray.
+// MenuItem is a menu item in the system tray.
 type MenuItem struct {
 	ClickedCh chan struct{}
 	id        int

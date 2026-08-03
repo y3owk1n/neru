@@ -21,7 +21,7 @@ type (
 	HotkeyReleaseService = ports.HotkeyReleaseRegistrar
 )
 
-// OverlayManager defines the interface for overlay window management.
+// OverlayManager is the interface for overlay window management.
 type OverlayManager = overlay.ManagerInterface
 
 // Watcher is the app-layer alias for the application lifecycle contract.
@@ -30,7 +30,7 @@ type OverlayManager = overlay.ManagerInterface
 type Watcher = ports.AppWatcherPort
 
 // ModeService defines the common interface for mode-specific services.
-// This ensures grid, hints, and scroll services have identical APIs.
+// Grid, hints and scroll services all satisfy it, so their APIs stay aligned.
 type ModeService interface {
 	// Show activates the mode's overlay/interface.
 	Show(ctx context.Context) error
