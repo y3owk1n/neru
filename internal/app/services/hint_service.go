@@ -98,12 +98,10 @@ func (s *HintService) ShowHints(
 	return hints, nil
 }
 
-// GenerateHints collects clickable elements and generates labels without drawing
-// them. Mode handlers use this to filter and position hints before the first
-// render, avoiding an extra full overlay draw during activation.
-// If bundleID is non-empty, it is used directly (skips AX call).
-// If strategyOverride is non-empty, it overrides the config-derived strategy.
-// If labelDirectionOverride is non-empty, it overrides the config-derived label direction.
+// GenerateHints collects clickable elements and generates labels without
+// drawing them, so mode handlers can filter and position hints before the
+// first render. A non-empty bundleID skips the AX lookup; non-empty overrides
+// win over the config-derived strategy and label direction.
 func (s *HintService) GenerateHints(
 	ctx context.Context,
 	filterRoles []string,
@@ -117,9 +115,6 @@ func (s *HintService) GenerateHints(
 	cfg := s.config
 	s.mu.RUnlock()
 
-	filter := ports.DefaultElementFilter()
-
-	// Populate filter with configuration
 	if bundleID == "" {
 		var bundleIDErr error
 
@@ -132,89 +127,16 @@ func (s *HintService) GenerateHints(
 		}
 	}
 
-	// Use filterRoles if provided, otherwise use configured roles. requested
-	// holds the entries as written, before resolution, so that "no filter at
-	// all" stays distinguishable from "a filter that resolved to nothing".
-	var roles, requested []string
-
-	if len(filterRoles) > 0 {
-		// `neru hints --role ...` accepts the same vocabulary as the config and
-		// is resolved the same way.
-		requested = filterRoles
-
-		resolution := element.ResolveRolesForCurrentPlatform(filterRoles)
-		roles = resolution.Native
-
-		s.logger.Debug("Using override roles from activation options",
-			zap.Int("requested", len(requested)),
-			zap.Int("role_count", len(roles)))
-
-		for _, message := range resolution.FatalMessages() {
-			s.logger.Warn("Ignoring role filter entry", zap.String("reason", message))
-		}
-	} else {
-		requested = cfg.MergedForApp(bundleID).ClickableRoles
-		roles = cfg.ClickableRolesForApp(bundleID)
-
-		s.logger.Debug("Resolved clickable roles for hints",
-			zap.String("bundle_id", bundleID),
-			zap.Int("requested", len(requested)),
-			zap.Int("role_count", len(roles)))
-	}
-
-	filter.Roles = make([]element.Role, 0, len(roles))
-	for _, role := range roles {
-		if role == "" {
-			continue
-		}
-
-		filter.Roles = append(filter.Roles, element.Role(role))
-	}
-
-	// An empty filter.Roles means "match every role" to both the accessibility
-	// filter and the vision path. That is the right reading when no roles were
-	// configured, but the opposite of what was asked for when every configured
-	// entry belongs to another platform — hinting everything is worse than
-	// hinting nothing, and hides the misconfiguration. `neru roles --explain`
-	// and `neru doctor` report the cause.
-	if len(filter.Roles) == 0 && len(requested) > 0 {
-		s.logger.Warn(
-			"No configured role applies on this platform; showing no hints",
-			zap.Int("requested", len(requested)),
-		)
-
+	filter, usable := s.hintFilter(cfg, bundleID, filterRoles, filterTextContains)
+	if !usable {
 		return nil, nil
 	}
 
-	filter.IncludeMenubar = cfg.IncludeMenubarHints
-	filter.AdditionalMenubarTargets = cfg.AdditionalMenubarHintsTargets
-	filter.IncludeDock = cfg.IncludeDockHints
-	filter.IncludeNotificationCenter = cfg.IncludeNCHints
-	filter.IncludeStageManager = cfg.IncludeStageManagerHints
-	filter.IncludePIP = cfg.IncludePIPHints
-	filter.IncludeScreenCapture = cfg.IncludeScreenCaptureHints
-
-	// Apply text filter if provided (OR match - element matches if any text contains match)
-	if len(filterTextContains) > 0 {
-		filter.TitleContains = filterTextContains[0]
-		filter.DescriptionContains = filterTextContains[0]
-
-		filter.ValueContains = filterTextContains[0]
-		if len(filterTextContains) > 1 {
-			filter.TextContainsList = filterTextContains[1:]
-		}
-
-		s.logger.Debug("Applying text filter",
-			zap.Int("term_count", len(filterTextContains)))
-	}
-
-	// Determine strategy for the frontmost app (override takes precedence)
 	strategy := cfg.StrategyForApp(bundleID)
 	if strategyOverride != "" {
 		strategy = strategyOverride
 	}
 
-	// Determine label direction for the frontmost app (override takes precedence)
 	labelDirection := cfg.LabelDirectionForApp(bundleID)
 	if labelDirectionOverride != "" {
 		labelDirection = labelDirectionOverride
@@ -251,37 +173,7 @@ func (s *HintService) GenerateHints(
 
 	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
-	gen := s.Generator(labelDirection)
-
-	maxHints := gen.MaxHints()
-	if maxHints > 0 && len(elements) > maxHints {
-		s.logger.Warn(
-			"Clickable element count exceeds available hint key combinations; showing as many as possible",
-			zap.Int("element_count", len(elements)),
-			zap.Int("max_hints", maxHints),
-			zap.Int("omitted_count", len(elements)-maxHints),
-		)
-	}
-
-	// Generate hints
-	genStart := time.Now()
-	hints, elementsErr := gen.Generate(ctx, elements)
-	s.logger.Debug("TIMING: HintGenerator.Generate",
-		zap.Duration("elapsed", time.Since(genStart)),
-		zap.Int("element_count", len(elements)),
-		zap.Int("hint_count", len(hints)),
-		zap.String("label_direction", gen.LabelDirection().String()),
-		zap.Error(elementsErr))
-
-	if elementsErr != nil {
-		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
-
-		return nil, derrors.WrapInternalFailed(elementsErr, "generate hints")
-	}
-
-	s.logger.Debug("Generated hints", zap.Int("count", len(hints)))
-
-	return hints, nil
+	return s.labelElements(ctx, elements, labelDirection)
 }
 
 // HideHints removes the hint overlay from the screen.
@@ -492,4 +384,126 @@ func (s *HintService) generateHintsVision(
 	}
 
 	return allElements
+}
+
+// hintFilter builds the element filter for one activation. The second result
+// is false when every requested role belongs to another platform: hinting
+// everything would hide that misconfiguration, so nothing is hinted instead
+// (`neru roles --explain` and `neru doctor` report the cause).
+func (s *HintService) hintFilter(
+	cfg config.HintsConfig,
+	bundleID string,
+	filterRoles []string,
+	filterTextContains []string,
+) (ports.ElementFilter, bool) {
+	filter := ports.DefaultElementFilter()
+
+	// requested holds the entries as written, before resolution, so "no filter
+	// at all" stays distinguishable from "a filter that resolved to nothing".
+	var roles, requested []string
+
+	if len(filterRoles) > 0 {
+		// `neru hints --role ...` accepts the same vocabulary as the config
+		// and is resolved the same way.
+		requested = filterRoles
+
+		resolution := element.ResolveRolesForCurrentPlatform(filterRoles)
+		roles = resolution.Native
+
+		s.logger.Debug("Using override roles from activation options",
+			zap.Int("requested", len(requested)),
+			zap.Int("role_count", len(roles)))
+
+		for _, message := range resolution.FatalMessages() {
+			s.logger.Warn("Ignoring role filter entry", zap.String("reason", message))
+		}
+	} else {
+		requested = cfg.MergedForApp(bundleID).ClickableRoles
+		roles = cfg.ClickableRolesForApp(bundleID)
+
+		s.logger.Debug("Resolved clickable roles for hints",
+			zap.String("bundle_id", bundleID),
+			zap.Int("requested", len(requested)),
+			zap.Int("role_count", len(roles)))
+	}
+
+	filter.Roles = make([]element.Role, 0, len(roles))
+	for _, role := range roles {
+		if role == "" {
+			continue
+		}
+
+		filter.Roles = append(filter.Roles, element.Role(role))
+	}
+
+	if len(filter.Roles) == 0 && len(requested) > 0 {
+		s.logger.Warn(
+			"No configured role applies on this platform; showing no hints",
+			zap.Int("requested", len(requested)),
+		)
+
+		return filter, false
+	}
+
+	filter.IncludeMenubar = cfg.IncludeMenubarHints
+	filter.AdditionalMenubarTargets = cfg.AdditionalMenubarHintsTargets
+	filter.IncludeDock = cfg.IncludeDockHints
+	filter.IncludeNotificationCenter = cfg.IncludeNCHints
+	filter.IncludeStageManager = cfg.IncludeStageManagerHints
+	filter.IncludePIP = cfg.IncludePIPHints
+	filter.IncludeScreenCapture = cfg.IncludeScreenCaptureHints
+
+	// Text filter: an element matches when any term matches.
+	if len(filterTextContains) > 0 {
+		filter.TitleContains = filterTextContains[0]
+		filter.DescriptionContains = filterTextContains[0]
+
+		filter.ValueContains = filterTextContains[0]
+		if len(filterTextContains) > 1 {
+			filter.TextContainsList = filterTextContains[1:]
+		}
+
+		s.logger.Debug("Applying text filter",
+			zap.Int("term_count", len(filterTextContains)))
+	}
+
+	return filter, true
+}
+
+// labelElements turns collected elements into labeled hints.
+func (s *HintService) labelElements(
+	ctx context.Context,
+	elements []*element.Element,
+	labelDirection string,
+) ([]*hint.Interface, error) {
+	gen := s.Generator(labelDirection)
+
+	maxHints := gen.MaxHints()
+	if maxHints > 0 && len(elements) > maxHints {
+		s.logger.Warn(
+			"Clickable element count exceeds available hint key combinations; showing as many as possible",
+			zap.Int("element_count", len(elements)),
+			zap.Int("max_hints", maxHints),
+			zap.Int("omitted_count", len(elements)-maxHints),
+		)
+	}
+
+	genStart := time.Now()
+	hints, elementsErr := gen.Generate(ctx, elements)
+	s.logger.Debug("TIMING: HintGenerator.Generate",
+		zap.Duration("elapsed", time.Since(genStart)),
+		zap.Int("element_count", len(elements)),
+		zap.Int("hint_count", len(hints)),
+		zap.String("label_direction", gen.LabelDirection().String()),
+		zap.Error(elementsErr))
+
+	if elementsErr != nil {
+		s.logger.Error("Failed to generate hints", zap.Error(elementsErr))
+
+		return nil, derrors.WrapInternalFailed(elementsErr, "generate hints")
+	}
+
+	s.logger.Debug("Generated hints", zap.Int("count", len(hints)))
+
+	return hints, nil
 }

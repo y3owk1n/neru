@@ -3,6 +3,7 @@ package ipcctrl
 import (
 	"context"
 	"fmt"
+	"image"
 	"strconv"
 	"strings"
 	"time"
@@ -185,108 +186,104 @@ func (h *ActionsHandler) handleWaitForModeExitAction(
 }
 
 // handleActionChain executes a comma-separated chain of mouse button actions
-// at the same target point (e.g., "left_click,left_click" for a double-click).
-// The native click-counting layer automatically converts sequential clicks into
-// multi-click events (clickCount=2, clickCount=3...).
+// at one target point ("left_click,left_click" is a double-click). The native
+// click-counting layer turns sequential clicks into multi-click events.
 func (h *ActionsHandler) handleActionChain(
 	ctx context.Context,
 	cmd ipc.Command,
 	parsed parsedActionArgs,
 ) ipc.Response {
 	actionName := cmd.Args[0]
-
-	// Split comma-separated actions
 	actions := strings.Split(actionName, ",")
 
-	for actionIdx, a := range actions {
-		trimmed := strings.TrimSpace(a)
-		if trimmed == "" {
-			return ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"invalid action at position %d: empty action in comma-separated list",
-					actionIdx,
-				),
-				Code: ipc.CodeInvalidInput,
-			}
-		}
-
-		if !action.IsKnownName(action.Name(trimmed)) {
-			return ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"invalid action: %s. Supported actions: %s",
-					trimmed,
-					action.SupportedNamesString(),
-				),
-				Code: ipc.CodeInvalidInput,
-			}
-		}
-
-		// Chain only supports mouse button actions (left_click, right_click, etc.)
-		// for multi-click sequences.
-		if action.IsScrollSubAction(trimmed) {
-			return ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"scroll sub-action %q cannot be used in an action chain",
-					trimmed,
-				),
-				Code: ipc.CodeInvalidInput,
-			}
-		}
-
-		actType, err := action.Name(trimmed).ToType()
-		if err != nil || !actType.IsMouseButton() {
-			return ipc.Response{
-				Success: false,
-				Message: fmt.Sprintf(
-					"%q cannot be used in an action chain; only mouse button actions are allowed",
-					trimmed,
-				),
-				Code: ipc.CodeInvalidInput,
-			}
-		}
+	if resp := validateActionChain(actions); resp != nil {
+		return *resp
 	}
 
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
-		return ipc.Response{
-			Success: false,
-			Message: modErr.Error(),
-			Code:    ipc.CodeInvalidInput,
-		}
+		return refuseAction(modErr.Error())
 	}
 
-	// Merge sticky modifiers
 	if h.modesHandler != nil {
-		stickyMods := h.modesHandler.StickyModifiers()
-		modifiers |= stickyMods
+		modifiers |= h.modesHandler.StickyModifiers()
 	}
 
 	if parsed.useSelection && parsed.useBare {
-		return ipc.Response{
-			Success: false,
-			Message: msgSelectionAndBareCannotBeUsedTogether,
-			Code:    ipc.CodeInvalidInput,
-		}
+		return refuseAction(msgSelectionAndBareCannotBeUsedTogether)
 	}
 
 	if h.actionService == nil {
-		return ipc.Response{
-			Success: false,
-			Message: msgActionServiceNotAvailable,
-			Code:    ipc.CodeActionFailed,
-		}
+		return failAction(msgActionServiceNotAvailable)
 	}
 
-	// Resolve target point once for all actions in the chain
+	// One target point for the whole chain.
 	targetPoint, pointErrResp := h.resolveMouseActionPoint(ctx, parsed)
 	if pointErrResp != nil {
 		return *pointErrResp
 	}
 
-	// Move cursor to selection target if needed
+	if resp := h.moveToSelectionTarget(ctx, parsed, targetPoint); resp != nil {
+		return *resp
+	}
+
+	return h.performActionChain(ctx, actionName, actions, targetPoint, modifiers)
+}
+
+// validateActionChain refuses a chain containing anything but known mouse
+// button actions.
+func validateActionChain(actions []string) *ipc.Response {
+	for actionIdx, a := range actions {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "" {
+			resp := refuseAction(fmt.Sprintf(
+				"invalid action at position %d: empty action in comma-separated list",
+				actionIdx,
+			))
+
+			return &resp
+		}
+
+		if !action.IsKnownName(action.Name(trimmed)) {
+			resp := refuseAction(fmt.Sprintf(
+				"invalid action: %s. Supported actions: %s",
+				trimmed,
+				action.SupportedNamesString(),
+			))
+
+			return &resp
+		}
+
+		if action.IsScrollSubAction(trimmed) {
+			resp := refuseAction(fmt.Sprintf(
+				"scroll sub-action %q cannot be used in an action chain",
+				trimmed,
+			))
+
+			return &resp
+		}
+
+		actType, err := action.Name(trimmed).ToType()
+		if err != nil || !actType.IsMouseButton() {
+			resp := refuseAction(fmt.Sprintf(
+				"%q cannot be used in an action chain; only mouse button actions are allowed",
+				trimmed,
+			))
+
+			return &resp
+		}
+	}
+
+	return nil
+}
+
+// moveToSelectionTarget moves the cursor to the target when it is the mode
+// selection, and waits for it to land so the clicks hit the right spot.
+func (h *ActionsHandler) moveToSelectionTarget(
+	ctx context.Context,
+	parsed parsedActionArgs,
+	targetPoint image.Point,
+) *ipc.Response {
 	targetsSelection := parsed.useSelection
 	if !targetsSelection && !parsed.useBare {
 		if selectionPoint, ok := h.currentSelectionPoint(); ok &&
@@ -295,30 +292,39 @@ func (h *ActionsHandler) handleActionChain(
 		}
 	}
 
-	if targetsSelection {
-		moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
-		if moveErr != nil {
-			h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
-
-			return ipc.Response{
-				Success: false,
-				Message: "failed to perform action: " + moveErr.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
+	if !targetsSelection {
+		return nil
 	}
 
-	// Execute each action in the chain at the same point with the same modifiers.
+	moveErr := h.actionService.MoveCursorToPointAndWait(ctx, targetPoint)
+	if moveErr != nil {
+		h.logger.Error("Failed to move cursor to mode selection", zap.Error(moveErr))
+
+		resp := failAction("failed to perform action: " + moveErr.Error())
+
+		return &resp
+	}
+
+	return nil
+}
+
+// performActionChain fires each action at the same point with the same
+// modifiers.
+func (h *ActionsHandler) performActionChain(
+	ctx context.Context,
+	actionName string,
+	actions []string,
+	targetPoint image.Point,
+	modifiers action.Modifiers,
+) ipc.Response {
 	for actionIdx, a := range actions {
 		trimmed := strings.TrimSpace(a)
 		if trimmed == "" {
 			continue
 		}
 
-		// Add a delay between actions so the OS has time to process each
-		// click before the next one fires. This ensures the native
-		// click-counting (which tracks clickCount within a ~500ms window)
-		// correctly produces double-click and triple-click events.
+		// Give the OS time to process each click, so its click-counting
+		// (a ~500ms window) produces real double- and triple-clicks.
 		if actionIdx > 0 {
 			time.Sleep(interActionDelay)
 		}
@@ -340,11 +346,7 @@ func (h *ActionsHandler) handleActionChain(
 				zap.Error(performErr),
 				zap.String("action", trimmed))
 
-			return ipc.Response{
-				Success: false,
-				Message: "failed to perform action in chain: " + performErr.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
+			return failAction("failed to perform action in chain: " + performErr.Error())
 		}
 	}
 

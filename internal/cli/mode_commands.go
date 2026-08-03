@@ -85,6 +85,13 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 		},
 	}
 
+	registerModeFlags(cmd, config)
+
+	return cmd
+}
+
+// registerModeFlags declares the flags this mode supports.
+func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 	cmd.Flags().StringP(
 		modeflag.Action.String(),
 		modeflag.Action.Short(),
@@ -198,8 +205,6 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			"Split detected text into word-level regions (requires vision strategy)",
 		)
 	}
-
-	return cmd
 }
 
 // modeFlags is a mode command's flags, read once so the checks and the
