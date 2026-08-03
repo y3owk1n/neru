@@ -30,28 +30,72 @@ func validateClickableRoles(field string, roles []string) error {
 	)
 }
 
-// ValidateHints validates the hints configuration.
+// ValidateHints checks the hints configuration, reporting the first problem it
+// finds.
+//
+// The order the checks run in is the order a user sees their mistakes, so it is
+// listed here rather than left implicit in one long body. It is also why the
+// search-input checks come in two parts with the boundary-highlight checks
+// between them: that is where they have always run, and moving them would change
+// which problem a config with several is told about first.
 func (c *Config) ValidateHints() error {
+	checks := []func() error{
+		c.validateHintClickableRoles,
+		c.validateHintCharacters,
+		c.validateHintColors,
+		c.validateHintLabelUI,
+		c.validateHintSearchInputGeometry,
+		c.validateHintBoundaryHighlight,
+		c.validateHintSearchInputPlacement,
+		c.validateHintScanDepth,
+		c.validateHintMissionControl,
+		c.validateHintVocabulary,
+		func() error { return validateHintsVisionConfig(c.Hints.Vision) },
+	}
+
+	for _, check := range checks {
+		checkErr := check()
+		if checkErr != nil {
+			return checkErr
+		}
+	}
+
+	return nil
+}
+
+// validateHintClickableRoles checks the roles hints are drawn for, including the
+// extra roles an individual application adds.
+func (c *Config) validateHintClickableRoles() error {
 	if c.Hints.Enabled && len(c.Hints.ClickableRoles) == 0 {
 		return derrors.New(derrors.CodeInvalidConfig,
 			"hints.clickable_roles cannot be empty when hints are enabled")
 	}
 
-	err := validateClickableRoles("hints.clickable_roles", c.Hints.ClickableRoles)
-	if err != nil {
-		return err
+	rolesErr := validateClickableRoles("hints.clickable_roles", c.Hints.ClickableRoles)
+	if rolesErr != nil {
+		return rolesErr
 	}
 
 	for _, appConfig := range c.Hints.AppConfigs {
-		err = validateClickableRoles(
+		appRolesErr := validateClickableRoles(
 			"hints.app_configs.additional_clickable_roles",
 			appConfig.AdditionalClickable,
 		)
-		if err != nil {
-			return err
+		if appRolesErr != nil {
+			return appRolesErr
 		}
 	}
 
+	return nil
+}
+
+// validateHintCharacters checks the alphabet hint labels are drawn from.
+//
+// Labels are typed, so the alphabet has to be typeable and unambiguous: at least
+// two characters to build labels out of, ASCII so every keyboard can produce
+// them, and no character twice once case is folded, since matching is
+// case-insensitive and a repeat would make two labels indistinguishable.
+func (c *Config) validateHintCharacters() error {
 	if strings.TrimSpace(c.Hints.HintCharacters) == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "hint_characters cannot be empty")
 	}
@@ -63,8 +107,8 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	for _, r := range c.Hints.HintCharacters {
-		if r > unicode.MaxASCII {
+	for _, char := range c.Hints.HintCharacters {
+		if char > unicode.MaxASCII {
 			return derrors.New(
 				derrors.CodeInvalidConfig,
 				"hint_characters can only contain ASCII characters",
@@ -73,10 +117,12 @@ func (c *Config) ValidateHints() error {
 	}
 
 	seen := make(map[rune]struct{}, len(c.Hints.HintCharacters))
+
 	for _, char := range c.Hints.HintCharacters {
 		upper := unicode.ToUpper(char)
 
-		if _, ok := seen[upper]; ok {
+		_, duplicate := seen[upper]
+		if duplicate {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"hint_characters contains duplicate character %q",
@@ -87,7 +133,12 @@ func (c *Config) ValidateHints() error {
 		seen[upper] = struct{}{}
 	}
 
-	err = validateColors([]colorField{
+	return nil
+}
+
+// validateHintColors checks every color the hints overlay draws with.
+func (c *Config) validateHintColors() error {
+	return validateColors([]colorField{
 		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
 		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},
@@ -98,10 +149,13 @@ func (c *Config) ValidateHints() error {
 		{c.Hints.BoundaryHighlight.BackgroundColor, "hints.boundary_highlight.background_color"},
 		{c.Hints.BoundaryHighlight.BorderColor, "hints.boundary_highlight.border_color"},
 	})
-	if err != nil {
-		return err
-	}
+}
 
+// validateHintLabelUI checks the size and shape of a hint label.
+//
+// It also settles the placement of the label relative to its element, defaulting
+// an unset placement rather than refusing it.
+func (c *Config) validateHintLabelUI() error {
 	if c.Hints.UI.FontSize < 1 || c.Hints.UI.FontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
@@ -110,19 +164,19 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	err = validateMinValue(c.Hints.UI.BorderRadius, -1, "hints.ui.border_radius")
-	if err != nil {
-		return err
+	radiusErr := validateMinValue(c.Hints.UI.BorderRadius, -1, "hints.ui.border_radius")
+	if radiusErr != nil {
+		return radiusErr
 	}
 
-	err = validateMinValue(c.Hints.UI.PaddingX, -1, "hints.ui.padding_x")
-	if err != nil {
-		return err
+	paddingXErr := validateMinValue(c.Hints.UI.PaddingX, -1, "hints.ui.padding_x")
+	if paddingXErr != nil {
+		return paddingXErr
 	}
 
-	err = validateMinValue(c.Hints.UI.PaddingY, -1, "hints.ui.padding_y")
-	if err != nil {
-		return err
+	paddingYErr := validateMinValue(c.Hints.UI.PaddingY, -1, "hints.ui.padding_y")
+	if paddingYErr != nil {
+		return paddingYErr
 	}
 
 	if c.Hints.UI.BorderWidth < 0 {
@@ -140,6 +194,12 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	return nil
+}
+
+// validateHintSearchInputGeometry checks the size and shape of the search input.
+// Where it sits on screen is checked separately, after the boundary highlight.
+func (c *Config) validateHintSearchInputGeometry() error {
 	if c.Hints.SearchInputUI.FontSize < 1 || c.Hints.SearchInputUI.FontSize > maxFontSize {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
@@ -148,23 +208,31 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	err = validateMinValue(
+	radiusErr := validateMinValue(
 		c.Hints.SearchInputUI.BorderRadius,
 		-1,
 		"hints.search_input_ui.border_radius",
 	)
-	if err != nil {
-		return err
+	if radiusErr != nil {
+		return radiusErr
 	}
 
-	err = validateMinValue(c.Hints.SearchInputUI.PaddingX, -1, "hints.search_input_ui.padding_x")
-	if err != nil {
-		return err
+	paddingXErr := validateMinValue(
+		c.Hints.SearchInputUI.PaddingX,
+		-1,
+		"hints.search_input_ui.padding_x",
+	)
+	if paddingXErr != nil {
+		return paddingXErr
 	}
 
-	err = validateMinValue(c.Hints.SearchInputUI.PaddingY, -1, "hints.search_input_ui.padding_y")
-	if err != nil {
-		return err
+	paddingYErr := validateMinValue(
+		c.Hints.SearchInputUI.PaddingY,
+		-1,
+		"hints.search_input_ui.padding_y",
+	)
+	if paddingYErr != nil {
+		return paddingYErr
 	}
 
 	if c.Hints.SearchInputUI.BorderWidth < 0 {
@@ -174,6 +242,12 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
+	return nil
+}
+
+// validateHintBoundaryHighlight checks the outline drawn around the element a
+// hint points at.
+func (c *Config) validateHintBoundaryHighlight() error {
 	if c.Hints.BoundaryHighlight.BorderWidth < 0 {
 		return derrors.New(
 			derrors.CodeInvalidConfig,
@@ -181,15 +255,16 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	err = validateMinValue(
+	return validateMinValue(
 		c.Hints.BoundaryHighlight.BorderRadius,
 		-1,
 		"hints.boundary_highlight.border_radius",
 	)
-	if err != nil {
-		return err
-	}
+}
 
+// validateHintSearchInputPlacement checks where the search input sits and how
+// wide it is.
+func (c *Config) validateHintSearchInputPlacement() error {
 	switch c.Hints.SearchInputUI.Position {
 	case "top_left", "top_center", "top_right",
 		"center",
@@ -201,17 +276,19 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	err = validateMinValue(c.Hints.SearchInputUI.Width, 1, "hints.search_input_ui.width")
-	if err != nil {
-		return err
-	}
+	return validateMinValue(c.Hints.SearchInputUI.Width, 1, "hints.search_input_ui.width")
+}
 
-	err = validateMinValue(c.Hints.MaxDepth, 0, "hints.max_depth")
-	if err != nil {
-		return err
-	}
+// validateHintScanDepth checks how deep the accessibility tree walk may go.
+func (c *Config) validateHintScanDepth() error {
+	return validateMinValue(c.Hints.MaxDepth, 0, "hints.max_depth")
+}
 
-	if (len(c.Hints.OnMissionControlActivated) > 0 || len(c.Hints.OnMissionControlDeactivated) > 0) &&
+// validateHintMissionControl checks the steps run as Mission Control opens and
+// closes, and the settings they depend on.
+func (c *Config) validateHintMissionControl() error {
+	if (len(c.Hints.OnMissionControlActivated) > 0 ||
+		len(c.Hints.OnMissionControlDeactivated) > 0) &&
 		!c.Hints.DetectMissionControl {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
@@ -227,48 +304,51 @@ func (c *Config) ValidateHints() error {
 		)
 	}
 
-	for idx, actionStr := range c.Hints.OnMissionControlActivated {
+	activatedErr := validateMissionControlSteps(
+		"hints.on_mission_control_activated",
+		c.Hints.OnMissionControlActivated,
+	)
+	if activatedErr != nil {
+		return activatedErr
+	}
+
+	return validateMissionControlSteps(
+		"hints.on_mission_control_deactivated",
+		c.Hints.OnMissionControlDeactivated,
+	)
+}
+
+// validateMissionControlSteps checks one list of Mission Control steps.
+func validateMissionControlSteps(field string, steps []string) error {
+	for idx, actionStr := range steps {
 		trimmed := strings.TrimSpace(actionStr)
 		if trimmed == "" {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"hints.on_mission_control_activated[%d] cannot be empty",
+				"%s[%d] cannot be empty",
+				field,
 				idx,
 			)
 		}
 
-		err := validateHotkeyActionString(trimmed)
-		if err != nil {
+		stepErr := validateHotkeyActionString(trimmed)
+		if stepErr != nil {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
-				"hints.on_mission_control_activated[%d]: %v",
+				"%s[%d]: %v",
+				field,
 				idx,
-				err,
+				stepErr,
 			)
 		}
 	}
 
-	for idx, actionStr := range c.Hints.OnMissionControlDeactivated {
-		trimmed := strings.TrimSpace(actionStr)
-		if trimmed == "" {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.on_mission_control_deactivated[%d] cannot be empty",
-				idx,
-			)
-		}
+	return nil
+}
 
-		err := validateHotkeyActionString(trimmed)
-		if err != nil {
-			return derrors.Newf(
-				derrors.CodeInvalidConfig,
-				"hints.on_mission_control_deactivated[%d]: %v",
-				idx,
-				err,
-			)
-		}
-	}
-
+// validateHintVocabulary checks the settings that name one of a fixed set of
+// behaviors: how elements are found, and how labels are enumerated.
+func (c *Config) validateHintVocabulary() error {
 	switch c.Hints.Strategy {
 	case StrategyAXTree, StrategyVision, "":
 	default:
@@ -287,11 +367,6 @@ func (c *Config) ValidateHints() error {
 			"hints.label_direction must be %q or %q",
 			LabelDirectionReverse, LabelDirectionNormal,
 		)
-	}
-
-	err = validateHintsVisionConfig(c.Hints.Vision)
-	if err != nil {
-		return err
 	}
 
 	return nil
