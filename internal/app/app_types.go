@@ -111,9 +111,7 @@ type App struct {
 	// State subscriptions
 	screenShareSubscriptionID uint64
 
-	// Renderer
 	renderer *ui.OverlayRenderer
 
-	// IPC Controller
 	ipcController *ipcctrl.Controller
 }

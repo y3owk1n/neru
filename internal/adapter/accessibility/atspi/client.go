@@ -145,7 +145,6 @@ type Client struct {
 	a11y      *dbus.Conn
 	a11yReady bool
 
-	// a11y state management.
 	a11yMu    sync.Mutex
 	activated bool // true once we enabled AT-SPI this session
 	closed    bool // true after Close() runs; prevents re-activation

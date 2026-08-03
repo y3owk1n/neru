@@ -33,7 +33,6 @@ func NewRouter(manager *Manager, logger *zap.Logger) *Router {
 
 // RouteKey processes a key press and returns the routing result.
 func (r *Router) RouteKey(key string) (RouteResult, error) {
-	// Process input through manager
 	hint, exactMatch, err := r.manager.HandleInput(key)
 	if err != nil {
 		return RouteResult{}, err

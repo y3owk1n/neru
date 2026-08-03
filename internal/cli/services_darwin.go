@@ -89,7 +89,6 @@ func installService() error {
 
 	plistContent := strings.ReplaceAll(plistTemplate, "NERU_BINARY_PATH", binPath)
 
-	// Expand launchAgentsDir
 	expandedDir, err := expandPath(launchAgentsDir)
 	if err != nil {
 		return fmt.Errorf("failed to expand LaunchAgents path: %w", err)
@@ -165,7 +164,6 @@ func uninstallService() error {
 	)
 	_ = cmd.Run() // Ignore error if not loaded
 
-	// Remove plist
 	err = os.Remove(expandedPlist)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove plist: %w", err)
@@ -197,7 +195,6 @@ func stopService() error {
 }
 
 func restartService() error {
-	// Stop the service.
 	_ = stopService()
 
 	// Always attempt to start

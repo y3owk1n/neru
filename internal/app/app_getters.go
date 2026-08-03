@@ -135,13 +135,11 @@ func (a *App) GetSystrayComponent() SystrayComponent {
 // OnEnabledStateChanged registers a callback for when the enabled state changes.
 // Returns a subscription ID that can be used to unsubscribe later.
 func (a *App) OnEnabledStateChanged(callback func(bool)) uint64 {
-	// Delegate to appState
 	return a.appState.OnEnabledStateChanged(callback)
 }
 
 // OffEnabledStateChanged unsubscribes a callback by ID.
 func (a *App) OffEnabledStateChanged(id uint64) {
-	// Delegate to appState
 	a.appState.OffEnabledStateChanged(id)
 }
 

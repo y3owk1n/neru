@@ -143,7 +143,6 @@ func Init(
 		// Create file encoder (JSON for machine parsing)
 		fileEncoder := zapcore.NewJSONEncoder(fileEncoderConfig)
 
-		// Add file core
 		cores = append(cores, zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), level))
 	}
 

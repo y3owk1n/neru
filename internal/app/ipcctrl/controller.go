@@ -54,7 +54,6 @@ type Controller struct {
 	// Info handler for config updates
 	infoHandler *InfoHandler
 
-	// Command Handlers map
 	Handlers map[string]func(context.Context, ipc.Command) ipc.Response
 }
 
@@ -221,7 +220,6 @@ func (c *Controller) registerHandlers(cfg *config.Config) {
 		Logger:        c.Logger,
 	})
 
-	// Register handlers from each component
 	lifecycleHandler.RegisterHandlers(c.Handlers)
 	modesHandler.RegisterHandlers(c.Handlers)
 	actionsHandler.RegisterHandlers(c.Handlers)

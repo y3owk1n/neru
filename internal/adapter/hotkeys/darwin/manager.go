@@ -77,7 +77,6 @@ func (m *Manager) RegisterWithRelease(
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Parse key string into key code and modifiers
 	keyCode, modifiers, ok := darwin.ParseKeyString(keyString)
 	if !ok {
 		m.logger.Error("Failed to parse key string", zap.String("key", keyString))

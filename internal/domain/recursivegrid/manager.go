@@ -171,7 +171,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// then lowercase for case-insensitive comparisons.
 	key = strings.ToLower(configpkg.NormalizeKeyForComparison(key))
 
-	// Map key to cell
 	cell := m.keyToCell(key)
 	if cell < 0 {
 		// Key not mapped to any cell
@@ -181,7 +180,6 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 		return image.Point{}, false
 	}
 
-	// Select the cell
 	center, isComplete := m.grid.SelectCell(cell)
 
 	m.Logger.Debug("Cell selected",

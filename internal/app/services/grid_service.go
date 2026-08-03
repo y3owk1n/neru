@@ -36,7 +36,6 @@ func NewGridService(
 func (s *GridService) ShowGrid(ctx context.Context) error {
 	s.logger.Debug("Showing grid")
 
-	// Show grid overlay
 	showGridErr := s.overlay.ShowGrid(ctx)
 	if showGridErr != nil {
 		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))

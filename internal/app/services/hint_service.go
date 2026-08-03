@@ -86,7 +86,6 @@ func (s *HintService) ShowHints(
 		return hints, nil
 	}
 
-	// Display hints
 	showHintsErr := s.overlay.ShowHints(ctx, hints)
 	if showHintsErr != nil {
 		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))

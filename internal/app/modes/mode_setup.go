@@ -92,7 +92,6 @@ func (h *Handler) activateModeBase(
 	actionEnum action.Type,
 	bundleID string,
 ) (action.Type, bool) {
-	// Validate mode activation
 	err := h.validateModeActivation(bundleID, modeName, enabled)
 	if err != nil {
 		h.logger.Warn(modeName+" mode activation failed", zap.Error(err))

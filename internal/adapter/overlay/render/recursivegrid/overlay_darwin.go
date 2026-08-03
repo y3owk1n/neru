@@ -313,7 +313,6 @@ func (o *Overlay) DrawRecursiveGrid(
 	// Compute cell positions using the shared helper (same as Divide()).
 	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
 
-	// Create grid cells dynamically
 	cells := make([]C.GridCell, keyCount)
 
 	for idx, cellRect := range cellRects {
@@ -344,7 +343,6 @@ func (o *Overlay) DrawRecursiveGrid(
 		subKeyLabel = strings.ToUpper(nextKeys)
 	}
 
-	// Get cached style
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
 		cached.BgColor = unsafe.Pointer(C.CString(style.HighlightColor()))

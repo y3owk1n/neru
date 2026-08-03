@@ -365,7 +365,6 @@ func (s *Service) FindConfigFile() string {
 		return found
 	}
 
-	// Try config.toml
 	if found := s.tryConfigPath("config.toml"); found != "" {
 		return found
 	}

@@ -75,7 +75,6 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	h.setScreenBounds(screenBounds)
 	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
 
-	// Initialize recursive-grid manager
 	h.initializeRecursiveGridManager(normalizedBounds)
 
 	var cursorShouldFollow bool

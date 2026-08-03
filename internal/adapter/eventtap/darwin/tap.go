@@ -350,7 +350,6 @@ func (et *EventTap) Destroy() {
 	// Disable first to prevent any pending callbacks
 	et.Disable()
 
-	// Destroy the tap
 	C.NeruDestroyEventTap(et.handle)
 	et.handle = nil
 

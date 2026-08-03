@@ -109,10 +109,8 @@ func (a *Adapter) ShowGrid(ctx context.Context) error {
 		return derrors.Wrap(boundsErr, derrors.CodeActionFailed, "failed to get screen bounds")
 	}
 
-	// Create grid
 	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
 
-	// Draw grid
 	drawGridErr := a.manager.DrawGrid(grid, "", gridFeature.Style{})
 	if drawGridErr != nil {
 		return derrors.Wrap(drawGridErr, derrors.CodeActionFailed, "failed to draw grid")

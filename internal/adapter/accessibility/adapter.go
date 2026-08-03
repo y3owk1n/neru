@@ -192,7 +192,6 @@ func (a *Adapter) PerformAction(
 
 	center := element.Center()
 
-	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, center, false, 0)
 	if performActionErr != nil {
 		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
@@ -208,7 +207,6 @@ func (a *Adapter) PerformActionAtPoint(
 	point image.Point,
 	modifiers action.Modifiers,
 ) error {
-	// Check context
 	err := a.checkContext(ctx)
 	if err != nil {
 		return err
@@ -220,7 +218,6 @@ func (a *Adapter) PerformActionAtPoint(
 		zap.Int("y", point.Y),
 		zap.String("modifiers", modifiers.String()))
 
-	// Perform the action via client
 	performActionErr := a.client.PerformAction(actionType, point, false, modifiers)
 	if performActionErr != nil {
 		return derrors.Wrap(
@@ -251,7 +248,6 @@ func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
 
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
 func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
-	// Check context
 	err := a.checkContext(ctx)
 	if err != nil {
 		return "", err
@@ -304,7 +300,6 @@ func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, 
 
 // Health checks if the accessibility permissions are granted.
 func (a *Adapter) Health(ctx context.Context) error {
-	// Check context
 	err := a.checkContext(ctx)
 	if err != nil {
 		return err
@@ -408,7 +403,6 @@ func (a *Adapter) processClickableNodes(
 			continue
 		}
 
-		// Apply filter
 		if a.MatchesFilter(elem, filter) {
 			elements = append(elements, elem)
 		}

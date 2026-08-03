@@ -461,7 +461,6 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		boundaryBorderColor:      (*C.char)(cachedStyle.BoundaryBorderColor),
 	}
 
-	// Draw hints
 	C.NeruDrawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
 
 	o.drawMu.RUnlock()

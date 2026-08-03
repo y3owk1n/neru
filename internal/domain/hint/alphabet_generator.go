@@ -233,7 +233,6 @@ func (g *AlphabetGenerator) Generate(
 		sorted = sorted[:g.maxHints]
 	}
 
-	// Generate labels (with caching)
 	labels := g.generateLabels(len(sorted))
 
 	// Create hints

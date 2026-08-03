@@ -200,7 +200,6 @@ func (t *Trie) FindByPrefix(prefix string) []*Interface {
 		}
 	}
 
-	// Collect all hints from this node and its descendants
 	return t.collectAllHints(node)
 }
 
@@ -275,7 +274,6 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 		return c.hints
 	}
 
-	// Use trie for efficient prefix matching
 	return c.trie.FindByPrefix(prefix)
 }
 

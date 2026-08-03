@@ -62,7 +62,6 @@ func (f *ComponentFactory) CreateHintsComponent(
 		return component, nil
 	}
 
-	// Build style
 	component.Style = hints.BuildStyle(f.config.Hints, f.themeProvider)
 	component.Context = &hints.Context{}
 
@@ -114,7 +113,6 @@ func (f *ComponentFactory) CreateGridComponent(
 		return component, nil
 	}
 
-	// Build style and configuration
 	component.Style = grid.BuildStyle(f.config.Grid, f.themeProvider)
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)

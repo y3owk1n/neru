@@ -198,7 +198,6 @@ func (h *ActionsHandler) handleActionChain(
 	// Split comma-separated actions
 	actions := strings.Split(actionName, ",")
 
-	// Validate each action in the chain
 	for actionIdx, a := range actions {
 		trimmed := strings.TrimSpace(a)
 		if trimmed == "" {
@@ -250,7 +249,6 @@ func (h *ActionsHandler) handleActionChain(
 		}
 	}
 
-	// Parse modifiers
 	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
 	if modErr != nil {
 		return ipc.Response{

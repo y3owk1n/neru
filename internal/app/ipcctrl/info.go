@@ -343,7 +343,7 @@ func (h *InfoHandler) handleHealth(ctx context.Context, _ ipc.Command) ipc.Respo
 		components["ipc_server"] = healthNotInitialized
 		hasErrors = true
 	}
-	// Config
+
 	cfg := h.configSnapshot()
 	if cfg != nil {
 		validateErr := cfg.Validate()

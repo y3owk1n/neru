@@ -211,7 +211,6 @@ func (m *Manager) HandleInput(key string) (*Interface, bool, error) {
 	// Accumulate input (convert to uppercase to match hints)
 	m.SetCurrentInput(m.CurrentInput() + strings.ToUpper(key))
 
-	// Filter hints by prefix
 	filtered := m.hints.FilterByPrefix(m.CurrentInput())
 	if m.Logger != nil {
 		m.Logger.Debug("Hint manager: Filtered hints", zap.Int("filtered_count", len(filtered)))

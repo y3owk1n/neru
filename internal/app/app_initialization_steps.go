@@ -109,7 +109,6 @@ func initializeServicesAndAdapters(app *App) error {
 	)
 	app.accessibility = accAdapter
 
-	// Initialize services
 	hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, err := initializeServices(
 		cfg,
 		accAdapter,

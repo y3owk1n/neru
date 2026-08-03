@@ -90,7 +90,6 @@ func (c *Cache) get(
 
 	if ok {
 		if entry, ok := element.Value.(*CacheEntry); ok {
-			// Check TTL
 			if time.Since(entry.addedAt) > c.ttl {
 				// Evict expired entry
 				c.order.Remove(element)

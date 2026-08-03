@@ -128,7 +128,6 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
 
-	// Offset from cursor to avoid covering it
 	xOffset := o.uiConfig.IndicatorXOffset
 	yOffset := o.uiConfig.IndicatorYOffset
 

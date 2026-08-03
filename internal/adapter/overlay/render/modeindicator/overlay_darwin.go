@@ -162,7 +162,6 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		return
 	}
 
-	// Offset from cursor to avoid covering it
 	xOffset := o.indicatorConfig.UI.IndicatorXOffset
 	yOffset := o.indicatorConfig.UI.IndicatorYOffset
 

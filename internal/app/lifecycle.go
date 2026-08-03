@@ -595,7 +595,7 @@ func (a *App) Cleanup() {
 		if a.overlayManager != nil {
 			a.overlayManager.Destroy()
 		}
-		// Cleanup screen share state subscription
+
 		if a.screenShareSubscriptionID != 0 {
 			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
 			a.screenShareSubscriptionID = 0
@@ -622,7 +622,6 @@ func (a *App) Cleanup() {
 
 		loggerCloseErr := logger.Close()
 		if loggerCloseErr != nil {
-			// Can't log this since logger is being closed
 			fmt.Fprintf(os.Stderr, "Warning: failed to close logger: %v\n", loggerCloseErr)
 		}
 	})
