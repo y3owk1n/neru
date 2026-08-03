@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/overlay_ui.go
-// Dedicated Win32 UI thread with a message pump for HWND creation and painting.
-// Does not implement overlay drawing; overlay.go marshals HWND work here.
-
 package windows
 
 import (
@@ -13,6 +9,8 @@ import (
 	"unsafe"
 )
 
+// Dedicated Win32 UI thread with a message pump for HWND creation and painting.
+// Does not implement overlay drawing; overlay.go marshals HWND work here.
 var (
 	overlayUIOnce sync.Once
 	overlayUIOps  chan func()

@@ -1,5 +1,14 @@
 //go:build linux
 
+package atspi
+
+import (
+	"context"
+
+	"github.com/godbus/dbus/v5"
+	"go.uber.org/zap"
+)
+
 // Event-driven active-window tracking for the Linux AT-SPI client.
 //
 // Frame selection otherwise has to scan every application on the a11y bus to
@@ -10,16 +19,6 @@
 // frame from that cache with no scan, validating it against the compositor's
 // live focus identity so a stale or missing cache falls back to the scan rather
 // than returning the wrong window.
-
-package atspi
-
-import (
-	"context"
-
-	"github.com/godbus/dbus/v5"
-	"go.uber.org/zap"
-)
-
 const (
 	// atspiRegistryObjPath is the AT-SPI registry object that RegisterEvent is
 	// called on (distinct from the accessible-tree root).

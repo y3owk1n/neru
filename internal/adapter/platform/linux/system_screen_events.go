@@ -1,11 +1,5 @@
 //go:build linux
 
-// Event-driven display-configuration change notifications for Linux. Exposes a
-// file descriptor that becomes readable whenever the monitor layout changes
-// (outputs added/removed/resized/moved) so the app watcher can wake and
-// regenerate overlays for the new layout instead of never noticing hotplug.
-// Mirrors system_focus_events.go's SubscribeFocusedApp.
-
 package linux
 
 // SubscribeScreenChange returns a file descriptor that becomes readable whenever

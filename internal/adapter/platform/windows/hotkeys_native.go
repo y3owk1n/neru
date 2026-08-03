@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/hotkeys_native.go
-// Global hotkey registration via RegisterHotKey on a dedicated message thread.
-// Does not parse Neru config bindings.
-
 package windows
 
 import (
@@ -17,6 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// Global hotkey registration via RegisterHotKey on a dedicated message thread.
+// Does not parse Neru config bindings.
 const (
 	wmHotkey = 0x0312
 

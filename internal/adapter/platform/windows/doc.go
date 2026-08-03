@@ -1,18 +1,10 @@
-// Package windows provides Windows-specific platform implementations.
+// Package windows implements ports.SystemPort over pure-Go Win32 bindings, no
+// cgo: monitor enumeration, SendInput, the WH_KEYBOARD_LL hook, RegisterHotKey,
+// GDI layered-window overlays, dark-mode via the registry. UI Automation lives
+// in adapter/accessibility/native/windows.
 //
-// It implements ports.SystemPort over pure-Go Win32 bindings (no CGO):
-// monitor enumeration, cursor warp and SendInput injection, the
-// WH_KEYBOARD_LL hook, RegisterHotKey, layered-window overlays with GDI, and
-// dark-mode detection through the personalization registry. UI Automation
-// accessibility lives in internal/adapter/accessibility/native/windows.
-//
-// Windows is the newest backend, so a few capabilities are still stubs — see
-// the windows entries in ports.WindowsCapabilities for the authoritative list
-// and docs/CROSS_PLATFORM.md for the gap tracker. Stubs must return
-// derrors.CodeNotSupported rather than silently no-op.
-//
-// All functional code in this package carries //go:build windows. This file is
-// intentionally untagged so that `go vet ./...` and other analysis tools can
-// resolve the package on every OS without hitting "build constraints exclude
-// all Go files" — matching the sibling darwin package.
+// The newest backend, so some capabilities are stubs — ports.WindowsCapabilities
+// is the authoritative list. Stubs return derrors.CodeNotSupported, never a
+// silent no-op. This file is untagged so analysis resolves the package on
+// every OS; everything else carries //go:build windows.
 package windows

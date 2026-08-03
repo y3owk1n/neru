@@ -107,6 +107,10 @@ func boolSubscriptions() []boolSubscription {
 	}
 }
 
+// TestAppState_Subscriptions_RejectNilCallbacks pins the subscribe guard. A nil
+// callback must be refused with a zero ID rather than stored, because a stored
+// nil is only discovered when the notify loop reaches it.
+//
 // AppState exposes three independent publish/subscribe flags. The enabled flag
 // is covered in app_state_test.go; the screen-share and scroll-invert flags had
 // no subscription tests at all, so their "only notify when the value actually
@@ -116,10 +120,6 @@ func boolSubscriptions() []boolSubscription {
 // each no-op write (the systray redraws, the overlay reconfigures) without
 // changing any observable state; a broken nil-guard stores a nil callback that
 // panics later, on a different goroutine, far from the subscribe call.
-//
-// TestAppState_Subscriptions_RejectNilCallbacks pins the subscribe guard. A nil
-// callback must be refused with a zero ID rather than stored, because a stored
-// nil is only discovered when the notify loop reaches it.
 func TestAppState_Subscriptions_RejectNilCallbacks(t *testing.T) {
 	for _, sub := range boolSubscriptions() {
 		t.Run(sub.name, func(t *testing.T) {

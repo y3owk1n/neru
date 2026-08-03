@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/win32.go
-// Low-level Win32 helpers for screen, cursor, window, and process queries.
-// Does not implement ports.SystemPort; system.go delegates here.
-
 package windows
 
 import (
@@ -20,6 +16,8 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// Low-level Win32 helpers for screen, cursor, window, and process queries.
+// Does not implement ports.SystemPort; system.go delegates here.
 const (
 	cchDeviceName                  = 32
 	processQueryLimitedInformation = 0x1000

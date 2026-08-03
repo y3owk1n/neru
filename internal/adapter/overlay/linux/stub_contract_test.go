@@ -23,25 +23,12 @@ func noBackendManager() *Manager {
 	return &Manager{}
 }
 
-// The Linux overlay Manager dispatches every draw call to whichever backend
-// initialized — X11 or wlroots layer-shell — and falls through to a
-// CodeNotSupported stub when neither did. That happens on KWin and GNOME today,
-// and on any headless or unrecognized session.
-//
-// The mode handler treats an overlay draw failure as a reason to abandon mode
-// activation, and it distinguishes "this platform can't draw" from "drawing
-// broke" via derrors.IsNotSupported. A stub that returned nil would leave the
-// handler believing a mode was displayed: keyboard capture stays armed and the
-// user is trapped in an invisible mode with no way to see what they are typing.
-//
-// A zero-value Manager is exactly the no-backend state — both backend fields
-// nil, a valid zero renderMu — so these cases reach the stub without opening a
-// display connection, which also keeps them safe on a headless CI runner.
-// Deliberately not using Init(): it is a process-global sync.Once singleton
-// that probes for a display.
-//
-// This is an internal test: reaching the stub path needs a Manager with no
-// backend attached, and the backend fields are unexported by design.
+// With no backend initialized (KWin, GNOME, headless), every Manager draw
+// call must report CodeNotSupported. A stub returning nil would leave the mode
+// handler believing a mode is displayed — keyboard capture armed, the user
+// trapped in an invisible mode. A zero-value Manager is exactly the no-backend
+// state, so these cases run headless; Init() is deliberately avoided, being a
+// process-global singleton that probes for a display.
 func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing.T) {
 	tests := []struct {
 		name string

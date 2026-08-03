@@ -30,6 +30,10 @@ func namedPredicates() []namedPredicate {
 	}
 }
 
+// TestActionPredicates_MatchExactlyTheirOwnName runs every predicate against
+// every known action name plus a few near-misses, and requires each to accept
+// its own name and reject all others.
+//
 // The Is<X>Action helpers are the routing table for CLI and IPC action
 // dispatch: each one claims a single action name, and the caller runs whichever
 // branch says yes. They are one-liners, which is exactly why they were
@@ -39,10 +43,6 @@ func namedPredicates() []namedPredicate {
 //
 // Testing them as a cross-product (each predicate against every name) pins both
 // halves of the contract: it matches its own name, and it matches nothing else.
-//
-// TestActionPredicates_MatchExactlyTheirOwnName runs every predicate against
-// every known action name plus a few near-misses, and requires each to accept
-// its own name and reject all others.
 func TestActionPredicates_MatchExactlyTheirOwnName(t *testing.T) {
 	predicates := namedPredicates()
 

@@ -1,11 +1,10 @@
 //go:build windows
 
-// internal/adapter/platform/windows/overlay_color.go
-// Converts Neru AARRGGBB colors to opaque Win32 COLORREF values for GDI painting.
-// Does not implement drawing; overlay.go uses these helpers during WM_PAINT.
-
 package windows
 
+// Converts Neru AARRGGBB colors to opaque Win32 COLORREF values for GDI painting.
+// Does not implement drawing; overlay.go uses these helpers during WM_PAINT.
+//
 // overlayColorKey is the Win32 COLORREF made transparent via SetLayeredWindowAttributes.
 // Use a rare RGB value so grid theme colors are not punched through as holes.
 const overlayColorKey = 0x00010101 // RGB(1, 1, 1)

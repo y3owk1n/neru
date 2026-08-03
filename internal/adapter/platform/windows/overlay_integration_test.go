@@ -1,10 +1,5 @@
 //go:build integration && windows
 
-// internal/adapter/platform/windows/overlay_windows_integration_test.go
-// Real Win32 overlay integration tests.
-// Does not run in default CI; execute on WIN-VM desktop session with:
-// go test -tags=integration ./internal/adapter/platform/windows/...
-
 package windows_test
 
 import (
@@ -15,6 +10,9 @@ import (
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
 
+// Real Win32 overlay integration tests.
+// Does not run in default CI; execute on WIN-VM desktop session with:
+// go test -tags=integration ./internal/adapter/platform/windows/...
 func skipIfOverlayUnavailable(t *testing.T, err error) {
 	t.Helper()
 

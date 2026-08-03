@@ -1,11 +1,5 @@
 //go:build darwin
 
-// macOS slot for AccessibilityPort.PrimeApplication. Electron, Chromium and
-// Gecko apps build their AX tree asynchronously after macOS asks them to expose
-// one (AXManualAccessibility), so the first hints activation after focusing such
-// an app would otherwise find nothing. This polls until a web-content role
-// appears. It does not enable accessibility; it only waits for the tree.
-
 package darwin
 
 import (
@@ -14,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// macOS slot for AccessibilityPort.PrimeApplication. Electron, Chromium and
+// Gecko apps build their AX tree asynchronously after macOS asks them to expose
+// one (AXManualAccessibility), so the first hints activation after focusing such
+// an app would otherwise find nothing. This polls until a web-content role
+// appears. It does not enable accessibility; it only waits for the tree.
 const (
 	primingRetryCount = 10
 	primingRetryDelay = 100 * time.Millisecond

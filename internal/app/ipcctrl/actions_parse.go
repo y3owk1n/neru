@@ -255,20 +255,12 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 	return parsed, parseErr
 }
 
-// validateActionFlags rejects flag *combinations* the named action cannot
-// honor. Whether an action accepts a flag at all is settled earlier by
-// rejectUnsupportedFlags, so everything here is about flags that are
-// individually valid but contradict each other:
-//
-//  1. --center mixed with --window.
-//  2. --selection mixed with --bare or with explicit move targeting.
-//  3. move_mouse requires --x AND --y when neither --center nor --window is given.
-//
-// Combinations of coordinate and delta flags (--x with --dx, --center with
-// --dx) are not checked here: no action declares both families, so
-// rejectUnsupportedFlags refuses them first.
-//
-// Note: --center with --x/--y is intentionally allowed — x/y act as offsets from center.
+// validateActionFlags rejects flag combinations the action cannot honor
+// (acceptance of each flag alone was settled by rejectUnsupportedFlags):
+// --center with --window; --selection with --bare or explicit targeting;
+// move_mouse without --x and --y when neither --center nor --window is given.
+// --center with --x/--y is allowed — they offset from center. Coordinate
+// mixed with delta flags never reaches here; no action declares both.
 func validateActionFlags(
 	actionName string,
 	parsed parsedActionArgs,

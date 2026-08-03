@@ -1,8 +1,3 @@
-// internal/app/modes/hints_debug.go
-// Read-only diagnostic that runs the hint-generation pipeline once and reports
-// what would be hinted for the focused window, backing `neru hints --debug`.
-// It does not draw any overlay, activate a mode, or mutate Handler state.
-
 package modes
 
 import (
@@ -13,6 +8,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// Read-only diagnostic that runs the hint-generation pipeline once and reports
+// what would be hinted for the focused window, backing `neru hints --debug`.
+// It does not draw any overlay, activate a mode, or mutate Handler state.
+//
 // maxDebugProbeSamples caps how many elements are listed in the probe summary.
 const maxDebugProbeSamples = 10
 

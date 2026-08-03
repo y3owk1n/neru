@@ -1,8 +1,5 @@
 //go:build linux && !cgo
 
-// No-op GlobalHotkeyListener for builds without cgo (evdev needs cgo).
-// Does nothing; exists only so the hotkey manager compiles without cgo.
-
 package linux
 
 import (
@@ -12,6 +9,9 @@ import (
 )
 
 // GlobalHotkeyListener is a no-op stub when cgo is disabled.
+//
+// No-op GlobalHotkeyListener for builds without cgo (evdev needs cgo).
+// Does nothing; exists only so the hotkey manager compiles without cgo.
 type GlobalHotkeyListener struct{}
 
 // NewGlobalHotkeyListener returns a stub listener.

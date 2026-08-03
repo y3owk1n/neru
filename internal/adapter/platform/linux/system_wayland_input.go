@@ -63,31 +63,17 @@ func libeiButtonRelease(button int) error {
 	return err
 }
 
-// WarmWaylandInput pre-establishes the Wayland input backend at daemon startup.
-// On a wlroots compositor (or X11/non-Wayland session) it is a cheap no-op. On
-// KWin/KDE — where input goes through libei via the RemoteDesktop portal — it
-// triggers the one-time "Remote Control" consent prompt now, so the first user
-// action does not block on the dialog past the IPC timeout. Best-effort: errors
-// (no Wayland session, consent declined) are returned for logging and the lazy
-// path remains as a fallback.
+// WarmWaylandInput pre-establishes the input backend at daemon startup. This
+// file routes input to one of two backends: the wlroots virtual-pointer and
+// virtual-keyboard protocols, or libei via the RemoteDesktop portal on KWin,
+// which does not implement them. Only input differs by compositor — screens
+// and the overlay go through the wlroots client on both.
 //
-// When the session is established without a keyboard device, the function still
-// succeeds (pointer/click/scroll work) so that error messages about keyboard
-// availability come from the caller, not from this warm-up path.
-// WarmWaylandInput prepares the injection backend the running compositor needs.
-//
-// This file routes every Wayland input request to one of two non-overlapping
-// backends: zwlr_virtual_pointer_v1 and zwp_virtual_keyboard_v1 on wlroots
-// compositors (Sway, Hyprland, niri, River), or libei through the
-// org.freedesktop.portal.RemoteDesktop portal on KWin, which deliberately does
-// not implement the wlroots input protocols.
-//
-// Screens and the overlay still go through the wlroots client on both, since
-// KWin does implement zwlr_layer_shell_v1 and zxdg_output_manager_v1. Only
-// input differs, which is why the choice lives here rather than in either
-// client. The cursor position is cached in the wlroots client, so a libei move
-// mirrors the new position back into that cache to keep CursorPosition and
-// screen resolution correct.
+// On wlroots or X11 the warm-up is a cheap no-op. On KWin it triggers the
+// one-time "Remote Control" consent prompt now, so the first action does not
+// block past the IPC timeout. Best-effort: errors are for logging and the lazy
+// path stays as fallback. A session without a keyboard still succeeds, so
+// keyboard errors come from the caller, not the warm-up.
 func WarmWaylandInput() error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil

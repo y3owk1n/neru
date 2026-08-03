@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/keyboard_hook.go
-// Low-level keyboard hook (WH_KEYBOARD_LL) for global key capture.
-// Does not dispatch Neru mode logic; callers receive normalized key events.
-
 package windows
 
 import (
@@ -14,6 +10,9 @@ import (
 	"unsafe"
 )
 
+// Low-level keyboard hook (WH_KEYBOARD_LL) for global key capture.
+// Does not dispatch Neru mode logic; callers receive normalized key events.
+//
 // keyboardHookStopJoinTimeout bounds how long Stop waits for the hook goroutine
 // to exit before reaping it in the background. The normal teardown completes in
 // well under a millisecond (WM_QUIT wakes GetMessage), so this only ever trips

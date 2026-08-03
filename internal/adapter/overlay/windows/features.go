@@ -1,8 +1,5 @@
 //go:build windows
 
-// Win32/GDI rendering for hints and recursive-grid overlays on Windows.
-// Does not own window lifecycle or grid rendering (see overlay.go).
-
 package windows
 
 import (
@@ -17,6 +14,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// Win32/GDI rendering for hints and recursive-grid overlays on Windows.
+// Does not own window lifecycle or grid rendering (see overlay.go).
 const (
 	winHexColorOpaque                  = 0xFFFFFFFF
 	winHexRepeatCount                  = 2

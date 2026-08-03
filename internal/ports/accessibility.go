@@ -76,19 +76,11 @@ type ApplicationInfo interface {
 // TreePriming is the interface for readying an application's accessibility
 // tree before Neru queries it.
 type TreePriming interface {
-	// PrimeApplication reports whether the application identified by bundleID
-	// has an accessibility tree Neru can hint against, waiting briefly for one
-	// to appear.
-	//
-	// This exists for macOS: Electron, Chromium and Gecko apps build their tree
-	// asynchronously after being asked to expose one, so the first hints
-	// activation after focusing such an app would otherwise find nothing.
-	// Backends whose trees are eagerly available (AT-SPI, UI Automation) report
-	// true immediately — this is a genuine "nothing to do", not a stub, so it
-	// must not return CodeNotSupported.
-	//
-	// Callers may retry on false; implementations must be safe to call
-	// repeatedly and off the event-tap thread.
+	// PrimeApplication reports whether bundleID has an accessibility tree to
+	// hint against, waiting briefly for one. Exists for macOS, where Electron,
+	// Chromium and Gecko build their tree asynchronously; eager backends
+	// report true immediately (a genuine "nothing to do", never
+	// CodeNotSupported). Safe to retry, off the event-tap thread.
 	PrimeApplication(ctx context.Context, bundleID string) (bool, error)
 }
 

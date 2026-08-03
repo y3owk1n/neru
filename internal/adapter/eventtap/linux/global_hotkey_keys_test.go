@@ -1,12 +1,11 @@
 //go:build linux
 
-// Tests that config-side and live-evdev-side chord spellings canonicalize equal.
-// Does NOT test device reading or callback dispatch.
-
 package linux //nolint:testpackage // white-box: exercises the unexported canonicalChordSignature.
 
 import "testing"
 
+// Tests that config-side and live-evdev-side chord spellings canonicalize equal.
+// Does NOT test device reading or callback dispatch.
 const wantGridChord = "ctrl+shift+g"
 
 func TestCanonicalChordSignature(t *testing.T) {

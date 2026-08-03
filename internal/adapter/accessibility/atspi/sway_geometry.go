@@ -1,16 +1,15 @@
 //go:build linux
 
-// Sway window-origin source. `swaymsg -t get_tree` returns the full node tree;
-// the focused node's on-screen content origin is rect + window_rect (window_rect
-// is the content area relative to rect, i.e. it excludes server-side
-// decorations so it aligns with the AT-SPI content origin).
-
 package atspi
 
 import (
 	"go.uber.org/zap"
 )
 
+// Sway window-origin source. `swaymsg -t get_tree` returns the full node tree;
+// the focused node's on-screen content origin is rect + window_rect (window_rect
+// is the content area relative to rect, i.e. it excludes server-side
+// decorations so it aligns with the AT-SPI content origin).
 type swayOriginSource struct {
 	logger *zap.Logger
 }

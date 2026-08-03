@@ -1,9 +1,5 @@
 //go:build linux
 
-// Unit tests for the pure hint badge/arrow placement math shared by the X11 and
-// Wayland overlays. Native Cairo rendering is covered by overlay integration
-// tests; here we only assert the geometry the C draw calls receive.
-
 package linux //nolint:testpackage // tests exercise unexported render helpers directly
 
 import (
@@ -11,6 +7,9 @@ import (
 	"testing"
 )
 
+// Unit tests for the pure hint badge/arrow placement math shared by the X11 and
+// Wayland overlays. Native Cairo rendering is covered by overlay integration
+// tests; here we only assert the geometry the C draw calls receive.
 func TestHintBadgePlacement_CenterHasNoArrow(t *testing.T) {
 	target := image.Pt(100, 100)
 	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, "center")

@@ -140,28 +140,16 @@ type SystemPort interface {
 	ShowNotification(title, message string)
 }
 
-// RelativeCursorMover is an optional SystemPort extension for platforms that
-// can move the cursor by a delta natively, without a read-then-warp round trip.
+// RelativeCursorMover is an optional SystemPort extension: move the cursor by
+// a delta natively, without a read-then-warp round trip. Optional extensions
+// are declared here beside the port, opted into by implementing them, and
+// reached by type assertion; the caller always needs a fallback. See
+// docs/CROSS_PLATFORM.md ("The three tiers").
 //
-// It is the first of the optional extensions declared here. Some platforms can
-// do a job better than the shared code, but not every platform can do it at
-// all, so the capability cannot go on SystemPort without forcing every adapter
-// to carry a stub. An adapter opts in by implementing one of these, and the
-// caller reaches it by type assertion. Three rules keep that workable: declare
-// the interface here beside the port it extends, since one defined in the
-// consuming package is undiscoverable from another platform; give the caller a
-// working fallback, because an extension is an optimization and never the only
-// path; and say which adapters implement it and why the others cannot. See
-// docs/CROSS_PLATFORM.md ("The three tiers") for when to reach for one instead
-// of adding a method to SystemPort.
-//
-// Implemented by the Linux adapter, where the Wayland backends have no
-// authoritative cursor-position query: reading the position and warping to
-// position+delta would compound the error in the client-side position cache,
-// so the backend applies the delta directly instead.
-//
-// Callers must fall back to CursorPosition + MoveCursorToPoint when the adapter
-// does not implement this, or when MoveCursorBy reports handled == false.
+// Implemented by the Linux adapter, whose Wayland backends have no
+// authoritative cursor query — warping to position+delta would compound the
+// cache error, so the delta is applied directly. Fall back to CursorPosition +
+// MoveCursorToPoint when unimplemented or handled == false.
 type RelativeCursorMover interface {
 	// MoveCursorBy moves the cursor by delta from its current position.
 	// It returns handled == false when this particular backend cannot apply

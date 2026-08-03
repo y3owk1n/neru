@@ -1,13 +1,5 @@
 //go:build linux
 
-// Wayland focused-window bounds. A Wayland client cannot query another client's
-// on-screen geometry, so the focused window's global bounds come from the
-// running compositor's IPC: Hyprland (`hyprctl activewindow`), Sway
-// (`swaymsg -t get_tree`), and niri (`niri msg focused-window/-output`). KWin and
-// GNOME expose no simple CLI for this here, so they report not-found and callers
-// fall back to the active screen. Every query is best-effort and bounded by a
-// short timeout so a wedged compositor cannot stall hint activation.
-
 package linux
 
 import (
@@ -19,6 +11,14 @@ import (
 	"time"
 )
 
+// Wayland focused-window bounds. A Wayland client cannot query another client's
+// on-screen geometry, so the focused window's global bounds come from the
+// running compositor's IPC: Hyprland (`hyprctl activewindow`), Sway
+// (`swaymsg -t get_tree`), and niri (`niri msg focused-window/-output`). KWin and
+// GNOME expose no simple CLI for this here, so they report not-found and callers
+// fall back to the active screen. Every query is best-effort and bounded by a
+// short timeout so a wedged compositor cannot stall hint activation.
+//
 // focusedWindowQueryTimeout bounds each compositor IPC call.
 const focusedWindowQueryTimeout = 500 * time.Millisecond
 

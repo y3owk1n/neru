@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/cli/doctor_client_windows.go
-// Client-side neru doctor checks when the Windows daemon is not running.
-// Does not query overlay, hotkeys, or IPC-backed components.
-
 package cli
 
 import (
@@ -16,6 +12,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// Client-side neru doctor checks when the Windows daemon is not running.
+// Does not query overlay, hotkeys, or IPC-backed components.
 func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {
 	cmd.Println()
 	cmd.Println("Daemon not running. Showing client-side platform checks.")

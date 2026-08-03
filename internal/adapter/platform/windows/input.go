@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/input.go
-// Mouse and keyboard synthesis via SendInput.
-// Does not implement accessibility element actions.
-
 package windows
 
 import (
@@ -15,6 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
+// Mouse and keyboard synthesis via SendInput.
+// Does not implement accessibility element actions.
 const (
 	inputMouse    = 0
 	inputKeyboard = 1

@@ -1,9 +1,5 @@
 //go:build linux
 
-// Canonicalizes hotkey chord strings into a stable, order-independent signature
-// so config keybindings and live evdev key events compare reliably.
-// Does NOT read devices or fire callbacks; that lives in the cgo listener.
-
 package linux
 
 import (
@@ -11,6 +7,10 @@ import (
 	"strings"
 )
 
+// Canonicalizes hotkey chord strings into a stable, order-independent signature
+// so config keybindings and live evdev key events compare reliably.
+// Does NOT read devices or fire callbacks; that lives in the cgo listener.
+//
 // Canonical base-key spellings shared between config parsing and the evdev
 // decoder so both sides compare equal without drifting on string literals.
 const (

@@ -1,13 +1,5 @@
 //go:build linux
 
-// KWin geometry bridge: under Wayland a client cannot know its own absolute
-// screen position, and AT-SPI therefore reports window-relative coordinates.
-// This installs a small KWin script that pushes the focused window's on-screen
-// client geometry to a neru D-Bus service whenever focus changes, so hints can
-// be offset into true screen coordinates.
-// It does NOT move the cursor or read the accessibility tree; it only supplies
-// the active window's origin.
-
 package atspi
 
 import (
@@ -22,6 +14,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// KWin geometry bridge: under Wayland a client cannot know its own absolute
+// screen position, and AT-SPI therefore reports window-relative coordinates.
+// This installs a small KWin script that pushes the focused window's on-screen
+// client geometry to a neru D-Bus service whenever focus changes, so hints can
+// be offset into true screen coordinates.
+// It does NOT move the cursor or read the accessibility tree; it only supplies
+// the active window's origin.
 const (
 	kwinBridgeName  = "org.neru.KWinBridge"
 	kwinBridgePath  = "/org/neru/KWinBridge"

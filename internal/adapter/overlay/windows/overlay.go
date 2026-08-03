@@ -1,8 +1,5 @@
 //go:build windows
 
-// Win32 overlay backend used by the Windows overlay manager for grid rendering.
-// Does not manage singleton lifecycle or mode subscriptions.
-
 package windows
 
 import (
@@ -19,6 +16,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// Win32 overlay backend used by the Windows overlay manager for grid rendering.
+// Does not manage singleton lifecycle or mode subscriptions.
 const (
 	winSubgridCols      = 3
 	winSubgridRows      = 3

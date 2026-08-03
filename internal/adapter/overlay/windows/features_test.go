@@ -1,8 +1,5 @@
 //go:build windows
 
-// Unit tests for the pure Win32 hint/recursive-grid rendering helpers.
-// Does not cover GDI drawing (see overlay integration tests on WIN-VM).
-
 package windows //nolint:testpackage // tests exercise unexported Win32 rendering helpers directly
 
 import (
@@ -13,6 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// Unit tests for the pure Win32 hint/recursive-grid rendering helpers.
+// Does not cover GDI drawing (see overlay integration tests on WIN-VM).
 func TestEstimateWinTextWidth(t *testing.T) {
 	t.Parallel()
 

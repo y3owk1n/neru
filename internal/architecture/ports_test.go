@@ -19,18 +19,18 @@ var portsWithoutOwnMock = map[string]string{
 	"ThemeProviderPort": subInterfaceOfSystemPort,
 }
 
-// portsWithoutOwnMock are interfaces named *Port that are composed into a
-// larger port rather than injected on their own. They are exercised through
-// the mock of the port that embeds them, so a separate mock would be dead code.
-//
-// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
-//
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
 // docs/CROSS_PLATFORM.md: a port is not done until it has a mock.
 //
 // Without one, consumers grow hand-rolled fakes in _test.go files that go stale
 // the moment the contract changes — which is exactly how two hotkey fakes ended
 // up silently under-implementing HotkeyPort.
+//
+// portsWithoutOwnMock are interfaces named *Port that are composed into a
+// larger port rather than injected on their own. They are exercised through
+// the mock of the port that embeds them, so a separate mock would be dead code.
+//
+// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
 func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))

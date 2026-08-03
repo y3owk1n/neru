@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/keys.go
-// Virtual-key parsing and key-name normalization for Windows input hooks.
-// Does not install hooks or register hotkeys.
-
 package windows
 
 import (
@@ -14,6 +10,8 @@ import (
 	"unicode"
 )
 
+// Virtual-key parsing and key-name normalization for Windows input hooks.
+// Does not install hooks or register hotkeys.
 const (
 	modAlt     = 0x0001
 	modControl = 0x0002

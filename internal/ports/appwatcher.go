@@ -9,24 +9,15 @@ package ports
 // platform exposes no separate display name.
 type AppEventCallback func(appName string, bundleID string)
 
-// AppWatcherPort reports which application has focus, so per-app configuration
-// and hotkeys can follow the user between windows.
+// AppWatcherPort reports which application has focus, so per-app config and
+// hotkeys follow the user between windows.
 //
-// Not every event is available everywhere, and callers must not assume one is:
-//
-//   - Activate / Deactivate / ScreenParametersChanged are the portable core.
-//   - Launch and Terminate are macOS-only (NSWorkspace publishes them; neither
-//     AT-SPI nor Win32 has an equivalent).
-//   - MissionControlActivated / MissionControlDeactivated are macOS-only by
-//     definition — Mission Control is a macOS feature.
-//
-// A backend with no source for an event simply never fires its callbacks. That
-// is a documented degrade rather than an error, because there is nothing to
-// report and nothing for the caller to do about it; the app_watcher entry in
-// PlatformCapabilities carries the per-platform detail.
-//
-// Registration is additive and safe to call from any goroutine. Callbacks fire
-// on the watcher's own goroutine, never on the event-tap thread.
+// Activate, Deactivate and ScreenParametersChanged are portable; Launch,
+// Terminate and the Mission Control pair are macOS-only. A backend with no
+// source for an event never fires it — that is a degrade, not an error; the
+// app_watcher capability entry has the per-platform detail. Registration is
+// additive and goroutine-safe; callbacks fire on the watcher's goroutine,
+// never the event-tap thread.
 type AppWatcherPort interface {
 	// Start begins monitoring. Calling it twice is a no-op.
 	Start()

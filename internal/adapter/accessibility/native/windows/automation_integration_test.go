@@ -1,9 +1,5 @@
 //go:build integration && windows
 
-// Real IUIAutomation enumeration test against the live foreground window.
-// Does not run in default CI; execute on WIN-VM with a GUI app focused:
-// go test -tags=integration ./internal/adapter/accessibility/...
-
 package windows //nolint:testpackage // exercises unexported enumerateClickableElements directly
 
 import (
@@ -12,6 +8,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Real IUIAutomation enumeration test against the live foreground window.
+// Does not run in default CI; execute on WIN-VM with a GUI app focused:
+// go test -tags=integration ./internal/adapter/accessibility/...
 func TestEnumerateClickableElementsIntegration(t *testing.T) {
 	user32 := windows.NewLazySystemDLL("user32.dll")
 	getForegroundWindow := user32.NewProc("GetForegroundWindow")

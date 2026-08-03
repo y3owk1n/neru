@@ -379,21 +379,12 @@ func (m *Manager) requireExternalMuHeld(caller string) error {
 	return nil
 }
 
-// immediateUpdate invokes the update callback synchronously, canceling any
-// pending debounced update. Use this for cheap updates (e.g., prefix color
-// changes) where the 50ms debounce delay would feel sluggish.
-//
-// IMPORTANT: The caller MUST hold externalMu (when set). Unlike debouncedUpdate
-// (whose timer goroutine acquires externalMu itself), immediateUpdate runs in
-// the caller's goroutine and relies on the caller already holding the lock to
-// protect shared state (e.g., screen bounds, overlay manager) accessed by the
-// callback. requireExternalMuHeld verifies the lock is held when externalMu is set.
-//
-// Unlike debouncedUpdate, this does NOT copy the hints slice because the
-// callback executes synchronously in the caller's goroutine — the slice
-// is consumed (iterated to build overlay hints) before returning. If the
-// callback contract ever changes to store or defer processing of the
-// slice, a defensive copy must be added here.
+// immediateUpdate runs the update callback synchronously, canceling any
+// pending debounced update — for cheap changes where the 50ms debounce would
+// feel sluggish. The caller must hold externalMu when set (debouncedUpdate's
+// timer takes it itself; this runs in the caller's goroutine). No defensive
+// copy of hints: the callback consumes the slice before returning. Add one if
+// that contract ever changes.
 func (m *Manager) immediateUpdate(hints []*Interface) error {
 	err := m.requireExternalMuHeld("immediateUpdate")
 	if err != nil {

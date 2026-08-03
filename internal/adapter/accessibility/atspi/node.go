@@ -1,14 +1,14 @@
 //go:build linux
 
-// The ax.Window and ax.Node implementations backed by AT-SPI object references:
-// role, bounds, title, description, value, and clickability for one element.
-
 package atspi
 
 import (
 	"image"
 )
 
+// The ax.Window and ax.Node implementations backed by AT-SPI object references:
+// role, bounds, title, description, value, and clickability for one element.
+//
 // atspiWindow implements ax.Window for an AT-SPI frame.
 type atspiWindow struct {
 	ref   accRef

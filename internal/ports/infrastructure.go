@@ -50,21 +50,12 @@ type EventTapPort interface {
 	Destroy()
 }
 
-// OverlayKeyboardPassthroughReporter is an optional EventTapPort extension for
-// backends that can inject scroll without owning the keyboard.
-//
-// Indicator overlays would rather not hold exclusive keyboard capture, so that
-// scroll events reach the focused application. Whether dropping it is safe is a
-// backend question, and only the event tap can answer it: it needs both a
-// working uinput scroll device *and* no active evdev keyboard grab — on wlroots
-// an overlay grab deactivates the focused toplevel and breaks the next hints
-// refresh.
-//
-// Implemented by the Linux Wayland evdev backend. macOS, Windows, X11 and the
-// no-cgo Linux build cannot drop capture safely and do not implement it.
-//
-// Callers must treat a missing implementation as "keep exclusive capture" —
-// the conservative choice that always works.
+// OverlayKeyboardPassthroughReporter is an optional EventTapPort extension:
+// whether an indicator overlay may drop exclusive keyboard capture so scroll
+// reaches the focused app. Only the event tap can answer it — it needs a
+// working uinput scroll device and no active evdev grab (a wlroots grab
+// deactivates the focused toplevel). Implemented by the Linux Wayland evdev
+// backend; treat a missing implementation as "keep capture".
 type OverlayKeyboardPassthroughReporter interface {
 	// AllowsOverlayKeyboardPassthrough reports whether an indicator overlay
 	// can safely give up exclusive keyboard capture right now.

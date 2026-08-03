@@ -27,20 +27,12 @@ const mainLoopSlice = 100 * time.Millisecond
 const cfRunLoopRunFinished = 1
 
 // RunMainLoopForTesting runs testMain on a background goroutine while the
-// calling goroutine services the CoreFoundation main run loop, and returns the
-// exit code testMain produced.
-//
-// Native work Neru depends on — building the keyboard layout maps, creating a
-// CGEventTap — is dispatched to the main queue, which only drains while the main
-// run loop runs. The daemon starts that loop (see cmd/neru); a `go test` binary
-// never does. Without this helper those dispatches are never serviced:
-// dispatch_async silently times out, leaving an empty keymap so every key name
-// fails to parse, and dispatch_sync deadlocks. Whether a given test hit it
-// depended on which OS thread the scheduler picked, which is what made the macOS
-// integration tests flaky.
-//
-// Call it from TestMain, and lock the main thread from an init function in the
-// same package so TestMain is guaranteed to run on it:
+// caller services the CoreFoundation main run loop. Native work (keymaps,
+// CGEventTap) is dispatched to the main queue, which only drains while that
+// loop runs; the daemon starts it, a `go test` binary never does, so without
+// this dispatch_async times out and dispatch_sync deadlocks — the source of
+// the old macOS test flakes. Use from TestMain, with the main thread locked
+// from an init in the same package:
 //
 //	func init() { runtime.LockOSThread() }
 //

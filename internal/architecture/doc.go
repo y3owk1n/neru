@@ -1,32 +1,7 @@
-// Package architecture holds the guardrails that keep the codebase's shape
-// honest. It has no runtime code — every file here is a test.
-//
-// The rules these enforce are documented in prose elsewhere, and prose alone
-// does not hold them. So each rule also has a test, each test names the
-// document that owns the rule, and a violation fails `just test` instead of
-// waiting for someone to notice it in review.
-//
-// What is pinned:
-//
-//   - layering_test.go        the hexagon's direction — domain stays pure, and
-//     the domain, port and adapter layers never reach up into the app or UI.
-//   - dependency_boundary_test.go  the "One Rule": only darwin-only code may
-//     import the darwin platform bridge.
-//   - platform_slots_test.go  the filename vocabulary for build-tagged files,
-//     and the exemption single-platform packages earn.
-//   - ports_test.go           every port has a mock.
-//   - cgo_includes_test.go    every relative #include still resolves. This one
-//     exists because a broken include is invisible to `go vet` and to the
-//     cross-platform vet, and only appears on a real cgo build.
-//   - doc_links_test.go       documentation never links to a path that does
-//     not exist.
-//   - comment_paths_test.go   a comment that names a source file names one
-//     that exists. Renames break these silently, since the compiler does not
-//     read comments.
-//   - test_quality_test.go    tests assert something.
-//   - role_vocabulary_docs_test.go  the semantic role list matches its docs.
-//
-// A rule that needs an exemption list keeps it visible and self-checking: a
-// companion test fails when an entry stops being real, so the list can only
-// shrink.
+// Package architecture holds the guardrail tests that keep the codebase's
+// shape honest. Prose rules alone don't hold; each rule here fails `just test`
+// when broken. Layering, the darwin One Rule, platform file slots, port mocks,
+// cgo includes, doc links, comment paths, and test quality each have a file
+// named for them. Exemption lists are self-checking: a companion test fails
+// when an entry stops being real, so a list can only shrink.
 package architecture

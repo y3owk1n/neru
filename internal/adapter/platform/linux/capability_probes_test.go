@@ -19,6 +19,9 @@ const testProbeTimeout = 20 * time.Millisecond
 // errors.Is.
 var errProbeFailed = errors.New("probe failed")
 
+// TestCapabilityProbes_WedgedProbeIsNotRestarted is the leak regression: while
+// one probe is stuck, further requests must not start another.
+//
 // Capability probing runs each native call on its own goroutine so a wedged
 // display server cannot hang `neru doctor` or an IPC info request. Those native
 // calls cannot be canceled, so a probe that never returns keeps its goroutine
@@ -31,9 +34,6 @@ var errProbeFailed = errors.New("probe failed")
 // mechanism itself rather than through the adapter: on any real backend the
 // probes return immediately, so an adapter-level test would pass whether the
 // cap existed or not.
-//
-// TestCapabilityProbes_WedgedProbeIsNotRestarted is the leak regression: while
-// one probe is stuck, further requests must not start another.
 func TestCapabilityProbes_WedgedProbeIsNotRestarted(t *testing.T) {
 	probes := newCapabilityProbes()
 

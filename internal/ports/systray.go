@@ -41,18 +41,10 @@ type SystrayMenuItem interface {
 	AddSeparator()
 }
 
-// SystrayPort is the system tray / notification-area icon and its menu.
-//
-// Three unrelated native mechanisms sit behind this: NSStatusItem on macOS,
-// the D-Bus StatusNotifierItem + dbusmenu protocols on Linux, and
-// Shell_NotifyIcon on Windows. The menu's *contents* are application policy and
-// live in internal/app/components/systray; this port is only the mechanism.
-//
-// The tray's run loop is not part of the contract. It owns the process's main
-// thread on macOS and Windows, so starting and stopping it belongs to the
-// daemon host (cmd/neru) and the build-tagged platformQuit dispatch.
-//
-// Availability is reported through the systray entry in PlatformCapabilities.
+// SystrayPort is the tray icon and its menu — the mechanism only; the menu's
+// contents are policy in internal/app/components/systray. The run loop is not
+// part of the contract: it owns the main thread on macOS and Windows, so
+// starting and stopping it belongs to the daemon host in cmd/neru.
 type SystrayPort interface {
 	// SetTitle sets the text shown next to the tray icon. Platforms with no
 	// title area ignore it.

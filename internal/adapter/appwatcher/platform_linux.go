@@ -1,14 +1,5 @@
 //go:build linux
 
-// internal/adapter/appwatcher/platform_linux.go
-// Linux app-watcher backend. macOS receives focus changes from an NSWorkspace
-// observer; on Linux the focused application's identity is the app_id (Wayland
-// wlroots/KDE) or WM_CLASS (X11). Where the compositor/X11 exposes a
-// focus-change notification (via linux.SubscribeFocusedApp), the watcher blocks
-// on that fd and re-samples on each wake — near-instant per-app hotkey
-// re-registration. Otherwise it falls back to polling on a fixed interval.
-// GNOME/Mutter exposes no focused-app source, so no events fire there.
-
 package appwatcher
 
 import (
@@ -24,6 +15,14 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
+// Linux app-watcher backend. macOS receives focus changes from an NSWorkspace
+// observer; on Linux the focused application's identity is the app_id (Wayland
+// wlroots/KDE) or WM_CLASS (X11). Where the compositor/X11 exposes a
+// focus-change notification (via linux.SubscribeFocusedApp), the watcher blocks
+// on that fd and re-samples on each wake — near-instant per-app hotkey
+// re-registration. Otherwise it falls back to polling on a fixed interval.
+// GNOME/Mutter exposes no focused-app source, so no events fire there.
+//
 // focusPollInterval is how often the focused application is sampled on the
 // polling fallback (backends with no focus-change fd). It trades switch latency
 // (per-app hotkeys re-register on the next poll after an alt-tab) against idle

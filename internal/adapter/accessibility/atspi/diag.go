@@ -1,9 +1,5 @@
 //go:build linux
 
-// Diagnostics for a frame scan: records per-application call failures and
-// distinguishes fatal bus errors from apps that are merely uncooperative, so a
-// scan that finds nothing can say why.
-
 package atspi
 
 import (
@@ -16,6 +12,10 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// Diagnostics for a frame scan: records per-application call failures and
+// distinguishes fatal bus errors from apps that are merely uncooperative, so a
+// scan that finds nothing can say why.
+//
 // atspiScanDiag records diagnostics for a single ClickableNodes scan. It rides
 // on the scan context so the leaf D-Bus helpers can report a scan-fatal failure
 // (a per-call timeout, a closed connection, or the target app disappearing from

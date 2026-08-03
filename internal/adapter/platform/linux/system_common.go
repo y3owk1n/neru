@@ -78,20 +78,13 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	value, source, ok := darkModePreference()
 	capabilities.DarkModeDetection = darkModeCapability(value, source, ok)
 
-	// Screen, cursor and process support is decided by what this binary and
-	// this session can actually reach, not by the build target. The static
-	// Linux preset claims all three are supported, which is wrong for a
-	// CGO_ENABLED=0 build, for a compositor with no wlroots client stack, and
-	// for a session where the display cannot be opened at all: the adapter
-	// answers CodeNotSupported while `neru doctor` says "supported", which is
-	// exactly backwards from what a user debugging Linux needs.
-	//
-	// Each one is settled by calling the same read-only entry point the
-	// capability describes, so the reported status cannot disagree with what a
-	// caller will observe. This mirrors how dark-mode detection is already
-	// live-probed here rather than declared; Capabilities is only reached by
-	// `neru doctor` and the IPC info response, so the extra reads are cheap
-	// relative to how often it runs.
+	// Screen, cursor and process support is what this binary and session can
+	// actually reach, not what the build target intends — the static preset is
+	// wrong for CGO_ENABLED=0, for compositors without the wlroots stack, and
+	// for unopenable displays. Each is probed through the same read-only call
+	// the capability describes, so doctor cannot disagree with what a caller
+	// observes. Only doctor and the info response reach this, so the reads are
+	// cheap.
 	capabilities.Process = s.probedCapability("focused-app inspection", capabilities.Process,
 		func() error {
 			_, err := s.FocusedApplicationPID(context.Background())

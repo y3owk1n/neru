@@ -31,16 +31,16 @@ func parse(t *testing.T, args ...string) (ModeActivationOptions, *ipc.Response) 
 	return handler.extractModeOptions(ipc.Command{Action: "hints", Args: args})
 }
 
+// TestExtractModeOptions_AcceptsBothArgumentShapes pins the normalization every
+// other case depends on: the CLI passes the mode name as the first argument and
+// the hotkey path does not.
+//
 // extractModeOptions turns a mode command's arguments into the options the mode
 // handler acts on. Every flag a user can pass to `neru hints`, `neru grid` and
 // friends arrives here, so a change in what it accepts is a change in the CLI.
 //
 // These cases pin the accepted spelling of each flag, the two argument shapes
 // the parser has to handle, and what an unusable value produces.
-//
-// TestExtractModeOptions_AcceptsBothArgumentShapes pins the normalization every
-// other case depends on: the CLI passes the mode name as the first argument and
-// the hotkey path does not.
 func TestExtractModeOptions_AcceptsBothArgumentShapes(t *testing.T) {
 	withName, resp := parse(t, "hints", flagAction, leftClick)
 	if resp != nil {

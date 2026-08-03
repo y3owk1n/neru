@@ -1,11 +1,5 @@
 //go:build integration && darwin
 
-// This exercises the darwin platform package rather than the accessibility
-// adapter, but it lives here on purpose: it drives the one global cursor, and so
-// does TestAccessibilityAdapterIntegration. Tests in a single package run
-// sequentially, whereas `go test ./...` runs packages concurrently, so splitting
-// the two across packages makes them fight over the cursor and fail randomly.
-
 package accessibility_test
 
 import (
@@ -17,6 +11,12 @@ import (
 	darwinplatform "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
 
+// This exercises the darwin platform package rather than the accessibility
+// adapter, but it lives here on purpose: it drives the one global cursor, and so
+// does TestAccessibilityAdapterIntegration. Tests in a single package run
+// sequentially, whereas `go test ./...` runs packages concurrently, so splitting
+// the two across packages makes them fight over the cursor and fail randomly.
+//
 // kCGEventMouseMoved, as passed through to the CGEvent bridge.
 const (
 	eventMouseMoved = 5

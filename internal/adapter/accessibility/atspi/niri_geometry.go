@@ -1,18 +1,17 @@
 //go:build linux
 
-// niri window-origin source. niri exposes the focused window's position within
-// the workspace view (layout.tile_pos_in_workspace_view) plus the focused
-// output's logical origin, which together give the window's screen origin.
-// That field is populated for FLOATING windows; for tiled windows niri does not
-// expose the on-screen position (upstream niri#2381), so originFor reports no
-// origin and hints fall back to unoffset coordinates.
-
 package atspi
 
 import (
 	"go.uber.org/zap"
 )
 
+// niri window-origin source. niri exposes the focused window's position within
+// the workspace view (layout.tile_pos_in_workspace_view) plus the focused
+// output's logical origin, which together give the window's screen origin.
+// That field is populated for FLOATING windows; for tiled windows niri does not
+// expose the on-screen position (upstream niri#2381), so originFor reports no
+// origin and hints fall back to unoffset coordinates.
 type niriOriginSource struct {
 	logger *zap.Logger
 }

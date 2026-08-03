@@ -1,10 +1,5 @@
 //go:build linux
 
-// Focused-application identity for Linux, used by the app watcher to detect
-// foreground-app changes and by per-app configuration lookups. Returns the
-// app_id (Wayland wlr-foreign-toplevel) or WM_CLASS (X11) that Neru keys
-// per-app config on. GNOME/Mutter and unknown backends report no identity.
-
 package linux
 
 // FocusedAppID returns the focused application's identifier for the given

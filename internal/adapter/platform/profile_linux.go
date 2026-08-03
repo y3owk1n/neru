@@ -1,12 +1,10 @@
 //go:build linux
 
-// internal/adapter/platform/profile_linux.go
+package platform
+
 // Runtime Linux profile selection for doctor/status output. When KDE Plasma
 // Wayland is detected, returns user-facing backend descriptions for that stack.
 // It does not perform live capability probes or alter runtime backend selection.
-
-package platform
-
 func linuxProfileForCurrentBackend() Profile {
 	if DetectLinuxBackend() == BackendWaylandKDE {
 		return linuxKDEProfile()

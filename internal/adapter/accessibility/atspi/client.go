@@ -1,11 +1,5 @@
 //go:build linux
 
-// AT-SPI (D-Bus) accessibility client for Linux: enables assistive-tech mode,
-// finds the active window, and walks its tree for clickable elements so hints
-// mode works on KDE/Wayland and other AT-SPI desktops.
-// It does NOT implement input injection (that stays on the embedded
-// InfraAXClient, which routes clicks through wlroots/libei).
-
 package atspi
 
 import (
@@ -27,6 +21,11 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
+// AT-SPI (D-Bus) accessibility client for Linux: enables assistive-tech mode,
+// finds the active window, and walks its tree for clickable elements so hints
+// mode works on KDE/Wayland and other AT-SPI desktops.
+// It does NOT implement input injection (that stays on the embedded
+// InfraAXClient, which routes clicks through wlroots/libei).
 var errClientClosed = errors.New("AT-SPI client is closed")
 
 const (

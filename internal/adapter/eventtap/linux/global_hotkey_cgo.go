@@ -1,11 +1,5 @@
 //go:build linux && cgo
 
-// Passive evdev global-hotkey listener: watches keyboards (no grab) while Neru
-// is idle and fires callbacks when a configured chord is pressed.
-// Does NOT grab the keyboard or inject input; it only reads, so the focused app
-// still receives the keys. While a mode is active the in-mode eventtap grabs the
-// same devices, so this listener naturally goes quiet until the mode exits.
-
 package linux
 
 import (
@@ -16,8 +10,11 @@ import (
 )
 
 // GlobalHotkeyListener is the Wayland substitute for OS-level global hotkeys,
-// which compositors do not expose to ordinary clients. It honors Neru's own
-// config keybindings by reading evdev directly.
+// which compositors do not expose to ordinary clients. It reads evdev
+// passively — no grab, no injection, the focused app still receives the keys —
+// and fires callbacks when a configured chord is pressed. While a mode is
+// active the in-mode eventtap grabs the same devices, so this goes quiet
+// until the mode exits.
 type GlobalHotkeyListener struct {
 	logger *zap.Logger
 

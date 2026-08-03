@@ -1,8 +1,5 @@
 //go:build windows
 
-// Unit tests for the pure UIA control-type naming used by hint enumeration.
-// Does not exercise live UIA (see accessibility integration tests on WIN-VM).
-
 package windows //nolint:testpackage // exercises unexported controlTypeName directly
 
 import (
@@ -13,6 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
+// Unit tests for the pure UIA control-type naming used by hint enumeration.
+// Does not exercise live UIA (see accessibility integration tests on WIN-VM).
 func TestControlTypeName(t *testing.T) {
 	t.Parallel()
 

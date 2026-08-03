@@ -40,6 +40,10 @@ func gridCaseName(bounds image.Rectangle, characters string) string {
 		bounds.Dx(), bounds.Dy(), bounds.Min.X, bounds.Min.Y, len(characters))
 }
 
+// TestGrid_CellsStayWithinBounds is the most basic geometric requirement: a
+// cell outside the screen cannot be clicked, and a cell that pokes past the
+// edge would place its center off-screen.
+//
 // The grid is built by a geometry pass (splitting the screen into rows and
 // columns, distributing the leftover pixels) and a labeling pass (assigning a
 // coordinate to each cell). Both are arithmetic-heavy, and a single off-by-one
@@ -49,10 +53,6 @@ func gridCaseName(bounds image.Rectangle, characters string) string {
 //
 // These tests assert the structural invariants that must hold for every grid,
 // rather than pinning specific numbers for one screen size.
-//
-// TestGrid_CellsStayWithinBounds is the most basic geometric requirement: a
-// cell outside the screen cannot be clicked, and a cell that pokes past the
-// edge would place its center off-screen.
 func TestGrid_CellsStayWithinBounds(t *testing.T) {
 	for _, bounds := range gridSizes() {
 		for _, characters := range gridAlphabets() {

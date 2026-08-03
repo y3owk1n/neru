@@ -1,14 +1,5 @@
 //go:build linux
 
-// Window-origin sources for Wayland. A Wayland client cannot know its own
-// on-screen position, so AT-SPI reports element coordinates relative to the
-// window. To turn those into true screen coordinates for the hint overlay, the
-// focused window's screen origin is supplied by a compositor-specific source:
-// KWin (KDE) pushes it over D-Bus; the wlroots family (niri, Sway, Hyprland)
-// exposes it via their IPC. Every source is best-effort — when the origin
-// cannot be determined, callers fall back to unoffset (window-relative)
-// coordinates.
-
 package atspi
 
 import (
@@ -21,6 +12,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// Window-origin sources for Wayland. A Wayland client cannot know its own
+// on-screen position, so AT-SPI reports element coordinates relative to the
+// window. To turn those into true screen coordinates for the hint overlay, the
+// focused window's screen origin is supplied by a compositor-specific source:
+// KWin (KDE) pushes it over D-Bus; the wlroots family (niri, Sway, Hyprland)
+// exposes it via their IPC. Every source is best-effort — when the origin
+// cannot be determined, callers fall back to unoffset (window-relative)
+// coordinates.
+//
 // compositorQueryTimeout bounds each compositor IPC call so a wedged
 // compositor cannot stall hint activation.
 const compositorQueryTimeout = 500 * time.Millisecond

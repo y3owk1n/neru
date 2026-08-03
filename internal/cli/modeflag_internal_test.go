@@ -37,6 +37,9 @@ func optionalOffered() map[modeflag.Name]func(*ModeConfig) {
 	}
 }
 
+// TestBuildModeCommand_EveryFlagIsAccountedFor stops the two lists above from drifting out of
+// step with the vocabulary as flags are added.
+//
 // The daemon side pins that every flag in the shared vocabulary is one it acts
 // on. These cases pin the other end: that the command a user types offers those
 // same flags under those same names, and that what it puts on the wire is
@@ -44,9 +47,6 @@ func optionalOffered() map[modeflag.Name]func(*ModeConfig) {
 //
 // Between the two, a flag renamed in one place and not the other fails here or
 // there rather than going quietly dead in the gap.
-//
-// TestBuildModeCommand_EveryFlagIsAccountedFor stops the two lists above from drifting out of
-// step with the vocabulary as flags are added.
 func TestBuildModeCommand_EveryFlagIsAccountedFor(t *testing.T) {
 	optional := optionalOffered()
 

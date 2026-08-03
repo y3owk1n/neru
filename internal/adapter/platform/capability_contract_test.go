@@ -89,33 +89,14 @@ func newSystemPort(t *testing.T) ports.SystemPort {
 	return nil
 }
 
-// The capability matrix in ports/capability_presets.go is a hand-written
-// declaration, and until now nothing tied it to what the adapters actually do.
-// The existing capability tests prove the registry is internally consistent —
-// every field is registered, keys are unique, entries read the right field —
-// but a capability could claim "supported" while its adapter returned
-// CodeNotSupported, or claim "stub" while the feature had quietly been
-// implemented, and every one of those tests would still pass.
-//
-// That matters because the matrix is the external contract: it is what
-// `neru doctor` prints and what the IPC info response serializes. A user
-// debugging "why don't hints work on Linux" is reading it.
-//
-// These tests run on whichever platform they are compiled for, so in CI each
-// of macOS, Linux and Windows checks its own declaration against its own
-// adapters. Adding a stub on one platform without downgrading its status — or
-// implementing one without promoting it — fails there.
-//
-// TestCapabilities_DeclaredStatusMatchesAdapterBehavior is the cross-check the
-// matrix never had: a capability declared supported must not answer
-// CodeNotSupported, and one declared stub must.
-//
-// Both directions are strict on every platform. That is only possible because
-// the adapters now report what is actually reachable at runtime rather than
-// what the build target intends — Linux downgrades screen, cursor and process
-// to stub when the native client stacks are absent (CGO_ENABLED=0) or the live
-// compositor has no implementation, the same way it already did for dark-mode
-// detection.
+// TestCapabilities_DeclaredStatusMatchesAdapterBehavior checks the hand-written
+// capability matrix against what the adapters actually do: declared supported
+// must not answer CodeNotSupported, declared stub must. The matrix is the
+// external contract — `neru doctor` prints it — and nothing else ties it to
+// behavior. Each CI platform checks its own declaration, so adding a stub
+// without downgrading its status, or implementing one without promoting it,
+// fails there. Strictness works because adapters report what is reachable at
+// runtime, not what the build target intends.
 func TestCapabilities_DeclaredStatusMatchesAdapterBehavior(t *testing.T) {
 	systemPort := newSystemPort(t)
 	capabilities := systemPort.Capabilities()

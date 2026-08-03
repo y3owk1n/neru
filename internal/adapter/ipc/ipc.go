@@ -225,20 +225,13 @@ func (s *Server) Stop() error {
 	return nil
 }
 
-// closeListener closes the listener, giving up if the close does not return.
-//
-// On Windows the named-pipe listener can block here forever. Its close signal is
-// a single send on an unbuffered channel, and an accept that is part-way through
-// aborting a connection consumes that signal instead of the listener loop. If
-// the aborted connect then reports that the client had already disconnected, the
-// listener retries and waits for a second close signal that nobody will ever
-// send. A client that connects and immediately goes away is entirely ordinary —
-// every `neru status` probe does exactly that — so a shutdown racing a probe can
-// reach it.
-//
-// Shutdown is the only caller. Abandoning the listener costs one goroutine and
-// one handle that the exiting process is about to release anyway, whereas
-// waiting leaves the daemon unable to exit at all.
+// closeListener closes the listener, giving up if the close never returns.
+// The Windows named-pipe listener can hang: an aborting accept can consume the
+// single close signal, and if the client had already disconnected the listener
+// retries and waits for a second signal nobody sends. Every `neru status`
+// probe connects-and-drops, so a shutdown racing one reaches this. Abandoning
+// costs a goroutine the exiting process reclaims anyway; waiting costs the
+// exit itself.
 func (s *Server) closeListener() error {
 	if s.listener == nil {
 		return nil

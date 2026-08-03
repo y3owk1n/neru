@@ -1,9 +1,5 @@
 //go:build windows
 
-// Windows overlay manager backed by a layered Win32 HWND and GDI rendering of
-// grid, hints, and recursive-grid overlays.
-// Does not implement keyboard capture (handled by the low-level keyboard hook).
-
 package windows
 
 import (
@@ -31,6 +27,9 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// Windows overlay manager backed by a layered Win32 HWND and GDI rendering of
+// grid, hints, and recursive-grid overlays.
+// Does not implement keyboard capture (handled by the low-level keyboard hook).
 const winInitialSubscriberCapacity = 4
 
 // Manager manages overlay rendering on Windows.

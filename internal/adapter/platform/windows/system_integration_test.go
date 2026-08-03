@@ -1,10 +1,5 @@
 //go:build integration && windows
 
-// internal/adapter/platform/windows/system_windows_integration_test.go
-// Real Win32 integration tests for the Windows system adapter.
-// Does not run in default CI; execute on WIN-VM with:
-// go test -tags=integration ./internal/adapter/platform/windows/...
-
 package windows_test
 
 import (
@@ -16,6 +11,9 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// Real Win32 integration tests for the Windows system adapter.
+// Does not run in default CI; execute on WIN-VM with:
+// go test -tags=integration ./internal/adapter/platform/windows/...
 func skipIfHeadlessSession(t *testing.T, err error) {
 	t.Helper()
 

@@ -53,30 +53,19 @@ type cursorRequest struct {
 	durationPerPixel float64
 }
 
-// smoothCursorAnimator glides the cursor toward a target by stepping a backend
-// move function over time. It matches the darwin animator: one worker
-// goroutine, latest-target-wins, and a completion channel WaitForCursorIdle
-// blocks on.
+// smoothCursorAnimator glides the cursor toward a target, matching the darwin
+// animator: one worker goroutine, latest-target-wins, a completion channel
+// WaitForCursorIdle blocks on. Callers do not serialize cursor access, so a
+// direct move cancels an in-flight animation; stop() fences on injectSem so a
+// canceled tween can never land after the warp. Backend errors mid-animation
+// are dropped (darwin's native move cannot fail back to Go either); the direct
+// MoveCursorToPoint path still returns them.
 //
-// It is preemptive and fire-and-forget, because callers do not serialize cursor
-// access — IPC, hotkey and event-tap paths all drive moves at once — so a direct
-// move cancels an animation in flight and the last writer wins. stop() fences on
-// injectSem so a direct warp is ordered after any in-flight step; without that a
-// canceled tween could land back at an intermediate point after the warp.
-//
-// Backend errors during an animation are dropped rather than reported through
-// WaitForCursorIdle, matching darwin, whose native move cannot fail back to Go.
-// The direct MoveCursorToPoint path still returns them.
-//
-// Completion is per session, not per request: a session starts when an idle
-// animator gets a target and ends when the queue drains. Every target arriving
-// mid-session shares that one completion, so a waiter stays attached until the
-// cursor reaches the latest target instead of being released when an
-// intermediate one is superseded.
-//
-// pos and move are injected at construction to keep X11/Wayland detail out of
-// here. pos samples the cursor once per request, so a stale Wayland cache
-// affects only the glide path and never where the cursor lands.
+// Completion is per session — every target arriving mid-session shares one
+// completion, so a waiter tracks the latest target rather than being released
+// when an intermediate one is superseded. pos and move are injected to keep
+// X11/Wayland detail out; pos samples once per request, so a stale Wayland
+// cache affects the glide path but never where the cursor lands.
 type smoothCursorAnimator struct {
 	pos  func() image.Point
 	move func(image.Point) error

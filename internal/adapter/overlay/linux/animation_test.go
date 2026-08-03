@@ -1,8 +1,5 @@
 //go:build linux && cgo
 
-// Unit tests for the pure easing/color helpers used by the Linux mouse-action
-// indicator. Native Cairo animation is covered by overlay integration tests.
-
 package linux //nolint:testpackage // tests exercise unexported render helpers directly
 
 import (
@@ -10,6 +7,8 @@ import (
 	"testing"
 )
 
+// Unit tests for the pure easing/color helpers used by the Linux mouse-action
+// indicator. Native Cairo animation is covered by overlay integration tests.
 func TestApplyEasing(t *testing.T) {
 	t.Parallel()
 

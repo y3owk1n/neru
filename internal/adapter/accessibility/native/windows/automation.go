@@ -1,9 +1,5 @@
 //go:build windows
 
-// Pure-Go IUIAutomation (COM) element discovery for the Windows hints mode.
-// Does not perform actions or build a deep cached tree; it returns a flat
-// list of on-screen, clickable controls for the given top-level window.
-
 package windows
 
 import (
@@ -18,6 +14,10 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
+// Pure-Go IUIAutomation (COM) element discovery for the Windows hints mode.
+// Does not perform actions or build a deep cached tree; it returns a flat
+// list of on-screen, clickable controls for the given top-level window.
+//
 // roleUnknown is the AX-style role returned for UIA control types that neru
 // does not treat as clickable hint targets.
 const roleUnknown = "AXUnknown"

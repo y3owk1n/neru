@@ -1,10 +1,5 @@
 //go:build linux
 
-// The AT-SPI role vocabulary: native role names, their aliases, the name->ID
-// table, and the clickable-role defaults hints filters on.
-// It does not walk the tree; it only answers what a role is called and whether
-// it counts.
-
 package atspi
 
 import (
@@ -16,6 +11,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
+// The AT-SPI role vocabulary: native role names, their aliases, the name->ID
+// table, and the clickable-role defaults hints filters on.
+// It does not walk the tree; it only answers what a role is called and whether
+// it counts.
+//
 // atspiRoleNames lists AT-SPI role names in AtspiRole declaration order, so a
 // name's index in this slice is its AtspiRole id. Ids are needed to build the
 // Collection.GetMatches role bitfield, and deriving them from position rather

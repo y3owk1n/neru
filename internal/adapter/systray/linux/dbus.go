@@ -1,11 +1,5 @@
 //go:build linux
 
-// Implements the org.kde.StatusNotifierItem + com.canonical.dbusmenu D-Bus
-// interfaces so the Linux daemon exports a real tray icon and menu on the
-// session bus (consumed by KDE/GNOME/Cinnamon SNI hosts). Hand-rolled over
-// godbus to avoid pulling in a GTK build dependency for Linux CI.
-// Does not implement the darwin/Windows tray; those have their own backends.
-
 package linux
 
 import (
@@ -19,6 +13,12 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
+// Implements the org.kde.StatusNotifierItem + com.canonical.dbusmenu D-Bus
+// interfaces so the Linux daemon exports a real tray icon and menu on the
+// session bus (consumed by KDE/GNOME/Cinnamon SNI hosts). Hand-rolled over
+// godbus to avoid pulling in a GTK build dependency for Linux CI.
+// Does not implement the darwin/Windows tray; those have their own backends.
+//
 // Sentinel errors for the D-Bus property interfaces. Static errors satisfy
 // err113; godbus wraps them into D-Bus error replies on the wire.
 var (

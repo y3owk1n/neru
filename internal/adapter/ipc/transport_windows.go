@@ -1,9 +1,5 @@
 //go:build windows
 
-// internal/adapter/ipc/transport_windows.go
-// Named-pipe transport for IPC on Windows via go-winio.
-// Does not implement Unix-domain socket cleanup or permissions.
-
 package ipc
 
 import (
@@ -13,6 +9,8 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
+// Named-pipe transport for IPC on Windows via go-winio.
+// Does not implement Unix-domain socket cleanup or permissions.
 const pipePath = `\\.\pipe\neru`
 
 func endpointPath() string {

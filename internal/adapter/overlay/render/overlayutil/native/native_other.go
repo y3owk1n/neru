@@ -1,17 +1,12 @@
 //go:build !darwin
 
-// internal/adapter/overlay/render/overlayutil/native/native_other.go
-// Non-darwin slot: the overlay rendering pipeline does not pass C-heap
-// callback contexts here, so every function is an intentional no-op. They
-// exist so overlayutil compiles on every platform without importing
-// platform/darwin. The package comment lives in doc.go.
-
 package native
 
 import "unsafe"
 
-// MallocCallbackContext is a no-op on non-darwin platforms.
-// Returns nil because no C heap is available/needed.
+// MallocCallbackContext returns nil: no C heap exists off darwin. Every
+// function here is a deliberate no-op so overlayutil compiles on every
+// platform without importing platform/darwin.
 func MallocCallbackContext(_, _ uint64) unsafe.Pointer { return nil }
 
 // FreeCallbackContext is a no-op on non-darwin platforms.

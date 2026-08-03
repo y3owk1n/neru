@@ -76,32 +76,14 @@ func stubCalls() []stubCall {
 	}
 }
 
-// SystemAdapter routes every screen, cursor and process query through a backend
-// switch, and falls through to a CodeNotSupported stub when the live backend is
-// neither X11 nor a wlroots-family Wayland stack (KWin and GNOME reach this
-// today for several of these).
-//
-// That fallthrough is load-bearing. Callers branch on derrors.IsNotSupported to
-// degrade gracefully — fall back to the active screen, skip a monitor query,
-// disable a mode — so a stub that returned a bare error would be reported to
-// the user as a real failure, and one that returned a zero value with nil would
-// be worse still: the caller would place hints at (0,0) on a screen it believes
-// is 0x0 rather than falling back.
-//
-// The methods here are exercised through an adapter built with a backend name
-// that matches no implemented backend, which is exactly the state a new or
-// unrecognized compositor produces. NewSystemAdapter takes the backend as a
-// plain string, so no compositor needs to be running for this to be meaningful.
-//
-// This file is tagged linux and therefore runs on the Linux CI runner. Adding a
-// backend, or implementing one of these methods, should make the corresponding
-// case fail here and prompt a matching update to the capability matrix in
-// ports/capability_presets.go — see internal/adapter/platform's
-// TestCapabilities_DeclaredStatusMatchesAdapterBehavior.
-//
-// TestSystemAdapter_UnimplementedBackendReportsNotSupported is the core stub
-// contract: on a backend with no implementation, each method must report
-// CodeNotSupported rather than succeeding or failing some other way.
+// TestSystemAdapter_UnimplementedBackendReportsNotSupported pins the stub
+// contract: on a backend with no implementation, every method reports
+// CodeNotSupported. Callers branch on IsNotSupported to degrade — a bare error
+// would surface as a real failure, and a nil error with a zero value would
+// have hints placed at (0,0) on a 0x0 screen. The adapter is built with an
+// unrecognized backend name, exactly what a new compositor produces, so
+// nothing needs to be running. Implementing a method should fail its case
+// here and prompt a capability-matrix update.
 func TestSystemAdapter_UnimplementedBackendReportsNotSupported(t *testing.T) {
 	adapter := linux.NewSystemAdapter(unimplementedBackend)
 	ctx := context.Background()
@@ -216,26 +198,12 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 }
 
 // TestSystemAdapter_CapabilitiesMatchBackendBehavior is the Linux half of the
-// capability cross-check.
-//
-// The platform-level test skips on a headless runner, because NewSystemPort
-// refuses to build an adapter with no display server. Here the adapter is
-// constructed directly for a named backend, so the declared-vs-actual contract
-// is asserted with no display and no compositor — which means it runs on every
-// Linux CI job rather than only on a developer's desktop.
-//
-// The two directions are not symmetric, because capabilities are live-probed and
-// downgraded on *any* probe failure, not only CodeNotSupported (see
-// probedCapability):
-//
-//   - A capability reported supported must not answer CodeNotSupported. This is
-//     strict: the probe returned success, so the direct call must too.
-//   - A capability reported stub must not silently succeed. Its direct call must
-//     return a non-nil error, but that error need not be CodeNotSupported: an
-//     implemented backend failing at runtime — an X11 session forced here with no
-//     queryable active window, a wedged display — downgrades to stub with a live
-//     CodeActionFailed, and the caller correctly sees that real failure. Only a
-//     stub that returned a zero value with nil would break the surface.
+// capability cross-check, built directly for a named backend so it runs with
+// no display or compositor — the platform-level test skips headless. The two
+// directions are asymmetric because capabilities downgrade on any probe
+// failure: supported must not answer CodeNotSupported, and stub must return
+// some non-nil error — a runtime failure on an implemented backend counts,
+// since only a nil-error zero value would break the surface.
 func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 	// Every backend name that reaches the dispatch, including ones with no
 	// implementation, so both sides of the contract are exercised.

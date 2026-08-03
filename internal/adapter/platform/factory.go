@@ -1,7 +1,3 @@
-// internal/adapter/platform/factory.go
-// Cross-platform constants and errors shared by the build-tagged factory files.
-// The package comment lives in doc.go.
-
 package platform
 
 import (

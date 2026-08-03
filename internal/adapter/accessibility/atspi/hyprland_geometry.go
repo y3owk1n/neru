@@ -1,15 +1,14 @@
 //go:build linux
 
-// Hyprland window-origin source. `hyprctl -j activewindow` reports the focused
-// window's absolute position ("at") and size ("size"), which give the screen
-// origin directly.
-
 package atspi
 
 import (
 	"go.uber.org/zap"
 )
 
+// Hyprland window-origin source. `hyprctl -j activewindow` reports the focused
+// window's absolute position ("at") and size ("size"), which give the screen
+// origin directly.
 type hyprlandOriginSource struct {
 	logger *zap.Logger
 }

@@ -1,8 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/alert.go
-// Native Windows alert dialogs using MessageBoxW.
-
 package windows
 
 import (
@@ -15,6 +12,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Native Windows alert dialogs using MessageBoxW.
+//
 // Alert choice constants that mirror the platform/factory.go values.
 // These must match exactly so factory_windows.go can pass them through.
 const (

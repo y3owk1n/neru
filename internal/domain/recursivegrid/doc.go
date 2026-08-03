@@ -1,51 +1,8 @@
-// Package recursivegrid provides recursive cell-based navigation for screen coordinates.
+// Package recursivegrid divides the screen into a grid and narrows the active
+// area with every cell the user selects, until the cell is too small to divide
+// or the depth limit is hit. Backspace backtracks one level.
 //
-// The recursivegrid system divides the screen into a grid with configurable columns and rows,
-// allowing users to navigate by repeatedly selecting cells until reaching a minimum size threshold.
-//
-// Key Features:
-//   - Recursive division: Each selection narrows the active area
-//   - Configurable dimensions: Supports both square (NxN) and non-square (CxR) grids
-//   - Configurable limits: Minimum size and maximum depth constraints
-//   - Backtracking: Support for undoing selections via backspace
-//   - Configurable key mapping: 3×3 grid mapping by default ("rtyfghvbn")
-//
-// Basic Usage:
-//
-//	// Create a new recursive grid for a 1920x1080 screen
-//	bounds := image.Rect(0, 0, 1920, 1080)
-//	grid := recursivegrid.NewRecursiveGrid(bounds, 1, 1, 10) // 1px min width, 1px min height, 10 max depth
-//
-//	// Select top-left cell (key 'u')
-//	center, complete := grid.SelectCell(recursivegrid.TopLeft)
-//
-//	// center is the cursor position to move to
-//	// complete is true if the grid can no longer be divided (min size or max depth)
-//
-// Manager Usage:
-//
-//	// Create a manager with callbacks
-//	manager := recursivegrid.NewManager(
-//	    bounds,
-//	    "rtyfghvbn",               // Key mapping (3×3 default)
-//	    func() { /* update overlay */ },
-//	    func(point) { /* selection complete */ },
-//	    logger,
-//	)
-//
-//	// Process key input
-//	point, completed := manager.HandleInput("u")
-//
-// Key Mapping:
-//   - Default: r (top-left), t (top-mid), y (top-right), f (mid-left), g (center),
-//     h (mid-right), v (bottom-left), b (bottom-mid), n (bottom-right)
-//   - Customizable via N-character string (where N = grid_cols * grid_rows)
-//
-// Exit Conditions:
-//   - Cell width < min_size_width (default 1px) OR cell height < min_size_height (default 1px)
-//   - Maximum recursion depth reached (default 10)
-//   - User presses exit key (handled by hotkeys, not the manager)
-//
-// The package is designed to integrate with the Neru mode system and follows
-// the same patterns as the existing grid and hints modes.
+// The key mapping is a string of grid_cols*grid_rows characters, "rtyfghvbn"
+// by default for 3x3. NewRecursiveGrid drives one grid; Manager wires it to
+// the mode system with overlay and completion callbacks.
 package recursivegrid

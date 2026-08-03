@@ -1,9 +1,5 @@
 //go:build !windows
 
-// internal/cli/doctor_client_other.go
-// Non-Windows fallback when the daemon IPC socket is missing.
-// Does not run client-side platform probes.
-
 package cli
 
 import (
@@ -12,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Non-Windows fallback when the daemon IPC socket is missing.
+// Does not run client-side platform probes.
 var errDaemonNotRunning = errors.New("daemon not running")
 
 func printClientDoctorWithoutDaemon(cmd *cobra.Command) error {

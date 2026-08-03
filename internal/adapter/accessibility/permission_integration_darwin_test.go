@@ -15,27 +15,13 @@ import (
 // API answers, so anything approaching this means a call is wedged.
 const integrationScanBudget = 30 * time.Second
 
-// runWithinBudget runs work on its own goroutine and fails the test if it has
-// not returned within integrationScanBudget.
-//
-// A context deadline cannot do this job. The AX client takes a context and
-// discards it — see native.Client.FrontmostWindow in native/client.go, whose
-// parameter is `_ context.Context` — so once a query is inside the Objective-C
-// bridge nothing observes cancellation. The context the suite passes is still
-// worth having, because the scan's per-source goroutines check it before
-// starting further work, but it cannot interrupt a call already in the bridge.
-// Only a watchdog outside that call can.
-//
-// Without this the failure mode is Go's own -timeout (10 minutes by default)
-// firing with a panic and a full goroutine dump, ten minutes after the run
-// stopped making progress and with no statement of which call wedged. This
-// fails in 30 seconds and names it.
-//
-// The goroutine is deliberately abandoned on timeout: it is blocked in a native
-// call and cannot be reclaimed. The test binary is exiting anyway.
-//
-// work must not call t.Fatal — it runs off the test goroutine. Have it assign
-// results and assert on them after this returns.
+// runWithinBudget runs work on its own goroutine and fails if it does not
+// return within the budget. A context deadline cannot do this: the AX client
+// discards its context, so nothing observes cancellation inside the ObjC
+// bridge — without a watchdog the failure is Go's 10-minute -timeout and a
+// goroutine dump that names nothing. The goroutine is abandoned on timeout
+// (blocked in a native call, binary exiting anyway). work must not call
+// t.Fatal; assign results and assert after this returns.
 func runWithinBudget(t *testing.T, what string, work func()) {
 	t.Helper()
 

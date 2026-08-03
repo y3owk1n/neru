@@ -109,21 +109,12 @@ func (b *Binder) registerHotkeys(bundleID string) {
 	}
 }
 
-// dispatchModeAwareHotkeyAsync dispatches a global hotkey once, applying any
-// per-mode binding for the same key while a navigation mode is active.
-//
-// Global hotkeys fire through an always-on, per-hotkey event tap that is
-// separate from the event tap serving per-mode hotkeys. When a mode is active
-// and the pressed key is bound both globally and by that mode, the global tap
-// runs the global action and consumes the event before the mode tap can apply
-// the mode-specific binding. Resolving the mode binding here makes the more
-// specific per-mode binding win. Falls back to the global actions when the
-// active mode does not bind the key (or when idle).
-//
-// This is the single-dispatch path used by hotkey backends that cannot report
-// key releases (and therefore cannot repeat while held). Backends that can
-// report releases use dispatchModeAwareHeldHotkey, which applies the same
-// override resolution and additionally repeats held-repeatable actions.
+// dispatchModeAwareHotkeyAsync dispatches a global hotkey once, letting a
+// per-mode binding for the same key win while a mode is active — the global
+// tap consumes the event before the mode tap can see it, so the override is
+// resolved here. Falls back to the global actions when the mode does not bind
+// the key. This is the path for backends that cannot report key releases;
+// ones that can use dispatchModeAwareHeldHotkey, which also repeats.
 func (b *Binder) dispatchModeAwareHotkeyAsync(key string, globalActions []string) {
 	actions := globalActions
 

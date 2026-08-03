@@ -1,9 +1,5 @@
 //go:build !windows
 
-// internal/adapter/ipc/transport_unix.go
-// Unix-domain socket transport for IPC on darwin and linux.
-// Does not implement the Windows named-pipe transport.
-
 package ipc
 
 import (
@@ -13,6 +9,8 @@ import (
 	"path/filepath"
 )
 
+// Unix-domain socket transport for IPC on darwin and linux.
+// Does not implement the Windows named-pipe transport.
 func endpointPath() string {
 	return filepath.Join(os.TempDir(), SocketName)
 }

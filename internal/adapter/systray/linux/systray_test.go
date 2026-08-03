@@ -1,10 +1,5 @@
 //go:build linux
 
-// Regression test for the Linux quit race: Quit before Run/RunHeadless must
-// not be lost (the daemon host can call Quit from the app goroutine before
-// the systray loop creates its quit channel).
-// Does not test the D-Bus SNI/dbusmenu transport; that needs a session bus.
-
 package linux_test
 
 import (
@@ -14,6 +9,11 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/systray"
 )
 
+// Regression test for the Linux quit race: Quit before Run/RunHeadless must
+// not be lost (the daemon host can call Quit from the app goroutine before
+// the systray loop creates its quit channel).
+// Does not test the D-Bus SNI/dbusmenu transport; that needs a session bus.
+//
 // resetState clears the tray's process-wide state after the test. The parent
 // package has its own copy for the backend-agnostic tests; duplicating three
 // lines is cheaper than exporting a test helper across a package boundary.

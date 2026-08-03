@@ -1,11 +1,5 @@
 //go:build linux
 
-// Linux tray API: maintains the menu tree and wires it to the D-Bus SNI +
-// dbusmenu server in dbus.go. The menu is built by the
-// platform-agnostic app component (internal/app/components/systray); this file
-// only owns the transport and the item state.
-// Does not implement the darwin/Windows tray; those have their own backends.
-
 package linux
 
 import (
@@ -19,6 +13,12 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
 )
 
+// Linux tray API: maintains the menu tree and wires it to the D-Bus SNI +
+// dbusmenu server in dbus.go. The menu is built by the
+// platform-agnostic app component (internal/app/components/systray); this file
+// only owns the transport and the item state.
+// Does not implement the darwin/Windows tray; those have their own backends.
+//
 // linuxTrayIconPNG is the colored brand tile shown in the KDE/GNOME system tray.
 // The macOS template glyph the shared menu passes is white-on-transparent with
 // alpha≈1 and is invisible when rendered as an SNI IconPixmap, so Linux uses

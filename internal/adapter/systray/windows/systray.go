@@ -1,8 +1,5 @@
 //go:build windows
 
-// Win32 notification-area (system tray) icon + popup menu via pure syscall.
-// Does not implement macOS template-icon theming or per-item icons.
-
 package windows
 
 import (
@@ -18,6 +15,9 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/systray/icon"
 )
 
+// Win32 notification-area (system tray) icon + popup menu via pure syscall.
+// Does not implement macOS template-icon theming or per-item icons.
+//
 // winTrayIconPNG is the colored brand tile shown in the notification area. The
 // macOS template glyph the shared menu passes is white-on-transparent and is
 // invisible on the Windows taskbar, so the Windows tray uses this instead.

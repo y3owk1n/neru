@@ -1,10 +1,5 @@
 //go:build linux
 
-// Event-driven focused-application change notifications for Linux. Complements
-// FocusedAppID (which reports the current identity) by exposing a file
-// descriptor that becomes readable whenever the focused app changes, so the app
-// watcher can wake on focus changes instead of polling on a fixed interval.
-
 package linux
 
 // SubscribeFocusedApp returns a file descriptor that becomes readable whenever

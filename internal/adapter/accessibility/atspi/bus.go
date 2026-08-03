@@ -1,10 +1,5 @@
 //go:build linux
 
-// Brings the AT-SPI bus up: reads and sets the org.a11y IsEnabled property and
-// opens the accessibility bus connection.
-// Toolkits only build their accessibility tree once assistive-tech mode is on,
-// so this must succeed before any scan will return anything.
-
 package atspi
 
 import (
@@ -14,6 +9,11 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
+// Brings the AT-SPI bus up: reads and sets the org.a11y IsEnabled property and
+// opens the accessibility bus connection.
+// Toolkits only build their accessibility tree once assistive-tech mode is on,
+// so this must succeed before any scan will return anything.
+//
 // readA11yStatus reads the current IsEnabled and ScreenReaderEnabled D-Bus
 // properties from org.a11y.Status.
 func (c *Client) readA11yStatus() (bool, bool, error) {

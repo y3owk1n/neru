@@ -1,15 +1,13 @@
 //go:build windows
 
-// internal/adapter/platform/windows/theme.go
-// Reads Windows app theme state for overlay color compositing.
-// Does not implement ports.SystemPort; system.go delegates dark mode here.
-
 package windows
 
 import (
 	"golang.org/x/sys/windows/registry"
 )
 
+// Reads Windows app theme state for overlay color compositing.
+// Does not implement ports.SystemPort; system.go delegates dark mode here.
 const (
 	// Match config/theme_palette.go defaultThemeLightSurface / defaultThemeDarkSurface.
 	themeSurfaceLight uint32 = 0xEEF2FF

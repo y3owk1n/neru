@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/platform/windows/system.go
 // SystemAdapter: the ports.SystemPort implementation for Windows.
 // The package comment lives in doc.go.
 

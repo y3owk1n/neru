@@ -105,19 +105,11 @@ type GridConfig struct {
 }
 
 // OverlayCapabilityReporter is an optional OverlayPort extension for managers
-// that can report their own support state.
-//
-// The overlay backend is the one subsystem whose availability is decided at
-// runtime rather than at build time: a Wayland manager may come up without
-// layer-shell, or an X11 manager without a usable display. OverlayPort.Health
-// asks the manager through this interface and reports CodeNotSupported with the
-// manager's own detail text.
-//
-// It is declared here, beside the other capability contracts, so the overlay
-// entry in PlatformCapabilities and this reporter describe the same thing in
-// one vocabulary.
-//
-// Managers that do not implement it are treated as healthy.
+// that can report their own support state — the one subsystem whose
+// availability is decided at runtime (Wayland without layer-shell, X11 without
+// a display). OverlayPort.Health asks through this and reports
+// CodeNotSupported with the manager's detail. Managers that do not implement
+// it are treated as healthy.
 type OverlayCapabilityReporter interface {
 	// OverlayCapabilities reports whether this manager can currently render.
 	OverlayCapabilities() FeatureCapability

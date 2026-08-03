@@ -23,6 +23,10 @@ func newGuardGrid() *recursivegrid.RecursiveGrid {
 	return recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 800, 600), 10, 10, 5)
 }
 
+// TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells pins the documented
+// fallback: an index outside the cell list yields the center of the current
+// bounds, and never panics.
+//
 // Cell indices reach these methods straight from a keypress: the key-to-cell
 // map is built from user-configurable key strings, and a stale or mismatched
 // layout override can yield an index outside the current depth's cell list.
@@ -32,10 +36,6 @@ func newGuardGrid() *recursivegrid.RecursiveGrid {
 // The guards were untested, which is the dangerous combination: an inverted
 // comparison in one of them turns a mistyped key into a panic that takes the
 // daemon down, and the tests would not have noticed.
-//
-// TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells pins the documented
-// fallback: an index outside the cell list yields the center of the current
-// bounds, and never panics.
 func TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells(t *testing.T) {
 	grid := newGuardGrid()
 	cellCount := len(grid.Divide())
