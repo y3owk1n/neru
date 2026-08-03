@@ -4,7 +4,7 @@ contact_links:
       url: https://github.com/y3owk1n/neru/discussions/559
       about: Discuss Linux porting efforts, share progress, and coordinate with other contributors.
     - name: 📖 Platform Support Status
-      url: https://github.com/y3owk1n/neru#-platform-support
+      url: https://github.com/y3owk1n/neru#platform-support
       about: Check the current platform compatibility matrix before filing an issue.
     - name: ❓ Questions & Discussion
       url: https://github.com/y3owk1n/neru/discussions

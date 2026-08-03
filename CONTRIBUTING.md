@@ -30,9 +30,9 @@ structured; [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for platform work; and
 ## Code of Conduct
 
 This project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating
-you agree to uphold it. Please report unacceptable behavior via
-[GitHub Issues](https://github.com/y3owk1n/neru/issues) or by contacting
-[@y3owk1n](https://github.com/y3owk1n) directly.
+you agree to uphold it. Please report unacceptable behavior privately by
+contacting [@y3owk1n](https://github.com/y3owk1n) directly — not via public
+issues, so reports stay confidential.
 
 ---
 
@@ -185,7 +185,9 @@ and keep macOS-specific assumptions out of shared code.
 
 ## Good First Contributions
 
-Not sure where to start?
+Not sure where to start? Issues labeled
+[`good first issue`](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+are curated to be well-scoped for newcomers. Beyond those:
 
 - 🐛 Bug fixes — check the [open issues](https://github.com/y3owk1n/neru/issues)
 - 📝 Documentation improvements or typo fixes
