@@ -42,6 +42,16 @@ type Style struct {
 	matchedBorderColor     string
 	borderColor            string
 	showLabels             bool
+
+	// Packed ARGB forms of the colors above, resolved once by BuildStyle.
+	// The overlay backends read these inside per-cell draw loops, so parsing
+	// the hex on every read would put the conversion on the keypress path.
+	backgroundColorARGB        uint32
+	textColorARGB              uint32
+	matchedTextColorARGB       uint32
+	matchedBackgroundColorARGB uint32
+	matchedBorderColorARGB     uint32
+	borderColorARGB            uint32
 }
 
 // FontSize returns the label font size in points.
@@ -85,28 +95,26 @@ func (s Style) LineWidth() float64 { return float64(max(s.borderWidth, minLineWi
 func (s Style) LabelFontSize() float64 { return float64(s.fontSize) }
 
 // LineColorARGB returns the cell border color as packed ARGB.
-func (s Style) LineColorARGB() uint32 { return parseHexARGB(s.borderColor) }
+func (s Style) LineColorARGB() uint32 { return s.borderColorARGB }
 
 // BackgroundColorARGB returns the cell background as packed ARGB.
-func (s Style) BackgroundColorARGB() uint32 { return parseHexARGB(s.backgroundColor) }
+func (s Style) BackgroundColorARGB() uint32 { return s.backgroundColorARGB }
 
 // TextColorARGB returns the label color as packed ARGB.
-func (s Style) TextColorARGB() uint32 { return parseHexARGB(s.textColor) }
+func (s Style) TextColorARGB() uint32 { return s.textColorARGB }
 
 // MatchedTextColorARGB returns the matched-label color as packed ARGB.
-func (s Style) MatchedTextColorARGB() uint32 { return parseHexARGB(s.matchedTextColor) }
+func (s Style) MatchedTextColorARGB() uint32 { return s.matchedTextColorARGB }
 
 // MatchedBackgroundColorARGB returns the matched-cell background as packed ARGB.
-func (s Style) MatchedBackgroundColorARGB() uint32 {
-	return parseHexARGB(s.matchedBackgroundColor)
-}
+func (s Style) MatchedBackgroundColorARGB() uint32 { return s.matchedBackgroundColorARGB }
 
 // MatchedBorderColorARGB returns the matched-cell border as packed ARGB.
-func (s Style) MatchedBorderColorARGB() uint32 { return parseHexARGB(s.matchedBorderColor) }
+func (s Style) MatchedBorderColorARGB() uint32 { return s.matchedBorderColorARGB }
 
 // BuildStyle resolves the grid style from configuration and the active theme.
 func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
-	return Style{
+	style := Style{
 		fontSize:    cfg.UI.FontSize,
 		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily, true),
 		borderWidth: cfg.UI.BorderWidth,
@@ -142,6 +150,15 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 		),
 		showLabels: true,
 	}
+
+	style.backgroundColorARGB = parseHexARGB(style.backgroundColor)
+	style.textColorARGB = parseHexARGB(style.textColor)
+	style.matchedTextColorARGB = parseHexARGB(style.matchedTextColor)
+	style.matchedBackgroundColorARGB = parseHexARGB(style.matchedBackgroundColor)
+	style.matchedBorderColorARGB = parseHexARGB(style.matchedBorderColor)
+	style.borderColorARGB = parseHexARGB(style.borderColor)
+
+	return style
 }
 
 // parseHexARGB converts a "#RGB", "#RRGGBB" or "#AARRGGBB" color to packed

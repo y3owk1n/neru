@@ -44,6 +44,16 @@ type Style struct {
 	subKeyPreviewAutohideMultiplier float64
 	subKeyPreviewTextColor          string
 	subKeyPreviewLabelChar          string
+
+	// Packed ARGB forms of the colors above, resolved once when the style is
+	// built. The overlay backends read these inside per-cell draw loops, so
+	// parsing the hex on every read would put the conversion on the keypress
+	// path.
+	lineColorARGB              uint32
+	highlightColorARGB         uint32
+	textColorARGB              uint32
+	labelBackgroundColorARGB   uint32
+	subKeyPreviewTextColorARGB uint32
 }
 
 // StyleOptions constructs a Style without a configuration.
@@ -96,7 +106,7 @@ func NewStyle(opts StyleOptions) Style {
 		subKeyPreviewAutohideMultiplier: opts.SubKeyPreviewAutohideMultiplier,
 		subKeyPreviewTextColor:          opts.SubKeyPreviewTextColor,
 		subKeyPreviewLabelChar:          opts.SubKeyPreviewLabelChar,
-	}
+	}.packColors()
 }
 
 // LineColor returns the cell border color as a hex string.
@@ -239,7 +249,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridSubKeyPreviewTextColorDark,
 		),
 		subKeyPreviewLabelChar: cfg.UI.SubKeyPreviewLabelChar,
-	}
+	}.packColors()
 }
 
 // The accessors below serve backends that draw with packed ARGB and float
@@ -265,24 +275,35 @@ func (s Style) LabelBackgroundBorderWidthF() float64 {
 }
 
 // LineColorARGB returns the cell border color as packed ARGB.
-func (s Style) LineColorARGB() uint32 { return parseHexARGB(s.lineColor) }
+func (s Style) LineColorARGB() uint32 { return s.lineColorARGB }
 
 // HighlightColorARGB returns the highlight color as packed ARGB.
-func (s Style) HighlightColorARGB() uint32 { return parseHexARGB(s.highlightColor) }
+func (s Style) HighlightColorARGB() uint32 { return s.highlightColorARGB }
 
 // TextColorARGB returns the label color as packed ARGB.
-func (s Style) TextColorARGB() uint32 { return parseHexARGB(s.textColor) }
+func (s Style) TextColorARGB() uint32 { return s.textColorARGB }
 
 // LabelBackgroundColorARGB returns the label background as packed ARGB.
-func (s Style) LabelBackgroundColorARGB() uint32 { return parseHexARGB(s.labelBackgroundColor) }
+func (s Style) LabelBackgroundColorARGB() uint32 { return s.labelBackgroundColorARGB }
 
 // SubKeyPreviewTextColorARGB returns the preview label color as packed ARGB.
-func (s Style) SubKeyPreviewTextColorARGB() uint32 {
-	return parseHexARGB(s.subKeyPreviewTextColor)
-}
+func (s Style) SubKeyPreviewTextColorARGB() uint32 { return s.subKeyPreviewTextColorARGB }
 
 // ShowLabels reports whether cell labels are drawn.
 func (s Style) ShowLabels() bool { return true }
+
+// packColors fills the ARGB fields from the hex ones. Both constructors call it
+// as their last step, so no caller can produce a Style whose packed values
+// disagree with its hex ones.
+func (s Style) packColors() Style {
+	s.lineColorARGB = parseHexARGB(s.lineColor)
+	s.highlightColorARGB = parseHexARGB(s.highlightColor)
+	s.textColorARGB = parseHexARGB(s.textColor)
+	s.labelBackgroundColorARGB = parseHexARGB(s.labelBackgroundColor)
+	s.subKeyPreviewTextColorARGB = parseHexARGB(s.subKeyPreviewTextColor)
+
+	return s
+}
 
 // parseHexARGB converts a "#RGB", "#RRGGBB" or "#AARRGGBB" color to packed
 // ARGB, returning opaque white for anything it cannot read.
