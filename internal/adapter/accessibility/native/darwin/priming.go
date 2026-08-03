@@ -36,6 +36,7 @@ func PrimeApplication(bundleID string, logger *zap.Logger) bool {
 
 		return false
 	}
+	defer app.Release()
 
 	return waitForAccessibility(app, logger)
 }
@@ -64,6 +65,22 @@ func hasUsableAccessibilityTree(root *Element, logger *zap.Logger) bool {
 
 	queue := []entry{{root, 0}}
 
+	// Children() hands over retained AXUIElementRefs; release everything this
+	// walk enqueues, but not the caller-owned root.
+	releaseVisited := func(el *Element) {
+		if el != root {
+			el.Release()
+		}
+	}
+
+	drainQueue := func() {
+		for _, pending := range queue {
+			if pending.el != nil {
+				releaseVisited(pending.el)
+			}
+		}
+	}
+
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
@@ -74,6 +91,8 @@ func hasUsableAccessibilityTree(root *Element, logger *zap.Logger) bool {
 
 		info, err := cur.el.Info()
 		if err != nil || info == nil {
+			releaseVisited(cur.el)
+
 			continue
 		}
 
@@ -81,16 +100,22 @@ func hasUsableAccessibilityTree(root *Element, logger *zap.Logger) bool {
 
 		if _, ready := readyRoles[role]; ready {
 			logger.Info("Found usable accessibility tree", zap.String("role", role))
+			releaseVisited(cur.el)
+			drainQueue()
 
 			return true
 		}
 
 		if cur.depth >= maxPrimingDepth {
+			releaseVisited(cur.el)
+
 			continue
 		}
 
-		children, err := cur.el.Children(role)
-		if err != nil {
+		children, childrenErr := cur.el.Children(role)
+		releaseVisited(cur.el)
+
+		if childrenErr != nil {
 			continue
 		}
 
