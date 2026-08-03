@@ -16,10 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -27,19 +24,13 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Windows overlay manager backed by a layered Win32 HWND and GDI rendering of
-// grid, hints, and recursive-grid overlays.
+// Manager manages overlay rendering on Windows, backed by a layered Win32
+// HWND and GDI rendering of grid, hints, and recursive-grid overlays.
 // Does not implement keyboard capture (handled by the low-level keyboard hook).
-const winInitialSubscriberCapacity = 4
-
-// Manager manages overlay rendering on Windows.
 type Manager struct {
-	logger *zap.Logger
+	manager.Base
 
-	mu     sync.RWMutex
-	mode   manager.Mode
-	subs   map[uint64]func(manager.StateChange)
-	nextID uint64
+	logger *zap.Logger
 
 	renderMu sync.Mutex
 	win      *winOverlay
@@ -59,13 +50,6 @@ type Manager struct {
 	mouseWin *winplatform.OverlayWindow
 	// mouseActionCancel cancels any running mouse action animation.
 	mouseActionCancel context.CancelFunc
-
-	hintOverlay            *hints.Overlay
-	gridOverlay            *grid.Overlay
-	modeIndicatorOverlay   *modeindicator.Overlay
-	recursiveGridOverlay   *recursivegrid.Overlay
-	stickyModifiersOverlay *stickyindicator.Overlay
-	virtualPointerOverlay  *virtualpointer.Overlay
 }
 
 var (
@@ -76,9 +60,8 @@ var (
 // NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
 	return &Manager{
+		Base:   manager.NewBase(logger),
 		logger: logger,
-		mode:   manager.ModeIdle,
-		subs:   make(map[uint64]func(manager.StateChange), winInitialSubscriberCapacity),
 		win:    newWinOverlay(logger),
 	}
 }
@@ -193,37 +176,6 @@ func (m *Manager) ActiveScreenBounds() (image.Rectangle, bool) {
 	return m.win.screenBounds()
 }
 
-// SwitchTo switches overlay mode and notifies subscribers.
-func (m *Manager) SwitchTo(next manager.Mode) {
-	m.mu.Lock()
-	prev := m.mode
-	m.mode = next
-	m.mu.Unlock()
-
-	if prev != next {
-		m.publish(manager.NewStateChange(prev, next))
-	}
-}
-
-// Subscribe registers a callback for overlay mode changes.
-func (m *Manager) Subscribe(subFn func(manager.StateChange)) uint64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.nextID++
-	id := m.nextID
-	m.subs[id] = subFn
-
-	return id
-}
-
-// Unsubscribe removes a callback.
-func (m *Manager) Unsubscribe(id uint64) {
-	m.mu.Lock()
-	delete(m.subs, id)
-	m.mu.Unlock()
-}
-
 // Destroy destroys overlay resources.
 func (m *Manager) Destroy() {
 	m.renderMu.Lock()
@@ -255,14 +207,6 @@ func (m *Manager) Destroy() {
 	}
 }
 
-// Mode returns the current overlay mode.
-func (m *Manager) Mode() manager.Mode {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.mode
-}
-
 // WindowPtr returns the native overlay window handle.
 func (m *Manager) WindowPtr() unsafe.Pointer {
 	if m.win == nil {
@@ -275,58 +219,6 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 // WaylandKeyboardChannel returns nil on Windows.
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil
-}
-
-// UseHintOverlay sets the hints overlay component.
-func (m *Manager) UseHintOverlay(o *hints.Overlay) { m.hintOverlay = o }
-
-// UseGridOverlay sets the grid overlay component.
-func (m *Manager) UseGridOverlay(o *grid.Overlay) { m.gridOverlay = o }
-
-// UseModeIndicatorOverlay sets the mode-indicator overlay component.
-func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
-	m.modeIndicatorOverlay = o
-}
-
-// UseStickyModifiersOverlay sets the sticky-modifiers overlay component.
-func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
-	m.stickyModifiersOverlay = o
-}
-
-// UseRecursiveGridOverlay sets the recursive-grid overlay component.
-func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
-	m.recursiveGridOverlay = o
-}
-
-// HintOverlay returns the hints overlay component.
-func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
-
-// GridOverlay returns the grid overlay component.
-func (m *Manager) GridOverlay() *grid.Overlay { return m.gridOverlay }
-
-// ModeIndicatorOverlay returns the mode-indicator overlay component.
-func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay {
-	return m.modeIndicatorOverlay
-}
-
-// StickyModifiersOverlay returns the sticky-modifiers overlay component.
-func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
-	return m.stickyModifiersOverlay
-}
-
-// RecursiveGridOverlay returns the recursive-grid overlay component.
-func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
-	return m.recursiveGridOverlay
-}
-
-// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
-func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
-	m.virtualPointerOverlay = o
-}
-
-// VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
-func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay {
-	return m.virtualPointerOverlay
 }
 
 // OverlayCapabilities reports Windows overlay support.
@@ -360,8 +252,8 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 	// Match the infra adapter and mode-indicator paths: rebuild from the hints
 	// overlay config when the caller passed an empty style (e.g. stale cache).
-	if style.BackgroundColor() == "" && m.hintOverlay != nil {
-		style = hints.BuildStyle(m.hintOverlay.Config(), nil)
+	if style.BackgroundColor() == "" && m.HintOverlay() != nil {
+		style = hints.BuildStyle(m.HintOverlay().Config(), nil)
 	}
 
 	// Shared activation may draw before the resize; enforce monitor bounds here.
@@ -455,7 +347,7 @@ func (m *Manager) HideHintSearchInput() {
 // avoids the clear-then-flush blink that occurs when drawing transient
 // badges into the shared full-screen overlay pixel buffer.
 func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
-	if m.modeIndicatorOverlay == nil {
+	if m.ModeIndicatorOverlay() == nil {
 		return
 	}
 
@@ -464,9 +356,9 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 		return
 	}
 
-	cfg := m.modeIndicatorOverlay.IndicatorConfig()
+	cfg := m.ModeIndicatorOverlay().IndicatorConfig()
 
-	label := m.modeIndicatorOverlay.ResolveLabelText(string(mode))
+	label := m.ModeIndicatorOverlay().ResolveLabelText(string(mode))
 	if label == "" {
 		return
 	}
@@ -513,22 +405,22 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	m.indicatorWin.Clear()
 
 	// ResolveLabelText already returned non-empty, so the mode config exists.
-	modeCfg, _ := m.modeIndicatorOverlay.ResolveModeConfig(string(mode))
+	modeCfg, _ := m.ModeIndicatorOverlay().ResolveModeConfig(string(mode))
 	bgColor := modeCfg.BackgroundColor.ForThemeWithOverride(
 		cfg.UI.BackgroundColor,
-		m.modeIndicatorOverlay.ThemeProvider(),
+		m.ModeIndicatorOverlay().ThemeProvider(),
 		config.ModeIndicatorBackgroundColorLight,
 		config.ModeIndicatorBackgroundColorDark,
 	)
 	textColor := modeCfg.TextColor.ForThemeWithOverride(
 		cfg.UI.TextColor,
-		m.modeIndicatorOverlay.ThemeProvider(),
+		m.ModeIndicatorOverlay().ThemeProvider(),
 		config.ModeIndicatorTextColorLight,
 		config.ModeIndicatorTextColorDark,
 	)
 	borderColor := modeCfg.BorderColor.ForThemeWithOverride(
 		cfg.UI.BorderColor,
-		m.modeIndicatorOverlay.ThemeProvider(),
+		m.ModeIndicatorOverlay().ThemeProvider(),
 		config.ModeIndicatorBorderColorLight,
 		config.ModeIndicatorBorderColorDark,
 	)
@@ -576,11 +468,11 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 // its own dedicated layered window, following the cursor without touching the
 // shared overlay.
 func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols string) {
-	if m.stickyModifiersOverlay == nil || symbols == "" {
+	if m.StickyModifiersOverlay() == nil || symbols == "" {
 		return
 	}
 
-	indicatorUI := m.stickyModifiersOverlay.UIConfig()
+	indicatorUI := m.StickyModifiersOverlay().UIConfig()
 	fontSize := float64(max(indicatorUI.FontSize, 1))
 
 	paddingX := resolveWinAutoPadding(fontSize, indicatorUI.PaddingX, true)
@@ -623,17 +515,17 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	m.stickyWin.Clear()
 
 	bgColor := indicatorUI.BackgroundColor.ForTheme(
-		m.stickyModifiersOverlay.ThemeProvider(),
+		m.StickyModifiersOverlay().ThemeProvider(),
 		config.StickyModifiersBackgroundColorLight,
 		config.StickyModifiersBackgroundColorDark,
 	)
 	textColor := indicatorUI.TextColor.ForTheme(
-		m.stickyModifiersOverlay.ThemeProvider(),
+		m.StickyModifiersOverlay().ThemeProvider(),
 		config.StickyModifiersTextColorLight,
 		config.StickyModifiersTextColorDark,
 	)
 	borderColor := indicatorUI.BorderColor.ForTheme(
-		m.stickyModifiersOverlay.ThemeProvider(),
+		m.StickyModifiersOverlay().ThemeProvider(),
 		config.StickyModifiersBorderColorLight,
 		config.StickyModifiersBorderColorDark,
 	)
@@ -681,11 +573,11 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 
 // DrawVirtualPointer renders the cursor-following virtual pointer overlay.
 func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
-	if m.virtualPointerOverlay == nil {
+	if m.VirtualPointerOverlay() == nil {
 		return
 	}
 
-	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
+	m.VirtualPointerOverlay().Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator on the Windows overlay.
@@ -777,8 +669,8 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 		m.logger.Debug("manager DrawGrid", zap.Int("cells", cellCount))
 	}
 
-	if m.gridOverlay != nil {
-		cfg := m.gridOverlay.Config()
+	if m.GridOverlay() != nil {
+		cfg := m.GridOverlay().Config()
 
 		keys := strings.TrimSpace(cfg.SublayerKeys)
 		if keys == "" {
@@ -1010,12 +902,6 @@ func scaleColorAlpha(hexColor string, opacity float64) uint32 {
 	res := (newA << 24) | (redVal << 16) | (greenVal << 8) | blueVal //nolint:mnd
 
 	return res
-}
-
-func (m *Manager) publish(change manager.StateChange) {
-	for _, sub := range m.subs {
-		sub(change)
-	}
 }
 
 func (m *Manager) ensureWinOverlayLocked() {

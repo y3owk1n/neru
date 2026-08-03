@@ -19,9 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -29,9 +27,6 @@ import (
 )
 
 const (
-	// DefaultSubscriberMapSize is the default size for subscriber map.
-	DefaultSubscriberMapSize = 4
-
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
 	// NSWindowSharingReadOnly represents NSWindowSharingReadOnly (1) - visible in screen sharing.
@@ -48,21 +43,16 @@ func boolToInt(v bool) int {
 
 // Manager manages multiple overlay windows.
 type Manager struct {
-	window            C.OverlayWindow
-	logger            *zap.Logger
-	mu                sync.RWMutex
-	mode              manager.Mode
-	subs              map[uint64]func(manager.StateChange)
-	nextID            uint64
-	hideInScreenShare bool
+	manager.Base
 
-	// Overlay renderers
-	hintOverlay            *hints.Overlay
-	gridOverlay            *grid.Overlay
-	modeIndicatorOverlay   *modeindicator.Overlay
-	recursiveGridOverlay   *recursivegrid.Overlay
-	stickyModifiersOverlay *stickyindicator.Overlay
-	virtualPointerOverlay  *virtualpointer.Overlay
+	window C.OverlayWindow
+	logger *zap.Logger
+
+	// shareMu guards hideInScreenShare. It is deliberately separate from the
+	// Base mode/subscriber mutex so SetSharingType can never contend with
+	// SwitchTo/Subscribe callers.
+	shareMu           sync.RWMutex
+	hideInScreenShare bool
 }
 
 var (
@@ -75,13 +65,9 @@ func Init(logger *zap.Logger) *Manager {
 	once.Do(func() {
 		window := C.NeruCreateOverlayWindow()
 		instance = &Manager{
+			Base:   manager.NewBase(logger),
 			window: window,
 			logger: logger,
-			mode:   manager.ModeIdle,
-			subs: make(
-				map[uint64]func(manager.StateChange),
-				DefaultSubscriberMapSize,
-			),
 		}
 	})
 
@@ -101,14 +87,6 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 // WaylandKeyboardChannel returns nil for macOS (not applicable).
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil
-}
-
-// Mode returns the current overlay mode.
-func (m *Manager) Mode() manager.Mode {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.mode
 }
 
 // Logger returns the logger.
@@ -133,39 +111,39 @@ func (m *Manager) Show() {
 func (m *Manager) Hide() {
 	C.NeruHideOverlayWindow(m.window)
 
-	if m.modeIndicatorOverlay != nil {
-		m.modeIndicatorOverlay.Hide()
+	if m.ModeIndicatorOverlay() != nil {
+		m.ModeIndicatorOverlay().Hide()
 	}
 
-	if m.stickyModifiersOverlay != nil {
-		m.stickyModifiersOverlay.Hide()
+	if m.StickyModifiersOverlay() != nil {
+		m.StickyModifiersOverlay().Hide()
 	}
 
-	if m.recursiveGridOverlay != nil {
-		m.recursiveGridOverlay.Hide()
+	if m.RecursiveGridOverlay() != nil {
+		m.RecursiveGridOverlay().Hide()
 	}
 }
 
 // Clear clears the overlay window.
 func (m *Manager) Clear() {
 	C.NeruClearOverlay(m.window)
-	if m.gridOverlay != nil {
-		m.gridOverlay.Clear()
+	if m.GridOverlay() != nil {
+		m.GridOverlay().Clear()
 	}
-	if m.hintOverlay != nil {
-		m.hintOverlay.Clear()
-	}
-
-	if m.modeIndicatorOverlay != nil {
-		m.modeIndicatorOverlay.Clear()
+	if m.HintOverlay() != nil {
+		m.HintOverlay().Clear()
 	}
 
-	if m.stickyModifiersOverlay != nil {
-		m.stickyModifiersOverlay.Clear()
+	if m.ModeIndicatorOverlay() != nil {
+		m.ModeIndicatorOverlay().Clear()
 	}
 
-	if m.recursiveGridOverlay != nil {
-		m.recursiveGridOverlay.Clear()
+	if m.StickyModifiersOverlay() != nil {
+		m.StickyModifiersOverlay().Clear()
+	}
+
+	if m.RecursiveGridOverlay() != nil {
+		m.RecursiveGridOverlay().Clear()
 	}
 }
 
@@ -177,12 +155,12 @@ func (m *Manager) ClearCache() {}
 func (m *Manager) ResizeToActiveScreen() {
 	C.NeruResizeOverlayToActiveScreen(m.window)
 
-	if m.modeIndicatorOverlay != nil {
-		m.modeIndicatorOverlay.ResizeToActiveScreen()
+	if m.ModeIndicatorOverlay() != nil {
+		m.ModeIndicatorOverlay().ResizeToActiveScreen()
 	}
 
-	if m.stickyModifiersOverlay != nil {
-		m.stickyModifiersOverlay.ResizeToActiveScreen()
+	if m.StickyModifiersOverlay() != nil {
+		m.StickyModifiersOverlay().ResizeToActiveScreen()
 	}
 }
 
@@ -194,74 +172,35 @@ func (m *Manager) SetKeyboardCaptureEnabled(_ bool) {}
 // window-local coordinates and needs no global translation.
 func (m *Manager) SetActiveScreenOrigin(_ image.Point) {}
 
-// SwitchTo transitions the overlay to the specified mode and notifies subscribers.
-func (m *Manager) SwitchTo(next manager.Mode) {
-	m.mu.Lock()
-	prev := m.mode
-	if prev == next {
-		m.mu.Unlock()
-
-		return
-	}
-	m.mode = next
-	m.mu.Unlock()
-	if m.logger != nil {
-		m.logger.Debug(
-			"Overlay mode switch",
-			zap.String("prev", string(prev)),
-			zap.String("next", string(next)),
-		)
-	}
-	m.publish(manager.NewStateChange(prev, next))
-}
-
-// Subscribe registers a callback function to be notified of overlay mode changes.
-func (m *Manager) Subscribe(fn func(manager.StateChange)) uint64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.nextID++
-	id := m.nextID
-	m.subs[id] = fn
-
-	return id
-}
-
-// Unsubscribe removes a previously registered callback function.
-func (m *Manager) Unsubscribe(id uint64) {
-	m.mu.Lock()
-	delete(m.subs, id)
-	m.mu.Unlock()
-}
-
 // Destroy destroys the overlay window and cleans up all overlay resources.
 func (m *Manager) Destroy() {
 	// Clean up Go-side resources (callbackManager, styleCache, labelCache) for
 	// overlays that share the manager's window. We call Cleanup() instead of
 	// Destroy() because the shared window is destroyed below — calling each
 	// overlay's Destroy() would double-destroy the same native window.
-	if m.hintOverlay != nil {
-		m.hintOverlay.Cleanup()
-		m.hintOverlay = nil
+	if m.HintOverlay() != nil {
+		m.HintOverlay().Cleanup()
+		m.UseHintOverlay(nil)
 	}
-	if m.gridOverlay != nil {
-		m.gridOverlay.Cleanup()
-		m.gridOverlay = nil
+	if m.GridOverlay() != nil {
+		m.GridOverlay().Cleanup()
+		m.UseGridOverlay(nil)
 	}
-	if m.recursiveGridOverlay != nil {
-		m.recursiveGridOverlay.Cleanup()
-		m.recursiveGridOverlay = nil
+	if m.RecursiveGridOverlay() != nil {
+		m.RecursiveGridOverlay().Cleanup()
+		m.UseRecursiveGridOverlay(nil)
 	}
 
-	// manager.Mode indicator owns its own window, so use full Destroy().
-	if m.modeIndicatorOverlay != nil {
-		m.modeIndicatorOverlay.Destroy()
-		m.modeIndicatorOverlay = nil
+	// Mode indicator owns its own window, so use full Destroy().
+	if m.ModeIndicatorOverlay() != nil {
+		m.ModeIndicatorOverlay().Destroy()
+		m.UseModeIndicatorOverlay(nil)
 	}
 
 	// Sticky modifiers indicator owns its own window, so use full Destroy().
-	if m.stickyModifiersOverlay != nil {
-		m.stickyModifiersOverlay.Destroy()
-		m.stickyModifiersOverlay = nil
+	if m.StickyModifiersOverlay() != nil {
+		m.StickyModifiersOverlay().Destroy()
+		m.UseStickyModifiersOverlay(nil)
 	}
 
 	if m.window != nil {
@@ -270,76 +209,27 @@ func (m *Manager) Destroy() {
 	}
 }
 
-// UseHintOverlay sets the hint overlay renderer for centralized management.
-func (m *Manager) UseHintOverlay(o *hints.Overlay) {
-	m.hintOverlay = o
-}
+// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay
+// renderer, propagating the current screen-share visibility to it. Overrides
+// the Base method; the other renderers are registered through Base directly.
+func (m *Manager) UseVirtualPointerOverlay(overlay *virtualpointer.Overlay) {
+	m.Base.UseVirtualPointerOverlay(overlay)
 
-// UseGridOverlay sets the grid overlay renderer.
-func (m *Manager) UseGridOverlay(o *grid.Overlay) {
-	m.gridOverlay = o
-}
+	m.shareMu.RLock()
+	hideInScreenShare := m.hideInScreenShare
+	m.shareMu.RUnlock()
 
-// UseModeIndicatorOverlay sets the shared mode-indicator overlay renderer.
-func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
-	m.modeIndicatorOverlay = o
-}
-
-// UseStickyModifiersOverlay sets the sticky modifiers overlay renderer.
-func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
-	m.stickyModifiersOverlay = o
-}
-
-// UseRecursiveGridOverlay sets the recursive-grid overlay renderer.
-func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
-	m.recursiveGridOverlay = o
-}
-
-// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay renderer.
-func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
-	m.virtualPointerOverlay = o
-
-	if o != nil && m.hideInScreenShare {
-		o.SetSharingType(true)
+	if overlay != nil && hideInScreenShare {
+		overlay.SetSharingType(true)
 	}
-}
-
-// HintOverlay returns the hint overlay renderer.
-func (m *Manager) HintOverlay() *hints.Overlay {
-	return m.hintOverlay
-}
-
-// GridOverlay returns the grid overlay renderer.
-func (m *Manager) GridOverlay() *grid.Overlay {
-	return m.gridOverlay
-}
-
-// ModeIndicatorOverlay returns the mode-indicator overlay renderer.
-func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay {
-	return m.modeIndicatorOverlay
-}
-
-// StickyModifiersOverlay returns the sticky modifiers overlay renderer.
-func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay {
-	return m.stickyModifiersOverlay
-}
-
-// RecursiveGridOverlay returns the recursive-grid overlay renderer.
-func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay {
-	return m.recursiveGridOverlay
-}
-
-// VirtualPointerOverlay returns the cursor-following virtual pointer overlay renderer.
-func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay {
-	return m.virtualPointerOverlay
 }
 
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
 func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
-	if m.hintOverlay == nil {
+	if m.HintOverlay() == nil {
 		return nil
 	}
-	drawHintsErr := m.hintOverlay.DrawHintsWithStyle(hs, style)
+	drawHintsErr := m.HintOverlay().DrawHintsWithStyle(hs, style)
 	if drawHintsErr != nil {
 		return derrors.Wrap(
 			drawHintsErr,
@@ -358,11 +248,11 @@ func (m *Manager) DrawHintSearchInput(
 	frame hints.SearchInputFrame,
 	style hints.SearchInputStyle,
 ) error {
-	if m.hintOverlay == nil {
+	if m.HintOverlay() == nil {
 		return nil
 	}
 
-	err := m.hintOverlay.DrawSearchInput(query, resultCount, frame, style)
+	err := m.HintOverlay().DrawSearchInput(query, resultCount, frame, style)
 	if err != nil {
 		return derrors.Wrap(err, derrors.CodeOverlayFailed, "failed to draw hint search input")
 	}
@@ -372,16 +262,16 @@ func (m *Manager) DrawHintSearchInput(
 
 // HideHintSearchInput hides the hints search input.
 func (m *Manager) HideHintSearchInput() {
-	if m.hintOverlay == nil {
+	if m.HintOverlay() == nil {
 		return
 	}
 
-	m.hintOverlay.HideSearchInput()
+	m.HintOverlay().HideSearchInput()
 }
 
 // DrawModeIndicator renders a mode indicator using the shared overlay renderer.
 func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
-	if m.modeIndicatorOverlay == nil {
+	if m.ModeIndicatorOverlay() == nil {
 		return
 	}
 
@@ -390,12 +280,12 @@ func (m *Manager) DrawModeIndicator(xCoordinate, yCoordinate int) {
 		return
 	}
 
-	m.modeIndicatorOverlay.DrawModeIndicator(string(mode), xCoordinate, yCoordinate)
+	m.ModeIndicatorOverlay().DrawModeIndicator(string(mode), xCoordinate, yCoordinate)
 }
 
 // DrawStickyModifiersIndicator renders the sticky modifiers indicator using the sticky modifiers overlay renderer.
 func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, symbols string) {
-	if m.stickyModifiersOverlay == nil {
+	if m.StickyModifiersOverlay() == nil {
 		return
 	}
 
@@ -404,16 +294,16 @@ func (m *Manager) DrawStickyModifiersIndicator(xCoordinate, yCoordinate int, sym
 		return
 	}
 
-	m.stickyModifiersOverlay.Draw(xCoordinate, yCoordinate, symbols)
+	m.StickyModifiersOverlay().Draw(xCoordinate, yCoordinate, symbols)
 }
 
 // DrawVirtualPointer renders the cursor-following virtual pointer overlay.
 func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
-	if m.virtualPointerOverlay == nil {
+	if m.VirtualPointerOverlay() == nil {
 		return
 	}
 
-	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
+	m.VirtualPointerOverlay().Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
 // DrawMouseActionIndicator renders a transient mouse action indicator in its own native window.
@@ -421,9 +311,9 @@ func (m *Manager) DrawMouseActionIndicator(
 	point image.Point,
 	style ports.MouseActionIndicatorStyle,
 ) {
-	m.mu.RLock()
+	m.shareMu.RLock()
 	hideInScreenShare := m.hideInScreenShare
-	m.mu.RUnlock()
+	m.shareMu.RUnlock()
 
 	backgroundColor := C.CString(style.BackgroundColor)
 	borderColor := C.CString(style.BorderColor)
@@ -456,10 +346,10 @@ func (m *Manager) DrawMouseActionIndicator(
 
 // DrawGrid renders a grid with the specified style using the grid overlay renderer.
 func (m *Manager) DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error {
-	if m.gridOverlay == nil {
+	if m.GridOverlay() == nil {
 		return nil
 	}
-	drawGridErr := m.gridOverlay.DrawGrid(g, input, style)
+	drawGridErr := m.GridOverlay().DrawGrid(g, input, style)
 	if drawGridErr != nil {
 		return derrors.Wrap(drawGridErr, derrors.CodeOverlayFailed, "failed to draw grid")
 	}
@@ -480,10 +370,10 @@ func (m *Manager) DrawRecursiveGrid(
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
-	if m.recursiveGridOverlay == nil {
+	if m.RecursiveGridOverlay() == nil {
 		return nil
 	}
-	drawRecursiveGridErr := m.recursiveGridOverlay.DrawRecursiveGrid(
+	drawRecursiveGridErr := m.RecursiveGridOverlay().DrawRecursiveGrid(
 		bounds,
 		depth,
 		keys,
@@ -508,26 +398,26 @@ func (m *Manager) DrawRecursiveGrid(
 
 // UpdateGridMatches updates the grid matches with the specified prefix.
 func (m *Manager) UpdateGridMatches(prefix string) {
-	if m.gridOverlay == nil {
+	if m.GridOverlay() == nil {
 		return
 	}
-	m.gridOverlay.UpdateMatches(prefix)
+	m.GridOverlay().UpdateMatches(prefix)
 }
 
 // ShowSubgrid shows a subgrid for the specified cell.
 func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
-	if m.gridOverlay == nil {
+	if m.GridOverlay() == nil {
 		return
 	}
-	m.gridOverlay.ShowSubgrid(cell, style)
+	m.GridOverlay().ShowSubgrid(cell, style)
 }
 
 // SetHideUnmatched sets whether to hide unmatched cells.
 func (m *Manager) SetHideUnmatched(hide bool) {
-	if m.gridOverlay == nil {
+	if m.GridOverlay() == nil {
 		return
 	}
-	m.gridOverlay.SetHideUnmatched(hide)
+	m.GridOverlay().SetHideUnmatched(hide)
 }
 
 // Flush is a no-op on macOS — indicator overlays use independent windows
@@ -538,13 +428,12 @@ func (m *Manager) Flush() {}
 // When hide is true, sets NSWindowSharingNone (hidden from screen share).
 // When hide is false, sets NSWindowSharingReadOnly (visible in screen share).
 //
-// Note: This method holds m.mu during the CGo call to C.NeruSetOverlaySharingType.
-// The C function uses dispatch_async (returns immediately), so this is safe.
-// If the C function were changed to dispatch_sync, this could deadlock with
-// main thread callers since SwitchTo/Subscribe/Unsubscribe also use m.mu.
+// shareMu is dedicated to this flag, so holding it across the CGo call cannot
+// contend with SwitchTo/Subscribe callers (and the C function dispatches
+// asynchronously anyway).
 func (m *Manager) SetSharingType(hide bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.shareMu.Lock()
+	defer m.shareMu.Unlock()
 
 	m.hideInScreenShare = hide
 
@@ -556,41 +445,26 @@ func (m *Manager) SetSharingType(hide bool) {
 	C.NeruSetOverlaySharingType(m.window, sharingType)
 
 	// Also update grid, recursive_grid, and mode indicator overlay windows if they exist
-	if m.gridOverlay != nil {
-		m.gridOverlay.SetSharingType(hide)
+	if m.GridOverlay() != nil {
+		m.GridOverlay().SetSharingType(hide)
 	}
-	if m.recursiveGridOverlay != nil {
-		m.recursiveGridOverlay.SetSharingType(hide)
+	if m.RecursiveGridOverlay() != nil {
+		m.RecursiveGridOverlay().SetSharingType(hide)
 	}
-	if m.modeIndicatorOverlay != nil {
-		m.modeIndicatorOverlay.SetSharingType(hide)
-	}
-
-	if m.stickyModifiersOverlay != nil {
-		m.stickyModifiersOverlay.SetSharingType(hide)
+	if m.ModeIndicatorOverlay() != nil {
+		m.ModeIndicatorOverlay().SetSharingType(hide)
 	}
 
-	if m.virtualPointerOverlay != nil {
-		m.virtualPointerOverlay.SetSharingType(hide)
+	if m.StickyModifiersOverlay() != nil {
+		m.StickyModifiersOverlay().SetSharingType(hide)
+	}
+
+	if m.VirtualPointerOverlay() != nil {
+		m.VirtualPointerOverlay().SetSharingType(hide)
 	}
 
 	if m.logger != nil {
 		m.logger.Info("Overlay screen share visibility toggled",
 			zap.Bool("hidden", hide))
-	}
-}
-
-// publish publishes a state change to all subscribers.
-func (m *Manager) publish(event manager.StateChange) {
-	m.mu.Lock()
-	subs := make([]func(manager.StateChange), len(m.subs))
-	index := 0
-	for _, sub := range m.subs {
-		subs[index] = sub
-		index++
-	}
-	m.mu.Unlock()
-	for _, sub := range subs {
-		sub(event)
 	}
 }

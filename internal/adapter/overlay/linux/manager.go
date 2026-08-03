@@ -18,7 +18,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -79,17 +78,13 @@ const (
 	linuxOverlayBackendUnknown        linuxOverlayBackend = "unknown"
 	linuxOverlayBackendX11            linuxOverlayBackend = "x11"
 	linuxOverlayBackendWaylandWlroots linuxOverlayBackend = "wayland-wlroots"
-	initialSubscriberCapacity                             = 4
 )
 
 // Manager manages overlay rendering on Linux.
 type Manager struct {
-	logger *zap.Logger
+	manager.Base
 
-	mu     sync.RWMutex
-	mode   manager.Mode
-	subs   map[uint64]func(manager.StateChange)
-	nextID uint64
+	logger *zap.Logger
 
 	// renderMu serializes all rendering dispatch to the backend overlays.
 	// On macOS the Objective-C bridge serializes via dispatch_async to the
@@ -115,13 +110,6 @@ type Manager struct {
 
 	keyboardCaptureEnabled bool
 
-	hintOverlay            *hints.Overlay
-	gridOverlay            *grid.Overlay
-	modeIndicatorOverlay   *modeindicator.Overlay
-	recursiveGridOverlay   *recursivegrid.Overlay
-	stickyModifiersOverlay *stickyindicator.Overlay
-	virtualPointerOverlay  *virtualpointer.Overlay
-
 	stickyBadgeRect    image.Rectangle
 	stickyBadgeVisible bool
 
@@ -138,12 +126,8 @@ var (
 // NewOverlayManager creates a new overlay Manager.
 func NewOverlayManager(logger *zap.Logger) *Manager {
 	instance := &Manager{
-		logger: logger,
-		mode:   manager.ModeIdle,
-		subs: make(
-			map[uint64]func(manager.StateChange),
-			initialSubscriberCapacity,
-		),
+		Base:                   manager.NewBase(logger),
+		logger:                 logger,
 		backend:                detectLinuxOverlayBackend(),
 		keyboardCaptureEnabled: true,
 	}
@@ -314,44 +298,6 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 	}
 }
 
-// SwitchTo switches to a new mode.
-func (m *Manager) SwitchTo(next manager.Mode) {
-	m.mu.Lock()
-
-	prev := m.mode
-	if prev == next {
-		m.mu.Unlock()
-
-		return
-	}
-
-	m.mode = next
-
-	m.mu.Unlock()
-
-	m.publish(manager.NewStateChange(prev, next))
-}
-
-// Subscribe registers a callback for mode changes.
-func (m *Manager) Subscribe(subFn func(manager.StateChange)) uint64 {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.nextID++
-	id := m.nextID
-	m.subs[id] = subFn
-
-	return id
-}
-
-// Unsubscribe removes a callback registration.
-func (m *Manager) Unsubscribe(id uint64) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	delete(m.subs, id)
-}
-
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
 	// Capture and nil-out backend pointers under the lock, then release
@@ -393,14 +339,6 @@ func (m *Manager) Destroy() {
 	}
 }
 
-// Mode returns the current mode.
-func (m *Manager) Mode() manager.Mode {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.mode
-}
-
 // WindowPtr returns the raw window pointer.
 func (m *Manager) WindowPtr() unsafe.Pointer {
 	if m.x11 != nil {
@@ -411,54 +349,6 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 
 	return nil
 }
-
-// UseHintOverlay sets the hints overlay.
-func (m *Manager) UseHintOverlay(o *hints.Overlay) {
-	m.hintOverlay = o
-}
-
-// UseGridOverlay sets the grid overlay.
-func (m *Manager) UseGridOverlay(o *grid.Overlay) {
-	m.gridOverlay = o
-}
-
-// UseModeIndicatorOverlay sets the mode indicator overlay.
-func (m *Manager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {
-	m.modeIndicatorOverlay = o
-}
-
-// UseStickyModifiersOverlay sets the sticky modifiers overlay.
-func (m *Manager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {
-	m.stickyModifiersOverlay = o
-}
-
-// UseRecursiveGridOverlay sets the recursive grid overlay.
-func (m *Manager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {
-	m.recursiveGridOverlay = o
-}
-
-// UseVirtualPointerOverlay sets the cursor-following virtual pointer overlay.
-func (m *Manager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {
-	m.virtualPointerOverlay = o
-}
-
-// HintOverlay returns the hints overlay.
-func (m *Manager) HintOverlay() *hints.Overlay { return m.hintOverlay }
-
-// GridOverlay returns the grid overlay.
-func (m *Manager) GridOverlay() *grid.Overlay { return m.gridOverlay }
-
-// ModeIndicatorOverlay returns the mode indicator overlay.
-func (m *Manager) ModeIndicatorOverlay() *modeindicator.Overlay { return m.modeIndicatorOverlay }
-
-// StickyModifiersOverlay returns the sticky modifiers overlay.
-func (m *Manager) StickyModifiersOverlay() *stickyindicator.Overlay { return m.stickyModifiersOverlay }
-
-// RecursiveGridOverlay returns the recursive grid overlay.
-func (m *Manager) RecursiveGridOverlay() *recursivegrid.Overlay { return m.recursiveGridOverlay }
-
-// VirtualPointerOverlay returns the cursor-following virtual pointer overlay.
-func (m *Manager) VirtualPointerOverlay() *virtualpointer.Overlay { return m.virtualPointerOverlay }
 
 // OverlayCapabilities returns the feature capabilities.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
@@ -541,7 +431,7 @@ func (m *Manager) HideHintSearchInput() {}
 
 // DrawModeIndicator draws the mode indicator overlay.
 func (m *Manager) DrawModeIndicator(posX, posY int) {
-	if m.modeIndicatorOverlay == nil {
+	if m.ModeIndicatorOverlay() == nil {
 		return
 	}
 
@@ -552,7 +442,7 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 
 	label, colors, style, ok := resolveModeIndicatorAppearance(
 		string(mode),
-		m.modeIndicatorOverlay,
+		m.ModeIndicatorOverlay(),
 	)
 	if !ok {
 		return
@@ -576,7 +466,7 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
 func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
-	if m.stickyModifiersOverlay == nil {
+	if m.StickyModifiersOverlay() == nil {
 		return
 	}
 
@@ -589,7 +479,7 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
-	colors, style, ok := resolveStickyIndicatorAppearance(m.stickyModifiersOverlay)
+	colors, style, ok := resolveStickyIndicatorAppearance(m.StickyModifiersOverlay())
 	if !ok {
 		return
 	}
@@ -615,8 +505,8 @@ func (m *Manager) DrawGrid(grid *domainGrid.Grid, input string, style grid.Style
 
 	if m.x11 != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
-		if m.gridOverlay != nil {
-			cfg := m.gridOverlay.Config()
+		if m.GridOverlay() != nil {
+			cfg := m.GridOverlay().Config()
 
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
@@ -631,8 +521,8 @@ func (m *Manager) DrawGrid(grid *domainGrid.Grid, input string, style grid.Style
 		return nil
 	} else if m.wlroots != nil {
 		// Pass sublayer keys from grid overlay config so subgrid labels match config.
-		if m.gridOverlay != nil {
-			cfg := m.gridOverlay.Config()
+		if m.GridOverlay() != nil {
+			cfg := m.GridOverlay().Config()
 
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
@@ -679,8 +569,8 @@ func (m *Manager) DrawRecursiveGrid(
 
 	animDurationMS := 50
 
-	if m.recursiveGridOverlay != nil {
-		animCfg := m.recursiveGridOverlay.Config().Animation
+	if m.RecursiveGridOverlay() != nil {
+		animCfg := m.RecursiveGridOverlay().Config().Animation
 		animEnabled = animCfg.Enabled
 		animDurationMS = animCfg.DurationMS
 	}
@@ -746,8 +636,8 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 
 	if m.x11 != nil {
 		// Ensure sublayer keys are set from grid overlay config.
-		if m.gridOverlay != nil {
-			cfg := m.gridOverlay.Config()
+		if m.GridOverlay() != nil {
+			cfg := m.GridOverlay().Config()
 
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
@@ -760,8 +650,8 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 		m.x11.ShowSubgrid(cell, style)
 	} else if m.wlroots != nil {
 		// Ensure sublayer keys are set from grid overlay config.
-		if m.gridOverlay != nil {
-			cfg := m.gridOverlay.Config()
+		if m.GridOverlay() != nil {
+			cfg := m.GridOverlay().Config()
 
 			keys := strings.TrimSpace(cfg.SublayerKeys)
 			if keys == "" {
@@ -1034,11 +924,11 @@ type overlayBadgeStyle struct {
 
 // DrawVirtualPointer renders the cursor-following virtual pointer overlay.
 func (m *Manager) DrawVirtualPointer(xCoordinate, yCoordinate, size int, fillColor string) {
-	if m.virtualPointerOverlay == nil {
+	if m.VirtualPointerOverlay() == nil {
 		return
 	}
 
-	m.virtualPointerOverlay.Draw(xCoordinate, yCoordinate, size, fillColor)
+	m.VirtualPointerOverlay().Draw(xCoordinate, yCoordinate, size, fillColor)
 }
 
 // DrawMouseActionIndicator animates a transient indicator at the click point on
@@ -1124,21 +1014,6 @@ func (m *Manager) clearModeIndicatorBadgeLocked() {
 
 	m.modeIndicatorBadgeVisible = false
 	m.modeIndicatorBadgeRect = image.Rectangle{}
-}
-
-func (m *Manager) publish(change manager.StateChange) {
-	m.mu.RLock()
-
-	subs := make([]func(manager.StateChange), 0, len(m.subs))
-	for _, fn := range m.subs {
-		subs = append(subs, fn)
-	}
-
-	m.mu.RUnlock()
-
-	for _, fn := range subs {
-		fn(change)
-	}
 }
 
 func resolveModeIndicatorAppearance(
