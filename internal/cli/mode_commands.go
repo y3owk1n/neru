@@ -69,281 +69,17 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			return requiresRunningInstance()
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			actionFlag, err := cmd.Flags().GetString("action")
+			flags, err := readModeFlags(cmd, config)
 			if err != nil {
 				return err
 			}
 
-			modifierFlag, err := cmd.Flags().GetString("modifier")
-			if err != nil {
-				return err
+			validateErr := flags.validate()
+			if validateErr != nil {
+				return validateErr
 			}
 
-			onExitFlag, err := cmd.Flags().GetStringArray("on-exit")
-			if err != nil {
-				return err
-			}
-
-			onExitSteps, err := validateOnExitSteps(onExitFlag)
-			if err != nil {
-				return err
-			}
-
-			repeatFlag, err := cmd.Flags().GetBool("repeat")
-			if err != nil {
-				return err
-			}
-
-			toggleFlag, err := cmd.Flags().GetBool("toggle")
-			if err != nil {
-				return err
-			}
-
-			var searchFlag bool
-			if config.SupportSearch {
-				searchFlag, err = cmd.Flags().GetBool("search")
-				if err != nil {
-					return err
-				}
-			}
-
-			var roleFlag, textFlag string
-			if config.SupportFiltering {
-				roleFlag, err = cmd.Flags().GetString("role")
-				if err != nil {
-					return err
-				}
-
-				textFlag, err = cmd.Flags().GetString("text")
-				if err != nil {
-					return err
-				}
-			}
-
-			var strategyFlag string
-			if config.SupportStrategy {
-				strategyFlag, err = cmd.Flags().GetString("strategy")
-				if err != nil {
-					return err
-				}
-			}
-
-			var debugFlag bool
-			if config.SupportDebug {
-				debugFlag, err = cmd.Flags().GetBool("debug")
-				if err != nil {
-					return err
-				}
-			}
-
-			var splitWordFlag bool
-			if config.SupportSplitWord {
-				splitWordFlag, err = cmd.Flags().GetBool("split-word")
-				if err != nil {
-					return err
-				}
-			}
-
-			var hideOnEmptySearchFlag bool
-			if config.SupportHideOnEmptySearch {
-				hideOnEmptySearchFlag, err = cmd.Flags().GetBool("hide-on-empty-search")
-				if err != nil {
-					return err
-				}
-			}
-
-			var labelDirectionFlag string
-			if config.SupportLabelDirection {
-				labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
-				if err != nil {
-					return err
-				}
-			}
-
-			var zoomToDepthFlag int
-			if config.SupportZoomToDepth {
-				zoomToDepthFlag, err = cmd.Flags().GetInt("zoom-to-depth")
-				if err != nil {
-					return err
-				}
-
-				if zoomToDepthFlag < 0 {
-					return derrors.New(
-						derrors.CodeInvalidInput,
-						"--zoom-to-depth requires a non-negative integer",
-					)
-				}
-			}
-
-			cursorSelectionMode, err := cmd.Flags().GetString("cursor-selection-mode")
-			if err != nil {
-				return err
-			}
-
-			if repeatFlag && actionFlag == "" {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"--repeat requires --action",
-				)
-			}
-
-			if len(onExitSteps) > 0 && actionFlag == "" {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"--on-exit requires --action (it runs only when the action is fulfilled)",
-				)
-			}
-
-			if hideOnEmptySearchFlag && !searchFlag {
-				return derrors.New(
-					derrors.CodeInvalidInput,
-					"--hide-on-empty-search requires --search",
-				)
-			}
-
-			if modifierFlag != "" {
-				if actionFlag == "" {
-					return derrors.New(
-						derrors.CodeInvalidInput,
-						"--modifier requires --action",
-					)
-				}
-
-				mods, modErr := action.ParseModifiers(modifierFlag)
-				if modErr != nil {
-					return modErr
-				}
-
-				if mods == 0 {
-					return derrors.New(
-						derrors.CodeInvalidInput,
-						"modifier values cannot be empty",
-					)
-				}
-			}
-
-			if actionFlag != "" {
-				// Split comma-separated actions and validate each one.
-				// This enables multi-click sequences like:
-				//   neru hints --action left_click,left_click
-				// which produce a double-click via the native click-counting layer.
-				actions := strings.Split(actionFlag, ",")
-				for actionIdx, a := range actions {
-					trimmed := strings.TrimSpace(a)
-					if trimmed == "" {
-						return derrors.Newf(
-							derrors.CodeInvalidInput,
-							"invalid --action at position %d: empty action in comma-separated list",
-							actionIdx,
-						)
-					}
-
-					if !action.IsKnownName(action.Name(trimmed)) {
-						return derrors.Newf(
-							derrors.CodeInvalidInput,
-							"invalid action: %s. Supported actions: %s",
-							trimmed,
-							action.SupportedNamesString(),
-						)
-					}
-
-					// Scroll sub-actions (scroll_up, page_down, etc.) are only
-					// valid as standalone CLI/IPC commands, not as pending mode
-					// actions. Reject them here so the user gets immediate
-					// feedback instead of a silent failure when the mode completes.
-					if action.IsScrollSubAction(trimmed) {
-						return derrors.Newf(
-							derrors.CodeInvalidInput,
-							"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
-							trimmed,
-							trimmed,
-						)
-					}
-
-					actType, err := action.Name(trimmed).ToType()
-					if err != nil || !actType.IsMouseButton() {
-						return derrors.Newf(
-							derrors.CodeInvalidInput,
-							"%q cannot be used as a mode --action flag; use 'neru action %s' instead",
-							trimmed,
-							trimmed,
-						)
-					}
-				}
-			}
-
-			var params []string
-
-			params = append(params, config.Name)
-			if actionFlag != "" {
-				params = append(params, actionFlag)
-			}
-
-			if modifierFlag != "" {
-				params = append(params, "--modifier="+modifierFlag)
-			}
-
-			for _, step := range onExitSteps {
-				params = append(params, "--on-exit="+step)
-			}
-
-			if repeatFlag {
-				params = append(params, "--repeat")
-			}
-
-			if toggleFlag {
-				params = append(params, "--toggle")
-			}
-
-			if searchFlag {
-				params = append(params, "--search")
-			}
-
-			if hideOnEmptySearchFlag {
-				params = append(params, "--hide-on-empty-search")
-			}
-
-			if roleFlag != "" {
-				params = append(params, "--role="+roleFlag)
-			}
-
-			if textFlag != "" {
-				params = append(params, "--text="+textFlag)
-			}
-
-			if cursorSelectionMode != "" {
-				if cursorSelectionMode != modes.CursorSelectionModeFollow &&
-					cursorSelectionMode != modes.CursorSelectionModeHold {
-					return derrors.New(
-						derrors.CodeInvalidInput,
-						"--cursor-selection-mode must be either follow or hold",
-					)
-				}
-
-				params = append(params, "--cursor-selection-mode="+cursorSelectionMode)
-			}
-
-			if config.SupportZoomToDepth && zoomToDepthFlag > 0 {
-				params = append(params, fmt.Sprintf("--zoom-to-depth=%d", zoomToDepthFlag))
-			}
-
-			if strategyFlag != "" {
-				params = append(params, "--strategy="+strategyFlag)
-			}
-
-			if debugFlag {
-				params = append(params, "--debug")
-			}
-
-			if labelDirectionFlag != "" {
-				params = append(params, "--label-direction="+labelDirectionFlag)
-			}
-
-			if splitWordFlag {
-				params = append(params, "--split-word")
-			}
-
-			return sendCommand(cmd, config.Name, params)
+			return sendCommand(cmd, config.Name, flags.ipcArgs(config))
 		},
 	}
 
@@ -462,4 +198,334 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 	}
 
 	return cmd
+}
+
+// modeFlags is a mode command's flags, read once so the checks and the
+// request that follow work from values rather than from the command.
+type modeFlags struct {
+	action              string
+	modifier            string
+	onExitSteps         []string
+	role                string
+	text                string
+	strategy            string
+	labelDirection      string
+	cursorSelectionMode string
+	repeat              bool
+	toggle              bool
+	search              bool
+	debug               bool
+	splitWord           bool
+	hideOnEmptySearch   bool
+	zoomToDepth         int
+}
+
+// readModeFlags reads every flag the mode declares. A flag the mode does not
+// support keeps its zero value, which the checks and the request both read as
+// absent.
+func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
+	actionFlag, err := cmd.Flags().GetString("action")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	modifierFlag, err := cmd.Flags().GetString("modifier")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	onExitFlag, err := cmd.Flags().GetStringArray("on-exit")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	onExitSteps, err := validateOnExitSteps(onExitFlag)
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	repeatFlag, err := cmd.Flags().GetBool("repeat")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	toggleFlag, err := cmd.Flags().GetBool("toggle")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	var searchFlag bool
+	if config.SupportSearch {
+		searchFlag, err = cmd.Flags().GetBool("search")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var roleFlag, textFlag string
+	if config.SupportFiltering {
+		roleFlag, err = cmd.Flags().GetString("role")
+		if err != nil {
+			return modeFlags{}, err
+		}
+
+		textFlag, err = cmd.Flags().GetString("text")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var strategyFlag string
+	if config.SupportStrategy {
+		strategyFlag, err = cmd.Flags().GetString("strategy")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var debugFlag bool
+	if config.SupportDebug {
+		debugFlag, err = cmd.Flags().GetBool("debug")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var splitWordFlag bool
+	if config.SupportSplitWord {
+		splitWordFlag, err = cmd.Flags().GetBool("split-word")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var hideOnEmptySearchFlag bool
+	if config.SupportHideOnEmptySearch {
+		hideOnEmptySearchFlag, err = cmd.Flags().GetBool("hide-on-empty-search")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var labelDirectionFlag string
+	if config.SupportLabelDirection {
+		labelDirectionFlag, err = cmd.Flags().GetString("label-direction")
+		if err != nil {
+			return modeFlags{}, err
+		}
+	}
+
+	var zoomToDepthFlag int
+	if config.SupportZoomToDepth {
+		zoomToDepthFlag, err = cmd.Flags().GetInt("zoom-to-depth")
+		if err != nil {
+			return modeFlags{}, err
+		}
+
+		if zoomToDepthFlag < 0 {
+			return modeFlags{}, derrors.New(
+				derrors.CodeInvalidInput,
+				"--zoom-to-depth requires a non-negative integer",
+			)
+		}
+	}
+
+	cursorSelectionMode, err := cmd.Flags().GetString("cursor-selection-mode")
+	if err != nil {
+		return modeFlags{}, err
+	}
+
+	return modeFlags{
+		action:              actionFlag,
+		modifier:            modifierFlag,
+		onExitSteps:         onExitSteps,
+		role:                roleFlag,
+		text:                textFlag,
+		strategy:            strategyFlag,
+		labelDirection:      labelDirectionFlag,
+		cursorSelectionMode: cursorSelectionMode,
+		repeat:              repeatFlag,
+		toggle:              toggleFlag,
+		search:              searchFlag,
+		debug:               debugFlag,
+		splitWord:           splitWordFlag,
+		hideOnEmptySearch:   hideOnEmptySearchFlag,
+		zoomToDepth:         zoomToDepthFlag,
+	}, nil
+}
+
+// validate applies the rules that involve more than one flag. The daemon
+// enforces the same ones; doing it here too is what makes a mistyped command
+// fail immediately rather than after a round trip.
+func (f modeFlags) validate() error {
+	if f.cursorSelectionMode != "" &&
+		f.cursorSelectionMode != modes.CursorSelectionModeFollow &&
+		f.cursorSelectionMode != modes.CursorSelectionModeHold {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"--cursor-selection-mode must be either follow or hold",
+		)
+	}
+
+	if f.repeat && f.action == "" {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"--repeat requires --action",
+		)
+	}
+
+	if len(f.onExitSteps) > 0 && f.action == "" {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"--on-exit requires --action (it runs only when the action is fulfilled)",
+		)
+	}
+
+	if f.hideOnEmptySearch && !f.search {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"--hide-on-empty-search requires --search",
+		)
+	}
+
+	if f.modifier != "" {
+		if f.action == "" {
+			return derrors.New(
+				derrors.CodeInvalidInput,
+				"--modifier requires --action",
+			)
+		}
+
+		mods, modErr := action.ParseModifiers(f.modifier)
+		if modErr != nil {
+			return modErr
+		}
+
+		if mods == 0 {
+			return derrors.New(
+				derrors.CodeInvalidInput,
+				"modifier values cannot be empty",
+			)
+		}
+	}
+
+	if f.action != "" {
+		// Split comma-separated actions and validate each one.
+		// This enables multi-click sequences like:
+		//   neru hints --action left_click,left_click
+		// which produce a double-click via the native click-counting layer.
+		actions := strings.Split(f.action, ",")
+		for actionIdx, a := range actions {
+			trimmed := strings.TrimSpace(a)
+			if trimmed == "" {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"invalid --action at position %d: empty action in comma-separated list",
+					actionIdx,
+				)
+			}
+
+			if !action.IsKnownName(action.Name(trimmed)) {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"invalid action: %s. Supported actions: %s",
+					trimmed,
+					action.SupportedNamesString(),
+				)
+			}
+
+			// Scroll sub-actions (scroll_up, page_down, etc.) are only
+			// valid as standalone CLI/IPC commands, not as pending mode
+			// actions. Reject them here so the user gets immediate
+			// feedback instead of a silent failure when the mode completes.
+			if action.IsScrollSubAction(trimmed) {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
+					trimmed,
+					trimmed,
+				)
+			}
+
+			actType, err := action.Name(trimmed).ToType()
+			if err != nil || !actType.IsMouseButton() {
+				return derrors.Newf(
+					derrors.CodeInvalidInput,
+					"%q cannot be used as a mode --action flag; use 'neru action %s' instead",
+					trimmed,
+					trimmed,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ipcArgs builds the argument list sent to the daemon.
+func (f modeFlags) ipcArgs(config ModeConfig) []string {
+	var params []string
+
+	params = append(params, config.Name)
+	if f.action != "" {
+		params = append(params, f.action)
+	}
+
+	if f.modifier != "" {
+		params = append(params, "--modifier="+f.modifier)
+	}
+
+	for _, step := range f.onExitSteps {
+		params = append(params, "--on-exit="+step)
+	}
+
+	if f.repeat {
+		params = append(params, "--repeat")
+	}
+
+	if f.toggle {
+		params = append(params, "--toggle")
+	}
+
+	if f.search {
+		params = append(params, "--search")
+	}
+
+	if f.hideOnEmptySearch {
+		params = append(params, "--hide-on-empty-search")
+	}
+
+	if f.role != "" {
+		params = append(params, "--role="+f.role)
+	}
+
+	if f.text != "" {
+		params = append(params, "--text="+f.text)
+	}
+
+	if f.cursorSelectionMode != "" {
+		params = append(params, "--cursor-selection-mode="+f.cursorSelectionMode)
+	}
+
+	if config.SupportZoomToDepth && f.zoomToDepth > 0 {
+		params = append(params, fmt.Sprintf("--zoom-to-depth=%d", f.zoomToDepth))
+	}
+
+	if f.strategy != "" {
+		params = append(params, "--strategy="+f.strategy)
+	}
+
+	if f.debug {
+		params = append(params, "--debug")
+	}
+
+	if f.labelDirection != "" {
+		params = append(params, "--label-direction="+f.labelDirection)
+	}
+
+	if f.splitWord {
+		params = append(params, "--split-word")
+	}
+
+	return params
 }
