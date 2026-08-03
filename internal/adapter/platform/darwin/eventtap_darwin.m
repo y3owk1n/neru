@@ -928,7 +928,10 @@ void NeruSetEventTapHotkeys(EventTap tap, const char **hotkeys, int count) {
 		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			if (hotkeys[i] && strlen(hotkeys[i]) > 0) {
-				[newStrings addObject:[NSString stringWithUTF8String:hotkeys[i]]];
+				NSString *hotkeyStr = [NSString stringWithUTF8String:hotkeys[i]];
+				if (hotkeyStr) {
+					[newStrings addObject:hotkeyStr];
+				}
 			}
 		}
 		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
@@ -969,7 +972,10 @@ void NeruSetEventTapModifierPassthrough(EventTap tap, int enabled, const char **
 		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			if (blacklistKeys[i] && strlen(blacklistKeys[i]) > 0) {
-				[newStrings addObject:[NSString stringWithUTF8String:blacklistKeys[i]]];
+				NSString *blacklistStr = [NSString stringWithUTF8String:blacklistKeys[i]];
+				if (blacklistStr) {
+					[newStrings addObject:blacklistStr];
+				}
 			}
 		}
 		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);
@@ -1007,7 +1013,10 @@ void NeruSetEventTapInterceptedModifierKeys(EventTap tap, const char **keys, int
 		NSMutableArray<NSString *> *newStrings = [NSMutableArray arrayWithCapacity:count];
 		for (int i = 0; i < count; i++) {
 			if (keys[i] && strlen(keys[i]) > 0) {
-				[newStrings addObject:[NSString stringWithUTF8String:keys[i]]];
+				NSString *keyStr = [NSString stringWithUTF8String:keys[i]];
+				if (keyStr) {
+					[newStrings addObject:keyStr];
+				}
 			}
 		}
 		NSDictionary *newLookup = buildKeyLookupFromStrings(newStrings);

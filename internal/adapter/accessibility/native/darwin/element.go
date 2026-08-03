@@ -3,7 +3,7 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #include "../../../platform/darwin/accessibility.h"
 #include <stdlib.h>
 */
@@ -26,6 +26,13 @@ import (
 )
 
 // Element is a UI element in the macOS accessibility hierarchy.
+//
+// Element owns a +1 retained AXUIElementRef: every Element produced by this
+// package (lookups, Children, traversals) must be balanced with exactly one
+// Release (or ReleaseAll) call, including elements a traversal enqueues but
+// never uses. ARC does not manage AX refs, so a dropped Element is a leak of
+// a kernel-backed object. The rule is stated once at the top of
+// internal/adapter/platform/darwin/accessibility.h.
 type Element struct {
 	ref unsafe.Pointer
 }

@@ -311,13 +311,51 @@ fmt:
     @find internal/adapter \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -exec sh -c 'case "$1" in *.c) af=file.c;; *) af=file.m;; esac; clang-format -i --style=file --assume-filename="$af" "$1"' _ {} \;
     @echo "✓ Format complete"
 
-# Lint code
-lint:
-    @echo "Linting code..."
+# Lint code (Go via golangci-lint, Objective-C via clang-tidy)
+lint: lint-go lint-objc
+
+# Lint Go code
+lint-go:
+    @echo "Linting Go code..."
     golangci-lint run
-    @echo "Linting Objective-C files..."
-    echo "Skipping Objective-C linting due to header issues"
-    @echo "✓ Lint complete"
+    @echo "✓ Go lint complete"
+
+# Lint Objective-C with the clang static analyzer (via clang-tidy, which
+# devbox's clang-tools provides). macOS only — the .m files need the macOS SDK.
+#
+# Excluded checks, each for a reason:
+#  - optin.osx.cocoa.localizability: Neru is not localized; user-facing
+#    strings are intentionally plain literals.
+#  - deadcode.DeadStores: the eventtap bridge deliberately copies old table
+#    refs to locals and nils them after unlocking so ARC releases the old
+#    tables outside the lock — the analyzer sees those stores as dead.
+#  - optin.performance.GCDAntipattern: permission prompts are called from Go
+#    through a synchronous bridge, so blocking on a semaphore is the contract.
+lint-objc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname -s)" != "Darwin" ]; then
+        echo "Skipping Objective-C lint: requires the macOS SDK"
+        exit 0
+    fi
+    if ! command -v clang-tidy >/dev/null 2>&1; then
+        echo "clang-tidy not found — run inside 'devbox shell' (clang-tools provides it)" >&2
+        exit 1
+    fi
+    echo "Linting Objective-C files (clang-tidy)..."
+    SDK=$(xcrun --show-sdk-path)
+    CHECKS='-*,clang-analyzer-*,-clang-analyzer-optin.osx.cocoa.localizability*,-clang-analyzer-deadcode.DeadStores,-clang-analyzer-optin.performance.GCDAntipattern'
+    export SDK CHECKS
+    find internal -name '*.m' -print0 | xargs -0 -P 4 -n 1 bash -c '
+        out=$(clang-tidy --quiet --checks="$CHECKS" "$1" -- \
+            -x objective-c -fobjc-arc -fmodules -mmacosx-version-min=14.0 \
+            -isysroot "$SDK" 2>/dev/null)
+        if echo "$out" | grep -q "warning:"; then
+            echo "$out"
+            exit 1
+        fi
+    ' _
+    echo "✓ Objective-C lint complete"
 
 # Vet
 vet:

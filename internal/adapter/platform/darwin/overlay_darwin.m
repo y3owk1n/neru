@@ -3024,7 +3024,9 @@ void NeruUpdateGridMatchPrefix(OverlayWindow window, const char *prefix) {
 
 			// First pass: update all cells and track which ones changed.
 			// Use a stack-allocated array for small counts, heap for large.
+			// Zero the stack path so both paths start provably initialized.
 			BOOL stackFlags[256];
+			memset(stackFlags, 0, sizeof(stackFlags));
 			BOOL *changedFlags = cellCount <= 256 ? stackFlags : (BOOL *)calloc(cellCount, sizeof(BOOL));
 			NSUInteger changedCount = 0;
 			NSUInteger idx = 0;

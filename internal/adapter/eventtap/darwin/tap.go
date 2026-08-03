@@ -3,7 +3,7 @@
 package darwin
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #include "../../platform/darwin/eventtap.h"
 #include <stdlib.h>
 

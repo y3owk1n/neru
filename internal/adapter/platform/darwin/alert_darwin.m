@@ -80,7 +80,9 @@ static int showAlertOnMainThread(const char *errorMessage, const char *configPat
 	} else if (response == NSAlertSecondButtonReturn) {
 		NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
 		[pasteboard clearContents];
-		[pasteboard setString:path forType:NSPasteboardTypeString];
+		if (path) {
+			[pasteboard setString:path forType:NSPasteboardTypeString];
+		}
 		return 2;
 	}
 

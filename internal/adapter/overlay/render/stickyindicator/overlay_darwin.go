@@ -3,7 +3,7 @@
 package stickyindicator
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #include "../../../platform/darwin/overlay.h"
 #include <stdlib.h>
 */
