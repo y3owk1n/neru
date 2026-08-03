@@ -9,9 +9,9 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // MonitorDirection selects how MoveMonitor picks the target monitor.
@@ -288,7 +288,7 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
 	h.setScreenBounds(targetBounds)
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
+	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 
 	characters := h.config.Grid.Characters
 	if strings.TrimSpace(characters) == "" {
@@ -336,7 +336,7 @@ func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangl
 
 	h.setScreenBounds(targetBounds)
 
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(targetBounds)
+	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
 	} else {

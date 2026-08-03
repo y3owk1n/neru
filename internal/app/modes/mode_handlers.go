@@ -12,8 +12,8 @@ import (
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/state"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
@@ -533,7 +533,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		targetPoint := gridKeyResult.TargetPoint()
 
 		// Convert from window-local coordinates to absolute screen coordinates using helper
-		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
+		absolutePoint := geometry.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 
 		h.logger.Debug(
@@ -569,7 +569,7 @@ func (h *Handler) handleGridModeKey(key string) {
 			},
 		)
 	} else if targetPoint := gridKeyResult.TargetPoint(); !targetPoint.Eq(image.Point{}) {
-		absolutePoint := coordinates.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
+		absolutePoint := geometry.ConvertToAbsoluteCoordinates(targetPoint, h.screenBounds)
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 
 		if !h.grid.Context.CursorFollowSelection() {

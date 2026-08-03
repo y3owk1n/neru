@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private hotkey dispatch/registration behavior.
-package hotkey
+package keybinding
 
 import (
 	"context"

@@ -1,36 +1,36 @@
-package apptrace_test
+package ipc_test
 
 import (
 	"context"
 	"testing"
 
-	trace "github.com/y3owk1n/neru/internal/adapter/apptrace"
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
 )
 
 func TestTraceID(t *testing.T) {
-	t.Run("NewID generates unique IDs", func(t *testing.T) {
-		id1 := trace.NewID()
-		id2 := trace.NewID()
+	t.Run("NewTraceID generates unique IDs", func(t *testing.T) {
+		id1 := ipc.NewTraceID()
+		id2 := ipc.NewTraceID()
 
 		if id1 == "" {
-			t.Error("NewID returned empty string")
+			t.Error("NewTraceID returned empty string")
 		}
 
 		if id2 == "" {
-			t.Error("NewID returned empty string")
+			t.Error("NewTraceID returned empty string")
 		}
 
 		if id1 == id2 {
-			t.Error("NewID generated duplicate IDs")
+			t.Error("NewTraceID generated duplicate IDs")
 		}
 	})
 
 	t.Run("Context propagation", func(t *testing.T) {
 		ctx := context.Background()
-		ctxID := trace.NewID()
+		ctxID := ipc.NewTraceID()
 
-		ctx = trace.WithTraceID(ctx, ctxID)
-		got := trace.FromContext(ctx)
+		ctx = ipc.WithTraceID(ctx, ctxID)
+		got := ipc.TraceIDFromContext(ctx)
 
 		if got != ctxID {
 			t.Errorf("Fromctx() = %v, want %v", got, ctxID)
@@ -39,7 +39,7 @@ func TestTraceID(t *testing.T) {
 
 	t.Run("Fromctx returns empty for missing ID", func(t *testing.T) {
 		ctx := context.Background()
-		got := trace.FromContext(ctx)
+		got := ipc.TraceIDFromContext(ctx)
 
 		if got != "" {
 			t.Errorf("Fromctx() = %v, want empty string", got)
@@ -47,7 +47,7 @@ func TestTraceID(t *testing.T) {
 	})
 
 	t.Run("String method", func(t *testing.T) {
-		id := trace.ID("test-trace-id")
+		id := ipc.TraceID("test-trace-id")
 		str := id.String()
 
 		if str != "test-trace-id" {

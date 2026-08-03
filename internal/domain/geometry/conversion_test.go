@@ -1,10 +1,10 @@
-package coordinates_test
+package geometry_test
 
 import (
 	"image"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 )
 
 const testNegativeOffsetScreen = "negative offset screen"
@@ -70,7 +70,7 @@ func TestComputeRestoredPosition(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ComputeRestoredPosition(
+			result := geometry.ComputeRestoredPosition(
 				testCase.initPos,
 				testCase.fromRect,
 				testCase.toRect,
@@ -122,7 +122,7 @@ func TestComputeCenteredPosition(t *testing.T) {
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ComputeCenteredPosition(testCase.bounds)
+			result := geometry.ComputeCenteredPosition(testCase.bounds)
 			if result != testCase.expected {
 				t.Errorf("ComputeCenteredPosition(%v) = %v, expected %v",
 					testCase.bounds, result, testCase.expected)
@@ -156,7 +156,7 @@ func TestNormalizeToLocalCoordinates(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.NormalizeToLocalCoordinates(testCase.screenBounds)
+			result := geometry.NormalizeToLocalCoordinates(testCase.screenBounds)
 			if result != testCase.expected {
 				t.Errorf("NormalizeToLocalCoordinates(%v) = %v, expected %v",
 					testCase.screenBounds, result, testCase.expected)
@@ -194,7 +194,7 @@ func TestConvertToAbsoluteCoordinates(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ConvertToAbsoluteCoordinates(
+			result := geometry.ConvertToAbsoluteCoordinates(
 				testCase.localPoint,
 				testCase.screenBounds,
 			)
@@ -253,7 +253,7 @@ func TestClampFloat(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ClampFloat(testCase.value, testCase.minVal, testCase.maxVal)
+			result := geometry.ClampFloat(testCase.value, testCase.minVal, testCase.maxVal)
 			if result != testCase.expected {
 				t.Errorf("ClampFloat(%v, %v, %v) = %v, expected %v",
 					testCase.value, testCase.minVal, testCase.maxVal, result, testCase.expected)
@@ -309,7 +309,7 @@ func TestClampInt(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ClampInt(testCase.value, testCase.minVal, testCase.maxVal)
+			result := geometry.ClampInt(testCase.value, testCase.minVal, testCase.maxVal)
 			if result != testCase.expected {
 				t.Errorf("ClampInt(%v, %v, %v) = %v, expected %v",
 					testCase.value, testCase.minVal, testCase.maxVal, result, testCase.expected)
@@ -327,7 +327,7 @@ func TestMultiMonitor_CoordinateConversion(t *testing.T) {
 	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
 
 	// Convert to local coordinates (relative to overlay window at screen origin)
-	localHintPos := coordinates.ConvertToLocalCoordinates(screenHintPos, screenBounds)
+	localHintPos := geometry.ConvertToLocalCoordinates(screenHintPos, screenBounds)
 
 	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
 
@@ -337,7 +337,7 @@ func TestMultiMonitor_CoordinateConversion(t *testing.T) {
 	}
 
 	// Verify that converting back to absolute works
-	absolutePos := coordinates.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
+	absolutePos := geometry.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
 	if absolutePos != screenHintPos {
 		t.Errorf("Round-trip conversion failed: got %v, expected %v",
 			absolutePos, screenHintPos)
@@ -379,7 +379,7 @@ func TestConvertToLocalCoordinates(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := coordinates.ConvertToLocalCoordinates(
+			result := geometry.ConvertToLocalCoordinates(
 				testCase.screenPoint,
 				testCase.screenBounds,
 			)

@@ -1,5 +1,5 @@
 //nolint:testpackage // Tests private hotkey helper behavior.
-package hotkey
+package keybinding
 
 import (
 	"testing"

@@ -7,8 +7,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/ports"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // ResetCurrentMode resets current mode input state without exiting.
@@ -43,7 +43,7 @@ func (h *Handler) ResetCurrentMode() {
 
 			center := h.recursiveGrid.Manager.CurrentCenter()
 
-			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 			if h.recursiveGrid.Context != nil {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 			}
@@ -101,7 +101,7 @@ func (h *Handler) BackspaceCurrentMode() {
 			h.recursiveGrid.Manager.Backtrack() {
 			center := h.recursiveGrid.Manager.CurrentCenter()
 
-			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
 			if h.recursiveGrid.Context != nil {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
@@ -171,7 +171,7 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 
 		// The update callback set the selection point and redrew the overlay;
 		// only cursor tracking is left.
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 
 		if h.recursiveGrid.Context != nil &&
 			!h.recursiveGrid.Context.CursorFollowSelection() {

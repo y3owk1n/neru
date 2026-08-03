@@ -9,8 +9,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -58,7 +58,7 @@ type App struct {
 	// Core services
 	overlayManager OverlayManager
 	hotkeyManager  HotkeyService
-	hotkeys        *hotkey.Binder
+	hotkeys        *keybinding.Binder
 	eventTap       ports.EventTapPort
 	textInput      ports.TextInputPort
 	keyFeed        ports.KeyFeedPort

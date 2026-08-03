@@ -31,7 +31,7 @@ Neru follows a **Hexagonal Architecture (Ports and Adapters)**. All OS-specific 
 
 - **App Startup**: [app_initialization.go](internal/app/app_initialization.go)
 - **Navigation Logic**: [internal/app/modes/](internal/app/modes/)
-- **Coordinate Conversion**: [conversion.go](internal/ui/coordinates/conversion.go)
+- **Coordinate Conversion**: [conversion.go](internal/domain/geometry/conversion.go)
 - **Error Definitions**: [errors.go](internal/derrors/errors.go)
 - **Role Vocabulary**: [vocabulary.go](internal/domain/element/vocabulary.go) — adapters emit native role names; only config resolution translates
 - **Native macOS Logic**: [internal/adapter/platform/darwin/](internal/adapter/platform/darwin/)

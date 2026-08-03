@@ -202,10 +202,10 @@ test-foundation:
         ./internal/domain/element ./internal/domain/grid \
         ./internal/domain/hint ./internal/domain/recursivegrid \
         ./internal/domain/state ./internal/derrors \
-        ./internal/adapter/apptrace ./internal/adapter/logger \
+        ./internal/adapter/logger \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
-        ./internal/ui ./internal/ui/coordinates
+        ./internal/ui ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"
 
 # Print the packages that contain no platform-tagged source, i.e. the set

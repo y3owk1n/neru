@@ -940,7 +940,7 @@ Shared code must not hard-code macOS conventions:
 
 Relevant files: [config.go](../internal/config/config.go),
 [modifiers.go](../internal/domain/action/modifiers.go),
-[binder.go](../internal/app/hotkey/binder.go).
+[binder.go](../internal/app/keybinding/binder.go).
 
 On macOS, per-hotkey CGEventTaps are re-registered on keyboard-layout change
 (via `NeruSetKeymapLayoutChangeCallback2`) because `NeruKeyNameToCode` maps key

@@ -334,7 +334,7 @@ macOS Cocoa uses a bottom-left origin with Y increasing upwards. The inversion
 happens inside the darwin adapter
 ([accessibility_screen_darwin.m](../internal/adapter/platform/darwin/accessibility_screen_darwin.m))
 — flipped coordinates must never leak into shared Go. Conversions live in
-`internal/ui/coordinates`.
+`internal/domain/geometry`.
 
 ---
 
