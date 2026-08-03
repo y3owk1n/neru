@@ -1,4 +1,4 @@
-//go:build linux
+//go:build !darwin
 
 package modeindicator
 
@@ -10,7 +10,10 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// Overlay manages the rendering of mode indicator overlays using native platform APIs (Linux stub).
+// Overlay manages the rendering of mode indicator overlays (non-darwin stub).
+// Drawing happens in the overlay manager's native surface (Cairo on Linux,
+// GDI on Windows); this type only carries the configuration and theme, and
+// resolves the per-mode label both managers render.
 type Overlay struct {
 	indicatorConfig config.ModeIndicatorConfig
 	theme           config.ThemeProvider
@@ -18,7 +21,7 @@ type Overlay struct {
 	configMu        sync.RWMutex
 }
 
-// NewOverlay creates a new mode indicator overlay instance with its own window (Linux stub).
+// NewOverlay creates a new mode indicator overlay instance with its own window (non-darwin stub).
 func NewOverlay(
 	indicatorCfg config.ModeIndicatorConfig,
 	theme config.ThemeProvider,
@@ -31,27 +34,27 @@ func NewOverlay(
 	}, nil
 }
 
-// DrawModeIndicator draws the mode indicator for the specified mode (Linux stub).
+// DrawModeIndicator draws the mode indicator for the specified mode (non-darwin stub).
 func (o *Overlay) DrawModeIndicator(mode string) error {
 	return nil
 }
 
-// Show shows the mode indicator overlay (Linux stub).
+// Show shows the mode indicator overlay (non-darwin stub).
 func (o *Overlay) Show() {}
 
-// Hide hides the mode indicator overlay (Linux stub).
+// Hide hides the mode indicator overlay (non-darwin stub).
 func (o *Overlay) Hide() {}
 
-// Clear clears the mode indicator overlay (Linux stub).
+// Clear clears the mode indicator overlay (non-darwin stub).
 func (o *Overlay) Clear() {}
 
-// ResizeToActiveScreen resizes the mode indicator overlay to the active screen (Linux stub).
+// ResizeToActiveScreen resizes the mode indicator overlay to the active screen (non-darwin stub).
 func (o *Overlay) ResizeToActiveScreen() {}
 
-// Destroy destroys the mode indicator overlay (Linux stub).
+// Destroy destroys the mode indicator overlay (non-darwin stub).
 func (o *Overlay) Destroy() {}
 
-// SetConfig updates the indicator configuration (Linux stub).
+// SetConfig updates the indicator configuration (non-darwin stub).
 func (o *Overlay) SetConfig(cfg config.ModeIndicatorConfig) {
 	o.configMu.Lock()
 	defer o.configMu.Unlock()
@@ -59,12 +62,12 @@ func (o *Overlay) SetConfig(cfg config.ModeIndicatorConfig) {
 	o.indicatorConfig = cfg
 }
 
-// SetIndicatorConfig updates the indicator configuration (Linux stub).
+// SetIndicatorConfig updates the indicator configuration (non-darwin stub).
 func (o *Overlay) SetIndicatorConfig(cfg config.ModeIndicatorConfig) {
 	o.SetConfig(cfg)
 }
 
-// IndicatorConfig returns the indicator configuration (Linux stub).
+// IndicatorConfig returns the indicator configuration (non-darwin stub).
 func (o *Overlay) IndicatorConfig() config.ModeIndicatorConfig {
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()
@@ -78,6 +81,9 @@ func (o *Overlay) ThemeProvider() config.ThemeProvider {
 }
 
 // ResolveLabelText returns the configured indicator label for the mode.
+// It is the single source of truth for label semantics on every non-darwin
+// platform: a per-mode disabled indicator draws nothing, and an empty custom
+// text falls back to the mode name.
 func (o *Overlay) ResolveLabelText(mode string) string {
 	o.configMu.RLock()
 	defer o.configMu.RUnlock()

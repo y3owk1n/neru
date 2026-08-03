@@ -466,7 +466,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 
 	cfg := m.modeIndicatorOverlay.IndicatorConfig()
 
-	label := modeIndicatorLabel(cfg, string(mode))
+	label := m.modeIndicatorOverlay.ResolveLabelText(string(mode))
 	if label == "" {
 		return
 	}
@@ -512,22 +512,23 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	// Clear and draw the badge into the small window.
 	m.indicatorWin.Clear()
 
-	modeCfg := m.modeIndicatorOverlay.ModeConfig(string(mode))
+	// ResolveLabelText already returned non-empty, so the mode config exists.
+	modeCfg, _ := m.modeIndicatorOverlay.ResolveModeConfig(string(mode))
 	bgColor := modeCfg.BackgroundColor.ForThemeWithOverride(
 		cfg.UI.BackgroundColor,
-		m.modeIndicatorOverlay.Theme(),
+		m.modeIndicatorOverlay.ThemeProvider(),
 		config.ModeIndicatorBackgroundColorLight,
 		config.ModeIndicatorBackgroundColorDark,
 	)
 	textColor := modeCfg.TextColor.ForThemeWithOverride(
 		cfg.UI.TextColor,
-		m.modeIndicatorOverlay.Theme(),
+		m.modeIndicatorOverlay.ThemeProvider(),
 		config.ModeIndicatorTextColorLight,
 		config.ModeIndicatorTextColorDark,
 	)
 	borderColor := modeCfg.BorderColor.ForThemeWithOverride(
 		cfg.UI.BorderColor,
-		m.modeIndicatorOverlay.Theme(),
+		m.modeIndicatorOverlay.ThemeProvider(),
 		config.ModeIndicatorBorderColorLight,
 		config.ModeIndicatorBorderColorDark,
 	)
@@ -579,7 +580,7 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 		return
 	}
 
-	indicatorUI := m.stickyModifiersOverlay.UI()
+	indicatorUI := m.stickyModifiersOverlay.UIConfig()
 	fontSize := float64(max(indicatorUI.FontSize, 1))
 
 	paddingX := resolveWinAutoPadding(fontSize, indicatorUI.PaddingX, true)
@@ -622,17 +623,17 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	m.stickyWin.Clear()
 
 	bgColor := indicatorUI.BackgroundColor.ForTheme(
-		m.stickyModifiersOverlay.Theme(),
+		m.stickyModifiersOverlay.ThemeProvider(),
 		config.StickyModifiersBackgroundColorLight,
 		config.StickyModifiersBackgroundColorDark,
 	)
 	textColor := indicatorUI.TextColor.ForTheme(
-		m.stickyModifiersOverlay.Theme(),
+		m.stickyModifiersOverlay.ThemeProvider(),
 		config.StickyModifiersTextColorLight,
 		config.StickyModifiersTextColorDark,
 	)
 	borderColor := indicatorUI.BorderColor.ForTheme(
-		m.stickyModifiersOverlay.Theme(),
+		m.stickyModifiersOverlay.ThemeProvider(),
 		config.StickyModifiersBorderColorLight,
 		config.StickyModifiersBorderColorDark,
 	)
@@ -744,22 +745,6 @@ func (m *Manager) DrawMouseActionIndicator(
 	m.mouseActionCancel = cancel
 
 	go m.animateMouseAction(ctx, winSize, style)
-}
-
-// modeIndicatorLabel returns the configured label for the given mode string.
-func modeIndicatorLabel(cfg config.ModeIndicatorConfig, mode string) string {
-	switch mode {
-	case "hints":
-		return cfg.Hints.Text
-	case "grid":
-		return cfg.Grid.Text
-	case "scroll":
-		return cfg.Scroll.Text
-	case "recursive_grid":
-		return cfg.RecursiveGrid.Text
-	default:
-		return ""
-	}
 }
 
 // DrawGrid draws the grid overlay.
