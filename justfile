@@ -172,7 +172,9 @@ uninstall *ARGS:
 
 # Run tests
 
-# Run all tests (unit + integration)
+# Run all tests (unit + integration). On macOS the integration half drives the
+# real cursor and keyboard and needs Accessibility permission — see the
+# test-integration comment before running this for the first time.
 test: test-unit test-integration
     @echo "Running all tests..."
 
@@ -251,7 +253,14 @@ test-race-integration:
     @echo "Running integration tests with race detection..."
     go test -tags=integration -race -p 1 -count=1 -v ./...
 
+# Everything CI's test job runs: the full suite plain and again under -race
+# (four passes total: unit, integration, race-unit, race-integration).
 test-all: test test-race
+
+# Run the exact set of checks CI gates a pull request on, in the same order.
+# This is the real pre-push bar — `just test` alone is a subset of it.
+ci: fmt-check lint vet build test-all vuln
+    @echo "✓ All CI checks passed"
 
 # Check if files are formatted correctly
 fmt-check:

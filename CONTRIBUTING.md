@@ -70,12 +70,23 @@ recommended path and provides every tool pre-configured.
     ```bash
     just fmt      # format Go and Objective-C
     just lint     # golangci-lint
-    just test     # unit + integration
+    just test     # unit + integration — see the warning below
     just build    # verify the build
     ```
 
-    Doing Linux or Windows work? Start with `just test-foundation` and
-    `just build-linux` / `just build-windows`.
+    > [!IMPORTANT]
+    > On macOS, `just test` includes integration tests that **drive your real
+    > cursor, keyboard, and overlays**, and they need Accessibility permission
+    > granted to your terminal (System Settings → Privacy & Security →
+    > Accessibility). Run `just test-unit` if you only want the safe subset,
+    > and quit any running `neru` daemon first — a live daemon holding the
+    > socket makes the IPC integration tests silently skip. Details in
+    > [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing).
+
+    Before pushing, run **`just ci`** — it is exactly what CI gates your PR on,
+    and it is a superset of the checks above (adds `go vet`, a full `-race`
+    pass, and a vulnerability scan). Doing Linux or Windows work? Start with
+    `just test-foundation` and `just build-linux` / `just build-windows`.
 
 6. **Update the docs** in the same PR. Each fact has one home — the
    [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)
