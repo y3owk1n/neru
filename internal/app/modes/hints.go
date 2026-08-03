@@ -375,7 +375,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	if opts.Search != nil && *opts.Search {
 		err := h.startHintSearchLocked()
 		if err != nil {
-			h.logger.Error("Failed to start hint opts.Search on activation", zap.Error(err))
+			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
 		}
 	}
 

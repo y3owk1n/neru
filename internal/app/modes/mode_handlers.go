@@ -559,13 +559,13 @@ func (h *Handler) handleGridModeKey(key string) {
 			pendingModifier,
 			repeat, // Re-activate grid mode when --repeat is set
 			func() {
-				h.activateGridModeWithAction(
-					pendingAction,
-					pendingModifier,
-					&repeat,
-					&cursorFollowSelection,
-					nil, // preserve the stored --on-exit action across re-activation
-				)
+				h.activateGridModeWithAction(ModeActivationOptions{
+					Action:                pendingAction,
+					Modifier:              pendingModifier,
+					Repeat:                &repeat,
+					CursorFollowSelection: &cursorFollowSelection,
+					// OnExit stays nil to preserve the stored steps.
+				})
 			},
 		)
 	} else if targetPoint := gridKeyResult.TargetPoint(); !targetPoint.Eq(image.Point{}) {

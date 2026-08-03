@@ -47,22 +47,12 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 		case domain.ModeHints:
 			m.handler.activateHintModeWithAction(opts)
 		case domain.ModeGrid:
-			m.handler.activateGridModeWithAction(
-				opts.Action,
-				opts.Modifier,
-				opts.Repeat,
-				opts.CursorFollowSelection,
-				opts.OnExit,
-			)
+			m.handler.activateGridModeWithAction(opts)
 		case domain.ModeRecursiveGrid:
-			m.handler.activateRecursiveGridModeWithAction(
-				opts.Action,
-				opts.Modifier,
-				opts.Repeat,
-				opts.CursorFollowSelection,
-				nil, // zoom is not re-applied on screen change
-				opts.OnExit,
-			)
+			// Zoom is not re-applied on screen change.
+			noZoom := opts
+			noZoom.ZoomToDepth = nil
+			m.handler.activateRecursiveGridModeWithAction(noZoom)
 		case domain.ModeScroll:
 			m.handler.StartInteractiveScroll()
 		case domain.ModeIdle:

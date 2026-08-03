@@ -18,14 +18,7 @@ import (
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter
 // and optional zoom-to-depth. When zoomToDepth is set, the mode will automatically drill down to
 // the specified depth at the current cursor position before awaiting user input.
-func (h *Handler) activateRecursiveGridModeWithAction(
-	actionStr *string,
-	modifier *string,
-	repeat *bool,
-	cursorFollowSelection *bool,
-	zoomToDepth *int,
-	onExit []string,
-) {
+func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
 
@@ -78,23 +71,24 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	h.initializeRecursiveGridManager(normalizedBounds)
 
 	var cursorShouldFollow bool
-	if isRefresh && cursorFollowSelection == nil && h.recursiveGrid.Context != nil {
+	if isRefresh && opts.CursorFollowSelection == nil && h.recursiveGrid.Context != nil {
 		cursorShouldFollow = h.recursiveGrid.Context.CursorFollowSelection()
 	} else {
 		cursorShouldFollow = resolveCursorFollowSelection(
 			domain.ModeRecursiveGrid,
-			cursorFollowSelection,
+			opts.CursorFollowSelection,
 		)
 	}
 
 	// Auto-zoom to depth if requested.
 	// This reads the cursor position *before* we potentially move it to
 	// the grid center below, so zoom uses the user's actual cursor location.
-	if zoomToDepth != nil && *zoomToDepth > 0 && h.recursiveGrid.Manager != nil && !isRefresh {
+	if opts.ZoomToDepth != nil && *opts.ZoomToDepth > 0 && h.recursiveGrid.Manager != nil &&
+		!isRefresh {
 		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
 		if posErr == nil {
 			localCursorPos := coordinates.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
-			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *zoomToDepth)
+			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *opts.ZoomToDepth)
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
 		}
@@ -104,74 +98,22 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	// When zoom-to-depth is active, skip this — the zoom completion handler
 	// (or partial-zoom handler below) positions the cursor from the user's
 	// actual cursor position rather than the grid center.
-	isZoomRequested := zoomToDepth != nil && *zoomToDepth > 0 && !isRefresh
-	if !isZoomRequested && h.recursiveGrid.Manager != nil {
-		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
-
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-		if h.recursiveGrid.Context != nil {
-			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-		}
-
-		if cursorShouldFollow {
-			err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
-			if err != nil {
-				h.logger.Warn("Failed to move cursor to initial center", zap.Error(err))
-			}
-		}
+	isZoomRequested := opts.ZoomToDepth != nil && *opts.ZoomToDepth > 0 && !isRefresh
+	if !isZoomRequested {
+		h.selectRecursiveGridCenter(cursorShouldFollow, "Failed to move cursor to initial center")
 	}
 
 	// Draw initial recursive-grid
-	// Store pending action and repeat flag if provided
 	if h.recursiveGrid.Context != nil {
-		if isRefresh {
-			if actionStr != nil {
-				h.recursiveGrid.Context.SetPendingAction(actionStr)
-			}
-
-			if onExit != nil {
-				h.recursiveGrid.Context.SetOnExit(onExit)
-			}
-
-			if modifier != nil {
-				h.recursiveGrid.Context.SetPendingModifier(modifier)
-			}
-
-			if repeat != nil {
-				h.recursiveGrid.Context.SetRepeat(*repeat)
-			}
-
-			if cursorFollowSelection != nil {
-				h.recursiveGrid.Context.SetCursorFollowSelection(*cursorFollowSelection)
-			}
-		} else {
-			h.recursiveGrid.Context.SetPendingAction(actionStr)
-			h.recursiveGrid.Context.SetOnExit(onExit)
-			h.recursiveGrid.Context.SetPendingModifier(modifier)
-			h.recursiveGrid.Context.SetRepeat(repeat != nil && *repeat)
-			h.recursiveGrid.Context.SetCursorFollowSelection(cursorShouldFollow)
-		}
+		applyRecursiveGridOptions(h.recursiveGrid.Context, opts, isRefresh, cursorShouldFollow)
 	}
 
 	// When zoom-to-depth completed (or clamped), update the selection point
 	// to the zoomed position and let the user refine in interactive mode.
 	// The pending action fires on the next manual cell selection rather than
 	// executing immediately, which is consistent with normal grid behavior.
-	if zoomToDepth != nil && *zoomToDepth > 0 && !isRefresh &&
-		h.recursiveGrid.Manager != nil {
-		center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
-
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-		if h.recursiveGrid.Context != nil {
-			h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-		}
-
-		if cursorShouldFollow {
-			err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
-			if err != nil {
-				h.logger.Warn("Failed to move cursor after zoom", zap.Error(err))
-			}
-		}
+	if isZoomRequested {
+		h.selectRecursiveGridCenter(cursorShouldFollow, "Failed to move cursor after zoom")
 	}
 
 	// Draw initial recursive-grid
@@ -180,11 +122,11 @@ func (h *Handler) activateRecursiveGridModeWithAction(
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
-	if actionStr != nil {
+	if opts.Action != nil {
 		h.logger.Debug(
 			"Recursive-grid mode activated with pending action",
-			zap.String("action", *actionStr),
-			zap.Bool("repeat", repeat != nil && *repeat),
+			zap.String("action", *opts.Action),
+			zap.Bool("repeat", opts.Repeat != nil && *opts.Repeat),
 		)
 	}
 
@@ -285,14 +227,14 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 			pendingModifier,
 			repeat, // Re-activate recursive-grid mode when --repeat is set
 			func() {
-				h.activateRecursiveGridModeWithAction(
-					pendingAction,
-					pendingModifier,
-					&repeat,
-					&cursorFollowSelection,
-					nil, // zoom is not re-applied on repeat
-					nil, // preserve the stored --on-exit action across re-activation
-				)
+				h.activateRecursiveGridModeWithAction(ModeActivationOptions{
+					Action:                pendingAction,
+					Modifier:              pendingModifier,
+					Repeat:                &repeat,
+					CursorFollowSelection: &cursorFollowSelection,
+					// Zoom is not re-applied on repeat; OnExit stays nil to
+					// preserve the stored steps.
+				})
 			},
 		)
 	} else if !center.Eq(image.Point{}) {
@@ -372,4 +314,66 @@ func (h *Handler) cleanupRecursiveGridMode() {
 	}
 
 	h.clearAndHideOverlay()
+}
+
+// applyRecursiveGridOptions writes an activation's options into the context.
+// A refresh writes only what it was given; a fresh activation writes every
+// field so nothing leaks over from the previous run.
+func applyRecursiveGridOptions(
+	ctx *componentrecursivegrid.Context,
+	opts ModeActivationOptions,
+	isRefresh bool,
+	cursorShouldFollow bool,
+) {
+	if isRefresh {
+		if opts.Action != nil {
+			ctx.SetPendingAction(opts.Action)
+		}
+
+		if opts.OnExit != nil {
+			ctx.SetOnExit(opts.OnExit)
+		}
+
+		if opts.Modifier != nil {
+			ctx.SetPendingModifier(opts.Modifier)
+		}
+
+		if opts.Repeat != nil {
+			ctx.SetRepeat(*opts.Repeat)
+		}
+
+		if opts.CursorFollowSelection != nil {
+			ctx.SetCursorFollowSelection(*opts.CursorFollowSelection)
+		}
+
+		return
+	}
+
+	ctx.SetPendingAction(opts.Action)
+	ctx.SetOnExit(opts.OnExit)
+	ctx.SetPendingModifier(opts.Modifier)
+	ctx.SetRepeat(opts.Repeat != nil && *opts.Repeat)
+	ctx.SetCursorFollowSelection(cursorShouldFollow)
+}
+
+// selectRecursiveGridCenter marks the current grid's center as the selection
+// and moves the cursor there when it follows the selection.
+func (h *Handler) selectRecursiveGridCenter(cursorShouldFollow bool, moveFailMsg string) {
+	if h.recursiveGrid.Manager == nil {
+		return
+	}
+
+	center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
+
+	absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+	if h.recursiveGrid.Context != nil {
+		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+	}
+
+	if cursorShouldFollow {
+		err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
+		if err != nil {
+			h.logger.Warn(moveFailMsg, zap.Error(err))
+		}
+	}
 }

@@ -13,14 +13,7 @@ type RecursiveGridMode struct {
 func NewRecursiveGridMode(handler *Handler) *RecursiveGridMode {
 	behavior := ModeBehavior{
 		ActivateFunc: func(handler *Handler, opts ModeActivationOptions) {
-			handler.activateRecursiveGridModeWithAction(
-				opts.Action,
-				opts.Modifier,
-				opts.Repeat,
-				opts.CursorFollowSelection,
-				opts.ZoomToDepth,
-				opts.OnExit,
-			)
+			handler.activateRecursiveGridModeWithAction(opts)
 		},
 		HandleKeyFunc: func(handler *Handler, key string) {
 			handler.handleRecursiveGridKey(key)
