@@ -2,24 +2,20 @@ package modeflag
 
 import "strings"
 
-// Name is a flag's long name, written without the leading dashes.
-//
-// Cobra registers a flag under this bare form; the wire form adds the dashes.
+// Name is a flag's long name without the dashes, the form cobra registers.
 type Name string
 
-// The flags a mode command accepts. Every one of them is written twice over the
-// course of a single command — once by the user, once by the CLI onto the wire —
-// and read twice, so both halves name them from here.
+// The flags a mode command accepts. Each is written twice per command, by the
+// user and by the CLI onto the wire, so both halves name them from here.
 const (
-	// Action is the mouse action to perform on the selection. It is the one
-	// flag that may also be given positionally, as `neru hints left_click`.
+	// Action is the mouse action to perform on the selection. It may also be
+	// given positionally, as `neru hints left_click`.
 	Action Name = "action"
 
 	// Modifier lists modifier keys to hold while the action fires.
 	Modifier Name = "modifier"
 
-	// OnExit is a step to run once the action is fulfilled. It is repeatable:
-	// each occurrence appends one step.
+	// OnExit is a step to run once the action is fulfilled. Repeatable.
 	OnExit Name = "on-exit"
 
 	// Repeat re-activates the mode after the action, for repeated clicks.
@@ -44,7 +40,7 @@ const (
 	Strategy Name = "strategy"
 
 	// Debug prints the detected elements instead of showing the overlay. The
-	// daemon accepts it and does nothing with it: the CLI is what acts on it.
+	// daemon accepts and ignores it; the CLI is what acts on it.
 	Debug Name = "debug"
 
 	// LabelDirection chooses how hint labels are enumerated.
@@ -60,14 +56,13 @@ const (
 	CursorSelectionMode Name = "cursor-selection-mode"
 )
 
-// String returns the bare name, which is the form cobra registers.
+// String returns the bare name.
 func (n Name) String() string {
 	return string(n)
 }
 
-// Short returns the flag's single-letter alias, or an empty string when it has
-// none. Cobra reads an empty shorthand as "no shorthand", which is the same
-// thing this means.
+// Short returns the single-letter alias, empty when there is none. Cobra reads
+// an empty shorthand the same way.
 func (n Name) Short() string {
 	spec, known := Get(n)
 	if !known {
@@ -82,32 +77,29 @@ func (n Name) Flag() string {
 	return "--" + string(n)
 }
 
-// Assign returns the flag with its value attached: "--action=left_click".
-// This is the form the CLI puts on the wire.
+// Assign returns the flag with a value attached, the form the CLI sends:
+// "--action=left_click".
 func (n Name) Assign(value string) string {
 	return "--" + string(n) + "=" + value
 }
 
-// Spec is everything both halves of a mode command need to agree on about one
-// flag. What each side then does with the value is its own business: the CLI
-// validates it against cobra's types, the daemon turns it into an activation
-// option.
+// Spec is what both halves of a mode command must agree on about one flag.
+// What each does with the value afterwards is its own business.
 type Spec struct {
 	// Name is the long name.
 	Name Name
 
-	// Short is the single-letter alias, empty when the flag has none. The
-	// daemon accepts the short form too, because a hotkey binding is written by
-	// hand and may use either.
+	// Short is the single-letter alias, empty when there is none. The daemon
+	// accepts it too, since a hotkey binding is hand-written and may use either.
 	Short string
 
-	// TakesValue separates "--repeat" from "--modifier=cmd". A flag that takes
-	// a value may also be written "--modifier cmd", so a parser has to know
-	// whether to consume the argument that follows.
+	// TakesValue separates "--repeat" from "--modifier=cmd". Such a flag may
+	// also be written "--modifier cmd", so a parser must know whether to
+	// consume the next argument.
 	TakesValue bool
 }
 
-// specs is the vocabulary itself, in the order the flags are documented.
+// specs is the vocabulary, in the order the flags are documented.
 var specs = []Spec{
 	{Name: Action, Short: "a", TakesValue: true},
 	{Name: Modifier, TakesValue: true},
@@ -145,8 +137,8 @@ func Get(name Name) (Spec, bool) {
 	return Spec{}, false
 }
 
-// Match reports whether arg is this flag, in any spelling a caller may have
-// written: the long form, the short form, or either with a value attached.
+// Match reports whether arg is this flag in any spelling: long, short, or
+// either with a value attached.
 func (s Spec) Match(arg string) bool {
 	if matchesForm(arg, s.Name.Flag()) {
 		return true
@@ -155,7 +147,7 @@ func (s Spec) Match(arg string) bool {
 	return s.Short != "" && matchesForm(arg, "-"+s.Short)
 }
 
-// matchesForm reports whether arg is exactly form, or form with "=value".
+// matchesForm reports whether arg is form, or form with "=value".
 func matchesForm(arg, form string) bool {
 	return arg == form || strings.HasPrefix(arg, form+"=")
 }

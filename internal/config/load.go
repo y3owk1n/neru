@@ -10,19 +10,14 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// appConfigsKey is the name of the per-application override table. It appears
-// inside [hotkeys] as a nested table rather than as a binding, so the hotkey
-// merge skips it.
+// appConfigsKey names the per-app override table, which appears inside
+// [hotkeys] as a nested table rather than a binding, so the merge skips it.
 const appConfigsKey = "app_configs"
 
-// LoadWithValidation turns a config file into the Config the daemon runs on,
-// reporting a rejection instead of returning an error so the caller can keep
-// running on the defaults while telling the user what was wrong with their file.
-//
-// The phases run in order and any one of them can end the load: locate the file,
-// decode it, merge the global hotkeys, merge the per-mode hotkeys, check the
-// hotkeys nested under [[app_configs]], validate the whole config, then layer
-// the override file on top.
+// LoadWithValidation turns a config file into the Config the daemon runs on.
+// It reports a rejection in the result rather than returning an error, so the
+// caller can keep running on the defaults and still tell the user what was
+// wrong. Any phase below can end the load.
 func (s *Service) LoadWithValidation(path string) *LoadResult {
 	result := &LoadResult{
 		Config:     s.baseConfig(),
@@ -75,9 +70,8 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 	return result
 }
 
-// refuse hands back the default config along with the reason the file was
-// rejected. A half-applied config would leave the user running on bindings they
-// never wrote, so a file the load cannot finish is discarded whole.
+// refuse hands back the defaults with the reason. A half-applied config would
+// leave the user on bindings they never wrote, so a bad file is dropped whole.
 func refuse(result *LoadResult, err error) *LoadResult {
 	result.ValidationError = err
 	result.Config = DefaultConfig()
@@ -85,12 +79,10 @@ func refuse(result *LoadResult, err error) *LoadResult {
 	return result
 }
 
-// baseConfig is what a load starts from: the platform defaults, with any hotkey
-// bindings injected through WithDefaults laid over them.
+// baseConfig is the platform defaults with any WithDefaults hotkeys over them.
 //
-// It is built fresh for every load rather than shared, because Hotkeys.Bindings
-// is tagged toml:"-" and so survives the decode untouched — a shared base would
-// accumulate the bindings of every load before it.
+// Built fresh each load: Hotkeys.Bindings is tagged toml:"-" so it survives the
+// decode, and a shared base would accumulate every previous load's bindings.
 func (s *Service) baseConfig() *Config {
 	base := newDefaultConfig()
 	applyPlatformDefaults(base)
@@ -110,13 +102,9 @@ func (s *Service) baseConfig() *Config {
 	return base
 }
 
-// locateConfigFile settles which file the load reads, and reports whether the
-// load is already over — either because there is no file to read or because a
-// file named explicitly is not there.
-//
-// A file the user named and a file that was merely discovered are treated
-// differently when missing: the first is an error worth showing, the second just
-// means the daemon runs on the defaults.
+// locateConfigFile settles which file to read and reports whether the load is
+// already over. A missing file the user named is an error; a missing file we
+// only went looking for just means the defaults.
 func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
 	explicit := path != ""
 	if !explicit {
@@ -155,14 +143,12 @@ func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
 	return true
 }
 
-// decodeConfigFile reads the file twice: once into a raw map and once into the
-// typed Config.
+// decodeConfigFile reads the file twice, into a raw map and into the Config.
 //
-// The hotkey tables need the raw map. Their merge rules — the disable sentinel,
-// folding a user's casing onto the matching default key — are not expressible as
-// struct tags, and the fields carry toml:"-" so the typed pass skips them. The
-// typed pass is what validates everything else. The TOML library cannot mix
-// struct and map decoding in a single pass.
+// The hotkey tables need the raw map: their merge rules (the disable sentinel,
+// folding a user's casing onto a default key) are not expressible as struct
+// tags, and the fields carry toml:"-" so the typed pass skips them. The typed
+// pass validates everything else. The TOML library cannot do both at once.
 func (s *Service) decodeConfigFile(cfg *Config, path string) (map[string]any, error) {
 	var raw map[string]any
 
@@ -181,10 +167,9 @@ func (s *Service) decodeConfigFile(cfg *Config, path string) (map[string]any, er
 
 // applyGlobalHotkeys merges the [hotkeys] table over the default bindings.
 //
-// An entry set to the disable sentinel removes the default it matches. An empty
-// [hotkeys] section removes every binding, which is how an external hotkey
-// daemon such as skhd takes over the shortcuts without conflicting; the modes
-// stay reachable through the CLI.
+// The disable sentinel removes the default an entry matches. An empty [hotkeys]
+// section removes every binding, which is how skhd and friends take over the
+// shortcuts; the modes stay reachable from the CLI.
 func (s *Service) applyGlobalHotkeys(cfg *Config, raw map[string]any) error {
 	hot, present := raw["hotkeys"]
 	if !present {
@@ -227,8 +212,7 @@ func (s *Service) applyGlobalHotkeys(cfg *Config, raw map[string]any) error {
 }
 
 // parseGlobalHotkeyTable reads each entry's actions. An entry that does not
-// parse is left out; the merge that follows reports it, with the key and the
-// type that was found.
+// parse is left out, and the merge below reports it.
 func parseGlobalHotkeyTable(hotMap map[string]any) map[string][]string {
 	parsed := make(map[string][]string, len(hotMap))
 
@@ -249,11 +233,8 @@ func parseGlobalHotkeyTable(hotMap map[string]any) map[string][]string {
 }
 
 // replaceReboundLaunchers drops the default binding of any built-in mode the
-// user has bound to a key of their own.
-//
-// Without this, binding a mode to a new chord would add a second way to reach it
-// rather than move it, and the mode would still answer to the default the user
-// meant to replace.
+// user rebound. Otherwise a new chord adds a second way in rather than moving
+// it, and the old default still works.
 func replaceReboundLaunchers(bindings map[string][]string, parsed map[string][]string) {
 	rebound := make(map[string]struct{})
 
@@ -283,9 +264,8 @@ func (s *Service) mergeGlobalHotkeys(
 			continue
 		}
 
-		// The default key that normalizes to the same chord, so that
-		// "Primary+Shift+g" replaces "Primary+Shift+G" instead of sitting
-		// beside it and leaving two bindings on one chord.
+		// The default that normalizes to the same chord, so "Primary+Shift+g"
+		// replaces "Primary+Shift+G" rather than doubling up on it.
 		canonicalKey := findNormalizedMapKey(bindings, key)
 
 		actions, parsedOk := parsed[key]
@@ -317,8 +297,7 @@ func (s *Service) mergeGlobalHotkeys(
 	return nil
 }
 
-// rejectHotkey builds the refusal for a malformed [hotkeys] entry and logs the
-// type that was found, which is the part the message cannot carry.
+// rejectHotkey refuses a malformed [hotkeys] entry, logging the type found.
 func (s *Service) rejectHotkey(key string, value any, reason string) error {
 	err := derrors.New(derrors.CodeInvalidConfig, "hotkeys."+key+" "+reason)
 
@@ -330,8 +309,7 @@ func (s *Service) rejectHotkey(key string, value any, reason string) error {
 	return err
 }
 
-// modeHotkeyTarget pairs a mode's name in the config file with the bindings map
-// its [<mode>.hotkeys] table merges into.
+// modeHotkeyTarget pairs a mode's config name with the bindings it merges into.
 type modeHotkeyTarget struct {
 	modeKey string
 	dest    *map[string]StringOrStringArray
@@ -348,13 +326,11 @@ func modeHotkeyTargets(cfg *Config) []modeHotkeyTarget {
 	}
 }
 
-// applyModeHotkeys merges each [<mode>.hotkeys] table over that mode's default
-// bindings, following the same rules as the global table: the disable sentinel
-// removes a default, and an empty section clears the mode's bindings entirely.
+// applyModeHotkeys merges each [<mode>.hotkeys] table over that mode's
+// defaults, by the same rules as the global table.
 //
-// These fields are tagged toml:"-" so that the encoder does not turn a
-// single-action entry into an array, which means the typed decode skips them and
-// they have to be read from the raw map here.
+// These fields are tagged toml:"-" so the encoder does not turn a single-action
+// entry into an array, which means they must be read from the raw map here.
 func (s *Service) applyModeHotkeys(cfg *Config, raw map[string]any) error {
 	for _, target := range modeHotkeyTargets(cfg) {
 		table, present := modeHotkeyTable(raw, target.modeKey)
@@ -386,9 +362,8 @@ func (s *Service) applyModeHotkeys(cfg *Config, raw map[string]any) error {
 	return nil
 }
 
-// modeHotkeyTable reaches [<mode>.hotkeys] in the raw decode. Anything that is
-// not a table at either level means the mode has no hotkey section to merge; the
-// typed decode is what reports a section of the wrong shape.
+// modeHotkeyTable reaches [<mode>.hotkeys] in the raw decode. A non-table at
+// either level means no section to merge; the typed decode reports bad shapes.
 func modeHotkeyTable(raw map[string]any, modeKey string) (map[string]any, bool) {
 	modeRaw, isTable := raw[modeKey].(map[string]any)
 	if !isTable {
@@ -419,8 +394,7 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 			)
 		}
 
-		// The default key that normalizes to the same key, so that "escape"
-		// replaces "Escape" instead of sitting beside it.
+		// The default that normalizes the same, so "escape" replaces "Escape".
 		canonicalKey := findNormalizedMapKey(*target.dest, key)
 
 		if len(actions) == 1 && actions[0] == DisabledSentinel {
@@ -444,12 +418,9 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 	return nil
 }
 
-// validateNestedHotkeys checks the hotkey tables carried by [[app_configs]],
-// both the top-level ones and the per-mode ones.
-//
-// These are checked rather than merged: the typed decode has already loaded
-// them, and what is left to catch is two entries that normalize to the same
-// chord, where only one of them would ever fire.
+// validateNestedHotkeys checks the [[app_configs]] hotkey tables, top-level and
+// per-mode. The typed decode already loaded them; what is left to catch is two
+// entries normalizing to the same chord, where only one would ever fire.
 func (s *Service) validateNestedHotkeys(raw map[string]any) *LoadResult {
 	if result := validateAppConfigsHotkeys(s.logger, appConfigsKey, raw); result != nil {
 		return result
@@ -474,21 +445,16 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *LoadResult {
 	return nil
 }
 
-// applyOverrideFile layers the file written by `neru config set` on top of what
-// the config file produced, so a setting changed at runtime outlives a restart
-// and wins over both the config file and the defaults.
-//
-// The result is validated again, because a field that is valid on its own can
-// still contradict one the config file set.
+// applyOverrideFile layers the file `neru config set` writes over the config,
+// so a runtime change outlives a restart. The result is validated again: a
+// field that is fine alone can still contradict one the config file set.
 func (s *Service) applyOverrideFile(cfg *Config, configPath string) error {
 	overridePath := OverridePath(configPath)
 	if overridePath == "" {
 		return nil
 	}
 
-	// The override file is optional — it exists only once `neru config set` has
-	// written one — so anything that is not a readable file simply means there
-	// is nothing to layer.
+	// Optional: it exists only once `neru config set` has written one.
 	overrideStat, statErr := os.Stat(overridePath)
 
 	layerable := statErr == nil && !overrideStat.IsDir()

@@ -9,20 +9,18 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
-// drawHintsLocked renders a hint set onto the overlay. It is the hint manager's
-// update callback, so it runs whenever the visible set changes — on activation,
-// on every keystroke that narrows the labels, and on reset.
+// drawHintsLocked renders a hint set onto the overlay. It is the manager's
+// update callback, so it runs on activation, on every keystroke that narrows
+// the labels, and on reset.
 //
-// The caller must hold h.mu. The synchronous call sites (SetHints, Reset,
-// HandleInput) already hold it; the manager's debounced update timer acquires it
-// through the mutex the manager was constructed with.
+// The caller must hold h.mu. SetHints, Reset and HandleInput already do; the
+// manager's debounced timer takes it through the mutex it was built with.
 func (h *Handler) drawHintsLocked(filteredHints []*domainHint.Interface) {
 	if h.hints.Overlay == nil {
 		return
 	}
 
-	// Hints arrive in global screen coordinates; the overlay draws in
-	// coordinates local to the screen it covers.
+	// Hints are in global screen coordinates; the overlay draws in local ones.
 	screenBounds := h.screenBounds
 
 	overlayHints := make([]*hints.Hint, len(filteredHints))

@@ -13,11 +13,8 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// lowerFilter lowercases the filter's text comparisons once.
-//
-// The matching that follows runs per element, and on a busy web page that is
-// thousands of comparisons, so converting here rather than at each of them keeps
-// the conversion off the hot path.
+// lowerFilter lowercases the filter's text comparisons once, keeping the
+// conversion out of the per-element matching that follows.
 func lowerFilter(filter ports.ElementFilter) ports.ElementFilter {
 	filter.TitleContains = strings.ToLower(filter.TitleContains)
 	filter.DescriptionContains = strings.ToLower(filter.DescriptionContains)
@@ -35,10 +32,8 @@ func lowerFilter(filter ports.ElementFilter) ports.ElementFilter {
 	return filter
 }
 
-// elementCollector gathers elements from every source at once.
-//
-// The sources are independent — the frontmost window, the Dock, the menu bar —
-// so they all run in parallel and append to one list under a single mutex.
+// elementCollector gathers elements from every source at once. The sources are
+// independent, so they run in parallel and append to one list under one mutex.
 type elementCollector struct {
 	logger *zap.Logger
 
@@ -47,18 +42,16 @@ type elementCollector struct {
 
 	elements []*element.Element
 
-	// firstError fails the whole collection. A source that cannot be queried at
-	// all leaves the result untrustworthy rather than merely incomplete.
+	// firstError fails the collection: a source that cannot be queried leaves
+	// the result untrustworthy, not merely incomplete.
 	firstError error
 
-	// windowsError is held back rather than failing the collection, and is
-	// surfaced only when no source produced anything. A popover that could not
-	// be read must not discard the hints the frontmost window did yield.
+	// windowsError is reported only when nothing at all was collected, so an
+	// unreadable popover does not discard what the frontmost window yielded.
 	windowsError error
 }
 
-// newElementCollector starts an empty collection, sized for a typical page so
-// the common case does not grow the slice.
+// newElementCollector starts an empty collection, sized for a typical page.
 func newElementCollector(logger *zap.Logger) *elementCollector {
 	return &elementCollector{
 		logger:   logger,
@@ -66,8 +59,7 @@ func newElementCollector(logger *zap.Logger) *elementCollector {
 	}
 }
 
-// start runs one source. Sources are named so that a failure says which surface
-// could not be read.
+// start runs one source. The name is what a failure reports.
 func (c *elementCollector) start(
 	ctx context.Context,
 	name string,
@@ -126,8 +118,7 @@ func (c *elementCollector) recordWindowsFailure(err error) {
 	}
 }
 
-// await blocks until every source has finished, or until the context ends
-// first — which usually means the accessibility backend stopped responding.
+// await blocks until every source finishes, or the context ends first.
 func (c *elementCollector) await(ctx context.Context) error {
 	done := make(chan struct{})
 
@@ -140,30 +131,26 @@ func (c *elementCollector) await(ctx context.Context) error {
 	case <-done:
 		return nil
 	case <-ctx.Done():
-		// Distinguish a real timeout from a cancellation instead of collapsing
-		// both into one message: a timeout here is the actionable signal that
-		// the backend was slow or unresponsive.
+		// Timeout and cancellation read differently here: a timeout means the
+		// backend went slow or unresponsive, which is the actionable one.
 		return derrors.WrapContextCanceled(ctx, "element collection")
 	}
 }
 
-// windowScan collects elements from the frontmost window and any popovers over
-// it, several at a time.
+// windowScan reads the frontmost window and any popovers, several at a time.
 type windowScan struct {
 	wait sync.WaitGroup
 	mu   sync.Mutex
 
-	// sem caps how many windows are read at once, so a long window list cannot
-	// spawn an unbounded number of goroutines against the accessibility API.
+	// sem caps concurrent reads so a long window list cannot spawn unbounded
+	// goroutines against the accessibility API.
 	sem chan struct{}
 
 	elements []*element.Element
 
-	// firstError is reported only when no window yielded anything. A transient
-	// failure on one popover must not discard what the frontmost window
-	// produced, but a hard failure — an unreachable AT-SPI bus, say — that
-	// leaves nothing behind has to be reported rather than look like an empty
-	// window.
+	// firstError is reported only when no window yielded anything: one bad
+	// popover must not discard the frontmost window's elements, but an
+	// unreachable AT-SPI bus must not look like an empty window either.
 	firstError error
 }
 
@@ -185,11 +172,9 @@ func (s *windowScan) recordFailure(err error) {
 	}
 }
 
-// collectWindowElements reads every window that should be scanned.
-//
-// A window failure is handed to the collector instead of being returned,
-// because returning it would fail the whole collection and throw away what the
-// other sources gathered in parallel.
+// collectWindowElements reads every window that should be scanned. A failure
+// goes to the collector rather than being returned, since returning it would
+// fail the collection and discard what the other sources found.
 func (a *Adapter) collectWindowElements(
 	ctx context.Context,
 	filter ports.ElementFilter,
@@ -219,9 +204,8 @@ func (a *Adapter) collectWindowElements(
 	return scan.elements, nil
 }
 
-// windowsToScan is the frontmost window together with any popovers over it,
-// falling back to the frontmost window alone when the combined query comes back
-// empty.
+// windowsToScan is the frontmost window plus any popovers over it, falling back
+// to the frontmost alone when the combined query comes back empty.
 func (a *Adapter) windowsToScan(ctx context.Context) ([]ax.Window, error) {
 	windows, windowsErr := a.client.FrontmostAndPopoverWindows(ctx)
 	if windowsErr != nil {
@@ -240,8 +224,7 @@ func (a *Adapter) windowsToScan(ctx context.Context) ([]ax.Window, error) {
 	return []ax.Window{frontmost}, nil
 }
 
-// scanWindow reads one window's clickable elements. It owns the window handle
-// and always releases it.
+// scanWindow reads one window's clickable elements, releasing the handle.
 func (a *Adapter) scanWindow(
 	ctx context.Context,
 	filter ports.ElementFilter,
@@ -278,18 +261,16 @@ type supplementarySource struct {
 	// enabled is the filter flag that asks for this surface.
 	enabled bool
 
-	// duringMissionControl is whether the surface is still reachable while
-	// Mission Control is up. Only the Dock is; the rest are covered by it.
+	// duringMissionControl marks a surface still reachable while Mission
+	// Control is up. Only the Dock is; the rest are covered by it.
 	duringMissionControl bool
 
 	collect func() []*element.Element
 }
 
-// supplementarySources lists the surfaces outside the frontmost window.
-//
-// These are macOS-specific and are resolved by system bundle ID. They do not
-// exist elsewhere, which is why the caller asks the client whether to consider
-// them at all rather than probing for apps that cannot be there.
+// supplementarySources lists the surfaces outside the frontmost window. They
+// are macOS-only and resolved by bundle ID, which is why the caller asks the
+// client whether to consider them rather than probing for absent apps.
 func (a *Adapter) supplementarySources(
 	ctx context.Context,
 	filter ports.ElementFilter,
