@@ -1,0 +1,715 @@
+{
+  "config": {
+    "general": {
+      "excludedApps": [],
+      "passthroughUnboundedKeys": false,
+      "shouldExitAfterPassthrough": false,
+      "passthroughUnboundedKeysBlacklist": [],
+      "hideOverlayInScreenShare": false,
+      "kbLayoutToUse": "",
+      "execShell": "/bin/bash",
+      "execShellArgs": [
+        "-lc"
+      ]
+    },
+    "theme": {
+      "light": {
+        "surface": "#EEF2FF",
+        "accent": "#465FBC",
+        "accentAlt": "#0B2377",
+        "onAccentAlt": "#F8FAFF",
+        "text": "#17327A"
+      },
+      "dark": {
+        "surface": "#0A1338",
+        "accent": "#6E82D6",
+        "accentAlt": "#8FA2F0",
+        "onAccentAlt": "#081022",
+        "text": "#E8EEFF"
+      }
+    },
+    "hotkeys": {
+      "bindings": {
+        "Primary+Shift+C": [
+          "recursive_grid"
+        ],
+        "Primary+Shift+G": [
+          "grid"
+        ],
+        "Primary+Shift+S": [
+          "scroll"
+        ],
+        "Primary+Shift+Space": [
+          "hints"
+        ]
+      }
+    },
+    "macros": null,
+    "hints": {
+      "enabled": true,
+      "strategy": "axtree",
+      "hintCharacters": "asdfghjkl",
+      "labelDirection": "normal",
+      "maxDepth": 50,
+      "ui": {
+        "fontSize": 42,
+        "fontFamily": "",
+        "borderRadius": -1,
+        "paddingX": -1,
+        "paddingY": -1,
+        "borderWidth": 1,
+        "placement": "bottom",
+        "backgroundColor": {
+          "light": "#F2EEF2FF",
+          "dark": "#F20A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "matchedTextColor": {
+          "light": "#0B2377",
+          "dark": "#8FA2F0"
+        },
+        "borderColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        }
+      },
+      "searchInputUi": {
+        "fontSize": 10,
+        "fontFamily": "",
+        "borderRadius": -1,
+        "paddingX": -1,
+        "paddingY": -1,
+        "borderWidth": 1,
+        "position": "bottom_center",
+        "xOffset": 0,
+        "yOffset": 24,
+        "width": 320,
+        "backgroundColor": {
+          "light": "#F2EEF2FF",
+          "dark": "#F20A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "borderColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        }
+      },
+      "boundaryHighlight": {
+        "enabled": false,
+        "borderWidth": 1,
+        "borderRadius": -1,
+        "borderColor": {
+          "light": "#73465FBC",
+          "dark": "#738FA2F0"
+        },
+        "backgroundColor": {
+          "light": "#1A465FBC",
+          "dark": "#1A8FA2F0"
+        }
+      },
+      "vision": {
+        "detectText": true,
+        "detectRectangles": true,
+        "requestTimeoutMs": 5000,
+        "minimumConfidence": 0,
+        "mergeIouThreshold": 0.5,
+        "rectangleMaxCandidates": 100,
+        "rectangleMinSize": 0.01,
+        "rectangleMinAspect": 0.3,
+        "rectangleMaxAspect": 10,
+        "buttonMinConfidence": 0.3,
+        "buttonMinAspect": 0.8,
+        "buttonMaxAspect": 8,
+        "buttonIconMaxSize": 48,
+        "linkMinAspect": 5,
+        "linkMaxHeight": 40,
+        "linkMinWidth": 50,
+        "imageMinSize": 48,
+        "checkboxMaxSize": 32,
+        "genericClickableMinConfidence": 0.5
+      },
+      "includeMenubarHints": false,
+      "additionalMenubarHintsTargets": [
+        "com.apple.TextInputMenuAgent",
+        "com.apple.controlcenter",
+        "com.apple.systemuiserver",
+        "com.y3owk1n.neru"
+      ],
+      "includeDockHints": false,
+      "includeNcHints": false,
+      "includeStageManagerHints": false,
+      "includePipHints": false,
+      "includeScreenCaptureHints": false,
+      "detectMissionControl": false,
+      "onMissionControlActivated": null,
+      "onMissionControlDeactivated": null,
+      "clickableRoles": [
+        "button",
+        "menu_button",
+        "popup_button",
+        "combo_box",
+        "checkbox",
+        "radio",
+        "switch",
+        "disclosure",
+        "link",
+        "text_field",
+        "text_area",
+        "slider",
+        "tab",
+        "menu_item",
+        "cell",
+        "row",
+        "ax:AXGenericElement"
+      ],
+      "ignoreClickableCheck": false,
+      "visibleCheckEnabled": false,
+      "appConfigs": [],
+      "hotkeys": {
+        "/": [
+          "action search_hints"
+        ],
+        "Backspace": [
+          "action backspace"
+        ],
+        "Down": [
+          "action move_mouse_relative --dx=0 --dy=10"
+        ],
+        "Escape": [
+          "idle"
+        ],
+        "Left": [
+          "action move_mouse_relative --dx=-10 --dy=0"
+        ],
+        "Right": [
+          "action move_mouse_relative --dx=10 --dy=0"
+        ],
+        "Shift+I": [
+          "action left_click --state down"
+        ],
+        "Shift+L": [
+          "action left_click"
+        ],
+        "Shift+M": [
+          "action middle_click"
+        ],
+        "Shift+R": [
+          "action right_click"
+        ],
+        "Shift+Tab": [
+          "action cycle_hint --backward"
+        ],
+        "Shift+U": [
+          "action left_click --state up"
+        ],
+        "Tab": [
+          "action cycle_hint"
+        ],
+        "Up": [
+          "action move_mouse_relative --dx=0 --dy=-10"
+        ]
+      }
+    },
+    "grid": {
+      "enabled": true,
+      "characters": "abcdefghijklmnpqrstuvwxyz",
+      "sublayerKeys": "abcdefghijklmnpqrstuvwxyz",
+      "rowLabels": "",
+      "colLabels": "",
+      "ui": {
+        "fontSize": 10,
+        "fontFamily": "",
+        "borderWidth": 1,
+        "backgroundColor": {
+          "light": "#99EEF2FF",
+          "dark": "#990A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "matchedTextColor": {
+          "light": "#F8FAFF",
+          "dark": "#081022"
+        },
+        "matchedBackgroundColor": {
+          "light": "#73465FBC",
+          "dark": "#B38FA2F0"
+        },
+        "matchedBorderColor": {
+          "light": "#99465FBC",
+          "dark": "#B38FA2F0"
+        },
+        "borderColor": {
+          "light": "#99465FBC",
+          "dark": "#996E82D6"
+        }
+      },
+      "liveMatchUpdate": true,
+      "hideUnmatched": true,
+      "prewarmEnabled": true,
+      "enableGc": false,
+      "appConfigs": null,
+      "hotkeys": {
+        "Backspace": [
+          "action backspace"
+        ],
+        "Down": [
+          "action move_mouse_relative --dx=0 --dy=10"
+        ],
+        "Escape": [
+          "idle"
+        ],
+        "Left": [
+          "action move_mouse_relative --dx=-10 --dy=0"
+        ],
+        "Right": [
+          "action move_mouse_relative --dx=10 --dy=0"
+        ],
+        "Shift+I": [
+          "action left_click --state down"
+        ],
+        "Shift+L": [
+          "action left_click"
+        ],
+        "Shift+M": [
+          "action middle_click"
+        ],
+        "Shift+R": [
+          "action right_click"
+        ],
+        "Shift+U": [
+          "action left_click --state up"
+        ],
+        "Space": [
+          "action reset"
+        ],
+        "Up": [
+          "action move_mouse_relative --dx=0 --dy=-10"
+        ],
+        "`": [
+          "toggle-cursor-follow-selection"
+        ]
+      }
+    },
+    "recursiveGrid": {
+      "enabled": true,
+      "animation": {
+        "enabled": true,
+        "durationMs": 50
+      },
+      "gridCols": 3,
+      "gridRows": 3,
+      "keys": "rtyfghvbn",
+      "ui": {
+        "lineColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "lineWidth": 1,
+        "highlightColor": {
+          "light": "#4D0B2377",
+          "dark": "#4D8FA2F0"
+        },
+        "textColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "fontSize": 10,
+        "fontFamily": "",
+        "labelBackground": false,
+        "labelBackgroundColor": {
+          "light": "#EEF2FF",
+          "dark": "#0A1338"
+        },
+        "labelBackgroundPaddingX": -1,
+        "labelBackgroundPaddingY": -1,
+        "labelBackgroundBorderRadius": -1,
+        "labelBackgroundBorderWidth": 1,
+        "labelChar": "",
+        "labelAutohideMultiplier": 1.5,
+        "subKeyPreview": false,
+        "subKeyPreviewFontSize": 8,
+        "subKeyPreviewAutohideMultiplier": 1.5,
+        "subKeyPreviewTextColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "subKeyPreviewLabelChar": ""
+      },
+      "minSizeWidth": 1,
+      "minSizeHeight": 1,
+      "maxDepth": 10,
+      "layers": null,
+      "appConfigs": null,
+      "hotkeys": {
+        "Backspace": [
+          "action backspace"
+        ],
+        "Down": [
+          "action move_mouse_relative --dx=0 --dy=10"
+        ],
+        "Escape": [
+          "idle"
+        ],
+        "Left": [
+          "action move_mouse_relative --dx=-10 --dy=0"
+        ],
+        "Right": [
+          "action move_mouse_relative --dx=10 --dy=0"
+        ],
+        "Shift+I": [
+          "action left_click --state down"
+        ],
+        "Shift+L": [
+          "action left_click"
+        ],
+        "Shift+M": [
+          "action middle_click"
+        ],
+        "Shift+R": [
+          "action right_click"
+        ],
+        "Shift+U": [
+          "action left_click --state up"
+        ],
+        "Space": [
+          "action reset"
+        ],
+        "Up": [
+          "action move_mouse_relative --dx=0 --dy=-10"
+        ],
+        "`": [
+          "toggle-cursor-follow-selection"
+        ]
+      }
+    },
+    "monitorSelect": {
+      "enabled": false,
+      "characters": "123456789",
+      "ui": {
+        "fontSize": 96,
+        "fontFamily": "",
+        "borderRadius": -1,
+        "paddingX": -1,
+        "paddingY": -1,
+        "borderWidth": 1,
+        "backgroundColor": {
+          "light": "#F2EEF2FF",
+          "dark": "#F20A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "matchedTextColor": {
+          "light": "#0B2377",
+          "dark": "#8FA2F0"
+        },
+        "borderColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "backdropColor": {
+          "light": "#33000000",
+          "dark": "#66000000"
+        },
+        "subtitleFontSize": 18,
+        "subtitleFontFamily": "",
+        "subtitleTextColor": {
+          "light": "#B317327A",
+          "dark": "#B3E8EEFF"
+        }
+      },
+      "hotkeys": {
+        "Escape": [
+          "idle"
+        ]
+      }
+    },
+    "virtualPointer": {
+      "ui": {
+        "char": "●",
+        "fontSize": 8,
+        "fontFamily": "",
+        "textColor": {
+          "light": "#0B2377",
+          "dark": "#8FA2F0"
+        }
+      }
+    },
+    "mouseAction": {
+      "enabled": false,
+      "actions": [
+        "left_click",
+        "right_click",
+        "middle_click",
+        "left_mouse_down",
+        "left_mouse_up",
+        "right_mouse_down",
+        "right_mouse_up",
+        "middle_mouse_down",
+        "middle_mouse_up",
+        "left_mouse_toggle",
+        "right_mouse_toggle",
+        "middle_mouse_toggle"
+      ],
+      "ui": {
+        "size": 36,
+        "borderWidth": 2,
+        "backgroundColor": {
+          "light": "#300B2377",
+          "dark": "#308FA2F0"
+        },
+        "borderColor": {
+          "light": "#0B2377",
+          "dark": "#8FA2F0"
+        },
+        "shape": "circle"
+      },
+      "animation": {
+        "durationMs": 260,
+        "startScale": 0.55,
+        "endScale": 1.35,
+        "startOpacity": 0.85,
+        "endOpacity": 0,
+        "easing": "ease_out"
+      }
+    },
+    "scroll": {
+      "scrollStep": 50,
+      "scrollStepHalf": 500,
+      "scrollStepFull": 1000000,
+      "invertScroll": false,
+      "appConfigs": [],
+      "hotkeys": {
+        "Down": [
+          "action move_mouse_relative --dx=0 --dy=10"
+        ],
+        "Escape": [
+          "idle"
+        ],
+        "Left": [
+          "action move_mouse_relative --dx=-10 --dy=0"
+        ],
+        "PageDown": [
+          "action page_down"
+        ],
+        "PageUp": [
+          "action page_up"
+        ],
+        "Right": [
+          "action move_mouse_relative --dx=10 --dy=0"
+        ],
+        "Shift+G": [
+          "action go_bottom"
+        ],
+        "Shift+I": [
+          "action left_click --state down"
+        ],
+        "Shift+L": [
+          "action left_click"
+        ],
+        "Shift+M": [
+          "action middle_click"
+        ],
+        "Shift+R": [
+          "action right_click"
+        ],
+        "Shift+U": [
+          "action left_click --state up"
+        ],
+        "Up": [
+          "action move_mouse_relative --dx=0 --dy=-10"
+        ],
+        "d": [
+          "action page_down"
+        ],
+        "gg": [
+          "action go_top"
+        ],
+        "h": [
+          "action scroll_left"
+        ],
+        "j": [
+          "action scroll_down"
+        ],
+        "k": [
+          "action scroll_up"
+        ],
+        "l": [
+          "action scroll_right"
+        ],
+        "u": [
+          "action page_up"
+        ]
+      }
+    },
+    "modeIndicator": {
+      "scroll": {
+        "enabled": true,
+        "text": "Scroll",
+        "backgroundColor": {
+          "light": "",
+          "dark": ""
+        },
+        "textColor": {
+          "light": "",
+          "dark": ""
+        },
+        "borderColor": {
+          "light": "",
+          "dark": ""
+        }
+      },
+      "hints": {
+        "enabled": false,
+        "text": "Hints",
+        "backgroundColor": {
+          "light": "",
+          "dark": ""
+        },
+        "textColor": {
+          "light": "",
+          "dark": ""
+        },
+        "borderColor": {
+          "light": "",
+          "dark": ""
+        }
+      },
+      "grid": {
+        "enabled": false,
+        "text": "Grid",
+        "backgroundColor": {
+          "light": "",
+          "dark": ""
+        },
+        "textColor": {
+          "light": "",
+          "dark": ""
+        },
+        "borderColor": {
+          "light": "",
+          "dark": ""
+        }
+      },
+      "recursiveGrid": {
+        "enabled": false,
+        "text": "Recursive Grid",
+        "backgroundColor": {
+          "light": "",
+          "dark": ""
+        },
+        "textColor": {
+          "light": "",
+          "dark": ""
+        },
+        "borderColor": {
+          "light": "",
+          "dark": ""
+        }
+      },
+      "monitorSelect": {
+        "enabled": false,
+        "text": "Monitor Select",
+        "backgroundColor": {
+          "light": "",
+          "dark": ""
+        },
+        "textColor": {
+          "light": "",
+          "dark": ""
+        },
+        "borderColor": {
+          "light": "",
+          "dark": ""
+        }
+      },
+      "ui": {
+        "fontSize": 10,
+        "fontFamily": "",
+        "backgroundColor": {
+          "light": "#F2EEF2FF",
+          "dark": "#F20A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "borderColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "borderWidth": 1,
+        "paddingX": -1,
+        "paddingY": -1,
+        "borderRadius": -1,
+        "indicatorXOffset": 20,
+        "indicatorYOffset": 20
+      }
+    },
+    "stickyModifiers": {
+      "enabled": true,
+      "tapMaxDuration": 300,
+      "ui": {
+        "fontSize": 10,
+        "fontFamily": "",
+        "backgroundColor": {
+          "light": "#F2EEF2FF",
+          "dark": "#F20A1338"
+        },
+        "textColor": {
+          "light": "#17327A",
+          "dark": "#E8EEFF"
+        },
+        "borderColor": {
+          "light": "#465FBC",
+          "dark": "#6E82D6"
+        },
+        "borderWidth": 1,
+        "paddingX": -1,
+        "paddingY": -1,
+        "borderRadius": -1,
+        "indicatorXOffset": -40,
+        "indicatorYOffset": 20
+      }
+    },
+    "logging": {
+      "logLevel": "info",
+      "logFile": "",
+      "disableFileLogging": true,
+      "maxFileSize": 10,
+      "maxBackups": 5,
+      "maxAge": 30
+    },
+    "smoothCursor": {
+      "moveMouseEnabled": false,
+      "steps": 10,
+      "maxDuration": 200,
+      "durationPerPixel": 0.1
+    },
+    "smoothScroll": {
+      "enabled": false,
+      "steps": 20,
+      "maxDuration": 180,
+      "durationPerPixel": 1
+    },
+    "heldRepeat": {
+      "enabled": false,
+      "initialDelay": 50,
+      "interval": 50
+    },
+    "systray": {
+      "enabled": true
+    },
+    "appConfigs": null
+  },
+  "validationError": ""
+}
