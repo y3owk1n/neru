@@ -34,7 +34,7 @@ type flagProbe struct {
 	applied func(ModeActivationOptions) bool
 }
 
-// probes covers the whole vocabulary. TestEveryModeFlagHasAProbe is what keeps
+// probes covers the whole vocabulary. TestModeFlags_EveryFlagHasAProbe is what keeps
 // it that way.
 func probes() map[modeflag.Name]flagProbe {
 	return map[modeflag.Name]flagProbe{
@@ -111,9 +111,9 @@ func probes() map[modeflag.Name]flagProbe {
 	}
 }
 
-// TestEveryModeFlagHasAProbe is what stops the coverage below from silently
+// TestModeFlags_EveryFlagHasAProbe is what stops the coverage below from silently
 // shrinking as flags are added.
-func TestEveryModeFlagHasAProbe(t *testing.T) {
+func TestModeFlags_EveryFlagHasAProbe(t *testing.T) {
 	covered := probes()
 
 	for _, spec := range modeflag.All() {
@@ -129,7 +129,7 @@ func TestEveryModeFlagHasAProbe(t *testing.T) {
 	}
 }
 
-func TestTheDaemonActsOnEveryModeFlag(t *testing.T) {
+func TestModeFlags_DaemonActsOnEveryFlag(t *testing.T) {
 	handler := &ModesHandler{}
 
 	for name, probe := range probes() {
@@ -151,10 +151,10 @@ func TestTheDaemonActsOnEveryModeFlag(t *testing.T) {
 	}
 }
 
-// TestValueFlagsRefuseAMissingValue pins the other half of the shape the
+// TestModeFlags_ValueFlagsRefuseAMissingValue pins the other half of the shape the
 // vocabulary declares: a flag marked as taking a value must say so when it
 // arrives without one, rather than swallowing whatever follows.
-func TestValueFlagsRefuseAMissingValue(t *testing.T) {
+func TestModeFlags_ValueFlagsRefuseAMissingValue(t *testing.T) {
 	handler := &ModesHandler{}
 
 	for _, spec := range modeflag.All() {
@@ -176,9 +176,9 @@ func TestValueFlagsRefuseAMissingValue(t *testing.T) {
 	}
 }
 
-// TestShortFormsReachTheSameFlag pins that the short spellings work, since a
+// TestModeFlags_ShortFormsReachTheSameFlag pins that the short spellings work, since a
 // hotkey binding is written by hand and may use either form.
-func TestShortFormsReachTheSameFlag(t *testing.T) {
+func TestModeFlags_ShortFormsReachTheSameFlag(t *testing.T) {
 	handler := &ModesHandler{}
 	covered := probes()
 

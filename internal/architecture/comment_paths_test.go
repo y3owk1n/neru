@@ -25,9 +25,9 @@ var bannerPattern = regexp.MustCompile(`^// ((?:internal|cmd)/[A-Za-z0-9_./-]+\.
 // enough.
 const bannerScanLines = 6
 
-// TestPathHeadersMatchTheirFile catches a header comment left behind by a
+// TestCommentPaths_HeadersMatchTheirFile catches a header comment left behind by a
 // rename. Not every file carries one; those that do must be right.
-func TestPathHeadersMatchTheirFile(t *testing.T) {
+func TestCommentPaths_HeadersMatchTheirFile(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	for _, file := range goFiles(t) {
@@ -69,13 +69,13 @@ func TestPathHeadersMatchTheirFile(t *testing.T) {
 // as in "see events.go" or "(see darwin/element.go".
 var siblingRefPattern = regexp.MustCompile(`\bsee ([a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)*\.go)\b`)
 
-// TestSiblingFileReferencesResolve catches "see foo.go" pointing at a file that
+// TestCommentPaths_SiblingReferencesResolve catches "see foo.go" pointing at a file that
 // has been renamed or moved away.
 //
 // The reference is resolved anywhere under internal/ rather than beside the
 // commenting file, because these point at near neighbors and a package split
 // legitimately moves one into a subdirectory.
-func TestSiblingFileReferencesResolve(t *testing.T) {
+func TestCommentPaths_SiblingReferencesResolve(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	for _, file := range goFiles(t) {

@@ -14,7 +14,7 @@ import (
 // deriving them, so a caller can hand it anything. These are the inputs that
 // would reach the arithmetic and the allocation unbounded if the clamp were
 // not there: zero, negative, and larger than the grid can hold.
-func TestGenerateCellsWithRegionsSurvivesDegenerateDimensions(t *testing.T) {
+func TestGenerateCellsWithRegions_SurvivesDegenerateDimensions(t *testing.T) {
 	tests := []struct {
 		name     string
 		gridCols int

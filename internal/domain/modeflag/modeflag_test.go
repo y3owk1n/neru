@@ -15,7 +15,7 @@ import (
 // A failure means a user's existing binding stopped working. Update the case
 // only when that is what was intended.
 
-func TestTheVocabularyIsWhatWasPublished(t *testing.T) {
+func TestAll_VocabularyIsWhatWasPublished(t *testing.T) {
 	published := []modeflag.Spec{
 		{Name: "action", Short: "a", TakesValue: true},
 		{Name: "modifier", TakesValue: true},
@@ -60,7 +60,7 @@ func TestTheVocabularyIsWhatWasPublished(t *testing.T) {
 	}
 }
 
-func TestMatchAcceptsEverySpellingOfAFlag(t *testing.T) {
+func TestSpec_MatchAcceptsEverySpelling(t *testing.T) {
 	spec, known := modeflag.Get(modeflag.Action)
 	if !known {
 		t.Fatal("action is missing from the vocabulary")
@@ -73,9 +73,9 @@ func TestMatchAcceptsEverySpellingOfAFlag(t *testing.T) {
 	}
 }
 
-// TestMatchRejectsNeighbouringNames guards the prefix comparison: "--role" must
+// TestSpec_MatchRejectsNeighbouringNames guards the prefix comparison: "--role" must
 // not swallow "--roles", or a flag added later would be eaten by an older one.
-func TestMatchRejectsNeighbouringNames(t *testing.T) {
+func TestSpec_MatchRejectsNeighbouringNames(t *testing.T) {
 	spec, _ := modeflag.Get(modeflag.Role)
 
 	for _, arg := range []string{"--roles", "--role-filter", "-role", "--text=OK", "role"} {
@@ -85,9 +85,9 @@ func TestMatchRejectsNeighbouringNames(t *testing.T) {
 	}
 }
 
-// TestFlagsWithoutAShortFormDoNotClaimOne pins that a bare "-" spelling reaches
+// TestSpec_FlagsWithoutAShortFormDoNotClaimOne pins that a bare "-" spelling reaches
 // nothing when the flag has no short form, rather than matching "-".
-func TestFlagsWithoutAShortFormDoNotClaimOne(t *testing.T) {
+func TestSpec_FlagsWithoutAShortFormDoNotClaimOne(t *testing.T) {
 	spec, _ := modeflag.Get(modeflag.SplitWord)
 
 	if spec.Short != "" {
@@ -101,7 +101,7 @@ func TestFlagsWithoutAShortFormDoNotClaimOne(t *testing.T) {
 	}
 }
 
-func TestAssignAndFlagProduceTheWireForms(t *testing.T) {
+func TestName_AssignAndFlagProduceTheWireForms(t *testing.T) {
 	if got := modeflag.Strategy.Flag(); got != "--strategy" {
 		t.Errorf("Flag() = %q, want --strategy", got)
 	}
@@ -115,9 +115,9 @@ func TestAssignAndFlagProduceTheWireForms(t *testing.T) {
 	}
 }
 
-// TestAllReturnsACopy pins that a caller cannot rewrite the vocabulary for
+// TestAll_ReturnsACopy pins that a caller cannot rewrite the vocabulary for
 // everyone else by editing what it was handed.
-func TestAllReturnsACopy(t *testing.T) {
+func TestAll_ReturnsACopy(t *testing.T) {
 	modeflag.All()[0].Name = "tampered"
 
 	if modeflag.All()[0].Name != modeflag.Action {

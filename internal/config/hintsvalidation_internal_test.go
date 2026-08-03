@@ -313,7 +313,7 @@ func hintsCases() []hintsCase {
 	}
 }
 
-func TestValidateHintsReportsTheFirstProblem(t *testing.T) {
+func TestValidateHints_ReportsTheFirstProblem(t *testing.T) {
 	for _, testCase := range hintsCases() {
 		t.Run(testCase.name, func(t *testing.T) {
 			cfg := DefaultConfig()

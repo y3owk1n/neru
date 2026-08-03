@@ -38,10 +38,10 @@ func parse(t *testing.T, args ...string) (ModeActivationOptions, *ipc.Response) 
 	return handler.extractModeOptions(ipc.Command{Action: "hints", Args: args})
 }
 
-// TestExtractModeOptionsAcceptsBothArgumentShapes pins the normalization every
+// TestExtractModeOptions_AcceptsBothArgumentShapes pins the normalization every
 // other case depends on: the CLI passes the mode name as the first argument and
 // the hotkey path does not.
-func TestExtractModeOptionsAcceptsBothArgumentShapes(t *testing.T) {
+func TestExtractModeOptions_AcceptsBothArgumentShapes(t *testing.T) {
 	withName, resp := parse(t, "hints", flagAction, leftClick)
 	if resp != nil {
 		t.Fatalf("leading mode name rejected: %v", resp.Message)
@@ -61,7 +61,7 @@ func TestExtractModeOptionsAcceptsBothArgumentShapes(t *testing.T) {
 	}
 }
 
-func TestExtractModeOptionsReadsNoArguments(t *testing.T) {
+func TestExtractModeOptions_ReadsNoArguments(t *testing.T) {
 	opts, resp := parse(t)
 	if resp != nil {
 		t.Fatalf("empty arguments rejected: %v", resp.Message)
@@ -72,9 +72,9 @@ func TestExtractModeOptionsReadsNoArguments(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsReadsStringFlags pins the value flags. Each is given in
+// TestExtractModeOptions_ReadsStringFlags pins the value flags. Each is given in
 // both spellings the parser accepts, since a user may write either.
-func TestExtractModeOptionsReadsStringFlags(t *testing.T) {
+func TestExtractModeOptions_ReadsStringFlags(t *testing.T) {
 	tests := []struct {
 		name  string
 		split []string
@@ -135,9 +135,9 @@ func TestExtractModeOptionsReadsStringFlags(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsReadsBoolFlags pins the flags that are presence-only or
+// TestExtractModeOptions_ReadsBoolFlags pins the flags that are presence-only or
 // take an explicit value.
-func TestExtractModeOptionsReadsBoolFlags(t *testing.T) {
+func TestExtractModeOptions_ReadsBoolFlags(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -197,9 +197,9 @@ func TestExtractModeOptionsReadsBoolFlags(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsAccumulatesListFlags pins that the list flags collect
+// TestExtractModeOptions_AccumulatesListFlags pins that the list flags collect
 // across repeats rather than overwriting.
-func TestExtractModeOptionsAccumulatesListFlags(t *testing.T) {
+func TestExtractModeOptions_AccumulatesListFlags(t *testing.T) {
 	opts, resp := parse(t, "--role", "button", "--role", "link", "--text", "OK")
 	if resp != nil {
 		t.Fatalf("list flags rejected: %v", resp.Message)
@@ -214,8 +214,8 @@ func TestExtractModeOptionsAccumulatesListFlags(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsReadsZoomToDepth pins the one numeric flag.
-func TestExtractModeOptionsReadsZoomToDepth(t *testing.T) {
+// TestExtractModeOptions_ReadsZoomToDepth pins the one numeric flag.
+func TestExtractModeOptions_ReadsZoomToDepth(t *testing.T) {
 	opts, resp := parse(t, flagZoomToDepth, "3")
 	if resp != nil {
 		t.Fatalf("--zoom-to-depth rejected: %v", resp.Message)
@@ -226,10 +226,10 @@ func TestExtractModeOptionsReadsZoomToDepth(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsRejectsBadValues pins that an unusable value produces a
+// TestExtractModeOptions_RejectsBadValues pins that an unusable value produces a
 // response rather than a silently wrong option. The message is not pinned, only
 // that the command is refused.
-func TestExtractModeOptionsRejectsBadValues(t *testing.T) {
+func TestExtractModeOptions_RejectsBadValues(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -251,9 +251,9 @@ func TestExtractModeOptionsRejectsBadValues(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsTakesAPositionalAction pins that an argument matching
+// TestExtractModeOptions_TakesAPositionalAction pins that an argument matching
 // no flag becomes the action, which is how `neru hints left_click` is written.
-func TestExtractModeOptionsTakesAPositionalAction(t *testing.T) {
+func TestExtractModeOptions_TakesAPositionalAction(t *testing.T) {
 	opts, resp := parse(t, leftClick)
 	if resp != nil {
 		t.Fatalf("positional action rejected: %v", resp.Message)
@@ -264,11 +264,11 @@ func TestExtractModeOptionsTakesAPositionalAction(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsRefusesAStrayArgument pins that once an action is set,
+// TestExtractModeOptions_RefusesAStrayArgument pins that once an action is set,
 // a further unmatched argument is refused rather than silently dropped. Its
 // only plausible cause is a typo, and swallowing it would apply a command the
 // user did not write.
-func TestExtractModeOptionsRefusesAStrayArgument(t *testing.T) {
+func TestExtractModeOptions_RefusesAStrayArgument(t *testing.T) {
 	_, resp := parse(t, leftClick, "stray")
 	if resp == nil {
 		t.Fatal("a stray argument after the action was accepted")
@@ -279,10 +279,10 @@ func TestExtractModeOptionsRefusesAStrayArgument(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsEnforcesFlagDependencies pins the rules that make one
+// TestExtractModeOptions_EnforcesFlagDependencies pins the rules that make one
 // flag meaningless without another. These are easy to lose in a rewrite,
 // because each is a check sitting far from the flag it constrains.
-func TestExtractModeOptionsEnforcesFlagDependencies(t *testing.T) {
+func TestExtractModeOptions_EnforcesFlagDependencies(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -302,9 +302,9 @@ func TestExtractModeOptionsEnforcesFlagDependencies(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsPinsAcceptedValues pins the vocabularies, which are
+// TestExtractModeOptions_PinsAcceptedValues pins the vocabularies, which are
 // what a user sees when they mistype a flag value.
-func TestExtractModeOptionsPinsAcceptedValues(t *testing.T) {
+func TestExtractModeOptions_PinsAcceptedValues(t *testing.T) {
 	for _, value := range []string{strategyAXTree, "vision"} {
 		if _, resp := parse(t, flagStrategy, value); resp != nil {
 			t.Errorf("--strategy %s rejected: %v", value, resp.Message)
@@ -318,10 +318,10 @@ func TestExtractModeOptionsPinsAcceptedValues(t *testing.T) {
 	}
 }
 
-// TestExtractModeOptionsRefusalMessages pins what a user is told when a flag is
+// TestExtractModeOptions_RefusalMessages pins what a user is told when a flag is
 // given without its value. The wording is the whole feedback they get from the
 // CLI, and several flags name their accepted vocabulary in it.
-func TestExtractModeOptionsRefusalMessages(t *testing.T) {
+func TestExtractModeOptions_RefusalMessages(t *testing.T) {
 	tests := []struct {
 		args []string
 		want string

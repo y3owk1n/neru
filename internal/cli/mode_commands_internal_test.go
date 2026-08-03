@@ -37,7 +37,7 @@ func hintsMode() ModeConfig {
 	}
 }
 
-func TestIPCArgsLeadsWithTheModeName(t *testing.T) {
+func TestIPCArgs_LeadsWithTheModeName(t *testing.T) {
 	args := modeFlags{}.ipcArgs(hintsMode())
 
 	if len(args) == 0 || args[0] != modeHints {
@@ -45,10 +45,10 @@ func TestIPCArgsLeadsWithTheModeName(t *testing.T) {
 	}
 }
 
-// TestIPCArgsOmitsUnsetFlags pins that an unset flag contributes nothing. The
+// TestIPCArgs_OmitsUnsetFlags pins that an unset flag contributes nothing. The
 // daemon distinguishes absent from empty, so sending "--role=" would not mean
 // the same as sending nothing.
-func TestIPCArgsOmitsUnsetFlags(t *testing.T) {
+func TestIPCArgs_OmitsUnsetFlags(t *testing.T) {
 	args := modeFlags{}.ipcArgs(hintsMode())
 
 	if len(args) != 1 {
@@ -56,7 +56,7 @@ func TestIPCArgsOmitsUnsetFlags(t *testing.T) {
 	}
 }
 
-func TestIPCArgsCarriesEachFlag(t *testing.T) {
+func TestIPCArgs_CarriesEachFlag(t *testing.T) {
 	tests := []struct {
 		name  string
 		flags modeFlags
@@ -100,9 +100,9 @@ func TestIPCArgsCarriesEachFlag(t *testing.T) {
 	}
 }
 
-// TestIPCArgsRepeatsOnExitPerStep pins that each --on-exit step travels as its
+// TestIPCArgs_RepeatsOnExitPerStep pins that each --on-exit step travels as its
 // own argument rather than being joined, since a step may contain anything.
-func TestIPCArgsRepeatsOnExitPerStep(t *testing.T) {
+func TestIPCArgs_RepeatsOnExitPerStep(t *testing.T) {
 	args := modeFlags{
 		action:      actLeftClick,
 		onExitSteps: []string{stepScroll, "exec echo hi"},
@@ -121,10 +121,10 @@ func TestIPCArgsRepeatsOnExitPerStep(t *testing.T) {
 	}
 }
 
-// TestIPCArgsRespectsModeSupport pins that a flag a mode does not declare is not
+// TestIPCArgs_RespectsModeSupport pins that a flag a mode does not declare is not
 // sent even when the value is set, which is what stops one mode's flags leaking
 // into another's request.
-func TestIPCArgsRespectsModeSupport(t *testing.T) {
+func TestIPCArgs_RespectsModeSupport(t *testing.T) {
 	plain := ModeConfig{Name: modeGrid}
 
 	args := modeFlags{zoomToDepth: 3}.ipcArgs(plain)
@@ -136,9 +136,9 @@ func TestIPCArgsRespectsModeSupport(t *testing.T) {
 	}
 }
 
-// TestValidateEnforcesFlagDependencies pins the rules the CLI checks before
+// TestModeFlags_ValidateEnforcesFlagDependencies pins the rules the CLI checks before
 // contacting the daemon, so a mistyped command fails immediately.
-func TestValidateEnforcesFlagDependencies(t *testing.T) {
+func TestModeFlags_ValidateEnforcesFlagDependencies(t *testing.T) {
 	tests := []struct {
 		name  string
 		flags modeFlags
@@ -160,9 +160,9 @@ func TestValidateEnforcesFlagDependencies(t *testing.T) {
 	}
 }
 
-// TestValidateAcceptsAWellFormedCommand guards against the checks refusing
+// TestModeFlags_ValidateAcceptsAWellFormedCommand guards against the checks refusing
 // everything, which the cases above would not catch on their own.
-func TestValidateAcceptsAWellFormedCommand(t *testing.T) {
+func TestModeFlags_ValidateAcceptsAWellFormedCommand(t *testing.T) {
 	flags := modeFlags{
 		action:              actLeftClick,
 		modifier:            modCmd,

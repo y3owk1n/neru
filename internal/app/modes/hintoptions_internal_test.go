@@ -43,7 +43,7 @@ func populatedContext() *hints.Context {
 	return ctx
 }
 
-func TestApplyHintOptionsRefreshKeepsUnsetOptions(t *testing.T) {
+func TestApplyHintOptions_RefreshKeepsUnsetOptions(t *testing.T) {
 	ctx := populatedContext()
 
 	applyHintOptions(ctx, ModeActivationOptions{}, true)
@@ -96,7 +96,7 @@ func TestApplyHintOptionsRefreshKeepsUnsetOptions(t *testing.T) {
 	}
 }
 
-func TestApplyHintOptionsRefreshWritesTheOptionsItWasGiven(t *testing.T) {
+func TestApplyHintOptions_RefreshWritesTheOptionsItWasGiven(t *testing.T) {
 	ctx := populatedContext()
 
 	action := "right_click"
@@ -127,10 +127,10 @@ func TestApplyHintOptionsRefreshWritesTheOptionsItWasGiven(t *testing.T) {
 	}
 }
 
-// TestApplyHintOptionsFreshResetsUnsetOptions is the other half of the rule: a
+// TestApplyHintOptions_FreshResetsUnsetOptions is the other half of the rule: a
 // command issued without a flag must not inherit that flag from the last time
 // the mode ran.
-func TestApplyHintOptionsFreshResetsUnsetOptions(t *testing.T) {
+func TestApplyHintOptions_FreshResetsUnsetOptions(t *testing.T) {
 	ctx := populatedContext()
 	ctx.SetRepeat(true)
 
@@ -181,7 +181,7 @@ func TestApplyHintOptionsFreshResetsUnsetOptions(t *testing.T) {
 	}
 }
 
-func TestApplyHintOptionsFreshWritesTheOptionsItWasGiven(t *testing.T) {
+func TestApplyHintOptions_FreshWritesTheOptionsItWasGiven(t *testing.T) {
 	ctx := &hints.Context{}
 
 	action := "double_click"

@@ -34,7 +34,7 @@ var cgoSourceExtensions = map[string]bool{
 	".c":  true,
 }
 
-func TestRelativeIncludesResolve(t *testing.T) {
+func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	walkErr := walkSourceRoots(repoRoot, func(path string, entry os.DirEntry, err error) error {
@@ -98,7 +98,7 @@ func TestRelativeIncludesResolve(t *testing.T) {
 // Nothing enforces that choice, but it is worth pinning that the includes all
 // point at the same place, so a contributor copying an existing file does not
 // invent a second convention.
-func TestNativeBridgeIncludesPointAtThePlatformPackages(t *testing.T) {
+func TestCgoIncludes_NativeBridgePointsAtThePlatformPackages(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	walkErr := walkSourceRoots(repoRoot, func(path string, entry os.DirEntry, err error) error {

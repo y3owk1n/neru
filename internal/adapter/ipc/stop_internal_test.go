@@ -66,7 +66,7 @@ func (l *promptListener) Close() error {
 
 func (*promptListener) Addr() net.Addr { return nil }
 
-func TestStopGivesUpOnAListenerThatWillNotClose(t *testing.T) {
+func TestServer_Stop_GivesUpOnAListenerThatWillNotClose(t *testing.T) {
 	listener := newStuckListener()
 	defer close(listener.release)
 
@@ -98,7 +98,7 @@ func TestStopGivesUpOnAListenerThatWillNotClose(t *testing.T) {
 	}
 }
 
-func TestStopClosesTheListener(t *testing.T) {
+func TestServer_Stop_ClosesTheListener(t *testing.T) {
 	listener := &promptListener{}
 	server := &Server{listener: listener, logger: zap.NewNop()}
 
@@ -112,9 +112,9 @@ func TestStopClosesTheListener(t *testing.T) {
 	}
 }
 
-// TestStopReportsARealCloseFailure pins that giving up on a hung close did not
+// TestServer_Stop_ReportsARealCloseFailure pins that giving up on a hung close did not
 // also swallow the errors a close genuinely reports.
-func TestStopReportsARealCloseFailure(t *testing.T) {
+func TestServer_Stop_ReportsARealCloseFailure(t *testing.T) {
 	server := &Server{
 		listener: &promptListener{err: net.ErrClosed},
 		logger:   zap.NewNop(),
@@ -126,9 +126,9 @@ func TestStopReportsARealCloseFailure(t *testing.T) {
 	}
 }
 
-// TestStopWithoutAListenerIsHarmless covers the server that failed before it
+// TestServer_Stop_WithoutAListenerIsHarmless covers the server that failed before it
 // ever listened, which shutdown still calls Stop on.
-func TestStopWithoutAListenerIsHarmless(t *testing.T) {
+func TestServer_Stop_WithoutAListenerIsHarmless(t *testing.T) {
 	server := &Server{logger: zap.NewNop()}
 
 	stopErr := server.Stop()

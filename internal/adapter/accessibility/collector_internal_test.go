@@ -10,7 +10,7 @@ import (
 // string, so a filter term that reaches matching with its original casing never
 // matches anything the user typed in mixed case.
 
-func TestLowerFilterLowercasesEveryTextComparison(t *testing.T) {
+func TestLowerFilter_LowercasesEveryTextComparison(t *testing.T) {
 	lowered := lowerFilter(ports.ElementFilter{
 		TitleContains:       "Save As",
 		DescriptionContains: "Close Button",
@@ -38,10 +38,10 @@ func TestLowerFilterLowercasesEveryTextComparison(t *testing.T) {
 	}
 }
 
-// TestLowerFilterDoesNotWriteThroughToTheCaller pins that the caller's list is
+// TestLowerFilter_DoesNotWriteThroughToTheCaller pins that the caller's list is
 // left alone. The filter travels by value but its list does not, so lowercasing
 // in place would rewrite a slice the caller may still hold.
-func TestLowerFilterDoesNotWriteThroughToTheCaller(t *testing.T) {
+func TestLowerFilter_DoesNotWriteThroughToTheCaller(t *testing.T) {
 	original := []string{"OK"}
 
 	lowerFilter(ports.ElementFilter{TextContainsList: original})
@@ -51,9 +51,9 @@ func TestLowerFilterDoesNotWriteThroughToTheCaller(t *testing.T) {
 	}
 }
 
-// TestLowerFilterKeepsTheNonTextFilters guards against the copy dropping the
+// TestLowerFilter_KeepsTheNonTextFilters guards against the copy dropping the
 // fields it does not touch.
-func TestLowerFilterKeepsTheNonTextFilters(t *testing.T) {
+func TestLowerFilter_KeepsTheNonTextFilters(t *testing.T) {
 	lowered := lowerFilter(ports.ElementFilter{
 		IncludeDock:        true,
 		IncludeMenubar:     true,

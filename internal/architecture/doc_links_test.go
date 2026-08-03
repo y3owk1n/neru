@@ -30,7 +30,7 @@ var repoPathPattern = regexp.MustCompile(
 	`(?:\]\(|` + "`" + `)((?:\.\./)*(?:internal|cmd|configs|scripts|resources|assets|protocol|nix)/[A-Za-z0-9_./-]+)`,
 )
 
-func TestDocsDoNotLinkToMissingPaths(t *testing.T) {
+func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	for _, doc := range markdownFiles(t, repoRoot) {
@@ -77,10 +77,10 @@ func TestDocsDoNotLinkToMissingPaths(t *testing.T) {
 	}
 }
 
-// TestDocLinkExemptionsAreStillReal keeps the exemption list honest, the same
+// TestDocLinks_ExemptionsAreStillReal keeps the exemption list honest, the same
 // way knownLayeringExceptions is kept honest: an entry for a file that no
 // longer exists is dead weight that makes the next exemption easier to add.
-func TestDocLinkExemptionsAreStillReal(t *testing.T) {
+func TestDocLinks_ExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	for relPath, reason := range docsExemptFromLinkChecking {

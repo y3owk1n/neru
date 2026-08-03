@@ -45,9 +45,9 @@ func optionalOffered() map[modeflag.Name]func(*ModeConfig) {
 	}
 }
 
-// TestEveryModeFlagIsAccountedFor stops the two lists above from drifting out of
+// TestBuildModeCommand_EveryFlagIsAccountedFor stops the two lists above from drifting out of
 // step with the vocabulary as flags are added.
-func TestEveryModeFlagIsAccountedFor(t *testing.T) {
+func TestBuildModeCommand_EveryFlagIsAccountedFor(t *testing.T) {
 	optional := optionalOffered()
 
 	for _, spec := range modeflag.All() {
@@ -60,7 +60,7 @@ func TestEveryModeFlagIsAccountedFor(t *testing.T) {
 	}
 }
 
-func TestAModeCommandOffersTheFlagsItDeclares(t *testing.T) {
+func TestBuildModeCommand_OffersTheFlagsItDeclares(t *testing.T) {
 	for _, name := range alwaysOffered() {
 		t.Run(string(name), func(t *testing.T) {
 			cmd := BuildModeCommand(ModeConfig{Name: modeHints})
@@ -89,10 +89,10 @@ func TestAModeCommandOffersTheFlagsItDeclares(t *testing.T) {
 	}
 }
 
-// TestAModeCommandWithholdsFlagsItDoesNotSupport is the other half: a mode that
+// TestBuildModeCommand_WithholdsFlagsItDoesNotSupport is the other half: a mode that
 // does not declare a flag must not offer it, or a user would be able to type
 // something the mode cannot act on.
-func TestAModeCommandWithholdsFlagsItDoesNotSupport(t *testing.T) {
+func TestBuildModeCommand_WithholdsFlagsItDoesNotSupport(t *testing.T) {
 	bare := BuildModeCommand(ModeConfig{Name: modeGrid})
 
 	for name := range optionalOffered() {
@@ -102,10 +102,10 @@ func TestAModeCommandWithholdsFlagsItDoesNotSupport(t *testing.T) {
 	}
 }
 
-// TestIPCArgsUsesTheSharedSpelling pins that what goes on the wire is written
+// TestIPCArgs_UsesTheSharedSpelling pins that what goes on the wire is written
 // from the vocabulary. A flag the CLI spells itself would be a flag the daemon
 // silently skips.
-func TestIPCArgsUsesTheSharedSpelling(t *testing.T) {
+func TestIPCArgs_UsesTheSharedSpelling(t *testing.T) {
 	args := modeFlags{
 		action:              actLeftClick,
 		modifier:            modCmd,

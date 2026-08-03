@@ -21,7 +21,7 @@ import (
 // zero by definition — it is that the full surface is reachable without a
 // display and without panicking.
 
-func TestNoOpManagerAnswersEveryCallWithoutADisplay(t *testing.T) {
+func TestNoOpManager_AnswersEveryCallWithoutADisplay(t *testing.T) {
 	noOp := &manager.NoOpManager{}
 
 	// Lifecycle and visibility.
@@ -54,7 +54,7 @@ func TestNoOpManagerAnswersEveryCallWithoutADisplay(t *testing.T) {
 	noOp.ShowSubgrid(nil, grid.Style{})
 }
 
-func TestNoOpManagerReportsEmptyState(t *testing.T) {
+func TestNoOpManager_ReportsEmptyState(t *testing.T) {
 	noOp := &manager.NoOpManager{}
 
 	if got := noOp.Mode(); got != manager.ModeIdle {
@@ -94,10 +94,10 @@ func TestNoOpManagerReportsEmptyState(t *testing.T) {
 	}
 }
 
-// TestNoOpManagerSubscriptionIsInert pins that a subscriber can be registered
+// TestNoOpManager_SubscriptionIsInert pins that a subscriber can be registered
 // and removed. A caller that subscribes on a headless run must not be left
 // holding an id it cannot unsubscribe.
-func TestNoOpManagerSubscriptionIsInert(t *testing.T) {
+func TestNoOpManager_SubscriptionIsInert(t *testing.T) {
 	noOp := &manager.NoOpManager{}
 
 	id := noOp.Subscribe(func(manager.StateChange) {
@@ -108,10 +108,10 @@ func TestNoOpManagerSubscriptionIsInert(t *testing.T) {
 	noOp.Unsubscribe(id)
 }
 
-// TestStateChangeCarriesBothEnds pins the subscription payload. The fields are
+// TestStateChange_CarriesBothEnds pins the subscription payload. The fields are
 // unexported so a subscriber cannot rewrite the transition it was handed, which
 // makes the constructor and the two accessors the whole contract.
-func TestStateChangeCarriesBothEnds(t *testing.T) {
+func TestStateChange_CarriesBothEnds(t *testing.T) {
 	change := manager.NewStateChange(manager.ModeIdle, manager.ModeHints)
 
 	if got := change.Prev(); got != manager.ModeIdle {
@@ -123,10 +123,10 @@ func TestStateChangeCarriesBothEnds(t *testing.T) {
 	}
 }
 
-// TestModesMatchTheDomainNames pins that the overlay's mode vocabulary is the
+// TestModes_MatchTheDomainNames pins that the overlay's mode vocabulary is the
 // domain's. They are separate constants, so a rename on one side that missed
 // the other would silently stop matching.
-func TestModesMatchTheDomainNames(t *testing.T) {
+func TestModes_MatchTheDomainNames(t *testing.T) {
 	pairs := []struct {
 		overlay manager.Mode
 		domain  string

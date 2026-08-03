@@ -268,7 +268,7 @@ func routeCases() []routeCase {
 	}
 }
 
-func TestHandleActionRoutesEveryRequest(t *testing.T) {
+func TestHandleAction_RoutesEveryRequest(t *testing.T) {
 	handler := &ActionsHandler{logger: zap.NewNop()}
 
 	for _, testCase := range routeCases() {
@@ -333,7 +333,7 @@ func servedHandler() *ActionsHandler {
 	}
 }
 
-func TestASucceedingMoveReportsTheRequestedName(t *testing.T) {
+func TestHandleAction_SucceedingMoveReportsTheRequestedName(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -373,11 +373,11 @@ func TestASucceedingMoveReportsTheRequestedName(t *testing.T) {
 	}
 }
 
-// TestAMissingServiceIsReportedBeforeAMissingFlag pins the order of the two
+// TestHandleAction_MissingServiceIsReportedBeforeAMissingFlag pins the order of the two
 // checks. move_mouse_relative needs both a service and its --dx/--dy; a user
 // with neither is told about the service, because that is the one they cannot
 // fix by retyping the command.
-func TestAMissingServiceIsReportedBeforeAMissingFlag(t *testing.T) {
+func TestHandleAction_MissingServiceIsReportedBeforeAMissingFlag(t *testing.T) {
 	unserved := &ActionsHandler{logger: zap.NewNop()}
 
 	resp := unserved.handleAction(context.Background(), ipc.Command{

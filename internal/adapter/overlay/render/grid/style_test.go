@@ -15,12 +15,12 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 	return m.darkMode
 }
 
-// TestBuildStyleResolvesThemeColors pins that each color comes from the
+// TestBuildStyle_ResolvesThemeColors pins that each color comes from the
 // configured value for the active theme.
 //
 // The style is one type on every platform, so this runs in every job rather
 // than only where a particular backend is built.
-func TestBuildStyleResolvesThemeColors(t *testing.T) {
+func TestBuildStyle_ResolvesThemeColors(t *testing.T) {
 	cfg := config.DefaultConfig().Grid
 
 	tests := []struct {
@@ -72,10 +72,10 @@ func TestBuildStyleResolvesThemeColors(t *testing.T) {
 	}
 }
 
-// TestStyleARGBAccessorsMatchTheHexValues pins the conversion the Cairo and GDI
+// TestStyle_ARGBAccessorsMatchTheHexValues pins the conversion the Cairo and GDI
 // backends rely on: the packed form of a color must be the packed form of the
 // hex string beside it.
-func TestStyleARGBAccessorsMatchTheHexValues(t *testing.T) {
+func TestStyle_ARGBAccessorsMatchTheHexValues(t *testing.T) {
 	style := BuildStyle(config.DefaultConfig().Grid, &mockThemeProvider{darkMode: false})
 
 	pairs := []struct {
@@ -98,10 +98,10 @@ func TestStyleARGBAccessorsMatchTheHexValues(t *testing.T) {
 	}
 }
 
-// TestLineWidthKeepsAHairlineVisible pins the lower bound on stroke width.
+// TestStyle_LineWidthKeepsAHairlineVisible pins the lower bound on stroke width.
 // A zero-width stroke rounds away to nothing on the backends that draw in
 // floats, so a border configured at zero still has to render.
-func TestLineWidthKeepsAHairlineVisible(t *testing.T) {
+func TestStyle_LineWidthKeepsAHairlineVisible(t *testing.T) {
 	cfg := config.DefaultConfig().Grid
 	cfg.UI.BorderWidth = 0
 

@@ -285,11 +285,11 @@ func configDelta(t *testing.T, baseline, loaded *Config) []string {
 	return lines
 }
 
-// TestLoadWithValidationMatchesItsSnapshot compares what each config file
+// TestLoadWithValidation_MatchesItsSnapshot compares what each config file
 // changed against a recorded list. Set UPDATE_GOLDEN=1 to re-record after an
 // intentional change, and read the diff carefully when it fails: it is the
 // difference between two daemons.
-func TestLoadWithValidationMatchesItsSnapshot(t *testing.T) {
+func TestLoadWithValidation_MatchesItsSnapshot(t *testing.T) {
 	baseline := loadConfigFor(t, loadCase{name: "baseline"})
 	if baseline.ValidationError != nil {
 		t.Fatalf("the baseline config was refused: %v", baseline.ValidationError)
