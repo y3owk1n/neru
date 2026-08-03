@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/accessibility/uia_windows_test.go
 // Unit tests for the pure UIA control-type naming used by hint enumeration.
 // Does not exercise live UIA (see accessibility integration tests on WIN-VM).
 

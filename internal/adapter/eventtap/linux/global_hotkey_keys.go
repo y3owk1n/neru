@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/eventtap/global_hotkey_keys_linux.go
 // Canonicalizes hotkey chord strings into a stable, order-independent signature
 // so config keybindings and live evdev key events compare reliably.
 // Does NOT read devices or fire callbacks; that lives in the cgo listener.

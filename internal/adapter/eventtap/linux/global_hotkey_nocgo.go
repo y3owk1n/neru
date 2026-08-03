@@ -1,6 +1,5 @@
 //go:build linux && !cgo
 
-// internal/adapter/eventtap/global_hotkey_linux_nocgo.go
 // No-op GlobalHotkeyListener for builds without cgo (evdev needs cgo).
 // Does nothing; exists only so the hotkey manager compiles without cgo.
 

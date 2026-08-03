@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/sway_geometry_linux.go
 // Sway window-origin source. `swaymsg -t get_tree` returns the full node tree;
 // the focused node's on-screen content origin is rect + window_rect (window_rect
 // is the content area relative to rect, i.e. it excludes server-side

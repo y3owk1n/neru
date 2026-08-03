@@ -1,5 +1,6 @@
-// Package linux draws the overlay on linux.
+// Package linux draws the overlay on X11 and Wayland.
 //
-// The whole directory is linux-only, so the directory carries the platform and
-// the filenames do not repeat it.
+// Which surface is used is decided at runtime from the detected backend, so
+// both compile into the same binary. The directory is linux-only, so its
+// filenames carry no platform suffix.
 package linux

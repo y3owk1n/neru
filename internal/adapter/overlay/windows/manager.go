@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/overlay/manager_windows.go
 // Windows overlay manager backed by a layered Win32 HWND and GDI rendering of
 // grid, hints, and recursive-grid overlays.
 // Does not implement keyboard capture (handled by the low-level keyboard hook).

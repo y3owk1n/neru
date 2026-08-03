@@ -20,6 +20,9 @@
 //     cross-platform vet, and only appears on a real cgo build.
 //   - doc_links_test.go       documentation never links to a path that does
 //     not exist.
+//   - comment_paths_test.go   a comment that names a source file names one
+//     that exists. Renames break these silently, since the compiler does not
+//     read comments.
 //   - test_quality_test.go    tests assert something.
 //   - role_vocabulary_docs_test.go  the semantic role list matches its docs.
 //

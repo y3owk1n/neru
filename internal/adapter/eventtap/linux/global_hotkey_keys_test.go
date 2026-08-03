@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/eventtap/global_hotkey_keys_linux_test.go
 // Tests that config-side and live-evdev-side chord spellings canonicalize equal.
 // Does NOT test device reading or callback dispatch.
 

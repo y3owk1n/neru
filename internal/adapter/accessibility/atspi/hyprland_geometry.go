@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/hyprland_geometry_linux.go
 // Hyprland window-origin source. `hyprctl -j activewindow` reports the focused
 // window's absolute position ("at") and size ("size"), which give the screen
 // origin directly.

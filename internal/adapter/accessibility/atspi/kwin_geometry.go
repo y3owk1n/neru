@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/kwin_geometry_linux.go
 // KWin geometry bridge: under Wayland a client cannot know its own absolute
 // screen position, and AT-SPI therefore reports window-relative coordinates.
 // This installs a small KWin script that pushes the focused window's on-screen

@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/overlay/manager_windows_features_test.go
 // Unit tests for the pure Win32 hint/recursive-grid rendering helpers.
 // Does not cover GDI drawing (see overlay integration tests on WIN-VM).
 

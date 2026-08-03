@@ -1,12 +1,14 @@
-// Package native is the accessibility client built on each OS's own API:
-// AXUIElement on macOS, UI Automation on Windows, and on Linux the input and
-// geometry half that package atspi delegates to.
+// Package native is the accessibility client built on each OS's own API.
 //
-// One shell (client.go, query.go) is specialised per platform by the
-// build-tagged Element, ElementInfo, TreeNode and TreeOptions types that
-// element_*.go and tree_*.go declare. That is why macOS and Windows are not yet
-// separate packages: they are not separate implementations, they are the same
-// implementation over different types. Splitting them means parameterising the
-// shell over an interface first — see the Backend Packages section of
-// docs/CROSS_PLATFORM.md.
+// One shell — client.go and query.go — is written against the Element,
+// ElementInfo, TreeNode and TreeOptions types, and a build-tagged backend_<os>.go
+// binds those names to the platform package that supplies them:
+//
+//   - darwin   AXUIElement
+//   - windows  UI Automation over COM
+//   - linux    input injection and window geometry, which package atspi
+//     delegates to for everything that is not tree walking
+//
+// The shell holds no platform knowledge of its own; the dispatch files are the
+// only place a platform is named.
 package native

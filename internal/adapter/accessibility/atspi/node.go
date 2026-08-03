@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_node_linux.go
 // The ax.Window and ax.Node implementations backed by AT-SPI object references:
 // role, bounds, title, description, value, and clickability for one element.
 

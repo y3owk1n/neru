@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/overlay/manager_windows_overlay.go
 // Win32 overlay backend used by the Windows overlay manager for grid rendering.
 // Does not manage singleton lifecycle or mode subscriptions.
 

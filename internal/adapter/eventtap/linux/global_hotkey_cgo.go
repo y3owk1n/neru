@@ -1,6 +1,5 @@
 //go:build linux && cgo
 
-// internal/adapter/eventtap/global_hotkey_linux_cgo.go
 // Passive evdev global-hotkey listener: watches keyboards (no grab) while Neru
 // is idle and fires callbacks when a configured chord is pressed.
 // Does NOT grab the keyboard or inject input; it only reads, so the focused app

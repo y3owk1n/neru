@@ -565,7 +565,7 @@ func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
 }
 
 // PrimeApplication waits briefly for the application's accessibility tree to
-// become queryable. The per-platform behavior lives in priming_darwin.go /
+// become queryable. The per-platform behavior lives in native/darwin/priming.go /
 // priming_other.go; see ports.TreePriming for why only macOS has work to do.
 func (a *Adapter) PrimeApplication(ctx context.Context, bundleID string) (bool, error) {
 	err := a.checkContext(ctx)

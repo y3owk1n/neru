@@ -19,7 +19,7 @@ const integrationScanBudget = 30 * time.Second
 // not returned within integrationScanBudget.
 //
 // A context deadline cannot do this job. The AX client takes a context and
-// discards it — see InfraAXClient.FrontmostWindow in infra_client.go, whose
+// discards it — see native.Client.FrontmostWindow in native/client.go, whose
 // parameter is `_ context.Context` — so once a query is inside the Objective-C
 // bridge nothing observes cancellation. The context the suite passes is still
 // worth having, because the scan's per-source goroutines check it before

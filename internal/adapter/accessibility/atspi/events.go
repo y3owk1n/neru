@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_events_linux.go
 // Event-driven active-window tracking for the Linux AT-SPI client.
 //
 // Frame selection otherwise has to scan every application on the a11y bus to

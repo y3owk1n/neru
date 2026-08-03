@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_diag_linux.go
 // Diagnostics for a frame scan: records per-application call failures and
 // distinguishes fatal bus errors from apps that are merely uncooperative, so a
 // scan that finds nothing can say why.

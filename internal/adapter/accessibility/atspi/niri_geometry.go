@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/niri_geometry_linux.go
 // niri window-origin source. niri exposes the focused window's position within
 // the workspace view (layout.tile_pos_in_workspace_view) plus the focused
 // output's logical origin, which together give the window's screen origin.

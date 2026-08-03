@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/systray/systray_linux_test.go
 // Regression test for the Linux quit race: Quit before Run/RunHeadless must
 // not be lost (the daemon host can call Quit from the app goroutine before
 // the systray loop creates its quit channel).

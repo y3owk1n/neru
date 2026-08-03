@@ -1,8 +1,7 @@
 //go:build windows
 
-// internal/adapter/overlay/manager_windows_features.go
 // Win32/GDI rendering for hints and recursive-grid overlays on Windows.
-// Does not own window lifecycle or grid rendering (see manager_windows_overlay.go).
+// Does not own window lifecycle or grid rendering (see overlay.go).
 
 package windows
 

@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_bus_linux.go
 // Brings the AT-SPI bus up: reads and sets the org.a11y IsEnabled property and
 // opens the accessibility bus connection.
 // Toolkits only build their accessibility tree once assistive-tech mode is on,

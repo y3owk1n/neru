@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/systray/systray_linux_dbus.go
 // Implements the org.kde.StatusNotifierItem + com.canonical.dbusmenu D-Bus
 // interfaces so the Linux daemon exports a real tray icon and menu on the
 // session bus (consumed by KDE/GNOME/Cinnamon SNI hosts). Hand-rolled over

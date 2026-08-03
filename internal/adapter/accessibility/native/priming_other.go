@@ -1,6 +1,5 @@
 //go:build !darwin
 
-// internal/adapter/accessibility/priming_other.go
 // Non-darwin slot for AccessibilityPort.PrimeApplication.
 // Does not wait for anything: the asynchronous tree it would wait for is a
 // Chromium/Gecko behavior behind macOS's AXManualAccessibility. AT-SPI and UI

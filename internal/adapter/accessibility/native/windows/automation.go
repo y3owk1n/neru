@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/accessibility/uia_windows.go
 // Pure-Go IUIAutomation (COM) element discovery for the Windows hints mode.
 // Does not perform actions or build a deep cached tree; it returns a flat
 // list of on-screen, clickable controls for the given top-level window.

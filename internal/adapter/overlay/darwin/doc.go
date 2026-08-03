@@ -1,5 +1,4 @@
-// Package darwin draws the overlay on darwin.
+// Package darwin draws the overlay with Cocoa.
 //
-// The whole directory is darwin-only, so the directory carries the platform and
-// the filenames do not repeat it.
+// The directory is darwin-only, so its filenames carry no platform suffix.
 package darwin

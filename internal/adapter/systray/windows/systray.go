@@ -1,6 +1,5 @@
 //go:build windows
 
-// internal/adapter/systray/systray_windows.go
 // Win32 notification-area (system tray) icon + popup menu via pure syscall.
 // Does not implement macOS template-icon theming or per-item icons.
 

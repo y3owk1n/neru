@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_scan_linux.go
 // Finds the frame to hint against: enumerates applications on the AT-SPI bus,
 // scores their frames against the compositor's focused app, and picks one.
 // This is where the guesswork lives, because AT-SPI exposes no "focused

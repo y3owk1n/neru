@@ -1,5 +1,4 @@
-// Package windows draws the overlay on windows.
+// Package windows draws the overlay with GDI on a layered window.
 //
-// The whole directory is windows-only, so the directory carries the platform and
-// the filenames do not repeat it.
+// The directory is windows-only, so its filenames carry no platform suffix.
 package windows

@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_roles_linux.go
 // The AT-SPI role vocabulary: native role names, their aliases, the name->ID
 // table, and the clickable-role defaults hints filters on.
 // It does not walk the tree; it only answers what a role is called and whether

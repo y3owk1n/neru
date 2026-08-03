@@ -1,8 +1,7 @@
 //go:build linux
 
-// internal/adapter/systray/systray_linux.go
 // Linux tray API: maintains the menu tree and wires it to the D-Bus SNI +
-// dbusmenu server in systray_linux_dbus.go. The menu is built by the
+// dbusmenu server in dbus.go. The menu is built by the
 // platform-agnostic app component (internal/app/components/systray); this file
 // only owns the transport and the item state.
 // Does not implement the darwin/Windows tray; those have their own backends.

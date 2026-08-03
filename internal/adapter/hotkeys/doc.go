@@ -1,11 +1,13 @@
-// Package hotkeys provides comprehensive functionality for registering and handling global hotkeys
-// in the Neru application using per-hotkey CGEventTaps, enabling system-wide keyboard shortcuts.
+// Package hotkeys registers global keyboard shortcuts.
 //
-// This package implements a complete hotkey management system that allows users to define and
-// trigger global keyboard shortcuts for various Neru functions. It serves as the primary interface
-// between user input and application functionality, translating keyboard combinations into actions.
+// Each platform's Manager implements ports.HotkeyPort directly, so there is no
+// wrapper adapter here — only the shared HotkeyID and Callback aliases and a
+// build-tagged factory that picks the implementation and registers it as the
+// process-wide manager.
 //
-// The package includes both the low-level Manager for direct hotkey operations and an Adapter
-// that implements the ports.HotkeyPort interface for integration with the application's
-// port-based architecture.
+// The mechanisms differ by platform, and each lives in its own subpackage:
+// per-hotkey CGEventTaps on macOS, X11 key grabs or a passive evdev listener on
+// Linux depending on the session, and RegisterHotKey on a dedicated message
+// thread on Windows — the last through the registry in
+// internal/adapter/platform/windows.
 package hotkeys

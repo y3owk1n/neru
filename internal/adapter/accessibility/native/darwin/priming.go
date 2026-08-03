@@ -1,6 +1,5 @@
 //go:build darwin
 
-// internal/adapter/accessibility/priming_darwin.go
 // macOS slot for AccessibilityPort.PrimeApplication. Electron, Chromium and
 // Gecko apps build their AX tree asynchronously after macOS asks them to expose
 // one (AXManualAccessibility), so the first hints activation after focusing such

@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/atspi_linux.go
 // AT-SPI (D-Bus) accessibility client for Linux: enables assistive-tech mode,
 // finds the active window, and walks its tree for clickable elements so hints
 // mode works on KDE/Wayland and other AT-SPI desktops.
@@ -156,7 +155,7 @@ type Client struct {
 	// Event-driven active-window cache. A background listener records the AT-SPI
 	// window that most recently emitted a window:activate event, so frame
 	// selection can skip the registry scan entirely when the cached window still
-	// matches the compositor's focused toplevel. See atspi_events_linux.go.
+	// matches the compositor's focused toplevel. See events.go.
 	activeMu     sync.Mutex
 	activeWindow *atspiActiveWindow // nil until the first window:activate arrives
 	eventsReady  bool               // true once the listener is registered on c.a11y

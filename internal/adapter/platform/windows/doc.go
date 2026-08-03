@@ -4,7 +4,7 @@
 // monitor enumeration, cursor warp and SendInput injection, the
 // WH_KEYBOARD_LL hook, RegisterHotKey, layered-window overlays with GDI, and
 // dark-mode detection through the personalization registry. UI Automation
-// accessibility lives in internal/adapter/accessibility/uia_windows.go.
+// accessibility lives in internal/adapter/accessibility/native/windows.
 //
 // Windows is the newest backend, so a few capabilities are still stubs — see
 // the windows entries in ports.WindowsCapabilities for the authoritative list

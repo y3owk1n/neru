@@ -1,6 +1,5 @@
 //go:build integration && windows
 
-// internal/adapter/accessibility/uia_windows_integration_test.go
 // Real IUIAutomation enumeration test against the live foreground window.
 // Does not run in default CI; execute on WIN-VM with a GUI app focused:
 // go test -tags=integration ./internal/adapter/accessibility/...

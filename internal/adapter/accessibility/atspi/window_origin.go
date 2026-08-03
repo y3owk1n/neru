@@ -1,6 +1,5 @@
 //go:build linux
 
-// internal/adapter/accessibility/window_origin_linux.go
 // Window-origin sources for Wayland. A Wayland client cannot know its own
 // on-screen position, so AT-SPI reports element coordinates relative to the
 // window. To turn those into true screen coordinates for the hint overlay, the

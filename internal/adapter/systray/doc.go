@@ -1,11 +1,15 @@
-// Package systray provides the system tray menu implementation.
+// Package systray implements ports.SystrayPort over the platform tray backends.
 //
-// Platform-specific files:
-//   - systray_darwin.go + systray.m  — macOS Cocoa implementation (CGo)
-//   - systray_linux.go               — Linux stub (no-op until contributed)
-//   - systray_windows.go             — Windows stub (no-op until contributed)
+// Each backend wraps a single process-wide native tray and exposes it as
+// package-level functions rather than a type. Adapter turns that into the
+// injectable port, and menuItemAdapter bridges the backend's menu item to
+// ports.SystrayMenuItem.
 //
-// Note: The Objective-C header (systray.h) lives in platform/darwin/ alongside
-// all other macOS headers. The .m implementation must remain in this directory
-// because CGo only compiles .c/.m files co-located with the importing Go package.
+// backend_<os>.go aliases the backend's MenuItem and forwards its functions, so
+// the adapter and the bridge are written once rather than per platform.
+//
+// The backends are subpackages: darwin (Cocoa NSStatusItem, via cgo), linux
+// (D-Bus StatusNotifierItem with a dbusmenu server), and windows
+// (Shell_NotifyIcon). The tray icon they draw lives in the icon subpackage,
+// because go:embed only reaches files beneath the embedding package.
 package systray
