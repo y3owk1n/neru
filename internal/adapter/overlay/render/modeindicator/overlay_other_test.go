@@ -1,10 +1,11 @@
 //go:build !darwin
 
-package modeindicator
+package modeindicator_test
 
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -25,7 +26,7 @@ func TestOverlay_ResolveLabelText_Semantics(t *testing.T) {
 		},
 	}
 
-	overlay, err := NewOverlay(cfg, nil, nil)
+	overlay, err := modeindicator.NewOverlay(cfg, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestOverlay_ResolveLabelText_Semantics(t *testing.T) {
 func TestOverlay_ResolveModeConfig_UnknownMode(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := NewOverlay(config.ModeIndicatorConfig{}, nil, nil)
+	overlay, err := modeindicator.NewOverlay(config.ModeIndicatorConfig{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewOverlay returned error: %v", err)
 	}
