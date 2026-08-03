@@ -3,9 +3,11 @@ package config
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -170,8 +172,12 @@ func validateRawHotkeyTable(fieldName string, rawTable any) error {
 		)
 	}
 
+	// Sorted, so the pair named in the message below is the same on every run
+	// rather than whichever two the map happened to yield first.
+	keys := slices.Sorted(maps.Keys(hotkeyMap))
+
 	seenRaw := make(map[string]string, len(hotkeyMap))
-	for key := range hotkeyMap {
+	for _, key := range keys {
 		norm := NormalizeKeyForComparison(key)
 		if prev, dup := seenRaw[norm]; dup {
 			return derrors.Newf(
