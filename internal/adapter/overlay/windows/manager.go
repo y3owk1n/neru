@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -291,8 +292,8 @@ func (m *Manager) DrawHintSearchInput(
 	width := frame.Width()
 
 	fontSize := float64(max(style.FontSize(), 1))
-	paddingX := resolveWinAutoPadding(fontSize, style.PaddingX(), true)
-	paddingY := resolveWinAutoPadding(fontSize, style.PaddingY(), false)
+	paddingX := badge.AutoPadding(fontSize, style.PaddingX(), true)
+	paddingY := badge.AutoPadding(fontSize, style.PaddingY(), false)
 
 	// / query  count /  format
 	label := "/ " + query
@@ -302,23 +303,23 @@ func (m *Manager) DrawHintSearchInput(
 		label += " /"
 	}
 
-	badgeWidth := estimateWinTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
-	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	badgeWidth := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	bounds := image.Rect(pos.X, pos.Y, pos.X+max(badgeWidth, width), pos.Y+badgeHeight)
 
 	m.win.drawFilledRect(
 		bounds,
-		parseHexColorARGB(style.BackgroundColor()),
-		parseHexColorARGB(style.BorderColor()),
+		badge.ParseHexARGB(style.BackgroundColor()),
+		badge.ParseHexARGB(style.BorderColor()),
 		float64(max(style.BorderWidth(), 0)),
-		resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap),
+		badge.BorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap),
 	)
 	m.win.drawTextCentered(
 		label,
 		bounds,
 		style.FontFamily(),
 		fontSize,
-		parseHexColorARGB(style.TextColor()),
+		badge.ParseHexARGB(style.TextColor()),
 	)
 
 	m.win.flushOverlay("search-input")
@@ -370,10 +371,10 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	offsetY := cfg.UI.IndicatorYOffset
 	fontSize := float64(max(cfg.UI.FontSize, 1))
 
-	paddingX := resolveWinAutoPadding(fontSize, cfg.UI.PaddingX, true)
-	paddingY := resolveWinAutoPadding(fontSize, cfg.UI.PaddingY, false)
-	badgeWidth := estimateWinTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
-	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	paddingX := badge.AutoPadding(fontSize, cfg.UI.PaddingX, true)
+	paddingY := badge.AutoPadding(fontSize, cfg.UI.PaddingY, false)
+	badgeWidth := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	borderWidth := max(cfg.UI.BorderWidth, 0)
 
 	posX := cursorX + offsetX - borderWidth
@@ -432,14 +433,14 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 		badgeHeight+borderWidth,
 	)
 
-	indicatorRadius := resolveWinBorderRadius(
+	indicatorRadius := badge.BorderRadius(
 		cfg.UI.BorderRadius, badgeBounds, winAutoRadiusBadgeCap,
 	)
-	m.indicatorWin.FillRoundedRect(badgeBounds, indicatorRadius, parseHexColorARGB(bgColor))
+	m.indicatorWin.FillRoundedRect(badgeBounds, indicatorRadius, badge.ParseHexARGB(bgColor))
 
 	if borderWidth > 0 {
 		m.indicatorWin.StrokeRoundedRect(
-			badgeBounds, indicatorRadius, parseHexColorARGB(borderColor), float64(borderWidth),
+			badgeBounds, indicatorRadius, badge.ParseHexARGB(borderColor), float64(borderWidth),
 		)
 	}
 
@@ -448,7 +449,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 		badgeBounds,
 		ports.ResolveFont(cfg.UI.FontFamily, true),
 		fontSize,
-		parseHexColorARGB(textColor),
+		badge.ParseHexARGB(textColor),
 	)
 
 	// Flush composites fills/strokes/texts into the pixel buffer and sends
@@ -475,10 +476,10 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	indicatorUI := m.StickyModifiersOverlay().UIConfig()
 	fontSize := float64(max(indicatorUI.FontSize, 1))
 
-	paddingX := resolveWinAutoPadding(fontSize, indicatorUI.PaddingX, true)
-	paddingY := resolveWinAutoPadding(fontSize, indicatorUI.PaddingY, false)
-	badgeWidth := estimateWinTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
-	badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	paddingX := badge.AutoPadding(fontSize, indicatorUI.PaddingX, true)
+	paddingY := badge.AutoPadding(fontSize, indicatorUI.PaddingY, false)
+	badgeWidth := badge.EstimateTextWidth(symbols, fontSize) + paddingX*winPaddingMultiplier
+	badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	borderWidth := max(indicatorUI.BorderWidth, 0)
 
 	offsetX := indicatorUI.IndicatorXOffset
@@ -537,18 +538,18 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 		badgeHeight+borderWidth,
 	)
 
-	stickyRadius := resolveWinBorderRadius(
+	stickyRadius := badge.BorderRadius(
 		indicatorUI.BorderRadius,
 		badgeBounds,
 		winAutoRadiusBadgeCap,
 	)
-	m.stickyWin.FillRoundedRect(badgeBounds, stickyRadius, parseHexColorARGB(bgColor))
+	m.stickyWin.FillRoundedRect(badgeBounds, stickyRadius, badge.ParseHexARGB(bgColor))
 
 	if borderWidth > 0 {
 		m.stickyWin.StrokeRoundedRect(
 			badgeBounds,
 			stickyRadius,
-			parseHexColorARGB(borderColor),
+			badge.ParseHexARGB(borderColor),
 			float64(borderWidth),
 		)
 	}
@@ -558,7 +559,7 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 		badgeBounds,
 		ports.ResolveFont(indicatorUI.FontFamily, false),
 		fontSize,
-		parseHexColorARGB(textColor),
+		badge.ParseHexARGB(textColor),
 	)
 
 	err := m.stickyWin.Flush()
@@ -890,7 +891,7 @@ func ease(progressFraction float64, easing string) float64 {
 }
 
 func scaleColorAlpha(hexColor string, opacity float64) uint32 {
-	colorVal := parseHexColorARGB(hexColor)
+	colorVal := badge.ParseHexARGB(hexColor)
 	alphaVal := float64((colorVal >> 24) & 0xFF) //nolint:mnd
 	redVal := (colorVal >> 16) & 0xFF            //nolint:mnd
 	greenVal := (colorVal >> 8) & 0xFF           //nolint:mnd

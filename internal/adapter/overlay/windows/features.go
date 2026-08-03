@@ -4,10 +4,9 @@ package windows
 
 import (
 	"image"
-	"math"
-	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
@@ -82,16 +81,16 @@ func (o *winOverlay) DrawHints(
 				hint.Position().X+hint.Size().X/2,
 				hint.Position().Y+hint.Size().Y/2,
 			)
-			bdr := resolveWinBorderRadius(
+			bdr := badge.BorderRadius(
 				style.BoundaryBorderRadius(), boundary, winAutoRadiusBoundaryCap,
 			)
 			o.window.FillRoundedRect(
-				boundary, bdr, parseHexColorARGB(style.BoundaryBackgroundColor()),
+				boundary, bdr, badge.ParseHexARGB(style.BoundaryBackgroundColor()),
 			)
 
 			if bw := float64(max(style.BoundaryBorderWidth(), 0)); bw > 0 {
 				o.window.StrokeRoundedRect(
-					boundary, bdr, parseHexColorARGB(style.BoundaryBorderColor()), bw,
+					boundary, bdr, badge.ParseHexARGB(style.BoundaryBorderColor()), bw,
 				)
 			}
 		}
@@ -100,10 +99,13 @@ func (o *winOverlay) DrawHints(
 		// element's bounding box (hint.Bounds().Size()), so using it makes the
 		// badge as large as the element (e.g. oversized boxes over big buttons).
 		fontSize := float64(max(style.FontSize(), 1))
-		paddingX := resolveWinAutoPadding(fontSize, style.PaddingX(), true)
-		paddingY := resolveWinAutoPadding(fontSize, style.PaddingY(), false)
-		badgeWidth := estimateWinTextWidth(hint.Label(), fontSize) + paddingX*winPaddingMultiplier
-		badgeHeight := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+		paddingX := badge.AutoPadding(fontSize, style.PaddingX(), true)
+		paddingY := badge.AutoPadding(fontSize, style.PaddingY(), false)
+		badgeWidth := badge.EstimateTextWidth(
+			hint.Label(),
+			fontSize,
+		) + paddingX*winPaddingMultiplier
+		badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 
 		// Anchor the badge at the element's top-left corner rather than its
 		// center so it does not cover the element's own content (e.g. the digit
@@ -118,14 +120,14 @@ func (o *winOverlay) DrawHints(
 			textColor = style.MatchedTextColor()
 		}
 
-		bdr := resolveWinBorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap)
+		bdr := badge.BorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap)
 		o.window.FillRoundedRect(
-			bounds, bdr, parseHexColorARGB(style.BackgroundColor()),
+			bounds, bdr, badge.ParseHexARGB(style.BackgroundColor()),
 		)
 
 		if bw := float64(max(style.BorderWidth(), 0)); bw > 0 {
 			o.window.StrokeRoundedRect(
-				bounds, bdr, parseHexColorARGB(style.BorderColor()), bw,
+				bounds, bdr, badge.ParseHexARGB(style.BorderColor()), bw,
 			)
 		}
 
@@ -134,7 +136,7 @@ func (o *winOverlay) DrawHints(
 			bounds,
 			ports.ResolveFont(style.FontFamily(), false),
 			fontSize,
-			parseHexColorARGB(textColor),
+			badge.ParseHexARGB(textColor),
 		)
 
 		// Composite this hint atomically so its content lands as a unit,
@@ -240,7 +242,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 			vpBounds,
 			fontName,
 			fontSize,
-			parseHexColorARGB(virtualPointer.FillColor),
+			badge.ParseHexARGB(virtualPointer.FillColor),
 		)
 	}
 
@@ -274,10 +276,10 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	style recursivegridcomponent.Style,
 ) {
 	fontSize := style.LabelFontSize()
-	paddingX := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingX(), true)
-	paddingY := resolveWinAutoPadding(fontSize, style.LabelBackgroundPaddingY(), false)
-	width := estimateWinTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
-	height := estimateWinTextHeight(fontSize) + paddingY*winPaddingMultiplier
+	paddingX := badge.AutoPadding(fontSize, style.LabelBackgroundPaddingX(), true)
+	paddingY := badge.AutoPadding(fontSize, style.LabelBackgroundPaddingY(), false)
+	width := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
+	height := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 	rect := winCenteredRect(cell, width, height)
 
 	o.drawFilledRect(
@@ -285,7 +287,7 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 		style.LabelBackgroundColorARGB(),
 		style.LineColorARGB(),
 		max(style.LabelBackgroundBorderWidthF(), 0),
-		resolveWinBorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
+		badge.BorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
 	)
 }
 
@@ -301,7 +303,7 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 
 	previewRect := image.Rect(
 		cell.Min.X,
-		cell.Max.Y-estimateWinTextHeight(
+		cell.Max.Y-badge.EstimateTextHeight(
 			style.SubKeyPreviewFontSizeF(),
 		)-winSubKeyPreviewPaddingBottom,
 		cell.Max.X,
@@ -341,49 +343,6 @@ func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcompone
 	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
 
-func resolveWinAutoPadding(fontSize float64, padding int, horizontal bool) int {
-	if padding >= 0 {
-		return padding
-	}
-
-	if horizontal {
-		return max(int(fontSize*winAutoPaddingHorizontalMultiplier), winAutoPaddingMinHorizontal)
-	}
-
-	return max(int(fontSize*winAutoPaddingVerticalMultiplier), winAutoPaddingMinVertical)
-}
-
-// resolveWinBorderRadius resolves a configured border-radius value for the
-// given rectangle. Negative values select an automatic radius: autoCap limits
-// the auto-radius for badge-style corners (e.g. 6 px for hint badges); pass 0
-// for a full pill shape (label backgrounds). Zero means sharp corners.
-// Positive values are clamped to half the smaller dimension.
-func resolveWinBorderRadius(configured int, bounds image.Rectangle, autoCap float64) float64 {
-	maxR := float64(min(bounds.Dx(), bounds.Dy())) / 2 //nolint:mnd // half the smaller dimension
-
-	if configured < 0 {
-		if autoCap > 0 {
-			return min(maxR, autoCap)
-		}
-
-		return maxR
-	}
-
-	if configured == 0 {
-		return 0
-	}
-
-	return min(float64(configured), maxR)
-}
-
-func estimateWinTextWidth(text string, fontSize float64) int {
-	return int(math.Ceil(float64(len([]rune(text))) * fontSize * winTextWidthMultiplier))
-}
-
-func estimateWinTextHeight(fontSize float64) int {
-	return int(math.Ceil(fontSize * winTextHeightMultiplier))
-}
-
 func winCenteredRect(cell image.Rectangle, width, height int) image.Rectangle {
 	centerX := cell.Min.X + cell.Dx()/winCenteredRectDivisor
 	centerY := cell.Min.Y + cell.Dy()/winCenteredRectDivisor
@@ -394,26 +353,4 @@ func winCenteredRect(cell image.Rectangle, width, height int) image.Rectangle {
 		centerX-width/winCenteredRectDivisor+width,
 		centerY-height/winCenteredRectDivisor+height,
 	)
-}
-
-func parseHexColorARGB(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
-	switch len(value) {
-	case winHexColorLenShort:
-		value = "FF" + strings.Repeat(string(value[0]), winHexRepeatCount) +
-			strings.Repeat(string(value[1]), winHexRepeatCount) +
-			strings.Repeat(string(value[2]), winHexRepeatCount)
-	case winHexColorLenNoAlpha:
-		value = "FF" + value
-	case winHexColorLenFull:
-	default:
-		return winHexColorOpaque
-	}
-
-	parsed, err := strconv.ParseUint(value, 16, 32)
-	if err != nil {
-		return winHexColorOpaque
-	}
-
-	return uint32(parsed)
 }

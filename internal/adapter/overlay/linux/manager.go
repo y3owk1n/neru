@@ -5,7 +5,6 @@ package linux
 import (
 	"image"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"unsafe"
@@ -13,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
@@ -766,13 +766,13 @@ func monitorSelectPanelLayout(
 		)
 	}
 
-	labelW := estimateTextWidth(label, labelFont)
-	labelH := estimateTextHeight(labelFont)
+	labelW := badge.EstimateTextWidth(label, labelFont)
+	labelH := badge.EstimateTextHeight(labelFont)
 
 	subW, subH, gap := 0, 0, 0
 	if subtitle != "" {
-		subW = estimateTextWidth(subtitle, subFont)
-		subH = estimateTextHeight(subFont)
+		subW = badge.EstimateTextWidth(subtitle, subFont)
+		subH = badge.EstimateTextHeight(subFont)
 		gap = int(math.Round(float64(monitorSelectLabelGap) * scale))
 	}
 
@@ -843,11 +843,11 @@ type monitorSelectDrawSpec struct {
 
 func newMonitorSelectDrawSpec(style manager.MonitorSelectStyle) monitorSelectDrawSpec {
 	return monitorSelectDrawSpec{
-		backdrop:     parseHexColor(style.BackdropColor),
-		background:   parseHexColor(style.BackgroundColor),
-		border:       parseHexColor(style.BorderColor),
-		text:         parseHexColor(style.TextColor),
-		subtitleText: parseHexColor(style.SubtitleTextColor),
+		backdrop:     badge.ParseHexARGB(style.BackdropColor),
+		background:   badge.ParseHexARGB(style.BackgroundColor),
+		border:       badge.ParseHexARGB(style.BorderColor),
+		text:         badge.ParseHexARGB(style.TextColor),
+		subtitleText: badge.ParseHexARGB(style.SubtitleTextColor),
 		borderWidth:  float64(max(style.BorderWidth, 1)),
 		labelFont:    monitorSelectFontOr(style.FontSize, monitorSelectDefaultFont),
 		subtitleFont: monitorSelectFontOr(style.SubtitleFontSize, monitorSelectDefaultSubFont),
@@ -1038,7 +1038,7 @@ func resolveModeIndicatorAppearance(
 	theme := overlay.ThemeProvider()
 
 	colors := overlayColors{
-		background: parseHexColor(
+		background: badge.ParseHexARGB(
 			modeCfg.BackgroundColor.ForThemeWithOverride(
 				cfg.UI.BackgroundColor,
 				theme,
@@ -1046,7 +1046,7 @@ func resolveModeIndicatorAppearance(
 				config.ModeIndicatorBackgroundColorDark,
 			),
 		),
-		border: parseHexColor(
+		border: badge.ParseHexARGB(
 			modeCfg.BorderColor.ForThemeWithOverride(
 				cfg.UI.BorderColor,
 				theme,
@@ -1054,7 +1054,7 @@ func resolveModeIndicatorAppearance(
 				config.ModeIndicatorBorderColorDark,
 			),
 		),
-		text: parseHexColor(
+		text: badge.ParseHexARGB(
 			modeCfg.TextColor.ForThemeWithOverride(
 				cfg.UI.TextColor,
 				theme,
@@ -1088,21 +1088,21 @@ func resolveStickyIndicatorAppearance(
 	theme := overlay.ThemeProvider()
 
 	colors := overlayColors{
-		background: parseHexColor(
+		background: badge.ParseHexARGB(
 			cfg.BackgroundColor.ForTheme(
 				theme,
 				config.StickyModifiersBackgroundColorLight,
 				config.StickyModifiersBackgroundColorDark,
 			),
 		),
-		border: parseHexColor(
+		border: badge.ParseHexARGB(
 			cfg.BorderColor.ForTheme(
 				theme,
 				config.StickyModifiersBorderColorLight,
 				config.StickyModifiersBorderColorDark,
 			),
 		),
-		text: parseHexColor(
+		text: badge.ParseHexARGB(
 			cfg.TextColor.ForTheme(
 				theme,
 				config.StickyModifiersTextColorLight,
@@ -1124,42 +1124,13 @@ func resolveStickyIndicatorAppearance(
 	return colors, style, true
 }
 
-func resolveAutoPadding(fontSize float64, padding int, horizontal bool) int {
-	if padding >= 0 {
-		return padding
-	}
-
-	if horizontal {
-		return max(int(fontSize*autoPaddingHorizontalMultiplier), autoPaddingMinHorizontal)
-	}
-
-	return max(int(fontSize*autoPaddingVerticalMultiplier), autoPaddingMinVertical)
-}
-
-func estimateTextWidth(text string, fontSize float64) int {
-	return int(math.Ceil(float64(len([]rune(text))) * fontSize * textWidthMultiplier))
-}
-
-func estimateTextHeight(fontSize float64) int {
-	return int(math.Ceil(fontSize * textHeightMultiplier))
-}
-
 func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rectangle {
-	fontSize := style.fontSize
-	if fontSize <= 0 {
-		fontSize = 14
-	}
-
-	paddingX := resolveAutoPadding(fontSize, style.paddingX, true)
-	paddingY := resolveAutoPadding(fontSize, style.paddingY, false)
-	width := estimateTextWidth(text, fontSize) + paddingX*paddingMultiplier
-	height := estimateTextHeight(fontSize) + paddingY*paddingMultiplier
-
-	return image.Rect(
-		posX+style.offsetX,
-		posY+style.offsetY,
-		posX+style.offsetX+width,
-		posY+style.offsetY+height,
+	return badge.Bounds(
+		posX, posY,
+		style.offsetX, style.offsetY,
+		text,
+		style.fontSize,
+		style.paddingX, style.paddingY,
 	)
 }
 
@@ -1291,26 +1262,4 @@ func expandRect(rect image.Rectangle, amount int) image.Rectangle {
 		rect.Max.X+amount,
 		rect.Max.Y+amount,
 	)
-}
-
-func parseHexColor(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
-	switch len(value) {
-	case hexColorLenShort:
-		value = "FF" + strings.Repeat(string(value[0]), hexColorRepeatCount) +
-			strings.Repeat(string(value[1]), hexColorRepeatCount) +
-			strings.Repeat(string(value[2]), hexColorRepeatCount)
-	case hexColorLenNoAlpha:
-		value = "FF" + value
-	case hexColorLenFull:
-	default:
-		return hexColorOpaque
-	}
-
-	parsed, err := strconv.ParseUint(value, 16, 32)
-	if err != nil {
-		return hexColorOpaque
-	}
-
-	return uint32(parsed)
 }

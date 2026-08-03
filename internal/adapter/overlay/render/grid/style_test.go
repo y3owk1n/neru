@@ -4,6 +4,7 @@ package grid
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -92,7 +93,7 @@ func TestStyle_ARGBAccessorsMatchTheHexValues(t *testing.T) {
 	}
 
 	for _, pair := range pairs {
-		if want := parseHexARGB(pair.hex); pair.argb != want {
+		if want := badge.ParseHexARGB(pair.hex); pair.argb != want {
 			t.Errorf("%s ARGB = %#08x, want %#08x (from %q)", pair.name, pair.argb, want, pair.hex)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"image"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -31,9 +32,12 @@ func TestEstimateWinTextWidth(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := estimateWinTextWidth(testCase.text, testCase.fontSize); got != testCase.want {
+			if got := badge.EstimateTextWidth(
+				testCase.text,
+				testCase.fontSize,
+			); got != testCase.want {
 				t.Fatalf(
-					"estimateWinTextWidth(%q, %v) = %d, want %d",
+					"badge.EstimateTextWidth(%q, %v) = %d, want %d",
 					testCase.text,
 					testCase.fontSize,
 					got,
@@ -61,9 +65,9 @@ func TestEstimateWinTextHeight(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := estimateWinTextHeight(testCase.fontSize); got != testCase.want {
+			if got := badge.EstimateTextHeight(testCase.fontSize); got != testCase.want {
 				t.Fatalf(
-					"estimateWinTextHeight(%v) = %d, want %d",
+					"badge.EstimateTextHeight(%v) = %d, want %d",
 					testCase.fontSize,
 					got,
 					testCase.want,
@@ -95,9 +99,9 @@ func TestResolveWinAutoPadding(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := resolveWinAutoPadding(testCase.fontSize, testCase.padding, testCase.horizontal)
+			got := badge.AutoPadding(testCase.fontSize, testCase.padding, testCase.horizontal)
 			if got != testCase.want {
-				t.Fatalf("resolveWinAutoPadding(%v, %d, %v) = %d, want %d",
+				t.Fatalf("badge.AutoPadding(%v, %d, %v) = %d, want %d",
 					testCase.fontSize, testCase.padding, testCase.horizontal, got, testCase.want)
 			}
 		})
@@ -143,9 +147,9 @@ func TestParseHexColorARGB(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := parseHexColorARGB(testCase.value); got != testCase.want {
+			if got := badge.ParseHexARGB(testCase.value); got != testCase.want {
 				t.Fatalf(
-					"parseHexColorARGB(%q) = 0x%08X, want 0x%08X",
+					"badge.ParseHexARGB(%q) = 0x%08X, want 0x%08X",
 					testCase.value,
 					got,
 					testCase.want,

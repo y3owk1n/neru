@@ -1,9 +1,7 @@
 package grid
 
 import (
-	"strconv"
-	"strings"
-
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -12,12 +10,6 @@ const (
 	// minLineWidth keeps a hairline visible on backends that would otherwise
 	// round a zero-width stroke away.
 	minLineWidth = 1
-
-	invalidColor = 0xFFFFFFFF
-	hexPairCount = 2
-	colorLen3    = 3
-	colorLen6    = 6
-	colorLen8    = 8
 )
 
 // Style is the resolved visual styling for the grid overlay.
@@ -138,37 +130,12 @@ func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 		showLabels: true,
 	}
 
-	style.backgroundColorARGB = parseHexARGB(style.backgroundColor)
-	style.textColorARGB = parseHexARGB(style.textColor)
-	style.matchedTextColorARGB = parseHexARGB(style.matchedTextColor)
-	style.matchedBackgroundColorARGB = parseHexARGB(style.matchedBackgroundColor)
-	style.matchedBorderColorARGB = parseHexARGB(style.matchedBorderColor)
-	style.borderColorARGB = parseHexARGB(style.borderColor)
+	style.backgroundColorARGB = badge.ParseHexARGB(style.backgroundColor)
+	style.textColorARGB = badge.ParseHexARGB(style.textColor)
+	style.matchedTextColorARGB = badge.ParseHexARGB(style.matchedTextColor)
+	style.matchedBackgroundColorARGB = badge.ParseHexARGB(style.matchedBackgroundColor)
+	style.matchedBorderColorARGB = badge.ParseHexARGB(style.matchedBorderColor)
+	style.borderColorARGB = badge.ParseHexARGB(style.borderColor)
 
 	return style
-}
-
-// parseHexARGB converts a "#RGB", "#RRGGBB" or "#AARRGGBB" color to packed
-// ARGB, returning opaque white for anything it cannot read.
-func parseHexARGB(value string) uint32 {
-	value = strings.TrimPrefix(strings.TrimSpace(value), "#")
-
-	switch len(value) {
-	case colorLen3:
-		value = "FF" + strings.Repeat(string(value[0]), hexPairCount) +
-			strings.Repeat(string(value[1]), hexPairCount) +
-			strings.Repeat(string(value[2]), hexPairCount)
-	case colorLen6:
-		value = "FF" + value
-	case colorLen8:
-	default:
-		return invalidColor
-	}
-
-	parsed, err := strconv.ParseUint(value, 16, 32)
-	if err != nil {
-		return invalidColor
-	}
-
-	return uint32(parsed)
 }

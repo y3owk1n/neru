@@ -19,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -364,8 +365,8 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 			)
 			o.drawRect(
 				boundary,
-				parseHexColor(style.BoundaryBackgroundColor()),
-				parseHexColor(style.BoundaryBorderColor()),
+				badge.ParseHexARGB(style.BoundaryBackgroundColor()),
+				badge.ParseHexARGB(style.BoundaryBorderColor()),
 				float64(max(style.BoundaryBorderWidth(), 0)),
 			)
 		}
@@ -380,10 +381,10 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		// renders (which applies the same o.s() factor). Position stays in device
 		// pixels; the badge grows around the target.
 		sfont := fontSize * o.s()
-		paddingX := resolveAutoPadding(sfont, style.PaddingX(), true)
-		paddingY := resolveAutoPadding(sfont, style.PaddingY(), false)
-		badgeWidth := estimateTextWidth(label, sfont) + paddingX*paddingMultiplier
-		badgeHeight := estimateTextHeight(sfont) + paddingY*paddingMultiplier
+		paddingX := badge.AutoPadding(sfont, style.PaddingX(), true)
+		paddingY := badge.AutoPadding(sfont, style.PaddingY(), false)
+		badgeWidth := badge.EstimateTextWidth(label, sfont) + paddingX*paddingMultiplier
+		badgeHeight := badge.EstimateTextHeight(sfont) + paddingY*paddingMultiplier
 
 		radius := style.BorderRadius()
 		if radius < 0 {
@@ -396,25 +397,25 @@ func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscom
 		// centered horizontally on it and placed above / on / below the center
 		// to match macOS; top/bottom placement also draws a connector arrow
 		// pointing back at the target.
-		badge, arrow, hasArrow := hintBadgePlacement(
+		badgeRect, arrow, hasArrow := hintBadgePlacement(
 			pos, badgeWidth, badgeHeight, radius, style.Placement(),
 		)
 
-		fill := parseHexColor(style.BackgroundColor())
-		border := parseHexColor(style.BorderColor())
+		fill := badge.ParseHexARGB(style.BackgroundColor())
+		border := badge.ParseHexARGB(style.BorderColor())
 		borderWidth := float64(max(style.BorderWidth(), 0))
 
 		// Badge and connector tail are drawn as one filled+stroked outline so
 		// translucent colors don't double-composite at the junction.
 		o.drawHintBadge(
-			badge, float64(radius), hintTailEdge(badge, arrow, hasArrow), arrow,
+			badgeRect, float64(radius), hintTailEdge(badgeRect, arrow, hasArrow), arrow,
 			fill, border, borderWidth,
 		)
 		o.drawTextCentered(
-			label, badge,
+			label, badgeRect,
 			style.FontFamily(),
 			fontSize,
-			parseHexColor(textColor),
+			badge.ParseHexARGB(textColor),
 		)
 	}
 
@@ -459,8 +460,8 @@ func (o *x11Overlay) startMouseActionAnimation(
 ) {
 	startTime := time.Now()
 
-	fillBase := parseHexColor(style.BackgroundColor)
-	borderBase := parseHexColor(style.BorderColor)
+	fillBase := badge.ParseHexARGB(style.BackgroundColor)
+	borderBase := badge.ParseHexARGB(style.BorderColor)
 	lineWidth := float64(max(style.BorderWidth, 0))
 	baseSize := float64(max(style.Size, 1)) * o.s()
 	isSquare := style.Shape == "square"
@@ -838,7 +839,7 @@ func (o *x11Overlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPointer
 		vp.Position.Y+halfSize,
 	)
 	o.drawTextCentered(vpChar, vpBounds, fontName, fontSize,
-		parseHexColor(vp.FillColor))
+		badge.ParseHexARGB(vp.FillColor))
 }
 
 func (o *x11Overlay) redrawGrid() {
@@ -1017,13 +1018,13 @@ func (o *x11Overlay) drawLabelBackground(
 ) {
 	// Match the scaled font that drawTextCentered renders for the label.
 	fontSize := style.LabelFontSize() * o.s()
-	paddingX := resolveAutoPadding(fontSize,
+	paddingX := badge.AutoPadding(fontSize,
 		style.LabelBackgroundPaddingX(), true)
-	paddingY := resolveAutoPadding(fontSize,
+	paddingY := badge.AutoPadding(fontSize,
 		style.LabelBackgroundPaddingY(), false)
-	width := estimateTextWidth(label, fontSize) +
+	width := badge.EstimateTextWidth(label, fontSize) +
 		paddingX*paddingMultiplier
-	height := estimateTextHeight(fontSize) +
+	height := badge.EstimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier
 	rect := centeredRect(cell, width, height)
 	o.drawRect(rect, style.LabelBackgroundColorARGB(),
