@@ -1,20 +1,20 @@
 package ipcctrl
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
-	"github.com/y3owk1n/neru/internal/domain/state"
 )
+
+// Flag parsing for the mode commands.
+//
+// Both entry points reach here: the CLI sends the mode name as the first
+// argument and the hotkey path omits it, which extractModeOptions normalizes
+// before reading the flags.
 
 // Flag parsing for the mode commands.
 //
@@ -22,267 +22,190 @@ import (
 // argument, the hotkey path omits it, and extractModeOptions normalizes that
 // before reading the flags.
 
-//nolint:funlen
 func (h *ModesHandler) extractModeOptions(
 	cmd ipc.Command,
 ) (ModeActivationOptions, *ipc.Response) {
 	var opts ModeActivationOptions
 
-	if len(cmd.Args) == 0 {
-		return opts, nil
-	}
-
-	// The CLI sends the mode name as Args[0] (e.g. ["grid", "--action", ...])
-	// while the hotkey path omits it (e.g. ["--cursor-selection-mode", "hold"]).
-	// Skip the leading mode name when present so both paths are handled.
-	start := 0
-	if cmd.Args[0] == cmd.Action {
-		start = 1
-	}
-
-	if start >= len(cmd.Args) {
-		return opts, nil
-	}
-
-	// Parse positional action arg and flag-style options from remaining args.
-	for startIdx := start; startIdx < len(cmd.Args); startIdx++ {
-		arg := cmd.Args[startIdx]
-
-		switch {
-		case arg == "--repeat" || arg == "-r":
-			repeatTrue := true
-			opts.Repeat = &repeatTrue
-		case arg == "--toggle" || arg == "-t":
-			toggleTrue := true
-			opts.Toggle = &toggleTrue
-		case strings.HasPrefix(arg, "--zoom-to-depth="):
-			depthVal, err := strconv.Atoi(strings.TrimPrefix(arg, "--zoom-to-depth="))
-			if err != nil || depthVal < 0 {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--zoom-to-depth requires a non-negative integer",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			opts.ZoomToDepth = &depthVal
-		case arg == "--zoom-to-depth":
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--zoom-to-depth requires a value",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-
-			depthVal, err := strconv.Atoi(cmd.Args[startIdx])
-			if err != nil || depthVal < 0 {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--zoom-to-depth requires a non-negative integer",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			opts.ZoomToDepth = &depthVal
-		case arg == "--search" || arg == "-s":
-			searchTrue := true
-			opts.Search = &searchTrue
-		case arg == "--hide-on-empty-search":
-			hideTrue := true
-			opts.HideOnEmptySearch = &hideTrue
-		case arg == "--debug" || arg == "-d":
-			debugTrue := true
-			opts.Debug = &debugTrue
-		case strings.HasPrefix(arg, "--modifier="):
-			modifierArg := strings.TrimPrefix(arg, "--modifier=")
-			opts.Modifier = &modifierArg
-		case arg == "--modifier":
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--modifier requires a value",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-			modifierArg := cmd.Args[startIdx]
-			opts.Modifier = &modifierArg
-		case arg == "--split-word":
-			splitWordTrue := true
-			opts.SplitWord = &splitWordTrue
-		case strings.HasPrefix(arg, "--action="):
-			actionArg := strings.TrimPrefix(arg, "--action=")
-			opts.Action = &actionArg
-		case arg == "--action" || arg == "-a":
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--action requires a value",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-			actionArg := cmd.Args[startIdx]
-			opts.Action = &actionArg
-		// --on-exit is repeatable: each occurrence appends one step to the
-		// sequence that runs once the pending action is fulfilled.
-		case strings.HasPrefix(arg, config.OnExitFlag+"="):
-			opts.OnExit = append(opts.OnExit, strings.TrimPrefix(arg, config.OnExitFlag+"="))
-		case arg == config.OnExitFlag:
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--on-exit requires a value",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-			opts.OnExit = append(opts.OnExit, cmd.Args[startIdx])
-		case strings.HasPrefix(arg, "--cursor-selection-mode="):
-			val, resp := parseCursorSelectionModeValue(
-				strings.TrimPrefix(arg, "--cursor-selection-mode="),
-			)
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.CursorFollowSelection = val
-		case arg == "--cursor-selection-mode":
-			if startIdx+1 >= len(cmd.Args) {
-				return opts, &ipc.Response{
-					Success: false,
-					Message: msgCursorSelectionModeRequires,
-					Code:    ipc.CodeInvalidInput,
-				}
-			}
-
-			startIdx++
-
-			val, resp := parseCursorSelectionModeValue(cmd.Args[startIdx])
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.CursorFollowSelection = val
-		case strings.HasPrefix(arg, "--role="):
-			opts.FilterRoles = append(
-				opts.FilterRoles,
-				parseCSV(strings.TrimPrefix(arg, "--role="))...,
-			)
-		case arg == "--role":
-			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--role" {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--role requires a value (use comma-separated: --role=AXButton,AXLink)",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-			opts.FilterRoles = append(opts.FilterRoles, parseCSV(cmd.Args[startIdx])...)
-		case strings.HasPrefix(arg, "--text="):
-			texts := parseCSV(strings.TrimPrefix(arg, "--text="))
-			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
-		case arg == "--text":
-			if startIdx+1 >= len(cmd.Args) || cmd.Args[startIdx+1] == "--text" {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--text requires a value (use comma-separated: --text=foo,bar)",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-			texts := parseCSV(cmd.Args[startIdx])
-			opts.FilterTextContains = append(opts.FilterTextContains, texts...)
-		case strings.HasPrefix(arg, "--strategy="):
-			val, resp := parseStrategyEqual(arg)
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.Strategy = val
-		case arg == "--strategy":
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--strategy requires a value: axtree or vision",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-
-			val, resp := parseStrategyValue(cmd.Args[startIdx])
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.Strategy = val
-		case strings.HasPrefix(arg, "--label-direction="):
-			val, resp := parseLabelDirectionEqual(arg)
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.LabelDirection = val
-		case arg == "--label-direction":
-			if startIdx+1 >= len(cmd.Args) {
-				resp := ipc.Response{
-					Success: false,
-					Message: "--label-direction requires a value: reverse or normal",
-					Code:    ipc.CodeInvalidInput,
-				}
-
-				return opts, &resp
-			}
-
-			startIdx++
-
-			val, resp := parseLabelDirectionValue(cmd.Args[startIdx])
-			if resp != nil {
-				return opts, resp
-			}
-
-			opts.LabelDirection = val
-		case opts.Action == nil:
-			actionArg := arg
-			opts.Action = &actionArg
-		default:
-			resp := ipc.Response{
-				Success: false,
-				Message: "unexpected argument: " + arg,
-				Code:    ipc.CodeInvalidInput,
-			}
-
-			return opts, &resp
+	args := newModeArgs(cmd)
+	for ; args.more(); args.next() {
+		resp := readModeFlag(args, &opts)
+		if resp != nil {
+			return opts, resp
 		}
 	}
 
+	return opts, validateModeOptions(opts)
+}
+
+// readModeFlag reads the flag the reader is positioned on into opts.
+//
+// An argument matching no flag is taken as the positional action when none has
+// been set, and refused otherwise.
+func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
+	switch {
+	case args.is("--repeat", "-r"):
+		return setTrue(&opts.Repeat)
+
+	case args.is("--toggle", "-t"):
+		return setTrue(&opts.Toggle)
+
+	case args.is("--search", "-s"):
+		return setTrue(&opts.Search)
+
+	case args.is("--hide-on-empty-search"):
+		return setTrue(&opts.HideOnEmptySearch)
+
+	case args.is("--debug", "-d"):
+		return nil
+
+	case args.is("--split-word"):
+		return setTrue(&opts.SplitWord)
+
+	case args.is("--action", "-a"):
+		return readStringFlag(args, &opts.Action, "--action requires a value")
+
+	case args.is("--modifier"):
+		return readStringFlag(args, &opts.Modifier, "--modifier requires a value")
+
+	case args.is("--zoom-to-depth"):
+		return readZoomToDepth(args, opts)
+
+	case args.is(config.OnExitFlag):
+		value, resp := args.take("--on-exit requires a value")
+		if resp != nil {
+			return resp
+		}
+
+		// Repeatable: each occurrence appends one step to the sequence that
+		// runs once the pending action is fulfilled.
+		opts.OnExit = append(opts.OnExit, value)
+
+		return nil
+
+	case args.is("--cursor-selection-mode"):
+		value, resp := args.take(msgCursorSelectionModeRequires)
+		if resp != nil {
+			return resp
+		}
+
+		parsed, badValue := parseCursorSelectionModeValue(value)
+		if badValue != nil {
+			return badValue
+		}
+
+		opts.CursorFollowSelection = parsed
+
+		return nil
+
+	case args.is("--role"):
+		return readListFlag(args, &opts.FilterRoles,
+			"--role requires a value (use comma-separated: --role=AXButton,AXLink)")
+
+	case args.is("--text"):
+		return readListFlag(args, &opts.FilterTextContains,
+			"--text requires a value (use comma-separated: --text=foo,bar)")
+
+	case args.is("--strategy"):
+		value, resp := args.take("--strategy requires a value: axtree or vision")
+		if resp != nil {
+			return resp
+		}
+
+		parsed, badValue := parseStrategyValue(value)
+		if badValue != nil {
+			return badValue
+		}
+
+		opts.Strategy = parsed
+
+		return nil
+
+	case args.is("--label-direction"):
+		value, resp := args.take("--label-direction requires a value: reverse or normal")
+		if resp != nil {
+			return resp
+		}
+
+		parsed, badValue := parseLabelDirectionValue(value)
+		if badValue != nil {
+			return badValue
+		}
+
+		opts.LabelDirection = parsed
+
+		return nil
+
+	// An argument matching no flag is the positional action, which is how
+	// `neru hints left_click` is written. Once an action is set there is
+	// nothing left for a stray argument to mean.
+	case opts.Action == nil:
+		value := args.arg()
+		opts.Action = &value
+
+		return nil
+
+	default:
+		return refuse("unexpected argument: " + args.arg())
+	}
+}
+
+// setTrue marks a presence-only flag. It returns a response so every branch of
+// readModeFlag reads the same way.
+func setTrue(field **bool) *ipc.Response {
+	value := true
+	*field = &value
+
+	return nil
+}
+
+// readStringFlag stores a flag's value as-is.
+func readStringFlag(args *modeArgs, field **string, missing string) *ipc.Response {
+	value, resp := args.take(missing)
+	if resp != nil {
+		return resp
+	}
+
+	*field = &value
+
+	return nil
+}
+
+// readListFlag appends a flag's comma-separated value. The flag is repeatable,
+// so entries accumulate across occurrences.
+func readListFlag(args *modeArgs, field *[]string, missing string) *ipc.Response {
+	value, resp := args.take(missing)
+	if resp != nil {
+		return resp
+	}
+
+	*field = append(*field, parseCSV(value)...)
+
+	return nil
+}
+
+// readZoomToDepth reads the one numeric flag.
+func readZoomToDepth(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
+	value, resp := args.take("--zoom-to-depth requires a value")
+	if resp != nil {
+		return resp
+	}
+
+	depth, err := strconv.Atoi(value)
+	if err != nil || depth < 0 {
+		return refuse("--zoom-to-depth requires a non-negative integer")
+	}
+
+	opts.ZoomToDepth = &depth
+
+	return nil
+}
+
+// validateModeOptions applies the rules that need the whole option set: an
+// action's own vocabulary, and the flags that are only meaningful alongside
+// another one. They run after parsing because a flag may appear before the
+// one it depends on.
+func validateModeOptions(opts ModeActivationOptions) *ipc.Response {
 	if opts.Action != nil {
 		// Split comma-separated actions and validate each one.
 		// This enables multi-click sequences like:
@@ -301,7 +224,7 @@ func (h *ModesHandler) extractModeOptions(
 					Code: ipc.CodeInvalidInput,
 				}
 
-				return opts, &resp
+				return &resp
 			}
 
 			// Validate that the action name is recognized so direct IPC callers
@@ -318,7 +241,7 @@ func (h *ModesHandler) extractModeOptions(
 					Code: ipc.CodeInvalidInput,
 				}
 
-				return opts, &resp
+				return &resp
 			}
 
 			// Scroll sub-actions (scroll_up, page_down, etc.) are IPC/CLI-only and
@@ -335,7 +258,7 @@ func (h *ModesHandler) extractModeOptions(
 					Code: ipc.CodeInvalidInput,
 				}
 
-				return opts, &resp
+				return &resp
 			}
 
 			actType, err := action.Name(trimmed).ToType()
@@ -350,7 +273,7 @@ func (h *ModesHandler) extractModeOptions(
 					Code: ipc.CodeInvalidInput,
 				}
 
-				return opts, &resp
+				return &resp
 			}
 		}
 	}
@@ -362,7 +285,7 @@ func (h *ModesHandler) extractModeOptions(
 			Code:    ipc.CodeInvalidInput,
 		}
 
-		return opts, &resp
+		return &resp
 	}
 
 	if opts.HideOnEmptySearch != nil && *opts.HideOnEmptySearch &&
@@ -373,7 +296,7 @@ func (h *ModesHandler) extractModeOptions(
 			Code:    ipc.CodeInvalidInput,
 		}
 
-		return opts, &resp
+		return &resp
 	}
 
 	if opts.Modifier != nil {
@@ -384,7 +307,7 @@ func (h *ModesHandler) extractModeOptions(
 				Code:    ipc.CodeInvalidInput,
 			}
 
-			return opts, &resp
+			return &resp
 		}
 
 		mods, modErr := action.ParseModifiers(*opts.Modifier)
@@ -395,7 +318,7 @@ func (h *ModesHandler) extractModeOptions(
 				Code:    ipc.CodeInvalidInput,
 			}
 
-			return opts, &resp
+			return &resp
 		}
 
 		if mods == 0 {
@@ -405,31 +328,16 @@ func (h *ModesHandler) extractModeOptions(
 				Code:    ipc.CodeInvalidInput,
 			}
 
-			return opts, &resp
+			return &resp
 		}
 	}
 
-	return opts, nil
+	return nil
 }
 
 // values: "axtree" (default), "vision".
 func isValidStrategy(v string) bool {
 	return v == config.StrategyAXTree || v == config.StrategyVision
-}
-
-func parseStrategyEqual(arg string) (*string, *ipc.Response) {
-	val := strings.TrimPrefix(arg, "--strategy=")
-	if !isValidStrategy(val) {
-		resp := ipc.Response{
-			Success: false,
-			Message: "invalid --strategy value: must be 'axtree' or 'vision'",
-			Code:    ipc.CodeInvalidInput,
-		}
-
-		return nil, &resp
-	}
-
-	return &val, nil
 }
 
 func parseStrategyValue(val string) (*string, *ipc.Response) {
@@ -452,21 +360,6 @@ func isValidLabelDirection(v string) bool {
 	return v == config.LabelDirectionReverse || v == config.LabelDirectionNormal
 }
 
-func parseLabelDirectionEqual(arg string) (*string, *ipc.Response) {
-	val := strings.TrimPrefix(arg, "--label-direction=")
-	if !isValidLabelDirection(val) {
-		resp := ipc.Response{
-			Success: false,
-			Message: "invalid --label-direction value: must be 'reverse' or 'normal'",
-			Code:    ipc.CodeInvalidInput,
-		}
-
-		return nil, &resp
-	}
-
-	return &val, nil
-}
-
 func parseLabelDirectionValue(val string) (*string, *ipc.Response) {
 	if !isValidLabelDirection(val) {
 		resp := ipc.Response{
@@ -479,116 +372,4 @@ func parseLabelDirectionValue(val string) (*string, *ipc.Response) {
 	}
 
 	return &val, nil
-}
-
-// OverlayHandler handles overlay-related IPC commands.
-type OverlayHandler struct {
-	appState *state.AppState
-	logger   *zap.Logger
-}
-
-// NewOverlayHandler creates a new overlay command handler.
-func NewOverlayHandler(appState *state.AppState, logger *zap.Logger) *OverlayHandler {
-	return &OverlayHandler{
-		appState: appState,
-		logger:   logger,
-	}
-}
-
-// RegisterHandlers registers overlay command handlers.
-func (h *OverlayHandler) RegisterHandlers(
-	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
-) {
-	handlers[domain.CommandToggleScreenShare] = h.handleToggleScreenShare
-}
-
-func (h *OverlayHandler) handleToggleScreenShare(
-	_ context.Context,
-	cmd ipc.Command,
-) ipc.Response {
-	desired, errResponse := parseToggleState(domain.CommandToggleScreenShare, cmd.Args)
-	if errResponse != nil {
-		return *errResponse
-	}
-
-	// --state names the reported state, so "on" is hidden. Naming it after the
-	// visibility instead would invert between the flag and the status field.
-	newState := applyToggleState(
-		desired,
-		// Atomically toggle to avoid check-then-act race
-		h.appState.ToggleHiddenForScreenShare,
-		h.appState.SetHiddenForScreenShare,
-	)
-
-	status := "visible"
-	if newState {
-		status = "hidden"
-	}
-
-	return ipc.Response{
-		Success: true,
-		Message: "screen share visibility: " + status,
-		Code:    ipc.CodeOK,
-		Data:    map[string]bool{"hidden": newState},
-	}
-}
-
-// ScrollHandler handles scroll-related IPC commands.
-type ScrollHandler struct {
-	appState      *state.AppState
-	scrollService *services.ScrollService
-	logger        *zap.Logger
-}
-
-// NewScrollHandler creates a new scroll command handler.
-func NewScrollHandler(
-	appState *state.AppState,
-	scrollService *services.ScrollService,
-	logger *zap.Logger,
-) *ScrollHandler {
-	return &ScrollHandler{
-		appState:      appState,
-		scrollService: scrollService,
-		logger:        logger,
-	}
-}
-
-// RegisterHandlers registers scroll command handlers.
-func (h *ScrollHandler) RegisterHandlers(
-	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
-) {
-	handlers[domain.CommandToggleScrollInvert] = h.handleToggleScrollInvert
-}
-
-func (h *ScrollHandler) handleToggleScrollInvert(
-	_ context.Context,
-	cmd ipc.Command,
-) ipc.Response {
-	desired, errResponse := parseToggleState(domain.CommandToggleScrollInvert, cmd.Args)
-	if errResponse != nil {
-		return *errResponse
-	}
-
-	newState := applyToggleState(
-		desired,
-		// Atomically toggle to avoid check-then-act race
-		h.appState.ToggleScrollInverted,
-		h.appState.SetScrollInverted,
-	)
-
-	if h.scrollService != nil {
-		h.scrollService.SetInvertScroll(newState)
-	}
-
-	status := "off"
-	if newState {
-		status = "on"
-	}
-
-	return ipc.Response{
-		Success: true,
-		Message: "scroll invert: " + status,
-		Code:    ipc.CodeOK,
-		Data:    map[string]bool{"inverted": newState},
-	}
 }
