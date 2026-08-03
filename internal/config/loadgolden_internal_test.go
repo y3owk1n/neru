@@ -2,8 +2,11 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -14,9 +17,13 @@ import (
 // sentinel, reading per-mode sections, layering the override file — is only
 // visible in the Config that comes out.
 //
-// These cases load a representative file and compare the whole resulting Config
-// against a snapshot taken from the same input, so a change anywhere in the load
-// path shows up as a diff rather than as a silently different daemon.
+// These cases record what a representative file *changed*, rather than the whole
+// config it produced. The defaults a load starts from vary by platform and even
+// by machine: Linux ships no global hotkeys at all so as not to collide with
+// terminal shortcuts, macOS adds its own menu-bar targets, and Windows builds
+// its exec shell path out of %SystemRoot%. A whole-config snapshot would encode
+// all of that and could only ever match the machine that recorded it. The change
+// a file makes is the same everywhere, and is also the thing worth pinning.
 
 // loadCase is one config file and the aspects of the load worth naming.
 type loadCase struct {
@@ -25,13 +32,37 @@ type loadCase struct {
 	override string
 }
 
-// loadSnapshot is what a case records: the config the daemon would run on, and
-// whether the load refused it. A config that fails validation still comes back
-// populated, so recording only the config would let a refusal read as a clean
-// load.
+// loadSnapshot is what a case records.
 type loadSnapshot struct {
-	Config          *Config `json:"config"`
-	ValidationError string  `json:"validationError"`
+	// Delta is every path at which the loaded config differs from the baseline,
+	// which is this same setup loading an empty file. It is left out when the
+	// load was refused: a refusal hands back the platform defaults, and which
+	// defaults those are is a platform question covered by other tests.
+	Delta []string `json:"delta"`
+
+	// ValidationError is the reason the file was refused, empty when it loaded.
+	// A refused config still comes back populated, so recording only the config
+	// would let a refusal read as a clean load.
+	ValidationError string `json:"validationError"`
+}
+
+// fixedHotkeyDefaults is the binding set every case starts from.
+//
+// The platform defaults disagree — Linux clears them entirely — so a case that
+// merges over a default binding, replaces one, or disables one would be testing
+// something different on each OS, and on Linux would be testing nothing at all.
+// Injecting one set through the service's defaults gives every platform the same
+// starting point.
+func fixedHotkeyDefaults() *Config {
+	cfg := DefaultConfig()
+	cfg.Hotkeys.Bindings = map[string][]string{
+		"Primary+Shift+Space": {ModeNameHints},
+		"Primary+Shift+G":     {ModeNameGrid},
+		"Primary+Shift+C":     {ModeNameRecursiveGrid},
+		"Primary+Shift+S":     {ModeNameScroll},
+	}
+
+	return cfg
 }
 
 func loadCases() []loadCase {
@@ -90,18 +121,20 @@ bundle_id = "com.apple.Safari"
 			name: "per-mode hotkeys merge over the mode defaults",
 			config: `
 [hints.hotkeys]
-"j" = "scroll_down"
+"j" = "action move_mouse_relative --dx=0 --dy=10"
 `,
 		},
 		{
+			// The default is spelled "Escape"; this must replace it rather than
+			// add a second binding that never fires.
 			name: "a differently cased mode hotkey replaces its default",
 			config: `
 [hints.hotkeys]
-"escape" = "exit"
+"escape" = "idle"
 `,
 		},
 		{
-			name: "an empty mode hotkeys section clears that mode's bindings",
+			name: "an empty mode hotkeys section clears that modes bindings",
 			config: `
 [hints.hotkeys]
 `,
@@ -136,8 +169,8 @@ font_size = 30
 	}
 }
 
-// loadResultFor writes a case to disk and loads it the way the daemon does.
-func loadResultFor(t *testing.T, testCase loadCase) loadSnapshot {
+// loadConfigFor writes a case to disk and loads it the way the daemon does.
+func loadConfigFor(t *testing.T, testCase loadCase) *LoadResult {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -159,31 +192,121 @@ func loadResultFor(t *testing.T, testCase loadCase) loadSnapshot {
 		}
 	}
 
-	service := NewService(DefaultConfig(), path, zap.NewNop(), nil)
+	// WithDefaults is the injection point for the hotkey defaults; NewService's
+	// first argument is the active config, not the defaults a load starts from.
+	service := NewService(nil, path, zap.NewNop(), nil).
+		WithDefaults(fixedHotkeyDefaults())
 
 	result := service.LoadWithValidation(path)
 	if result == nil || result.Config == nil {
 		t.Fatalf("LoadWithValidation returned no config")
 	}
 
-	snapshot := loadSnapshot{Config: result.Config}
-	if result.ValidationError != nil {
-		snapshot.ValidationError = result.ValidationError.Error()
-	}
-
-	return snapshot
+	return result
 }
 
-// TestLoadWithValidationMatchesItsSnapshot compares the whole loaded Config
-// against a recorded one. Set UPDATE_GOLDEN=1 to re-record after an intentional
-// change, and read the diff carefully when it fails: it is the difference
-// between two daemons.
+// flattenConfig renders a config as one entry per leaf, keyed by its path, so
+// two configs can be compared without knowing their shape.
+func flattenConfig(t *testing.T, cfg *Config) map[string]string {
+	t.Helper()
+
+	encoded, marshalErr := json.Marshal(cfg)
+	if marshalErr != nil {
+		t.Fatalf("Marshal: %v", marshalErr)
+	}
+
+	var tree any
+
+	unmarshalErr := json.Unmarshal(encoded, &tree)
+	if unmarshalErr != nil {
+		t.Fatalf("Unmarshal: %v", unmarshalErr)
+	}
+
+	flat := make(map[string]string)
+	flattenInto("", tree, flat)
+
+	return flat
+}
+
+// flattenInto walks a decoded config, recording each leaf under its path.
+func flattenInto(prefix string, value any, out map[string]string) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			flattenInto(prefix+"."+key, child, out)
+		}
+	case []any:
+		for index, child := range typed {
+			flattenInto(fmt.Sprintf("%s[%d]", prefix, index), child, out)
+		}
+	default:
+		// A leaf decoded from JSON is a string, number, bool or nil, all of
+		// which re-encode without error.
+		encoded, encodeErr := json.Marshal(value)
+		if encodeErr != nil {
+			out[prefix] = "<unencodable>"
+
+			return
+		}
+
+		out[prefix] = string(encoded)
+	}
+}
+
+// configDelta lists every path at which loaded differs from baseline.
+func configDelta(t *testing.T, baseline, loaded *Config) []string {
+	t.Helper()
+
+	before := flattenConfig(t, baseline)
+	after := flattenConfig(t, loaded)
+
+	lines := []string{}
+
+	for path, value := range after {
+		previous, existed := before[path]
+
+		switch {
+		case !existed:
+			lines = append(lines, "+ "+path+" = "+value)
+		case previous != value:
+			lines = append(lines, "~ "+path+": "+previous+" -> "+value)
+		}
+	}
+
+	for path, value := range before {
+		_, exists := after[path]
+		if !exists {
+			lines = append(lines, "- "+path+" = "+value)
+		}
+	}
+
+	sort.Strings(lines)
+
+	return lines
+}
+
+// TestLoadWithValidationMatchesItsSnapshot compares what each config file
+// changed against a recorded list. Set UPDATE_GOLDEN=1 to re-record after an
+// intentional change, and read the diff carefully when it fails: it is the
+// difference between two daemons.
 func TestLoadWithValidationMatchesItsSnapshot(t *testing.T) {
+	baseline := loadConfigFor(t, loadCase{name: "baseline"})
+	if baseline.ValidationError != nil {
+		t.Fatalf("the baseline config was refused: %v", baseline.ValidationError)
+	}
+
 	for _, testCase := range loadCases() {
 		t.Run(testCase.name, func(t *testing.T) {
-			loaded := loadResultFor(t, testCase)
+			result := loadConfigFor(t, testCase)
 
-			encoded, marshalErr := json.MarshalIndent(loaded, "", "  ")
+			snapshot := loadSnapshot{Delta: []string{}}
+			if result.ValidationError != nil {
+				snapshot.ValidationError = result.ValidationError.Error()
+			} else {
+				snapshot.Delta = configDelta(t, baseline.Config, result.Config)
+			}
+
+			encoded, marshalErr := json.MarshalIndent(snapshot, "", "  ")
 			if marshalErr != nil {
 				t.Fatalf("MarshalIndent: %v", marshalErr)
 			}
@@ -210,7 +333,10 @@ func TestLoadWithValidationMatchesItsSnapshot(t *testing.T) {
 			}
 
 			if string(encoded) != string(want) {
-				t.Errorf("loaded config differs from %s", golden)
+				t.Errorf("loaded config differs from %s\n got: %s\nwant: %s",
+					golden,
+					strings.TrimSpace(string(encoded)),
+					strings.TrimSpace(string(want)))
 			}
 		})
 	}
