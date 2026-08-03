@@ -805,96 +805,13 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	// Refresh xkb_state on every activation so lock modifiers (Num Lock,
-	// Caps Lock) and layout group reflect the current compositor state.
-	if capture.xkbState != nil {
-		C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
-	}
-	xkb := C.neru_xkb_state_create()
-	capture.xkbState = unsafe.Pointer(xkb)
-	if xkb == nil && et.logger != nil {
-		et.logger.Error(
-			"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
-				"falling back to hardcoded evdev key names",
-		)
-	}
-	if xkb != nil {
-		numLock := C.int(0)
-		capsLock := C.int(0)
-		capture.deviceMu.Lock()
-		for _, file := range capture.files {
-			fd := C.int(file.Fd())
-			if C.neru_evdev_led_is_on(fd, C.uint(0)) != 0 {
-				numLock = 1
-			}
-			if C.neru_evdev_led_is_on(fd, C.uint(1)) != 0 {
-				capsLock = 1
-			}
-		}
-		capture.deviceMu.Unlock()
-		C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
-	}
+	et.refreshEvdevXkbState(capture)
 
 	// Only the Linux overlay backends can hold or release the keyboard.
 	overlayCapture, _ := overlay.Get().(overlaymanager.KeyboardCaptureController)
 
-	for capture.modifierKeysHeld() {
-		select {
-		case <-et.stopCh:
-			return true
-		case <-time.After(waylandEvdevModifierReleasePollPeriod):
-		}
-	}
-
-	// Wait for ALL physically held keys to be released before
-	// grabbing.  Grabbing while a key is held causes the kernel to
-	// route that key's release to our fd only — libinput never sees
-	// it and permanently considers the key pressed.  The next press
-	// of the same key after the mode exits is then treated as a
-	// duplicate by libinput and silently consumed.
-	{
-		held := make(map[uint16]bool)
-		queryAllPressedKeys(capture, held)
-		if len(held) > 0 {
-			if overlayCapture != nil {
-				overlayCapture.SetKeyboardCaptureEnabled(true)
-			}
-
-			deadline := time.After(waylandEvdevPreGrabTimeout)
-			ticker := time.NewTicker(waylandEvdevPreGrabHoldPollPeriod)
-		waitLoop:
-			for {
-				pressed := make(map[uint16]bool)
-				queryAllPressedKeys(capture, pressed)
-				if len(pressed) == 0 {
-					break waitLoop
-				}
-
-				select {
-				case <-et.stopCh:
-					ticker.Stop()
-					if overlayCapture != nil {
-						overlayCapture.SetKeyboardCaptureEnabled(false)
-					}
-
-					return true
-				case <-deadline:
-					break waitLoop
-				case <-ticker.C:
-				case _, ok := <-capture.events:
-					if !ok {
-						ticker.Stop()
-
-						return true
-					}
-				}
-			}
-			ticker.Stop()
-
-			if overlayCapture != nil {
-				overlayCapture.SetKeyboardCaptureEnabled(false)
-			}
-		}
+	if stopped := et.waitForEvdevKeysReleased(capture, overlayCapture); stopped {
+		return true
 	}
 
 	grabErr := capture.grabAll()
@@ -941,79 +858,12 @@ func (et *EventTap) runWaylandEvdev() bool {
 	// applications that were pushed into the buffer when we were
 	// ungrabbed. A labeled break is required here — plain break
 	// inside select only exits the select, not the for loop.
-drainStale:
-	for {
-		select {
-		case <-capture.events:
-		default:
-			break drainStale
-		}
-	}
-
-	pressed := make(map[uint16]bool)
-	state := waylandEvdevKeyState{
-		pressed:            pressed,
-		initialKeys:        make(map[uint16]bool),
-		releasedDuringGrab: make(map[uint16]bool),
-		modifiers: evdevModifierState{
-			linuxModifierState: queryEvdevModifierState(capture, pressed),
-		},
-	}
-
-	// Query all currently pressed (not just modifier) keys so we can suppress
-	// dispatch for keys that were held before this mode session started.
-	// Without this, the kernel's SYN_DROPPED replay after EVIOCGRAB delivers
-	// stale press events that would be interpreted as fresh key presses.
-	queryAllPressedKeys(capture, pressed)
-
-	// Copy the queried keys into initialKeys so the event handler can
-	// distinguish pre-existing presses from new ones. Keys that were already
-	// held when the event tap was enabled will have their repeat events
-	// suppressed until the user releases and re-presses them.
-	for code := range pressed {
-		state.initialKeys[code] = true
-	}
+	state := newEvdevSessionState(capture)
 
 	for {
 		select {
 		case <-et.stopCh:
-			// Inject synthetic releases for keys that were in
-			// initialKeys and physically released during the grab
-			// (their release never reached libinput), or are still
-			// in initialKeys but no longer pressed (released during
-			// the grab before the event handler processed them).
-			for code := range state.releasedDuringGrab {
-				err := linux.WaylandKeyEvent(uint32(code), false)
-				if err != nil && et.logger != nil {
-					et.logger.Warn(
-						"Failed to inject synthetic key release at shutdown",
-						zap.Uint16("keycode", code),
-						zap.Error(err),
-					)
-				}
-			}
-			for code := range state.initialKeys {
-				if !state.pressed[code] {
-					err := linux.WaylandKeyEvent(uint32(code), false)
-					if err != nil && et.logger != nil {
-						et.logger.Warn(
-							"Failed to inject synthetic key release at shutdown",
-							zap.Uint16("keycode", code),
-							zap.Error(err),
-						)
-					}
-				}
-			}
-
-			// Release any modifiers still held for a passthrough key that was
-			// down when the mode exited, so a virtual modifier can never stay
-			// latched after the grab ends.
-			for code, mods := range state.passthroughHeld {
-				delete(state.passthroughHeld, code)
-				et.releasePassthroughModifiers(mods)
-			}
-
-			capture.ungrabAll()
+			et.shutdownEvdevSession(capture, &state)
 
 			return true
 		case event, ok := <-capture.events:
@@ -1460,4 +1310,177 @@ func ScrollDeviceScrollBatch(axis int, values []int) error {
 	}
 
 	return nil
+}
+
+// refreshEvdevXkbState rebuilds xkb_state on activation so lock modifiers and
+// layout group reflect the current compositor state, then syncs LED state from
+// the devices.
+func (et *EventTap) refreshEvdevXkbState(capture *waylandEvdevCapture) {
+	if capture.xkbState != nil {
+		C.neru_xkb_state_destroy((*C.neru_xkb_state)(capture.xkbState))
+	}
+
+	xkb := C.neru_xkb_state_create()
+	capture.xkbState = unsafe.Pointer(xkb)
+
+	if xkb == nil {
+		if et.logger != nil {
+			et.logger.Error(
+				"Failed to initialize Wayland xkb_state; XKB options will be ignored, " +
+					"falling back to hardcoded evdev key names",
+			)
+		}
+
+		return
+	}
+
+	numLock := C.int(0)
+	capsLock := C.int(0)
+
+	capture.deviceMu.Lock()
+	for _, file := range capture.files {
+		fd := C.int(file.Fd())
+		if C.neru_evdev_led_is_on(fd, C.uint(0)) != 0 {
+			numLock = 1
+		}
+		if C.neru_evdev_led_is_on(fd, C.uint(1)) != 0 {
+			capsLock = 1
+		}
+	}
+	capture.deviceMu.Unlock()
+
+	C.neru_xkb_state_sync_leds(xkb, numLock, capsLock)
+}
+
+// waitForEvdevKeysReleased blocks until every physically held key is released,
+// or the pre-grab timeout passes. Grabbing while a key is held makes the kernel
+// route that key's release to our fd only — libinput never sees it, considers
+// the key pressed forever, and silently eats its next press. Returns true when
+// the tap was stopped while waiting.
+func (et *EventTap) waitForEvdevKeysReleased(
+	capture *waylandEvdevCapture,
+	overlayCapture overlaymanager.KeyboardCaptureController,
+) bool {
+	for capture.modifierKeysHeld() {
+		select {
+		case <-et.stopCh:
+			return true
+		case <-time.After(waylandEvdevModifierReleasePollPeriod):
+		}
+	}
+
+	held := make(map[uint16]bool)
+	queryAllPressedKeys(capture, held)
+
+	if len(held) == 0 {
+		return false
+	}
+
+	if overlayCapture != nil {
+		overlayCapture.SetKeyboardCaptureEnabled(true)
+	}
+
+	deadline := time.After(waylandEvdevPreGrabTimeout)
+	ticker := time.NewTicker(waylandEvdevPreGrabHoldPollPeriod)
+
+	defer func() {
+		ticker.Stop()
+
+		if overlayCapture != nil {
+			overlayCapture.SetKeyboardCaptureEnabled(false)
+		}
+	}()
+
+	for {
+		pressed := make(map[uint16]bool)
+		queryAllPressedKeys(capture, pressed)
+
+		if len(pressed) == 0 {
+			return false
+		}
+
+		select {
+		case <-et.stopCh:
+			return true
+		case <-deadline:
+			return false
+		case <-ticker.C:
+		case _, ok := <-capture.events:
+			if !ok {
+				return true
+			}
+		}
+	}
+}
+
+// newEvdevSessionState drains stale events buffered while ungrabbed and
+// records which keys were already held, so the kernel's SYN_DROPPED replay
+// after EVIOCGRAB is not read as fresh presses. Pre-held keys stay suppressed
+// until released and pressed again.
+func newEvdevSessionState(capture *waylandEvdevCapture) waylandEvdevKeyState {
+	for {
+		select {
+		case <-capture.events:
+			continue
+		default:
+		}
+
+		break
+	}
+
+	pressed := make(map[uint16]bool)
+	state := waylandEvdevKeyState{
+		pressed:            pressed,
+		initialKeys:        make(map[uint16]bool),
+		releasedDuringGrab: make(map[uint16]bool),
+		modifiers: evdevModifierState{
+			linuxModifierState: queryEvdevModifierState(capture, pressed),
+		},
+	}
+
+	queryAllPressedKeys(capture, pressed)
+
+	for code := range pressed {
+		state.initialKeys[code] = true
+	}
+
+	return state
+}
+
+// shutdownEvdevSession injects synthetic releases for keys whose real release
+// never reached libinput (released during the grab, or pre-held and no longer
+// pressed), releases any passthrough modifiers still held, and ungrabs.
+func (et *EventTap) shutdownEvdevSession(
+	capture *waylandEvdevCapture,
+	state *waylandEvdevKeyState,
+) {
+	for code := range state.releasedDuringGrab {
+		et.injectSyntheticRelease(code)
+	}
+
+	for code := range state.initialKeys {
+		if !state.pressed[code] {
+			et.injectSyntheticRelease(code)
+		}
+	}
+
+	// A virtual modifier must never stay latched after the grab ends.
+	for code, mods := range state.passthroughHeld {
+		delete(state.passthroughHeld, code)
+		et.releasePassthroughModifiers(mods)
+	}
+
+	capture.ungrabAll()
+}
+
+// injectSyntheticRelease posts one key-up through the virtual keyboard.
+func (et *EventTap) injectSyntheticRelease(code uint16) {
+	err := linux.WaylandKeyEvent(uint32(code), false)
+	if err != nil && et.logger != nil {
+		et.logger.Warn(
+			"Failed to inject synthetic key release at shutdown",
+			zap.Uint16("keycode", code),
+			zap.Error(err),
+		)
+	}
 }
