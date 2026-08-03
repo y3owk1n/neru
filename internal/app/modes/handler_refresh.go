@@ -1,0 +1,328 @@
+package modes
+
+import (
+	"context"
+	"image"
+
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ui/coordinates"
+)
+
+// RefreshHintsForScreenChange updates the hint collection under the handler
+// mutex so that the onUpdate callback can safely read h.screenBounds and
+// write to h.overlayManager. Called from the screen-change goroutine in
+// lifecycle.go.
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard).
+func (h *Handler) RefreshHintsForScreenChange(
+	ctx context.Context,
+	hintService *services.HintService,
+) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeHints {
+		h.logger.Debug("Skipping hint screen-change refresh: mode exited concurrently")
+
+		return false
+	}
+
+	// Re-read screen bounds under the lock so the onUpdate callback
+	// uses coordinates that match the resized overlay.
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(ctx)
+		if err == nil {
+			h.setScreenBounds(b)
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds after screen change", zap.Error(err))
+		}
+	}
+
+	// Escape any active IME search session before refreshing hints on the new
+	// screen. The old IME session is bound to the previous screen and loses
+	// focus during the space transition, causing subsequent keystrokes to be
+	// forwarded to the frontmost app instead.
+	if h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
+		h.cancelHintSearch()
+	}
+
+	// Get current filter options from context
+	filterRoles := h.hints.Context.FilterRoles()
+	filterTextContains := h.hints.Context.FilterTextContains()
+	strategyOverride := h.hints.Context.StrategyOverride()
+	labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
+
+	// Generate hints with filters preserved; SetHints below performs the
+	// single redraw after active-screen filtering.
+	splitWordOverride := false
+	if h.hints != nil && h.hints.Context != nil {
+		splitWordOverride = h.hints.Context.SplitWord()
+	}
+
+	domainHints, showHintsErr := hintService.GenerateHints(
+		ctx,
+		filterRoles,
+		filterTextContains,
+		"",
+		strategyOverride,
+		labelDirectionOverride,
+		splitWordOverride,
+	)
+	if showHintsErr != nil {
+		h.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
+		h.exitModeLocked()
+
+		return false
+	}
+
+	if len(domainHints) == 0 {
+		h.logger.Debug("No hints after screen change refresh")
+		h.exitModeLocked()
+
+		return false
+	}
+
+	allHints := domainHints
+
+	filtered := filterHintsForScreen(allHints, h.screenBounds)
+	if len(filtered) == 0 {
+		h.logger.Debug("No hints on active screen after filter; skipping refresh")
+		h.exitModeLocked()
+
+		return false
+	}
+
+	setHintsErr := h.hints.Context.SetHints(
+		domainHint.NewCollection(filtered),
+	)
+	if setHintsErr != nil {
+		h.logger.Error("Failed to refresh hints for screen change", zap.Error(setHintsErr))
+
+		return false
+	}
+
+	return true
+}
+
+// RefreshGridForScreenChange regenerates the grid with updated screen bounds
+// under the handler mutex. The user's current input is reset because old cell
+// coordinates are invalid on the new screen. Called from the screen-change
+// handler in lifecycle.go when ModeGrid is active.
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard) or the draw failed.
+func (h *Handler) RefreshGridForScreenChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeGrid {
+		h.logger.Debug("Skipping grid screen-change refresh: mode exited concurrently")
+
+		return false
+	}
+
+	// Regenerate the grid with updated screen bounds.
+	// createGridInstance also updates h.screenBounds and sets the grid on the context.
+	gridInstance := h.createGridInstance()
+
+	currentInput := ""
+
+	if h.grid.Manager != nil {
+		// Sync the Manager's internal grid reference so subsequent key presses
+		// use the new grid's geometry for cell matching (fixes stale-bounds bug).
+		h.grid.Manager.UpdateGrid(gridInstance)
+
+		// Reset input state because old cell coordinates/bounds are invalid on
+		// the new screen, and any in-progress subgrid selection would reference
+		// a stale cell.
+		h.grid.Manager.Reset()
+	}
+
+	// Clear stale selection — old coordinates are invalid on the new screen.
+	h.grid.Context.ClearSelectionPoint()
+
+	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
+	if drawGridErr != nil {
+		h.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
+
+		return false
+	}
+
+	// Ensure the virtual pointer is hidden (DrawGrid may clear cursorIndicatorVisible
+	// via NeruClearOverlay, but we explicitly hide it for consistency).
+	h.refreshGridVirtualPointerLocked()
+
+	return true
+}
+
+// RefreshRecursiveGridForScreenChange remaps the recursive-grid manager's
+// bounds to the new screen dimensions, preserving the user's current depth
+// and selection progress. Called from the screen-change handler in
+// lifecycle.go when ModeRecursiveGrid is active.
+//
+// Returns true if the refresh was performed, false if the mode was exited
+// concurrently (TOCTOU guard — the caller snapshots the mode without holding
+// h.mu, so a concurrent ExitMode could have transitioned to Idle by the time
+// we acquire the lock here).
+func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Re-check mode under the lock to close the TOCTOU window between the
+	// snapshot in processScreenChange and the actual work here.
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		h.logger.Debug("Skipping recursive-grid screen-change refresh: mode exited concurrently")
+
+		return false
+	}
+
+	// Re-read screen bounds under the lock so the overlay uses coordinates
+	// that match the resized window.
+	if h.system != nil {
+		b, err := h.system.ScreenBounds(h.ctx)
+		if err == nil {
+			h.setScreenBounds(b)
+		} else if !derrors.IsNotSupported(err) {
+			h.logger.Warn("Failed to refresh screen bounds for recursive grid", zap.Error(err))
+		}
+	}
+
+	normalizedBounds := coordinates.NormalizeToLocalCoordinates(h.screenBounds)
+
+	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+		// Proportionally remap all bounds (history + currentBounds) so the
+		// user's zoomed-in region maps to the equivalent area on the new screen.
+		h.recursiveGrid.Manager.CurrentGrid().RemapToNewBounds(normalizedBounds)
+	} else {
+		// No existing manager — fall back to full initialization.
+		h.initializeRecursiveGridManager(normalizedBounds)
+	}
+
+	// Clear stale selection — old coordinates are invalid on the new screen.
+	if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+		h.recursiveGrid.Context.ClearSelectionPoint()
+	}
+
+	// Redraw the overlay with the remapped grid.
+	h.updateRecursiveGridOverlay()
+	h.refreshRecursiveGridVirtualPointerLocked()
+
+	return true
+}
+
+// RefreshHintsForThemeChange redraws the hints overlay with updated styles
+// after a system theme change. Only performs the redraw if ModeHints is
+// currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshHintsForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return false
+	}
+
+	hintCollection := h.hints.Context.Hints()
+	if hintCollection == nil {
+		return false
+	}
+
+	// Convert domain hints to overlay hints for rendering
+	filteredHints := hintCollection.All()
+	overlayHints := make([]*hints.Hint, len(filteredHints))
+	screenBounds := h.screenBounds
+
+	for index, hint := range filteredHints {
+		// Convert screen-absolute coordinates to overlay-local coordinates
+		localPos := image.Point{
+			X: hint.Position().X - screenBounds.Min.X,
+			Y: hint.Position().Y - screenBounds.Min.Y,
+		}
+		overlayHints[index] = hints.NewHint(
+			hint.Label(),
+			localPos,
+			hint.Element().Bounds().Size(),
+			hint.MatchedPrefix(),
+		)
+	}
+
+	drawHintsErr := h.overlayManager.DrawHintsWithStyle(
+		overlayHints,
+		h.currentHintStyleLocked(),
+	)
+	if drawHintsErr != nil {
+		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
+
+		return false
+	}
+
+	return true
+}
+
+// RefreshGridForThemeChange redraws the grid overlay with updated styles
+// after a system theme change. Only performs the redraw if ModeGrid is
+// currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshGridForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeGrid {
+		return false
+	}
+
+	gridInstancePtr := h.grid.Context.GridInstance()
+	if gridInstancePtr == nil || *gridInstancePtr == nil {
+		return false
+	}
+
+	gridInstance := *gridInstancePtr
+
+	currentInput := ""
+	if h.grid.Manager != nil {
+		currentInput = h.grid.Manager.CurrentInput()
+	}
+
+	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
+	if drawGridErr != nil {
+		h.logger.Error("Failed to refresh grid after theme change", zap.Error(drawGridErr))
+
+		return false
+	}
+
+	h.refreshGridVirtualPointerLocked()
+
+	return true
+}
+
+// RefreshRecursiveGridForThemeChange redraws the recursive-grid overlay with
+// updated styles after a system theme change. Only performs the redraw if
+// ModeRecursiveGrid is currently active.
+//
+// Returns true if a redraw was performed.
+func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
+		return false
+	}
+
+	h.updateRecursiveGridOverlay()
+	h.refreshRecursiveGridVirtualPointerLocked()
+
+	return true
+}

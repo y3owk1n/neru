@@ -11,17 +11,18 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
+	"github.com/y3owk1n/neru/internal/adapter/logger"
+	overlayAdapter "github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/domain/element"
-	"github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	overlayAdapter "github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // realAdapterTimeout bounds how long these tests wait on the real system.
@@ -277,7 +278,7 @@ func TestActionServiceIntegration(t *testing.T) {
 
 	// The exact-placement contract for cursor movement — the global
 	// top-left-origin, Y-down guarantee that a Y-flip regression would break —
-	// is asserted in internal/core/infra/accessibility, which owns cursor
+	// is asserted in internal/adapter/accessibility, which owns cursor
 	// movement. It is deliberately not repeated here: both packages would be
 	// driving the one physical cursor, and `go test ./...` runs them
 	// concurrently, so each would intermittently fail the other.
@@ -480,7 +481,7 @@ func initializeRealAdapters(
 	t.Helper()
 
 	// Create infrastructure client
-	axClient := accessibility.NewInfraAXClient(logger, nil)
+	axClient := native.New(logger, nil)
 
 	// Create base accessibility adapter
 	accAdapter := accessibility.NewAdapter(

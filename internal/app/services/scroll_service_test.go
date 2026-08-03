@@ -4,11 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 func TestScrollService_Scroll(t *testing.T) {

@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Shift+P[0] = \"hints\"",
+    "- .hotkeys.bindings.Primary+Shift+Space[0] = \"hints\""
+  ],
+  "validationError": ""
+}

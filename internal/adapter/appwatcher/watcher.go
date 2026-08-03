@@ -1,0 +1,225 @@
+package appwatcher
+
+import (
+	"sync"
+
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/ports"
+)
+
+// AppCallback is the application event handler signature. It aliases
+// ports.AppEventCallback so callbacks registered against the port and against
+// this package are the same type.
+type AppCallback = ports.AppEventCallback
+
+// Watcher monitors application lifecycle events and dispatches them to registered callbacks.
+// It tracks application launches, terminations, activations, deactivations, and screen changes.
+// On macOS events come from the NSWorkspace observer via the platform dispatch layer.
+// On other platforms the watcher is a no-op until platform support is implemented.
+type Watcher struct {
+	mu sync.RWMutex
+	// Callbacks for different events
+	launchCallbacks        []AppCallback
+	terminateCallbacks     []AppCallback
+	activateCallbacks      []AppCallback
+	deactivateCallbacks    []AppCallback
+	screenChangeCallbacks  []func()
+	mcActivatedCallbacks   []func()
+	mcDeactivatedCallbacks []func()
+	logger                 *zap.Logger
+	mcDetection            bool
+}
+
+// NewWatcher creates and creates a new application watcher instance.
+// The watcher is ready to register callbacks and start monitoring immediately.
+func NewWatcher(logger *zap.Logger) *Watcher {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	watcher := &Watcher{
+		logger: logger.Named("appwatcher"),
+	}
+
+	platformRegisterWatcher(watcher)
+
+	return watcher
+}
+
+// Start begins monitoring application lifecycle events.
+// Events will be dispatched to registered callbacks once monitoring starts.
+func (w *Watcher) Start() {
+	w.logger.Debug("App watcher: Starting")
+	platformStartWatcher()
+}
+
+// Stop halts application lifecycle event monitoring.
+// No further events will be dispatched after stopping.
+func (w *Watcher) Stop() {
+	w.logger.Debug("App watcher: Stopping")
+	platformStopWatcher()
+}
+
+// SetMCDetection enables or disables Mission Control detection at all levels.
+// When disabled, no timer, window scans, or callbacks are active.
+func (w *Watcher) SetMCDetection(enabled bool) {
+	w.mu.Lock()
+	w.mcDetection = enabled
+	w.mu.Unlock()
+
+	platformSetMCDetection(enabled)
+}
+
+// OnLaunch registers a callback for application launch events.
+// The callback is executed when a monitored application launches.
+func (w *Watcher) OnLaunch(callback AppCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.launchCallbacks = append(w.launchCallbacks, callback)
+}
+
+// OnTerminate registers a callback for application termination events.
+// The callback is executed when a monitored application terminates.
+func (w *Watcher) OnTerminate(callback AppCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.terminateCallbacks = append(w.terminateCallbacks, callback)
+}
+
+// OnActivate registers a callback for application activation events.
+// The callback is executed when a monitored application becomes active.
+func (w *Watcher) OnActivate(callback AppCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.activateCallbacks = append(w.activateCallbacks, callback)
+}
+
+// OnDeactivate registers a callback for application deactivation events.
+// The callback is executed when a monitored application loses focus.
+func (w *Watcher) OnDeactivate(callback AppCallback) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.deactivateCallbacks = append(w.deactivateCallbacks, callback)
+}
+
+// OnScreenParametersChanged registers a callback for screen parameter change events.
+// The callback is executed when display configuration changes (resolution, arrangement, etc.).
+func (w *Watcher) OnScreenParametersChanged(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.screenChangeCallbacks = append(w.screenChangeCallbacks, callback)
+}
+
+// OnMissionControlActivated registers a callback for when Mission Control is activated.
+func (w *Watcher) OnMissionControlActivated(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.mcActivatedCallbacks = append(w.mcActivatedCallbacks, callback)
+}
+
+// OnMissionControlDeactivated registers a callback for when Mission Control is deactivated.
+func (w *Watcher) OnMissionControlDeactivated(callback func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.mcDeactivatedCallbacks = append(w.mcDeactivatedCallbacks, callback)
+}
+
+// HandleLaunch processes application launch events from the platform layer.
+// It dispatches the event to all registered launch callbacks.
+func (w *Watcher) HandleLaunch(appName, bundleID string) {
+	w.dispatchAppEvent("App watcher: Application launched", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.launchCallbacks })
+}
+
+// HandleTerminate processes application termination events from the platform layer.
+// It dispatches the event to all registered termination callbacks.
+func (w *Watcher) HandleTerminate(appName, bundleID string) {
+	w.dispatchAppEvent("App watcher: Application terminated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.terminateCallbacks })
+}
+
+// HandleActivate processes application activation events from the platform layer.
+// It dispatches the event to all registered activation callbacks.
+func (w *Watcher) HandleActivate(appName, bundleID string) {
+	w.dispatchAppEvent("App watcher: Application activated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.activateCallbacks })
+}
+
+// HandleDeactivate processes application deactivation events from the platform layer.
+// It dispatches the event to all registered deactivation callbacks.
+func (w *Watcher) HandleDeactivate(appName, bundleID string) {
+	w.dispatchAppEvent("App watcher: Application deactivated", appName, bundleID,
+		func(w *Watcher) []AppCallback { return w.deactivateCallbacks })
+}
+
+// HandleScreenParametersChanged processes screen parameter change events from the platform layer.
+// It dispatches the event to all registered screen change callbacks.
+func (w *Watcher) HandleScreenParametersChanged() {
+	w.dispatchVoidEvent("App watcher: Screen parameters changed",
+		func(w *Watcher) []func() { return w.screenChangeCallbacks })
+}
+
+// HandleMissionControlActivated processes Mission Control activation events from the platform layer.
+func (w *Watcher) HandleMissionControlActivated() {
+	w.dispatchMCEvent("App watcher: Mission Control activated",
+		func(w *Watcher) []func() { return w.mcActivatedCallbacks })
+}
+
+// HandleMissionControlDeactivated processes Mission Control deactivation events from the platform layer.
+func (w *Watcher) HandleMissionControlDeactivated() {
+	w.dispatchMCEvent("App watcher: Mission Control deactivated",
+		func(w *Watcher) []func() { return w.mcDeactivatedCallbacks })
+}
+
+func (w *Watcher) dispatchAppEvent(
+	logMsg, appName, bundleID string,
+	callbacks func(*Watcher) []AppCallback,
+) {
+	w.logger.Debug(logMsg,
+		zap.String("app_name", appName),
+		zap.String("bundle_id", bundleID))
+
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	for _, callback := range callbacks(w) {
+		callback(appName, bundleID)
+	}
+}
+
+func (w *Watcher) dispatchVoidEvent(logMsg string, callbacks func(*Watcher) []func()) {
+	w.logger.Debug(logMsg)
+
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	for _, callback := range callbacks(w) {
+		callback()
+	}
+}
+
+func (w *Watcher) dispatchMCEvent(logMsg string, callbacks func(*Watcher) []func()) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	if !w.mcDetection {
+		return
+	}
+
+	w.logger.Debug(logMsg)
+
+	for _, callback := range callbacks(w) {
+		callback()
+	}
+}
+
+// Ensure Watcher implements ports.AppWatcherPort.
+var _ ports.AppWatcherPort = (*Watcher)(nil)

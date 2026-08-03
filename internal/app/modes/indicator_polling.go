@@ -5,8 +5,9 @@ import (
 	"image"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 const (
@@ -29,19 +30,13 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
 	// when indicator overlays are shown, but only if uinput scroll is active.
-	// Skip entirely when an evdev keyboard grab owns the keyboard: there the
-	// overlay must stay keyboard-passive (its grab would deactivate the focused
-	// app's toplevel on wlroots, breaking the next hints refresh), and the evdev
-	// path already keeps it that way.
-	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
-		m.SetKeyboardCaptureEnabled(false)
-	}
-	// Ensure the mode indicator overlay covers the correct screen before
-	// the goroutine starts drawing. Scroll and hints modes already call
-	// overlayManager.ResizeToActiveScreen() which covers this, but grid
-	// and recursive-grid modes manage their own windows and skip that
-	// call, so the mode indicator overlay could still be sized for a
-	// different monitor.
+	// Skip when an evdev keyboard grab owns the keyboard: there the overlay
+	// must stay keyboard-passive, and the evdev path already keeps it that way.
+	setOverlayKeyboardCapture(h, false)
+
+	// Size the small overlays before the goroutine draws. Grid and
+	// recursive-grid manage their own windows and skip the manager's resize,
+	// so these could still be sized for a different monitor.
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.ResizeToActiveScreen()
 	}
@@ -57,169 +52,196 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 	h.indicatorDoneCh = doneCh
 
 	h.indicatorTicker = ticker
-	go func() {
-		defer close(doneCh)
-		// Create a cancellable context bound to the stop channel.
-		ctx, cancel := context.WithCancel(h.ctx)
-		defer cancel()
-		// Monitor stopCh to cancel context immediately if the polling operation hangs.
-		go func() {
-			select {
-			case <-stopCh:
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
 
-		for {
+	go h.runIndicatorPolling(stopCh, doneCh, ticker)
+}
+
+// runIndicatorPolling is the polling loop. It exits when stopCh closes.
+func (h *Handler) runIndicatorPolling(
+	stopCh chan struct{},
+	doneCh chan struct{},
+	ticker *time.Ticker,
+) {
+	defer close(doneCh)
+
+	ctx, cancel := context.WithCancel(h.ctx)
+	defer cancel()
+
+	// Cancel the context as soon as stop is signaled so a hung call unblocks.
+	go func() {
+		select {
+		case <-stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+			// Re-check stopCh before doing any work to shrink the window
+			// where a draw can be dispatched after stop is signaled.
 			select {
 			case <-stopCh:
 				return
-			case <-ticker.C:
-				// Re-check stopCh before doing any work to minimize the
-				// window where a draw can be dispatched after stop is
-				// signaled.
-				select {
-				case <-stopCh:
-					return
-				default:
-				}
-				// Use a timeout for the individual call to prevent hanging.
-				reqCtx, reqCancel := context.WithTimeout(ctx, indicatorPollTimeout)
-				cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
-
-				reqCancel()
-
-				if err != nil {
-					continue
-				}
-
-				// Use TryLock to avoid deadlocking with stopIndicatorPolling,
-				// which is called while h.mu is held (e.g. exitModeLocked →
-				// performCommonCleanup → stopIndicatorPolling blocks on
-				// indicatorDoneCh). If the lock is contended, skip this tick.
-				if !h.mu.TryLock() {
-					continue
-				}
-				showModeInd := h.shouldShowModeIndicator(h.appState.CurrentMode())
-				stickyEnabled := h.stickyModifiersEnabled()
-				showVirtualPointer := h.shouldShowCursorFollowingVirtualPointerLocked()
-
-				var (
-					virtualPointerSize      int
-					virtualPointerFillColor string
-				)
-				if showVirtualPointer {
-					vps, enabled := h.virtualPointerStyle()
-
-					showVirtualPointer = enabled
-					if enabled {
-						virtualPointerSize = vps.fontSize
-						virtualPointerFillColor = vps.fillColor
-					}
-				}
-
-				stickyPoint := h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
-
-				cursorPt := image.Pt(cursorX, cursorY)
-
-				if !cursorPt.In(h.screenBounds) && h.system != nil {
-					boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
-					newBounds, boundsErr := h.system.ScreenBounds(boundsCtx)
-
-					boundsCancel()
-
-					if boundsErr == nil && newBounds != h.screenBounds {
-						h.setScreenBounds(newBounds)
-						// Must unlock before resizing overlays — the resize
-						// dispatches to the main queue and we must not hold
-						// h.mu across that call.
-						h.mu.Unlock()
-
-						if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-							ind.ResizeToActiveScreen()
-						}
-
-						if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-							stickyInd.ResizeToActiveScreen()
-						}
-						// Skip the draw this tick so the next tick draws with
-						// a fully-updated h.screenBounds. The mode indicator
-						// and sticky modifier overlays use small windows that
-						// are positioned dynamically each tick, so this skip
-						// is mostly defensive against the display change
-						// coinciding with a draw dispatch.
-						continue
-					}
-				}
-
-				h.mu.Unlock()
-
-				// The small indicator overlays (mode indicator, sticky modifiers)
-				// take absolute Quartz coordinates. The native side clamps the
-				// window frame to the active display to prevent the
-				// multi-monitor flicker.
-
-				// Mode indicator: show and draw when enabled, hide otherwise.
-				if showModeInd {
-					if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-						ind.Show()
-					}
-
-					h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
-				} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-					ind.Clear()
-					ind.Hide()
-				}
-
-				// Sticky modifiers indicator: show and draw when modifiers
-				// are active, hide otherwise.
-				if stickyEnabled {
-					if h.stickyModifiers() != 0 {
-						if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-							stickyInd.Show()
-						}
-
-						h.drawStickyModifiersIndicator(stickyPoint.X, stickyPoint.Y)
-					} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-						if h.stickyIndicatorService != nil {
-							h.stickyIndicatorService.UpdateIndicatorPosition(
-								stickyPoint.X,
-								stickyPoint.Y,
-								"",
-							)
-						}
-
-						stickyInd.Clear()
-						stickyInd.Hide()
-					}
-				}
-
-				if showVirtualPointer {
-					if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
-						vp.Show()
-						h.overlayManager.DrawVirtualPointer(
-							cursorX,
-							cursorY,
-							virtualPointerSize,
-							virtualPointerFillColor,
-						)
-					}
-				} else if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
-					vp.Hide()
-					vp.Clear()
-				}
-
-				// Re-hide the system cursor if macOS revealed it (e.g. right-click
-				// context menu, Mission Control, Exposé). Rate-limited to ~2 Hz.
-				h.rehideSystemCursor()
-
-				// Flush indicator draws atomically to avoid intermediate buffer
-				// states appearing between overlay updates.
-				h.overlayManager.Flush()
+			default:
 			}
+
+			h.pollIndicatorsOnce(ctx)
 		}
-	}()
+	}
+}
+
+// indicatorSnapshot is what one tick decides to draw, read under h.mu.
+type indicatorSnapshot struct {
+	showModeIndicator       bool
+	stickyEnabled           bool
+	showVirtualPointer      bool
+	virtualPointerSize      int
+	virtualPointerFillColor string
+	stickyPoint             image.Point
+}
+
+// pollIndicatorsOnce runs one tick: read the cursor, snapshot what to show,
+// then draw. Skipped entirely when the lock is contended or the screen bounds
+// changed under the cursor.
+func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
+	reqCtx, reqCancel := context.WithTimeout(ctx, indicatorPollTimeout)
+	cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
+
+	reqCancel()
+
+	if err != nil {
+		return
+	}
+
+	// TryLock, not Lock: stopIndicatorPolling runs while h.mu is held and
+	// blocks on indicatorDoneCh, so waiting here would deadlock. A contended
+	// tick is just skipped.
+	if !h.mu.TryLock() {
+		return
+	}
+
+	snap := indicatorSnapshot{
+		showModeIndicator:  h.shouldShowModeIndicator(h.appState.CurrentMode()),
+		stickyEnabled:      h.stickyModifiersEnabled(),
+		showVirtualPointer: h.shouldShowCursorFollowingVirtualPointerLocked(),
+	}
+
+	if snap.showVirtualPointer {
+		vps, enabled := h.virtualPointerStyle()
+
+		snap.showVirtualPointer = enabled
+		if enabled {
+			snap.virtualPointerSize = vps.fontSize
+			snap.virtualPointerFillColor = vps.fillColor
+		}
+	}
+
+	snap.stickyPoint = h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
+
+	if !image.Pt(cursorX, cursorY).In(h.screenBounds) && h.system != nil {
+		if h.adoptChangedScreenBoundsLocked(ctx) {
+			// h.mu is already released; skip the draw so the next tick works
+			// from the updated bounds.
+			return
+		}
+	}
+
+	h.mu.Unlock()
+
+	h.drawIndicators(snap, cursorX, cursorY)
+
+	// Re-hide the system cursor if macOS revealed it (e.g. right-click menu,
+	// Mission Control). Rate-limited to ~2 Hz.
+	h.rehideSystemCursor()
+
+	// Flush atomically so no intermediate state shows between overlay updates.
+	h.overlayManager.Flush()
+}
+
+// adoptChangedScreenBoundsLocked re-reads the screen bounds and resizes the
+// indicator overlays when they changed. It reports true when it did so, in
+// which case it has already released h.mu; otherwise the lock is still held.
+func (h *Handler) adoptChangedScreenBoundsLocked(ctx context.Context) bool {
+	boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
+	newBounds, boundsErr := h.system.ScreenBounds(boundsCtx)
+
+	boundsCancel()
+
+	if boundsErr != nil || newBounds == h.screenBounds {
+		return false
+	}
+
+	h.setScreenBounds(newBounds)
+
+	// Unlock before resizing: the resize dispatches to the main queue and
+	// h.mu must not be held across that call.
+	h.mu.Unlock()
+
+	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+		ind.ResizeToActiveScreen()
+	}
+
+	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+		stickyInd.ResizeToActiveScreen()
+	}
+
+	return true
+}
+
+// drawIndicators shows, draws or hides each small overlay from one snapshot.
+// The overlays take absolute Quartz coordinates; the native side clamps their
+// windows to the active display.
+func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
+	if snap.showModeIndicator {
+		if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+			ind.Show()
+		}
+
+		h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
+	} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
+		ind.Clear()
+		ind.Hide()
+	}
+
+	if snap.stickyEnabled {
+		if h.stickyModifiers() != 0 {
+			if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+				stickyInd.Show()
+			}
+
+			h.drawStickyModifiersIndicator(snap.stickyPoint.X, snap.stickyPoint.Y)
+		} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
+			if h.stickyIndicatorService != nil {
+				h.stickyIndicatorService.UpdateIndicatorPosition(
+					snap.stickyPoint.X,
+					snap.stickyPoint.Y,
+					"",
+				)
+			}
+
+			stickyInd.Clear()
+			stickyInd.Hide()
+		}
+	}
+
+	if snap.showVirtualPointer {
+		if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
+			vp.Show()
+			h.overlayManager.DrawVirtualPointer(
+				cursorX,
+				cursorY,
+				snap.virtualPointerSize,
+				snap.virtualPointerFillColor,
+			)
+		}
+	} else if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
+		vp.Hide()
+		vp.Clear()
+	}
 }
 
 // stopIndicatorPolling stops the indicator polling goroutine and cleans up
@@ -230,9 +252,7 @@ func (h *Handler) stopIndicatorPolling() {
 	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
 	// so a hints refresh (which stops indicator polling before rescanning) would
 	// re-read the wrong focused window and clear the hints.
-	if m := overlay.Get(); m != nil && h.allowsOverlayKeyboardPassthrough() {
-		m.SetKeyboardCaptureEnabled(true)
-	}
+	setOverlayKeyboardCapture(h, true)
 
 	// Signal stop first.
 	if h.indicatorStopCh != nil {
@@ -321,4 +341,23 @@ func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Poi
 	}
 
 	return cursorPoint
+}
+
+// setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.
+//
+// Only the Linux backends can do this, so it is an optional extension reached
+// by type assertion: elsewhere the assertion fails and the call is a no-op,
+// which is the right behavior — no other backend's overlay takes the keyboard
+// away from the focused application in the first place.
+func setOverlayKeyboardCapture(h *Handler, enabled bool) {
+	if !h.allowsOverlayKeyboardPassthrough() {
+		return
+	}
+
+	controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController)
+	if !ok {
+		return
+	}
+
+	controller.SetKeyboardCaptureEnabled(enabled)
 }

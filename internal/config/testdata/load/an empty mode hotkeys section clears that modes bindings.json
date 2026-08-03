@@ -1,0 +1,19 @@
+{
+  "delta": [
+    "- .hints.hotkeys./[0] = \"action search_hints\"",
+    "- .hints.hotkeys.Backspace[0] = \"action backspace\"",
+    "- .hints.hotkeys.Down[0] = \"action move_mouse_relative --dx=0 --dy=10\"",
+    "- .hints.hotkeys.Escape[0] = \"idle\"",
+    "- .hints.hotkeys.Left[0] = \"action move_mouse_relative --dx=-10 --dy=0\"",
+    "- .hints.hotkeys.Right[0] = \"action move_mouse_relative --dx=10 --dy=0\"",
+    "- .hints.hotkeys.Shift+I[0] = \"action left_click --state down\"",
+    "- .hints.hotkeys.Shift+L[0] = \"action left_click\"",
+    "- .hints.hotkeys.Shift+M[0] = \"action middle_click\"",
+    "- .hints.hotkeys.Shift+R[0] = \"action right_click\"",
+    "- .hints.hotkeys.Shift+Tab[0] = \"action cycle_hint --backward\"",
+    "- .hints.hotkeys.Shift+U[0] = \"action left_click --state up\"",
+    "- .hints.hotkeys.Tab[0] = \"action cycle_hint\"",
+    "- .hints.hotkeys.Up[0] = \"action move_mouse_relative --dx=0 --dy=-10\""
+  ],
+  "validationError": ""
+}

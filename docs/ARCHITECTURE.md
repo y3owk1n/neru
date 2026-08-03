@@ -59,8 +59,8 @@ current per-platform support is tracked in
 Neru is a **daemon plus a thin CLI**. `neru launch` starts the daemon;
 `neru hints`, `neru action left_click`, `neru config reload` and friends dial a
 Unix domain socket (`$TMPDIR/neru.sock`, mode 0600) or a Windows named pipe —
-see `internal/core/infra/ipc` and `internal/app/ipc_controller.go` /
-`ipc_handlers.go`.
+see `internal/adapter/ipc` for the transport and
+`internal/app/ipcctrl` for the command handlers.
 
 New user-facing behavior therefore usually needs three pieces: a CLI command
 (`internal/cli/`, registered in an `init()`), an IPC handler, and the
@@ -90,11 +90,11 @@ never lingers.
 Neru follows a layered **Hexagonal Architecture (Ports and Adapters)**:
 
 1. **Shared business logic** — hint generation, grid calculations, mode
-   transitions are pure Go in `internal/core/domain` and `internal/app/services`.
+   transitions are pure Go in `internal/domain` and `internal/app/services`.
 2. **Platform isolation** — OS-specific code is strictly quarantined.
 3. **Ports and adapters** — every system capability (Accessibility, Hotkeys,
-   Overlays) is an interface in `internal/core/ports`, implemented by an adapter
-   in `internal/core/infra`.
+   Overlays) is an interface in `internal/ports`, implemented by an adapter
+   in `internal/adapter`.
 4. **Build tag separation** — OS-specific files carry build tags (`//go:build
    darwin`) so they compile only for their target.
 5. **Platform roles over brand names** — shared code says "primary modifier",
@@ -109,14 +109,14 @@ backend family is organized are contributor concerns owned by
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#contributor-guide). The architectural
 source of truth for per-subsystem backend family, primary-modifier
 expectations, and build mode is
-[profile.go](../internal/core/infra/platform/profile.go).
+[profile.go](../internal/adapter/platform/profile.go).
 
 ---
 
 ## The "One Rule"
 
 > **Non-darwin-tagged code must never import
-> `internal/core/infra/platform/darwin`.**
+> `internal/adapter/platform/darwin`.**
 
 Enforced twice: `depguard` in `.golangci.yml`, and
 [dependency_boundary_test.go](../internal/architecture/dependency_boundary_test.go).
@@ -143,14 +143,14 @@ graph TD
         Services[internal/app/services]
     end
 
-    subgraph "Core Layer"
-        Ports[internal/core/ports]
-        Domain[internal/core/domain]
+    subgraph "Domain Layer"
+        Ports[internal/ports]
+        Domain[internal/domain]
     end
 
-    subgraph "Infrastructure Layer"
-        Infra[internal/core/infra]
-        Platform[internal/core/infra/platform]
+    subgraph "Adapters Layer"
+        Adapters[internal/adapter]
+        Platform[internal/adapter/platform]
     end
 
     CLI -->|IPC| App
@@ -158,27 +158,27 @@ graph TD
     Modes --> Services
     Services --> Ports
     Ports --> Domain
-    Infra -.->|Implements| Ports
+    Adapters -.->|Implements| Ports
     Platform -.->|Implements| Ports
-    UI --> Infra
+    UI --> Adapters
 ```
 
 ### Layer responsibilities
 
-- **Domain** (`internal/core/domain`) — pure business logic and entities
-  ([hint.go](../internal/core/domain/hint/hint.go),
-  [grid.go](../internal/core/domain/grid/grid.go)). No external dependencies.
-- **Ports** (`internal/core/ports`) — interface contracts defining system
-  capabilities ([accessibility.go](../internal/core/ports/accessibility.go),
-  [overlay.go](../internal/core/ports/overlay.go),
-  [font.go](../internal/core/ports/font.go)).
+- **Domain** (`internal/domain`) — pure business logic and entities
+  ([hint.go](../internal/domain/hint/hint.go),
+  [grid.go](../internal/domain/grid/grid.go)). No external dependencies.
+- **Ports** (`internal/ports`) — interface contracts defining system
+  capabilities ([accessibility.go](../internal/ports/accessibility.go),
+  [overlay.go](../internal/ports/overlay.go),
+  [font.go](../internal/ports/font.go)).
 - **Application** (`internal/app`) — orchestrates domain entities and services;
   owns lifecycle and navigation modes.
-- **Infrastructure** (`internal/core/infra`) — concrete port implementations on
+- **Adapters** (`internal/adapter`) — concrete port implementations on
   platform APIs.
 - **UI** (`internal/ui`) — coordinate transformation and the renderer facade
   over the overlay adapter. The native overlay backends live in
-  `internal/core/infra/overlay`, not here.
+  `internal/adapter/overlay`, not here.
 - **CLI** (`internal/cli`) — user commands, config loading, IPC to the daemon.
 
 A directory-by-directory map for placing new code is in
@@ -205,17 +205,39 @@ user-visible action.
 
 **3. The platform factory**
 
-[factory.go](../internal/core/infra/platform/factory.go) and its build-tagged
+[factory.go](../internal/adapter/platform/factory.go) and its build-tagged
 siblings are the only place that picks a `ports.SystemPort` implementation. On
 Linux there is a second, *runtime* axis on top of build tags:
-[backend_linux.go](../internal/core/infra/platform/backend_linux.go) detects the
+[backend_linux.go](../internal/adapter/platform/backend_linux.go) detects the
 live compositor (wlroots / KDE / GNOME / other) and the factory routes to it.
 
-**4. Input processing**
+**4. Where a platform's code lives**
 
-1. **OS** — [eventtap_darwin.m](../internal/core/infra/platform/darwin/eventtap_darwin.m)
+Each OS capability is a package under `internal/adapter/`. Where a backend is a
+real implementation rather than a few dispatch functions, it gets its own
+directory and the directory names the platform:
+
+```
+adapter/eventtap/{tap,darwin,linux,windows}          keyboard capture
+adapter/hotkeys/{darwin,linux,windows}               global hotkeys
+adapter/systray/{darwin,linux,windows}               tray icon
+adapter/accessibility/{ax,atspi,native}              element discovery
+adapter/overlay/{manager,darwin,linux,windows}       overlay rendering
+adapter/platform/{darwin,linux,windows}              the native cgo bridges
+```
+
+The parent package holds the port adapter and a small build-tagged factory —
+the only place that knows which implementation exists. So "what do I touch to
+add a compositor?" is answered by `ls`, not by reading build tags. When a
+backend earns its own package and when build-tagged files in one package are
+clearer is covered in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#backend-packages).
+
+**5. Input processing**
+
+1. **OS** — [eventtap_darwin.m](../internal/adapter/platform/darwin/eventtap_darwin.m)
    captures low-level keyboard events (Linux/Windows have equivalents)
-2. **Infrastructure** — [adapter.go](../internal/core/infra/eventtap/adapter.go)
+2. **Adapters** — [adapter.go](../internal/adapter/eventtap/adapter.go)
    receives and dispatches them
 3. **Application** — [handler.go](../internal/app/modes/handler.go) routes the
    key to the active [Mode](../internal/app/modes/base.go)
@@ -223,7 +245,7 @@ live compositor (wlroots / KDE / GNOME / other) and the factory routes to it.
    [hint_service.go](../internal/app/services/hint_service.go) and friends
 5. **Keyboard layout changes** — on macOS the mode-level CGEventTap rebuilds its
    key-name lookup tables at runtime (`NeruSetKeymapLayoutChangeCallback` in
-   [keymap_darwin.m](../internal/core/infra/platform/darwin/keymap_darwin.m)) so
+   [keymap_darwin.m](../internal/adapter/platform/darwin/keymap_darwin.m)) so
    navigation keys survive layout switches. Per-hotkey CGEventTaps re-register
    too (`NeruSetKeymapLayoutChangeCallback2`), because `NeruKeyNameToCode` maps
    key names to layout-aware keycodes.
@@ -275,7 +297,7 @@ shared surface, and the per-component files are style-only stubs — see
 ### The CGo bridge (macOS)
 
 Native macOS classes are wrapped in CGo so Go can call Cocoa while keeping type
-safety. Location: `internal/core/infra/platform/darwin/`; key files `bridge.go`,
+safety. Location: `internal/adapter/platform/darwin/`; key files `bridge.go`,
 `overlay_darwin.m`, `accessibility_element_darwin.m`.
 
 ---
@@ -310,7 +332,7 @@ All shared code uses a **global top-left (0,0)** coordinate system.
 
 macOS Cocoa uses a bottom-left origin with Y increasing upwards. The inversion
 happens inside the darwin adapter
-([accessibility_screen_darwin.m](../internal/core/infra/platform/darwin/accessibility_screen_darwin.m))
+([accessibility_screen_darwin.m](../internal/adapter/platform/darwin/accessibility_screen_darwin.m))
 — flipped coordinates must never leak into shared Go. Conversions live in
 `internal/ui/coordinates`.
 
@@ -318,7 +340,7 @@ happens inside the darwin adapter
 
 ## Error Handling and Graceful Degradation
 
-Neru uses the custom [derrors](../internal/core/errors/errors.go) package:
+Neru uses the custom [derrors](../internal/derrors/errors.go) package:
 `derrors.New(code, msg)` and `derrors.Wrap(err, code, msg)`.
 
 ### The `CodeNotSupported` policy
@@ -346,8 +368,8 @@ deliberately stricter than "it compiles":
 - stubbed or incomplete features report `stub`
 
 `neru doctor` is the user-facing entry point, so the matrix
-([capabilities.go](../internal/core/ports/capabilities.go),
-[capability_presets.go](../internal/core/ports/capability_presets.go)) must stay
+([capabilities.go](../internal/ports/capabilities.go),
+[capability_presets.go](../internal/ports/capability_presets.go)) must stay
 in sync with reality — a stub reporting `supported` is a bug.
 
 ---
@@ -411,13 +433,13 @@ its own.
    system-wide keyboard lag; heavy processing is deferred to goroutines.
 2. **Bounded accessibility walks** — querying accessibility APIs is expensive, so
    traversal is bounded rather than exhaustive: `maxDepth` on the macOS walk
-   ([client.go](../internal/core/infra/accessibility/client.go)), and
+   ([ax.go](../internal/adapter/accessibility/ax/ax.go)), and
    `atspiMaxDepth` / `atspiMaxNodes` on the Linux AT-SPI walk
-   ([atspi_linux.go](../internal/core/infra/accessibility/atspi_linux.go)).
+   ([atspi/client.go](../internal/adapter/accessibility/atspi/client.go)).
 3. **Caching** — a TTL/LRU cache for computed grid layouts
-   ([grid/cache.go](../internal/core/domain/grid/cache.go)) and a cache of C
+   ([grid/cache.go](../internal/domain/grid/cache.go)) and a cache of C
    string pointers for overlay styles
-   ([style_cache.go](../internal/core/infra/overlay/render/overlayutil/style_cache.go))
+   ([style_cache.go](../internal/adapter/overlay/render/overlayutil/style_cache.go))
    keep repeated activations off the hot path.
 4. **Native rendering** — GPU-accelerated CoreAnimation on macOS, Cairo on
    Linux, GDI on Windows.

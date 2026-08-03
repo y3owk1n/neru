@@ -11,15 +11,6 @@ import (
 	"testing"
 )
 
-// These guardrails keep the test suite honest. Both patterns they forbid used
-// to be widespread here, and both share the same failure mode: the test runs,
-// reports PASS, and would keep reporting PASS after the code under it broke.
-// A test that cannot fail is worse than no test, because it reads as coverage.
-//
-// If a genuinely untestable case turns up, express it as an explicit t.Skip
-// with a reason rather than as a silently-passing assertion — a skip is visible
-// in the test output, a swallowed error is not.
-
 // failCalls are the testing.TB methods that can actually fail (or visibly skip)
 // a test. Anything else leaves the test reporting success.
 var failCalls = map[string]bool{
@@ -33,10 +24,9 @@ var failCalls = map[string]bool{
 //
 //	if err != nil { t.Logf("...", err) }
 //
-// shape: an error path that logs and moves on. Under it, the operation under
-// test can start failing on every run and the suite stays green. Either the
-// error is a real failure (use t.Error/t.Fatal), or the case is legitimately
-// unsupported in this environment (use t.Skip, which is reported).
+// shape: the code under test can break on every run and the suite stays
+// green. Use t.Error for real failures or t.Skip for environments where the
+// case cannot run — a skip is visible, a swallowed error is not.
 func TestNoTestSwallowsAnErrorWithoutFailing(t *testing.T) {
 	var offenders []string
 

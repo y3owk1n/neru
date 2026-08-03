@@ -5,18 +5,18 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/modeindicator"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/virtualpointer"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 // ComponentFactory provides standardized component creation patterns.
@@ -62,7 +62,6 @@ func (f *ComponentFactory) CreateHintsComponent(
 		return component, nil
 	}
 
-	// Build style
 	component.Style = hints.BuildStyle(f.config.Hints, f.themeProvider)
 	component.Context = &hints.Context{}
 
@@ -114,7 +113,6 @@ func (f *ComponentFactory) CreateGridComponent(
 		return component, nil
 	}
 
-	// Build style and configuration
 	component.Style = grid.BuildStyle(f.config.Grid, f.themeProvider)
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)
@@ -323,8 +321,6 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 		Theme:   f.themeProvider,
 	}, nil
 }
-
-// Helper methods
 
 func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
 	switch overlayType {

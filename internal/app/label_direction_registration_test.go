@@ -7,11 +7,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 const labelDirNormal = "normal"

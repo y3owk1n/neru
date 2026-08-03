@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
 // SetConfigField applies a single runtime config field change with full
@@ -107,15 +107,7 @@ func (a *App) prepareForConfigUpdate() {
 		a.ExitMode()
 	}
 
-	a.hotkeyRegistrationMu.Lock()
-	defer a.hotkeyRegistrationMu.Unlock()
-
-	if a.appState.HotkeysRegistered() {
-		a.logger.Debug("Unregistering current hotkeys before reload")
-		a.stopAllHotkeyRepeats()
-		a.hotkeyManager.UnregisterAll()
-		a.appState.SetHotkeysRegistered(false)
-	}
+	a.hotkeys.Unregister()
 }
 
 // applyAppSpecificConfigUpdates applies app-specific configuration updates.
@@ -139,36 +131,11 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	// have re-registered with the old config for the current bundle,
 	// causing refreshHotkeysForAppOrCurrent to skip because the bundle
 	// hasn't changed.  Force clean registration with the new config.
-	a.hotkeyRegistrationMu.Lock()
-	if a.appState.HotkeysRegistered() {
-		a.stopAllHotkeyRepeats()
-		a.hotkeyManager.UnregisterAll()
-		a.appState.SetHotkeysRegistered(false)
-	}
-	a.hotkeyRegistrationMu.Unlock()
-
-	a.refreshHotkeysForAppOrCurrent("")
+	a.hotkeys.ForceRefresh()
 }
 
 func (a *App) restoreHotkeysAfterFailedReload() {
-	a.hotkeyRegistrationMu.Lock()
-	defer a.hotkeyRegistrationMu.Unlock()
-
-	if a.appState.IsEnabled() && !a.appState.HotkeysRegistered() {
-		// Query the currently focused app so we register the right
-		// [[app_configs]] overrides.  Focus can change while the
-		// blocking reload-alert dialog is up, making the cached
-		// currentHotkeyBundleID stale.
-		bundleID, err := a.actionService.FocusedAppBundleID(a.ctx)
-		if err != nil {
-			bundleID = ""
-		}
-
-		a.registerHotkeys(bundleID)
-		a.appState.SetHotkeysRegistered(true)
-		a.currentHotkeyBundleID = bundleID
-		a.logger.Debug("Hotkeys restored after failed config reload")
-	}
+	a.hotkeys.Restore()
 }
 
 func (a *App) updateConfigSnapshot(loadResult *config.LoadResult) {
@@ -269,7 +236,7 @@ func (a *App) syncScrollInvertConfig(cfg *config.Config) {
 }
 
 // syncInitialConfigToAppState syncs configuration values to AppState during startup.
-// This ensures AppState reflects the config file values before any runtime toggles.
+// AppState then reflects the config file before any runtime toggle is applied.
 func syncInitialConfigToAppState(app *App) {
 	cfg := app.configSnapshot()
 

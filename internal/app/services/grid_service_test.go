@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 const (

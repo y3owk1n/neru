@@ -1,0 +1,6 @@
+{
+  "delta": [
+    "+ .hints.hotkeys.j[0] = \"action move_mouse_relative --dx=0 --dy=10\""
+  ],
+  "validationError": ""
+}

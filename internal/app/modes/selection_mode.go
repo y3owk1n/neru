@@ -1,6 +1,6 @@
 package modes
 
-import "github.com/y3owk1n/neru/internal/core/domain"
+import "github.com/y3owk1n/neru/internal/domain"
 
 const (
 	// CursorSelectionModeFollow keeps the real cursor synced with the current selection.

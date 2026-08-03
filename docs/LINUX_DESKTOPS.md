@@ -38,10 +38,10 @@ go through the shared wlroots client (KWin does implement layer-shell), while
 all pointer and keyboard injection goes through **libei** via
 `org.freedesktop.portal.RemoteDesktop`.
 
-Routing lives in `system_linux_wayland_input.go` — if the compositor advertises
+Routing lives in `system_wayland_input.go` — if the compositor advertises
 `zwlr_virtual_pointer_v1` it uses the virtual pointer, otherwise libei. The two
 paths never overlap. Code slots: `system_linux_wayland_kde_*.go`,
-`accessibility/kwin_geometry_linux.go`, `accessibility/atspi_linux.go`.
+`accessibility/atspi/kwin_geometry.go`, `accessibility/atspi/client.go`.
 
 AT-SPI reports window-relative coordinates, so a KWin script pushes
 focused-window geometry over D-Bus to translate them into global compositor
@@ -225,7 +225,7 @@ backend.
 
 Future work targets libei (the same family as KDE) plus a GNOME Shell extension.
 See
-[wayland_gnome/PLACEHOLDER.md](../internal/core/infra/platform/linux/wayland_gnome/PLACEHOLDER.md).
+[wayland_gnome/PLACEHOLDER.md](../internal/adapter/platform/linux/wayland_gnome/PLACEHOLDER.md).
 
 ---
 

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/derrors"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // TestService_GetCursorPositionWithoutSystemPort pins the degraded path. The

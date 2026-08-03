@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 const (

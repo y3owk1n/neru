@@ -5,26 +5,28 @@ import (
 
 	"go.uber.org/zap"
 
+	eventtapadapter "github.com/y3owk1n/neru/internal/adapter/eventtap"
+	ipcadapter "github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/adapter/keyfeed"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
+	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
+	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
+	"github.com/y3owk1n/neru/internal/app/hotkey"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	eventtapadapter "github.com/y3owk1n/neru/internal/core/infra/eventtap"
-	ipcadapter "github.com/y3owk1n/neru/internal/core/infra/ipc"
-	"github.com/y3owk1n/neru/internal/core/infra/keyfeed"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/core/infra/platform"
-	infrasystray "github.com/y3owk1n/neru/internal/core/infra/systray"
-	textinputadapter "github.com/y3owk1n/neru/internal/core/infra/textinput"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	"github.com/y3owk1n/neru/internal/ui"
 )
 
@@ -107,7 +109,6 @@ func initializeServicesAndAdapters(app *App) error {
 	)
 	app.accessibility = accAdapter
 
-	// Initialize services
 	hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, err := initializeServices(
 		cfg,
 		accAdapter,
@@ -378,7 +379,7 @@ func initializeModeHandler(app *App) {
 			refreshHotkeys        func()
 			executeActionSequence func(source string, steps []string)
 		}{
-			refreshHotkeys:        func() { app.refreshHotkeysForAppOrCurrent("") },
+			refreshHotkeys:        func() { app.hotkeys.RefreshFor("") },
 			executeActionSequence: app.runActionSequence,
 		},
 	}
@@ -415,7 +416,7 @@ func initializeModeHandler(app *App) {
 // SetConfigField callback is set after creation so the constructor's
 // signature stays stable for test callers.
 func initializeIPCController(app *App) {
-	app.ipcController = NewIPCController(IPCControllerDeps{
+	app.ipcController = ipcctrl.New(ipcctrl.Deps{
 		HintService:   app.hintService,
 		GridService:   app.gridService,
 		ActionService: app.actionService,
@@ -432,6 +433,24 @@ func initializeIPCController(app *App) {
 		ExecuteSequence: app.executeActionSequenceWithPolicy,
 		ExecuteMacro:    app.executeMacro,
 		Logger:          app.logger,
+	})
+
+	// Build the sequence executor now that the controller it dispatches
+	// through exists. Until this point the App falls back to constructing one
+	// per call, which is correct but pays for it on every key press.
+	app.sequenceExecutor = app.newSequenceExecutor()
+
+	// The binder needs the executor, so it is built here rather than with the
+	// rest of the infrastructure.
+	app.hotkeys = hotkey.New(hotkey.Deps{
+		Manager:     app.hotkeyManager,
+		Modes:       app.modes,
+		State:       app.appState,
+		FocusedApp:  app.actionService,
+		Config:      app.configSnapshot,
+		RunSequence: app.runActionSequence,
+		Context:     func() context.Context { return app.ctx },
+		Logger:      app.logger,
 	})
 
 	// Set the config-set callback so runtime field changes propagate to
@@ -533,11 +552,7 @@ func cleanupInfrastructure(app *App) {
 
 	// Clean up hotkey service
 	if app.hotkeyManager != nil {
-		app.hotkeyRegistrationMu.Lock()
-		app.stopAllHotkeyRepeats()
-		app.hotkeyManager.UnregisterAll()
-		app.appState.SetHotkeysRegistered(false)
-		app.hotkeyRegistrationMu.Unlock()
+		app.hotkeys.Unregister()
 		app.hotkeyManager = nil
 	}
 

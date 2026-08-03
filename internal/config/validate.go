@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Validate validates the configuration.
@@ -40,7 +40,6 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	// Validate hints configuration
 	err = c.ValidateHints()
 	if err != nil {
 		return err
@@ -56,7 +55,6 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	// Validate app configs
 	err = c.ValidateAppConfigs()
 	if err != nil {
 		return err

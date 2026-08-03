@@ -6,22 +6,17 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(
-	actionStr *string,
-	modifier *string,
-	repeat *bool,
-	cursorFollowSelection *bool,
-	onExit []string,
-) {
+func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
 
@@ -53,7 +48,7 @@ func (h *Handler) activateGridModeWithAction(
 	}
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
-	// This prevents scroll highlights from persisting when switching from scroll mode to grid mode.
+	// Otherwise scroll highlights persist when switching from scroll to grid.
 	h.overlayManager.Clear()
 
 	h.appState.SetGridOverlayNeedsRefresh(false)
@@ -89,45 +84,15 @@ func (h *Handler) activateGridModeWithAction(
 	// Show the overlay (the grid is already drawn with proper style)
 	h.overlayManager.Show()
 
-	// Store pending action and repeat flag if provided
-	if isRefresh {
-		if actionStr != nil {
-			h.grid.Context.SetPendingAction(actionStr)
-		}
-
-		if onExit != nil {
-			h.grid.Context.SetOnExit(onExit)
-		}
-
-		if modifier != nil {
-			h.grid.Context.SetPendingModifier(modifier)
-		}
-
-		if repeat != nil {
-			h.grid.Context.SetRepeat(*repeat)
-		}
-
-		if cursorFollowSelection != nil {
-			h.grid.Context.SetCursorFollowSelection(*cursorFollowSelection)
-		}
-	} else {
-		h.grid.Context.SetPendingAction(actionStr)
-		h.grid.Context.SetOnExit(onExit)
-		h.grid.Context.SetPendingModifier(modifier)
-		h.grid.Context.SetRepeat(repeat != nil && *repeat)
-		h.grid.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
-			domain.ModeGrid,
-			cursorFollowSelection,
-		))
-	}
+	applyGridOptions(h.grid.Context, opts, isRefresh)
 
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointerLocked()
 
-	if actionStr != nil {
+	if opts.Action != nil {
 		h.logger.Debug("Grid mode activated with pending action",
-			zap.String("action", *actionStr),
-			zap.Bool("repeat", repeat != nil && *repeat))
+			zap.String("action", *opts.Action),
+			zap.Bool("repeat", opts.Repeat != nil && *opts.Repeat))
 	}
 
 	// Only set mode and enable event tap on initial activation;
@@ -141,7 +106,7 @@ func (h *Handler) activateGridModeWithAction(
 	h.startIndicatorPolling(domain.ModeGrid)
 }
 
-// createGridInstance creates a new grid instance with proper bounds and characters.
+// createGridInstance creates a new grid with proper bounds and characters.
 func (h *Handler) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
 
@@ -316,4 +281,42 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 		},
 		h.logger,
 	)
+}
+
+// applyGridOptions writes an activation's options into the context. A refresh
+// writes only what it was given; a fresh activation writes every field so
+// nothing leaks over from the previous run.
+func applyGridOptions(ctx *grid.Context, opts ModeActivationOptions, isRefresh bool) {
+	if isRefresh {
+		if opts.Action != nil {
+			ctx.SetPendingAction(opts.Action)
+		}
+
+		if opts.OnExit != nil {
+			ctx.SetOnExit(opts.OnExit)
+		}
+
+		if opts.Modifier != nil {
+			ctx.SetPendingModifier(opts.Modifier)
+		}
+
+		if opts.Repeat != nil {
+			ctx.SetRepeat(*opts.Repeat)
+		}
+
+		if opts.CursorFollowSelection != nil {
+			ctx.SetCursorFollowSelection(*opts.CursorFollowSelection)
+		}
+
+		return
+	}
+
+	ctx.SetPendingAction(opts.Action)
+	ctx.SetOnExit(opts.OnExit)
+	ctx.SetPendingModifier(opts.Modifier)
+	ctx.SetRepeat(opts.Repeat != nil && *opts.Repeat)
+	ctx.SetCursorFollowSelection(resolveCursorFollowSelection(
+		domain.ModeGrid,
+		opts.CursorFollowSelection,
+	))
 }

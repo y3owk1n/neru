@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // SetField sets a field on a Config by dotted path (e.g. "hints.hint_characters").

@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // BaseService provides common functionality for services.

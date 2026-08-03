@@ -3,7 +3,7 @@ package modes
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 func (h *Handler) redrawMonitorSelectLocked() {

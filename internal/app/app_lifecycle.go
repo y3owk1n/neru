@@ -12,10 +12,6 @@ func (a *App) EnableEventTap() { a.enableEventTap() }
 // DisableEventTap disables the event tap.
 func (a *App) DisableEventTap() { a.disableEventTap() }
 
-// enableEventTap / disableEventTap back the exported wrappers above.
-// The mode handler no longer routes through here — it holds
-// ports.EventTapPort directly (see modes/eventtap.go).
-
 func (a *App) enableEventTap() {
 	if a.eventTap != nil {
 		err := a.eventTap.Enable(a.ctx)

@@ -16,13 +16,26 @@ jobs:
     checks:
         name: ${{ matrix.check }} (${{ matrix.os }})
         strategy:
+            # One failing check must not cancel the other twelve. With fail-fast
+            # a single Linux lint error cancelled every macOS job mid-install,
+            # and the run reported thirteen failures for one real problem —
+            # which is worse than no signal, because it hides which platforms
+            # were actually fine.
+            fail-fast: false
             matrix:
                 os: [macos-latest, ubuntu-latest, windows-latest]
-                check: [lint, vet, test, build]
+                # vuln runs on every OS: govulncheck is build-tag aware, so a
+                # vulnerable Windows-only dependency is invisible from a macOS run.
+                check: [lint, vet, test, build, vuln]
                 include:
                     # Formatting check only on macOS (Objective-C clang-format)
                     - os: macos-latest
                       check: formatting
+                    # Coverage only on macOS, the reference platform. Running it
+                    # on all three would triple the test time to produce three
+                    # numbers that differ only by which build tags were active.
+                    - os: macos-latest
+                      check: coverage
         runs-on: ${{ matrix.os }}
         steps:
             - uses: actions/checkout@v7
@@ -105,6 +118,30 @@ jobs:
               if: matrix.check == 'test' && runner.os == 'macOS'
               run: devbox run -- just test-all
 
+            - name: Run just vuln
+              if: matrix.check == 'vuln' && runner.os == 'macOS'
+              run: devbox run -- just vuln
+
+            - name: Run just coverage
+              if: matrix.check == 'coverage'
+              run: |
+                  devbox run -- just coverage
+                  {
+                    echo "### Coverage"
+                    echo ""
+                    echo '```'
+                    devbox run -- go tool cover -func=coverage.txt | tail -1
+                    echo '```'
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload coverage profile
+              if: matrix.check == 'coverage'
+              uses: actions/upload-artifact@v5
+              with:
+                  name: coverage
+                  path: coverage.txt
+                  retention-days: 14
+
             # Run checks directly on Windows & Linux
             - name: Run just lint (native)
               if: matrix.check == 'lint' && (runner.os == 'Windows' || runner.os == 'Linux')
@@ -122,4 +159,9 @@ jobs:
             - name: Run just test-all (native)
               if: matrix.check == 'test' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just test-all
+              shell: bash
+
+            - name: Run just vuln (native)
+              if: matrix.check == 'vuln' && (runner.os == 'Windows' || runner.os == 'Linux')
+              run: just vuln
               shell: bash

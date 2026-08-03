@@ -5,19 +5,21 @@ import (
 
 	"go.uber.org/zap"
 
+	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	accessibilityNative "github.com/y3owk1n/neru/internal/adapter/accessibility/native"
+	"github.com/y3owk1n/neru/internal/adapter/appwatcher"
+	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
+	"github.com/y3owk1n/neru/internal/adapter/logger"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
+	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	accessibilityAdapter "github.com/y3owk1n/neru/internal/core/infra/accessibility"
-	"github.com/y3owk1n/neru/internal/core/infra/appwatcher"
-	"github.com/y3owk1n/neru/internal/core/infra/hotkeys"
-	"github.com/y3owk1n/neru/internal/core/infra/logger"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
-	visionAdapter "github.com/y3owk1n/neru/internal/core/infra/vision"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // initializeLogger initializes the application logger with the given configuration.
@@ -55,7 +57,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 		logger.Debug("Applying clickable roles",
 			zap.Int("configured", len(cfg.Hints.ClickableRoles)),
 			zap.Int("resolved", len(roles)))
-		accessibilityAdapter.SetClickableRoles(roles, logger)
+		accessibilityNative.SetClickableRoles(roles, logger)
 	}
 
 	return nil
@@ -63,10 +65,7 @@ func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
 
 // initializeHotkeyService creates the hotkey service.
 func initializeHotkeyService(logger *zap.Logger) HotkeyService {
-	hotkeyManager := hotkeys.NewManager(logger)
-	hotkeys.SetGlobalManager(hotkeyManager)
-
-	return hotkeyManager
+	return hotkeys.NewManager(logger)
 }
 
 // initializeAppWatcher creates the app watcher.
@@ -200,7 +199,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
-		if actionsReferenceDisabledMode(actions, cfg) {
+		if hotkey.ActionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 

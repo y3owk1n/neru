@@ -1,0 +1,8 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Shift+g[0] = \"grid\"",
+    "+ .hotkeys.bindings.Primary+Shift+g[1] = \"hints\"",
+    "- .hotkeys.bindings.Primary+Shift+G[0] = \"grid\""
+  ],
+  "validationError": ""
+}

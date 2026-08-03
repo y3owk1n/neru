@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 func TestParseModifierEvent(t *testing.T) {

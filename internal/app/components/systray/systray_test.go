@@ -7,8 +7,8 @@ import (
 	"go.uber.org/zap/zaptest"
 
 	"github.com/y3owk1n/neru/internal/app/components/systray"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	"github.com/y3owk1n/neru/internal/domain"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // mockApp implements AppInterface for testing.

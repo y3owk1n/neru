@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // TestConfigurationDocsCoverTheRoleVocabulary keeps the documented role table

@@ -133,8 +133,11 @@ Wayland protocol generation and icon recipes.
 | Test    | `just test-race-unit`        | Unit tests with `-race`                         |
 | Test    | `just test-race-integration` | Integration tests with `-race`                  |
 | Test    | `just test-all`              | `test` **and** `test-race` — the full sweep     |
+| Test    | `just coverage`              | Unit tests with coverage; prints the total      |
+| Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
 | Lint    | `just lint`                  | `golangci-lint run`                             |
 | Lint    | `just vet`                   | `go vet`                                        |
+| Lint    | `just vuln`                  | `govulncheck` — reachable CVEs in dependencies  |
 | Format  | `just fmt`                   | Format Go and Objective-C                       |
 | Format  | `just fmt-check`             | Check Objective-C formatting                    |
 | Docs    | `just genman`                | Generate man pages                              |
@@ -143,9 +146,9 @@ Wayland protocol generation and icon recipes.
 Targeting a single package or test:
 
 ```bash
-go test ./internal/core/domain/hint/
+go test ./internal/domain/hint/
 go test -run TestHandler_HandleKey ./internal/app/modes/
-go test -tags=integration ./internal/core/infra/accessibility/
+go test -tags=integration ./internal/adapter/accessibility/
 ```
 
 Watch mode, if you have [entr](https://eradman.com/entrproject/):
@@ -189,7 +192,7 @@ run `just test` meaningfully — integration tests are tagged per-OS, and
 cross-compiling to Linux from macOS is not supported (CGO plus Linux headers).
 
 Backend, CGO, and modifier expectations are **not** per-OS constants; start from
-[profile.go](../internal/core/infra/platform/profile.go) and
+[profile.go](../internal/adapter/platform/profile.go) and
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#cgo-guidance).
 
 ---
@@ -199,7 +202,7 @@ Backend, CGO, and modifier expectations are **not** per-OS constants; start from
 Neru has four testing layers:
 
 1. **Unit tests** — shared Go logic with no native OS dependency, using mocks
-   from `internal/core/ports/mocks`.
+   from `internal/ports/mocks`.
 2. **Contract tests** — ports and adapters agreeing on error semantics such as
    `CodeNotSupported`.
 3. **Integration tests** — real OS/native behavior behind the `integration`
@@ -269,9 +272,9 @@ What belongs at which log level — and what must never be logged — is in
 
 | Directory                  | Role                                               |
 | -------------------------- | -------------------------------------------------- |
-| `internal/core/domain/`    | Pure business logic, entities, value objects       |
-| `internal/core/ports/`     | Interface contracts (Accessibility, Overlay, Font) |
-| `internal/core/infra/`     | Platform-specific adapter implementations          |
+| `internal/domain/`    | Pure business logic, entities, value objects       |
+| `internal/ports/`     | Interface contracts (Accessibility, Overlay, Font) |
+| `internal/adapter/`     | Platform-specific adapter implementations          |
 | `internal/app/`            | Application orchestration, services, modes         |
 | `internal/app/components/` | Mode-specific overlay rendering                    |
 | `internal/app/modes/`      | Navigation mode implementations                    |
@@ -293,7 +296,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 
 **Actions**
 
-1. Define the action in `internal/core/domain/action/action.go`
+1. Define the action in `internal/domain/action/action.go`
 2. Implement logic in `internal/app/services/action_service.go`
 3. Wire pending-action dispatch in `internal/app/modes/mode_handlers.go` (the
    per-mode files set it via `Context.SetPendingAction`)
@@ -303,7 +306,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 
 1. Create the component in `internal/app/components/`
 2. Implement rendering in `internal/ui/`
-3. macOS Objective-C goes in `internal/core/infra/platform/darwin/` behind
+3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
 4. Register in `internal/app/component_factory.go` or
    `internal/app/app_initialization.go`
@@ -312,7 +315,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 
 1. Create the command file in `internal/cli/`
 2. Register it in an `init()` (see `internal/cli/root.go`)
-3. Add the matching IPC handler in `internal/app/ipc_handlers.go`
+3. Add the matching IPC handler in `internal/app/ipcctrl/`
 4. Document in [CLI.md](CLI.md)
 
 ### Dependency injection
@@ -426,7 +429,7 @@ its own fields or a `HandleKey` too involved for a callback.
 
 **Adding a new mode**
 
-1. Add the `Mode` constant to `internal/core/domain/domain_constants.go`
+1. Add the `Mode` constant to `internal/domain/domain_constants.go`
 2. Implement the `Mode` interface in `internal/app/modes/` — name it `XXXMode`
    with a `NewXXXMode` constructor
 3. Register it in the map built by `NewHandler`:

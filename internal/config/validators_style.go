@@ -3,7 +3,7 @@ package config
 import (
 	"math"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // maxFontSize is the maximum font size accepted by the config validator.

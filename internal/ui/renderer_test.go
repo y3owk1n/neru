@@ -7,12 +7,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
-	domainGrid "github.com/y3owk1n/neru/internal/core/domain/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ui"
 )
 

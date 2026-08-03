@@ -5,7 +5,7 @@ package app
 import (
 	"go.uber.org/zap"
 
-	infrasystray "github.com/y3owk1n/neru/internal/core/infra/systray"
+	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 )
 
 // initializePlatformLogger is a no-op on Linux.

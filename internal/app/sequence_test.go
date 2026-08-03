@@ -10,15 +10,18 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/ipc"
+	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/ipc"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 // sequenceTestCommand is the fake IPC command the sequence tests dispatch, so
 // a step exercises the real executeHotkeyAction path without depending on any
 // service.
 const (
+	leftClickStep       = "action left_click"
 	sequenceTestCommand = "step"
 
 	failureMessage = "boom"
@@ -77,7 +80,7 @@ func newSequenceTestApp(t *testing.T, recorder *stepRecorder) *App {
 		logger:   logger,
 		config:   cfg,
 		appState: appState,
-		ipcController: NewIPCController(IPCControllerDeps{
+		ipcController: ipcctrl.New(ipcctrl.Deps{
 			ConfigService: config.NewService(cfg, "", logger, nil),
 			AppState:      appState,
 			Config:        cfg,
@@ -98,12 +101,12 @@ func TestExecuteActionSequence_RunsEveryStepInOrder(t *testing.T) {
 
 	outcome := application.executeActionSequence(context.Background(), "test", steps)
 
-	if outcome.err != nil {
-		t.Fatalf("outcome.err = %v, want nil", outcome.err)
+	if outcome.Err != nil {
+		t.Fatalf("outcome.Err = %v, want nil", outcome.Err)
 	}
 
-	if outcome.executed != len(steps) {
-		t.Fatalf("executed = %d, want %d", outcome.executed, len(steps))
+	if outcome.Executed != len(steps) {
+		t.Fatalf("executed = %d, want %d", outcome.Executed, len(steps))
 	}
 
 	if got := recorder.recorded(); !slices.Equal(got, steps) {
@@ -121,8 +124,8 @@ func TestExecuteActionSequence_SkipsBlankSteps(t *testing.T) {
 		[]string{"", stepOne, "   ", stepTwo},
 	)
 
-	if outcome.executed != 2 {
-		t.Fatalf("executed = %d, want 2 (blank steps should not count)", outcome.executed)
+	if outcome.Executed != 2 {
+		t.Fatalf("executed = %d, want 2 (blank steps should not count)", outcome.Executed)
 	}
 
 	want := []string{stepOne, stepTwo}
@@ -153,13 +156,13 @@ func TestExecuteActionSequence_StopsOnBail(t *testing.T) {
 		[]string{stepOne, stepTwo, stepThree},
 	)
 
-	if !outcome.bailed {
-		t.Fatal("outcome.bailed = false, want true")
+	if !outcome.Bailed {
+		t.Fatal("outcome.Bailed = false, want true")
 	}
 
-	if outcome.executed != 2 || outcome.failedIndex != 2 {
+	if outcome.Executed != 2 || outcome.FailedIndex != 2 {
 		t.Fatalf("executed = %d, failedIndex = %d, want 2 and 2",
-			outcome.executed, outcome.failedIndex)
+			outcome.Executed, outcome.FailedIndex)
 	}
 
 	want := []string{stepOne, stepTwo}
@@ -188,22 +191,22 @@ func TestExecuteActionSequence_ContinuesAfterStepFailure(t *testing.T) {
 
 	outcome := application.executeActionSequence(context.Background(), "test", steps)
 
-	if outcome.bailed {
-		t.Fatal("outcome.bailed = true, want false for a regular failure")
+	if outcome.Bailed {
+		t.Fatal("outcome.Bailed = true, want false for a regular failure")
 	}
 
-	if outcome.err == nil {
-		t.Fatal("outcome.err = nil, want the first step error")
+	if outcome.Err == nil {
+		t.Fatal("outcome.Err = nil, want the first step error")
 	}
 
-	if outcome.failedStep != stepOne || outcome.failedIndex != 1 {
+	if outcome.FailedStep != stepOne || outcome.FailedIndex != 1 {
 		t.Fatalf("failedStep = %q at %d, want %q at 1",
-			outcome.failedStep, outcome.failedIndex, stepOne)
+			outcome.FailedStep, outcome.FailedIndex, stepOne)
 	}
 
-	if outcome.executed != len(steps) {
+	if outcome.Executed != len(steps) {
 		t.Fatalf("executed = %d, want %d (a regular failure must not stop the sequence)",
-			outcome.executed, len(steps))
+			outcome.Executed, len(steps))
 	}
 }
 
@@ -236,8 +239,8 @@ func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
 	depthMu.Lock()
 	defer depthMu.Unlock()
 
-	if depth != maxSequenceDepth {
-		t.Fatalf("nested %d levels, want the guard to stop at %d", depth, maxSequenceDepth)
+	if depth != sequence.MaxDepth {
+		t.Fatalf("nested %d levels, want the guard to stop at %d", depth, sequence.MaxDepth)
 	}
 }
 
@@ -262,15 +265,15 @@ func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
 	outcome := application.executeActionSequence(
 		context.Background(),
 		"test",
-		[]string{stepOne, stepTwo + " " + bailOnErrorFlag, stepThree},
+		[]string{stepOne, stepTwo + " " + sequence.BailOnErrorFlag, stepThree},
 	)
 
-	if !outcome.stopped {
-		t.Fatal("outcome.stopped = false, want the sequence to end at the fatal step")
+	if !outcome.Stopped {
+		t.Fatal("outcome.Stopped = false, want the sequence to end at the fatal step")
 	}
 
-	if outcome.bailed {
-		t.Fatal("outcome.bailed = true, want false: a failure is not a chain bail")
+	if outcome.Bailed {
+		t.Fatal("outcome.Bailed = true, want false: a failure is not a chain bail")
 	}
 
 	// The directive is a sequencing instruction, so the step must be dispatched
@@ -301,12 +304,12 @@ func TestExecuteActionSequence_StopOnErrorPolicyMarksEveryStep(t *testing.T) {
 		context.Background(),
 		"test",
 		[]string{stepOne, stepTwo},
-		sequencePolicy{stopOnError: true},
+		sequence.Policy{StopOnError: true},
 	)
 
-	if !outcome.stopped || outcome.executed != 1 {
+	if !outcome.Stopped || outcome.Executed != 1 {
 		t.Fatalf("stopped = %v after %d steps, want a stop at the first",
-			outcome.stopped, outcome.executed)
+			outcome.Stopped, outcome.Executed)
 	}
 }
 
@@ -322,7 +325,7 @@ func TestSplitBailOnError(t *testing.T) {
 	}{
 		{
 			name:      "trailing directive is consumed",
-			step:      "action left_click " + bailOnErrorFlag,
+			step:      "action left_click " + sequence.BailOnErrorFlag,
 			wantStep:  leftClickStep,
 			wantFatal: true,
 		},
@@ -335,25 +338,25 @@ func TestSplitBailOnError(t *testing.T) {
 			// The text appears inside a quoted argument, so it belongs to the
 			// step rather than to the sequence.
 			name:     "quoted text is not a directive",
-			step:     `exec sh -c "echo ` + bailOnErrorFlag + `"`,
-			wantStep: `exec sh -c "echo ` + bailOnErrorFlag + `"`,
+			step:     `exec sh -c "echo ` + sequence.BailOnErrorFlag + `"`,
+			wantStep: `exec sh -c "echo ` + sequence.BailOnErrorFlag + `"`,
 		},
 		{
 			// Quoted as the final argument: the author wants the text, not the
 			// directive, so the step must reach the action unchanged.
 			name:     "quoted final token is an argument",
-			step:     `exec printf '` + bailOnErrorFlag + `'`,
-			wantStep: `exec printf '` + bailOnErrorFlag + `'`,
+			step:     `exec printf '` + sequence.BailOnErrorFlag + `'`,
+			wantStep: `exec printf '` + sequence.BailOnErrorFlag + `'`,
 		},
 		{
 			name:    "directive in the middle is rejected",
-			step:    "action left_click " + bailOnErrorFlag + " --bare",
+			step:    "action left_click " + sequence.BailOnErrorFlag + " --bare",
 			wantErr: true,
 		},
 		{
 			name:     "directive alone is not a step",
-			step:     bailOnErrorFlag,
-			wantStep: bailOnErrorFlag,
+			step:     sequence.BailOnErrorFlag,
+			wantStep: sequence.BailOnErrorFlag,
 		},
 	}
 
@@ -361,7 +364,7 @@ func TestSplitBailOnError(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			gotStep, gotFatal, gotErr := splitBailOnError(testCase.step)
+			gotStep, gotFatal, gotErr := sequence.SplitBailOnError(testCase.step)
 
 			if (gotErr != nil) != testCase.wantErr {
 				t.Fatalf("error = %v, wantErr = %v", gotErr, testCase.wantErr)
@@ -372,7 +375,7 @@ func TestSplitBailOnError(t *testing.T) {
 			}
 
 			if gotStep != testCase.wantStep || gotFatal != testCase.wantFatal {
-				t.Fatalf("splitBailOnError(%q) = (%q, %v), want (%q, %v)",
+				t.Fatalf("sequence.SplitBailOnError(%q) = (%q, %v), want (%q, %v)",
 					testCase.step, gotStep, gotFatal, testCase.wantStep, testCase.wantFatal)
 			}
 		})
@@ -389,10 +392,10 @@ func TestExecuteActionSequence_RejectsMisplacedDirective(t *testing.T) {
 	outcome := application.executeActionSequence(
 		context.Background(),
 		"test",
-		[]string{stepOne + " " + bailOnErrorFlag + " --bare", stepTwo},
+		[]string{stepOne + " " + sequence.BailOnErrorFlag + " --bare", stepTwo},
 	)
 
-	if !outcome.stopped || outcome.err == nil {
+	if !outcome.Stopped || outcome.Err == nil {
 		t.Fatalf("outcome = %+v, want a stop with an error", outcome)
 	}
 
@@ -429,13 +432,13 @@ func TestExecuteActionSequence_ExpandsAMacro(t *testing.T) {
 		[]string{"macro two", stepThree},
 	)
 
-	if outcome.err != nil {
-		t.Fatalf("outcome.err = %v, want nil", outcome.err)
+	if outcome.Err != nil {
+		t.Fatalf("outcome.Err = %v, want nil", outcome.Err)
 	}
 
 	// The caller counts the step it wrote, not the steps the macro carried.
-	if outcome.executed != 2 {
-		t.Fatalf("executed = %d, want 2", outcome.executed)
+	if outcome.Executed != 2 {
+		t.Fatalf("executed = %d, want 2", outcome.Executed)
 	}
 
 	want := []string{stepOne, stepTwo, stepThree}
@@ -486,8 +489,8 @@ func TestExecuteActionSequence_RejectsBadMacroCalls(t *testing.T) {
 				[]string{testCase.step},
 			)
 
-			if outcome.err == nil {
-				t.Fatalf("outcome.err = nil, want a rejection of %q", testCase.step)
+			if outcome.Err == nil {
+				t.Fatalf("outcome.Err = nil, want a rejection of %q", testCase.step)
 			}
 
 			if got := recorder.recorded(); len(got) != 0 {
@@ -511,12 +514,12 @@ func TestExecuteActionSequence_StopsASelfInvokingMacro(t *testing.T) {
 		[]string{"macro loop"},
 	)
 
-	if outcome.err == nil {
-		t.Fatal("outcome.err = nil, want the depth guard to stop the recursion")
+	if outcome.Err == nil {
+		t.Fatal("outcome.Err = nil, want the depth guard to stop the recursion")
 	}
 
-	if got := len(recorder.recorded()); got != maxSequenceDepth-1 {
-		t.Fatalf("dispatched %d steps, want the guard to stop at %d", got, maxSequenceDepth-1)
+	if got := len(recorder.recorded()); got != sequence.MaxDepth-1 {
+		t.Fatalf("dispatched %d steps, want the guard to stop at %d", got, sequence.MaxDepth-1)
 	}
 }
 
@@ -546,8 +549,8 @@ func TestExecuteActionSequence_PropagatesABailOutOfAMacro(t *testing.T) {
 		[]string{"macro bails", stepTwo},
 	)
 
-	if !outcome.bailed || !outcome.stopped {
-		t.Fatalf("outcome bailed=%v stopped=%v, want both", outcome.bailed, outcome.stopped)
+	if !outcome.Bailed || !outcome.Stopped {
+		t.Fatalf("outcome bailed=%v stopped=%v, want both", outcome.Bailed, outcome.Stopped)
 	}
 
 	if got := recorder.recorded(); !slices.Equal(got, []string{stepOne}) {
@@ -570,12 +573,12 @@ func TestExecuteActionSequence_BailDirectiveIsNotAMacroArgument(t *testing.T) {
 	outcome := application.executeActionSequence(
 		context.Background(),
 		"test",
-		[]string{"macro needs_two alpha beta " + bailOnErrorFlag, stepThree},
+		[]string{"macro needs_two alpha beta " + sequence.BailOnErrorFlag, stepThree},
 	)
 
 	// The call is well-formed: it is the macro's own step that fails, and the
 	// directive makes that failure end the calling sequence.
-	if !outcome.stopped {
+	if !outcome.Stopped {
 		t.Fatalf("outcome = %+v, want the directive to stop the sequence", outcome)
 	}
 

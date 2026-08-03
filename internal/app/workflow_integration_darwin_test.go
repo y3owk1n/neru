@@ -8,10 +8,13 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
-const modeIdle = "idle"
+const (
+	modeIdle     = "idle"
+	actionScroll = "scroll"
+)
 
 // TestFullUserWorkflowIntegration simulates a complete real user workflow:
 // 1. Start the application

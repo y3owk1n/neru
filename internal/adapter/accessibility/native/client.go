@@ -1,0 +1,568 @@
+package native
+
+import (
+	"context"
+	"fmt"
+	"image"
+
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
+	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
+)
+
+// Client implements ax.Client using the infrastructure layer.
+type Client struct {
+	logger         *zap.Logger
+	configProvider config.Provider
+}
+
+// New creates the native accessibility client for the host platform.
+func New(
+	logger *zap.Logger,
+	configProvider config.Provider,
+) *Client {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	return &Client{
+		logger:         logger.Named("accessibility.client"),
+		configProvider: configProvider,
+	}
+}
+
+// FrontmostWindow returns the frontmost window.
+func (c *Client) FrontmostWindow(_ context.Context) (ax.Window, error) {
+	window := FrontmostWindow()
+	if window == nil {
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get frontmost window")
+	}
+
+	return &InfraWindow{element: window}, nil
+}
+
+// AllWindows returns all windows of the focused application.
+func (c *Client) AllWindows(_ context.Context) ([]ax.Window, error) {
+	windows, err := AllWindows()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ax.Window, len(windows))
+	for i, w := range windows {
+		result[i] = &InfraWindow{element: w}
+	}
+
+	return result, nil
+}
+
+// FrontmostAndPopoverWindows returns the frontmost window plus popovers.
+func (c *Client) FrontmostAndPopoverWindows(_ context.Context) ([]ax.Window, error) {
+	windows, err := FrontmostAndPopoverWindows()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ax.Window, len(windows))
+	for i, w := range windows {
+		result[i] = &InfraWindow{element: w}
+	}
+
+	return result, nil
+}
+
+// FocusedApplication returns the focused application.
+func (c *Client) FocusedApplication(_ context.Context) (ax.App, error) {
+	app := FocusedApplication()
+	if app == nil {
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused app")
+	}
+
+	return &InfraApp{element: app}, nil
+}
+
+// ClickableNodes returns clickable nodes for the given root element.
+// If maxDepth is > 0, it overrides the configured tree depth.
+func (c *Client) ClickableNodes(
+	ctx context.Context,
+	root ax.Element,
+	roles []string,
+	maxDepth int,
+) ([]ax.Node, error) {
+	element, extractErr := c.extractElement(root)
+	if extractErr != nil {
+		return nil, extractErr
+	}
+
+	opts, allowedRoles, ignoreClickableCheck := c.buildClickableOpts(element, roles, maxDepth)
+
+	tree, treeErr := BuildTree(ctx, element, opts)
+	if treeErr != nil {
+		return nil, derrors.Wrap(
+			treeErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to build accessibility tree",
+		)
+	}
+
+	clickableNodes := tree.FindClickableElements(
+		allowedRoles,
+		c.configProvider,
+		ignoreClickableCheck,
+	)
+
+	// Release tree nodes that are not part of the result to avoid
+	// leaking CFRetain'd AXUIElementRefs from NeruGetChildren/NeruGetVisibleRows.
+	ReleaseTreeExcept(tree, clickableNodes)
+
+	clickableNodesResult := make([]ax.Node, len(clickableNodes))
+
+	for i, node := range clickableNodes {
+		clickableNodesResult[i] = &InfraNode{
+			node:           node,
+			clickable:      true,
+			configProvider: c.configProvider,
+		}
+	}
+
+	return clickableNodesResult, nil
+}
+
+// ApplicationByBundleID returns the application with the given bundle ID.
+func (c *Client) ApplicationByBundleID(_ context.Context, bundleID string) (ax.App, error) {
+	app := ApplicationByBundleID(bundleID)
+	if app == nil {
+		return nil, derrors.New(derrors.CodeAccessibilityFailed, "application not found")
+	}
+
+	return &InfraApp{element: app}, nil
+}
+
+// MenuBarClickableElements returns clickable elements in the menu bar.
+// If maxDepth is > 0, it overrides the configured tree depth.
+func (c *Client) MenuBarClickableElements(
+	ctx context.Context,
+	maxDepth int,
+) ([]ax.Node, error) {
+	nodes, nodesErr := MenuBarClickableElements(
+		ctx,
+		c.logger,
+		c.configProvider,
+		maxDepth,
+	)
+	if nodesErr != nil {
+		return nil, derrors.Wrap(
+			nodesErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get menu bar elements",
+		)
+	}
+
+	nodesResult := make([]ax.Node, len(nodes))
+	for index, node := range nodes {
+		nodesResult[index] = &InfraNode{
+			node:           node,
+			clickable:      true,
+			configProvider: c.configProvider,
+		}
+	}
+
+	return nodesResult, nil
+}
+
+// ClickableElementsFromBundleID returns clickable elements for the application with the given bundle ID.
+// If maxDepth is > 0, it overrides the configured tree depth for flat supplementary sources.
+func (c *Client) ClickableElementsFromBundleID(
+	ctx context.Context,
+	bundleID string,
+	roles []string,
+	maxDepth int,
+) ([]ax.Node, error) {
+	nodes, nodesErr := ClickableElementsFromBundleID(
+		ctx,
+		bundleID,
+		roles,
+		c.logger,
+		c.configProvider,
+		maxDepth,
+	)
+	if nodesErr != nil {
+		return nil, derrors.Wrap(
+			nodesErr,
+			derrors.CodeAccessibilityFailed,
+			"failed to get elements from bundle ID",
+		)
+	}
+
+	nodesResult := make([]ax.Node, len(nodes))
+	for index, node := range nodes {
+		nodesResult[index] = &InfraNode{
+			node:           node,
+			clickable:      true,
+			configProvider: c.configProvider,
+		}
+	}
+
+	return nodesResult, nil
+}
+
+// ActiveScreenBounds returns the bounds of the active screen.
+func (c *Client) ActiveScreenBounds() image.Rectangle {
+	return platformActiveScreenBounds()
+}
+
+// PerformAction performs the specified action at the given point.
+func (c *Client) PerformAction(
+	actionType action.Type,
+	point image.Point,
+	restoreCursor bool,
+	modifiers action.Modifiers,
+) error {
+	var performActionErr error
+
+	switch actionType {
+	case action.TypeLeftClick:
+		performActionErr = LeftClickAtPoint(point, restoreCursor, modifiers)
+	case action.TypeRightClick:
+		ensureMouseUp()
+
+		performActionErr = RightClickAtPoint(point, restoreCursor, modifiers)
+	case action.TypeMiddleClick:
+		ensureMouseUp()
+
+		performActionErr = MiddleClickAtPoint(point, restoreCursor, modifiers)
+	case action.TypeLeftMouseDown, action.TypeLeftMouseUp,
+		action.TypeRightMouseDown, action.TypeRightMouseUp,
+		action.TypeMiddleMouseDown, action.TypeMiddleMouseUp,
+		action.TypeLeftMouseToggle, action.TypeRightMouseToggle, action.TypeMiddleMouseToggle:
+		performActionErr = performMouseButtonAction(actionType, point, modifiers)
+	case action.TypeMoveMouse, action.TypeMoveMouseRelative:
+		MoveMouseToPoint(point, false)
+
+		return nil
+	case action.TypeScroll:
+		// Scroll actions are handled separately via the Scroll method
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"scroll actions should use Scroll method: %s",
+			actionType,
+		)
+	default:
+		return derrors.Newf(derrors.CodeInvalidInput, "unsupported action type: %s", actionType)
+	}
+
+	if performActionErr != nil {
+		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
+	}
+
+	return nil
+}
+
+// performMouseButtonAction presses or releases the button addressed by
+// actionType. Toggle actions resolve against the button state recorded by the
+// platform adapter: held buttons are released, free buttons are pressed.
+func performMouseButtonAction(
+	actionType action.Type,
+	point image.Point,
+	modifiers action.Modifiers,
+) error {
+	button, phase, ok := actionType.MouseButtonPhase()
+	if !ok {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"not a mouse button action: %s",
+			actionType,
+		)
+	}
+
+	if phase == action.PhaseToggle {
+		if IsMouseButtonDown(button) {
+			phase = action.PhaseUp
+		} else {
+			phase = action.PhaseDown
+		}
+	}
+
+	if phase == action.PhaseUp {
+		return MouseUpAtPoint(point, button, modifiers)
+	}
+
+	return MouseDownAtPoint(point, button, modifiers)
+}
+
+// Scroll performs a scroll action.
+func (c *Client) Scroll(deltaX, deltaY int) error {
+	ensureMouseUp()
+
+	scrollErr := ScrollAtCursor(deltaX, deltaY)
+	if scrollErr != nil {
+		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
+	}
+
+	return nil
+}
+
+// MoveMouse moves the mouse to the specified point.
+func (c *Client) MoveMouse(p image.Point, bypassSmooth bool) {
+	MoveMouseToPoint(p, bypassSmooth)
+}
+
+// CursorPosition returns the current cursor position.
+func (c *Client) CursorPosition() image.Point {
+	return CurrentCursorPosition()
+}
+
+// CheckPermissions checks if accessibility permissions are granted.
+func (c *Client) CheckPermissions() bool {
+	return CheckAccessibilityPermissions()
+}
+
+// SetClickableRoles sets the roles that are considered clickable.
+func (c *Client) SetClickableRoles(roles []string) {
+	SetClickableRoles(roles, c.logger)
+}
+
+// ClickableRoles returns the roles that are considered clickable.
+func (c *Client) ClickableRoles() []string {
+	return ClickableRoles()
+}
+
+// IsMissionControlActive checks if Mission Control is currently active.
+func (c *Client) IsMissionControlActive() bool {
+	return IsMissionControlActive()
+}
+
+// SupportsSupplementaryElements reports whether the platform exposes the
+// macOS-specific auxiliary surfaces (Dock, menu bar, etc.). True on macOS,
+// false on Linux/Windows.
+func (c *Client) SupportsSupplementaryElements() bool {
+	return supportsSupplementaryElements()
+}
+
+// Close is a no-op for the default infrastructure client; the macOS AX API
+// does not hold process-external resources that need explicit teardown.
+func (c *Client) Close() error { return nil }
+
+// extractElement returns the raw *Element from an ax.Element wrapper.
+func (c *Client) extractElement(root ax.Element) (*Element, error) {
+	switch elementType := root.(type) {
+	case *InfraWindow:
+		if elementType.element == nil {
+			return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+		}
+
+		return elementType.element, nil
+	case *InfraApp:
+		if elementType.element == nil {
+			return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+		}
+
+		return elementType.element, nil
+	default:
+		return nil, derrors.New(derrors.CodeInvalidInput, "invalid element type")
+	}
+}
+
+// buildClickableOpts constructs tree options, allowed roles, and the
+// ignore-clickable flag for the given element and role list.
+func (c *Client) buildClickableOpts(
+	element *Element,
+	roles []string,
+	maxDepth int,
+) (TreeOptions, map[string]struct{}, bool) {
+	opts := DefaultTreeOptions(c.logger)
+	opts.SetConfigProvider(c.configProvider)
+
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		depth := cfg.Hints.MaxDepth
+		if maxDepth > 0 {
+			depth = maxDepth
+		}
+
+		opts.SetMaxDepth(depth)
+	}
+
+	var allowedRoles map[string]struct{}
+	if len(roles) > 0 {
+		allowedRoles = make(map[string]struct{}, len(roles))
+		for _, role := range roles {
+			allowedRoles[role] = struct{}{}
+		}
+	}
+
+	// Backends that enumerate rather than walk a cached tree use the role set
+	// to prune before reading per-element properties; on the others this is a
+	// no-op and filtering happens in FindClickableElements.
+	opts.SetRoles(allowedRoles)
+
+	ignoreClickableCheck := false
+	if cfg := currentConfig(c.configProvider); cfg != nil {
+		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
+	}
+
+	return opts, allowedRoles, ignoreClickableCheck
+}
+
+// InfraWindow wraps an Window.
+type InfraWindow struct {
+	element *Element
+}
+
+// Role returns the window role (e.g., "ax.Window", "AXPopover").
+func (w *InfraWindow) Role() string {
+	if w.element != nil {
+		info, err := w.element.Info()
+		if err == nil && info != nil {
+			return info.Role()
+		}
+	}
+
+	return ""
+}
+
+// Release releases the Window.
+func (w *InfraWindow) Release() {
+	if w.element != nil {
+		w.element.Release()
+	}
+}
+
+// InfraApp wraps an Element.
+type InfraApp struct {
+	element *Element
+}
+
+// Release releases the Element.
+func (a *InfraApp) Release() {
+	if a.element != nil {
+		a.element.Release()
+	}
+}
+
+// BundleIdentifier returns the bundle identifier.
+func (a *InfraApp) BundleIdentifier() string {
+	if a.element != nil {
+		return a.element.BundleIdentifier()
+	}
+
+	return ""
+}
+
+// Info returns the app info.
+func (a *InfraApp) Info() (*ax.AppInfo, error) {
+	if a.element == nil {
+		return nil, derrors.New(derrors.CodeInvalidInput, "element is nil")
+	}
+
+	info, infoErr := a.element.Info()
+	if infoErr != nil {
+		return nil, infoErr
+	}
+
+	return &ax.AppInfo{
+		Role:  info.Role(),
+		Title: info.Title(),
+	}, nil
+}
+
+// InfraNode wraps an TreeNode.
+type InfraNode struct {
+	node           *TreeNode
+	clickable      bool
+	configProvider config.Provider
+}
+
+// ID returns the node ID.
+func (n *InfraNode) ID() string {
+	if n.node == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("elem_%p", n.node.Element())
+}
+
+// Bounds returns the node bounds.
+func (n *InfraNode) Bounds() image.Rectangle {
+	if n.node == nil || n.node.Info() == nil {
+		return image.Rectangle{}
+	}
+
+	info := n.node.Info()
+	pos := info.Position()
+	size := info.Size()
+
+	return image.Rect(
+		pos.X,
+		pos.Y,
+		pos.X+size.X,
+		pos.Y+size.Y,
+	)
+}
+
+// Role returns the node role.
+func (n *InfraNode) Role() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Role()
+}
+
+// Title returns the node title.
+func (n *InfraNode) Title() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Title()
+}
+
+// Description returns the node description.
+func (n *InfraNode) Description() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Description()
+}
+
+// Value returns the node value.
+func (n *InfraNode) Value() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().Value()
+}
+
+// SearchText returns additional text collected from the node subtree.
+func (n *InfraNode) SearchText() string {
+	if n.node == nil || n.node.Info() == nil {
+		return ""
+	}
+
+	return n.node.Info().SearchText()
+}
+
+// IsClickable returns true if the node is clickable.
+func (n *InfraNode) IsClickable() bool {
+	if n.clickable {
+		return true
+	}
+
+	if n.node == nil || n.node.Element() == nil {
+		return false
+	}
+
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.configProvider, false)
+}
+
+// Release releases the underlying AXUIElementRef held by this node.
+func (n *InfraNode) Release() {
+	if n.node != nil && n.node.Element() != nil {
+		n.node.Element().Release()
+	}
+}

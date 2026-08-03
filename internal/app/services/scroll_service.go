@@ -7,11 +7,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// ScrollDirection represents the direction of a scrolling operation.
+// ScrollDirection is the direction of a scrolling operation.
 type ScrollDirection int
 
 const (
@@ -25,7 +25,7 @@ const (
 	ScrollDirectionRight
 )
 
-// ScrollAmount represents the magnitude of a scrolling operation.
+// ScrollAmount is the magnitude of a scrolling operation.
 type ScrollAmount int
 
 const (
@@ -95,7 +95,7 @@ func (s *ScrollService) Hide(ctx context.Context) error {
 }
 
 // UpdateConfig updates the scroll configuration.
-// This allows changing scroll behavior at runtime.
+// Scroll behavior can therefore change without a restart.
 func (s *ScrollService) UpdateConfig(config config.ScrollConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

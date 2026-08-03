@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"strings"
 
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // StringOrStringArray is a type that can unmarshal from either a TOML string
@@ -73,15 +73,15 @@ func CanonicalNamedKeyForm(key string) (string, bool) {
 	return display, displayOk
 }
 
-// NormalizeKeyForComparison converts escape sequences and key names to a canonical form for comparison.
-// This ensures that "\x1b" and "escape" are treated as the same key, and provides case-insensitive
-// matching for all keys (e.g. "q" matches "Q", "Ctrl+R" matches "ctrl+r").
-// On macOS, both "backspace" and "delete" are treated as synonyms for the DEL key (\x7f).
-// Named keys (arrows, function keys, nav keys) are normalized to their canonical lowercase form.
+// NormalizeKeyForComparison puts escape sequences and key names into one form,
+// so "\x1b" and "escape" are the same key and "q" matches "Q".
+//
+// On macOS "backspace" and "delete" are both the DEL key (\x7f). Named keys —
+// arrows, function keys, nav keys — become their lowercase form.
 // Also normalizes fullwidth CJK characters to their halfwidth ASCII equivalents.
 func NormalizeKeyForComparison(key string) string {
 	// Normalize fullwidth CJK characters first, before lowercasing and canonical matching.
-	// This ensures e.g. fullwidth space (U+3000) → " " → "space" in a single pass.
+	// So a fullwidth space (U+3000) becomes " " becomes "space" in one pass.
 	key = normalizeFullwidthChars(key)
 	key = strings.ToLower(key)
 
@@ -243,7 +243,7 @@ func canonicalHotkeyForOS(hotkey, goos string) string {
 
 // normalizeFullwidthChars converts fullwidth CJK characters (U+FF01-U+FF5E)
 // to their halfwidth ASCII equivalents (U+0021-U+007E).
-// This ensures keys work correctly when using CJK input methods.
+// Without it, keys misfire under CJK input methods.
 // Uses strings.Map for efficiency - only allocates when transformation occurs.
 func normalizeFullwidthChars(key string) string {
 	const (

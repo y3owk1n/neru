@@ -5,21 +5,8 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
-
-// Every numeric config field is guarded by a range check, and every one of
-// those checks is a boundary the tests never exercised: the suite validated
-// wholesale-valid and wholesale-garbage configs, but never the value one step
-// either side of the limit.
-//
-// That is where these bugs live. A `< 1` that drifts to `<= 1` locks users out
-// of a legal setting; a `<= 0` that drifts to `< 0` admits a zero timeout or a
-// zero-size threshold that then divides by zero or spins at runtime. Neither
-// changes anything a coarse valid/invalid test would notice.
-//
-// The tables below assert both directions for each field: the smallest legal
-// value is accepted, and the largest illegal one is rejected.
 
 // intBound describes an integer config field with an inclusive lower limit.
 type intBound struct {
@@ -230,6 +217,18 @@ func runIntBounds(t *testing.T, bounds []intBound) {
 	}
 }
 
+// Every numeric config field is guarded by a range check, and every one of
+// those checks is a boundary the tests never exercised: the suite validated
+// wholesale-valid and wholesale-garbage configs, but never the value one step
+// either side of the limit.
+//
+// That is where these bugs live. A `< 1` that drifts to `<= 1` locks users out
+// of a legal setting; a `<= 0` that drifts to `< 0` admits a zero timeout or a
+// zero-size threshold that then divides by zero or spins at runtime. Neither
+// changes anything a coarse valid/invalid test would notice.
+//
+// The tables below assert both directions for each field: the smallest legal
+// value is accepted, and the largest illegal one is rejected.
 func TestConfig_FontSizeBoundaries(t *testing.T) {
 	runIntBounds(t, fontSizeBounds())
 }

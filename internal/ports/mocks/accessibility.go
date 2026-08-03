@@ -1,0 +1,134 @@
+package mocks
+
+import (
+	"context"
+	"image"
+
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
+)
+
+// MockAccessibilityPort is a mock implementation of ports.AccessibilityPort.
+// Note: ScreenBounds, MoveCursorToPoint, CursorPosition, and CheckPermissions
+// were removed from AccessibilityPort and moved to SystemPort. Use MockSystemPort
+// for those operations.
+type MockAccessibilityPort struct {
+	HealthFunc               func(context.Context) error
+	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
+	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
+	PerformActionAtPointFunc func(context.Context, action.Type, image.Point, action.Modifiers) error
+	ScrollFunc               func(context.Context, int, int) error
+	FocusedAppBundleIDFunc   func(context.Context) (string, error)
+	IsAppExcludedFunc        func(context.Context, string) bool
+	PrimeApplicationFunc     func(context.Context, string) (bool, error)
+	ReleaseHeldButtonsFunc   func(context.Context) error
+	UpdateClickableRolesFunc func([]string)
+}
+
+// UpdateClickableRoles implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) UpdateClickableRoles(roles []string) {
+	if m.UpdateClickableRolesFunc != nil {
+		m.UpdateClickableRolesFunc(roles)
+	}
+}
+
+// ReleaseHeldButtons implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ReleaseHeldButtons(ctx context.Context) error {
+	if m.ReleaseHeldButtonsFunc != nil {
+		return m.ReleaseHeldButtonsFunc(ctx)
+	}
+
+	return nil
+}
+
+// PrimeApplication implements ports.AccessibilityPort. It reports ready by
+// default, matching every backend whose tree is eagerly available.
+func (m *MockAccessibilityPort) PrimeApplication(
+	ctx context.Context,
+	bundleID string,
+) (bool, error) {
+	if m.PrimeApplicationFunc != nil {
+		return m.PrimeApplicationFunc(ctx, bundleID)
+	}
+
+	return true, nil
+}
+
+// Health implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) Health(ctx context.Context) error {
+	if m.HealthFunc != nil {
+		return m.HealthFunc(ctx)
+	}
+
+	return nil
+}
+
+// ClickableElements implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) ClickableElements(
+	ctx context.Context,
+	filter ports.ElementFilter,
+) ([]*element.Element, error) {
+	if m.ClickableElementsFunc != nil {
+		return m.ClickableElementsFunc(ctx, filter)
+	}
+
+	return nil, nil
+}
+
+// PerformAction implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) PerformAction(
+	ctx context.Context,
+	elem *element.Element,
+	actionType action.Type,
+) error {
+	if m.PerformActionFunc != nil {
+		return m.PerformActionFunc(ctx, elem, actionType)
+	}
+
+	return nil
+}
+
+// PerformActionAtPoint implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) PerformActionAtPoint(
+	ctx context.Context,
+	actionType action.Type,
+	point image.Point,
+	modifiers action.Modifiers,
+) error {
+	if m.PerformActionAtPointFunc != nil {
+		return m.PerformActionAtPointFunc(ctx, actionType, point, modifiers)
+	}
+
+	return nil
+}
+
+// Scroll implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) Scroll(ctx context.Context, deltaX, deltaY int) error {
+	if m.ScrollFunc != nil {
+		return m.ScrollFunc(ctx, deltaX, deltaY)
+	}
+
+	return nil
+}
+
+// FocusedAppBundleID implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) FocusedAppBundleID(ctx context.Context) (string, error) {
+	if m.FocusedAppBundleIDFunc != nil {
+		return m.FocusedAppBundleIDFunc(ctx)
+	}
+
+	return "", nil
+}
+
+// IsAppExcluded implements ports.AccessibilityPort.
+func (m *MockAccessibilityPort) IsAppExcluded(ctx context.Context, bundleID string) bool {
+	if m.IsAppExcludedFunc != nil {
+		return m.IsAppExcludedFunc(ctx, bundleID)
+	}
+
+	return false
+}
+
+// Ensure MockAccessibilityPort implements ports.AccessibilityPort.
+var _ ports.AccessibilityPort = (*MockAccessibilityPort)(nil)

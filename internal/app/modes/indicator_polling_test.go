@@ -7,11 +7,11 @@ import (
 
 	"go.uber.org/zap"
 
+	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	gridcomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 func TestStickyIndicatorAnchor_UsesGridSelectionWhenCursorFollowDisabled(t *testing.T) {

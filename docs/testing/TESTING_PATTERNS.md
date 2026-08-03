@@ -81,7 +81,7 @@ func TestValidate(t *testing.T) {
 Since core services depend on `ports` interfaces, use **mocks** for unit tests.
 
 ```go
-// In internal/core/ports/mocks/
+// In internal/ports/mocks/
 type MockAccessibilityPort struct {
     // ...
 }
@@ -127,7 +127,7 @@ func TestMain(m *testing.M) {
 ```
 
 `*_integration_darwin_test.go` files are exempt from the "One Rule", so they may
-import `internal/core/infra/platform/darwin` directly.
+import `internal/adapter/platform/darwin` directly.
 
 Integration tests only run meaningfully on their target OS — the build tag
 excludes them everywhere else. See

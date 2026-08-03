@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/buildinfo"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // AppInterface defines the interface that the systray component needs from the app.

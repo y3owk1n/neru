@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 const (
@@ -26,22 +26,13 @@ const (
 	keyPartOption = "option"
 )
 
-// HandleFedKeyPress dispatches a key that was injected over IPC (e.g. via
-// `action feed --mode`) as a discrete press-and-release.
-//
-// Unlike a physical keystroke, a fed key has no eventtap-generated
-// `__keyup_...` companion. Without a matching release, a fed key bound to a
-// held-repeat action (scroll/page/relative-move) would start a repeat
-// goroutine that can never be stopped by key release and would run until the
-// mode exits. Emitting the synthetic key-up immediately after the press tears
-// that repeat down while still letting the initial action fire once.
-//
-// The release is synthesized only when the fed press itself started a repeat
-// (a transition from no repeat to an active one). A repeat that was already
-// running belongs to a physically held key, so the fed key must not cancel it;
-// and when the fed key starts no repeat the release would be a no-op anyway.
-// The press and the conditional release run under a single lock hold so no
-// concurrent key event can interleave or observe a transient repeat.
+// HandleFedKeyPress dispatches a key injected over IPC as a discrete
+// press-and-release. A fed key has no eventtap key-up companion, so one bound
+// to a held-repeat action would start a repeat that nothing ever stops; the
+// synthetic release tears it down while letting the action fire once. The
+// release is synthesized only when this press started the repeat — an
+// already-running repeat belongs to a physically held key — and press plus
+// release run under one lock hold so no key event sees a transient repeat.
 func (h *Handler) HandleFedKeyPress(key string) {
 	// The key-up handler compares against the modifier-free base key, so strip
 	// any modifier prefix before synthesizing the release.
@@ -184,7 +175,7 @@ func (h *Handler) handleModeSpecificKey(key string) {
 
 // modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
 // hotkey overrides. That is the only situation requiring the focused app's
-// bundle ID to be resolved in order to select the correct per-mode hotkey table.
+// bundle ID to be resolved to select the correct per-mode hotkey table.
 func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
 	switch mode {
 	case domain.ModeHints:

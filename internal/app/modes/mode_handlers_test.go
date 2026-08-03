@@ -9,12 +9,12 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/state"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {

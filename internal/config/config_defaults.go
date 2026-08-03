@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 const (
@@ -336,387 +336,451 @@ const (
 
 func newDefaultConfig() *Config {
 	return &Config{
-		General: GeneralConfig{
-			ExcludedApps:                      []string{},
-			PassthroughUnboundedKeys:          false,
-			ShouldExitAfterPassthrough:        false,
-			PassthroughUnboundedKeysBlacklist: []string{},
-			HideOverlayInScreenShare:          false,
-			KBLayoutToUse:                     "",
-			ExecShell:                         DefaultExecShell,
-			ExecShellArgs:                     []string{DefaultExecShellFlag},
+		General:         defaultGeneral(),
+		Theme:           defaultThemeConfig(),
+		Hotkeys:         defaultHotkeys(),
+		Hints:           defaultHints(),
+		Grid:            defaultGrid(),
+		RecursiveGrid:   defaultRecursiveGrid(),
+		VirtualPointer:  defaultVirtualPointer(),
+		MouseAction:     defaultMouseAction(),
+		ModeIndicator:   defaultModeIndicator(),
+		StickyModifiers: defaultStickyModifiers(),
+		MonitorSelect:   defaultMonitorSelect(),
+		Scroll:          defaultScroll(),
+		Logging:         defaultLogging(),
+		SmoothCursor:    defaultSmoothCursor(),
+		SmoothScroll:    defaultSmoothScroll(),
+		HeldRepeat:      defaultHeldRepeat(),
+		Systray:         defaultSystray(),
+	}
+}
+
+func defaultGeneral() GeneralConfig {
+	return GeneralConfig{
+		ExcludedApps:                      []string{},
+		PassthroughUnboundedKeys:          false,
+		ShouldExitAfterPassthrough:        false,
+		PassthroughUnboundedKeysBlacklist: []string{},
+		HideOverlayInScreenShare:          false,
+		KBLayoutToUse:                     "",
+		ExecShell:                         DefaultExecShell,
+		ExecShellArgs:                     []string{DefaultExecShellFlag},
+	}
+}
+
+func defaultHotkeys() HotkeysConfig {
+	return HotkeysConfig{
+		Bindings: map[string][]string{
+			"Primary+Shift+Space": {ModeNameHints},
+			"Primary+Shift+G":     {ModeNameGrid},
+			"Primary+Shift+C":     {ModeNameRecursiveGrid},
+			"Primary+Shift+S":     {ModeNameScroll},
 		},
-		Theme: defaultThemeConfig(),
-		Hotkeys: HotkeysConfig{
-			Bindings: map[string][]string{
-				"Primary+Shift+Space": {ModeNameHints},
-				"Primary+Shift+G":     {ModeNameGrid},
-				"Primary+Shift+C":     {ModeNameRecursiveGrid},
-				"Primary+Shift+S":     {ModeNameScroll},
-			},
+	}
+}
+
+func defaultHints() HintsConfig {
+	return HintsConfig{
+		Enabled:        true,
+		Strategy:       StrategyAXTree,
+		HintCharacters: "asdfghjkl",
+		LabelDirection: LabelDirectionNormal,
+		MaxDepth:       DefaultMaxDepth,
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape:    {CmdIdle},
+			"/":                 {"action search_hints"},
+			KeyDisplayBackspace: {CmdBackspace},
+			"Tab":               {"action cycle_hint"},
+			"Shift+Tab":         {"action cycle_hint --backward"},
+			KeyComboShiftL:      {CmdLeftClick},
+			KeyComboShiftR:      {CmdRightClick},
+			KeyComboShiftM:      {CmdMiddleClick},
+			KeyComboShiftI:      {CmdLeftMouseDown},
+			KeyComboShiftU:      {CmdLeftMouseUp},
+			"Up":                {CmdMoveMouseUp},
+			KeyDisplayDown:      {CmdMoveMouseDown},
+			KeyDisplayLeft:      {CmdMoveMouseLeft},
+			KeyDisplayRight:     {CmdMoveMouseRight},
 		},
-		Hints: HintsConfig{
-			Enabled:        true,
-			Strategy:       StrategyAXTree,
-			HintCharacters: "asdfghjkl",
-			LabelDirection: LabelDirectionNormal,
-			MaxDepth:       DefaultMaxDepth,
-			Hotkeys: map[string]StringOrStringArray{
-				KeyDisplayEscape:    {CmdIdle},
-				"/":                 {"action search_hints"},
-				KeyDisplayBackspace: {CmdBackspace},
-				"Tab":               {"action cycle_hint"},
-				"Shift+Tab":         {"action cycle_hint --backward"},
-				KeyComboShiftL:      {CmdLeftClick},
-				KeyComboShiftR:      {CmdRightClick},
-				KeyComboShiftM:      {CmdMiddleClick},
-				KeyComboShiftI:      {CmdLeftMouseDown},
-				KeyComboShiftU:      {CmdLeftMouseUp},
-				"Up":                {CmdMoveMouseUp},
-				KeyDisplayDown:      {CmdMoveMouseDown},
-				KeyDisplayLeft:      {CmdMoveMouseLeft},
-				KeyDisplayRight:     {CmdMoveMouseRight},
-			},
 
-			UI: HintsUI{
-				FontSize:         DefaultHintFontSize,
-				FontFamily:       "",
-				BorderRadius:     DefaultHintBorderRadius,
-				PaddingX:         DefaultHintPaddingX,
-				PaddingY:         DefaultHintPaddingY,
-				BorderWidth:      1,
-				Placement:        "bottom",
-				BackgroundColor:  Color{},
-				TextColor:        Color{},
-				MatchedTextColor: Color{},
-				BorderColor:      Color{},
-			},
-			SearchInputUI: SearchInputUI{
-				FontSize:        DefaultHintFontSize,
-				FontFamily:      "",
-				BorderRadius:    DefaultHintBorderRadius,
-				PaddingX:        DefaultHintPaddingX,
-				PaddingY:        DefaultHintPaddingY,
-				BorderWidth:     1,
-				Position:        "bottom_center",
-				XOffset:         0,
-				YOffset:         DefaultSearchInputYOffset,
-				Width:           DefaultSearchInputWidth,
-				BackgroundColor: Color{},
-				TextColor:       Color{},
-				BorderColor:     Color{},
-			},
-			BoundaryHighlight: BoundaryHighlightUI{
-				Enabled:         false,
-				BorderWidth:     DefaultHintBoundaryBorderWidth,
-				BorderRadius:    DefaultHintBoundaryBorderRadius,
-				BorderColor:     Color{},
-				BackgroundColor: Color{},
-			},
-			Vision: HintsVisionConfig{
-				DetectText:                    true,
-				DetectRectangles:              true,
-				RequestTimeoutMS:              DefaultVisionRequestTimeoutMS,
-				MinimumConfidence:             DefaultVisionMinimumConfidence,
-				MergeIOUThreshold:             DefaultVisionMergeIOUThreshold,
-				RectangleMaxCandidates:        DefaultVisionRectangleMaxCandidates,
-				RectangleMinSize:              DefaultVisionRectangleMinSize,
-				RectangleMinAspect:            DefaultVisionRectangleMinAspect,
-				RectangleMaxAspect:            DefaultVisionRectangleMaxAspect,
-				ButtonMinConfidence:           DefaultVisionButtonMinConfidence,
-				ButtonMinAspect:               DefaultVisionButtonMinAspect,
-				ButtonMaxAspect:               DefaultVisionButtonMaxAspect,
-				ButtonIconMaxSize:             DefaultVisionButtonIconMaxSize,
-				LinkMinAspect:                 DefaultVisionLinkMinAspect,
-				LinkMaxHeight:                 DefaultVisionLinkMaxHeight,
-				LinkMinWidth:                  DefaultVisionLinkMinWidth,
-				ImageMinSize:                  DefaultVisionImageMinSize,
-				CheckboxMaxSize:               DefaultVisionCheckboxMaxSize,
-				GenericClickableMinConfidence: DefaultVisionGenericClickableMinConfidence,
-			},
-
-			IncludeMenubarHints:           false,
-			AdditionalMenubarHintsTargets: []string{},
-			IncludeDockHints:              false,
-			IncludeNCHints:                false,
-			IncludeStageManagerHints:      false,
-			IncludePIPHints:               false,
-			IncludeScreenCaptureHints:     false,
-			DetectMissionControl:          false,
-			OnMissionControlActivated:     nil,
-			OnMissionControlDeactivated:   nil,
-
-			// Semantic role names resolve to each platform's native
-			// accessibility vocabulary at load time, so one default serves
-			// every platform. See internal/core/domain/element/vocabulary.go.
-			ClickableRoles: slices.Clone(element.DefaultClickableRoles),
-
-			IgnoreClickableCheck: false,
-			VisibleCheckEnabled:  false,
-
-			AppConfigs: []AppConfig{},
+		UI: HintsUI{
+			FontSize:         DefaultHintFontSize,
+			FontFamily:       "",
+			BorderRadius:     DefaultHintBorderRadius,
+			PaddingX:         DefaultHintPaddingX,
+			PaddingY:         DefaultHintPaddingY,
+			BorderWidth:      1,
+			Placement:        "bottom",
+			BackgroundColor:  Color{},
+			TextColor:        Color{},
+			MatchedTextColor: Color{},
+			BorderColor:      Color{},
 		},
-		Grid: GridConfig{
+		SearchInputUI: SearchInputUI{
+			FontSize:        DefaultHintFontSize,
+			FontFamily:      "",
+			BorderRadius:    DefaultHintBorderRadius,
+			PaddingX:        DefaultHintPaddingX,
+			PaddingY:        DefaultHintPaddingY,
+			BorderWidth:     1,
+			Position:        "bottom_center",
+			XOffset:         0,
+			YOffset:         DefaultSearchInputYOffset,
+			Width:           DefaultSearchInputWidth,
+			BackgroundColor: Color{},
+			TextColor:       Color{},
+			BorderColor:     Color{},
+		},
+		BoundaryHighlight: BoundaryHighlightUI{
+			Enabled:         false,
+			BorderWidth:     DefaultHintBoundaryBorderWidth,
+			BorderRadius:    DefaultHintBoundaryBorderRadius,
+			BorderColor:     Color{},
+			BackgroundColor: Color{},
+		},
+		Vision: HintsVisionConfig{
+			DetectText:                    true,
+			DetectRectangles:              true,
+			RequestTimeoutMS:              DefaultVisionRequestTimeoutMS,
+			MinimumConfidence:             DefaultVisionMinimumConfidence,
+			MergeIOUThreshold:             DefaultVisionMergeIOUThreshold,
+			RectangleMaxCandidates:        DefaultVisionRectangleMaxCandidates,
+			RectangleMinSize:              DefaultVisionRectangleMinSize,
+			RectangleMinAspect:            DefaultVisionRectangleMinAspect,
+			RectangleMaxAspect:            DefaultVisionRectangleMaxAspect,
+			ButtonMinConfidence:           DefaultVisionButtonMinConfidence,
+			ButtonMinAspect:               DefaultVisionButtonMinAspect,
+			ButtonMaxAspect:               DefaultVisionButtonMaxAspect,
+			ButtonIconMaxSize:             DefaultVisionButtonIconMaxSize,
+			LinkMinAspect:                 DefaultVisionLinkMinAspect,
+			LinkMaxHeight:                 DefaultVisionLinkMaxHeight,
+			LinkMinWidth:                  DefaultVisionLinkMinWidth,
+			ImageMinSize:                  DefaultVisionImageMinSize,
+			CheckboxMaxSize:               DefaultVisionCheckboxMaxSize,
+			GenericClickableMinConfidence: DefaultVisionGenericClickableMinConfidence,
+		},
+
+		IncludeMenubarHints:           false,
+		AdditionalMenubarHintsTargets: []string{},
+		IncludeDockHints:              false,
+		IncludeNCHints:                false,
+		IncludeStageManagerHints:      false,
+		IncludePIPHints:               false,
+		IncludeScreenCaptureHints:     false,
+		DetectMissionControl:          false,
+		OnMissionControlActivated:     nil,
+		OnMissionControlDeactivated:   nil,
+
+		// Semantic role names resolve to each platform's native
+		// accessibility vocabulary at load time, so one default serves
+		// every platform. See internal/domain/element/vocabulary.go.
+		ClickableRoles: slices.Clone(element.DefaultClickableRoles),
+
+		IgnoreClickableCheck: false,
+		VisibleCheckEnabled:  false,
+
+		AppConfigs: []AppConfig{},
+	}
+}
+
+func defaultGrid() GridConfig {
+	return GridConfig{
+		Enabled: true,
+
+		Characters:   "abcdefghijklmnpqrstuvwxyz",
+		SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape:    {CmdIdle},
+			"`":                 {CmdToggleCursorFollowSelection},
+			KeyDisplaySpace:     {"action reset"},
+			KeyDisplayBackspace: {CmdBackspace},
+			KeyComboShiftL:      {CmdLeftClick},
+			KeyComboShiftR:      {CmdRightClick},
+			KeyComboShiftM:      {CmdMiddleClick},
+			KeyComboShiftI:      {CmdLeftMouseDown},
+			KeyComboShiftU:      {CmdLeftMouseUp},
+			"Up":                {CmdMoveMouseUp},
+			KeyDisplayDown:      {CmdMoveMouseDown},
+			KeyDisplayLeft:      {CmdMoveMouseLeft},
+			KeyDisplayRight:     {CmdMoveMouseRight},
+		},
+
+		UI: GridUI{
+			FontSize:               DefaultGridFontSize,
+			FontFamily:             "",
+			BorderWidth:            1,
+			BackgroundColor:        Color{},
+			TextColor:              Color{},
+			MatchedTextColor:       Color{},
+			MatchedBackgroundColor: Color{},
+			MatchedBorderColor:     Color{},
+			BorderColor:            Color{},
+		},
+
+		LiveMatchUpdate: true,
+		HideUnmatched:   true,
+		PrewarmEnabled:  true,
+		EnableGC:        false,
+	}
+}
+
+func defaultRecursiveGrid() RecursiveGridConfig {
+	return RecursiveGridConfig{
+		Enabled: true,
+		Animation: RecursiveGridAnimationConfig{
+			Enabled:    true,
+			DurationMS: DefaultRecursiveGridAnimationDurationMS,
+		},
+		GridCols: 3, //nolint:mnd
+		GridRows: 3, //nolint:mnd
+
+		Keys: "rtyfghvbn", // 3x3 grid: left-to-right, top-to-bottom
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape:    {CmdIdle},
+			"`":                 {CmdToggleCursorFollowSelection},
+			KeyDisplaySpace:     {"action reset"},
+			KeyDisplayBackspace: {CmdBackspace},
+			KeyComboShiftL:      {CmdLeftClick},
+			KeyComboShiftR:      {CmdRightClick},
+			KeyComboShiftM:      {CmdMiddleClick},
+			KeyComboShiftI:      {CmdLeftMouseDown},
+			KeyComboShiftU:      {CmdLeftMouseUp},
+			"Up":                {CmdMoveMouseUp},
+			KeyDisplayDown:      {CmdMoveMouseDown},
+			KeyDisplayLeft:      {CmdMoveMouseLeft},
+			KeyDisplayRight:     {CmdMoveMouseRight},
+		},
+
+		UI: RecursiveGridUI{
+			LineColor:                       Color{},
+			LineWidth:                       DefaultRecursiveGridLineWidth,
+			HighlightColor:                  Color{},
+			TextColor:                       Color{},
+			FontSize:                        DefaultRecursiveGridFontSize,
+			FontFamily:                      "",
+			LabelBackgroundColor:            Color{},
+			LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
+			LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,
+			LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
+			LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
+			LabelBackground:                 false,
+			LabelChar:                       DefaultRecursiveGridLabelChar,
+			LabelAutohideMultiplier:         DefaultRecursiveGridLabelAutohideMultiplier,
+			SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
+			SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
+			SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
+			SubKeyPreviewTextColor:          Color{},
+			SubKeyPreviewLabelChar:          DefaultRecursiveGridSubKeyPreviewLabelChar,
+		},
+
+		MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
+		MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
+		MaxDepth:      DefaultRecursiveGridMaxDepth,
+	}
+}
+
+func defaultVirtualPointer() VirtualPointerConfig {
+	return VirtualPointerConfig{
+		UI: VirtualPointerUI{
+			Char:       DefaultVirtualPointerChar,
+			FontSize:   DefaultVirtualPointerFontSize,
+			FontFamily: DefaultVirtualPointerFontFamily,
+			TextColor:  Color{},
+		},
+	}
+}
+
+func defaultMouseAction() MouseActionConfig {
+	return MouseActionConfig{
+		Enabled: false,
+		Actions: []string{
+			"left_click",
+			"right_click",
+			"middle_click",
+			"left_mouse_down",
+			"left_mouse_up",
+			"right_mouse_down",
+			"right_mouse_up",
+			"middle_mouse_down",
+			"middle_mouse_up",
+			"left_mouse_toggle",
+			"right_mouse_toggle",
+			"middle_mouse_toggle",
+		},
+		UI: MouseActionUI{
+			Size:            DefaultMouseActionIndicatorSize,
+			BorderWidth:     DefaultMouseActionIndicatorBorderWidth,
+			BackgroundColor: Color{},
+			BorderColor:     Color{},
+			Shape:           "circle",
+		},
+		Animation: MouseActionAnimation{
+			DurationMS:   DefaultMouseActionIndicatorDurationMS,
+			StartScale:   DefaultMouseActionIndicatorStartScale,
+			EndScale:     DefaultMouseActionIndicatorEndScale,
+			StartOpacity: DefaultMouseActionIndicatorStartOpacity,
+			EndOpacity:   DefaultMouseActionIndicatorEndOpacity,
+			Easing:       "ease_out",
+		},
+	}
+}
+
+func defaultModeIndicator() ModeIndicatorConfig {
+	return ModeIndicatorConfig{
+		Scroll: ModeIndicatorModeConfig{
 			Enabled: true,
-
-			Characters:   "abcdefghijklmnpqrstuvwxyz",
-			SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
-			Hotkeys: map[string]StringOrStringArray{
-				KeyDisplayEscape:    {CmdIdle},
-				"`":                 {CmdToggleCursorFollowSelection},
-				KeyDisplaySpace:     {"action reset"},
-				KeyDisplayBackspace: {CmdBackspace},
-				KeyComboShiftL:      {CmdLeftClick},
-				KeyComboShiftR:      {CmdRightClick},
-				KeyComboShiftM:      {CmdMiddleClick},
-				KeyComboShiftI:      {CmdLeftMouseDown},
-				KeyComboShiftU:      {CmdLeftMouseUp},
-				"Up":                {CmdMoveMouseUp},
-				KeyDisplayDown:      {CmdMoveMouseDown},
-				KeyDisplayLeft:      {CmdMoveMouseLeft},
-				KeyDisplayRight:     {CmdMoveMouseRight},
-			},
-
-			UI: GridUI{
-				FontSize:               DefaultGridFontSize,
-				FontFamily:             "",
-				BorderWidth:            1,
-				BackgroundColor:        Color{},
-				TextColor:              Color{},
-				MatchedTextColor:       Color{},
-				MatchedBackgroundColor: Color{},
-				MatchedBorderColor:     Color{},
-				BorderColor:            Color{},
-			},
-
-			LiveMatchUpdate: true,
-			HideUnmatched:   true,
-			PrewarmEnabled:  true,
-			EnableGC:        false,
+			Text:    "Scroll",
 		},
-		RecursiveGrid: RecursiveGridConfig{
-			Enabled: true,
-			Animation: RecursiveGridAnimationConfig{
-				Enabled:    true,
-				DurationMS: DefaultRecursiveGridAnimationDurationMS,
-			},
-			GridCols: 3, //nolint:mnd
-			GridRows: 3, //nolint:mnd
-
-			Keys: "rtyfghvbn", // 3x3 grid: left-to-right, top-to-bottom
-			Hotkeys: map[string]StringOrStringArray{
-				KeyDisplayEscape:    {CmdIdle},
-				"`":                 {CmdToggleCursorFollowSelection},
-				KeyDisplaySpace:     {"action reset"},
-				KeyDisplayBackspace: {CmdBackspace},
-				KeyComboShiftL:      {CmdLeftClick},
-				KeyComboShiftR:      {CmdRightClick},
-				KeyComboShiftM:      {CmdMiddleClick},
-				KeyComboShiftI:      {CmdLeftMouseDown},
-				KeyComboShiftU:      {CmdLeftMouseUp},
-				"Up":                {CmdMoveMouseUp},
-				KeyDisplayDown:      {CmdMoveMouseDown},
-				KeyDisplayLeft:      {CmdMoveMouseLeft},
-				KeyDisplayRight:     {CmdMoveMouseRight},
-			},
-
-			UI: RecursiveGridUI{
-				LineColor:                       Color{},
-				LineWidth:                       DefaultRecursiveGridLineWidth,
-				HighlightColor:                  Color{},
-				TextColor:                       Color{},
-				FontSize:                        DefaultRecursiveGridFontSize,
-				FontFamily:                      "",
-				LabelBackgroundColor:            Color{},
-				LabelBackgroundPaddingX:         DefaultRecursiveGridLabelBackgroundPaddingX,
-				LabelBackgroundPaddingY:         DefaultRecursiveGridLabelBackgroundPaddingY,
-				LabelBackgroundBorderRadius:     DefaultRecursiveGridLabelBackgroundBorderRadius,
-				LabelBackgroundBorderWidth:      DefaultRecursiveGridLabelBackgroundBorderWidth,
-				LabelBackground:                 false,
-				LabelChar:                       DefaultRecursiveGridLabelChar,
-				LabelAutohideMultiplier:         DefaultRecursiveGridLabelAutohideMultiplier,
-				SubKeyPreview:                   DefaultRecursiveGridSubKeyPreview,
-				SubKeyPreviewFontSize:           DefaultRecursiveGridSubKeyPreviewFontSize,
-				SubKeyPreviewAutohideMultiplier: DefaultRecursiveGridSubKeyPreviewAutohideMultiplier,
-				SubKeyPreviewTextColor:          Color{},
-				SubKeyPreviewLabelChar:          DefaultRecursiveGridSubKeyPreviewLabelChar,
-			},
-
-			MinSizeWidth:  DefaultRecursiveGridMinSizeWidth,
-			MinSizeHeight: DefaultRecursiveGridMinSizeHeight,
-			MaxDepth:      DefaultRecursiveGridMaxDepth,
-		},
-		VirtualPointer: VirtualPointerConfig{
-			UI: VirtualPointerUI{
-				Char:       DefaultVirtualPointerChar,
-				FontSize:   DefaultVirtualPointerFontSize,
-				FontFamily: DefaultVirtualPointerFontFamily,
-				TextColor:  Color{},
-			},
-		},
-		MouseAction: MouseActionConfig{
+		Hints: ModeIndicatorModeConfig{
 			Enabled: false,
-			Actions: []string{
-				"left_click",
-				"right_click",
-				"middle_click",
-				"left_mouse_down",
-				"left_mouse_up",
-				"right_mouse_down",
-				"right_mouse_up",
-				"middle_mouse_down",
-				"middle_mouse_up",
-				"left_mouse_toggle",
-				"right_mouse_toggle",
-				"middle_mouse_toggle",
-			},
-			UI: MouseActionUI{
-				Size:            DefaultMouseActionIndicatorSize,
-				BorderWidth:     DefaultMouseActionIndicatorBorderWidth,
-				BackgroundColor: Color{},
-				BorderColor:     Color{},
-				Shape:           "circle",
-			},
-			Animation: MouseActionAnimation{
-				DurationMS:   DefaultMouseActionIndicatorDurationMS,
-				StartScale:   DefaultMouseActionIndicatorStartScale,
-				EndScale:     DefaultMouseActionIndicatorEndScale,
-				StartOpacity: DefaultMouseActionIndicatorStartOpacity,
-				EndOpacity:   DefaultMouseActionIndicatorEndOpacity,
-				Easing:       "ease_out",
-			},
+			Text:    "Hints",
 		},
-		ModeIndicator: ModeIndicatorConfig{
-			Scroll: ModeIndicatorModeConfig{
-				Enabled: true,
-				Text:    "Scroll",
-			},
-			Hints: ModeIndicatorModeConfig{
-				Enabled: false,
-				Text:    "Hints",
-			},
-			Grid: ModeIndicatorModeConfig{
-				Enabled: false,
-				Text:    "Grid",
-			},
-			RecursiveGrid: ModeIndicatorModeConfig{
-				Enabled: false,
-				Text:    "Recursive Grid",
-			},
-			MonitorSelect: ModeIndicatorModeConfig{
-				Enabled: false,
-				Text:    "Monitor Select",
-			},
-			UI: ModeIndicatorUI{
-				FontSize:         DefaultScrollFontSize,
-				FontFamily:       "",
-				BackgroundColor:  Color{},
-				TextColor:        Color{},
-				BorderColor:      Color{},
-				BorderWidth:      1,
-				PaddingX:         DefaultScrollPaddingX,
-				PaddingY:         DefaultScrollPaddingY,
-				BorderRadius:     DefaultScrollBorderRadius,
-				IndicatorXOffset: DefaultScrollIndicatorXOffset,
-				IndicatorYOffset: DefaultScrollIndicatorYOffset,
-			},
+		Grid: ModeIndicatorModeConfig{
+			Enabled: false,
+			Text:    "Grid",
 		},
-		StickyModifiers: StickyModifiersConfig{
-			Enabled:        true,
-			TapMaxDuration: DefaultStickyModifiersTapMaxDuration,
-			UI: StickyModifiersUI{
-				FontSize:         DefaultStickyModifiersFontSize,
-				FontFamily:       "",
-				BackgroundColor:  Color{},
-				TextColor:        Color{},
-				BorderColor:      Color{},
-				BorderWidth:      DefaultStickyModifiersBorderWidth,
-				PaddingX:         DefaultStickyModifiersPaddingX,
-				PaddingY:         DefaultStickyModifiersPaddingY,
-				BorderRadius:     DefaultStickyModifiersBorderRadius,
-				IndicatorXOffset: DefaultStickyModifiersXOffset,
-				IndicatorYOffset: DefaultStickyModifiersYOffset,
-			},
+		RecursiveGrid: ModeIndicatorModeConfig{
+			Enabled: false,
+			Text:    "Recursive Grid",
 		},
-		MonitorSelect: MonitorSelectConfig{
-			Enabled:    false,
-			Characters: DefaultMonitorSelectCharacters,
-			Hotkeys: map[string]StringOrStringArray{
-				KeyDisplayEscape: {CmdIdle},
-			},
-			UI: MonitorSelectUI{
-				FontSize:           DefaultMonitorSelectFontSize,
-				FontFamily:         "",
-				BorderRadius:       DefaultMonitorSelectBorderRadius,
-				PaddingX:           DefaultMonitorSelectPaddingX,
-				PaddingY:           DefaultMonitorSelectPaddingY,
-				BorderWidth:        1,
-				BackgroundColor:    Color{},
-				TextColor:          Color{},
-				MatchedTextColor:   Color{},
-				BorderColor:        Color{},
-				BackdropColor:      Color{},
-				SubtitleFontSize:   DefaultMonitorSelectSubtitleFontSize,
-				SubtitleFontFamily: "",
-				SubtitleTextColor:  Color{},
-			},
+		MonitorSelect: ModeIndicatorModeConfig{
+			Enabled: false,
+			Text:    "Monitor Select",
 		},
-		Scroll: ScrollConfig{
-			ScrollStep:     DefaultScrollStep,
-			ScrollStepHalf: DefaultScrollStepHalf,
-			ScrollStepFull: DefaultScrollStepFull,
-			InvertScroll:   DefaultScrollInvert,
-			AppConfigs:     []AppConfig{},
-			Hotkeys: map[string]StringOrStringArray{
-				KeyDisplayEscape: {CmdIdle},
-				"k":              {"action scroll_up"},
-				"j":              {"action scroll_down"},
-				"h":              {"action scroll_left"},
-				"l":              {"action scroll_right"},
-				"gg":             {CmdGoTop},
-				"Shift+G":        {"action go_bottom"},
-				"u":              {"action page_up"},
-				"PageUp":         {"action page_up"},
-				"d":              {"action page_down"},
-				"PageDown":       {"action page_down"},
-				KeyComboShiftL:   {CmdLeftClick},
-				KeyComboShiftR:   {CmdRightClick},
-				KeyComboShiftM:   {CmdMiddleClick},
-				KeyComboShiftI:   {CmdLeftMouseDown},
-				KeyComboShiftU:   {CmdLeftMouseUp},
-				"Up":             {CmdMoveMouseUp},
-				KeyDisplayDown:   {CmdMoveMouseDown},
-				KeyDisplayLeft:   {CmdMoveMouseLeft},
-				KeyDisplayRight:  {CmdMoveMouseRight},
-			},
+		UI: ModeIndicatorUI{
+			FontSize:         DefaultScrollFontSize,
+			FontFamily:       "",
+			BackgroundColor:  Color{},
+			TextColor:        Color{},
+			BorderColor:      Color{},
+			BorderWidth:      1,
+			PaddingX:         DefaultScrollPaddingX,
+			PaddingY:         DefaultScrollPaddingY,
+			BorderRadius:     DefaultScrollBorderRadius,
+			IndicatorXOffset: DefaultScrollIndicatorXOffset,
+			IndicatorYOffset: DefaultScrollIndicatorYOffset,
 		},
-		Logging: LoggingConfig{
-			LogLevel:           "info",
-			LogFile:            "",
-			DisableFileLogging: true,
-			MaxFileSize:        DefaultMaxFileSize,
-			MaxBackups:         DefaultMaxBackups,
-			MaxAge:             DefaultMaxAge,
+	}
+}
+
+func defaultStickyModifiers() StickyModifiersConfig {
+	return StickyModifiersConfig{
+		Enabled:        true,
+		TapMaxDuration: DefaultStickyModifiersTapMaxDuration,
+		UI: StickyModifiersUI{
+			FontSize:         DefaultStickyModifiersFontSize,
+			FontFamily:       "",
+			BackgroundColor:  Color{},
+			TextColor:        Color{},
+			BorderColor:      Color{},
+			BorderWidth:      DefaultStickyModifiersBorderWidth,
+			PaddingX:         DefaultStickyModifiersPaddingX,
+			PaddingY:         DefaultStickyModifiersPaddingY,
+			BorderRadius:     DefaultStickyModifiersBorderRadius,
+			IndicatorXOffset: DefaultStickyModifiersXOffset,
+			IndicatorYOffset: DefaultStickyModifiersYOffset,
 		},
-		SmoothCursor: SmoothCursorConfig{
-			MoveMouseEnabled: false,
-			Steps:            DefaultSmoothCursorSteps,
-			MaxDuration:      DefaultSmoothCursorMaxDuration,
-			DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
+	}
+}
+
+func defaultMonitorSelect() MonitorSelectConfig {
+	return MonitorSelectConfig{
+		Enabled:    false,
+		Characters: DefaultMonitorSelectCharacters,
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape: {CmdIdle},
 		},
-		SmoothScroll: SmoothScrollConfig{
-			Enabled:          false,
-			Steps:            DefaultSmoothScrollSteps,
-			MaxDuration:      DefaultSmoothScrollMaxDuration,
-			DurationPerPixel: DefaultSmoothScrollDurationPerPixel,
+		UI: MonitorSelectUI{
+			FontSize:           DefaultMonitorSelectFontSize,
+			FontFamily:         "",
+			BorderRadius:       DefaultMonitorSelectBorderRadius,
+			PaddingX:           DefaultMonitorSelectPaddingX,
+			PaddingY:           DefaultMonitorSelectPaddingY,
+			BorderWidth:        1,
+			BackgroundColor:    Color{},
+			TextColor:          Color{},
+			MatchedTextColor:   Color{},
+			BorderColor:        Color{},
+			BackdropColor:      Color{},
+			SubtitleFontSize:   DefaultMonitorSelectSubtitleFontSize,
+			SubtitleFontFamily: "",
+			SubtitleTextColor:  Color{},
 		},
-		HeldRepeat: HeldRepeatConfig{
-			Enabled:      false,
-			InitialDelay: DefaultHeldRepeatInitialDelay,
-			Interval:     DefaultHeldRepeatInterval,
+	}
+}
+
+func defaultScroll() ScrollConfig {
+	return ScrollConfig{
+		ScrollStep:     DefaultScrollStep,
+		ScrollStepHalf: DefaultScrollStepHalf,
+		ScrollStepFull: DefaultScrollStepFull,
+		InvertScroll:   DefaultScrollInvert,
+		AppConfigs:     []AppConfig{},
+		Hotkeys: map[string]StringOrStringArray{
+			KeyDisplayEscape: {CmdIdle},
+			"k":              {"action scroll_up"},
+			"j":              {"action scroll_down"},
+			"h":              {"action scroll_left"},
+			"l":              {"action scroll_right"},
+			"gg":             {CmdGoTop},
+			"Shift+G":        {"action go_bottom"},
+			"u":              {"action page_up"},
+			"PageUp":         {"action page_up"},
+			"d":              {"action page_down"},
+			"PageDown":       {"action page_down"},
+			KeyComboShiftL:   {CmdLeftClick},
+			KeyComboShiftR:   {CmdRightClick},
+			KeyComboShiftM:   {CmdMiddleClick},
+			KeyComboShiftI:   {CmdLeftMouseDown},
+			KeyComboShiftU:   {CmdLeftMouseUp},
+			"Up":             {CmdMoveMouseUp},
+			KeyDisplayDown:   {CmdMoveMouseDown},
+			KeyDisplayLeft:   {CmdMoveMouseLeft},
+			KeyDisplayRight:  {CmdMoveMouseRight},
 		},
-		Systray: SystrayConfig{
-			Enabled: true, // Enabled by default
-		},
+	}
+}
+
+func defaultLogging() LoggingConfig {
+	return LoggingConfig{
+		LogLevel:           "info",
+		LogFile:            "",
+		DisableFileLogging: true,
+		MaxFileSize:        DefaultMaxFileSize,
+		MaxBackups:         DefaultMaxBackups,
+		MaxAge:             DefaultMaxAge,
+	}
+}
+
+func defaultSmoothCursor() SmoothCursorConfig {
+	return SmoothCursorConfig{
+		MoveMouseEnabled: false,
+		Steps:            DefaultSmoothCursorSteps,
+		MaxDuration:      DefaultSmoothCursorMaxDuration,
+		DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
+	}
+}
+
+func defaultSmoothScroll() SmoothScrollConfig {
+	return SmoothScrollConfig{
+		Enabled:          false,
+		Steps:            DefaultSmoothScrollSteps,
+		MaxDuration:      DefaultSmoothScrollMaxDuration,
+		DurationPerPixel: DefaultSmoothScrollDurationPerPixel,
+	}
+}
+
+func defaultHeldRepeat() HeldRepeatConfig {
+	return HeldRepeatConfig{
+		Enabled:      false,
+		InitialDelay: DefaultHeldRepeatInitialDelay,
+		Interval:     DefaultHeldRepeatInterval,
+	}
+}
+
+func defaultSystray() SystrayConfig {
+	return SystrayConfig{
+		Enabled: true, // Enabled by default
 	}
 }

@@ -3,9 +3,9 @@ package modes
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // CurrModeString returns the current mode as a string.
@@ -92,7 +92,6 @@ func (h *Handler) activateModeBase(
 	actionEnum action.Type,
 	bundleID string,
 ) (action.Type, bool) {
-	// Validate mode activation
 	err := h.validateModeActivation(bundleID, modeName, enabled)
 	if err != nil {
 		h.logger.Warn(modeName+" mode activation failed", zap.Error(err))

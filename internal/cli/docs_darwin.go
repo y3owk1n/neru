@@ -7,7 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/y3owk1n/neru/internal/buildinfo"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 func openDocsPage(path string) error {

@@ -4,7 +4,7 @@ package modes
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#include "../../core/infra/platform/darwin/overlay.h"
+#include "../../adapter/platform/darwin/overlay.h"
 */
 import "C"
 

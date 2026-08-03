@@ -4,7 +4,7 @@ import (
 	"math/bits"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/core/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // IsAppExcluded checks if the given bundle ID is in the excluded apps list.

@@ -1,0 +1,7 @@
+{
+  "delta": [
+    "+ .hints.hotkeys.escape[0] = \"idle\"",
+    "- .hints.hotkeys.Escape[0] = \"idle\""
+  ],
+  "validationError": ""
+}

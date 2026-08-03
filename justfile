@@ -196,13 +196,13 @@ test-foundation:
         ./internal/app/services ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \
         ./internal/architecture ./internal/cli/cliutil \
-        ./internal/core/domain ./internal/core/domain/action \
-        ./internal/core/domain/element ./internal/core/domain/grid \
-        ./internal/core/domain/hint ./internal/core/domain/recursivegrid \
-        ./internal/core/domain/state ./internal/core/errors \
-        ./internal/core/infra/apptrace ./internal/core/infra/logger \
-        ./internal/core/infra/platform/mousestate \
-        ./internal/core/ports ./internal/core/ports/mocks \
+        ./internal/domain ./internal/domain/action \
+        ./internal/domain/element ./internal/domain/grid \
+        ./internal/domain/hint ./internal/domain/recursivegrid \
+        ./internal/domain/state ./internal/derrors \
+        ./internal/adapter/apptrace ./internal/adapter/logger \
+        ./internal/adapter/platform/mousestate \
+        ./internal/ports ./internal/ports/mocks \
         ./internal/ui ./internal/ui/coordinates
     @echo "✓ Cross-platform foundation tests passed"
 
@@ -271,7 +271,7 @@ fmt-check:
         if [ $RESULT -ne 0 ] && [ -n "$FILTERED" ]; then
             EXIT_CODE=1
         fi
-    done < <(find internal/core/infra \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -print0)
+    done < <(find internal/adapter \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -print0)
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Some Objective-C files are not properly formatted. Run 'just fmt' to fix them."
         exit 1
@@ -299,7 +299,7 @@ fmt:
     golangci-lint fmt
     golangci-lint run --fix
     @echo "Formatting Objective-C files..."
-    @find internal/core/infra \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -exec sh -c 'case "$1" in *.c) af=file.c;; *) af=file.m;; esac; clang-format -i --style=file --assume-filename="$af" "$1"' _ {} \;
+    @find internal/adapter \( -name "*.h" -o -name "*.m" -o -name "*.c" \) -exec sh -c 'case "$1" in *.c) af=file.c;; *) af=file.m;; esac; clang-format -i --style=file --assume-filename="$af" "$1"' _ {} \;
     @echo "✓ Format complete"
 
 # Lint code
@@ -431,6 +431,46 @@ lint-cross:
 check-cross: vet-cross test-windows-compile
     @echo "✓ Cross-platform checks complete (run 'just lint-cross' and 'just test-linux' for real Linux runs)"
 
+# Scan dependencies for known vulnerabilities.
+#
+# govulncheck is call-graph aware: it only reports a CVE when the vulnerable
+# symbol is actually reachable from this module, so a finding here is a finding
+# that ships. It respects GOOS/GOARCH, which matters for a tree this
+# build-tagged — a vulnerable Windows-only dependency is invisible from a macOS
+# run, so CI runs this natively on all three platforms.
+#
+# The tool is fetched at @latest rather than pinned: its value is knowing about
+# vulnerabilities published after the pin would have been written, and the
+# vulnerability database is fetched at run time regardless.
+vuln:
+    @echo "Scanning for known vulnerabilities..."
+    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+    @echo "✓ No known vulnerabilities"
+
+# Run unit tests with coverage and print the total.
+#
+# Unit tests only: integration tests need real permissions, a real screen and a
+# free socket, so including them would make the number depend on the machine
+# rather than on the code.
+#
+# -coverpkg=./... is what makes the number honest. Without it Go credits a
+# package only for the statements its own tests execute, so code that is
+# thoroughly exercised from a neighbouring package reads as zero. The action
+# sequence executor measured 0% that way and 77% this way; nothing about the
+# tests changed, only which package was asked.
+coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running unit tests with coverage..."
+    go test -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... ./...
+    go tool cover -func=coverage.txt | tail -1
+    echo "✓ Coverage profile written to coverage.txt"
+
+# Render the coverage profile as a browsable HTML report.
+coverage-html: coverage
+    go tool cover -html=coverage.txt -o coverage.html
+    @echo "✓ Coverage report written to coverage.html"
+
 # Download dependencies
 deps:
     @echo "Downloading dependencies..."
@@ -500,7 +540,7 @@ generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
 # - wayland-protocols: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/master
 
 PROTOCOL_DIR := "protocol"
-WLR_PROTOCOL_DIR := "internal/core/infra/platform/linux/wlr_protocol"
+WLR_PROTOCOL_DIR := "internal/adapter/platform/linux/wlr_protocol"
 
 # Download Wayland protocol XMLs from canonical upstream repositories
 fetch-protocols:

@@ -5,23 +5,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/ports"
 )
-
-// The handler's event-tap access.
-//
-// These used to be seven `func(...)` fields on Handler, populated from seven
-// nil-guarded wrapper methods on App — an open-coded ports.EventTapPort passed
-// through a constructor one closure at a time. They are ordinary methods now,
-// so the call sites read the same but the contract is the port.
-//
-// Every one tolerates a nil tap: the handler is built in initialization phase 7
-// and the event tap only exists in phase 8, and mode setup can run in tests
-// with no tap at all.
 
 // SetEventTap injects the event tap once infrastructure initialization has
 // created it. It mirrors IPCController.SetInfrastructure and must be called
 // before any mode is activated.
+//
+// Every method here tolerates a nil tap: the handler is built in phase 7 and
+// the tap only exists in phase 8, and mode setup can run in tests with none.
 func (h *Handler) SetEventTap(eventTap ports.EventTapPort) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -29,8 +21,9 @@ func (h *Handler) SetEventTap(eventTap ports.EventTapPort) {
 	h.eventTap = eventTap
 }
 
-// hasEventTap reports whether a tap is wired up. Call sites that used to check
-// a closure field for nil use this instead.
+// hasEventTap reports whether a tap is wired up, for call sites that need to
+// know before doing work rather than relying on the no-op behavior of the
+// methods above.
 func (h *Handler) hasEventTap() bool {
 	return h.eventTap != nil
 }

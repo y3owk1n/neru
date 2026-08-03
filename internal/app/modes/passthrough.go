@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // passthroughHintRefreshDelay is the delay before refreshing hints after a
@@ -187,19 +187,15 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		strategyOverride := h.hints.Context.StrategyOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
-		h.activateHintModeInternal(
-			nil,
-			nil,
-			nil,
-			filterRoles,
-			filterTextContains,
-			&startWithSearch,
-			nil,
-			&strategyOverride,
-			&labelDirectionOverride,
-			&splitWord,
-			nil, // preserve the stored --on-exit action across refresh
-		)
+		h.activateHintModeInternal(ModeActivationOptions{
+			FilterRoles:        filterRoles,
+			FilterTextContains: filterTextContains,
+			Search:             &startWithSearch,
+			Strategy:           &strategyOverride,
+			LabelDirection:     &labelDirectionOverride,
+			SplitWord:          &splitWord,
+			// OnExit is left nil to preserve the stored steps across refresh.
+		})
 	})
 	h.refreshHintsTimer = timer
 }

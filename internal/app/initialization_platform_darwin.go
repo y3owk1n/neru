@@ -5,8 +5,8 @@ package app
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/core/infra/platform/darwin"
-	infrasystray "github.com/y3owk1n/neru/internal/core/infra/systray"
+	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
+	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 )
 
 // initializePlatformLogger sets up the platform-specific logger.

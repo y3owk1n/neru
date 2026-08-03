@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/y3owk1n/neru/internal/core/domain"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // ToggleScreenShareCmd toggles overlay visibility in screen sharing.

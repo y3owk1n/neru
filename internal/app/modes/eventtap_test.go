@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	portmocks "github.com/y3owk1n/neru/internal/core/ports/mocks"
+	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 // newEventTapHandler builds the minimum Handler needed to drive the event-tap

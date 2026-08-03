@@ -1,0 +1,9 @@
+{
+  "delta": [
+    "- .hotkeys.bindings.Primary+Shift+C[0] = \"recursive_grid\"",
+    "- .hotkeys.bindings.Primary+Shift+G[0] = \"grid\"",
+    "- .hotkeys.bindings.Primary+Shift+S[0] = \"scroll\"",
+    "- .hotkeys.bindings.Primary+Shift+Space[0] = \"hints\""
+  ],
+  "validationError": ""
+}

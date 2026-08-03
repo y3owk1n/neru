@@ -10,11 +10,6 @@ import (
 	"testing"
 )
 
-// portsWithoutOwnMock are interfaces named *Port that are composed into a
-// larger port rather than injected on their own. They are exercised through
-// the mock of the port that embeds them, so a separate mock would be dead code.
-//
-// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
 const subInterfaceOfSystemPort = "sub-interface of SystemPort"
 
 var portsWithoutOwnMock = map[string]string{
@@ -30,10 +25,16 @@ var portsWithoutOwnMock = map[string]string{
 // Without one, consumers grow hand-rolled fakes in _test.go files that go stale
 // the moment the contract changes — which is exactly how two hotkey fakes ended
 // up silently under-implementing HotkeyPort.
+//
+// portsWithoutOwnMock are interfaces named *Port that are composed into a
+// larger port rather than injected on their own. They are exercised through
+// the mock of the port that embeds them, so a separate mock would be dead code.
+//
+// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
 func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports"))
-	mockNames := typeNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports", "mocks"))
+	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
+	mockNames := typeNamesIn(t, filepath.Join(repoRoot, "internal", "ports", "mocks"))
 
 	for _, name := range portNames {
 		if !strings.HasSuffix(name, "Port") {
@@ -46,7 +47,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 
 		if _, ok := mockNames["Mock"+name]; !ok {
 			t.Errorf(
-				"ports.%s has no Mock%s in internal/core/ports/mocks; every port "+
+				"ports.%s has no Mock%s in internal/ports/mocks; every port "+
 					"needs a mock (docs/CROSS_PLATFORM.md, Tier 1)",
 				name,
 				name,
@@ -59,7 +60,7 @@ func TestEveryPortHasAMock(t *testing.T) {
 // interfaces it names.
 func TestMockExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "core", "ports"))
+	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
 
 	declared := make(map[string]bool, len(portNames))
 	for _, name := range portNames {

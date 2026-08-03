@@ -7,14 +7,14 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/core/domain"
-	"github.com/y3owk1n/neru/internal/core/domain/action"
-	domainHint "github.com/y3owk1n/neru/internal/core/domain/hint"
-	derrors "github.com/y3owk1n/neru/internal/core/errors"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay"
-	"github.com/y3owk1n/neru/internal/core/infra/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/core/ports"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // debugElapsed logs the duration since start with the given message.
@@ -146,57 +146,19 @@ func filterHintsForScreen(
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
-func (h *Handler) activateHintModeWithAction(
-	action *string,
-	modifier *string,
-	repeat *bool,
-	cursorFollowSelection *bool,
-	filterRoles []string,
-	filterTextContains []string,
-	search *bool,
-	hideOnEmptySearch *bool,
-	strategy *string,
-	labelDirection *string,
-	splitWord *bool,
-	onExit []string,
-) {
-	h.activateHintModeInternal(
-		action,
-		modifier,
-		cursorFollowSelection,
-		filterRoles,
-		filterTextContains,
-		search,
-		hideOnEmptySearch,
-		strategy,
-		labelDirection,
-		splitWord,
-		onExit,
-	)
+func (h *Handler) activateHintModeWithAction(opts ModeActivationOptions) {
+	h.activateHintModeInternal(opts)
 
-	// Store repeat flag after activation so the context is already initialized.
-	if repeat != nil && *repeat && h.hints != nil && h.hints.Context != nil {
+	// Repeat is stored after activation, by which point the context exists.
+	if opts.Repeat != nil && *opts.Repeat && h.hints != nil && h.hints.Context != nil {
 		h.hints.Context.SetRepeat(true)
 	}
 }
 
-// activateHintModeInternal activates hint mode with optional action.
-// It handles mode validation, overlay positioning, element collection, hint generation,
-// and UI setup for hint-based navigation.
-
-func (h *Handler) activateHintModeInternal(
-	actionStr *string,
-	modifier *string,
-	cursorFollowSelection *bool,
-	filterRoles []string,
-	filterTextContains []string,
-	search *bool,
-	hideOnEmptySearch *bool,
-	strategyOverride *string,
-	labelDirectionOverride *string,
-	splitWordOverride *bool,
-	onExit []string,
-) {
+// activateHintModeInternal activates hint mode with an optional action.
+// It handles mode validation, overlay positioning, element collection, hint
+// generation, and UI setup for hint-based navigation.
+func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
@@ -206,8 +168,8 @@ func (h *Handler) activateHintModeInternal(
 	}
 
 	// On refresh, properly escape the active IME and clear search state first.
-	// This prevents the IME from becoming orphaned/unfocused during screen/space
-	// transitions where the OS moves focus to the frontmost app.
+	// Otherwise the IME is left orphaned during screen or space transitions,
+	// where the OS moves focus to the frontmost app.
 	if isRefresh && h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
 		h.cancelHintSearch()
 	}
@@ -221,12 +183,7 @@ func (h *Handler) activateHintModeInternal(
 		"",
 	)
 	if !activated {
-		// If validation fails during a refresh (e.g., secure input activated,
-		// focused app became excluded), exit cleanly instead of leaving stale
-		// hints on the overlay.
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.abandonHintActivation(isRefresh)
 
 		return
 	}
@@ -247,15 +204,13 @@ func (h *Handler) activateHintModeInternal(
 	if actionString == domain.UnknownAction {
 		h.logger.Warn("Unknown action string, ignoring")
 
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.abandonHintActivation(isRefresh)
 
 		return
 	}
 
 	// Always resize overlay to the active screen (where mouse is) before collecting elements.
-	// This ensures proper positioning when switching between multiple displays.
+	// Otherwise the overlay lands on the display the mouse just left.
 	var activeScreenBounds image.Rectangle
 
 	if h.system != nil {
@@ -278,86 +233,7 @@ func (h *Handler) activateHintModeInternal(
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
-		if isRefresh {
-			// On refresh preserve existing context flags for any field not
-			// explicitly provided. This prevents configured action strings
-			// (e.g. space change → MC callback → "hints" with no args) from
-			// overwriting the user's custom --action flag.
-			if actionStr != nil {
-				h.hints.Context.SetPendingAction(actionStr)
-			}
-
-			if onExit != nil {
-				h.hints.Context.SetOnExit(onExit)
-			}
-
-			if modifier != nil {
-				h.hints.Context.SetPendingModifier(modifier)
-			}
-
-			if cursorFollowSelection != nil {
-				h.hints.Context.SetCursorFollowSelection(*cursorFollowSelection)
-			}
-
-			if filterRoles != nil {
-				h.hints.Context.SetFilterRoles(filterRoles)
-			}
-
-			if filterTextContains != nil {
-				h.hints.Context.SetFilterTextContains(filterTextContains)
-			}
-
-			if search != nil {
-				h.hints.Context.SetStartWithSearch(*search)
-			}
-
-			if hideOnEmptySearch != nil {
-				h.hints.Context.SetHideOnEmptySearch(*hideOnEmptySearch)
-			}
-
-			if strategyOverride != nil {
-				h.hints.Context.SetStrategyOverride(*strategyOverride)
-			}
-
-			if labelDirectionOverride != nil {
-				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
-			}
-
-			if splitWordOverride != nil {
-				h.hints.Context.SetSplitWord(*splitWordOverride)
-			}
-		} else {
-			h.hints.Context.SetPendingAction(actionStr)
-			h.hints.Context.SetOnExit(onExit)
-			h.hints.Context.SetPendingModifier(modifier)
-			h.hints.Context.SetRepeat(false)
-			h.hints.Context.SetCursorFollowSelection(resolveCursorFollowSelection(
-				domain.ModeHints,
-				cursorFollowSelection,
-			))
-			h.hints.Context.SetFilterRoles(filterRoles)
-			h.hints.Context.SetFilterTextContains(filterTextContains)
-			h.hints.Context.SetStartWithSearch(search != nil && *search)
-			h.hints.Context.SetHideOnEmptySearch(hideOnEmptySearch != nil && *hideOnEmptySearch)
-
-			if strategyOverride != nil {
-				h.hints.Context.SetStrategyOverride(*strategyOverride)
-			} else {
-				h.hints.Context.SetStrategyOverride("")
-			}
-
-			if labelDirectionOverride != nil {
-				h.hints.Context.SetLabelDirectionOverride(*labelDirectionOverride)
-			} else {
-				h.hints.Context.SetLabelDirectionOverride("")
-			}
-
-			if splitWordOverride != nil {
-				h.hints.Context.SetSplitWord(*splitWordOverride)
-			} else {
-				h.hints.Context.SetSplitWord(false)
-			}
-		}
+		applyHintOptions(h.hints.Context, opts, isRefresh)
 	}
 
 	// Fetch bundle ID for hint generation. Validation already passed (secure input check,
@@ -380,30 +256,11 @@ func (h *Handler) activateHintModeInternal(
 
 	activationStart := time.Now()
 
-	strategyVal := ""
-	if h.hints != nil && h.hints.Context != nil {
-		strategyVal = h.hints.Context.StrategyOverride()
-	} else if strategyOverride != nil {
-		strategyVal = *strategyOverride
-	}
+	overrides := h.resolveHintOverrides(opts)
 
 	strategy := h.config.Hints.StrategyForApp(bundleID)
-	if strategyVal != "" {
-		strategy = strategyVal
-	}
-
-	labelDirectionVal := ""
-	if h.hints != nil && h.hints.Context != nil {
-		labelDirectionVal = h.hints.Context.LabelDirectionOverride()
-	} else if labelDirectionOverride != nil {
-		labelDirectionVal = *labelDirectionOverride
-	}
-
-	splitWordVal := false
-	if h.hints != nil && h.hints.Context != nil {
-		splitWordVal = h.hints.Context.SplitWord()
-	} else if splitWordOverride != nil {
-		splitWordVal = *splitWordOverride
+	if overrides.strategy != "" {
+		strategy = overrides.strategy
 	}
 
 	var permissionOk bool
@@ -412,26 +269,22 @@ func (h *Handler) activateHintModeInternal(
 		activeScreenBounds,
 		bundleID,
 		strategy,
-		strategyVal,
+		overrides.strategy,
 	)
 	if !permissionOk {
-		// On a refresh, exit through exitModeLocked so the stale overlay is cleared,
-		// matching the other refresh abort paths.
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.abandonHintActivation(isRefresh)
 
 		return
 	}
 
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
-		filterRoles,
-		filterTextContains,
+		opts.FilterRoles,
+		opts.FilterTextContains,
 		bundleID,
-		strategyVal,
-		labelDirectionVal,
-		splitWordVal,
+		overrides.strategy,
+		overrides.labelDirection,
+		overrides.splitWord,
 	)
 	if domainHintsErr != nil {
 		h.logger.Error(
@@ -440,9 +293,7 @@ func (h *Handler) activateHintModeInternal(
 			zap.String("action", actionString),
 		)
 
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.abandonHintActivation(isRefresh)
 
 		return
 	}
@@ -466,9 +317,7 @@ func (h *Handler) activateHintModeInternal(
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated for action", zap.String("action", actionString))
 
-		if isRefresh {
-			h.exitModeLocked()
-		}
+		h.abandonHintActivation(isRefresh)
 
 		return
 	}
@@ -481,41 +330,7 @@ func (h *Handler) activateHintModeInternal(
 	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.hints.Context.Manager() == nil {
 		manager := domainHint.NewManager(h.logger, &h.mu)
-		// Set callback to update overlay when hints are filtered
-		manager.SetUpdateCallback(func(filteredHints []*domainHint.Interface) {
-			// Caller must hold h.mu. Synchronous call sites (SetHints, Reset,
-			// HandleInput) already hold it. The async debouncedUpdate timer
-			// acquires it via the external mutex set below.
-			if h.hints.Overlay == nil {
-				return
-			}
-
-			screenBounds := h.screenBounds
-
-			// Convert domain hints to overlay hints for rendering
-			overlayHints := make([]*hints.Hint, len(filteredHints))
-			for index, hint := range filteredHints {
-				// Convert screen-absolute coordinates to overlay-local coordinates
-				localPos := image.Point{
-					X: hint.Position().X - screenBounds.Min.X,
-					Y: hint.Position().Y - screenBounds.Min.Y,
-				}
-				overlayHints[index] = hints.NewHint(
-					hint.Label(),
-					localPos,
-					hint.Element().Bounds().Size(),
-					hint.MatchedPrefix(),
-				)
-			}
-
-			drawHintsErr := h.overlayManager.DrawHintsWithStyle(
-				overlayHints,
-				h.currentHintStyleLocked(),
-			)
-			if drawHintsErr != nil {
-				h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
-			}
-		})
+		manager.SetUpdateCallback(h.drawHintsLocked)
 		h.hints.Context.SetManager(manager)
 	}
 
@@ -551,13 +366,13 @@ func (h *Handler) activateHintModeInternal(
 		zap.Int("hint_count", len(domainHints)),
 		zap.String("strategy", strategy),
 	}
-	if actionStr != nil {
-		fields = append(fields, zap.String("action", *actionStr))
+	if opts.Action != nil {
+		fields = append(fields, zap.String("action", *opts.Action))
 	}
 
 	h.logger.Info("Hints mode activated", fields...)
 
-	if search != nil && *search {
+	if opts.Search != nil && *opts.Search {
 		err := h.startHintSearchLocked()
 		if err != nil {
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))

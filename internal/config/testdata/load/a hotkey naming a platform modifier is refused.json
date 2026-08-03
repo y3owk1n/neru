@@ -1,0 +1,4 @@
+{
+  "delta": [],
+  "validationError": "[INVALID_CONFIG] configuration validate configuration failed: [INVALID_CONFIG] hotkeys.cmd+shift+k has invalid modifier 'cmd'"
+}
