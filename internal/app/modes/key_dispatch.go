@@ -10,13 +10,15 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const (
 	hotkeySequenceTimeout = 500 * time.Millisecond
 )
 
-const keyUpPrefix = "__keyup_"
+// keyUpPrefix aliases the shared wire vocabulary the event taps emit.
+const keyUpPrefix = keyvocab.KeyUpPrefix
 
 const (
 	keyPartCmd    = "cmd"

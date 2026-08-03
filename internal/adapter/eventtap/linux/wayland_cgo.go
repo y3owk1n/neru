@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 func (et *EventTap) runWayland() {
@@ -49,7 +50,7 @@ func (et *EventTap) runWayland() {
 				return
 			}
 
-			key = normalizeLinuxKey(key)
+			key = keyvocab.NormalizeKey(key)
 			if key == "" {
 				continue
 			}

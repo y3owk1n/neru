@@ -10,58 +10,6 @@ const (
 	chordShiftCtrl = "shift+ctrl+t"
 )
 
-func TestLinuxModifierToggleEventCanonicalizes(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		modifier string
-		isDown   bool
-		want     string
-	}{
-		{
-			name:     "shift down",
-			modifier: evdevModifierShift,
-			isDown:   true,
-			want:     "__modifier_shift_down",
-		},
-		{
-			name:     "control alias up",
-			modifier: evdevModifierAliasControl,
-			isDown:   false,
-			want:     "__modifier_ctrl_up",
-		},
-		{
-			name:     "super alias down",
-			modifier: evdevModifierAliasSuper,
-			isDown:   true,
-			want:     "__modifier_cmd_down",
-		},
-		{
-			name:     "option alias up",
-			modifier: evdevModifierAliasOption,
-			isDown:   false,
-			want:     "__modifier_alt_up",
-		},
-		{name: "unknown", modifier: "fn", isDown: true, want: ""},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := linuxModifierToggleEvent(testCase.modifier, testCase.isDown)
-			if got != testCase.want {
-				t.Fatalf("linuxModifierToggleEvent(%q, %t) = %q, want %q",
-					testCase.modifier,
-					testCase.isDown,
-					got,
-					testCase.want)
-			}
-		})
-	}
-}
-
 func TestSyntheticModifierSuppressionConsumesOnce(t *testing.T) {
 	t.Parallel()
 
@@ -187,29 +135,5 @@ func TestSetModifierPassthroughDisabledStillMatchesBlacklist(t *testing.T) {
 
 	if eventTap.shouldPassthroughChord("Ctrl+y") {
 		t.Fatal("expected no passthrough while disabled")
-	}
-}
-
-func TestLinuxKeyUpEvent(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		press string
-		want  string
-	}{
-		{"j", "__keyup_j"},
-		{"Shift+j", "__keyup_j"},
-		{"k", "__keyup_k"},
-		{evdevKeyNameReturn, "__keyup_Return"},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.press, func(t *testing.T) {
-			t.Parallel()
-
-			if got := linuxKeyUpEvent(tc.press); got != tc.want {
-				t.Fatalf("linuxKeyUpEvent(%q) = %q, want %q", tc.press, got, tc.want)
-			}
-		})
 	}
 }

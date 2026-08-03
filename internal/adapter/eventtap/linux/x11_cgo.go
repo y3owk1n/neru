@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const (
@@ -139,7 +140,7 @@ func (et *EventTap) runX11() {
 			}
 
 			if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
-				et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+				et.dispatchKey(keyvocab.ModifierToggleEvent(modifier, isDown))
 			}
 
 			// Re-arm when the modifier state reaches a clean slate, so
@@ -157,7 +158,7 @@ func (et *EventTap) runX11() {
 		}
 
 		if eventType == C.KeyRelease {
-			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
+			if keyUp := keyvocab.KeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
 			}
 
@@ -176,7 +177,7 @@ func x11KeyFromLookup(length C.int, buffer []C.char, keysym C.KeySym) string {
 		key = x11KeysymName(keysym)
 	}
 
-	return normalizeLinuxKey(key)
+	return keyvocab.NormalizeKey(key)
 }
 
 func x11KeysymName(keysym C.KeySym) string {
