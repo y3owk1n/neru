@@ -1755,6 +1755,9 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 - (void)reattachToAllSpacesIfVisible;
 @end
 
+// Coalesces bursts of invalidation notifications into one reattach cycle.
+static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
+
 #pragma mark - Overlay Window Controller Implementation
 
 @implementation OverlayWindowController
@@ -1788,47 +1791,65 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	return frame.size.width > 1.0 || frame.size.height > 1.0;
 }
 
-- (void)reattachToAllSpacesIfVisible {
+// Expensive recovery path for a genuinely invalidated window-server
+// attachment (wake, display reconfiguration) — never for routine Space
+// switches; `delayNs` absorbs notification bursts into one pending cycle.
+- (void)reattachToAllSpacesIfVisibleAfterDelay:(int64_t)delayNs {
 	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
 		return;
 
 	self.windowServerReattachScheduled = YES;
-	[self.window orderOut:nil];
-	[self.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
-	dispatch_async(dispatch_get_main_queue(), ^{
-		self.windowServerReattachScheduled = NO;
-		if (!self.shouldBeVisible || ![self hasDrawableFrame])
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, delayNs), dispatch_get_main_queue(), ^{
+		if (!self.shouldBeVisible || ![self hasDrawableFrame]) {
+			self.windowServerReattachScheduled = NO;
 			return;
+		}
 
-		self.needsWindowServerReattach = NO;
-		[self applyOverlayCollectionBehavior];
-		[self.window setIsVisible:YES];
-		[self.window orderFrontRegardless];
-		[self.window display];
-		[self.overlayView setNeedsDisplay:YES];
+		[self.window orderOut:nil];
+		[self.window setCollectionBehavior:NSWindowCollectionBehaviorDefault];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			self.windowServerReattachScheduled = NO;
+			if (!self.shouldBeVisible || ![self hasDrawableFrame])
+				return;
+
+			self.needsWindowServerReattach = NO;
+			[self applyOverlayCollectionBehavior];
+			[self.window setIsVisible:YES];
+			[self.window orderFrontRegardless];
+			[self.window display];
+			[self.overlayView setNeedsDisplay:YES];
+		});
 	});
+}
+
+- (void)reattachToAllSpacesIfVisible {
+	[self reattachToAllSpacesIfVisibleAfterDelay:0];
+}
+
+// A healthy CanJoinAllSpaces window is already on the new Space, so a Space
+// change needs no WindowServer work; only repair a window macOS dropped.
+- (void)reassertOverlayOnActiveSpace {
+	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
+		return;
+
+	if (self.window.isVisible && self.window.isOnActiveSpace)
+		return;
+
+	[self.window setLevel:kCGMaximumWindowLevel];
+	[self applyOverlayCollectionBehavior];
+	[self.window orderFrontRegardless];
+	[self.overlayView setNeedsDisplay:YES];
 }
 
 - (void)handleActiveSpaceDidChange:(NSNotification *)notification {
 	(void)notification;
-	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
-		return;
-
 	if ([NSThread isMainThread]) {
-		[self.window setLevel:kCGMaximumWindowLevel];
-		[self applyOverlayCollectionBehavior];
-		[self.window orderFrontRegardless];
-		[self.overlayView setNeedsDisplay:YES];
+		[self reassertOverlayOnActiveSpace];
 		return;
 	}
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
-			return;
-		[self.window setLevel:kCGMaximumWindowLevel];
-		[self applyOverlayCollectionBehavior];
-		[self.window orderFrontRegardless];
-		[self.overlayView setNeedsDisplay:YES];
+		[self reassertOverlayOnActiveSpace];
 	});
 }
 
@@ -1836,13 +1857,13 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	(void)notification;
 	if ([NSThread isMainThread]) {
 		self.needsWindowServerReattach = YES;
-		[self reattachToAllSpacesIfVisible];
+		[self reattachToAllSpacesIfVisibleAfterDelay:kNeruWindowServerReattachDebounceNs];
 		return;
 	}
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		self.needsWindowServerReattach = YES;
-		[self reattachToAllSpacesIfVisible];
+		[self reattachToAllSpacesIfVisibleAfterDelay:kNeruWindowServerReattachDebounceNs];
 	});
 }
 
@@ -2021,9 +2042,11 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 
 	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
+	// Hiding keeps the window-server attachment intact, so it must not set
+	// needsWindowServerReattach — only invalidation events (sleep, display
+	// reconfiguration) do.
 	if ([NSThread isMainThread]) {
 		controller.shouldBeVisible = NO;
-		controller.needsWindowServerReattach = YES;
 		[controller.window orderOut:nil];
 		// Shrink to 1x1 to release the large backing store (saves ~47MB per
 		// Retina-resolution full-screen window). The next resize/show call
@@ -2034,7 +2057,6 @@ void NeruHideOverlayWindow(OverlayWindow window) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
 				controller.shouldBeVisible = NO;
-				controller.needsWindowServerReattach = YES;
 				[controller.window orderOut:nil];
 				[controller.window setFrame:NSMakeRect(0, 0, 1, 1) display:NO];
 				[controller.overlayView setFrame:NSMakeRect(0, 0, 1, 1)];
