@@ -117,25 +117,16 @@ func (c *Cell) Center() image.Point {
 	return c.center
 }
 
-// NewGrid creates a grid with automatically optimized cell sizes for the screen.
-// Cell sizes are dynamically calculated based on screen dimensions, resolution, and aspect ratio
-// to ensure optimal precision and usability across all display types.
+// NewGrid creates a grid whose cell size is chosen from the screen area, so a
+// small display gets finer cells than a large one. See the ScreenArea constants
+// for the thresholds.
 //
-// Grid layout uses spatial regions for predictable navigation:
-//   - Each region is identified by the first character (Region A, Region B, etc.)
-//   - Within each region, coordinates flow left-to-right, top-to-bottom
-//   - Region A: AAA, ABA, ACA (left-to-right), then AAB, ABB, ACB (next row)
-//   - Regions flow left-to-right until screen width is filled
-//   - Next region starts on new row below, continuing the pattern
-//   - This allows users to think: "C** coordinates are in region C on the screen"
+// Labels are grouped into regions named by their first character: within region
+// A the cells run AAA, ABA, ACA left to right, then AAB, ABB, ACB on the next
+// row, and regions themselves fill left to right and then wrap. That is what
+// lets a user read "C**" as "somewhere in region C".
 //
-// Cell sizing is fully automatic based on screen characteristics:
-//   - Very small screens (<1.5M pixels): 25-60px cells for maximum precision
-//   - Small-medium screens (1.5-2.5M pixels): 30-80px cells
-//   - Medium-large screens (2.5-4M pixels): 40-100px cells
-//   - Very large screens (>4M pixels): 50-120px cells
-//
-// If rowLabels or colLabels are empty, they will be inferred from characters.
+// Empty rowLabels or colLabels are inferred from characters.
 func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Grid {
 	return NewGridWithLabels(characters, "", "", bounds, logger)
 }

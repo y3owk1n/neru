@@ -142,24 +142,21 @@ type SystemPort interface {
 
 // Optional SystemPort extensions.
 //
-// Some platforms can do a job better than the shared code can, but not every
-// platform can do it at all — so the capability cannot go on SystemPort without
-// forcing every adapter to carry a stub. These interfaces are the declared
-// alternative: an adapter opts in by implementing one, and the caller reaches
-// it with a type assertion against the interface *declared here*.
+// Some platforms can do a job better than the shared code, but not every
+// platform can do it at all, so the capability cannot go on SystemPort without
+// forcing every adapter to carry a stub. An adapter opts in by implementing one
+// of these instead, and the caller reaches it by type assertion.
 //
-// The rules that keep this from becoming folklore:
+// Three rules:
 //
-//   - Declare the interface in this package, next to the port it extends.
-//     Never define one in the consuming package — a contributor on another
-//     platform has no way to discover an interface that lives in a service.
-//   - The caller must have a working fallback for adapters that do not
-//     implement it. An optional extension is an optimization or a
-//     platform-native shortcut, never the only path.
-//   - Document which adapters implement it and why the others cannot.
+//   - Declare the interface here, beside the port it extends. One defined in
+//     the consuming package is undiscoverable to someone on another platform.
+//   - The caller needs a working fallback. An optional extension is an
+//     optimization or a native shortcut, never the only path.
+//   - Say which adapters implement it and why the others cannot.
 //
-// See docs/CROSS_PLATFORM.md ("The three tiers") for when to reach for this
-// instead of adding a method to SystemPort.
+// See docs/CROSS_PLATFORM.md ("The three tiers") for when to use one of these
+// rather than adding a method to SystemPort.
 
 // RelativeCursorMover is an optional SystemPort extension for platforms that
 // can move the cursor by a delta natively, without a read-then-warp round trip.

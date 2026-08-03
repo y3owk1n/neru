@@ -53,34 +53,30 @@ type cursorRequest struct {
 	durationPerPixel float64
 }
 
-// smoothCursorAnimator animates cursor movement toward a target by stepping a
-// backend move function over time. It mirrors the darwin animator's semantics:
-// a single worker goroutine, latest-target-wins coalescing, and a completion
-// channel that WaitForCursorIdle blocks on.
+// smoothCursorAnimator glides the cursor toward a target by stepping a backend
+// move function over time. It matches the darwin animator: one worker
+// goroutine, latest-target-wins, and a completion channel WaitForCursorIdle
+// blocks on.
 //
-// Like the darwin animator it is preemptive and fire-and-forget: callers do not
-// serialize cursor access (IPC, hotkey, and event-tap paths all drive moves
-// concurrently), so a bypassed/direct move cancels an in-flight animation and
-// the last writer wins. stop() fences on injectSem so a bypassed direct warp is
-// reliably ordered after any in-flight animation step — a canceled tween can
-// never land back at an intermediate point after the warp. Backend move errors
-// during an animation are best-effort and not reported through
-// WaitForCursorIdle — matching darwin, whose native move call cannot fail back
-// to Go. The direct (non-smooth) MoveCursorToPoint path still returns backend
-// errors synchronously; only the opt-in animated path degrades to best-effort.
+// It is preemptive and fire-and-forget, because callers do not serialize cursor
+// access — IPC, hotkey and event-tap paths all drive moves at once — so a direct
+// move cancels an animation in flight and the last writer wins. stop() fences on
+// injectSem so a direct warp is ordered after any in-flight step; without that a
+// canceled tween could land back at an intermediate point after the warp.
 //
-// Completion is tracked per *session*, not per request. A session begins when
-// an idle animator receives a target and ends when the queue drains. All
-// targets that arrive while the session is busy — including coalesced
-// replacements — share the one session completion, so a waiter stays attached
-// until the cursor reaches the latest target rather than being released when an
-// intermediate target is superseded.
+// Backend errors during an animation are dropped rather than reported through
+// WaitForCursorIdle, matching darwin, whose native move cannot fail back to Go.
+// The direct MoveCursorToPoint path still returns them.
 //
-// The X11/Wayland injection detail is kept out of the animator by injecting
-// pos/move at construction: pos samples the current cursor once per request
-// (interpolation is then purely mathematical, so a stale Wayland cache only
-// affects the glide path, never the final landing point) and move performs one
-// instantaneous warp.
+// Completion is per session, not per request: a session starts when an idle
+// animator gets a target and ends when the queue drains. Every target arriving
+// mid-session shares that one completion, so a waiter stays attached until the
+// cursor reaches the latest target instead of being released when an
+// intermediate one is superseded.
+//
+// pos and move are injected at construction to keep X11/Wayland detail out of
+// here. pos samples the cursor once per request, so a stale Wayland cache
+// affects only the glide path and never where the cursor lands.
 type smoothCursorAnimator struct {
 	pos  func() image.Point
 	move func(image.Point) error

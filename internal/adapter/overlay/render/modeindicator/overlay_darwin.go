@@ -132,25 +132,21 @@ func (o *Overlay) ResizeToActiveScreen() {
 	// No-op: positioning is handled dynamically in DrawModeIndicator.
 }
 
-// DrawModeIndicator draws a mode label at the specified position.
-// The mode parameter is the overlay mode string matching domain.ModeName*
-// constants (e.g. "hints", "grid", "scroll", "recursive_grid").
-// The label text is resolved from config,
-// allowing users to customize (or hide) each mode's indicator text.
-// The caller handles calling Show() once before the first draw
-// (e.g. in startModeIndicatorPolling) rather than showing every tick.
+// DrawModeIndicator draws a mode label at the given position. mode is an
+// overlay mode string matching the domain.ModeName* constants ("hints", "grid",
+// "scroll", "recursive_grid"); the label text comes from config, so a user can
+// change or hide it. The caller calls Show() once before the first draw rather
+// than every tick — see startModeIndicatorPolling.
 //
-// xCoordinate and yCoordinate are absolute Quartz screen coordinates.
-// The overlay positions a small window around the indicator badge
-// instead of using a full-screen window, saves some memory of backing store
-// per Retina display. The native side clamps the window to a single
-// display to prevent the multi-monitor flicker regression.
+// xCoordinate and yCoordinate are absolute Quartz screen coordinates. The
+// overlay uses a small window around the badge rather than a full-screen one,
+// which saves a backing store per Retina display. The native side clamps that
+// window to one display, which is what fixed the multi-monitor flicker.
 //
-// IMPORTANT: This method must only be called from a single goroutine at a
-// time. The shared styleCache is invalidated and repopulated based on the
-// current mode; concurrent calls with different modes would cause one caller
-// to receive another mode's cached colors. This invariant is currently
-// enforced by startModeIndicatorPolling's single-poller guard.
+// Only one goroutine may call this at a time: styleCache is invalidated and
+// refilled per mode, so concurrent calls with different modes would hand one
+// caller the other's colors. startModeIndicatorPolling's single-poller guard is
+// what enforces that today.
 func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 	// Hold configMu.RLock for entire draw to prevent SetConfig from
 	// writing to indicatorConfig while we read it.

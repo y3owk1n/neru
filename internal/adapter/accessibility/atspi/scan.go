@@ -65,26 +65,23 @@ func isNonTargetSurfaceApp(name string) bool {
 	}
 }
 
-// findActiveFrame locates the focused top-level window across all registered
-// applications.
+// findActiveFrame locates the focused top-level window across all applications.
 //
-// The primary signal on Wayland is the compositor's focused app_id from
-// wlr-foreign-toplevel-management (wlroots/KWin): the AT-SPI ACTIVE state is
-// unreliable there — wlroots compositors such as niri/Sway/Hyprland leave the
-// genuinely focused window ACTIVE=false while background frames report
-// ACTIVE=true — so a frame whose application matches the focused app_id wins
-// over the ACTIVE heuristic. When no app_id is available (X11, GNOME, or the
-// focused app exposes no AT-SPI frame) we fall back to the ACTIVE-state
-// heuristic: prefer ACTIVE+SHOWING, then any ACTIVE, then any SHOWING frame.
+// On Wayland the compositor's focused app_id (from
+// wlr-foreign-toplevel-management) is the signal to trust, because AT-SPI's
+// ACTIVE state lies there: niri, Sway and Hyprland leave the genuinely focused
+// window ACTIVE=false while background frames report ACTIVE=true. A frame whose
+// application matches the app_id therefore beats the ACTIVE heuristic.
 //
-// If a focused app_id is reported but no AT-SPI application matched it, the
-// ACTIVE/SHOWING fallback is used only on KWin/KDE, where ACTIVE reliably marks
-// the focused window. On other Wayland compositors (wlroots) the fallback —
-// including the desktop-shell last resort — could return a background surface,
-// so no frame is returned and hints simply do not appear.
-// The focusedAppID and focusedTitle are the caller's single focus snapshot
-// (empty on X11, GNOME, or when nothing is focused), used so the selected frame
-// and the identity recorded for the stability check come from the same read.
+// Without an app_id (X11, GNOME, or a focused app exposing no AT-SPI frame) the
+// heuristic is all we have: ACTIVE+SHOWING, then any ACTIVE, then any SHOWING.
+//
+// If an app_id is reported but matches no AT-SPI application, that fallback runs
+// only on KWin/KDE, where ACTIVE is reliable. On wlroots it could return a
+// background surface, so nothing is returned and hints just do not appear.
+//
+// focusedAppID and focusedTitle are the caller's one focus snapshot, so the
+// frame chosen and the identity recorded for the stability check agree.
 func (c *Client) findActiveFrame(
 	ctx context.Context,
 	conn *dbus.Conn,

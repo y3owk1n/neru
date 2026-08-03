@@ -31,13 +31,13 @@ const cfRunLoopRunFinished = 1
 // exit code testMain produced.
 //
 // Native work Neru depends on — building the keyboard layout maps, creating a
-// CGEventTap — is dispatched to the main queue, which is only drained while the
-// main run loop runs. The daemon starts that loop (see cmd/neru), but a `go
-// test` binary never does, so without this helper those dispatches are never
-// serviced: dispatch_async work silently times out (leaving, for example, an
-// empty keymap so every key name fails to parse) and dispatch_sync deadlocks.
-// Whether a test hit that depended on which OS thread the Go scheduler happened
-// to run it on, which is what made the macOS integration tests flaky.
+// CGEventTap — is dispatched to the main queue, which only drains while the main
+// run loop runs. The daemon starts that loop (see cmd/neru); a `go test` binary
+// never does. Without this helper those dispatches are never serviced:
+// dispatch_async silently times out, leaving an empty keymap so every key name
+// fails to parse, and dispatch_sync deadlocks. Whether a given test hit it
+// depended on which OS thread the scheduler picked, which is what made the macOS
+// integration tests flaky.
 //
 // Call it from TestMain, and lock the main thread from an init function in the
 // same package so TestMain is guaranteed to run on it:

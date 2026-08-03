@@ -81,6 +81,7 @@ func curGoroutineID() uint64 {
 
 	n := runtime.Stack(buf[:], false)
 	idx := goroutinePrefixLen
+
 	for idx < n && buf[idx] >= '0' && buf[idx] <= '9' {
 		idx++
 	}
