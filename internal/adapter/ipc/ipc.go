@@ -40,6 +40,10 @@ const (
 	// PingTimeout is the timeout for ping operations.
 	PingTimeout = 500 * time.Millisecond
 
+	// listenerCloseTimeout bounds how long Stop waits for the listener to
+	// close. See closeListener for why the close can fail to return at all.
+	listenerCloseTimeout = 2 * time.Second
+
 	// DefaultSocketPerms is the default socket permissions.
 	DefaultSocketPerms = 0o600
 
@@ -190,11 +194,9 @@ func (s *Server) Start() {
 
 // Stop terminates the IPC server and cleans up resources.
 func (s *Server) Stop() error {
-	if s.listener != nil {
-		closeListenerErr := s.listener.Close()
-		if closeListenerErr != nil {
-			return derrors.Wrap(closeListenerErr, derrors.CodeIPCFailed, "failed to close listener")
-		}
+	closeListenerErr := s.closeListener()
+	if closeListenerErr != nil {
+		return derrors.Wrap(closeListenerErr, derrors.CodeIPCFailed, "failed to close listener")
 	}
 
 	done := make(chan struct{})
@@ -222,6 +224,45 @@ func (s *Server) Stop() error {
 	}
 
 	return nil
+}
+
+// closeListener closes the listener, giving up if the close does not return.
+//
+// On Windows the named-pipe listener can block here forever. Its close signal is
+// a single send on an unbuffered channel, and an accept that is part-way through
+// aborting a connection consumes that signal instead of the listener loop. If
+// the aborted connect then reports that the client had already disconnected, the
+// listener retries and waits for a second close signal that nobody will ever
+// send. A client that connects and immediately goes away is entirely ordinary —
+// every `neru status` probe does exactly that — so a shutdown racing a probe can
+// reach it.
+//
+// Shutdown is the only caller. Abandoning the listener costs one goroutine and
+// one handle that the exiting process is about to release anyway, whereas
+// waiting leaves the daemon unable to exit at all.
+func (s *Server) closeListener() error {
+	if s.listener == nil {
+		return nil
+	}
+
+	closed := make(chan error, 1)
+
+	go func() {
+		closed <- s.listener.Close()
+	}()
+
+	timer := time.NewTimer(listenerCloseTimeout)
+	defer timer.Stop()
+
+	select {
+	case closeErr := <-closed:
+		return closeErr
+	case <-timer.C:
+		s.logger.Warn("Timed out closing the IPC listener; abandoning it",
+			zap.Duration("waited", listenerCloseTimeout))
+
+		return nil
+	}
 }
 
 // handleConnection processes a single client connection and executes the received command.
