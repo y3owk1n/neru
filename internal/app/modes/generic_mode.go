@@ -45,20 +45,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 		// Default activation - try to activate with action
 		switch m.modeType {
 		case domain.ModeHints:
-			m.handler.activateHintModeWithAction(
-				opts.Action,
-				opts.Modifier,
-				opts.Repeat,
-				opts.CursorFollowSelection,
-				opts.FilterRoles,
-				opts.FilterTextContains,
-				opts.Search,
-				opts.HideOnEmptySearch,
-				opts.Strategy,
-				opts.LabelDirection,
-				opts.SplitWord,
-				opts.OnExit,
-			)
+			m.handler.activateHintModeWithAction(opts)
 		case domain.ModeGrid:
 			m.handler.activateGridModeWithAction(
 				opts.Action,

@@ -260,19 +260,17 @@ func (h *Handler) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(
-					nil,
-					nil,
-					&cursorFollowSelection,
-					filterRoles,
-					filterTextContains,
-					&startWithSearch,
-					nil,
-					&strategyOverride,
-					&labelDirectionOverride,
-					&splitWord,
-					nil, // preserve the stored --on-exit action across re-activation
-				)
+				h.activateHintModeInternal(ModeActivationOptions{
+					CursorFollowSelection: &cursorFollowSelection,
+					FilterRoles:           filterRoles,
+					FilterTextContains:    filterTextContains,
+					Search:                &startWithSearch,
+					Strategy:              &strategyOverride,
+					LabelDirection:        &labelDirectionOverride,
+					SplitWord:             &splitWord,
+					// OnExit is left nil to preserve the stored steps across
+					// re-activation.
+				})
 				// Restore repeat, action and modifier on the fresh context so subsequent
 				// selections continue the repeat cycle.
 				// Guard: only restore if re-activation succeeded (mode is still hints).

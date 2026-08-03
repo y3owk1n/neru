@@ -851,19 +851,16 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 		splitWord := h.hints.Context.SplitWord()
 
 		h.executeActionAtPoint(pendingAction, pendingModifier, center, repeat, func() {
-			h.activateHintModeInternal(
-				nil,
-				nil,
-				nil,
-				filterRoles,
-				filterTextContains,
-				&startWithSearch,
-				nil,
-				&strategyOverride,
-				&labelDirectionOverride,
-				&splitWord,
-				nil, // preserve the stored --on-exit action across re-activation
-			)
+			h.activateHintModeInternal(ModeActivationOptions{
+				FilterRoles:        filterRoles,
+				FilterTextContains: filterTextContains,
+				Search:             &startWithSearch,
+				Strategy:           &strategyOverride,
+				LabelDirection:     &labelDirectionOverride,
+				SplitWord:          &splitWord,
+				// OnExit is left nil to preserve the stored steps across
+				// re-activation.
+			})
 
 			// Restore state so subsequent cycles continue to execute the action
 			// Guard: only restore if repeat was originally set (mode is still hints).
