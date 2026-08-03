@@ -7,10 +7,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// generateCellsWithRegions creates cells using spatial region logic.
-// Each region (identified by first char) fills left-to-right, top-to-bottom.
-// Handles variable label lengths (2, 3, or 4 chars) and distributes remainder pixels
-// to ensure cells cover the entire screen bounds without gaps.
+// generateCellsWithRegions lays cells out region by region, left to right and
+// top to bottom, so labels sharing a prefix stay spatially grouped.
 func generateCellsWithRegions(
 	chars, rowChars, colChars []rune,
 	numChars, gridCols, gridRows, labelLength int,
@@ -24,17 +22,11 @@ func generateCellsWithRegions(
 		zap.Int("grid_rows", gridRows),
 		zap.Int("label_length", labelLength))
 
-	// Clamp both dimensions into [1, Max]. This function takes its dimensions as
-	// parameters rather than deriving them, so it cannot assume a caller has
-	// bounded them: a zero row count or a negative one would otherwise reach
-	// the arithmetic and the allocation below.
-	//
-	// The clamp is also what keeps the cell count safe. Both bounds are
-	// constants, so the product is at most MaxGridCols*MaxGridRows.
-	//
-	// Explicit comparisons rather than min/max: this is the form the rest of
-	// the file uses, and the form static analysis follows when proving the
-	// bound on the allocation.
+	// Clamp both dimensions into [1, Max]. Dimensions arrive as parameters, so
+	// a zero or negative count would otherwise reach the arithmetic below, and
+	// the constant bounds are what keep the cell count allocation-safe.
+	// Explicit comparisons, not min/max: static analysis follows this form when
+	// proving the allocation bound.
 	if gridCols < 1 {
 		gridCols = 1
 	}
@@ -51,46 +43,142 @@ func generateCellsWithRegions(
 		gridRows = MaxGridRows
 	}
 
-	// cellCapacity is how many cells the grid can hold — the loop's stop
-	// condition. Both dimensions are clamped to constants above, so it is at
-	// most MaxGridCols*MaxGridRows.
+	// The loop's stop condition. A ceiling, not a count: how many cells the
+	// region walk produces depends on how regions tile the grid, so cells is
+	// grown by append rather than pre-sized.
 	cellCapacity := gridCols * gridRows
 
-	// Grown by append. How many cells the region walk below actually produces
-	// depends on how the regions tile the grid, so cellCapacity is a ceiling
-	// rather than a count — pre-sizing to it would return trailing nil entries
-	// the caller would have to trim.
 	var cells []*Cell
 
-	// Calculate region dimensions based on label length
-	// Each region is a group of cells sharing the same prefix character(s)
-	var regionCols, regionRows int
+	regionCols, regionRows := regionSpan(rowChars, colChars, labelLength)
+	xStarts, yStarts := cellEdges(bounds, gridCols, gridRows,
+		baseCellWidth, baseCellHeight, remainderWidth, remainderHeight)
 
-	// Adjust region size based on label length and available characters
-	switch labelLength {
-	case LabelLength2:
-		// For 2-char labels: each region is len(colChars) x 1
-		regionCols = len(colChars)
-		regionRows = 1
-	case LabelLength3:
-		// For 3-char labels: region + col + row
-		regionCols = len(colChars)
-		regionRows = len(rowChars)
-	default:
-		// For 4-char labels: region1 + region2 + col + row
-		regionCols = len(colChars)
-		regionRows = len(rowChars)
-	}
-
-	// Track current position as we fill regions
 	currentCol := 0
 	currentRow := 0
-
-	// Iterate through regions (first character)
 	regionIndex := 0
-	maxRegions := numChars * numChars // Maximum regions we might need
+	maxRegions := numChars * numChars
 
-	// Precompute x/y starts to avoid inner summation loops
+	for regionIndex < maxRegions && currentRow < gridRows {
+		regionChar1, regionChar2 := regionPrefix(chars, numChars, regionIndex, labelLength)
+
+		colsForRegion := gridMin(regionCols, gridCols-currentCol)
+		rowsForRegion := gridMin(regionRows, gridRows-currentRow)
+
+		for rowIndex := range rowsForRegion {
+			for colIndex := range colsForRegion {
+				globalCol := currentCol + colIndex
+				globalRow := currentRow + rowIndex
+
+				if globalCol >= gridCols || globalRow >= gridRows {
+					break
+				}
+
+				coordinate := cellCoordinate(
+					labelLength, regionChar1, regionChar2,
+					colChars, rowChars, colIndex, rowIndex,
+				)
+
+				// Distribute the remainder pixels across the leading cells.
+				cellWidth := baseCellWidth
+				if globalCol < remainderWidth {
+					cellWidth++
+				}
+
+				cellHeight := baseCellHeight
+				if globalRow < remainderHeight {
+					cellHeight++
+				}
+
+				xCoordinate := xStarts[globalCol]
+				yCoordinate := yStarts[globalRow]
+
+				cells = append(cells, &Cell{
+					coordinate: coordinate,
+					bounds: image.Rect(
+						xCoordinate, yCoordinate,
+						xCoordinate+cellWidth, yCoordinate+cellHeight,
+					),
+					center: image.Point{
+						X: xCoordinate + gridRound(cellWidth),
+						Y: yCoordinate + gridRound(cellHeight),
+					},
+				})
+			}
+		}
+
+		currentCol += colsForRegion
+		if currentCol >= gridCols {
+			currentCol = 0
+			currentRow += rowsForRegion
+		}
+
+		regionIndex++
+
+		if len(cells) >= cellCapacity {
+			break
+		}
+	}
+
+	return cells
+}
+
+// regionSpan returns how many columns and rows one region covers.
+func regionSpan(rowChars, colChars []rune, labelLength int) (int, int) {
+	if labelLength == LabelLength2 {
+		return len(colChars), 1
+	}
+
+	return len(colChars), len(rowChars)
+}
+
+// regionPrefix returns the one or two characters naming a region.
+func regionPrefix(chars []rune, numChars, regionIndex, labelLength int) (rune, rune) {
+	if labelLength == LabelLength2 || labelLength == LabelLength3 {
+		return chars[regionIndex%numChars], 0
+	}
+
+	return chars[regionIndex/numChars%numChars], chars[regionIndex%numChars]
+}
+
+// cellCoordinate builds one cell's label: the region prefix, then the column
+// character, then (for longer labels) the row character.
+func cellCoordinate(
+	labelLength int,
+	regionChar1, regionChar2 rune,
+	colChars, rowChars []rune,
+	colIndex, rowIndex int,
+) string {
+	var stringBuilder strings.Builder
+
+	switch labelLength {
+	case LabelLength2:
+		stringBuilder.Grow(StringBuilderGrow2)
+		stringBuilder.WriteRune(regionChar1)
+		stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
+	case LabelLength3:
+		stringBuilder.Grow(StringBuilderGrow3)
+		stringBuilder.WriteRune(regionChar1)
+		stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
+		stringBuilder.WriteRune(rowChars[rowIndex%len(rowChars)])
+	default:
+		stringBuilder.Grow(StringBuilderGrow4)
+		stringBuilder.WriteRune(regionChar1)
+		stringBuilder.WriteRune(regionChar2)
+		stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
+		stringBuilder.WriteRune(rowChars[rowIndex%len(rowChars)])
+	}
+
+	return stringBuilder.String()
+}
+
+// cellEdges precomputes each column's left edge and each row's top edge, with
+// the remainder pixels spread across the leading cells.
+func cellEdges(
+	bounds image.Rectangle,
+	gridCols, gridRows,
+	baseCellWidth, baseCellHeight, remainderWidth, remainderHeight int,
+) ([]int, []int) {
 	xStarts := make([]int, gridCols)
 	yStarts := make([]int, gridRows)
 
@@ -112,123 +200,7 @@ func generateCellsWithRegions(
 		}
 	}
 
-	// Iterate through regions, filling the grid left-to-right, top-to-bottom
-	for regionIndex < maxRegions && currentRow < gridRows {
-		// Determine region identifier character(s) based on label length
-		var regionChar1, regionChar2 rune
-
-		switch labelLength {
-		case LabelLength2:
-			regionChar1 = chars[regionIndex%numChars]
-		case LabelLength3:
-			regionChar1 = chars[regionIndex%numChars]
-		default: // 4 chars
-			regionChar1 = chars[regionIndex/numChars%numChars]
-			regionChar2 = chars[regionIndex%numChars]
-		}
-
-		// Calculate how many columns this region can occupy
-		colsAvailable := gridCols - currentCol
-		colsForRegion := gridMin(regionCols, colsAvailable)
-
-		// Calculate how many rows this region can occupy
-		rowsAvailable := gridRows - currentRow
-		rowsForRegion := gridMin(regionRows, rowsAvailable)
-
-		// Fill this region
-		for rowIndex := range rowsForRegion {
-			for colIndex := range colsForRegion {
-				globalCol := currentCol + colIndex
-				globalRow := currentRow + rowIndex
-
-				if globalCol >= gridCols || globalRow >= gridRows {
-					break
-				}
-
-				// Generate coordinate for this cell
-				// Second char = column within region, third char = row within region
-				var coordinate string
-
-				switch labelLength {
-				case LabelLength2:
-					// Use strings.Builder for efficient string concatenation
-					var stringBuilder strings.Builder
-					stringBuilder.Grow(StringBuilderGrow2)
-					stringBuilder.WriteRune(regionChar1)
-					stringBuilder.WriteRune(colChars[colIndex%len(colChars)])
-					coordinate = stringBuilder.String()
-				case LabelLength3:
-					// First char = region, second char = column, third char = row
-					char2 := colChars[colIndex%len(colChars)] // column
-					char3 := rowChars[rowIndex%len(rowChars)] // row
-
-					var stringBuilder strings.Builder
-					stringBuilder.Grow(StringBuilderGrow3)
-					stringBuilder.WriteRune(regionChar1)
-					stringBuilder.WriteRune(char2)
-					stringBuilder.WriteRune(char3)
-					coordinate = stringBuilder.String()
-				default: // 4 chars
-					// First 2 chars = region, third char = column, fourth char = row
-					char3 := colChars[colIndex%len(colChars)] // column
-					char4 := rowChars[rowIndex%len(rowChars)] // row
-
-					var stringBuilder strings.Builder
-					stringBuilder.Grow(StringBuilderGrow4)
-					stringBuilder.WriteRune(regionChar1)
-					stringBuilder.WriteRune(regionChar2)
-					stringBuilder.WriteRune(char3)
-					stringBuilder.WriteRune(char4)
-					coordinate = stringBuilder.String()
-				}
-
-				// Calculate cell dimensions with remainder distribution
-				cellWidth := baseCellWidth
-				if globalCol < remainderWidth {
-					cellWidth++
-				}
-
-				cellHeight := baseCellHeight
-				if globalRow < remainderHeight {
-					cellHeight++
-				}
-
-				xCoordinate := xStarts[globalCol]
-				yCoordinate := yStarts[globalRow]
-
-				cell := &Cell{
-					coordinate: coordinate,
-					bounds: image.Rect(
-						xCoordinate, yCoordinate,
-						xCoordinate+cellWidth, yCoordinate+cellHeight,
-					),
-					center: image.Point{
-						X: xCoordinate + gridRound(cellWidth),
-						Y: yCoordinate + gridRound(cellHeight),
-					},
-				}
-				cells = append(cells, cell)
-			}
-		}
-
-		// Move to next region position
-		currentCol += colsForRegion
-
-		// If we've filled the row width, move to next row
-		if currentCol >= gridCols {
-			currentCol = 0
-			currentRow += rowsForRegion
-		}
-
-		regionIndex++
-
-		// Stop if we've filled the entire screen
-		if len(cells) >= cellCapacity {
-			break
-		}
-	}
-
-	return cells
+	return xStarts, yStarts
 }
 
 // regionShape returns how many columns and rows one region spans, and how many

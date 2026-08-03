@@ -131,15 +131,14 @@ func NewGrid(characters string, bounds image.Rectangle, logger *zap.Logger) *Gri
 }
 
 // NewGridWithLabels creates a grid with custom row and column labels.
-// If rowLabels or colLabels are empty, they will be inferred from characters.
+// Empty rowLabels or colLabels are inferred from characters.
 func NewGridWithLabels(
 	characters, rowLabels, colLabels string,
 	bounds image.Rectangle,
 	logger *zap.Logger,
 ) *Grid {
 	// Constructors in this tree accept a nil logger and fall back to a no-op
-	// rather than panicking on first use. Without this the daemon dies with a
-	// nil dereference on any path that builds a grid before logging is wired.
+	// rather than panicking on first use.
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -151,35 +150,7 @@ func NewGridWithLabels(
 		zap.Int("bounds_width", bounds.Dx()),
 		zap.Int("bounds_height", bounds.Dy()))
 
-	if characters == "" {
-		characters = "abcdefghijklmnopqrstuvwxyz"
-	}
-	// Cache uppercase conversion once at the start
-	uppercaseChars := strings.ToUpper(characters)
-	chars := []rune(uppercaseChars)
-	numChars := len(chars)
-
-	// Ensure we have valid characters
-	if numChars < MinCharactersLength {
-		uppercaseChars = strings.ToUpper("abcdefghijklmnopqrstuvwxyz")
-		chars = []rune(uppercaseChars)
-		numChars = len(chars)
-	}
-
-	// Prepare row and column labels
-	rowChars := chars
-	colChars := chars
-
-	if rowLabels != "" {
-		rowChars = []rune(strings.ToUpper(rowLabels))
-	}
-
-	if colLabels != "" {
-		colChars = []rune(strings.ToUpper(colLabels))
-	}
-
-	numRowChars := len(rowChars)
-	numColChars := len(colChars)
+	alpha := newGridAlphabet(characters, rowLabels, colLabels)
 
 	width := bounds.Max.X - bounds.Min.X
 	height := bounds.Max.Y - bounds.Min.Y
@@ -190,32 +161,14 @@ func NewGridWithLabels(
 
 	if gridCacheEnabled {
 		if cells, ok := gridCache.get(
-			uppercaseChars,
+			alpha.characters,
 			strings.ToUpper(rowLabels),
 			strings.ToUpper(colLabels),
 			bounds,
 		); ok {
-			logger.Debug("Grid cache hit",
-				zap.Int("cell_count", len(cells)))
+			logger.Debug("Grid cache hit", zap.Int("cell_count", len(cells)))
 
-			// Pre-allocate index map with exact capacity
-			index := make(map[string]*Cell, len(cells))
-			for _, cell := range cells {
-				index[cell.Coordinate()] = cell
-			}
-
-			// Build prefix index for fast prefix matching
-			prefixes := buildPrefixIndex(cells)
-
-			return &Grid{
-				characters: uppercaseChars,
-				rowChars:   rowChars,
-				colChars:   colChars,
-				bounds:     bounds,
-				cells:      cells,
-				index:      index,
-				prefixes:   prefixes,
-			}
+			return newGridFromCells(alpha, bounds, cells)
 		}
 
 		logger.Debug("Grid cache miss")
@@ -227,7 +180,7 @@ func NewGridWithLabels(
 			zap.Int("height", height))
 
 		return &Grid{
-			characters: uppercaseChars,
+			characters: alpha.characters,
 			bounds:     bounds,
 			cells:      []*Cell{},
 			index:      make(map[string]*Cell),
@@ -235,102 +188,23 @@ func NewGridWithLabels(
 		}
 	}
 
-	// Clamp display dimensions to a practical maximum to bound candidate search
-	// work and prevent overflow in area computation. Real display bounds are
-	// typically under 30000 pixels per side; this clamp is purely defensive.
-	if width > MaxDisplayDimension {
-		width = MaxDisplayDimension
-	}
+	// Clamp to a practical maximum to bound candidate-search work and prevent
+	// overflow in area computation. Real displays are well under this.
+	width = gridMin(width, MaxDisplayDimension)
+	height = gridMin(height, MaxDisplayDimension)
 
-	if height > MaxDisplayDimension {
-		height = MaxDisplayDimension
-	}
+	gridCols, gridRows, labelLength := planGridDimensions(width, height, alpha)
 
-	// Automatically determine optimal cell size constraints based on screen characteristics
-	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height)
-
-	// Find all valid grid configurations and pick the one with best aspect ratio match
-	// This ensures cells are as square as possible for intuitive navigation
-	candidates := findValidGridConfigurations(width, height, minCellSize, maxCellSize)
-
-	// Pick the candidate with the best (lowest) score
-	gridCols, gridRows := selectBestCandidate(candidates, width, height, minCellSize, maxCellSize)
-
-	// Safety check: ensure we always have at least a 2x2 grid
-	if gridCols < MinGridCols {
-		gridCols = 2
-	}
-
-	if gridRows < MinGridRows {
-		gridRows = 2
-	}
-
-	// Clamp grid dimensions to a practical maximum to prevent allocation panics.
-	// gridCols and gridRows are screen-derived (< 300), so this is defensive.
-	if gridCols > MaxGridCols {
-		gridCols = MaxGridCols
-	}
-
-	if gridRows > MaxGridRows {
-		gridRows = MaxGridRows
-	}
-
-	// No overflow guard is needed: both dimensions are clamped to constants
-	// above, so the product is at most MaxGridCols*MaxGridRows.
-	totalCells := gridRows * gridCols
-
-	// Determine optimal label length based on total cells and available characters
-	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
-
-	// Calculate maximum possible cells we can label based on label length
-	var maxPossibleCells int
-	switch labelLength {
-	case LabelLength2:
-		maxPossibleCells = numChars * numColChars
-	case LabelLength3:
-		maxPossibleCells = numChars * numColChars * numRowChars
-	default:
-		maxPossibleCells = numChars * numChars * numColChars * numRowChars
-	}
-
-	// Cap totalCells to what we can actually label
-	if totalCells > maxPossibleCells {
-		// Calculate grid dimensions that fit within maxPossibleCells
-		gridCols = gridMax(
-			int(math.Sqrt(float64(maxPossibleCells)*float64(width)/float64(height))),
-			1,
-		)
-		gridRows = gridMax(maxPossibleCells/gridCols, 1)
-		// Update totalCells to match the actual grid dimensions
-		totalCells = gridRows * gridCols //nolint:ineffassign,staticcheck,wastedassign // totalCells is used later in calculateLabelLength
-	}
-
-	// Cells are emitted region by region, and a region that runs off the right
-	// or bottom edge is clipped — its unused capacity is forfeited. With a large
-	// character set there are far more region prefixes than the grid needs, so
-	// that waste is invisible. With a small one the regions run out mid-grid and
-	// generateCellsWithRegions stops early, leaving screen area with no cell at
-	// all: a 4-character set on 1000x3000 lost the bottom ~430px entirely.
-	//
-	// Shrink the grid until the regions can actually reach every cell. This only
-	// binds for small character sets; the default 25-character alphabet has
-	// hundreds of spare prefixes and comes through untouched.
-	gridCols, gridRows = fitToAvailableRegions(
-		gridCols, gridRows, numChars, numRowChars, numColChars, labelLength,
-	)
-
-	// Calculate base cell sizes and remainders
 	baseCellWidth := width / gridCols
 	baseCellHeight := height / gridRows
 	remainderWidth := width % gridCols
 	remainderHeight := height % gridRows
 
-	// Generate cells with spatial region logic
 	cells := generateCellsWithRegions(
-		chars,
-		rowChars,
-		colChars,
-		numChars,
+		alpha.chars,
+		alpha.rowChars,
+		alpha.colChars,
+		len(alpha.chars),
 		gridCols,
 		gridRows,
 		labelLength,
@@ -350,34 +224,125 @@ func NewGridWithLabels(
 
 	if gridCacheEnabled {
 		gridCache.put(
-			uppercaseChars,
+			alpha.characters,
 			strings.ToUpper(rowLabels),
 			strings.ToUpper(colLabels),
 			bounds,
 			cells,
 		)
-		logger.Debug("Grid cache store",
-			zap.Int("cell_count", len(cells)))
+		logger.Debug("Grid cache store", zap.Int("cell_count", len(cells)))
 	}
 
-	// Pre-allocate index map with exact capacity
+	return newGridFromCells(alpha, bounds, cells)
+}
+
+// gridAlphabet is the normalized character sets a grid is labeled from.
+type gridAlphabet struct {
+	characters string // uppercase coordinate characters
+	chars      []rune
+	rowChars   []rune
+	colChars   []rune
+}
+
+// newGridAlphabet uppercases the character sets and falls back to a-z when the
+// coordinate set is empty or too small to label anything.
+func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
+	if characters == "" {
+		characters = "abcdefghijklmnopqrstuvwxyz"
+	}
+
+	upper := strings.ToUpper(characters)
+	chars := []rune(upper)
+
+	if len(chars) < MinCharactersLength {
+		upper = strings.ToUpper("abcdefghijklmnopqrstuvwxyz")
+		chars = []rune(upper)
+	}
+
+	rowChars := chars
+	colChars := chars
+
+	if rowLabels != "" {
+		rowChars = []rune(strings.ToUpper(rowLabels))
+	}
+
+	if colLabels != "" {
+		colChars = []rune(strings.ToUpper(colLabels))
+	}
+
+	return gridAlphabet{characters: upper, chars: chars, rowChars: rowChars, colChars: colChars}
+}
+
+// newGridFromCells assembles a Grid and its lookup indexes from finished cells.
+func newGridFromCells(alpha gridAlphabet, bounds image.Rectangle, cells []*Cell) *Grid {
 	index := make(map[string]*Cell, len(cells))
 	for _, cell := range cells {
 		index[cell.Coordinate()] = cell
 	}
 
-	// Build prefix index for fast prefix matching
-	prefixes := buildPrefixIndex(cells)
-
 	return &Grid{
-		characters: uppercaseChars,
-		rowChars:   rowChars,
-		colChars:   colChars,
+		characters: alpha.characters,
+		rowChars:   alpha.rowChars,
+		colChars:   alpha.colChars,
 		bounds:     bounds,
 		cells:      cells,
 		index:      index,
-		prefixes:   prefixes,
+		prefixes:   buildPrefixIndex(cells),
 	}
+}
+
+// planGridDimensions picks the column and row counts and the label length for a
+// screen, keeping cells as square as possible and never planning more cells
+// than the alphabet can label or the regions can reach.
+func planGridDimensions(width, height int, alpha gridAlphabet) (int, int, int) {
+	numChars := len(alpha.chars)
+	numRowChars := len(alpha.rowChars)
+	numColChars := len(alpha.colChars)
+
+	minCellSize, maxCellSize := calculateOptimalCellSizes(width, height)
+	candidates := findValidGridConfigurations(width, height, minCellSize, maxCellSize)
+	gridCols, gridRows := selectBestCandidate(candidates, width, height, minCellSize, maxCellSize)
+
+	gridCols = gridMax(gridCols, MinGridCols)
+	gridRows = gridMax(gridRows, MinGridRows)
+
+	// Defensive: dimensions are screen-derived (< 300), the clamp prevents
+	// allocation panics on absurd input.
+	gridCols = gridMin(gridCols, MaxGridCols)
+	gridRows = gridMin(gridRows, MaxGridRows)
+
+	totalCells := gridRows * gridCols
+	labelLength := calculateLabelLength(totalCells, numChars, numRowChars, numColChars)
+
+	var maxPossibleCells int
+	switch labelLength {
+	case LabelLength2:
+		maxPossibleCells = numChars * numColChars
+	case LabelLength3:
+		maxPossibleCells = numChars * numColChars * numRowChars
+	default:
+		maxPossibleCells = numChars * numChars * numColChars * numRowChars
+	}
+
+	// Cap the grid to what the alphabet can label.
+	if totalCells > maxPossibleCells {
+		gridCols = gridMax(
+			int(math.Sqrt(float64(maxPossibleCells)*float64(width)/float64(height))),
+			1,
+		)
+		gridRows = gridMax(maxPossibleCells/gridCols, 1)
+	}
+
+	// Cells are emitted region by region and a clipped region forfeits its
+	// unused capacity. A small character set can run out of regions mid-grid,
+	// leaving screen area with no cell at all (a 4-character set on 1000x3000
+	// lost the bottom ~430px). Shrink until the regions reach every cell; the
+	// default 25-character alphabet comes through untouched.
+	gridCols, gridRows = fitToAvailableRegions(
+		gridCols, gridRows, numChars, numRowChars, numColChars, labelLength,
+	)
+
+	return gridCols, gridRows, labelLength
 }
 
 // Characters returns the characters used for coordinates.
