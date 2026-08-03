@@ -11,9 +11,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
-
-const windowsKeyUpPrefix = "__keyup_"
 
 // EventTap is a keyboard event interceptor on Windows.
 type EventTap struct {
@@ -173,16 +172,16 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 		return false
 	}
 
-	if mod := normalizeWindowsModifier(key); mod != "" {
+	if mod := keyvocab.CanonicalModifier(key); mod != "" {
 		if et.stickyToggleEnabled() {
-			et.dispatchKey(windowsModifierToggleEvent(mod, !isUp))
+			et.dispatchKey(keyvocab.ModifierToggleEvent(mod, !isUp))
 		}
 
 		return false
 	}
 
 	if isUp {
-		if keyUp := windowsKeyUpEvent(key); keyUp != "" {
+		if keyUp := keyvocab.KeyUpEvent(key); keyUp != "" {
 			et.dispatchKey(keyUp)
 		}
 
@@ -193,7 +192,7 @@ func (et *EventTap) handleKey(key string, isUp bool) bool {
 	// to the application so system shortcuts like Ctrl+C, Alt+Tab, Win+D still
 	// work while a mode is active. The mode handler still receives the key for
 	// hotkey matching.
-	normalized := normalizeWindowsKey(key)
+	normalized := keyvocab.NormalizeKey(key)
 
 	lower := strings.ToLower(normalized)
 	if strings.Contains(lower, "ctrl+") || strings.Contains(lower, "alt+") ||
@@ -227,79 +226,4 @@ func (et *EventTap) stickyToggleEnabled() bool {
 	defer et.mu.RUnlock()
 
 	return et.stickyModifierToggle
-}
-
-func normalizeWindowsModifier(key string) string {
-	switch strings.ToLower(strings.TrimSpace(key)) {
-	case "ctrl", "control":
-		return "ctrl"
-	case "alt", "option":
-		return "alt"
-	case "shift":
-		return "shift"
-	case "cmd", "command", "win", "super", "meta":
-		return "cmd"
-	default:
-		return ""
-	}
-}
-
-func windowsModifierToggleEvent(modifier string, isDown bool) string {
-	suffix := "up"
-	if isDown {
-		suffix = "down"
-	}
-
-	return "__modifier_" + modifier + "_" + suffix
-}
-
-func windowsKeyUpEvent(key string) string {
-	key = normalizeWindowsKey(key)
-	if key == "" {
-		return ""
-	}
-
-	parts := strings.Split(key, "+")
-	baseKey := parts[len(parts)-1]
-
-	return windowsKeyUpPrefix + baseKey
-}
-
-func normalizeWindowsKey(key string) string {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return ""
-	}
-
-	parts := strings.Split(key, "+")
-	baseKey := parts[len(parts)-1]
-
-	switch strings.ToLower(baseKey) {
-	case "return", "enter":
-		baseKey = "Return"
-	case "space":
-		baseKey = "Space"
-	case "tab":
-		baseKey = "Tab"
-	case "escape", "esc":
-		baseKey = "Escape"
-	case "backspace":
-		baseKey = "Delete"
-	case "left":
-		baseKey = "Left"
-	case "right":
-		baseKey = "Right"
-	case "up":
-		baseKey = "Up"
-	case "down":
-		baseKey = "Down"
-	default:
-		if len([]rune(baseKey)) == 1 {
-			baseKey = strings.ToLower(baseKey)
-		}
-	}
-
-	parts[len(parts)-1] = baseKey
-
-	return strings.Join(parts, "+")
 }

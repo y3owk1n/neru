@@ -8,9 +8,12 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
-const modifierTogglePrefix = "__modifier_"
+// modifierTogglePrefix aliases the shared wire vocabulary so the many prefix
+// checks in this package stay short.
+const modifierTogglePrefix = keyvocab.ModifierTogglePrefix
 
 // modifierToggleDebounce is the short quiet window after modifier release
 // before we commit a sticky toggle. If a regular key arrives in this window,
@@ -41,27 +44,14 @@ var allStickyModifiers = []action.Modifiers{
 // or "__modifier_cmd_up" into the modifier and whether it's a down or up event.
 // Returns (modifier, isDown, ok).
 func parseModifierEvent(key string) (action.Modifiers, bool, bool) {
-	if !strings.HasPrefix(key, modifierTogglePrefix) {
+	name, isDown, ok := keyvocab.ParseModifierToggle(key)
+	if !ok {
 		return 0, false, false
 	}
 
-	suffix := strings.ToLower(strings.TrimPrefix(key, modifierTogglePrefix))
+	mod, known := modifierToggleMap[name]
 
-	if before, ok := strings.CutSuffix(suffix, "_down"); ok {
-		name := before
-		mod, ok := modifierToggleMap[name]
-
-		return mod, true, ok
-	}
-
-	if before, ok := strings.CutSuffix(suffix, "_up"); ok {
-		name := before
-		mod, ok := modifierToggleMap[name]
-
-		return mod, false, ok
-	}
-
-	return 0, false, false
+	return mod, isDown, known
 }
 
 // handleModifierToggle processes modifier down/up events for sticky toggle.

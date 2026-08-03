@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 type pendingSyntheticModifierEvent struct {
@@ -309,7 +310,7 @@ func canonicalChordForMatch(chord string) string {
 	var hasShift, hasCtrl, hasAlt, hasCmd bool
 
 	for _, part := range parts[:len(parts)-1] {
-		switch canonicalLinuxModifier(part) {
+		switch keyvocab.CanonicalModifier(part) {
 		case evdevModifierShift:
 			hasShift = true
 		case evdevModifierCtrl:
@@ -362,7 +363,7 @@ func (et *EventTap) SetStickyModifierToggle(enabled bool) {
 
 // PostModifierEvent posts a modifier key event.
 func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
-	modifier = canonicalLinuxModifier(modifier)
+	modifier = keyvocab.CanonicalModifier(modifier)
 	if modifier == "" {
 		return
 	}
@@ -513,58 +514,12 @@ func (et *EventTap) dispatchLoop() {
 	}
 }
 
-// linuxKeyUpPrefix matches modes.keyUpPrefix — signals key release to stop held-key repeat.
-const linuxKeyUpPrefix = "__keyup_"
-
-// linuxKeyUpEvent formats a key-up notification for held-repeat actions (scroll, page, etc.).
-// Uses the base key (no modifier prefix) to match modes.Handler held-key tracking.
-func linuxKeyUpEvent(key string) string {
-	key = normalizeLinuxKey(key)
-	if key == "" {
-		return ""
-	}
-
-	parts := strings.Split(key, "+")
-	baseKey := parts[len(parts)-1]
-
-	return linuxKeyUpPrefix + baseKey
-}
-
 // stickyToggleEnabled returns whether sticky toggle is active.
 func (et *EventTap) stickyToggleEnabled() bool {
 	et.mu.RLock()
 	defer et.mu.RUnlock()
 
 	return et.stickyModifierToggle
-}
-
-func canonicalLinuxModifier(modifier string) string {
-	switch strings.ToLower(strings.TrimSpace(modifier)) {
-	case evdevModifierCmd, "command", evdevModifierAliasSuper, "meta":
-		return evdevModifierCmd
-	case evdevModifierShift:
-		return evdevModifierShift
-	case evdevModifierAlt, evdevModifierAliasOption:
-		return evdevModifierAlt
-	case evdevModifierCtrl, evdevModifierAliasControl:
-		return evdevModifierCtrl
-	default:
-		return ""
-	}
-}
-
-func linuxModifierToggleEvent(modifier string, isDown bool) string {
-	modifier = canonicalLinuxModifier(modifier)
-	if modifier == "" {
-		return ""
-	}
-
-	suffix := "up"
-	if isDown {
-		suffix = "down"
-	}
-
-	return "__modifier_" + modifier + "_" + suffix
 }
 
 func (et *EventTap) rememberSyntheticModifierEvent(modifier string, isDown bool) {
@@ -614,44 +569,4 @@ func (et *EventTap) consumeSyntheticModifierEvent(modifier string, isDown bool) 
 	et.syntheticModifierEvents = pending
 
 	return consumed
-}
-
-func normalizeLinuxKey(key string) string {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return ""
-	}
-
-	// Split modifiers from base key
-	parts := strings.Split(key, "+")
-	baseKey := parts[len(parts)-1]
-
-	switch strings.ToLower(baseKey) {
-	case "return":
-		baseKey = evdevKeyNameReturn
-	case "space":
-		baseKey = "Space"
-	case "tab":
-		baseKey = "Tab"
-	case "escape", "esc":
-		baseKey = evdevKeyNameEscape
-	case "backspace":
-		baseKey = "Delete"
-	case "left":
-		baseKey = evdevKeyNameLeft
-	case "right":
-		baseKey = "Right"
-	case "up":
-		baseKey = "Up"
-	case "down":
-		baseKey = "Down"
-	default:
-		if len([]rune(baseKey)) == 1 {
-			baseKey = strings.ToLower(baseKey)
-		}
-	}
-
-	parts[len(parts)-1] = baseKey
-
-	return strings.Join(parts, "+")
 }

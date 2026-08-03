@@ -1,0 +1,149 @@
+package keyvocab
+
+import "strings"
+
+const (
+	// KeyUpPrefix marks a synthetic key-release event ("__keyup_<base key>"),
+	// used to stop held-key repeat.
+	KeyUpPrefix = "__keyup_"
+
+	// ModifierTogglePrefix marks a synthetic modifier transition event
+	// ("__modifier_<name>_<down|up>"), used for sticky-modifier tracking.
+	ModifierTogglePrefix = "__modifier_"
+)
+
+// Canonical modifier names as they appear in configs, key strings and
+// modifier toggle events.
+const (
+	ModifierCmd   = "cmd"
+	ModifierShift = "shift"
+	ModifierAlt   = "alt"
+	ModifierCtrl  = "ctrl"
+)
+
+const (
+	toggleSuffixDown = "_down"
+	toggleSuffixUp   = "_up"
+)
+
+// NormalizeKey canonicalizes a key string of the form
+// "modifier+...+baseKey": named base keys get their canonical spelling
+// (return/enter -> Return, esc -> Escape, backspace -> Delete, ...) and
+// single-rune base keys are lowercased. Modifier segments pass through
+// untouched. Empty input normalizes to "".
+func NormalizeKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	parts := strings.Split(key, "+")
+	baseKey := parts[len(parts)-1]
+
+	switch strings.ToLower(baseKey) {
+	case "return", "enter":
+		baseKey = "Return"
+	case "space":
+		baseKey = "Space"
+	case "tab":
+		baseKey = "Tab"
+	case "escape", "esc":
+		baseKey = "Escape"
+	case "backspace":
+		baseKey = "Delete"
+	case "left":
+		baseKey = "Left"
+	case "right":
+		baseKey = "Right"
+	case "up":
+		baseKey = "Up"
+	case "down":
+		baseKey = "Down"
+	default:
+		if len([]rune(baseKey)) == 1 {
+			baseKey = strings.ToLower(baseKey)
+		}
+	}
+
+	parts[len(parts)-1] = baseKey
+
+	return strings.Join(parts, "+")
+}
+
+// CanonicalModifier maps a modifier spelling (including platform aliases:
+// command/super/meta/win -> cmd, option -> alt, control -> ctrl) to its
+// canonical name, or "" when the input is not a modifier.
+func CanonicalModifier(modifier string) string {
+	switch strings.ToLower(strings.TrimSpace(modifier)) {
+	case ModifierCmd, "command", "super", "meta", "win":
+		return ModifierCmd
+	case ModifierShift:
+		return ModifierShift
+	case ModifierAlt, "option":
+		return ModifierAlt
+	case ModifierCtrl, "control":
+		return ModifierCtrl
+	default:
+		return ""
+	}
+}
+
+// KeyUpEvent formats the synthetic key-release event for a pressed key.
+// The event carries only the normalized base key (no modifier prefix), to
+// match how the mode handler tracks held keys. Returns "" for empty input.
+func KeyUpEvent(key string) string {
+	key = NormalizeKey(key)
+	if key == "" {
+		return ""
+	}
+
+	parts := strings.Split(key, "+")
+	baseKey := parts[len(parts)-1]
+
+	return KeyUpPrefix + baseKey
+}
+
+// ModifierToggleEvent formats the synthetic modifier transition event for a
+// modifier press (isDown true) or release. The modifier is canonicalized
+// first; a non-modifier input returns "".
+func ModifierToggleEvent(modifier string, isDown bool) string {
+	modifier = CanonicalModifier(modifier)
+	if modifier == "" {
+		return ""
+	}
+
+	if isDown {
+		return ModifierTogglePrefix + modifier + toggleSuffixDown
+	}
+
+	return ModifierTogglePrefix + modifier + toggleSuffixUp
+}
+
+// ParseModifierToggle decodes a modifier transition event back into its
+// canonical modifier name and direction. ok is false when the input is not a
+// well-formed toggle event for a known modifier.
+func ParseModifierToggle(event string) (string, bool, bool) {
+	if !strings.HasPrefix(event, ModifierTogglePrefix) {
+		return "", false, false
+	}
+
+	body := strings.ToLower(strings.TrimPrefix(event, ModifierTogglePrefix))
+
+	if name, found := strings.CutSuffix(body, toggleSuffixDown); found {
+		if canonical := CanonicalModifier(name); canonical != "" {
+			return canonical, true, true
+		}
+
+		return "", false, false
+	}
+
+	if name, found := strings.CutSuffix(body, toggleSuffixUp); found {
+		if canonical := CanonicalModifier(name); canonical != "" {
+			return canonical, false, true
+		}
+
+		return "", false, false
+	}
+
+	return "", false, false
+}

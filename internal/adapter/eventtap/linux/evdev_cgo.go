@@ -26,6 +26,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	linux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const (
@@ -978,7 +979,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		}
 
 		if et.stickyToggleEnabled() && et.stickyDetectionArmed() {
-			et.dispatchKey(linuxModifierToggleEvent(modifier, isDown))
+			et.dispatchKey(keyvocab.ModifierToggleEvent(modifier, isDown))
 		}
 
 		// Re-arm detection when the modifier state reaches a clean slate,
@@ -1023,7 +1024,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 		key := et.xkbEvdevKeyName(capture, event.code)
 		if key != "" {
-			if keyUp := linuxKeyUpEvent(key); keyUp != "" {
+			if keyUp := keyvocab.KeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
 			}
 		}
@@ -1060,7 +1061,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
-	key = normalizeLinuxKey(state.modifiers.prefix() + key)
+	key = keyvocab.NormalizeKey(state.modifiers.prefix() + key)
 	if key == "" {
 		return
 	}
