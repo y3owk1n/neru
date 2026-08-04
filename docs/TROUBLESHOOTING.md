@@ -712,53 +712,27 @@ pkill neru && neru launch
 
 If none of these solutions work:
 
-1. **Gather information:**
-    - Run `neru doctor` and include the full output
-    - macOS version: `sw_vers`
-    - Neru version: `neru --version`
-    - App name and version where issue occurs
-    - Config file (anonymize if needed)
-    - Relevant logs
-
-2. **Search existing issues:**
-    - <https://github.com/y3owk1n/neru/issues>
-
-3. **Open an issue:**
-    - Include all gathered information
-    - Describe expected vs actual behavior
-    - Steps to reproduce
-
-4. **Consider a PR:**
-    - Pull requests are more likely to be reviewed than issues
-    - Fix the problem yourself and contribute back
-    - See [DEVELOPMENT.md](DEVELOPMENT.md) for contribution guidelines
+1. **Gather information:** run `neru doctor` and note your macOS version
+   (`sw_vers`), `neru --version`, the app where the issue occurs, the relevant
+   config sections (anonymized), and logs.
+2. **Search existing issues:** <https://github.com/y3owk1n/neru/issues>
+3. **Open an issue** using the bug-report form — it asks for exactly the
+   information above. If you would rather fix it yourself, pull requests are
+   very welcome: see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ---
+
 
 ## Emergency Reset
 
 If Neru is completely broken:
 
 ```bash
-# 1. Force quit
 pkill -9 neru
-
-# 2. Remove all Neru files
-rm -rf /Applications/Neru.app
-rm -f /usr/local/bin/neru
-rm -rf ~/.config/neru
-rm -rf ~/Library/Application\ Support/neru
-rm -rf ~/Library/Logs/neru
-# IPC socket lives under the OS temp directory
-rm -f /var/folders/*/*/T/neru.sock
-
-# 3. Reinstall
-brew reinstall --cask neru
-# or build from source
-
-# 4. Fresh start (no config)
-neru launch
-
-# 5. Grant permissions again
-# System Settings → Privacy & Security → Accessibility
 ```
+
+Then remove Neru and its state entirely — the full steps, including purging
+config and logs, are in
+[INSTALLATION.md](INSTALLATION.md#uninstallation) — reinstall, run
+`neru launch`, and re-grant Accessibility permission (System Settings →
+Privacy & Security → Accessibility).

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Config Option"
+  short_description: "Add a config.toml option end to end without missing a step"
+  default_prompt: "Use $add-config-option to add the new option through schema, defaults, platform overrides, validation, examples, and docs."

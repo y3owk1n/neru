@@ -7,8 +7,8 @@ This guide owns the **local workflow**. Neighbouring documents own the rest:
 contribution process and commit conventions in
 [CONTRIBUTING.md](../CONTRIBUTING.md), the architectural reference in
 [ARCHITECTURE.md](ARCHITECTURE.md), per-platform support and platform file
-layout in [CROSS_PLATFORM.md](CROSS_PLATFORM.md), and style rules in
-[CODING_STANDARDS.md](CODING_STANDARDS.md). None of those are repeated here.
+layout in [CROSS_PLATFORM.md](CROSS_PLATFORM.md), and conventions in the root
+[AGENTS.md](../AGENTS.md). None of those are repeated here.
 
 ---
 
@@ -136,7 +136,7 @@ Wayland protocol generation and icon recipes.
 | Test    | `just test-ci`               | What CI gates on: unit, race-unit, short-integration |
 | Test    | `just coverage`              | Unit tests with coverage; prints the total      |
 | Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
-| Lint    | `just lint`                  | `golangci-lint run`                             |
+| Lint    | `just lint`                  | golangci-lint + clang-tidy on `.m` files (macOS) |
 | Lint    | `just vet`                   | `go vet`                                        |
 | Lint    | `just vuln`                  | `govulncheck` — reachable CVEs in dependencies  |
 | Format  | `just fmt`                   | Format Go and Objective-C                       |
@@ -221,8 +221,10 @@ unsupported behavior is explicit and stable until the real implementation lands.
 | **Unit**        | `*_test.go`                  | —                     | `just test-unit`        |
 | **Integration** | `*_integration_<os>_test.go` | `integration && <os>` | `just test-integration` |
 
-Tests are table-driven and named `TestType_Method_EdgeCase`. Detailed patterns
-live in [TESTING_PATTERNS.md](testing/TESTING_PATTERNS.md).
+Tests are table-driven and named `TestType_Method_EdgeCase`. Naming, mocks, and
+build-tag conventions are in the root [AGENTS.md](../AGENTS.md); the macOS
+main-run-loop test harness is documented in
+[darwin/AGENTS.md](../internal/adapter/platform/darwin/AGENTS.md).
 
 ### What each layer covers
 
@@ -282,8 +284,8 @@ For a step debugger:
 dlv debug ./cmd/neru
 ```
 
-What belongs at which log level — and what must never be logged — is in
-[CODING_STANDARDS.md](CODING_STANDARDS.md#logging-standards).
+What belongs at which log level — and what must never be logged — is in the
+root [AGENTS.md](../AGENTS.md) under Conventions.
 
 ---
 
@@ -307,13 +309,10 @@ Layer responsibilities and the boundaries between them are in
 [ARCHITECTURE.md](ARCHITECTURE.md#component-architecture); platform file-slot
 naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 
-**Configuration options**
-
-1. Add fields to the structs in `internal/config/config.go`
-2. Shared defaults in `newDefaultConfig()` (`config_defaults.go`); platform
-   overrides in `applyPlatformDefaults()` (`config_<os>.go`)
-3. Validation in the `Validate*()` methods
-4. Update `configs/` examples and [CONFIGURATION.md](CONFIGURATION.md)
+**Configuration options** — the full chain (schema → defaults → platform
+overrides → validation → examples → docs) is documented in
+[internal/config/AGENTS.md](../internal/config/AGENTS.md); the
+`add-config-option` skill in `.agents/skills/` walks it step by step.
 
 **Actions**
 
@@ -332,12 +331,9 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 4. Register in `internal/app/component_factory.go` or
    `internal/app/new.go`
 
-**CLI commands**
-
-1. Create the command file in `internal/cli/`
-2. Register it in an `init()` (see `internal/cli/root.go`)
-3. Add the matching IPC handler in `internal/app/ipcctrl/`
-4. Document in [CLI.md](CLI.md)
+**CLI commands** — cobra command in `internal/cli/` (registered in an
+`init()`), the matching IPC handler in `internal/app/ipcctrl/`, `just genman`,
+and [CLI.md](CLI.md); the `add-cli-command` skill walks it step by step.
 
 ### Dependency injection
 
@@ -359,120 +355,19 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 ### Mode interface contract
 
-Every navigation mode implements `Mode`, defined in
-[handler.go](../internal/app/modes/handler.go):
+Every navigation mode implements `Mode` (`Activate(ModeActivationOptions)` /
+`HandleKey(string)` / `Exit()` / `ModeType()`), defined in
+[handler.go](../internal/app/modes/handler.go). Modes embed `baseMode` or
+`GenericMode` ([base.go](../internal/app/modes/base.go),
+[generic_mode.go](../internal/app/modes/generic_mode.go)) rather than
+implementing the four methods by hand, and register in the handler's mode map.
+A new CLI flag that varies a mode's activation usually means a new
+`ModeActivationOptions` field, not a new interface method.
 
-```go
-type Mode interface {
-    // Activate activates the mode with an optional pending action.
-    Activate(opts ModeActivationOptions)
-
-    // HandleKey processes a key press within the mode's context.
-    HandleKey(key string)
-
-    // Exit performs mode-specific cleanup and deactivation.
-    Exit()
-
-    // ModeType returns the domain mode type this implementation represents.
-    ModeType() domain.Mode
-}
-```
-
-`ModeActivationOptions` ([hints.go](../internal/app/modes/hints.go)) carries
-every per-activation override — `Action`, `Modifier`, `OnExit`, `Repeat`,
-`CursorFollowSelection`, `ZoomToDepth`, `FilterRoles`, `FilterTextContains`,
-`Search`, `HideOnEmptySearch`, `Strategy`, `LabelDirection`, `Toggle`,
-`SplitWord`. A new CLI flag that varies a mode's activation usually means a new
-field here rather than a new interface method.
-
-> **Locking contract.** `Activate`, `HandleKey`, and `Exit` are all called with
-> the handler lock **already held** by the public entry point (`ActivateMode`,
-> `HandleKeyPress`, `ExitMode`). Modes are built on the inner `*handlerState`,
-> which has no mutex and no access to the locking entry points, so calling one
-> from locked context is a compile error. Deferred callbacks (timers,
-> goroutines) reach the lock through `handlerState.outer` — see
-> [ARCHITECTURE.md](ARCHITECTURE.md#mode-handler-locking).
-
-**Method contracts**
-
-- `Activate(opts)` — call `handler.setMode()` to change app state, show
-  mode-specific overlays, initialize state from `opts`. Log activation at
-  `info`; keep routing and redraw detail at `debug`.
-- `HandleKey(key)` — route a single key string (`"a"`, `"j"`, `"escape"`) to the
-  right handler and update mode state.
-- `Exit()` — hide overlays, reset mode-specific state. Common cleanup is already
-  handled by `exitMode`.
-- `ModeType()` — return the `domain.Mode` enum value (e.g. `domain.ModeHints`).
-
-**Implementation pattern**
-
-Modes are not written as bare structs implementing four methods by hand. Two
-shared building blocks cover almost every case:
-
-- **`baseMode`** ([base.go](../internal/app/modes/base.go)) — holds the handler
-  and mode type, supplies no-op `Activate` / `HandleKey` / `Exit` plus a real
-  `ModeType`. Embed it and override only what differs.
-- **`GenericMode`** ([generic_mode.go](../internal/app/modes/generic_mode.go)) —
-  embeds `baseMode` and takes a `ModeBehavior` of optional `ActivateFunc` /
-  `HandleKeyFunc` / `ExitFunc` callbacks. A nil callback falls back to the
-  handler's standard flow for that mode type.
-
-So a mode is usually just a constructor supplying behavior. `ScrollMode` in
-full:
-
-```go
-type ScrollMode struct {
-    *GenericMode
-}
-
-func NewScrollMode(handler *handlerState) *ScrollMode {
-    behavior := ModeBehavior{
-        ActivateFunc: func(handler *handlerState, _ ModeActivationOptions) {
-            // Runs with the lock held; handlerState methods are safe to call.
-            handler.startInteractiveScroll()
-            handler.startIndicatorPolling(domain.ModeScroll)
-        },
-        ExitFunc: func(handler *handlerState) {
-            handler.stopIndicatorPolling()
-            handler.stopHeldRepeat()
-            handler.clearAndHideOverlay()
-            // ... reset mode-specific state
-        },
-    }
-
-    return &ScrollMode{
-        GenericMode: NewGenericMode(handler, domain.ModeScroll, "ScrollMode", behavior),
-    }
-}
-```
-
-Reach for a hand-written struct embedding `baseMode` only when the mode needs
-its own fields or a `HandleKey` too involved for a callback.
-
-**Adding a new mode**
-
-1. Add the `Mode` constant to `internal/domain/domain_constants.go`
-2. Implement the `Mode` interface in `internal/app/modes/` — name it `XXXMode`
-   with a `NewXXXMode` constructor
-3. Register it in the map built by `NewHandler`:
-
-    ```go
-    handler.modes = map[domain.Mode]Mode{
-        domain.ModeHints:         NewHintsMode(handler),
-        domain.ModeGrid:          NewGridMode(handler),
-        domain.ModeScroll:        NewScrollMode(handler),
-        domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
-        domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
-        // Add new modes here
-    }
-    ```
-
-4. Add the CLI command and IPC handler (see [CLI commands](#where-things-go))
-5. Add hotkey defaults to the config
-6. Add unit and integration tests
-7. Document in [CLI.md](CLI.md) and [CONFIGURATION.md](CONFIGURATION.md)
-
----
+`Activate`, `HandleKey`, and `Exit` run with the handler lock already held —
+the full locking contract lives in
+[internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md); read it before
+touching anything that calls back into the handler.
 
 ## Release Process
 

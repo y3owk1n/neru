@@ -25,8 +25,11 @@ This guide covers installation methods for Neru, with the most complete support 
 
 ## Requirements
 
-- macOS 14.0 or later
-- Accessibility permissions (granted during setup)
+- **macOS**: 14.0 or later, plus Accessibility permission (granted during setup)
+- **Linux** (beta): X11 or a supported Wayland compositor — see
+  [LINUX_SETUP.md](LINUX_SETUP.md) for host requirements per backend
+- **Windows** (alpha): Windows 10 or later; expect gaps — see the
+  [capability matrix](CROSS_PLATFORM.md#capability-matrix)
 
 ---
 
@@ -622,44 +625,11 @@ neru completion fish > ~/.config/fish/completions/neru.fish
 
 ## Troubleshooting
 
-### "Neru wants to control this computer using accessibility features"
-
-This is normal. Click **OK** and grant permissions in System Settings.
-
-### Command not found: neru
-
-If using the CLI build, ensure the binary is in your PATH:
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-export PATH="/usr/local/bin:$PATH"
-```
-
-### Permission denied
-
-Make the binary executable:
-
-```bash
-chmod +x /usr/local/bin/neru
-```
-
-### App won't open (macOS quarantine)
-
-macOS may quarantine apps from unidentified developers:
-
-```bash
-xattr -cr /Applications/Neru.app
-```
-
-Then try opening again.
-
-### Nix build fails
-
-Ensure you're on an Apple Silicon Mac (arm64). For Intel Macs, change the URL to:
-
-```nix
-url = "https://github.com/y3owk1n/neru/releases/download/v${version}/neru-darwin-amd64.zip";
-```
+Install-time fixes (quarantine, PATH, permissions, Homebrew, Nix) live with all
+the other fixes in [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — start at
+[Installation & Setup](TROUBLESHOOTING.md#installation--setup). One
+Nix-specific note: the flake's release-artifact URL is arch-specific, so on
+Intel Macs use `neru-darwin-amd64.zip` in place of the arm64 artifact.
 
 ---
 

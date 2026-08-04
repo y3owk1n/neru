@@ -1,0 +1,23 @@
+---
+description: Neru cross-agent contract pointers and hard rules
+alwaysApply: true
+---
+
+# Neru agent rules
+
+- `AGENTS.md` at the repo root is the full project contract — architecture,
+  commands, conventions. Read it before structural changes.
+- The One Rule: non-darwin-tagged code must never import
+  `internal/adapter/platform/darwin`. Cross the boundary via `ports.SystemPort`
+  or a build-tagged dispatch pair.
+- Shared code uses global top-left origin, Y down, unscaled pixels. Cocoa
+  coordinate flips stay inside the darwin adapter.
+- Unimplemented platform behavior returns `derrors.CodeNotSupported` — never a
+  silent no-op — and the capability matrix (`internal/ports/capabilities.go`)
+  must stay honest (`stub`, not `supported`).
+- `internal/adapter/platform/linux/wlr_protocol/` is generated
+  (`just generate-all-protocols`); never hand-edit it.
+- Pre-commit gate: `just fmt && just lint && just test && just build`.
+  Before pushing: `just ci`.
+- Never log UI text, element titles/values, hint search terms, or keystreams;
+  log counts, durations, IDs, booleans.

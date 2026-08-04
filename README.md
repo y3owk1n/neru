@@ -269,7 +269,7 @@ Everything you need to go deep:
 | [Contributing](CONTRIBUTING.md)                  | How to propose, commit, and land a change                 |
 | [Development Guide](docs/DEVELOPMENT.md)         | Setup, building, testing, debugging, where code goes      |
 | [Architecture](docs/ARCHITECTURE.md)             | Layers, boundaries, data flow, platform isolation         |
-| [Coding Standards](docs/CODING_STANDARDS.md)     | Formatting, logging, documentation conventions            |
+| [Agent Guide](AGENTS.md)                         | Conventions and contracts, for humans and AI agents       |
 | [Roadmap](docs/ROADMAP.md)                       | What's coming next                                        |
 
 ---
@@ -290,7 +290,7 @@ just ci   # everything CI checks, locally
 # open a pull request
 ```
 
-→ [Contributing Guide](CONTRIBUTING.md) · [Development Guide](docs/DEVELOPMENT.md) · [Coding Standards](docs/CODING_STANDARDS.md) · [Good first issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+→ [Contributing Guide](CONTRIBUTING.md) · [Development Guide](docs/DEVELOPMENT.md) · [Good first issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 ---
 

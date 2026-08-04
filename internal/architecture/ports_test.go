@@ -14,6 +14,10 @@ import (
 // docGoFile is the package-comment file name skipped by file-scanning checks.
 const docGoFile = "doc.go"
 
+// portsWithoutOwnMock exempts interfaces named *Port that are composed into a
+// larger port rather than injected on their own; they are exercised through
+// the mock of the port that embeds them, so a separate mock would be dead
+// code. Currently empty — every port carries its own mock.
 var portsWithoutOwnMock = map[string]string{}
 
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
@@ -22,12 +26,6 @@ var portsWithoutOwnMock = map[string]string{}
 // Without one, consumers grow hand-rolled fakes in _test.go files that go stale
 // the moment the contract changes — which is exactly how two hotkey fakes ended
 // up silently under-implementing HotkeyPort.
-//
-// portsWithoutOwnMock are interfaces named *Port that are composed into a
-// larger port rather than injected on their own. They are exercised through
-// the mock of the port that embeds them, so a separate mock would be dead code.
-//
-// All four are sub-interfaces of SystemPort, covered by MockSystemPort.
 func TestEveryPortHasAMock(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
