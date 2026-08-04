@@ -132,7 +132,8 @@ Wayland protocol generation and icon recipes.
 | Test    | `just test-race`             | Unit + integration with `-race`                 |
 | Test    | `just test-race-unit`        | Unit tests with `-race`                         |
 | Test    | `just test-race-integration` | Integration tests with `-race`                  |
-| Test    | `just test-all`              | `test` **and** `test-race` — the full sweep     |
+| Test    | `just test-all`              | `test` **and** `test-race` — the deepest sweep  |
+| Test    | `just test-ci`               | What CI gates on: unit, race-unit, short-integration |
 | Test    | `just coverage`              | Unit tests with coverage; prints the total      |
 | Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
 | Lint    | `just lint`                  | `golangci-lint run`                             |

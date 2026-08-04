@@ -63,10 +63,6 @@ func newMockAppState() *mockAppState {
 
 // TestCLIIntegration tests IPC communication with real infrastructure.
 func TestCLIIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
 	logger := logger.Get()
 	appState := newMockAppState()
 

@@ -14,10 +14,6 @@ import (
 
 // TestIPCAdapterIntegration tests the IPC adapter with real server.
 func TestIPCAdapterIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
 	log := zap.NewNop()
 
 	// Dummy handler for testing
@@ -110,10 +106,6 @@ func TestIPCAdapterIntegration(t *testing.T) {
 
 // TestIPCAdapterContextCancellation tests context cancellation handling.
 func TestIPCAdapterContextCancellation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
 	log := zap.NewNop()
 	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
 		return ipc.Response{Success: true}

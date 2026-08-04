@@ -41,10 +41,6 @@ func serviceWithDefaultHotkeys(logger *zap.Logger) *loader.Service {
 // TestConfigFileOperationsIntegration tests real file system operations
 // for configuration loading and reloading to prevent file system regressions.
 func TestConfigFileOperationsIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping config file operations integration test in short mode")
-	}
-
 	// Create a temporary directory for test config files
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "test-config.toml")
