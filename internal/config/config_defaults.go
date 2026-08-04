@@ -771,10 +771,7 @@ func defaultSmoothCursor() SmoothCursorConfig {
 		Steps:            DefaultSmoothCursorSteps,
 		MaxDuration:      DefaultSmoothCursorMaxDuration,
 		DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
-		Relative: SmoothCursorRelativeConfig{
-			Enabled:  false,
-			Duration: DefaultSmoothCursorRelativeDuration,
-		},
+		RelativeDuration: DefaultSmoothCursorRelativeDuration,
 	}
 }
 

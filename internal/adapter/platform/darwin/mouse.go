@@ -111,8 +111,8 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 }
 
 // MoveMouseRelativeSmooth animates a relative cursor move with the fixed
-// per-move duration from smooth_cursor.relative. It reports handled == false
-// when relative animation is disabled or no config is wired, in which case the
+// per-move duration smooth_cursor.relative_duration. It reports handled == false
+// when smooth cursor is disabled or no config is wired, in which case the
 // caller falls back to its instant warp path.
 //
 // While an animation is in flight, the delta extends the pending endpoint
@@ -122,7 +122,7 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 // endpoint from drifting off-screen when a key is held at a screen edge.
 func MoveMouseRelativeSmooth(delta image.Point) bool {
 	cfg := currentConfig()
-	if cfg == nil || !cfg.SmoothCursor.Relative.Enabled {
+	if cfg == nil || !cfg.SmoothCursor.MoveMouseEnabled {
 		return false
 	}
 
@@ -137,7 +137,7 @@ func MoveMouseRelativeSmooth(delta image.Point) bool {
 			}
 		},
 		cfg.SmoothCursor.Steps,
-		cfg.SmoothCursor.Relative.Duration,
+		cfg.SmoothCursor.RelativeDuration,
 		uint32(eventType),
 		uint32(button),
 	)

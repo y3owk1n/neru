@@ -132,8 +132,8 @@ type SystemPort interface {
 // Implemented by the Linux adapter, whose Wayland backends have no
 // authoritative cursor query — warping to position+delta would compound the
 // cache error, so the delta is applied directly. Also implemented by the
-// darwin adapter, which animates relative moves when smooth_cursor.relative
-// is enabled. Fall back to CursorPosition + MoveCursorToPoint when
+// darwin adapter, which animates relative moves when smooth cursor is
+// enabled. Fall back to CursorPosition + MoveCursorToPoint when
 // unimplemented or handled == false.
 type RelativeCursorMover interface {
 	// MoveCursorBy moves the cursor by delta from its current position.
