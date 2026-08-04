@@ -41,19 +41,27 @@ func TestTreeWalk_ReleasesEveryElement(t *testing.T) {
 	client := native.New(log, nil)
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 
-	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
-	defer cancel()
+	// Each walk gets its own context matching the per-call budget: a shared
+	// deadline would expire cumulatively across six healthy scans and fail a
+	// later walk that never hung.
+	walkOnce := func(what string) error {
+		ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
+		defer cancel()
+
+		var err error
+
+		runWithinBudget(t, what, func() {
+			_, err = adapter.ClickableElements(ctx, ports.DefaultElementFilter())
+		})
+
+		return err
+	}
 
 	// One warmup walk: lazily-initialized singletons (system-wide element,
 	// cached application handles) may legitimately outlive the first walk.
-	// runWithinBudget is the hang guard — the AX client discards its context,
-	// so only a watchdog can catch a wedged native query.
-	var warmupErr error
-
-	runWithinBudget(t, "warmup ClickableElements walk", func() {
-		_, warmupErr = adapter.ClickableElements(ctx, ports.DefaultElementFilter())
-	})
-
+	// runWithinBudget (inside walkOnce) is the hang guard — the AX client
+	// discards its context, so only a watchdog can catch a wedged native query.
+	warmupErr := walkOnce("warmup ClickableElements walk")
 	if warmupErr != nil {
 		t.Skipf("warmup walk failed (no scannable frontmost app?): %v", warmupErr)
 	}
@@ -61,14 +69,9 @@ func TestTreeWalk_ReleasesEveryElement(t *testing.T) {
 	baseline := nativedarwin.LiveElementCount()
 
 	for walk := range leakWalkCount {
-		var walkErr error
-
-		runWithinBudget(t, "measured ClickableElements walk", func() {
-			// The adapter returns domain elements, not live AX wrappers; the
-			// walk owns and must have already released every wrapper it made.
-			_, walkErr = adapter.ClickableElements(ctx, ports.DefaultElementFilter())
-		})
-
+		// The adapter returns domain elements, not live AX wrappers; the walk
+		// owns and must have already released every wrapper it made.
+		walkErr := walkOnce("measured ClickableElements walk")
 		if walkErr != nil {
 			t.Fatalf("walk %d: ClickableElements() error = %v", walk, walkErr)
 		}
