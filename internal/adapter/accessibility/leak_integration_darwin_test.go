@@ -5,7 +5,6 @@ package accessibility_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
@@ -42,29 +41,37 @@ func TestTreeWalk_ReleasesEveryElement(t *testing.T) {
 	client := native.New(log, nil)
 	adapter := accessibility.NewAdapter(log, nil, nil, client, false)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), integrationScanBudget)
 	defer cancel()
 
 	// One warmup walk: lazily-initialized singletons (system-wide element,
 	// cached application handles) may legitimately outlive the first walk.
-	warmupElements, warmupErr := adapter.ClickableElements(ctx, ports.DefaultElementFilter())
+	// runWithinBudget is the hang guard — the AX client discards its context,
+	// so only a watchdog can catch a wedged native query.
+	var warmupErr error
+
+	runWithinBudget(t, "warmup ClickableElements walk", func() {
+		_, warmupErr = adapter.ClickableElements(ctx, ports.DefaultElementFilter())
+	})
+
 	if warmupErr != nil {
 		t.Skipf("warmup walk failed (no scannable frontmost app?): %v", warmupErr)
 	}
 
-	_ = warmupElements
-
 	baseline := nativedarwin.LiveElementCount()
 
 	for walk := range leakWalkCount {
-		elements, err := adapter.ClickableElements(ctx, ports.DefaultElementFilter())
-		if err != nil {
-			t.Fatalf("walk %d: ClickableElements() error = %v", walk, err)
-		}
+		var walkErr error
 
-		// The adapter returns domain elements, not live AX wrappers; the walk
-		// owns and must have already released every wrapper it created.
-		_ = elements
+		runWithinBudget(t, "measured ClickableElements walk", func() {
+			// The adapter returns domain elements, not live AX wrappers; the
+			// walk owns and must have already released every wrapper it made.
+			_, walkErr = adapter.ClickableElements(ctx, ports.DefaultElementFilter())
+		})
+
+		if walkErr != nil {
+			t.Fatalf("walk %d: ClickableElements() error = %v", walk, walkErr)
+		}
 
 		if live := nativedarwin.LiveElementCount(); live != baseline {
 			t.Fatalf(
