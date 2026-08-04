@@ -5,8 +5,50 @@ import (
 	"image"
 )
 
-// ScreenManagement is the interface for screen and cursor operations.
-type ScreenManagement interface {
+// ScreenCaptureConsent is the user's answer to the screen-recording permission
+// prompt.
+type ScreenCaptureConsent int
+
+const (
+	// ScreenCaptureGranted means recording is permitted and the caller may proceed.
+	ScreenCaptureGranted ScreenCaptureConsent = iota
+	// ScreenCaptureCanceled means the user declined; the caller should abandon
+	// the operation but keep running.
+	ScreenCaptureCanceled
+	// ScreenCaptureQuit means the user asked to quit Neru entirely.
+	ScreenCaptureQuit
+)
+
+// SystemPort is the platform system contract: health, capabilities, standard
+// directories, process information, screen and cursor operations, permission
+// gates, theme, and secure-input detection. Every consumer takes the whole
+// port; optional per-platform extensions (RelativeCursorMover,
+// CursorSynchronizer) are declared separately and reached by type assertion.
+type SystemPort interface {
+	// Health returns nil if the component is healthy, or an error if it is not.
+	Health(ctx context.Context) error
+
+	// Capabilities exposes runtime capability information.
+	Capabilities() PlatformCapabilities
+
+	// ConfigDir returns the platform-specific directory for configuration files.
+	ConfigDir() (string, error)
+
+	// UserDataDir returns the platform-specific directory for user data files.
+	UserDataDir() (string, error)
+
+	// LogDir returns the platform-specific directory for log files.
+	LogDir() (string, error)
+
+	// FocusedApplicationPID returns the PID of the currently focused application.
+	FocusedApplicationPID(ctx context.Context) (int, error)
+
+	// ApplicationNameByPID returns the name of the application with the given PID.
+	ApplicationNameByPID(ctx context.Context, pid int) (string, error)
+
+	// ApplicationBundleIDByPID returns the bundle ID (or equivalent) of the application with the given PID.
+	ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error)
+
 	// ScreenBounds returns the bounds of the active screen.
 	ScreenBounds(ctx context.Context) (image.Rectangle, error)
 
@@ -34,24 +76,7 @@ type ScreenManagement interface {
 
 	// CursorPosition returns the current cursor position.
 	CursorPosition(ctx context.Context) (image.Point, error)
-}
 
-// ScreenCaptureConsent is the user's answer to the screen-recording permission
-// prompt.
-type ScreenCaptureConsent int
-
-const (
-	// ScreenCaptureGranted means recording is permitted and the caller may proceed.
-	ScreenCaptureGranted ScreenCaptureConsent = iota
-	// ScreenCaptureCanceled means the user declined; the caller should abandon
-	// the operation but keep running.
-	ScreenCaptureCanceled
-	// ScreenCaptureQuit means the user asked to quit Neru entirely.
-	ScreenCaptureQuit
-)
-
-// PermissionManagement is the interface for OS permission gates.
-type PermissionManagement interface {
 	// CheckPermissions verifies that accessibility permissions are granted.
 	CheckPermissions(ctx context.Context) error
 
@@ -69,40 +94,10 @@ type PermissionManagement interface {
 	// Platforms with no permission gate return ScreenCaptureGranted without
 	// showing anything.
 	RequestScreenCapturePermission(ctx context.Context) ScreenCaptureConsent
-}
 
-// FileSystemPort is the interface for platform-specific file system operations.
-type FileSystemPort interface {
-	// ConfigDir returns the platform-specific directory for configuration files.
-	ConfigDir() (string, error)
-
-	// UserDataDir returns the platform-specific directory for user data files.
-	UserDataDir() (string, error)
-
-	// LogDir returns the platform-specific directory for log files.
-	LogDir() (string, error)
-}
-
-// ProcessPort is the interface for platform-specific process management.
-type ProcessPort interface {
-	// FocusedApplicationPID returns the PID of the currently focused application.
-	FocusedApplicationPID(ctx context.Context) (int, error)
-
-	// ApplicationNameByPID returns the name of the application with the given PID.
-	ApplicationNameByPID(ctx context.Context, pid int) (string, error)
-
-	// ApplicationBundleIDByPID returns the bundle ID (or equivalent) of the application with the given PID.
-	ApplicationBundleIDByPID(ctx context.Context, pid int) (string, error)
-}
-
-// ThemeProviderPort is the interface for platform-specific theme information.
-type ThemeProviderPort interface {
 	// IsDarkMode returns true if the platform's dark mode is currently active.
 	IsDarkMode() bool
-}
 
-// SecureInputPort is the interface for secure input detection and notification.
-type SecureInputPort interface {
 	// IsSecureInputEnabled returns true if secure input mode is currently active
 	// (e.g. a password field is focused). On non-macOS platforms this always returns false.
 	IsSecureInputEnabled() bool
@@ -111,18 +106,6 @@ type SecureInputPort interface {
 	// that mode activation was blocked because secure input is active.
 	// On non-macOS platforms this is a no-op.
 	ShowSecureInputNotification()
-}
-
-// SystemPort combines various platform-specific system interfaces.
-type SystemPort interface {
-	HealthCheck
-	CapabilityReporter
-	FileSystemPort
-	ProcessPort
-	ScreenManagement
-	PermissionManagement
-	ThemeProviderPort
-	SecureInputPort
 
 	// PlatformLabel returns a human-readable platform identifier that can be
 	// used in startup notices and diagnostics. Unlike Capabilities().Platform,

@@ -8,18 +8,17 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// ElementDiscovery is the interface for discovering UI elements.
-type ElementDiscovery interface {
+// AccessibilityPort is the interface for interacting with the platform
+// accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
+// Implementations handle all platform-specific bridge complexity and live in
+// internal/adapter/accessibility/.
+type AccessibilityPort interface {
+	// Health returns nil if the component is healthy, or an error if it is not.
+	Health(ctx context.Context) error
+
 	// ClickableElements retrieves all clickable UI elements matching the filter.
 	ClickableElements(ctx context.Context, filter ElementFilter) ([]*element.Element, error)
-}
 
-// RoleConfiguration is the interface for reconfiguring which accessibility
-// roles count as clickable.
-//
-// It is separate from ElementDiscovery so a consumer that only reads elements
-// does not have to accept a mutator it will never call.
-type RoleConfiguration interface {
 	// UpdateClickableRoles replaces the set of roles treated as clickable.
 	// Config reload calls it when hints.clickable_roles changes.
 	//
@@ -28,10 +27,7 @@ type RoleConfiguration interface {
 	// element.RoleVocabulary. Backends that do not filter by role — where the
 	// tree walk decides clickability another way — accept and ignore them.
 	UpdateClickableRoles(roles []string)
-}
 
-// ActionExecution is the interface for executing actions on UI elements.
-type ActionExecution interface {
 	// PerformAction executes an action on the specified element.
 	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
 
@@ -57,10 +53,7 @@ type ActionExecution interface {
 	// Implementations must be idempotent and safe to call when nothing is
 	// held, because it runs on every mode-exit path.
 	ReleaseHeldButtons(ctx context.Context) error
-}
 
-// ApplicationInfo is the interface for getting application information.
-type ApplicationInfo interface {
 	// FocusedAppBundleID returns the platform application identifier of the
 	// currently focused application. On macOS this is a bundle ID
 	// (e.g. "com.apple.Safari"). On Linux this will be a desktop ID or
@@ -71,32 +64,13 @@ type ApplicationInfo interface {
 	// configured exclusion list. The identifier format is platform-dependent
 	// (see FocusedAppBundleID).
 	IsAppExcluded(ctx context.Context, bundleID string) bool
-}
 
-// TreePriming is the interface for readying an application's accessibility
-// tree before Neru queries it.
-type TreePriming interface {
 	// PrimeApplication reports whether bundleID has an accessibility tree to
 	// hint against, waiting briefly for one. Exists for macOS, where Electron,
 	// Chromium and Gecko build their tree asynchronously; eager backends
 	// report true immediately (a genuine "nothing to do", never
 	// CodeNotSupported). Safe to retry, off the event-tap thread.
 	PrimeApplication(ctx context.Context, bundleID string) (bool, error)
-}
-
-// AccessibilityPort is the interface for interacting with the platform
-// accessibility API (AXUIElement on macOS, AT-SPI on Linux, UIA on Windows).
-// Implementations handle all platform-specific bridge complexity and live in
-// internal/adapter/accessibility/.
-//
-// This interface embeds segregated sub-interfaces to keep each concern focused.
-type AccessibilityPort interface {
-	HealthCheck
-	ElementDiscovery
-	RoleConfiguration
-	ActionExecution
-	ApplicationInfo
-	TreePriming
 }
 
 // ElementFilter defines criteria for filtering UI elements.

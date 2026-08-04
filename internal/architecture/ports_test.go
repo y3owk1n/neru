@@ -10,14 +10,7 @@ import (
 	"testing"
 )
 
-const subInterfaceOfSystemPort = "sub-interface of SystemPort"
-
-var portsWithoutOwnMock = map[string]string{
-	"FileSystemPort":    subInterfaceOfSystemPort,
-	"ProcessPort":       subInterfaceOfSystemPort,
-	"SecureInputPort":   subInterfaceOfSystemPort,
-	"ThemeProviderPort": subInterfaceOfSystemPort,
-}
+var portsWithoutOwnMock = map[string]string{}
 
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
 // docs/CROSS_PLATFORM.md: a port is not done until it has a mock.

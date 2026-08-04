@@ -17,7 +17,8 @@ import (
 // System-level components (menubar, dock, notification center, etc.) always
 // use the AX tree regardless of strategy.
 type VisionPort interface {
-	HealthCheck
+	// Health returns nil if the component is healthy, or an error if it is not.
+	Health(ctx context.Context) error
 
 	// DetectElements captures a screenshot of the frontmost window and returns
 	// detected interactive elements. The screenBounds parameter constrains
