@@ -121,6 +121,11 @@ const (
 	// DefaultSmoothCursorDurationPerPixel is the default ms per pixel for adaptive duration.
 	DefaultSmoothCursorDurationPerPixel = 0.1
 
+	// DefaultSmoothCursorRelativeDuration is the default fixed animation
+	// duration for relative moves (ms). Matches DefaultHeldRepeatInterval so
+	// animations chain seamlessly under held-key repeat.
+	DefaultSmoothCursorRelativeDuration = 50
+
 	// DefaultSmoothScrollSteps is the default smooth scroll steps.
 	DefaultSmoothScrollSteps = 20
 
@@ -766,6 +771,10 @@ func defaultSmoothCursor() SmoothCursorConfig {
 		Steps:            DefaultSmoothCursorSteps,
 		MaxDuration:      DefaultSmoothCursorMaxDuration,
 		DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
+		Relative: SmoothCursorRelativeConfig{
+			Enabled:  false,
+			Duration: DefaultSmoothCursorRelativeDuration,
+		},
 	}
 }
 

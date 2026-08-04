@@ -114,6 +114,17 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return nil
 }
 
+// MoveCursorBy animates a relative cursor move when smooth_cursor.relative is
+// enabled. It reports handled == false when relative animation is disabled,
+// sending the caller to its CursorPosition + MoveCursorToPoint fallback — the
+// instant warp that was always used before this option existed.
+func (s *SystemAdapter) MoveCursorBy(
+	ctx context.Context,
+	delta image.Point,
+) (bool, error) {
+	return MoveMouseRelativeSmooth(delta), nil
+}
+
 // WaitForCursorIdle blocks until any in-flight cursor movement animation settles.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return cursorAnimator.wait(ctx)
@@ -186,3 +197,7 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter opts into relative cursor movement (animated relative
+// moves when smooth_cursor.relative is enabled).
+var _ ports.RelativeCursorMover = (*SystemAdapter)(nil)

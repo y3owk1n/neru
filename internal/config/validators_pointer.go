@@ -52,6 +52,13 @@ func (c *Config) ValidateSmoothCursor() error {
 		)
 	}
 
+	if c.SmoothCursor.Relative.Duration < 1 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"smooth_cursor.relative.duration must be >= 1",
+		)
+	}
+
 	return nil
 }
 

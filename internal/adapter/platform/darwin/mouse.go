@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 )
 
 // heldButtons records which mouse buttons Neru is currently holding down.
@@ -107,6 +108,41 @@ func MoveMouse(point image.Point, bypassSmooth bool) {
 // MoveMouseSmooth moves the mouse cursor smoothly to the specified point.
 func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 	cursorAnimator.animateTo(end, steps, eventType, button)
+}
+
+// MoveMouseRelativeSmooth animates a relative cursor move with the fixed
+// per-move duration from smooth_cursor.relative. It reports handled == false
+// when relative animation is disabled or no config is wired, in which case the
+// caller falls back to its instant warp path.
+//
+// While an animation is in flight, the delta extends the pending endpoint
+// instead of restarting from the mid-animation cursor position, so no part of
+// a delta is lost under key repeat. The target is clamped to the active
+// screen, matching the warp fallback's clamping — and keeping the pending
+// endpoint from drifting off-screen when a key is held at a screen edge.
+func MoveMouseRelativeSmooth(delta image.Point) bool {
+	cfg := currentConfig()
+	if cfg == nil || !cfg.SmoothCursor.Relative.Enabled {
+		return false
+	}
+
+	bounds := ActiveScreenBounds()
+	eventType, button := dragEventType()
+	cursorAnimator.animateRelativeBy(
+		delta,
+		func(p image.Point) image.Point {
+			return image.Point{
+				X: geometry.ClampInt(p.X, bounds.Min.X, max(bounds.Max.X-1, bounds.Min.X)),
+				Y: geometry.ClampInt(p.Y, bounds.Min.Y, max(bounds.Max.Y-1, bounds.Min.Y)),
+			}
+		},
+		cfg.SmoothCursor.Steps,
+		cfg.SmoothCursor.Relative.Duration,
+		uint32(eventType),
+		uint32(button),
+	)
+
+	return true
 }
 
 // CursorPosition returns the current cursor position.

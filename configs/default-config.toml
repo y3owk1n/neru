@@ -392,6 +392,12 @@ steps = 10                                  # Number of intermediate positions
 max_duration = 200                          # Maximum animation duration in ms
 duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
 
+# Smooth cursor for relative (keyboard-driven) movement, e.g. move_mouse_relative.
+# Uses a fixed duration per move so larger deltas move proportionally faster.
+[smooth_cursor.relative]
+enabled = false                             # Animate relative mouse movement (macOS only)
+duration = 50                               # Fixed animation duration per move in ms
+
 # Smooth scroll (animates scroll actions with eased chunking)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_scroll
 [smooth_scroll]

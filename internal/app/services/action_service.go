@@ -228,7 +228,11 @@ func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
-// If bypassSmooth is true, smooth cursor animation is skipped (used for keyboard-driven movements).
+// A ports.RelativeCursorMover implementation is consulted first and may apply
+// the delta itself (natively on Wayland, animated on macOS when
+// smooth_cursor.relative is enabled). bypassSmooth applies only to the
+// read-then-warp fallback below it: when true, the fallback skips the jump
+// animator (used for keyboard-driven movements).
 func (s *ActionService) MoveMouseRelative(
 	ctx context.Context,
 	deltaX, deltaY int,
