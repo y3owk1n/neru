@@ -105,6 +105,7 @@ Every option not listed here behaves the same on all three platforms.
 | `[monitor_select]`                        | Yes   | Yes   | No      | Windows: the mode returns `ERR_NOT_SUPPORTED`.       |
 | `[virtual_pointer]`                       | Yes   | No    | No      | Ignored; pairs with macOS-only cursor hiding.        |
 | `[smooth_cursor]`                         | Yes   | Yes   | No      | Windows: cursor moves instantly.                     |
+| `smooth_cursor.relative_movement_duration` | Yes  | No    | No      | Linux and Windows: relative moves stay instant.      |
 | `[smooth_scroll]`                         | Yes   | No    | No      | Linux and Windows: scrolling is instant.             |
 | `[recursive_grid.animation]`              | Yes   | Yes   | No      | Windows: depth transitions are not animated.         |
 
@@ -1412,6 +1413,7 @@ Animates cursor movement between positions. Supported on macOS and Linux
 | `steps`              | int   | `10`    | Number of animation steps          |
 | `max_duration`       | int   | `200`   | Max animation duration in ms       |
 | `duration_per_pixel` | float | `0.1`   | Ms per pixel for adaptive duration |
+| `relative_movement_duration` | int | `50` | Fixed duration per relative move in ms (>= 10) |
 
 ```toml
 [smooth_cursor]
@@ -1419,7 +1421,24 @@ move_mouse_enabled = false
 steps = 10
 max_duration = 200
 duration_per_pixel = 0.1
+relative_movement_duration = 50
 ```
+
+`relative_movement_duration` applies to relative (keyboard-driven) movement —
+`move_mouse_relative`, i.e. the default hjkl bindings. Jumps derive their
+duration from the distance (`duration_per_pixel`), which yields constant
+velocity — fine for a one-shot jump, but under held-key repeat it makes a 50px
+step no faster than a 10px one. Relative moves therefore animate with a
+**fixed duration per move**, so cursor speed scales with the delta. While an
+animation is still in flight, a new relative move extends its endpoint instead
+of restarting from the current position, so no part of a delta is lost under
+key repeat.
+
+Relative animation is supported on macOS; on Linux and Windows relative moves
+always warp instantly. It composes with
+[`held_repeat` acceleration](#held_repeat): the accelerated deltas pass
+through unchanged, and since animation speed scales with the delta, the cursor
+speeds up over the ramp exactly as without animation — just smoothly.
 
 ---
 

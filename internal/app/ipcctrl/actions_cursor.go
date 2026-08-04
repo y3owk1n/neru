@@ -238,7 +238,7 @@ func (h *ActionsHandler) resolveMouseActionPoint(
 func (h *ActionsHandler) resolveCurrentCursorPoint(
 	ctx context.Context,
 ) (image.Point, *ipc.Response) {
-	cursorPos, posErr := h.actionService.CursorPosition(ctx)
+	cursorPos, posErr := h.actionService.CursorPositionForAction(ctx)
 	if posErr != nil {
 		h.logger.Error("Failed to get cursor position", zap.Error(posErr))
 
@@ -321,7 +321,9 @@ func (h *ActionsHandler) handleSaveCursorPosAction(
 		return *slotErr
 	}
 
-	pos, posErr := h.actionService.CursorPosition(ctx)
+	// Settle any in-flight animation first: saving mid-animation would record
+	// a point the cursor was merely passing through, not the one aimed for.
+	pos, posErr := h.actionService.CursorPositionForAction(ctx)
 	if posErr != nil {
 		return ipc.Response{
 			Success: false,

@@ -107,6 +107,25 @@ func visionIntBounds() []intBound {
 	}
 }
 
+// smoothCursorIntBounds covers the smooth cursor integer fields with an
+// inclusive lower limit. The relative duration is checked unconditionally —
+// not gated on move_mouse_enabled — because it is read straight by the
+// animator on the next relative move after a hot reload flips the toggle.
+func smoothCursorIntBounds() []intBound {
+	return []intBound{
+		{
+			name:     "smooth_cursor.relative_movement_duration",
+			set:      func(c *config.Config, v int) { c.SmoothCursor.RelativeMovementDuration = v },
+			validate: (*config.Config).ValidateSmoothCursor,
+			minValid: config.MinSmoothCursorAnimationDuration,
+		},
+	}
+}
+
+func TestConfig_SmoothCursorRelativeBoundaries(t *testing.T) {
+	runIntBounds(t, smoothCursorIntBounds())
+}
+
 // validBase returns a config that every validator accepts, so a failure in a
 // table case can only come from the single field that case changed.
 func validBase(t *testing.T) *config.Config {

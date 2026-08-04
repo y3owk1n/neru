@@ -114,14 +114,43 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return nil
 }
 
+// MoveCursorBy animates a relative cursor move when smooth cursor is enabled
+// (smooth_cursor.move_mouse_enabled). It reports handled == false when it is
+// disabled, sending the caller to its CursorPosition + MoveCursorToPoint
+// fallback — the instant warp that was always used before relative moves
+// gained animation.
+func (s *SystemAdapter) MoveCursorBy(
+	ctx context.Context,
+	delta image.Point,
+) (bool, error) {
+	return MoveMouseRelativeSmooth(delta), nil
+}
+
 // WaitForCursorIdle blocks until any in-flight cursor movement animation settles.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 	return cursorAnimator.wait(ctx)
 }
 
 // CursorPosition returns the current cursor position on macOS.
+//
+// This is a pure read: an in-flight animation reports its mid-animation
+// position, which is what pollers like the mode-indicator follower need.
+// Callers resolving an action's target point use SettleCursor first.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
 	return CursorPosition(), nil
+}
+
+// SettleCursor finishes any in-flight cursor animation immediately: the
+// worker is stopped and the cursor warps straight to the endpoint it was
+// animating toward. Action paths call this before resolving their target
+// point from the cursor, so an action firing mid-animation (e.g. a click
+// right after an animated relative move) acts at the point the user aimed
+// for — without paying the animation's remaining duration in latency, and
+// without disturbing pollers that merely observe the cursor.
+func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
+	cursorAnimator.settle()
+
+	return nil
 }
 
 // IsDarkMode returns true if macOS Dark Mode is currently active.
@@ -186,3 +215,11 @@ func (s *SystemAdapter) RequestScreenCapturePermission(
 
 // Ensure SystemAdapter implements ports.SystemPort.
 var _ ports.SystemPort = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter opts into relative cursor movement (animated relative
+// moves when smooth cursor is enabled).
+var _ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter opts into settling in-flight cursor animations before
+// position-dependent actions.
+var _ ports.CursorSettler = (*SystemAdapter)(nil)

@@ -228,7 +228,11 @@ func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.
-// If bypassSmooth is true, smooth cursor animation is skipped (used for keyboard-driven movements).
+// A ports.RelativeCursorMover implementation is consulted first and may apply
+// the delta itself (natively on Wayland, animated on macOS when
+// smooth_cursor.move_mouse_enabled is set). bypassSmooth applies only to the
+// read-then-warp fallback below it: when true, the fallback skips the jump
+// animator (used for keyboard-driven movements).
 func (s *ActionService) MoveMouseRelative(
 	ctx context.Context,
 	deltaX, deltaY int,
@@ -257,6 +261,22 @@ func (s *ActionService) MoveMouseRelative(
 	}
 
 	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
+}
+
+// CursorPositionForAction returns the cursor position for resolving an
+// action's target point. Unlike CursorPosition it first settles any in-flight
+// cursor animation (ports.CursorSettler), so an action fired mid-animation
+// acts at the point the user aimed for instead of a mid-animation position.
+// Plain observers that must not cut animations short use CursorPosition.
+func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Point, error) {
+	if settler, ok := s.system.(ports.CursorSettler); ok {
+		err := settler.SettleCursor(ctx)
+		if err != nil {
+			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+		}
+	}
+
+	return s.system.CursorPosition(ctx)
 }
 
 // CursorPosition returns the current cursor position.

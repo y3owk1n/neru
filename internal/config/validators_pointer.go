@@ -52,6 +52,17 @@ func (c *Config) ValidateSmoothCursor() error {
 		)
 	}
 
+	// The animator floors every animation at MinSmoothCursorAnimationDuration,
+	// so smaller values would be silently rounded up rather than honored;
+	// reject them instead.
+	if c.SmoothCursor.RelativeMovementDuration < MinSmoothCursorAnimationDuration {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"smooth_cursor.relative_movement_duration must be >= %d",
+			MinSmoothCursorAnimationDuration,
+		)
+	}
+
 	return nil
 }
 

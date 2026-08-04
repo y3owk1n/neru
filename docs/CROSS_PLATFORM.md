@@ -130,7 +130,7 @@ or no-op) · ❌ no code path
 | **Cursor move**               | ✅ `CGWarpMouseCursorPosition` | ✅ XTest         | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Smooth cursor animation**   | ✅                       | ✅ opt-in              | ✅ opt-in                    | ✅ opt-in               | ❌                           |
+| **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ opt-in, jumps only | ✅ opt-in, jumps only      | ✅ opt-in, jumps only   | ❌                           |
 | **Smooth scroll animation**   | ✅                       | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
