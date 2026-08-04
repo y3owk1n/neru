@@ -64,6 +64,15 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return refuse(result, overrideErr)
 	}
 
+	// Settings that are valid alone but inert in context warn rather than fail:
+	// rejecting them would stop someone switching a feature off without also
+	// unwinding the settings beneath it.
+	if result.Config.HeldRepeat.AccelEnabled && !result.Config.HeldRepeat.Enabled {
+		s.logger.Warn(
+			"held_repeat.accel_enabled has no effect while held_repeat.enabled is false",
+		)
+	}
+
 	s.logger.Info("Configuration loaded successfully")
 
 	removeLauncherBindingsForDisabledModes(result.Config)

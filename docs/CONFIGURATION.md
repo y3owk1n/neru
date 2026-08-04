@@ -1450,18 +1450,45 @@ duration_per_pixel = 1.0
 
 Repeatedly dispatches scroll, page, relative-mouse-move, and `move_cell` actions while the key is held, with a configurable initial delay and repeat interval. Disable held-key repeat entirely by setting `enabled = false`.
 
-| Option             | Type | Default | Description                              |
-| ------------------ | ---- | ------- | ---------------------------------------- |
-| `enabled`          | bool | `false` | Master toggle for held-key repeat        |
-| `initial_delay_ms` | int  | `50`    | Delay before first repeat fires (ms)     |
-| `interval_ms`      | int  | `50`    | Interval between subsequent repeats (ms) |
+| Option                 | Type     | Default                   | Description                                      |
+| ---------------------- | -------- | ------------------------- | ------------------------------------------------ |
+| `enabled`              | bool     | `false`                   | Master toggle for held-key repeat                |
+| `initial_delay_ms`     | int      | `50`                      | Delay before first repeat fires (ms)             |
+| `interval_ms`          | int      | `50`                      | Interval between subsequent repeats (ms)         |
+| `accel_enabled`        | bool     | `false`                   | Ramp step distance up the longer the key is held |
+| `accel_ramp_ms`        | int      | `500`                     | Hold time to reach `accel_max_multiplier` (ms)   |
+| `accel_max_multiplier` | float    | `4.0`                     | Step distance multiplier at full ramp            |
+| `accel_targets`        | string[] | `["move_mouse_relative"]` | Action names eligible for acceleration           |
 
 ```toml
 [held_repeat]
 enabled = false
 initial_delay_ms = 50
 interval_ms = 50
+accel_enabled = false
+accel_ramp_ms = 500
+accel_max_multiplier = 4.0
+accel_targets = ["move_mouse_relative"]
 ```
+
+### Acceleration
+
+With `accel_enabled = true`, a held key ramps linearly from 1x to `accel_max_multiplier`
+over `accel_ramp_ms`, then holds there until release. With the values above the
+multiplier is 2.5x at 250ms and 4x from 500ms onward, so a binding of
+`action move_mouse_relative --dx=20 --dy=0` moves 50px per tick at 250ms and 80px per
+tick from 500ms. The repeat interval never changes, only the per-tick distance, which is
+how pointer acceleration works at the OS level and avoids rescheduling the repeat timer
+on every tick.
+
+The ramp is measured from the first repeat, not from the key press, so `initial_delay_ms`
+does not eat into it.
+
+Acceleration only applies to actions listed in `accel_targets`. Scaling acts on the
+action's `--dx`/`--dy` flags, which only `move_mouse_relative` accepts, so that is
+currently the sole valid entry: anything else is a config error rather than a binding
+that silently never accelerates. An empty `accel_targets` while `accel_enabled = true` is
+rejected for the same reason. Scroll and page keep their fixed step.
 
 ---
 

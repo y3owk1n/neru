@@ -4,6 +4,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -132,6 +133,12 @@ const (
 	DefaultHeldRepeatInitialDelay = 50
 	// DefaultHeldRepeatInterval is the default held-key repeat interval in ms.
 	DefaultHeldRepeatInterval = 50
+	// DefaultHeldRepeatAccelRampMs is the default ramp duration, in ms.
+	DefaultHeldRepeatAccelRampMs = 500
+	// DefaultHeldRepeatAccelMaxMultiplier is the default multiplier at full ramp.
+	DefaultHeldRepeatAccelMaxMultiplier = 4.0
+	// MaxHeldRepeatAccelMultiplier bounds accel_max_multiplier.
+	MaxHeldRepeatAccelMultiplier = 100
 
 	// DefaultIPCTimeout is the default IPC timeout.
 	DefaultIPCTimeout = 5
@@ -773,9 +780,13 @@ func defaultSmoothScroll() SmoothScrollConfig {
 
 func defaultHeldRepeat() HeldRepeatConfig {
 	return HeldRepeatConfig{
-		Enabled:      false,
-		InitialDelay: DefaultHeldRepeatInitialDelay,
-		Interval:     DefaultHeldRepeatInterval,
+		Enabled:            false,
+		InitialDelay:       DefaultHeldRepeatInitialDelay,
+		Interval:           DefaultHeldRepeatInterval,
+		AccelEnabled:       false,
+		AccelRampMs:        DefaultHeldRepeatAccelRampMs,
+		AccelMaxMultiplier: DefaultHeldRepeatAccelMaxMultiplier,
+		AccelTargets:       []string{string(action.NameMoveMouseRelative)},
 	}
 }
 

@@ -3,11 +3,10 @@ package keybinding
 import (
 	"context"
 	"strings"
-	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/heldrepeat"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -246,26 +245,9 @@ func (b *Binder) startHotkeyRepeat(key string, actions []string) {
 
 		b.runActionSequence(key, actions)
 
-		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
-		defer initialTimer.Stop()
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-initialTimer.C:
-		}
-
-		ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				b.runActionSequence(key, actions)
-			}
-		}
+		heldrepeat.Run(ctx, cfg, actions, func(tickActions []string) {
+			b.runActionSequence(key, tickActions)
+		})
 	}()
 }
 
@@ -299,16 +281,7 @@ func (b *Binder) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Conf
 		return false
 	}
 
-	if len(actions) != 1 {
-		return false
-	}
-
-	parts := splitArgs(strings.TrimSpace(actions[0]))
-	if len(parts) < 2 || parts[0] != ipcctrl.ActionCommand {
-		return false
-	}
-
-	return action.IsHeldRepeatAction(action.Name(parts[1]))
+	return action.IsHeldRepeatAction(action.Name(config.HeldRepeatActionName(actions)))
 }
 
 // ModifiersFromKey reads the modifier part of a hotkey specification, so a
