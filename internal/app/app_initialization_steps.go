@@ -16,8 +16,8 @@ import (
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
-	"github.com/y3owk1n/neru/internal/app/hotkey"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
+	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -442,7 +442,7 @@ func initializeIPCController(app *App) {
 
 	// The binder needs the executor, so it is built here rather than with the
 	// rest of the infrastructure.
-	app.hotkeys = hotkey.New(hotkey.Deps{
+	app.hotkeys = keybinding.New(keybinding.Deps{
 		Manager:     app.hotkeyManager,
 		Modes:       app.modes,
 		State:       app.appState,

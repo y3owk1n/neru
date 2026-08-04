@@ -11,8 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
@@ -123,7 +123,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 	h.setScreenBounds(screenBounds)
 
 	// Normalize normalizedBounds to window-local coordinates using helper function
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
 	characters := h.config.Grid.Characters
 	if strings.TrimSpace(characters) == "" {
@@ -254,7 +254,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			ctx := h.ctx
 
 			// Convert cell center from window-local to screen-absolute coordinates
-			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(
+			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(
 				cell.Center(),
 				h.screenBounds,
 			)

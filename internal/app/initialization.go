@@ -12,7 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
-	"github.com/y3owk1n/neru/internal/app/hotkey"
+	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -199,7 +199,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 			continue
 		}
 
-		if hotkey.ActionsReferenceDisabledMode(actions, cfg) {
+		if keybinding.ActionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 

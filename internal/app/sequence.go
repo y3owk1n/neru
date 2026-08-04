@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/app/hotkey"
+	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 )
 
@@ -32,7 +32,7 @@ func (a *App) newSequenceExecutor() *sequence.Executor {
 				return
 			}
 
-			a.modes.SuppressModifiersUntilReleased(hotkey.ModifiersFromKey(source))
+			a.modes.SuppressModifiersUntilReleased(keybinding.ModifiersFromKey(source))
 		},
 		Logger: a.logger,
 	})

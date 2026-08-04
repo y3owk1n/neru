@@ -1,4 +1,4 @@
-package coordinates
+package geometry
 
 import (
 	"image"

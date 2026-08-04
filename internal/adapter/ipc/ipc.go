@@ -14,7 +14,6 @@ import (
 
 	"go.uber.org/zap"
 
-	trace "github.com/y3owk1n/neru/internal/adapter/apptrace"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -259,11 +258,11 @@ func (s *Server) closeListener() error {
 
 // handleConnection processes a single client connection and executes the received command.
 func (s *Server) handleConnection(connection net.Conn) {
-	traceID := trace.NewID()
+	traceID := NewTraceID()
 	logger := s.logger.With(zap.String("trace_id", traceID.String()))
 
 	// Create context with trace ID
-	ctx := trace.WithTraceID(context.Background(), traceID)
+	ctx := WithTraceID(context.Background(), traceID)
 
 	defer func() {
 		connectionCloseErr := connection.Close()

@@ -15,7 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
-	"github.com/y3owk1n/neru/internal/app/hotkey"
+	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -458,7 +458,7 @@ func (a *App) printStartupInfo() {
 			continue
 		}
 
-		if hotkey.ActionsReferenceDisabledMode(actions, cfg) {
+		if keybinding.ActionsReferenceDisabledMode(actions, cfg) {
 			continue
 		}
 

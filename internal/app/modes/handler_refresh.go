@@ -10,8 +10,8 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // RefreshHintsForScreenChange updates the hint collection under the handler
@@ -198,7 +198,7 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 		}
 	}
 
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(h.screenBounds)
+	normalizedBounds := geometry.NormalizeToLocalCoordinates(h.screenBounds)
 
 	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
 		// Proportionally remap all bounds (history + currentBounds) so the

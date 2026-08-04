@@ -11,8 +11,8 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
-	"github.com/y3owk1n/neru/internal/ui/coordinates"
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter
@@ -66,7 +66,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 	}
 
 	h.setScreenBounds(screenBounds)
-	normalizedBounds := coordinates.NormalizeToLocalCoordinates(screenBounds)
+	normalizedBounds := geometry.NormalizeToLocalCoordinates(screenBounds)
 
 	h.initializeRecursiveGridManager(normalizedBounds)
 
@@ -87,7 +87,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 		!isRefresh {
 		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
 		if posErr == nil {
-			localCursorPos := coordinates.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
+			localCursorPos := geometry.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
 			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *opts.ZoomToDepth)
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
@@ -174,7 +174,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 		depthKeys,
 		// Update callback
 		func(center image.Point) {
-			absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 			if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
 				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 			}
@@ -207,7 +207,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 	if completed {
 		// Selection is complete - always remember the final target, but only
 		// move immediately when tracking is enabled or an action needs to commit.
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 		repeat := h.recursiveGrid.Context.Repeat()
@@ -239,7 +239,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		)
 	} else if !center.Eq(image.Point{}) {
 		// Move cursor to the center point for preview
-		absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+		absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 
 		if !h.recursiveGrid.Context.CursorFollowSelection() {
@@ -365,7 +365,7 @@ func (h *Handler) selectRecursiveGridCenter(cursorShouldFollow bool, moveFailMsg
 
 	center := h.recursiveGrid.Manager.CurrentGrid().CurrentCenter()
 
-	absoluteCenter := coordinates.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+	absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
 	if h.recursiveGrid.Context != nil {
 		h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
 	}
