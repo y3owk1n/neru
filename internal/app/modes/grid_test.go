@@ -12,11 +12,11 @@ import (
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelectionDisabled(
@@ -123,7 +123,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-		renderer: ui.NewOverlayRenderer(
+		renderer: render.NewOverlayRenderer(
 			&overlaypkg.NoOpManager{},
 			hintscomponent.StyleMode{},
 			gridcomponent.Style{},

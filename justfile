@@ -205,7 +205,7 @@ test-foundation:
         ./internal/adapter/logger \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
-        ./internal/ui ./internal/domain/geometry
+        ./internal/app/render ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"
 
 # Print the packages that contain no platform-tagged source, i.e. the set

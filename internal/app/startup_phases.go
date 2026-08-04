@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -28,7 +29,6 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 // initializeInfrastructure sets up the core infrastructure components
@@ -300,7 +300,7 @@ func initializeRendererAndOverlays(app *App) {
 	gridStyle := grid.BuildStyle(cfg.Grid, app.systemPort)
 	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, app.systemPort)
 
-	app.renderer = ui.NewOverlayRenderer(
+	app.renderer = render.NewOverlayRenderer(
 		app.overlayManager,
 		hintStyle,
 		gridStyle,
@@ -324,7 +324,7 @@ func initializeModeHandler(app *App) {
 		appState       *state.AppState
 		cursorState    *state.CursorState
 		overlayManager OverlayManager
-		renderer       *ui.OverlayRenderer
+		renderer       *render.OverlayRenderer
 		services       struct {
 			hint            *services.HintService
 			grid            *services.GridService

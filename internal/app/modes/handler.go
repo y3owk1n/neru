@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -22,7 +23,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 // Mode defines the interface that all navigation modes must implement.
@@ -85,7 +85,7 @@ type handlerState struct {
 	cursorState    *state.CursorState
 	modifierState  *state.ModifierState
 	overlayManager overlay.ManagerInterface
-	renderer       *ui.OverlayRenderer
+	renderer       *render.OverlayRenderer
 	// New Services
 	hintService            *services.HintService
 	gridService            *services.GridService
@@ -175,7 +175,7 @@ type HandlerDeps struct {
 	CursorState *state.CursorState
 
 	OverlayManager overlay.ManagerInterface
-	Renderer       *ui.OverlayRenderer
+	Renderer       *render.OverlayRenderer
 
 	HintService            *services.HintService
 	GridService            *services.GridService

@@ -134,7 +134,6 @@ Cross the boundary through `ports.SystemPort` or a build-tagged dispatch pair
 graph TD
     subgraph "Presentation Layer"
         CLI[internal/cli]
-        UI[internal/ui]
     end
 
     subgraph "Application Layer"
@@ -160,7 +159,6 @@ graph TD
     Ports --> Domain
     Adapters -.->|Implements| Ports
     Platform -.->|Implements| Ports
-    UI --> Adapters
 ```
 
 ### Layer responsibilities
@@ -176,9 +174,10 @@ graph TD
   owns lifecycle and navigation modes.
 - **Adapters** (`internal/adapter`) — concrete port implementations on
   platform APIs.
-- **UI** (`internal/ui`) — coordinate transformation and the renderer facade
-  over the overlay adapter. The native overlay backends live in
-  `internal/adapter/overlay`, not here.
+- **Rendering facade** (`internal/app/render`) — the app-layer renderer that
+  drives the overlay adapter. The native overlay backends live in
+  `internal/adapter/overlay`, not here; pure coordinate math lives in
+  `internal/domain/geometry`.
 - **CLI** (`internal/cli`) — user commands, config loading, IPC to the daemon.
 
 A directory-by-directory map for placing new code is in

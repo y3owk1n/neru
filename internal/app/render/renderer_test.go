@@ -1,4 +1,4 @@
-package ui_test
+package render_test
 
 import (
 	"errors"
@@ -11,9 +11,9 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 // errDraw is returned by the fake manager to check error propagation.
@@ -187,12 +187,12 @@ func TestBuildStyles_ProducesDistinguishableStyles(t *testing.T) {
 	}
 }
 
-func newRenderer(t *testing.T, styles styleSet) (*ui.OverlayRenderer, *fakeManager) {
+func newRenderer(t *testing.T, styles styleSet) (*render.OverlayRenderer, *fakeManager) {
 	t.Helper()
 
 	manager := &fakeManager{}
 
-	return ui.NewOverlayRenderer(manager, styles.hint, styles.grid, styles.recursive), manager
+	return render.NewOverlayRenderer(manager, styles.hint, styles.grid, styles.recursive), manager
 }
 
 func TestOverlayRenderer_DrawHints_ForwardsHintsAndConfiguredStyle(t *testing.T) {

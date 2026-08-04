@@ -298,7 +298,7 @@ What belongs at which log level — and what must never be logged — is in
 | `internal/app/`            | Application orchestration, services, modes         |
 | `internal/app/components/` | Mode-specific overlay rendering                    |
 | `internal/app/modes/`      | Navigation mode implementations                    |
-| `internal/ui/`             | Coordinate conversion, abstract rendering          |
+| `internal/app/render/`     | The app-layer rendering facade over the overlays   |
 | `internal/cli/`            | Cobra CLI commands, IPC dispatch                   |
 | `internal/config/`         | TOML parsing, validation, defaults                 |
 
@@ -325,7 +325,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 **UI components**
 
 1. Create the component in `internal/app/components/`
-2. Implement rendering in `internal/ui/`
+2. Implement rendering in `internal/app/render/`
 3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
 4. Register in `internal/app/component_factory.go` or
