@@ -141,8 +141,3 @@ func (c PlatformCapabilities) Entries() []CapabilityEntry {
 		{Key: CapabilitySystray, Field: "Systray", FeatureCapability: c.Systray},
 	}
 }
-
-// CapabilityReporter exposes runtime capability information.
-type CapabilityReporter interface {
-	Capabilities() PlatformCapabilities
-}
