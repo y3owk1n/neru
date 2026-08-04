@@ -151,12 +151,14 @@ func typeDeclsIn(t *testing.T, dir string) []*ast.TypeSpec {
 	return specs
 }
 
-// TestEveryMockAssertsInterfaceSatisfaction requires each mock file to carry
-// a compile-time assertion tying the mock to its port
+// TestEveryMockAssertsInterfaceSatisfaction requires every mock type in the
+// mocks package to carry a compile-time assertion tying it to its interface
 // (var _ ports.X = (*MockX)(nil), plain or inside a var block). Without one,
 // a mock can drop or fumble a method and still compile on its own — the
 // break only surfaces at some consumer, far from the cause. The assertion
-// moves that failure into the mocks package itself.
+// moves that failure into the mocks package itself. The check is per mock
+// type, not per file, so a second mock added to an existing file cannot
+// hide behind the first one's assertion.
 func TestEveryMockAssertsInterfaceSatisfaction(t *testing.T) {
 	t.Parallel()
 
@@ -168,7 +170,11 @@ func TestEveryMockAssertsInterfaceSatisfaction(t *testing.T) {
 		t.Fatalf("reading mocks dir: %v", err)
 	}
 
-	assertion := regexp.MustCompile(`(?m)^(?:var )?\s*_ ports\.\w+\s*=`)
+	mockTypePattern := regexp.MustCompile(`(?m)^type (Mock\w+) struct`)
+	assertionPattern := regexp.MustCompile(`\(\*(Mock\w+)\)\(nil\)`)
+
+	declared := map[string]string{} // mock type -> file
+	asserted := map[string]bool{}
 
 	for _, entry := range entries {
 		name := entry.Name()
@@ -182,16 +188,26 @@ func TestEveryMockAssertsInterfaceSatisfaction(t *testing.T) {
 			t.Fatalf("reading %s: %v", name, readErr)
 		}
 
-		if !strings.Contains(string(content), "Mock") {
-			continue
+		for _, match := range mockTypePattern.FindAllStringSubmatch(string(content), -1) {
+			declared[match[1]] = name
 		}
 
-		if !assertion.Match(content) {
+		for _, match := range assertionPattern.FindAllStringSubmatch(string(content), -1) {
+			asserted[match[1]] = true
+		}
+	}
+
+	if len(declared) == 0 {
+		t.Fatal("found no mock types under internal/ports/mocks; the scan is broken")
+	}
+
+	for mockType, file := range declared {
+		if !asserted[mockType] {
 			t.Errorf(
-				"internal/ports/mocks/%s declares a mock but no compile-time "+
-					"interface assertion; add `var _ ports.<Port> = (*Mock<Port>)(nil)` "+
-					"so drift from the port fails in this package, not at a consumer",
-				name,
+				"internal/ports/mocks/%s declares %s but no compile-time interface "+
+					"assertion for it; add `var _ ports.<Interface> = (*%s)(nil)` so "+
+					"drift from the interface fails in this package, not at a consumer",
+				file, mockType, mockType,
 			)
 		}
 	}
