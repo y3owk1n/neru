@@ -117,7 +117,7 @@ func smoothCursorIntBounds() []intBound {
 			name:     "smooth_cursor.relative_duration",
 			set:      func(c *config.Config, v int) { c.SmoothCursor.RelativeDuration = v },
 			validate: (*config.Config).ValidateSmoothCursor,
-			minValid: 1,
+			minValid: config.MinSmoothCursorRelativeDuration,
 		},
 	}
 }

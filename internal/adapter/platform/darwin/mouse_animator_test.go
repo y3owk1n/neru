@@ -81,6 +81,42 @@ func TestCursorAnimator_ClearDoneIfCurrent_KeepsNewerPending(t *testing.T) {
 	}
 }
 
+// TestCursorAnimator_AnimateRelativeBy_NoopKeepsAnimation pins the no-op
+// guard: a move whose endpoint equals the pending one — zero delta, or a
+// delta the screen-edge clamp ate — must not cancel and resubmit the
+// animation already heading there.
+func TestCursorAnimator_AnimateRelativeBy_NoopKeepsAnimation(t *testing.T) {
+	animator := testAnimator()
+
+	end := image.Point{X: 10, Y: 10}
+	animator.submitForTest(end)
+
+	identity := func(p image.Point) image.Point { return p }
+	animator.animateRelativeBy(image.Point{}, identity, 1, 50, 0, 0)
+
+	clampToEnd := func(image.Point) image.Point { return end }
+	animator.animateRelativeBy(image.Point{X: 5, Y: 0}, clampToEnd, 1, 50, 0, 0)
+
+	select {
+	case req := <-animator.reqCh:
+		if req.end != end {
+			t.Fatalf(
+				"queued request end = %v, want the original %v (no-op moves must not resubmit)",
+				req.end,
+				end,
+			)
+		}
+	default:
+		t.Fatal("original request missing from queue after no-op moves")
+	}
+
+	select {
+	case req := <-animator.reqCh:
+		t.Fatalf("no-op move enqueued an extra request with end %v", req.end)
+	default:
+	}
+}
+
 // TestCursorAnimator_AnimateRelativeBy_ConcurrentDeltasCompose pins the
 // single-lock read-modify-write of animateRelativeBy: deltas from concurrent
 // movers (mode held-repeat and hotkey held-repeat are independent goroutines)

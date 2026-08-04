@@ -16,8 +16,11 @@ import (
 )
 
 const (
-	minAnimationDuration = 10 // Minimum animation duration in ms
-	minStepDelay         = 1  // Minimum delay between steps in ms
+	// minAnimationDuration is the floor for every animation in ms. Mirrored by
+	// config.MinSmoothCursorRelativeDuration so the validator rejects
+	// relative_duration values this floor would silently round up.
+	minAnimationDuration = 10
+	minStepDelay         = 1 // Minimum delay between steps in ms
 )
 
 type cursorAnimationDone struct {
@@ -195,8 +198,16 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 		base = CursorPosition()
 	}
 
+	end := clamp(base.Add(delta))
+	if end == base {
+		// Nothing to animate: the delta was zero or the clamp ate it at a
+		// screen edge. The in-flight animation (if any) already targets base,
+		// so submitting would only cancel and restart it.
+		return
+	}
+
 	a.submitLocked(cursorRequest{
-		end:           clamp(base.Add(delta)),
+		end:           end,
 		steps:         steps,
 		eventType:     eventType,
 		button:        button,

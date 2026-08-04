@@ -126,6 +126,11 @@ const (
 	// animations chain seamlessly under held-key repeat.
 	DefaultSmoothCursorRelativeDuration = 50
 
+	// MinSmoothCursorRelativeDuration is the smallest accepted
+	// relative_duration (ms). Mirrors the animator's minAnimationDuration
+	// floor (darwin adapter): anything below it would be silently rounded up.
+	MinSmoothCursorRelativeDuration = 10
+
 	// DefaultSmoothScrollSteps is the default smooth scroll steps.
 	DefaultSmoothScrollSteps = 20
 

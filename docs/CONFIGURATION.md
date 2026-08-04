@@ -1413,7 +1413,7 @@ Animates cursor movement between positions. Supported on macOS and Linux
 | `steps`              | int   | `10`    | Number of animation steps          |
 | `max_duration`       | int   | `200`   | Max animation duration in ms       |
 | `duration_per_pixel` | float | `0.1`   | Ms per pixel for adaptive duration |
-| `relative_duration`  | int   | `50`    | Fixed duration per relative move in ms (>= 1) |
+| `relative_duration`  | int   | `50`    | Fixed duration per relative move in ms (>= 10) |
 
 ```toml
 [smooth_cursor]
