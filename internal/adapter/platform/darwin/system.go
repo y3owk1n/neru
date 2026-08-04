@@ -132,7 +132,15 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 }
 
 // CursorPosition returns the current cursor position on macOS.
+//
+// Any in-flight cursor animation is settled first — stopped, with the cursor
+// warped straight to its endpoint — so a position-dependent action that fires
+// mid-animation (e.g. a click right after an animated relative move) acts at
+// the point the user aimed for instead of a mid-animation position, without
+// paying the animation's remaining duration in latency.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
+	cursorAnimator.settle()
+
 	return CursorPosition(), nil
 }
 

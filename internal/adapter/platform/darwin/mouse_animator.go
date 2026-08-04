@@ -103,6 +103,54 @@ func (a *smoothCursorAnimator) pendingTarget() (image.Point, bool) {
 	return a.pendingEnd, a.hasPending
 }
 
+// settle finishes any in-flight animation immediately: the worker is canceled
+// and the cursor warps straight to the endpoint it was animating toward.
+// Position-dependent reads call this so an action firing mid-animation acts
+// at the point the user aimed for, without waiting the animation out.
+func (a *smoothCursorAnimator) settle() {
+	end, ok := a.takePendingForSettle()
+	if !ok {
+		return
+	}
+
+	eventType, button := dragEventType()
+	pos := C.CGPoint{x: C.double(end.X), y: C.double(end.Y)}
+	C.NeruMoveMouseWithTypeAndButton(pos, eventType, button)
+}
+
+// takePendingForSettle atomically ends the in-flight animation and hands back
+// its endpoint: the worker is canceled with the same generation bump as
+// stop() — so a step already past its checks is dropped rather than landing
+// after the settle warp — waiters are released, and the pending endpoint is
+// cleared. ok reports whether there was an animation to settle.
+func (a *smoothCursorAnimator) takePendingForSettle() (image.Point, bool) {
+	a.mu.Lock()
+
+	if !a.hasPending {
+		a.mu.Unlock()
+
+		return image.Point{}, false
+	}
+
+	end := a.pendingEnd
+	stopCh := a.stopCh
+	done := a.done
+	a.reqCh = nil
+	a.stopCh = nil
+	a.done = nil
+	a.generation++
+	a.hasPending = false
+
+	if stopCh != nil {
+		close(stopCh)
+	}
+	a.mu.Unlock()
+
+	done.close()
+
+	return end, true
+}
+
 // currentGeneration returns the animation generation in effect right now.
 func (a *smoothCursorAnimator) currentGeneration() uint64 {
 	a.mu.Lock()

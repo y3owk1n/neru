@@ -156,3 +156,38 @@ func TestCursorAnimator_AnimateRelativeBy_ConcurrentDeltasCompose(t *testing.T) 
 			got.X, want, want)
 	}
 }
+
+// TestCursorAnimator_TakePendingForSettle pins the state transition behind
+// settle(): it hands back the in-flight endpoint exactly once, releases
+// waiters, invalidates queued steps, and reports ok == false on an idle
+// animator so no settle warp is posted when there is nothing to finish.
+func TestCursorAnimator_TakePendingForSettle(t *testing.T) {
+	animator := testAnimator()
+
+	if _, ok := animator.takePendingForSettle(); ok {
+		t.Fatal("takePendingForSettle() reported an animation on an idle animator")
+	}
+
+	end := image.Point{X: 30, Y: 40}
+	generation := animator.currentGeneration()
+	done := animator.submitForTest(end)
+
+	got, ok := animator.takePendingForSettle()
+	if !ok || got != end {
+		t.Fatalf("takePendingForSettle() = %v, %v, want %v, true", got, ok, end)
+	}
+
+	if _, ok := animator.pendingTarget(); ok {
+		t.Fatal("pendingTarget() still reports an animation after settle")
+	}
+
+	select {
+	case <-done.ch:
+	default:
+		t.Fatal("settle did not release the animation's waiters")
+	}
+
+	if animator.postIfCurrent(generation, end, 0, 0) {
+		t.Fatal("a step from the settled animation was still posted after settle")
+	}
+}
