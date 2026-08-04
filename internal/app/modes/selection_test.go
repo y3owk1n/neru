@@ -21,7 +21,7 @@ func TestCurrentSelectionPoint_UsesActiveModeContext(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		hints:    &components.HintsComponent{},
 		grid: &components.GridComponent{
@@ -30,7 +30,7 @@ func TestCurrentSelectionPoint_UsesActiveModeContext(t *testing.T) {
 		recursiveGrid: &components.RecursiveGridComponent{
 			Context: &recursivegridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.grid.Context.SetSelectionPoint(image.Point{X: 10, Y: 20})
 	handler.recursiveGrid.Context.SetSelectionPoint(image.Point{X: 30, Y: 40})
@@ -49,7 +49,7 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeGrid)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		actionService: services.NewActionService(
@@ -64,7 +64,7 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-	}
+	})
 
 	enabled, supported := handler.ToggleCursorFollowSelection()
 	if !supported {
@@ -95,7 +95,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredGridSelectionWhenEnablin
 
 	var moved []image.Point
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		actionService: services.NewActionService(
@@ -113,7 +113,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredGridSelectionWhenEnablin
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.grid.Context.SetSelectionPoint(image.Point{X: 120, Y: 240})
 
@@ -137,7 +137,7 @@ func TestToggleCursorFollowSelection_DoesNotMoveCursorWhenDisabling(t *testing.T
 
 	moveCount := 0
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		actionService: services.NewActionService(
@@ -155,7 +155,7 @@ func TestToggleCursorFollowSelection_DoesNotMoveCursorWhenDisabling(t *testing.T
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.grid.Context.SetCursorFollowSelection(true)
 	handler.grid.Context.SetSelectionPoint(image.Point{X: 120, Y: 240})
@@ -181,7 +181,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredRecursiveGridSelectionWh
 
 	var moved []image.Point
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		actionService: services.NewActionService(
@@ -199,7 +199,7 @@ func TestToggleCursorFollowSelection_MovesCursorToStoredRecursiveGridSelectionWh
 		recursiveGrid: &components.RecursiveGridComponent{
 			Context: &recursivegridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.recursiveGrid.Context.SetSelectionPoint(image.Point{X: 33, Y: 66})
 
@@ -221,7 +221,7 @@ func TestClearCurrentSelectionPoint_ClearsOnlyActiveModeSelection(t *testing.T) 
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
@@ -229,7 +229,7 @@ func TestClearCurrentSelectionPoint_ClearsOnlyActiveModeSelection(t *testing.T) 
 		recursiveGrid: &components.RecursiveGridComponent{
 			Context: &recursivegridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.grid.Context.SetSelectionPoint(image.Point{X: 10, Y: 20})
 	handler.recursiveGrid.Context.SetSelectionPoint(image.Point{X: 30, Y: 40})
@@ -267,13 +267,13 @@ func TestSetCursorFollowSelection_ConvergesRatherThanFlipping(t *testing.T) {
 			appState := state.NewAppState()
 			appState.SetMode(domain.ModeHints)
 
-			handler := &Handler{
+			handler := newHandlerWithState(handlerState{
 				appState: appState,
 				logger:   zap.NewNop(),
 				hints: &components.HintsComponent{
 					Context: &hintscomponent.Context{},
 				},
-			}
+			})
 
 			handler.hints.Context.SetCursorFollowSelection(testCase.initial)
 
@@ -298,13 +298,13 @@ func TestCursorFollowSelection_ReadsWithoutChanging(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeGrid)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-	}
+	})
 
 	handler.grid.Context.SetCursorFollowSelection(true)
 
@@ -324,13 +324,13 @@ func TestCursorFollowSelection_ReportsUnsupportedWithoutAMode(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeIdle)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		logger:   zap.NewNop(),
 		hints: &components.HintsComponent{
 			Context: &hintscomponent.Context{},
 		},
-	}
+	})
 
 	if _, supported := handler.CursorFollowSelection(); supported {
 		t.Fatal("CursorFollowSelection() reported support in idle mode")

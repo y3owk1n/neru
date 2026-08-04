@@ -5,9 +5,9 @@ package modes
 // CursorVisibilitySupported returns false on non-macOS platforms.
 func (h *Handler) CursorVisibilitySupported() bool { return false }
 
-func (h *Handler) hideSystemCursorNative() {}
+func (h *handlerState) hideSystemCursorNative() {}
 
-func (h *Handler) showSystemCursorNative() {}
+func (h *handlerState) showSystemCursorNative() {}
 
 // RehideSystemCursor is a no-op on non-macOS platforms.
 func (h *Handler) RehideSystemCursor() {}

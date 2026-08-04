@@ -11,11 +11,11 @@ import "C"
 // CursorVisibilitySupported returns true on macOS where system cursor visibility control is available.
 func (h *Handler) CursorVisibilitySupported() bool { return true }
 
-func (h *Handler) hideSystemCursorNative() {
+func (h *handlerState) hideSystemCursorNative() {
 	C.NeruHideSystemCursor()
 }
 
-func (h *Handler) showSystemCursorNative() {
+func (h *handlerState) showSystemCursorNative() {
 	C.NeruShowSystemCursor()
 }
 

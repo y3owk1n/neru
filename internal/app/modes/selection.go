@@ -54,7 +54,7 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 		}
 
 		h.grid.Context.ClearSelectionPoint()
-		h.refreshGridVirtualPointerLocked()
+		h.refreshGridVirtualPointer()
 
 		return true
 	case domain.ModeRecursiveGrid:
@@ -63,7 +63,7 @@ func (h *Handler) ClearCurrentSelectionPoint() bool {
 		}
 
 		h.recursiveGrid.Context.ClearSelectionPoint()
-		h.refreshRecursiveGridVirtualPointerLocked()
+		h.refreshRecursiveGridVirtualPointer()
 
 		return true
 	case domain.ModeHints:
@@ -97,7 +97,7 @@ func (h *Handler) CursorFollowSelection() (bool, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	modeContext, ok := h.cursorFollowContextLocked()
+	modeContext, ok := h.cursorFollowContext()
 	if !ok {
 		return false, false
 	}
@@ -128,7 +128,7 @@ func (h *Handler) applyCursorFollowSelection(desired *bool) (bool, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	modeContext, ok := h.cursorFollowContextLocked()
+	modeContext, ok := h.cursorFollowContext()
 	if !ok {
 		return false, false
 	}
@@ -149,20 +149,20 @@ func (h *Handler) applyCursorFollowSelection(desired *bool) (bool, bool) {
 	// preference only affects the selections made after it.
 	switch h.appState.CurrentMode() {
 	case domain.ModeGrid:
-		h.refreshGridVirtualPointerLocked()
-		h.moveCursorToSelectionLocked(enabled, h.grid.Context.SelectionPoint)
+		h.refreshGridVirtualPointer()
+		h.moveCursorToSelection(enabled, h.grid.Context.SelectionPoint)
 	case domain.ModeRecursiveGrid:
-		h.refreshRecursiveGridVirtualPointerLocked()
-		h.moveCursorToSelectionLocked(enabled, h.recursiveGrid.Context.SelectionPoint)
+		h.refreshRecursiveGridVirtualPointer()
+		h.moveCursorToSelection(enabled, h.recursiveGrid.Context.SelectionPoint)
 	case domain.ModeHints, domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
 	}
 
 	return enabled, true
 }
 
-// cursorFollowContextLocked returns the active mode's cursor-follow context, or
+// cursorFollowContext returns the active mode's cursor-follow context, or
 // false when the active mode does not carry the preference.
-func (h *Handler) cursorFollowContextLocked() (cursorFollowContext, bool) {
+func (h *handlerState) cursorFollowContext() (cursorFollowContext, bool) {
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints == nil || h.hints.Context == nil {
@@ -193,10 +193,10 @@ func (h *Handler) cursorFollowContextLocked() (cursorFollowContext, bool) {
 	return nil, false
 }
 
-// moveCursorToSelectionLocked moves the real cursor onto the mode's stored
+// moveCursorToSelection moves the real cursor onto the mode's stored
 // selection point when the mode is following the selection. Turning the
 // preference off leaves the cursor where it is.
-func (h *Handler) moveCursorToSelectionLocked(
+func (h *handlerState) moveCursorToSelection(
 	enabled bool,
 	selectionPoint func() (image.Point, bool),
 ) {
@@ -215,7 +215,7 @@ func (h *Handler) moveCursorToSelectionLocked(
 	}
 }
 
-func (h *Handler) refreshGridVirtualPointerLocked() {
+func (h *handlerState) refreshGridVirtualPointer() {
 	if h.grid == nil || h.grid.Context == nil || h.grid.Overlay == nil {
 		return
 	}
@@ -233,7 +233,7 @@ func (h *Handler) refreshGridVirtualPointerLocked() {
 	h.grid.Overlay.ShowVirtualPointer(localPoint, style.fontSize, style.fillColor)
 }
 
-func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
+func (h *handlerState) refreshRecursiveGridVirtualPointer() {
 	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil || h.recursiveGrid.Overlay == nil {
 		return
 	}
@@ -248,7 +248,7 @@ func (h *Handler) refreshRecursiveGridVirtualPointerLocked() {
 	h.recursiveGrid.Overlay.ShowVirtualPointer(state.Position, state.Size, state.FillColor)
 }
 
-func (h *Handler) currentRecursiveGridVirtualPointerState() componentrecursivegrid.VirtualPointerState {
+func (h *handlerState) currentRecursiveGridVirtualPointerState() componentrecursivegrid.VirtualPointerState {
 	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
 		return componentrecursivegrid.VirtualPointerState{}
 	}
@@ -277,7 +277,7 @@ type virtualPointerStyle struct {
 	fontName  string
 }
 
-func (h *Handler) virtualPointerStyle() (virtualPointerStyle, bool) {
+func (h *handlerState) virtualPointerStyle() (virtualPointerStyle, bool) {
 	cfg := h.config.VirtualPointer
 
 	fillColor := cfg.UI.TextColor.ForTheme(

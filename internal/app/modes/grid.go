@@ -16,7 +16,7 @@ import (
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
+func (h *handlerState) activateGridModeWithAction(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
 
@@ -28,7 +28,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 	)
 	if !activated {
 		if isRefresh {
-			h.exitModeLocked()
+			h.exitMode()
 		}
 
 		return
@@ -44,7 +44,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitModeLocked()
+		h.exitMode()
 	}
 
 	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
@@ -73,7 +73,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 		h.logger.Error("Failed to draw grid", zap.Error(drawGridErr))
 
 		if isRefresh {
-			h.exitModeLocked()
+			h.exitMode()
 		}
 
 		return
@@ -87,7 +87,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 	applyGridOptions(h.grid.Context, opts, isRefresh)
 
 	h.grid.Context.ClearSelectionPoint()
-	h.refreshGridVirtualPointerLocked()
+	h.refreshGridVirtualPointer()
 
 	if opts.Action != nil {
 		h.logger.Debug("Grid mode activated with pending action",
@@ -98,7 +98,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
-		h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)
+		h.setMode(domain.ModeGrid, overlay.ModeGrid)
 	}
 
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
@@ -107,7 +107,7 @@ func (h *Handler) activateGridModeWithAction(opts ModeActivationOptions) {
 }
 
 // createGridInstance creates a new grid with proper bounds and characters.
-func (h *Handler) createGridInstance() *domainGrid.Grid {
+func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	var screenBounds image.Rectangle
 
 	if h.system != nil {
@@ -143,7 +143,7 @@ func (h *Handler) createGridInstance() *domainGrid.Grid {
 }
 
 // updateGridOverlayConfig updates the grid overlay configuration.
-func (h *Handler) updateGridOverlayConfig() {
+func (h *handlerState) updateGridOverlayConfig() {
 	if h.grid.Overlay != nil {
 		h.grid.Overlay.SetConfig(h.config.Grid)
 	}
@@ -152,7 +152,7 @@ func (h *Handler) updateGridOverlayConfig() {
 // initializeGridManager initializes the grid manager with the new grid instance.
 // It sets up subgrid configuration, creates the manager with update callbacks for
 // overlay rendering and subgrid navigation, and configures the grid router.
-func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
+func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 	const defaultGridCharacters = "asdfghjkl"
 
 	// Defensive check for grid instance
@@ -239,7 +239,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 			hideUnmatched := h.config.Grid.HideUnmatched && len(input) > 0
 			h.renderer.SetHideUnmatched(hideUnmatched)
 			h.renderer.UpdateGridMatches(input)
-			h.refreshGridVirtualPointerLocked()
+			h.refreshGridVirtualPointer()
 		},
 		// Subgrid callback: moves cursor and shows subgrid overlay
 		func(cell *domainGrid.Cell) {
@@ -264,7 +264,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 				if !h.grid.Context.CursorFollowSelection() {
 					h.renderer.ShowSubgrid(cell)
-					h.refreshGridVirtualPointerLocked()
+					h.refreshGridVirtualPointer()
 
 					return
 				}
@@ -277,7 +277,7 @@ func (h *Handler) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			// Draw 3x3 subgrid inside selected cell
 			h.renderer.ShowSubgrid(cell)
-			h.refreshGridVirtualPointerLocked()
+			h.refreshGridVirtualPointer()
 		},
 		h.logger,
 	)

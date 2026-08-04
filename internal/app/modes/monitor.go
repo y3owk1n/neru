@@ -319,7 +319,7 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 		return
 	}
 
-	h.refreshGridVirtualPointerLocked()
+	h.refreshGridVirtualPointer()
 	h.overlayManager.Show()
 }
 
@@ -348,7 +348,7 @@ func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangl
 	}
 
 	h.updateRecursiveGridOverlay()
-	h.refreshRecursiveGridVirtualPointerLocked()
+	h.refreshRecursiveGridVirtualPointer()
 	h.overlayManager.Show()
 }
 
@@ -414,7 +414,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 	filtered := filterHintsForScreen(domainHints, targetBounds)
 	if len(filtered) == 0 {
 		h.logger.Warn("All hints filtered out on target monitor; exiting hints mode")
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}
@@ -424,7 +424,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to set hints after monitor move", zap.Error(setHintsErr))
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}

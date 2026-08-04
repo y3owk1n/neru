@@ -20,12 +20,12 @@ const (
 // baseMode provides common functionality for all mode implementations.
 // It contains the shared handler dependency and mode type.
 type baseMode struct {
-	handler  *Handler
+	handler  *handlerState
 	modeType domain.Mode
 }
 
 // newBaseMode creates a new base mode with the given handler and mode type.
-func newBaseMode(handler *Handler, modeType domain.Mode, modeName string) baseMode {
+func newBaseMode(handler *handlerState, modeType domain.Mode, modeName string) baseMode {
 	if handler == nil {
 		panic(modeName + ": handler cannot be nil")
 	}

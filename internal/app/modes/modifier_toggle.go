@@ -57,7 +57,7 @@ func parseModifierEvent(key string) (action.Modifiers, bool, bool) {
 // handleModifierToggle processes modifier down/up events for sticky toggle.
 // A modifier becomes sticky when its down/up pair completes without any
 // intervening regular key, and pressing the same modifier again toggles it off.
-func (h *Handler) handleModifierToggle(key string) bool {
+func (h *handlerState) handleModifierToggle(key string) bool {
 	if !h.stickyModifiersEnabled() {
 		return false
 	}
@@ -204,7 +204,7 @@ func (h *Handler) handleModifierToggle(key string) bool {
 	return true
 }
 
-func (h *Handler) stopPendingModifierTimer(mod action.Modifiers) {
+func (h *handlerState) stopPendingModifierTimer(mod action.Modifiers) {
 	if h.pendingModifierTimers == nil {
 		return
 	}
@@ -217,7 +217,7 @@ func (h *Handler) stopPendingModifierTimer(mod action.Modifiers) {
 
 // scheduleModifierToggle starts a debounce timer that will toggle the given
 // modifier after modifierToggleDebounce unless canceled by a regular key press.
-func (h *Handler) scheduleModifierToggle(mod action.Modifiers, downTime time.Time) {
+func (h *handlerState) scheduleModifierToggle(mod action.Modifiers, downTime time.Time) {
 	if h.pendingModifierTimers == nil {
 		h.pendingModifierTimers = make(map[action.Modifiers]*time.Timer)
 	}
@@ -231,14 +231,14 @@ func (h *Handler) scheduleModifierToggle(mod action.Modifiers, downTime time.Tim
 		zap.Duration("delay", modifierToggleDebounce))
 
 	timer := time.AfterFunc(modifierToggleDebounce, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+		h.outer.mu.Lock()
+		defer h.outer.mu.Unlock()
 		defer h.notifyDebounceComplete()
 
 		// Guard against stale timer: if the mode session changed (user exited
 		// and re-entered a mode) while we were waiting, this timer belongs to
 		// a previous session and must not toggle anything. The primary cleanup
-		// path (cancelPendingModifierToggle via setAppModeLocked) already
+		// path (cancelPendingModifierToggle via setAppMode) already
 		// stops timers and nils pendingModifierKeys, but this check provides
 		// defense-in-depth in case a timer fires between the mode exit and the
 		// cancel — matching the pattern used by refreshHintsTimer.
@@ -298,7 +298,7 @@ func (h *Handler) scheduleModifierToggle(mod action.Modifiers, downTime time.Tim
 // notifyDebounceComplete sends a non-blocking signal on debounceNotify so
 // tests can synchronize with the timer callback. In production the channel
 // is nil and this is a no-op.
-func (h *Handler) notifyDebounceComplete() {
+func (h *handlerState) notifyDebounceComplete() {
 	if h.debounceNotify != nil {
 		select {
 		case h.debounceNotify <- struct{}{}:
@@ -313,7 +313,7 @@ func (h *Handler) notifyDebounceComplete() {
 // to prevent modifier UP events from starting debounce timers during a
 // mode switch. Resetting it here would undo the suppression before the
 // UP events arrive, causing unintended sticky modifier toggles.
-func (h *Handler) clearStickyModifiers() {
+func (h *handlerState) clearStickyModifiers() {
 	if h.modifierState == nil {
 		return
 	}
@@ -341,7 +341,7 @@ func (h *Handler) clearStickyModifiers() {
 	h.heldModifiers = 0
 }
 
-func (h *Handler) cancelPendingModifierToggle() {
+func (h *handlerState) cancelPendingModifierToggle() {
 	if len(h.pendingModifierKeys) > 0 {
 		h.pendingModifierKeys = nil
 		h.logger.Debug("Modifier tap canceled")
@@ -354,7 +354,7 @@ func (h *Handler) cancelPendingModifierToggle() {
 	}
 }
 
-func (h *Handler) markHeldModifiersUsedInChord() {
+func (h *handlerState) markHeldModifiersUsedInChord() {
 	h.expireSuppressedModifiersIfNeeded()
 
 	for _, mod := range allStickyModifiers {
@@ -429,7 +429,7 @@ func (h *Handler) SuppressModifiersForHotkey(mods action.Modifiers) {
 	}
 }
 
-func (h *Handler) expireSuppressedModifiersIfNeeded() {
+func (h *handlerState) expireSuppressedModifiersIfNeeded() {
 	if h.suppressedModifiers == 0 || h.suppressedUntil.IsZero() {
 		return
 	}
@@ -444,7 +444,7 @@ func (h *Handler) expireSuppressedModifiersIfNeeded() {
 	h.modifierFreshPress = nil
 }
 
-func (h *Handler) stickyModifiersEnabled() bool {
+func (h *handlerState) stickyModifiersEnabled() bool {
 	if h.config == nil {
 		return false
 	}
@@ -452,7 +452,7 @@ func (h *Handler) stickyModifiersEnabled() bool {
 	return h.config.StickyModifiers.Enabled
 }
 
-func (h *Handler) stickyModifiers() action.Modifiers {
+func (h *handlerState) stickyModifiers() action.Modifiers {
 	if h.modifierState == nil {
 		return 0
 	}

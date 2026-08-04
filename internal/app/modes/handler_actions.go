@@ -34,7 +34,7 @@ func (h *Handler) ResetCurrentMode() {
 					h.logger.Error("Failed to redraw grid after reset", zap.Error(err))
 				}
 
-				h.refreshGridVirtualPointerLocked()
+				h.refreshGridVirtualPointer()
 			}
 		}
 	case domain.ModeRecursiveGrid:
@@ -52,7 +52,7 @@ func (h *Handler) ResetCurrentMode() {
 
 			if h.recursiveGrid.Context != nil {
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
-					h.refreshRecursiveGridVirtualPointerLocked()
+					h.refreshRecursiveGridVirtualPointer()
 
 					return
 				}
@@ -70,7 +70,7 @@ func (h *Handler) ResetCurrentMode() {
 		if h.monitorSelect != nil {
 			h.monitorSelect.input = ""
 			h.monitorSelect.selectedIndex = 0
-			h.redrawMonitorSelectLocked()
+			h.redrawMonitorSelect()
 		}
 	case domain.ModeIdle, domain.ModeHints, domain.ModeScroll:
 		// no-op
@@ -111,7 +111,7 @@ func (h *Handler) BackspaceCurrentMode() {
 
 			if h.recursiveGrid.Context != nil {
 				if !h.recursiveGrid.Context.CursorFollowSelection() {
-					h.refreshRecursiveGridVirtualPointerLocked()
+					h.refreshRecursiveGridVirtualPointer()
 
 					return
 				}
@@ -131,7 +131,7 @@ func (h *Handler) BackspaceCurrentMode() {
 	case domain.ModeMonitorSelect:
 		if h.monitorSelect != nil {
 			h.monitorSelect.Backspace()
-			h.redrawMonitorSelectLocked()
+			h.redrawMonitorSelect()
 		}
 	case domain.ModeIdle, domain.ModeScroll:
 		// no-op
@@ -175,7 +175,7 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 
 		if h.recursiveGrid.Context != nil &&
 			!h.recursiveGrid.Context.CursorFollowSelection() {
-			h.refreshRecursiveGridVirtualPointerLocked()
+			h.refreshRecursiveGridVirtualPointer()
 
 			return
 		}
@@ -197,7 +197,7 @@ func (h *Handler) StartHintSearch() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	return h.startHintSearchLocked()
+	return h.startHintSearch()
 }
 
 // CycleHint cycles through visible hints in hints mode, selecting the next or previous one.
@@ -313,7 +313,7 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 	return nil
 }
 
-func (h *Handler) startHintSearchLocked() error {
+func (h *handlerState) startHintSearch() error {
 	if h.appState.CurrentMode() != domain.ModeHints {
 		return derrors.New(derrors.CodeInvalidInput, "search_hints requires hints mode")
 	}
@@ -326,7 +326,7 @@ func (h *Handler) startHintSearchLocked() error {
 		return derrors.New(derrors.CodeActionFailed, "hints not available")
 	}
 
-	h.stopHintSearchTextInputLocked(true)
+	h.stopHintSearchTextInput(true)
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
 
@@ -364,8 +364,8 @@ func (h *Handler) startHintSearchLocked() error {
 			h.ctx,
 			ports.TextInputCallbacks{
 				OnQueryChanged: func(query string) {
-					h.mu.Lock()
-					defer h.mu.Unlock()
+					h.outer.mu.Lock()
+					defer h.outer.mu.Unlock()
 
 					if h.appState.CurrentMode() != domain.ModeHints || h.hints == nil ||
 						h.hints.Context == nil {
@@ -380,8 +380,8 @@ func (h *Handler) startHintSearchLocked() error {
 					h.applyHintSearchFilter()
 				},
 				OnConfirm: func() {
-					h.mu.Lock()
-					defer h.mu.Unlock()
+					h.outer.mu.Lock()
+					defer h.outer.mu.Unlock()
 
 					if h.appState.CurrentMode() != domain.ModeHints {
 						return
@@ -390,8 +390,8 @@ func (h *Handler) startHintSearchLocked() error {
 					h.confirmHintSearch()
 				},
 				OnCancel: func() {
-					h.mu.Lock()
-					defer h.mu.Unlock()
+					h.outer.mu.Lock()
+					defer h.outer.mu.Unlock()
 
 					if h.appState.CurrentMode() != domain.ModeHints {
 						return
@@ -415,7 +415,7 @@ func (h *Handler) startHintSearchLocked() error {
 	return nil
 }
 
-func (h *Handler) stopHintSearchTextInputLocked(keepEventTapDisabled bool) {
+func (h *handlerState) stopHintSearchTextInput(keepEventTapDisabled bool) {
 	if h.hintSearchTextInputActive && h.textInput != nil {
 		// Use Background context since this may be called during cleanup,
 		// after h.ctx has already been canceled.

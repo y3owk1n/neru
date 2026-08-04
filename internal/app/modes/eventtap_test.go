@@ -17,7 +17,7 @@ func newEventTapHandler(t *testing.T) *Handler {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	return &Handler{ctx: ctx, logger: zap.NewNop()}
+	return newHandlerWithState(handlerState{ctx: ctx, logger: zap.NewNop()})
 }
 
 // TestHandler_EventTapHelpersTolerateNilTap pins the nil-safety the whole

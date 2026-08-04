@@ -24,12 +24,12 @@ func (h *Handler) SetEventTap(eventTap ports.EventTapPort) {
 // hasEventTap reports whether a tap is wired up, for call sites that need to
 // know before doing work rather than relying on the no-op behavior of the
 // methods above.
-func (h *Handler) hasEventTap() bool {
+func (h *handlerState) hasEventTap() bool {
 	return h.eventTap != nil
 }
 
 // enableEventTap starts keyboard capture.
-func (h *Handler) enableEventTap() {
+func (h *handlerState) enableEventTap() {
 	if h.eventTap == nil {
 		return
 	}
@@ -44,7 +44,7 @@ func (h *Handler) enableEventTap() {
 //
 // It uses a background context rather than h.ctx because it also runs on the
 // cleanup path, after h.ctx has been canceled.
-func (h *Handler) disableEventTap() {
+func (h *handlerState) disableEventTap() {
 	if h.eventTap == nil {
 		return
 	}
@@ -57,7 +57,7 @@ func (h *Handler) disableEventTap() {
 
 // setModifierPassthrough configures whether unbound modifier shortcuts pass
 // through to the focused application.
-func (h *Handler) setModifierPassthrough(enabled bool, blacklist []string) {
+func (h *handlerState) setModifierPassthrough(enabled bool, blacklist []string) {
 	if h.eventTap == nil {
 		return
 	}
@@ -67,7 +67,7 @@ func (h *Handler) setModifierPassthrough(enabled bool, blacklist []string) {
 
 // setInterceptedModifierKeys configures which modifier shortcuts the active
 // mode still wants consumed while passthrough is on.
-func (h *Handler) setInterceptedModifierKeys(keys []string) {
+func (h *handlerState) setInterceptedModifierKeys(keys []string) {
 	if h.eventTap == nil {
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Handler) setInterceptedModifierKeys(keys []string) {
 
 // setPassthroughCallback registers a function invoked when a modifier shortcut
 // passes through. Pass nil to clear.
-func (h *Handler) setPassthroughCallback(callback func()) {
+func (h *handlerState) setPassthroughCallback(callback func()) {
 	if h.eventTap == nil {
 		return
 	}
@@ -86,7 +86,7 @@ func (h *Handler) setPassthroughCallback(callback func()) {
 }
 
 // setStickyModifierToggle enables or disables sticky modifier detection.
-func (h *Handler) setStickyModifierToggle(enabled bool) {
+func (h *handlerState) setStickyModifierToggle(enabled bool) {
 	if h.eventTap == nil {
 		return
 	}
@@ -95,7 +95,7 @@ func (h *Handler) setStickyModifierToggle(enabled bool) {
 }
 
 // postModifierEvent simulates a physical modifier press or release.
-func (h *Handler) postModifierEvent(modifier string, isDown bool) {
+func (h *handlerState) postModifierEvent(modifier string, isDown bool) {
 	if h.eventTap == nil {
 		return
 	}
@@ -109,7 +109,7 @@ func (h *Handler) postModifierEvent(modifier string, isDown bool) {
 // Backends that cannot answer (everything but the Linux Wayland evdev tap) do
 // not implement the extension, and the conservative false keeps capture — the
 // behavior that works everywhere.
-func (h *Handler) allowsOverlayKeyboardPassthrough() bool {
+func (h *handlerState) allowsOverlayKeyboardPassthrough() bool {
 	reporter, ok := h.eventTap.(ports.OverlayKeyboardPassthroughReporter)
 
 	return ok && reporter.AllowsOverlayKeyboardPassthrough()

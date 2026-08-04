@@ -11,18 +11,18 @@ func (h *Handler) HideSystemCursor() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.hideSystemCursorLocked()
+	h.hideSystemCursor()
 }
 
-// hideSystemCursorLocked hides the system cursor. Caller must hold h.mu.
-func (h *Handler) hideSystemCursorLocked() {
+// hideSystemCursor hides the system cursor. Caller must hold h.mu.
+func (h *handlerState) hideSystemCursor() {
 	if h.systemCursorHidden {
 		return
 	}
 
 	h.hideSystemCursorNative()
 	h.systemCursorHidden = true
-	h.ensureCursorOverlayPollingLocked()
+	h.ensureCursorOverlayPolling()
 }
 
 // ShowSystemCursor shows the system cursor and hides the cursor-following virtual pointer.
@@ -30,42 +30,42 @@ func (h *Handler) ShowSystemCursor() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.showSystemCursorLocked()
+	h.showSystemCursor()
 }
 
-// showSystemCursorLocked shows the system cursor. Caller must hold h.mu.
-func (h *Handler) showSystemCursorLocked() {
+// showSystemCursor shows the system cursor. Caller must hold h.mu.
+func (h *handlerState) showSystemCursor() {
 	if !h.systemCursorHidden {
 		return
 	}
 
 	h.showSystemCursorNative()
 	h.systemCursorHidden = false
-	h.hideCursorFollowingVirtualPointerLocked()
-	h.stopCursorOverlayPollingIfIdleLocked()
+	h.hideCursorFollowingVirtualPointer()
+	h.stopCursorOverlayPollingIfIdle()
 }
 
-func (h *Handler) shouldShowCursorFollowingVirtualPointerLocked() bool {
+func (h *handlerState) shouldShowCursorFollowingVirtualPointer() bool {
 	return h.systemCursorHidden && h.config != nil
 }
 
-func (h *Handler) ensureCursorOverlayPollingLocked() {
-	if !h.shouldShowCursorFollowingVirtualPointerLocked() {
+func (h *handlerState) ensureCursorOverlayPolling() {
+	if !h.shouldShowCursorFollowingVirtualPointer() {
 		return
 	}
 
 	h.startIndicatorPolling(h.appState.CurrentMode())
 }
 
-func (h *Handler) stopCursorOverlayPollingIfIdleLocked() {
-	if h.shouldPollCursorOverlaysLocked(h.appState.CurrentMode()) {
+func (h *handlerState) stopCursorOverlayPollingIfIdle() {
+	if h.shouldPollCursorOverlays(h.appState.CurrentMode()) {
 		return
 	}
 
 	h.stopIndicatorPolling()
 }
 
-func (h *Handler) shouldPollCursorOverlaysLocked(mode domain.Mode) bool {
+func (h *handlerState) shouldPollCursorOverlays(mode domain.Mode) bool {
 	if h.config == nil {
 		return false
 	}
@@ -78,7 +78,7 @@ func (h *Handler) shouldPollCursorOverlaysLocked(mode domain.Mode) bool {
 		return true
 	}
 
-	return h.shouldShowCursorFollowingVirtualPointerLocked()
+	return h.shouldShowCursorFollowingVirtualPointer()
 }
 
 // cursorRehideInterval is the minimum interval between automatic cursor re-hide
@@ -109,7 +109,7 @@ func (h *Handler) rehideSystemCursor() {
 	h.RehideSystemCursor()
 }
 
-func (h *Handler) hideCursorFollowingVirtualPointerLocked() {
+func (h *handlerState) hideCursorFollowingVirtualPointer() {
 	if h.overlayManager == nil {
 		return
 	}

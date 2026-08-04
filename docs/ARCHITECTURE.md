@@ -305,13 +305,20 @@ safety. Location: `internal/adapter/platform/darwin/`; key files `bridge.go`,
 ## Mode Handler Locking
 
 `modes.Handler` has a single `mu sync.Mutex` serializing the event-tap thread
-against timer goroutines. The public entry points (`HandleKeyPress`,
-`ActivateMode`, `ExitMode`, …) take the lock and then call into modes.
+against timer goroutines, and the type is split so the compiler enforces the
+locking discipline: the outer `Handler` owns the mutexes and the exported
+entry points (`HandleKeyPress`, `ActivateMode`, `ExitMode`, …), each of which
+takes the lock and delegates into the embedded `handlerState` — which carries
+every field and every method that runs with the lock held, and deliberately
+has no mutex.
 
-**Consequently `Mode.Activate` / `HandleKey` / `Exit` all run with `h.mu`
-already held.** Inside them, use only the `*Locked` helpers —
-`setModeLocked`, `exitModeLocked`, `refreshGridVirtualPointerLocked`, … — never
-the public `SetMode*` / `ExitMode` methods, which would self-deadlock.
+**Consequently `Mode.Activate` / `HandleKey` / `Exit` all run with the lock
+already held.** Modes are built on `*handlerState`, so calling a locking entry
+point from inside one is a compile error rather than a self-deadlock. The one
+escape hatch is `handlerState.outer`, the back-reference to the owning
+`Handler`: it exists solely for deferred work (timers, goroutines, callbacks
+registered with the platform) whose callbacks must take the lock when they
+later fire — never call anything on it synchronously.
 
 There is one documented lock order: **`moveMonitorMu` → `h.mu`**, never the
 reverse.

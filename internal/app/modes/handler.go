@@ -44,12 +44,38 @@ type Mode interface {
 	ModeType() domain.Mode
 }
 
-// Handler encapsulates mode-specific logic and dependencies.
+// Handler is the locked outer shell of the mode handler: it owns the mutexes
+// and the exported entry points, each of which takes mu and delegates to the
+// embedded handlerState. Methods on Handler may lock; methods on state may not.
 type Handler struct {
-	// mu serializes access to Handler state between the event tap callback thread
+	handlerState
+
+	// mu serializes access to handler state between the event tap callback thread
 	// and timer goroutines (e.g., refreshHintsTimer). All public entry points
 	// (HandleKeyPress, ActivateMode, ExitMode) and timer callbacks must hold this lock.
 	mu sync.Mutex
+
+	// moveMonitorMu serializes MoveMonitor invocations. Lock ordering is
+	// always moveMonitorMu -> h.mu (MoveMonitor holds this while calling
+	// refreshActiveModeOnNewScreen, which acquires h.mu via the
+	// Refresh*ForScreenChange helpers). Never acquire in the reverse order.
+	moveMonitorMu sync.Mutex
+}
+
+// state carries every field of the mode handler and every method that runs
+// with Handler.mu already held. It deliberately has no mutex: a state method
+// cannot lock, and it cannot reach the exported (locking) Handler surface, so
+// "caller must hold the lock" is enforced by the compiler instead of by the
+// old *Locked naming convention. Mode implementations receive a *state.
+//
+// The one escape hatch is outer, the back-reference to the owning Handler.
+// It exists solely so state methods can schedule deferred work (timers,
+// goroutines) whose callbacks must take the lock when they later fire. Never
+// call anything on outer synchronously from a state method — that is the
+// self-deadlock the split exists to prevent.
+type handlerState struct {
+	// outer is the owning Handler. Deferred callbacks only; see the type comment.
+	outer *Handler
 
 	config         *configpkg.Config
 	themeProvider  configpkg.ThemeProvider
@@ -105,12 +131,6 @@ type Handler struct {
 	suppressedUntil       time.Time
 	modifierFreshPress    map[action.Modifiers]bool
 	debounceNotify        chan struct{} // test-only: signaled when a debounce callback completes
-
-	// moveMonitorMu serializes MoveMonitor invocations. Lock ordering is
-	// always moveMonitorMu -> h.mu (MoveMonitor holds this while calling
-	// refreshActiveModeOnNewScreen, which acquires h.mu via the
-	// Refresh*ForScreenChange helpers). Never acquire in the reverse order.
-	moveMonitorMu sync.Mutex
 
 	// Indicator polling (shared by all modes)
 	indicatorTicker *time.Ticker
@@ -207,7 +227,9 @@ func NewHandler(deps HandlerDeps) *Handler {
 		}
 	}
 
-	handler := &Handler{
+	handler := &Handler{}
+	handler.handlerState = handlerState{
+		outer:                  handler,
 		ctx:                    deps.Ctx,
 		config:                 deps.Config,
 		logger:                 logger,
@@ -236,13 +258,15 @@ func NewHandler(deps HandlerDeps) *Handler {
 		cycleHintIndex:         -1,
 	}
 
-	// Initialize mode implementations
+	// Initialize mode implementations. Modes run with the lock already held,
+	// so they are built on the inner state and cannot re-enter the locked
+	// surface.
 	handler.modes = map[domain.Mode]Mode{
-		domain.ModeHints:         NewHintsMode(handler),
-		domain.ModeGrid:          NewGridMode(handler),
-		domain.ModeScroll:        NewScrollMode(handler),
-		domain.ModeRecursiveGrid: NewRecursiveGridMode(handler),
-		domain.ModeMonitorSelect: NewMonitorSelectMode(handler),
+		domain.ModeHints:         NewHintsMode(&handler.handlerState),
+		domain.ModeGrid:          NewGridMode(&handler.handlerState),
+		domain.ModeScroll:        NewScrollMode(&handler.handlerState),
+		domain.ModeRecursiveGrid: NewRecursiveGridMode(&handler.handlerState),
+		domain.ModeMonitorSelect: NewMonitorSelectMode(&handler.handlerState),
 	}
 
 	return handler
@@ -272,7 +296,7 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 // (origin 0,0); on backends whose overlay spans the whole desktop (Linux X11
 // and Wayland) the origin lets them translate that content onto the correct
 // monitor. It is a no-op where each screen owns an overlay window (macOS).
-func (h *Handler) setScreenBounds(bounds image.Rectangle) {
+func (h *handlerState) setScreenBounds(bounds image.Rectangle) {
 	h.screenBounds = bounds
 
 	if h.overlayManager != nil {
@@ -280,7 +304,7 @@ func (h *Handler) setScreenBounds(bounds image.Rectangle) {
 	}
 }
 
-func (h *Handler) focusedBundleID() string {
+func (h *handlerState) focusedBundleID() string {
 	if h.actionService == nil {
 		return ""
 	}
@@ -295,9 +319,8 @@ func (h *Handler) focusedBundleID() string {
 	return bundleID
 }
 
-// stopHeldRepeatLocked cancels any running held-key repeat goroutine.
-// Caller must hold h.mu.
-func (h *Handler) stopHeldRepeatLocked() {
+// stopHeldRepeat cancels any running held-key repeat goroutine.
+func (h *handlerState) stopHeldRepeat() {
 	if h.heldRepeatingCancel != nil {
 		h.heldRepeatingCancel()
 		h.heldRepeatingCancel = nil

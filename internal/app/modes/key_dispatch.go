@@ -47,12 +47,12 @@ func (h *Handler) HandleFedKeyPress(key string) {
 	defer h.mu.Unlock()
 
 	repeatBefore := h.heldRepeatingKey
-	h.handleKeyPressLocked(key)
+	h.handleKeyPress(key)
 
 	// Only release a repeat this fed press just started; leave any pre-existing
 	// (physically held) repeat untouched.
 	if repeatBefore == "" && h.heldRepeatingKey != "" {
-		h.handleKeyPressLocked(keyUpPrefix + base)
+		h.handleKeyPress(keyUpPrefix + base)
 	}
 }
 
@@ -61,13 +61,13 @@ func (h *Handler) HandleKeyPress(key string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.handleKeyPressLocked(key)
+	h.handleKeyPress(key)
 }
 
-// handleKeyPressLocked contains the key-dispatch logic. The caller must hold
+// handleKeyPress contains the key-dispatch logic. The caller must hold
 // h.mu; the whole body runs under the lock so held-repeat and modifier-toggle
 // state stays consistent across the dispatch.
-func (h *Handler) handleKeyPressLocked(key string) {
+func (h *handlerState) handleKeyPress(key string) {
 	// Handle key-up events for held-key repeat suppression.
 	// The eventtap emits modifier-free key names on key-up, so we compare
 	// only the base key name (last segment after "+") case-insensitively.
@@ -79,7 +79,7 @@ func (h *Handler) handleKeyPressLocked(key string) {
 			}
 
 			if strings.EqualFold(releasedKey, baseHeld) {
-				h.stopHeldRepeatLocked()
+				h.stopHeldRepeat()
 			}
 		}
 
@@ -149,14 +149,14 @@ func (h *Handler) handleKeyPressLocked(key string) {
 	if rawKey != key {
 		if actions, bindKey, ok := h.handleHotkey(key, bundleID); ok {
 			if len(actions) > 0 {
-				h.maybeStartHeldRepeatLocked(key, bindKey, actions)
+				h.maybeStartHeldRepeat(key, bindKey, actions)
 			}
 
 			return
 		}
 	} else if actions, bindKey, ok := h.handleHotkey(rawKey, bundleID); ok {
 		if len(actions) > 0 {
-			h.maybeStartHeldRepeatLocked(rawKey, bindKey, actions)
+			h.maybeStartHeldRepeat(rawKey, bindKey, actions)
 		}
 
 		return
@@ -166,7 +166,7 @@ func (h *Handler) handleKeyPressLocked(key string) {
 }
 
 // handleModeSpecificKey handles mode-specific key processing.
-func (h *Handler) handleModeSpecificKey(key string) {
+func (h *handlerState) handleModeSpecificKey(key string) {
 	mode, exists := h.modes[h.appState.CurrentMode()]
 	if !exists {
 		return
@@ -178,7 +178,7 @@ func (h *Handler) handleModeSpecificKey(key string) {
 // modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
 // hotkey overrides. That is the only situation requiring the focused app's
 // bundle ID to be resolved to select the correct per-mode hotkey table.
-func (h *Handler) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
+func (h *handlerState) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
 	switch mode {
 	case domain.ModeHints:
 		return h.config.Hints.HasAppHotkeyOverrides()
@@ -237,7 +237,7 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
 // incoming key string so that physical injections don't break expected key bindings.
-func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers) string {
+func (h *handlerState) stripStickyModifiersFromKey(key string, mods action.Modifiers) string {
 	parts := strings.Split(key, "+")
 	if len(parts) <= 1 {
 		return key
@@ -283,7 +283,7 @@ func (h *Handler) stripStickyModifiersFromKey(key string, mods action.Modifiers)
 // where no action is dispatched yet.
 // Caller must hold h.mu. The bundleID is the focused app's bundle identifier,
 // resolved once by the caller to avoid redundant accessibility IPC calls.
-func (h *Handler) handleHotkey(key, bundleID string) (
+func (h *handlerState) handleHotkey(key, bundleID string) (
 	[]string, string, bool,
 ) {
 	if h.executeActionSequence == nil {
@@ -403,7 +403,7 @@ func isHotkeySequenceStart(
 	return false
 }
 
-func (h *Handler) dispatchHotkeyActions(
+func (h *handlerState) dispatchHotkeyActions(
 	modeName string,
 	bindKey string,
 	rawKey string,
@@ -447,13 +447,13 @@ func (h *Handler) dispatchHotkeyActions(
 	}()
 }
 
-// maybeStartHeldRepeatLocked starts a custom repeat goroutine if the given
+// maybeStartHeldRepeat starts a custom repeat goroutine if the given
 // actions are held-repeatable (scroll, page, mouse move) and held-key
 // repeat is enabled in config.
 // actions is the already-resolved action list from handleHotkey.
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
-func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []string) {
+func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []string) {
 	if h.heldRepeatingCancel != nil {
 		return
 	}
@@ -462,14 +462,14 @@ func (h *Handler) maybeStartHeldRepeatLocked(key, bindKey string, actions []stri
 		return
 	}
 
-	h.startHeldRepeatLocked(key, bindKey, actions)
+	h.startHeldRepeat(key, bindKey, actions)
 }
 
-// startHeldRepeatLocked launches a goroutine that dispatches the held-key
+// startHeldRepeat launches a goroutine that dispatches the held-key
 // action at heldRepeatInterval until the key-up event arrives.
 // bindKey is the normalised config-binding key (for consistent logging).
 // Caller must hold h.mu.
-func (h *Handler) startHeldRepeatLocked(key, bindKey string, actions []string) {
+func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 	cfg := h.config.HeldRepeat
 
 	ctx, cancel := context.WithCancel(h.ctx)

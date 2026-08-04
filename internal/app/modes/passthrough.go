@@ -17,7 +17,7 @@ import (
 // AX elements.
 const passthroughHintRefreshDelay = 300 * time.Millisecond
 
-func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
+func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 	enabled := h.config != nil &&
 		mode != domain.ModeIdle &&
 		h.config.General.PassthroughUnboundedKeys
@@ -62,7 +62,7 @@ func (h *Handler) syncModifierPassthrough(mode domain.Mode) {
 	h.setInterceptedModifierKeys(keys)
 }
 
-func (h *Handler) passthroughCallbackFor(mode domain.Mode, enabled bool) func() {
+func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) func() {
 	if !enabled {
 		return nil
 	}
@@ -70,13 +70,13 @@ func (h *Handler) passthroughCallbackFor(mode domain.Mode, enabled bool) func() 
 	session := h.modeSession
 
 	return func() {
-		h.handlePassthrough(mode, session)
+		h.outer.handlePassthrough(mode, session)
 	}
 }
 
 const initialCapacity = 16
 
-func (h *Handler) modeModifierKeys(mode domain.Mode, bundleID string) []string {
+func (h *handlerState) modeModifierKeys(mode domain.Mode, bundleID string) []string {
 	if h.config == nil || mode == domain.ModeIdle {
 		return nil
 	}
@@ -120,10 +120,10 @@ func (h *Handler) handlePassthrough(mode domain.Mode, session uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.handlePassthroughLocked(mode, session)
+	h.passthroughTick(mode, session)
 }
 
-// handlePassthroughLocked is called when a modifier shortcut was passed through
+// passthroughTick is called when a modifier shortcut was passed through
 // to macOS while a mode was active. The mode/session arguments identify the
 // originating activation so stale callbacks can be ignored safely. Only hints
 // mode needs a refresh because its labels point at AX elements that may have
@@ -132,7 +132,7 @@ func (h *Handler) handlePassthrough(mode domain.Mode, session uint64) {
 // OS does with the shortcut.
 //
 // Caller must hold h.mu.
-func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
+func (h *handlerState) passthroughTick(mode domain.Mode, session uint64) {
 	if h.modeSession != session || h.appState.CurrentMode() != mode {
 		return
 	}
@@ -143,7 +143,7 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 		h.logger.Debug("Exiting mode after passthrough",
 			zap.String("mode", domain.ModeString(mode)),
 			zap.Uint64("session", session))
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}
@@ -164,8 +164,8 @@ func (h *Handler) handlePassthroughLocked(mode domain.Mode, session uint64) {
 	timerSession := h.modeSession
 
 	timer = time.AfterFunc(passthroughHintRefreshDelay, func() {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+		h.outer.mu.Lock()
+		defer h.outer.mu.Unlock()
 
 		// Guard against stale timer: if the user exited hints mode while we
 		// were waiting, or if hints was re-entered (new session), do not

@@ -22,10 +22,10 @@ func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
 }
 
-// currentHintStyleLocked resolves theme-aware hint overlay colors from the live
+// currentHintStyle resolves theme-aware hint overlay colors from the live
 // config, matching search-input and mode-indicator draw paths. Caller must
 // hold h.mu.
-func (h *Handler) currentHintStyleLocked() hints.StyleMode {
+func (h *handlerState) currentHintStyle() hints.StyleMode {
 	style := hints.BuildStyle(h.config.Hints, h.themeProvider)
 	if h.hints != nil {
 		h.hints.Style = style
@@ -76,13 +76,13 @@ func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationO
 	// Toggle: if the mode is already active and --toggle was specified,
 	// exit to idle instead of re-activating
 	if opts.Toggle != nil && *opts.Toggle && h.appState.CurrentMode() == mode {
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}
 
 	if mode == domain.ModeIdle {
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}
@@ -146,7 +146,7 @@ func filterHintsForScreen(
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
-func (h *Handler) activateHintModeWithAction(opts ModeActivationOptions) {
+func (h *handlerState) activateHintModeWithAction(opts ModeActivationOptions) {
 	h.activateHintModeInternal(opts)
 
 	// Repeat is stored after activation, by which point the context exists.
@@ -158,7 +158,7 @@ func (h *Handler) activateHintModeWithAction(opts ModeActivationOptions) {
 // activateHintModeInternal activates hint mode with an optional action.
 // It handles mode validation, overlay positioning, element collection, hint
 // generation, and UI setup for hint-based navigation.
-func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
+func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
@@ -198,7 +198,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 		// fails.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitModeLocked()
+		h.exitMode()
 	}
 
 	if actionString == domain.UnknownAction {
@@ -265,7 +265,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 
 	var permissionOk bool
 
-	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissionsLocked(
+	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissions(
 		activeScreenBounds,
 		bundleID,
 		strategy,
@@ -329,15 +329,15 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	// Note: Manager is created once and reused across activations (holds mutable state).
 	// Router is recreated each activation (stateless, needs fresh exit keys from config).
 	if h.hints.Context.Manager() == nil {
-		manager := domainHint.NewManager(h.logger, &h.mu)
-		manager.SetUpdateCallback(h.drawHintsLocked)
+		manager := domainHint.NewManager(h.logger, &h.outer.mu)
+		manager.SetUpdateCallback(h.drawHints)
 		h.hints.Context.SetManager(manager)
 	}
 
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
-		h.setModeLocked(domain.ModeHints, overlay.ModeHints)
+		h.setMode(domain.ModeHints, overlay.ModeHints)
 	} else {
 		// During a refresh (e.g., after Cmd+Tab passthrough) the focused app
 		// may have changed. Re-sync the modifier passthrough blacklist so
@@ -353,7 +353,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to set hints in manager", zap.Error(setHintsErr))
-		h.exitModeLocked()
+		h.exitMode()
 
 		return
 	}
@@ -373,7 +373,7 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	h.logger.Info("Hints mode activated", fields...)
 
 	if opts.Search != nil && *opts.Search {
-		err := h.startHintSearchLocked()
+		err := h.startHintSearch()
 		if err != nil {
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))
 		}
@@ -382,10 +382,10 @@ func (h *Handler) activateHintModeInternal(opts ModeActivationOptions) {
 	h.startIndicatorPolling(domain.ModeHints)
 }
 
-// ensureScreenCapturePermissionsLocked checks and requests screen capture permissions.
+// ensureScreenCapturePermissions checks and requests screen capture permissions.
 // It releases h.mu during the modal prompt to avoid blocking other threads.
 // Returns the updated activeScreenBounds, bundleID, strategy, and whether it is safe to proceed.
-func (h *Handler) ensureScreenCapturePermissionsLocked(
+func (h *handlerState) ensureScreenCapturePermissions(
 	activeScreenBounds image.Rectangle,
 	bundleID string,
 	strategy string,
@@ -400,11 +400,16 @@ func (h *Handler) ensureScreenCapturePermissionsLocked(
 	}
 
 	session := h.modeSession
-	h.mu.Unlock()
+
+	// Sanctioned mid-flight unlock: the permission request blocks on a modal
+	// dialog and the lock must not be held across it (see the SystemPort
+	// contract). The mode-session token below detects any state change that
+	// happened while unlocked, and the caller bails when it did.
+	h.outer.mu.Unlock()
 
 	consent := h.system.RequestScreenCapturePermission(h.ctx)
 
-	h.mu.Lock()
+	h.outer.mu.Lock()
 
 	// Check if state changed while we were unlocked.
 	if h.ctx.Err() != nil || h.modeSession != session {
@@ -422,7 +427,7 @@ func (h *Handler) ensureScreenCapturePermissionsLocked(
 	}
 
 	if consent == ports.ScreenCaptureCanceled {
-		h.exitModeLocked()
+		h.exitMode()
 
 		return activeScreenBounds, bundleID, strategy, false
 	}

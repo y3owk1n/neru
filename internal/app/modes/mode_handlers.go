@@ -19,7 +19,7 @@ import (
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
 // When repeat is true and reActivateFunc is provided, the mode is re-activated
 // instead of exiting after performing the action.
-func (h *Handler) executeActionAtPoint(
+func (h *handlerState) executeActionAtPoint(
 	actionStr *string,
 	modifierStr *string,
 	point image.Point,
@@ -128,12 +128,12 @@ func (h *Handler) executeActionAtPoint(
 		h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
 	}
 
-	// Capture the mode's --on-exit action before exitModeLocked clears the
+	// Capture the mode's --on-exit action before exitMode clears the
 	// context. It only runs when the action chain was fulfilled and the mode
 	// idled through this action path — never on manual escape or a switch.
 	onExit := h.currentModeOnExit()
 
-	h.exitModeLocked()
+	h.exitMode()
 
 	if !chainFailed {
 		h.runOnExit(onExit)
@@ -142,7 +142,7 @@ func (h *Handler) executeActionAtPoint(
 
 // currentModeOnExit returns the --on-exit steps configured for the currently
 // active action mode, or nil when none are set or the mode has no context.
-func (h *Handler) currentModeOnExit() []string {
+func (h *handlerState) currentModeOnExit() []string {
 	switch h.appState.CurrentMode() {
 	case domain.ModeHints:
 		if h.hints != nil && h.hints.Context != nil {
@@ -169,7 +169,7 @@ func (h *Handler) currentModeOnExit() []string {
 // mode names) and run asynchronously: a step may route back through IPC into
 // ActivateModeWithOptions, which acquires h.mu — held by the
 // executeActionAtPoint caller.
-func (h *Handler) runOnExit(onExit []string) {
+func (h *handlerState) runOnExit(onExit []string) {
 	if len(onExit) == 0 || h.executeActionSequence == nil {
 		return
 	}
@@ -190,7 +190,7 @@ func (h *Handler) runOnExit(onExit []string) {
 }
 
 // moveCursorAndHandleAction moves the cursor to a point and executes any pending action.
-func (h *Handler) moveCursorAndHandleAction(
+func (h *handlerState) moveCursorAndHandleAction(
 	point image.Point,
 	pendingAction *string,
 	pendingModifier *string,
@@ -220,7 +220,7 @@ func (h *Handler) moveCursorAndHandleAction(
 }
 
 // handleHintsModeKey handles key processing for hints mode.
-func (h *Handler) handleHintsModeKey(key string) {
+func (h *handlerState) handleHintsModeKey(key string) {
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
 		h.logger.Warn("Hints router is nil - ignoring key press until hints initialized")
@@ -293,7 +293,7 @@ func (h *Handler) handleHintsModeKey(key string) {
 }
 
 // handleSearchInputKey routes all keys while hint text search is active.
-func (h *Handler) handleSearchInputKey(key string) {
+func (h *handlerState) handleSearchInputKey(key string) {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
@@ -334,7 +334,7 @@ func (h *Handler) handleSearchInputKey(key string) {
 	h.applyHintSearchFilter()
 }
 
-func (h *Handler) applyHintSearchFilter() {
+func (h *handlerState) applyHintSearchFilter() {
 	ctx := h.hints.Context
 
 	sourceHints := ctx.SourceHints()
@@ -367,12 +367,12 @@ func (h *Handler) applyHintSearchFilter() {
 	h.cycleHintIndex = -1
 }
 
-func (h *Handler) confirmHintSearch() {
+func (h *handlerState) confirmHintSearch() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
 
-	h.stopHintSearchTextInputLocked(false)
+	h.stopHintSearchTextInput(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchActive(false)
@@ -391,7 +391,7 @@ func (h *Handler) confirmHintSearch() {
 		}
 
 		go func() {
-			_ = h.CycleHint(h.ctx, false, true)
+			_ = h.outer.CycleHint(h.ctx, false, true)
 		}()
 	} else {
 		h.cancelHintSearch()
@@ -400,12 +400,12 @@ func (h *Handler) confirmHintSearch() {
 	h.cycleHintIndex = -1
 }
 
-func (h *Handler) cancelHintSearch() {
+func (h *handlerState) cancelHintSearch() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
 
-	h.stopHintSearchTextInputLocked(false)
+	h.stopHintSearchTextInput(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchQuery("")
@@ -422,7 +422,7 @@ func (h *Handler) cancelHintSearch() {
 	h.cycleHintIndex = -1
 }
 
-func (h *Handler) drawHintSearchInput() {
+func (h *handlerState) drawHintSearchInput() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
@@ -449,7 +449,7 @@ func (h *Handler) drawHintSearchInput() {
 	}
 }
 
-func (h *Handler) searchInputFrame() hintscomponent.SearchInputFrame {
+func (h *handlerState) searchInputFrame() hintscomponent.SearchInputFrame {
 	searchInputConfig := h.config.Hints.SearchInputUI
 	screenWidth := h.screenBounds.Dx()
 	screenHeight := h.screenBounds.Dy()
@@ -520,7 +520,7 @@ func estimatedSearchInputHeight(searchInputConfig configpkg.SearchInputUI) int {
 }
 
 // handleGridModeKey handles key processing for grid mode.
-func (h *Handler) handleGridModeKey(key string) {
+func (h *handlerState) handleGridModeKey(key string) {
 	if h.grid.Router == nil {
 		h.logger.Warn("Grid router is nil - ignoring key press until grid router initialized")
 
@@ -548,7 +548,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		cursorFollowSelection := h.grid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
-			h.refreshGridVirtualPointerLocked()
+			h.refreshGridVirtualPointer()
 
 			return
 		}
@@ -573,7 +573,7 @@ func (h *Handler) handleGridModeKey(key string) {
 		h.grid.Context.SetSelectionPoint(absolutePoint)
 
 		if !h.grid.Context.CursorFollowSelection() {
-			h.refreshGridVirtualPointerLocked()
+			h.refreshGridVirtualPointer()
 
 			return
 		}

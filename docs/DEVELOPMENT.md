@@ -385,21 +385,22 @@ every per-activation override — `Action`, `Modifier`, `OnExit`, `Repeat`,
 field here rather than a new interface method.
 
 > **Locking contract.** `Activate`, `HandleKey`, and `Exit` are all called with
-> the handler's `h.mu` **already held** by the public entry point
-> (`ActivateMode`, `HandleKeyPress`, `ExitMode`). Inside a mode use only the
-> `*Locked` helpers (`setModeLocked`, `exitModeLocked`, …) — calling a public
-> `SetMode*` / `ExitMode` method self-deadlocks. Full lock ordering is in
+> the handler lock **already held** by the public entry point (`ActivateMode`,
+> `HandleKeyPress`, `ExitMode`). Modes are built on the inner `*handlerState`,
+> which has no mutex and no access to the locking entry points, so calling one
+> from locked context is a compile error. Deferred callbacks (timers,
+> goroutines) reach the lock through `handlerState.outer` — see
 > [ARCHITECTURE.md](ARCHITECTURE.md#mode-handler-locking).
 
 **Method contracts**
 
-- `Activate(opts)` — call `handler.setModeLocked()` to change app state, show
+- `Activate(opts)` — call `handler.setMode()` to change app state, show
   mode-specific overlays, initialize state from `opts`. Log activation at
   `info`; keep routing and redraw detail at `debug`.
 - `HandleKey(key)` — route a single key string (`"a"`, `"j"`, `"escape"`) to the
   right handler and update mode state.
 - `Exit()` — hide overlays, reset mode-specific state. Common cleanup is already
-  handled by `exitModeLocked`.
+  handled by `exitMode`.
 - `ModeType()` — return the `domain.Mode` enum value (e.g. `domain.ModeHints`).
 
 **Implementation pattern**
@@ -423,16 +424,16 @@ type ScrollMode struct {
     *GenericMode
 }
 
-func NewScrollMode(handler *Handler) *ScrollMode {
+func NewScrollMode(handler *handlerState) *ScrollMode {
     behavior := ModeBehavior{
-        ActivateFunc: func(handler *Handler, _ ModeActivationOptions) {
-            // Called with h.mu held — use *Locked helpers only.
-            handler.StartInteractiveScroll()
+        ActivateFunc: func(handler *handlerState, _ ModeActivationOptions) {
+            // Runs with the lock held; handlerState methods are safe to call.
+            handler.startInteractiveScroll()
             handler.startIndicatorPolling(domain.ModeScroll)
         },
-        ExitFunc: func(handler *Handler) {
+        ExitFunc: func(handler *handlerState) {
             handler.stopIndicatorPolling()
-            handler.stopHeldRepeatLocked()
+            handler.stopHeldRepeat()
             handler.clearAndHideOverlay()
             // ... reset mode-specific state
         },

@@ -10,15 +10,15 @@ type RecursiveGridMode struct {
 }
 
 // NewRecursiveGridMode creates a new recursive-grid mode instance.
-func NewRecursiveGridMode(handler *Handler) *RecursiveGridMode {
+func NewRecursiveGridMode(handler *handlerState) *RecursiveGridMode {
 	behavior := ModeBehavior{
-		ActivateFunc: func(handler *Handler, opts ModeActivationOptions) {
+		ActivateFunc: func(handler *handlerState, opts ModeActivationOptions) {
 			handler.activateRecursiveGridModeWithAction(opts)
 		},
-		HandleKeyFunc: func(handler *Handler, key string) {
+		HandleKeyFunc: func(handler *handlerState, key string) {
 			handler.handleRecursiveGridKey(key)
 		},
-		ExitFunc: func(handler *Handler) {
+		ExitFunc: func(handler *handlerState) {
 			handler.cleanupRecursiveGridMode()
 		},
 	}

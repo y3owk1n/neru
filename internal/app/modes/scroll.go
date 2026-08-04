@@ -11,7 +11,7 @@ import (
 
 // StartInteractiveScroll activates the interactive scroll mode,
 // showing the scroll overlay and enabling key handling for scrolling.
-func (h *Handler) StartInteractiveScroll() {
+func (h *handlerState) startInteractiveScroll() {
 	h.prepareForModeActivation()
 	h.cursorState.SkipNextRestore()
 
@@ -24,7 +24,7 @@ func (h *Handler) StartInteractiveScroll() {
 		// disable and subsequent re-enable (the root cause of missed
 		// scrolling keys when activating from grid mode).
 		h.performModeSpecificCleanup()
-		h.stopHeldRepeatLocked()
+		h.stopHeldRepeat()
 		h.overlayManager.Clear()
 		h.overlayManager.ClearCache()
 
@@ -58,11 +58,11 @@ func (h *Handler) StartInteractiveScroll() {
 
 	h.overlayManager.ResizeToActiveScreen()
 
-	h.setModeLocked(domain.ModeScroll, overlay.ModeScroll)
+	h.setMode(domain.ModeScroll, overlay.ModeScroll)
 
 	h.logger.Info("Interactive scroll activated")
 }
 
 // handleGenericScrollKey intentionally does nothing.
 // Scroll key behavior is fully driven by hotkeys.
-func (h *Handler) handleGenericScrollKey(_ string) {}
+func (h *handlerState) handleGenericScrollKey(_ string) {}

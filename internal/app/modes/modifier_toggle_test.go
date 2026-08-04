@@ -80,7 +80,7 @@ func TestParseModifierEvent(t *testing.T) {
 // newTestHandler creates a minimal Handler suitable for testing sticky modifier behavior.
 // The debounceNotify channel is buffered so the timer callback never blocks.
 func newTestHandler() *Handler {
-	return &Handler{
+	return newHandlerWithState(handlerState{
 		logger:         zap.NewNop(),
 		modifierState:  state.NewModifierState(),
 		debounceNotify: make(chan struct{}, 16),
@@ -90,7 +90,7 @@ func newTestHandler() *Handler {
 				TapMaxDuration: 300,
 			},
 		},
-	}
+	})
 }
 
 // awaitDebounce blocks until the debounce timer callback signals completion.

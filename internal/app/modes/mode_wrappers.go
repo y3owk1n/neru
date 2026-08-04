@@ -11,7 +11,7 @@ type GridMode struct {
 }
 
 // NewGridMode creates a new grid mode implementation.
-func NewGridMode(handler *Handler) *GridMode {
+func NewGridMode(handler *handlerState) *GridMode {
 	return &GridMode{
 		GenericMode: NewGenericMode(handler, domain.ModeGrid, "GridMode", ModeBehavior{}),
 	}
@@ -24,7 +24,7 @@ type HintsMode struct {
 }
 
 // NewHintsMode creates a new hints mode implementation.
-func NewHintsMode(handler *Handler) *HintsMode {
+func NewHintsMode(handler *handlerState) *HintsMode {
 	return &HintsMode{
 		GenericMode: NewGenericMode(handler, domain.ModeHints, "HintsMode", ModeBehavior{}),
 	}

@@ -6,12 +6,12 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-func (h *Handler) redrawMonitorSelectLocked() {
+func (h *handlerState) redrawMonitorSelect() {
 	if h.monitorSelect == nil {
 		return
 	}
 
-	err := h.showMonitorSelectLocked()
+	err := h.showMonitorSelect()
 	if err != nil {
 		h.logger.Debug("Failed to redraw monitor_select overlay", zap.Error(err))
 	}
@@ -27,5 +27,5 @@ func (h *Handler) RefreshMonitorSelectForThemeChange() {
 		return
 	}
 
-	h.redrawMonitorSelectLocked()
+	h.redrawMonitorSelect()
 }
