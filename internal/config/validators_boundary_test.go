@@ -114,10 +114,10 @@ func visionIntBounds() []intBound {
 func smoothCursorIntBounds() []intBound {
 	return []intBound{
 		{
-			name:     "smooth_cursor.relative_duration",
-			set:      func(c *config.Config, v int) { c.SmoothCursor.RelativeDuration = v },
+			name:     "smooth_cursor.relative_movement_duration",
+			set:      func(c *config.Config, v int) { c.SmoothCursor.RelativeMovementDuration = v },
 			validate: (*config.Config).ValidateSmoothCursor,
-			minValid: config.MinSmoothCursorRelativeDuration,
+			minValid: config.MinSmoothCursorAnimationDuration,
 		},
 	}
 }

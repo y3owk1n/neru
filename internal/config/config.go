@@ -653,17 +653,18 @@ type LoggingConfig struct {
 
 // SmoothCursorConfig defines the smooth cursor movement settings.
 //
-// RelativeDuration applies to relative (keyboard-driven) movements such as
-// move_mouse_relative. Unlike jumps, these arrive as rapid small deltas under
-// key repeat, so their animation uses a fixed duration per move — speed then
-// scales with the delta — instead of the distance-proportional duration used
-// for jumps, which would clamp every delta to the same constant velocity.
+// RelativeMovementDuration applies to relative (keyboard-driven) movements
+// such as move_mouse_relative. Unlike jumps, these arrive as rapid small
+// deltas under key repeat, so their animation uses a fixed duration per move
+// — speed then scales with the delta — instead of the distance-proportional
+// duration used for jumps, which would clamp every delta to the same constant
+// velocity.
 type SmoothCursorConfig struct {
-	MoveMouseEnabled bool    `json:"moveMouseEnabled" toml:"move_mouse_enabled"`
-	Steps            int     `json:"steps"            toml:"steps"`
-	MaxDuration      int     `json:"maxDuration"      toml:"max_duration"`       // Max animation duration in ms
-	DurationPerPixel float64 `json:"durationPerPixel" toml:"duration_per_pixel"` // Ms per pixel for adaptive duration
-	RelativeDuration int     `json:"relativeDuration" toml:"relative_duration"`  // Fixed duration per relative move in ms
+	MoveMouseEnabled         bool    `json:"moveMouseEnabled"         toml:"move_mouse_enabled"`
+	Steps                    int     `json:"steps"                    toml:"steps"`
+	MaxDuration              int     `json:"maxDuration"              toml:"max_duration"`               // Max animation duration in ms
+	DurationPerPixel         float64 `json:"durationPerPixel"         toml:"duration_per_pixel"`         // Ms per pixel for adaptive duration
+	RelativeMovementDuration int     `json:"relativeMovementDuration" toml:"relative_movement_duration"` // Fixed duration per relative move in ms
 }
 
 // SmoothScrollConfig defines smooth scroll animation settings.

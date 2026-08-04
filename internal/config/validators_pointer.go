@@ -52,14 +52,14 @@ func (c *Config) ValidateSmoothCursor() error {
 		)
 	}
 
-	// The animator floors every animation at 10ms (minAnimationDuration in the
-	// darwin adapter), so smaller values would be silently rounded up rather
-	// than honored; reject them instead.
-	if c.SmoothCursor.RelativeDuration < MinSmoothCursorRelativeDuration {
+	// The animator floors every animation at MinSmoothCursorAnimationDuration,
+	// so smaller values would be silently rounded up rather than honored;
+	// reject them instead.
+	if c.SmoothCursor.RelativeMovementDuration < MinSmoothCursorAnimationDuration {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"smooth_cursor.relative_duration must be >= %d",
-			MinSmoothCursorRelativeDuration,
+			"smooth_cursor.relative_movement_duration must be >= %d",
+			MinSmoothCursorAnimationDuration,
 		)
 	}
 

@@ -111,7 +111,7 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 }
 
 // MoveMouseRelativeSmooth animates a relative cursor move with the fixed
-// per-move duration smooth_cursor.relative_duration. It reports handled == false
+// per-move duration smooth_cursor.relative_movement_duration. It reports handled == false
 // when smooth cursor is disabled or no config is wired, in which case the
 // caller falls back to its instant warp path.
 //
@@ -137,7 +137,7 @@ func MoveMouseRelativeSmooth(delta image.Point) bool {
 			}
 		},
 		cfg.SmoothCursor.Steps,
-		cfg.SmoothCursor.RelativeDuration,
+		cfg.SmoothCursor.RelativeMovementDuration,
 		uint32(eventType),
 		uint32(button),
 	)

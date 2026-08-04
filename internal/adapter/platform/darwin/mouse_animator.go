@@ -13,14 +13,12 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 const (
-	// minAnimationDuration is the floor for every animation in ms. Mirrored by
-	// config.MinSmoothCursorRelativeDuration so the validator rejects
-	// relative_duration values this floor would silently round up.
-	minAnimationDuration = 10
-	minStepDelay         = 1 // Minimum delay between steps in ms
+	minStepDelay = 1 // Minimum delay between steps in ms
 )
 
 type cursorAnimationDone struct {
@@ -330,8 +328,8 @@ restart:
 		duration = float64(req.fixedDuration)
 	}
 
-	if duration < minAnimationDuration {
-		duration = minAnimationDuration
+	if duration < config.MinSmoothCursorAnimationDuration {
+		duration = config.MinSmoothCursorAnimationDuration
 	}
 
 	actualSteps := req.steps

@@ -121,15 +121,18 @@ const (
 	// DefaultSmoothCursorDurationPerPixel is the default ms per pixel for adaptive duration.
 	DefaultSmoothCursorDurationPerPixel = 0.1
 
-	// DefaultSmoothCursorRelativeDuration is the default fixed animation
-	// duration for relative moves (ms). Matches DefaultHeldRepeatInterval so
-	// animations chain seamlessly under held-key repeat.
-	DefaultSmoothCursorRelativeDuration = 50
+	// DefaultSmoothCursorRelativeMovementDuration is the default fixed
+	// animation duration for relative moves (ms). Matches
+	// DefaultHeldRepeatInterval so animations chain seamlessly under held-key
+	// repeat.
+	DefaultSmoothCursorRelativeMovementDuration = 50
 
-	// MinSmoothCursorRelativeDuration is the smallest accepted
-	// relative_duration (ms). Mirrors the animator's minAnimationDuration
-	// floor (darwin adapter): anything below it would be silently rounded up.
-	MinSmoothCursorRelativeDuration = 10
+	// MinSmoothCursorAnimationDuration is the floor for every smooth cursor
+	// animation in ms — the animator raises shorter animations to it. It is
+	// also the smallest accepted relative_movement_duration: anything below
+	// would be silently rounded up rather than honored, so the validator
+	// rejects it.
+	MinSmoothCursorAnimationDuration = 10
 
 	// DefaultSmoothScrollSteps is the default smooth scroll steps.
 	DefaultSmoothScrollSteps = 20
@@ -772,11 +775,11 @@ func defaultLogging() LoggingConfig {
 
 func defaultSmoothCursor() SmoothCursorConfig {
 	return SmoothCursorConfig{
-		MoveMouseEnabled: false,
-		Steps:            DefaultSmoothCursorSteps,
-		MaxDuration:      DefaultSmoothCursorMaxDuration,
-		DurationPerPixel: DefaultSmoothCursorDurationPerPixel,
-		RelativeDuration: DefaultSmoothCursorRelativeDuration,
+		MoveMouseEnabled:         false,
+		Steps:                    DefaultSmoothCursorSteps,
+		MaxDuration:              DefaultSmoothCursorMaxDuration,
+		DurationPerPixel:         DefaultSmoothCursorDurationPerPixel,
+		RelativeMovementDuration: DefaultSmoothCursorRelativeMovementDuration,
 	}
 }
 
