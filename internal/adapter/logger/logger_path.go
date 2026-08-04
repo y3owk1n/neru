@@ -27,8 +27,15 @@ func defaultLogFilePath() (string, error) {
 
 		logDir = filepath.Join(localAppData, "neru", "log")
 	default:
-		// the rest are Linux, BSD, etc.
-		logDir = filepath.Join(homeDir, ".local", "state", "neru", "log")
+		// The rest are Linux, BSD, etc.: honor $XDG_STATE_HOME per the XDG
+		// Base Directory spec (absolute values only), matching the Linux
+		// system adapter's LogDir.
+		stateHome := os.Getenv("XDG_STATE_HOME")
+		if !filepath.IsAbs(stateHome) {
+			stateHome = filepath.Join(homeDir, ".local", "state")
+		}
+
+		logDir = filepath.Join(stateHome, "neru", "log")
 	}
 
 	return filepath.Join(logDir, "app.log"), nil
