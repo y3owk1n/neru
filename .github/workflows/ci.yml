@@ -8,10 +8,25 @@ on:
             - "CHANGELOG.md"
             - ".release-please-manifest.json"
             - "release-please-config.json"
+    # Re-verify main after every merge: two individually green PRs can merge
+    # into a semantically broken combination, and nightly.yml publishes
+    # artifacts from main without running any tests of its own.
+    push:
+        branches: ["main"]
+        paths-ignore:
+            - "CHANGELOG.md"
+            - ".release-please-manifest.json"
+            - "release-please-config.json"
 name: CI
 permissions:
     contents: read
     pull-requests: read
+# A force-push to a PR branch obsoletes the in-flight run; without a
+# concurrency group each push stacks another full 17-job matrix behind it.
+# Runs on main are never canceled — every merge commit gets a full verdict.
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
     checks:
         name: ${{ matrix.check }} (${{ matrix.os }})
@@ -38,10 +53,11 @@ jobs:
                       check: coverage
         runs-on: ${{ matrix.os }}
         steps:
+            # Default checkout: on pull_request events this tests the merge
+            # commit (PR + main combined), which is what will actually land —
+            # overriding repository/ref to the branch head skips that and is
+            # wrong for fork PRs. On push events it checks out the pushed ref.
             - uses: actions/checkout@v7
-              with:
-                  repository: ${{ github.event.pull_request.head.repo.full_name }}
-                  ref: ${{ github.head_ref }}
 
             # Install Linux system dependencies (Wayland, X11, Cairo, etc.)
             # Devbox doesn't pull *-dev outputs (https://github.com/jetify-com/devbox/issues/2761)
