@@ -107,34 +107,53 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 	return capabilities
 }
 
-// ConfigDir returns the Linux-specific configuration directory.
+// xdgDir resolves an XDG base directory per the Base Directory spec: the
+// environment variable wins when set to an absolute path (relative values
+// must be ignored per the spec), otherwise the given default under $HOME.
+func xdgDir(envVar string, defaultParts ...string) (string, error) {
+	if dir := os.Getenv(envVar); filepath.IsAbs(dir) {
+		return dir, nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(append([]string{home}, defaultParts...)...), nil
+}
+
+// ConfigDir returns the Linux-specific configuration directory,
+// honoring $XDG_CONFIG_HOME.
 func (s *SystemAdapter) ConfigDir() (string, error) {
-	home, err := os.UserHomeDir()
+	base, err := xdgDir("XDG_CONFIG_HOME", ".config")
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(home, ".config", "neru"), nil
+	return filepath.Join(base, "neru"), nil
 }
 
-// UserDataDir returns the Linux-specific user data directory.
+// UserDataDir returns the Linux-specific user data directory,
+// honoring $XDG_DATA_HOME.
 func (s *SystemAdapter) UserDataDir() (string, error) {
-	home, err := os.UserHomeDir()
+	base, err := xdgDir("XDG_DATA_HOME", ".local", "share")
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(home, ".local", "share", "neru"), nil
+	return filepath.Join(base, "neru"), nil
 }
 
-// LogDir returns the Linux-specific log directory.
+// LogDir returns the Linux-specific log directory,
+// honoring $XDG_STATE_HOME.
 func (s *SystemAdapter) LogDir() (string, error) {
-	home, err := os.UserHomeDir()
+	base, err := xdgDir("XDG_STATE_HOME", ".local", "state")
 	if err != nil {
 		return "", err
 	}
 
-	return filepath.Join(home, ".local", "state", "neru", "log"), nil
+	return filepath.Join(base, "neru", "log"), nil
 }
 
 // FocusedApplicationPID returns the PID of the currently focused application on Linux.
