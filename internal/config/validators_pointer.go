@@ -85,6 +85,39 @@ func (c *Config) ValidateHeldRepeat() error {
 		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.interval_ms must be >= 1")
 	}
 
+	if c.HeldRepeat.AccelRampMs < 0 {
+		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.accel_ramp_ms must be >= 0")
+	}
+
+	// Negated so NaN, which compares false to everything, is rejected too.
+	if !(c.HeldRepeat.AccelMaxMultiplier >= 1 &&
+		c.HeldRepeat.AccelMaxMultiplier <= MaxHeldRepeatAccelMultiplier) {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"held_repeat.accel_max_multiplier must be between 1 and %d",
+			MaxHeldRepeatAccelMultiplier,
+		)
+	}
+
+	if c.HeldRepeat.AccelEnabled && len(c.HeldRepeat.AccelTargets) == 0 {
+		return derrors.New(
+			derrors.CodeInvalidConfig,
+			"held_repeat.accel_targets must list at least one action while accel_enabled is true",
+		)
+	}
+
+	// Only move_mouse_relative accepts --dx/--dy; anything else would validate
+	// and then accelerate nothing.
+	for _, target := range c.HeldRepeat.AccelTargets {
+		if action.Name(target) != action.NameMoveMouseRelative {
+			return derrors.New(
+				derrors.CodeInvalidConfig,
+				"held_repeat.accel_targets only supports "+
+					string(action.NameMoveMouseRelative)+", got: "+target,
+			)
+		}
+	}
+
 	return nil
 }
 

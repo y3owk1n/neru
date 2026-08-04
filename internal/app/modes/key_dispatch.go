@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/app/heldrepeat"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -487,40 +488,14 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 			}
 		}()
 
-		initialTimer := time.NewTimer(time.Duration(cfg.InitialDelay) * time.Millisecond)
-		defer initialTimer.Stop()
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-initialTimer.C:
-		}
-
-		ticker := time.NewTicker(time.Duration(cfg.Interval) * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				h.executeActionSequence(bindKey, capturedActions)
-			}
-		}
+		heldrepeat.Run(ctx, cfg, capturedActions, func(tickActions []string) {
+			h.executeActionSequence(bindKey, tickActions)
+		})
 	}()
 }
 
 // isHeldRepeatAction reports whether the action list contains a single
 // held-repeatable action (scroll, page, relative mouse move, or cell move).
 func isHeldRepeatAction(actions []string) bool {
-	if len(actions) != 1 {
-		return false
-	}
-
-	parts := strings.SplitN(strings.TrimSpace(actions[0]), " ", 3) //nolint:mnd
-	if len(parts) < 2 || parts[0] != "action" {
-		return false
-	}
-
-	return action.IsHeldRepeatAction(action.Name(parts[1]))
+	return action.IsHeldRepeatAction(action.Name(config.HeldRepeatActionName(actions)))
 }

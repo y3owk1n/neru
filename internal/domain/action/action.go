@@ -422,6 +422,8 @@ const (
 
 	// PrefixExec is the prefix for shell command actions.
 	PrefixExec = "exec"
+	// PrefixAction is the prefix for IPC action bindings.
+	PrefixAction = "action"
 )
 
 // knownNames lists the action names that can be used as pending mode actions

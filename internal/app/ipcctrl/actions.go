@@ -33,7 +33,7 @@ const (
 	// ActionCommand is the IPC command that carries a mouse or key action.
 	// It is exported because the hotkey layer recognizes the same word when it
 	// decides whether a binding is an action step.
-	ActionCommand = "action"
+	ActionCommand = action.PrefixAction
 
 	flagCenter    = "--center"
 	flagWindow    = "--window"
