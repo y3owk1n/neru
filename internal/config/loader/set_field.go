@@ -1,4 +1,4 @@
-package config
+package loader
 
 import (
 	"encoding/json"
@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // SetField sets a field on a Config by dotted path (e.g. "hints.hint_characters").
 // Path elements use TOML tag names. Returns an error if the path is unknown or
 // the value cannot be converted.
-func SetField(cfg *Config, path, value string) error {
+func SetField(cfg *config.Config, path, value string) error {
 	parts := strings.Split(path, ".")
 	if len(parts) == 0 || parts[0] == "" {
 		return derrors.New(derrors.CodeInvalidConfig, "config path cannot be empty")
@@ -48,13 +49,13 @@ func SetField(cfg *Config, path, value string) error {
 }
 
 // DeepCopyConfig returns a deep copy of cfg via JSON round-trip.
-func DeepCopyConfig(cfg *Config) (*Config, error) {
+func DeepCopyConfig(cfg *config.Config) (*config.Config, error) {
 	data, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, derrors.Wrap(err, derrors.CodeSerializationFailed, "deep copy config")
 	}
 
-	var dst Config
+	var dst config.Config
 
 	unmarshalErr := json.Unmarshal(data, &dst)
 	if unmarshalErr != nil {
@@ -210,25 +211,25 @@ func parseStringSlice(value string) []string {
 	return out
 }
 
-func parseColorValue(value string) Color {
+func parseColorValue(value string) config.Color {
 	value = strings.TrimSpace(value)
 	if strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}") {
 		var m map[string]string
 
 		err := json.Unmarshal([]byte(value), &m)
 		if err == nil {
-			return Color{Light: m["light"], Dark: m["dark"]}
+			return config.Color{Light: m["light"], Dark: m["dark"]}
 		}
 	}
 
-	return Color{Light: value, Dark: value}
+	return config.Color{Light: value, Dark: value}
 }
 
 // ValidateConfigSetField validates a config path is settable and value is valid
 // by performing the mutation on a throwaway copy. Used by the CLI to validate
 // before sending to the daemon.
 func ValidateConfigSetField(path, value string) error {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 
 	err := SetField(cfg, path, value)
 	if err != nil {
@@ -248,9 +249,9 @@ const unknownField = "unknown"
 
 // ConfigFieldType returns a human-readable type hint for a config path.
 //
-//nolint:revive,exhaustive
+//nolint:exhaustive // config paths enumerate only leaf-bearing kinds
 func ConfigFieldType(path string) string {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	target := reflect.ValueOf(cfg).Elem()
 
 	parts := strings.Split(path, ".")

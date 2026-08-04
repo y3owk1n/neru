@@ -61,7 +61,7 @@ func (c *Config) HotkeysForModeAndApp(
 	}
 
 	for key, actions := range appConfig.Hotkeys {
-		canonicalKey := findNormalizedMapKey(merged, key)
+		canonicalKey := FindNormalizedMapKey(merged, key)
 		if len(actions) == 1 && actions[0] == DisabledSentinel {
 			delete(merged, canonicalKey)
 
@@ -106,7 +106,7 @@ func (c *Config) GlobalHotkeysForApp(bundleID string) map[string][]string {
 			}
 
 			for key, sosa := range appConfig.Hotkeys {
-				canonicalKey := findNormalizedMapKey(merged, key)
+				canonicalKey := FindNormalizedMapKey(merged, key)
 				if len(sosa) == 1 && sosa[0] == DisabledSentinel {
 					delete(merged, canonicalKey)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -89,7 +90,7 @@ func runRolesList(cmd *cobra.Command) {
 
 // runRolesExplain resolves the loaded configuration and reports each entry.
 func runRolesExplain(cmd *cobra.Command) error {
-	svc := config.NewService(config.DefaultConfig(), "", nil, nil)
+	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
 
 	path := configPath
 	if path == "" {
@@ -144,7 +145,7 @@ func runRolesExplain(cmd *cobra.Command) error {
 // The result feeds the doctor exit status, so a health check run from a script
 // fails on a configuration that cannot hint anything.
 func printClickableRolesCheck(cmd *cobra.Command) bool {
-	svc := config.NewService(config.DefaultConfig(), "", nil, nil)
+	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
 
 	path := configPath
 	if path == "" {

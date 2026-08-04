@@ -9,7 +9,19 @@ func DefaultConfig() *Config {
 	return cfg
 }
 
-func defaultConfigForDecoding() *Config {
+// DefaultConfigForDecoding returns the defaults used as the TOML decode
+// target: platform-adjusted, without theme resolution or launcher hotkeys.
+func DefaultConfigForDecoding() *Config {
+	cfg := newDefaultConfig()
+	applyPlatformDefaults(cfg)
+
+	return cfg
+}
+
+// PlatformDefaultConfig returns the platform-adjusted defaults without
+// resolving theme-dependent colors. The loader merges the user's file on top
+// of this and resolves themes afterwards.
+func PlatformDefaultConfig() *Config {
 	cfg := newDefaultConfig()
 	applyPlatformDefaults(cfg)
 

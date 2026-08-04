@@ -1,9 +1,10 @@
-package config_test
+package loader_test
 
 import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 func TestSetField_String(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.hint_characters", testHintChars)
+	err := loader.SetField(cfg, "hints.hint_characters", testHintChars)
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -27,7 +28,7 @@ func TestSetField_String(t *testing.T) {
 func TestSetField_Integer(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.ui.font_size", "14")
+	err := loader.SetField(cfg, "hints.ui.font_size", "14")
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -40,7 +41,7 @@ func TestSetField_Integer(t *testing.T) {
 func TestSetField_Bool(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "general.passthrough_unbounded_keys", "true")
+	err := loader.SetField(cfg, "general.passthrough_unbounded_keys", "true")
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -53,7 +54,7 @@ func TestSetField_Bool(t *testing.T) {
 func TestSetField_Float(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.vision.minimum_confidence", "0.5")
+	err := loader.SetField(cfg, "hints.vision.minimum_confidence", "0.5")
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -66,7 +67,7 @@ func TestSetField_Float(t *testing.T) {
 func TestSetField_StringSlice(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.clickable_roles", "AXButton,AXLink")
+	err := loader.SetField(cfg, "hints.clickable_roles", "AXButton,AXLink")
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -86,7 +87,7 @@ func TestSetField_StringSlice(t *testing.T) {
 func TestSetField_Color(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.ui.background_color", testColorHex)
+	err := loader.SetField(cfg, "hints.ui.background_color", testColorHex)
 	if err != nil {
 		t.Fatalf("SetField() unexpected error: %v", err)
 	}
@@ -111,7 +112,7 @@ func TestSetField_Color(t *testing.T) {
 func TestSetField_ColorJSON(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(
+	err := loader.SetField(
 		cfg,
 		"hints.ui.background_color",
 		`{"light":"#000","dark":"#FFF"}`,
@@ -140,7 +141,7 @@ func TestSetField_ColorJSON(t *testing.T) {
 func TestSetField_InvalidPath(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.nonexistent_field", "value")
+	err := loader.SetField(cfg, "hints.nonexistent_field", "value")
 	if err == nil {
 		t.Fatal("Expected error for invalid path, got nil")
 	}
@@ -149,7 +150,7 @@ func TestSetField_InvalidPath(t *testing.T) {
 func TestSetField_EmptyPath(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "", "value")
+	err := loader.SetField(cfg, "", "value")
 	if err == nil {
 		t.Fatal("Expected error for empty path, got nil")
 	}
@@ -158,7 +159,7 @@ func TestSetField_EmptyPath(t *testing.T) {
 func TestSetField_InvalidIntegerValue(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "hints.ui.font_size", "not-a-number")
+	err := loader.SetField(cfg, "hints.ui.font_size", "not-a-number")
 	if err == nil {
 		t.Fatal("Expected error for invalid integer value, got nil")
 	}
@@ -167,7 +168,7 @@ func TestSetField_InvalidIntegerValue(t *testing.T) {
 func TestSetField_InvalidBoolValue(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	err := config.SetField(cfg, "general.passthrough_unbounded_keys", "not-a-bool")
+	err := loader.SetField(cfg, "general.passthrough_unbounded_keys", "not-a-bool")
 	if err == nil {
 		t.Fatal("Expected error for invalid boolean value, got nil")
 	}
@@ -177,7 +178,7 @@ func TestDeepCopyConfig(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Hints.HintCharacters = testHintChars
 
-	deepCopy, err := config.DeepCopyConfig(cfg)
+	deepCopy, err := loader.DeepCopyConfig(cfg)
 	if err != nil {
 		t.Fatalf("DeepCopyConfig() unexpected error: %v", err)
 	}
@@ -198,49 +199,49 @@ func TestDeepCopyConfig(t *testing.T) {
 }
 
 func TestValidateConfigSetField_Valid(t *testing.T) {
-	err := config.ValidateConfigSetField("hints.hint_characters", testHintChars)
+	err := loader.ValidateConfigSetField("hints.hint_characters", testHintChars)
 	if err != nil {
 		t.Fatalf("ValidateConfigSetField() unexpected error: %v", err)
 	}
 }
 
 func TestValidateConfigSetField_InvalidPath(t *testing.T) {
-	err := config.ValidateConfigSetField("hints.nonexistent", "value")
+	err := loader.ValidateConfigSetField("hints.nonexistent", "value")
 	if err == nil {
 		t.Fatal("Expected error for invalid path")
 	}
 }
 
 func TestConfigFieldType_String(t *testing.T) {
-	typeHint := config.ConfigFieldType("hints.hint_characters")
+	typeHint := loader.ConfigFieldType("hints.hint_characters")
 	if typeHint != "string" {
 		t.Fatalf("Expected type 'string', got %q", typeHint)
 	}
 }
 
 func TestConfigFieldType_Integer(t *testing.T) {
-	typeHint := config.ConfigFieldType("hints.ui.font_size")
+	typeHint := loader.ConfigFieldType("hints.ui.font_size")
 	if typeHint != "integer" {
 		t.Fatalf("Expected type 'integer', got %q", typeHint)
 	}
 }
 
 func TestConfigFieldType_Bool(t *testing.T) {
-	typeHint := config.ConfigFieldType("general.passthrough_unbounded_keys")
+	typeHint := loader.ConfigFieldType("general.passthrough_unbounded_keys")
 	if typeHint != "boolean" {
 		t.Fatalf("Expected type 'boolean', got %q", typeHint)
 	}
 }
 
 func TestConfigFieldType_Float(t *testing.T) {
-	typeHint := config.ConfigFieldType("hints.vision.minimum_confidence")
+	typeHint := loader.ConfigFieldType("hints.vision.minimum_confidence")
 	if typeHint != "float" {
 		t.Fatalf("Expected type 'float', got %q", typeHint)
 	}
 }
 
 func TestConfigFieldType_Array(t *testing.T) {
-	typeHint := config.ConfigFieldType("hints.clickable_roles")
+	typeHint := loader.ConfigFieldType("hints.clickable_roles")
 	if typeHint != "array" {
 		t.Fatalf("Expected type 'array', got %q", typeHint)
 	}
@@ -249,14 +250,14 @@ func TestConfigFieldType_Array(t *testing.T) {
 func TestConfigFieldType_Color(t *testing.T) {
 	const want = "color (#RGB/#RRGGBB/#AARRGGBB or JSON object)"
 
-	typeHint := config.ConfigFieldType("hints.ui.background_color")
+	typeHint := loader.ConfigFieldType("hints.ui.background_color")
 	if typeHint != want {
 		t.Fatalf("Expected type %q, got %q", want, typeHint)
 	}
 }
 
 func TestConfigFieldType_Unknown(t *testing.T) {
-	typeHint := config.ConfigFieldType("nonexistent.path")
+	typeHint := loader.ConfigFieldType("nonexistent.path")
 	if typeHint != "unknown" {
 		t.Fatalf("Expected 'unknown', got %q", typeHint)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -27,7 +28,7 @@ func TestIPCControllerInfoDeps_ZeroValuesAreUsable(t *testing.T) {
 	logger := zap.NewNop()
 
 	handler := ipcctrl.NewInfoHandler(ipcctrl.InfoHandlerDeps{
-		ConfigService: config.NewService(cfg, "", logger, nil),
+		ConfigService: loader.NewService(cfg, "", logger, nil),
 		AppState:      state.NewAppState(),
 		Config:        cfg,
 		Logger:        logger,

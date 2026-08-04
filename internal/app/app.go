@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -92,7 +93,7 @@ type App struct {
 	scrollService          *services.ScrollService
 	modeIndicatorService   *modeindicator.Service
 	stickyIndicatorService *stickyindicator.Service
-	configService          *config.Service
+	configService          *loader.Service
 
 	// Feature components
 	hintsComponent           *components.HintsComponent

@@ -1,6 +1,6 @@
 //go:build integration
 
-package config_test
+package loader_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -33,7 +34,7 @@ clickable_roles = ["button"]
 		t.Fatalf("Failed to write temp config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 	// Test Reload
 	ctx := context.Background()
@@ -48,7 +49,7 @@ clickable_roles = ["button"]
 		t.Errorf("Reload() did not load correct HintCharacters, got %v", cfg.Hints.HintCharacters)
 	}
 
-	if len(cfg.Hints.ClickableRoles) != 1 || cfg.Hints.ClickableRoles[0] != TestRoleButton {
+	if len(cfg.Hints.ClickableRoles) != 1 || cfg.Hints.ClickableRoles[0] != testRoleButton {
 		t.Errorf("Reload() did not load correct ClickableRoles, got %v", cfg.Hints.ClickableRoles)
 	}
 
@@ -93,7 +94,7 @@ additional_clickable_roles = ["heading"]
 
 	write(t, `["button", "link"]`)
 
-	svc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	svc := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 	ctx := context.Background()
 
 	err := svc.Reload(ctx, configPath)
@@ -171,7 +172,7 @@ additional_clickable_roles = ["AXHeading"]
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	svc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	svc := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 	err = svc.Reload(context.Background(), configPath)
 	if err == nil {

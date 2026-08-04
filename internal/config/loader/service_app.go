@@ -1,10 +1,11 @@
-package config
+package loader
 
 import (
 	"context"
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -19,7 +20,7 @@ import (
 // the reply's path.
 func (s *Service) alertInvalidReload(
 	ctx context.Context,
-	loadResult *LoadResult,
+	loadResult *config.LoadResult,
 	logger *zap.Logger,
 ) {
 	if s.alertProvider == nil {
@@ -73,7 +74,7 @@ func (s *Service) ReloadWithAppContext(
 	ctx context.Context,
 	path string,
 	logger *zap.Logger,
-) (*LoadResult, error) {
+) (*config.LoadResult, error) {
 	loadResult := s.LoadWithValidation(path)
 
 	if loadResult.ValidationError != nil {
@@ -90,7 +91,7 @@ func (s *Service) ReloadWithAppContext(
 	s.mu.Lock()
 	s.config = loadResult.Config
 	s.path = loadResult.ConfigPath
-	watchers := make([]chan<- *Config, len(s.watchers))
+	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 

@@ -1,4 +1,4 @@
-package config
+package loader
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -23,7 +23,7 @@ func validateAppConfigsHotkeys(
 	logger *zap.Logger,
 	modeName string,
 	raw map[string]any,
-) *LoadResult {
+) *config.LoadResult {
 	var appConfigsRaw []any
 	switch ac := raw["app_configs"].(type) {
 	case []any:
@@ -52,9 +52,9 @@ func validateAppConfigsHotkeys(
 			hotkeysRaw,
 		)
 		if err != nil {
-			result := &LoadResult{
+			result := &config.LoadResult{
 				ValidationError: err,
-				Config:          DefaultConfig(),
+				Config:          config.DefaultConfig(),
 			}
 			logger.Warn("Duplicate normalized app hotkey in config",
 				zap.String("mode", modeName),
@@ -66,20 +66,6 @@ func validateAppConfigsHotkeys(
 	}
 
 	return nil
-}
-
-// findNormalizedMapKey returns the existing map key in m whose normalized form
-// matches the normalized form of rawKey. If no match is found it returns rawKey
-// itself so callers can use the result directly.
-func findNormalizedMapKey[V any](m map[string]V, rawKey string) string {
-	norm := NormalizeKeyForComparison(rawKey)
-	for k := range m {
-		if NormalizeKeyForComparison(k) == norm {
-			return k
-		}
-	}
-
-	return rawKey
 }
 
 // isBuiltInGlobalModeAction matches single built-in global mode commands.
@@ -94,7 +80,10 @@ func isBuiltInGlobalModeAction(actions []string) (string, bool) {
 	}
 
 	switch parts[0] {
-	case ModeNameHints, ModeNameGrid, ModeNameRecursiveGrid, ModeNameScroll:
+	case config.ModeNameHints,
+		config.ModeNameGrid,
+		config.ModeNameRecursiveGrid,
+		config.ModeNameScroll:
 		return parts[0], true
 	default:
 		return "", false
@@ -113,11 +102,11 @@ func removeBindingsForSingleAction(bindings map[string][]string, action string) 
 
 // removeLauncherBindingsForDisabledModes removes launcher keybindings for modes
 // that are explicitly disabled in the config.
-func removeLauncherBindingsForDisabledModes(cfg *Config) {
+func removeLauncherBindingsForDisabledModes(cfg *config.Config) {
 	modeActions := map[string]bool{
-		ModeNameHints:         cfg.Hints.Enabled,
-		ModeNameGrid:          cfg.Grid.Enabled,
-		ModeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
+		config.ModeNameHints:         cfg.Hints.Enabled,
+		config.ModeNameGrid:          cfg.Grid.Enabled,
+		config.ModeNameRecursiveGrid: cfg.RecursiveGrid.Enabled,
 	}
 
 	for key, actions := range cfg.Hotkeys.Bindings {
@@ -178,7 +167,7 @@ func validateRawHotkeyTable(fieldName string, rawTable any) error {
 
 	seenRaw := make(map[string]string, len(hotkeyMap))
 	for _, key := range keys {
-		norm := NormalizeKeyForComparison(key)
+		norm := config.NormalizeKeyForComparison(key)
 		if prev, dup := seenRaw[norm]; dup {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
@@ -203,7 +192,7 @@ type AlertProvider interface {
 
 // safeSendConfig attempts to send a config without blocking.
 // Returns true if sent successfully, false if channel is full or closed.
-func safeSendConfig(_channel chan<- *Config, config *Config) bool {
+func safeSendConfig(channel chan<- *config.Config, cfg *config.Config) bool {
 	sent := true
 	func() {
 		defer func() {
@@ -216,7 +205,7 @@ func safeSendConfig(_channel chan<- *Config, config *Config) bool {
 		}()
 
 		select {
-		case _channel <- config:
+		case channel <- cfg:
 		default:
 			// Channel is full
 			sent = false
@@ -229,10 +218,10 @@ func safeSendConfig(_channel chan<- *Config, config *Config) bool {
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
 type Service struct {
-	config        *Config
+	config        *config.Config
 	path          string
 	mu            sync.RWMutex
-	watchers      []chan<- *Config
+	watchers      []chan<- *config.Config
 	logger        *zap.Logger
 	alertProvider AlertProvider
 	// alertShowing keeps at most one validation alert outstanding. The dialog
@@ -241,20 +230,20 @@ type Service struct {
 	alertShowing atomic.Bool
 
 	// defaults is the base configuration used as the starting point by
-	// LoadWithValidation. It is initialized from defaultConfigForDecoding()
+	// LoadWithValidation. It is initialized from config.DefaultConfigForDecoding()
 	// in NewService, but can be overridden by tests via withDefaults.
-	defaults *Config
+	defaults *config.Config
 }
 
 // NewService creates a new configuration service.
 func NewService(
-	cfg *Config,
+	cfg *config.Config,
 	path string,
 	logger *zap.Logger,
 	alertProvider AlertProvider,
 ) *Service {
 	if cfg == nil {
-		cfg = DefaultConfig()
+		cfg = config.DefaultConfig()
 	}
 
 	if logger == nil {
@@ -263,7 +252,7 @@ func NewService(
 
 	return &Service{
 		config:        cfg,
-		defaults:      defaultConfigForDecoding(),
+		defaults:      config.DefaultConfigForDecoding(),
 		path:          path,
 		logger:        logger.Named("config"),
 		alertProvider: alertProvider,
@@ -272,48 +261,12 @@ func NewService(
 
 // WithDefaults sets the base defaults used by LoadWithValidation. This is
 // intended for tests that need to override platform-specific default hotkeys.
-func (s *Service) WithDefaults(cfg *Config) *Service {
+func (s *Service) WithDefaults(cfg *config.Config) *Service {
 	if cfg != nil {
 		s.defaults = cfg
 	}
 
 	return s
-}
-
-// DefaultConfigDir returns the preferred directory for the Neru config file.
-// On Windows it uses %APPDATA%/neru (falling back to ~/AppData/Roaming/neru);
-// on Unix it checks $XDG_CONFIG_HOME/neru first, falling back to ~/.config/neru.
-// The $XDG_CONFIG_HOME environment variable is also respected on Windows when set,
-// for users of cross-platform shell environments.
-// This is the single source of truth for the primary config location,
-// used by both FindConfigFile and config init. It is where a config file is
-// written; FindConfigFile additionally reads ~/.config/neru on Windows, so a
-// config carried over from a Unix dotfiles repo is still picked up.
-func DefaultConfigDir() (string, error) {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "neru"), nil
-	}
-
-	if runtime.GOOS == "windows" {
-		appData := os.Getenv("APPDATA")
-		if appData == "" {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return "", err
-			}
-
-			appData = filepath.Join(home, "AppData", "Roaming")
-		}
-
-		return filepath.Join(appData, "neru"), nil
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(homeDir, ".config", "neru"), nil
 }
 
 // FindConfigFile searches for a configuration file in standard locations.
@@ -323,7 +276,7 @@ func (s *Service) FindConfigFile() string {
 	// Windows, or ~/.config)
 	preferredDir := ""
 
-	configDir, dirErr := DefaultConfigDir()
+	configDir, dirErr := config.DefaultConfigDir()
 	if dirErr == nil {
 		preferredDir = configDir
 
@@ -392,7 +345,7 @@ func (s *Service) LoadAndApply(path string) error {
 }
 
 // Get returns the current configuration (thread-safe).
-func (s *Service) Get() *Config {
+func (s *Service) Get() *config.Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -425,7 +378,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	s.mu.Lock()
 	s.config = loadResult.Config
 	s.path = loadResult.ConfigPath
-	watchers := make([]chan<- *Config, len(s.watchers))
+	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
@@ -455,8 +408,8 @@ func (s *Service) ReloadConfig(path string) error {
 
 // Watch returns a channel that receives configuration updates.
 // The channel is closed when the context is canceled.
-func (s *Service) Watch(ctx context.Context) <-chan *Config {
-	channel := make(chan *Config, 1)
+func (s *Service) Watch(ctx context.Context) <-chan *config.Config {
+	channel := make(chan *config.Config, 1)
 
 	s.mu.Lock()
 	s.watchers = append(s.watchers, channel)
@@ -489,27 +442,27 @@ func (s *Service) Watch(ctx context.Context) <-chan *Config {
 }
 
 // Validate validates the given configuration.
-func (s *Service) Validate(config *Config) error {
+func (s *Service) Validate(cfg *config.Config) error {
 	// Delegate to Config.Validate for comprehensive validation
-	return config.Validate()
+	return cfg.Validate()
 }
 
 // Update updates the configuration (for testing/internal use).
-func (s *Service) Update(config *Config) error {
-	validateErr := s.Validate(config)
+func (s *Service) Update(cfg *config.Config) error {
+	validateErr := s.Validate(cfg)
 	if validateErr != nil {
 		return validateErr
 	}
 
 	s.mu.Lock()
-	s.config = config
-	watchers := make([]chan<- *Config, len(s.watchers))
+	s.config = cfg
+	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
 
 	// Notify watchers
 	for _, watcher := range watchers {
-		if !safeSendConfig(watcher, config) {
+		if !safeSendConfig(watcher, cfg) {
 			s.logger.Debug("Watcher channel full, skipping notification")
 		}
 		// Note: Update doesn't check context cancellation as it's a synchronous operation
@@ -521,9 +474,9 @@ func (s *Service) Update(config *Config) error {
 // Replace swaps the in-memory config without validation or watcher
 // notification. Use only when callers manage consistency themselves
 // (e.g. --no-reload batches multiple changes before a final reload).
-func (s *Service) Replace(config *Config) {
+func (s *Service) Replace(cfg *config.Config) {
 	s.mu.Lock()
-	s.config = config
+	s.config = cfg
 	s.mu.Unlock()
 }
 
@@ -555,7 +508,7 @@ func (s *Service) SaveOverrideField(key, value string) error {
 
 	// Parse the value to the correct type by setting it on a throwaway Config
 	// and reading it back via reflection.
-	scratch := &Config{}
+	scratch := &config.Config{}
 
 	setErr := SetField(scratch, key, value)
 	if setErr != nil {

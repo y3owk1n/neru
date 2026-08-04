@@ -1,4 +1,4 @@
-package config
+package loader
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -18,8 +19,8 @@ const appConfigsKey = "app_configs"
 // It reports a rejection in the result rather than returning an error, so the
 // caller can keep running on the defaults and still tell the user what was
 // wrong. Any phase below can end the load.
-func (s *Service) LoadWithValidation(path string) *LoadResult {
-	result := &LoadResult{
+func (s *Service) LoadWithValidation(path string) *config.LoadResult {
+	result := &config.LoadResult{
 		Config:     s.baseConfig(),
 		ConfigPath: path,
 	}
@@ -72,9 +73,9 @@ func (s *Service) LoadWithValidation(path string) *LoadResult {
 
 // refuse hands back the defaults with the reason. A half-applied config would
 // leave the user on bindings they never wrote, so a bad file is dropped whole.
-func refuse(result *LoadResult, err error) *LoadResult {
+func refuse(result *config.LoadResult, err error) *config.LoadResult {
 	result.ValidationError = err
-	result.Config = DefaultConfig()
+	result.Config = config.DefaultConfig()
 
 	return result
 }
@@ -83,9 +84,8 @@ func refuse(result *LoadResult, err error) *LoadResult {
 //
 // Built fresh each load: Hotkeys.Bindings is tagged toml:"-" so it survives the
 // decode, and a shared base would accumulate every previous load's bindings.
-func (s *Service) baseConfig() *Config {
-	base := newDefaultConfig()
-	applyPlatformDefaults(base)
+func (s *Service) baseConfig() *config.Config {
+	base := config.PlatformDefaultConfig()
 
 	if s.defaults == nil {
 		return base
@@ -105,7 +105,7 @@ func (s *Service) baseConfig() *Config {
 // locateConfigFile settles which file to read and reports whether the load is
 // already over. A missing file the user named is an error; a missing file we
 // only went looking for just means the defaults.
-func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
+func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool {
 	explicit := path != ""
 	if !explicit {
 		result.ConfigPath = s.FindConfigFile()
@@ -114,7 +114,7 @@ func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
 	if result.ConfigPath == "" {
 		s.logger.Info("No config file specified or found, using default configuration")
 
-		result.Config = DefaultConfig()
+		result.Config = config.DefaultConfig()
 
 		return true
 	}
@@ -126,7 +126,7 @@ func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
 		return false
 	}
 
-	result.Config = DefaultConfig()
+	result.Config = config.DefaultConfig()
 
 	if explicit {
 		result.ValidationError = derrors.WrapConfigFailed(statErr, "config file not found")
@@ -149,7 +149,7 @@ func (s *Service) locateConfigFile(result *LoadResult, path string) bool {
 // folding a user's casing onto a default key) are not expressible as struct
 // tags, and the fields carry toml:"-" so the typed pass skips them. The typed
 // pass validates everything else. The TOML library cannot do both at once.
-func (s *Service) decodeConfigFile(cfg *Config, path string) (map[string]any, error) {
+func (s *Service) decodeConfigFile(cfg *config.Config, path string) (map[string]any, error) {
 	var raw map[string]any
 
 	_, rawErr := toml.DecodeFile(path, &raw)
@@ -170,7 +170,7 @@ func (s *Service) decodeConfigFile(cfg *Config, path string) (map[string]any, er
 // The disable sentinel removes the default an entry matches. An empty [hotkeys]
 // section removes every binding, which is how skhd and friends take over the
 // shortcuts; the modes stay reachable from the CLI.
-func (s *Service) applyGlobalHotkeys(cfg *Config, raw map[string]any) error {
+func (s *Service) applyGlobalHotkeys(cfg *config.Config, raw map[string]any) error {
 	hot, present := raw["hotkeys"]
 	if !present {
 		return nil
@@ -239,7 +239,7 @@ func replaceReboundLaunchers(bindings map[string][]string, parsed map[string][]s
 	rebound := make(map[string]struct{})
 
 	for _, actions := range parsed {
-		if len(actions) == 1 && actions[0] == DisabledSentinel {
+		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
 			continue
 		}
 
@@ -266,7 +266,7 @@ func (s *Service) mergeGlobalHotkeys(
 
 		// The default that normalizes to the same chord, so "Primary+Shift+g"
 		// replaces "Primary+Shift+G" rather than doubling up on it.
-		canonicalKey := findNormalizedMapKey(bindings, key)
+		canonicalKey := config.FindNormalizedMapKey(bindings, key)
 
 		actions, parsedOk := parsed[key]
 		if !parsedOk {
@@ -277,7 +277,7 @@ func (s *Service) mergeGlobalHotkeys(
 			return s.rejectHotkey(key, value, "must not be empty")
 		}
 
-		if len(actions) == 1 && actions[0] == DisabledSentinel {
+		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
 			if _, exists := bindings[canonicalKey]; !exists {
 				s.logger.Warn("__disabled__ used for key that is not a default binding",
 					zap.String("key", key))
@@ -312,17 +312,17 @@ func (s *Service) rejectHotkey(key string, value any, reason string) error {
 // modeHotkeyTarget pairs a mode's config name with the bindings it merges into.
 type modeHotkeyTarget struct {
 	modeKey string
-	dest    *map[string]StringOrStringArray
+	dest    *map[string]config.StringOrStringArray
 }
 
 // modeHotkeyTargets lists every mode that has its own hotkey table.
-func modeHotkeyTargets(cfg *Config) []modeHotkeyTarget {
+func modeHotkeyTargets(cfg *config.Config) []modeHotkeyTarget {
 	return []modeHotkeyTarget{
-		{ModeNameScroll, &cfg.Scroll.Hotkeys},
-		{ModeNameHints, &cfg.Hints.Hotkeys},
-		{ModeNameGrid, &cfg.Grid.Hotkeys},
-		{ModeNameRecursiveGrid, &cfg.RecursiveGrid.Hotkeys},
-		{ModeNameMonitorSelect, &cfg.MonitorSelect.Hotkeys},
+		{config.ModeNameScroll, &cfg.Scroll.Hotkeys},
+		{config.ModeNameHints, &cfg.Hints.Hotkeys},
+		{config.ModeNameGrid, &cfg.Grid.Hotkeys},
+		{config.ModeNameRecursiveGrid, &cfg.RecursiveGrid.Hotkeys},
+		{config.ModeNameMonitorSelect, &cfg.MonitorSelect.Hotkeys},
 	}
 }
 
@@ -331,7 +331,7 @@ func modeHotkeyTargets(cfg *Config) []modeHotkeyTarget {
 //
 // These fields are tagged toml:"-" so the encoder does not turn a single-action
 // entry into an array, which means they must be read from the raw map here.
-func (s *Service) applyModeHotkeys(cfg *Config, raw map[string]any) error {
+func (s *Service) applyModeHotkeys(cfg *config.Config, raw map[string]any) error {
 	for _, target := range modeHotkeyTargets(cfg) {
 		table, present := modeHotkeyTable(raw, target.modeKey)
 		if !present {
@@ -339,7 +339,7 @@ func (s *Service) applyModeHotkeys(cfg *Config, raw map[string]any) error {
 		}
 
 		if len(table) == 0 {
-			*target.dest = make(map[string]StringOrStringArray)
+			*target.dest = make(map[string]config.StringOrStringArray)
 
 			continue
 		}
@@ -381,7 +381,7 @@ func modeHotkeyTable(raw map[string]any, modeKey string) (map[string]any, bool) 
 // mergeModeHotkeys lays one mode's entries over its defaults.
 func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any) error {
 	for key, value := range table {
-		var actions StringOrStringArray
+		var actions config.StringOrStringArray
 
 		unmarshalErr := actions.UnmarshalTOML(value)
 		if unmarshalErr != nil {
@@ -395,9 +395,9 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 		}
 
 		// The default that normalizes the same, so "escape" replaces "Escape".
-		canonicalKey := findNormalizedMapKey(*target.dest, key)
+		canonicalKey := config.FindNormalizedMapKey(*target.dest, key)
 
-		if len(actions) == 1 && actions[0] == DisabledSentinel {
+		if len(actions) == 1 && actions[0] == config.DisabledSentinel {
 			if _, exists := (*target.dest)[canonicalKey]; !exists {
 				s.logger.Warn("__disabled__ used for key that is not a default binding",
 					zap.String("mode", target.modeKey),
@@ -421,16 +421,16 @@ func (s *Service) mergeModeHotkeys(target modeHotkeyTarget, table map[string]any
 // validateNestedHotkeys checks the [[app_configs]] hotkey tables, top-level and
 // per-mode. The typed decode already loaded them; what is left to catch is two
 // entries normalizing to the same chord, where only one would ever fire.
-func (s *Service) validateNestedHotkeys(raw map[string]any) *LoadResult {
+func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 	if result := validateAppConfigsHotkeys(s.logger, appConfigsKey, raw); result != nil {
 		return result
 	}
 
 	for _, modeKey := range []string{
-		ModeNameHints,
-		ModeNameGrid,
-		ModeNameRecursiveGrid,
-		ModeNameScroll,
+		config.ModeNameHints,
+		config.ModeNameGrid,
+		config.ModeNameRecursiveGrid,
+		config.ModeNameScroll,
 	} {
 		modeRaw, isTable := raw[modeKey].(map[string]any)
 		if !isTable {
@@ -448,7 +448,7 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *LoadResult {
 // applyOverrideFile layers the file `neru config set` writes over the config,
 // so a runtime change outlives a restart. The result is validated again: a
 // field that is fine alone can still contradict one the config file set.
-func (s *Service) applyOverrideFile(cfg *Config, configPath string) error {
+func (s *Service) applyOverrideFile(cfg *config.Config, configPath string) error {
 	overridePath := OverridePath(configPath)
 	if overridePath == "" {
 		return nil

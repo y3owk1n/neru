@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -18,7 +19,7 @@ func newTestController() *ipcctrl.Controller {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 
 	return ipcctrl.New(ipcctrl.Deps{
 		ConfigService: configService,

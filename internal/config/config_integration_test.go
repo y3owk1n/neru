@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 const hintsCommand = "hints"
@@ -27,14 +28,14 @@ func defaultHotkeys() map[string][]string {
 	}
 }
 
-// serviceWithDefaultHotkeys creates a config.Service whose base defaults
+// serviceWithDefaultHotkeys creates a loader.Service whose base defaults
 // include the standard hotkeys. The returned service uses a config file
 // path of "" so callers must pass an explicit path to LoadWithValidation.
-func serviceWithDefaultHotkeys(logger *zap.Logger) *config.Service {
+func serviceWithDefaultHotkeys(logger *zap.Logger) *loader.Service {
 	base := config.DefaultConfig()
 	base.Hotkeys.Bindings = defaultHotkeys()
 
-	return config.NewService(config.DefaultConfig(), "", logger, nil).WithDefaults(base)
+	return loader.NewService(config.DefaultConfig(), "", logger, nil).WithDefaults(base)
 }
 
 // TestConfigFileOperationsIntegration tests real file system operations
@@ -133,7 +134,7 @@ font_size = 12
 		writeConfigFile(t, configPath, initialContent, 0o644)
 
 		// Create a config service and load initial config
-		configSvc := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+		configSvc := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 		initialLoad := configSvc.LoadWithValidation(configPath)
 		if initialLoad.ValidationError != nil {
