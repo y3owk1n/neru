@@ -130,9 +130,9 @@ jobs:
               if: matrix.check == 'build' && runner.os == 'macOS'
               run: devbox run -- just build
 
-            - name: Run just test-all
+            - name: Run just test-ci
               if: matrix.check == 'test' && runner.os == 'macOS'
-              run: devbox run -- just test-all
+              run: devbox run -- just test-ci
 
             - name: Run just vuln
               if: matrix.check == 'vuln' && runner.os == 'macOS'
@@ -172,9 +172,9 @@ jobs:
               run: just build
               shell: bash
 
-            - name: Run just test-all (native)
+            - name: Run just test-ci (native)
               if: matrix.check == 'test' && (runner.os == 'Windows' || runner.os == 'Linux')
-              run: just test-all
+              run: just test-ci
               shell: bash
 
             - name: Run just vuln (native)

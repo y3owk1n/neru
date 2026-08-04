@@ -253,13 +253,35 @@ test-race-integration:
     @echo "Running integration tests with race detection..."
     go test -tags=integration -race -p 1 -count=1 -v ./...
 
-# Everything CI's test job runs: the full suite plain and again under -race
-# (four passes total: unit, integration, race-unit, race-integration).
+# The full test suite at maximum depth: everything plain and again under
+# -race (four passes: unit, integration, race-unit, race-integration). This
+# is the deep local bar for a real desktop session with Accessibility
+# granted; CI gates on test-ci below, which is the same minus the passes
+# that are meaningless on a headless runner.
 test-all: test test-race
 
+# Integration tests as CI runs them: -short makes tests that drive the real
+# cursor/keyboard or need OS permissions skip *explicitly* (via their
+# testing.Short guards) instead of passing for reasons nobody wrote down —
+# GitHub runners have no Accessibility grant and no interactive session.
+# Tests that touch real input or permissions must guard themselves with
+# testing.Short(); permission-free integration tests (config, logger, IPC,
+# CLI) still run fully.
+test-integration-ci:
+    @echo "Running integration tests (CI profile: -short)..."
+    go test -tags=integration -short -p 1 -count=1 ./...
+
+# Everything CI's test job runs: unit, unit under -race, and the CI profile
+# of the integration suite. Race coverage on the integration half is left to
+# test-all on real machines — on a permission-less runner it doubles the
+# runtime of the least meaningful pass.
+test-ci: test-unit test-race-unit test-integration-ci
+
 # Run the exact set of checks CI gates a pull request on, in the same order.
-# This is the real pre-push bar — `just test` alone is a subset of it.
-ci: fmt-check lint vet build test-all vuln
+# This is the real pre-push bar — `just test` alone is a subset of it. For
+# the deepest local verification (full integration + race passes on a real
+# desktop session) run `just test-all` as well.
+ci: fmt-check lint vet build test-ci vuln
     @echo "✓ All CI checks passed"
 
 # Check if files are formatted correctly
