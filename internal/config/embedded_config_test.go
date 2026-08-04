@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/configs"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 // TestEmbeddedDefaultConfig_Validates guards the shipped configuration against
@@ -24,7 +25,7 @@ func TestEmbeddedDefaultConfig_Validates(t *testing.T) {
 		t.Fatalf("failed to write embedded config: %v", err)
 	}
 
-	service := config.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
 
 	result := service.LoadWithValidation(path)
 	if result.ValidationError != nil {
@@ -63,7 +64,7 @@ func TestExampleConfigs_Validate(t *testing.T) {
 		path := filepath.Join("..", "..", "configs", name)
 
 		t.Run(name, func(t *testing.T) {
-			svc := config.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
+			svc := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
 
 			result := svc.LoadWithValidation(path)
 			if result.ValidationError != nil {
@@ -117,7 +118,7 @@ clickable_roles = ` + foreign + `
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	svc := config.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
+	svc := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), nil)
 
 	result := svc.LoadWithValidation(path)
 	if result.ValidationError != nil {

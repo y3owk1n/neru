@@ -1,4 +1,4 @@
-package config
+package loader_test
 
 import (
 	"encoding/json"
@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 // loadCase is one config file and the aspects of the load worth naming.
@@ -40,13 +43,13 @@ type loadSnapshot struct {
 // something different on each OS, and on Linux would be testing nothing at all.
 // Injecting one set through the service's defaults gives every platform the same
 // starting point.
-func fixedHotkeyDefaults() *Config {
-	cfg := DefaultConfig()
+func fixedHotkeyDefaults() *config.Config {
+	cfg := config.DefaultConfig()
 	cfg.Hotkeys.Bindings = map[string][]string{
-		"Primary+Shift+Space": {ModeNameHints},
-		"Primary+Shift+G":     {ModeNameGrid},
-		"Primary+Shift+C":     {ModeNameRecursiveGrid},
-		"Primary+Shift+S":     {ModeNameScroll},
+		"Primary+Shift+Space": {config.ModeNameHints},
+		"Primary+Shift+G":     {config.ModeNameGrid},
+		"Primary+Shift+C":     {config.ModeNameRecursiveGrid},
+		"Primary+Shift+S":     {config.ModeNameScroll},
 	}
 
 	return cfg
@@ -157,7 +160,7 @@ font_size = 30
 }
 
 // loadConfigFor writes a case to disk and loads it the way the daemon does.
-func loadConfigFor(t *testing.T, testCase loadCase) *LoadResult {
+func loadConfigFor(t *testing.T, testCase loadCase) *config.LoadResult {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -181,7 +184,7 @@ func loadConfigFor(t *testing.T, testCase loadCase) *LoadResult {
 
 	// WithDefaults is the injection point for the hotkey defaults; NewService's
 	// first argument is the active config, not the defaults a load starts from.
-	service := NewService(nil, path, zap.NewNop(), nil).
+	service := loader.NewService(nil, path, zap.NewNop(), nil).
 		WithDefaults(fixedHotkeyDefaults())
 
 	result := service.LoadWithValidation(path)
@@ -194,7 +197,7 @@ func loadConfigFor(t *testing.T, testCase loadCase) *LoadResult {
 
 // flattenConfig renders a config as one entry per leaf, keyed by its path, so
 // two configs can be compared without knowing their shape.
-func flattenConfig(t *testing.T, cfg *Config) map[string]string {
+func flattenConfig(t *testing.T, cfg *config.Config) map[string]string {
 	t.Helper()
 
 	encoded, marshalErr := json.Marshal(cfg)
@@ -241,7 +244,7 @@ func flattenInto(prefix string, value any, out map[string]string) {
 }
 
 // configDelta lists every path at which loaded differs from baseline.
-func configDelta(t *testing.T, baseline, loaded *Config) []string {
+func configDelta(t *testing.T, baseline, loaded *config.Config) []string {
 	t.Helper()
 
 	before := flattenConfig(t, baseline)

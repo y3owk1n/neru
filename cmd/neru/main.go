@@ -12,11 +12,12 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
 type alertProvider struct {
-	system config.AlertProvider
+	system loader.AlertProvider
 }
 
 func newAlertProvider(sp ports.SystemPort) *alertProvider {
@@ -48,7 +49,7 @@ func LaunchDaemon(configPath string) {
 		}
 	}
 
-	service := config.NewService(
+	service := loader.NewService(
 		config.DefaultConfig(),
 		configPath,
 		zap.NewNop(),
@@ -114,7 +115,7 @@ func handleConfigValidationError(result *config.LoadResult) {
 }
 
 func handleConfigOnboarding(
-	service *config.Service,
+	service *loader.Service,
 	configResult *config.LoadResult,
 ) *config.LoadResult {
 	defaultPath, err := config.DefaultConfigPath()

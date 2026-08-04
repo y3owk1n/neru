@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 func (h *InfoHandler) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.Response {
@@ -69,7 +69,7 @@ func (h *InfoHandler) handleConfigSetNoReload(
 		return h.configNotAvailableResponse()
 	}
 
-	newCfg, err := config.DeepCopyConfig(cfg)
+	newCfg, err := loader.DeepCopyConfig(cfg)
 	if err != nil {
 		return ipc.Response{
 			Success: false,
@@ -78,7 +78,7 @@ func (h *InfoHandler) handleConfigSetNoReload(
 		}
 	}
 
-	setErr := config.SetField(newCfg, key, value)
+	setErr := loader.SetField(newCfg, key, value)
 	if setErr != nil {
 		return ipc.Response{
 			Success: false,
@@ -127,7 +127,7 @@ func (h *InfoHandler) handleConfigReset(ctx context.Context, cmd ipc.Command) ip
 	key := cmd.Args[0]
 	noReload := len(cmd.Args) > 1 && cmd.Args[1] == "--no-reload"
 
-	if config.ConfigFieldType(key) == "unknown" {
+	if loader.ConfigFieldType(key) == "unknown" {
 		return ipc.Response{
 			Success: false,
 			Message: "unknown config field: " + key,
@@ -168,7 +168,7 @@ func (h *InfoHandler) handleConfigSetInMemory(
 		return h.configNotAvailableResponse()
 	}
 
-	newCfg, err := config.DeepCopyConfig(cfg)
+	newCfg, err := loader.DeepCopyConfig(cfg)
 	if err != nil {
 		h.logger.Error("Failed to deep copy config", zap.Error(err))
 
@@ -179,7 +179,7 @@ func (h *InfoHandler) handleConfigSetInMemory(
 		}
 	}
 
-	setErr := config.SetField(newCfg, key, value)
+	setErr := loader.SetField(newCfg, key, value)
 	if setErr != nil {
 		return ipc.Response{
 			Success: false,

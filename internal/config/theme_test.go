@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 // testDarkAccent is the dark accent color used in theme test fixtures.
@@ -283,7 +284,7 @@ text = "#F2FBFF"
 		t.Fatalf("write config: %v", err)
 	}
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	result := service.LoadWithValidation(configPath)
 	if result.ValidationError != nil {
@@ -371,7 +372,7 @@ border_color = { light = "#FF123456" }
 		t.Fatalf("write config: %v", err)
 	}
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	result := service.LoadWithValidation(configPath)
 	if result.ValidationError != nil {

@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -77,7 +78,7 @@ func initializeAppWatcher(logger *zap.Logger) Watcher {
 func initializeAdapters(
 	app *App,
 	cfg *config.Config,
-	cfgService *config.Service,
+	cfgService *loader.Service,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
 	systemPort ports.SystemPort,

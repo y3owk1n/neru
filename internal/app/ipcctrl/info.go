@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -34,7 +35,7 @@ const minConfigSetArgs = 2
 
 // InfoHandler handles info and config-related IPC commands.
 type InfoHandler struct {
-	configService *config.Service
+	configService *loader.Service
 	appState      *state.AppState
 	config        *config.Config
 	modes         *modes.Handler
@@ -65,7 +66,7 @@ type InfoHandler struct {
 // service means the commands that need it report it as unavailable, and
 // EventTap and IPCServer are nil until initialization phase 8.
 type InfoHandlerDeps struct {
-	ConfigService *config.Service
+	ConfigService *loader.Service
 	AppState      *state.AppState
 	Config        *config.Config
 	Modes         *modes.Handler

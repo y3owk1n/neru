@@ -1,4 +1,4 @@
-package config_test
+package loader_test
 
 import (
 	"os"
@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 const (
@@ -46,7 +47,7 @@ func TestOverridePath(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := config.OverridePath(testCase.path)
+			got := loader.OverridePath(testCase.path)
 			if got != testCase.expected {
 				t.Errorf("OverridePath(%q) = %q, want %q", testCase.path, got, testCase.expected)
 			}
@@ -67,7 +68,7 @@ func TestSaveOverride(t *testing.T) {
 		},
 	}
 
-	err := config.SaveOverride(overridePath, overrides)
+	err := loader.SaveOverride(overridePath, overrides)
 	if err != nil {
 		t.Fatalf("SaveOverride() failed: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestSaveOverrideEmpty(t *testing.T) {
 	tmpDir := t.TempDir()
 	overridePath := filepath.Join(tmpDir, "config.override.toml")
 
-	err := config.SaveOverride(overridePath, nil)
+	err := loader.SaveOverride(overridePath, nil)
 	if err != nil {
 		t.Fatalf("SaveOverride(nil) failed: %v", err)
 	}
@@ -115,7 +116,7 @@ func TestSaveOverrideRemovesOnEmptyMap(t *testing.T) {
 		t.Fatalf("Failed to write old content: %v", writeErr)
 	}
 
-	err := config.SaveOverride(overridePath, map[string]any{})
+	err := loader.SaveOverride(overridePath, map[string]any{})
 	if err != nil {
 		t.Fatalf("SaveOverride(empty) failed: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestSaveOverrideRemovesOnEmptyMap(t *testing.T) {
 func TestService_SaveOverrideFieldAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")
-	overridePath := config.OverridePath(configPath)
+	overridePath := loader.OverridePath(configPath)
 
 	configContent := `
 [hints]
@@ -143,7 +144,7 @@ clickable_roles = ["button"]
 		t.Fatalf("Failed to write config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 
 	result := service.LoadWithValidation(configPath)
 	if result.ValidationError != nil {
@@ -192,7 +193,7 @@ clickable_roles = ["button"]
 }
 
 func TestService_SaveOverrideFieldNoConfigPath(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	err := service.SaveOverrideField("hints.hint_characters", testHintChar)
 	if err != nil {
@@ -219,7 +220,7 @@ passthrough_unbounded_keys = false
 		t.Fatalf("Failed to write config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 	_ = service.LoadWithValidation(configPath)
 
 	_ = service.SaveOverrideField("hints.hint_characters", testHintChar)
@@ -245,7 +246,7 @@ passthrough_unbounded_keys = false
 	}
 
 	if len(reloaded.Config.Hints.ClickableRoles) != 1 ||
-		reloaded.Config.Hints.ClickableRoles[0] != TestRoleButton {
+		reloaded.Config.Hints.ClickableRoles[0] != testRoleButton {
 		t.Errorf(
 			"Expected clickable_roles=[button], got %v",
 			reloaded.Config.Hints.ClickableRoles,
@@ -269,7 +270,7 @@ clickable_roles = ["button"]
 		t.Fatalf("Failed to write config: %v", writeFileErr)
 	}
 
-	service := config.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
 	_ = service.LoadWithValidation(configPath)
 
 	err := service.SaveOverrideField("hints.hint_characters", testHintChar)
@@ -277,7 +278,7 @@ clickable_roles = ["button"]
 		t.Fatalf("SaveOverrideField() failed: %v", err)
 	}
 
-	overridePath := config.OverridePath(configPath)
+	overridePath := loader.OverridePath(configPath)
 	badOverride := `
 [hints]
 hint_characters = "x"

@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -21,7 +22,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{
@@ -110,7 +111,7 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	system := &portmocks.MockSystemPort{
 		CapabilitiesFunc: func() ports.PlatformCapabilities {
 			return ports.PlatformCapabilities{

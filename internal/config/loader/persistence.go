@@ -1,4 +1,4 @@
-package config
+package loader
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -21,7 +22,7 @@ func OverridePath(path string) string {
 		return ""
 	}
 
-	return strings.TrimSuffix(path, filepath.Ext(path)) + OverrideSuffix
+	return strings.TrimSuffix(path, filepath.Ext(path)) + config.OverrideSuffix
 }
 
 // writeStringOrStringArrayMap writes a map[string]StringOrStringArray (or
@@ -36,8 +37,8 @@ func OverridePath(path string) string {
 func writeStringOrStringArrayMap(
 	file *os.File,
 	sectionHeader string,
-	_map map[string]StringOrStringArray,
-	defaults map[string]StringOrStringArray,
+	_map map[string]config.StringOrStringArray,
+	defaults map[string]config.StringOrStringArray,
 ) error {
 	_, err := fmt.Fprintf(file, "\n[%s]\n", sectionHeader)
 	if err != nil {
@@ -88,7 +89,7 @@ func writeStringOrStringArrayMap(
 	if defaults != nil {
 		disabledKeys := make([]string, 0)
 		for defaultKey := range defaults {
-			found := findNormalizedMapKey(_map, defaultKey)
+			found := config.FindNormalizedMapKey(_map, defaultKey)
 			if _, exists := _map[found]; !exists {
 				disabledKeys = append(disabledKeys, defaultKey)
 			}
@@ -97,7 +98,7 @@ func writeStringOrStringArrayMap(
 		sort.Strings(disabledKeys)
 
 		for _, key := range disabledKeys {
-			line := fmt.Sprintf("%q = %q", key, DisabledSentinel)
+			line := fmt.Sprintf("%q = %q", key, config.DisabledSentinel)
 
 			_, disabledErr := fmt.Fprintln(file, line)
 			if disabledErr != nil {
@@ -113,12 +114,12 @@ func writeStringOrStringArrayMap(
 	return nil
 }
 
-// Save saves the configuration to the specified path.
-func (c *Config) Save(path string) error {
+// Save writes the configuration to the specified path.
+func Save(cfg *config.Config, path string) error {
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(path)
 
-	mkdirErr := os.MkdirAll(dir, DefaultDirPerms)
+	mkdirErr := os.MkdirAll(dir, config.DefaultDirPerms)
 	if mkdirErr != nil {
 		return derrors.Wrap(
 			mkdirErr,
@@ -147,7 +148,7 @@ func (c *Config) Save(path string) error {
 	// we append the flat [hotkeys] section manually afterwards.
 	encoder := toml.NewEncoder(file)
 
-	encodeErr := encoder.Encode(c)
+	encodeErr := encoder.Encode(cfg)
 	if encodeErr != nil {
 		return derrors.Wrap(encodeErr, derrors.CodeSerializationFailed, "failed to encode config")
 	}
@@ -158,16 +159,19 @@ func (c *Config) Save(path string) error {
 	//
 	// Convert map[string][]string → map[string]StringOrStringArray so we can
 	// reuse writeStringOrStringArrayMap (StringOrStringArray is []string).
-	defaults := DefaultConfig()
+	defaults := config.DefaultConfig()
 
-	hotkeysSOSA := make(map[string]StringOrStringArray, len(c.Hotkeys.Bindings))
-	for k, v := range c.Hotkeys.Bindings {
-		hotkeysSOSA[k] = StringOrStringArray(v)
+	hotkeysSOSA := make(map[string]config.StringOrStringArray, len(cfg.Hotkeys.Bindings))
+	for k, v := range cfg.Hotkeys.Bindings {
+		hotkeysSOSA[k] = config.StringOrStringArray(v)
 	}
 
-	defaultHotkeysSOSA := make(map[string]StringOrStringArray, len(defaults.Hotkeys.Bindings))
+	defaultHotkeysSOSA := make(
+		map[string]config.StringOrStringArray,
+		len(defaults.Hotkeys.Bindings),
+	)
 	for k, v := range defaults.Hotkeys.Bindings {
-		defaultHotkeysSOSA[k] = StringOrStringArray(v)
+		defaultHotkeysSOSA[k] = config.StringOrStringArray(v)
 	}
 
 	err := writeStringOrStringArrayMap(file, "hotkeys", hotkeysSOSA, defaultHotkeysSOSA)
@@ -181,20 +185,20 @@ func (c *Config) Save(path string) error {
 	// entries (backward compatibility).
 	hotkeysSections := []struct {
 		header   string
-		hotkeys  map[string]StringOrStringArray
-		defaults map[string]StringOrStringArray
+		hotkeys  map[string]config.StringOrStringArray
+		defaults map[string]config.StringOrStringArray
 	}{
-		{"scroll.hotkeys", c.Scroll.Hotkeys, defaults.Scroll.Hotkeys},
-		{"hints.hotkeys", c.Hints.Hotkeys, defaults.Hints.Hotkeys},
-		{"grid.hotkeys", c.Grid.Hotkeys, defaults.Grid.Hotkeys},
+		{"scroll.hotkeys", cfg.Scroll.Hotkeys, defaults.Scroll.Hotkeys},
+		{"hints.hotkeys", cfg.Hints.Hotkeys, defaults.Hints.Hotkeys},
+		{"grid.hotkeys", cfg.Grid.Hotkeys, defaults.Grid.Hotkeys},
 		{
 			"recursive_grid.hotkeys",
-			c.RecursiveGrid.Hotkeys,
+			cfg.RecursiveGrid.Hotkeys,
 			defaults.RecursiveGrid.Hotkeys,
 		},
 		{
 			"monitor_select.hotkeys",
-			c.MonitorSelect.Hotkeys,
+			cfg.MonitorSelect.Hotkeys,
 			defaults.MonitorSelect.Hotkeys,
 		},
 	}
@@ -222,7 +226,7 @@ func SaveOverride(path string, overrides map[string]any) error {
 
 	dir := filepath.Dir(path)
 
-	mkdirErr := os.MkdirAll(dir, DefaultDirPerms)
+	mkdirErr := os.MkdirAll(dir, config.DefaultDirPerms)
 	if mkdirErr != nil {
 		return derrors.Wrap(
 			mkdirErr,
@@ -349,7 +353,7 @@ func deleteNestedMapValue(data map[string]any, path string) {
 }
 
 // getFieldValue reads a typed value from a Config by dotted path.
-func getFieldValue(cfg *Config, path string) (any, error) {
+func getFieldValue(cfg *config.Config, path string) (any, error) {
 	parts := strings.Split(path, ".")
 	if len(parts) == 0 || parts[0] == "" {
 		return nil, derrors.New(derrors.CodeInvalidConfig, "config path cannot be empty")

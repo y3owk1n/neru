@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -81,7 +82,7 @@ func newSequenceTestApp(t *testing.T, recorder *stepRecorder) *App {
 		config:   cfg,
 		appState: appState,
 		ipcController: ipcctrl.New(ipcctrl.Deps{
-			ConfigService: config.NewService(cfg, "", logger, nil),
+			ConfigService: loader.NewService(cfg, "", logger, nil),
 			AppState:      appState,
 			Config:        cfg,
 			Logger:        logger,

@@ -1,4 +1,4 @@
-package config_test
+package loader_test
 
 import (
 	"os"
@@ -11,12 +11,13 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 func TestNewService(t *testing.T) {
 	cfg := config.DefaultConfig()
 	path := "/tmp/config.toml"
-	service := config.NewService(cfg, path, zap.NewNop(), nil)
+	service := loader.NewService(cfg, path, zap.NewNop(), nil)
 
 	if service == nil {
 		t.Fatal("NewService returned nil")
@@ -32,7 +33,7 @@ func TestNewService(t *testing.T) {
 }
 
 func TestService_Validate(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	tests := []struct {
 		name    string
@@ -95,7 +96,7 @@ func TestService_Validate(t *testing.T) {
 }
 
 func TestService_Update(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	newConfig := config.DefaultConfig()
 	newConfig.Hints.HintCharacters = "xyz"
 
@@ -125,7 +126,7 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestService_Watch(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	ctx := t.Context()
 
 	channel := service.Watch(ctx)
@@ -159,7 +160,7 @@ func TestService_Watch(t *testing.T) {
 func TestService_Replace(t *testing.T) {
 	t.Parallel()
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	ctx := t.Context()
 
 	watchCh := service.Watch(ctx)
@@ -196,7 +197,7 @@ func TestService_Replace(t *testing.T) {
 const concurrencyProbeChars = "xyz"
 
 func TestService_Concurrency(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	var waitGroup sync.WaitGroup
 
@@ -263,7 +264,7 @@ func writeTempToml(t *testing.T, content string) string {
 }
 
 func TestService_LoadWithValidation_AppConfigsDuplicateNormalizedHotkeys(t *testing.T) {
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 
 	tests := []struct {
 		name    string

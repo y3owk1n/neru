@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
@@ -20,7 +21,7 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	// Deep copy the current config so we only mutate the new copy.
 	// Read from the service (source of truth) so prior --no-reload
 	// changes are included.
-	newCfg, err := config.DeepCopyConfig(a.configService.Get())
+	newCfg, err := loader.DeepCopyConfig(a.configService.Get())
 	if err != nil {
 		a.restoreHotkeysAfterFailedReload()
 
@@ -28,7 +29,7 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	}
 
 	// Apply the field change to the copy.
-	setErr := config.SetField(newCfg, key, value)
+	setErr := loader.SetField(newCfg, key, value)
 	if setErr != nil {
 		a.restoreHotkeysAfterFailedReload()
 

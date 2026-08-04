@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -549,7 +550,7 @@ func TestFindConfigFile(t *testing.T) {
 		}
 	}()
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	result := service.FindConfigFile()
 
 	// Result should be a string (could be empty if no config found)
@@ -599,7 +600,7 @@ func TestFindConfigFile_DotConfigFallback(t *testing.T) {
 	dotConfig := filepath.Join(homeDir, ".config", "neru", "config.toml")
 	writeConfigFile(t, dotConfig)
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	if got := service.FindConfigFile(); got != dotConfig {
 		t.Errorf("FindConfigFile() = %q, want %q", got, dotConfig)
 	}
@@ -627,7 +628,7 @@ func TestFindConfigFile_PrefersPreferredDir(t *testing.T) {
 		writeConfigFile(t, path)
 	}
 
-	service := config.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
 	if got := service.FindConfigFile(); got != preferred {
 		t.Errorf("FindConfigFile() = %q, want %q", got, preferred)
 	}

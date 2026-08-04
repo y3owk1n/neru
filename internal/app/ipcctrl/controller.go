@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -20,7 +21,7 @@ type Controller struct {
 	GridService   *services.GridService
 	ActionService *services.ActionService
 	ScrollService *services.ScrollService
-	ConfigService *config.Service
+	ConfigService *loader.Service
 
 	// State
 	AppState *state.AppState
@@ -72,7 +73,7 @@ type Deps struct {
 	GridService   *services.GridService
 	ActionService *services.ActionService
 	ScrollService *services.ScrollService
-	ConfigService *config.Service
+	ConfigService *loader.Service
 
 	// State
 	AppState *state.AppState

@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -53,13 +54,13 @@ Use "neru config dump | jq" to explore all available keys.`,
 
 		var valErr error
 		if noReload {
-			valErr = config.SetField(config.DefaultConfig(), key, value)
+			valErr = loader.SetField(config.DefaultConfig(), key, value)
 		} else {
-			valErr = config.ValidateConfigSetField(key, value)
+			valErr = loader.ValidateConfigSetField(key, value)
 		}
 
 		if valErr != nil {
-			typeHint := config.ConfigFieldType(key)
+			typeHint := loader.ConfigFieldType(key)
 
 			return fmt.Errorf(
 				"invalid config path or value: %w\n  Field %q type: %s",

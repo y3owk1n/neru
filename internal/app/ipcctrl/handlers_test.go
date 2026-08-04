@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -48,7 +49,7 @@ func TestExtractModeOptions_InvalidCursorSelectionModeEqualsValue(t *testing.T) 
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
 		&portmocks.MockOverlayPort{},
@@ -83,7 +84,7 @@ func TestExtractModeOptions_InvalidLabelDirection(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
 		&portmocks.MockOverlayPort{},
@@ -118,7 +119,7 @@ func TestExtractModeOptions_InvalidModeAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
 		&portmocks.MockOverlayPort{},
@@ -175,7 +176,7 @@ func TestExtractModeOptions_ModifierRequiresAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
 		&portmocks.MockOverlayPort{},
@@ -213,7 +214,7 @@ func TestExtractModeOptions_ModifierEmptyList(t *testing.T) {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger := zap.NewNop()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
 		&portmocks.MockOverlayPort{},
@@ -264,7 +265,7 @@ func newToggleTestController(
 
 	return ipcctrl.New(ipcctrl.Deps{
 		ActionService: actionService,
-		ConfigService: config.NewService(cfg, "", logger, nil),
+		ConfigService: loader.NewService(cfg, "", logger, nil),
 		AppState:      appState,
 		Config:        cfg,
 		Modes:         newTestModesHandler(cfg, logger, appState, actionService),

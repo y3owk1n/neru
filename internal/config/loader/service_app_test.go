@@ -1,4 +1,4 @@
-package config_test
+package loader_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 )
 
 // blockingAlertProvider stands in for the macOS alert, which is a modal dialog
@@ -74,7 +75,7 @@ func TestReloadWithAppContext_DoesNotWaitForTheAlert(t *testing.T) {
 	alert := newBlockingAlertProvider()
 	t.Cleanup(alert.dismiss)
 
-	service := config.NewService(config.DefaultConfig(), path, zap.NewNop(), alert)
+	service := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), alert)
 
 	reloaded := make(chan error, 1)
 
@@ -121,7 +122,7 @@ func TestReloadWithAppContext_ShowsOneAlertAtATime(t *testing.T) {
 	alert := newBlockingAlertProvider()
 	t.Cleanup(alert.dismiss)
 
-	service := config.NewService(config.DefaultConfig(), path, zap.NewNop(), alert)
+	service := loader.NewService(config.DefaultConfig(), path, zap.NewNop(), alert)
 
 	const reloads = 5
 

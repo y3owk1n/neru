@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -130,7 +131,7 @@ func newDispatchTestBinder(t *testing.T, cfg *config.Config, hkm ports.HotkeyPor
 
 	logger := zap.NewNop()
 	appState := state.NewAppState()
-	configService := config.NewService(cfg, "", logger, nil)
+	configService := loader.NewService(cfg, "", logger, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
