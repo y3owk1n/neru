@@ -491,7 +491,7 @@ check-cross: vet-cross test-windows-compile
 # vulnerability database is fetched at run time regardless.
 vuln:
     @echo "Scanning for known vulnerabilities..."
-    go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+    go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
     @echo "✓ No known vulnerabilities"
 
 # Run unit tests with coverage and print the total.
