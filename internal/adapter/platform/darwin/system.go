@@ -133,15 +133,24 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 
 // CursorPosition returns the current cursor position on macOS.
 //
-// Any in-flight cursor animation is settled first — stopped, with the cursor
-// warped straight to its endpoint — so a position-dependent action that fires
-// mid-animation (e.g. a click right after an animated relative move) acts at
-// the point the user aimed for instead of a mid-animation position, without
-// paying the animation's remaining duration in latency.
+// This is a pure read: an in-flight animation reports its mid-animation
+// position, which is what pollers like the mode-indicator follower need.
+// Callers resolving an action's target point use SettleCursor first.
 func (s *SystemAdapter) CursorPosition(ctx context.Context) (image.Point, error) {
+	return CursorPosition(), nil
+}
+
+// SettleCursor finishes any in-flight cursor animation immediately: the
+// worker is stopped and the cursor warps straight to the endpoint it was
+// animating toward. Action paths call this before resolving their target
+// point from the cursor, so an action firing mid-animation (e.g. a click
+// right after an animated relative move) acts at the point the user aimed
+// for — without paying the animation's remaining duration in latency, and
+// without disturbing pollers that merely observe the cursor.
+func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
 	cursorAnimator.settle()
 
-	return CursorPosition(), nil
+	return nil
 }
 
 // IsDarkMode returns true if macOS Dark Mode is currently active.
@@ -210,3 +219,7 @@ var _ ports.SystemPort = (*SystemAdapter)(nil)
 // Ensure SystemAdapter opts into relative cursor movement (animated relative
 // moves when smooth cursor is enabled).
 var _ ports.RelativeCursorMover = (*SystemAdapter)(nil)
+
+// Ensure SystemAdapter opts into settling in-flight cursor animations before
+// position-dependent actions.
+var _ ports.CursorSettler = (*SystemAdapter)(nil)

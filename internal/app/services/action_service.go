@@ -263,6 +263,22 @@ func (s *ActionService) MoveMouseRelative(
 	return s.MoveMouseTo(ctx, cursorPos.X+deltaX, cursorPos.Y+deltaY, shouldBypass)
 }
 
+// CursorPositionForAction returns the cursor position for resolving an
+// action's target point. Unlike CursorPosition it first settles any in-flight
+// cursor animation (ports.CursorSettler), so an action fired mid-animation
+// acts at the point the user aimed for instead of a mid-animation position.
+// Plain observers that must not cut animations short use CursorPosition.
+func (s *ActionService) CursorPositionForAction(ctx context.Context) (image.Point, error) {
+	if settler, ok := s.system.(ports.CursorSettler); ok {
+		err := settler.SettleCursor(ctx)
+		if err != nil {
+			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+		}
+	}
+
+	return s.system.CursorPosition(ctx)
+}
+
 // CursorPosition returns the current cursor position.
 func (s *ActionService) CursorPosition(ctx context.Context) (image.Point, error) {
 	return s.system.CursorPosition(ctx)

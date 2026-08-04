@@ -143,6 +143,21 @@ type RelativeCursorMover interface {
 	MoveCursorBy(ctx context.Context, delta image.Point) (handled bool, err error)
 }
 
+// CursorSettler is an optional SystemPort extension for platforms that
+// animate cursor movement asynchronously. SettleCursor finishes any in-flight
+// animation immediately — stopping it and placing the cursor at the endpoint
+// it was animating toward — so a position-dependent action that fires
+// mid-animation acts at the point the user aimed for.
+//
+// Callers resolving an action's target point from the cursor call this before
+// reading the position; plain observers (indicator followers, pollers) read
+// the position directly so animations are not cut short. Treat a missing
+// implementation as "already settled".
+type CursorSettler interface {
+	// SettleCursor finishes any in-flight cursor animation immediately.
+	SettleCursor(ctx context.Context) error
+}
+
 // CursorSynchronizer is an optional SystemPort extension for platforms whose
 // cursor position is cached client-side and can drift from the compositor's.
 //
