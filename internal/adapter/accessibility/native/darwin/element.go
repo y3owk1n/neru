@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"go.uber.org/zap"
@@ -35,6 +36,26 @@ import (
 // internal/adapter/platform/darwin/accessibility.h.
 type Element struct {
 	ref unsafe.Pointer
+}
+
+// liveElements counts Elements constructed but not yet released. It exists
+// for the leak-regression integration test: a balanced walk must return the
+// count to its baseline. The counter is not a lifecycle mechanism — Release
+// remains the contract.
+var liveElements atomic.Int64
+
+// newElement wraps a +1 retained AXUIElementRef. Every construction goes
+// through here so LiveElementCount stays truthful.
+func newElement(ref unsafe.Pointer) *Element {
+	liveElements.Add(1)
+
+	return &Element{ref: ref}
+}
+
+// LiveElementCount reports how many Elements are currently alive (constructed
+// and not yet released). Test support; see liveElements.
+func LiveElementCount() int64 {
+	return liveElements.Load()
 }
 
 var (
@@ -232,7 +253,7 @@ func SystemWideElement() *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // FocusedApplication returns the currently focused application element.
@@ -242,7 +263,7 @@ func FocusedApplication() *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // ApplicationByPID returns an application element identified by its process ID.
@@ -252,7 +273,7 @@ func ApplicationByPID(pid int) *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // ApplicationByBundleID returns an application element identified by its bundle identifier.
@@ -265,7 +286,7 @@ func ApplicationByBundleID(bundleID string) *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // ElementAtPosition returns the UI element at the specified screen coordinates.
@@ -276,7 +297,7 @@ func ElementAtPosition(x, y int) *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // Info retrieves metadata and positioning information for the element.
@@ -374,7 +395,7 @@ func (e *Element) Children(role string) ([]*Element, error) {
 	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:countInt:countInt]
 	children := make([]*Element, countInt)
 	for i := range children {
-		children[i] = &Element{ref: childSlice[i]}
+		children[i] = newElement(childSlice[i])
 	}
 
 	return children, nil
@@ -421,6 +442,7 @@ func (e *Element) Release() {
 	if e.ref != nil {
 		C.NeruReleaseElement(e.ref)
 		e.ref = nil
+		liveElements.Add(-1)
 	}
 }
 
@@ -481,7 +503,7 @@ func (e *Element) Clone() (*Element, error) {
 
 	C.NeruRetainElement(e.ref)
 
-	return &Element{ref: e.ref}, nil
+	return newElement(e.ref), nil
 }
 
 // AllWindows returns all windows of the focused application.
@@ -502,7 +524,7 @@ func AllWindows() ([]*Element, error) {
 	result := make([]*Element, countInt)
 
 	for index := range result {
-		result[index] = &Element{ref: windowSlice[index]}
+		result[index] = newElement(windowSlice[index])
 	}
 
 	return result, nil
@@ -527,7 +549,7 @@ func FrontmostAndPopoverWindows() ([]*Element, error) {
 	result := make([]*Element, countInt)
 
 	for index := range result {
-		result[index] = &Element{ref: windowSlice[index]}
+		result[index] = newElement(windowSlice[index])
 	}
 
 	return result, nil
@@ -540,7 +562,7 @@ func FrontmostWindow() *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // MenuBar returns the menu bar element for the given application element.
@@ -553,7 +575,7 @@ func (e *Element) MenuBar() *Element {
 		return nil
 	}
 
-	return &Element{ref: ref}
+	return newElement(ref)
 }
 
 // ApplicationName returns the application name.
