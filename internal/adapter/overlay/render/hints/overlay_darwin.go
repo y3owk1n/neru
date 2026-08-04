@@ -213,20 +213,20 @@ func (o *Overlay) DrawSearchInput(
 	style SearchInputStyle,
 ) error {
 	cQuery := C.CString(query)
-	//nolint:nlreturn // C memory must be freed before return
+
 	defer C.free(unsafe.Pointer(cQuery))
 
 	cFontFamily := C.CString(style.FontFamily())
 	cBackgroundColor := C.CString(style.BackgroundColor())
 	cTextColor := C.CString(style.TextColor())
 	cBorderColor := C.CString(style.BorderColor())
-	//nolint:nlreturn // C memory must be freed before return
+
 	defer C.free(unsafe.Pointer(cFontFamily))
-	//nolint:nlreturn // C memory must be freed before return
+
 	defer C.free(unsafe.Pointer(cBackgroundColor))
-	//nolint:nlreturn // C memory must be freed before return
+
 	defer C.free(unsafe.Pointer(cTextColor))
-	//nolint:nlreturn // C memory must be freed before return
+
 	defer C.free(unsafe.Pointer(cBorderColor))
 
 	input := C.SearchInputData{
@@ -589,7 +589,7 @@ func (o *Overlay) hintsAreStructurallyEqual(hintsA, hintsB []*Hint) bool {
 // updateMatchesIncremental updates match states incrementally when input changes.
 func (o *Overlay) updateMatchesIncremental(newInput string) {
 	cPrefix := C.CString(newInput)
-	defer C.free(unsafe.Pointer(cPrefix)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cPrefix))
 
 	C.NeruUpdateHintMatchPrefix(o.window, cPrefix)
 

@@ -1,6 +1,6 @@
 //go:build windows
 
-package windows //nolint:testpackage // exercises unexported controlTypeName directly
+package windows
 
 import (
 	"maps"

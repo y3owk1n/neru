@@ -78,7 +78,7 @@ func (a *Adapter) DetectElements(
 		return nil, nil
 	}
 
-	defer C.NeruFreeVisionResult(result) //nolint:nlreturn
+	defer C.NeruFreeVisionResult(result)
 
 	count := int(result.count)
 	if count == 0 {
@@ -181,10 +181,10 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 		return nil, derrors.New(derrors.CodeInternal, "failed to capture screen")
 	}
 
-	defer C.CGImageRelease(cgImage) //nolint:nlreturn
+	defer C.CGImageRelease(cgImage)
 
-	width := int(C.CGImageGetWidth(cgImage))   //nolint:nlreturn
-	height := int(C.CGImageGetHeight(cgImage)) //nolint:nlreturn
+	width := int(C.CGImageGetWidth(cgImage))
+	height := int(C.CGImageGetHeight(cgImage))
 
 	if width == 0 || height == 0 {
 		return nil, derrors.New(derrors.CodeInternal, "captured screen image has zero size")
@@ -195,7 +195,7 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 
 	colorSpace := C.CGColorSpaceCreateDeviceRGB()
 
-	defer C.CGColorSpaceRelease(colorSpace) //nolint:nlreturn
+	defer C.CGColorSpaceRelease(colorSpace)
 
 	ctx := C.CGBitmapContextCreate(
 		unsafe.Pointer(&buf[0]),
@@ -204,13 +204,13 @@ func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
 		8, // bits per component
 		C.size_t(bytesPerRow),
 		colorSpace,
-		C.kCGImageAlphaPremultipliedLast, //nolint:nlreturn
+		C.kCGImageAlphaPremultipliedLast,
 	)
 
 	if uintptr(ctx) == 0 {
 		return nil, derrors.New(derrors.CodeInternal, "failed to create bitmap context")
 	}
-	defer C.CGContextRelease(ctx) //nolint:nlreturn
+	defer C.CGContextRelease(ctx)
 
 	// Draw the captured image into our context
 	C.CGContextDrawImage(ctx, C.CGRect{

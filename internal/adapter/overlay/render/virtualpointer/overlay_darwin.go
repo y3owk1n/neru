@@ -111,10 +111,10 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate, size int, fillColor string) {
 		o.theme, config.VirtualPointerTextColorLight, config.VirtualPointerTextColorDark,
 	))
 
-	defer C.free(unsafe.Pointer(cFillColor))  //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFillColor))
+	defer C.free(unsafe.Pointer(cLabelChar))
+	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cTextColor))
 
 	C.NeruPositionAndDrawVirtualPointer(
 		o.window,

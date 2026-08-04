@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises the unexported per-compositor origin helpers directly.
 package atspi
 
 import (

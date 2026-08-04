@@ -1,4 +1,3 @@
-//nolint:testpackage // exercises the unexported style fields through BuildStyle.
 package recursivegrid
 
 import (

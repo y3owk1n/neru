@@ -170,14 +170,14 @@ func (o *Overlay) ShowVirtualPointer(
 	o.configMu.RUnlock()
 
 	cFillColor := C.CString(fillColor)
-	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFillColor))
 
 	cLabelChar := C.CString(cfg.Char)
 	cFontFamily := C.CString(cfg.FontFamily)
 	cTextColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cLabelChar))
+	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cTextColor))
 
 	indicatorStyle := C.CursorIndicatorStyle{
 		radius:     C.double(size),

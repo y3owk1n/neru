@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private IPC action parsing/dispatch helpers.
 package ipcctrl
 
 import (

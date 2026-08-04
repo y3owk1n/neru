@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises the unexported app_id matching helpers directly.
 package atspi
 
 import (

@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private IPC action flag tables.
 package ipcctrl
 
 import (

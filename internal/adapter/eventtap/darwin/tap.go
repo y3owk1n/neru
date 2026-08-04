@@ -161,7 +161,7 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 		if hotkey != "" {
 			cHotkeys[index] = C.CString(hotkey)
 
-			defer C.free(unsafe.Pointer(cHotkeys[index])) //nolint:nlreturn
+			defer C.free(unsafe.Pointer(cHotkeys[index]))
 		} else {
 			cHotkeys[index] = nil
 		}
@@ -197,7 +197,7 @@ func (et *EventTap) SetModifierPassthrough(enabled bool, blacklist []string) {
 		if key != "" {
 			cKeys[index] = C.CString(key)
 
-			defer C.free(unsafe.Pointer(cKeys[index])) //nolint:nlreturn
+			defer C.free(unsafe.Pointer(cKeys[index]))
 		} else {
 			cKeys[index] = nil
 		}
@@ -238,7 +238,7 @@ func (et *EventTap) SetInterceptedModifierKeys(keys []string) {
 		if key != "" {
 			cKeys[index] = C.CString(key)
 
-			defer C.free(unsafe.Pointer(cKeys[index])) //nolint:nlreturn
+			defer C.free(unsafe.Pointer(cKeys[index]))
 		} else {
 			cKeys[index] = nil
 		}
@@ -305,7 +305,7 @@ func (et *EventTap) SetKeyboardLayout(layoutID string) bool {
 // modifier must be one of "cmd", "shift", "alt", "ctrl".
 func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	cModifier := C.CString(modifier)
-	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cModifier))
 
 	cDown := C.int(0)
 	if isDown {

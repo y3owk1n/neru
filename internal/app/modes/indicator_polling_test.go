@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private sticky-indicator anchor selection behavior.
 package modes
 
 import (

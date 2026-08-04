@@ -1,6 +1,6 @@
 //go:build windows
 
-package windows //nolint:testpackage // tests exercise unexported Win32 rendering helpers directly
+package windows
 
 import (
 	"image"

@@ -92,14 +92,14 @@ func Quit() {
 // SetTitle sets the title of the system tray icon.
 func SetTitle(title string) {
 	cTitle := C.CString(title)
-	defer C.free(unsafe.Pointer(cTitle)) //nolint
+	defer C.free(unsafe.Pointer(cTitle))
 	C.NeruSetTitle(cTitle)
 }
 
 // SetTooltip sets the tooltip of the system tray icon.
 func SetTooltip(tooltip string) {
 	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTooltip)) //nolint
+	defer C.free(unsafe.Pointer(cTooltip))
 	C.NeruSetTooltip(cTooltip)
 }
 
@@ -140,7 +140,7 @@ func AddMenuItem(title string) *MenuItem {
 	item.id = registerMenuItem(item)
 
 	cTitle := C.CString(title)
-	defer C.free(unsafe.Pointer(cTitle)) //nolint
+	defer C.free(unsafe.Pointer(cTitle))
 
 	C.NeruAddMenuItem(C.int(item.id), cTitle, C.short(0), C.short(0))
 
@@ -156,7 +156,7 @@ func (m *MenuItem) AddSubMenuItem(title string) *MenuItem {
 	item.id = registerMenuItem(item)
 
 	cTitle := C.CString(title)
-	defer C.free(unsafe.Pointer(cTitle)) //nolint
+	defer C.free(unsafe.Pointer(cTitle))
 
 	C.NeruAddSubMenuItem(C.int(m.id), C.int(item.id), cTitle, C.short(0), C.short(0))
 
@@ -169,7 +169,7 @@ func (m *MenuItem) SetTitle(title string) {
 	m.title = title
 	m.mu.Unlock()
 	cTitle := C.CString(title)
-	defer C.free(unsafe.Pointer(cTitle)) //nolint
+	defer C.free(unsafe.Pointer(cTitle))
 	C.NeruSetItemTitle(C.int(m.id), cTitle)
 }
 

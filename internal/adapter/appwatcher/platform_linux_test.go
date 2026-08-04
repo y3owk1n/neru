@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises the unexported linuxAppWatcher poll/dispatch logic directly.
 package appwatcher
 
 import (

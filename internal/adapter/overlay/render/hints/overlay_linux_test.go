@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage
 package hints
 
 import (

@@ -1,6 +1,6 @@
 //go:build windows
 
-package windows //nolint:testpackage // exercises unexported key translation helpers directly
+package windows
 
 import (
 	"strconv"

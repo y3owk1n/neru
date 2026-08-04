@@ -1,6 +1,5 @@
 //go:build darwin
 
-//nolint:testpackage // tests unexported cgoSlot internals
 package darwin
 
 import (

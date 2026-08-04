@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises the unexported smooth cursor animator directly.
 package linux
 
 import (

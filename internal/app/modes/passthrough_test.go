@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests internal method modeModifierKeys which is private
 package modes
 
 import (

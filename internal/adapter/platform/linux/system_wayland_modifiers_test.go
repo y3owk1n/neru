@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // These tests exercise unexported dispatcher helpers directly.
 package linux
 
 import (

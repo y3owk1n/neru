@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Same-package tests cover unexported KDE profile helpers.
 package platform
 
 import "testing"

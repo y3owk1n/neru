@@ -1,6 +1,5 @@
 //go:build linux && cgo
 
-//nolint:testpackage // These tests validate unexported evdev passthrough helpers directly.
 package linux
 
 import (

@@ -33,7 +33,7 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	var state linuxModifierState
 
 	var keymap [32]C.char
-	C.XQueryKeymap(display, &keymap[0]) //nolint:nlreturn
+	C.XQueryKeymap(display, &keymap[0])
 
 	// Map X11 modifier keysyms → our canonical modifier names.
 	type modifierKeysym struct {
@@ -54,7 +54,7 @@ func x11QueryModifierState(display *C.Display) linuxModifierState {
 	}
 
 	for _, modKey := range modifierKeysyms {
-		keycode := C.XKeysymToKeycode(display, modKey.keysym) //nolint:nlreturn
+		keycode := C.XKeysymToKeycode(display, modKey.keysym)
 		if keycode == 0 {
 			continue
 		}
@@ -87,12 +87,12 @@ func (et *EventTap) runX11() {
 	if display == nil {
 		return
 	}
-	defer C.neru_eventtap_close(display) //nolint:nlreturn
+	defer C.neru_eventtap_close(display)
 
-	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess { //nolint:nlreturn
+	if C.neru_eventtap_grab_keyboard(display) != C.GrabSuccess {
 		return
 	}
-	defer C.neru_eventtap_ungrab_keyboard(display) //nolint:nlreturn
+	defer C.neru_eventtap_ungrab_keyboard(display)
 
 	// Query the actual keyboard state after the grab so that modifiers
 	// held at grab time are counted in modState. Without this, initial
@@ -108,14 +108,14 @@ func (et *EventTap) runX11() {
 		default:
 		}
 
-		if C.neru_eventtap_pending(display) == 0 { //nolint:nlreturn
+		if C.neru_eventtap_pending(display) == 0 {
 			time.Sleep(x11PollingInterval)
 
 			continue
 		}
 
 		var event C.XEvent
-		eventType := C.neru_eventtap_next(display, &event) //nolint:nlreturn
+		eventType := C.neru_eventtap_next(display, &event)
 		if eventType != C.KeyPress && eventType != C.KeyRelease {
 			continue
 		}
@@ -128,7 +128,7 @@ func (et *EventTap) runX11() {
 			&buffer[0],
 			C.int(len(buffer)),
 			&keysym,
-			nil, //nolint:nlreturn
+			nil,
 		)
 
 		if modifier := x11ModifierName(keysym); modifier != "" {
@@ -288,7 +288,7 @@ func postLinuxModifierEvent(modifier string, isDown bool) bool {
 	}
 
 	cModifier := C.CString(modifier)
-	defer C.free(unsafe.Pointer(cModifier)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cModifier))
 
 	cDown := C.int(0)
 	if isDown {

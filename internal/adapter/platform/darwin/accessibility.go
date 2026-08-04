@@ -31,13 +31,13 @@ func FocusedApplicationPID() (int, error) {
 	if ref == nil {
 		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get focused application")
 	}
-	defer C.NeruReleaseElement(ref) //nolint:nlreturn
+	defer C.NeruReleaseElement(ref)
 
-	info := C.NeruGetElementInfo(ref) //nolint:nlreturn
+	info := C.NeruGetElementInfo(ref)
 	if info == nil {
 		return 0, derrors.New(derrors.CodeAccessibilityFailed, "failed to get element info")
 	}
-	defer C.NeruFreeElementInfo(info) //nolint:nlreturn
+	defer C.NeruFreeElementInfo(info)
 
 	return int(info.pid), nil
 }
@@ -52,9 +52,9 @@ func ApplicationNameByPID(pid int) (string, error) {
 			pid,
 		)
 	}
-	defer C.NeruReleaseElement(ref) //nolint:nlreturn
+	defer C.NeruReleaseElement(ref)
 
-	cName := C.NeruGetApplicationName(ref) //nolint:nlreturn
+	cName := C.NeruGetApplicationName(ref)
 	if cName == nil {
 		return "", derrors.Newf(
 			derrors.CodeAccessibilityFailed,
@@ -77,9 +77,9 @@ func ApplicationBundleIDByPID(pid int) (string, error) {
 			pid,
 		)
 	}
-	defer C.NeruReleaseElement(ref) //nolint:nlreturn
+	defer C.NeruReleaseElement(ref)
 
-	cBundleID := C.NeruGetBundleIdentifier(ref) //nolint:nlreturn
+	cBundleID := C.NeruGetBundleIdentifier(ref)
 	if cBundleID == nil {
 		return "", derrors.Newf(
 			derrors.CodeAccessibilityFailed,
@@ -112,7 +112,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 		0,     // centerY
 		false, // preHasPressAction
 		false, // preHasShowMenuAction
-		false, //nolint:nlreturn
+		false,
 	) != 0
 
 	return clickable
@@ -121,7 +121,7 @@ func HasClickAction(element unsafe.Pointer) bool {
 // SetApplicationAttribute sets an attribute on an application by its PID.
 func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 	cAttr := C.CString(attribute)
-	defer C.free(unsafe.Pointer(cAttr)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cAttr))
 
 	val := 0
 	if value {

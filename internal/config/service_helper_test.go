@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private service helper methods.
 package config
 
 import (

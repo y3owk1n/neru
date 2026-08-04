@@ -51,10 +51,10 @@ func x11CursorPosition() (image.Point, error) {
 	if err != nil {
 		return image.Point{}, err
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
 	var posX, posY C.int
-	if C.neru_x11_query_pointer(display, &posX, &posY) == 0 { //nolint:nlreturn
+	if C.neru_x11_query_pointer(display, &posX, &posY) == 0 {
 		return image.Point{}, derrors.New(
 			derrors.CodeActionFailed,
 			"failed to query X11 pointer position",
@@ -69,9 +69,9 @@ func x11MoveCursorToPoint(point image.Point) error {
 	if err != nil {
 		return err
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
-	if C.neru_x11_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 { //nolint:nlreturn
+	if C.neru_x11_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,
 			"failed to move X11 pointer to (%d, %d)",
@@ -88,10 +88,10 @@ func x11FocusedApplicationPID() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
 	var window C.Window
-	if C.neru_x11_get_active_window(display, &window) == 0 { //nolint:nlreturn
+	if C.neru_x11_get_active_window(display, &window) == 0 {
 		return 0, derrors.New(
 			derrors.CodeActionFailed,
 			"failed to query _NET_ACTIVE_WINDOW on X11",
@@ -99,7 +99,7 @@ func x11FocusedApplicationPID() (int, error) {
 	}
 
 	var ok C.int
-	pid := C.neru_x11_get_window_pid(display, window, &ok) //nolint:nlreturn
+	pid := C.neru_x11_get_window_pid(display, window, &ok)
 	if ok == 0 {
 		return 0, derrors.New(
 			derrors.CodeActionFailed,
@@ -119,18 +119,18 @@ func x11FocusedAppID() (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
 	var window C.Window
-	if C.neru_x11_get_active_window(display, &window) == 0 { //nolint:nlreturn
+	if C.neru_x11_get_active_window(display, &window) == 0 {
 		return "", false
 	}
 
-	className := C.neru_x11_get_window_class(display, window) //nolint:nlreturn
+	className := C.neru_x11_get_window_class(display, window)
 	if className == nil {
 		return "", false
 	}
-	defer C.free(unsafe.Pointer(className)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(className))
 
 	appID := C.GoString(className)
 	if appID == "" {
@@ -161,7 +161,7 @@ func x11FocusEventFD() (int, bool) {
 		}
 	}
 
-	fd := C.neru_x11_focus_monitor_fd(x11FocusMonitorInst) //nolint:nlreturn
+	fd := C.neru_x11_focus_monitor_fd(x11FocusMonitorInst)
 	if fd < 0 {
 		return -1, false
 	}
@@ -191,7 +191,7 @@ func x11ScreenEventFD() (int, bool) {
 		}
 	}
 
-	fd := C.neru_x11_screen_monitor_fd(x11ScreenMonitorInst) //nolint:nlreturn
+	fd := C.neru_x11_screen_monitor_fd(x11ScreenMonitorInst)
 	if fd < 0 {
 		return -1, false
 	}
@@ -208,11 +208,11 @@ func x11FocusedWindowBounds() (image.Rectangle, bool, error) {
 	if err != nil {
 		return image.Rectangle{}, false, err
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
 	var posX, posY, width, height C.int
 	found := C.neru_x11_get_focused_window_bounds(
-		display, &posX, &posY, &width, &height, //nolint:nlreturn
+		display, &posX, &posY, &width, &height,
 	)
 	if found == 0 {
 		return image.Rectangle{}, false, nil
@@ -231,17 +231,17 @@ func x11Monitors() ([]x11Monitor, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer C.neru_x11_close_display(display) //nolint:nlreturn
+	defer C.neru_x11_close_display(display)
 
 	var count C.int
-	raw := C.neru_x11_get_monitors(display, &count) //nolint:nlreturn
+	raw := C.neru_x11_get_monitors(display, &count)
 	if raw == nil || count == 0 {
 		return nil, derrors.New(
 			derrors.CodeActionFailed,
 			"failed to enumerate X11 monitors via XRandR",
 		)
 	}
-	defer C.neru_x11_free_monitors(raw, count) //nolint:nlreturn
+	defer C.neru_x11_free_monitors(raw, count)
 
 	monitors := make([]x11Monitor, 0, int(count))
 	rawSlice := unsafe.Slice(raw, int(count))

@@ -71,7 +71,7 @@ func newX11Overlay(logger *zap.Logger) *x11Overlay {
 		return nil
 	}
 
-	scale := float64(C.neru_x11_overlay_scale(raw)) //nolint:nlreturn
+	scale := float64(C.neru_x11_overlay_scale(raw))
 	if scale <= 0 {
 		scale = 1
 	}
@@ -1001,8 +1001,8 @@ func (o *x11Overlay) drawTextCentered(
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
 
-	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cText))
+	defer C.free(unsafe.Pointer(cFontFamily))
 
 	C.neru_x11_overlay_text(
 		o.raw, cText, cFontFamily,

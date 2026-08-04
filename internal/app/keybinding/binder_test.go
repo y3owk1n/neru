@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private hotkey helper behavior.
 package keybinding
 
 import (

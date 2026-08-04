@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private mode handler methods.
 package modes
 
 import (

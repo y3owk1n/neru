@@ -92,7 +92,7 @@ func ParseKeyString(keyString string) (int, int, bool) {
 	log.Debug("Darwin: Parsing key string", zap.String("key_string", keyString))
 
 	cKeyString := C.CString(keyString)
-	defer C.free(unsafe.Pointer(cKeyString)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cKeyString))
 
 	var keyCode C.int
 	var modifiers C.int
@@ -268,8 +268,8 @@ func handleMissionControlDeactivated() {
 func HandleAppLaunch(appName, bundleID string) {
 	cName := C.CString(appName)
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cBundle))
 
 	handleAppLaunch(cName, cBundle)
 }
@@ -278,8 +278,8 @@ func HandleAppLaunch(appName, bundleID string) {
 func HandleAppTerminate(appName, bundleID string) {
 	cName := C.CString(appName)
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cBundle))
 
 	handleAppTerminate(cName, cBundle)
 }
@@ -288,8 +288,8 @@ func HandleAppTerminate(appName, bundleID string) {
 func HandleAppActivate(appName, bundleID string) {
 	cName := C.CString(appName)
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cBundle))
 
 	handleAppActivate(cName, cBundle)
 }
@@ -298,8 +298,8 @@ func HandleAppActivate(appName, bundleID string) {
 func HandleAppDeactivate(appName, bundleID string) {
 	cName := C.CString(appName)
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cName))   //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
+	defer C.free(unsafe.Pointer(cBundle))
 
 	handleAppDeactivate(cName, cBundle)
 }

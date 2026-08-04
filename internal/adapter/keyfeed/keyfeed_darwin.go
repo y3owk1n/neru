@@ -21,7 +21,7 @@ import (
 // when the daemon is running.
 func postKey(normalized string) error {
 	cKey := C.CString(normalized)
-	defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cKey))
 
 	ret := C.NeruPostKeyFeed(cKey)
 	switch ret {

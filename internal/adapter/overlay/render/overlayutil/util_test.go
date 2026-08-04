@@ -1,4 +1,3 @@
-//nolint:testpackage // This test validates internal lock-order behavior.
 package overlayutil
 
 import (

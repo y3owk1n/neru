@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private mode selection helpers.
 package modes
 
 import (
