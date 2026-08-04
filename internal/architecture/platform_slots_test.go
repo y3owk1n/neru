@@ -44,7 +44,7 @@ func wholePlatformDirs(t *testing.T) map[string]string {
 	candidates := map[string]string{}
 
 	for _, file := range goFiles(t) {
-		if file.base == "doc.go" {
+		if file.base == docGoFile {
 			continue
 		}
 
@@ -248,7 +248,7 @@ func TestPlatformPackagesTagEveryFile(t *testing.T) {
 
 		// doc.go is allowed to stay untagged so `go vet ./...` can resolve the
 		// package on other hosts; it holds only the package comment.
-		if file.base == "doc.go" {
+		if file.base == docGoFile {
 			continue
 		}
 

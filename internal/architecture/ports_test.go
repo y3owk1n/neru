@@ -6,9 +6,13 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// docGoFile is the package-comment file name skipped by file-scanning checks.
+const docGoFile = "doc.go"
 
 var portsWithoutOwnMock = map[string]string{}
 
@@ -145,4 +149,50 @@ func typeDeclsIn(t *testing.T, dir string) []*ast.TypeSpec {
 	}
 
 	return specs
+}
+
+// TestEveryMockAssertsInterfaceSatisfaction requires each mock file to carry
+// a compile-time assertion tying the mock to its port
+// (var _ ports.X = (*MockX)(nil), plain or inside a var block). Without one,
+// a mock can drop or fumble a method and still compile on its own — the
+// break only surfaces at some consumer, far from the cause. The assertion
+// moves that failure into the mocks package itself.
+func TestEveryMockAssertsInterfaceSatisfaction(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := findRepoRoot(t)
+	mocksDir := filepath.Join(repoRoot, "internal", "ports", "mocks")
+
+	entries, err := os.ReadDir(mocksDir)
+	if err != nil {
+		t.Fatalf("reading mocks dir: %v", err)
+	}
+
+	assertion := regexp.MustCompile(`(?m)^(?:var )?\s*_ ports\.\w+\s*=`)
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") ||
+			name == docGoFile {
+			continue
+		}
+
+		content, readErr := os.ReadFile(filepath.Join(mocksDir, name))
+		if readErr != nil {
+			t.Fatalf("reading %s: %v", name, readErr)
+		}
+
+		if !strings.Contains(string(content), "Mock") {
+			continue
+		}
+
+		if !assertion.Match(content) {
+			t.Errorf(
+				"internal/ports/mocks/%s declares a mock but no compile-time "+
+					"interface assertion; add `var _ ports.<Port> = (*Mock<Port>)(nil)` "+
+					"so drift from the port fails in this package, not at a consumer",
+				name,
+			)
+		}
+	}
 }
