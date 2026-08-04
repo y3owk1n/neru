@@ -500,7 +500,7 @@ func (a *App) waitForShutdown() error {
 	done := make(chan struct{})
 
 	go func() {
-		// platformQuit is the build-tagged dispatch (initialization_platform_*.go);
+		// platformQuit is the build-tagged dispatch (wiring_platform_*.go);
 		// calling infra's systray.Quit directly from here bypassed it.
 		platformQuit()
 		close(done)

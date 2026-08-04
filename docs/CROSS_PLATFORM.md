@@ -622,7 +622,7 @@ The third rule has three deliberate escapes, all narrow:
   that `neru doctor` prints), and `adapter/overlay` render models
   (`overlay.Mode`, `hints.Hint`, `grid.Style`). These are data and plumbing,
   not OS behavior — the behavior is behind `ports.OverlayPort`.
-- **Composition root** — `initialization.go`, `app_initialization_steps.go`,
+- **Composition root** — `wiring.go`, `startup_phases.go`,
   `component_factory.go`, `cmd/neru/main.go`. Wiring adapters to ports is their
   job.
 - **Build-tagged dispatch** — any `*_darwin.go` / `*_linux*.go` /
@@ -966,7 +966,7 @@ port already covers that subsystem — e.g. another screen query):
 **Tier 1, a whole new port** (a subsystem no port covers yet): everything above,
 plus a new `internal/ports/<name>.go`, an adapter package under
 `internal/adapter/`, a `PlatformCapabilities` field **and** its `Entries()`
-registration, and wiring in `app_initialization_steps.go`. Copy the shape of
+registration, and wiring in `startup_phases.go`. Copy the shape of
 [`keyfeed`](../internal/adapter/keyfeed/).
 
 **Tier 2, one adapter package only** (isolated platform behavior):

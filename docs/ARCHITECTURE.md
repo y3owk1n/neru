@@ -67,9 +67,9 @@ New user-facing behavior therefore usually needs three pieces: a CLI command
 service/mode work behind it.
 
 Startup is a numbered, individually-unwound phase sequence in
-[app_initialization.go](../internal/app/app_initialization.go), with the
+[new.go](../internal/app/new.go), with the
 individual steps in
-[app_initialization_steps.go](../internal/app/app_initialization_steps.go):
+[startup_phases.go](../internal/app/startup_phases.go):
 
 ```
 1. infrastructure   4. UI components        7. IPC controller
@@ -199,8 +199,8 @@ user-visible action.
 
 **2. Application wiring**
 
-- [app_initialization.go](../internal/app/app_initialization.go) — startup phases
-- [app_initialization_steps.go](../internal/app/app_initialization_steps.go) —
+- [new.go](../internal/app/new.go) — startup phases
+- [startup_phases.go](../internal/app/startup_phases.go) —
   the individual infrastructure, service, and UI steps
 
 **3. The platform factory**
