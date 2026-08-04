@@ -18,9 +18,9 @@ import (
 // Win32 notification-area (system tray) icon + popup menu via pure syscall.
 // Does not implement macOS template-icon theming or per-item icons.
 //
-// winTrayIconPNG is the colored brand tile shown in the notification area. The
-// macOS template glyph the shared menu passes is white-on-transparent and is
-// invisible on the Windows taskbar, so the Windows tray uses this instead.
+// winTrayIconPNG is the startup/fallback tray tile. The shared component
+// normally selects the platform-appropriate asset and passes it via SetIcon;
+// this covers the window before that first call.
 var winTrayIconPNG = icon.Brand
 
 // Win32 message and shell constants.
@@ -386,12 +386,51 @@ func SetTooltip(tooltip string) {
 	shellNotify(nimModify, &trayNID)
 }
 
-// SetIcon is a no-op on Windows: the tray always shows the embedded brand icon
-// (the macOS PNG bytes passed here are an invisible template glyph).
-func SetIcon(icon []byte) {}
+// SetIcon replaces the tray icon with one built from the passed PNG bytes.
+// The shared component selects a host-appropriate asset (the colored brand
+// tile on Windows — a macOS template glyph would be invisible in the
+// notification area). Empty or undecodable bytes leave the current icon.
+func SetIcon(iconBytes []byte) {
+	if len(iconBytes) == 0 {
+		return
+	}
 
-// SetTemplateIcon is a no-op on Windows for the same reason as SetIcon.
-func SetTemplateIcon(icon []byte, template bool) {}
+	newIcon := iconFromPNG(iconBytes)
+	if newIcon == 0 {
+		return
+	}
+
+	trayMu.Lock()
+	defer trayMu.Unlock()
+
+	if trayHWND == 0 {
+		// Tray not created yet; addTrayIcon will pick this handle up.
+		if trayIconHandle != 0 {
+			discardCall(procDestroyIcon.Call(trayIconHandle))
+		}
+
+		trayIconHandle = newIcon
+
+		return
+	}
+
+	oldIcon := trayIconHandle
+	trayIconHandle = newIcon
+	trayNID.hIcon = newIcon
+	trayNID.uFlags = nifMessage | nifIcon | nifTip
+	shellNotify(nimModify, &trayNID)
+
+	if oldIcon != 0 {
+		discardCall(procDestroyIcon.Call(oldIcon))
+	}
+}
+
+// SetTemplateIcon sets the tray icon from the passed PNG bytes. Windows has
+// no template rendering, so the template flag is ignored and the bytes are
+// rendered literally.
+func SetTemplateIcon(iconBytes []byte, template bool) {
+	SetIcon(iconBytes)
+}
 
 // AddMenuItem adds a top-level menu item to the tray menu.
 func AddMenuItem(title string) *MenuItem {

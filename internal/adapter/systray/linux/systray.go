@@ -19,10 +19,9 @@ import (
 // only owns the transport and the item state.
 // Does not implement the darwin/Windows tray; those have their own backends.
 //
-// linuxTrayIconPNG is the colored brand tile shown in the KDE/GNOME system tray.
-// The macOS template glyph the shared menu passes is white-on-transparent with
-// alpha≈1 and is invisible when rendered as an SNI IconPixmap, so Linux uses
-// this asset instead (same approach as systray_windows.go).
+// linuxTrayIconPNG is the startup/fallback tray tile. The shared component
+// normally selects the platform-appropriate asset and passes it via SetIcon;
+// this covers the window before that first call and empty-byte calls.
 var linuxTrayIconPNG = icon.Brand
 
 var (
@@ -394,16 +393,23 @@ func SetTooltip(tooltip string) {
 	emitSNI("NewToolTip")
 }
 
-// SetIcon sets the icon of the system tray icon (Linux). The macOS PNG bytes
-// passed from the shared menu are ignored; see linuxTrayIconPNG.
-func SetIcon(icon []byte) {
-	setTrayIcon(linuxTrayIconPNG)
+// SetIcon sets the tray icon from the passed PNG bytes. The shared component
+// selects a host-appropriate asset (the colored brand tile on Linux — a macOS
+// template glyph would be invisible as an SNI IconPixmap); empty bytes fall
+// back to the embedded brand tile.
+func SetIcon(iconBytes []byte) {
+	if len(iconBytes) == 0 {
+		iconBytes = linuxTrayIconPNG
+	}
+
+	setTrayIcon(iconBytes)
 }
 
-// SetTemplateIcon is a no-op with respect to the passed bytes for the same
-// reason as SetIcon: the shared template glyph is invisible on Linux SNI hosts.
-func SetTemplateIcon(icon []byte, template bool) {
-	setTrayIcon(linuxTrayIconPNG)
+// SetTemplateIcon sets the tray icon from the passed PNG bytes. SNI has no
+// template rendering, so the template flag is ignored and the bytes are
+// rendered literally.
+func SetTemplateIcon(iconBytes []byte, template bool) {
+	SetIcon(iconBytes)
 }
 
 // AddMenuItem adds a menu item to the system tray (Linux).
