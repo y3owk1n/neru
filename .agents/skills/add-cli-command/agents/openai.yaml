@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add CLI Command"
+  short_description: "Add a CLI command through cobra, IPC, services, man pages, and docs"
+  default_prompt: "Use $add-cli-command to wire the new command through internal/cli, the IPC handler, the service work, genman, and docs/CLI.md."

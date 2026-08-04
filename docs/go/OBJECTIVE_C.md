@@ -260,5 +260,4 @@ if ([NSThread isMainThread]) {
 
 ## See Also
 
-- [CONVENTIONS.md](./CONVENTIONS.md)
-- [TESTING_PATTERNS.md](../testing/TESTING_PATTERNS.md)
+- [darwin/AGENTS.md](../../internal/adapter/platform/darwin/AGENTS.md) — the compressed contract this guide backs

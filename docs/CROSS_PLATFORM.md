@@ -496,7 +496,7 @@ Read these before changing platform code:
 - [ports/capabilities.go](../internal/ports/capabilities.go) and [capability_presets.go](../internal/ports/capability_presets.go) — the capability registry `neru doctor` reports
 - [ports/font.go](../internal/ports/font.go) — FontResolver port
 - [architecture/platform_slots_test.go](../internal/architecture/platform_slots_test.go) — the file-layout rules, as executable checks
-- [ARCHITECTURE.md](./ARCHITECTURE.md) and [CONVENTIONS.md](./go/CONVENTIONS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md) and the root [AGENTS.md](../AGENTS.md) conventions
 
 Contributing Linux support? Also open the reserved backend files in the package
 you plan to touch (`*_linux_common.go`, `*_linux_x11.go`, `*_linux_wayland.go`)
@@ -1040,7 +1040,7 @@ update the one that owns it rather than restating it elsewhere:
 | Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md) — keep DE-agnostic         |
 | A layer boundary, port contract, or data flow   | [ARCHITECTURE.md](./ARCHITECTURE.md)                          |
 | A build recipe or test tier                     | [DEVELOPMENT.md](./DEVELOPMENT.md)                            |
-| Go style, logging, or naming                    | [CONVENTIONS.md](./go/CONVENTIONS.md)                         |
+| Go style, logging, or naming                    | [AGENTS.md](../AGENTS.md) (Conventions)                       |
 | What the project claims to support, at a glance | [README.md](../README.md)                                     |
 
 ARCHITECTURE.md deliberately does **not** track per-platform support — it

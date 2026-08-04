@@ -1,0 +1,122 @@
+package architecture_test
+
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
+
+// TestClaudeGuideIsSymlinkToAgentsGuide pins the cross-agent contract: each
+// AGENTS.md — the root guide and every nested area guide — is the single
+// source of truth, and a sibling CLAUDE.md symlink must accompany it so every
+// agent runtime reads the same file (AGENTS.md "Agent Resources").
+func TestClaudeGuideIsSymlinkToAgentsGuide(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows checkouts may materialize symlinks as plain files")
+	}
+
+	repoRoot := findRepoRoot(t)
+	found := 0
+
+	walkErr := filepath.WalkDir(repoRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if entry.IsDir() {
+			if isSkippedWalkDir(entry.Name()) {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		if entry.Name() != "AGENTS.md" {
+			return nil
+		}
+
+		found++
+
+		assertSymlinkTarget(t, filepath.Join(filepath.Dir(path), "CLAUDE.md"), "AGENTS.md")
+
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("walking repository: %v", walkErr)
+	}
+
+	if found == 0 {
+		t.Fatal("no AGENTS.md found anywhere; the agent guide is gone")
+	}
+}
+
+// TestAgentSkillsStayCanonical pins the skill layout: .agents/skills is the
+// canonical home read by every runtime, .claude/skills must remain a single
+// directory symlink to it, and every skill ships a SKILL.md. A skill body
+// added under .claude/skills directly would silently fork the two views,
+// which is exactly the drift this guards against.
+func TestAgentSkillsStayCanonical(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+
+	entries, err := os.ReadDir(filepath.Join(repoRoot, ".agents", "skills"))
+	if err != nil {
+		t.Fatalf("reading .agents/skills: %v", err)
+	}
+
+	if len(entries) == 0 {
+		t.Fatal(".agents/skills is empty; the project skills are gone")
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			t.Errorf(
+				".agents/skills/%s is not a directory; skill bodies are canonical here",
+				entry.Name(),
+			)
+
+			continue
+		}
+
+		skillFile := filepath.Join(repoRoot, ".agents", "skills", entry.Name(), "SKILL.md")
+
+		_, err := os.Stat(skillFile)
+		if err != nil {
+			t.Errorf(".agents/skills/%s is missing SKILL.md: %v", entry.Name(), err)
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	assertSymlinkTarget(
+		t,
+		filepath.Join(repoRoot, ".claude", "skills"),
+		filepath.Join("..", ".agents", "skills"),
+	)
+}
+
+// assertSymlinkTarget fails the test unless path is a symlink pointing at
+// exactly target.
+func assertSymlinkTarget(t *testing.T, path, target string) {
+	t.Helper()
+
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("%s missing: %v", path, err)
+	}
+
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("%s must be a symlink to %s, not a real file or directory", path, target)
+	}
+
+	got, err := os.Readlink(path)
+	if err != nil {
+		t.Fatalf("reading %s symlink: %v", path, err)
+	}
+
+	if got != target {
+		t.Fatalf("%s points at %q, want %q", path, got, target)
+	}
+}

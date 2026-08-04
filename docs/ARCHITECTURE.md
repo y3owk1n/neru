@@ -11,7 +11,7 @@ platform lives in [CROSS_PLATFORM.md](CROSS_PLATFORM.md); how to build and test
 lives in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 **Related:** [Cross-Platform Guide](CROSS_PLATFORM.md) ·
-[Development Guide](DEVELOPMENT.md) · [Coding Standards](CODING_STANDARDS.md)
+[Development Guide](DEVELOPMENT.md) · [Agent Guide](../AGENTS.md)
 
 ---
 
@@ -303,28 +303,12 @@ safety. Location: `internal/adapter/platform/darwin/`; key files `bridge.go`,
 
 ## Mode Handler Locking
 
-`modes.Handler` has a single `mu sync.Mutex` serializing the event-tap thread
-against timer goroutines, and the type is split so the compiler enforces the
-locking discipline: the outer `Handler` owns the mutexes and the exported
-entry points (`HandleKeyPress`, `ActivateMode`, `ExitMode`, …), each of which
-takes the lock and delegates into the embedded `handlerState` — which carries
-every field and every method that runs with the lock held, and deliberately
-has no mutex.
-
-**Consequently `Mode.Activate` / `HandleKey` / `Exit` all run with the lock
-already held.** Modes are built on `*handlerState`, so calling a locking entry
-point from inside one is a compile error rather than a self-deadlock. The one
-escape hatch is `handlerState.outer`, the back-reference to the owning
-`Handler`: it exists solely for deferred work (timers, goroutines, callbacks
-registered with the platform) whose callbacks must take the lock when they
-later fire — never call anything on it synchronously.
-
-There is one documented lock order: **`moveMonitorMu` → `h.mu`**, never the
-reverse.
-
-The interface itself and the `baseMode` / `GenericMode` building blocks are
-documented in
-[DEVELOPMENT.md](DEVELOPMENT.md#mode-interface-contract).
+`modes.Handler` is split so the compiler enforces its locking discipline, and
+`Mode.Activate` / `HandleKey` / `Exit` all run with the lock already held. The
+full contract — the `Handler` / `handlerState` split, the `outer` escape hatch
+for deferred callbacks, and the `moveMonitorMu` → `h.mu` lock order — lives in
+[internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md). Read it before
+touching modes or anything that calls back into the handler.
 
 ---
 
@@ -367,16 +351,12 @@ documented as best-effort.
 
 ## Runtime Capability Reporting
 
-Neru reports a runtime capability matrix through the platform adapters,
-deliberately stricter than "it compiles":
-
-- supported features report `supported`
-- stubbed or incomplete features report `stub`
-
-`neru doctor` is the user-facing entry point, so the matrix
+Adapters report a capability matrix stricter than "it compiles": `supported`
+vs `stub`, surfaced to users by `neru doctor`. The registry
 ([capabilities.go](../internal/ports/capabilities.go),
-[capability_presets.go](../internal/ports/capability_presets.go)) must stay
-in sync with reality — a stub reporting `supported` is a bug.
+[capability_presets.go](../internal/ports/capability_presets.go)) must stay in
+sync with reality; the policy and per-platform status live in
+[CROSS_PLATFORM.md](CROSS_PLATFORM.md#capability-matrix).
 
 ---
 
@@ -477,6 +457,5 @@ its own.
 
 - [CROSS_PLATFORM.md](CROSS_PLATFORM.md) — per-platform support and contributor guide
 - [DEVELOPMENT.md](DEVELOPMENT.md) — build, test, debug, add code
-- [CODING_STANDARDS.md](CODING_STANDARDS.md) — formatting, logging, documentation
 - [CONFIGURATION.md](CONFIGURATION.md) — configuration reference
 - [macOS Accessibility API](https://developer.apple.com/documentation/applicationservices/ax_ui_element_ref)

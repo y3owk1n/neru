@@ -9,7 +9,7 @@ commit it, and how to get it merged. The technical guides own the rest —
 [DEVELOPMENT.md](docs/DEVELOPMENT.md) for environment setup, building, and
 testing; [ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the codebase is
 structured; [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for platform work; and
-[CODING_STANDARDS.md](docs/CODING_STANDARDS.md) for style.
+[AGENTS.md](AGENTS.md) for conventions and contracts.
 
 ---
 
@@ -21,6 +21,7 @@ structured; [CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for platform work; and
 - [Commit Messages](#commit-messages)
 - [Pull Requests](#pull-requests)
 - [Platform Work](#platform-work)
+- [AI-Assisted Contributions](#ai-assisted-contributions)
 - [Good First Contributions](#good-first-contributions)
 - [Reporting Bugs](#reporting-bugs)
 - [Feature Requests](#feature-requests)
@@ -59,12 +60,12 @@ recommended path and provides every tool pre-configured.
     git checkout -b feat/my-feature
     ```
 
-3. **Make your changes**, following
-   [CODING_STANDARDS.md](docs/CODING_STANDARDS.md). Where new code belongs is
+3. **Make your changes**, following the conventions in
+   [AGENTS.md](AGENTS.md). Where new code belongs is
    mapped out in [DEVELOPMENT.md](docs/DEVELOPMENT.md#adding-code).
 4. **Add or update tests.** All new code needs coverage — see
    [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing) for the test tiers and
-   [TESTING_PATTERNS.md](docs/testing/TESTING_PATTERNS.md) for the patterns.
+   [AGENTS.md](AGENTS.md) (Conventions) for naming, mocks, and build tags.
 5. **Run the pre-commit checks:**
 
     ```bash
@@ -190,6 +191,42 @@ are where that matters most. Before writing Linux or Windows code:
 
 Implement in the existing platform slot rather than inventing new file layout,
 and keep macOS-specific assumptions out of shared code.
+
+---
+
+## AI-Assisted Contributions
+
+AI-assisted PRs are welcome — the same review bar applies either way. The repo
+ships shared context so your agent starts from the project's actual rules
+instead of guessing:
+
+- **[AGENTS.md](AGENTS.md)** is the cross-agent contract (architecture,
+  commands, conventions). `CLAUDE.md` is a symlink to it, and
+  `.cursor/rules/` + `.github/copilot-instructions.md` point at it, so Claude
+  Code, Codex, Cursor, and Copilot all read the same guide. Personal overrides
+  go in gitignored `AGENTS.local.md` / `CLAUDE.local.md`.
+- **`.agents/skills/`** holds step-by-step workflows for the changes that are
+  easiest to half-finish — adding a config option, adding a CLI command,
+  platform work — plus contribution mechanics: `create-pr` encodes the commit
+  and PR-template conventions below, and `file-issue` encodes the issue forms.
+  `.claude/skills` is a symlink to it, so Claude Code, Codex, and OpenCode all
+  discover the same skills.
+- **`.claude/agents/`** holds focused review profiles
+  (`platform-boundary-reviewer`, `deadlock-reviewer`) you can run on your diff
+  before opening a PR.
+- **`.claude/settings.json`** wires a format-on-edit hook so agent edits land
+  already formatted. Claude Code asks for one-time workspace trust before
+  running project hooks — that prompt is expected.
+
+Two mechanical notes: `CLAUDE.md` and `.claude/skills` are git symlinks (the
+same layout Apache Airflow and T3 Code use), so on Windows clone with symlink
+support enabled (`git config core.symlinks true`, requires Developer Mode) or
+just read `AGENTS.md` directly. The layout is pinned by
+`internal/architecture/agent_contract_test.go`.
+
+Whatever tool you use, you own the result: run the pre-commit gate
+(`just fmt && just lint && just test && just build`), read the diff yourself,
+and don't submit changes you can't explain.
 
 ---
 

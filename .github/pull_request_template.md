@@ -32,7 +32,7 @@
 <!-- If your PR touches OS-specific code, verify the following. Check N/A if not applicable. -->
 
 - [ ] OS-specific files use correct build tags (e.g., `//go:build darwin`)
-- [ ] No darwin imports from untagged (shared) code — [The One Rule](docs/ARCHITECTURE.md#the-one-rule)
+- [ ] No darwin imports from untagged (shared) code — [The One Rule](https://github.com/y3owk1n/neru/blob/main/docs/ARCHITECTURE.md#the-one-rule)
 - [ ] Stub implementations added for other platforms (returning `CodeNotSupported`)
 - [ ] N/A — This PR does not touch platform-specific code
 

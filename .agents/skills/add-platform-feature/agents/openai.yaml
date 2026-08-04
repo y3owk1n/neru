@@ -1,0 +1,4 @@
+interface:
+  display_name: "Platform Feature"
+  short_description: "Implement or stub a capability for a specific OS/backend safely"
+  default_prompt: "Use $add-platform-feature to implement this for the target platform: port contract, file slots, honest stubs, capability matrix, contract tests, docs."

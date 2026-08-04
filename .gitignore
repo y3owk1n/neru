@@ -42,3 +42,7 @@ config.toml
 !configs/default-config.toml
 
 .direnv/
+
+# Agent-guide local overrides (see AGENTS.md)
+AGENTS.local.md
+CLAUDE.local.md

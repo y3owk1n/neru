@@ -1,0 +1,4 @@
+interface:
+  display_name: "File Issue"
+  short_description: "File a bug report or feature request matching the issue forms"
+  default_prompt: "Use $file-issue to draft and file this as a GitHub issue with every field the issue form requires."
