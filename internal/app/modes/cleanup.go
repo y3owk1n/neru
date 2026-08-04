@@ -23,11 +23,11 @@ func (h *Handler) ExitMode() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.exitModeLocked()
+	h.exitMode()
 }
 
-// exitModeLocked exits the current mode. Caller must hold h.mu.
-func (h *Handler) exitModeLocked() {
+// exitMode exits the current mode. Caller must hold h.mu.
+func (h *handlerState) exitMode() {
 	if h.appState.CurrentMode() == domain.ModeIdle {
 		return
 	}
@@ -40,7 +40,7 @@ func (h *Handler) exitModeLocked() {
 }
 
 // performModeSpecificCleanup handles mode-specific cleanup logic.
-func (h *Handler) performModeSpecificCleanup() {
+func (h *handlerState) performModeSpecificCleanup() {
 	mode, exists := h.modes[h.appState.CurrentMode()]
 	if !exists {
 		h.cleanupDefaultMode()
@@ -52,7 +52,7 @@ func (h *Handler) performModeSpecificCleanup() {
 }
 
 // clearAndHideOverlay clears and hides the overlay manager.
-func (h *Handler) clearAndHideOverlay() {
+func (h *handlerState) clearAndHideOverlay() {
 	h.stopIndicatorPolling()
 
 	h.overlayManager.ClearCache()
@@ -60,8 +60,8 @@ func (h *Handler) clearAndHideOverlay() {
 }
 
 // cleanupHintsMode handles cleanup for hints mode.
-func (h *Handler) cleanupHintsMode() {
-	h.stopHintSearchTextInputLocked(false)
+func (h *handlerState) cleanupHintsMode() {
+	h.stopHintSearchTextInput(false)
 
 	resetErr := h.hints.Context.Reset()
 	if resetErr != nil {
@@ -74,7 +74,7 @@ func (h *Handler) cleanupHintsMode() {
 }
 
 // cleanupDefaultMode handles cleanup for default/unknown modes.
-func (h *Handler) cleanupDefaultMode() {
+func (h *handlerState) cleanupDefaultMode() {
 	// No domain-specific cleanup for other modes yet.
 	// But still clear and hide action overlay.
 	if overlay.Get() != nil {
@@ -84,7 +84,7 @@ func (h *Handler) cleanupDefaultMode() {
 }
 
 // cleanupGridMode handles cleanup for grid mode.
-func (h *Handler) cleanupGridMode() {
+func (h *handlerState) cleanupGridMode() {
 	// Only reset the base context fields (pendingAction, repeat).
 	// Do NOT call h.grid.Context.Reset() because it nils out
 	// gridInstance (a **domainGrid.Grid pointer-to-pointer that is
@@ -118,9 +118,9 @@ func (h *Handler) cleanupGridMode() {
 }
 
 // performCommonCleanup handles common cleanup logic for all modes.
-func (h *Handler) performCommonCleanup() {
+func (h *handlerState) performCommonCleanup() {
 	h.stopIndicatorPolling()
-	h.stopHeldRepeatLocked()
+	h.stopHeldRepeat()
 	h.overlayManager.Clear()
 	h.overlayManager.ClearCache()
 
@@ -146,7 +146,7 @@ func (h *Handler) performCommonCleanup() {
 
 	h.releaseHeldButtons()
 
-	h.setAppModeLocked(domain.ModeIdle)
+	h.setAppMode(domain.ModeIdle)
 
 	// Do NOT reset suppressedModifiers here — SuppressModifiersForHotkey was
 	// called synchronously by the hotkey dispatch path (dispatchModeAwareHeldHotkey
@@ -176,7 +176,7 @@ func (h *Handler) performCommonCleanup() {
 }
 
 // handleCursorRestoration finalizes transient cursor and scroll state on mode exit.
-func (h *Handler) handleCursorRestoration() {
+func (h *handlerState) handleCursorRestoration() {
 	h.cursorState.Reset()
 
 	// Always reset scroll context to ensure proper state cleanup when switching modes.
@@ -187,7 +187,7 @@ func (h *Handler) handleCursorRestoration() {
 // drag. It routes through the action service rather than reaching into the
 // accessibility infra package directly, and swallows the error because every
 // caller is already on a cleanup path where there is nothing left to abort.
-func (h *Handler) releaseHeldButtons() {
+func (h *handlerState) releaseHeldButtons() {
 	if h.actionService == nil {
 		return
 	}

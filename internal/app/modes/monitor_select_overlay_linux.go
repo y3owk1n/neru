@@ -11,11 +11,11 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// showMonitorSelectLocked renders the interactive monitor picker on the shared
+// showMonitorSelect renders the interactive monitor picker on the shared
 // Linux overlay (X11 spanning window or wlroots per-output layer surfaces),
 // drawing one labeled panel per monitor. Unlike macOS's per-display NSPanels,
 // this reuses the same overlay the hints/grid modes draw on.
-func (h *Handler) showMonitorSelectLocked() error {
+func (h *handlerState) showMonitorSelect() error {
 	if h.monitorSelect == nil {
 		return nil
 	}
@@ -36,7 +36,7 @@ func (h *Handler) showMonitorSelectLocked() error {
 		)
 	}
 
-	targets, style := h.monitorSelectRenderDataLocked()
+	targets, style := h.monitorSelectRenderData()
 	if len(targets) == 0 {
 		selector.HideMonitorSelect()
 
@@ -46,7 +46,7 @@ func (h *Handler) showMonitorSelectLocked() error {
 	return selector.DrawMonitorSelect(targets, style)
 }
 
-func (h *Handler) hideMonitorSelectLocked() error {
+func (h *handlerState) hideMonitorSelect() error {
 	if selector, ok := overlay.Get().(overlaymanager.MonitorSelector); ok {
 		selector.HideMonitorSelect()
 	}
@@ -54,9 +54,9 @@ func (h *Handler) hideMonitorSelectLocked() error {
 	return nil
 }
 
-// monitorSelectRenderDataLocked maps the active monitor_select session and the
+// monitorSelectRenderData maps the active monitor_select session and the
 // resolved (theme-applied) config into the overlay's render types.
-func (h *Handler) monitorSelectRenderDataLocked() ([]overlay.MonitorSelectTarget, overlay.MonitorSelectStyle) {
+func (h *handlerState) monitorSelectRenderData() ([]overlay.MonitorSelectTarget, overlay.MonitorSelectStyle) {
 	uiCfg := h.config.MonitorSelect.UI
 	theme := h.themeProvider
 

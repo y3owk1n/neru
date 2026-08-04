@@ -7,13 +7,13 @@ import (
 // ModeBehavior defines the behavior-specific functions for a mode.
 type ModeBehavior struct {
 	// ActivateFunc handles mode activation (optional, defaults to standard activation)
-	ActivateFunc func(handler *Handler, opts ModeActivationOptions)
+	ActivateFunc func(handler *handlerState, opts ModeActivationOptions)
 
 	// HandleKeyFunc handles key processing (optional, defaults to standard key handling)
-	HandleKeyFunc func(handler *Handler, key string)
+	HandleKeyFunc func(handler *handlerState, key string)
 
 	// ExitFunc handles mode cleanup (optional, defaults to standard cleanup)
-	ExitFunc func(handler *Handler)
+	ExitFunc func(handler *handlerState)
 }
 
 // GenericMode provides a generic implementation of the Mode interface
@@ -26,7 +26,7 @@ type GenericMode struct {
 
 // NewGenericMode creates a new generic mode with the specified behavior.
 func NewGenericMode(
-	handler *Handler,
+	handler *handlerState,
 	modeType domain.Mode,
 	modeName string,
 	behavior ModeBehavior,
@@ -54,7 +54,7 @@ func (m *GenericMode) Activate(opts ModeActivationOptions) {
 			noZoom.ZoomToDepth = nil
 			m.handler.activateRecursiveGridModeWithAction(noZoom)
 		case domain.ModeScroll:
-			m.handler.StartInteractiveScroll()
+			m.handler.startInteractiveScroll()
 		case domain.ModeIdle:
 			// Idle mode doesn't need activation
 		case domain.ModeMonitorSelect:

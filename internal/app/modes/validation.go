@@ -20,7 +20,11 @@ const (
 // validateModeActivation performs common validation checks before mode activation.
 // Returns an error if the mode cannot be activated.
 // If bundleID is non-empty, it is used directly for exclusion check (skips AX call).
-func (h *Handler) validateModeActivation(bundleID string, modeName string, modeEnabled bool) error {
+func (h *handlerState) validateModeActivation(
+	bundleID string,
+	modeName string,
+	modeEnabled bool,
+) error {
 	// Check for secure input mode first - this is a macOS security feature
 	// that blocks keyboard events when password fields are focused.
 	// On non-macOS platforms IsSecureInputEnabled always returns false.
@@ -73,13 +77,13 @@ func (h *Handler) validateModeActivation(bundleID string, modeName string, modeE
 
 // prepareForModeActivation performs common preparation steps before activating a mode.
 // This includes resetting scroll state and syncing any platform cursor cache.
-func (h *Handler) prepareForModeActivation() {
+func (h *handlerState) prepareForModeActivation() {
 	h.resetScrollContext()
 	h.syncCursorPositionForModeActivation()
 }
 
 // resetScrollContext resets scroll-related state to ensure clean mode transitions.
-func (h *Handler) resetScrollContext() {
+func (h *handlerState) resetScrollContext() {
 	if h.scroll.Context.IsActive() {
 		// Atomically reset scroll context to ensure clean transition
 		h.scroll.Context.Reset()
@@ -91,7 +95,7 @@ func (h *Handler) resetScrollContext() {
 // syncCursorPositionForModeActivation refreshes the adapter's cached cursor
 // position when the platform keeps one. Adapters that do not implement
 // ports.CursorSynchronizer are already authoritative, so there is nothing to do.
-func (h *Handler) syncCursorPositionForModeActivation() {
+func (h *handlerState) syncCursorPositionForModeActivation() {
 	syncer, ok := h.system.(ports.CursorSynchronizer)
 	if !ok {
 		return

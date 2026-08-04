@@ -34,14 +34,14 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 		},
 	}
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger:         zap.NewNop(),
 		config:         &configpkg.Config{},
 		appState:       appState,
 		modifierState:  state.NewModifierState(),
 		overlayManager: &overlay.NoOpManager{},
 		eventTap:       eventTap,
-	}
+	})
 
 	handler.modifierState.Toggle(action.ModCtrl)
 	handler.performCommonCleanup()

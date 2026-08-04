@@ -11,16 +11,16 @@ type ScrollMode struct {
 }
 
 // NewScrollMode creates a new scroll mode implementation.
-func NewScrollMode(handler *Handler) *ScrollMode {
+func NewScrollMode(handler *handlerState) *ScrollMode {
 	behavior := ModeBehavior{
-		ActivateFunc: func(handler *Handler, _ ModeActivationOptions) {
+		ActivateFunc: func(handler *handlerState, _ ModeActivationOptions) {
 			// Scroll mode ignores activation options because it has a single activation flow.
-			handler.StartInteractiveScroll()
+			handler.startInteractiveScroll()
 			handler.startIndicatorPolling(domain.ModeScroll)
 		},
-		ExitFunc: func(handler *Handler) {
+		ExitFunc: func(handler *handlerState) {
 			handler.stopIndicatorPolling()
-			handler.stopHeldRepeatLocked()
+			handler.stopHeldRepeat()
 
 			handler.clearAndHideOverlay()
 

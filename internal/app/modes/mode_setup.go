@@ -9,18 +9,18 @@ import (
 )
 
 // CurrModeString returns the current mode as a string.
-func (h *Handler) CurrModeString() string {
+func (h *handlerState) CurrModeString() string {
 	return domain.ModeString(h.appState.CurrentMode())
 }
 
 // overlaySwitch switches the overlay mode.
-func (h *Handler) overlaySwitch(m overlay.Mode) {
+func (h *handlerState) overlaySwitch(m overlay.Mode) {
 	if h.overlayManager != nil {
 		h.overlayManager.SwitchTo(m)
 	}
 }
 
-func (h *Handler) setAppModeLocked(mode domain.Mode) {
+func (h *handlerState) setAppMode(mode domain.Mode) {
 	h.modeSession++
 	h.appState.SetMode(mode)
 
@@ -37,7 +37,7 @@ func (h *Handler) setAppModeLocked(mode domain.Mode) {
 	h.syncStickyModifierToggle(mode)
 }
 
-func (h *Handler) syncStickyModifierToggle(mode domain.Mode) {
+func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {
 	if !h.hasEventTap() {
 		return
 	}
@@ -64,7 +64,7 @@ func (h *Handler) SetModeIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setAppModeLocked(domain.ModeIdle)
+	h.setAppMode(domain.ModeIdle)
 
 	if h.hasEventTap() {
 		h.disableEventTap()
@@ -73,10 +73,10 @@ func (h *Handler) SetModeIdle() {
 	h.overlaySwitch(overlay.ModeIdle)
 }
 
-// setModeLocked sets the application mode, enables event tap, and switches overlay.
+// setMode sets the application mode, enables event tap, and switches overlay.
 // Caller must hold h.mu.
-func (h *Handler) setModeLocked(appMode domain.Mode, overlayMode overlay.Mode) {
-	h.setAppModeLocked(appMode)
+func (h *handlerState) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
+	h.setAppMode(appMode)
 
 	if h.hasEventTap() {
 		h.enableEventTap()
@@ -86,7 +86,7 @@ func (h *Handler) setModeLocked(appMode domain.Mode, overlayMode overlay.Mode) {
 }
 
 // activateModeBase performs common activation steps for all modes.
-func (h *Handler) activateModeBase(
+func (h *handlerState) activateModeBase(
 	modeName string,
 	enabled bool,
 	actionEnum action.Type,
@@ -120,7 +120,7 @@ func (h *Handler) SetModeHints() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setModeLocked(domain.ModeHints, overlay.ModeHints)
+	h.setMode(domain.ModeHints, overlay.ModeHints)
 }
 
 // SetModeGrid switches the application to grid mode for coordinate-based navigation.
@@ -130,7 +130,7 @@ func (h *Handler) SetModeGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setModeLocked(domain.ModeGrid, overlay.ModeGrid)
+	h.setMode(domain.ModeGrid, overlay.ModeGrid)
 }
 
 // SetModeRecursiveGrid switches the application to recursive-grid mode for recursive cell navigation.
@@ -140,7 +140,7 @@ func (h *Handler) SetModeRecursiveGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setModeLocked(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
+	h.setMode(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
 }
 
 // SetModeScroll switches the application to scroll mode for scroll-based navigation.
@@ -150,5 +150,5 @@ func (h *Handler) SetModeScroll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setModeLocked(domain.ModeScroll, overlay.ModeScroll)
+	h.setMode(domain.ModeScroll, overlay.ModeScroll)
 }

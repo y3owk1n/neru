@@ -18,14 +18,14 @@ const (
 // startIndicatorPolling starts a goroutine that polls the cursor position and
 // updates the mode indicator and sticky modifiers indicator overlays.
 // It is shared by all navigation modes.
-func (h *Handler) startIndicatorPolling(mode domain.Mode) {
+func (h *handlerState) startIndicatorPolling(mode domain.Mode) {
 	// If polling is already active, do not start another goroutine.
 	if h.indicatorTicker != nil || h.indicatorStopCh != nil {
 		return
 	}
 
-	// All callers hold h.mu, so we can call the *Locked helpers directly.
-	if h.config == nil || !h.shouldPollCursorOverlaysLocked(mode) {
+	// All callers hold h.mu, so state methods are callable directly.
+	if h.config == nil || !h.shouldPollCursorOverlays(mode) {
 		return
 	}
 	// Disable exclusive keyboard so scroll events pass through to applications
@@ -53,7 +53,7 @@ func (h *Handler) startIndicatorPolling(mode domain.Mode) {
 
 	h.indicatorTicker = ticker
 
-	go h.runIndicatorPolling(stopCh, doneCh, ticker)
+	go h.outer.runIndicatorPolling(stopCh, doneCh, ticker)
 }
 
 // runIndicatorPolling is the polling loop. It exits when stopCh closes.
@@ -127,7 +127,7 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	snap := indicatorSnapshot{
 		showModeIndicator:  h.shouldShowModeIndicator(h.appState.CurrentMode()),
 		stickyEnabled:      h.stickyModifiersEnabled(),
-		showVirtualPointer: h.shouldShowCursorFollowingVirtualPointerLocked(),
+		showVirtualPointer: h.shouldShowCursorFollowingVirtualPointer(),
 	}
 
 	if snap.showVirtualPointer {
@@ -140,10 +140,10 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 		}
 	}
 
-	snap.stickyPoint = h.stickyIndicatorAnchorLocked(image.Pt(cursorX, cursorY))
+	snap.stickyPoint = h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
 
 	if !image.Pt(cursorX, cursorY).In(h.screenBounds) && h.system != nil {
-		if h.adoptChangedScreenBoundsLocked(ctx) {
+		if h.adoptChangedScreenBounds(ctx) {
 			// h.mu is already released; skip the draw so the next tick works
 			// from the updated bounds.
 			return
@@ -162,10 +162,10 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	h.overlayManager.Flush()
 }
 
-// adoptChangedScreenBoundsLocked re-reads the screen bounds and resizes the
+// adoptChangedScreenBounds re-reads the screen bounds and resizes the
 // indicator overlays when they changed. It reports true when it did so, in
 // which case it has already released h.mu; otherwise the lock is still held.
-func (h *Handler) adoptChangedScreenBoundsLocked(ctx context.Context) bool {
+func (h *Handler) adoptChangedScreenBounds(ctx context.Context) bool {
 	boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
 	newBounds, boundsErr := h.system.ScreenBounds(boundsCtx)
 
@@ -246,7 +246,7 @@ func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 
 // stopIndicatorPolling stops the indicator polling goroutine and cleans up
 // both mode indicator and sticky modifiers indicator overlays.
-func (h *Handler) stopIndicatorPolling() {
+func (h *handlerState) stopIndicatorPolling() {
 	// Restore keyboard capture if uinput scroll was active. Never re-enable it
 	// while an evdev keyboard grab owns the keyboard: on wlroots compositors the
 	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
@@ -277,9 +277,9 @@ func (h *Handler) stopIndicatorPolling() {
 		stickyInd.Clear()
 		stickyInd.Hide()
 	}
-	// All callers hold h.mu, so we can call the *Locked helpers directly.
-	if !h.shouldShowCursorFollowingVirtualPointerLocked() {
-		h.hideCursorFollowingVirtualPointerLocked()
+	// All callers hold h.mu, so state methods are callable directly.
+	if !h.shouldShowCursorFollowingVirtualPointer() {
+		h.hideCursorFollowingVirtualPointer()
 	}
 	// Clean up resources after loop has exited.
 	if h.indicatorTicker != nil {
@@ -288,7 +288,7 @@ func (h *Handler) stopIndicatorPolling() {
 	}
 }
 
-func (h *Handler) modeIndicatorEnabled(mode domain.Mode) bool {
+func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 	if h.config == nil {
 		return false
 	}
@@ -315,7 +315,7 @@ func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
 	return h.modeIndicatorEnabled(mode)
 }
 
-func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Point {
+func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
 	switch h.appState.CurrentMode() {
 	case domain.ModeGrid:
 		if h.grid == nil || h.grid.Context == nil || h.grid.Context.CursorFollowSelection() {
@@ -349,7 +349,7 @@ func (h *Handler) stickyIndicatorAnchorLocked(cursorPoint image.Point) image.Poi
 // by type assertion: elsewhere the assertion fails and the call is a no-op,
 // which is the right behavior — no other backend's overlay takes the keyboard
 // away from the focused application in the first place.
-func setOverlayKeyboardCapture(h *Handler, enabled bool) {
+func setOverlayKeyboardCapture(h *handlerState, enabled bool) {
 	if !h.allowsOverlayKeyboardPassthrough() {
 		return
 	}

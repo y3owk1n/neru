@@ -49,12 +49,12 @@ type monitorSelectRenderState struct {
 	Style   monitorSelectRenderStyle
 }
 
-func (h *Handler) showMonitorSelectLocked() error {
+func (h *handlerState) showMonitorSelect() error {
 	if h.monitorSelect == nil {
 		return nil
 	}
 
-	state := h.currentMonitorSelectRenderStateLocked()
+	state := h.currentMonitorSelectRenderState()
 	targets := state.Targets
 	style := state.Style
 
@@ -107,7 +107,7 @@ func (h *Handler) showMonitorSelectLocked() error {
 	return nil
 }
 
-func (h *Handler) hideMonitorSelectLocked() error {
+func (h *handlerState) hideMonitorSelect() error {
 	C.NeruHideMonitorSelectPanels()
 
 	return nil
@@ -156,7 +156,7 @@ func freeMonitorSelectStyle(styl C.MonitorSelectStyle) {
 	}
 }
 
-func (h *Handler) currentMonitorSelectRenderStateLocked() monitorSelectRenderState {
+func (h *handlerState) currentMonitorSelectRenderState() monitorSelectRenderState {
 	cfg := h.config.MonitorSelect
 	uiCfg := cfg.UI
 

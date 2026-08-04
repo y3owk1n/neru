@@ -42,7 +42,7 @@ func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelection
 		zap.NewNop(),
 	)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config: &config.Config{
 			Grid: config.GridConfig{
 				Enabled:    true,
@@ -69,7 +69,7 @@ func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelection
 			Context: &gridcomponent.Context{},
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-	}
+	})
 
 	handler.grid.Context.SetCursorFollowSelection(false)
 
@@ -99,7 +99,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 		zap.NewNop(),
 	)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config: &config.Config{
 			Grid: config.GridConfig{
 				Enabled:    true,
@@ -130,7 +130,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 			recursivegridcomponent.Style{},
 		),
 		screenBounds: image.Rect(0, 0, 100, 100),
-	}
+	})
 
 	handler.initializeGridManager(gridInstance)
 	handler.grid.Router = domainGrid.NewRouter(handler.grid.Manager, zap.NewNop())

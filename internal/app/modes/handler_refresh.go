@@ -79,14 +79,14 @@ func (h *Handler) RefreshHintsForScreenChange(
 	)
 	if showHintsErr != nil {
 		h.logger.Error("Failed to refresh hints after screen change", zap.Error(showHintsErr))
-		h.exitModeLocked()
+		h.exitMode()
 
 		return false
 	}
 
 	if len(domainHints) == 0 {
 		h.logger.Debug("No hints after screen change refresh")
-		h.exitModeLocked()
+		h.exitMode()
 
 		return false
 	}
@@ -96,7 +96,7 @@ func (h *Handler) RefreshHintsForScreenChange(
 	filtered := filterHintsForScreen(allHints, h.screenBounds)
 	if len(filtered) == 0 {
 		h.logger.Debug("No hints on active screen after filter; skipping refresh")
-		h.exitModeLocked()
+		h.exitMode()
 
 		return false
 	}
@@ -161,7 +161,7 @@ func (h *Handler) RefreshGridForScreenChange() bool {
 
 	// Ensure the virtual pointer is hidden (DrawGrid may clear cursorIndicatorVisible
 	// via NeruClearOverlay, but we explicitly hide it for consistency).
-	h.refreshGridVirtualPointerLocked()
+	h.refreshGridVirtualPointer()
 
 	return true
 }
@@ -216,7 +216,7 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 
 	// Redraw the overlay with the remapped grid.
 	h.updateRecursiveGridOverlay()
-	h.refreshRecursiveGridVirtualPointerLocked()
+	h.refreshRecursiveGridVirtualPointer()
 
 	return true
 }
@@ -260,7 +260,7 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 
 	drawHintsErr := h.overlayManager.DrawHintsWithStyle(
 		overlayHints,
-		h.currentHintStyleLocked(),
+		h.currentHintStyle(),
 	)
 	if drawHintsErr != nil {
 		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
@@ -303,7 +303,7 @@ func (h *Handler) RefreshGridForThemeChange() bool {
 		return false
 	}
 
-	h.refreshGridVirtualPointerLocked()
+	h.refreshGridVirtualPointer()
 
 	return true
 }
@@ -322,7 +322,7 @@ func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
 	}
 
 	h.updateRecursiveGridOverlay()
-	h.refreshRecursiveGridVirtualPointerLocked()
+	h.refreshRecursiveGridVirtualPointer()
 
 	return true
 }

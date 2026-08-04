@@ -19,7 +19,7 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 		"k":     {"action scroll_up"},
 	}
 
-	handler := &Handler{config: cfg}
+	handler := newHandlerWithState(handlerState{config: cfg})
 
 	got := handler.modeModifierKeys(domain.ModeHints, "")
 	want := []string{
@@ -41,7 +41,7 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 		"gg":       {"action go_top"},
 	}
 
-	handler := &Handler{config: cfg}
+	handler := newHandlerWithState(handlerState{config: cfg})
 
 	got := handler.modeModifierKeys(domain.ModeScroll, "")
 	want := []string{
@@ -61,14 +61,14 @@ func TestHandlePassthroughLocked_IgnoresStaleSession(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeHints)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config:      cfg,
 		logger:      zap.NewNop(),
 		appState:    appState,
 		modeSession: 2,
-	}
+	})
 
-	handler.handlePassthroughLocked(domain.ModeHints, 1)
+	handler.passthroughTick(domain.ModeHints, 1)
 
 	if handler.refreshHintsTimer != nil {
 		t.Fatal("expected stale passthrough callback to be ignored")
@@ -82,12 +82,12 @@ func TestPassthroughCallbackFor_CapturesModeSession(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeHints)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config:      cfg,
 		logger:      zap.NewNop(),
 		appState:    appState,
 		modeSession: 1,
-	}
+	})
 
 	callback := handler.passthroughCallbackFor(domain.ModeHints, true)
 	if callback == nil {
@@ -112,14 +112,14 @@ func TestHandlePassthroughLocked_SchedulesHintRefreshForMatchingSession(t *testi
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeHints)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config:      cfg,
 		logger:      zap.NewNop(),
 		appState:    appState,
 		modeSession: 3,
-	}
+	})
 
-	handler.handlePassthroughLocked(domain.ModeHints, 3)
+	handler.passthroughTick(domain.ModeHints, 3)
 
 	if handler.refreshHintsTimer == nil {
 		t.Fatal("expected matching passthrough callback to schedule a hint refresh")

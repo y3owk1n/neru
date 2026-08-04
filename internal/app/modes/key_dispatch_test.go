@@ -39,7 +39,7 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 	mode := &recordingMode{keys: make(chan string, 1)}
 	hotkeyActions := make(chan string, 1)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config: &configpkg.Config{
 			RecursiveGrid: configpkg.RecursiveGridConfig{
 				Hotkeys: map[string]configpkg.StringOrStringArray{
@@ -57,7 +57,7 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 		executeActionSequence: func(_ string, steps []string) {
 			hotkeyActions <- strings.Join(steps, ",")
 		},
-	}
+	})
 	handler.modifierState.Toggle(action.ModCtrl)
 
 	handler.HandleKeyPress("Ctrl+c")
@@ -84,7 +84,7 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeHints)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config: &configpkg.Config{
 			Hints: configpkg.HintsConfig{
 				Hotkeys: map[string]configpkg.StringOrStringArray{
@@ -103,7 +103,7 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 		executeActionSequence: func(_ string, steps []string) {
 			t.Fatalf("hotkey action should be skipped during hint search, got %v", steps)
 		},
-	}
+	})
 
 	elem, _ := element.NewElement(
 		"search",
@@ -141,7 +141,7 @@ func newHeldRepeatTestHandler() *Handler {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
-	return &Handler{
+	return newHandlerWithState(handlerState{
 		ctx: context.Background(),
 		config: &configpkg.Config{
 			RecursiveGrid: configpkg.RecursiveGridConfig{
@@ -163,7 +163,7 @@ func newHeldRepeatTestHandler() *Handler {
 		},
 		screenBounds:          image.Rect(0, 0, 100, 100),
 		executeActionSequence: func(_ string, _ []string) {},
-	}
+	})
 }
 
 // TestHandleFedKeyPressStopsOwnHeldRepeat verifies that a key injected via
@@ -230,7 +230,7 @@ func TestHandleFedKeyPressPreservesPhysicalHeldRepeat(t *testing.T) {
 	}
 
 	// Stop the still-running repeat goroutine so it does not outlive the test.
-	handler.stopHeldRepeatLocked()
+	handler.stopHeldRepeat()
 }
 
 // The mode dispatcher hands the whole binding to the daemon's sequence
@@ -243,7 +243,7 @@ func TestDispatchHotkeyActions_ForwardsWholeSequence(t *testing.T) {
 
 	got := make(chan []string, 1)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
 		executeActionSequence: func(source string, steps []string) {
@@ -253,7 +253,7 @@ func TestDispatchHotkeyActions_ForwardsWholeSequence(t *testing.T) {
 
 			got <- steps
 		},
-	}
+	})
 
 	want := []string{"first", "second"}
 	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", want)
@@ -334,11 +334,11 @@ func TestModeHotkeyOverride(t *testing.T) {
 			appState := state.NewAppState()
 			appState.SetMode(testCase.mode)
 
-			handler := &Handler{
+			handler := newHandlerWithState(handlerState{
 				config:   cfg,
 				logger:   zap.NewNop(),
 				appState: appState,
-			}
+			})
 
 			actions, ok := handler.ModeHotkeyOverride(testCase.key)
 			if ok != testCase.wantOK {

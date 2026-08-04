@@ -108,7 +108,7 @@ type hintOverrides struct {
 // context, which applyHintOptions has just written, so a refresh sees what the
 // mode was activated with rather than the empty options it carries. The raw
 // options are the fallback when there is no context.
-func (h *Handler) resolveHintOverrides(opts ModeActivationOptions) hintOverrides {
+func (h *handlerState) resolveHintOverrides(opts ModeActivationOptions) hintOverrides {
 	if h.hints != nil && h.hints.Context != nil {
 		return hintOverrides{
 			strategy:       h.hints.Context.StrategyOverride(),
@@ -126,8 +126,8 @@ func (h *Handler) resolveHintOverrides(opts ModeActivationOptions) hintOverrides
 
 // abandonHintActivation gives up on an activation. A refresh must also exit the
 // mode, or its overlay keeps showing labels that no longer point at anything.
-func (h *Handler) abandonHintActivation(isRefresh bool) {
+func (h *handlerState) abandonHintActivation(isRefresh bool) {
 	if isRefresh {
-		h.exitModeLocked()
+		h.exitMode()
 	}
 }

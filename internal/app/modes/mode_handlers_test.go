@@ -17,10 +17,10 @@ import (
 )
 
 func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger:      zap.NewNop(),
 		cursorState: state.NewCursorState(),
-	}
+	})
 
 	handler.executeActionAtPoint(nil, nil, point(10, 10), false, nil)
 
@@ -31,12 +31,12 @@ func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
 
 func TestRunOnExit_DispatchesEveryStepInOrder(t *testing.T) {
 	got := make(chan []string, 1)
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger: zap.NewNop(),
 		executeActionSequence: func(_ string, steps []string) {
 			got <- steps
 		},
-	}
+	})
 
 	onExit := []string{"action sleep 0.2", "exec notify-send done"}
 	handler.runOnExit(onExit)
@@ -53,12 +53,12 @@ func TestRunOnExit_DispatchesEveryStepInOrder(t *testing.T) {
 
 func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	called := make(chan struct{}, 1)
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger: zap.NewNop(),
 		executeActionSequence: func(_ string, _ []string) {
 			called <- struct{}{}
 		},
-	}
+	})
 
 	handler.runOnExit(nil)
 	handler.runOnExit([]string{})
@@ -84,11 +84,11 @@ func (m *optsRecordingMode) ModeType() domain.Mode               { return m.mode
 
 func TestActivateModeWithOptions_OmittedOnExitClearsStaleCallback(t *testing.T) {
 	fake := &optsRecordingMode{modeType: domain.ModeGrid}
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
 		modes:    map[domain.Mode]Mode{domain.ModeGrid: fake},
-	}
+	})
 
 	// An external activation that omits --on-exit must reach the mode with a
 	// non-nil, empty OnExit so the refresh branch clears any stored steps
@@ -127,12 +127,12 @@ func TestCurrentModeOnExit(t *testing.T) {
 	rgCtx.SetOnExit(rgExit)
 
 	appState := state.NewAppState()
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState:      appState,
 		hints:         &components.HintsComponent{Context: hintsCtx},
 		grid:          &components.GridComponent{Context: gridCtx},
 		recursiveGrid: &components.RecursiveGridComponent{Context: rgCtx},
-	}
+	})
 
 	cases := []struct {
 		mode domain.Mode

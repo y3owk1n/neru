@@ -18,7 +18,7 @@ import (
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter
 // and optional zoom-to-depth. When zoomToDepth is set, the mode will automatically drill down to
 // the specified depth at the current cursor position before awaiting user input.
-func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions) {
+func (h *handlerState) activateRecursiveGridModeWithAction(opts ModeActivationOptions) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
 
@@ -30,7 +30,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 	)
 	if !activated {
 		if isRefresh {
-			h.exitModeLocked()
+			h.exitMode()
 		}
 
 		return
@@ -46,7 +46,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitModeLocked()
+		h.exitMode()
 	}
 
 	h.overlayManager.Clear()
@@ -133,7 +133,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 	// Only set mode and enable event tap on initial activation;
 	// during refresh these are already in the correct state.
 	if !isRefresh {
-		h.setModeLocked(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
+		h.setMode(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
 	}
 
 	h.logger.Info("Recursive-grid mode activated", zap.String("action", actionString))
@@ -142,7 +142,7 @@ func (h *Handler) activateRecursiveGridModeWithAction(opts ModeActivationOptions
 }
 
 // initializeRecursiveGridManager initializes the recursive-grid manager.
-func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
+func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 	// Ensure recursiveGrid component is initialized
 	if h.recursiveGrid == nil {
 		h.recursiveGrid = &components.RecursiveGridComponent{
@@ -192,7 +192,7 @@ func (h *Handler) initializeRecursiveGridManager(screenBounds image.Rectangle) {
 }
 
 // handleRecursiveGridKey handles key processing for recursive-grid mode.
-func (h *Handler) handleRecursiveGridKey(key string) {
+func (h *handlerState) handleRecursiveGridKey(key string) {
 	ctx := h.ctx
 
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
@@ -216,7 +216,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 		cursorFollowSelection := h.recursiveGrid.Context.CursorFollowSelection()
 
 		if pendingAction == nil && !repeat && !cursorFollowSelection {
-			h.refreshRecursiveGridVirtualPointerLocked()
+			h.refreshRecursiveGridVirtualPointer()
 
 			return
 		}
@@ -254,7 +254,7 @@ func (h *Handler) handleRecursiveGridKey(key string) {
 }
 
 // updateRecursiveGridOverlay refreshes the visual overlay.
-func (h *Handler) updateRecursiveGridOverlay() {
+func (h *handlerState) updateRecursiveGridOverlay() {
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
 		return
 	}
@@ -296,7 +296,7 @@ func (h *Handler) updateRecursiveGridOverlay() {
 }
 
 // cleanupRecursiveGridMode handles cleanup for recursive-grid mode.
-func (h *Handler) cleanupRecursiveGridMode() {
+func (h *handlerState) cleanupRecursiveGridMode() {
 	if h.recursiveGrid != nil {
 		h.recursiveGrid.Context.Reset()
 
@@ -358,7 +358,7 @@ func applyRecursiveGridOptions(
 
 // selectRecursiveGridCenter marks the current grid's center as the selection
 // and moves the cursor there when it follows the selection.
-func (h *Handler) selectRecursiveGridCenter(cursorShouldFollow bool, moveFailMsg string) {
+func (h *handlerState) selectRecursiveGridCenter(cursorShouldFollow bool, moveFailMsg string) {
 	if h.recursiveGrid.Manager == nil {
 		return
 	}

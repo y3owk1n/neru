@@ -25,7 +25,7 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 ) {
 	moveCount := 0
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		config: &config.Config{
 			RecursiveGrid: config.RecursiveGridConfig{
 				Enabled:       true,
@@ -57,7 +57,7 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 			Context: &componentrecursivegrid.Context{},
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-	}
+	})
 
 	handler.initializeRecursiveGridManager(image.Rect(0, 0, 100, 100))
 	handler.recursiveGrid.Context.SetCursorFollowSelection(false)
@@ -84,7 +84,7 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
-	handler := &Handler{
+	handler := newHandlerWithState(handlerState{
 		appState: appState,
 		config: &config.Config{
 			RecursiveGrid: config.RecursiveGridConfig{
@@ -122,7 +122,7 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 			Context: &componentrecursivegrid.Context{},
 		},
 		screenBounds: image.Rect(0, 0, 100, 100),
-	}
+	})
 
 	handler.initializeRecursiveGridManager(image.Rect(0, 0, 100, 100))
 	handler.recursiveGrid.Context.SetCursorFollowSelection(false)

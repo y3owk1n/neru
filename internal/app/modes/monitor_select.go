@@ -18,20 +18,20 @@ type MonitorSelectMode struct {
 }
 
 // NewMonitorSelectMode creates a new monitor_select mode implementation.
-func NewMonitorSelectMode(handler *Handler) *MonitorSelectMode {
+func NewMonitorSelectMode(handler *handlerState) *MonitorSelectMode {
 	return &MonitorSelectMode{
 		GenericMode: NewGenericMode(
 			handler,
 			domain.ModeMonitorSelect,
 			"MonitorSelectMode",
 			ModeBehavior{
-				ActivateFunc: func(handler *Handler, opts ModeActivationOptions) {
+				ActivateFunc: func(handler *handlerState, opts ModeActivationOptions) {
 					handler.activateMonitorSelectMode(opts)
 				},
-				HandleKeyFunc: func(handler *Handler, key string) {
+				HandleKeyFunc: func(handler *handlerState, key string) {
 					handler.handleMonitorSelectKey(key)
 				},
-				ExitFunc: func(handler *Handler) {
+				ExitFunc: func(handler *handlerState) {
 					handler.cleanupMonitorSelectMode()
 				},
 			},
@@ -39,7 +39,7 @@ func NewMonitorSelectMode(handler *Handler) *MonitorSelectMode {
 	}
 }
 
-func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
+func (h *handlerState) activateMonitorSelectMode(_ ModeActivationOptions) {
 	err := h.validateModeActivation(
 		"",
 		domain.ModeNameMonitorSelect,
@@ -70,8 +70,8 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 			// Single monitor: auto-confirm immediately so that
 			// wait_for_mode_exit --bail chains see a completed selection.
 			h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
-			h.exitModeLocked()
-			h.confirmMonitorSelectLocked(&monitors[0])
+			h.exitMode()
+			h.confirmMonitorSelect(&monitors[0])
 		} else {
 			h.logger.Debug("Skipping monitor_select activation; no selectable monitors")
 		}
@@ -79,10 +79,10 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 		return
 	}
 
-	h.exitModeLocked()
+	h.exitMode()
 	h.monitorSelect = session
 
-	err = h.showMonitorSelectLocked()
+	err = h.showMonitorSelect()
 	if err != nil {
 		h.monitorSelect = nil
 
@@ -95,26 +95,26 @@ func (h *Handler) activateMonitorSelectMode(_ ModeActivationOptions) {
 		return
 	}
 
-	h.setModeLocked(domain.ModeMonitorSelect, overlay.ModeMonitorSelect)
+	h.setMode(domain.ModeMonitorSelect, overlay.ModeMonitorSelect)
 	h.startIndicatorPolling(domain.ModeMonitorSelect)
 	h.logger.Info("Monitor select mode activated", zap.Int("targets", len(session.targets)))
 }
 
-func (h *Handler) handleMonitorSelectKey(key string) {
+func (h *handlerState) handleMonitorSelectKey(key string) {
 	if h.monitorSelect == nil {
 		return
 	}
 
 	if target := h.monitorSelect.HandleCharacter(key); target != nil {
-		h.confirmMonitorSelectLocked(target)
+		h.confirmMonitorSelect(target)
 
 		return
 	}
 
-	h.redrawMonitorSelectLocked()
+	h.redrawMonitorSelect()
 }
 
-func (h *Handler) confirmMonitorSelectLocked(target *monitorSelectTarget) {
+func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 	if target == nil {
 		return
 	}
@@ -126,7 +126,7 @@ func (h *Handler) confirmMonitorSelectLocked(target *monitorSelectTarget) {
 	}
 
 	h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
-	h.exitModeLocked()
+	h.exitMode()
 
 	go func() {
 		if h.actionService == nil {
@@ -142,8 +142,8 @@ func (h *Handler) confirmMonitorSelectLocked(target *monitorSelectTarget) {
 	}()
 }
 
-func (h *Handler) cleanupMonitorSelectMode() {
-	err := h.hideMonitorSelectLocked()
+func (h *handlerState) cleanupMonitorSelectMode() {
+	err := h.hideMonitorSelect()
 	if err != nil && !derrors.IsNotSupported(err) {
 		h.logger.Debug("Failed to hide monitor_select overlay", zap.Error(err))
 	}
@@ -151,7 +151,7 @@ func (h *Handler) cleanupMonitorSelectMode() {
 	h.monitorSelect = nil
 }
 
-func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, error) {
+func (h *handlerState) discoverMonitorsForSelection() ([]monitorSelectTarget, error) {
 	if h.system == nil {
 		return nil, derrors.New(
 			derrors.CodeNotSupported,
@@ -194,7 +194,7 @@ func (h *Handler) discoverMonitorsForSelection() ([]monitorSelectTarget, error) 
 	return monitors, nil
 }
 
-func (h *Handler) reportMonitorSelectNotSupported() {
+func (h *handlerState) reportMonitorSelectNotSupported() {
 	h.logger.Info("monitor_select is not supported on this platform")
 
 	if h.system != nil {
