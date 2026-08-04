@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -21,7 +22,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 // Mode is the current mode of the application.
@@ -112,7 +112,7 @@ type App struct {
 	// State subscriptions
 	screenShareSubscriptionID uint64
 
-	renderer *ui.OverlayRenderer
+	renderer *render.OverlayRenderer
 
 	ipcController *ipcctrl.Controller
 }

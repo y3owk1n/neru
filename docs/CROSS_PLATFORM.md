@@ -9,7 +9,7 @@ covers both sides of that:
   lives, and how to add to it.
 
 Every claim in Part 1 is derived from code under `internal/adapter/`,
-`internal/ui/`, and `internal/app/`. **If this document and the code
+`internal/app/`. **If this document and the code
 disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 **Related:** [Architecture](./ARCHITECTURE.md) · [Linux setup](./LINUX_SETUP.md) ·
@@ -612,7 +612,7 @@ enforced by
 | Rule                                                | Why |
 | --------------------------------------------------- | --- |
 | `internal/domain` imports no adapter, app, or UI | domain is pure Go; a domain package that needs an OS cannot be unit-tested |
-| `internal/{domain,ports,derrors,adapter}` never import `internal/app` or `internal/ui` | adapters implement ports; the hexagon has no upward edges |
+| `internal/{domain,ports,derrors,adapter}` never import `internal/app` | adapters implement ports; the hexagon has no upward edges |
 | app code reaches adapters only through ports        | only the composition root knows which adapter exists |
 
 The third rule has three deliberate escapes, all narrow:

@@ -26,7 +26,6 @@ func TestDomainStaysPure(t *testing.T) {
 	forbidden := []string{
 		"internal/adapter",
 		"internal/app",
-		"internal/ui",
 		"internal/cli",
 	}
 
@@ -77,8 +76,7 @@ func TestInfraDoesNotImportApp(t *testing.T) {
 		}
 
 		for _, imported := range importsOf(t, file.absPath) {
-			if !strings.HasPrefix(imported, "internal/app") &&
-				!strings.HasPrefix(imported, "internal/ui") {
+			if !strings.HasPrefix(imported, "internal/app") {
 				continue
 			}
 
@@ -220,7 +218,6 @@ func TestKnownLayeringExceptionsAreStillReal(t *testing.T) {
 
 func isApplicationLayer(relPath string) bool {
 	return strings.HasPrefix(relPath, "internal/app/") ||
-		strings.HasPrefix(relPath, "internal/ui/") ||
 		strings.HasPrefix(relPath, "internal/cli/") ||
 		strings.HasPrefix(relPath, "cmd/")
 }

@@ -1,4 +1,4 @@
-package ui
+package render
 
 import (
 	"image"

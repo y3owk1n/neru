@@ -6,9 +6,9 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
+	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
-	"github.com/y3owk1n/neru/internal/ui"
 )
 
 // configSnapshot returns the current config pointer under a read lock.
@@ -83,7 +83,7 @@ func (a *App) HintsContext() *hints.Context {
 }
 
 // Renderer returns the overlay renderer.
-func (a *App) Renderer() *ui.OverlayRenderer {
+func (a *App) Renderer() *render.OverlayRenderer {
 	return a.renderer
 }
 
