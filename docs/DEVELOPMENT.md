@@ -329,7 +329,7 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
 4. Register in `internal/app/component_factory.go` or
-   `internal/app/app_initialization.go`
+   `internal/app/new.go`
 
 **CLI commands**
 
@@ -341,10 +341,10 @@ naming is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#file-layout-rules).
 ### Dependency injection
 
 Wiring is manual and explicit — constructors take their dependencies, and
-`internal/app/app_initialization.go` assembles everything in numbered phases
+`internal/app/new.go` assembles everything in numbered phases
 that unwind in reverse on failure.
 
-`app.New` takes functional options ([app_options.go](../internal/app/app_options.go)),
+`app.New` takes functional options ([options.go](../internal/app/options.go)),
 which is how tests substitute doubles for the ports they need — `WithSystemPort`,
 `WithEventTap`, `WithIPCServer`, `WithOverlayManager`, `WithHotkeyService`,
 `WithWatcher`, plus `WithConfig` / `WithConfigPath` / `WithLogger`. An option

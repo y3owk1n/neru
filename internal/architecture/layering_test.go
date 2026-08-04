@@ -124,8 +124,8 @@ var sharedInfraPackages = []string{
 // precisely their job — they are the one place that is allowed to know which
 // implementation exists.
 var compositionRootFiles = []string{
-	"internal/app/initialization.go",
-	"internal/app/app_initialization_steps.go",
+	"internal/app/wiring.go",
+	"internal/app/startup_phases.go",
 	"internal/app/component_factory.go",
 	"cmd/neru/main.go",
 }
