@@ -1,4 +1,3 @@
-//nolint:testpackage // Exercises the unexported event-tap helpers on Handler.
 package modes
 
 import (

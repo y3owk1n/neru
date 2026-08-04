@@ -49,7 +49,7 @@ func SetReferenceKeyboardLayout(inputSourceID string) bool {
 	var cLayoutID *C.char
 	if layoutID != "" {
 		cLayoutID = C.CString(layoutID)
-		defer C.free(unsafe.Pointer(cLayoutID)) //nolint:nlreturn
+		defer C.free(unsafe.Pointer(cLayoutID))
 	}
 
 	result := C.NeruSetReferenceKeyboardLayout(cLayoutID) != 0

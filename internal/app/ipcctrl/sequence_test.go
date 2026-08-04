@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests the private run-command handler.
 package ipcctrl
 
 import (

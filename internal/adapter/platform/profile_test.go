@@ -1,4 +1,3 @@
-//nolint:testpackage // Same-package tests intentionally cover unexported backend detection helpers.
 package platform
 
 import "testing"

@@ -41,8 +41,8 @@ const (
 func ShowConfigValidationError(errorMessage, configPath string) ConfigValidationChoice {
 	cError := C.CString(errorMessage)
 	cPath := C.CString(configPath)
-	defer C.free(unsafe.Pointer(cError)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cPath))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cError))
+	defer C.free(unsafe.Pointer(cPath))
 
 	return ConfigValidationChoice(C.NeruShowConfigValidationErrorAlert(cError, cPath))
 }
@@ -51,8 +51,8 @@ func ShowConfigValidationError(errorMessage, configPath string) ConfigValidation
 func ShowNotification(title, message string) {
 	cTitle := C.CString(title)
 	cMessage := C.CString(message)
-	defer C.free(unsafe.Pointer(cTitle))   //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cMessage)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cTitle))
+	defer C.free(unsafe.Pointer(cMessage))
 
 	C.NeruShowNotification(cTitle, cMessage)
 }
@@ -60,7 +60,7 @@ func ShowNotification(title, message string) {
 // ShowConfigOnboardingAlert displays a native macOS alert for new users without a config file.
 func ShowConfigOnboardingAlert(configPath string) ConfigOnboardingChoice {
 	cPath := C.CString(configPath)
-	defer C.free(unsafe.Pointer(cPath)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cPath))
 
 	return ConfigOnboardingChoice(C.NeruShowConfigOnboardingAlert(cPath))
 }

@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private grid handler behavior.
 package modes
 
 import (

@@ -36,7 +36,7 @@ func ScreenNames() []string {
 	if cNames == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(cNames)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cNames))
 
 	totalLen := int(bufLen)
 	if totalLen == 0 {
@@ -69,7 +69,7 @@ func ScreenNames() []string {
 // screen matches.
 func ScreenBoundsByName(name string) (image.Rectangle, bool) {
 	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
 
 	var found C.int
 

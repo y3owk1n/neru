@@ -1,6 +1,6 @@
 //go:build windows && (amd64 || arm64)
 
-package windows //nolint:testpackage // exercises unexported Win32 argument packing helper
+package windows
 
 import (
 	"image"

@@ -247,14 +247,14 @@ func (o *Overlay) ShowVirtualPointer(
 	o.configMu.RUnlock()
 
 	cFillColor := C.CString(fillColor)
-	defer C.free(unsafe.Pointer(cFillColor)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFillColor))
 
 	cLabelChar := C.CString(cfg.Char)
 	cFontFamily := C.CString(cfg.FontFamily)
 	cTextColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cLabelChar))  //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cTextColor))  //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cLabelChar))
+	defer C.free(unsafe.Pointer(cFontFamily))
+	defer C.free(unsafe.Pointer(cTextColor))
 
 	indicatorStyle := C.CursorIndicatorStyle{
 		radius:     C.double(size),
@@ -423,7 +423,7 @@ func (o *Overlay) DrawGrid(grid *domainGrid.Grid, currentInput string, style Sty
 // UpdateMatches updates matched state without redrawing all cells.
 func (o *Overlay) UpdateMatches(prefix string) {
 	cPrefix := C.CString(prefix)
-	defer C.free(unsafe.Pointer(cPrefix)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cPrefix))
 	C.NeruUpdateGridMatchPrefix(o.window, cPrefix)
 }
 

@@ -1,6 +1,6 @@
 //go:build windows
 
-package hints //nolint:testpackage
+package hints
 
 import (
 	"testing"

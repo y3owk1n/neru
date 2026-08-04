@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests internal function parseModifierEvent
 package modes
 
 import (

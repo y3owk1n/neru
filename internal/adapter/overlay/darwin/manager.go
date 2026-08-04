@@ -320,10 +320,10 @@ func (m *Manager) DrawMouseActionIndicator(
 	shape := C.CString(style.Shape)
 	easing := C.CString(style.Easing)
 
-	defer C.free(unsafe.Pointer(backgroundColor)) //nolint:nlreturn
-	defer C.free(unsafe.Pointer(borderColor))     //nolint:nlreturn
-	defer C.free(unsafe.Pointer(shape))           //nolint:nlreturn
-	defer C.free(unsafe.Pointer(easing))          //nolint:nlreturn
+	defer C.free(unsafe.Pointer(backgroundColor))
+	defer C.free(unsafe.Pointer(borderColor))
+	defer C.free(unsafe.Pointer(shape))
+	defer C.free(unsafe.Pointer(easing))
 
 	C.NeruShowMouseActionIndicator(
 		C.CGPoint{x: C.double(point.X), y: C.double(point.Y)},

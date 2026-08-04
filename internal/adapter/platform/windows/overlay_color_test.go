@@ -1,6 +1,6 @@
 //go:build windows
 
-package windows //nolint:testpackage // exercises unexported color-blend helpers directly
+package windows
 
 import "testing"
 

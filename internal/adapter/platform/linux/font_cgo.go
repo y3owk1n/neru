@@ -108,11 +108,11 @@ func (r *fontconfigResolver) resolve(family string) string {
 	mapped := mapGenericAlias(family)
 
 	cFamily := C.CString(mapped)
-	defer C.free(unsafe.Pointer(cFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cFamily))
 
 	matched := C.fc_match_family(cFamily)
 	if matched != nil {
-		defer C.free(unsafe.Pointer(matched)) //nolint:nlreturn
+		defer C.free(unsafe.Pointer(matched))
 
 		got := C.GoString(matched)
 		if got != "" {

@@ -156,7 +156,7 @@ func (s *libeiState) execute(
 
 func libeiMoveAbs(posX, posY int) error {
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool { return C.neru_ei_move_abs(c, C.int(posX), C.int(posY)) != 0 }, //nolint:nlreturn
+		func(c *C.NeruEiClient) bool { return C.neru_ei_move_abs(c, C.int(posX), C.int(posY)) != 0 },
 		func() error {
 			return derrors.Newf(
 				derrors.CodeActionFailed,
@@ -174,7 +174,7 @@ func libeiButton(button int, pressed bool) error {
 	}
 
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool { return C.neru_ei_button(c, C.int(button), pressedInt) != 0 }, //nolint:nlreturn
+		func(c *C.NeruEiClient) bool { return C.neru_ei_button(c, C.int(button), pressedInt) != 0 },
 		func() error {
 			return derrors.New(derrors.CodeActionFailed, "libei failed to emit button event")
 		},
@@ -183,7 +183,7 @@ func libeiButton(button int, pressed bool) error {
 
 func libeiScroll(axis, delta int) error {
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool { return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0 }, //nolint:nlreturn
+		func(c *C.NeruEiClient) bool { return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0 },
 		func() error {
 			return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
 		},
@@ -197,7 +197,7 @@ func libeiKey(keycode int, pressed bool) error {
 	}
 
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool { return C.neru_ei_key(c, C.int(keycode), pressedInt) != 0 }, //nolint:nlreturn
+		func(c *C.NeruEiClient) bool { return C.neru_ei_key(c, C.int(keycode), pressedInt) != 0 },
 		func() error {
 			return derrors.New(
 				derrors.CodeNotSupported,
@@ -230,7 +230,7 @@ func libeiHasKeyboard() (bool, bool) {
 		return false, false
 	}
 
-	return C.neru_ei_has_keyboard(globalLibeiState.client) != 0, false //nolint:nlreturn
+	return C.neru_ei_has_keyboard(globalLibeiState.client) != 0, false
 }
 
 // LibeiReset tears down the libei/RemoteDesktop portal session. The next input

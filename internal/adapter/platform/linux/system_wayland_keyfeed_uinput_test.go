@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises the unexported uinput modifier-mapping helper directly.
 package linux
 
 import (

@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests the private cursor-slot handlers.
 package ipcctrl
 
 import (

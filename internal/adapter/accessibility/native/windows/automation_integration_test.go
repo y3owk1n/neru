@@ -1,6 +1,6 @@
 //go:build integration && windows
 
-package windows //nolint:testpackage // exercises unexported enumerateClickableElements directly
+package windows
 
 import (
 	"testing"

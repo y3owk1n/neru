@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests unexported CLI formatter helpers directly.
 package cliutil
 
 import (

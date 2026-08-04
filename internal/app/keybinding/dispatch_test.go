@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private hotkey dispatch/registration behavior.
 package keybinding
 
 import (

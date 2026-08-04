@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private mode option parsing.
 package ipcctrl
 
 import (

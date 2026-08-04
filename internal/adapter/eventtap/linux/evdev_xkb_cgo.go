@@ -22,7 +22,7 @@ func (et *EventTap) xkbEvdevKeyName(capture *waylandEvdevCapture, code uint16) s
 		(*C.neru_xkb_state)(capture.xkbState),
 		C.uint16_t(code),
 		&buf[0],
-		64, //nolint:nlreturn
+		64,
 	) == 0 {
 		return C.GoString(&buf[0])
 	}

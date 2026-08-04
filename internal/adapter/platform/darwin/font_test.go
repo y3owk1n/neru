@@ -1,6 +1,5 @@
 //go:build darwin
 
-//nolint:testpackage
 package darwin
 
 import "testing"

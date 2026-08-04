@@ -92,6 +92,14 @@ recommended path and provides every tool pre-configured.
    [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)
    says which file owns what, so please update the owner rather than restating
    it in a second place.
+
+    **On linters:** the linter set is strict on purpose, and `//nolint` is the
+    escape hatch, not the default. Use one only when the finding is a genuine
+    false positive or the compliant form would be clearly worse — always
+    with the specific linter named and a trailing `// reason`. If you find
+    yourself suppressing the same linter repeatedly, that linter may be wrong
+    for this codebase: propose disabling it in `.golangci.yml` (with the
+    reason recorded there) instead of scattering suppressions.
 7. **Commit** using [conventional commits](#commit-messages), then push and open
    a pull request.
 

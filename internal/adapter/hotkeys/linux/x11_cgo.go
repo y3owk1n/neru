@@ -58,11 +58,11 @@ func (m *Manager) registerX11Hotkey(hotkeyID ports.HotkeyID, keyString string) e
 			state.root,
 			C.True,
 			C.GrabModeAsync,
-			C.GrabModeAsync, //nolint:nlreturn
+			C.GrabModeAsync,
 		)
 	}
-	C.XSelectInput(state.display, state.root, C.KeyPressMask) //nolint:nlreturn
-	C.XFlush(state.display)                                   //nolint:nlreturn
+	C.XSelectInput(state.display, state.root, C.KeyPressMask)
+	C.XFlush(state.display)
 
 	state.bindings[hotkeyID] = x11HotkeyBinding{keycode: C.int(keycode), modifiers: modifiers}
 	state.ids[x11BindingKey(keycode, modifiers)] = hotkeyID
@@ -86,14 +86,14 @@ func (m *Manager) unregisterX11Hotkey(hotkeyID ports.HotkeyID) {
 	}
 
 	for _, mask := range []C.uint{0, C.Mod2Mask, C.LockMask, C.Mod2Mask | C.LockMask} {
-		C.XUngrabKey( //nolint:nlreturn
+		C.XUngrabKey(
 			state.display,
 			binding.keycode,
 			binding.modifiers|mask,
-			state.root, //nolint:nlreturn
+			state.root,
 		)
 	}
-	C.XFlush(state.display) //nolint:nlreturn
+	C.XFlush(state.display)
 
 	delete(state.ids, x11BindingKey(C.uint(binding.keycode), binding.modifiers))
 	delete(state.bindings, hotkeyID)
@@ -119,7 +119,7 @@ func (m *Manager) unregisterAllX11Hotkeys() {
 		close(state.stopCh)
 		<-state.doneCh
 
-		C.XCloseDisplay(state.display) //nolint:nlreturn
+		C.XCloseDisplay(state.display)
 		x11States.Delete(m)
 	})
 }
@@ -144,7 +144,7 @@ func (m *Manager) ensureX11State() (*x11HotkeyState, error) {
 
 	state := &x11HotkeyState{
 		display:  display,
-		root:     C.neru_hotkeys_root_window(display), //nolint:nlreturn
+		root:     C.neru_hotkeys_root_window(display),
 		bindings: make(map[ports.HotkeyID]x11HotkeyBinding),
 		ids:      make(map[string]ports.HotkeyID),
 		stopCh:   make(chan struct{}),
@@ -170,20 +170,20 @@ func (m *Manager) runX11HotkeyLoop(state *x11HotkeyState) {
 		// blocking XNextEvent directly. This allows the stop channel to be
 		// checked between iterations, preventing a goroutine leak and a
 		// use-after-free when unregisterAllX11Hotkeys closes the display.
-		if C.neru_hotkeys_pending(state.display) == 0 { //nolint:nlreturn
+		if C.neru_hotkeys_pending(state.display) == 0 {
 			time.Sleep(x11HotkeyPollInterval)
 
 			continue
 		}
 
 		var event C.XEvent
-		C.XNextEvent(state.display, &event)           //nolint:nlreturn
-		if C.neru_xevent_type(&event) != C.KeyPress { //nolint:nlreturn
+		C.XNextEvent(state.display, &event)
+		if C.neru_xevent_type(&event) != C.KeyPress {
 			continue
 		}
 
-		keycode := C.neru_xkey_keycode(&event)                              //nolint:nlreturn
-		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask) //nolint:nlreturn
+		keycode := C.neru_xkey_keycode(&event)
+		modifiers := C.neru_xkey_state(&event) &^ (C.Mod2Mask | C.LockMask)
 
 		// Hold m.mu while reading state.ids — Register/Unregister write
 		// to this map under the same lock, so an unguarded read here is a
@@ -245,7 +245,7 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 		)
 	}
 
-	keycode := C.XKeysymToKeycode(display, keysym) //nolint:nlreturn
+	keycode := C.XKeysymToKeycode(display, keysym)
 	if keycode == 0 {
 		return 0, 0, derrors.Newf(
 			derrors.CodeInvalidInput,
@@ -263,7 +263,7 @@ func x11KeysymFor(key string) C.KeySym {
 		letter := strings.ToLower(key)
 		cKey := C.CString(letter)
 
-		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
+		defer C.free(unsafe.Pointer(cKey))
 
 		return C.XStringToKeysym(cKey)
 	}
@@ -287,7 +287,7 @@ func x11KeysymFor(key string) C.KeySym {
 		return C.XK_Right
 	default:
 		cKey := C.CString(key)
-		defer C.free(unsafe.Pointer(cKey)) //nolint:nlreturn
+		defer C.free(unsafe.Pointer(cKey))
 
 		return C.XStringToKeysym(cKey)
 	}

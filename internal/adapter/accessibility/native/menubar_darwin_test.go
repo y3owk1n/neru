@@ -1,6 +1,5 @@
 //go:build darwin
 
-//nolint:testpackage
 package native
 
 import (

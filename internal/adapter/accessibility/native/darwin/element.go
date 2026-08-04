@@ -258,7 +258,7 @@ func ApplicationByPID(pid int) *Element {
 // ApplicationByBundleID returns an application element identified by its bundle identifier.
 func ApplicationByBundleID(bundleID string) *Element {
 	cBundle := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cBundle)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundle))
 
 	ref := C.NeruGetApplicationByBundleId(cBundle)
 	if ref == nil {
@@ -285,11 +285,11 @@ func (e *Element) Info() (*ElementInfo, error) {
 		return nil, errGetInfoNil
 	}
 
-	cInfo := C.NeruGetElementInfo(e.ref) //nolint:nlreturn
+	cInfo := C.NeruGetElementInfo(e.ref)
 	if cInfo == nil {
 		return nil, errGetInfoFailed
 	}
-	defer C.NeruFreeElementInfo(cInfo) //nolint:nlreturn
+	defer C.NeruFreeElementInfo(cInfo)
 
 	info := &ElementInfo{
 		position: image.Point{
@@ -347,7 +347,7 @@ func (e *Element) Children(role string) ([]*Element, error) {
 
 	switch role {
 	case string(element.RoleList), string(element.RoleTable), string(element.RoleOutline):
-		ptr := unsafe.Pointer(C.NeruGetVisibleRows(e.ref, &count)) //nolint:nlreturn
+		ptr := unsafe.Pointer(C.NeruGetVisibleRows(e.ref, &count))
 		if ptr != nil && count > 0 {
 			rawChildren = ptr
 		} else {
@@ -355,10 +355,10 @@ func (e *Element) Children(role string) ([]*Element, error) {
 				C.free(ptr)
 			}
 
-			rawChildren = unsafe.Pointer(C.NeruGetChildren(e.ref, &count)) //nolint:nlreturn
+			rawChildren = unsafe.Pointer(C.NeruGetChildren(e.ref, &count))
 		}
 	default:
-		rawChildren = unsafe.Pointer(C.NeruGetChildren(e.ref, &count)) //nolint:nlreturn
+		rawChildren = unsafe.Pointer(C.NeruGetChildren(e.ref, &count))
 	}
 
 	if rawChildren == nil || count == 0 {
@@ -368,7 +368,7 @@ func (e *Element) Children(role string) ([]*Element, error) {
 
 		return nil, nil
 	}
-	defer C.free(rawChildren) //nolint:nlreturn
+	defer C.free(rawChildren)
 
 	countInt := int(count)
 	childSlice := (*[1 << 30]unsafe.Pointer)(rawChildren)[:countInt:countInt]
@@ -386,7 +386,7 @@ func (e *Element) SetFocus() error {
 		return errSetFocusNil
 	}
 
-	result := C.NeruSetFocus(e.ref) //nolint:nlreturn
+	result := C.NeruSetFocus(e.ref)
 	if result == 0 {
 		return errSetFocusFailed
 	}
@@ -401,9 +401,9 @@ func (e *Element) Attribute(name string) (string, error) {
 	}
 
 	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cName))
 
-	cValue := C.NeruGetElementAttribute(e.ref, cName) //nolint:nlreturn
+	cValue := C.NeruGetElementAttribute(e.ref, cName)
 	if cValue == nil {
 		return "", derrors.Newf(
 			derrors.CodeAccessibilityFailed,
@@ -439,7 +439,7 @@ func (e *Element) Hash() (uint64, error) {
 		return 0, derrors.New(derrors.CodeAccessibilityFailed, "element reference is nil")
 	}
 
-	hash := C.NeruGetElementHash(e.ref) //nolint:nlreturn
+	hash := C.NeruGetElementHash(e.ref)
 
 	return uint64(hash), nil
 }
@@ -468,7 +468,7 @@ func (e *Element) Equal(other *Element) bool {
 		return true
 	}
 
-	result := C.NeruAreElementsEqual(e.ref, other.ref) //nolint:nlreturn
+	result := C.NeruAreElementsEqual(e.ref, other.ref)
 
 	return result == 1
 }
@@ -495,7 +495,7 @@ func AllWindows() ([]*Element, error) {
 
 		return []*Element{}, nil
 	}
-	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(windows))
 
 	countInt := int(count)
 	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
@@ -520,7 +520,7 @@ func FrontmostAndPopoverWindows() ([]*Element, error) {
 
 		return []*Element{}, nil
 	}
-	defer C.free(unsafe.Pointer(windows)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(windows))
 
 	countInt := int(count)
 	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
@@ -548,7 +548,7 @@ func (e *Element) MenuBar() *Element {
 	if e.ref == nil {
 		return nil
 	}
-	ref := C.NeruGetMenuBar(e.ref) //nolint:nlreturn
+	ref := C.NeruGetMenuBar(e.ref)
 	if ref == nil {
 		return nil
 	}
@@ -562,7 +562,7 @@ func (e *Element) ApplicationName() string {
 		return ""
 	}
 
-	cName := C.NeruGetApplicationName(e.ref) //nolint:nlreturn
+	cName := C.NeruGetApplicationName(e.ref)
 	if cName == nil {
 		return ""
 	}
@@ -577,7 +577,7 @@ func (e *Element) BundleIdentifier() string {
 		return ""
 	}
 
-	cBundleID := C.NeruGetBundleIdentifier(e.ref) //nolint:nlreturn
+	cBundleID := C.NeruGetBundleIdentifier(e.ref)
 	if cBundleID == nil {
 		return ""
 	}
@@ -592,7 +592,7 @@ func (e *Element) ScrollBounds() image.Rectangle {
 		return image.Rectangle{}
 	}
 
-	rect := C.NeruGetScrollBounds(e.ref) //nolint:nlreturn
+	rect := C.NeruGetScrollBounds(e.ref)
 
 	return image.Rectangle{
 		Min: image.Point{
@@ -719,7 +719,7 @@ func (e *Element) IsClickable(
 		// 3. Hit-test visibility as final gate for ALL clickable results
 		cRole := C.CString(info.Role())
 
-		defer C.free(unsafe.Pointer(cRole)) //nolint:nlreturn
+		defer C.free(unsafe.Pointer(cRole))
 
 		centerX := C.double(info.Position().X + info.Size().X/2)
 		centerY := C.double(info.Position().Y + info.Size().Y/2)
@@ -743,7 +743,7 @@ func (e *Element) IsClickable(
 			centerY,
 			C.bool(info.hasPressAction),
 			C.bool(info.hasShowMenuAction),
-			C.bool(info.preActionsFetched), //nolint:nlreturn
+			C.bool(info.preActionsFetched),
 		)
 
 		return result == 1
@@ -843,7 +843,7 @@ func DetectBundleType(bundleID string) string {
 	}
 
 	cBundleID := C.CString(bundleID)
-	defer C.free(unsafe.Pointer(cBundleID)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cBundleID))
 
 	result := C.NeruDetectBundleType(cBundleID)
 	typ := ""

@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests private initialization helpers directly.
 package app
 
 import (

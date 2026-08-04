@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises unexported procfs helpers directly.
 package linux
 
 import (

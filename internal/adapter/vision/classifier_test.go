@@ -1,6 +1,6 @@
 //go:build !darwin || darwin
 
-package vision //nolint:testpackage // uses unexported regionClassifier
+package vision
 
 import (
 	"image"

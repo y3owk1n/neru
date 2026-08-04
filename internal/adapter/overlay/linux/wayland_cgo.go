@@ -503,10 +503,10 @@ func (o *wlrootsOverlay) startMouseActionAnimation(
 		border := applyOpacity(borderBase, opacity)
 
 		C.neru_wayland_overlay_dispatch_pending(o.raw)
-		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw)
 		if bufIdx < 0 {
 			C.neru_wayland_overlay_sync(o.raw)
-			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw)
 		}
 		if bufIdx < 0 {
 			return
@@ -595,10 +595,10 @@ func (o *wlrootsOverlay) selectAvailableBuffer() bool {
 		return false
 	}
 	C.neru_wayland_overlay_dispatch_pending(o.raw)
-	bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+	bufIdx := C.neru_wayland_overlay_available_buffer(o.raw)
 	if bufIdx < 0 {
 		C.neru_wayland_overlay_sync(o.raw)
-		bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		bufIdx = C.neru_wayland_overlay_available_buffer(o.raw)
 	}
 	if bufIdx < 0 {
 		return false
@@ -666,7 +666,7 @@ func (o *wlrootsOverlay) keyboardPoller() {
 			o.displayMu.Lock()
 		}
 
-		if C.neru_wayland_overlay_poll(o.raw) < 0 { //nolint:nlreturn
+		if C.neru_wayland_overlay_poll(o.raw) < 0 {
 			if o.displayMu != nil {
 				o.displayMu.Unlock()
 			}
@@ -675,7 +675,7 @@ func (o *wlrootsOverlay) keyboardPoller() {
 		}
 
 		for {
-			key := C.neru_wayland_overlay_get_key(o.raw) //nolint:nlreturn
+			key := C.neru_wayland_overlay_get_key(o.raw)
 			if key == nil {
 				break
 			}
@@ -785,10 +785,10 @@ func (o *wlrootsOverlay) startGridAnimation(
 		}
 
 		C.neru_wayland_overlay_dispatch_pending(o.raw)
-		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+		bufIdx := C.neru_wayland_overlay_available_buffer(o.raw)
 		if bufIdx < 0 {
 			C.neru_wayland_overlay_sync(o.raw)
-			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw) //nolint:nlreturn
+			bufIdx = C.neru_wayland_overlay_available_buffer(o.raw)
 		}
 		if bufIdx < 0 {
 			return false
@@ -1123,8 +1123,8 @@ func (o *wlrootsOverlay) drawTextCentered(
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
 
-	defer C.free(unsafe.Pointer(cText))       //nolint:nlreturn
-	defer C.free(unsafe.Pointer(cFontFamily)) //nolint:nlreturn
+	defer C.free(unsafe.Pointer(cText))
+	defer C.free(unsafe.Pointer(cFontFamily))
 
 	C.neru_wayland_overlay_text(
 		o.raw, cText, cFontFamily,

@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises unexported helpers (scanINIValue, darkModeCapability).
 package linux
 
 import (

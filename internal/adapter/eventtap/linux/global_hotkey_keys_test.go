@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux //nolint:testpackage // white-box: exercises the unexported canonicalChordSignature.
+package linux
 
 import "testing"
 

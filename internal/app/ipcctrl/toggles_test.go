@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests the private toggle-state parsing and handlers.
 package ipcctrl
 
 import (

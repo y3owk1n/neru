@@ -1,4 +1,3 @@
-//nolint:testpackage // exercises the unexported flag parser directly.
 package ipcctrl
 
 import (

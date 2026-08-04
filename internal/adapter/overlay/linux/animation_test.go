@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package linux //nolint:testpackage // tests exercise unexported render helpers directly
+package linux
 
 import (
 	"image"

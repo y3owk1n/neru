@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:testpackage // Exercises unexported app_id/PID matching helpers directly.
 package linux
 
 import (

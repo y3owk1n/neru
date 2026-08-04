@@ -1,4 +1,3 @@
-//nolint:testpackage // Tests the private action sequence executor.
 package app
 
 import (
