@@ -75,6 +75,17 @@ func (s *ScrollService) Scroll(
 ) error {
 	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
 
+	// A scroll anchors to the window under the cursor: finish any in-flight
+	// cursor animation first (ports.CursorSettler), so a scroll fired
+	// mid-animation targets the window the user aimed for instead of one the
+	// cursor happens to be gliding over.
+	if settler, ok := s.system.(ports.CursorSettler); ok {
+		err := settler.SettleCursor(ctx)
+		if err != nil {
+			s.logger.Warn("Failed to settle cursor animation", zap.Error(err))
+		}
+	}
+
 	s.logger.Debug("Scrolling",
 		zap.Int("dir", int(direction)),
 		zap.Int("amount", int(amount)),
