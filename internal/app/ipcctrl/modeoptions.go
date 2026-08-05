@@ -50,9 +50,6 @@ func readModeFlag(args *modeArgs, opts *ModeActivationOptions) *ipc.Response {
 	case args.is(modeflag.HideOnEmptySearch):
 		return setTrue(&opts.HideOnEmptySearch)
 
-	case args.is(modeflag.Debug):
-		return setTrue(&opts.Debug)
-
 	case args.is(modeflag.SplitWord):
 		return setTrue(&opts.SplitWord)
 
