@@ -38,6 +38,7 @@ func TestSmoothCursorSettlesOnTarget(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	requireDesktop(t)
 	requireInputPermission(t)
 
 	zoomed := darwinplatform.IsScreenZoomed()
@@ -120,6 +121,7 @@ func TestDirectMoveOverridesInFlightAnimation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	requireDesktop(t)
 	requireInputPermission(t)
 
 	bounds := darwinplatform.ActiveScreenBounds()
@@ -181,6 +183,8 @@ func TestConcurrentMovesKeepCursorInViewport(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	requireDesktop(t)
 
 	bounds := darwinplatform.ActiveScreenBounds()
 	if bounds.Empty() {

@@ -23,6 +23,8 @@ func TestAccessibilityAdapterIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
+	requireDesktop(t)
+
 	log := logger.Get()
 	client := native.New(log, nil)
 

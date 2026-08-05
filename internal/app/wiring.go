@@ -83,23 +83,28 @@ func initializeAdapters(
 	overlayManager OverlayManager,
 	systemPort ports.SystemPort,
 ) (ports.AccessibilityPort, ports.OverlayPort) {
-	excludedBundles := cfg.General.ExcludedApps
-	clickableRoles := cfg.Hints.ClickableRoles
+	// Respect an injected accessibility port (WithAccessibility); only build
+	// the real adapter and its platform AX client when none was provided.
+	accAdapter := app.accessibility
+	if accAdapter == nil {
+		excludedBundles := cfg.General.ExcludedApps
+		clickableRoles := cfg.Hints.ClickableRoles
 
-	// Create infrastructure client.
-	axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
+		// Create infrastructure client.
+		axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
 
-	// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
-	app.axClient = axClient
+		// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
+		app.axClient = axClient
 
-	// Create base accessibility adapter with core functionality
-	accAdapter := accessibilityAdapter.NewAdapter(
-		logger,
-		excludedBundles,
-		clickableRoles,
-		axClient,
-		cfg.Hints.DetectMissionControl,
-	)
+		// Create base accessibility adapter with core functionality
+		accAdapter = accessibilityAdapter.NewAdapter(
+			logger,
+			excludedBundles,
+			clickableRoles,
+			axClient,
+			cfg.Hints.DetectMissionControl,
+		)
+	}
 
 	// Create overlay adapter for UI rendering
 	overlayPort := overlay.NewAdapter(

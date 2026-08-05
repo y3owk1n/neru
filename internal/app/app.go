@@ -109,6 +109,13 @@ type App struct {
 	gcCancel         context.CancelFunc
 	gcAggressiveMode bool
 
+	// Per-instance observer teardown and hooks, assigned by the platform
+	// setup functions and consumed by the shared entry points in
+	// observers.go. Closures keep platform types off this struct.
+	themeObserverStop func()
+	sleepObserverStop func()
+	postReloadVerify  func()
+
 	// State subscriptions
 	screenShareSubscriptionID uint64
 

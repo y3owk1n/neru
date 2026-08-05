@@ -22,11 +22,24 @@ func (t *testThemeProvider) IsDarkMode() bool {
 	return t.darkMode
 }
 
+// requireDesktop skips unless this run opted into tests that drive the real
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
+// plain `just test` stays hands-off the machine.
+func requireDesktop(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+}
+
 // TestOverlayAdapterIntegration tests the overlay adapter with real dependencies.
 func TestOverlayAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	requireDesktop(t)
 
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping overlay integration test in CI (no window server run loop)")
@@ -117,6 +130,8 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	requireDesktop(t)
 
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping overlay integration test in CI (no window server run loop)")

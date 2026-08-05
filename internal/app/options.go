@@ -90,6 +90,26 @@ func WithHotkeyService(hotkeyService HotkeyService) Option {
 	}
 }
 
+// WithAccessibility sets the accessibility port implementation.
+// Note: accessibility can be nil, will be initialized during app startup if not provided.
+func WithAccessibility(accessibility ports.AccessibilityPort) Option {
+	return func(a *App) error {
+		a.accessibility = accessibility
+
+		return nil
+	}
+}
+
+// WithTextInput sets the text input port implementation.
+// Note: textInput can be nil, will be initialized during app startup if not provided.
+func WithTextInput(textInput ports.TextInputPort) Option {
+	return func(a *App) error {
+		a.textInput = textInput
+
+		return nil
+	}
+}
+
 // WithSystemPort sets the system port implementation.
 // Note: systemPort can be nil, will be initialized during app startup if not provided.
 func WithSystemPort(systemPort ports.SystemPort) Option {

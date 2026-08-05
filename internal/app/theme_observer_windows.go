@@ -42,7 +42,6 @@ func (a *App) setupThemeObserver() {
 	}()
 }
 
-// stopThemeObserver is a no-op on Windows. The poll goroutine is stopped by
-// app context cancellation (a.cancel is called before stopThemeObserver in
-// Cleanup, so <-a.ctx.Done() fires before this runs).
-func (a *App) stopThemeObserver() {}
+// No teardown closure is registered on Windows: the poll goroutine is stopped
+// by app context cancellation (a.cancel runs before stopThemeObserver in
+// Cleanup, so <-a.ctx.Done() fires first).

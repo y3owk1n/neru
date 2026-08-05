@@ -3,6 +3,7 @@
 package accessibility_test
 
 import (
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -64,10 +65,11 @@ var hasInputPermission = sync.OnceValue(darwinplatform.CheckAccessibilityPermiss
 // suite people learn to ignore, and it also stops `just test` from being usable
 // as evidence that a change is sound. Skipping says what is actually happening.
 //
-// This does not lose coverage where it counts: the macOS CI runner does have the
-// permission, so these tests run there for real on every PR. To run them locally,
-// grant Accessibility to the terminal (or to the test binary) under System
-// Settings > Privacy & Security > Accessibility.
+// These tests run for real via `just test-desktop` (or test-all) on a machine
+// where Accessibility is granted to the terminal (or the test binary) under
+// System Settings > Privacy & Security > Accessibility; the CI profile
+// (-short) skips them, so a granted desktop session is where this coverage
+// actually happens.
 func requireInputPermission(t *testing.T) {
 	t.Helper()
 
@@ -77,5 +79,16 @@ func requireInputPermission(t *testing.T) {
 				"input is dropped and the AX tree is unreadable; grant it under System " +
 				"Settings > Privacy & Security > Accessibility to run this",
 		)
+	}
+}
+
+// requireDesktop skips unless this run opted into tests that drive the real
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
+// plain `just test` stays hands-off the machine.
+func requireDesktop(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
 	}
 }

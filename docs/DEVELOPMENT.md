@@ -125,14 +125,15 @@ Wayland protocol generation and icon recipes.
 | Build   | `just release`               | Optimized, stripped release build               |
 | Bundle  | `just bundle`                | Release build + macOS `Neru.app` (ad-hoc signed) |
 | Install | `just install [-y]`          | Install an already-built Neru; `-y` auto-accepts |
-| Test    | `just test`                  | Unit + integration                              |
+| Test    | `just test`                  | Unit + integration (desktop-safe: never drives your cursor) |
 | Test    | `just test-unit`             | Unit tests only                                 |
-| Test    | `just test-integration`      | Integration tests only                          |
+| Test    | `just test-integration`      | Integration tests only (desktop-safe)           |
+| Test    | `just test-desktop`          | Integration incl. tests that drive the real cursor/keyboard/overlays |
 | Test    | `just test-foundation`       | Fast cross-platform-safe slice                  |
 | Test    | `just test-race`             | Unit + integration with `-race`                 |
 | Test    | `just test-race-unit`        | Unit tests with `-race`                         |
 | Test    | `just test-race-integration` | Integration tests with `-race`                  |
-| Test    | `just test-all`              | `test` **and** `test-race` — the deepest sweep  |
+| Test    | `just test-all`              | `test` **and** `test-race`, desktop tests included — the deepest sweep |
 | Test    | `just test-ci`               | What CI gates on: unit, race-unit, short-integration |
 | Test    | `just coverage`              | Unit tests with coverage; prints the total      |
 | Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |

@@ -268,11 +268,12 @@ type MonitorSelectStyle struct {
 	BorderColor        string
 	BackdropColor      string
 	SubtitleTextColor  string
+	HideInScreenShare  bool
 }
 
 // MonitorSelector is the optional extension a backend implements when it can
-// draw the monitor-select overlay. Only the Linux backends do; elsewhere the
-// mode reports CodeNotSupported.
+// draw the monitor-select overlay. The darwin and Linux backends do; elsewhere
+// the mode reports CodeNotSupported.
 type MonitorSelector interface {
 	DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error
 	HideMonitorSelect()
