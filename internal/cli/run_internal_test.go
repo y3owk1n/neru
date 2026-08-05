@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"slices"
 	"testing"
 )
 
@@ -32,20 +31,5 @@ func TestValidateRunArgs(t *testing.T) {
 					testCase.args, err, testCase.wantErr)
 			}
 		})
-	}
-}
-
-// A step's padding is not part of the step, so it is trimmed before the step
-// travels. A step that is nothing but padding is kept: an empty --on-exit says
-// to clear whatever a previous activation stored and run nothing in its place,
-// which the grammar reads the same way wherever it is written.
-func TestTrimOnExitSteps(t *testing.T) {
-	t.Parallel()
-
-	steps := trimOnExitSteps([]string{" action sleep 0.2 ", runTestStep, "  "})
-
-	want := []string{"action sleep 0.2", runTestStep, ""}
-	if !slices.Equal(steps, want) {
-		t.Fatalf("trimOnExitSteps() = %v, want %v", steps, want)
 	}
 }

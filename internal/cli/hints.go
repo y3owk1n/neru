@@ -1,8 +1,10 @@
 package cli
 
+import "github.com/y3owk1n/neru/internal/domain"
+
 // HintsCmd is the CLI hints command.
 var HintsCmd = BuildModeCommand(ModeConfig{
-	Name:  "hints",
+	Mode:  domain.ModeHints,
 	Short: "Launch hints mode for clickable elements",
 	Long: `Assign letter hints to on-screen elements for keyboard-driven clicking.
 
@@ -52,14 +54,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --debug                       Print detected elements, no overlay (used on windows),
     neru hints --label-direction reverse     Use spread labels for this run`,
 
-	ActionDesc:               "hint selection",
-	SupportSearch:            true,
-	SupportHideOnEmptySearch: true,
-	SupportFiltering:         true,
-	SupportStrategy:          true,
-	SupportDebug:             true,
-	SupportLabelDirection:    true,
-	SupportSplitWord:         true,
+	SupportDebug: true,
 })
 
 func init() {

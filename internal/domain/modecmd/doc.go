@@ -13,11 +13,13 @@
 // [Activation], validating an Activation, and rendering an Activation back into
 // an argument list.
 //
-// Each flag is one entry in the descriptor table, carrying its own parse and
-// render. Nothing here switches over flag names: a switch has a default clause,
-// and a default clause is what let a flag go unhandled without anyone
-// noticing. A flag declared without saying how it parses and renders does not
-// compile.
+// Each flag is one entry in the descriptor table, carrying its own parse, its
+// own render, the shape it is written in, and the one sentence that says what
+// it does — which is what a command line offers it as. Nothing here switches
+// over flag names: a
+// switch has a default clause, and a default clause is what let a flag go
+// unhandled without anyone noticing. A flag declared without saying how it
+// parses, how it renders and what it is for does not compile.
 //
 // It cannot import internal/config, because the configuration validates the
 // bindings it holds and so must import this. The values the flags accept live

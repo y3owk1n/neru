@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // Flag is a mode flag's long name without the dashes, the form cobra registers
@@ -84,6 +85,37 @@ const (
 	msgTakesNoValue = " takes no value"
 )
 
+// What each flag is for, in one sentence.
+//
+// A flag is explained here rather than where it is registered, for the same
+// reason its rules are: a mode command is written in three places, and the
+// sentence that says what a flag does is true in all of them. It is worded to
+// read as advice about a flag rather than about a command line, so a reader
+// that is not one — the daemon's answer, a generated reference — can say it
+// too.
+const (
+	usageToggle              = "Toggle mode on/off (exit to idle if already active)"
+	usageRepeat              = "Re-activate mode after performing the action (requires --action)"
+	usageModifier            = "Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)"
+	usageOnExit              = "Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle"
+	usageCursorSelectionMode = "How the real cursor should behave during selection: follow or hold"
+	usageSearch              = "Show search input when the mode is activated"
+	usageHideOnEmptySearch   = "Hide all hints when search query is empty (requires --search)"
+	usageRole                = "Filter by AX role (comma-separated: AXButton,AXLink). Repeat the flag to add more"
+	usageText                = "Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more"
+	usageStrategy            = "Element detection strategy: axtree (macOS AX API) or vision (Vision Framework)"
+	usageLabelDirection      = "Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)"
+	usageSplitWord           = "Split detected text into word-level regions (requires vision strategy)"
+	usageZoomToDepth         = "Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position"
+)
+
+// usageAction names the actions a mode can perform, so the vocabulary a user
+// is offered is the one the rules accept rather than a list kept alongside it.
+var usageAction = "Mouse button action to perform on the selection (" +
+	action.ModeActionNamesString() +
+	"). Commas chain multiple actions (e.g. left_click,left_click for double-click). " +
+	"Other actions, such as scroll or move_mouse, are actions in their own right and need no mode"
+
 // String returns the bare name.
 func (f Flag) String() string { return string(f) }
 
@@ -102,9 +134,10 @@ func (f Flag) Assign(value string) string { return "--" + string(f) + "=" + valu
 // below, so a flag cannot be declared without saying how it parses and how it
 // renders — the compiler asks for both.
 type Descriptor struct {
-	name       Flag
-	short      string
-	takesValue bool
+	name  Flag
+	short string
+	usage string
+	kind  Kind
 	// valueMessage is the whole message this flag gives when its value is
 	// missing or unusable.
 	valueMessage string
@@ -113,11 +146,35 @@ type Descriptor struct {
 	render       func(Activation) []string
 }
 
+// Kind is the shape a flag is written in, and the whole of what a reader needs
+// to know to offer it and read it back.
+//
+// It is one value rather than a pair of booleans so that a reader answers it
+// once, exhaustively. A reader deciding "does it take a value, and if so may it
+// be repeated?" for itself has somewhere for a shape it has not heard of to
+// fall through to, which is the shape of mistake this package exists to stop.
+type Kind int
+
+const (
+	// KindPresence is a flag that carries no value: writing it is the whole
+	// statement.
+	KindPresence Kind = iota
+
+	// KindValue is a flag written with a value, where a second occurrence
+	// replaces the first.
+	KindValue
+
+	// KindList is a flag written with a value, where a second occurrence adds
+	// to the first.
+	KindList
+)
+
 // valueFlag declares a flag written with a value, either attached with an
 // equals sign or as the following argument.
 func valueFlag(
 	name Flag,
 	short string,
+	usage string,
 	valueMessage string,
 	modes []domain.Mode,
 	set func(*Activation, string) error,
@@ -126,12 +183,36 @@ func valueFlag(
 	return Descriptor{
 		name:         name,
 		short:        short,
-		takesValue:   true,
+		usage:        usage,
+		kind:         KindValue,
 		valueMessage: valueMessage,
 		modes:        modes,
 		set:          set,
 		render:       render,
 	}
+}
+
+// listFlag declares a value flag that may be written more than once, each
+// occurrence adding to the list the earlier ones started.
+//
+// It is a value flag in every other respect. What separates the two is what a
+// second occurrence means: on a plain value flag the last one wins, and on one
+// of these none of them is lost. A reader that offers the flag has to know
+// which, or the steps of an --on-exit sequence would silently come down to the
+// last one written.
+func listFlag(
+	name Flag,
+	short string,
+	usage string,
+	valueMessage string,
+	modes []domain.Mode,
+	set func(*Activation, string) error,
+	render func(Activation) []string,
+) Descriptor {
+	descriptor := valueFlag(name, short, usage, valueMessage, modes, set, render)
+	descriptor.kind = KindList
+
+	return descriptor
 }
 
 // presenceFlag declares a flag that carries no value: writing it is the whole
@@ -143,6 +224,7 @@ func valueFlag(
 func presenceFlag(
 	name Flag,
 	short string,
+	usage string,
 	modes []domain.Mode,
 	set func(*Activation),
 	render func(Activation) []string,
@@ -150,6 +232,7 @@ func presenceFlag(
 	return Descriptor{
 		name:         name,
 		short:        short,
+		usage:        usage,
 		valueMessage: name.Long() + msgTakesNoValue,
 		modes:        modes,
 		set: func(activation *Activation, value string) error {
@@ -172,8 +255,36 @@ func (d Descriptor) Name() Flag { return d.name }
 // an empty shorthand the same way.
 func (d Descriptor) Short() string { return d.short }
 
+// Usage returns the one sentence saying what this flag does, as a command
+// line's help and the flag reference both read it.
+func (d Descriptor) Usage() string { return d.usage }
+
+// Kind returns the shape this flag is written in.
+func (d Descriptor) Kind() Kind { return d.kind }
+
 // TakesValue separates "--repeat" from "--modifier=cmd".
-func (d Descriptor) TakesValue() bool { return d.takesValue }
+func (d Descriptor) TakesValue() bool { return d.kind != KindPresence }
+
+// Apply reads one written value into an activation, as this flag's own rule
+// says. A presence-only flag is applied with an empty value: writing it is the
+// whole statement.
+//
+// It is exported for the reader that holds a flag's value already typed rather
+// than as an argument to be found — the CLI reads cobra's own flags this way.
+// Going through the same function a parse does is what keeps the two from
+// disagreeing about what a written value means.
+func (d Descriptor) Apply(activation *Activation, value string) error {
+	return d.set(activation, value)
+}
+
+// Render writes just this flag back out, empty when the activation was not
+// given it. [Render] is the whole table's version of the same thing.
+//
+// It is exported for a reader that carries some of the vocabulary but not all
+// of it: the hints probe takes the flags that decide which elements are
+// collected and refuses the rest, and answering "was this one given?" is what
+// it needs to say so.
+func (d Descriptor) Render(activation Activation) []string { return d.render(activation) }
 
 // ValueMessage returns the whole message this flag gives when its value is
 // missing or unusable. The two are one mistake seen from two sides, so they
@@ -228,7 +339,7 @@ var (
 // descriptors is the vocabulary, in the order a rendering writes it and the
 // documentation lists it.
 var descriptors = []Descriptor{
-	valueFlag(FlagAction, "a", msgActionValue, selectionModes,
+	valueFlag(FlagAction, "a", usageAction, msgActionValue, selectionModes,
 		func(activation *Activation, value string) error {
 			activation.Action = &value
 
@@ -238,7 +349,7 @@ var descriptors = []Descriptor{
 			return renderValue(FlagAction, activation.Action)
 		},
 	),
-	valueFlag(FlagModifier, "", msgModifierValue, selectionModes,
+	valueFlag(FlagModifier, "", usageModifier, msgModifierValue, selectionModes,
 		func(activation *Activation, value string) error {
 			activation.Modifier = &value
 
@@ -248,32 +359,32 @@ var descriptors = []Descriptor{
 			return renderValue(FlagModifier, activation.Modifier)
 		},
 	),
-	valueFlag(FlagOnExit, "", msgOnExitValue, selectionModes, setOnExit, renderOnExit),
-	presenceFlag(FlagRepeat, "r", selectionModes,
+	listFlag(FlagOnExit, "", usageOnExit, msgOnExitValue, selectionModes, setOnExit, renderOnExit),
+	presenceFlag(FlagRepeat, "r", usageRepeat, selectionModes,
 		func(activation *Activation) { activation.Repeat = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagRepeat, activation.Repeat)
 		},
 	),
-	presenceFlag(FlagToggle, "t", enterableModes,
+	presenceFlag(FlagToggle, "t", usageToggle, enterableModes,
 		func(activation *Activation) { activation.Toggle = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagToggle, activation.Toggle)
 		},
 	),
-	presenceFlag(FlagSearch, "s", hintsOnly,
+	presenceFlag(FlagSearch, "s", usageSearch, hintsOnly,
 		func(activation *Activation) { activation.Search = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagSearch, activation.Search)
 		},
 	),
-	presenceFlag(FlagHideOnEmptySearch, "", hintsOnly,
+	presenceFlag(FlagHideOnEmptySearch, "", usageHideOnEmptySearch, hintsOnly,
 		func(activation *Activation) { activation.HideOnEmptySearch = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagHideOnEmptySearch, activation.HideOnEmptySearch)
 		},
 	),
-	valueFlag(FlagRole, "", msgRoleValue, hintsOnly,
+	listFlag(FlagRole, "", usageRole, msgRoleValue, hintsOnly,
 		func(activation *Activation, value string) error {
 			entries, err := splitCSV(value, msgRoleValue)
 			if err != nil {
@@ -288,7 +399,7 @@ var descriptors = []Descriptor{
 			return renderList(FlagRole, activation.FilterRoles)
 		},
 	),
-	valueFlag(FlagText, "", msgTextValue, hintsOnly,
+	listFlag(FlagText, "", usageText, msgTextValue, hintsOnly,
 		func(activation *Activation, value string) error {
 			entries, err := splitCSV(value, msgTextValue)
 			if err != nil {
@@ -303,7 +414,7 @@ var descriptors = []Descriptor{
 			return renderList(FlagText, activation.FilterTextContains)
 		},
 	),
-	valueFlag(FlagStrategy, "", msgStrategyValue, hintsOnly,
+	valueFlag(FlagStrategy, "", usageStrategy, msgStrategyValue, hintsOnly,
 		func(activation *Activation, value string) error {
 			strategy, err := ParseStrategy(value)
 			if err != nil {
@@ -318,7 +429,7 @@ var descriptors = []Descriptor{
 			return renderValue(FlagStrategy, activation.Strategy)
 		},
 	),
-	valueFlag(FlagLabelDirection, "", msgLabelDirectionValue, hintsOnly,
+	valueFlag(FlagLabelDirection, "", usageLabelDirection, msgLabelDirectionValue, hintsOnly,
 		func(activation *Activation, value string) error {
 			if value != domain.LabelDirectionNormal && value != domain.LabelDirectionReverse {
 				return invalid(msgLabelDirectionValue)
@@ -332,13 +443,13 @@ var descriptors = []Descriptor{
 			return renderValue(FlagLabelDirection, activation.LabelDirection)
 		},
 	),
-	presenceFlag(FlagSplitWord, "", hintsOnly,
+	presenceFlag(FlagSplitWord, "", usageSplitWord, hintsOnly,
 		func(activation *Activation) { activation.SplitWord = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagSplitWord, activation.SplitWord)
 		},
 	),
-	valueFlag(FlagZoomToDepth, "", msgZoomToDepthValue, recursiveGridOnly,
+	valueFlag(FlagZoomToDepth, "", usageZoomToDepth, msgZoomToDepthValue, recursiveGridOnly,
 		func(activation *Activation, value string) error {
 			depth, err := strconv.Atoi(value)
 			if err != nil || depth < 0 {
@@ -357,7 +468,8 @@ var descriptors = []Descriptor{
 			return []string{FlagZoomToDepth.Assign(strconv.Itoa(*activation.ZoomToDepth))}
 		},
 	),
-	valueFlag(FlagCursorSelectionMode, "", msgCursorSelectionModeValue, selectionModes,
+	valueFlag(FlagCursorSelectionMode, "", usageCursorSelectionMode, msgCursorSelectionModeValue,
+		selectionModes,
 		func(activation *Activation, value string) error {
 			switch value {
 			case domain.CursorSelectionModeFollow:

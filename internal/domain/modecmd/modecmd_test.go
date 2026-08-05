@@ -465,6 +465,20 @@ func TestParse_OnExitAccumulatesSteps(t *testing.T) {
 			args: []string{argAction, "--on-exit="},
 			want: []string{},
 		},
+		{
+			// A step's padding is not part of the step, wherever the step was
+			// written.
+			name: "padding is trimmed",
+			args: []string{argAction, "--on-exit=  " + stepLeftClick + "  "},
+			want: []string{stepLeftClick},
+		},
+		{
+			// A step that is nothing but padding is no step, and says what an
+			// empty one says: clear what was stored and run nothing.
+			name: "padding only clears",
+			args: []string{argAction, "--on-exit=   "},
+			want: []string{},
+		},
 	}
 
 	for _, testCase := range tests {

@@ -1,8 +1,10 @@
 package cli
 
+import "github.com/y3owk1n/neru/internal/domain"
+
 // GridCmd is the CLI grid command.
 var GridCmd = BuildModeCommand(ModeConfig{
-	Name:  "grid",
+	Mode:  domain.ModeGrid,
 	Short: "Launch grid mode for mouseless navigation",
 	Long: `Overlay a grid on the screen and navigate to any point by subdivision.
 
@@ -20,7 +22,6 @@ Examples:
   neru grid --action left_click       Navigate and then left-click
   neru grid --action right_click      Navigate and then right-click
   neru grid --action left_click --repeat  Click multiple spots in sequence`,
-	ActionDesc: "grid selection",
 })
 
 func init() {
