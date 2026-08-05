@@ -93,6 +93,23 @@ func TestNoOpManager_ReportsEmptyState(t *testing.T) {
 	}
 }
 
+// TestNoOpManager_DeclaresItselfHeadless pins the capability the component
+// factory reads before it builds render overlays. An overlay manager that
+// cannot render has to say so; if the no-op manager stopped declaring it, the
+// factory would try to build overlays on a surface that does not exist.
+func TestNoOpManager_DeclaresItselfHeadless(t *testing.T) {
+	var noOp manager.Interface = &manager.NoOpManager{}
+
+	reporter, ok := noOp.(manager.HeadlessReporter)
+	if !ok {
+		t.Fatal("the no-op manager does not implement HeadlessReporter")
+	}
+
+	if !reporter.Headless() {
+		t.Error("Headless() = false; the no-op manager has no surface to render on")
+	}
+}
+
 // TestNoOpManager_SubscriptionIsInert pins that a subscriber can be registered
 // and removed. A caller that subscribes on a headless run must not be left
 // holding an id it cannot unsubscribe.

@@ -25,6 +25,8 @@ type (
 	MonitorSelectTarget = manager.MonitorSelectTarget
 	// CapabilityReporter reports a manager's runtime support state.
 	CapabilityReporter = manager.CapabilityReporter
+	// HeadlessReporter declares a manager that has no surface to render on.
+	HeadlessReporter = manager.HeadlessReporter
 )
 
 // Overlay modes.

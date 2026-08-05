@@ -76,8 +76,8 @@ func simElement(
 
 // simOverlayManager records what the app draws. It embeds the headless
 // NoOpManager so it satisfies the full manager contract and only overrides
-// what the journeys assert on. WindowPtr stays nil, which keeps the component
-// factory on its headless path (no native overlay construction).
+// what the journeys assert on. It declares itself headless, which keeps the
+// component factory on its headless path (no native overlay construction).
 type simOverlayManager struct {
 	overlay.NoOpManager
 
@@ -94,8 +94,16 @@ type simOverlayManager struct {
 }
 
 // Ensure the recorder implements the optional monitor-select extension the
-// same way the darwin and Linux backends do.
-var _ overlaymanager.MonitorSelector = (*simOverlayManager)(nil)
+// same way the darwin and Linux backends do, and declares itself headless the
+// way a backend with no surface does.
+var (
+	_ overlaymanager.MonitorSelector  = (*simOverlayManager)(nil)
+	_ overlaymanager.HeadlessReporter = (*simOverlayManager)(nil)
+)
+
+// Headless states outright what the journeys rely on: there is no native
+// surface here, so the component factory must not build render overlays.
+func (m *simOverlayManager) Headless() bool { return true }
 
 func (m *simOverlayManager) DrawMonitorSelect(
 	targets []overlay.MonitorSelectTarget,

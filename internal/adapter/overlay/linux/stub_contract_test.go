@@ -113,6 +113,39 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 	}
 }
 
+// TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless pins the other half
+// of the no-backend contract: a Manager with no surface has to say so, because
+// the component factory reads that declaration before it builds the render
+// overlays, and it must not hand the app components this Manager has no way to
+// draw.
+//
+// The nil case follows the package's nil-guarded-delegate rule rather than
+// blessing a typed nil: NewOverlayManager returns a nil *Manager when no
+// display is detected, and the accessor that wraps it does not yet guard that,
+// so Headless can be reached on a nil receiver and must answer rather than
+// panic.
+func TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless(t *testing.T) {
+	tests := map[string]*Manager{
+		"no backend attached": noBackendManager(),
+		"nil manager":         nil,
+	}
+
+	for name, mgr := range tests {
+		t.Run(name, func(t *testing.T) {
+			var overlayManager manager.Interface = mgr
+
+			reporter, ok := overlayManager.(manager.HeadlessReporter)
+			if !ok {
+				t.Fatal("the Linux manager does not implement HeadlessReporter")
+			}
+
+			if !reporter.Headless() {
+				t.Error("Headless() = false; there is no surface for an overlay to draw on")
+			}
+		})
+	}
+}
+
 // TestLinuxOverlayManager_StubsAreRepeatable guards against a stub that reports
 // NotSupported once and then changes its answer — the mode handler retries a
 // draw on screen-change events, and an inconsistent answer would let a later

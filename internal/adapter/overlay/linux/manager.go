@@ -350,6 +350,18 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return nil
 }
 
+// Ensure the manager keeps declaring the optional headless capability: without
+// this, a signature drift would silently downgrade it to "can render" instead
+// of failing to compile.
+var _ manager.HeadlessReporter = (*Manager)(nil)
+
+// Headless reports whether no backend surface was created — no display server
+// was detected, the backend failed to initialize, or this is a build without
+// cgo — leaving nothing for the render overlays to draw on.
+func (m *Manager) Headless() bool {
+	return m == nil || (m.x11 == nil && m.wlroots == nil)
+}
+
 // OverlayCapabilities returns the feature capabilities.
 func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 	switch m.backend {

@@ -84,6 +84,17 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(m.window)
 }
 
+// Ensure the manager keeps declaring the optional headless capability: without
+// this, a signature drift would silently downgrade it to "can render" instead
+// of failing to compile.
+var _ manager.HeadlessReporter = (*Manager)(nil)
+
+// Headless reports whether the overlay window failed to be created, leaving
+// nothing for the render overlays to draw on.
+func (m *Manager) Headless() bool {
+	return m == nil || m.window == nil
+}
+
 // WaylandKeyboardChannel returns nil for macOS (not applicable).
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil
