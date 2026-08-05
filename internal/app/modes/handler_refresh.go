@@ -263,6 +263,14 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 		h.currentHintStyle(),
 	)
 	if drawHintsErr != nil {
+		// A backend without a hint surface (headless) reports CodeNotSupported;
+		// that is degradation, not failure.
+		if derrors.IsNotSupported(drawHintsErr) {
+			h.logger.Debug("Hint overlay not supported on this backend")
+
+			return false
+		}
+
 		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
 
 		return false

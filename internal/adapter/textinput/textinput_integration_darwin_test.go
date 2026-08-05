@@ -40,9 +40,22 @@ func TestTextInput_StopIsIdempotent(t *testing.T) {
 	}
 }
 
+// requireDesktop skips unless this run opted into tests that drive the real
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
+// plain `just test` stays hands-off the machine.
+func requireDesktop(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+}
+
 // TestTextInput_StartThenStop exercises a full session against the real
 // NSTextField overlay.
 func TestTextInput_StartThenStop(t *testing.T) {
+	requireDesktop(t)
+
 	adapter := textinput.NewAdapter(textinput.NewTextInput(nil), nil)
 
 	started, err := adapter.StartHintSearchSession(

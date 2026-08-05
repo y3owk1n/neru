@@ -31,7 +31,7 @@ Everything goes through `just` (`just --list` for the full set); `devbox shell` 
 ```bash
 just build              # dev build -> bin/neru; no `just run` — build then ./bin/neru launch
 just build-darwin       # or build-linux / build-windows [ARCH]
-just test               # unit + integration; test-unit / test-integration / test-race
+just test               # unit + integration, desktop-safe; test-desktop adds the cursor/keyboard-driving tests
 just test-foundation    # fast cross-platform-safe slice (config, action, ports)
 just lint               # golangci-lint + clang-tidy on .m files (macOS)
 just fmt                # golangci-lint fmt, then clang-format on .h/.m/.c
@@ -74,7 +74,7 @@ Configuration is hot-reloadable TOML; adding an option touches a five-link chain
 Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` — run them rather than memorizing rules. What tooling cannot enforce:
 
 - Logging: named zap loggers per subsystem; constructors accept nil (`zap.NewNop()` fallback). `info` is for lifecycle/config/mode-activation only; per-keypress internals go to `debug`. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees** — log counts, durations, IDs, booleans instead.
-- Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, `TestType_Method_EdgeCase` naming. Every platform stub gets a contract test pinning its `CodeNotSupported` behavior.
+- Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, `TestType_Method_EdgeCase` naming. Every platform stub gets a contract test pinning its `CodeNotSupported` behavior. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go` — extend those journeys when changing user-visible mode behavior.
 - Commits are conventional commits; Release Please ships the subject verbatim in the changelog, so write it for users (the `create-pr` skill covers this).
 - Each documented fact has exactly one home — ownership table in `docs/CROSS_PLATFORM.md`. Capability *status* goes there, never in `docs/ARCHITECTURE.md` (shape, not status). Update docs in the same change as platform work.
 

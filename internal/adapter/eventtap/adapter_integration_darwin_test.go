@@ -25,12 +25,25 @@ func TestMain(m *testing.M) {
 	os.Exit(darwin.RunMainLoopForTesting(m.Run))
 }
 
+// requireDesktop skips unless this run opted into tests that drive the real
+// desktop (cursor, keyboard, overlays). `just test-desktop` sets the variable;
+// plain `just test` stays hands-off the machine.
+func requireDesktop(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+}
+
 // TestEventTapAdapterIntegration tests the event tap adapter.
 // Note: This test requires accessibility permissions and might fail in headless CI.
 func TestEventTapAdapterIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+
+	requireDesktop(t)
 
 	logger := logger.Get()
 

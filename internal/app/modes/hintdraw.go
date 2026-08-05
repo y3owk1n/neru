@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
@@ -16,7 +17,7 @@ import (
 // The caller must hold h.mu. SetHints, Reset and HandleInput already do; the
 // manager's debounced timer takes it through the mutex it was built with.
 func (h *handlerState) drawHints(filteredHints []*domainHint.Interface) {
-	if h.hints.Overlay == nil {
+	if h.overlayManager == nil {
 		return
 	}
 
@@ -42,6 +43,14 @@ func (h *handlerState) drawHints(filteredHints []*domainHint.Interface) {
 		h.currentHintStyle(),
 	)
 	if drawHintsErr != nil {
+		// A backend without a hint surface (headless) reports CodeNotSupported;
+		// that is degradation, not failure.
+		if derrors.IsNotSupported(drawHintsErr) {
+			h.logger.Debug("Hint overlay not supported on this backend")
+
+			return
+		}
+
 		h.logger.Error("Failed to update hints overlay", zap.Error(drawHintsErr))
 	}
 }

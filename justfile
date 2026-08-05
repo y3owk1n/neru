@@ -172,9 +172,9 @@ uninstall *ARGS:
 
 # Run tests
 
-# Run all tests (unit + integration). On macOS the integration half drives the
-# real cursor and keyboard and needs Accessibility permission — see the
-# test-integration comment before running this for the first time.
+# Run all tests (unit + integration). Desktop-safe: tests that would drive the
+# real cursor, keyboard or overlays skip themselves here — run `just
+# test-desktop` to include them when you can hand the machine over.
 test: test-unit test-integration
     @echo "Running all tests..."
 
@@ -221,11 +221,14 @@ list-foundation-packages:
         [ "$tagged" = "0" ] && [ "$tests" != "0" ] && echo "./$d"
     done
 
-# Run integration tests
-# -p 1 runs one package binary at a time. Integration tests drive the real
-# cursor, keyboard and overlay, so two packages running concurrently fight over
-# one physical input device: a click in one package's test moves the cursor out
-# from under another package's cursor assertion, and either side can lose.
+# Run integration tests (desktop-safe subset)
+# Tests that drive the real cursor, keyboard or overlays gate themselves on
+# NERU_DESKTOP_TESTS (see requireDesktop in the test files) and skip here, so
+# this target never commandeers the machine; `just test-desktop` opts in.
+#
+# -p 1 runs one package binary at a time. The desktop-driving tests share one
+# physical input device, and even the passive half shares daemon sockets and
+# log files; concurrent package binaries fight over them.
 #
 # -count=1 disables the test cache. Go keys that cache on the inputs it can see
 # — sources, env, files read — and none of those change when the thing an
@@ -235,8 +238,16 @@ list-foundation-packages:
 # pass, which is worse than no result at all: it reports green for a run that
 # never happened.
 test-integration:
-    @echo "Running integration tests..."
+    @echo "Running integration tests (desktop-safe)..."
     go test -tags=integration -p 1 -count=1 -v ./...
+
+# Run the full integration suite INCLUDING the tests that drive the real
+# desktop: the cursor moves, real clicks and scrolls land, overlays flash, and
+# an event tap briefly intercepts the keyboard. Hand the machine over while it
+# runs. Needs Accessibility permission (System Settings > Privacy & Security).
+test-desktop:
+    @echo "Running integration tests (including desktop-driving tests)..."
+    NERU_DESKTOP_TESTS=1 go test -tags=integration -p 1 -count=1 -v ./...
 
 # Run with race detection
 test-race: test-race-unit test-race-integration
@@ -254,11 +265,13 @@ test-race-integration:
     go test -tags=integration -race -p 1 -count=1 -v ./...
 
 # The full test suite at maximum depth: everything plain and again under
-# -race (four passes: unit, integration, race-unit, race-integration). This
-# is the deep local bar for a real desktop session with Accessibility
-# granted; CI gates on test-ci below, which is the same minus the passes
-# that are meaningless on a headless runner.
-test-all: test test-race
+# -race (four passes: unit, integration, race-unit, race-integration),
+# including the desktop-driving tests. This is the deep local bar for a real
+# desktop session with Accessibility granted — it takes over the cursor and
+# keyboard while it runs. CI gates on test-ci below, which is the same minus
+# the passes that are meaningless on a headless runner.
+test-all:
+    NERU_DESKTOP_TESTS=1 just test test-race
 
 # Integration tests as CI runs them: -short makes tests that drive the real
 # cursor/keyboard or need OS permissions skip *explicitly* (via their

@@ -143,10 +143,7 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 }
 
 func (h *handlerState) cleanupMonitorSelectMode() {
-	err := h.hideMonitorSelect()
-	if err != nil && !derrors.IsNotSupported(err) {
-		h.logger.Debug("Failed to hide monitor_select overlay", zap.Error(err))
-	}
+	h.hideMonitorSelect()
 
 	h.monitorSelect = nil
 }

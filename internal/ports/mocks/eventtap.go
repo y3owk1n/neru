@@ -28,6 +28,7 @@ type MockEventTapPort struct {
 	postedModifiers         []string
 	passthroughEnabled      bool
 	passthroughBlacklist    []string
+	passthroughCallback     func()
 	stickyModifierToggle    bool
 	keyboardLayout          string
 	destroyed               bool
@@ -107,7 +108,30 @@ func (m *MockEventTapPort) SetInterceptedModifierKeys(keys []string) {
 }
 
 // SetPassthroughCallback implements ports.EventTapPort.
-func (m *MockEventTapPort) SetPassthroughCallback(_ func()) {}
+func (m *MockEventTapPort) SetPassthroughCallback(cb func()) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.passthroughCallback = cb
+}
+
+// PassthroughCallback returns the currently registered passthrough callback,
+// or nil. Tests use it to capture a callback before a mode change replaces it.
+func (m *MockEventTapPort) PassthroughCallback() func() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.passthroughCallback
+}
+
+// TriggerPassthrough fires the registered passthrough callback, standing in
+// for a modifier shortcut passing through to the OS. No-op when none is set.
+func (m *MockEventTapPort) TriggerPassthrough() {
+	callback := m.PassthroughCallback()
+	if callback != nil {
+		callback()
+	}
+}
 
 // SetStickyModifierToggle implements ports.EventTapPort.
 func (m *MockEventTapPort) SetStickyModifierToggle(enabled bool) {
