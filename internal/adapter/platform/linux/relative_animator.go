@@ -33,6 +33,12 @@ type relativeCursorAnimator struct {
 	stopCh    chan struct{}
 	done      *cursorAnimationDone // session completion; nil until the first session
 
+	// injectionFailed is set when a native motion errors. The drain cannot
+	// return that error to anyone — the move call already reported handled —
+	// so the caller consumes this flag (takeInjectionFailure) and routes the
+	// next move through the direct native path, which fails loudly.
+	injectionFailed bool
+
 	// injectSem serializes backend injection and is the ordering handoff to
 	// stop()/settle(), exactly as in smoothCursorAnimator: the worker holds it
 	// across each chunk and re-checks stopCh under it, so once a canceler
@@ -198,13 +204,40 @@ func (a *relativeCursorAnimator) stepChunk(chunk image.Point, stopCh <-chan stru
 		return true
 	}
 
-	_ = a.moveBy(chunk)
+	err := a.moveBy(chunk)
+	if err != nil {
+		// A failed chunk is NOT counted as posted. The backend is broken
+		// (client disconnected, virtual pointer lost), so retrying would
+		// livelock the drain: end it instead, discard the rest of the gesture,
+		// and flag the failure so the caller's next move takes the direct
+		// native path — which surfaces the backend error loudly.
+		a.mu.Lock()
+		a.remaining = image.Point{}
+		a.injectionFailed = true
+		a.mu.Unlock()
+
+		return true
+	}
 
 	a.mu.Lock()
 	a.remaining = a.remaining.Sub(chunk)
 	a.mu.Unlock()
 
 	return true
+}
+
+// takeInjectionFailure reports whether a native motion failed since the last
+// call, clearing the flag. Callers use it to route the next relative move
+// through the direct (loud) native path; a success there doubles as proof of
+// recovery, re-arming animation for the call after.
+func (a *relativeCursorAnimator) takeInjectionFailure() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	failed := a.injectionFailed
+	a.injectionFailed = false
+
+	return failed
 }
 
 // clampTowardZero limits step to the portion of remaining that shares its
@@ -239,7 +272,12 @@ func (a *relativeCursorAnimator) settle() {
 	a.mu.Unlock()
 
 	if remainder != (image.Point{}) {
-		_ = a.moveBy(remainder)
+		err := a.moveBy(remainder)
+		if err != nil {
+			a.mu.Lock()
+			a.injectionFailed = true
+			a.mu.Unlock()
+		}
 	}
 
 	<-a.injectSem

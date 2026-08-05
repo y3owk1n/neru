@@ -224,3 +224,55 @@ func TestMoveCursorBySmoothKeepsStubErrorLoud(t *testing.T) {
 			err, derrors.GetCode(err))
 	}
 }
+
+// failingMover errors on every native motion, simulating a lost virtual
+// pointer or disconnected compositor client.
+func failingMover(image.Point) error {
+	return derrors.New(derrors.CodeActionFailed, "virtual pointer lost")
+}
+
+// TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags pins the
+// failure contract: a failed native motion is not counted as posted, the
+// drain ends instead of livelocking on a broken backend, waiters are
+// released, and the failure is flagged exactly once so the caller can route
+// the next move through the loud direct path.
+func TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags(t *testing.T) {
+	t.Parallel()
+
+	animator := newRelativeCursorAnimator(failingMover)
+
+	animator.addDelta(image.Point{X: 40, Y: 0}, 4, 20)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait returned error: %v (drain must end, not livelock, on a broken backend)", err)
+	}
+
+	if !animator.takeInjectionFailure() {
+		t.Fatal("takeInjectionFailure() = false after a failed native motion")
+	}
+
+	if animator.takeInjectionFailure() {
+		t.Fatal("takeInjectionFailure() did not clear the flag on read")
+	}
+}
+
+// TestRelativeCursorAnimatorSettleFlushFailureFlags pins that a failed
+// settle flush is also flagged, so the loss is surfaced on the next move.
+func TestRelativeCursorAnimatorSettleFlushFailureFlags(t *testing.T) {
+	t.Parallel()
+
+	animator := newRelativeCursorAnimator(failingMover)
+
+	// A very slow drain so the remainder is still pending at settle time.
+	animator.addDelta(image.Point{X: 100, Y: 0}, 10, 10000)
+
+	animator.settle()
+
+	if !animator.takeInjectionFailure() {
+		t.Fatal("takeInjectionFailure() = false after a failed settle flush")
+	}
+}

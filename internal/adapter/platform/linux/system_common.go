@@ -344,6 +344,15 @@ func (s *SystemAdapter) MoveCursorBy(
 	// a silent no-op. Falling through keeps the error surfaced to the caller.
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && nativeBackendsCompiledIn {
 		if s.backend == backendWaylandWlroots {
+			// A failed injection during the previous drain could not be
+			// surfaced (its move had already reported handled). Route this
+			// move through the direct native path instead: it returns the
+			// backend error loudly, and its success doubles as proof of
+			// recovery, re-arming animation for the next move.
+			if s.relativeAnimator.takeInjectionFailure() {
+				return true, wlrootsMoveCursorBy(delta)
+			}
+
 			// Finish any absolute glide first so the delta drain composes from
 			// where that animation was headed, not against its remaining steps.
 			s.cursorAnimator.settle()
