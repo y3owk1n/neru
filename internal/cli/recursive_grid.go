@@ -1,11 +1,12 @@
 package cli
 
+import "github.com/y3owk1n/neru/internal/domain"
+
 // RecursiveGridCmd is the CLI recursive_grid command.
 var RecursiveGridCmd = BuildModeCommand(ModeConfig{
-	Name:               "recursive_grid",
-	Aliases:            []string{"recursive-grid"},
-	Short:              "Activate recursive-grid navigation mode",
-	SupportZoomToDepth: true,
+	Mode:    domain.ModeRecursiveGrid,
+	Aliases: []string{"recursive-grid"},
+	Short:   "Activate recursive-grid navigation mode",
 	Long: `Recursive-grid mode provides recursive cell-based navigation.
 
 The screen is divided into NxN cells (default 2x2, keys: u,i,j,k).
@@ -29,7 +30,6 @@ Examples:
   neru recursive_grid --action left_click --repeat     # Click and restart mode
   neru recursive_grid --zoom-to-depth 2                # Zoom to depth 2 at cursor
   neru recursive_grid --zoom-to-depth 3 --action click # Zoom to depth 3 and click`,
-	ActionDesc: "recursive-grid selection",
 })
 
 func init() {

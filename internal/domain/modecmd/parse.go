@@ -79,7 +79,7 @@ func apply(
 		return 0, notAccepted(mode, descriptor.name)
 	}
 
-	if !descriptor.takesValue {
+	if !descriptor.TakesValue() {
 		// A value attached to a flag that carries none is the flag's own to
 		// refuse. Reading it here is what stops it from being dropped: the
 		// alternative is "--toggle=false" toggling.

@@ -162,6 +162,9 @@ neru idle
 
 Requires a running daemon. Returns to idle. No-op when no mode is active.
 
+Takes no flags and no arguments — idle leaves a mode rather than entering one,
+so there is nothing to describe. Anything written after it is refused.
+
 ---
 
 ## neru status
@@ -302,8 +305,8 @@ framework. Coverage per platform is documented in
 | ------------------------ | --------- | ------ | -------- | ------------------------------------------------------------------------------------------------- |
 | `--search`               | `-s`      | bool   | `false`  | Show the search input when the mode activates.                                                    |
 | `--hide-on-empty-search` |           | bool   | `false`  | Hide all hints while the search query is empty. Requires `--search`.                              |
-| `--role`                 |           | string |          | Only hint elements whose role matches. Comma-separated. Accepts the vocabulary listed by [`neru roles`](#neru-roles). |
-| `--text`                 |           | string |          | Only hint elements whose text matches. Comma-separated (OR), case-insensitive substring match.    |
+| `--role`                 |           | string |          | Only hint elements whose role matches. Comma-separated, or repeat the flag. Accepts the vocabulary listed by [`neru roles`](#neru-roles). |
+| `--text`                 |           | string |          | Only hint elements whose text matches. Comma-separated (OR) or repeat the flag, case-insensitive substring match.    |
 | `--strategy`             |           | string | `axtree` | Element detection strategy: `axtree` or `vision`. `vision` is macOS only. Overrides `hints.strategy`. |
 | `--label-direction`      |           | string | `normal` | Label enumeration: `normal` or `reverse`. Overrides `hints.label_direction`. See [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction). |
 | `--split-word`           |           | bool   | `false`  | Split detected text into word-level regions. Requires `--strategy vision`, so macOS only.          |
@@ -1526,8 +1529,9 @@ A mode command's flags are read exactly as the CLI reads them, and answered
 with the same message: an unknown flag, a flag the named mode does not accept,
 an unusable value, and an unmet dependency such as `--on-exit` without
 `--action` are all refused with `ERR_INVALID_INPUT` rather than accepted and
-dropped. Repeating the mode's own name as the first entry of `args` — which is
-what the CLI itself sends — is accepted and ignored.
+dropped. Repeating the mode's own name as the first entry of `args` is accepted
+and ignored, so anything modelled on the CLI's earlier traffic keeps working.
+The CLI no longer sends it: the action already names the mode.
 
 **Probing without activating**
 
