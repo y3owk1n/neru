@@ -36,6 +36,7 @@ just test-foundation    # fast cross-platform-safe slice (config, action, ports)
 just lint               # golangci-lint + clang-tidy on .m files (macOS)
 just fmt                # golangci-lint fmt, then clang-format on .h/.m/.c
 just genman             # man pages via ./cmd/genman
+just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
 ```
 
 Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — exactly what CI gates on (adds `vet`, `-race`, `vuln`).
@@ -53,6 +54,7 @@ internal/app        wiring, lifecycle, modes, services, IPC controller
 internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modecmd
 internal/ports      interface contracts + `mocks/`
 internal/derrors    the shared error vocabulary (package name is `derrors`)
+internal/flagref    renders the mode-flag reference in docs/CLI.md from the modecmd descriptor table
 internal/adapter    adapters: accessibility, eventtap, hotkeys, overlay, ipc, vision, systray, platform/*
 internal/config     TOML schema, defaults, validators, theme (+ loader)
 internal/architecture   guardrail tests for package boundaries

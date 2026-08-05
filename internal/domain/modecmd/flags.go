@@ -297,6 +297,18 @@ func (d Descriptor) AcceptedBy(mode domain.Mode) bool {
 	return slices.Contains(d.modes, mode)
 }
 
+// AcceptedModes returns the modes that accept this flag, in the order the
+// vocabulary declares them.
+//
+// [Descriptor.AcceptedBy] answers the question a reader with a mode in hand
+// asks. This answers the one a reader without a mode asks — the published flag
+// reference lists which modes take a flag, and reading that from the same
+// declaration is what stops the document from claiming a mode the binary does
+// not offer it on.
+func (d Descriptor) AcceptedModes() []domain.Mode {
+	return slices.Clone(d.modes)
+}
+
 // Match reports whether arg is this flag in any spelling: long, short, or
 // either with a value attached.
 func (d Descriptor) Match(arg string) bool {
@@ -339,6 +351,17 @@ var (
 	// idle, which is how they leave.
 	modes = append(slices.Clone(enterableModes), domain.ModeIdle)
 )
+
+// Modes returns every mode a mode command can name, idle included.
+//
+// It is exported for the reader that has to answer "is every mode accounted
+// for?" rather than "what does this one accept?" — the guardrail that pins a
+// command to the vocabulary needs the list to walk, and reading it from here is
+// what makes a mode added to the grammar and forgotten on the command line a
+// build failure.
+func Modes() []domain.Mode {
+	return slices.Clone(modes)
+}
 
 // LookupMode returns the mode a command word names.
 //

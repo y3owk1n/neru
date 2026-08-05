@@ -52,13 +52,15 @@ func TestDomainStaysPure(t *testing.T) {
 }
 
 // innerLayers are the packages beneath the application layer: the pure domain,
-// the port contracts, the shared error vocabulary, and the adapters that
-// implement the ports. Nothing here may reach up.
+// the port contracts, the shared error vocabulary, the adapters that implement
+// the ports, and the renderer that publishes the domain's own vocabulary as
+// documentation. Nothing here may reach up.
 var innerLayers = []string{
 	"internal/domain/",
 	"internal/ports/",
 	"internal/derrors/",
 	"internal/adapter/",
+	"internal/flagref/",
 }
 
 // TestInfraDoesNotImportApp pins the direction of the hexagon: adapters

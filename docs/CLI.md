@@ -33,7 +33,9 @@ The same content is available as manpages (`man neru`) after installation.
 ## How to read this reference
 
 Every command is documented in the same shape: a one-line purpose, a synopsis,
-a description, a flag table, and examples.
+a description, a flag table, and examples. The navigation modes share one flag
+table, the [mode flag reference](#mode-flag-reference), which is generated from
+the source that registers those flags.
 
 **Synopsis notation**
 
@@ -264,19 +266,62 @@ from the capability matrix described in
 Modes take over the keyboard until you select a target or exit. All five
 require a running daemon.
 
-## Flags shared by hints, grid, and recursive_grid
+## Mode flag reference
 
-These three modes accept the same selection flags. Mode-specific flags are
-listed under each command.
+Every flag a mode command accepts, and which modes accept it. The same command
+is understood identically wherever it is written — typed after `neru`, as a
+step in a [hotkey binding](CONFIGURATION.md#hotkeys), or sent over the
+[IPC socket](#ipc-protocol) — so a flag listed here works in all three, and a
+flag a mode is not listed for is refused rather than ignored.
 
-| Flag                       | Shorthand | Type   | Default  | Description                                                                                                       |
-| -------------------------- | --------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `--action`                 | `-a`      | string |          | Mouse-button action to perform on selection — see [action names](#action-names) for the accepted set. Commas chain multiple actions (`left_click,left_click` is a double-click). |
-| `--toggle`                 | `-t`      | bool   | `false`  | Exit to idle if this mode is already active, otherwise enter it.                                                    |
-| `--repeat`                 | `-r`      | bool   | `false`  | Re-enter the mode after the action instead of exiting. Requires `--action`.                                         |
-| `--modifier`               |           | string |          | Comma-separated modifiers held during the action: `cmd`, `super`, `meta`, `shift`, `alt`, `option`, `ctrl`. Requires `--action`. |
-| `--on-exit`                |           | string |          | Step run after the action completes and the mode exits. Uses hotkey-binding syntax (`'action left_click'`, `'exec notify-send done'`). Repeat the flag to run several steps in order, as one [action sequence](#neru-run). Requires `--action`. Not run when the mode is left manually via escape or `neru idle`. |
-| `--cursor-selection-mode`  |           | string | `follow` | `follow` moves the real cursor to the selection; `hold` leaves it in place.                                          |
+A flag written more than once replaces its earlier value, unless the value
+column says it is repeatable, in which case each occurrence adds to the last.
+`--action` may also be given positionally: `hints left_click`. `neru idle`
+appears in no row — it leaves a mode rather than entering one, so it accepts
+nothing.
+
+<!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->
+
+| Flag | Shorthand | Value | Modes | Description |
+| ---- | --------- | ----- | ----- | ----------- |
+| `--action` | `-a` | value | `hints` · `grid` · `recursive_grid` | Mouse button action to perform on the selection (left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle). Commas chain multiple actions (e.g. left_click,left_click for double-click). Other actions, such as scroll or move_mouse, are actions in their own right and need no mode |
+| `--modifier` |  | value | `hints` · `grid` · `recursive_grid` | Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action) |
+| `--on-exit` |  | value, repeatable | `hints` · `grid` · `recursive_grid` | Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle |
+| `--repeat` | `-r` | none | `hints` · `grid` · `recursive_grid` | Re-activate mode after performing the action (requires --action) |
+| `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` | Toggle mode on/off (exit to idle if already active) |
+| `--search` | `-s` | none | `hints` | Show search input when the mode is activated |
+| `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
+| `--role` |  | value, repeatable | `hints` | Filter by AX role (comma-separated: AXButton,AXLink). Repeat the flag to add more |
+| `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
+| `--strategy` |  | value | `hints` | Element detection strategy: axtree (macOS AX API) or vision (Vision Framework) |
+| `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
+| `--split-word` |  | none | `hints` | Split detected text into word-level regions (requires vision strategy) |
+| `--zoom-to-depth` |  | value | `recursive_grid` | Auto-zoom to the given depth (a non-negative integer) in recursive-grid at the current cursor position |
+| `--cursor-selection-mode` |  | value | `hints` · `grid` · `recursive_grid` | How the real cursor should behave during selection: follow or hold |
+
+<!-- END GENERATED MODE FLAGS -->
+
+**Where the values come from**
+
+- `--action` takes the mouse-button [action names](#action-names). Commas chain
+  several, so `left_click,left_click` is a double-click.
+- `--on-exit` takes a step in hotkey-binding syntax, and several of them make
+  one [action sequence](#neru-run). The steps do not run when the mode is left
+  manually via escape or `neru idle`.
+- `--role` takes the role vocabulary listed by [`neru roles`](#neru-roles).
+- `--text` matches case-insensitively on a substring, and several values match
+  any of them.
+- `--label-direction` is explained under
+  [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction).
+- `--strategy vision` and `--split-word` are macOS only. See
+  [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
+
+**Where the defaults come from**
+
+A flag left out inherits the configuration rather than a zero value:
+`--strategy` from [`hints.strategy`](CONFIGURATION.md#hints) and
+`--label-direction` from `hints.label_direction`. `--cursor-selection-mode`
+defaults to `follow`, and a presence-only flag left out asks for nothing.
 
 ---
 
@@ -285,10 +330,7 @@ listed under each command.
 Label clickable elements and act on the one you type.
 
 ```
-neru hints [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <step>]...
-           [--cursor-selection-mode follow|hold] [-s] [--hide-on-empty-search]
-           [--role <roles>] [--text <text>] [--strategy axtree|vision]
-           [--label-direction normal|reverse] [--split-word] [-d]
+neru hints [flags]
 ```
 
 Scans the focused window for interactive elements and overlays a short letter
@@ -299,26 +341,21 @@ is macOS-only and detects on-screen text and rectangles via the Vision
 framework. Coverage per platform is documented in
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
 
-**Flags** — in addition to the [shared mode flags](#flags-shared-by-hints-grid-and-recursive_grid).
+**Flags** — every flag listed for `hints` in the
+[mode flag reference](#mode-flag-reference), plus the probe below.
 
-| Flag                     | Shorthand | Type   | Default  | Description                                                                                     |
-| ------------------------ | --------- | ------ | -------- | ------------------------------------------------------------------------------------------------- |
-| `--search`               | `-s`      | bool   | `false`  | Show the search input when the mode activates.                                                    |
-| `--hide-on-empty-search` |           | bool   | `false`  | Hide all hints while the search query is empty. Requires `--search`.                              |
-| `--role`                 |           | string |          | Only hint elements whose role matches. Comma-separated, or repeat the flag. Accepts the vocabulary listed by [`neru roles`](#neru-roles). |
-| `--text`                 |           | string |          | Only hint elements whose text matches. Comma-separated (OR) or repeat the flag, case-insensitive substring match.    |
-| `--strategy`             |           | string | `axtree` | Element detection strategy: `axtree` or `vision`. `vision` is macOS only. Overrides `hints.strategy`. |
-| `--label-direction`      |           | string | `normal` | Label enumeration: `normal` or `reverse`. Overrides `hints.label_direction`. See [Choosing a label direction](CONFIGURATION.md#choosing-a-label-direction). |
-| `--split-word`           |           | bool   | `false`  | Split detected text into word-level regions. Requires `--strategy vision`, so macOS only.          |
-| `--debug`                | `-d`      | bool   | `false`  | Print the elements that would be hinted, with a count and a sample, without showing the overlay.  |
+| Flag      | Shorthand | Type | Default | Description                                                                                     |
+| --------- | --------- | ---- | ------- | ------------------------------------------------------------------------------------------------- |
+| `--debug` | `-d`      | bool | `false` | Print the elements that would be hinted, with a count and a sample, without showing the overlay.  |
 
-`--debug` runs a probe rather than activating hints, so it cannot be combined
-with a flag that only describes an activation — `--action`, `--modifier`,
-`--on-exit`, `--repeat`, `--toggle`, `--search`, `--hide-on-empty-search`,
-`--label-direction` or `--cursor-selection-mode`. It does accept the flags that
-decide which elements are collected: `--role`, `--text`, `--strategy` and
-`--split-word`. On the wire a probe is its own command; see
-[IPC protocol](#ipc-protocol).
+`--debug` runs a probe rather than activating hints, so it is not a mode flag:
+it is absent from the reference above, unknown inside a hotkey binding, and
+cannot be combined with a flag that only describes an activation — `--action`,
+`--modifier`, `--on-exit`, `--repeat`, `--toggle`, `--search`,
+`--hide-on-empty-search`, `--label-direction` or `--cursor-selection-mode`. It
+does accept the flags that decide which elements are collected: `--role`,
+`--text`, `--strategy` and `--split-word`. On the wire a probe is its own
+command; see [IPC protocol](#ipc-protocol).
 
 **Examples**
 
@@ -340,12 +377,13 @@ neru hints --debug
 Divide the screen into a labelled coordinate grid.
 
 ```
-neru grid [-a <action>] [-t] [-r] [--modifier <mods>] [--on-exit <step>]...
-          [--cursor-selection-mode follow|hold]
+neru grid [flags]
 ```
 
 Overlays a grid of labelled cells. Typing a cell label moves the cursor there.
-Takes only the [shared mode flags](#flags-shared-by-hints-grid-and-recursive_grid).
+
+**Flags** — every flag listed for `grid` in the
+[mode flag reference](#mode-flag-reference).
 
 Grid size, labels, and appearance are configured under
 [`[grid]`](CONFIGURATION.md#grid).
@@ -371,9 +409,7 @@ neru grid --action left_click --on-exit 'exec notify-send clicked'
 Narrow the screen recursively, one keypress per level.
 
 ```
-neru recursive_grid [-a <action>] [-t] [-r] [--modifier <mods>]
-                    [--on-exit <step>]... [--cursor-selection-mode follow|hold]
-                    [--zoom-to-depth <depth>]
+neru recursive_grid [flags]
 ```
 
 Each keypress subdivides the selected cell, so successive presses converge on a
@@ -384,11 +420,12 @@ Backspace backtracks one level. To correct sideways instead of upwards, bind
 [`move_cell`](#neru-action-move_cell) — it slides the selection to a
 neighbouring cell without leaving the current depth.
 
-**Flags** — in addition to the [shared mode flags](#flags-shared-by-hints-grid-and-recursive_grid).
+**Flags** — every flag listed for `recursive_grid` in the
+[mode flag reference](#mode-flag-reference).
 
-| Flag              | Type | Default | Description                                                                                                       |
-| ----------------- | ---- | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--zoom-to-depth` | int  |         | Drill to this depth at the current cursor position on activation. Stops early if the grid cannot subdivide further (minimum cell size or maximum depth). Negative values are rejected. |
+`--zoom-to-depth` drills at the current cursor position as the mode activates.
+It stops early if the grid cannot subdivide further, at the minimum cell size
+or the maximum depth.
 
 **Examples**
 
@@ -406,12 +443,11 @@ neru recursive_grid --zoom-to-depth 3 --action left_click
 Scroll at the cursor with vim-style keys.
 
 ```
-neru scroll [-t]
+neru scroll [flags]
 ```
 
-| Flag       | Shorthand | Type | Default | Description                                        |
-| ---------- | --------- | ---- | ------- | -------------------------------------------------- |
-| `--toggle` | `-t`      | bool | `false` | Exit to idle if scroll mode is active, else enter.  |
+**Flags** — every flag listed for `scroll` in the
+[mode flag reference](#mode-flag-reference).
 
 **Default key bindings**
 
@@ -447,7 +483,7 @@ neru scroll --toggle
 Move the cursor to another display.
 
 ```
-neru monitor_select [-t]
+neru monitor_select [flags]
 ```
 
 **Platforms:** macOS · Linux. Not implemented on Windows, where it returns
@@ -456,9 +492,8 @@ neru monitor_select [-t]
 Opens a labelled panel on each display. Typing a label moves the cursor to that
 display. The current display is excluded.
 
-| Flag       | Shorthand | Type | Default | Description                                            |
-| ---------- | --------- | ---- | ------- | ------------------------------------------------------ |
-| `--toggle` | `-t`      | bool | `false` | Exit to idle if the mode is active, else enter it.      |
+**Flags** — every flag listed for `monitor_select` in the
+[mode flag reference](#mode-flag-reference).
 
 **Default key bindings**
 

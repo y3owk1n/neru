@@ -33,6 +33,20 @@ wrong even when it compiles.
 6. **Docs**: update `docs/CLI.md`. It is the single home for CLI reference
    facts.
 
+## Mode flags are different
+
+A flag on a mode command (`hints --action left_click`) is not registered by
+hand. It is one entry in the descriptor table in `internal/domain/modecmd`,
+carrying its own parse, its own render, and the modes that accept it — that
+entry is what offers the flag on the command line, what the daemon and the
+config validator read it with, and what writes its row in the reference.
+
+After adding, removing or re-wording one, run `just genflagref` to rewrite the
+generated region of `docs/CLI.md`. An architecture test
+(`internal/architecture/mode_flag_contract_test.go`) fails while a descriptor
+is unregistered or missing from that region, and while a mode command offers a
+flag the table never declared.
+
 ## Tests
 
 - Command wiring and flag parsing: follow the table-driven patterns in
