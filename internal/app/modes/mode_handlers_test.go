@@ -2,6 +2,7 @@ package modes
 
 import (
 	"image"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -70,45 +72,135 @@ func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
 	}
 }
 
-// optsRecordingMode is a minimal Mode used to capture the options an external
-// activation passes through ActivateModeWithOptions.
-type optsRecordingMode struct {
+// stepExecFoo is the on-exit step these cases pass around; what it says does
+// not matter, only that it survives the trip.
+const stepExecFoo = "exec foo"
+
+// activationRecordingMode is a minimal Mode used to capture the activation an
+// external command hands to a mode through ActivateMode.
+type activationRecordingMode struct {
 	modeType domain.Mode
-	lastOpts ModeActivationOptions
+	last     modecmd.Activation
 }
 
-func (m *optsRecordingMode) Activate(opts ModeActivationOptions) { m.lastOpts = opts }
-func (m *optsRecordingMode) HandleKey(string)                    {}
-func (m *optsRecordingMode) Exit()                               {}
-func (m *optsRecordingMode) ModeType() domain.Mode               { return m.modeType }
+func (m *activationRecordingMode) Activate(activation modecmd.Activation) { m.last = activation }
+func (m *activationRecordingMode) HandleKey(string)                       {}
+func (m *activationRecordingMode) Exit()                                  {}
+func (m *activationRecordingMode) ModeType() domain.Mode                  { return m.modeType }
 
-func TestActivateModeWithOptions_OmittedOnExitClearsStaleCallback(t *testing.T) {
-	fake := &optsRecordingMode{modeType: domain.ModeGrid}
+// newHandlerWithRecordingMode builds a handler whose only mode records what it
+// was activated with.
+func newHandlerWithRecordingMode(mode domain.Mode) (*Handler, *activationRecordingMode) {
+	recorder := &activationRecordingMode{modeType: mode}
 	handler := newHandlerWithState(handlerState{
 		logger:   zap.NewNop(),
 		appState: state.NewAppState(),
-		modes:    map[domain.Mode]Mode{domain.ModeGrid: fake},
+		modes:    map[domain.Mode]Mode{mode: recorder},
 	})
 
-	// An external activation that omits --on-exit must reach the mode with a
-	// non-nil, empty OnExit so the refresh branch clears any stored steps
-	// rather than preserving them.
-	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{})
+	return handler, recorder
+}
 
-	if fake.lastOpts.OnExit == nil {
+// TestActivateMode_HandsTheWholeActivationToTheMode pins that the handler
+// forwards the activation rather than rebuilding it. A field-by-field copy is
+// what used to drop flags between being read and being applied, so this
+// compares the whole value.
+//
+// Each case carries every flag its mode accepts and nothing it does not, so
+// what is asserted is an activation the grammar can actually produce.
+func TestActivateMode_HandsTheWholeActivationToTheMode(t *testing.T) {
+	act := actionLeftClick
+	modifier := keyPartCmd
+	strategy := strategyVision
+	labelDirection := dirReverse
+	depth := 3
+	given := true
+	holdCursor := false
+
+	tests := []struct {
+		name string
+		want modecmd.Activation
+	}{
+		{
+			name: "hints, which accepts the element-detection flags",
+			want: modecmd.Activation{
+				Mode:                  domain.ModeHints,
+				Action:                &act,
+				Modifier:              &modifier,
+				OnExit:                []string{stepExecFoo},
+				Repeat:                &given,
+				Toggle:                &given,
+				Search:                &given,
+				HideOnEmptySearch:     &given,
+				SplitWord:             &given,
+				CursorFollowSelection: &holdCursor,
+				FilterRoles:           []string{"AXButton"},
+				FilterTextContains:    []string{"OK"},
+				Strategy:              &strategy,
+				LabelDirection:        &labelDirection,
+			},
+		},
+		{
+			name: "recursive grid, the one mode that zooms",
+			want: modecmd.Activation{
+				Mode:                  domain.ModeRecursiveGrid,
+				Action:                &act,
+				Modifier:              &modifier,
+				OnExit:                []string{stepExecFoo},
+				Repeat:                &given,
+				Toggle:                &given,
+				CursorFollowSelection: &holdCursor,
+				ZoomToDepth:           &depth,
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			handler, recorder := newHandlerWithRecordingMode(testCase.want.Mode)
+
+			handler.ActivateMode(testCase.want)
+
+			if !reflect.DeepEqual(recorder.last, testCase.want) {
+				t.Fatalf("mode was activated with %+v, want %+v", recorder.last, testCase.want)
+			}
+		})
+	}
+}
+
+// TestActivateMode_OnExitAbsentClearsStaleSteps covers the sharpest edge of the
+// --on-exit contract as an external command sees it: a fresh command that says
+// nothing about --on-exit must not inherit the steps a previous activation
+// stored, or a later completed action runs a command the user never asked for.
+func TestActivateMode_OnExitAbsentClearsStaleSteps(t *testing.T) {
+	handler, recorder := newHandlerWithRecordingMode(domain.ModeGrid)
+
+	// Absent: normalized to a non-nil, empty value so the mode clears what it
+	// stored rather than preserving it.
+	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeGrid})
+
+	if recorder.last.OnExit == nil {
 		t.Fatal("expected omitted --on-exit to be normalized to a non-nil clear value")
 	}
 
-	if len(fake.lastOpts.OnExit) != 0 {
-		t.Fatalf("expected normalized on-exit to be empty, got %v", fake.lastOpts.OnExit)
+	if len(recorder.last.OnExit) != 0 {
+		t.Fatalf("expected normalized on-exit to be empty, got %v", recorder.last.OnExit)
+	}
+
+	// Given but empty: already the clear value, and it stays one.
+	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeGrid, OnExit: []string{}})
+
+	if recorder.last.OnExit == nil || len(recorder.last.OnExit) != 0 {
+		t.Fatalf("expected a given-but-empty --on-exit to stay a clear value, got %v",
+			recorder.last.OnExit)
 	}
 
 	// Explicit --on-exit steps must pass through untouched, in order.
-	want := []string{"exec foo", "action sleep 0.1"}
-	handler.ActivateModeWithOptions(domain.ModeGrid, ModeActivationOptions{OnExit: want})
+	want := []string{stepExecFoo, "action sleep 0.1"}
+	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeGrid, OnExit: want})
 
-	if !slices.Equal(fake.lastOpts.OnExit, want) {
-		t.Fatalf("expected on-exit %v to pass through, got %v", want, fake.lastOpts.OnExit)
+	if !slices.Equal(recorder.last.OnExit, want) {
+		t.Fatalf("expected on-exit %v to pass through, got %v", want, recorder.last.OnExit)
 	}
 }
 

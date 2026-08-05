@@ -2,6 +2,7 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // ScrollMode implements the Mode interface for scroll-based navigation.
@@ -13,8 +14,9 @@ type ScrollMode struct {
 // NewScrollMode creates a new scroll mode implementation.
 func NewScrollMode(handler *handlerState) *ScrollMode {
 	behavior := ModeBehavior{
-		ActivateFunc: func(handler *handlerState, _ ModeActivationOptions) {
-			// Scroll mode ignores activation options because it has a single activation flow.
+		ActivateFunc: func(handler *handlerState, _ modecmd.Activation) {
+			// Scroll mode reads no flags of its own: --toggle is the only one it
+			// accepts, and the handler answers that before a mode is reached.
 			handler.startInteractiveScroll()
 			handler.startIndicatorPolling(domain.ModeScroll)
 		},

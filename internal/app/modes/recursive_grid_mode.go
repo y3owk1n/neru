@@ -2,6 +2,7 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -12,8 +13,8 @@ type RecursiveGridMode struct {
 // NewRecursiveGridMode creates a new recursive-grid mode instance.
 func NewRecursiveGridMode(handler *handlerState) *RecursiveGridMode {
 	behavior := ModeBehavior{
-		ActivateFunc: func(handler *handlerState, opts ModeActivationOptions) {
-			handler.activateRecursiveGridModeWithAction(opts)
+		ActivateFunc: func(handler *handlerState, activation modecmd.Activation) {
+			handler.activateRecursiveGridModeWithAction(activation)
 		},
 		HandleKeyFunc: func(handler *handlerState, key string) {
 			handler.handleRecursiveGridKey(key)

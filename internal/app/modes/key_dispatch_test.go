@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	domainhint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -25,10 +26,10 @@ type recordingMode struct {
 	keys chan string
 }
 
-func (m *recordingMode) Activate(ModeActivationOptions) {}
-func (m *recordingMode) HandleKey(key string)           { m.keys <- key }
-func (m *recordingMode) Exit()                          {}
-func (m *recordingMode) ModeType() domain.Mode          { return domain.ModeRecursiveGrid }
+func (m *recordingMode) Activate(modecmd.Activation) {}
+func (m *recordingMode) HandleKey(key string)        { m.keys <- key }
+func (m *recordingMode) Exit()                       {}
+func (m *recordingMode) ModeType() domain.Mode       { return domain.ModeRecursiveGrid }
 
 func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 	t.Parallel()

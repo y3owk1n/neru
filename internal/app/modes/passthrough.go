@@ -9,6 +9,7 @@ import (
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // passthroughHintRefreshDelay is the delay before refreshing hints after a
@@ -187,7 +188,8 @@ func (h *handlerState) passthroughTick(mode domain.Mode, session uint64) {
 		strategyOverride := h.hints.Context.StrategyOverride()
 		labelDirectionOverride := h.hints.Context.LabelDirectionOverride()
 		splitWord := h.hints.Context.SplitWord()
-		h.activateHintModeInternal(ModeActivationOptions{
+		h.activateHintModeInternal(modecmd.Activation{
+			Mode:               domain.ModeHints,
 			FilterRoles:        filterRoles,
 			FilterTextContains: filterTextContains,
 			Search:             &startWithSearch,

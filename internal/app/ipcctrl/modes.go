@@ -16,8 +16,8 @@ import (
 // ModesHandler activates and exits the navigation modes on request.
 //
 // It holds no mode state of its own: the mode handler owns that, and this
-// translates a request into a call on it. It holds no rules either — what a
-// mode command may say is the grammar's business, in
+// hands it the activation the grammar parsed, unaltered. It holds no rules
+// either — what a mode command may say is the grammar's business, in
 // internal/domain/modecmd, which the CLI and the configuration validator read
 // the same command with.
 type ModesHandler struct {
@@ -76,33 +76,9 @@ func (h *ModesHandler) activationHandler(
 			return refusalFor(err)
 		}
 
-		h.modes.ActivateModeWithOptions(mode, activationOptions(activation))
+		h.modes.ActivateMode(activation)
 
 		return ipc.Response{Success: true, Message: activated, Code: ipc.CodeOK}
-	}
-}
-
-// activationOptions hands a parsed activation to the mode handler.
-//
-// The two types are the same set of values under two names, which is the last
-// of the copying this rework removes: the handler takes an Activation of its
-// own accord next.
-func activationOptions(activation modecmd.Activation) modes.ModeActivationOptions {
-	return modes.ModeActivationOptions{
-		Action:                activation.Action,
-		Modifier:              activation.Modifier,
-		OnExit:                activation.OnExit,
-		Repeat:                activation.Repeat,
-		CursorFollowSelection: activation.CursorFollowSelection,
-		ZoomToDepth:           activation.ZoomToDepth,
-		FilterRoles:           activation.FilterRoles,
-		FilterTextContains:    activation.FilterTextContains,
-		Search:                activation.Search,
-		HideOnEmptySearch:     activation.HideOnEmptySearch,
-		Strategy:              activation.Strategy,
-		LabelDirection:        activation.LabelDirection,
-		Toggle:                activation.Toggle,
-		SplitWord:             activation.SplitWord,
 	}
 }
 

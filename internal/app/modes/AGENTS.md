@@ -6,6 +6,6 @@
 - Lock order: `moveMonitorMu` → `h.mu`, never the reverse. Any new mutex needs a stated position in that order.
 - Don't hold `h.mu` across blocking calls (IPC, exec, channel sends) or adapter calls that can synchronously call back into the handler.
 
-The `Mode` interface is `Activate(ModeActivationOptions)`, `HandleKey(string)`, `Exit()`, `ModeType()`; embed `baseMode` (`base.go`) for defaults and register in the handler's mode map.
+The `Mode` interface is `Activate(modecmd.Activation)`, `HandleKey(string)`, `Exit()`, `ModeType()`; embed `baseMode` (`base.go`) for defaults and register in the handler's mode map. `Handler.ActivateMode` is the only activation entry point (`handler.go`).
 
 Concurrency-sensitive changes need a test that fails under `-race`: `go test -race ./internal/app/modes/`. Run the `deadlock-reviewer` agent on the diff before opening a PR.

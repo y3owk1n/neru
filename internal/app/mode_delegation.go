@@ -2,11 +2,14 @@ package app
 
 import (
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// ActivateMode activates the specified mode.
+// ActivateMode activates the specified mode with no flags, which is all a
+// systray entry has to say.
 func (a *App) ActivateMode(mode Mode) {
-	a.modes.ActivateMode(mode)
+	a.modes.ActivateMode(modecmd.Activation{Mode: mode})
 }
 
 // IsFocusedAppExcluded checks if the focused app is excluded.

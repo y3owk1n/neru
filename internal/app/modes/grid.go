@@ -13,10 +13,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
-func (h *handlerState) activateGridModeWithAction(opts ModeActivationOptions) {
+func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeGrid
 
@@ -84,15 +85,15 @@ func (h *handlerState) activateGridModeWithAction(opts ModeActivationOptions) {
 	// Show the overlay (the grid is already drawn with proper style)
 	h.overlayManager.Show()
 
-	applyGridOptions(h.grid.Context, opts, isRefresh)
+	applyGridFlags(h.grid.Context, activation, isRefresh)
 
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointer()
 
-	if opts.Action != nil {
+	if activation.Action != nil {
 		h.logger.Debug("Grid mode activated with pending action",
-			zap.String("action", *opts.Action),
-			zap.Bool("repeat", opts.Repeat != nil && *opts.Repeat))
+			zap.String("action", *activation.Action),
+			zap.Bool("repeat", activation.Repeat != nil && *activation.Repeat))
 	}
 
 	// Only set mode and enable event tap on initial activation;
@@ -283,40 +284,40 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 	)
 }
 
-// applyGridOptions writes an activation's options into the context. A refresh
+// applyGridFlags writes the flags an activation carries into the context. A refresh
 // writes only what it was given; a fresh activation writes every field so
 // nothing leaks over from the previous run.
-func applyGridOptions(ctx *grid.Context, opts ModeActivationOptions, isRefresh bool) {
+func applyGridFlags(ctx *grid.Context, activation modecmd.Activation, isRefresh bool) {
 	if isRefresh {
-		if opts.Action != nil {
-			ctx.SetPendingAction(opts.Action)
+		if activation.Action != nil {
+			ctx.SetPendingAction(activation.Action)
 		}
 
-		if opts.OnExit != nil {
-			ctx.SetOnExit(opts.OnExit)
+		if activation.OnExit != nil {
+			ctx.SetOnExit(activation.OnExit)
 		}
 
-		if opts.Modifier != nil {
-			ctx.SetPendingModifier(opts.Modifier)
+		if activation.Modifier != nil {
+			ctx.SetPendingModifier(activation.Modifier)
 		}
 
-		if opts.Repeat != nil {
-			ctx.SetRepeat(*opts.Repeat)
+		if activation.Repeat != nil {
+			ctx.SetRepeat(*activation.Repeat)
 		}
 
-		if opts.CursorFollowSelection != nil {
-			ctx.SetCursorFollowSelection(*opts.CursorFollowSelection)
+		if activation.CursorFollowSelection != nil {
+			ctx.SetCursorFollowSelection(*activation.CursorFollowSelection)
 		}
 
 		return
 	}
 
-	ctx.SetPendingAction(opts.Action)
-	ctx.SetOnExit(opts.OnExit)
-	ctx.SetPendingModifier(opts.Modifier)
-	ctx.SetRepeat(opts.Repeat != nil && *opts.Repeat)
+	ctx.SetPendingAction(activation.Action)
+	ctx.SetOnExit(activation.OnExit)
+	ctx.SetPendingModifier(activation.Modifier)
+	ctx.SetRepeat(activation.Repeat != nil && *activation.Repeat)
 	ctx.SetCursorFollowSelection(resolveCursorFollowSelection(
 		domain.ModeGrid,
-		opts.CursorFollowSelection,
+		activation.CursorFollowSelection,
 	))
 }

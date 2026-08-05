@@ -55,7 +55,7 @@ func (h *Handler) RefreshHintsForScreenChange(
 		h.cancelHintSearch()
 	}
 
-	// Get current filter options from context
+	// Get the filters the mode was activated with from the context
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
 	strategyOverride := h.hints.Context.StrategyOverride()

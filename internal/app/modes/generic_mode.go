@@ -2,12 +2,13 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // ModeBehavior defines the behavior-specific functions for a mode.
 type ModeBehavior struct {
 	// ActivateFunc handles mode activation (optional, defaults to standard activation)
-	ActivateFunc func(handler *handlerState, opts ModeActivationOptions)
+	ActivateFunc func(handler *handlerState, activation modecmd.Activation)
 
 	// HandleKeyFunc handles key processing (optional, defaults to standard key handling)
 	HandleKeyFunc func(handler *handlerState, key string)
@@ -38,21 +39,18 @@ func NewGenericMode(
 }
 
 // Activate activates the mode using the configured behavior or default logic.
-func (m *GenericMode) Activate(opts ModeActivationOptions) {
+func (m *GenericMode) Activate(activation modecmd.Activation) {
 	if m.behavior.ActivateFunc != nil {
-		m.behavior.ActivateFunc(m.handler, opts)
+		m.behavior.ActivateFunc(m.handler, activation)
 	} else {
 		// Default activation - try to activate with action
 		switch m.modeType {
 		case domain.ModeHints:
-			m.handler.activateHintModeWithAction(opts)
+			m.handler.activateHintModeWithAction(activation)
 		case domain.ModeGrid:
-			m.handler.activateGridModeWithAction(opts)
+			m.handler.activateGridModeWithAction(activation)
 		case domain.ModeRecursiveGrid:
-			// Zoom is not re-applied on screen change.
-			noZoom := opts
-			noZoom.ZoomToDepth = nil
-			m.handler.activateRecursiveGridModeWithAction(noZoom)
+			m.handler.activateRecursiveGridModeWithAction(activation)
 		case domain.ModeScroll:
 			m.handler.startInteractiveScroll()
 		case domain.ModeIdle:

@@ -8,6 +8,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -281,7 +282,8 @@ func (h *Handler) CycleHint(ctx context.Context, backward bool, executeAction bo
 		splitWord := h.hints.Context.SplitWord()
 
 		h.executeActionAtPoint(pendingAction, pendingModifier, center, repeat, func() {
-			h.activateHintModeInternal(ModeActivationOptions{
+			h.activateHintModeInternal(modecmd.Activation{
+				Mode:               domain.ModeHints,
 				FilterRoles:        filterRoles,
 				FilterTextContains: filterTextContains,
 				Search:             &startWithSearch,

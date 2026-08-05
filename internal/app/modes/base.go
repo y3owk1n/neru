@@ -2,6 +2,7 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 const (
@@ -42,7 +43,7 @@ func (m *baseMode) ModeType() domain.Mode {
 }
 
 // Activate provides a default empty implementation for modes that don't need activation logic.
-func (m *baseMode) Activate(_ ModeActivationOptions) {
+func (m *baseMode) Activate(_ modecmd.Activation) {
 	// Default empty implementation - modes can override if needed
 }
 

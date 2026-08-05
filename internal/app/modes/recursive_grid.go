@@ -12,13 +12,14 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
 // activateRecursiveGridModeWithAction activates recursive-grid mode with optional action parameter
 // and optional zoom-to-depth. When zoomToDepth is set, the mode will automatically drill down to
 // the specified depth at the current cursor position before awaiting user input.
-func (h *handlerState) activateRecursiveGridModeWithAction(opts ModeActivationOptions) {
+func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Activation) {
 	// Detect refresh before validation so we can do partial cleanup on re-activation.
 	isRefresh := h.appState.CurrentMode() == domain.ModeRecursiveGrid
 
@@ -71,24 +72,29 @@ func (h *handlerState) activateRecursiveGridModeWithAction(opts ModeActivationOp
 	h.initializeRecursiveGridManager(normalizedBounds)
 
 	var cursorShouldFollow bool
-	if isRefresh && opts.CursorFollowSelection == nil && h.recursiveGrid.Context != nil {
+	if isRefresh && activation.CursorFollowSelection == nil && h.recursiveGrid.Context != nil {
 		cursorShouldFollow = h.recursiveGrid.Context.CursorFollowSelection()
 	} else {
 		cursorShouldFollow = resolveCursorFollowSelection(
 			domain.ModeRecursiveGrid,
-			opts.CursorFollowSelection,
+			activation.CursorFollowSelection,
 		)
 	}
 
 	// Auto-zoom to depth if requested.
 	// This reads the cursor position *before* we potentially move it to
 	// the grid center below, so zoom uses the user's actual cursor location.
-	if opts.ZoomToDepth != nil && *opts.ZoomToDepth > 0 && h.recursiveGrid.Manager != nil &&
+	// A refresh is excluded: --zoom-to-depth drills down from where the cursor
+	// was when the mode was entered, and re-applying it on a repeat
+	// re-activation or a screen change would drag the user back down a level
+	// they had already climbed out of.
+	if activation.ZoomToDepth != nil && *activation.ZoomToDepth > 0 &&
+		h.recursiveGrid.Manager != nil &&
 		!isRefresh {
 		cursorPos, posErr := h.actionService.CursorPosition(h.ctx)
 		if posErr == nil {
 			localCursorPos := geometry.ConvertToLocalCoordinates(cursorPos, h.screenBounds)
-			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *opts.ZoomToDepth)
+			h.recursiveGrid.Manager.ZoomToPoint(localCursorPos, *activation.ZoomToDepth)
 		} else {
 			h.logger.Warn("Failed to get cursor position for zoom", zap.Error(posErr))
 		}
@@ -98,14 +104,19 @@ func (h *handlerState) activateRecursiveGridModeWithAction(opts ModeActivationOp
 	// When zoom-to-depth is active, skip this — the zoom completion handler
 	// (or partial-zoom handler below) positions the cursor from the user's
 	// actual cursor position rather than the grid center.
-	isZoomRequested := opts.ZoomToDepth != nil && *opts.ZoomToDepth > 0 && !isRefresh
+	isZoomRequested := activation.ZoomToDepth != nil && *activation.ZoomToDepth > 0 && !isRefresh
 	if !isZoomRequested {
 		h.selectRecursiveGridCenter(cursorShouldFollow, "Failed to move cursor to initial center")
 	}
 
 	// Draw initial recursive-grid
 	if h.recursiveGrid.Context != nil {
-		applyRecursiveGridOptions(h.recursiveGrid.Context, opts, isRefresh, cursorShouldFollow)
+		applyRecursiveGridFlags(
+			h.recursiveGrid.Context,
+			activation,
+			isRefresh,
+			cursorShouldFollow,
+		)
 	}
 
 	// When zoom-to-depth completed (or clamped), update the selection point
@@ -122,11 +133,11 @@ func (h *handlerState) activateRecursiveGridModeWithAction(opts ModeActivationOp
 	h.overlayManager.ResizeToActiveScreen()
 	h.overlayManager.Show()
 
-	if opts.Action != nil {
+	if activation.Action != nil {
 		h.logger.Debug(
 			"Recursive-grid mode activated with pending action",
-			zap.String("action", *opts.Action),
-			zap.Bool("repeat", opts.Repeat != nil && *opts.Repeat),
+			zap.String("action", *activation.Action),
+			zap.Bool("repeat", activation.Repeat != nil && *activation.Repeat),
 		)
 	}
 
@@ -227,7 +238,8 @@ func (h *handlerState) handleRecursiveGridKey(key string) {
 			pendingModifier,
 			repeat, // Re-activate recursive-grid mode when --repeat is set
 			func() {
-				h.activateRecursiveGridModeWithAction(ModeActivationOptions{
+				h.activateRecursiveGridModeWithAction(modecmd.Activation{
+					Mode:                  domain.ModeRecursiveGrid,
 					Action:                pendingAction,
 					Modifier:              pendingModifier,
 					Repeat:                &repeat,
@@ -316,43 +328,43 @@ func (h *handlerState) cleanupRecursiveGridMode() {
 	h.clearAndHideOverlay()
 }
 
-// applyRecursiveGridOptions writes an activation's options into the context.
+// applyRecursiveGridFlags writes the flags an activation carries into the context.
 // A refresh writes only what it was given; a fresh activation writes every
 // field so nothing leaks over from the previous run.
-func applyRecursiveGridOptions(
+func applyRecursiveGridFlags(
 	ctx *componentrecursivegrid.Context,
-	opts ModeActivationOptions,
+	activation modecmd.Activation,
 	isRefresh bool,
 	cursorShouldFollow bool,
 ) {
 	if isRefresh {
-		if opts.Action != nil {
-			ctx.SetPendingAction(opts.Action)
+		if activation.Action != nil {
+			ctx.SetPendingAction(activation.Action)
 		}
 
-		if opts.OnExit != nil {
-			ctx.SetOnExit(opts.OnExit)
+		if activation.OnExit != nil {
+			ctx.SetOnExit(activation.OnExit)
 		}
 
-		if opts.Modifier != nil {
-			ctx.SetPendingModifier(opts.Modifier)
+		if activation.Modifier != nil {
+			ctx.SetPendingModifier(activation.Modifier)
 		}
 
-		if opts.Repeat != nil {
-			ctx.SetRepeat(*opts.Repeat)
+		if activation.Repeat != nil {
+			ctx.SetRepeat(*activation.Repeat)
 		}
 
-		if opts.CursorFollowSelection != nil {
-			ctx.SetCursorFollowSelection(*opts.CursorFollowSelection)
+		if activation.CursorFollowSelection != nil {
+			ctx.SetCursorFollowSelection(*activation.CursorFollowSelection)
 		}
 
 		return
 	}
 
-	ctx.SetPendingAction(opts.Action)
-	ctx.SetOnExit(opts.OnExit)
-	ctx.SetPendingModifier(opts.Modifier)
-	ctx.SetRepeat(opts.Repeat != nil && *opts.Repeat)
+	ctx.SetPendingAction(activation.Action)
+	ctx.SetOnExit(activation.OnExit)
+	ctx.SetPendingModifier(activation.Modifier)
+	ctx.SetRepeat(activation.Repeat != nil && *activation.Repeat)
 	ctx.SetCursorFollowSelection(cursorShouldFollow)
 }
 
