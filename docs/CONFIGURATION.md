@@ -369,6 +369,14 @@ Multi-key sequences (e.g. `gg`, `ab`) are supported for per-mode hotkeys with a 
 
 **Shell commands** use the `exec` prefix: `"Primary+T" = "exec open -a Terminal"`
 
+**Mode commands take the same flags they take on the command line**, and are
+read the same way: `"Primary+Shift+Space" = "hints --action left_click --repeat"`
+behaves exactly as `neru hints --action left_click --repeat` does. A flag the
+named mode does not accept, a mistyped flag, and a flag whose partner is
+missing — `--on-exit` without `--action`, for instance — are refused when the
+key is pressed rather than dropped in silence, with the message the CLI gives
+for the same mistake.
+
 #### Merging Behavior
 
 | Config                 | Result                    |

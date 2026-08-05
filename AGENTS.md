@@ -50,7 +50,7 @@ Hexagonal (ports and adapters). Domain and application logic are pure Go; every 
 cmd/neru            entry point (main_darwin.go calls runtime.LockOSThread for Cocoa)
 internal/cli        Cobra commands; most just send an IPC request to the daemon
 internal/app        wiring, lifecycle, modes, services, IPC controller
-internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modeflag
+internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modecmd
 internal/ports      interface contracts + `mocks/`
 internal/derrors    the shared error vocabulary (package name is `derrors`)
 internal/adapter    adapters: accessibility, eventtap, hotkeys, overlay, ipc, vision, systray, platform/*

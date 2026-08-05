@@ -58,7 +58,7 @@ func TestExtractProbeOptions_RefusesActivationFlags(t *testing.T) {
 		flagToggle,
 		"--on-exit=scroll",
 		"--search",
-		argLabelDirectionReverse,
+		"--label-direction=reverse",
 		"--cursor-selection-mode=hold",
 		leftClick,
 	} {

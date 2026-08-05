@@ -1522,6 +1522,13 @@ scripts are safe.
 `scroll`, `monitor_select`, `idle` — or one of the standalone commands. `args`
 carries the same flags a user would type.
 
+A mode command's flags are read exactly as the CLI reads them, and answered
+with the same message: an unknown flag, a flag the named mode does not accept,
+an unusable value, and an unmet dependency such as `--on-exit` without
+`--action` are all refused with `ERR_INVALID_INPUT` rather than accepted and
+dropped. Repeating the mode's own name as the first entry of `args` — which is
+what the CLI itself sends — is accepted and ignored.
+
 **Probing without activating**
 
 `hints-probe` reports what hints mode would target for the focused window and

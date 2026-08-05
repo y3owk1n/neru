@@ -10,25 +10,45 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
-	"github.com/y3owk1n/neru/internal/domain/modeflag"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// validateOnExitSteps trims each --on-exit value and rejects blank ones, so a
-// quoting mistake fails at the CLI rather than silently dropping a step from
-// the sequence that runs once the mode's action is fulfilled.
-func validateOnExitSteps(values []string) ([]string, error) {
+// flagDebug asks for a probe rather than an activation.
+//
+// It is the one mode-command flag the grammar does not hold, and deliberately:
+// a probe reports what hints mode would target and enters nothing, so it
+// travels as its own request. --debug stays its command-line spelling, and the
+// CLI is the only place that has to know that.
+const (
+	flagDebug      modecmd.Flag = "debug"
+	flagDebugShort string       = "d"
+)
+
+// shortOf returns a flag's single-letter alias as the grammar declares it.
+// Cobra reads an empty shorthand as none.
+func shortOf(flag modecmd.Flag) string {
+	descriptor, known := modecmd.Lookup(flag)
+	if !known {
+		return ""
+	}
+
+	return descriptor.Short()
+}
+
+// trimOnExitSteps trims each --on-exit value, so that a step's padding does not
+// travel into the sequence that runs once the mode's action is fulfilled.
+//
+// A blank one is kept rather than refused: an empty --on-exit is how a command
+// says it wants the steps a previous activation stored cleared and nothing run
+// in their place, and the grammar reads it that way wherever it is written.
+func trimOnExitSteps(values []string) []string {
 	steps := make([]string, 0, len(values))
 
 	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			return nil, derrors.New(derrors.CodeInvalidInput, "--on-exit steps cannot be empty")
-		}
-
-		steps = append(steps, trimmed)
+		steps = append(steps, strings.TrimSpace(value))
 	}
 
-	return steps, nil
+	return steps
 }
 
 // ModeConfig holds configuration for creating a mode command.
@@ -59,7 +79,7 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 			// Validate before requiring a running daemon so users get
 			// immediate feedback on invalid arguments regardless of daemon state.
 			if config.SupportZoomToDepth {
-				zoomToDepth, err := cmd.Flags().GetInt(modeflag.ZoomToDepth.String())
+				zoomToDepth, err := cmd.Flags().GetInt(modecmd.FlagZoomToDepth.String())
 				if err == nil && zoomToDepth < 0 {
 					return derrors.New(
 						derrors.CodeInvalidInput,
@@ -101,8 +121,8 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 // registerModeFlags declares the flags this mode supports.
 func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 	cmd.Flags().StringP(
-		modeflag.Action.String(),
-		modeflag.Action.Short(),
+		modecmd.FlagAction.String(),
+		shortOf(modecmd.FlagAction),
 		"",
 		fmt.Sprintf(
 			"Mouse button action to perform on %s (%s). Commas chain multiple actions "+
@@ -114,38 +134,38 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 	)
 
 	cmd.Flags().BoolP(
-		modeflag.Toggle.String(),
-		modeflag.Toggle.Short(),
+		modecmd.FlagToggle.String(),
+		shortOf(modecmd.FlagToggle),
 		false,
 		"Toggle mode on/off (exit to idle if already active)",
 	)
 
 	cmd.Flags().BoolP(
-		modeflag.Repeat.String(),
-		modeflag.Repeat.Short(),
+		modecmd.FlagRepeat.String(),
+		shortOf(modecmd.FlagRepeat),
 		false,
 		"Re-activate mode after performing the action (requires --action)",
 	)
 
 	cmd.Flags().String(
-		modeflag.Modifier.String(),
+		modecmd.FlagModifier.String(),
 		"",
 		"Comma-separated modifier keys to hold during action (cmd, super, meta, shift, alt, option, ctrl) (requires --action)",
 	)
 	cmd.Flags().StringArray(
-		modeflag.OnExit.String(),
+		modecmd.FlagOnExit.String(),
 		nil,
 		"Step to run after the action is fulfilled and the mode exits (same syntax as hotkeys, e.g. 'action left_click' or 'exec notify-send done'). Repeat the flag to run several steps in order. Requires --action; not run on manual escape/idle",
 	)
 	cmd.Flags().String(
-		modeflag.CursorSelectionMode.String(),
+		modecmd.FlagCursorSelectionMode.String(),
 		"",
 		"How the real cursor should behave during selection: follow or hold",
 	)
 
 	if config.SupportZoomToDepth {
 		cmd.Flags().Int(
-			modeflag.ZoomToDepth.String(),
+			modecmd.FlagZoomToDepth.String(),
 			0,
 			"Auto-zoom to the specified depth in recursive-grid at the current cursor position",
 		)
@@ -153,8 +173,8 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportSearch {
 		cmd.Flags().BoolP(
-			modeflag.Search.String(),
-			modeflag.Search.Short(),
+			modecmd.FlagSearch.String(),
+			shortOf(modecmd.FlagSearch),
 			false,
 			"Show search input when the mode is activated",
 		)
@@ -162,7 +182,7 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportHideOnEmptySearch {
 		cmd.Flags().Bool(
-			modeflag.HideOnEmptySearch.String(),
+			modecmd.FlagHideOnEmptySearch.String(),
 			false,
 			"Hide all hints when search query is empty (requires --search)",
 		)
@@ -170,12 +190,12 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportFiltering {
 		cmd.Flags().String(
-			modeflag.Role.String(),
+			modecmd.FlagRole.String(),
 			"",
 			"Filter by AX role (comma-separated: AXButton,AXLink)",
 		)
 		cmd.Flags().String(
-			modeflag.Text.String(),
+			modecmd.FlagText.String(),
 			"",
 			"Filter elements by text content (comma-separated, case-insensitive substring match)",
 		)
@@ -183,7 +203,7 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportStrategy {
 		cmd.Flags().String(
-			modeflag.Strategy.String(),
+			modecmd.FlagStrategy.String(),
 			"",
 			"Element detection strategy: axtree (macOS AX API) or vision (Vision Framework)",
 		)
@@ -191,8 +211,8 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportDebug {
 		cmd.Flags().BoolP(
-			modeflag.Debug.String(),
-			modeflag.Debug.Short(),
+			flagDebug.String(),
+			flagDebugShort,
 			false,
 			"Probe the focused window and print detected clickable elements without showing the overlay",
 		)
@@ -200,7 +220,7 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportLabelDirection {
 		cmd.Flags().String(
-			modeflag.LabelDirection.String(),
+			modecmd.FlagLabelDirection.String(),
 			"",
 			"Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet)",
 		)
@@ -208,7 +228,7 @@ func registerModeFlags(cmd *cobra.Command, config ModeConfig) {
 
 	if config.SupportSplitWord {
 		cmd.Flags().Bool(
-			modeflag.SplitWord.String(),
+			modecmd.FlagSplitWord.String(),
 			false,
 			"Split detected text into word-level regions (requires vision strategy)",
 		)
@@ -239,39 +259,36 @@ type modeFlags struct {
 // support keeps its zero value, which the checks and the request both read as
 // absent.
 func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
-	actionFlag, err := cmd.Flags().GetString(modeflag.Action.String())
+	actionFlag, err := cmd.Flags().GetString(modecmd.FlagAction.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
 
-	modifierFlag, err := cmd.Flags().GetString(modeflag.Modifier.String())
+	modifierFlag, err := cmd.Flags().GetString(modecmd.FlagModifier.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
 
-	onExitFlag, err := cmd.Flags().GetStringArray(modeflag.OnExit.String())
+	onExitFlag, err := cmd.Flags().GetStringArray(modecmd.FlagOnExit.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
 
-	onExitSteps, err := validateOnExitSteps(onExitFlag)
+	onExitSteps := trimOnExitSteps(onExitFlag)
+
+	repeatFlag, err := cmd.Flags().GetBool(modecmd.FlagRepeat.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
 
-	repeatFlag, err := cmd.Flags().GetBool(modeflag.Repeat.String())
-	if err != nil {
-		return modeFlags{}, err
-	}
-
-	toggleFlag, err := cmd.Flags().GetBool(modeflag.Toggle.String())
+	toggleFlag, err := cmd.Flags().GetBool(modecmd.FlagToggle.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
 
 	var searchFlag bool
 	if config.SupportSearch {
-		searchFlag, err = cmd.Flags().GetBool(modeflag.Search.String())
+		searchFlag, err = cmd.Flags().GetBool(modecmd.FlagSearch.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -279,12 +296,12 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var roleFlag, textFlag string
 	if config.SupportFiltering {
-		roleFlag, err = cmd.Flags().GetString(modeflag.Role.String())
+		roleFlag, err = cmd.Flags().GetString(modecmd.FlagRole.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
 
-		textFlag, err = cmd.Flags().GetString(modeflag.Text.String())
+		textFlag, err = cmd.Flags().GetString(modecmd.FlagText.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -292,7 +309,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var strategyFlag string
 	if config.SupportStrategy {
-		strategyFlag, err = cmd.Flags().GetString(modeflag.Strategy.String())
+		strategyFlag, err = cmd.Flags().GetString(modecmd.FlagStrategy.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -300,7 +317,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var debugFlag bool
 	if config.SupportDebug {
-		debugFlag, err = cmd.Flags().GetBool(modeflag.Debug.String())
+		debugFlag, err = cmd.Flags().GetBool(flagDebug.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -308,7 +325,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var splitWordFlag bool
 	if config.SupportSplitWord {
-		splitWordFlag, err = cmd.Flags().GetBool(modeflag.SplitWord.String())
+		splitWordFlag, err = cmd.Flags().GetBool(modecmd.FlagSplitWord.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -316,7 +333,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var hideOnEmptySearchFlag bool
 	if config.SupportHideOnEmptySearch {
-		hideOnEmptySearchFlag, err = cmd.Flags().GetBool(modeflag.HideOnEmptySearch.String())
+		hideOnEmptySearchFlag, err = cmd.Flags().GetBool(modecmd.FlagHideOnEmptySearch.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -324,7 +341,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var labelDirectionFlag string
 	if config.SupportLabelDirection {
-		labelDirectionFlag, err = cmd.Flags().GetString(modeflag.LabelDirection.String())
+		labelDirectionFlag, err = cmd.Flags().GetString(modecmd.FlagLabelDirection.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -332,7 +349,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 
 	var zoomToDepthFlag int
 	if config.SupportZoomToDepth {
-		zoomToDepthFlag, err = cmd.Flags().GetInt("zoom-to-depth")
+		zoomToDepthFlag, err = cmd.Flags().GetInt(modecmd.FlagZoomToDepth.String())
 		if err != nil {
 			return modeFlags{}, err
 		}
@@ -345,7 +362,7 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 		}
 	}
 
-	cursorSelectionMode, err := cmd.Flags().GetString(modeflag.CursorSelectionMode.String())
+	cursorSelectionMode, err := cmd.Flags().GetString(modecmd.FlagCursorSelectionMode.String())
 	if err != nil {
 		return modeFlags{}, err
 	}
@@ -370,8 +387,10 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 }
 
 // validate applies the rules that involve more than one flag. The daemon
-// enforces the same ones; doing it here too is what makes a mistyped command
-// fail immediately rather than after a round trip.
+// enforces the same ones through the mode-command grammar; doing it here too is
+// what makes a mistyped command fail immediately rather than after a round
+// trip, and the wording is the grammar's word for word so that one rule gives
+// one message wherever the command came from.
 func (f modeFlags) validate() error {
 	debugErr := f.validateDebugIsAlone()
 	if debugErr != nil {
@@ -383,7 +402,7 @@ func (f modeFlags) validate() error {
 		f.cursorSelectionMode != domain.CursorSelectionModeHold {
 		return derrors.New(
 			derrors.CodeInvalidInput,
-			"--cursor-selection-mode must be either follow or hold",
+			"--cursor-selection-mode requires follow or hold",
 		)
 	}
 
@@ -461,8 +480,7 @@ func (f modeFlags) validate() error {
 			if action.IsScrollSubAction(trimmed) {
 				return derrors.Newf(
 					derrors.CodeInvalidInput,
-					"scroll sub-action %q cannot be used as a mode --action flag; use 'neru action %s' instead",
-					trimmed,
+					"scroll sub-action %q cannot be used as a mode action; only mouse button actions can",
 					trimmed,
 				)
 			}
@@ -471,8 +489,7 @@ func (f modeFlags) validate() error {
 			if err != nil || !actType.IsMouseButton() {
 				return derrors.Newf(
 					derrors.CodeInvalidInput,
-					"%q cannot be used as a mode --action flag; use 'neru action %s' instead",
-					trimmed,
+					"%q cannot be used as a mode action; only mouse button actions can",
 					trimmed,
 				)
 			}
@@ -495,19 +512,19 @@ func (f modeFlags) validateDebugIsAlone() error {
 	}
 
 	activationOnly := []struct {
-		flag modeflag.Name
+		flag modecmd.Flag
 		set  bool
 	}{
-		{modeflag.Action, f.action != ""},
-		{modeflag.Modifier, f.modifier != ""},
-		{modeflag.OnExit, len(f.onExitSteps) > 0},
-		{modeflag.Repeat, f.repeat},
-		{modeflag.Toggle, f.toggle},
-		{modeflag.Search, f.search},
-		{modeflag.HideOnEmptySearch, f.hideOnEmptySearch},
-		{modeflag.LabelDirection, f.labelDirection != ""},
-		{modeflag.ZoomToDepth, f.zoomToDepth > 0},
-		{modeflag.CursorSelectionMode, f.cursorSelectionMode != ""},
+		{modecmd.FlagAction, f.action != ""},
+		{modecmd.FlagModifier, f.modifier != ""},
+		{modecmd.FlagOnExit, len(f.onExitSteps) > 0},
+		{modecmd.FlagRepeat, f.repeat},
+		{modecmd.FlagToggle, f.toggle},
+		{modecmd.FlagSearch, f.search},
+		{modecmd.FlagHideOnEmptySearch, f.hideOnEmptySearch},
+		{modecmd.FlagLabelDirection, f.labelDirection != ""},
+		{modecmd.FlagZoomToDepth, f.zoomToDepth > 0},
+		{modecmd.FlagCursorSelectionMode, f.cursorSelectionMode != ""},
 	}
 
 	for _, candidate := range activationOnly {
@@ -515,8 +532,8 @@ func (f modeFlags) validateDebugIsAlone() error {
 			return derrors.Newf(
 				derrors.CodeInvalidInput,
 				"%s cannot be combined with %s: a probe reports what would be targeted without entering the mode",
-				modeflag.Debug.Flag(),
-				candidate.flag.Flag(),
+				flagDebug.Long(),
+				candidate.flag.Long(),
 			)
 		}
 	}
@@ -533,19 +550,19 @@ func (f modeFlags) probeArgs() []string {
 	var params []string
 
 	if f.role != "" {
-		params = append(params, modeflag.Role.Assign(f.role))
+		params = append(params, modecmd.FlagRole.Assign(f.role))
 	}
 
 	if f.text != "" {
-		params = append(params, modeflag.Text.Assign(f.text))
+		params = append(params, modecmd.FlagText.Assign(f.text))
 	}
 
 	if f.strategy != "" {
-		params = append(params, modeflag.Strategy.Assign(f.strategy))
+		params = append(params, modecmd.FlagStrategy.Assign(f.strategy))
 	}
 
 	if f.splitWord {
-		params = append(params, modeflag.SplitWord.Flag())
+		params = append(params, modecmd.FlagSplitWord.Long())
 	}
 
 	return params
@@ -561,55 +578,55 @@ func (f modeFlags) ipcArgs(config ModeConfig) []string {
 	}
 
 	if f.modifier != "" {
-		params = append(params, modeflag.Modifier.Assign(f.modifier))
+		params = append(params, modecmd.FlagModifier.Assign(f.modifier))
 	}
 
 	for _, step := range f.onExitSteps {
-		params = append(params, modeflag.OnExit.Assign(step))
+		params = append(params, modecmd.FlagOnExit.Assign(step))
 	}
 
 	if f.repeat {
-		params = append(params, modeflag.Repeat.Flag())
+		params = append(params, modecmd.FlagRepeat.Long())
 	}
 
 	if f.toggle {
-		params = append(params, modeflag.Toggle.Flag())
+		params = append(params, modecmd.FlagToggle.Long())
 	}
 
 	if f.search {
-		params = append(params, modeflag.Search.Flag())
+		params = append(params, modecmd.FlagSearch.Long())
 	}
 
 	if f.hideOnEmptySearch {
-		params = append(params, modeflag.HideOnEmptySearch.Flag())
+		params = append(params, modecmd.FlagHideOnEmptySearch.Long())
 	}
 
 	if f.role != "" {
-		params = append(params, modeflag.Role.Assign(f.role))
+		params = append(params, modecmd.FlagRole.Assign(f.role))
 	}
 
 	if f.text != "" {
-		params = append(params, modeflag.Text.Assign(f.text))
+		params = append(params, modecmd.FlagText.Assign(f.text))
 	}
 
 	if f.cursorSelectionMode != "" {
-		params = append(params, modeflag.CursorSelectionMode.Assign(f.cursorSelectionMode))
+		params = append(params, modecmd.FlagCursorSelectionMode.Assign(f.cursorSelectionMode))
 	}
 
 	if config.SupportZoomToDepth && f.zoomToDepth > 0 {
-		params = append(params, modeflag.ZoomToDepth.Assign(strconv.Itoa(f.zoomToDepth)))
+		params = append(params, modecmd.FlagZoomToDepth.Assign(strconv.Itoa(f.zoomToDepth)))
 	}
 
 	if f.strategy != "" {
-		params = append(params, modeflag.Strategy.Assign(f.strategy))
+		params = append(params, modecmd.FlagStrategy.Assign(f.strategy))
 	}
 
 	if f.labelDirection != "" {
-		params = append(params, modeflag.LabelDirection.Assign(f.labelDirection))
+		params = append(params, modecmd.FlagLabelDirection.Assign(f.labelDirection))
 	}
 
 	if f.splitWord {
-		params = append(params, modeflag.SplitWord.Flag())
+		params = append(params, modecmd.FlagSplitWord.Long())
 	}
 
 	return params
