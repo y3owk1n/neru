@@ -10,7 +10,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/adapter/platform"
 )
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
@@ -50,12 +49,7 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
 
-	systemPort, systemPortErr := platform.NewSystemPort()
-	if systemPortErr != nil {
-		t.Fatalf("Failed to create system port: %v", systemPortErr)
-	}
-
-	adapter := overlay.NewAdapter(manager, theme, systemPort, logger)
+	adapter := overlay.NewAdapter(manager, theme, logger)
 
 	ctx := context.Background()
 
@@ -64,14 +58,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 		showHintsErr := adapter.ShowHints(ctx, nil)
 		if showHintsErr != nil {
 			t.Errorf("ShowHints() error = %v, want nil", showHintsErr)
-		}
-	})
-
-	t.Run("ShowGrid", func(t *testing.T) {
-		// ShowGrid should not error with valid dimensions
-		showGridErr := adapter.ShowGrid(ctx)
-		if showGridErr != nil {
-			t.Errorf("ShowGrid() error = %v, want nil", showGridErr)
 		}
 	})
 
@@ -105,13 +91,13 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 			t.Fatal("IsVisible() = true after Hide(), want false")
 		}
 
-		err = adapter.ShowGrid(ctx)
+		err = adapter.ShowHints(ctx, nil)
 		if err != nil {
-			t.Fatalf("ShowGrid() error = %v, want nil", err)
+			t.Fatalf("ShowHints() error = %v, want nil", err)
 		}
 
 		if !adapter.IsVisible() {
-			t.Error("IsVisible() = false after ShowGrid(), want true")
+			t.Error("IsVisible() = false after ShowHints(), want true")
 		}
 
 		err = adapter.Hide(ctx)
@@ -141,12 +127,7 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
 
-	systemPort, systemPortErr := platform.NewSystemPort()
-	if systemPortErr != nil {
-		t.Fatalf("Failed to create system port: %v", systemPortErr)
-	}
-
-	adapter := overlay.NewAdapter(manager, theme, systemPort, logger)
+	adapter := overlay.NewAdapter(manager, theme, logger)
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -158,17 +139,6 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 			t.Errorf(
 				"ShowHints() with canceled context error = %v, want %v",
 				showHintsErr,
-				context.Canceled,
-			)
-		}
-	})
-
-	t.Run("ShowGrid with canceled context", func(t *testing.T) {
-		showGridErr := adapter.ShowGrid(ctx)
-		if !errors.Is(showGridErr, context.Canceled) {
-			t.Errorf(
-				"ShowGrid() with canceled context error = %v, want %v",
-				showGridErr,
 				context.Canceled,
 			)
 		}

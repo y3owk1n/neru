@@ -24,19 +24,13 @@ type MouseActionIndicatorStyle struct {
 }
 
 // OverlayPort is the interface for managing UI overlays.
-// Implementations handle the platform-specific rendering of hints and grids.
+// Implementations handle the platform-specific rendering of hints and indicators.
 type OverlayPort interface {
 	// Health returns nil if the component is healthy, or an error if it is not.
 	Health(ctx context.Context) error
 
 	// ShowHints displays hint labels on the screen.
 	ShowHints(ctx context.Context, hints []*hint.Interface) error
-
-	// ShowGrid displays the grid overlay.
-	ShowGrid(ctx context.Context) error
-
-	// Show shows the overlay.
-	Show()
 
 	// DrawModeIndicator draws a mode indicator at the specified position.
 	DrawModeIndicator(x, y int)

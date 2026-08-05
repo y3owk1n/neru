@@ -110,7 +110,6 @@ func initializeAdapters(
 	overlayPort := overlay.NewAdapter(
 		overlayManager,
 		newThemeProvider(systemPort),
-		systemPort,
 		logger,
 	)
 
@@ -152,8 +151,8 @@ func initializeServices(
 		visionPort,
 	)
 
-	// Grid Service - manages grid-based navigation overlays
-	gridService := services.NewGridService(overlayAdapter, systemPort, logger)
+	// Grid Service - reports overlay health for grid mode
+	gridService := services.NewGridService(overlayAdapter)
 
 	// Action Service - handles UI element interactions
 	actionService := services.NewActionService(
@@ -167,7 +166,6 @@ func initializeServices(
 	// Scroll Service - manages scrolling operations
 	scrollService := services.NewScrollService(
 		accAdapter,
-		overlayAdapter,
 		systemPort,
 		cfg.Scroll,
 		logger,

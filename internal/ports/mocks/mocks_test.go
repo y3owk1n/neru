@@ -54,11 +54,6 @@ func TestMockOverlayPort_Defaults(t *testing.T) {
 		t.Errorf("ShowHints() default should return nil, got %v", err)
 	}
 
-	err = mock.ShowGrid(context.Background())
-	if err != nil {
-		t.Errorf("ShowGrid() default should return nil, got %v", err)
-	}
-
 	err = mock.Hide(context.Background())
 	if err != nil {
 		t.Errorf("Hide() default should return nil, got %v", err)
