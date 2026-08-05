@@ -226,18 +226,25 @@ func (a *relativeCursorAnimator) stepChunk(chunk image.Point, stopCh <-chan stru
 	return true
 }
 
-// takeInjectionFailure reports whether a native motion failed since the last
-// call, clearing the flag. Callers use it to route the next relative move
-// through the direct (loud) native path; a success there doubles as proof of
-// recovery, re-arming animation for the call after.
-func (a *relativeCursorAnimator) takeInjectionFailure() bool {
+// injectionFailurePending reports whether a native motion has failed and no
+// recovery has been proven since. While it holds, callers route every
+// relative move through the direct (loud) native path, so a broken backend
+// keeps surfacing errors instead of alternating between loud probes and
+// silent animated losses.
+func (a *relativeCursorAnimator) injectionFailurePending() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	failed := a.injectionFailed
-	a.injectionFailed = false
+	return a.injectionFailed
+}
 
-	return failed
+// clearInjectionFailure re-arms animation. Callers invoke it only after a
+// direct native motion succeeded — the proof the backend recovered.
+func (a *relativeCursorAnimator) clearInjectionFailure() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.injectionFailed = false
 }
 
 // clampTowardZero limits step to the portion of remaining that shares its

@@ -234,8 +234,8 @@ func failingMover(image.Point) error {
 // TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags pins the
 // failure contract: a failed native motion is not counted as posted, the
 // drain ends instead of livelocking on a broken backend, waiters are
-// released, and the failure is flagged exactly once so the caller can route
-// the next move through the loud direct path.
+// released, and the failure stays flagged — sending every subsequent move
+// down the loud direct path — until recovery is explicitly proven.
 func TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags(t *testing.T) {
 	t.Parallel()
 
@@ -251,12 +251,18 @@ func TestRelativeCursorAnimatorInjectionFailureEndsDrainAndFlags(t *testing.T) {
 		t.Fatalf("wait returned error: %v (drain must end, not livelock, on a broken backend)", err)
 	}
 
-	if !animator.takeInjectionFailure() {
-		t.Fatal("takeInjectionFailure() = false after a failed native motion")
+	if !animator.injectionFailurePending() {
+		t.Fatal("injectionFailurePending() = false after a failed native motion")
 	}
 
-	if animator.takeInjectionFailure() {
-		t.Fatal("takeInjectionFailure() did not clear the flag on read")
+	if !animator.injectionFailurePending() {
+		t.Fatal("injectionFailurePending() must stay set until recovery is proven")
+	}
+
+	animator.clearInjectionFailure()
+
+	if animator.injectionFailurePending() {
+		t.Fatal("injectionFailurePending() still set after clearInjectionFailure()")
 	}
 }
 
@@ -272,7 +278,7 @@ func TestRelativeCursorAnimatorSettleFlushFailureFlags(t *testing.T) {
 
 	animator.settle()
 
-	if !animator.takeInjectionFailure() {
-		t.Fatal("takeInjectionFailure() = false after a failed settle flush")
+	if !animator.injectionFailurePending() {
+		t.Fatal("injectionFailurePending() = false after a failed settle flush")
 	}
 }
