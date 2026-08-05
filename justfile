@@ -328,6 +328,13 @@ genman OUTPUT_DIR="build/man":
     go run ./cmd/genman {{ OUTPUT_DIR }}
     @echo "✓ Man pages generated in {{ OUTPUT_DIR }}/"
 
+# Rewrite the mode-flag reference from the grammar's descriptor table.
+# Run after adding, removing or re-wording a mode flag; the architecture
+# guardrail fails while the page is out of date.
+genflagref:
+    @echo "Generating the mode-flag reference..."
+    go run ./cmd/genflagref docs/CLI.md
+
 # Clean build artifacts
 clean:
     @echo "Cleaning build artifacts..."

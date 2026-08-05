@@ -9,7 +9,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // The values these cases repeat, spelled out once so a case still pins the
@@ -23,9 +22,10 @@ const (
 // modeCommands are the six commands the builder produces, each against the mode
 // it enters.
 //
-// What a mode command accepts is the grammar's answer, so these cases ask each
-// real command whether it offers what its mode accepts — the half the grammar's
-// own tests cannot see.
+// Which flags each one offers is not asserted here: that the command line
+// registers exactly what the grammar declares is a contract rather than a
+// behavior, and it is pinned in internal/architecture alongside the published
+// reference it has to agree with.
 func modeCommands() map[domain.Mode]*cobra.Command {
 	return map[domain.Mode]*cobra.Command{
 		domain.ModeHints:         HintsCmd,
@@ -34,54 +34,6 @@ func modeCommands() map[domain.Mode]*cobra.Command {
 		domain.ModeScroll:        ScrollCmd,
 		domain.ModeMonitorSelect: MonitorSelectCmd,
 		domain.ModeIdle:          IdleCmd,
-	}
-}
-
-// TestModeCommands_OfferExactlyWhatTheModeAccepts pins both halves at once: a
-// flag the mode accepts is offered, spelled and explained as the grammar
-// declares it, and a flag it does not accept is not offered at all.
-//
-// The second half is the one that matters to a user. A flag a mode has no use
-// for used to be accepted on the command line and dropped further down, which
-// is indistinguishable from the flag not working.
-func TestModeCommands_OfferExactlyWhatTheModeAccepts(t *testing.T) {
-	t.Parallel()
-
-	for mode, cmd := range modeCommands() {
-		t.Run(domain.ModeString(mode), func(t *testing.T) {
-			t.Parallel()
-
-			for _, descriptor := range modecmd.All() {
-				flag := cmd.Flags().Lookup(descriptor.Name().String())
-				accepted := descriptor.AcceptedBy(mode)
-
-				if accepted && flag == nil {
-					t.Errorf("%s accepts %s but the command does not offer it",
-						domain.ModeString(mode), descriptor.Name().Long())
-
-					continue
-				}
-
-				if !accepted {
-					if flag != nil {
-						t.Errorf("%s does not accept %s but the command offers it",
-							domain.ModeString(mode), descriptor.Name().Long())
-					}
-
-					continue
-				}
-
-				if flag.Shorthand != descriptor.Short() {
-					t.Errorf("%s shorthand = %q, want %q from the vocabulary",
-						descriptor.Name().Long(), flag.Shorthand, descriptor.Short())
-				}
-
-				if flag.Usage != descriptor.Usage() {
-					t.Errorf("%s is explained as %q, want the vocabulary's own wording",
-						descriptor.Name().Long(), flag.Usage)
-				}
-			}
-		})
 	}
 }
 

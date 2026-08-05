@@ -500,6 +500,106 @@ func TestSimulation_HintsRepeatJourney(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// TestSimulation_HintsFlaggedBindingJourney covers a binding that carries a
+// whole activation rather than a bare action: what to do, what to hold while
+// doing it, and what to run once it is done.
+//
+// Each flag is asserted where a user would notice it — which button was
+// clicked, what was held, and what ran afterwards. A flag that parses and then
+// goes missing between the binding and the mode is invisible to the grammar's
+// own tests, because the command still reads correctly and the mode still
+// activates; this is the seam where it shows up.
+func TestSimulation_HintsFlaggedBindingJourney(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{
+		"hints --action=right_click --modifier=shift --on-exit='action left_click'",
+	}
+
+	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+	sim := newSimHarness(t, cfg, []*element.Element{save})
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	sim.typeLabel(sim.overlay.lastHintLabels()[0])
+
+	// The selection performs the action, and the exit step then runs where the
+	// selection left the cursor.
+	sim.waitFor("the action and its exit step both ran", func() bool {
+		return len(sim.ax.recordedClicks()) == 2
+	})
+
+	clicks := sim.ax.recordedClicks()
+
+	selection, onExit := clicks[0], clicks[1]
+
+	if selection.action != action.TypeRightClick {
+		t.Errorf("--action=right_click produced %v", selection.action)
+	}
+
+	if selection.modifiers != action.ModShift {
+		t.Errorf("--modifier=shift produced modifiers %v", selection.modifiers)
+	}
+
+	if selection.point != save.Center() {
+		t.Errorf("click landed at %v, expected element center %v",
+			selection.point, save.Center())
+	}
+
+	if onExit.action != action.TypeLeftClick {
+		t.Errorf("--on-exit='action left_click' produced %v", onExit.action)
+	}
+
+	if onExit.point != save.Center() {
+		t.Errorf("the exit step clicked at %v, expected the selection %v",
+			onExit.point, save.Center())
+	}
+
+	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_RefusedBindingActivatesNothing covers the other half: a
+// binding the grammar refuses enters no mode and draws nothing.
+//
+// Both refusals are ones a user used to experience as Neru being unreliable
+// rather than as a mistake they had made. A typo activated the mode and did
+// nothing else; "grid --search" activated grid and dropped the flag in silence,
+// so the search input a user was waiting for never appeared. Refusing the whole
+// command is what makes that a mistake somebody can find.
+func TestSimulation_RefusedBindingActivatesNothing(t *testing.T) {
+	tests := map[string]struct {
+		hotkey  string
+		binding string
+		mode    domain.Mode
+	}{
+		"a mistyped flag":                 {hintsHotkey, "hints --sarch", domain.ModeHints},
+		"a flag the mode does not accept": {gridHotkey, "grid --search", domain.ModeGrid},
+	}
+
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[testCase.hotkey] = []string{testCase.binding}
+
+			sim := newSimHarness(t, cfg, threeButtons(t))
+
+			sim.pressHotkey(testCase.hotkey)
+			sim.neverMode(testCase.mode, 250*time.Millisecond)
+
+			if sim.overlay.isVisible() {
+				t.Errorf("%q showed the overlay; a refused command activates nothing",
+					testCase.binding)
+			}
+
+			if sim.overlay.hintDrawCount() != 0 || sim.overlay.lastGrid() != nil {
+				t.Errorf("%q drew a mode; a refused command activates nothing",
+					testCase.binding)
+			}
+		})
+	}
+}
+
 // TestSimulation_RecursiveGridJourney covers the recursive grid: activation
 // draws the full-screen grid, and choosing a cell redraws zoomed into that
 // cell's bounds.
