@@ -53,6 +53,47 @@ const (
 	UnknownMode   = "unknown"
 )
 
+// The values a mode command's options accept.
+//
+// They live here rather than beside the configuration fields or the mode that
+// reads them because a mode command reaches the daemon from three places — the
+// CLI, a hotkey binding, and a direct IPC caller — and all three have to agree
+// on the vocabulary. Config validates bindings, so the module that parses a
+// mode command cannot import config; putting the values beneath both is what
+// lets every reader name the same constant.
+
+// Element detection strategies, the values hints.strategy accepts.
+const (
+	// StrategyAXTree walks the accessibility tree. This is the default.
+	StrategyAXTree = "axtree"
+
+	// StrategyVision detects elements from the screen image instead.
+	StrategyVision = "vision"
+)
+
+// Hint label enumeration orders, the values hints.label_direction accepts.
+const (
+	// LabelDirectionReverse spreads labels across the alphabet by varying the
+	// first character so same-prefix labels never cluster together.
+	LabelDirectionReverse = "reverse"
+
+	// LabelDirectionNormal uses the original prefix-avoidance algorithm that
+	// prefers shorter labels. This is the default.
+	LabelDirectionNormal = "normal"
+)
+
+// How the real cursor behaves while a selection is being made, the values
+// --cursor-selection-mode accepts.
+const (
+	// CursorSelectionModeFollow keeps the real cursor synced with the current
+	// selection.
+	CursorSelectionModeFollow = "follow"
+
+	// CursorSelectionModeHold keeps the real cursor stationary until an
+	// explicit commit or move.
+	CursorSelectionModeHold = "hold"
+)
+
 // Timeout constants.
 const (
 	ShellCommandTimeout = 30 * time.Second

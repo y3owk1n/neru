@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
@@ -366,8 +366,8 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 // fail immediately rather than after a round trip.
 func (f modeFlags) validate() error {
 	if f.cursorSelectionMode != "" &&
-		f.cursorSelectionMode != modes.CursorSelectionModeFollow &&
-		f.cursorSelectionMode != modes.CursorSelectionModeHold {
+		f.cursorSelectionMode != domain.CursorSelectionModeFollow &&
+		f.cursorSelectionMode != domain.CursorSelectionModeHold {
 		return derrors.New(
 			derrors.CodeInvalidInput,
 			"--cursor-selection-mode must be either follow or hold",

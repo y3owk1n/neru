@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
@@ -332,7 +332,7 @@ func validateModeOptions(opts ModeActivationOptions) *ipc.Response {
 // isValidStrategy reports whether v names a detection strategy: "axtree", the
 // default, or "vision".
 func isValidStrategy(v string) bool {
-	return v == config.StrategyAXTree || v == config.StrategyVision
+	return v == domain.StrategyAXTree || v == domain.StrategyVision
 }
 
 func parseStrategyValue(val string) (*string, *ipc.Response) {
@@ -352,7 +352,7 @@ func parseStrategyValue(val string) (*string, *ipc.Response) {
 // isValidLabelDirection checks that the given label direction value is one of
 // the accepted values: "normal" (default) or "reverse".
 func isValidLabelDirection(v string) bool {
-	return v == config.LabelDirectionReverse || v == config.LabelDirectionNormal
+	return v == domain.LabelDirectionReverse || v == domain.LabelDirectionNormal
 }
 
 func parseLabelDirectionValue(val string) (*string, *ipc.Response) {

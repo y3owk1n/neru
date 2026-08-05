@@ -4,6 +4,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
@@ -403,9 +404,9 @@ func defaultHotkeys() HotkeysConfig {
 func defaultHints() HintsConfig {
 	return HintsConfig{
 		Enabled:        true,
-		Strategy:       StrategyAXTree,
+		Strategy:       domain.StrategyAXTree,
 		HintCharacters: "asdfghjkl",
-		LabelDirection: LabelDirectionNormal,
+		LabelDirection: domain.LabelDirectionNormal,
 		MaxDepth:       DefaultMaxDepth,
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},

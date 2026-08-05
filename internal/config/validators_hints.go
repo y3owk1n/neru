@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -348,22 +349,22 @@ func validateMissionControlSteps(field string, steps []string) error {
 // behaviors: how elements are found, and how labels are enumerated.
 func (c *Config) validateHintVocabulary() error {
 	switch c.Hints.Strategy {
-	case StrategyAXTree, StrategyVision, "":
+	case domain.StrategyAXTree, domain.StrategyVision, "":
 	default:
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"hints.strategy must be %q or %q",
-			StrategyAXTree, StrategyVision,
+			domain.StrategyAXTree, domain.StrategyVision,
 		)
 	}
 
 	switch c.Hints.LabelDirection {
-	case LabelDirectionReverse, LabelDirectionNormal, "":
+	case domain.LabelDirectionReverse, domain.LabelDirectionNormal, "":
 	default:
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"hints.label_direction must be %q or %q",
-			LabelDirectionReverse, LabelDirectionNormal,
+			domain.LabelDirectionReverse, domain.LabelDirectionNormal,
 		)
 	}
 

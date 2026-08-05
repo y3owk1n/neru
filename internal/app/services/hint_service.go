@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -142,7 +143,7 @@ func (s *HintService) GenerateHints(
 		labelDirection = labelDirectionOverride
 	}
 
-	if splitWord && strategy != config.StrategyVision {
+	if splitWord && strategy != domain.StrategyVision {
 		return nil, derrors.New(
 			derrors.CodeInvalidInput,
 			"--split-word is only supported when resolved strategy is 'vision'",
@@ -155,7 +156,7 @@ func (s *HintService) GenerateHints(
 	)
 
 	switch strategy {
-	case config.StrategyVision:
+	case domain.StrategyVision:
 		elements = s.generateHintsVision(ctx, bundleID, filter, splitWord)
 	default:
 		elements, genErr = s.generateHintsAX(ctx, filter)

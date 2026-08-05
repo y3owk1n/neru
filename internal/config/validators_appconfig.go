@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // AppConfigFieldValidator is a callback for validating mode-specific fields in AppConfig.
@@ -201,22 +202,22 @@ func (c *Config) ValidateAppConfigs() error {
 			}
 
 			switch appConfig.Strategy {
-			case StrategyAXTree, StrategyVision, "":
+			case domain.StrategyAXTree, domain.StrategyVision, "":
 			default:
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
 					"hints.app_configs[%d].strategy must be %q or %q",
-					idx, StrategyAXTree, StrategyVision,
+					idx, domain.StrategyAXTree, domain.StrategyVision,
 				)
 			}
 
 			switch appConfig.LabelDirection {
-			case LabelDirectionReverse, LabelDirectionNormal, "":
+			case domain.LabelDirectionReverse, domain.LabelDirectionNormal, "":
 			default:
 				return derrors.Newf(
 					derrors.CodeInvalidConfig,
 					"hints.app_configs[%d].label_direction must be %q or %q",
-					idx, LabelDirectionReverse, LabelDirectionNormal,
+					idx, domain.LabelDirectionReverse, domain.LabelDirectionNormal,
 				)
 			}
 

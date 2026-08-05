@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/modeflag"
 )
@@ -429,23 +430,6 @@ type HintsVisionConfig struct {
 	GenericClickableMinConfidence float64 `json:"genericClickableMinConfidence" toml:"generic_clickable_min_confidence"`
 }
 
-// Strategy constants for element detection.
-const (
-	StrategyAXTree = "axtree"
-	StrategyVision = "vision"
-)
-
-// Label direction constants for hint label enumeration.
-const (
-	// LabelDirectionReverse spreads labels across the alphabet by varying the
-	// first character so same-prefix labels never cluster together.
-	LabelDirectionReverse = "reverse"
-
-	// LabelDirectionNormal uses the original prefix-avoidance algorithm that
-	// prefers shorter labels. This is the default.
-	LabelDirectionNormal = "normal"
-)
-
 // HintsConfig defines the visual and behavioral settings for hints mode.
 type HintsConfig struct {
 	Enabled           bool                `json:"enabled"           toml:"enabled"`
@@ -721,7 +705,7 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 func (c *HintsConfig) LabelDirectionForApp(bundleID string) string {
 	dir := c.MergedForApp(bundleID).LabelDirection
 	if dir == "" {
-		return LabelDirectionNormal
+		return domain.LabelDirectionNormal
 	}
 
 	return dir
