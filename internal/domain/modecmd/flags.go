@@ -334,7 +334,27 @@ var (
 
 	// recursiveGridOnly is the one flag about zooming.
 	recursiveGridOnly = []domain.Mode{domain.ModeRecursiveGrid}
+
+	// modes is every mode a mode command can name: the ones a user enters, and
+	// idle, which is how they leave.
+	modes = append(slices.Clone(enterableModes), domain.ModeIdle)
 )
+
+// LookupMode returns the mode a command word names.
+//
+// It is exported for the reader that has to decide whether something is a mode
+// command before it can be parsed: a configuration holds its bindings as text,
+// and the word it recognizes has to be the word the daemon dispatches on, or
+// the two would disagree about which steps are even mode commands.
+func LookupMode(word string) (domain.Mode, bool) {
+	for _, mode := range modes {
+		if domain.ModeString(mode) == word {
+			return mode, true
+		}
+	}
+
+	return domain.ModeIdle, false
+}
 
 // descriptors is the vocabulary, in the order a rendering writes it and the
 // documentation lists it.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 var validModifiers = map[string]bool{
@@ -373,14 +374,18 @@ func validateHotkeyActionString(actionStr string) error {
 		return derrors.Newf(derrors.CodeInvalidConfig, "unknown action subcommand: %s", name)
 	}
 
-	// Mode commands may include flags (e.g. "hints --action left_click").
-	// Split on space and validate the first word as a known root/mode command.
+	// Mode commands may include flags (e.g. "hints --action left_click"). Only
+	// the command word is judged here: the flags after it are read by
+	// ValidateModeCommands, which weighs what it finds rather than refusing all
+	// of it.
 	cmd := strings.Fields(trimmed)[0]
 
+	if _, isMode := modecmd.LookupMode(cmd); isMode {
+		return nil
+	}
+
 	switch cmd {
-	case "idle", ModeNameHints, ModeNameGrid, ModeNameScroll, ModeNameRecursiveGrid,
-		ModeNameMonitorSelect,
-		"toggle-screen-share", CmdToggleCursorFollowSelection,
+	case "toggle-screen-share", CmdToggleCursorFollowSelection,
 		"toggle-scroll-invert",
 		"config",
 		// "run" takes its own steps as arguments. Each one is validated when

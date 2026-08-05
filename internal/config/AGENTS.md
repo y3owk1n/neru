@@ -9,3 +9,5 @@
 5. `configs/` examples (embedded and tested — stale examples break the build) and `docs/CONFIGURATION.md` (the single home for config reference facts).
 
 The `add-config-option` skill walks this end to end, plus tests. Fast check: `just test-foundation`.
+
+**Refusing costs the whole file.** A failed `Validate()` replaces the entire configuration with the defaults, not the offending line, so a check that would refuse a setting the user is living with belongs in the warnings channel instead: `ValidateWithWarnings` collects them, they ride out on `LoadResult`, and `neru config validate` prints them. The line between the two, and why it sits where it does, is ADR 0002 (`docs/adr/0002-severity-tiered-config-validation.md`). Everything else still refuses loudly — never silently clamp.

@@ -24,8 +24,36 @@ const (
 // exported separately for the caller that builds an activation from typed
 // flags and never parses a string.
 func Parse(mode domain.Mode, args []string) (Activation, error) {
+	activation, unsupported, err := read(mode, args)
+	if err != nil {
+		return Activation{}, err
+	}
+
+	if len(unsupported) > 0 {
+		return Activation{}, notAccepted(mode, unsupported[0])
+	}
+
+	err = Validate(activation)
+	if err != nil {
+		return Activation{}, err
+	}
+
+	return activation, nil
+}
+
+// read reads the arguments into the activation they describe, and hands back
+// the flags the named mode does not accept rather than stopping at the first
+// one.
+//
+// Reading past such a flag is what lets [Diagnose] weigh a whole command:
+// every caller that enters a mode refuses the first of them, and the one
+// caller that does not — a configuration deciding what a mistake costs — needs
+// all of them.
+func read(mode domain.Mode, args []string) (Activation, []Flag, error) {
 	activation := Activation{Mode: mode}
 	rest := withoutModeName(mode, args)
+
+	var unsupported []Flag
 
 	for index := 0; index < len(rest); index++ {
 		arg := rest[index]
@@ -33,10 +61,18 @@ func Parse(mode domain.Mode, args []string) (Activation, error) {
 		descriptor, known := match(arg)
 
 		switch {
+		case known && !descriptor.AcceptedBy(mode):
+			// Read for its shape and then dropped. Stepping over the value it
+			// was written with is what keeps the rest of the command readable:
+			// left where it is, that value would be taken as the positional
+			// action.
+			unsupported = append(unsupported, descriptor.name)
+			index += skipped(descriptor, rest, index)
+
 		case known:
-			consumed, err := apply(descriptor, mode, &activation, rest, index)
+			consumed, err := apply(descriptor, &activation, rest, index)
 			if err != nil {
-				return Activation{}, err
+				return Activation{}, nil, err
 			}
 
 			index += consumed
@@ -44,7 +80,7 @@ func Parse(mode domain.Mode, args []string) (Activation, error) {
 		case looksLikeAFlag(arg):
 			// Taking it as the positional action instead is how a typo used to
 			// travel all the way to the mode as an unusable action name.
-			return Activation{}, invalid(msgUnknownFlag + arg)
+			return Activation{}, nil, invalid(msgUnknownFlag + arg)
 
 		case activation.Action == nil && accepts(FlagAction, mode):
 			// An argument matching no flag is the positional action, which is
@@ -54,31 +90,21 @@ func Parse(mode domain.Mode, args []string) (Activation, error) {
 			activation.Action = &positional
 
 		default:
-			return Activation{}, invalid(msgUnexpectedArg + arg)
+			return Activation{}, nil, invalid(msgUnexpectedArg + arg)
 		}
 	}
 
-	err := Validate(activation)
-	if err != nil {
-		return Activation{}, err
-	}
-
-	return activation, nil
+	return activation, unsupported, nil
 }
 
 // apply reads the flag positioned at index into the activation and reports how
 // many further arguments it consumed.
 func apply(
 	descriptor Descriptor,
-	mode domain.Mode,
 	activation *Activation,
 	args []string,
 	index int,
 ) (int, error) {
-	if !descriptor.AcceptedBy(mode) {
-		return 0, notAccepted(mode, descriptor.name)
-	}
-
 	if !descriptor.TakesValue() {
 		// A value attached to a flag that carries none is the flag's own to
 		// refuse. Reading it here is what stops it from being dropped: the
@@ -112,6 +138,31 @@ func valueAt(descriptor Descriptor, args []string, index int) (string, int, erro
 	}
 
 	return args[index+1], 1, nil
+}
+
+// skipped reports how many further arguments a flag occupies whose value is
+// never going to be read, which is the flag the mode does not accept.
+//
+// It reads the value the same way applying the flag would, so the two cannot
+// disagree about where it ends, and stops short of one case: another flag is
+// never this one's value, whatever it was written next to. Stepping over
+// "--search" in "grid --strategy --search" would drop a flag in silence, which
+// is the failure this package exists to remove.
+func skipped(descriptor Descriptor, args []string, index int) int {
+	if !descriptor.TakesValue() {
+		return 0
+	}
+
+	_, consumed, err := valueAt(descriptor, args, index)
+	if err != nil || consumed == 0 {
+		return 0
+	}
+
+	if _, isAFlag := match(args[index+consumed]); isAFlag {
+		return 0
+	}
+
+	return consumed
 }
 
 // withoutModeName drops the mode's own name when the caller repeated it as the

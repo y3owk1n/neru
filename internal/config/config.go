@@ -680,6 +680,14 @@ type LoadResult struct {
 	Config          *Config
 	ValidationError error
 	ConfigPath      string
+
+	// Warnings are the parts of the loaded configuration that will not do what
+	// they say. The configuration loaded regardless — that is what separates
+	// one of these from ValidationError, which leaves the defaults running
+	// instead — so they are reported rather than acted on. They are empty
+	// whenever ValidationError is set: the configuration they described is not
+	// the one that ended up loaded.
+	Warnings []string
 }
 
 func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringArray {

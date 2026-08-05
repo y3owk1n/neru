@@ -60,9 +60,34 @@ func runConfigValidate(cmd *cobra.Command) error {
 		return &silentError{err: errConfigValidationFailed}
 	}
 
-	cmd.Println("Configuration is valid")
+	printValidationWarnings(cmd, loadResult.Warnings)
+
 	cmd.Println("")
 	cmd.Println("Config file: " + loadResult.ConfigPath)
 
 	return nil
+}
+
+// printValidationWarnings says what loaded and will not do what it says.
+//
+// This is the whole reason a warning is worth telling apart from a refusal: it
+// does not stop the configuration loading, so without a line here it would
+// exist only in the daemon's log, invisible to the command people run to check
+// their configuration.
+func printValidationWarnings(cmd *cobra.Command, warnings []string) {
+	if len(warnings) == 0 {
+		cmd.Println("Configuration is valid")
+
+		return
+	}
+
+	cmd.Println("Configuration is valid, with warnings:")
+	cmd.Println("")
+
+	for _, warning := range warnings {
+		cmd.Println("  " + warning)
+	}
+
+	cmd.Println("")
+	cmd.Println("These parts of the configuration load and will not take effect.")
 }

@@ -34,6 +34,11 @@ type loadSnapshot struct {
 	// A refused config still comes back populated, so recording only the config
 	// would let a refusal read as a clean load.
 	ValidationError string `json:"validationError"`
+
+	// Warnings are the parts of the file that loaded and will not do what they
+	// say. Recorded alongside the delta so a case can show both at once: that
+	// the binding is there, and that it was reported.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // fixedHotkeyDefaults is the binding set every case starts from.
@@ -143,6 +148,26 @@ font_size = 42
 bundle_id = "com.apple.Safari"
 [app_configs.hints.ui]
 font_size = 21
+`,
+		},
+		{
+			// The binding works minus the flag, so it keeps working: the delta
+			// shows it loaded, and the warning says what it will not do.
+			// Refusing it would cost the user every other binding in the file.
+			name: "a binding with an inert flag loads and warns",
+			config: `
+[hotkeys]
+"Primary+Shift+K" = "grid --search"
+"Primary+Shift+J" = "hints --repeat"
+`,
+		},
+		{
+			// A flag nothing knows was never going to activate anything, so
+			// this is refused like the unknown command it resembles.
+			name: "a binding with an unknown flag is refused",
+			config: `
+[hotkeys]
+"Primary+Shift+K" = "hints --serach --action=bogus"
 `,
 		},
 		{
@@ -297,6 +322,7 @@ func TestLoadWithValidation_MatchesItsSnapshot(t *testing.T) {
 				snapshot.ValidationError = result.ValidationError.Error()
 			} else {
 				snapshot.Delta = configDelta(t, baseline.Config, result.Config)
+				snapshot.Warnings = result.Warnings
 			}
 
 			encoded, marshalErr := json.MarshalIndent(snapshot, "", "  ")

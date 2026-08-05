@@ -34,12 +34,12 @@ func Validate(activation Activation) error {
 		return acceptanceErr
 	}
 
-	dependencyErr := validateDependencies(activation)
-	if dependencyErr != nil {
-		return dependencyErr
+	unmet := unmetDependencies(activation)
+	if len(unmet) > 0 {
+		return unmet[0]
 	}
 
-	return validateAction(activation)
+	return validateValues(activation)
 }
 
 // validateAcceptance refuses a flag the named mode has no use for.
@@ -63,30 +63,69 @@ func validateAcceptance(activation Activation) error {
 	return nil
 }
 
-// validateDependencies refuses the flags that are only meaningful alongside
-// another one. They are checked after parsing because a flag may be written
-// before the one it depends on.
-func validateDependencies(activation Activation) error {
-	hasAction := activation.Action != nil
+// dependency is a flag that only means something alongside another one: what
+// it looks like to have been written alone, and the sentence that says so.
+type dependency struct {
+	unmet   func(Activation) bool
+	message string
+}
 
-	if isTrue(activation.Repeat) && !hasAction {
-		return invalid(msgRepeatRequiresAction)
+// dependencies are the co-dependency rules, in the order they are reported.
+//
+// They are a table rather than a run of conditions because they have two
+// readers that need different amounts of them: [Validate] refuses at the
+// first, and [Diagnose] weighs every one.
+var dependencies = []dependency{
+	{
+		unmet:   func(a Activation) bool { return isTrue(a.Repeat) && a.Action == nil },
+		message: msgRepeatRequiresAction,
+	},
+	{
+		unmet:   func(a Activation) bool { return a.OnExit != nil && a.Action == nil },
+		message: msgOnExitRequiresAction,
+	},
+	{
+		unmet:   func(a Activation) bool { return isTrue(a.HideOnEmptySearch) && !isTrue(a.Search) },
+		message: msgHideOnEmptySearchRequiresSearch,
+	},
+	{
+		unmet:   func(a Activation) bool { return a.Modifier != nil && a.Action == nil },
+		message: msgModifierRequiresAction,
+	},
+}
+
+// unmetDependencies lists the flags that were written without the flag they
+// are only meaningful alongside. They are judged after parsing because a flag
+// may be written before the one it depends on.
+func unmetDependencies(activation Activation) []error {
+	var unmet []error
+
+	for _, rule := range dependencies {
+		if rule.unmet(activation) {
+			unmet = append(unmet, invalid(rule.message))
+		}
 	}
 
-	if activation.OnExit != nil && !hasAction {
-		return invalid(msgOnExitRequiresAction)
+	return unmet
+}
+
+// validateValues refuses a value a flag was given that it cannot carry. Unlike
+// an unmet dependency, nothing about the rest of the command can make one of
+// these mean anything.
+func validateValues(activation Activation) error {
+	modifierErr := validateModifier(activation)
+	if modifierErr != nil {
+		return modifierErr
 	}
 
-	if isTrue(activation.HideOnEmptySearch) && !isTrue(activation.Search) {
-		return invalid(msgHideOnEmptySearchRequiresSearch)
-	}
+	return validateAction(activation)
+}
 
+// validateModifier refuses a --modifier value that names no modifier key. An
+// empty one is named separately: it parses, and holds nothing.
+func validateModifier(activation Activation) error {
 	if activation.Modifier == nil {
 		return nil
-	}
-
-	if !hasAction {
-		return invalid(msgModifierRequiresAction)
 	}
 
 	modifiers, err := action.ParseModifiers(*activation.Modifier)

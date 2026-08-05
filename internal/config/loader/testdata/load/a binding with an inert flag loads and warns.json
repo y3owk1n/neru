@@ -1,0 +1,13 @@
+{
+  "delta": [
+    "+ .hotkeys.bindings.Primary+Shift+J[0] = \"hints --repeat\"",
+    "+ .hotkeys.bindings.Primary+Shift+K[0] = \"grid --search\"",
+    "- .hotkeys.bindings.Primary+Shift+G[0] = \"grid\"",
+    "- .hotkeys.bindings.Primary+Shift+Space[0] = \"hints\""
+  ],
+  "validationError": "",
+  "warnings": [
+    "hotkeys.Primary+Shift+J: --repeat requires --action",
+    "hotkeys.Primary+Shift+K: grid does not accept --search"
+  ]
+}
