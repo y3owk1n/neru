@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -28,9 +29,10 @@ const (
 
 // SystemAdapter is a Linux system adapter.
 type SystemAdapter struct {
-	backend        string
-	cursorAnimator *smoothCursorAnimator
-	probes         *capabilityProbes
+	backend          string
+	cursorAnimator   *smoothCursorAnimator
+	relativeAnimator *relativeCursorAnimator
+	probes           *capabilityProbes
 }
 
 // NewSystemAdapter creates a new SystemAdapter.
@@ -40,6 +42,10 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 		adapter.currentCursorPosition,
 		adapter.moveCursorDirect,
 	)
+	// Only the wlroots backend drives the delta-drain animator (it is the one
+	// backend with native relative motion); constructing it unconditionally
+	// keeps every method a safe no-op elsewhere.
+	adapter.relativeAnimator = newRelativeCursorAnimator(wlrootsMoveCursorBy)
 
 	return adapter
 }
@@ -285,6 +291,11 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	point image.Point,
 	bypassSmooth bool,
 ) error {
+	// An absolute move supersedes any pending relative deltas: the cursor is
+	// about to be placed somewhere explicit, so flushing the drain would only
+	// fight the warp. Discard it before either branch below.
+	s.relativeAnimator.stop()
+
 	cfg := currentLinuxConfig()
 	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
 		s.cursorAnimator.animateTo(
@@ -308,13 +319,87 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	return s.moveCursorDirect(point)
 }
 
-// MoveCursorBy uses native relative motion when the Wayland backend supports it.
-// The bool result reports whether the request was handled, allowing callers to
-// retain their absolute-position fallback on X11 and unsupported backends.
+// MoveCursorBy applies a relative cursor move. With smooth cursor enabled
+// (smooth_cursor.move_mouse_enabled) the move animates over the fixed
+// per-move duration smooth_cursor.relative_movement_duration:
+//
+//   - wlroots drains the delta in integer chunks through native relative
+//     motion — never reading the client position cache, whose staleness is
+//     why this backend applies deltas natively in the first place;
+//   - X11 and KDE extend the absolute animator's pending endpoint, exactly
+//     like macOS (KDE's fallback path was already cache-based absolute, so
+//     nothing is lost).
+//
+// With smooth cursor disabled, behavior is unchanged: wlroots posts one
+// native delta, everything else reports handled == false so callers keep
+// their absolute-position fallback.
 func (s *SystemAdapter) MoveCursorBy(
 	ctx context.Context,
 	delta image.Point,
 ) (bool, error) {
+	cfg := currentLinuxConfig()
+	// nativeBackendsCompiledIn gates the animated paths: on CGO-off builds the
+	// drain's injector is the loud CodeNotSupported stub, but the animator
+	// drops injection errors by design — animating would launder the stub into
+	// a silent no-op. Falling through keeps the error surfaced to the caller.
+	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && nativeBackendsCompiledIn {
+		if s.backend == backendWaylandWlroots {
+			// A failed injection during a drain could not be surfaced (its
+			// move had already reported handled). Until recovery is proven,
+			// route every move through the direct native path: it returns the
+			// backend error loudly, and only a success — the proof the
+			// backend recovered — re-arms animation.
+			if s.relativeAnimator.injectionFailurePending() {
+				err := wlrootsMoveCursorBy(delta)
+				if err == nil {
+					s.relativeAnimator.clearInjectionFailure()
+				}
+
+				return true, err
+			}
+
+			// Finish any absolute glide first so the delta drain composes from
+			// where that animation was headed, not against its remaining steps.
+			s.cursorAnimator.settle()
+			s.relativeAnimator.addDelta(
+				delta,
+				cfg.SmoothCursor.Steps,
+				cfg.SmoothCursor.RelativeMovementDuration,
+			)
+
+			return true, nil
+		}
+
+		if s.backend == backendX11 || s.backend == backendWaylandKDE {
+			bounds, err := s.ScreenBounds(ctx)
+			if err == nil {
+				s.cursorAnimator.animateRelativeBy(
+					delta,
+					func(point image.Point) image.Point {
+						return image.Point{
+							X: geometry.ClampInt(
+								point.X,
+								bounds.Min.X,
+								max(bounds.Max.X-1, bounds.Min.X),
+							),
+							Y: geometry.ClampInt(
+								point.Y,
+								bounds.Min.Y,
+								max(bounds.Max.Y-1, bounds.Min.Y),
+							),
+						}
+					},
+					cfg.SmoothCursor.Steps,
+					cfg.SmoothCursor.RelativeMovementDuration,
+				)
+
+				return true, nil
+			}
+			// Without bounds there is nothing to clamp against; fall through to
+			// the caller's fallback, which clamps at the service layer.
+		}
+	}
+
 	if s.backend == backendWaylandWlroots {
 		return true, wlrootsMoveCursorBy(delta)
 	}
@@ -324,9 +409,28 @@ func (s *SystemAdapter) MoveCursorBy(
 
 // WaitForCursorIdle blocks until any in-flight smooth cursor animation settles,
 // or ctx is canceled. It returns immediately when no animation is active — the
-// common case on the direct (non-smooth) move path.
+// common case on the direct (non-smooth) move path. Both animators are waited
+// on: the absolute glide and the wlroots relative-delta drain.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
-	return s.cursorAnimator.wait(ctx)
+	err := s.cursorAnimator.wait(ctx)
+	if err != nil {
+		return err
+	}
+
+	return s.relativeAnimator.wait(ctx)
+}
+
+// SettleCursor finishes any in-flight cursor animation immediately: the
+// absolute animator warps straight to the endpoint it was animating toward,
+// and the relative drain flushes its remaining delta in one native motion.
+// Action paths call this before resolving their target point from the
+// cursor, so an action firing mid-animation acts at the point the user aimed
+// for — without paying the animation's remaining duration in latency.
+func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
+	s.cursorAnimator.settle()
+	s.relativeAnimator.settle()
+
+	return nil
 }
 
 // CursorPosition returns the current cursor position on Linux.
@@ -606,6 +710,7 @@ var _ ports.SystemPort = (*SystemAdapter)(nil)
 var (
 	_ ports.RelativeCursorMover = (*SystemAdapter)(nil)
 	_ ports.CursorSynchronizer  = (*SystemAdapter)(nil)
+	_ ports.CursorSettler       = (*SystemAdapter)(nil)
 )
 
 // darkModeSource names which input produced a color-scheme value.
