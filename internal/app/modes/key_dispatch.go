@@ -429,7 +429,7 @@ func (h *handlerState) dispatchHotkeyActions(
 
 	// Execute in a goroutine so the event tap callback returns quickly.
 	// This also avoids a deadlock: an action step may call
-	// ipcController.HandleCommand -> ActivateModeWithOptions which
+	// ipcController.HandleCommand -> ActivateMode which
 	// acquires h.mu, but we already hold it.
 	capturedKey := bindKey
 

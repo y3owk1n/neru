@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -167,7 +168,7 @@ func (h *handlerState) currentModeOnExit() []string {
 // runOnExit dispatches the mode's --on-exit steps after the pending action was
 // fulfilled. They reuse the hotkey action grammar ("action ...", "exec ...",
 // mode names) and run asynchronously: a step may route back through IPC into
-// ActivateModeWithOptions, which acquires h.mu — held by the
+// ActivateMode, which acquires h.mu — held by the
 // executeActionAtPoint caller.
 func (h *handlerState) runOnExit(onExit []string) {
 	if len(onExit) == 0 || h.executeActionSequence == nil {
@@ -260,7 +261,8 @@ func (h *handlerState) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(ModeActivationOptions{
+				h.activateHintModeInternal(modecmd.Activation{
+					Mode:                  domain.ModeHints,
 					CursorFollowSelection: &cursorFollowSelection,
 					FilterRoles:           filterRoles,
 					FilterTextContains:    filterTextContains,
@@ -559,7 +561,8 @@ func (h *handlerState) handleGridModeKey(key string) {
 			pendingModifier,
 			repeat, // Re-activate grid mode when --repeat is set
 			func() {
-				h.activateGridModeWithAction(ModeActivationOptions{
+				h.activateGridModeWithAction(modecmd.Activation{
+					Mode:                  domain.ModeGrid,
 					Action:                pendingAction,
 					Modifier:              pendingModifier,
 					Repeat:                &repeat,

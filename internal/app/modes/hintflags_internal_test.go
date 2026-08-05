@@ -4,20 +4,22 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// The option values these cases repeat.
+// The flag values these cases repeat.
 const (
-	stepScroll     = "scroll"
-	dirReverse     = "reverse"
-	strategyVision = "vision"
-	strategyAXTree = "axtree"
+	stepScroll      = "scroll"
+	dirReverse      = "reverse"
+	strategyVision  = "vision"
+	strategyAXTree  = "axtree"
+	actionLeftClick = "left_click"
 )
 
-// populatedContext is a context that already carries every option, so a case can
+// populatedContext is a context that already carries every flag, so a case can
 // tell "kept" apart from "reset" for each of them.
 func populatedContext() *hints.Context {
-	action := "left_click"
+	action := actionLeftClick
 	modifier := keyPartCmd
 
 	ctx := &hints.Context{}
@@ -36,18 +38,18 @@ func populatedContext() *hints.Context {
 	return ctx
 }
 
-// A refresh and a fresh activation disagree about what an absent option means,
+// A refresh and a fresh activation disagree about what an absent flag means,
 // and getting that backwards is invisible until a user loses a flag they set.
-// On a refresh an absent option means "keep what is there", because a refresh
-// can be triggered by something that carries no options at all. On a fresh
+// On a refresh an absent flag means "keep what is there", because a refresh
+// can be triggered by something that carries no flags at all. On a fresh
 // activation it means "back to the default", because the user just issued a
 // command without that flag.
-func TestApplyHintOptions_RefreshKeepsUnsetOptions(t *testing.T) {
+func TestApplyHintFlags_RefreshKeepsUnsetFlags(t *testing.T) {
 	ctx := populatedContext()
 
-	applyHintOptions(ctx, ModeActivationOptions{}, true)
+	applyHintFlags(ctx, modecmd.Activation{}, true)
 
-	if ctx.PendingAction() == nil || *ctx.PendingAction() != "left_click" {
+	if ctx.PendingAction() == nil || *ctx.PendingAction() != actionLeftClick {
 		t.Errorf(
 			"PendingAction = %v, want the action the mode was activated with",
 			ctx.PendingAction(),
@@ -95,21 +97,21 @@ func TestApplyHintOptions_RefreshKeepsUnsetOptions(t *testing.T) {
 	}
 }
 
-func TestApplyHintOptions_RefreshWritesTheOptionsItWasGiven(t *testing.T) {
+func TestApplyHintFlags_RefreshWritesTheFlagsItWasGiven(t *testing.T) {
 	ctx := populatedContext()
 
 	action := "right_click"
 	splitWord := false
 	strategy := strategyAXTree
 
-	applyHintOptions(ctx, ModeActivationOptions{
+	applyHintFlags(ctx, modecmd.Activation{
 		Action:    &action,
 		SplitWord: &splitWord,
 		Strategy:  &strategy,
 	}, true)
 
 	if ctx.PendingAction() == nil || *ctx.PendingAction() != "right_click" {
-		t.Errorf("PendingAction = %v, want the option that was given", ctx.PendingAction())
+		t.Errorf("PendingAction = %v, want the flag that was given", ctx.PendingAction())
 	}
 
 	if ctx.SplitWord() {
@@ -117,7 +119,7 @@ func TestApplyHintOptions_RefreshWritesTheOptionsItWasGiven(t *testing.T) {
 	}
 
 	if ctx.StrategyOverride() != strategyAXTree {
-		t.Errorf("StrategyOverride = %q, want the option that was given", ctx.StrategyOverride())
+		t.Errorf("StrategyOverride = %q, want the flag that was given", ctx.StrategyOverride())
 	}
 
 	// Everything else stays as it was.
@@ -126,14 +128,40 @@ func TestApplyHintOptions_RefreshWritesTheOptionsItWasGiven(t *testing.T) {
 	}
 }
 
-// TestApplyHintOptions_FreshResetsUnsetOptions is the other half of the rule: a
+// TestApplyHintFlags_RefreshTellsAbsentOnExitFromEmptyOne pins the one place
+// where nil and empty are different values rather than two spellings of
+// nothing. A repeat re-activation carries no --on-exit and must keep the steps
+// the user activated the mode with; a command that gave --on-exit no steps is
+// asking for none to run.
+func TestApplyHintFlags_RefreshTellsAbsentOnExitFromEmptyOne(t *testing.T) {
+	absent := populatedContext()
+
+	applyHintFlags(absent, modecmd.Activation{}, true)
+
+	if len(absent.OnExit()) != 1 {
+		t.Errorf("OnExit = %v, want an absent --on-exit to keep the stored steps", absent.OnExit())
+	}
+
+	given := populatedContext()
+
+	applyHintFlags(given, modecmd.Activation{OnExit: []string{}}, true)
+
+	if len(given.OnExit()) != 0 {
+		t.Errorf(
+			"OnExit = %v, want a given-but-empty --on-exit to clear the stored steps",
+			given.OnExit(),
+		)
+	}
+}
+
+// TestApplyHintFlags_FreshResetsUnsetFlags is the other half of the rule: a
 // command issued without a flag must not inherit that flag from the last time
 // the mode ran.
-func TestApplyHintOptions_FreshResetsUnsetOptions(t *testing.T) {
+func TestApplyHintFlags_FreshResetsUnsetFlags(t *testing.T) {
 	ctx := populatedContext()
 	ctx.SetRepeat(true)
 
-	applyHintOptions(ctx, ModeActivationOptions{}, false)
+	applyHintFlags(ctx, modecmd.Activation{}, false)
 
 	if ctx.PendingAction() != nil {
 		t.Errorf("PendingAction = %v, want it cleared", ctx.PendingAction())
@@ -180,14 +208,14 @@ func TestApplyHintOptions_FreshResetsUnsetOptions(t *testing.T) {
 	}
 }
 
-func TestApplyHintOptions_FreshWritesTheOptionsItWasGiven(t *testing.T) {
+func TestApplyHintFlags_FreshWritesTheFlagsItWasGiven(t *testing.T) {
 	ctx := &hints.Context{}
 
 	action := "double_click"
 	search := true
 	labelDirection := dirReverse
 
-	applyHintOptions(ctx, ModeActivationOptions{
+	applyHintFlags(ctx, modecmd.Activation{
 		Action:         &action,
 		Search:         &search,
 		LabelDirection: &labelDirection,
@@ -195,21 +223,21 @@ func TestApplyHintOptions_FreshWritesTheOptionsItWasGiven(t *testing.T) {
 	}, false)
 
 	if ctx.PendingAction() == nil || *ctx.PendingAction() != "double_click" {
-		t.Errorf("PendingAction = %v, want the option that was given", ctx.PendingAction())
+		t.Errorf("PendingAction = %v, want the flag that was given", ctx.PendingAction())
 	}
 
 	if !ctx.StartWithSearch() {
-		t.Error("StartWithSearch = false, want the option that was given")
+		t.Error("StartWithSearch = false, want the flag that was given")
 	}
 
 	if ctx.LabelDirectionOverride() != dirReverse {
 		t.Errorf(
-			"LabelDirectionOverride = %q, want the option that was given",
+			"LabelDirectionOverride = %q, want the flag that was given",
 			ctx.LabelDirectionOverride(),
 		)
 	}
 
 	if len(ctx.FilterRoles()) != 1 || ctx.FilterRoles()[0] != "AXLink" {
-		t.Errorf("FilterRoles = %v, want the option that was given", ctx.FilterRoles())
+		t.Errorf("FilterRoles = %v, want the flag that was given", ctx.FilterRoles())
 	}
 }

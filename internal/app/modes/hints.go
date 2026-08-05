@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -33,82 +34,10 @@ func (h *handlerState) currentHintStyle() hints.StyleMode {
 	return style
 }
 
-// ModeActivationOptions configures a mode activation request.
-type ModeActivationOptions struct {
-	Action                *string
-	Modifier              *string
-	OnExit                []string
-	Repeat                *bool
-	CursorFollowSelection *bool
-	ZoomToDepth           *int
-	FilterRoles           []string
-	FilterTextContains    []string
-	Search                *bool
-	HideOnEmptySearch     *bool
-	Strategy              *string
-	LabelDirection        *string
-	Toggle                *bool
-	SplitWord             *bool
-}
-
 const (
 	// HintTimeout is the timeout for hint operations.
 	HintTimeout = 5 * time.Second
 )
-
-// ActivateMode activates a mode with a given action (for hints mode).
-func (h *Handler) ActivateMode(mode domain.Mode) {
-	h.ActivateModeWithOptions(mode, ModeActivationOptions{})
-}
-
-// ActivateModeWithAction activates a mode with an optional action parameter.
-func (h *Handler) ActivateModeWithAction(mode domain.Mode, action *string) {
-	h.ActivateModeWithOptions(mode, ModeActivationOptions{Action: action})
-}
-
-// ActivateModeWithOptions activates a mode with an optional action and repeat flag.
-// When repeat is true the mode re-activates after performing the pending action.
-func (h *Handler) ActivateModeWithOptions(mode domain.Mode, opts ModeActivationOptions) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Toggle: if the mode is already active and --toggle was specified,
-	// exit to idle instead of re-activating
-	if opts.Toggle != nil && *opts.Toggle && h.appState.CurrentMode() == mode {
-		h.exitMode()
-
-		return
-	}
-
-	if mode == domain.ModeIdle {
-		h.exitMode()
-
-		return
-	}
-
-	modeImpl, exists := h.modes[mode]
-	if !exists {
-		h.logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
-
-		return
-	}
-
-	// Normalize --on-exit for external (re-)activations. This method is the sole
-	// entry point for user-driven activations (IPC, hotkeys, systray); internal
-	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
-	// call the activate* helpers directly with a nil onExit to preserve the
-	// stored steps. An omitted --on-exit on a fresh external command must
-	// clear any steps left over from a prior activation of the same mode
-	// rather than inheriting them, so a later completed action does not run a
-	// stale command. A nil slice reaching those helpers means "preserve"; the
-	// non-nil empty slice substituted here means "clear", and it is a no-op at
-	// dispatch time.
-	if opts.OnExit == nil {
-		opts.OnExit = []string{}
-	}
-
-	modeImpl.Activate(opts)
-}
 
 // filterHintsForScreen returns only the hints whose element center falls within
 // screenBounds, and deduplicates by position so that downstream code (overlay
@@ -145,11 +74,11 @@ func filterHintsForScreen(
 }
 
 // activateHintModeWithAction activates hint mode with optional action parameter.
-func (h *handlerState) activateHintModeWithAction(opts ModeActivationOptions) {
-	h.activateHintModeInternal(opts)
+func (h *handlerState) activateHintModeWithAction(activation modecmd.Activation) {
+	h.activateHintModeInternal(activation)
 
 	// Repeat is stored after activation, by which point the context exists.
-	if opts.Repeat != nil && *opts.Repeat && h.hints != nil && h.hints.Context != nil {
+	if activation.Repeat != nil && *activation.Repeat && h.hints != nil && h.hints.Context != nil {
 		h.hints.Context.SetRepeat(true)
 	}
 }
@@ -157,7 +86,7 @@ func (h *handlerState) activateHintModeWithAction(opts ModeActivationOptions) {
 // activateHintModeInternal activates hint mode with an optional action.
 // It handles mode validation, overlay positioning, element collection, hint
 // generation, and UI setup for hint-based navigation.
-func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
+func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	// Detect refresh before validation so we can clean up on failure
 	isRefresh := h.appState.CurrentMode() == domain.ModeHints
 
@@ -232,7 +161,7 @@ func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
 	h.appState.SetHintOverlayNeedsRefresh(false)
 
 	if h.hints != nil && h.hints.Context != nil {
-		applyHintOptions(h.hints.Context, opts, isRefresh)
+		applyHintFlags(h.hints.Context, activation, isRefresh)
 	}
 
 	// Fetch bundle ID for hint generation. Validation already passed (secure input check,
@@ -255,7 +184,7 @@ func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
 
 	activationStart := time.Now()
 
-	overrides := h.resolveHintOverrides(opts)
+	overrides := h.resolveHintOverrides(activation)
 
 	strategy := h.config.Hints.StrategyForApp(bundleID)
 	if overrides.strategy != "" {
@@ -278,8 +207,8 @@ func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
 
 	domainHints, domainHintsErr := h.hintService.GenerateHints(
 		ctx,
-		opts.FilterRoles,
-		opts.FilterTextContains,
+		activation.FilterRoles,
+		activation.FilterTextContains,
 		bundleID,
 		overrides.strategy,
 		overrides.labelDirection,
@@ -365,13 +294,13 @@ func (h *handlerState) activateHintModeInternal(opts ModeActivationOptions) {
 		zap.Int("hint_count", len(domainHints)),
 		zap.String("strategy", strategy),
 	}
-	if opts.Action != nil {
-		fields = append(fields, zap.String("action", *opts.Action))
+	if activation.Action != nil {
+		fields = append(fields, zap.String("action", *activation.Action))
 	}
 
 	h.logger.Info("Hints mode activated", fields...)
 
-	if opts.Search != nil && *opts.Search {
+	if activation.Search != nil && *activation.Search {
 		err := h.startHintSearch()
 		if err != nil {
 			h.logger.Error("Failed to start hint search on activation", zap.Error(err))

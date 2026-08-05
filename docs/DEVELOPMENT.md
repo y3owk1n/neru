@@ -356,14 +356,15 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 ### Mode interface contract
 
-Every navigation mode implements `Mode` (`Activate(ModeActivationOptions)` /
+Every navigation mode implements `Mode` (`Activate(modecmd.Activation)` /
 `HandleKey(string)` / `Exit()` / `ModeType()`), defined in
 [handler.go](../internal/app/modes/handler.go). Modes embed `baseMode` or
 `GenericMode` ([base.go](../internal/app/modes/base.go),
 [generic_mode.go](../internal/app/modes/generic_mode.go)) rather than
 implementing the four methods by hand, and register in the handler's mode map.
-A new CLI flag that varies a mode's activation usually means a new
-`ModeActivationOptions` field, not a new interface method.
+A new CLI flag that varies a mode's activation means a new flag descriptor in
+[internal/domain/modecmd](../internal/domain/modecmd) and the `Activation`
+field it writes, not a new interface method.
 
 `Activate`, `HandleKey`, and `Exit` run with the handler lock already held —
 the full locking contract lives in

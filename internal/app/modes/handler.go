@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -29,10 +30,10 @@ import (
 // This provides a consistent API contract for mode activation, key handling,
 // and cleanup operations.
 type Mode interface {
-	// Activate activates the mode with an optional pending action.
-	// When repeat is true the mode re-activates after performing the action
-	// instead of exiting.
-	Activate(opts ModeActivationOptions)
+	// Activate enters the mode with the flags the activation carries. Every
+	// flag the mode accepts is in there: nothing is copied out of it on the
+	// way in, so a mode reads the same value the grammar produced.
+	Activate(activation modecmd.Activation)
 
 	// HandleKey processes a key press within the mode's context.
 	HandleKey(key string)
@@ -270,6 +271,57 @@ func NewHandler(deps HandlerDeps) *Handler {
 	}
 
 	return handler
+}
+
+// ActivateMode enters the mode an activation names, with every flag it was
+// given.
+//
+// It is the handler's only activation entry point, and it takes the same
+// Activation the grammar parses, the CLI builds and the configuration
+// validator reads. Nothing is copied on the way in, so a flag a mode accepts
+// cannot be lost between being read and being applied.
+func (h *Handler) ActivateMode(activation modecmd.Activation) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	mode := activation.Mode
+
+	// Toggle: if the mode is already active and --toggle was specified,
+	// exit to idle instead of re-activating
+	if activation.Toggle != nil && *activation.Toggle && h.appState.CurrentMode() == mode {
+		h.exitMode()
+
+		return
+	}
+
+	if mode == domain.ModeIdle {
+		h.exitMode()
+
+		return
+	}
+
+	modeImpl, exists := h.modes[mode]
+	if !exists {
+		h.logger.Warn("Unknown mode", zap.String("mode", domain.ModeString(mode)))
+
+		return
+	}
+
+	// Normalize --on-exit for external (re-)activations. This method is the sole
+	// entry point for user-driven activations (IPC, hotkeys, systray); internal
+	// refreshes (repeat re-activation, space/screen change, cycle) bypass it and
+	// call the activate* helpers directly with a nil onExit to preserve the
+	// stored steps. An omitted --on-exit on a fresh external command must
+	// clear any steps left over from a prior activation of the same mode
+	// rather than inheriting them, so a later completed action does not run a
+	// stale command. A nil slice reaching those helpers means "preserve"; the
+	// non-nil empty slice substituted here means "clear", and it is a no-op at
+	// dispatch time.
+	if activation.OnExit == nil {
+		activation.OnExit = []string{}
+	}
+
+	modeImpl.Activate(activation)
 }
 
 // UpdateConfig updates the handler with new configuration.

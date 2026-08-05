@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -25,8 +26,8 @@ func NewMonitorSelectMode(handler *handlerState) *MonitorSelectMode {
 			domain.ModeMonitorSelect,
 			"MonitorSelectMode",
 			ModeBehavior{
-				ActivateFunc: func(handler *handlerState, opts ModeActivationOptions) {
-					handler.activateMonitorSelectMode(opts)
+				ActivateFunc: func(handler *handlerState, activation modecmd.Activation) {
+					handler.activateMonitorSelectMode(activation)
 				},
 				HandleKeyFunc: func(handler *handlerState, key string) {
 					handler.handleMonitorSelectKey(key)
@@ -39,7 +40,7 @@ func NewMonitorSelectMode(handler *handlerState) *MonitorSelectMode {
 	}
 }
 
-func (h *handlerState) activateMonitorSelectMode(_ ModeActivationOptions) {
+func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 	err := h.validateModeActivation(
 		"",
 		domain.ModeNameMonitorSelect,
