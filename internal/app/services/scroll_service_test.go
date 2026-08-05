@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
@@ -336,7 +337,6 @@ func TestScrollService_Scroll(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
 			cfg := config.ScrollConfig{
 				ScrollStep:     10,
 				ScrollStepHalf: 30,
@@ -354,7 +354,6 @@ func TestScrollService_Scroll(t *testing.T) {
 
 			service := services.NewScrollService(
 				mockAcc,
-				mockOverlay,
 				&mocks.MockSystemPort{},
 				cfg,
 				logger,
@@ -375,68 +374,6 @@ func TestScrollService_Scroll(t *testing.T) {
 	}
 }
 
-func TestScrollService_Hide(t *testing.T) {
-	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockOverlayPort)
-		wantErr    bool
-	}{
-		{
-			name: successfulHide,
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return nil
-				}
-			},
-			wantErr: false,
-		},
-		{
-			name: overlayHideError,
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to hide overlay",
-					)
-				}
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			mockAcc := &mocks.MockAccessibilityPort{}
-			mockOverlay := &mocks.MockOverlayPort{}
-			config := config.ScrollConfig{}
-			logger := logger.Get()
-
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockOverlay)
-			}
-
-			service := services.NewScrollService(
-				mockAcc,
-				mockOverlay,
-				&mocks.MockSystemPort{},
-				config,
-				logger,
-			)
-			ctx := context.Background()
-
-			hideScrollOverlayErr := service.Hide(ctx)
-
-			if (hideScrollOverlayErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"Hide() error = %v, wantErr %v",
-					hideScrollOverlayErr,
-					testCase.wantErr,
-				)
-			}
-		})
-	}
-}
-
 func TestScrollService_UpdateConfig(t *testing.T) {
 	var gotDeltaY int
 
@@ -447,12 +384,10 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 			return nil
 		},
 	}
-	mockOverlay := &mocks.MockOverlayPort{}
 	log := logger.Get()
 
 	service := services.NewScrollService(
 		mockAcc,
-		mockOverlay,
 		&mocks.MockSystemPort{},
 		config.ScrollConfig{ScrollStep: 50, ScrollStepFull: 1000},
 		log,
@@ -524,7 +459,6 @@ func TestScrollService_Scroll_SettlesCursorBeforeScroll(t *testing.T) {
 
 	service := services.NewScrollService(
 		mockAcc,
-		&mocks.MockOverlayPort{},
 		system,
 		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
 		logger.Get(),
@@ -567,7 +501,6 @@ func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
 
 	service := services.NewScrollService(
 		mockAcc,
-		&mocks.MockOverlayPort{},
 		system,
 		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
 		logger.Get(),
@@ -585,5 +518,59 @@ func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
 
 	if !scrolled {
 		t.Error("Scroll() never reached the accessibility port after a settle error")
+	}
+}
+
+// TestScrollService_Health pins that scroll reports only the dependency it has.
+// Scrolling never draws, so the service holds no overlay port and must not
+// claim to have checked one.
+func TestScrollService_Health(t *testing.T) {
+	accessibilityDown := derrors.New(derrors.CodeNotSupported, "accessibility unavailable")
+
+	tests := []struct {
+		name             string
+		accessibilityErr error
+	}{
+		{name: "healthy accessibility", accessibilityErr: nil},
+		{name: "unhealthy accessibility", accessibilityErr: accessibilityDown},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockAcc := &mocks.MockAccessibilityPort{
+				HealthFunc: func(_ context.Context) error {
+					return testCase.accessibilityErr
+				},
+			}
+
+			service := services.NewScrollService(
+				mockAcc,
+				&mocks.MockSystemPort{},
+				config.ScrollConfig{},
+				logger.Get(),
+			)
+
+			checks := service.Health(context.Background())
+
+			if len(checks) != 1 {
+				t.Fatalf(
+					"Health() reported %d checks, want 1 (accessibility only)",
+					len(checks),
+				)
+			}
+
+			got, ok := checks["accessibility"]
+			if !ok {
+				t.Fatal(`Health() has no "accessibility" check`)
+			}
+
+			if !errors.Is(got, testCase.accessibilityErr) {
+				t.Errorf(
+					"Health()[accessibility] = %v, want %v",
+					got,
+					testCase.accessibilityErr,
+				)
+			}
+		})
 	}
 }

@@ -2,119 +2,46 @@ package services_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-const (
-	successfulHide   = "successful hide"
-	overlayHideError = "overlay hide error"
-)
+func TestGridService_Health(t *testing.T) {
+	overlayDown := derrors.New(derrors.CodeNotSupported, "no display server")
 
-func TestGridService_ShowGrid(t *testing.T) {
 	tests := []struct {
 		name       string
-		setupMocks func(*mocks.MockOverlayPort)
-		wantErr    bool
+		overlayErr error
 	}{
-		{
-			name: "successful show",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.ShowGridFunc = func(_ context.Context) error {
-					return nil
-				}
-			},
-			wantErr: false,
-		},
-		{
-			name: "overlay error",
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.ShowGridFunc = func(_ context.Context) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"overlay initialization failed",
-					)
-				}
-			},
-			wantErr: true,
-		},
+		{name: "healthy overlay", overlayErr: nil},
+		{name: "unhealthy overlay", overlayErr: overlayDown},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			mockOverlay := &mocks.MockOverlayPort{}
-			logger := logger.Get()
-
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockOverlay)
+			mockOverlay := &mocks.MockOverlayPort{
+				HealthFunc: func(_ context.Context) error {
+					return testCase.overlayErr
+				},
 			}
 
-			service := services.NewGridService(mockOverlay, &mocks.MockSystemPort{}, logger)
-			ctx := context.Background()
+			checks := services.NewGridService(mockOverlay).Health(context.Background())
 
-			showGridErr := service.ShowGrid(ctx)
-
-			if (showGridErr != nil) != testCase.wantErr {
-				t.Errorf("ShowGrid() error = %v, wantErr %v", showGridErr, testCase.wantErr)
-			}
-		})
-	}
-}
-
-func TestGridService_HideGrid(t *testing.T) {
-	tests := []struct {
-		name       string
-		setupMocks func(*mocks.MockOverlayPort)
-		wantErr    bool
-	}{
-		{
-			name: successfulHide,
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return nil
-				}
-			},
-			wantErr: false,
-		},
-		{
-			name: overlayHideError,
-			setupMocks: func(ov *mocks.MockOverlayPort) {
-				ov.HideFunc = func(_ context.Context) error {
-					return derrors.New(
-						derrors.CodeOverlayFailed,
-						"failed to hide overlay",
-					)
-				}
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			mockOverlay := &mocks.MockOverlayPort{}
-			logger := logger.Get()
-
-			if testCase.setupMocks != nil {
-				testCase.setupMocks(mockOverlay)
+			if len(checks) != 1 {
+				t.Fatalf("Health() reported %d checks, want 1 (overlay only)", len(checks))
 			}
 
-			service := services.NewGridService(mockOverlay, &mocks.MockSystemPort{}, logger)
-			ctx := context.Background()
-
-			hideGridErr := service.HideGrid(ctx)
-
-			if (hideGridErr != nil) != testCase.wantErr {
-				t.Errorf("HideGrid() error = %v, wantErr %v", hideGridErr, testCase.wantErr)
+			got, ok := checks["overlay"]
+			if !ok {
+				t.Fatal(`Health() has no "overlay" check`)
 			}
 
-			// Only check visibility for successful hide
-			if !testCase.wantErr && mockOverlay.IsVisible() {
-				t.Error("Overlay should not be visible after successful HideGrid")
+			if !errors.Is(got, testCase.overlayErr) {
+				t.Errorf("Health()[overlay] = %v, want %v", got, testCase.overlayErr)
 			}
 		})
 	}

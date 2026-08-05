@@ -15,9 +15,7 @@ type MockOverlayPort struct {
 	modeIndicatorX  int
 	modeIndicatorY  int
 
-	ShowFunc      func()
 	ShowHintsFunc func(context.Context, []*hint.Interface) error
-	ShowGridFunc  func(ctx context.Context) error
 	// DrawModeIndicatorFunc mocks DrawModeIndicator.
 	DrawModeIndicatorFunc func(x, y int)
 	// DrawStickyModifiersIndicatorFunc mocks DrawStickyModifiersIndicator.
@@ -32,15 +30,6 @@ type MockOverlayPort struct {
 	visible bool
 }
 
-// Show implements ports.OverlayPort.
-func (m *MockOverlayPort) Show() {
-	if m.ShowFunc != nil {
-		m.ShowFunc()
-	}
-
-	m.visible = true
-}
-
 // ShowHints implements ports.OverlayPort.
 func (m *MockOverlayPort) ShowHints(ctx context.Context, hints []*hint.Interface) error {
 	if m.ShowHintsFunc != nil {
@@ -48,15 +37,6 @@ func (m *MockOverlayPort) ShowHints(ctx context.Context, hints []*hint.Interface
 	}
 
 	m.visible = true
-
-	return nil
-}
-
-// ShowGrid implements ports.OverlayPort.
-func (m *MockOverlayPort) ShowGrid(ctx context.Context) error {
-	if m.ShowGridFunc != nil {
-		return m.ShowGridFunc(ctx)
-	}
 
 	return nil
 }

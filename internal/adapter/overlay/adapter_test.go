@@ -8,7 +8,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/ports"
-	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
 type overlayTestThemeProvider struct{}
@@ -41,7 +40,6 @@ func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&overlay.NoOpManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 
@@ -55,7 +53,6 @@ func TestAdapterHealth_ReturnsNilForSupportedOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&supportedManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 
@@ -69,7 +66,6 @@ func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&stubManager{},
 		&overlayTestThemeProvider{},
-		&portmocks.MockSystemPort{},
 		zap.NewNop(),
 	)
 

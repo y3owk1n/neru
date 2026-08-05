@@ -19,6 +19,11 @@ import (
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
+const (
+	successfulHide   = "successful hide"
+	overlayHideError = "overlay hide error"
+)
+
 func TestHintService_ShowHints(t *testing.T) {
 	// Create test elements
 	testElements := []*element.Element{

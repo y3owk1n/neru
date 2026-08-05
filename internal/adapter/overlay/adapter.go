@@ -6,11 +6,9 @@ import (
 
 	"go.uber.org/zap"
 
-	gridFeature "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	overlayHints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -19,7 +17,6 @@ import (
 type Adapter struct {
 	manager ManagerInterface
 	theme   config.ThemeProvider
-	system  ports.SystemPort
 	logger  *zap.Logger
 }
 
@@ -27,7 +24,6 @@ type Adapter struct {
 func NewAdapter(
 	manager ManagerInterface,
 	theme config.ThemeProvider,
-	system ports.SystemPort,
 	logger *zap.Logger,
 ) *Adapter {
 	if logger == nil {
@@ -37,14 +33,8 @@ func NewAdapter(
 	return &Adapter{
 		manager: manager,
 		theme:   theme,
-		system:  system,
 		logger:  logger.Named("overlay"),
 	}
-}
-
-// Show shows the overlay.
-func (a *Adapter) Show() {
-	a.manager.Show()
 }
 
 // ShowHints displays hint labels on the screen.
@@ -86,39 +76,6 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 	}
 
 	a.logger.Debug("Hints overlay displayed", zap.Int("count", len(hints)))
-
-	return nil
-}
-
-// ShowGrid displays the grid overlay.
-func (a *Adapter) ShowGrid(ctx context.Context) error {
-	// Check context
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	// Get screen bounds
-	if a.system == nil {
-		return derrors.New(derrors.CodeActionFailed, "system port not available")
-	}
-
-	bounds, boundsErr := a.system.ScreenBounds(ctx)
-	if boundsErr != nil {
-		return derrors.Wrap(boundsErr, derrors.CodeActionFailed, "failed to get screen bounds")
-	}
-
-	grid := domainGrid.NewGrid("abcdefghijklmnopqrstuvwxyz", bounds, a.logger)
-
-	drawGridErr := a.manager.DrawGrid(grid, "", gridFeature.Style{})
-	if drawGridErr != nil {
-		return derrors.Wrap(drawGridErr, derrors.CodeActionFailed, "failed to draw grid")
-	}
-
-	// Show overlay and switch mode
-	a.manager.Show()
-	a.manager.SwitchTo("grid")
 
 	return nil
 }

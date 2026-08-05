@@ -37,9 +37,13 @@ const (
 	ScrollAmountEnd
 )
 
-// ScrollService orchestrates scrolling operations.
+// ScrollService orchestrates scrolling operations. Scrolling never draws, so
+// this deliberately does not embed BaseService — the overlay dependency it
+// would carry has no use here, and a nil one would panic through a promoted
+// method.
 type ScrollService struct {
-	BaseService
+	accessibility ports.AccessibilityPort
+	system        ports.SystemPort
 
 	mu     sync.RWMutex
 	config config.ScrollConfig
@@ -49,7 +53,6 @@ type ScrollService struct {
 // NewScrollService creates a new scroll service.
 func NewScrollService(
 	accessibility ports.AccessibilityPort,
-	overlay ports.OverlayPort,
 	system ports.SystemPort,
 	config config.ScrollConfig,
 	logger *zap.Logger,
@@ -59,9 +62,10 @@ func NewScrollService(
 	}
 
 	return &ScrollService{
-		BaseService: NewBaseService(accessibility, overlay, system),
-		config:      config,
-		logger:      logger.Named("service.scroll"),
+		accessibility: accessibility,
+		system:        system,
+		config:        config,
+		logger:        logger.Named("service.scroll"),
 	}
 }
 
@@ -100,9 +104,12 @@ func (s *ScrollService) Scroll(
 	return nil
 }
 
-// Hide hides the scroll overlay.
-func (s *ScrollService) Hide(ctx context.Context) error {
-	return s.HideOverlay(ctx, "hide scroll")
+// Health checks the health of the service's dependencies. Scrolling never
+// draws, so there is no overlay to report on.
+func (s *ScrollService) Health(ctx context.Context) map[string]error {
+	return map[string]error{
+		"accessibility": s.accessibility.Health(ctx),
+	}
 }
 
 // UpdateConfig updates the scroll configuration.

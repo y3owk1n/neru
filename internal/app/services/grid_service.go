@@ -3,63 +3,20 @@ package services
 import (
 	"context"
 
-	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// GridService orchestrates grid navigation.
+// GridService reports the health of the overlay that grid mode draws through.
+// Grid drawing itself runs in the mode handler, not here, so this deliberately
+// does not embed BaseService — there is no accessibility or system dependency
+// to hold, and a nil one would panic through a promoted method.
 type GridService struct {
-	BaseService
-
-	logger *zap.Logger
+	overlay ports.OverlayPort
 }
 
 // NewGridService creates a new grid service.
-func NewGridService(
-	overlay ports.OverlayPort,
-	system ports.SystemPort,
-	logger *zap.Logger,
-) *GridService {
-	if logger == nil {
-		logger = zap.NewNop()
-	}
-
-	return &GridService{
-		BaseService: NewBaseService(nil, overlay, system),
-		logger:      logger.Named("service.grid"),
-	}
-}
-
-// ShowGrid displays the grid overlay.
-func (s *GridService) ShowGrid(ctx context.Context) error {
-	s.logger.Debug("Showing grid")
-
-	showGridErr := s.overlay.ShowGrid(ctx)
-	if showGridErr != nil {
-		s.logger.Error("Failed to show grid overlay", zap.Error(showGridErr))
-
-		return derrors.WrapOverlayFailed(showGridErr, "show grid")
-	}
-
-	s.logger.Debug("Grid displayed successfully")
-
-	return nil
-}
-
-// HideGrid hides the grid overlay.
-func (s *GridService) HideGrid(ctx context.Context) error {
-	s.logger.Debug("Hiding grid")
-
-	err := s.HideOverlay(ctx, "hide grid")
-	if err != nil {
-		s.logger.Error("Failed to hide overlay", zap.Error(err))
-
-		return err
-	}
-
-	return nil
+func NewGridService(overlay ports.OverlayPort) *GridService {
+	return &GridService{overlay: overlay}
 }
 
 // Health checks the health of the service's dependencies.
