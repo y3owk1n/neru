@@ -81,6 +81,14 @@ func BuildModeCommand(config ModeConfig) *cobra.Command {
 				return validateErr
 			}
 
+			// --debug asks what the mode would target rather than entering it,
+			// so it travels as its own read-only command. Only the flags that
+			// shape which elements get collected come along; the rest describe
+			// an activation that is not going to happen.
+			if flags.debug {
+				return sendCommand(cmd, domain.CommandHintsProbe, flags.probeArgs())
+			}
+
 			return sendCommand(cmd, config.Name, flags.ipcArgs(config))
 		},
 	}
@@ -365,6 +373,11 @@ func readModeFlags(cmd *cobra.Command, config ModeConfig) (modeFlags, error) {
 // enforces the same ones; doing it here too is what makes a mistyped command
 // fail immediately rather than after a round trip.
 func (f modeFlags) validate() error {
+	debugErr := f.validateDebugIsAlone()
+	if debugErr != nil {
+		return debugErr
+	}
+
 	if f.cursorSelectionMode != "" &&
 		f.cursorSelectionMode != domain.CursorSelectionModeFollow &&
 		f.cursorSelectionMode != domain.CursorSelectionModeHold {
@@ -469,6 +482,75 @@ func (f modeFlags) validate() error {
 	return nil
 }
 
+// validateDebugIsAlone rejects --debug alongside a flag that only describes an
+// activation.
+//
+// A probe reports what the mode would target and then stops; it never selects
+// anything, so there is nothing for an action to act on, nothing to repeat and
+// nothing to run on exit. Accepting those quietly would send a caller a summary
+// while dropping the rest of what they asked for.
+func (f modeFlags) validateDebugIsAlone() error {
+	if !f.debug {
+		return nil
+	}
+
+	activationOnly := []struct {
+		flag modeflag.Name
+		set  bool
+	}{
+		{modeflag.Action, f.action != ""},
+		{modeflag.Modifier, f.modifier != ""},
+		{modeflag.OnExit, len(f.onExitSteps) > 0},
+		{modeflag.Repeat, f.repeat},
+		{modeflag.Toggle, f.toggle},
+		{modeflag.Search, f.search},
+		{modeflag.HideOnEmptySearch, f.hideOnEmptySearch},
+		{modeflag.LabelDirection, f.labelDirection != ""},
+		{modeflag.ZoomToDepth, f.zoomToDepth > 0},
+		{modeflag.CursorSelectionMode, f.cursorSelectionMode != ""},
+	}
+
+	for _, candidate := range activationOnly {
+		if candidate.set {
+			return derrors.Newf(
+				derrors.CodeInvalidInput,
+				"%s cannot be combined with %s: a probe reports what would be targeted without entering the mode",
+				modeflag.Debug.Flag(),
+				candidate.flag.Flag(),
+			)
+		}
+	}
+
+	return nil
+}
+
+// probeArgs builds the argument list for a hints probe.
+//
+// A probe collects elements and reports them, so it takes the flags that
+// decide which elements are collected and nothing else. --debug itself is not
+// among them: it named the command, and the command is now its own.
+func (f modeFlags) probeArgs() []string {
+	var params []string
+
+	if f.role != "" {
+		params = append(params, modeflag.Role.Assign(f.role))
+	}
+
+	if f.text != "" {
+		params = append(params, modeflag.Text.Assign(f.text))
+	}
+
+	if f.strategy != "" {
+		params = append(params, modeflag.Strategy.Assign(f.strategy))
+	}
+
+	if f.splitWord {
+		params = append(params, modeflag.SplitWord.Flag())
+	}
+
+	return params
+}
+
 // ipcArgs builds the argument list sent to the daemon.
 func (f modeFlags) ipcArgs(config ModeConfig) []string {
 	var params []string
@@ -520,10 +602,6 @@ func (f modeFlags) ipcArgs(config ModeConfig) []string {
 
 	if f.strategy != "" {
 		params = append(params, modeflag.Strategy.Assign(f.strategy))
-	}
-
-	if f.debug {
-		params = append(params, modeflag.Debug.Flag())
 	}
 
 	if f.labelDirection != "" {

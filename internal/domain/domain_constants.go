@@ -45,6 +45,12 @@ const (
 	CommandToggleCursorFollowSelection = "toggle-cursor-follow-selection"
 	CommandToggleScrollInvert          = "toggle-scroll-invert"
 	CommandConfigSet                   = "config-set"
+
+	// CommandHintsProbe reports what hints mode would target for the focused
+	// window. It is a read-only query rather than a mode command: it draws
+	// nothing, activates nothing, and answers with a summary. `neru hints
+	// --debug` is its CLI spelling.
+	CommandHintsProbe = "hints-probe"
 )
 
 // Mode-related constants.

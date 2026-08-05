@@ -309,6 +309,14 @@ framework. Coverage per platform is documented in
 | `--split-word`           |           | bool   | `false`  | Split detected text into word-level regions. Requires `--strategy vision`, so macOS only.          |
 | `--debug`                | `-d`      | bool   | `false`  | Print the elements that would be hinted, with a count and a sample, without showing the overlay.  |
 
+`--debug` runs a probe rather than activating hints, so it cannot be combined
+with a flag that only describes an activation — `--action`, `--modifier`,
+`--on-exit`, `--repeat`, `--toggle`, `--search`, `--hide-on-empty-search`,
+`--label-direction` or `--cursor-selection-mode`. It does accept the flags that
+decide which elements are collected: `--role`, `--text`, `--strategy` and
+`--split-word`. On the wire a probe is its own command; see
+[IPC protocol](#ipc-protocol).
+
 **Examples**
 
 ```bash
@@ -1508,6 +1516,22 @@ scripts are safe.
 
 ```json
 { "action": "hints", "params": {}, "args": [] }
+```
+
+`action` names either a mode command — `hints`, `grid`, `recursive_grid`,
+`scroll`, `monitor_select`, `idle` — or one of the standalone commands. `args`
+carries the same flags a user would type.
+
+**Probing without activating**
+
+`hints-probe` reports what hints mode would target for the focused window and
+answers with a count and a sample in `message`. It draws nothing and enters no
+mode, so it takes only the flags that decide which elements are collected:
+`--role`, `--text`, `--strategy`, `--split-word`. Anything else is refused with
+`ERR_INVALID_INPUT`. This is what `neru hints --debug` sends.
+
+```json
+{ "action": "hints-probe", "args": ["--role=AXButton", "--strategy=vision"] }
 ```
 
 **Response**

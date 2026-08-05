@@ -38,6 +38,7 @@ func (h *ModesHandler) RegisterHandlers(
 	handlers["scroll"] = h.handleScroll
 	handlers["monitor_select"] = h.handleMonitorSelect
 	handlers["idle"] = h.handleIdle
+	handlers[domain.CommandHintsProbe] = h.handleHintsProbe
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 
@@ -67,7 +68,6 @@ type ModeActivationOptions struct {
 	Strategy              *string
 	LabelDirection        *string
 	Toggle                *bool
-	Debug                 *bool
 	SplitWord             *bool
 }
 
@@ -92,7 +92,7 @@ func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
 	}
 }
 
-func (h *ModesHandler) handleHints(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (h *ModesHandler) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
 	if h.modes == nil {
 		return h.modesUnavailableResponse()
 	}
@@ -100,37 +100,6 @@ func (h *ModesHandler) handleHints(ctx context.Context, cmd ipc.Command) ipc.Res
 	opts, errResp := h.extractModeOptions(cmd)
 	if errResp != nil {
 		return *errResp
-	}
-
-	// --debug short-circuits to a read-only probe: report what would be hinted
-	// for the focused window (count + sample) without drawing the overlay.
-	if opts.Debug != nil && *opts.Debug {
-		strategy := ""
-		if opts.Strategy != nil {
-			strategy = *opts.Strategy
-		}
-
-		splitWord := false
-		if opts.SplitWord != nil {
-			splitWord = *opts.SplitWord
-		}
-
-		summary, probeErr := h.modes.DebugProbeHints(
-			ctx,
-			opts.FilterRoles,
-			opts.FilterTextContains,
-			strategy,
-			splitWord,
-		)
-		if probeErr != nil {
-			return ipc.Response{
-				Success: false,
-				Message: "hints debug probe failed: " + probeErr.Error(),
-				Code:    ipc.CodeActionFailed,
-			}
-		}
-
-		return ipc.Response{Success: true, Message: summary, Code: ipc.CodeOK}
 	}
 
 	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{
@@ -226,7 +195,7 @@ func (h *ModesHandler) handleMonitorSelect(_ context.Context, cmd ipc.Command) i
 
 	if opts.Action != nil || opts.Repeat != nil || opts.CursorFollowSelection != nil ||
 		len(opts.FilterRoles) > 0 || len(opts.FilterTextContains) > 0 ||
-		opts.Search != nil || opts.Strategy != nil || opts.LabelDirection != nil || opts.Debug != nil {
+		opts.Search != nil || opts.Strategy != nil || opts.LabelDirection != nil {
 		return ipc.Response{
 			Success: false,
 			Message: "monitor_select only supports --toggle",

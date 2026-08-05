@@ -107,7 +107,7 @@ func TestExtractModeOptions_ReadsStringFlags(t *testing.T) {
 		{
 			name:  "label direction",
 			split: []string{flagLabelDirection, directionReverse},
-			equal: []string{"--label-direction=reverse"},
+			equal: []string{argLabelDirectionReverse},
 			want:  directionReverse,
 			get:   func(o ModeActivationOptions) *string { return o.LabelDirection },
 		},
@@ -158,7 +158,7 @@ func TestExtractModeOptions_ReadsBoolFlags(t *testing.T) {
 		},
 		{
 			toggleStateToggle,
-			[]string{"--toggle"},
+			[]string{flagToggle},
 			func(o ModeActivationOptions) *bool { return o.Toggle },
 			true,
 		},

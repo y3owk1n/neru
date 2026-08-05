@@ -14,6 +14,14 @@ const (
 	modCmd       = "cmd"
 	stepScroll   = "scroll"
 	cursorHold   = "hold"
+
+	// Values the flag cases repeat, spelled out once so a case still pins the
+	// exact text a user would type.
+	roleAXButton   = "AXButton"
+	textOK         = "OK"
+	strategyVision = "vision"
+	labelReverse   = "reverse"
+	flagNameToggle = "toggle"
 )
 
 // hintsMode is a mode that declares every optional flag, so a case can set any
@@ -61,24 +69,24 @@ func TestIPCArgs_CarriesEachFlag(t *testing.T) {
 		flags modeFlags
 		want  string
 	}{
-		{"action", modeFlags{action: actLeftClick}, actLeftClick},
+		{actionCmdName, modeFlags{action: actLeftClick}, actLeftClick},
 		{
 			"modifier",
 			modeFlags{action: actLeftClick, modifier: modCmd},
 			"--modifier=cmd",
 		},
 		{"repeat", modeFlags{action: actLeftClick, repeat: true}, "--repeat"},
-		{"toggle", modeFlags{toggle: true}, "--toggle"},
+		{flagNameToggle, modeFlags{toggle: true}, "--toggle"},
 		{"search", modeFlags{search: true}, "--search"},
 		{
 			"hide on empty search",
 			modeFlags{search: true, hideOnEmptySearch: true},
 			"--hide-on-empty-search",
 		},
-		{"role", modeFlags{role: "AXButton"}, "--role=AXButton"},
-		{"text", modeFlags{text: "OK"}, "--text=OK"},
-		{"strategy", modeFlags{strategy: "vision"}, "--strategy=vision"},
-		{"label direction", modeFlags{labelDirection: "reverse"}, "--label-direction=reverse"},
+		{"role", modeFlags{role: roleAXButton}, "--role=AXButton"},
+		{"text", modeFlags{text: textOK}, "--text=OK"},
+		{"strategy", modeFlags{strategy: strategyVision}, "--strategy=vision"},
+		{"label direction", modeFlags{labelDirection: labelReverse}, "--label-direction=reverse"},
 		{"split word", modeFlags{splitWord: true}, "--split-word"},
 		{"zoom to depth", modeFlags{zoomToDepth: 3}, "--zoom-to-depth=3"},
 		{
@@ -175,5 +183,83 @@ func TestModeFlags_ValidateAcceptsAWellFormedCommand(t *testing.T) {
 	err := flags.validate()
 	if err != nil {
 		t.Errorf("a well-formed command was refused: %v", err)
+	}
+}
+
+// A probe carries only the flags that decide which elements are collected. The
+// mode name is absent too: the probe names itself through the command it is
+// sent as, so there is no mode being activated for it to lead with.
+func TestProbeArgs_CarriesOnlyTheCollectionFlags(t *testing.T) {
+	args := modeFlags{
+		debug:     true,
+		role:      roleAXButton,
+		text:      textOK,
+		strategy:  strategyVision,
+		splitWord: true,
+	}.probeArgs()
+
+	want := []string{"--role=AXButton", "--text=OK", "--strategy=vision", "--split-word"}
+	if !slices.Equal(args, want) {
+		t.Errorf("probeArgs() = %v, want %v", args, want)
+	}
+}
+
+// --debug named the command rather than a flag on it, so sending it on would
+// be a flag the probe has to refuse.
+func TestProbeArgs_OmitsDebugItself(t *testing.T) {
+	args := modeFlags{debug: true}.probeArgs()
+
+	if slices.Contains(args, "--debug") {
+		t.Errorf("probeArgs() = %v; --debug names the command, not one of its flags", args)
+	}
+
+	if len(args) != 0 {
+		t.Errorf("probeArgs() = %v, want no arguments when no filters were given", args)
+	}
+}
+
+// A probe reports what would be targeted and stops, so an activation flag
+// alongside it describes something that will not happen. Refusing says so
+// rather than answering with a summary and dropping the rest.
+func TestModeFlags_ValidateRefusesDebugWithAnActivationFlag(t *testing.T) {
+	cases := map[string]modeFlags{
+		"action":   {debug: true, action: actLeftClick},
+		"modifier": {debug: true, action: actLeftClick, modifier: modCmd},
+		"on-exit": {
+			debug:       true,
+			action:      actLeftClick,
+			onExitSteps: []string{stepScroll},
+		},
+		"repeat":                {debug: true, action: actLeftClick, repeat: true},
+		flagNameToggle:          {debug: true, toggle: true},
+		"search":                {debug: true, search: true},
+		"label-direction":       {debug: true, labelDirection: labelReverse},
+		"zoom-to-depth":         {debug: true, zoomToDepth: 3},
+		"cursor-selection-mode": {debug: true, cursorSelectionMode: cursorHold},
+	}
+
+	for name, flags := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := flags.validate()
+			if err == nil {
+				t.Errorf("--debug with --%s was accepted", name)
+			}
+		})
+	}
+}
+
+// The flags a probe does use must still be accepted alongside it.
+func TestModeFlags_ValidateAcceptsDebugWithCollectionFlags(t *testing.T) {
+	flags := modeFlags{
+		debug:     true,
+		role:      roleAXButton,
+		text:      textOK,
+		strategy:  strategyVision,
+		splitWord: true,
+	}
+
+	err := flags.validate()
+	if err != nil {
+		t.Errorf("a probe with only collection flags was refused: %v", err)
 	}
 }

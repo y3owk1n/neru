@@ -23,6 +23,10 @@ const (
 	argActionLeftClick = "--action=left_click"
 	argModifierCmd     = "--modifier=cmd"
 	argSearch          = "--search"
+
+	// argLabelDirectionReverse is the label-direction flag with its
+	// non-default value, which several cases need.
+	argLabelDirectionReverse = "--label-direction=reverse"
 )
 
 // flagProbe is a flag together with proof the parser acted on it.
@@ -31,7 +35,14 @@ type flagProbe struct {
 	args []string
 
 	// applied reports whether the parsed options show the flag took effect.
+	// It is nil for a flag the mode-command parser is meant to refuse.
 	applied func(ModeActivationOptions) bool
+
+	// refused marks a flag that belongs to the vocabulary a user writes but
+	// not to a mode command, so acting on it means saying no. Refusing is as
+	// much a behavior to pin as applying: a flag that is silently swallowed
+	// instead reads to the caller as one that worked.
+	refused bool
 }
 
 // probes covers the whole vocabulary. TestModeFlags_EveryFlagHasAProbe is what keeps
@@ -57,7 +68,7 @@ func probes() map[modeflag.Name]flagProbe {
 			applied: func(o ModeActivationOptions) bool { return o.Repeat != nil && *o.Repeat },
 		},
 		modeflag.Toggle: {
-			args:    []string{"--toggle"},
+			args:    []string{flagToggle},
 			applied: func(o ModeActivationOptions) bool { return o.Toggle != nil && *o.Toggle },
 		},
 		modeflag.Search: {
@@ -83,7 +94,7 @@ func probes() map[modeflag.Name]flagProbe {
 			applied: func(o ModeActivationOptions) bool { return o.Strategy != nil },
 		},
 		modeflag.LabelDirection: {
-			args:    []string{"--label-direction=reverse"},
+			args:    []string{argLabelDirectionReverse},
 			applied: func(o ModeActivationOptions) bool { return o.LabelDirection != nil },
 		},
 		modeflag.SplitWord: {
@@ -100,14 +111,13 @@ func probes() map[modeflag.Name]flagProbe {
 				return o.CursorFollowSelection != nil
 			},
 		},
-		// Debug is what makes hints short-circuit to a read-only probe instead
-		// of drawing the overlay, so the daemon has to record it like any
-		// other flag. It previously asserted only that --debug was not
-		// mistaken for the positional action, which the flag went on to
-		// satisfy while being dropped on the floor.
+		// Debug asks for a probe, and a probe is not an activation: it travels
+		// as its own command rather than as a flag on this one. A mode command
+		// carrying it is a caller expecting a summary and getting an overlay,
+		// so the parser refuses instead of ignoring.
 		modeflag.Debug: {
 			args:    []string{"--debug"},
-			applied: func(o ModeActivationOptions) bool { return o.Debug != nil && *o.Debug },
+			refused: true,
 		},
 	}
 }
@@ -139,6 +149,15 @@ func TestModeFlags_DaemonActsOnEveryFlag(t *testing.T) {
 				Action: onExitTestMode,
 				Args:   append([]string{onExitTestMode}, probe.args...),
 			})
+
+			if probe.refused {
+				if resp == nil {
+					t.Errorf("%v was accepted; --%s is not a mode command flag and must be refused",
+						probe.args, name)
+				}
+
+				return
+			}
 
 			if resp != nil {
 				t.Fatalf("%v was refused: %s", probe.args, resp.Message)
@@ -190,6 +209,11 @@ func TestModeFlags_ShortFormsReachTheSameFlag(t *testing.T) {
 
 		t.Run(string(spec.Name), func(t *testing.T) {
 			probe := covered[spec.Name]
+			if probe.refused {
+				t.Skip(
+					"not a mode command flag; refusal is pinned by TestModeFlags_DaemonActsOnEveryFlag",
+				)
+			}
 
 			short := make([]string, len(probe.args))
 			copy(short, probe.args)
