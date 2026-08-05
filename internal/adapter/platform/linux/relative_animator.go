@@ -22,6 +22,14 @@ import (
 // losslessly — the wlroots twin of the absolute animator's pending-endpoint
 // extension. Completion is per session, mirroring smoothCursorAnimator, so
 // WaitForCursorIdle tracks the latest delta rather than an intermediate one.
+//
+// Failure bound: animation reports success before motion completes (inherent
+// to any animated move; the absolute animator behaves the same), so when a
+// native injection fails mid-drain, at most the remainder of that one
+// gesture is lost — deliberately not stored and replayed later, which would
+// jump the cursor by stale motion after recovery. The failure is flagged on
+// the first failed chunk and every subsequent move stays on the loud direct
+// path until a success proves the backend recovered.
 type relativeCursorAnimator struct {
 	moveBy func(image.Point) error
 
