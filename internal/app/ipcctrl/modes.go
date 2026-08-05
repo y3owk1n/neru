@@ -2,19 +2,24 @@ package ipcctrl
 
 import (
 	"context"
+	"errors"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/modes"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // ModesHandler activates and exits the navigation modes on request.
 //
 // It holds no mode state of its own: the mode handler owns that, and this
-// translates a command and its flags into a call on it. Flags are parsed by
-// extractModeOptions in modeoptions.go.
+// translates a request into a call on it. It holds no rules either — what a
+// mode command may say is the grammar's business, in
+// internal/domain/modecmd, which the CLI and the configuration validator read
+// the same command with.
 type ModesHandler struct {
 	modes  *modes.Handler
 	logger *zap.Logger // Reserved for future logging needs (maintains consistency with other IPC controllers)
@@ -32,17 +37,95 @@ func NewModesHandler(modes *modes.Handler, logger *zap.Logger) *ModesHandler {
 func (h *ModesHandler) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
-	handlers["hints"] = h.handleHints
-	handlers["grid"] = h.handleGrid
-	handlers["recursive_grid"] = h.handleRecursiveGrid
-	handlers["scroll"] = h.handleScroll
-	handlers["monitor_select"] = h.handleMonitorSelect
-	handlers["idle"] = h.handleIdle
+	for mode, activated := range activationMessages {
+		handlers[domain.ModeString(mode)] = h.activationHandler(mode, activated)
+	}
+
 	handlers[domain.CommandHintsProbe] = h.handleHintsProbe
 	handlers[domain.CommandToggleCursorFollowSelection] = h.handleToggleCursorFollowSelection
 }
 
-const msgCursorSelectionModeRequires = "--cursor-selection-mode requires follow or hold"
+// activationMessages is what each mode answers with once it is entered. The
+// wording is what a script reads back, so it is spelled out per mode rather
+// than built from the mode's name.
+var activationMessages = map[domain.Mode]string{
+	domain.ModeHints:         "hints mode activated",
+	domain.ModeGrid:          "grid mode activated",
+	domain.ModeRecursiveGrid: "recursive-grid mode activated",
+	domain.ModeScroll:        "scroll mode activated",
+	domain.ModeMonitorSelect: "monitor_select mode activated",
+	domain.ModeIdle:          "idle mode activated",
+}
+
+// activationHandler answers a mode command by entering the mode it names.
+//
+// Every mode is served by this one handler: the flags a mode accepts, and the
+// rules between them, are the grammar's to know, so there is nothing left here
+// for a mode to be an exception to.
+func (h *ModesHandler) activationHandler(
+	mode domain.Mode,
+	activated string,
+) func(context.Context, ipc.Command) ipc.Response {
+	return func(_ context.Context, cmd ipc.Command) ipc.Response {
+		if h.modes == nil {
+			return h.modesUnavailableResponse()
+		}
+
+		activation, err := modecmd.Parse(mode, cmd.Args)
+		if err != nil {
+			return refusalFor(err)
+		}
+
+		h.modes.ActivateModeWithOptions(mode, activationOptions(activation))
+
+		return ipc.Response{Success: true, Message: activated, Code: ipc.CodeOK}
+	}
+}
+
+// activationOptions hands a parsed activation to the mode handler.
+//
+// The two types are the same set of values under two names, which is the last
+// of the copying this rework removes: the handler takes an Activation of its
+// own accord next.
+func activationOptions(activation modecmd.Activation) modes.ModeActivationOptions {
+	return modes.ModeActivationOptions{
+		Action:                activation.Action,
+		Modifier:              activation.Modifier,
+		OnExit:                activation.OnExit,
+		Repeat:                activation.Repeat,
+		CursorFollowSelection: activation.CursorFollowSelection,
+		ZoomToDepth:           activation.ZoomToDepth,
+		FilterRoles:           activation.FilterRoles,
+		FilterTextContains:    activation.FilterTextContains,
+		Search:                activation.Search,
+		HideOnEmptySearch:     activation.HideOnEmptySearch,
+		Strategy:              activation.Strategy,
+		LabelDirection:        activation.LabelDirection,
+		Toggle:                activation.Toggle,
+		SplitWord:             activation.SplitWord,
+	}
+}
+
+// refusalFor answers a grammar error.
+//
+// The message a user sees is the grammar's own sentence, without the code the
+// domain error carries for callers — the code travels in the response's own
+// field instead, which is what a script branches on.
+func refusalFor(err error) ipc.Response {
+	message := err.Error()
+
+	domainErr, isDomainErr := errors.AsType[*derrors.Error](err)
+	if isDomainErr {
+		message = domainErr.Message()
+	}
+
+	code := ipc.CodeActionFailed
+	if derrors.IsCode(err, derrors.CodeInvalidInput) {
+		code = ipc.CodeInvalidInput
+	}
+
+	return ipc.Response{Success: false, Message: message, Code: code}
+}
 
 // modesUnavailableResponse returns a standardized response when modes handler is not available.
 func (h *ModesHandler) modesUnavailableResponse() ipc.Response {
@@ -51,173 +134,6 @@ func (h *ModesHandler) modesUnavailableResponse() ipc.Response {
 		Message: msgModesHandlerNotAvailable,
 		Code:    ipc.CodeActionFailed,
 	}
-}
-
-// ModeActivationOptions holds the parsed options for activating a navigation mode.
-type ModeActivationOptions struct {
-	Action                *string
-	Modifier              *string
-	OnExit                []string
-	Repeat                *bool
-	CursorFollowSelection *bool
-	ZoomToDepth           *int
-	FilterRoles           []string
-	FilterTextContains    []string
-	Search                *bool
-	HideOnEmptySearch     *bool
-	Strategy              *string
-	LabelDirection        *string
-	Toggle                *bool
-	SplitWord             *bool
-}
-
-// parseCursorSelectionModeValue resolves a --cursor-selection-mode value into a
-// cursor-follow override, or returns an error response for invalid input.
-func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
-	switch value {
-	case domain.CursorSelectionModeFollow:
-		follow := true
-
-		return &follow, nil
-	case domain.CursorSelectionModeHold:
-		follow := false
-
-		return &follow, nil
-	default:
-		return nil, &ipc.Response{
-			Success: false,
-			Message: msgCursorSelectionModeRequires,
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-}
-
-func (h *ModesHandler) handleHints(_ context.Context, cmd ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	opts, errResp := h.extractModeOptions(cmd)
-	if errResp != nil {
-		return *errResp
-	}
-
-	h.modes.ActivateModeWithOptions(domain.ModeHints, modes.ModeActivationOptions{
-		Action:                opts.Action,
-		Modifier:              opts.Modifier,
-		OnExit:                opts.OnExit,
-		Repeat:                opts.Repeat,
-		CursorFollowSelection: opts.CursorFollowSelection,
-		FilterRoles:           opts.FilterRoles,
-		FilterTextContains:    opts.FilterTextContains,
-		Search:                opts.Search,
-		HideOnEmptySearch:     opts.HideOnEmptySearch,
-		Strategy:              opts.Strategy,
-		LabelDirection:        opts.LabelDirection,
-		Toggle:                opts.Toggle,
-		SplitWord:             opts.SplitWord,
-	})
-
-	return ipc.Response{Success: true, Message: "hints mode activated", Code: ipc.CodeOK}
-}
-
-func (h *ModesHandler) handleGrid(_ context.Context, cmd ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	opts, errResp := h.extractModeOptions(cmd)
-	if errResp != nil {
-		return *errResp
-	}
-
-	h.modes.ActivateModeWithOptions(domain.ModeGrid, modes.ModeActivationOptions{
-		Action:                opts.Action,
-		Modifier:              opts.Modifier,
-		OnExit:                opts.OnExit,
-		Repeat:                opts.Repeat,
-		CursorFollowSelection: opts.CursorFollowSelection,
-		Toggle:                opts.Toggle,
-	})
-
-	return ipc.Response{Success: true, Message: "grid mode activated", Code: ipc.CodeOK}
-}
-
-func (h *ModesHandler) handleRecursiveGrid(_ context.Context, cmd ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	opts, errResp := h.extractModeOptions(cmd)
-	if errResp != nil {
-		return *errResp
-	}
-
-	h.modes.ActivateModeWithOptions(domain.ModeRecursiveGrid, modes.ModeActivationOptions{
-		Action:                opts.Action,
-		Modifier:              opts.Modifier,
-		OnExit:                opts.OnExit,
-		Repeat:                opts.Repeat,
-		CursorFollowSelection: opts.CursorFollowSelection,
-		ZoomToDepth:           opts.ZoomToDepth,
-		Toggle:                opts.Toggle,
-	})
-
-	return ipc.Response{Success: true, Message: "recursive-grid mode activated", Code: ipc.CodeOK}
-}
-
-func (h *ModesHandler) handleScroll(_ context.Context, cmd ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	opts, errResp := h.extractModeOptions(cmd)
-	if errResp != nil {
-		return *errResp
-	}
-
-	h.modes.ActivateModeWithOptions(domain.ModeScroll, modes.ModeActivationOptions{
-		Toggle: opts.Toggle,
-	})
-
-	return ipc.Response{Success: true, Message: "scroll mode activated", Code: ipc.CodeOK}
-}
-
-func (h *ModesHandler) handleMonitorSelect(_ context.Context, cmd ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	opts, errResp := h.extractModeOptions(cmd)
-	if errResp != nil {
-		return *errResp
-	}
-
-	if opts.Action != nil || opts.Repeat != nil || opts.CursorFollowSelection != nil ||
-		len(opts.FilterRoles) > 0 || len(opts.FilterTextContains) > 0 ||
-		opts.Search != nil || opts.Strategy != nil || opts.LabelDirection != nil {
-		return ipc.Response{
-			Success: false,
-			Message: "monitor_select only supports --toggle",
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	h.modes.ActivateModeWithOptions(domain.ModeMonitorSelect, modes.ModeActivationOptions{
-		Toggle: opts.Toggle,
-	})
-
-	return ipc.Response{Success: true, Message: "monitor_select mode activated", Code: ipc.CodeOK}
-}
-
-func (h *ModesHandler) handleIdle(_ context.Context, _ ipc.Command) ipc.Response {
-	if h.modes == nil {
-		return h.modesUnavailableResponse()
-	}
-
-	h.modes.ActivateMode(domain.ModeIdle)
-
-	return ipc.Response{Success: true, Message: "idle mode activated", Code: ipc.CodeOK}
 }
 
 func (h *ModesHandler) handleToggleCursorFollowSelection(

@@ -4,55 +4,56 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/domain/modeflag"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// modeArgs walks a mode command's arguments.
+// probeArgs walks a hints probe's arguments.
 //
 // Every flag that carries a value can be written two ways — "--flag=value" or
 // "--flag value" — and reading the second form means looking at the next
 // argument and skipping it on the following pass. Doing that at each flag is
 // the same dozen lines repeated, including a bounds check whose absence is a
 // panic rather than a refusal, so it lives here once.
-type modeArgs struct {
+//
+// A mode command is read by the grammar in internal/domain/modecmd instead. A
+// probe has its own short vocabulary and no rules between its flags, so it
+// stops here.
+type probeArgs struct {
 	args []string
 	// index is the argument being read. take advances it when it consumes a
 	// following argument as a value.
 	index int
 }
 
-// newModeArgs starts a walk over a mode command's arguments, skipping the mode
-// name when the caller included it.
-//
-// The CLI sends it — `neru grid --action left_click` arrives as
-// ["grid", "--action", "left_click"] — and the hotkey path does not, so both
-// shapes have to reach the same parse.
-func newModeArgs(cmd ipc.Command) *modeArgs {
+// newProbeArgs starts a walk over a request's arguments, skipping the request's
+// own name when the caller included it, as anything modeled on the CLI's
+// traffic does.
+func newProbeArgs(cmd ipc.Command) *probeArgs {
 	if len(cmd.Args) > 0 && cmd.Args[0] == cmd.Action {
-		return &modeArgs{args: cmd.Args[1:]}
+		return &probeArgs{args: cmd.Args[1:]}
 	}
 
-	return &modeArgs{args: cmd.Args}
+	return &probeArgs{args: cmd.Args}
 }
 
 // more reports whether an argument remains.
-func (m *modeArgs) more() bool { return m.index < len(m.args) }
+func (m *probeArgs) more() bool { return m.index < len(m.args) }
 
 // arg returns the argument being read.
-func (m *modeArgs) arg() string { return m.args[m.index] }
+func (m *probeArgs) arg() string { return m.args[m.index] }
 
 // next moves to the following argument.
-func (m *modeArgs) next() { m.index++ }
+func (m *probeArgs) next() { m.index++ }
 
 // is reports whether the current argument is the named flag, in any spelling
 // that flag accepts.
-func (m *modeArgs) is(name modeflag.Name) bool {
-	spec, known := modeflag.Get(name)
+func (m *probeArgs) is(name modecmd.Flag) bool {
+	descriptor, known := modecmd.Lookup(name)
 	if !known {
 		return false
 	}
 
-	return spec.Match(m.arg())
+	return descriptor.Match(m.arg())
 }
 
 // take reads the value belonging to the flag currently being read, in whichever
@@ -61,7 +62,7 @@ func (m *modeArgs) is(name modeflag.Name) bool {
 //
 // missing is the whole message a user sees when the flag was given with no
 // value at all, so a flag with a constrained vocabulary can name it.
-func (m *modeArgs) take(missing string) (string, *ipc.Response) {
+func (m *probeArgs) take(missing string) (string, *ipc.Response) {
 	arg := m.arg()
 
 	if _, after, ok := strings.Cut(arg, "="); ok {

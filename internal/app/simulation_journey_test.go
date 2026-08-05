@@ -101,40 +101,57 @@ func TestSimulation_HintsJourney_SelectMovesCursor(t *testing.T) {
 // button without a mouse" journey: a binding with an explicit action
 // ("hints left_click") makes typing the label move the cursor to the element
 // center, click there, and drop back to idle.
+//
+// The three spellings of that binding run the same journey. A binding is text
+// the daemon reads for itself, so this is where a flag that parses but never
+// reaches the mode would show up — as a hint that highlights and then does
+// nothing.
 func TestSimulation_HintsJourney_ClickAction(t *testing.T) {
-	cfg := simConfig()
-	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints left_click"}
-
-	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
-	sim := newSimHarness(t, cfg, []*element.Element{save})
-
-	sim.pressHotkey(hintsHotkey)
-	sim.waitMode(domain.ModeHints)
-	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
-
-	labels := sim.overlay.lastHintLabels()
-	if len(labels) != 1 {
-		t.Fatalf("expected exactly one hint label, got %v", labels)
+	bindings := map[string]string{
+		"positional action": "hints left_click",
+		"long flag":         "hints --action=left_click",
+		"short flag":        "hints -a left_click",
 	}
 
-	sim.typeLabel(labels[0])
+	for name, binding := range bindings {
+		t.Run(name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[hintsHotkey] = []string{binding}
 
-	sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) > 0 })
+			save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
+			sim := newSimHarness(t, cfg, []*element.Element{save})
 
-	clicks := sim.ax.recordedClicks()
-	if len(clicks) != 1 {
-		t.Fatalf("expected exactly one click, got %d", len(clicks))
+			sim.pressHotkey(hintsHotkey)
+			sim.waitMode(domain.ModeHints)
+			sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+			labels := sim.overlay.lastHintLabels()
+			if len(labels) != 1 {
+				t.Fatalf("expected exactly one hint label, got %v", labels)
+			}
+
+			sim.typeLabel(labels[0])
+
+			sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) > 0 })
+
+			clicks := sim.ax.recordedClicks()
+			if len(clicks) != 1 {
+				t.Fatalf("expected exactly one click, got %d", len(clicks))
+			}
+
+			if clicks[0].point != save.Center() {
+				t.Fatalf("click landed at %v, expected element center %v",
+					clicks[0].point, save.Center())
+			}
+
+			if got := sim.cursor.position(); got != save.Center() {
+				t.Fatalf("cursor at %v after click, expected element center %v",
+					got, save.Center())
+			}
+
+			sim.waitMode(domain.ModeIdle)
+		})
 	}
-
-	if clicks[0].point != save.Center() {
-		t.Fatalf("click landed at %v, expected element center %v", clicks[0].point, save.Center())
-	}
-
-	if got := sim.cursor.position(); got != save.Center() {
-		t.Fatalf("cursor at %v after click, expected element center %v", got, save.Center())
-	}
-
-	sim.waitMode(domain.ModeIdle)
 }
 
 // TestSimulation_HintsEscape covers bailing out: Escape exits hints, hides

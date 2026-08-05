@@ -5,16 +5,17 @@
 A mode command (`hints --action left_click`) reaches the daemon from three
 places — the CLI, a hotkey binding, and a direct IPC caller — and each had
 grown its own reading of it. `internal/cli/mode_commands.go` validated fully,
-`internal/app/ipcctrl/modeoptions.go` validated partially and differently, and
-`internal/config/validators_hotkeys.go` stopped at the command word, so a
-typo'd binding was discoverable only by pressing the key. The three had already
-drifted: `--on-exit requires --action` existed CLI-side only, four error strings
-differed, and per-mode flag support was a CLI-only concept, so `grid --search`
-in a binding activated grid and dropped the flag in silence. We decided that one
-package under internal/domain owns the whole grammar — the flag vocabulary,
-which modes accept which flag, parsing, validation, and rendering back to
-arguments — and that the CLI, the IPC controller and the config validator all
-call it rather than each reading the command their own way.
+the IPC controller's own mode-option parser validated partially and
+differently, and `internal/config/validators_hotkeys.go` stopped at the command
+word, so a typo'd binding was discoverable only by pressing the key. The three
+had already drifted: `--on-exit requires --action` existed CLI-side only, four
+error strings differed, and per-mode flag support was a CLI-only concept, so
+`grid --search` in a binding activated grid and dropped the flag in silence. We
+decided that one package under internal/domain — `internal/domain/modecmd` —
+owns the whole grammar — the flag vocabulary, which modes accept which flag,
+parsing, validation, and rendering back to arguments — and that the CLI, the
+IPC controller and the config validator all call it rather than each reading
+the command their own way.
 
 ## Considered options
 

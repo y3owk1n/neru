@@ -3,7 +3,7 @@ package config
 import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
-	"github.com/y3owk1n/neru/internal/domain/modeflag"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // Semantic role names injected into the clickable role list when the
@@ -44,7 +44,7 @@ const (
 	CmdMacro = MacroCommand
 	// OnExitFlag carries a step a mode runs once its action is fulfilled. It is
 	// repeatable, and its values are steps in their own right.
-	OnExitFlag                     = "--" + string(modeflag.OnExit)
+	OnExitFlag                     = "--" + string(modecmd.FlagOnExit)
 	CmdToggleCursorFollowSelection = "toggle-cursor-follow-selection"
 	CmdMoveMouseUp                 = "action move_mouse_relative --dx=0 --dy=-10"
 )
