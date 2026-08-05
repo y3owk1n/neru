@@ -191,16 +191,12 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		strategy = overrides.strategy
 	}
 
-	var permissionOk bool
-
-	activeScreenBounds, bundleID, strategy, permissionOk = h.ensureScreenCapturePermissions(
-		activeScreenBounds,
-		bundleID,
-		strategy,
-		overrides.strategy,
-	)
-	if !permissionOk {
-		h.abandonHintActivation(isRefresh)
+	if h.needsScreenCapturePermission(strategy) {
+		// The permission request blocks on a modal dialog and h.mu must not be
+		// held across it (see the SystemPort contract). The activation is
+		// suspended here and re-entered through the outer locked surface once
+		// the user decides.
+		h.requestScreenCapturePermissionAndResume(activation)
 
 		return
 	}
@@ -310,83 +306,73 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	h.startIndicatorPolling(domain.ModeHints)
 }
 
-// ensureScreenCapturePermissions checks and requests screen capture permissions.
-// It releases h.mu during the modal prompt to avoid blocking other threads.
-// Returns the updated activeScreenBounds, bundleID, strategy, and whether it is safe to proceed.
-func (h *handlerState) ensureScreenCapturePermissions(
-	activeScreenBounds image.Rectangle,
-	bundleID string,
-	strategy string,
-	strategyVal string,
-) (image.Rectangle, string, string, bool) {
+// needsScreenCapturePermission reports whether the vision strategy is blocked
+// on the screen-recording permission.
+func (h *handlerState) needsScreenCapturePermission(strategy string) bool {
 	if strategy != domain.StrategyVision {
-		return activeScreenBounds, bundleID, strategy, true
+		return false
 	}
 
-	if h.system == nil || h.system.CheckScreenCapturePermission(h.ctx) {
-		return activeScreenBounds, bundleID, strategy, true
-	}
+	return h.system != nil && !h.system.CheckScreenCapturePermission(h.ctx)
+}
 
+// requestScreenCapturePermissionAndResume shows the blocking permission dialog
+// on its own goroutine and re-enters the handler through the outer locked
+// surface once the user decides. The mode-session token captured here lets the
+// resume detect any state change that happened while the dialog was open and
+// drop the stale consent.
+func (h *handlerState) requestScreenCapturePermissionAndResume(
+	activation modecmd.Activation,
+) {
 	session := h.modeSession
+	system := h.system
+	ctx := h.ctx
+	outer := h.outer
 
-	// Sanctioned mid-flight unlock: the permission request blocks on a modal
-	// dialog and the lock must not be held across it (see the SystemPort
-	// contract). The mode-session token below detects any state change that
-	// happened while unlocked, and the caller bails when it did.
-	h.outer.mu.Unlock()
+	go func() {
+		consent := system.RequestScreenCapturePermission(ctx)
+		outer.resumeHintActivationAfterPermission(consent, session, activation)
+	}()
+}
 
-	consent := h.system.RequestScreenCapturePermission(h.ctx)
+// resumeHintActivationAfterPermission re-enters the handler once the
+// screen-capture permission dialog is answered. A granted consent re-runs the
+// activation from the top, which re-reads the screen bounds, focused app and
+// strategy that may have changed while the dialog was open; a consent whose
+// mode session moved on is dropped.
+func (h *Handler) resumeHintActivationAfterPermission(
+	consent ports.ScreenCaptureConsent,
+	session uint64,
+	activation modecmd.Activation,
+) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-	h.outer.mu.Lock()
-
-	// Check if state changed while we were unlocked.
 	if h.ctx.Err() != nil || h.modeSession != session {
 		h.logger.Debug(
-			"Aborting hint mode activation: state changed or context canceled while waiting for permission dialog",
+			"Dropping screen-capture consent: state changed while the permission dialog was open",
 		)
 
-		return activeScreenBounds, bundleID, strategy, false
+		return
 	}
 
-	if consent == ports.ScreenCaptureQuit {
+	switch consent {
+	case ports.ScreenCaptureQuit:
 		h.shutdown()
-
-		return activeScreenBounds, bundleID, strategy, false
-	}
-
-	if consent == ports.ScreenCaptureCanceled {
+	case ports.ScreenCaptureCanceled:
 		h.exitMode()
+	case ports.ScreenCaptureGranted:
+		// A Granted consent implies the check now passes (the SystemPort
+		// contract). If it does not, re-running the activation would show the
+		// dialog again in an unbounded loop, so drop the consent instead.
+		if h.system != nil && !h.system.CheckScreenCapturePermission(h.ctx) {
+			h.logger.Warn(
+				"Screen-capture consent granted but the permission check still fails; not retrying",
+			)
 
-		return activeScreenBounds, bundleID, strategy, false
-	}
-
-	// Re-read screen bounds under the lock in case they changed while the modal was open.
-	if h.system != nil {
-		b, err := h.system.ScreenBounds(h.ctx)
-		if err == nil {
-			activeScreenBounds = b
-			h.setScreenBounds(activeScreenBounds)
+			return
 		}
+
+		h.activateHintModeInternal(activation)
 	}
-
-	// Re-fetch bundle ID under the lock since the focused app might have changed while the modal was open.
-	bundleCtx, bundleCancel := context.WithTimeout(h.ctx, 1*time.Second)
-	newBundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
-
-	bundleCancel()
-
-	if bundleIDErr == nil {
-		bundleID = newBundleID
-	} else {
-		h.logger.Debug("Failed to re-fetch focused app bundle ID for hint generation",
-			zap.Error(bundleIDErr))
-	}
-
-	// Re-evaluate strategy in case the focused app changed.
-	strategy = h.config.Hints.StrategyForApp(bundleID)
-	if strategyVal != "" {
-		strategy = strategyVal
-	}
-
-	return activeScreenBounds, bundleID, strategy, true
 }
