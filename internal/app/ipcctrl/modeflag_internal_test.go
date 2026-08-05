@@ -100,13 +100,14 @@ func probes() map[modeflag.Name]flagProbe {
 				return o.CursorFollowSelection != nil
 			},
 		},
-		// Debug is the one flag the daemon deliberately accepts and ignores:
-		// probing the focused window is work the CLI does. Recognizing it still
-		// matters, because an unrecognized bare word would be taken as the
-		// positional action instead.
+		// Debug is what makes hints short-circuit to a read-only probe instead
+		// of drawing the overlay, so the daemon has to record it like any
+		// other flag. It previously asserted only that --debug was not
+		// mistaken for the positional action, which the flag went on to
+		// satisfy while being dropped on the floor.
 		modeflag.Debug: {
 			args:    []string{"--debug"},
-			applied: func(o ModeActivationOptions) bool { return o.Action == nil },
+			applied: func(o ModeActivationOptions) bool { return o.Debug != nil && *o.Debug },
 		},
 	}
 }
