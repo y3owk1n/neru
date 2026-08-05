@@ -1751,12 +1751,24 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 @property(nonatomic, assign) BOOL shouldBeVisible;      ///< Whether the window should currently be visible on screen
 @property(nonatomic, assign) BOOL needsWindowServerReattach;
 @property(nonatomic, assign) BOOL windowServerReattachScheduled;
+@property(nonatomic, assign) CFTimeInterval lastOnscreenVerifyTime;
+@property(nonatomic, assign) int onscreenProbeFailureStreak;
 - (void)applyOverlayCollectionBehavior;
 - (void)reattachToAllSpacesIfVisible;
 @end
 
 // Coalesces bursts of invalidation notifications into one reattach cycle.
 static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
+
+// Rate limit for the synchronous onscreen probe: keeps it off per-tick and
+// per-keypress paths and caps a failing probe at one reattach per interval.
+static const CFTimeInterval kNeruOnscreenVerifyInterval = 1.0;
+
+// A probe still failing after this many repairs is lying (e.g. a list API
+// quirk) — stop probing rather than blink the overlay forever.
+static const int kNeruOnscreenProbeFailureLimit = 3;
+
+static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber);
 
 #pragma mark - Overlay Window Controller Implementation
 
@@ -1818,6 +1830,8 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 			[self.window orderFrontRegardless];
 			[self.window display];
 			[self.overlayView setNeedsDisplay:YES];
+			// Just reordered — hold off probing for one interval.
+			self.lastOnscreenVerifyTime = CACurrentMediaTime();
 		});
 	});
 }
@@ -1826,19 +1840,31 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 	[self reattachToAllSpacesIfVisibleAfterDelay:0];
 }
 
-// A healthy CanJoinAllSpaces window is already on the new Space, so a Space
-// change needs no WindowServer work; only repair a window macOS dropped.
+// A healthy CanJoinAllSpaces window is already on the new Space; repair only
+// a window AppKit or the WindowServer reports dropped.
 - (void)reassertOverlayOnActiveSpace {
 	if (!self.shouldBeVisible || ![self hasDrawableFrame] || self.windowServerReattachScheduled)
 		return;
 
-	if (self.window.isVisible && self.window.isOnActiveSpace)
-		return;
+	if (self.window.isVisible && self.window.isOnActiveSpace) {
+		// AppKit looks healthy — double-check server truth, rate-limited.
+		CFTimeInterval now = CACurrentMediaTime();
+		if (now - self.lastOnscreenVerifyTime < kNeruOnscreenVerifyInterval ||
+		    self.onscreenProbeFailureStreak >= kNeruOnscreenProbeFailureLimit)
+			return;
 
-	[self.window setLevel:kCGMaximumWindowLevel];
-	[self applyOverlayCollectionBehavior];
-	[self.window orderFrontRegardless];
-	[self.overlayView setNeedsDisplay:YES];
+		self.lastOnscreenVerifyTime = now;
+		if (NeruWindowIsOnscreenPerWindowServer(self.window.windowNumber)) {
+			self.onscreenProbeFailureStreak = 0;
+			return;
+		}
+		self.onscreenProbeFailureStreak++;
+	}
+
+	// Re-applying cached-identical state never reaches the server; only the
+	// full detach/reattach cycle un-pins a window stuck on one Space.
+	self.needsWindowServerReattach = YES;
+	[self reattachToAllSpacesIfVisible];
 }
 
 - (void)handleActiveSpaceDidChange:(NSNotification *)notification {
@@ -1950,6 +1976,33 @@ static const int64_t kNeruWindowServerReattachDebounceNs = 300 * NSEC_PER_MSEC;
 
 #pragma mark - C Interface Implementation
 
+/// Server-truth visibility check — AppKit's cached window state goes stale
+/// when the WindowServer silently drops a Space attachment. Must enumerate via
+/// CGWindowListCopyWindowInfo: CGWindowListCreateDescriptionFromArray omits
+/// NSWindowSharingNone windows, which overlays are when hidden from capture.
+static BOOL NeruWindowIsOnscreenPerWindowServer(NSInteger windowNumber) {
+	if (windowNumber <= 0)
+		return NO;
+
+	CFArrayRef windows = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID);
+	if (!windows)
+		return YES;  // enumeration failure is not evidence of detachment
+
+	BOOL onscreen = NO;
+	CFIndex count = CFArrayGetCount(windows);
+	for (CFIndex i = 0; i < count; i++) {
+		NSDictionary *info = (__bridge NSDictionary *)CFArrayGetValueAtIndex(windows, i);
+		NSNumber *number = info[(__bridge NSString *)kCGWindowNumber];
+		if (number.integerValue == windowNumber) {
+			onscreen = [info[(__bridge NSString *)kCGWindowIsOnscreen] boolValue];
+			break;
+		}
+	}
+	CFRelease(windows);
+
+	return onscreen;
+}
+
 /// Order an overlay window front once it has a drawable frame.
 /// Hidden overlays are shrunk to 1x1 to release backing memory; callers may
 /// request Show before the small indicator window has been resized. In that
@@ -1968,9 +2021,31 @@ static void NeruOrderOverlayWindowIfDrawable(OverlayWindowController *controller
 		return;
 	}
 
+	BOOL freshlyOrdered = !controller.window.isVisible;
+
 	[controller applyOverlayCollectionBehavior];
 	[controller.window setIsVisible:YES];
 	[controller.window orderFrontRegardless];
+
+	// The server can silently pin the window to one Space while AppKit's
+	// cache still looks healthy, making the calls above no-ops — probe server
+	// truth and repair with the full reattach cycle. A just-ordered window is
+	// not committed server-side yet, so it gets one interval before probing.
+	CFTimeInterval now = CACurrentMediaTime();
+	if (freshlyOrdered) {
+		controller.lastOnscreenVerifyTime = now;
+	} else if (
+	    now - controller.lastOnscreenVerifyTime >= kNeruOnscreenVerifyInterval &&
+	    controller.onscreenProbeFailureStreak < kNeruOnscreenProbeFailureLimit) {
+		controller.lastOnscreenVerifyTime = now;
+		if (!NeruWindowIsOnscreenPerWindowServer(controller.window.windowNumber)) {
+			controller.onscreenProbeFailureStreak++;
+			controller.needsWindowServerReattach = YES;
+			[controller reattachToAllSpacesIfVisible];
+			return;
+		}
+		controller.onscreenProbeFailureStreak = 0;
+	}
 
 	if (displayNow) {
 		[controller.window display];
