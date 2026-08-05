@@ -488,3 +488,102 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 		)
 	}
 }
+
+// settlingSystemPort is a MockSystemPort that also implements
+// ports.CursorSettler, recording settle calls so tests can pin ordering
+// against the scroll itself.
+type settlingSystemPort struct {
+	mocks.MockSystemPort
+
+	settleCalls int
+	settleErr   error
+}
+
+func (s *settlingSystemPort) SettleCursor(_ context.Context) error {
+	s.settleCalls++
+
+	return s.settleErr
+}
+
+// TestScrollService_Scroll_SettlesCursorBeforeScroll pins the interleaving fix
+// for scrolls fired during an animated relative cursor move: the in-flight
+// animation must be settled before the scroll is dispatched, so the scroll
+// anchors to the window the user aimed for rather than one the cursor was
+// gliding over mid-animation.
+func TestScrollService_Scroll_SettlesCursorBeforeScroll(t *testing.T) {
+	system := &settlingSystemPort{}
+
+	settledAtScrollTime := -1
+	mockAcc := &mocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, _ int) error {
+			settledAtScrollTime = system.settleCalls
+
+			return nil
+		},
+	}
+
+	service := services.NewScrollService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		system,
+		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
+		logger.Get(),
+	)
+
+	err := service.Scroll(
+		context.Background(),
+		services.ScrollDirectionDown,
+		services.ScrollAmountChar,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("Scroll() error = %v, want nil", err)
+	}
+
+	if settledAtScrollTime != 1 {
+		t.Errorf(
+			"settle calls observed at scroll time = %d, want 1 (settle must run before the scroll)",
+			settledAtScrollTime,
+		)
+	}
+}
+
+// TestScrollService_Scroll_SettleErrorDoesNotBlockScroll pins that a failing
+// settle degrades to the pre-settle behavior — the scroll still runs — rather
+// than turning a cosmetic animation problem into a lost user action.
+func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
+	system := &settlingSystemPort{
+		settleErr: derrors.New(derrors.CodeActionFailed, "settle failed"),
+	}
+
+	scrolled := false
+	mockAcc := &mocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, _ int) error {
+			scrolled = true
+
+			return nil
+		},
+	}
+
+	service := services.NewScrollService(
+		mockAcc,
+		&mocks.MockOverlayPort{},
+		system,
+		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
+		logger.Get(),
+	)
+
+	err := service.Scroll(
+		context.Background(),
+		services.ScrollDirectionDown,
+		services.ScrollAmountChar,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("Scroll() error = %v, want nil (settle failure must not fail the scroll)", err)
+	}
+
+	if !scrolled {
+		t.Error("Scroll() never reached the accessibility port after a settle error")
+	}
+}
