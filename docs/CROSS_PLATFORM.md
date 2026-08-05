@@ -130,7 +130,7 @@ or no-op) · ❌ no code path
 | **Cursor move**               | ✅ `CGWarpMouseCursorPosition` | ✅ XTest         | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ opt-in, jumps only | ✅ opt-in, jumps only      | ✅ opt-in, jumps only   | ❌                           |
+| **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
@@ -201,6 +201,16 @@ covers the same flows macOS animates — grid/recursive-grid cursor-follow,
 `move_mouse`, selection moves; clicks stay instant. On Wayland the interpolation
 start point comes from the client-side cursor cache, so a stale read only skews
 the glide path, never the landing point.
+
+Relative (hjkl) moves animate too, with the fixed per-move duration
+`smooth_cursor.relative_movement_duration`, matching macOS. X11 and KDE extend
+the absolute animator's pending endpoint; wlroots instead drains the delta in
+integer chunks through native relative motion
+([relative_animator.go](../internal/adapter/platform/linux/relative_animator.go)) —
+the animation never reads the client position cache, preserving the exactness
+that made wlroots apply deltas natively in the first place. Position-dependent
+actions (clicks, scrolls) settle the in-flight animation before acting, so an
+action fired mid-glide lands where the user aimed.
 
 ---
 
@@ -385,7 +395,7 @@ important thing to know before touching overlay code:
 | ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
 | **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | ❌                                 |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
-| **Smooth cursor**            | ✅ configurable easing               | ✅ stepped warp (opt-in)           | ❌                                 |
+| **Smooth cursor**            | ✅ configurable easing               | ✅ stepped warp, incl. relative (opt-in) | ❌                           |
 | **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
 
 ---

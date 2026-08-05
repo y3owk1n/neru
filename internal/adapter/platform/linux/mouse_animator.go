@@ -51,6 +51,7 @@ type cursorRequest struct {
 	steps            int
 	maxDuration      int
 	durationPerPixel float64
+	fixedDuration    int // when > 0, overrides the distance-derived duration
 }
 
 // smoothCursorAnimator glides the cursor toward a target, matching the darwin
@@ -75,6 +76,12 @@ type smoothCursorAnimator struct {
 	stopCh chan struct{}
 	done   *cursorAnimationDone // current session completion; nil only between stop() and the next session
 	busy   bool                 // a session is in progress (worker actively draining toward a target)
+
+	// pendingEnd is the target of the animation currently in flight. Relative
+	// moves extend it instead of restarting from the (possibly stale) cursor
+	// position, so no part of a delta is lost under key repeat.
+	pendingEnd image.Point
+	hasPending bool
 
 	// injectSem is a size-1 semaphore serializing actual backend injection (one
 	// step at a time) and is the ordering handoff to stop(): the worker holds it
@@ -107,6 +114,7 @@ func (a *smoothCursorAnimator) stop() {
 	a.stopCh = nil
 	a.done = nil
 	a.busy = false
+	a.hasPending = false
 
 	if stopCh != nil {
 		close(stopCh)
@@ -121,6 +129,53 @@ func (a *smoothCursorAnimator) stop() {
 	// step that has not yet injected will see the closed stopCh (in stepMove) and
 	// skip. The caller's subsequent moveCursorDirect therefore lands last.
 	a.injectSem <- struct{}{}
+
+	<-a.injectSem
+}
+
+// pendingTarget returns the endpoint of the animation currently in flight,
+// or ok == false when no animation is active.
+func (a *smoothCursorAnimator) pendingTarget() (image.Point, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.pendingEnd, a.hasPending
+}
+
+// settle finishes any in-flight animation immediately: the worker is canceled
+// and the cursor warps straight to the endpoint it was animating toward.
+// Position-dependent actions call this so an action firing mid-animation acts
+// at the point the user aimed for, without waiting the animation out. The
+// warp happens under injectSem — the same fence stop() uses — so a canceled
+// step can never land after it.
+func (a *smoothCursorAnimator) settle() {
+	a.mu.Lock()
+
+	if !a.hasPending {
+		a.mu.Unlock()
+
+		return
+	}
+
+	end := a.pendingEnd
+	stopCh := a.stopCh
+	done := a.done
+	a.reqCh = nil
+	a.stopCh = nil
+	a.done = nil
+	a.busy = false
+	a.hasPending = false
+
+	if stopCh != nil {
+		close(stopCh)
+	}
+	a.mu.Unlock()
+
+	done.close()
+
+	a.injectSem <- struct{}{}
+
+	_ = a.move(end)
 
 	<-a.injectSem
 }
@@ -194,6 +249,52 @@ func (a *smoothCursorAnimator) animateTo(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	a.submitLocked(req)
+}
+
+// animateRelativeBy animates a relative move with a fixed duration,
+// independent of the distance, so that cursor speed scales with the per-move
+// delta instead of collapsing to the constant velocity the
+// distance-proportional duration would produce.
+//
+// The base is the pending endpoint of the animation in flight (falling back
+// to the sampled cursor position), extended by delta and clamped by the
+// caller's clamp. Base computation, bookkeeping, and submission all happen
+// under one lock hold, so two concurrent relative movers compose their deltas
+// instead of one silently overwriting the other's endpoint.
+func (a *smoothCursorAnimator) animateRelativeBy(
+	delta image.Point,
+	clamp func(image.Point) image.Point,
+	steps int,
+	durationMs int,
+) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	base := a.pendingEnd
+	if !a.hasPending {
+		base = a.pos()
+	}
+
+	end := clamp(base.Add(delta))
+	if end == base {
+		// Nothing to animate: the delta was zero or the clamp ate it at a
+		// screen edge. The in-flight animation (if any) already targets base,
+		// so submitting would only cancel and restart it.
+		return
+	}
+
+	a.submitLocked(cursorRequest{
+		end:           end,
+		steps:         steps,
+		fixedDuration: durationMs,
+	})
+}
+
+// submitLocked records req as the pending animation target and hands it to
+// the worker, starting the worker and a fresh session completion when needed.
+// Callers must hold a.mu.
+func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 	if a.reqCh == nil {
 		a.reqCh = make(chan cursorRequest, 1)
 		a.stopCh = make(chan struct{})
@@ -205,6 +306,9 @@ func (a *smoothCursorAnimator) animateTo(
 		a.done = newCursorAnimationDone()
 		a.busy = true
 	}
+
+	a.pendingEnd = req.end
+	a.hasPending = true
 
 	a.enqueueLocked(req)
 }
@@ -263,6 +367,10 @@ restart:
 	distance := math.Hypot(float64(req.end.X-start.X), float64(req.end.Y-start.Y))
 
 	duration := math.Min(float64(req.maxDuration), distance*req.durationPerPixel)
+	if req.fixedDuration > 0 {
+		duration = float64(req.fixedDuration)
+	}
+
 	if duration < minCursorAnimationDuration {
 		duration = minCursorAnimationDuration
 	}
@@ -358,6 +466,7 @@ func (a *smoothCursorAnimator) finishOrNext(
 
 	done := a.done
 	a.busy = false
+	a.hasPending = false
 	a.mu.Unlock()
 
 	done.close()

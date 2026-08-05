@@ -344,3 +344,181 @@ func TestSmoothCursorAnimatorStopReleasesWaiter(t *testing.T) {
 		t.Fatalf("wait after stop returned error: %v", err)
 	}
 }
+
+// identityClamp passes points through unchanged, for tests that exercise
+// relative animation away from screen edges.
+func identityClamp(p image.Point) image.Point { return p }
+
+// TestSmoothCursorAnimatorPendingTargetLifecycle pins the pending-target
+// contract relative moves build on: the endpoint of the animation in flight
+// is visible while it is pending and gone once the animation is stopped.
+func TestSmoothCursorAnimatorPendingTargetLifecycle(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	if _, ok := animator.pendingTarget(); ok {
+		t.Fatal("pendingTarget() reported an animation before any was submitted")
+	}
+
+	// A slow glide so the session is still pending when we look.
+	target := image.Point{X: 400, Y: 300}
+	animator.animateTo(target, 10, 5000, 50)
+
+	got, ok := animator.pendingTarget()
+	if !ok || got != target {
+		t.Fatalf("pendingTarget() = %v, %v mid-animation, want %v, true", got, ok, target)
+	}
+
+	animator.stop()
+
+	if _, ok := animator.pendingTarget(); ok {
+		t.Fatal("pendingTarget() still reports an animation after stop()")
+	}
+}
+
+// TestSmoothCursorAnimatorRelativeLandsExactly pins that a relative move from
+// idle animates as a stepped glide and lands exactly on start+delta.
+func TestSmoothCursorAnimatorRelativeLandsExactly(t *testing.T) {
+	t.Parallel()
+
+	start := image.Point{X: 7, Y: 9}
+	rec := &recorder{start: start}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	delta := image.Point{X: 35, Y: -20}
+	animator.animateRelativeBy(delta, identityClamp, 5, 30)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait returned error: %v", err)
+	}
+
+	last, ok := rec.last()
+	if !ok {
+		t.Fatal("expected at least one move to be injected")
+	}
+
+	if want := start.Add(delta); last != want {
+		t.Fatalf("relative move landed on %v, want %v", last, want)
+	}
+
+	if rec.count() < 2 {
+		t.Fatalf("expected a stepped glide (>=2 moves), got %d", rec.count())
+	}
+}
+
+// TestSmoothCursorAnimatorRelativeExtendsPendingEndpoint pins the held-repeat
+// contract: a delta arriving mid-animation extends the pending endpoint
+// instead of restarting from the mid-glide position, and settle() warps
+// straight to the extended endpoint.
+func TestSmoothCursorAnimatorRelativeExtendsPendingEndpoint(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	// Long fixed durations so both deltas land in one pending session.
+	animator.animateRelativeBy(image.Point{X: 10, Y: 0}, identityClamp, 10, 5000)
+	animator.animateRelativeBy(image.Point{X: 15, Y: 5}, identityClamp, 10, 5000)
+
+	want := image.Point{X: 25, Y: 5}
+
+	if got, pending := animator.pendingTarget(); !pending || got != want {
+		t.Fatalf("pendingTarget() = %v, %v after two deltas, want %v, true", got, pending, want)
+	}
+
+	animator.settle()
+
+	if last, moved := rec.last(); !moved || last != want {
+		t.Fatalf("settle() warped to %v, %v, want %v, true", last, moved, want)
+	}
+
+	if _, pending := animator.pendingTarget(); pending {
+		t.Fatal("pendingTarget() still reports an animation after settle()")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait after settle returned error: %v", err)
+	}
+}
+
+// TestSmoothCursorAnimatorRelativeNoopKeepsAnimation pins the screen-edge
+// guard: a delta the clamp fully absorbs must not cancel and restart the
+// animation already heading to the pending endpoint.
+func TestSmoothCursorAnimatorRelativeNoopKeepsAnimation(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	end := image.Point{X: 50, Y: 0}
+	animator.animateRelativeBy(end, identityClamp, 10, 5000)
+
+	// Clamp everything back to the pending endpoint, as a screen edge would.
+	animator.animateRelativeBy(image.Point{X: 100, Y: 0}, func(image.Point) image.Point {
+		return end
+	}, 10, 5000)
+
+	got, ok := animator.pendingTarget()
+	if !ok || got != end {
+		t.Fatalf("pendingTarget() = %v, %v after clamped no-op, want %v, true", got, ok, end)
+	}
+
+	animator.stop()
+}
+
+// TestSmoothCursorAnimatorRelativeConcurrentDeltasCompose pins the
+// single-lock read-modify-write of animateRelativeBy: deltas from concurrent
+// movers must all end up in the final position, none silently overwritten.
+// The recorder's pos() returns the last landed point, so composition must
+// stay exact even across session boundaries.
+func TestSmoothCursorAnimatorRelativeConcurrentDeltasCompose(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	const movers = 8
+
+	const deltasPerMover = 25
+
+	var waitGroup sync.WaitGroup
+	for range movers {
+		waitGroup.Go(func() {
+			for range deltasPerMover {
+				animator.animateRelativeBy(image.Point{X: 1, Y: 0}, identityClamp, 2, 1)
+			}
+		})
+	}
+
+	waitGroup.Wait()
+
+	animator.settle()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait returned error: %v", err)
+	}
+
+	last, ok := rec.last()
+	if !ok {
+		t.Fatal("expected moves to be injected")
+	}
+
+	if want := movers * deltasPerMover; last.X != want {
+		t.Fatalf("final X = %d after %d concurrent unit deltas, want %d (lost deltas)",
+			last.X, want, want)
+	}
+}

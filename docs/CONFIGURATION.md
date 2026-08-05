@@ -105,7 +105,7 @@ Every option not listed here behaves the same on all three platforms.
 | `[monitor_select]`                        | Yes   | Yes   | No      | Windows: the mode returns `ERR_NOT_SUPPORTED`.       |
 | `[virtual_pointer]`                       | Yes   | No    | No      | Ignored; pairs with macOS-only cursor hiding.        |
 | `[smooth_cursor]`                         | Yes   | Yes   | No      | Windows: cursor moves instantly.                     |
-| `smooth_cursor.relative_movement_duration` | Yes  | No    | No      | Linux and Windows: relative moves stay instant.      |
+| `smooth_cursor.relative_movement_duration` | Yes  | Yes   | No      | Windows: relative moves stay instant.                |
 | `[smooth_scroll]`                         | Yes   | No    | No      | Linux and Windows: scrolling is instant.             |
 | `[recursive_grid.animation]`              | Yes   | Yes   | No      | Windows: depth transitions are not animated.         |
 
@@ -1434,8 +1434,10 @@ animation is still in flight, a new relative move extends its endpoint instead
 of restarting from the current position, so no part of a delta is lost under
 key repeat.
 
-Relative animation is supported on macOS; on Linux and Windows relative moves
-always warp instantly. It composes with
+Relative animation is supported on macOS and Linux (X11 and the Wayland
+wlroots/KDE backends; on wlroots the animation is applied as native relative
+motion, never as position warps). On Windows relative moves always warp
+instantly. It composes with
 [`held_repeat` acceleration](#held_repeat): the accelerated deltas pass
 through unchanged, and since animation speed scales with the delta, the cursor
 speeds up over the ramp exactly as without animation — just smoothly.

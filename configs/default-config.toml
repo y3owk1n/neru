@@ -391,7 +391,7 @@ move_mouse_enabled = false                  # Enable smooth mouse movement
 steps = 10                                  # Number of intermediate positions
 max_duration = 200                          # Maximum animation duration in ms
 duration_per_pixel = 0.1                    # Ms per pixel for adaptive duration
-relative_movement_duration = 50             # Fixed duration per relative (hjkl) move in ms (macOS only)
+relative_movement_duration = 50             # Fixed duration per relative (hjkl) move in ms (macOS/Linux)
 
 # Smooth scroll (animates scroll actions with eased chunking)
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#smooth_scroll
