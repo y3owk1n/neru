@@ -542,9 +542,24 @@ type simHarness struct {
 	runDone chan error
 }
 
-// simConfig returns the default config; tests mutate it before newSimHarness.
+// simConfig returns the default config with the standard mode bindings set
+// explicitly; tests mutate it before newSimHarness.
+//
+// The bindings cannot come from platform defaults: Linux deliberately ships
+// with an empty [hotkeys] table (config_linux.go) because chords like
+// Ctrl+Shift+C collide with common application shortcuts there. The journeys
+// test the binding machinery, not each platform's default binding content, so
+// they declare their own.
 func simConfig() *config.Config {
-	return config.DefaultConfig()
+	cfg := config.DefaultConfig()
+	cfg.Hotkeys.Bindings = map[string][]string{
+		hintsHotkey:         {"hints"},
+		gridHotkey:          {"grid"},
+		recursiveGridHotkey: {"recursive_grid"},
+		scrollHotkey:        {"scroll"},
+	}
+
+	return cfg
 }
 
 // simDisplay is one monitor of the simulated desktop.

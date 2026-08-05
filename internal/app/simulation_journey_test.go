@@ -569,8 +569,8 @@ func TestSimulation_ScrollTopSequence(t *testing.T) {
 }
 
 // TestSimulation_HotkeyRegistration covers startup registration: every
-// default binding must be registered with the hotkey backend, canonicalized
-// for the platform.
+// binding in the config must be registered with the hotkey backend,
+// canonicalized for the platform.
 func TestSimulation_HotkeyRegistration(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), nil)
 
