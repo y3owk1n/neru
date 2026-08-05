@@ -20,17 +20,28 @@ const (
 	flagOnExit       = "--on-exit"
 	flagRole         = "--role"
 	flagRepeat       = "--repeat"
+	flagStrategy     = "--strategy"
 	flagHideOnEmpty  = "--hide-on-empty-search"
 	argAction        = "--action=left_click"
 	argSearch        = "--search"
 	argToggle        = "--toggle"
 	argOnExitStep    = "--on-exit=action left_click"
+	argModifierCmd   = "--modifier=cmd"
+	argBadStrategy   = "--strategy=nonsense"
+	argZoomToDepth2  = "--zoom-to-depth=2"
+	flagMistyped     = "--serach"
 	stepLeftClick    = "action left_click"
 	directionReverse = "reverse"
 
 	// msgZoomToDepth is the one message that flag gives, whichever way its
 	// value is unusable.
 	msgZoomToDepth = "--zoom-to-depth requires a non-negative integer"
+
+	// The messages both this file and the diagnosis cases pin, so that the two
+	// readings of the same command are held to the same sentence.
+	msgRepeatNeedsAction = "--repeat requires --action"
+	msgStrategyValue     = "--strategy requires axtree or vision"
+	msgGridRejectsSearch = "grid does not accept --search"
 )
 
 // flagCase is one flag together with proof that parsing it took effect.
@@ -66,7 +77,7 @@ func flagCases() map[modecmd.Flag]flagCase {
 		// A modifier is held during the action, so it needs one to hold it for.
 		modecmd.FlagModifier: {
 			mode:    domain.ModeHints,
-			args:    []string{argAction, "--modifier=cmd"},
+			args:    []string{argAction, argModifierCmd},
 			applied: func(a modecmd.Activation) bool { return a.Modifier != nil },
 			build: func(a *modecmd.Activation) {
 				a.Action = new(leftClick)
@@ -518,7 +529,7 @@ func TestParse_RefusesFlagsTheModeDoesNotAccept(t *testing.T) {
 			name: "search on grid",
 			mode: domain.ModeGrid,
 			args: []string{argSearch},
-			want: "grid does not accept --search",
+			want: msgGridRejectsSearch,
 		},
 		{
 			name: "action on scroll",
@@ -541,7 +552,7 @@ func TestParse_RefusesFlagsTheModeDoesNotAccept(t *testing.T) {
 		{
 			name: "zoom-to-depth on hints",
 			mode: domain.ModeHints,
-			args: []string{"--zoom-to-depth=2"},
+			args: []string{argZoomToDepth2},
 			want: "hints does not accept --zoom-to-depth",
 		},
 	}
@@ -577,7 +588,7 @@ func TestParse_RefusesUnknownArguments(t *testing.T) {
 		{
 			name: "mistyped flag",
 			mode: domain.ModeHints,
-			args: []string{"--serach"},
+			args: []string{flagMistyped},
 			want: "unknown flag: --serach",
 		},
 		{
@@ -649,11 +660,11 @@ func TestParse_RefusalMessages(t *testing.T) {
 			[]string{"--zoom-to-depth=deep"},
 			msgZoomToDepth,
 		},
-		{domain.ModeHints, []string{"--strategy"}, "--strategy requires axtree or vision"},
+		{domain.ModeHints, []string{flagStrategy}, msgStrategyValue},
 		{
 			domain.ModeHints,
-			[]string{"--strategy=nonsense"},
-			"--strategy requires axtree or vision",
+			[]string{argBadStrategy},
+			msgStrategyValue,
 		},
 		{
 			domain.ModeHints,
@@ -721,7 +732,7 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 			name: "repeat without action",
 			mode: domain.ModeHints,
 			args: []string{flagRepeat},
-			want: "--repeat requires --action",
+			want: msgRepeatNeedsAction,
 		},
 		{
 			name: "on-exit without action",
@@ -732,7 +743,7 @@ func TestValidate_EnforcesFlagDependencies(t *testing.T) {
 		{
 			name: "modifier without action",
 			mode: domain.ModeHints,
-			args: []string{"--modifier=cmd"},
+			args: []string{argModifierCmd},
 			want: "--modifier requires --action",
 		},
 		{
@@ -838,7 +849,7 @@ func TestValidate_RefusesAFlagTheModeDoesNotAccept(t *testing.T) {
 		t.Fatal("Validate() accepted --search on grid; want a refusal")
 	}
 
-	if want := "grid does not accept --search"; message(err) != want {
+	if want := msgGridRejectsSearch; message(err) != want {
 		t.Errorf("message = %q, want %q", message(err), want)
 	}
 }

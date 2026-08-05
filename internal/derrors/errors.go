@@ -205,6 +205,25 @@ func IsCode(err error, code Code) bool {
 	return false
 }
 
+// Message returns the sentence an error says, without the code a domain error
+// carries alongside it.
+//
+// The code is for a caller to branch on and travels in whatever field the
+// caller answers with; the sentence is what a person reads. Every door that
+// shows an error to someone — an IPC response, a configuration warning —
+// shows it through this, so the same fault reads the same wherever it surfaces.
+func Message(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	if domainErr, ok := errors.AsType[*Error](err); ok {
+		return domainErr.Message()
+	}
+
+	return err.Error()
+}
+
 // GetCode extracts the error code from an error, or returns CodeInternal if not a domain error.
 func GetCode(err error) Code {
 	if domainErr, ok := errors.AsType[*Error](err); ok {

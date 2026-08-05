@@ -377,6 +377,28 @@ missing — `--on-exit` without `--action`, for instance — are refused when th
 key is pressed rather than dropped in silence, with the message the CLI gives
 for the same mistake.
 
+**The flags are read when the config loads**, so a mistake is found by
+`neru config validate` rather than by pressing the key. What happens next
+depends on what the mistake costs:
+
+| In a binding                                                              | Result                                   |
+| ------------------------------------------------------------------------- | ---------------------------------------- |
+| A flag no mode has (`hints --serach`), or a value no flag takes (`--strategy=nonsense`) | The config fails to load and Neru runs on defaults |
+| A flag the named mode does not accept (`grid --search`)                   | Loads, and `neru config validate` warns  |
+| A flag whose partner is missing (`hints --repeat` with no `--action`)     | Loads, and `neru config validate` warns  |
+
+The first row is a binding that could not have activated anything either way,
+and it fails the load exactly as an unknown *command* in a binding already
+does. The other two describe a binding that works minus one flag, and losing
+your whole configuration over one of those would be worse than the flag doing
+nothing — so they are reported and left alone.
+
+The check reaches every table a binding can be written in, and a macro body.
+A step nested inside another one — the steps of a `run`, or of an `--on-exit` —
+is checked for the command it names, and its flags are read when it runs. A
+macro body step carrying a `$1` placeholder is left for the same reason: what
+fills it is only known when the macro is called.
+
 #### Merging Behavior
 
 | Config                 | Result                    |

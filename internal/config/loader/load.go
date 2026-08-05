@@ -50,7 +50,9 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return rejected
 	}
 
-	validateErr := result.Config.Validate()
+	warnings := &config.Warnings{}
+
+	validateErr := result.Config.ValidateWithWarnings(warnings)
 	if validateErr != nil {
 		wrapped := derrors.WrapConfigFailed(validateErr, "validate configuration")
 
@@ -58,6 +60,11 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 		return refuse(result, wrapped)
 	}
+
+	// The override pass below validates again, for refusals only: an override
+	// sets a single scalar field and no scalar field is a binding, so it can
+	// neither add a warning nor answer one.
+	result.Warnings = warnings.Messages()
 
 	overrideErr := s.applyOverrideFile(result.Config, result.ConfigPath)
 	if overrideErr != nil {
@@ -73,6 +80,13 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		)
 	}
 
+	// Logged as well as reported, because a hot reload has no one to print to:
+	// the CLI shows these to whoever runs `neru config validate`, and the log
+	// is the only place a daemon that reloaded on its own can say them.
+	for _, warning := range result.Warnings {
+		s.logger.Warn("Configuration warning", zap.String("warning", warning))
+	}
+
 	s.logger.Info("Configuration loaded successfully")
 
 	removeLauncherBindingsForDisabledModes(result.Config)
@@ -85,6 +99,10 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 func refuse(result *config.LoadResult, err error) *config.LoadResult {
 	result.ValidationError = err
 	result.Config = config.DefaultConfig()
+
+	// The warnings were about the file that was refused, not about the defaults
+	// now running, so they go with it.
+	result.Warnings = nil
 
 	return result
 }

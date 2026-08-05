@@ -1,0 +1,4 @@
+{
+  "delta": [],
+  "validationError": "[INVALID_CONFIG] configuration validate configuration failed: [INVALID_CONFIG] hotkeys.Primary+Shift+K: unknown flag: --serach"
+}

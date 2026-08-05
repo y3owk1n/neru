@@ -2,7 +2,6 @@ package ipcctrl
 
 import (
 	"context"
-	"errors"
 
 	"go.uber.org/zap"
 
@@ -88,12 +87,7 @@ func (h *ModesHandler) activationHandler(
 // domain error carries for callers — the code travels in the response's own
 // field instead, which is what a script branches on.
 func refusalFor(err error) ipc.Response {
-	message := err.Error()
-
-	domainErr, isDomainErr := errors.AsType[*derrors.Error](err)
-	if isDomainErr {
-		message = domainErr.Message()
-	}
+	message := derrors.Message(err)
 
 	code := ipc.CodeActionFailed
 	if derrors.IsCode(err, derrors.CodeInvalidInput) {

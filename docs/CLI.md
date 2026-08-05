@@ -1169,6 +1169,22 @@ neru config validate [-c <path>]
 Does not require a running daemon. Exits successfully when no config file is
 found, because Neru runs on built-in defaults in that case.
 
+It reads the flags of the mode commands in your bindings, so a mistyped flag is
+found here rather than when the key is pressed. A binding that will load and
+not do everything it says — `grid --search`, where grid has no search — is
+printed as a warning and still exits successfully:
+
+```
+Configuration is valid, with warnings:
+
+  hotkeys.Primary+Shift+G: grid does not accept --search
+
+These parts of the configuration load and will not take effect.
+```
+
+See [Global Hotkeys](CONFIGURATION.md#global-hotkeys) for which mistakes warn
+and which refuse the file.
+
 ---
 
 ## neru config set

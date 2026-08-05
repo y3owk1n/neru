@@ -9,8 +9,16 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// Validate validates the configuration.
+// Validate validates the configuration, reporting only what stops it loading.
+// It is the form every caller that can act on nothing else uses.
 func (c *Config) Validate() error {
+	return c.ValidateWithWarnings(nil)
+}
+
+// ValidateWithWarnings validates the configuration and collects, into warnings,
+// the parts of it that load and will not do what they say. A nil sink discards
+// them; see [Warnings] for why the two are told apart at all.
+func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
 	if c == nil {
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
@@ -131,7 +139,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	return nil
+	// Read the flags of every mode command, now that the bindings holding them
+	// are known to be well formed.
+	return c.ValidateModeCommands(warnings)
 }
 
 // ValidateHotkeyBindings validates the top-level [hotkeys] key format and action strings.
