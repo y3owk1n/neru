@@ -56,3 +56,31 @@ _Avoid_: mode activation options, request, params, opts, config
 **Probe**:
 A read-only query reporting what a mode would target, without entering it.
 _Avoid_: debug mode, dry run, preview
+
+### Drawing on screen
+
+**Overlay**:
+The transparent, always-on-top surface Neru draws on.
+_Avoid_: window, HUD, canvas
+
+**Frame**:
+The complete description of what should be on screen for one mode. A mode hands
+over a Frame; realising it — showing the overlay, switching to the mode,
+drawing — belongs to the adapter, not to the mode.
+_Avoid_: draw call, render pass, overlay state
+
+**Indicator**:
+A small overlay that tracks the cursor and reports state, independent of the
+active mode's own drawing: the mode indicator, the sticky-modifiers indicator,
+the virtual pointer.
+_Avoid_: badge, HUD, widget
+
+**Badge**:
+The chip drawn behind a label — a hint's, a recursive-grid cell's, a
+monitor-select target's. A rendering primitive, not an [[Indicator]].
+_Avoid_: pill, chip, tag
+
+**Style**:
+An overlay's resolved appearance: configuration combined with the current
+light/dark theme. Resolved once, at the adapter boundary.
+_Avoid_: theme, palette, config
