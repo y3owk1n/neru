@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
@@ -463,26 +462,4 @@ func (h *handlerState) stickyModifiers() action.Modifiers {
 // StickyModifiers returns the currently active sticky modifiers.
 func (h *Handler) StickyModifiers() action.Modifiers {
 	return h.stickyModifiers()
-}
-
-func (h *Handler) drawStickyModifiersIndicator(xCoordinate, yCoordinate int) {
-	if h.stickyIndicatorService == nil {
-		return
-	}
-
-	if !h.stickyModifiersEnabled() {
-		return
-	}
-
-	mods := h.stickyModifiers()
-	if mods == 0 {
-		return
-	}
-
-	symbols := stickyindicator.ModifierSymbolsString(mods)
-	if symbols == "" {
-		return
-	}
-
-	h.stickyIndicatorService.UpdateIndicatorPosition(xCoordinate, yCoordinate, symbols)
 }

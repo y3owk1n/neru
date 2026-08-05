@@ -4,7 +4,8 @@
 
 - Deferred callbacks (timers, goroutines) reach the lock via `handlerState.outer` — **never call it synchronously**; from a method running under `h.mu` it self-deadlocks.
 - Lock order: `moveMonitorMu` → `h.mu`, never the reverse. Any new mutex needs a stated position in that order.
-- Don't hold `h.mu` across blocking calls (IPC, exec, channel sends) or adapter calls that can synchronously call back into the handler.
+- Don't hold `h.mu` across blocking calls (IPC, exec, channel sends, overlay draws, modal dialogs) or adapter calls that can synchronously call back into the handler. Overlay draws may block by contract (`internal/adapter/overlay/AGENTS.md`); the hint update callback (`hintdraw.go`) is the one remaining draw under the lock, pending #1203.
+- **No method releases a lock it did not take** — every lock is released, via `defer`, by the method that took it; never unlock mid-method to make a blocking call safe. Instead compute a plan under the lock and have the lock-taking method execute it after release (`planIndicatorTick`/`drawIndicators` in `indicator_polling.go`), or hand the blocking call to a goroutine that re-enters through the outer locked surface guarded by the mode-session token (`requestScreenCapturePermissionAndResume` in `hints.go`).
 
 The `Mode` interface is `Activate(modecmd.Activation)`, `HandleKey(string)`, `Exit()`, `ModeType()`; embed `baseMode` (`base.go`) for defaults and register in the handler's mode map. `Handler.ActivateMode` is the only activation entry point (`handler.go`).
 

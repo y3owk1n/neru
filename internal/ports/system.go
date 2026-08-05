@@ -93,6 +93,11 @@ type SystemPort interface {
 	// It blocks on a modal dialog, so callers must not hold a lock across it.
 	// Platforms with no permission gate return ScreenCaptureGranted without
 	// showing anything.
+	//
+	// Returning ScreenCaptureGranted implies a subsequent
+	// CheckScreenCapturePermission reports true — callers retry a blocked
+	// activation on Granted, and a consent that does not deliver the
+	// permission would re-prompt forever.
 	RequestScreenCapturePermission(ctx context.Context) ScreenCaptureConsent
 
 	// IsDarkMode returns true if the platform's dark mode is currently active.

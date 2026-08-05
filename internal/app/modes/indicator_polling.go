@@ -7,6 +7,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -98,15 +99,29 @@ func (h *Handler) runIndicatorPolling(
 type indicatorSnapshot struct {
 	showModeIndicator       bool
 	stickyEnabled           bool
+	stickyActive            bool
+	stickySymbols           string
 	showVirtualPointer      bool
 	virtualPointerSize      int
 	virtualPointerFillColor string
 	stickyPoint             image.Point
 }
 
-// pollIndicatorsOnce runs one tick: read the cursor, snapshot what to show,
-// then draw. Skipped entirely when the lock is contended or the screen bounds
-// changed under the cursor.
+// indicatorTickPlan is what one tick decided to do. It is computed under h.mu
+// and executed by pollIndicatorsOnce after the lock is released, so a draw is
+// never made while the handler's lock is held.
+type indicatorTickPlan struct {
+	// resizeIndicators means the screen bounds changed under the cursor:
+	// resize the indicator overlays instead of drawing, and let the next tick
+	// work from the updated bounds.
+	resizeIndicators bool
+
+	snap indicatorSnapshot
+}
+
+// pollIndicatorsOnce runs one tick: read the cursor, compute a plan under the
+// lock, then execute it with the lock released. Skipped entirely when the lock
+// is contended.
 func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	reqCtx, reqCancel := context.WithTimeout(ctx, indicatorPollTimeout)
 	cursorX, cursorY, err := h.modeIndicatorService.GetCursorPosition(reqCtx)
@@ -117,15 +132,55 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 		return
 	}
 
-	// TryLock, not Lock: stopIndicatorPolling runs while h.mu is held and
-	// blocks on indicatorDoneCh, so waiting here would deadlock. A contended
-	// tick is just skipped.
-	if !h.mu.TryLock() {
+	plan, ok := h.planIndicatorTick(ctx, cursorX, cursorY)
+	if !ok {
 		return
 	}
 
+	if plan.resizeIndicators {
+		h.resizeIndicatorOverlays()
+
+		return
+	}
+
+	h.drawIndicators(plan.snap, cursorX, cursorY)
+
+	// Re-hide the system cursor if macOS revealed it (e.g. right-click menu,
+	// Mission Control). Rate-limited to ~2 Hz.
+	h.rehideSystemCursor()
+
+	// Flush atomically so no intermediate state shows between overlay updates.
+	h.overlayManager.Flush()
+}
+
+// planIndicatorTick computes what this tick should do. It takes and releases
+// h.mu itself; the caller executes the returned plan with the lock free.
+//
+// TryLock, not Lock: stopIndicatorPolling runs while h.mu is held and blocks
+// on indicatorDoneCh, so waiting here would deadlock. A contended tick is just
+// skipped, reported as ok == false.
+func (h *Handler) planIndicatorTick(
+	ctx context.Context,
+	cursorX, cursorY int,
+) (indicatorTickPlan, bool) {
+	if !h.mu.TryLock() {
+		return indicatorTickPlan{}, false
+	}
+	defer h.mu.Unlock()
+
+	if !image.Pt(cursorX, cursorY).In(h.screenBounds) && h.system != nil &&
+		h.adoptChangedScreenBounds(ctx) {
+		return indicatorTickPlan{resizeIndicators: true}, true
+	}
+
+	return indicatorTickPlan{snap: h.snapshotIndicators(cursorX, cursorY)}, true
+}
+
+// snapshotIndicators reads everything one tick's draw needs. Caller must hold
+// h.mu.
+func (h *handlerState) snapshotIndicators(cursorX, cursorY int) indicatorSnapshot {
 	snap := indicatorSnapshot{
-		showModeIndicator:  h.shouldShowModeIndicator(h.appState.CurrentMode()),
+		showModeIndicator:  h.modeIndicatorEnabled(h.appState.CurrentMode()),
 		stickyEnabled:      h.stickyModifiersEnabled(),
 		showVirtualPointer: h.shouldShowCursorFollowingVirtualPointer(),
 	}
@@ -140,32 +195,20 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 		}
 	}
 
-	snap.stickyPoint = h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
-
-	if !image.Pt(cursorX, cursorY).In(h.screenBounds) && h.system != nil {
-		if h.adoptChangedScreenBounds(ctx) {
-			// h.mu is already released; skip the draw so the next tick works
-			// from the updated bounds.
-			return
-		}
+	if mods := h.stickyModifiers(); mods != 0 {
+		snap.stickyActive = true
+		snap.stickySymbols = stickyindicator.ModifierSymbolsString(mods)
 	}
 
-	h.mu.Unlock()
+	snap.stickyPoint = h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
 
-	h.drawIndicators(snap, cursorX, cursorY)
-
-	// Re-hide the system cursor if macOS revealed it (e.g. right-click menu,
-	// Mission Control). Rate-limited to ~2 Hz.
-	h.rehideSystemCursor()
-
-	// Flush atomically so no intermediate state shows between overlay updates.
-	h.overlayManager.Flush()
+	return snap
 }
 
-// adoptChangedScreenBounds re-reads the screen bounds and resizes the
-// indicator overlays when they changed. It reports true when it did so, in
-// which case it has already released h.mu; otherwise the lock is still held.
-func (h *Handler) adoptChangedScreenBounds(ctx context.Context) bool {
+// adoptChangedScreenBounds re-reads the screen bounds and records them when
+// they changed, reporting whether they did. Caller must hold h.mu; the overlay
+// resize that must follow happens after the lock is released.
+func (h *handlerState) adoptChangedScreenBounds(ctx context.Context) bool {
 	boundsCtx, boundsCancel := context.WithTimeout(ctx, indicatorPollTimeout)
 	newBounds, boundsErr := h.system.ScreenBounds(boundsCtx)
 
@@ -177,10 +220,12 @@ func (h *Handler) adoptChangedScreenBounds(ctx context.Context) bool {
 
 	h.setScreenBounds(newBounds)
 
-	// Unlock before resizing: the resize dispatches to the main queue and
-	// h.mu must not be held across that call.
-	h.mu.Unlock()
+	return true
+}
 
+// resizeIndicatorOverlays resizes the small overlays to the active screen.
+// The resize dispatches to the main queue, so h.mu must not be held.
+func (h *Handler) resizeIndicatorOverlays() {
 	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
 		ind.ResizeToActiveScreen()
 	}
@@ -188,12 +233,11 @@ func (h *Handler) adoptChangedScreenBounds(ctx context.Context) bool {
 	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 		stickyInd.ResizeToActiveScreen()
 	}
-
-	return true
 }
 
 // drawIndicators shows, draws or hides each small overlay from one snapshot.
-// The overlays take absolute Quartz coordinates; the native side clamps their
+// It runs with h.mu released — everything it needs is in the snapshot. The
+// overlays take absolute Quartz coordinates; the native side clamps their
 // windows to the active display.
 func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 	if snap.showModeIndicator {
@@ -208,12 +252,18 @@ func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 	}
 
 	if snap.stickyEnabled {
-		if h.stickyModifiers() != 0 {
+		if snap.stickyActive {
 			if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 				stickyInd.Show()
 			}
 
-			h.drawStickyModifiersIndicator(snap.stickyPoint.X, snap.stickyPoint.Y)
+			if snap.stickySymbols != "" && h.stickyIndicatorService != nil {
+				h.stickyIndicatorService.UpdateIndicatorPosition(
+					snap.stickyPoint.X,
+					snap.stickyPoint.Y,
+					snap.stickySymbols,
+				)
+			}
 		} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
 			if h.stickyIndicatorService != nil {
 				h.stickyIndicatorService.UpdateIndicatorPosition(
@@ -309,10 +359,6 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 	default:
 		return false
 	}
-}
-
-func (h *Handler) shouldShowModeIndicator(mode domain.Mode) bool {
-	return h.modeIndicatorEnabled(mode)
 }
 
 func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
