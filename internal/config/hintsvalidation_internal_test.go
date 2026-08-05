@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/y3owk1n/neru/internal/domain"
+)
 
 // placementSideways is a placement no validator accepts.
 const placementSideways = "sideways"
@@ -256,7 +260,7 @@ func hintsCases() []hintsCase {
 		{
 			name: "vision detects nothing",
 			breakIt: func(c *Config) {
-				c.Hints.Strategy = StrategyVision
+				c.Hints.Strategy = domain.StrategyVision
 				c.Hints.Vision.DetectText = false
 				c.Hints.Vision.DetectRectangles = false
 			},

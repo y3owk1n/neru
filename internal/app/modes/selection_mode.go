@@ -2,13 +2,6 @@ package modes
 
 import "github.com/y3owk1n/neru/internal/domain"
 
-const (
-	// CursorSelectionModeFollow keeps the real cursor synced with the current selection.
-	CursorSelectionModeFollow = "follow"
-	// CursorSelectionModeHold keeps the real cursor stationary until explicit commit/move.
-	CursorSelectionModeHold = "hold"
-)
-
 func resolveCursorFollowSelection(mode domain.Mode, override *bool) bool {
 	if override != nil {
 		return *override

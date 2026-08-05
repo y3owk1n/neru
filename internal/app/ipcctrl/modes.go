@@ -75,11 +75,11 @@ type ModeActivationOptions struct {
 // cursor-follow override, or returns an error response for invalid input.
 func parseCursorSelectionModeValue(value string) (*bool, *ipc.Response) {
 	switch value {
-	case "follow":
+	case domain.CursorSelectionModeFollow:
 		follow := true
 
 		return &follow, nil
-	case "hold":
+	case domain.CursorSelectionModeHold:
 		follow := false
 
 		return &follow, nil

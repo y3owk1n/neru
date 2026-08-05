@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -545,7 +546,7 @@ func TestHintService_GenerateHintsVisionCombinesSupplementaryAndWindowElements(
 		nil,
 		nil,
 		"com.example.app",
-		config.StrategyVision,
+		domain.StrategyVision,
 		"",
 		false,
 	)
@@ -606,7 +607,7 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 		nil,
 		nil,
 		"com.example.app",
-		config.StrategyVision,
+		domain.StrategyVision,
 		"",
 		false,
 	)
@@ -697,7 +698,7 @@ func TestHintService_GeneratorReturnsDirectionSpecificInstance(t *testing.T) {
 
 	// Each direction must resolve to its own generator instance, not the
 	// shared default.
-	gotReverse := service.Generator(config.LabelDirectionReverse)
+	gotReverse := service.Generator(domain.LabelDirectionReverse)
 	if gotReverse == nil {
 		t.Fatal("Generator(reverse) returned nil")
 	}
@@ -710,7 +711,7 @@ func TestHintService_GeneratorReturnsDirectionSpecificInstance(t *testing.T) {
 		)
 	}
 
-	gotNormal := service.Generator(config.LabelDirectionNormal)
+	gotNormal := service.Generator(domain.LabelDirectionNormal)
 	if gotNormal == nil {
 		t.Fatal("Generator(normal) returned nil")
 	}
@@ -816,7 +817,7 @@ func TestHintService_GenerateHintsPicksDirectionGenerator(t *testing.T) {
 	// The reverse algorithm fills all 4 single-char slots ([AA SA DA FA])
 	// before yielding a 2-char label ([AS]). The 1st and 5th labels (AA, AS)
 	// prove the override actually engaged.
-	hints, err = service.GenerateHints(ctx, nil, nil, "", "", config.LabelDirectionReverse, false)
+	hints, err = service.GenerateHints(ctx, nil, nil, "", "", domain.LabelDirectionReverse, false)
 	if err != nil {
 		t.Fatalf("GenerateHints() with reverse override unexpected error: %v", err)
 	}
@@ -949,7 +950,7 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 		&mocks.MockSystemPort{},
 		generator,
 		config.HintsConfig{
-			Strategy: config.StrategyAXTree,
+			Strategy: domain.StrategyAXTree,
 		},
 		logger.Get(),
 		nil,
@@ -962,7 +963,7 @@ func TestHintService_GenerateHintsRejectsSplitWordForNonVisionStrategy(t *testin
 		nil,
 		nil,
 		"",
-		config.StrategyAXTree,
+		domain.StrategyAXTree,
 		"",
 		true, // splitWord
 	)
