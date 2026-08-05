@@ -34,18 +34,6 @@ const (
 	hotkeySleepRetries = 10
 )
 
-// Package-level resources for sleep observer cleanup. Stored here (rather than
-// on App) so that non-Linux builds never reference the D-Bus types or fields.
-var (
-	sleepStopChan  chan struct{}
-	sleepDBusClose func() error
-	sleepWG        sync.WaitGroup
-	// hibernateReinitTimer fires after hibernateReinitDelay unless canceled by
-	// a matching PrepareForSleep(false) signal.
-	hibernateReinitTimer *time.Timer
-	hibernateTimerCh     <-chan time.Time
-)
-
 // setupSleepObserver subscribes to logind's PrepareForSleep D-Bus signal. On
 // wake (signal with body=false) it reinitializes the evdev-based hotkey
 // listener and the libei input session, both of which go stale after system
@@ -56,8 +44,44 @@ var (
 // PrepareForSleep(false). This covers the systemd issue
 // (https://github.com/systemd/systemd/issues/30666) where the resume signal
 // is not emitted after hibernation.
+//
+// All teardown state is captured per App instance in the closures registered
+// on the App — package-level state here would be shared across instances, and
+// a process that creates more than one (tests do) would close another
+// instance's channel and leak its goroutine. The teardown and post-reload
+// hooks are registered before the D-Bus attempt so the post-reload health
+// check keeps working when the bus is unavailable.
 func (a *App) setupSleepObserver() {
-	sleepStopChan = make(chan struct{})
+	stopChan := make(chan struct{})
+	waitGroup := &sync.WaitGroup{}
+
+	// Assigned once the D-Bus signal path is established; the stop closure
+	// reads it at call time, so the degraded no-bus path leaves it nil.
+	var dbusClose func() error
+
+	a.sleepObserverStop = func() {
+		close(stopChan)
+
+		if dbusClose != nil {
+			_ = dbusClose()
+		}
+
+		waitGroup.Wait()
+	}
+
+	a.postReloadVerify = func() {
+		waitGroup.Go(func() {
+			timer := time.NewTimer(postReloadCheckDelay)
+			defer timer.Stop()
+
+			select {
+			case <-stopChan:
+				return
+			case <-timer.C:
+				a.verifyHotkeyHealth()
+			}
+		})
+	}
 
 	conn, err := dbus.ConnectSystemBus()
 	if err != nil {
@@ -84,12 +108,20 @@ func (a *App) setupSleepObserver() {
 
 	signalCh := make(chan *dbus.Signal, sleepSignalBuffer)
 	conn.Signal(signalCh)
-	sleepDBusClose = conn.Close
+	dbusClose = conn.Close
 
-	sleepWG.Go(func() {
+	waitGroup.Go(func() {
+		// hibernateReinitTimer fires after hibernateReinitDelay unless
+		// canceled by a matching PrepareForSleep(false) signal. Only this
+		// goroutine touches it.
+		var (
+			hibernateReinitTimer *time.Timer
+			hibernateTimerCh     <-chan time.Time
+		)
+
 		for {
 			select {
-			case <-sleepStopChan:
+			case <-stopChan:
 				if hibernateReinitTimer != nil {
 					hibernateReinitTimer.Stop()
 				}
@@ -100,7 +132,7 @@ func (a *App) setupSleepObserver() {
 				hibernateReinitTimer = nil
 
 				select {
-				case <-sleepStopChan:
+				case <-stopChan:
 					return
 				default:
 				}
@@ -140,18 +172,6 @@ func (a *App) setupSleepObserver() {
 			}
 		}
 	})
-}
-
-// stopSleepObserver shuts down the D-Bus connection and signal goroutine
-// by closing the D-Bus connection and signaling the stop channel.
-func (a *App) stopSleepObserver() {
-	close(sleepStopChan)
-
-	if sleepDBusClose != nil {
-		_ = sleepDBusClose()
-	}
-
-	sleepWG.Wait()
 }
 
 // reinitializeHotkeys tears down and re-registers the global hotkey listener
@@ -231,24 +251,6 @@ func (a *App) handleWakeFromSleep() {
 	a.reinitializeHotkeysAfterSleep()
 
 	a.logger.Info("Input listeners reinitialized after sleep/wake")
-}
-
-// schedulePostReloadVerification checks the hotkey listener is alive 2s after
-// a config reload and reinitialises if not. Catches the "first reload after
-// fresh start" lifecycle bug where Start() returns nil but the listener is
-// effectively dead.
-func (a *App) schedulePostReloadVerification() {
-	sleepWG.Go(func() {
-		timer := time.NewTimer(postReloadCheckDelay)
-		defer timer.Stop()
-
-		select {
-		case <-sleepStopChan:
-			return
-		case <-timer.C:
-			a.verifyHotkeyHealth()
-		}
-	})
 }
 
 // verifyHotkeyHealth tests whether the global hotkey listener is alive when it

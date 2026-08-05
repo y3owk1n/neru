@@ -118,19 +118,6 @@ func (a *App) setupThemeObserver() {
 	})
 }
 
-// stopThemeObserver shuts down this instance's D-Bus connection and signal
-// goroutine (or the polling fallback). Safe to call when the observer was
-// never set up, and calls the teardown at most once.
-func (a *App) stopThemeObserver() {
-	if a.themeObserverStop == nil {
-		return
-	}
-
-	stop := a.themeObserverStop
-	a.themeObserverStop = nil
-	stop()
-}
-
 // pollThemeChanges periodically checks IsDarkMode and calls
 // handleThemeChange when the value transitions. Acts as a fallback
 // when the D-Bus portal signal path is unavailable.

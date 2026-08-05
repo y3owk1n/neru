@@ -109,13 +109,12 @@ type App struct {
 	gcCancel         context.CancelFunc
 	gcAggressiveMode bool
 
-	// themeObserverStop tears down this instance's theme observer. Set by
-	// setupThemeObserver on platforms that need explicit teardown (Linux);
-	// nil elsewhere. stopThemeObserver calls it at most once, so multiple
-	// App instances in one process (tests) cannot double-close each other's
-	// resources.
-	//nolint:unused // only referenced from theme_observer_linux.go; the darwin/windows builds this linter runs on never see it
+	// Per-instance observer teardown and hooks, assigned by the platform
+	// setup functions and consumed by the shared entry points in
+	// observers.go. Closures keep platform types off this struct.
 	themeObserverStop func()
+	sleepObserverStop func()
+	postReloadVerify  func()
 
 	// State subscriptions
 	screenShareSubscriptionID uint64
