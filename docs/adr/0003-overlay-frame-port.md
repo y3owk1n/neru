@@ -48,10 +48,11 @@ are declarative; updates — hot, already narrow, already correct — are not.
 - **Startup phases move.** `internal/app/new.go` is a numbered,
   individually-unwound sequence; several overlay phases collapse into one
   inside the adapter. The unwind path has to stay exact.
-- **Headless detection needs a new signal.** `component_factory_headless.go`
-  decides headless by `WindowPtr() == nil`. With `WindowPtr` gone this becomes
-  an explicit capability — better, but it is a behaviour change on the Linux
-  and CI paths and wants a test before the move.
+- **Headless detection has a new signal.** Done ahead of the move in #1205:
+  `component_factory_headless.go` asked `WindowPtr() == nil`, and now asks the
+  overlay through the optional `manager.HeadlessReporter` capability, pinned by
+  tests on the no-op, macOS and Linux managers. Removing `WindowPtr` is a
+  deletion here, not a redesign.
 - **The port's threading contract stays "may block; never call under
   `h.mu`".** Draws are `dispatch_async` on macOS and hold `renderMu`
   synchronously on Linux; that asymmetry is left alone here. Modes compute

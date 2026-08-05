@@ -60,8 +60,12 @@ func (sc StateChange) Next() Mode {
 // NoOpManager is a no-op implementation of Interface for headless environments.
 type NoOpManager struct{}
 
-// Ensure NoOpManager always implements Interface.
-var _ Interface = (*NoOpManager)(nil)
+// Ensure NoOpManager always implements Interface, and keeps declaring the
+// optional headless capability the component factory reads.
+var (
+	_ Interface        = (*NoOpManager)(nil)
+	_ HeadlessReporter = (*NoOpManager)(nil)
+)
 
 // WaylandKeyboardChannel returns nil channel.
 func (n *NoOpManager) WaylandKeyboardChannel() <-chan string { return nil }
@@ -101,6 +105,9 @@ func (n *NoOpManager) Mode() Mode { return ModeIdle }
 
 // WindowPtr returns nil.
 func (n *NoOpManager) WindowPtr() unsafe.Pointer { return nil }
+
+// Headless reports that the no-op manager has no surface to render on.
+func (n *NoOpManager) Headless() bool { return true }
 
 // UseHintOverlay is a no-op implementation.
 func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
@@ -228,6 +235,20 @@ func (n *NoOpManager) OverlayCapabilities() ports.FeatureCapability {
 // where the contract is declared, so overlay capability reporting shares one
 // vocabulary with the rest of the platform surface.
 type CapabilityReporter = ports.OverlayCapabilityReporter
+
+// HeadlessReporter is the optional extension a manager implements when it can
+// state that it has no surface to draw on — a no-op manager, or a backend that
+// found no display server to attach to.
+//
+// It exists because the render overlays are built against a native surface: on
+// a headless manager there is nothing to build them on, and the caller has to
+// know that before it tries. Reach it by type assertion and treat a manager
+// that does not implement it as able to render, the same way every other
+// optional overlay capability works.
+type HeadlessReporter interface {
+	// Headless reports whether this manager has no surface to render on.
+	Headless() bool
+}
 
 // KeyboardCaptureController is the optional extension a backend implements
 // when its overlay surface can hold or release the keyboard.

@@ -2,9 +2,19 @@
 
 package app
 
-// headless returns true when the overlay manager has no real native window
-// handle. Creating an overlay with a nil window pointer would crash on any
-// platform call (CGo, X11), so callers must bail out early.
+import "github.com/y3owk1n/neru/internal/adapter/overlay"
+
+// headless returns true when the overlay manager declares that it has no
+// surface to render on, in which case callers must not build render overlays
+// against it. On macOS that is a crash guard — the overlays are CGo objects
+// built on a window that was never created. Elsewhere they are inert stubs, so
+// the guard instead keeps the app from holding components the manager has no
+// way to draw.
+//
+// The manager states it through the optional HeadlessReporter capability,
+// reached by type assertion; a manager that does not implement it can render.
 func (f *ComponentFactory) headless() bool {
-	return f.overlayManager.WindowPtr() == nil
+	reporter, ok := f.overlayManager.(overlay.HeadlessReporter)
+
+	return ok && reporter.Headless()
 }
