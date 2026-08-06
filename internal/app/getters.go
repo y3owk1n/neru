@@ -3,8 +3,8 @@ package app
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -65,11 +65,6 @@ func (a *App) Config() *config.Config {
 // Logger returns the application logger.
 func (a *App) Logger() *zap.Logger {
 	return a.logger
-}
-
-// OverlayManager returns the overlay manager.
-func (a *App) OverlayManager() OverlayManager {
-	return a.overlayManager
 }
 
 // HintsContext returns the hints context.

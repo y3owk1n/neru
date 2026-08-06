@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -288,9 +289,11 @@ func (a *App) processScreenChange() {
 
 	// Final resize only if no handler already resized the overlay AND we are not idle.
 	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
-	if !gridResized && !hintResized && !recursiveGridResized && !isIdle {
-		if a.overlayManager != nil {
-			a.overlayManager.ResizeToActiveScreen()
+	if !gridResized && !hintResized && !recursiveGridResized && !isIdle && a.overlayPort != nil {
+		refreshErr := a.overlayPort.Refresh(ctx)
+		if refreshErr != nil && !derrors.IsNotSupported(refreshErr) {
+			a.logger.Warn("Failed to resize the overlay after a screen change",
+				zap.Error(refreshErr))
 		}
 	}
 }
@@ -298,7 +301,7 @@ func (a *App) processScreenChange() {
 // handleGridScreenChange handles grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
 func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
-	if !cfg.Grid.Enabled || a.gridComponent.Overlay == nil {
+	if !cfg.Grid.Enabled {
 		return false
 	}
 
@@ -308,29 +311,21 @@ func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode
 		return false
 	}
 
-	// Grid mode is active - resize the existing overlay window to match new screen bounds
-	if a.overlayManager == nil {
-		a.logger.Warn("overlay manager unavailable; skipping grid refresh")
-
-		return false
-	}
-
-	a.overlayManager.ResizeToActiveScreen()
-
 	// Delegate to the modes handler which holds the grid manager state and
-	// can regenerate the grid with new screen bounds under the mutex.
+	// can regenerate the grid with new screen bounds under the mutex. The
+	// screen moved under the overlay, so what it hands over is a transition:
+	// sizing the window to the new display and bringing it up is part of
+	// realizing the frame, and belongs to the overlay rather than here.
 	// RefreshGridForScreenChange re-checks the mode under h.mu to guard
 	// against a concurrent mode exit (TOCTOU).
 	if !a.modes.RefreshGridForScreenChange() {
-		// Mode was exited concurrently or draw failed — don't show the overlay.
 		a.logger.Debug(
-			"Grid screen-change refresh skipped (mode exited or draw failed); skipping show",
+			"Grid screen-change refresh skipped (mode exited or draw failed)",
 		)
 
 		return true
 	}
 
-	a.overlayManager.Show()
 	a.logger.Debug("Grid overlay resized and regenerated for new screen bounds")
 
 	return true
@@ -343,7 +338,7 @@ func (a *App) handleHintScreenChange(
 	cfg *config.Config,
 	currentMode domain.Mode,
 ) bool {
-	if !cfg.Hints.Enabled || a.hintsComponent.Overlay == nil {
+	if !cfg.Hints.Enabled {
 		return false
 	}
 
@@ -351,10 +346,6 @@ func (a *App) handleHintScreenChange(
 		a.appState.SetHintOverlayNeedsRefresh(true)
 
 		return false
-	}
-
-	if a.overlayManager != nil {
-		a.overlayManager.ResizeToActiveScreen()
 	}
 
 	// RefreshHintsForScreenChange re-checks the mode under h.mu to guard
@@ -373,8 +364,7 @@ func (a *App) handleHintScreenChange(
 // handleRecursiveGridScreenChange handles recursive-grid overlay updates when screen parameters change.
 // Returns true if the overlay was resized.
 func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
-	if !cfg.RecursiveGrid.Enabled || a.recursiveGridComponent == nil ||
-		a.recursiveGridComponent.Overlay == nil {
+	if !cfg.RecursiveGrid.Enabled || a.recursiveGridComponent == nil {
 		return false
 	}
 
@@ -383,14 +373,6 @@ func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode do
 
 		return false
 	}
-
-	if a.overlayManager == nil {
-		a.logger.Warn("overlay manager unavailable; skipping recursive-grid refresh")
-
-		return false
-	}
-
-	a.overlayManager.ResizeToActiveScreen()
 
 	// Delegate to the modes handler which holds the recursive-grid manager
 	// state and can reinitialize it with new screen bounds under the mutex.
@@ -404,7 +386,6 @@ func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode do
 		return true
 	}
 
-	a.overlayManager.Show()
 	a.logger.Debug("Recursive-grid overlay resized and regenerated for new screen bounds")
 
 	return true
@@ -592,8 +573,8 @@ func (a *App) Cleanup() {
 			a.hotkeys.Unregister()
 		}
 
-		if a.overlayManager != nil {
-			a.overlayManager.Destroy()
+		if a.overlayPort != nil {
+			a.overlayPort.Destroy()
 		}
 
 		if a.screenShareSubscriptionID != 0 {

@@ -82,10 +82,9 @@ type handlerState struct {
 	modifierState *state.ModifierState
 	// overlayPort is the one way a mode reaches the screen: it hands over a
 	// Frame describing what should be on it and never sequences a transition
-	// itself. There is no second overlay reference to choose between for
-	// drawing (#1212); the Linux keyboard-capture extension is still reached
-	// through the package singleton in indicator_polling.go, which draws
-	// nothing.
+	// itself. Since #1213 it is the only overlay reference this package has:
+	// the Linux keyboard grab goes through this same port rather than through
+	// the overlay package's singleton (indicator_polling.go).
 	overlayPort ports.OverlayPort
 	// hintsFrameOnScreen records whether this activation has already put the
 	// hints Frame on screen. The hint manager's update callback fires on

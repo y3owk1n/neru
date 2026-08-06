@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -84,6 +85,16 @@ type MockOverlayPort struct {
 	activeScreen image.Rectangle
 	// flushes counts how many times the caller committed what it had drawn.
 	flushes int
+
+	styleMu sync.Mutex
+	// appliedConfigs records every configuration the overlay was handed, in
+	// order, and styleRefreshes how many times it was asked to re-resolve
+	// against the one it already held.
+	appliedConfigs  []*config.Config
+	styleRefreshes  int
+	screenShareHide bool
+	keyboardCapture bool
+	destroys        int
 
 	// State tracking for tests
 	visible bool
@@ -428,6 +439,87 @@ func (m *MockOverlayPort) Refresh(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// ApplyConfig implements ports.OverlayPort.
+func (m *MockOverlayPort) ApplyConfig(cfg *config.Config) {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	m.appliedConfigs = append(m.appliedConfigs, cfg)
+}
+
+// AppliedConfigs returns every configuration the overlay was handed, in order.
+func (m *MockOverlayPort) AppliedConfigs() []*config.Config {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	return slices.Clone(m.appliedConfigs)
+}
+
+// RefreshStyles implements ports.OverlayPort.
+func (m *MockOverlayPort) RefreshStyles() {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	m.styleRefreshes++
+}
+
+// StyleRefreshCount returns how many times the overlay was asked to re-resolve
+// its Styles against the configuration it already held.
+func (m *MockOverlayPort) StyleRefreshCount() int {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	return m.styleRefreshes
+}
+
+// SetHiddenInScreenShare implements ports.OverlayPort.
+func (m *MockOverlayPort) SetHiddenInScreenShare(hidden bool) {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	m.screenShareHide = hidden
+}
+
+// HiddenInScreenShare returns the last screen-share visibility asked for.
+func (m *MockOverlayPort) HiddenInScreenShare() bool {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	return m.screenShareHide
+}
+
+// SetKeyboardCaptureEnabled implements ports.OverlayPort.
+func (m *MockOverlayPort) SetKeyboardCaptureEnabled(enabled bool) {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	m.keyboardCapture = enabled
+}
+
+// KeyboardCaptureEnabled returns the last keyboard-capture state asked for.
+func (m *MockOverlayPort) KeyboardCaptureEnabled() bool {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	return m.keyboardCapture
+}
+
+// Destroy implements ports.OverlayPort.
+func (m *MockOverlayPort) Destroy() {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	m.destroys++
+}
+
+// DestroyCount returns how many times the overlay was torn down.
+func (m *MockOverlayPort) DestroyCount() int {
+	m.styleMu.Lock()
+	defer m.styleMu.Unlock()
+
+	return m.destroys
 }
 
 // Health checks if the overlay manager is responsive.

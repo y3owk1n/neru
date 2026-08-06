@@ -13,14 +13,10 @@ import (
 type (
 	// ManagerInterface is the overlay window management contract.
 	ManagerInterface = manager.Interface
-	// Components are the render components the overlay built for itself.
-	Components = manager.Components
 	// Mode is the overlay's current mode.
 	Mode = manager.Mode
 	// StateChange reports a mode transition.
 	StateChange = manager.StateChange
-	// NoOpManager is the headless implementation.
-	NoOpManager = manager.NoOpManager
 	// MonitorSelectStyle styles the monitor-select overlay.
 	MonitorSelectStyle = manager.MonitorSelectStyle
 	// MonitorSelectTarget is one labeled monitor.
@@ -32,6 +28,9 @@ type (
 	CapabilityReporter = manager.CapabilityReporter
 	// HeadlessReporter declares a manager that has no surface to render on.
 	HeadlessReporter = manager.HeadlessReporter
+	// KeyboardCaptureController is the optional capability a backend declares
+	// when its surface can hold or release the keyboard.
+	KeyboardCaptureController = manager.KeyboardCaptureController
 )
 
 // Overlay modes.

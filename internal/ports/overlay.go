@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
@@ -376,6 +377,38 @@ type OverlayPort interface {
 
 	// Refresh updates the overlay display (e.g., after screen changes).
 	Refresh(ctx context.Context) error
+
+	// ApplyConfig hands the overlay a configuration that has just changed. The
+	// overlay owns config + theme -> Style, so this is the whole of what a
+	// config reload owes it: one notification, one re-resolution, every
+	// overlay picking the new values up. A caller that fanned out instead was
+	// a caller that could miss one and leave an overlay in the old colors.
+	ApplyConfig(cfg *config.Config)
+
+	// RefreshStyles re-resolves those Styles against the configuration the
+	// overlay already holds. A light/dark change goes through here: nothing
+	// about the configuration moved, only what it resolves to.
+	RefreshStyles()
+
+	// SetHiddenInScreenShare says whether the overlay should be excluded from
+	// screen captures and shared windows. Backends that cannot exclude
+	// themselves ignore it.
+	SetHiddenInScreenShare(hidden bool)
+
+	// SetKeyboardCaptureEnabled asks the overlay to hold or release the
+	// keyboard. Only an overlay that grabs input has anything to release: on
+	// Linux an evdev grab held by the overlay deactivates the focused toplevel,
+	// so the indicator poller releases it before reading which window is
+	// focused. Where the overlay never takes the keyboard from the focused
+	// application, this is a no-op, the same way Flush is on a backend that
+	// presents every draw.
+	SetKeyboardCaptureEnabled(enabled bool)
+
+	// Destroy releases everything the overlay owns — native windows, surfaces,
+	// connections. It runs on the shutdown path, after the modes have already
+	// cleared what they drew, and must be safe to call when nothing was ever
+	// shown.
+	Destroy()
 }
 
 // OverlayCapabilityReporter is an optional OverlayPort extension for managers

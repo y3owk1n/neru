@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -20,9 +19,6 @@ type (
 	// back to HotkeyService.Register.
 	HotkeyReleaseService = ports.HotkeyReleaseRegistrar
 )
-
-// OverlayManager is the interface for overlay window management.
-type OverlayManager = overlay.ManagerInterface
 
 // Watcher is the app-layer alias for the application lifecycle contract.
 // The contract itself lives in ports so platform backends can target it

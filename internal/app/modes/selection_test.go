@@ -7,10 +7,10 @@ import (
 
 	"go.uber.org/zap"
 
-	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
+	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	hintscomponent "github.com/y3owk1n/neru/internal/app/components/hints"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"

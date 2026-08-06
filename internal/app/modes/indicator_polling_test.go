@@ -7,9 +7,9 @@ import (
 
 	"go.uber.org/zap"
 
-	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
+	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"

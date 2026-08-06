@@ -1,7 +1,7 @@
-// Package grid provides grid-based navigation functionality for Neru.
+// Package grid renders the grid overlay: the cells laid over the screen, their
+// key labels, and the subgrid drawn inside a chosen cell.
 //
-// This package implements a comprehensive visual grid overlay system that allows users
-// to navigate and click anywhere on the screen using keyboard input. Unlike accessibility
-// tree-based approaches, the grid system works universally across all applications by
-// dividing the screen into cells, making it the most reliable navigation method in Neru.
+// It owns style and drawing only. The grid's geometry and the input matching
+// live in internal/domain/grid, and the state one grid session keeps lives in
+// internal/app/components/grid.
 package grid

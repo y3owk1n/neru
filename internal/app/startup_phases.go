@@ -41,8 +41,11 @@ func initializeInfrastructure(app *App) error {
 		app.systemPort = systemPort
 	}
 
-	// Initialize overlay manager if not provided
-	if app.overlayManager == nil {
+	// Initialize the overlay backend unless a port was injected in its place.
+	// A caller that brought its own ports.OverlayPort brought its own screen
+	// with it, and building a native backend behind it would put a second one
+	// there.
+	if app.overlayPort == nil {
 		app.overlayManager = initializeOverlayManager(logger)
 	}
 
@@ -188,36 +191,38 @@ func initializeApplicationState(app *App) {
 // through, then assembles the per-mode components around them.
 //
 // The overlay is handed the configuration and a theme provider and nothing
-// else: the surface those components attach to is the overlay's own. Most
-// components that fail to build are logged and left nil; the virtual pointer
-// is the one whose failure still fails this phase, as it always has.
+// else: the surface those components attach to is the overlay's own, and
+// nothing built there comes back — since #1213 no app-layer component holds a
+// render object. Most components that fail to build are logged and left nil;
+// the virtual pointer is the one whose failure still fails this phase, as it
+// always has. A session running on an injected port has no backend to ask, and
+// nothing to build against.
 func initializeUIComponents(app *App) error {
-	rendered, err := app.overlayManager.BuildComponents(
-		app.config,
-		newThemeProvider(app.systemPort),
-	)
-	if err != nil {
-		// The overlay may have built components before it failed, and some of
-		// them own native windows. This phase's cleanup closure is only
-		// registered once the phase succeeds, so releasing them is this call's
-		// job rather than the unwind's.
-		app.overlayManager.Destroy()
+	if app.overlayManager != nil {
+		_, err := app.overlayManager.BuildComponents(
+			app.config,
+			newThemeProvider(app.systemPort),
+		)
+		if err != nil {
+			// The overlay may have built components before it failed, and some
+			// of them own native windows. This phase's cleanup closure is only
+			// registered once the phase succeeds, so releasing them is this
+			// call's job rather than the unwind's.
+			app.overlayManager.Destroy()
 
-		return err
+			return err
+		}
 	}
 
 	factory := NewComponentFactory(
 		app.config,
 		app.logger,
 		app.overlayPort,
-		rendered,
 	)
 
 	app.hintsComponent = factory.CreateHintsComponent()
 	app.gridComponent = factory.CreateGridComponent()
 	app.scrollComponent = factory.CreateScrollComponent()
-	app.modeIndicatorComponent = factory.CreateModeIndicatorComponent()
-	app.stickyIndicatorComponent = factory.CreateStickyIndicatorComponent()
 	app.recursiveGridComponent = factory.CreateRecursiveGridComponent()
 
 	return nil
@@ -241,8 +246,8 @@ func configureRenderComponents(app *App) {
 	// configuration the same way a later reload or theme change does. Without
 	// this they would only ever be configured by their constructors, and the
 	// first draw would take a different path from every draw after it.
-	if app.overlayStyles != nil {
-		app.overlayStyles.Refresh()
+	if app.overlayPort != nil {
+		app.overlayPort.RefreshStyles()
 	}
 }
 
@@ -401,8 +406,8 @@ func setupScreenShareStateSubscription(app *App) {
 	}
 
 	app.screenShareSubscriptionID = app.appState.OnScreenShareStateChanged(func(hidden bool) {
-		if app.overlayManager != nil {
-			app.overlayManager.SetSharingType(hidden)
+		if app.overlayPort != nil {
+			app.overlayPort.SetHiddenInScreenShare(hidden)
 		}
 	})
 }
@@ -516,8 +521,7 @@ func cleanupUIComponents(app *App) {
 	app.hintsComponent = nil
 	app.gridComponent = nil
 	app.scrollComponent = nil
-	app.modeIndicatorComponent = nil
-	app.stickyIndicatorComponent = nil
+	app.recursiveGridComponent = nil
 }
 
 // cleanupEventTapAndIPC cleans up resources allocated during event tap and IPC initialization.

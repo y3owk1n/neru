@@ -109,15 +109,10 @@ func isInnerLayer(relPath string) bool {
 //   - adapter/ipc       the CLI/daemon wire protocol; the CLI is its client.
 //   - adapter/logger    logger construction and log-path resolution.
 //   - adapter/platform  the SystemPort factory and the doctor Profile.
-//   - adapter/overlay   the overlay vocabulary and render models the app
-//     names — data, not behavior; the behavior is behind ports.OverlayPort.
-//     Moving the models to the domain would split each render package in two
-//     for no seam; the cohesion is worth more than the layer purity.
 var sharedInfraPackages = []string{
 	"internal/adapter/ipc",
 	"internal/adapter/logger",
 	"internal/adapter/platform",
-	"internal/adapter/overlay",
 }
 
 // compositionRootFiles wire concrete adapters to ports. Reaching into infra is
@@ -126,7 +121,6 @@ var sharedInfraPackages = []string{
 var compositionRootFiles = []string{
 	"internal/app/wiring.go",
 	"internal/app/startup_phases.go",
-	"internal/app/component_factory.go",
 	"cmd/neru/main.go",
 }
 

@@ -58,6 +58,21 @@ type StyleSource interface {
 	Style() Style
 }
 
+// StyleOwner is the whole of what the adapter depends on for appearance: read
+// the resolved Style, and re-resolve it when the configuration or the theme
+// moves. It is what lets the adapter answer the port's ApplyConfig and
+// RefreshStyles without the app holding a resolver of its own.
+type StyleOwner interface {
+	StyleSource
+
+	// Apply re-resolves every Style from cfg and hands cfg to the render
+	// components.
+	Apply(cfg *config.Config)
+
+	// Refresh re-resolves against the configuration already held.
+	Refresh()
+}
+
 // ResolvedStyle reads source, or returns the zero Style when there is none.
 // Every consumer needs that guard and none of them should spell it out again.
 //

@@ -5,11 +5,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/components/grid"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
+	"github.com/y3owk1n/neru/internal/app/components/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -18,16 +16,14 @@ import (
 
 // HintsComponent encapsulates all hints-related functionality.
 //
-// It carries no Style: the overlay resolves that from configuration and theme
-// in one place, and a component that held a copy would be a second one.
+// It names no overlay at all: what a hints session keeps is state, and the
+// surface it ends up on is reached through ports.OverlayPort.
 type HintsComponent struct {
-	Overlay *hints.Overlay
 	Context *hints.Context
 }
 
 // GridComponent encapsulates all grid-related functionality.
 type GridComponent struct {
-	Overlay *grid.Overlay
 	Manager *domainGrid.Manager
 	Router  *domainGrid.Router
 	Context *grid.Context
@@ -101,19 +97,8 @@ type ScrollComponent struct {
 func (s *ScrollComponent) UpdateConfig(_ *config.Config, _ *zap.Logger) {
 }
 
-// ModeIndicatorComponent encapsulates the shared mode indicator overlay.
-type ModeIndicatorComponent struct {
-	Overlay *modeindicator.Overlay
-}
-
-// StickyIndicatorComponent encapsulates the sticky modifiers indicator overlay.
-type StickyIndicatorComponent struct {
-	Overlay *stickyindicator.Overlay
-}
-
 // RecursiveGridComponent encapsulates all recursive-grid-related functionality.
 type RecursiveGridComponent struct {
 	Manager *domainRecursiveGrid.Manager
-	Overlay *recursivegrid.Overlay
 	Context *recursivegrid.Context
 }

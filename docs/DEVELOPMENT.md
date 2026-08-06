@@ -351,7 +351,7 @@ that unwind in reverse on failure.
 
 `app.New` takes functional options ([options.go](../internal/app/options.go)),
 which is how tests substitute doubles for the ports they need — `WithSystemPort`,
-`WithEventTap`, `WithIPCServer`, `WithOverlayManager`, `WithHotkeyService`,
+`WithEventTap`, `WithIPCServer`, `WithOverlayPort`, `WithHotkeyService`,
 `WithWatcher`, plus `WithConfig` / `WithConfigPath` / `WithLogger`. An option
 that is not supplied falls back to the real adapter built during initialization.
 

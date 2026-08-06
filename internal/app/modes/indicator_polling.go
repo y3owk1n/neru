@@ -5,8 +5,6 @@ import (
 	"image"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -347,19 +345,15 @@ func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Poin
 
 // setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.
 //
-// Only the Linux backends can do this, so it is an optional extension reached
-// by type assertion: elsewhere the assertion fails and the call is a no-op,
-// which is the right behavior — no other backend's overlay takes the keyboard
-// away from the focused application in the first place.
+// What confines this to Linux is the gate, not the overlay: only the evdev
+// event tap reports that the overlay holds the keyboard, and only there does
+// releasing it matter — an evdev grab deactivates the focused toplevel, so the
+// poller has to let go before reading which window is focused. Everywhere else
+// the gate is closed, and an overlay with no grab to release is a no-op anyway.
 func setOverlayKeyboardCapture(h *handlerState, enabled bool) {
-	if !h.allowsOverlayKeyboardPassthrough() {
+	if h.overlayPort == nil || !h.allowsOverlayKeyboardPassthrough() {
 		return
 	}
 
-	controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController)
-	if !ok {
-		return
-	}
-
-	controller.SetKeyboardCaptureEnabled(enabled)
+	h.overlayPort.SetKeyboardCaptureEnabled(enabled)
 }

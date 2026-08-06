@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -25,11 +26,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
-	rendergrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	renderrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -74,7 +70,7 @@ func simElement(
 	return elem
 }
 
-// --- recording overlay manager -------------------------------------------
+// --- recording overlay port -----------------------------------------------
 
 // simGridDraw is one grid drawn on the overlay: the grid itself and the input
 // it was drawn narrowed to.
@@ -83,232 +79,231 @@ type simGridDraw struct {
 	input string
 }
 
-// simOverlayManager records what the app draws. It embeds the headless
-// NoOpManager so it satisfies the full manager contract and only overrides
-// what the journeys assert on. It declares itself headless, which keeps the
-// component factory on its headless path (no native overlay construction).
-type simOverlayManager struct {
-	overlay.NoOpManager
+// simOverlayPort is the screen the journeys observe. It implements
+// ports.OverlayPort outright — no embedding, no inherited silent success — so
+// a call production makes that this fake forgot is a compile error rather than
+// a journey that passes without it.
+//
+// It records domain values, never call sequences: which calls an adapter would
+// use to realize a Frame is exactly what the Frame port exists to be free to
+// change. What it models instead is what a user would see — which mode has
+// content on screen, whether the overlay is up, what was drawn on it.
+type simOverlayPort struct {
+	// refuseMonitorSelect stands in for a backend with no surface for the
+	// monitor picker: showing that frame reports CodeNotSupported, the way an
+	// adapter over a backend without the capability does.
+	refuseMonitorSelect bool
 
-	mu   sync.Mutex
-	mode overlay.Mode
-	// visible is whether the overlay is on screen; shows counts how many
-	// times it was put there. A journey needs both: entering a mode shows the
+	mu sync.Mutex
+	// visible is whether the overlay is on screen; shows counts how many times
+	// a frame was put there. A journey needs both: entering a mode shows the
 	// overlay once, and every keystroke after it must redraw without showing
 	// again (ADR 0003).
-	visible            bool
-	shows              int
-	hintDraws          [][]*renderhints.Hint
-	hintStyles         []renderhints.StyleMode
-	gridDraws          []simGridDraw
-	matchPrefixes      []string
-	hideUnmatched      []bool
-	subgridCells       []*domainGrid.Cell
-	recursiveGridDraws []image.Rectangle
-	searchQueries      []string
-	monitorDraws       [][]overlay.MonitorSelectTarget
-	monitorHides       int
-	stickySymbols      []string
-	// indicatorVisible is the visibility each indicator was last asked for.
-	// A backend with no surface draws nothing, so this — not a draw — is what
-	// a journey can observe about an indicator being on screen.
-	indicatorVisible map[ports.Indicator]bool
+	visible bool
+	shows   int
 	// drawnModes is which modes have content on screen right now, tracked the
-	// way a display would: a draw puts a mode's content up, clearing the
-	// shared surface takes down everything drawn on it, and hiding the
-	// monitor-select panels takes down theirs. It is what lets a journey say
-	// what a user would see rather than which method was called.
+	// way a display would: showing a frame replaces whatever was on screen with
+	// that frame's content, redrawing repaints it, and clearing empties the
+	// screen. It is what lets a journey say what a user would see rather than
+	// which method was called.
 	drawnModes map[domain.Mode]bool
+
+	hintFrames         []ports.HintsFrame
+	gridDraws          []simGridDraw
+	recursiveGridDraws []image.Rectangle
+	monitorDraws       [][]ports.MonitorSelectTarget
+
+	matchPrefixes []string
+	hideUnmatched []bool
+	subgridCells  []*domainGrid.Cell
+	searchQueries []string
+	stickySymbols []string
+
+	// indicatorVisible is the visibility each indicator was last asked for.
+	// An indicator draws through its own call rather than a frame, so this —
+	// not a frame — is what a journey can observe about one being on screen.
+	indicatorVisible map[ports.Indicator]bool
+
+	// appliedConfigs are the configurations a reload handed the overlay, and
+	// styleRefreshes how many times a theme change asked it to re-resolve
+	// against the one it already held. The overlay owns config + theme ->
+	// Style, so at this seam that notification is what "the change reached the
+	// overlay" means.
+	appliedConfigs []*config.Config
+	styleRefreshes int
 }
 
-// Ensure the recorder implements the optional monitor-select extension the
-// same way the darwin and Linux backends do, and declares itself headless the
-// way a backend with no surface does.
-var (
-	_ overlaymanager.MonitorSelector = (*simOverlayManager)(nil)
-	_ overlay.HeadlessReporter       = (*simOverlayManager)(nil)
-)
+var _ ports.OverlayPort = (*simOverlayPort)(nil)
 
-// Headless states outright what the journeys rely on: there is no native
-// surface here, so nothing may build render components against it.
-func (m *simOverlayManager) Headless() bool { return true }
+func (m *simOverlayPort) Health(_ context.Context) error { return nil }
 
-func (m *simOverlayManager) DrawMonitorSelect(
-	targets []overlay.MonitorSelectTarget,
-	_ overlay.MonitorSelectStyle,
-) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// ShowFrame puts a frame on screen: the overlay comes up and the frame's
+// content replaces whatever was there.
+func (m *simOverlayPort) ShowFrame(_ context.Context, frame ports.Frame) error {
+	if _, isPicker := frame.(ports.MonitorSelectFrame); isPicker && m.refuseMonitorSelect {
+		return derrors.New(derrors.CodeNotSupported, "no monitor picker on this backend")
+	}
 
-	drawn := make([]overlay.MonitorSelectTarget, len(targets))
-	copy(drawn, targets)
-	m.monitorDraws = append(m.monitorDraws, drawn)
-	m.putOnScreenLocked(domain.ModeMonitorSelect)
-
-	return nil
-}
-
-func (m *simOverlayManager) HideMonitorSelect() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.monitorHides++
-
-	delete(m.drawnModes, domain.ModeMonitorSelect)
-}
-
-func (m *simOverlayManager) DrawStickyModifiersIndicator(_, _ int, symbols string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.stickySymbols = append(m.stickySymbols, symbols)
-}
-
-func (m *simOverlayManager) ShowIndicator(indicator ports.Indicator) {
-	m.setIndicatorVisible(indicator, true)
-}
-
-func (m *simOverlayManager) HideIndicator(indicator ports.Indicator) {
-	m.setIndicatorVisible(indicator, false)
-}
-
-func (m *simOverlayManager) Show() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.visible = true
 	m.shows++
+	clear(m.drawnModes)
+	m.recordLocked(frame)
+
+	return nil
 }
 
-func (m *simOverlayManager) Hide() {
+// RedrawFrame repaints a frame already on screen, without the window sequence.
+func (m *simOverlayPort) RedrawFrame(_ context.Context, frame ports.Frame) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.recordLocked(frame)
+
+	return nil
+}
+
+// ClearFrame empties the screen and takes the overlay down.
+func (m *simOverlayPort) ClearFrame(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.visible = false
-}
-
-// Clear wipes the shared drawing surface, which is where every mode but
-// monitor-select draws: monitor-select owns panels of its own and comes off
-// the screen through HideMonitorSelect.
-func (m *simOverlayManager) Clear() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, mode := range []domain.Mode{
-		domain.ModeHints,
-		domain.ModeGrid,
-		domain.ModeRecursiveGrid,
-	} {
-		delete(m.drawnModes, mode)
-	}
-}
-
-func (m *simOverlayManager) SwitchTo(next overlay.Mode) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.mode = next
-}
-
-func (m *simOverlayManager) Mode() overlay.Mode {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.mode
-}
-
-func (m *simOverlayManager) DrawHintsWithStyle(
-	hintsSlice []*renderhints.Hint,
-	style renderhints.StyleMode,
-) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	drawn := make([]*renderhints.Hint, len(hintsSlice))
-	copy(drawn, hintsSlice)
-	m.hintDraws = append(m.hintDraws, drawn)
-	m.hintStyles = append(m.hintStyles, style)
-	m.putOnScreenLocked(domain.ModeHints)
+	clear(m.drawnModes)
 
 	return nil
 }
 
-func (m *simOverlayManager) DrawGrid(
-	grid *domainGrid.Grid,
-	input string,
-	_ rendergrid.Style,
-) error {
+func (m *simOverlayPort) SetActiveScreen(_ image.Rectangle) {}
+
+func (m *simOverlayPort) DrawHintSearch(search ports.HintSearch) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.gridDraws = append(m.gridDraws, simGridDraw{grid: grid, input: input})
-	m.putOnScreenLocked(domain.ModeGrid)
+	m.searchQueries = append(m.searchQueries, search.Query)
 
 	return nil
+}
+
+func (m *simOverlayPort) HideHintSearch() {}
+
+func (m *simOverlayPort) HintSearchBounds(_ image.Rectangle) image.Rectangle {
+	return image.Rectangle{}
 }
 
 // UpdateGridMatches records the prefix the grid was narrowed to. This is the
 // per-keystroke path in grid mode: a journey asserts the user's typing reached
 // the overlay here, not that the whole grid was drawn again.
-func (m *simOverlayManager) UpdateGridMatches(prefix string) {
+func (m *simOverlayPort) UpdateGridMatches(prefix string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.matchPrefixes = append(m.matchPrefixes, prefix)
 }
 
-// SetHideUnmatched records whether unmatched cells were asked to disappear.
-func (m *simOverlayManager) SetHideUnmatched(hide bool) {
+// SetGridHideUnmatched records whether unmatched cells were asked to disappear.
+func (m *simOverlayPort) SetGridHideUnmatched(hide bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.hideUnmatched = append(m.hideUnmatched, hide)
 }
 
-// ShowSubgrid records the cell a subgrid was opened inside.
-func (m *simOverlayManager) ShowSubgrid(cell *domainGrid.Cell, _ rendergrid.Style) {
+// ShowGridSubgrid records the cell a subgrid was opened inside.
+func (m *simOverlayPort) ShowGridSubgrid(cell *domainGrid.Cell) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.subgridCells = append(m.subgridCells, cell)
 }
 
-func (m *simOverlayManager) DrawRecursiveGrid(
-	bounds image.Rectangle,
-	_ int,
-	_ string,
-	_ int,
-	_ int,
-	_ string,
-	_ int,
-	_ int,
-	_ renderrecursivegrid.Style,
-	_ renderrecursivegrid.VirtualPointerState,
-) error {
+func (m *simOverlayPort) UpdateGridPointer(_ domain.Mode, _ ports.GridPointer) {}
+
+func (m *simOverlayPort) DrawModeIndicator(_, _ int) {}
+
+func (m *simOverlayPort) DrawStickyModifiersIndicator(_, _ int, symbols string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.recursiveGridDraws = append(m.recursiveGridDraws, bounds)
-	m.putOnScreenLocked(domain.ModeRecursiveGrid)
-
-	return nil
+	m.stickySymbols = append(m.stickySymbols, symbols)
 }
 
-func (m *simOverlayManager) DrawHintSearchInput(
-	query string,
-	_ int,
-	_ renderhints.SearchInputFrame,
-	_ renderhints.SearchInputStyle,
-) error {
+func (m *simOverlayPort) DrawVirtualPointer(_, _ int) {}
+
+func (m *simOverlayPort) DrawMouseActionIndicator(
+	_ image.Point,
+	_ ports.MouseActionIndicatorStyle,
+) {
+}
+
+func (m *simOverlayPort) ShowIndicator(indicator ports.Indicator) {
+	m.setIndicatorVisible(indicator, true)
+}
+
+func (m *simOverlayPort) HideIndicator(indicator ports.Indicator) {
+	m.setIndicatorVisible(indicator, false)
+}
+
+func (m *simOverlayPort) ResizeIndicatorToActiveScreen(_ ports.Indicator) {}
+
+func (m *simOverlayPort) Flush() {}
+
+func (m *simOverlayPort) IsVisible() bool { return m.isVisible() }
+
+func (m *simOverlayPort) Refresh(_ context.Context) error { return nil }
+
+func (m *simOverlayPort) ApplyConfig(cfg *config.Config) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.searchQueries = append(m.searchQueries, query)
-
-	return nil
+	m.appliedConfigs = append(m.appliedConfigs, cfg)
 }
 
-func (m *simOverlayManager) setIndicatorVisible(indicator ports.Indicator, visible bool) {
+func (m *simOverlayPort) RefreshStyles() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.styleRefreshes++
+}
+
+func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
+
+// SetKeyboardCaptureEnabled does nothing, and no journey can make it fire: the
+// caller is gated on the event tap reporting that the overlay holds the
+// keyboard, which only the Linux evdev tap does and the simulated tap never
+// does. It is spelled out rather than inherited so that stays a stated fact
+// about the fixture rather than a method silently swallowing a call.
+func (m *simOverlayPort) SetKeyboardCaptureEnabled(_ bool) {}
+
+func (m *simOverlayPort) Destroy() {}
+
+// recordLocked stores what a frame put on screen. The caller holds m.mu.
+func (m *simOverlayPort) recordLocked(frame ports.Frame) {
+	switch drawn := frame.(type) {
+	case ports.HintsFrame:
+		m.hintFrames = append(m.hintFrames, drawn)
+	case ports.GridFrame:
+		m.gridDraws = append(m.gridDraws, simGridDraw{grid: drawn.Grid, input: drawn.Input})
+	case ports.RecursiveGridFrame:
+		m.recursiveGridDraws = append(m.recursiveGridDraws, drawn.Bounds)
+	case ports.MonitorSelectFrame:
+		m.monitorDraws = append(m.monitorDraws, slices.Clone(drawn.Targets))
+	case ports.ScrollFrame:
+		// Scroll draws nothing: it is a mode the indicators name rather than a
+		// surface with content, so it leaves the screen empty.
+		return
+	}
+
+	if m.drawnModes == nil {
+		m.drawnModes = make(map[domain.Mode]bool)
+	}
+
+	m.drawnModes[frame.Mode()] = true
+}
+
+func (m *simOverlayPort) setIndicatorVisible(indicator ports.Indicator, visible bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -319,19 +314,9 @@ func (m *simOverlayManager) setIndicatorVisible(indicator ports.Indicator, visib
 	m.indicatorVisible[indicator] = visible
 }
 
-// putOnScreenLocked records that a mode's content is on screen. The caller
-// holds m.mu.
-func (m *simOverlayManager) putOnScreenLocked(mode domain.Mode) {
-	if m.drawnModes == nil {
-		m.drawnModes = make(map[domain.Mode]bool)
-	}
-
-	m.drawnModes[mode] = true
-}
-
 // drawnModeNames reports every mode with content on screen right now, sorted
 // so a failure message reads the same way twice.
-func (m *simOverlayManager) drawnModeNames() []string {
+func (m *simOverlayPort) drawnModeNames() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -347,7 +332,7 @@ func (m *simOverlayManager) drawnModeNames() []string {
 
 // indicatorVisibility reports the visibility an indicator was last asked for,
 // and whether it was ever asked at all.
-func (m *simOverlayManager) indicatorVisibility(indicator ports.Indicator) (bool, bool) {
+func (m *simOverlayPort) indicatorVisibility(indicator ports.Indicator) (bool, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -356,14 +341,14 @@ func (m *simOverlayManager) indicatorVisibility(indicator ports.Indicator) (bool
 	return visible, asked
 }
 
-func (m *simOverlayManager) searchInputDrawCount() int {
+func (m *simOverlayPort) searchInputDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return len(m.searchQueries)
 }
 
-func (m *simOverlayManager) lastMonitorTargets() []overlay.MonitorSelectTarget {
+func (m *simOverlayPort) lastMonitorTargets() []ports.MonitorSelectTarget {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -374,21 +359,14 @@ func (m *simOverlayManager) lastMonitorTargets() []overlay.MonitorSelectTarget {
 	return m.monitorDraws[len(m.monitorDraws)-1]
 }
 
-func (m *simOverlayManager) stickyIndicatorDrawCount() int {
+func (m *simOverlayPort) stickyIndicatorDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return len(m.stickySymbols)
 }
 
-func (m *simOverlayManager) monitorHideCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.monitorHides
-}
-
-func (m *simOverlayManager) lastRecursiveGridBounds() (image.Rectangle, bool) {
+func (m *simOverlayPort) lastRecursiveGridBounds() (image.Rectangle, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -399,61 +377,49 @@ func (m *simOverlayManager) lastRecursiveGridBounds() (image.Rectangle, bool) {
 	return m.recursiveGridDraws[len(m.recursiveGridDraws)-1], true
 }
 
-// showCount reports how many times the overlay window was put on screen.
-func (m *simOverlayManager) showCount() int {
+// showCount reports how many times a frame was put on screen with the window
+// sequence, which is what a keystroke must not pay for.
+func (m *simOverlayPort) showCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.shows
 }
 
-func (m *simOverlayManager) isVisible() bool {
+func (m *simOverlayPort) isVisible() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.visible
 }
 
-func (m *simOverlayManager) hintDrawCount() int {
+func (m *simOverlayPort) hintDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return len(m.hintDraws)
+	return len(m.hintFrames)
 }
 
-// lastHintStyle returns the style the most recent hint draw was given, which
-// is what a user actually sees on screen.
-func (m *simOverlayManager) lastHintStyle() (renderhints.StyleMode, bool) {
+// lastHintLabels returns the labels of the most recent hints frame.
+func (m *simOverlayPort) lastHintLabels() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if len(m.hintStyles) == 0 {
-		return renderhints.StyleMode{}, false
-	}
-
-	return m.hintStyles[len(m.hintStyles)-1], true
-}
-
-// lastHintLabels returns the labels of the most recent hint draw.
-func (m *simOverlayManager) lastHintLabels() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if len(m.hintDraws) == 0 {
+	if len(m.hintFrames) == 0 {
 		return nil
 	}
 
-	last := m.hintDraws[len(m.hintDraws)-1]
+	last := m.hintFrames[len(m.hintFrames)-1]
 
-	labels := make([]string, len(last))
-	for i, h := range last {
+	labels := make([]string, len(last.Hints))
+	for i, h := range last.Hints {
 		labels[i] = h.Label()
 	}
 
 	return labels
 }
 
-func (m *simOverlayManager) lastGrid() *domainGrid.Grid {
+func (m *simOverlayPort) lastGrid() *domainGrid.Grid {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -466,7 +432,7 @@ func (m *simOverlayManager) lastGrid() *domainGrid.Grid {
 
 // gridDrawCount reports how many times the whole grid was drawn. A journey
 // uses it to pin what a keystroke costs: narrowing must not redraw the grid.
-func (m *simOverlayManager) gridDrawCount() int {
+func (m *simOverlayPort) gridDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -475,7 +441,7 @@ func (m *simOverlayManager) gridDrawCount() int {
 
 // lastMatchPrefix reports the prefix the grid was last narrowed to, and
 // whether it was ever narrowed at all.
-func (m *simOverlayManager) lastMatchPrefix() (string, bool) {
+func (m *simOverlayPort) lastMatchPrefix() (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -487,7 +453,7 @@ func (m *simOverlayManager) lastMatchPrefix() (string, bool) {
 }
 
 // lastHideUnmatched reports whether unmatched cells were last asked to hide.
-func (m *simOverlayManager) lastHideUnmatched() (bool, bool) {
+func (m *simOverlayPort) lastHideUnmatched() (bool, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -499,7 +465,7 @@ func (m *simOverlayManager) lastHideUnmatched() (bool, bool) {
 }
 
 // subgridCount reports how many subgrids were opened.
-func (m *simOverlayManager) subgridCount() int {
+func (m *simOverlayPort) subgridCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -507,11 +473,33 @@ func (m *simOverlayManager) subgridCount() int {
 }
 
 // recursiveGridDrawCount reports how many times the recursive grid was drawn.
-func (m *simOverlayManager) recursiveGridDrawCount() int {
+func (m *simOverlayPort) recursiveGridDrawCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return len(m.recursiveGridDraws)
+}
+
+// lastAppliedConfig returns the configuration a reload last handed the
+// overlay, and whether one ever reached it.
+func (m *simOverlayPort) lastAppliedConfig() (*config.Config, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.appliedConfigs) == 0 {
+		return nil, false
+	}
+
+	return m.appliedConfigs[len(m.appliedConfigs)-1], true
+}
+
+// styleRefreshCount reports how many times a theme change asked the overlay to
+// re-resolve its Styles.
+func (m *simOverlayPort) styleRefreshCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.styleRefreshes
 }
 
 // --- scripted accessibility port ------------------------------------------
@@ -750,7 +738,7 @@ type simHarness struct {
 	// appearance is the fixture desktop's light/dark state, read by the
 	// system port the app resolves its theme through.
 	appearance *atomic.Bool
-	overlay    *simOverlayManager
+	overlay    *simOverlayPort
 	ax         *simAXPort
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
@@ -805,12 +793,6 @@ func newSimHarness(
 	})
 }
 
-// simHeadlessOverlayManager is a manager WITHOUT the MonitorSelector
-// extension, standing in for backends that cannot draw the monitor picker.
-type simHeadlessOverlayManager struct {
-	overlay.NoOpManager
-}
-
 // newSimHarnessWithDisplays builds and starts the real app on a simulated
 // desktop with the given displays, and registers cleanup that stops it and
 // fails the test on unclean shutdown. The cursor starts on the first display.
@@ -822,14 +804,15 @@ func newSimHarnessWithDisplays(
 ) *simHarness {
 	tb.Helper()
 
-	recorder := &simOverlayManager{}
+	recorder := &simOverlayPort{}
 
 	return buildSimHarness(tb, cfg, elements, displays, recorder, recorder)
 }
 
-// newSimHarnessHeadlessOverlay builds the app on an overlay manager without
-// any optional extensions. The returned harness has a nil overlay recorder —
-// only for journeys asserting that a capability is refused.
+// newSimHarnessHeadlessOverlay builds the app on an overlay with no surface
+// for the monitor picker, standing in for a backend that cannot draw it. The
+// returned harness has a nil overlay recorder — only for journeys asserting
+// that a capability is refused.
 func newSimHarnessHeadlessOverlay(
 	tb testing.TB,
 	cfg *config.Config,
@@ -837,18 +820,25 @@ func newSimHarnessHeadlessOverlay(
 ) *simHarness {
 	tb.Helper()
 
-	return buildSimHarness(tb, cfg, nil, displays, &simHeadlessOverlayManager{}, nil)
+	return buildSimHarness(
+		tb,
+		cfg,
+		nil,
+		displays,
+		&simOverlayPort{refuseMonitorSelect: true},
+		nil,
+	)
 }
 
-// buildSimHarness wires the app with the given overlay manager; recorder is
-// that same manager when it records, nil otherwise.
+// buildSimHarness wires the app with the given overlay port; recorder is that
+// same port when the journey reads from it, nil otherwise.
 func buildSimHarness(
 	tb testing.TB,
 	cfg *config.Config,
 	elements []*element.Element,
 	displays []simDisplay,
-	overlayManager app.OverlayManager,
-	recorder *simOverlayManager,
+	overlayPort ports.OverlayPort,
+	recorder *simOverlayPort,
 ) *simHarness {
 	tb.Helper()
 
@@ -923,7 +913,7 @@ func buildSimHarness(
 		app.WithIPCServer(&mocks.MockIPCPort{}),
 		app.WithWatcher(&mocks.MockAppWatcherPort{}),
 		app.WithHotkeyService(hotkeys),
-		app.WithOverlayManager(overlayManager),
+		app.WithOverlayPort(overlayPort),
 		app.WithSystemPort(system),
 		app.WithAccessibility(axPort),
 	)

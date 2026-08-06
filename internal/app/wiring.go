@@ -45,6 +45,13 @@ func initializeLogger(cfg *config.Config) (*zap.Logger, error) {
 	return logger, nil
 }
 
+// OverlayManager is the overlay backend the port is built over.
+//
+// It is named here, in the composition root, and nowhere else: choosing which
+// implementation exists is this file's job, and everything the running
+// application says to the overlay it says through ports.OverlayPort.
+type OverlayManager = overlay.ManagerInterface
+
 // initializeOverlayManager creates and initializes the overlay manager.
 func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 	return overlay.Init(logger)
@@ -107,22 +114,26 @@ func initializeAdapters(
 		)
 	}
 
-	// The overlay owns config + theme -> Style. Building it here, before any
-	// render component exists, means every later consumer reads the same
-	// resolved values rather than deriving its own.
-	app.overlayStyles = overlay.NewStyleResolver(
-		overlayManager,
-		cfg,
-		newThemeProvider(systemPort),
-		logger,
-	)
-
-	// Create overlay adapter for UI rendering
-	overlayPort := overlay.NewAdapter(
-		overlayManager,
-		app.overlayStyles,
-		logger,
-	)
+	// Respect an injected overlay port (WithOverlayPort) the same way: a caller
+	// that brought its own screen has no backend behind it to build an adapter
+	// over, and phase 1 built none.
+	overlayPort := app.overlayPort
+	if overlayPort == nil {
+		// The overlay owns config + theme -> Style. Building the resolver here
+		// and handing it straight to the adapter is what leaves the app with
+		// one overlay reference: a reload or a theme change tells the port, and
+		// the port tells its own resolver.
+		overlayPort = overlay.NewAdapter(
+			overlayManager,
+			overlay.NewStyleResolver(
+				overlayManager,
+				cfg,
+				newThemeProvider(systemPort),
+				logger,
+			),
+			logger,
+		)
+	}
 
 	return accAdapter, overlayPort
 }

@@ -60,11 +60,15 @@ func WithIPCServer(ipcServer ports.IPCPort) Option {
 	}
 }
 
-// WithOverlayManager sets the overlay manager implementation.
-// Note: overlayManager can be nil, will be initialized during app startup if not provided.
-func WithOverlayManager(overlayManager OverlayManager) Option {
+// WithOverlayPort sets the overlay implementation the app draws through.
+//
+// It is the one seam between the app and the overlay: a caller that brings its
+// own port brings its own screen, and no native backend is built behind it.
+// Left unset, the composition root builds the platform backend and the adapter
+// over it during startup.
+func WithOverlayPort(overlayPort ports.OverlayPort) Option {
 	return func(a *App) error {
-		a.overlayManager = overlayManager
+		a.overlayPort = overlayPort
 
 		return nil
 	}

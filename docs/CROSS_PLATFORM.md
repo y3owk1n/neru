@@ -629,13 +629,13 @@ enforced by
 The third rule has three deliberate escapes, all narrow:
 
 - **Shared vocabulary** — `adapter/ipc` (the CLI/daemon wire protocol),
-  `adapter/logger`, `adapter/platform` (the SystemPort factory plus the `Profile`
-  that `neru doctor` prints), and `adapter/overlay` render models
-  (`overlay.Mode`, `hints.Hint`, `grid.Style`). These are data and plumbing,
-  not OS behavior — the behavior is behind `ports.OverlayPort`.
-- **Composition root** — `wiring.go`, `startup_phases.go`,
-  `component_factory.go`, `cmd/neru/main.go`. Wiring adapters to ports is their
-  job.
+  `adapter/logger`, and `adapter/platform` (the SystemPort factory plus the
+  `Profile` that `neru doctor` prints). These are data and plumbing, not OS
+  behavior.
+- **Composition root** — `wiring.go`, `startup_phases.go`, `cmd/neru/main.go`.
+  Wiring adapters to ports is their job. `component_factory.go` was on this
+  list until #1213 and came off it: with the overlay's render components no
+  longer handed back to the app, it names no adapter at all.
 - **Build-tagged dispatch** — any `*_darwin.go` / `*_linux*.go` /
   `*_windows.go` / `*_other.go` file in the app layer is Tier 2.
 
@@ -643,11 +643,16 @@ Anything else is a violation. `knownLayeringExceptions` exists for edges that
 cannot be fixed in the same change; it is currently **empty**, and a second test
 fails if an entry stops being a real violation, so the list can only shrink.
 
-> The `internal/adapter/overlay` package is the worked example. Its managers
-> need render models to draw, and those models live beside them under
-> `internal/adapter/overlay/render/` rather than in the app layer. Put them
-> above the managers and every backend would import the app layer to draw — an
-> upward edge through the middle of the hexagon.
+> `internal/adapter/overlay` was the worked example of an escape, and is now
+> the worked example of retiring one. It carried a shared-vocabulary entry
+> until #1213, because the app named its render models and its manager
+> interface directly. The entry went when the things above it moved: the port
+> took `ports.Frame` for transitions, the adapter took over resolving Styles
+> and building its own render components, and the per-mode `Context` types —
+> which were mode state, not drawing — moved up into
+> `internal/app/components/`. Nothing about the render models moved down. The
+> lesson is that an allowlist entry is retired by finding what does not belong
+> on the other side of the line, not by relocating what does.
 
 ## File Layout Rules
 
@@ -777,15 +782,18 @@ Two traps worth knowing before you start:
 them is platform-specific.
 
 They stay there because `hints.Hint`, `hints.StyleMode` and `hints.Overlay` are
-one concept. Splitting them by layer produces two packages named `hints` —
-likewise `grid` and `recursivegrid` — which every site touching both halves must
-then alias. It would also not retire the `sharedInfraPackages` entry it appears
-aimed at: the app names `overlay.Mode`, `overlay.ManagerInterface` and the
-process-wide accessors from the same place. Three of the six render packages
-have no platform-neutral content at all.
+one concept, and every backend needs all three to draw. Splitting them by layer
+produces two packages named `hints` — likewise `grid` and `recursivegrid` —
+which every site touching both halves must then alias, and three of the six
+render packages have no platform-neutral content at all.
 
-Cohesion beats layer purity here, and the layering guardrail records the same
-reasoning beside the exception itself.
+Nothing above the overlay names them any more (#1213), so their home is now a
+question about the adapter alone. What did move out was the per-mode `Context`
+types, which sat in `render/hints`, `render/grid` and `render/recursivegrid`
+without being render models at all: they are the state one mode session keeps,
+they know no colour and no surface, and they live in
+`internal/app/components/{hints,grid,recursivegrid}` beside the scroll context
+that always did.
 
 ### Styles are one type per concept
 

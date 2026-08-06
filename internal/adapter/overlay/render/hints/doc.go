@@ -1,7 +1,7 @@
-// Package hints provides accessibility tree-based hint generation and navigation.
+// Package hints renders the hints overlay: the labels drawn over clickable
+// elements, and the search input drawn beside them.
 //
-// This package implements a comprehensive hint-based navigation system that queries the
-// accessibility tree to find clickable elements and overlays them with keyboard hints
-// (similar to Vimium for browsers). It serves as one of the two primary navigation
-// methods in Neru, complementing the grid-based approach.
+// It owns style and drawing only. Which elements are hinted, what the labels
+// are and what a keystroke narrows them to live in internal/domain/hint, and
+// the state one hints session keeps lives in internal/app/components/hints.
 package hints

@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -291,7 +290,7 @@ func TestSimulation_GridLeavesNothingOnScreen(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 
 	sim.waitFor("grid off screen", func() bool {
-		return !sim.overlay.isVisible() && sim.overlay.Mode() == overlay.ModeIdle
+		return !sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 0
 	})
 }
 
@@ -1015,7 +1014,7 @@ func TestSimulation_MonitorSelectJourney(t *testing.T) {
 
 	// Exit must tear the panels down, or they would linger on screen.
 	sim.waitFor("monitor panels hidden after exit", func() bool {
-		return sim.overlay.monitorHideCount() > 0
+		return len(sim.overlay.drawnModeNames()) == 0
 	})
 }
 
@@ -1206,6 +1205,12 @@ func TestSimulation_RapidModeSwitching(t *testing.T) {
 // overlay's Style ownership exists for: hints are on screen when the system
 // switches to dark mode, and the user sees them redrawn in the new theme
 // rather than left in the old one until the mode is re-entered.
+//
+// The overlay owns config + theme -> Style, so at this seam the appearance is
+// not observable and does not need to be: what reaches the overlay is one
+// notification to re-resolve, followed by a redraw of the frame already up.
+// That the re-resolution actually produces the dark theme's colors is pinned
+// where it happens, in TestStyleResolver_RefreshPicksUpTheNewTheme.
 func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
 
@@ -1213,11 +1218,7 @@ func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
 	sim.waitMode(domain.ModeHints)
 	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
 
-	light, recorded := sim.overlay.lastHintStyle()
-	if !recorded {
-		t.Fatal("no hint style was recorded for the first draw")
-	}
-
+	refreshesBefore := sim.overlay.styleRefreshCount()
 	drawsBeforeThemeChange := sim.overlay.hintDrawCount()
 
 	sim.switchToDarkMode()
@@ -1226,22 +1227,11 @@ func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
 		return sim.overlay.hintDrawCount() > drawsBeforeThemeChange
 	})
 
-	dark, recorded := sim.overlay.lastHintStyle()
-	if !recorded {
-		t.Fatal("no hint style was recorded after the theme change")
-	}
-
-	if dark.TextColor() == light.TextColor() {
+	if got := sim.overlay.styleRefreshCount(); got <= refreshesBefore {
 		t.Errorf(
-			"hint text color is %q in both themes; the on-screen overlay kept the old appearance",
-			dark.TextColor(),
-		)
-	}
-
-	if dark.BackgroundColor() == light.BackgroundColor() {
-		t.Errorf(
-			"hint background color is %q in both themes; the on-screen overlay kept the old appearance",
-			dark.BackgroundColor(),
+			"the overlay was asked to re-resolve its styles %d times, was %d before the theme change; it kept the old appearance",
+			got,
+			refreshesBefore,
 		)
 	}
 
@@ -1255,20 +1245,14 @@ func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
 }
 
 // TestSimulation_ConfigReloadReachesTheOverlay is the config half of the same
-// ownership: a reload notifies the overlay once, and the next hints draw uses
-// the colors the reloaded file asks for. A reload exits the active mode first,
-// so "reaches the overlay" is observable on the draw that follows it.
+// ownership: a reload notifies the overlay once, with the colors the reloaded
+// file asks for, and the mode drawn after it goes back on screen.
 func TestSimulation_ConfigReloadReachesTheOverlay(t *testing.T) {
 	sim := newSimHarness(t, simConfig(), threeButtons(t))
 
 	sim.pressHotkey(hintsHotkey)
 	sim.waitMode(domain.ModeHints)
 	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
-
-	before, recorded := sim.overlay.lastHintStyle()
-	if !recorded {
-		t.Fatal("no hint style was recorded for the first draw")
-	}
 
 	const reloadedTextColor = "#ABCDEF"
 
@@ -1290,9 +1274,14 @@ text_color = %q
 		t.Fatalf("ReloadConfig() error = %v", reloadErr)
 	}
 
-	if before.TextColor() == reloadedTextColor {
-		t.Fatalf("hints already drew with %q before the reload; the assertion below proves nothing",
-			reloadedTextColor)
+	applied, reached := sim.overlay.lastAppliedConfig()
+	if !reached {
+		t.Fatal("the reload never reached the overlay")
+	}
+
+	if applied.Hints.UI.TextColor.Light != reloadedTextColor {
+		t.Errorf("the overlay was handed hint text color %q, want %q",
+			applied.Hints.UI.TextColor.Light, reloadedTextColor)
 	}
 
 	drawsBeforeReactivation := sim.overlay.hintDrawCount()
@@ -1302,16 +1291,6 @@ text_color = %q
 	sim.waitFor("hints redrawn after the reload", func() bool {
 		return sim.overlay.hintDrawCount() > drawsBeforeReactivation
 	})
-
-	after, recorded := sim.overlay.lastHintStyle()
-	if !recorded {
-		t.Fatal("no hint style was recorded after the reload")
-	}
-
-	if after.TextColor() != reloadedTextColor {
-		t.Errorf("hint text color after the reload = %q, want %q",
-			after.TextColor(), reloadedTextColor)
-	}
 }
 
 // TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain pins the decision

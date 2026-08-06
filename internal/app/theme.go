@@ -38,8 +38,8 @@ func (a *App) HandleThemeChange(isDark bool) {
 	a.logger.Info("System theme changed",
 		zap.Bool("is_dark", isDark))
 
-	if a.overlayStyles != nil {
-		a.overlayStyles.Refresh()
+	if a.overlayPort != nil {
+		a.overlayPort.RefreshStyles()
 	}
 
 	if a.modes != nil {
