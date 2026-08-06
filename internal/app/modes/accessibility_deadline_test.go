@@ -30,7 +30,9 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -97,12 +99,18 @@ func (c *capturedDeadline) assertBoundedBy(t *testing.T, what string, want time.
 // allowed when the walk reached it.
 func newBoundedWalkHintsHandler(walk *capturedDeadline, cfg *configpkg.Config) *Handler {
 	accessibility := &portmocks.MockAccessibilityPort{
-		// Regenerating the labels asks what is focused first, so this is the
-		// context the walk carries.
-		FocusedAppBundleIDFunc: func(ctx context.Context) (string, error) {
+		// The walk itself, and the only call here that reads a deadline: it is
+		// the traversal the budget exists to cut short. Capturing the focused
+		// application lookup instead would measure a different context, on an
+		// earlier call, that the platform ignores anyway — and would keep
+		// passing if this one were later handed an unbounded context.
+		ClickableElementsFunc: func(
+			ctx context.Context,
+			_ ports.ElementFilter,
+		) ([]*element.Element, error) {
 			walk.capture(ctx)
 
-			return "", nil
+			return nil, nil
 		},
 	}
 
