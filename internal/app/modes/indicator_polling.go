@@ -35,16 +35,10 @@ func (h *handlerState) startIndicatorPolling(mode domain.Mode) {
 	// must stay keyboard-passive, and the evdev path already keeps it that way.
 	setOverlayKeyboardCapture(h, false)
 
-	// Size the small overlays before the goroutine draws. Grid and
-	// recursive-grid manage their own windows and skip the manager's resize,
-	// so these could still be sized for a different monitor.
-	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-		ind.ResizeToActiveScreen()
-	}
-
-	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-		stickyInd.ResizeToActiveScreen()
-	}
+	// Size the indicators before the goroutine draws. Grid and recursive-grid
+	// manage their own windows and skip the manager's resize, so these could
+	// still be sized for a different monitor.
+	h.resizeIndicators()
 
 	stopCh := make(chan struct{})
 	doneCh := make(chan struct{})
@@ -97,14 +91,12 @@ func (h *Handler) runIndicatorPolling(
 
 // indicatorSnapshot is what one tick decides to draw, read under h.mu.
 type indicatorSnapshot struct {
-	showModeIndicator       bool
-	stickyEnabled           bool
-	stickyActive            bool
-	stickySymbols           string
-	showVirtualPointer      bool
-	virtualPointerSize      int
-	virtualPointerFillColor string
-	stickyPoint             image.Point
+	showModeIndicator  bool
+	stickyEnabled      bool
+	stickyActive       bool
+	stickySymbols      string
+	showVirtualPointer bool
+	stickyPoint        image.Point
 }
 
 // indicatorTickPlan is what one tick decided to do. It is computed under h.mu
@@ -138,7 +130,7 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	}
 
 	if plan.resizeIndicators {
-		h.resizeIndicatorOverlays()
+		h.resizeIndicators()
 
 		return
 	}
@@ -185,15 +177,11 @@ func (h *handlerState) snapshotIndicators(cursorX, cursorY int) indicatorSnapsho
 		showVirtualPointer: h.shouldShowCursorFollowingVirtualPointer(),
 	}
 
-	if snap.showVirtualPointer {
-		style := h.overlayStyle().VirtualPointer
-		snap.virtualPointerSize = style.FontSize
-		snap.virtualPointerFillColor = style.FillColor
-	}
-
+	// Active means there is something to show: modifiers held, and symbols to
+	// draw for them. Deciding it here keeps the draw reading one flag.
 	if mods := h.stickyModifiers(); mods != 0 {
-		snap.stickyActive = true
 		snap.stickySymbols = stickyindicator.ModifierSymbolsString(mods)
+		snap.stickyActive = snap.stickySymbols != ""
 	}
 
 	snap.stickyPoint = h.stickyIndicatorAnchor(image.Pt(cursorX, cursorY))
@@ -219,74 +207,49 @@ func (h *handlerState) adoptChangedScreenBounds(ctx context.Context) bool {
 	return true
 }
 
-// resizeIndicatorOverlays resizes the small overlays to the active screen.
-// The resize dispatches to the main queue, so h.mu must not be held.
-func (h *Handler) resizeIndicatorOverlays() {
-	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-		ind.ResizeToActiveScreen()
-	}
-
-	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-		stickyInd.ResizeToActiveScreen()
-	}
+// resizeIndicators sizes each indicator to the active screen.
+//
+// The polling goroutine calls it with h.mu released, from the plan a tick
+// computed. startIndicatorPolling calls it once before the goroutine starts,
+// under the lock every mode activation already holds, as it always has: the
+// resize dispatches to the main queue on macOS and is a no-op where an
+// indicator has no window of its own.
+func (h *handlerState) resizeIndicators() {
+	h.modeIndicatorService.ResizeToActiveScreen()
+	h.stickyIndicatorService.ResizeToActiveScreen()
+	h.virtualPointerService.ResizeToActiveScreen()
 }
 
-// drawIndicators shows, draws or hides each small overlay from one snapshot.
-// It runs with h.mu released — everything it needs is in the snapshot. The
-// overlays take absolute Quartz coordinates; the native side clamps their
-// windows to the active display.
+// drawIndicators shows, draws or hides each indicator from one snapshot. It
+// runs with h.mu released — everything it needs is in the snapshot. The
+// indicators take absolute global coordinates; the backend clamps them to the
+// active display.
 func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 	if snap.showModeIndicator {
-		if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-			ind.Show()
-		}
-
+		h.modeIndicatorService.Show()
 		h.modeIndicatorService.UpdateIndicatorPosition(cursorX, cursorY)
-	} else if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-		ind.Clear()
-		ind.Hide()
+	} else {
+		h.modeIndicatorService.Hide()
 	}
 
 	if snap.stickyEnabled {
 		if snap.stickyActive {
-			if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-				stickyInd.Show()
-			}
-
-			if snap.stickySymbols != "" && h.stickyIndicatorService != nil {
-				h.stickyIndicatorService.UpdateIndicatorPosition(
-					snap.stickyPoint.X,
-					snap.stickyPoint.Y,
-					snap.stickySymbols,
-				)
-			}
-		} else if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-			if h.stickyIndicatorService != nil {
-				h.stickyIndicatorService.UpdateIndicatorPosition(
-					snap.stickyPoint.X,
-					snap.stickyPoint.Y,
-					"",
-				)
-			}
-
-			stickyInd.Clear()
-			stickyInd.Hide()
+			h.stickyIndicatorService.Show()
+			h.stickyIndicatorService.UpdateIndicatorPosition(
+				snap.stickyPoint.X,
+				snap.stickyPoint.Y,
+				snap.stickySymbols,
+			)
+		} else {
+			h.stickyIndicatorService.Hide()
 		}
 	}
 
 	if snap.showVirtualPointer {
-		if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
-			vp.Show()
-			h.overlayManager.DrawVirtualPointer(
-				cursorX,
-				cursorY,
-				snap.virtualPointerSize,
-				snap.virtualPointerFillColor,
-			)
-		}
-	} else if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
-		vp.Hide()
-		vp.Clear()
+		h.virtualPointerService.Show()
+		h.virtualPointerService.UpdateIndicatorPosition(cursorX, cursorY)
+	} else {
+		h.virtualPointerService.Hide()
 	}
 }
 
@@ -311,18 +274,13 @@ func (h *handlerState) stopIndicatorPolling() {
 		<-h.indicatorDoneCh
 		h.indicatorDoneCh = nil
 	}
-	// Clear and hide the mode indicator overlay AFTER the goroutine has fully
-	// stopped. This ensures any late draw dispatched by the last tick is
-	// overridden, preventing the indicator from persisting on screen.
-	if ind := h.overlayManager.ModeIndicatorOverlay(); ind != nil {
-		ind.Clear()
-		ind.Hide()
-	}
-	// Also clear and hide the sticky modifiers indicator.
-	if stickyInd := h.overlayManager.StickyModifiersOverlay(); stickyInd != nil {
-		stickyInd.Clear()
-		stickyInd.Hide()
-	}
+	// Hide the indicators AFTER the goroutine has fully stopped, so a late
+	// draw dispatched by the last tick cannot put one back on screen.
+	h.modeIndicatorService.Hide()
+	h.stickyIndicatorService.Hide()
+
+	// The virtual pointer stands in for the system cursor rather than for a
+	// mode, so it outlives polling whenever the cursor is still hidden.
 	// All callers hold h.mu, so state methods are callable directly.
 	if !h.shouldShowCursorFollowingVirtualPointer() {
 		h.hideCursorFollowingVirtualPointer()

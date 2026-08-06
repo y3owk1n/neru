@@ -986,6 +986,38 @@ func (m *Manager) DrawMouseActionIndicator(
 	}
 }
 
+// HideIndicator takes an indicator off the screen and erases the badge it left
+// behind.
+//
+// On Linux an indicator is a badge painted onto the one shared overlay surface
+// rather than a window of its own, so the render component's own Hide is a
+// no-op and clearing the rectangle it occupied is the whole of hiding it.
+// Without this an indicator would stay painted until the entire overlay is
+// hidden — which is the mode ending, not the indicator being turned off.
+func (m *Manager) HideIndicator(indicator ports.Indicator) {
+	m.Base.HideIndicator(indicator)
+
+	// The virtual pointer draws into its own surface, so there is no rectangle
+	// of it on the shared overlay to erase. Returning before the lock matters:
+	// this one is hidden from the cursor-visibility path, which runs with the
+	// mode handler's lock held, and renderMu is contended by every draw.
+	if indicator == ports.VirtualPointerIndicator {
+		return
+	}
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	switch indicator {
+	case ports.ModeIndicator:
+		m.clearModeIndicatorBadgeLocked()
+	case ports.StickyModifiersIndicator:
+		m.clearStickyBadgeLocked()
+	case ports.VirtualPointerIndicator:
+		// Returned above.
+	}
+}
+
 // overlayScale returns the active backend's HiDPI UI scale. The X11 overlay
 // enlarges fonts/geometry by this factor (Xft.dpi based); Wayland renders in
 // logical units and scales via the compositor buffer, so it returns 1. The

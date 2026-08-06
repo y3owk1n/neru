@@ -110,12 +110,5 @@ func (h *Handler) rehideSystemCursor() {
 }
 
 func (h *handlerState) hideCursorFollowingVirtualPointer() {
-	if h.overlayManager == nil {
-		return
-	}
-
-	if vp := h.overlayManager.VirtualPointerOverlay(); vp != nil {
-		vp.Clear()
-		vp.Hide()
-	}
+	h.virtualPointerService.Hide()
 }

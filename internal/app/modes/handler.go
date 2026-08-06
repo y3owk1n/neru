@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/services/virtualpointer"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -93,6 +94,7 @@ type handlerState struct {
 	scrollService          *services.ScrollService
 	modeIndicatorService   *modeindicator.Service
 	stickyIndicatorService *stickyindicator.Service
+	virtualPointerService  *virtualpointer.Service
 
 	hints         *components.HintsComponent
 	grid          *components.GridComponent
@@ -184,6 +186,7 @@ type HandlerDeps struct {
 	ScrollService          *services.ScrollService
 	ModeIndicatorService   *modeindicator.Service
 	StickyIndicatorService *stickyindicator.Service
+	VirtualPointerService  *virtualpointer.Service
 
 	HintsComponent         *components.HintsComponent
 	GridComponent          *components.GridComponent
@@ -246,6 +249,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		scrollService:          deps.ScrollService,
 		modeIndicatorService:   deps.ModeIndicatorService,
 		stickyIndicatorService: deps.StickyIndicatorService,
+		virtualPointerService:  deps.VirtualPointerService,
 		hints:                  deps.HintsComponent,
 		grid:                   deps.GridComponent,
 		scroll:                 deps.ScrollComponent,
@@ -259,6 +263,8 @@ func NewHandler(deps HandlerDeps) *Handler {
 		cycleHintIndex:         -1,
 	}
 
+	fillIndicatorServices(&handler.handlerState, logger)
+
 	// Initialize mode implementations. Modes run with the lock already held,
 	// so they are built on the inner state and cannot re-enter the locked
 	// surface.
@@ -271,6 +277,49 @@ func NewHandler(deps HandlerDeps) *Handler {
 	}
 
 	return handler
+}
+
+// fillIndicatorServices gives the handler a service for every indicator,
+// substituting a portless one for anything the caller left out.
+//
+// Mode logic then drives an indicator unconditionally: whether the indicator
+// was ever constructed — a disabled one, a headless backend — is answered
+// inside the service instead of by a pointer test at each call site.
+//
+// Only a test builds a handler without one, so a substitution in a real
+// session is a wiring mistake, and it says so rather than leaving an
+// indicator silently dead.
+func fillIndicatorServices(state *handlerState, logger *zap.Logger) {
+	if state.modeIndicatorService == nil {
+		logIndicatorSubstitution(logger, ports.ModeIndicator)
+
+		state.modeIndicatorService = modeindicator.NewService(state.system, nil)
+	}
+
+	if state.stickyIndicatorService == nil {
+		logIndicatorSubstitution(logger, ports.StickyModifiersIndicator)
+
+		state.stickyIndicatorService = stickyindicator.NewService(state.system, nil)
+	}
+
+	if state.virtualPointerService == nil {
+		logIndicatorSubstitution(logger, ports.VirtualPointerIndicator)
+
+		state.virtualPointerService = virtualpointer.NewService(state.system, nil)
+	}
+}
+
+// logIndicatorSubstitution reports an indicator the handler was not given a
+// service for. It names the indicator and nothing it would draw.
+func logIndicatorSubstitution(logger *zap.Logger, indicator ports.Indicator) {
+	if logger == nil {
+		return
+	}
+
+	logger.Debug(
+		"No service for indicator; it will not be drawn",
+		zap.String("indicator", indicator.String()),
+	)
 }
 
 // ActivateMode enters the mode an activation names, with every flag it was

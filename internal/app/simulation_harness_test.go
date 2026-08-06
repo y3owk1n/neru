@@ -93,6 +93,10 @@ type simOverlayManager struct {
 	monitorDraws       [][]overlay.MonitorSelectTarget
 	monitorHides       int
 	stickySymbols      []string
+	// indicatorVisible is the visibility each indicator was last asked for.
+	// A backend with no surface draws nothing, so this — not a draw — is what
+	// a journey can observe about an indicator being on screen.
+	indicatorVisible map[ports.Indicator]bool
 }
 
 // Ensure the recorder implements the optional monitor-select extension the
@@ -133,6 +137,14 @@ func (m *simOverlayManager) DrawStickyModifiersIndicator(_, _ int, symbols strin
 	defer m.mu.Unlock()
 
 	m.stickySymbols = append(m.stickySymbols, symbols)
+}
+
+func (m *simOverlayManager) ShowIndicator(indicator ports.Indicator) {
+	m.setIndicatorVisible(indicator, true)
+}
+
+func (m *simOverlayManager) HideIndicator(indicator ports.Indicator) {
+	m.setIndicatorVisible(indicator, false)
 }
 
 func (m *simOverlayManager) Show() {
@@ -223,6 +235,28 @@ func (m *simOverlayManager) DrawHintSearchInput(
 	m.searchQueries = append(m.searchQueries, query)
 
 	return nil
+}
+
+func (m *simOverlayManager) setIndicatorVisible(indicator ports.Indicator, visible bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.indicatorVisible == nil {
+		m.indicatorVisible = make(map[ports.Indicator]bool)
+	}
+
+	m.indicatorVisible[indicator] = visible
+}
+
+// indicatorVisibility reports the visibility an indicator was last asked for,
+// and whether it was ever asked at all.
+func (m *simOverlayManager) indicatorVisibility(indicator ports.Indicator) (bool, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	visible, asked := m.indicatorVisible[indicator]
+
+	return visible, asked
 }
 
 func (m *simOverlayManager) searchInputDrawCount() int {

@@ -1,49 +1,32 @@
 package modeindicator
 
 import (
-	"context"
-
-	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/app/services/indicator"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Service manages the mode indicator overlay.
+// Service owns the mode indicator for its whole life: whether it is on screen,
+// how big its surface is, and where it is drawn.
 type Service struct {
-	system  ports.SystemPort
-	overlay ports.OverlayPort
-	logger  *zap.Logger
+	indicator.Base
 }
 
 // NewService creates a new mode indicator service.
 func NewService(
 	system ports.SystemPort,
 	overlay ports.OverlayPort,
-	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		system:  system,
-		overlay: overlay,
-		logger:  logger,
+		Base: indicator.NewBase(ports.ModeIndicator, system, overlay),
 	}
 }
 
-// GetCursorPosition returns the current cursor position.
-func (s *Service) GetCursorPosition(ctx context.Context) (int, int, error) {
-	if s.system == nil {
-		return 0, 0, derrors.New(derrors.CodeActionFailed, "system port not available")
+// UpdateIndicatorPosition draws the mode indicator at the given position.
+func (s *Service) UpdateIndicatorPosition(posX, posY int) {
+	overlay := s.Overlay()
+	if overlay == nil {
+		return
 	}
 
-	point, err := s.system.CursorPosition(ctx)
-	if err != nil {
-		return 0, 0, derrors.WrapAccessibilityFailed(err, "get cursor position")
-	}
-
-	return point.X, point.Y, nil
-}
-
-// UpdateIndicatorPosition updates the mode indicator position.
-func (s *Service) UpdateIndicatorPosition(x, y int) {
-	s.overlay.DrawModeIndicator(x, y)
+	overlay.DrawModeIndicator(posX, posY)
 }
