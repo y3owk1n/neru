@@ -48,8 +48,6 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		h.exitMode()
 	}
 
-	h.appState.SetGridOverlayNeedsRefresh(false)
-
 	gridInstance := h.createGridInstance()
 
 	// Reset the grid manager state when setting up the grid.

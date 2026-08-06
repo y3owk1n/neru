@@ -271,9 +271,9 @@ func (a *App) processScreenChange() {
 	// against a concurrent ExitMode between the snapshot and the actual work.
 	currentMode := a.appState.CurrentMode()
 
-	// Only log and adjust overlays if we are in an active mode.
-	// In Idle mode, we just want to update the needs-refresh flags (handled by sub-handlers)
-	// but avoid showing the overlay window which happens in ResizeToActiveScreen.
+	// Only log and adjust overlays if we are in an active mode. In Idle mode
+	// there is nothing on screen to adjust, and we must avoid showing the
+	// overlay window, which is what ResizeToActiveScreen would do.
 	isIdle := currentMode == domain.ModeIdle
 	if !isIdle {
 		a.logger.Debug("Screen parameters changed; adjusting overlays")
@@ -306,8 +306,6 @@ func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode
 	}
 
 	if currentMode != domain.ModeGrid {
-		a.appState.SetGridOverlayNeedsRefresh(true)
-
 		return false
 	}
 
@@ -343,8 +341,6 @@ func (a *App) handleHintScreenChange(
 	}
 
 	if currentMode != domain.ModeHints {
-		a.appState.SetHintOverlayNeedsRefresh(true)
-
 		return false
 	}
 
@@ -369,8 +365,6 @@ func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode do
 	}
 
 	if currentMode != domain.ModeRecursiveGrid {
-		a.appState.SetRecursiveGridOverlayNeedsRefresh(true)
-
 		return false
 	}
 

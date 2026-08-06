@@ -392,66 +392,6 @@ func TestAppState_ScreenChangeProcessing_MutualExclusion(t *testing.T) {
 	}
 }
 
-func TestAppState_GridOverlayNeedsRefresh(t *testing.T) {
-	_state := state.NewAppState()
-
-	if _state.GridOverlayNeedsRefresh() {
-		t.Error("Expected grid overlay refresh to be false initially")
-	}
-
-	_state.SetGridOverlayNeedsRefresh(true)
-
-	if !_state.GridOverlayNeedsRefresh() {
-		t.Error("Expected grid overlay to need refresh")
-	}
-
-	_state.SetGridOverlayNeedsRefresh(false)
-
-	if _state.GridOverlayNeedsRefresh() {
-		t.Error("Expected grid overlay to not need refresh")
-	}
-}
-
-func TestAppState_HintOverlayNeedsRefresh(t *testing.T) {
-	_state := state.NewAppState()
-
-	if _state.HintOverlayNeedsRefresh() {
-		t.Error("Expected hint overlay refresh to be false initially")
-	}
-
-	_state.SetHintOverlayNeedsRefresh(true)
-
-	if !_state.HintOverlayNeedsRefresh() {
-		t.Error("Expected hint overlay to need refresh")
-	}
-
-	_state.SetHintOverlayNeedsRefresh(false)
-
-	if _state.HintOverlayNeedsRefresh() {
-		t.Error("Expected hint overlay to not need refresh")
-	}
-}
-
-func TestAppState_RecursiveGridOverlayNeedsRefresh(t *testing.T) {
-	_state := state.NewAppState()
-
-	if _state.RecursiveGridOverlayNeedsRefresh() {
-		t.Error("Expected recursive-grid overlay refresh to be false initially")
-	}
-
-	_state.SetRecursiveGridOverlayNeedsRefresh(true)
-
-	if !_state.RecursiveGridOverlayNeedsRefresh() {
-		t.Error("Expected recursive-grid overlay to need refresh")
-	}
-
-	_state.SetRecursiveGridOverlayNeedsRefresh(false)
-
-	if _state.RecursiveGridOverlayNeedsRefresh() {
-		t.Error("Expected recursive-grid overlay to not need refresh")
-	}
-}
-
 func TestAppState_HotkeyRefreshPending(t *testing.T) {
 	_state := state.NewAppState()
 
