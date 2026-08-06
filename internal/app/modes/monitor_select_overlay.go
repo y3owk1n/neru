@@ -76,13 +76,20 @@ func (h *handlerState) redrawMonitorSelect() {
 // RefreshMonitorSelectForThemeChange redraws the monitor_select overlay when
 // the mode is active. The colors come from the Style the overlay resolved, so
 // a redraw is all a theme change needs.
-func (h *Handler) RefreshMonitorSelectForThemeChange() {
+//
+// Returns true if the mode was in a state to refresh, the way the three other
+// theme refreshers already report it: the picker is the odd one out of four
+// otherwise identical calls, and one uniform signature is what lets the four
+// become one thing a mode answers for.
+func (h *Handler) RefreshMonitorSelectForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	if h.appState.CurrentMode() != domain.ModeMonitorSelect || h.monitorSelect == nil {
-		return
+		return false
 	}
 
 	h.redrawMonitorSelect()
+
+	return true
 }
