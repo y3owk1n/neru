@@ -303,7 +303,6 @@ root [AGENTS.md](../AGENTS.md) under Conventions.
 | `internal/app/`            | Application orchestration, services, modes         |
 | `internal/app/components/` | Mode-specific overlay rendering                    |
 | `internal/app/modes/`      | Navigation mode implementations                    |
-| `internal/app/render/`     | The app-layer rendering facade over the overlays   |
 | `internal/cli/`            | Cobra CLI commands, IPC dispatch                   |
 | `internal/config/`         | TOML parsing, validation, defaults                 |
 
@@ -327,7 +326,7 @@ overrides → validation → examples → docs) is documented in
 **UI components**
 
 1. Create the component in `internal/app/components/`
-2. Implement rendering in `internal/app/render/`
+2. Implement drawing in `internal/adapter/overlay/render/`
 3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
 4. Build the render overlay in

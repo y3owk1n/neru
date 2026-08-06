@@ -68,6 +68,19 @@ are declarative; updates — hot, already narrow, already correct — are not.
   field is typed from anything but the standard library or `internal/domain/`.
   The dead `ShowHints` and `Hide` left the port with the two service methods
   that were their only callers.
+- **Both grid surfaces followed hints through the port.** Done in #1211:
+  `GridFrame` and `RecursiveGridFrame` carry what each surface should show, the
+  app-layer renderer in `app/render` was deleted with its last caller,
+  and the ten positional parameters of `DrawRecursiveGrid` became one frame
+  built in one place. The hybrid held where it was predicted to matter: grid's
+  narrowing stayed on `UpdateGridMatches` / `SetGridHideUnmatched` and gained a
+  measurement to prove it (interleaved benchstat over the simulation harness:
+  time unchanged at p=0.97, allocations identical), while recursive grid —
+  which has no incremental path and repaints its whole surface per keystroke —
+  now boxes one frame per key: one extra allocation of 128 B, with no
+  measurable time cost. That is the price this ADR said a fully declarative
+  port would charge on every keystroke, paid only where the surface was
+  already being repainted anyway.
 - **The hint search input went with hints.** Its geometry was computed in
   `app/modes` from configuration and handed over as a render model; it is now
   a `SearchInputLayout` resolved with the rest of the Style and placed in the

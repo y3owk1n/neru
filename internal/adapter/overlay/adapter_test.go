@@ -9,8 +9,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	rendergrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	renderrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -99,6 +103,42 @@ type screenManager struct {
 	searchFrame   renderhints.SearchInputFrame
 	searchDraws   int
 	searchHides   int
+
+	grid              *domainGrid.Grid
+	gridInput         string
+	gridDraws         int
+	clearedBeforeGrid int
+	matchPrefix       string
+	hideUnmatched     bool
+	subgridCell       *domainGrid.Cell
+
+	recursiveGrid      recursiveGridDraw
+	recursiveGridDraws int
+
+	pointer gridPointerDraw
+}
+
+// recursiveGridDraw is one recursive-grid drawn on the overlay, kept as the
+// values a caller handed over rather than as the call that carried them.
+type recursiveGridDraw struct {
+	bounds   image.Rectangle
+	depth    int
+	keys     string
+	cols     int
+	rows     int
+	nextKeys string
+	nextCols int
+	nextRows int
+	pointer  renderrecursivegrid.VirtualPointerState
+}
+
+// gridPointerDraw is the pointer stand-in a grid surface was last asked for.
+type gridPointerDraw struct {
+	mode      overlay.Mode
+	visible   bool
+	point     image.Point
+	size      int
+	fillColor string
 }
 
 func newScreenManager() *screenManager {
@@ -141,6 +181,76 @@ func (m *screenManager) DrawHintSearchInput(
 }
 
 func (m *screenManager) HideHintSearchInput() { m.searchHides++ }
+
+func (m *screenManager) DrawGrid(
+	drawn *domainGrid.Grid,
+	input string,
+	_ rendergrid.Style,
+) error {
+	m.grid = drawn
+	m.gridInput = input
+	m.gridDraws++
+	m.clearedBeforeGrid = m.cleared
+
+	return nil
+}
+
+func (m *screenManager) UpdateGridMatches(prefix string) {
+	m.matchPrefix = prefix
+}
+
+func (m *screenManager) SetHideUnmatched(hide bool) { m.hideUnmatched = hide }
+
+func (m *screenManager) ShowSubgrid(cell *domainGrid.Cell, _ rendergrid.Style) {
+	m.subgridCell = cell
+}
+
+func (m *screenManager) DrawRecursiveGrid(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	gridCols int,
+	gridRows int,
+	nextKeys string,
+	nextGridCols int,
+	nextGridRows int,
+	_ renderrecursivegrid.Style,
+	virtualPointer renderrecursivegrid.VirtualPointerState,
+) error {
+	m.recursiveGrid = recursiveGridDraw{
+		bounds:   bounds,
+		depth:    depth,
+		keys:     keys,
+		cols:     gridCols,
+		rows:     gridRows,
+		nextKeys: nextKeys,
+		nextCols: nextGridCols,
+		nextRows: nextGridRows,
+		pointer:  virtualPointer,
+	}
+	m.recursiveGridDraws++
+
+	return nil
+}
+
+func (m *screenManager) DrawGridPointer(
+	mode overlay.Mode,
+	point image.Point,
+	size int,
+	fillColor string,
+) {
+	m.pointer = gridPointerDraw{
+		mode:      mode,
+		visible:   true,
+		point:     point,
+		size:      size,
+		fillColor: fillColor,
+	}
+}
+
+func (m *screenManager) HideGridPointer(mode overlay.Mode) {
+	m.pointer = gridPointerDraw{mode: mode}
+}
 
 func (m *screenManager) drawnLabels() []string {
 	labels := make([]string, len(m.drawn))
@@ -277,6 +387,319 @@ func TestAdapterRedrawFrame_DrawsWithoutTheWindowSequence(t *testing.T) {
 
 	if got := manager.drawnLabels(); !slices.Equal(got, []string{"ad"}) {
 		t.Errorf("labels drawn = %v, want [ad]: the redraw did not reach the screen", got)
+	}
+}
+
+// gridFrame builds a grid Frame over a small labeled grid.
+func gridFrame(t *testing.T, input string) ports.GridFrame {
+	t.Helper()
+
+	drawn := domainGrid.NewGridWithLabels(
+		"abcd",
+		"",
+		"",
+		image.Rect(0, 0, 400, 300),
+		zap.NewNop(),
+	)
+	if drawn == nil {
+		t.Fatal("NewGridWithLabels() returned nil")
+	}
+
+	return ports.GridFrame{Grid: drawn, Input: input}
+}
+
+// TestAdapterShowFrame_PutsTheGridOnScreenInGridMode is the grid half of the
+// acceptance the Frame port exists for: a mode says a grid should be on
+// screen, and the adapter owns everything it takes to get it there.
+func TestAdapterShowFrame_PutsTheGridOnScreenInGridMode(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	frame := gridFrame(t, "a")
+
+	err := adapter.ShowFrame(context.Background(), frame)
+	if err != nil {
+		t.Fatalf("ShowFrame() error = %v", err)
+	}
+
+	if !manager.visible {
+		t.Error("the overlay is not on screen after a grid frame was shown")
+	}
+
+	if manager.mode != overlay.ModeGrid {
+		t.Errorf("overlay mode = %q, want %q", manager.mode, overlay.ModeGrid)
+	}
+
+	if manager.grid != frame.Grid {
+		t.Error("the grid the frame carried never reached the screen")
+	}
+
+	if manager.gridInput != "a" {
+		t.Errorf("grid drawn narrowed to %q, want %q", manager.gridInput, "a")
+	}
+}
+
+// TestAdapterShowFrame_DrawsAGridOnACleanSurface pins the one thing a grid
+// transition needs that a hint one does not: the surface may be holding a
+// subgrid this grid replaces, and the backend's incremental path cannot diff
+// that away.
+func TestAdapterShowFrame_DrawsAGridOnACleanSurface(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	err := adapter.ShowFrame(context.Background(), gridFrame(t, ""))
+	if err != nil {
+		t.Fatalf("ShowFrame() error = %v", err)
+	}
+
+	if manager.gridDraws != 1 {
+		t.Fatalf("grid draws = %d, want 1", manager.gridDraws)
+	}
+
+	if manager.clearedBeforeGrid == 0 {
+		t.Error("the grid was drawn onto a surface that was never cleared")
+	}
+}
+
+// TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt is the other half: a
+// redraw leaves the surface alone, so the indicators painted on it survive a
+// theme change instead of blinking out until the next poll.
+func TestAdapterRedrawFrame_DrawsAGridWithoutClearingIt(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	err := adapter.RedrawFrame(context.Background(), gridFrame(t, "a"))
+	if err != nil {
+		t.Fatalf("RedrawFrame() error = %v", err)
+	}
+
+	if manager.gridDraws != 1 {
+		t.Fatalf("grid draws = %d, want 1", manager.gridDraws)
+	}
+
+	if manager.cleared != 0 {
+		t.Errorf("clears during a grid redraw = %d, want 0", manager.cleared)
+	}
+}
+
+// TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces is what a user sees on
+// the keystroke that leaves a subgrid: the main grid comes back and the
+// subgrid does not stay drawn over it. The overlay knows a subgrid is up
+// because it drew it, so no caller has to tell it.
+func TestAdapterRedrawFrame_ErasesASubgridTheGridReplaces(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	cells := gridFrame(t, "").Grid.Cells()
+	if len(cells) == 0 {
+		t.Fatal("fixture grid has no cells")
+	}
+
+	adapter.ShowGridSubgrid(cells[0])
+
+	err := adapter.RedrawFrame(context.Background(), gridFrame(t, ""))
+	if err != nil {
+		t.Fatalf("RedrawFrame() error = %v", err)
+	}
+
+	if manager.clearedBeforeGrid == 0 {
+		t.Error("the subgrid was left on the surface the grid was redrawn onto")
+	}
+
+	// And only that once: the subgrid is gone, so the next redraw is a plain
+	// one again.
+	clearedAfterRestore := manager.cleared
+
+	redrawErr := adapter.RedrawFrame(context.Background(), gridFrame(t, "a"))
+	if redrawErr != nil {
+		t.Fatalf("RedrawFrame() error = %v", redrawErr)
+	}
+
+	if manager.cleared != clearedAfterRestore {
+		t.Errorf("clears = %d after the second redraw, want %d: the subgrid was erased twice",
+			manager.cleared, clearedAfterRestore)
+	}
+}
+
+// TestAdapterShowFrame_PutsTheRecursiveGridOnScreen pins that every value the
+// recursive-grid draw needs travels on the frame, including the pointer that
+// rides the same surface.
+func TestAdapterShowFrame_PutsTheRecursiveGridOnScreen(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	frame := ports.RecursiveGridFrame{
+		Bounds:     image.Rect(10, 20, 210, 220),
+		Depth:      2,
+		Layout:     ports.RecursiveGridLayout{Keys: "qwer", GridCols: 2, GridRows: 2},
+		NextLayout: ports.RecursiveGridLayout{Keys: "asdf", GridCols: 2, GridRows: 2},
+		Pointer:    ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
+	}
+
+	err := adapter.ShowFrame(context.Background(), frame)
+	if err != nil {
+		t.Fatalf("ShowFrame() error = %v", err)
+	}
+
+	if manager.mode != overlay.ModeRecursiveGrid {
+		t.Errorf("overlay mode = %q, want %q", manager.mode, overlay.ModeRecursiveGrid)
+	}
+
+	drawn := manager.recursiveGrid
+	if drawn.bounds != frame.Bounds || drawn.depth != frame.Depth ||
+		drawn.keys != frame.Layout.Keys {
+		t.Errorf("recursive grid drawn as %+v, want the frame's bounds, depth and keys", drawn)
+	}
+
+	if drawn.cols != frame.Layout.GridCols || drawn.rows != frame.Layout.GridRows {
+		t.Errorf("recursive grid drawn %dx%d, want %dx%d",
+			drawn.cols, drawn.rows, frame.Layout.GridCols, frame.Layout.GridRows)
+	}
+
+	if drawn.nextKeys != frame.NextLayout.Keys || drawn.nextCols != frame.NextLayout.GridCols ||
+		drawn.nextRows != frame.NextLayout.GridRows {
+		t.Error("the next depth's preview never reached the screen")
+	}
+
+	if !drawn.pointer.Visible || drawn.pointer.Position != frame.Pointer.Position {
+		t.Errorf("pointer drawn as %+v, want visible at %v",
+			drawn.pointer, frame.Pointer.Position)
+	}
+}
+
+// TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt pins the
+// difference from grid: the recursive-grid draw repaints its whole surface, so
+// a redraw that cleared first would throw away the animation state a user sees
+// as the grid zooming in.
+func TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	frame := ports.RecursiveGridFrame{
+		Bounds: image.Rect(0, 0, 100, 100),
+		Layout: ports.RecursiveGridLayout{Keys: "qwer", GridCols: 2, GridRows: 2},
+	}
+
+	showErr := adapter.ShowFrame(context.Background(), frame)
+	if showErr != nil {
+		t.Fatalf("ShowFrame() error = %v", showErr)
+	}
+
+	clearedAfterShow := manager.cleared
+
+	redrawErr := adapter.RedrawFrame(context.Background(), frame)
+	if redrawErr != nil {
+		t.Fatalf("RedrawFrame() error = %v", redrawErr)
+	}
+
+	if manager.cleared != clearedAfterShow {
+		t.Errorf("clears after a recursive-grid redraw = %d, want %d",
+			manager.cleared, clearedAfterShow)
+	}
+
+	if manager.recursiveGridDraws != 2 {
+		t.Errorf("recursive grid draws = %d, want 2", manager.recursiveGridDraws)
+	}
+}
+
+// TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame is ADR 0003's hot half:
+// the values that change on every keystroke in grid mode travel as plain
+// calls, and none of them costs a frame or the window sequence.
+func TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	adapter.SetGridHideUnmatched(true)
+	adapter.UpdateGridMatches("ab")
+
+	if !manager.hideUnmatched {
+		t.Error("unmatched cells were not asked to hide")
+	}
+
+	if manager.matchPrefix != "ab" {
+		t.Errorf("grid narrowed to %q, want %q", manager.matchPrefix, "ab")
+	}
+
+	if manager.gridDraws != 0 || manager.resizes != 0 || manager.visible {
+		t.Error("a grid update paid for a draw or the window sequence")
+	}
+
+	cells := gridFrame(t, "").Grid.Cells()
+	if len(cells) == 0 {
+		t.Fatal("fixture grid has no cells")
+	}
+
+	adapter.ShowGridSubgrid(cells[0])
+
+	if manager.subgridCell != cells[0] {
+		t.Error("the subgrid's cell never reached the overlay")
+	}
+}
+
+// TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface pins that the
+// caller says which grid surface the pointer belongs to and nothing else: its
+// size and color are the Style the overlay already resolved.
+func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, pointerStyles{}, zap.NewNop())
+
+	adapter.UpdateGridPointer(
+		domain.ModeGrid,
+		ports.GridPointer{Visible: true, Position: image.Pt(12, 34)},
+	)
+
+	if manager.pointer.mode != overlay.ModeGrid || !manager.pointer.visible {
+		t.Errorf("pointer drawn as %+v, want visible on the grid surface", manager.pointer)
+	}
+
+	if manager.pointer.point != image.Pt(12, 34) {
+		t.Errorf("pointer drawn at %v, want (12,34)", manager.pointer.point)
+	}
+
+	if manager.pointer.size != pointerSize || manager.pointer.fillColor != pointerFill {
+		t.Errorf("pointer drawn with size %d and fill %q, want the resolved style's %d and %q",
+			manager.pointer.size, manager.pointer.fillColor, pointerSize, pointerFill)
+	}
+
+	adapter.UpdateGridPointer(domain.ModeRecursiveGrid, ports.GridPointer{})
+
+	if manager.pointer.mode != overlay.ModeRecursiveGrid || manager.pointer.visible {
+		t.Errorf("pointer left as %+v, want hidden on the recursive-grid surface", manager.pointer)
+	}
+}
+
+// pointerSize and pointerFill are the resolved virtual-pointer style the
+// pointer test expects to arrive without the caller naming it.
+const (
+	pointerSize = 24
+	pointerFill = "#abcdef"
+)
+
+// pointerStyles resolves only the virtual pointer's appearance.
+type pointerStyles struct{}
+
+func (pointerStyles) Style() overlay.Style {
+	return overlay.Style{
+		VirtualPointer: overlay.VirtualPointerStyle{
+			FontSize:  pointerSize,
+			FillColor: pointerFill,
+		},
 	}
 }
 

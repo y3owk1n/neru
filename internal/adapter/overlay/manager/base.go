@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"image"
 	"sync"
 
 	"go.uber.org/zap"
@@ -174,6 +175,55 @@ func (b *Base) HideIndicator(indicator ports.Indicator) {
 func (b *Base) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
 	if surface := b.indicatorSurfaceFor(indicator); surface != nil {
 		surface.ResizeToActiveScreen()
+	}
+}
+
+// DrawGridPointer puts the pointer stand-in on the surface a grid mode draws
+// on. A mode names the mode; which render component that is, and whether it
+// was ever built, is this package's business.
+func (b *Base) DrawGridPointer(mode Mode, point image.Point, size int, fillColor string) {
+	if surface := b.gridPointerSurfaceFor(mode); surface != nil {
+		surface.ShowVirtualPointer(point, size, fillColor)
+	}
+}
+
+// HideGridPointer takes that pointer off the surface again.
+func (b *Base) HideGridPointer(mode Mode) {
+	if surface := b.gridPointerSurfaceFor(mode); surface != nil {
+		surface.HideVirtualPointer()
+	}
+}
+
+// gridPointerSurface is the pointer half the grid and recursive-grid render
+// components share, for the same reason indicatorSurface exists: the manager
+// answers in modes, not in render types.
+type gridPointerSurface interface {
+	ShowVirtualPointer(point image.Point, size int, fillColor string)
+	HideVirtualPointer()
+}
+
+// gridPointerSurfaceFor returns the render component drawing a mode's pointer,
+// or nil when that component was never constructed. The nil check is on the
+// pointer for the same reason it is in indicatorSurfaceFor.
+func (b *Base) gridPointerSurfaceFor(mode Mode) gridPointerSurface {
+	switch mode {
+	case ModeGrid:
+		if b.gridOverlay == nil {
+			return nil
+		}
+
+		return b.gridOverlay
+	case ModeRecursiveGrid:
+		if b.recursiveGridOverlay == nil {
+			return nil
+		}
+
+		return b.recursiveGridOverlay
+	case ModeIdle, ModeHints, ModeScroll, ModeMonitorSelect:
+		// No other mode draws a pointer of its own.
+		return nil
+	default:
+		return nil
 	}
 }
 

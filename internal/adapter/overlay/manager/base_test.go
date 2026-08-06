@@ -1,6 +1,7 @@
 package manager_test
 
 import (
+	"image"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
@@ -85,5 +86,32 @@ func TestBase_IndicatorCallsAreSilentWithoutARenderComponent(t *testing.T) {
 
 	if got := base.ModeIndicatorOverlay(); got != nil {
 		t.Errorf("ModeIndicatorOverlay() = %v, want nil with nothing registered", got)
+	}
+}
+
+// TestBase_GridPointerCallsAreSilentWithoutARenderComponent is the same guard
+// for the pointer a grid mode draws on its own surface: the mode names a mode,
+// and whether there is a component behind it — a disabled mode, a backend
+// whose grid overlay is a stub — is this package's question. A mode that draws
+// no pointer of its own resolves to nothing at all.
+func TestBase_GridPointerCallsAreSilentWithoutARenderComponent(t *testing.T) {
+	t.Parallel()
+
+	base := manager.NewBase(nil)
+
+	for _, mode := range []manager.Mode{
+		manager.ModeGrid,
+		manager.ModeRecursiveGrid,
+		manager.ModeHints,
+		manager.ModeScroll,
+		manager.ModeMonitorSelect,
+		manager.ModeIdle,
+	} {
+		base.DrawGridPointer(mode, image.Pt(10, 20), 12, "#ffffff")
+		base.HideGridPointer(mode)
+	}
+
+	if got := base.GridOverlay(); got != nil {
+		t.Errorf("GridOverlay() = %v, want nil with nothing registered", got)
 	}
 }

@@ -417,6 +417,7 @@ discovery rather than the mode itself.
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ❌                          |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Grid**          | Sub-key preview                | ✅ centered mini-grid      | ✅ centered mini-grid      | ⚠️ single-line bottom text  |
+| **Grid**          | Virtual pointer indicator      | ✅                         | ❌ no-op                   | ❌ no-op                    |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Scroll**        | Smooth scroll animation        | ✅                         | ❌                         | ❌                          |

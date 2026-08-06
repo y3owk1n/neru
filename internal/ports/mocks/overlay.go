@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -62,6 +64,18 @@ type MockOverlayPort struct {
 	// hintSearches records every search input draw, in order.
 	hintSearches []ports.HintSearch
 
+	gridMu sync.Mutex
+	// gridPrefixes records every prefix the grid was narrowed to, in order —
+	// the per-keystroke path in grid mode, which by ADR 0003 never builds a
+	// Frame and so is not visible in frames above.
+	gridPrefixes []string
+	// gridHideUnmatched records the last visibility asked of unmatched cells.
+	gridHideUnmatched bool
+	// gridSubgrids counts the subgrids opened inside a cell.
+	gridSubgrids int
+	// gridPointers records the last pointer asked for, per grid mode.
+	gridPointers map[domain.Mode]ports.GridPointer
+
 	// State tracking for tests
 	visible bool
 }
@@ -99,6 +113,80 @@ func (m *MockOverlayPort) ClearFrame(ctx context.Context) error {
 	m.visible = false
 
 	return nil
+}
+
+// UpdateGridMatches implements ports.OverlayPort.
+func (m *MockOverlayPort) UpdateGridMatches(prefix string) {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	m.gridPrefixes = append(m.gridPrefixes, prefix)
+}
+
+// SetGridHideUnmatched implements ports.OverlayPort.
+func (m *MockOverlayPort) SetGridHideUnmatched(hide bool) {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	m.gridHideUnmatched = hide
+}
+
+// ShowGridSubgrid implements ports.OverlayPort.
+func (m *MockOverlayPort) ShowGridSubgrid(_ *grid.Cell) {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	m.gridSubgrids++
+}
+
+// UpdateGridPointer implements ports.OverlayPort.
+func (m *MockOverlayPort) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer) {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	if m.gridPointers == nil {
+		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
+	}
+
+	m.gridPointers[mode] = pointer
+}
+
+// GridPrefixes returns every prefix the grid was narrowed to, in order.
+func (m *MockOverlayPort) GridPrefixes() []string {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	out := make([]string, len(m.gridPrefixes))
+	copy(out, m.gridPrefixes)
+
+	return out
+}
+
+// GridHideUnmatched reports the last visibility asked of unmatched cells.
+func (m *MockOverlayPort) GridHideUnmatched() bool {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	return m.gridHideUnmatched
+}
+
+// GridSubgridCount reports how many subgrids were opened.
+func (m *MockOverlayPort) GridSubgridCount() int {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	return m.gridSubgrids
+}
+
+// GridPointer reports the pointer a grid mode's surface was last asked for,
+// and whether it was ever asked at all.
+func (m *MockOverlayPort) GridPointer(mode domain.Mode) (ports.GridPointer, bool) {
+	m.gridMu.Lock()
+	defer m.gridMu.Unlock()
+
+	pointer, asked := m.gridPointers[mode]
+
+	return pointer, asked
 }
 
 // Frames returns every Frame handed to ShowFrame or RedrawFrame, in order.

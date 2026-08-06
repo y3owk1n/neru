@@ -16,7 +16,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
-	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
@@ -210,8 +209,7 @@ func initializeUIComponents(app *App) error {
 	factory := NewComponentFactory(
 		app.config,
 		app.logger,
-		app.overlayManager,
-		app.overlayStyles,
+		app.overlayPort,
 		rendered,
 	)
 
@@ -236,11 +234,9 @@ func initializeSystrayComponent(app *App) {
 	app.systrayComponent = systrayComponent
 }
 
-// initializeRenderer sets up the overlay renderer and gives the render
-// components their first configuration.
-func initializeRenderer(app *App) {
-	app.renderer = render.NewOverlayRenderer(app.overlayManager, app.overlayStyles)
-
+// configureRenderComponents gives the render components their first
+// configuration, by resolving the Style once now that they exist.
+func configureRenderComponents(app *App) {
 	// The render components exist now, so the overlay can hand them their
 	// configuration the same way a later reload or theme change does. Without
 	// this they would only ever be configured by their constructors, and the
@@ -264,7 +260,6 @@ func initializeModeHandler(app *App) {
 		cursorState    *state.CursorState
 		overlayManager OverlayManager
 		overlayPort    ports.OverlayPort
-		renderer       *render.OverlayRenderer
 		services       struct {
 			hint       *services.HintService
 			grid       *services.GridService
@@ -289,7 +284,6 @@ func initializeModeHandler(app *App) {
 		cursorState:    app.cursorState,
 		overlayManager: app.overlayManager,
 		overlayPort:    app.overlayPort,
-		renderer:       app.renderer,
 		services: struct {
 			hint       *services.HintService
 			grid       *services.GridService
@@ -332,7 +326,6 @@ func initializeModeHandler(app *App) {
 		OverlayManager:         deps.overlayManager,
 		OverlayPort:            deps.overlayPort,
 		OverlayStyles:          app.overlayStyles,
-		Renderer:               deps.renderer,
 		HintService:            deps.services.hint,
 		GridService:            deps.services.grid,
 		ActionService:          deps.services.action,
@@ -529,9 +522,6 @@ func cleanupUIComponents(app *App) {
 	app.scrollComponent = nil
 	app.modeIndicatorComponent = nil
 	app.stickyIndicatorComponent = nil
-
-	// Clean up renderer
-	app.renderer = nil
 }
 
 // cleanupEventTapAndIPC cleans up resources allocated during event tap and IPC initialization.

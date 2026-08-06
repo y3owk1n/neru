@@ -14,6 +14,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // ComponentFactory assembles the per-mode components: the domain state a mode
@@ -23,12 +24,11 @@ import (
 // the overlay, on the surface only the overlay knows about, and arrive here
 // already built.
 type ComponentFactory struct {
-	config         *config.Config
-	logger         *zap.Logger
-	overlayManager OverlayManager
-	// overlayStyles supplies the resolved Style for the one callback that
-	// needs one. The factory never builds a style itself.
-	overlayStyles overlay.StyleSource
+	config *config.Config
+	logger *zap.Logger
+	// overlayPort is how the callbacks this factory builds reach the screen.
+	// They are grid's incremental updates, which stay plain calls by ADR 0003.
+	overlayPort ports.OverlayPort
 	// rendered are the overlay's own render components. A nil entry is an
 	// overlay this session will not draw.
 	rendered overlay.Components
@@ -38,16 +38,14 @@ type ComponentFactory struct {
 func NewComponentFactory(
 	config *config.Config,
 	logger *zap.Logger,
-	overlayManager OverlayManager,
-	overlayStyles overlay.StyleSource,
+	overlayPort ports.OverlayPort,
 	rendered overlay.Components,
 ) *ComponentFactory {
 	return &ComponentFactory{
-		config:         config,
-		logger:         logger,
-		overlayManager: overlayManager,
-		overlayStyles:  overlayStyles,
-		rendered:       rendered,
+		config:      config,
+		logger:      logger,
+		overlayPort: overlayPort,
+		rendered:    rendered,
 	}
 }
 
@@ -97,10 +95,10 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 				return
 			}
 
-			f.overlayManager.UpdateGridMatches(component.Manager.CurrentInput())
+			f.overlayPort.UpdateGridMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
-			f.overlayManager.ShowSubgrid(cell, overlay.ResolvedStyle(f.overlayStyles).Grid)
+			f.overlayPort.ShowGridSubgrid(cell)
 		},
 		f.logger,
 	)

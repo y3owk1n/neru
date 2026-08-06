@@ -3,13 +3,16 @@ package overlay
 import (
 	"context"
 	"image"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 
 	overlayHints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	overlayRecursiveGrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -18,6 +21,12 @@ type Adapter struct {
 	manager ManagerInterface
 	styles  StyleSource
 	logger  *zap.Logger
+
+	// subgridDrawn is whether a subgrid is on the grid surface. It is the one
+	// piece of screen state this adapter keeps, and it keeps it because it is
+	// the only thing that knows: it drew the subgrid, and the next grid draw
+	// has to erase it rather than trust a backend to diff it away.
+	subgridDrawn atomic.Bool
 }
 
 // NewAdapter creates a new overlay adapter. styles is the resolved Style the
@@ -50,7 +59,7 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 		return err
 	}
 
-	mode, modeErr := frameMode(frame)
+	mode, modeErr := overlayMode(frame.Mode())
 	if modeErr != nil {
 		return modeErr
 	}
@@ -61,7 +70,7 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 	a.manager.Show()
 	a.manager.SwitchTo(mode)
 
-	return a.draw(frame)
+	return a.draw(frame, transitionDraw)
 }
 
 // RedrawFrame draws a frame whose overlay is already up. Hint labels narrow on
@@ -73,7 +82,7 @@ func (a *Adapter) RedrawFrame(ctx context.Context, frame ports.Frame) error {
 		return err
 	}
 
-	return a.draw(frame)
+	return a.draw(frame, updateDraw)
 }
 
 // ClearFrame takes the frame on screen off it and returns the overlay to idle.
@@ -89,6 +98,7 @@ func (a *Adapter) ClearFrame(ctx context.Context) error {
 	a.manager.ClearCache()
 	a.manager.Hide()
 	a.manager.SwitchTo(ModeIdle)
+	a.subgridDrawn.Store(false)
 
 	return nil
 }
@@ -132,12 +142,51 @@ func (a *Adapter) HintSearchBounds(screen image.Rectangle) image.Rectangle {
 	}
 }
 
-// frameMode translates the mode a frame names into the overlay's own name for
-// it. The two vocabularies share their spelling deliberately; a frame naming a
-// mode this overlay has none for is reported rather than drawn in whatever
-// mode happened to be current.
-func frameMode(frame ports.Frame) (Mode, error) {
-	name := domain.ModeString(frame.Mode())
+// UpdateGridMatches narrows the grid on screen to a prefix.
+func (a *Adapter) UpdateGridMatches(prefix string) {
+	a.manager.UpdateGridMatches(prefix)
+}
+
+// SetGridHideUnmatched says whether cells that no longer match disappear.
+func (a *Adapter) SetGridHideUnmatched(hide bool) {
+	a.manager.SetHideUnmatched(hide)
+}
+
+// ShowGridSubgrid opens the finer grid inside one cell, with the grid Style
+// the overlay already resolved.
+func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell) {
+	a.manager.ShowSubgrid(cell, ResolvedStyle(a.styles).Grid)
+	a.subgridDrawn.Store(true)
+}
+
+// UpdateGridPointer places the pointer stand-in on a grid mode's surface, or
+// takes it off. Its size and color come from the resolved Style, so no caller
+// carries appearance here.
+func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer) {
+	surface, surfaceErr := overlayMode(mode)
+	if surfaceErr != nil {
+		a.logger.Debug("Grid pointer names no mode this adapter draws",
+			zap.String("mode", domain.ModeString(mode)))
+
+		return
+	}
+
+	if !pointer.Visible {
+		a.manager.HideGridPointer(surface)
+
+		return
+	}
+
+	style := ResolvedStyle(a.styles).VirtualPointer
+
+	a.manager.DrawGridPointer(surface, pointer.Position, style.FontSize, style.FillColor)
+}
+
+// overlayMode translates a mode into the overlay's own name for it. The two
+// vocabularies share their spelling deliberately; a mode this overlay has none
+// for is reported rather than drawn in whatever mode happened to be current.
+func overlayMode(mode domain.Mode) (Mode, error) {
+	name := domain.ModeString(mode)
 	if name == domain.UnknownMode {
 		return ModeIdle, derrors.New(
 			derrors.CodeNotSupported,
@@ -232,13 +281,29 @@ func (a *Adapter) Health(_ context.Context) error {
 	return nil
 }
 
+// drawKind says whether a draw is bringing its frame up or repainting one
+// already on screen. Only the surfaces whose backend keeps state between draws
+// care, and each of them says why below.
+type drawKind int
+
+const (
+	// transitionDraw is the first draw of a frame, after the window sequence.
+	transitionDraw drawKind = iota
+	// updateDraw repaints a frame already on screen.
+	updateDraw
+)
+
 // draw renders a frame's content. It is where the frame's domain values become
 // render models and meet the Style the overlay resolved — the one direction
 // this conversion runs, so no caller upstream names either.
-func (a *Adapter) draw(frame ports.Frame) error {
+func (a *Adapter) draw(frame ports.Frame, kind drawKind) error {
 	switch drawn := frame.(type) {
 	case ports.HintsFrame:
 		return a.drawHints(drawn)
+	case ports.GridFrame:
+		return a.drawGrid(drawn, kind)
+	case ports.RecursiveGridFrame:
+		return a.drawRecursiveGrid(drawn, kind)
 	default:
 		return derrors.New(derrors.CodeNotSupported, "overlay frame cannot be drawn")
 	}
@@ -274,6 +339,95 @@ func (a *Adapter) drawHints(frame ports.HintsFrame) error {
 	}
 
 	return nil
+}
+
+// drawGrid draws the cells a grid frame carries.
+//
+// The surface is cleared first when there is something on it this grid cannot
+// replace by being drawn over: the frame is coming up for the first time, or a
+// subgrid is on screen. A subgrid is the interesting case — the backend's
+// incremental path compares grids, so it cannot diff one away — and this is
+// the only place that knows one is up, because this is what drew it.
+//
+// Clearing otherwise would be worse than wasteful: the mode and
+// sticky-modifier indicators are painted on the same surface on Linux, so a
+// theme change that cleared would blink them out until the next poll.
+func (a *Adapter) drawGrid(frame ports.GridFrame, kind drawKind) error {
+	if frame.Grid == nil {
+		return derrors.New(derrors.CodeNotSupported, "grid frame carries no grid")
+	}
+
+	if a.subgridDrawn.Swap(false) || kind == transitionDraw {
+		a.manager.Clear()
+	}
+
+	drawErr := a.manager.DrawGrid(frame.Grid, frame.Input, ResolvedStyle(a.styles).Grid)
+	if drawErr != nil {
+		if derrors.IsNotSupported(drawErr) {
+			return drawErr
+		}
+
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw grid")
+	}
+
+	return nil
+}
+
+// drawRecursiveGrid draws the region a recursive-grid frame carries, with the
+// pointer that rides the same surface.
+//
+// A transition clears first and a redraw does not: the backend animates from
+// the bounds it last drew, so a fresh activation must not zoom out of the
+// region the previous one left behind, and every keystroke after it must.
+func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKind) error {
+	if kind == transitionDraw {
+		a.manager.Clear()
+	}
+
+	style := ResolvedStyle(a.styles)
+
+	drawErr := a.manager.DrawRecursiveGrid(
+		frame.Bounds,
+		frame.Depth,
+		frame.Layout.Keys,
+		frame.Layout.GridCols,
+		frame.Layout.GridRows,
+		frame.NextLayout.Keys,
+		frame.NextLayout.GridCols,
+		frame.NextLayout.GridRows,
+		style.RecursiveGrid,
+		recursiveGridPointer(frame.Pointer, style.VirtualPointer),
+	)
+	if drawErr != nil {
+		if derrors.IsNotSupported(drawErr) {
+			return drawErr
+		}
+
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw recursive grid")
+	}
+
+	return nil
+}
+
+// recursiveGridPointer meets the pointer a frame describes with the Style the
+// overlay resolved. Position is the caller's; everything else is appearance,
+// and appearance never travels on a frame.
+func recursiveGridPointer(
+	pointer ports.GridPointer,
+	style VirtualPointerStyle,
+) overlayRecursiveGrid.VirtualPointerState {
+	if !pointer.Visible {
+		return overlayRecursiveGrid.VirtualPointerState{}
+	}
+
+	return overlayRecursiveGrid.VirtualPointerState{
+		Visible:   true,
+		Position:  pointer.Position,
+		Size:      style.FontSize,
+		FillColor: style.FillColor,
+		Char:      style.Char,
+		FontName:  style.FontFamily,
+	}
 }
 
 // searchInputFrame places the search input on a screen. The anchor, size and
