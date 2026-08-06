@@ -1981,23 +1981,25 @@ func TestSimulation_MonitorSelectComesBackOnTheDisplaysThatChangedWhileItWasInac
 		t.Fatalf("the picker came back with %d panels, want 2", len(targets))
 	}
 
-	found := false
-
+	// Both displays, named individually: a count of two says nothing about
+	// which two, and the picker coming back with the rearranged display twice
+	// is exactly the shape a rebuild that half-followed the change would take.
+	drawnFor := make(map[image.Rectangle]bool, len(targets))
 	for _, target := range targets {
-		if target.Bounds == rearranged {
-			found = true
-		}
+		drawnFor[target.Bounds] = true
+	}
 
-		if target.Bounds == second {
-			t.Errorf(
-				"the picker came back with a panel for %v, the display's bounds before the change",
-				second,
-			)
+	for _, want := range []image.Rectangle{simScreen, rearranged} {
+		if !drawnFor[want] {
+			t.Errorf("no panel for the display at %v in %v", want, targets)
 		}
 	}
 
-	if !found {
-		t.Errorf("no panel for the rearranged display %v in %v", rearranged, targets)
+	if drawnFor[second] {
+		t.Errorf(
+			"the picker came back with a panel for %v, the display's bounds before the change",
+			second,
+		)
 	}
 }
 
