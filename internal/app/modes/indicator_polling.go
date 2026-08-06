@@ -315,32 +315,23 @@ func (h *handlerState) modeIndicatorEnabled(mode domain.Mode) bool {
 	}
 }
 
+// stickyIndicatorAnchor reports where the sticky-modifier indicator should
+// sit. A mode that tracks a selection anchors it there rather than to the
+// cursor, so the indicator follows what the user is aiming at; every other
+// mode, and a mode whose cursor is already on its selection, anchors to the
+// cursor.
 func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Point {
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Context == nil || h.grid.Context.CursorFollowSelection() {
-			return cursorPoint
-		}
-
-		if selectionPoint, ok := h.grid.Context.SelectionPoint(); ok {
-			return selectionPoint
-		}
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil ||
-			h.recursiveGrid.Context.CursorFollowSelection() {
-			return cursorPoint
-		}
-
-		if selectionPoint, ok := h.recursiveGrid.Context.SelectionPoint(); ok {
-			return selectionPoint
-		}
-	case domain.ModeIdle:
-	case domain.ModeHints:
-	case domain.ModeMonitorSelect:
-	case domain.ModeScroll:
+	tracker, ok := activeModeExtension[selectionTracker](h)
+	if !ok {
+		return cursorPoint
 	}
 
-	return cursorPoint
+	anchor, anchored := tracker.SelectionAnchor()
+	if !anchored {
+		return cursorPoint
+	}
+
+	return anchor
 }
 
 // setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.

@@ -12,5 +12,12 @@ func newHandlerWithState(st handlerState) *Handler {
 
 	fillIndicatorServices(&handler.handlerState, zap.NewNop())
 
+	// Give the handler the same mode map NewHandler builds, so a test that
+	// dispatches through a mode reaches the implementation the daemon does.
+	// A caller that supplied its own stand-in modes keeps them.
+	if handler.modes == nil {
+		handler.modes = newModes(&handler.handlerState)
+	}
+
 	return handler
 }

@@ -10,72 +10,32 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// CurrentSelectionPoint returns the active selection point for the current mode, if any.
+// CurrentSelectionPoint returns the active selection point for the current
+// mode, if any. A mode that tracks no selection reports none.
 func (h *Handler) CurrentSelectionPoint() (image.Point, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeIdle:
-		return image.Point{}, false
-	case domain.ModeHints:
-		return image.Point{}, false
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Context == nil {
-			return image.Point{}, false
-		}
-
-		return h.grid.Context.SelectionPoint()
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
-			return image.Point{}, false
-		}
-
-		return h.recursiveGrid.Context.SelectionPoint()
-	case domain.ModeScroll:
-		return image.Point{}, false
-	case domain.ModeMonitorSelect:
+	tracker, ok := activeModeExtension[selectionTracker](&h.handlerState)
+	if !ok {
 		return image.Point{}, false
 	}
 
-	return image.Point{}, false
+	return tracker.SelectionPoint()
 }
 
-// ClearCurrentSelectionPoint removes the active selection point for the current mode.
+// ClearCurrentSelectionPoint removes the active selection point for the
+// current mode, reporting false when the active mode tracks no selection.
 func (h *Handler) ClearCurrentSelectionPoint() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Context == nil {
-			return false
-		}
-
-		h.grid.Context.ClearSelectionPoint()
-		h.refreshGridVirtualPointer()
-
-		return true
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
-			return false
-		}
-
-		h.recursiveGrid.Context.ClearSelectionPoint()
-		h.refreshRecursiveGridVirtualPointer()
-
-		return true
-	case domain.ModeHints:
-		return false
-	case domain.ModeIdle:
-		return false
-	case domain.ModeScroll:
-		return false
-	case domain.ModeMonitorSelect:
+	tracker, ok := activeModeExtension[selectionTracker](&h.handlerState)
+	if !ok {
 		return false
 	}
 
-	return false
+	return tracker.ClearSelectionPoint()
 }
 
 // cursorFollowContext is the part of a mode's context that carries the

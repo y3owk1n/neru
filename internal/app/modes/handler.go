@@ -272,18 +272,26 @@ func NewHandler(deps HandlerDeps) *Handler {
 
 	fillIndicatorServices(&handler.handlerState, logger)
 
-	// Initialize mode implementations. Modes run with the lock already held,
-	// so they are built on the inner state and cannot re-enter the locked
-	// surface.
-	handler.modes = map[domain.Mode]Mode{
-		domain.ModeHints:         NewHintsMode(&handler.handlerState),
-		domain.ModeGrid:          NewGridMode(&handler.handlerState),
-		domain.ModeScroll:        NewScrollMode(&handler.handlerState),
-		domain.ModeRecursiveGrid: NewRecursiveGridMode(&handler.handlerState),
-		domain.ModeMonitorSelect: NewMonitorSelectMode(&handler.handlerState),
-	}
+	handler.modes = newModes(&handler.handlerState)
 
 	return handler
+}
+
+// newModes builds the map the handler dispatches every mode operation through.
+// Modes run with the lock already held, so they are built on the inner state
+// and cannot re-enter the locked surface.
+//
+// Registering a mode here is what puts it in front of TestModeExtensionMatrix,
+// which then fails until the mode states which optional extensions it carries
+// (extensions.go).
+func newModes(state *handlerState) map[domain.Mode]Mode {
+	return map[domain.Mode]Mode{
+		domain.ModeHints:         NewHintsMode(state),
+		domain.ModeGrid:          NewGridMode(state),
+		domain.ModeScroll:        NewScrollMode(state),
+		domain.ModeRecursiveGrid: NewRecursiveGridMode(state),
+		domain.ModeMonitorSelect: NewMonitorSelectMode(state),
+	}
 }
 
 // fillIndicatorServices gives the handler a service for every indicator,
