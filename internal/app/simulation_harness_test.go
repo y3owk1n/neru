@@ -393,6 +393,14 @@ func (m *simOverlayPort) searchInputDrawCount() int {
 	return len(m.searchQueries)
 }
 
+// monitorDrawCount reports how many times the monitor picker was drawn.
+func (m *simOverlayPort) monitorDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.monitorDraws)
+}
+
 func (m *simOverlayPort) lastMonitorTargets() []ports.MonitorSelectTarget {
 	m.mu.Lock()
 	defer m.mu.Unlock()

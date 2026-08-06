@@ -1748,6 +1748,48 @@ func TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode(t *testing.T) {
 	sim.waitMode(domain.ModeGrid)
 }
 
+// TestSimulation_ThemeChangeRedrawsMonitorSelect closes the theme-change set:
+// every other mode that draws is already pinned redrawing itself when the
+// system switches between light and dark, and the monitor picker is the one
+// that was not.
+//
+// It draws on panels of its own rather than the shared surface, so nothing
+// about the other modes picking the new theme up brings it along: left out, it
+// is the one overlay a user finds still in the old theme.
+//
+// That the overlay re-resolves every Style for the change is not mode-specific
+// and is pinned once, in TestSimulation_ThemeChangeReachesVisibleOverlay. What
+// only the picker can answer for is being drawn again afterwards, which is what
+// this asserts.
+func TestSimulation_ThemeChangeRedrawsMonitorSelect(t *testing.T) {
+	sim := newSimHarnessWithDisplays(t, monitorSelectConfig(), nil, []simDisplay{
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: image.Rect(1920, 0, 3840, 1080)},
+	})
+
+	sim.pressHotkey(monitorSelectHotkey)
+	sim.waitMode(domain.ModeMonitorSelect)
+	sim.waitFor("monitor panels drawn", func() bool {
+		return len(sim.overlay.lastMonitorTargets()) == 2
+	})
+
+	drawsBefore := sim.overlay.monitorDrawCount()
+
+	sim.switchToDarkMode()
+
+	sim.waitFor("the monitor picker redrawn after the theme change", func() bool {
+		return sim.overlay.monitorDrawCount() > drawsBefore
+	})
+
+	if got := len(sim.overlay.lastMonitorTargets()); got != 2 {
+		t.Errorf("the picker came back with %d panels, want 2", got)
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeMonitorSelect {
+		t.Errorf("mode after the theme change = %v, want monitor select", got)
+	}
+}
+
 // localBounds is a display in the overlay's screen-local space, which is what
 // the grid surfaces are drawn in.
 func localBounds(screen image.Rectangle) image.Rectangle {
