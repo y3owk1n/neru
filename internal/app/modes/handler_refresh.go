@@ -5,7 +5,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
@@ -13,28 +12,18 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// RefreshHintsForScreenChange updates the hint collection under the handler
-// mutex so that the onUpdate callback can safely read h.screenBounds and hand
-// the overlay a Frame. Called from the screen-change goroutine in
-// lifecycle.go.
+// refreshHintsForScreenChange regenerates the hint collection against the
+// display as it now is, with the filters the session was activated with, and
+// hands the result over as a transition onto that display.
 //
-// Returns true if the refresh was performed, false if the mode was exited
-// concurrently (TOCTOU guard).
-func (h *Handler) RefreshHintsForScreenChange(
-	ctx context.Context,
-	hintService *services.HintService,
-) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Re-check mode under the lock to close the TOCTOU window between the
-	// snapshot in processScreenChange and the actual work here.
-	if h.appState.CurrentMode() != domain.ModeHints {
-		h.logger.Debug("Skipping hint screen-change refresh: mode exited concurrently")
-
-		return false
-	}
-
+// It reports whether the labels reached the screen; every path that says no has
+// left the mode, because hints pointing at a display that is gone are worse
+// than none.
+//
+// The caller holds h.mu (HintsMode.RefreshForScreenChange, dispatched by
+// Handler.RefreshActiveModeForScreenChange), so the mode this belongs to is
+// still the active one and there is nothing here to re-check (ADR 0004).
+func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 	// Re-read screen bounds under the lock so the onUpdate callback
 	// uses coordinates that match the resized overlay.
 	if h.system != nil {
@@ -67,7 +56,7 @@ func (h *Handler) RefreshHintsForScreenChange(
 		splitWordOverride = h.hints.Context.SplitWord()
 	}
 
-	domainHints, showHintsErr := hintService.GenerateHints(
+	domainHints, showHintsErr := h.hintService.GenerateHints(
 		ctx,
 		filterRoles,
 		filterTextContains,
@@ -126,25 +115,18 @@ func (h *Handler) RefreshHintsForScreenChange(
 	return true
 }
 
-// RefreshGridForScreenChange regenerates the grid with updated screen bounds
-// under the handler mutex. The user's current input is reset because old cell
-// coordinates are invalid on the new screen. Called from the screen-change
-// handler in lifecycle.go when ModeGrid is active.
+// refreshGridForScreenChange regenerates the grid against the display as it
+// now is and hands it over as a transition onto that display. The user's
+// current input is reset because old cell coordinates are invalid on the new
+// screen.
 //
-// Returns true if the refresh was performed, false if the mode was exited
-// concurrently (TOCTOU guard) or the draw failed.
-func (h *Handler) RefreshGridForScreenChange() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Re-check mode under the lock to close the TOCTOU window between the
-	// snapshot in processScreenChange and the actual work here.
-	if h.appState.CurrentMode() != domain.ModeGrid {
-		h.logger.Debug("Skipping grid screen-change refresh: mode exited concurrently")
-
-		return false
-	}
-
+// It reports whether the grid reached the screen; only a draw the overlay
+// refused says no.
+//
+// The caller holds h.mu (GridMode.RefreshForScreenChange, dispatched by
+// Handler.RefreshActiveModeForScreenChange), so the mode this belongs to is
+// still the active one and there is nothing here to re-check (ADR 0004).
+func (h *handlerState) refreshGridForScreenChange() bool {
 	// Regenerate the grid with updated screen bounds.
 	// createGridInstance also updates h.screenBounds and sets the grid on the context.
 	gridInstance := h.createGridInstance()
@@ -182,27 +164,14 @@ func (h *Handler) RefreshGridForScreenChange() bool {
 	return true
 }
 
-// RefreshRecursiveGridForScreenChange remaps the recursive-grid manager's
-// bounds to the new screen dimensions, preserving the user's current depth
-// and selection progress. Called from the screen-change handler in
-// lifecycle.go when ModeRecursiveGrid is active.
+// refreshRecursiveGridForScreenChange remaps the recursive-grid manager's
+// bounds to the display as it now is, preserving the user's current depth, and
+// hands the result over as a transition onto that display.
 //
-// Returns true if the refresh was performed, false if the mode was exited
-// concurrently (TOCTOU guard — the caller snapshots the mode without holding
-// h.mu, so a concurrent ExitMode could have transitioned to Idle by the time
-// we acquire the lock here).
-func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	// Re-check mode under the lock to close the TOCTOU window between the
-	// snapshot in processScreenChange and the actual work here.
-	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
-		h.logger.Debug("Skipping recursive-grid screen-change refresh: mode exited concurrently")
-
-		return false
-	}
-
+// The caller holds h.mu (RecursiveGridMode.RefreshForScreenChange, dispatched
+// by Handler.RefreshActiveModeForScreenChange), so the mode this belongs to is
+// still the active one and there is nothing here to re-check (ADR 0004).
+func (h *handlerState) refreshRecursiveGridForScreenChange() {
 	// Re-read screen bounds under the lock so the overlay uses coordinates
 	// that match the resized window.
 	if h.system != nil {
@@ -239,8 +208,6 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	}
 
 	h.refreshRecursiveGridVirtualPointer()
-
-	return true
 }
 
 // RefreshActiveModeForThemeChange puts whichever mode is on screen back on it
@@ -268,4 +235,46 @@ func (h *Handler) RefreshActiveModeForThemeChange() bool {
 	}
 
 	return refresher.RefreshForThemeChange()
+}
+
+// RefreshActiveModeForScreenChange puts whichever mode is on screen back onto
+// the display as it now is — a monitor plugged in or unplugged, a resolution
+// changed, a laptop woken to a different arrangement — and reports whether the
+// overlay still needs a resize of its own afterwards.
+//
+// This is the whole dispatch and it runs under one hold of h.mu: the mode is
+// read once, selected once and called once, so it cannot change between being
+// chosen and being used and no implementation re-checks it (ADR 0004). The
+// unlocked snapshot the app layer used to take, and the three per-mode
+// re-checks that guarded the window it opened, went with it.
+//
+// Idle answers first, and answers that nothing is owed: with no mode open there
+// is nothing drawn for the display that changed, and resizing the overlay is
+// what brings it up — so the display change a user has most often, with nothing
+// on screen, leaves the screen alone. Scroll and the monitor picker carry the
+// axis by not implementing it, because neither holds a drawing built for the
+// bounds that just changed, and the overlay is resized for them the way it
+// always was. A mode that rebuilt nothing — switched off in configuration, or
+// without the session state to rebuild from — is resized for the same way.
+//
+// It reports whether the overlay still needs a resize of its own — never
+// whether a refresh succeeded. A refresh that found nothing to draw and left
+// the mode took the overlay off the display it was on, and resizing it
+// afterwards would bring it back up empty.
+func (h *Handler) RefreshActiveModeForScreenChange(ctx context.Context) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() == domain.ModeIdle {
+		return false
+	}
+
+	refresher, ok := activeModeEffect[screenRefresher](&h.handlerState, extensionScreenRefresh)
+	if !ok {
+		return true
+	}
+
+	overlayResized := refresher.RefreshForScreenChange(ctx)
+
+	return !overlayResized
 }

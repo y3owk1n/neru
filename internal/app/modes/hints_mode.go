@@ -20,6 +20,7 @@ var (
 	_ inputEditor            = (*HintsMode)(nil)
 	_ hotkeyOverrideReporter = (*HintsMode)(nil)
 	_ themeRefresher         = (*HintsMode)(nil)
+	_ screenRefresher        = (*HintsMode)(nil)
 )
 
 // HintsMode implements the Mode interface for hints-based navigation.
@@ -75,6 +76,30 @@ func (m *HintsMode) RefreshForThemeChange() bool {
 		},
 		"refresh hints after theme change",
 	)
+
+	return true
+}
+
+// RefreshForScreenChange regenerates the labels against the display as it now
+// is. The arrangement changed under them, so the elements the old labels
+// pointed at have moved or gone: the collection is built again from the
+// accessibility tree with the session's filters preserved, and nothing left to
+// label leaves the mode rather than stranding labels that point nowhere.
+//
+// Hints switched off in configuration is the one answer that leaves the overlay
+// still sized for the display that is gone, so the caller resizes it.
+func (m *HintsMode) RefreshForScreenChange(ctx context.Context) bool {
+	handler := m.handler
+
+	if handler.config == nil || !handler.config.Hints.Enabled {
+		return false
+	}
+
+	if handler.refreshHintsForScreenChange(ctx) {
+		handler.logger.Debug("Hint overlay resized and regenerated for new screen bounds")
+	} else {
+		handler.logger.Debug("Hints left the mode during the screen-change refresh")
+	}
 
 	return true
 }

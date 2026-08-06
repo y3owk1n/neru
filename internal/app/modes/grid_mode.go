@@ -20,6 +20,7 @@ var (
 	_ inputEditor            = (*GridMode)(nil)
 	_ hotkeyOverrideReporter = (*GridMode)(nil)
 	_ themeRefresher         = (*GridMode)(nil)
+	_ screenRefresher        = (*GridMode)(nil)
 )
 
 // GridMode implements the Mode interface for grid-based navigation.
@@ -78,6 +79,29 @@ func (m *GridMode) RefreshForThemeChange() bool {
 	)
 
 	handler.refreshGridVirtualPointer()
+
+	return true
+}
+
+// RefreshForScreenChange rebuilds the grid for the display as it now is. The
+// cells described a screen the user is no longer looking at, so the typed input
+// and the selection go with them: a cell coordinate from the old layout picks a
+// different point on the new one.
+//
+// Grid switched off in configuration is the one answer that leaves the overlay
+// still sized for the display that is gone, so the caller resizes it.
+func (m *GridMode) RefreshForScreenChange(_ context.Context) bool {
+	handler := m.handler
+
+	if handler.config == nil || !handler.config.Grid.Enabled {
+		return false
+	}
+
+	if handler.refreshGridForScreenChange() {
+		handler.logger.Debug("Grid overlay resized and regenerated for new screen bounds")
+	} else {
+		handler.logger.Debug("Grid screen-change refresh was not drawn")
+	}
 
 	return true
 }

@@ -22,6 +22,7 @@ var (
 	_ inputEditor            = (*RecursiveGridMode)(nil)
 	_ hotkeyOverrideReporter = (*RecursiveGridMode)(nil)
 	_ themeRefresher         = (*RecursiveGridMode)(nil)
+	_ screenRefresher        = (*RecursiveGridMode)(nil)
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -71,6 +72,29 @@ func (m *RecursiveGridMode) RefreshForThemeChange() bool {
 
 	handler.updateRecursiveGridOverlay()
 	handler.refreshRecursiveGridVirtualPointer()
+
+	return true
+}
+
+// RefreshForScreenChange remaps the zoom history onto the display as it now is,
+// so the region the user had narrowed to survives a display change instead of
+// starting over: recursive grid is a sequence of narrowing choices, and
+// throwing the region away throws their progress away with it.
+//
+// Recursive grid switched off in configuration, or with no component to remap,
+// leaves the overlay still sized for the display that is gone, so the caller
+// resizes it.
+func (m *RecursiveGridMode) RefreshForScreenChange(_ context.Context) bool {
+	handler := m.handler
+
+	if handler.config == nil || !handler.config.RecursiveGrid.Enabled ||
+		handler.recursiveGrid == nil {
+		return false
+	}
+
+	handler.refreshRecursiveGridForScreenChange()
+
+	handler.logger.Debug("Recursive-grid overlay resized and regenerated for new screen bounds")
 
 	return true
 }
