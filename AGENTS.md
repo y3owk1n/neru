@@ -53,7 +53,7 @@ internal/cli        Cobra commands; most just send an IPC request to the daemon
 internal/app        wiring, lifecycle, modes, services, IPC controller
 internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modecmd
 internal/ports      interface contracts + `mocks/`
-internal/derrors    the shared error vocabulary (package name is `derrors`)
+internal/derrors    the shared error vocabulary
 internal/flagref    renders the mode-flag reference in docs/CLI.md from the modecmd descriptor table
 internal/adapter    adapters: accessibility, eventtap, hotkeys, overlay, ipc, vision, systray, platform/*
 internal/config     TOML schema, defaults, validators, theme (+ loader)

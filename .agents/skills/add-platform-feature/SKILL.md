@@ -5,49 +5,24 @@ description: "Implement or stub Neru functionality for a specific OS/backend: po
 
 # Platform work in Neru
 
-Platform code is where Neru's guardrails are strictest, because this is where
-agents most often guess. The failure modes are always the same: importing the
-darwin package from shared code, inventing a new file-layout convention,
-silently no-opping an unsupported call, or reporting a stub as `supported`.
+Platform code carries Neru's strictest guardrails, and this is where agents
+most often guess. A change that lands cleanly sits in an existing file slot,
+crosses the boundary through a port, returns `CodeNotSupported` wherever it is
+unimplemented, and reports itself honestly in the capability matrix.
 
 ## Before writing code
 
-1. Read `internal/adapter/platform/profile.go` first. It is the source of
-   truth for each subsystem's backend family, primary-modifier expectations,
-   and whether a backend needs CGO. CGO is a **per-backend** decision, not a
-   per-OS one.
-2. Read the port you're implementing in `internal/ports/`. If the capability
+1. Read `internal/adapter/platform/AGENTS.md` — the single home for the rules
+   this skill obeys: the One Rule, file slots, the factory and Linux's runtime
+   compositor axis, loud stubs, capability honesty, coordinates, generated
+   Wayland bindings. Add the `darwin/` or `linux/` guide for the native
+   boundary you touch.
+2. Read `internal/adapter/platform/profile.go`. It is the source of truth for
+   each subsystem's backend family, primary-modifier expectations, and whether
+   a backend needs CGO. CGO is a **per-backend** decision, not a per-OS one.
+3. Read the port you're implementing in `internal/ports/`. If the capability
    doesn't have a port yet, define the interface there first and add a mock in
    `internal/ports/mocks`.
-
-## The rules
-
-- **The One Rule**: non-darwin-tagged code never imports
-  `internal/adapter/platform/darwin`. Enforced by `depguard` and
-  `internal/architecture/dependency_boundary_test.go`. Cross the boundary via
-  `ports.SystemPort` or a build-tagged dispatch pair.
-- **File slots** — use the existing slot, never invent layout:
-  `*_darwin.go`, `*_windows.go`, `*_other.go` (non-target fallback),
-  `*_linux_common.go`, `*_linux_x11.go`, `*_linux_wayland.go`,
-  `*_linux_wayland_<compositor>.go`.
-- **Factory**: `internal/adapter/platform/factory.go` and its build-tagged
-  siblings are the only place that picks a `ports.SystemPort` implementation.
-  Linux adds a runtime axis: `backend_linux.go` detects the live compositor
-  (wlroots / KDE / GNOME / other) and routes. Do not probe the compositor
-  anywhere else.
-- **Stubs are loud**: unimplemented behavior returns
-  `derrors.New(derrors.CodeNotSupported, ...)` — never a silent no-op, never
-  `nil`. Callers degrade via `derrors.IsNotSupported(err)`.
-- **Capability honesty**: update `internal/ports/capabilities.go` /
-  `capability_presets.go` in the same change. `neru doctor` reports this
-  matrix; a stub must report `stub`, not `supported`.
-- **Coordinates**: shared code is global top-left origin, Y down, unscaled
-  pixels. Flipping from Cocoa's bottom-left happens inside the darwin adapter
-  only; never leak flipped coordinates into shared Go
-  (`internal/domain/geometry` owns conversions).
-- Wayland protocol bindings under
-  `internal/adapter/platform/linux/wlr_protocol/` are generated — regenerate
-  with `just generate-all-protocols`, never hand-edit.
 
 ## Tests
 

@@ -64,3 +64,10 @@ gh issue create --title "<concise, user-facing summary>" --label bug --body-file
 
 Title style matches the tracker: plain sentence, no conventional-commit
 prefix, no trailing period.
+
+The forms apply `bug` / `enhancement` automatically; `gh` does not, so pass it
+yourself — and add the axes the forms never cover: `platform: macOS` /
+`platform: linux` / `platform: windows` or `cross-platform`, the matching
+`area: *` (`overlays`, `event-tap`, `hotkeys`, `accessibility`, `cli`,
+`config`, `domain`, `ipc`, `ui`, `infra`), and `stub implementation` when the
+ask is replacing a `CodeNotSupported` stub. `gh label list` is the authority.

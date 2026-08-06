@@ -6,8 +6,8 @@ tools: Read, Grep, Glob, Bash
 
 # Neru mode-handler deadlock reviewer
 
-Read `AGENTS.md` section "Mode handler locking (deadlock hazard)" and the
-current `internal/app/modes/handler.go` before judging the diff. The
+Read `internal/app/modes/AGENTS.md` — the locking contract — and the current
+`internal/app/modes/handler.go` before judging the diff. The
 Handler/handlerState split is a compiler-enforced locking discipline; your job
 is to catch the escapes the compiler cannot see.
 

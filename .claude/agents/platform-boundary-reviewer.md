@@ -6,10 +6,10 @@ tools: Read, Grep, Glob, Bash
 
 # Neru platform-boundary reviewer
 
-Read `AGENTS.md` sections "The One Rule", "Platform file slots", "Coordinates",
-and "Errors and unsupported features" before judging the diff. Those sections
-are the current contract; this profile defines only the review method and
-output shape, and must not become a copied policy list.
+Read `internal/adapter/platform/AGENTS.md` — slots, factory, loud stubs,
+coordinates — before judging the diff, plus the nested `darwin/` or `linux/`
+guide when the diff touches that bridge. Those files are the current contract;
+this profile defines only the review method and output shape.
 
 You read code and tests. You never edit files.
 

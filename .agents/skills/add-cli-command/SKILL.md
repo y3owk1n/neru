@@ -55,7 +55,7 @@ flag the table never declared.
   `internal/ports/mocks` — assert the response shape and that the right
   service call happened, not internals.
 - Anything platform-gated must degrade with `derrors.CodeNotSupported`, and a
-  contract test pins that (see AGENTS.md "Errors and unsupported features").
+  contract test pins that (root `AGENTS.md`, "Hard rules").
 
 ## Verify
 
