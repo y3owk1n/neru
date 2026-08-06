@@ -307,7 +307,7 @@ func (h *handlerState) refreshMonitorSelectForMonitorMove() {
 }
 
 // refreshGridForMonitorMove regenerates the grid using the known target
-// screen bounds and shows the overlay. Unlike RefreshGridForScreenChange
+// screen bounds and shows the overlay. Unlike refreshGridForScreenChange
 // this does not re-query ScreenBounds.
 func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	// Use the known target bounds instead of re-querying ScreenBounds.
@@ -346,7 +346,7 @@ func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 
 // refreshRecursiveGridForMonitorMove remaps the recursive-grid to the known
 // target screen bounds and shows the overlay. Unlike
-// RefreshRecursiveGridForScreenChange this does not re-query ScreenBounds.
+// refreshRecursiveGridForScreenChange this does not re-query ScreenBounds.
 func (h *handlerState) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangle) {
 	h.setScreenBounds(targetBounds)
 
@@ -370,7 +370,7 @@ func (h *handlerState) refreshRecursiveGridForMonitorMove(targetBounds image.Rec
 }
 
 // refreshHintsForMonitorMove refreshes hints using the known target screen
-// bounds. Unlike RefreshHintsForScreenChange this does not re-query
+// bounds. Unlike refreshHintsForScreenChange this does not re-query
 // ScreenBounds.
 //
 // The whole of it — including the accessibility-tree walk GenerateHints does —

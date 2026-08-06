@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 
 	"go.uber.org/zap"
@@ -31,6 +32,7 @@ const (
 	extensionInputEditing      extensionName = "input editing"
 	extensionHotkeyOverrides   extensionName = "hotkey override reporting"
 	extensionThemeRefresh      extensionName = "theme change refresh"
+	extensionScreenRefresh     extensionName = "screen change refresh"
 )
 
 // selectionTracker is an optional Mode extension: a mode that remembers where
@@ -155,6 +157,39 @@ type themeRefresher interface {
 	// is still the active one here and an implementation must not re-check
 	// (ADR 0004).
 	RefreshForThemeChange() bool
+}
+
+// screenRefresher is an optional Mode extension: a mode whose drawing was built
+// for the display configuration that has just changed underneath it, and so has
+// to be built again rather than merely drawn again.
+//
+// Hints regenerates its collection from the accessibility tree, grid rebuilds
+// its instance and recursive grid remaps its zoom history onto the new bounds.
+// Scroll draws none of its own and the monitor picker places its panels per
+// display, so neither carries this; idle has nothing on screen at all.
+//
+// This is an effect rather than a getter, so a mode that does not carry it says
+// so in the debug log (activeModeEffect): "the overlay is still sized for the
+// display I unplugged" has to be answerable from a log rather than by reading
+// the dispatch.
+type screenRefresher interface {
+	// RefreshForScreenChange puts the mode back on the display as it now is.
+	// The screen moved under it, so what it holds is rebuilt against the new
+	// bounds and handed over as a transition — resized, shown and drawn.
+	//
+	// It reports whether the overlay was left sized for the new display, which
+	// is what tells the caller it owes no resize of its own. That is not the
+	// same as the refresh having succeeded: one that found nothing to draw and
+	// left the mode still took the overlay off the display it was on, and
+	// resizing it afterwards would bring it back up empty. False is for the
+	// mode that rebuilt nothing at all — its feature switched off in
+	// configuration, or no session state to rebuild from — because then the
+	// overlay is still sized for the display that is gone.
+	//
+	// The caller holds h.mu across the whole dispatch, so the mode it selected
+	// is still the active one here and an implementation must not re-check
+	// (ADR 0004).
+	RefreshForScreenChange(ctx context.Context) bool
 }
 
 // activeModeExtension resolves the active mode to the optional extension T,

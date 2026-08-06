@@ -16,7 +16,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -271,126 +270,31 @@ func (a *App) HandleScreenParametersChange() {
 }
 
 // processScreenChange performs the actual screen-change handling logic.
+//
+// Which mode is on screen, whether its feature is switched on, and what putting
+// it back onto the new display means all belong to the package that owns modes:
+// this hands the change over and then answers for the overlay it owns. One call
+// under one lock hold replaces the unlocked mode snapshot this used to take and
+// the three near-identical per-mode functions it fed.
+//
+// The resize afterwards is a fallback for a mode that rebuilt nothing — scroll,
+// the monitor picker, a mode switched off in configuration. It is deliberately
+// skipped when the handler reports the overlay needs nothing, because resizing
+// the overlay is what brings it up: doing it with nothing open would show an
+// overlay the user never asked for on every dock, undock and wake.
 func (a *App) processScreenChange() {
-	// Snapshot the mode once so every decision in this pass uses a consistent value.
-	// Without the snapshot, a concurrent mode transition could cause the idle check,
-	// the grid handler, and the hint handler to each see a different mode.
-	// Each handler's Refresh* method re-checks the mode under h.mu to guard
-	// against a concurrent ExitMode between the snapshot and the actual work.
-	currentMode := a.appState.CurrentMode()
-
-	// Only log and adjust overlays if we are in an active mode. In Idle mode
-	// there is nothing on screen to adjust, and we must avoid showing the
-	// overlay window, which is what ResizeToActiveScreen would do.
-	isIdle := currentMode == domain.ModeIdle
-	if !isIdle {
-		a.logger.Debug("Screen parameters changed; adjusting overlays")
-	}
-
 	ctx := a.ctx
 
-	cfg := a.configSnapshot()
-
-	gridResized := a.handleGridScreenChange(cfg, currentMode)
-	hintResized := a.handleHintScreenChange(ctx, cfg, currentMode)
-	recursiveGridResized := a.handleRecursiveGridScreenChange(cfg, currentMode)
-
-	// Final resize only if no handler already resized the overlay AND we are not idle.
-	// Resizing the overlay when idle would cause it to become visible, which we want to avoid.
-	if !gridResized && !hintResized && !recursiveGridResized && !isIdle && a.overlayPort != nil {
-		refreshErr := a.overlayPort.Refresh(ctx)
-		if refreshErr != nil && !derrors.IsNotSupported(refreshErr) {
-			a.logger.Warn("Failed to resize the overlay after a screen change",
-				zap.Error(refreshErr))
-		}
-	}
-}
-
-// handleGridScreenChange handles grid overlay updates when screen parameters change.
-// Returns true if the overlay was resized.
-func (a *App) handleGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
-	if !cfg.Grid.Enabled {
-		return false
+	overlayNeedsResize := a.modes.RefreshActiveModeForScreenChange(ctx)
+	if !overlayNeedsResize || a.overlayPort == nil {
+		return
 	}
 
-	if currentMode != domain.ModeGrid {
-		return false
+	refreshErr := a.overlayPort.Refresh(ctx)
+	if refreshErr != nil && !derrors.IsNotSupported(refreshErr) {
+		a.logger.Warn("Failed to resize the overlay after a screen change",
+			zap.Error(refreshErr))
 	}
-
-	// Delegate to the modes handler which holds the grid manager state and
-	// can regenerate the grid with new screen bounds under the mutex. The
-	// screen moved under the overlay, so what it hands over is a transition:
-	// sizing the window to the new display and bringing it up is part of
-	// realizing the frame, and belongs to the overlay rather than here.
-	// RefreshGridForScreenChange re-checks the mode under h.mu to guard
-	// against a concurrent mode exit (TOCTOU).
-	if !a.modes.RefreshGridForScreenChange() {
-		a.logger.Debug(
-			"Grid screen-change refresh skipped (mode exited or draw failed)",
-		)
-
-		return true
-	}
-
-	a.logger.Debug("Grid overlay resized and regenerated for new screen bounds")
-
-	return true
-}
-
-// handleHintScreenChange handles hint overlay updates when screen parameters change.
-// Returns true if the overlay was resized.
-func (a *App) handleHintScreenChange(
-	ctx context.Context,
-	cfg *config.Config,
-	currentMode domain.Mode,
-) bool {
-	if !cfg.Hints.Enabled {
-		return false
-	}
-
-	if currentMode != domain.ModeHints {
-		return false
-	}
-
-	// RefreshHintsForScreenChange re-checks the mode under h.mu to guard
-	// against a concurrent mode exit (TOCTOU).
-	if !a.modes.RefreshHintsForScreenChange(ctx, a.hintService) {
-		a.logger.Debug("Hint mode exited during screen change; skipping show")
-
-		return true
-	}
-
-	a.logger.Debug("Hint overlay resized and regenerated for new screen bounds")
-
-	return true
-}
-
-// handleRecursiveGridScreenChange handles recursive-grid overlay updates when screen parameters change.
-// Returns true if the overlay was resized.
-func (a *App) handleRecursiveGridScreenChange(cfg *config.Config, currentMode domain.Mode) bool {
-	if !cfg.RecursiveGrid.Enabled || a.recursiveGridComponent == nil {
-		return false
-	}
-
-	if currentMode != domain.ModeRecursiveGrid {
-		return false
-	}
-
-	// Delegate to the modes handler which holds the recursive-grid manager
-	// state and can reinitialize it with new screen bounds under the mutex.
-	// RefreshRecursiveGridForScreenChange re-checks the mode under h.mu to
-	// guard against a concurrent mode exit (TOCTOU between the snapshot in
-	// processScreenChange and the actual work here).
-	if !a.modes.RefreshRecursiveGridForScreenChange() {
-		// Mode was exited concurrently — don't show the overlay.
-		a.logger.Debug("Recursive-grid mode exited during screen change; skipping show")
-
-		return true
-	}
-
-	a.logger.Debug("Recursive-grid overlay resized and regenerated for new screen bounds")
-
-	return true
 }
 
 // handleAppActivation responds to application activation events.
