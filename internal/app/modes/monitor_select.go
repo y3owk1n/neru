@@ -12,31 +12,34 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
+// Compile-time interface compliance check.
+var _ Mode = (*MonitorSelectMode)(nil)
+
 // MonitorSelectMode implements the Mode interface for interactive monitor picking.
 type MonitorSelectMode struct {
-	*GenericMode
+	baseMode
 }
 
 // NewMonitorSelectMode creates a new monitor_select mode implementation.
 func NewMonitorSelectMode(handler *handlerState) *MonitorSelectMode {
 	return &MonitorSelectMode{
-		GenericMode: NewGenericMode(
-			handler,
-			domain.ModeMonitorSelect,
-			"MonitorSelectMode",
-			ModeBehavior{
-				ActivateFunc: func(handler *handlerState, activation modecmd.Activation) {
-					handler.activateMonitorSelectMode(activation)
-				},
-				HandleKeyFunc: func(handler *handlerState, key string) {
-					handler.handleMonitorSelectKey(key)
-				},
-				ExitFunc: func(handler *handlerState) {
-					handler.cleanupMonitorSelectMode()
-				},
-			},
-		),
+		baseMode: newBaseMode(handler, domain.ModeMonitorSelect, "MonitorSelectMode"),
 	}
+}
+
+// Activate opens the monitor picker.
+func (m *MonitorSelectMode) Activate(activation modecmd.Activation) {
+	m.handler.activateMonitorSelectMode(activation)
+}
+
+// HandleKey processes a key press within the monitor picker.
+func (m *MonitorSelectMode) HandleKey(key string) {
+	m.handler.handleMonitorSelectKey(key)
+}
+
+// Exit tears the monitor picker down.
+func (m *MonitorSelectMode) Exit() {
+	m.handler.cleanupMonitorSelectMode()
 }
 
 func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
