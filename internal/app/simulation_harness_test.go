@@ -43,9 +43,22 @@ const (
 	simPollInterval    = 2 * time.Millisecond
 )
 
+// defaultDisplayName is the name of the fixture desktop's single display.
+const defaultDisplayName = "SimDisplay"
+
 // simScreen is the fixture display: a single 1920x1080 screen at the global
 // origin, so screen-local and global coordinates coincide.
 var simScreen = image.Rect(0, 0, 1920, 1080)
+
+// simScreenResized is that same display after a resolution change. Every
+// element in the journey fixtures still falls inside it, so what a display
+// change does to a mode is not confused with elements dropping off the screen.
+var simScreenResized = image.Rect(0, 0, 1280, 720)
+
+// simDisplayResized is the whole fixture desktop after that change.
+func simDisplayResized() simDisplay {
+	return simDisplay{name: defaultDisplayName, bounds: simScreenResized}
+}
 
 // simElement builds a clickable fixture element or fails the test.
 func simElement(
@@ -118,6 +131,9 @@ type simOverlayPort struct {
 	subgridCells  []*domainGrid.Cell
 	searchQueries []string
 	stickySymbols []string
+
+	// gridPointers is the pointer each grid surface was last asked to draw.
+	gridPointers map[domain.Mode]ports.GridPointer
 
 	// indicatorVisible is the visibility each indicator was last asked for.
 	// An indicator draws through its own call rather than a frame, so this —
@@ -219,7 +235,20 @@ func (m *simOverlayPort) ShowGridSubgrid(cell *domainGrid.Cell) {
 	m.subgridCells = append(m.subgridCells, cell)
 }
 
-func (m *simOverlayPort) UpdateGridPointer(_ domain.Mode, _ ports.GridPointer) {}
+// UpdateGridPointer records the pointer stand-in a grid surface draws where
+// the selection is. For a user whose cursor does not follow the selection it
+// is the only thing on screen saying where that selection is, so a journey
+// reads it to watch one appear and a stale one go away.
+func (m *simOverlayPort) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.gridPointers == nil {
+		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
+	}
+
+	m.gridPointers[mode] = pointer
+}
 
 func (m *simOverlayPort) DrawModeIndicator(_, _ int) {}
 
@@ -252,7 +281,23 @@ func (m *simOverlayPort) Flush() {}
 
 func (m *simOverlayPort) IsVisible() bool { return m.isVisible() }
 
-func (m *simOverlayPort) Refresh(_ context.Context) error { return nil }
+// Refresh sizes the overlay to the display that is now active, which brings it
+// up: it is the same resize the window sequence performs on its way to putting
+// a frame on screen, so a surface that was not on screen is afterwards. That
+// is the whole reason the screen-change path refuses to call it while idle
+// ("Resizing the overlay when idle would cause it to become visible",
+// lifecycle.go), and modeling it as silent success is what would let that
+// guard be deleted without a journey noticing.
+//
+// It puts no content there, so it draws no mode and is not a show.
+func (m *simOverlayPort) Refresh(_ context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.visible = true
+
+	return nil
+}
 
 func (m *simOverlayPort) ApplyConfig(cfg *config.Config) {
 	m.mu.Lock()
@@ -348,6 +393,14 @@ func (m *simOverlayPort) searchInputDrawCount() int {
 	return len(m.searchQueries)
 }
 
+// monitorDrawCount reports how many times the monitor picker was drawn.
+func (m *simOverlayPort) monitorDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.monitorDraws)
+}
+
 func (m *simOverlayPort) lastMonitorTargets() []ports.MonitorSelectTarget {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -419,6 +472,20 @@ func (m *simOverlayPort) lastHintLabels() []string {
 	return labels
 }
 
+// lastHintScreen returns the display the most recent hints frame was drawn
+// against, and whether one was ever drawn. A screen change is only complete
+// when this is the display the user is now looking at.
+func (m *simOverlayPort) lastHintScreen() (image.Rectangle, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.hintFrames) == 0 {
+		return image.Rectangle{}, false
+	}
+
+	return m.hintFrames[len(m.hintFrames)-1].Screen, true
+}
+
 func (m *simOverlayPort) lastGrid() *domainGrid.Grid {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -462,6 +529,17 @@ func (m *simOverlayPort) lastHideUnmatched() (bool, bool) {
 	}
 
 	return m.hideUnmatched[len(m.hideUnmatched)-1], true
+}
+
+// lastGridPointer reports the pointer a grid surface was last asked to draw,
+// and whether it was ever asked at all.
+func (m *simOverlayPort) lastGridPointer(mode domain.Mode) (ports.GridPointer, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	pointer, drawn := m.gridPointers[mode]
+
+	return pointer, drawn
 }
 
 // subgridCount reports how many subgrids were opened.
@@ -600,6 +678,15 @@ func (a *simAXPort) IsAppExcluded(_ context.Context, _ string) bool {
 
 func (a *simAXPort) PrimeApplication(_ context.Context, _ string) (bool, error) {
 	return true, nil
+}
+
+// setElements replaces the accessibility tree, the way a display change that
+// relaid out or closed windows leaves it.
+func (a *simAXPort) setElements(elements []*element.Element) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.elements = elements
 }
 
 func (a *simAXPort) setExcluded(excluded bool) {
@@ -743,6 +830,7 @@ type simHarness struct {
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
 	tap        *mocks.MockEventTapPort
+	desktop    *simDesktop
 	runDone    chan error
 }
 
@@ -751,6 +839,24 @@ type simHarness struct {
 func (h *simHarness) switchToDarkMode() {
 	h.appearance.Store(true)
 	h.app.HandleThemeChange(true)
+}
+
+// changeScreen rearranges the fixture desktop to the given displays and
+// notifies the app the way a platform screen-parameters observer does — a
+// monitor plugged in or unplugged, or a resolution change.
+//
+// The new arrangement is in place before the notification, so everything the
+// app reads while handling it sees the new displays, as it would on a real
+// desktop.
+func (h *simHarness) changeScreen(displays ...simDisplay) {
+	h.t.Helper()
+
+	if len(displays) == 0 {
+		h.t.Fatal("changeScreen needs at least one display")
+	}
+
+	h.desktop.set(displays)
+	h.app.HandleScreenParametersChange()
 }
 
 // simConfig returns the default config with the standard mode bindings set
@@ -779,6 +885,28 @@ type simDisplay struct {
 	bounds image.Rectangle
 }
 
+// simDesktop is the fixture desktop's display arrangement. A display
+// configuration change rearranges it while the app is reading it, so it is
+// held behind a mutex rather than closed over as a fixed slice.
+type simDesktop struct {
+	mu       sync.Mutex
+	displays []simDisplay
+}
+
+func (d *simDesktop) set(displays []simDisplay) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.displays = slices.Clone(displays)
+}
+
+func (d *simDesktop) all() []simDisplay {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return slices.Clone(d.displays)
+}
+
 // newSimHarness builds and starts the real app wired to the simulation fakes
 // on a single default display.
 func newSimHarness(
@@ -789,7 +917,7 @@ func newSimHarness(
 	tb.Helper()
 
 	return newSimHarnessWithDisplays(tb, cfg, elements, []simDisplay{
-		{name: "SimDisplay", bounds: simScreen},
+		{name: defaultDisplayName, bounds: simScreen},
 	})
 }
 
@@ -853,18 +981,22 @@ func buildSimHarness(
 	)}
 	hotkeys := &simHotkeyPort{}
 	tap := &mocks.MockEventTapPort{}
+	desktop := &simDesktop{}
+	desktop.set(displays)
 
 	// The active screen is wherever the cursor currently is, matching how the
 	// real system port resolves it.
 	activeBounds := func() image.Rectangle {
+		current := desktop.all()
+
 		pos := cursor.position()
-		for _, display := range displays {
+		for _, display := range current {
 			if pos.In(display.bounds) {
 				return display.bounds
 			}
 		}
 
-		return displays[0].bounds
+		return current[0].bounds
 	}
 
 	system := &mocks.MockSystemPort{
@@ -875,7 +1007,7 @@ func buildSimHarness(
 			return activeBounds(), nil
 		},
 		ScreenBoundsByNameFunc: func(_ context.Context, name string) (image.Rectangle, bool, error) {
-			for _, display := range displays {
+			for _, display := range desktop.all() {
 				if display.name == name {
 					return display.bounds, true, nil
 				}
@@ -884,8 +1016,10 @@ func buildSimHarness(
 			return image.Rectangle{}, false, nil
 		},
 		ScreenNamesFunc: func(_ context.Context) ([]string, error) {
-			names := make([]string, len(displays))
-			for idx, display := range displays {
+			current := desktop.all()
+
+			names := make([]string, len(current))
+			for idx, display := range current {
 				names[idx] = display.name
 			}
 
@@ -930,6 +1064,7 @@ func buildSimHarness(
 		cursor:     cursor,
 		hotkeys:    hotkeys,
 		tap:        tap,
+		desktop:    desktop,
 		runDone:    make(chan error, 1),
 	}
 

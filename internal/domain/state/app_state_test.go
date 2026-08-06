@@ -286,7 +286,7 @@ func TestAppState_ScreenChangeProcessing_ConcurrentStress(t *testing.T) {
 		wins      sync.Map
 		waitGroup sync.WaitGroup
 	)
-	// Simulate the real handleScreenParametersChange pattern:
+	// Simulate the real HandleScreenParametersChange pattern:
 	// each goroutine tries to acquire, processes in a loop draining retries,
 	// then releases.
 
