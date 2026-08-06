@@ -141,6 +141,21 @@ type styleSet struct {
 	recursive recursivegrid.Style
 }
 
+// mutableStyles stands in for the overlay's own resolver: a source whose Style
+// can be swapped, which is what a config reload or a theme change looks like
+// from the renderer's side.
+type mutableStyles struct {
+	set styleSet
+}
+
+func (m *mutableStyles) Style() overlay.Style {
+	return overlay.Style{
+		Hints:         m.set.hint,
+		Grid:          m.set.grid,
+		RecursiveGrid: m.set.recursive,
+	}
+}
+
 // buildStyles derives a distinguishable style trio. Font size and border width
 // are carried through by BuildStyle on every platform, so varying them yields
 // styles that compare unequal wherever the test runs.
@@ -190,9 +205,21 @@ func TestBuildStyles_ProducesDistinguishableStyles(t *testing.T) {
 func newRenderer(t *testing.T, styles styleSet) (*render.OverlayRenderer, *fakeManager) {
 	t.Helper()
 
-	manager := &fakeManager{}
+	renderer, manager, _ := newRendererWithStyles(t, styles)
 
-	return render.NewOverlayRenderer(manager, styles.hint, styles.grid, styles.recursive), manager
+	return renderer, manager
+}
+
+func newRendererWithStyles(
+	t *testing.T,
+	styles styleSet,
+) (*render.OverlayRenderer, *fakeManager, *mutableStyles) {
+	t.Helper()
+
+	manager := &fakeManager{}
+	source := &mutableStyles{set: styles}
+
+	return render.NewOverlayRenderer(manager, source), manager, source
 }
 
 func TestOverlayRenderer_DrawHints_ForwardsHintsAndConfiguredStyle(t *testing.T) {
@@ -398,17 +425,17 @@ func TestOverlayRenderer_DrawRecursiveGrid_PropagatesManagerError(t *testing.T) 
 	}
 }
 
-// TestOverlayRenderer_UpdateConfig_SwapsAllThreeStyles checks that a config
-// reload actually reaches subsequent draws. The renderer caches the styles by
-// value, so a missed assignment in UpdateConfig would leave one overlay
-// rendering with the pre-reload appearance indefinitely.
-func TestOverlayRenderer_UpdateConfig_SwapsAllThreeStyles(t *testing.T) {
+// TestOverlayRenderer_ReResolvedStyleReachesSubsequentDraws checks that a
+// config reload or theme change actually reaches subsequent draws. The
+// renderer holds no style of its own, so every draw must read the source it
+// was built with rather than a value captured at construction.
+func TestOverlayRenderer_ReResolvedStyleReachesSubsequentDraws(t *testing.T) {
 	before := buildStyles(12, 1)
 	after := buildStyles(30, 6)
 
-	renderer, manager := newRenderer(t, before)
+	renderer, manager, styles := newRendererWithStyles(t, before)
 
-	renderer.UpdateConfig(after.hint, after.grid, after.recursive)
+	styles.set = after
 
 	err := renderer.DrawHints(nil)
 	if err != nil {
@@ -416,7 +443,7 @@ func TestOverlayRenderer_UpdateConfig_SwapsAllThreeStyles(t *testing.T) {
 	}
 
 	if manager.hintsStyle != after.hint {
-		t.Error("DrawHints still used the pre-UpdateConfig hint style")
+		t.Error("DrawHints still used the pre-reload hint style")
 	}
 
 	err = renderer.DrawGrid(nil, "")
@@ -425,13 +452,13 @@ func TestOverlayRenderer_UpdateConfig_SwapsAllThreeStyles(t *testing.T) {
 	}
 
 	if manager.gridStyle != after.grid {
-		t.Error("DrawGrid still used the pre-UpdateConfig grid style")
+		t.Error("DrawGrid still used the pre-reload grid style")
 	}
 
 	renderer.ShowSubgrid(nil)
 
 	if manager.subgridStyle != after.grid {
-		t.Error("ShowSubgrid still used the pre-UpdateConfig grid style")
+		t.Error("ShowSubgrid still used the pre-reload grid style")
 	}
 
 	err = renderer.DrawRecursiveGrid(
@@ -442,7 +469,7 @@ func TestOverlayRenderer_UpdateConfig_SwapsAllThreeStyles(t *testing.T) {
 	}
 
 	if manager.recursive.style != after.recursive {
-		t.Error("DrawRecursiveGrid still used the pre-UpdateConfig recursive-grid style")
+		t.Error("DrawRecursiveGrid still used the pre-reload recursive-grid style")
 	}
 }
 

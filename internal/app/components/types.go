@@ -17,19 +17,12 @@ import (
 )
 
 // HintsComponent encapsulates all hints-related functionality.
+//
+// It carries no Style: the overlay resolves that from configuration and theme
+// in one place, and a component that held a copy would be a second one.
 type HintsComponent struct {
 	Overlay *hints.Overlay
 	Context *hints.Context
-	Style   hints.StyleMode
-	Theme   config.ThemeProvider
-}
-
-// UpdateConfig updates the hints component with new configuration.
-func (h *HintsComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if h.Overlay != nil && cfg.Hints.Enabled {
-		h.Style = hints.BuildStyle(cfg.Hints, h.Theme)
-		h.Overlay.SetConfig(cfg.Hints)
-	}
 }
 
 // GridComponent encapsulates all grid-related functionality.
@@ -38,26 +31,13 @@ type GridComponent struct {
 	Manager *domainGrid.Manager
 	Router  *domainGrid.Router
 	Context *grid.Context
-	Style   grid.Style
-	Theme   config.ThemeProvider
 }
 
-// UpdateConfig updates the grid component with new configuration.
+// UpdateConfig rebuilds the grid's domain state — the grid itself and its
+// subgrid keys — when the configuration that defines them changes. Appearance
+// is not its business; the overlay resolves that.
 func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	if cfg.Grid.Enabled {
-		g.Style = grid.BuildStyle(cfg.Grid, g.Theme)
-		if g.Overlay != nil {
-			g.Overlay.SetConfig(cfg.Grid)
-			g.Overlay.SetVirtualPointerConfig(
-				cfg.VirtualPointer.UI,
-				cfg.VirtualPointer.UI.TextColor.ForTheme(
-					g.Theme,
-					config.VirtualPointerTextColorLight,
-					config.VirtualPointerTextColorDark,
-				),
-			)
-		}
-
 		if g.Manager != nil {
 			// Recreate grid if characters or labels changed
 			oldGrid := g.Manager.Grid()
@@ -126,23 +106,9 @@ type ModeIndicatorComponent struct {
 	Overlay *modeindicator.Overlay
 }
 
-// UpdateConfig updates the mode indicator component with new configuration.
-func (m *ModeIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if m.Overlay != nil {
-		m.Overlay.SetConfig(cfg.ModeIndicator)
-	}
-}
-
 // StickyIndicatorComponent encapsulates the sticky modifiers indicator overlay.
 type StickyIndicatorComponent struct {
 	Overlay *stickyindicator.Overlay
-}
-
-// UpdateConfig updates the sticky indicator component with new configuration.
-func (s *StickyIndicatorComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if s.Overlay != nil {
-		s.Overlay.SetConfig(cfg.StickyModifiers.UI)
-	}
 }
 
 // RecursiveGridComponent encapsulates all recursive-grid-related functionality.
@@ -150,20 +116,4 @@ type RecursiveGridComponent struct {
 	Manager *domainRecursiveGrid.Manager
 	Overlay *recursivegrid.Overlay
 	Context *recursivegrid.Context
-	Theme   config.ThemeProvider
-}
-
-// UpdateConfig updates the recursive-grid component with new configuration.
-func (q *RecursiveGridComponent) UpdateConfig(cfg *config.Config, _ *zap.Logger) {
-	if cfg.RecursiveGrid.Enabled && q.Overlay != nil {
-		q.Overlay.SetConfig(cfg.RecursiveGrid)
-		q.Overlay.SetVirtualPointerConfig(
-			cfg.VirtualPointer.UI,
-			cfg.VirtualPointer.UI.TextColor.ForTheme(
-				q.Theme,
-				config.VirtualPointerTextColorLight,
-				config.VirtualPointerTextColorDark,
-			),
-		)
-	}
 }

@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	overlayHints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -16,14 +15,16 @@ import (
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
 	manager ManagerInterface
-	theme   config.ThemeProvider
+	styles  StyleSource
 	logger  *zap.Logger
 }
 
-// NewAdapter creates a new overlay adapter.
+// NewAdapter creates a new overlay adapter. styles is the resolved Style the
+// adapter draws with; it is never rebuilt here, so a draw costs no theme
+// lookup.
 func NewAdapter(
 	manager ManagerInterface,
-	theme config.ThemeProvider,
+	styles StyleSource,
 	logger *zap.Logger,
 ) *Adapter {
 	if logger == nil {
@@ -32,7 +33,7 @@ func NewAdapter(
 
 	return &Adapter{
 		manager: manager,
-		theme:   theme,
+		styles:  styles,
 		logger:  logger.Named("overlay"),
 	}
 }
@@ -63,14 +64,10 @@ func (a *Adapter) ShowHints(ctx context.Context, hints []*hint.Interface) error 
 	a.manager.Show()
 	a.manager.SwitchTo("hints")
 
-	// Draw hints using the overlay manager
-	// Retrieve config from overlay to build current style
-	var style overlayHints.StyleMode
-	if hintOverlay := a.manager.HintOverlay(); hintOverlay != nil {
-		style = overlayHints.BuildStyle(hintOverlay.Config(), a.theme)
-	}
-
-	drawHintsErr := a.manager.DrawHintsWithStyle(overlayHintList, style)
+	drawHintsErr := a.manager.DrawHintsWithStyle(
+		overlayHintList,
+		ResolvedStyle(a.styles).Hints,
+	)
 	if drawHintsErr != nil {
 		return derrors.Wrap(drawHintsErr, derrors.CodeOverlayFailed, "failed to draw hints")
 	}

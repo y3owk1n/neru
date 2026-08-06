@@ -10,9 +10,10 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-type overlayTestThemeProvider struct{}
+// testStyles is a StyleSource for the health tests, which never draw.
+type testStyles struct{}
 
-func (t *overlayTestThemeProvider) IsDarkMode() bool { return false }
+func (testStyles) Style() overlay.Style { return overlay.Style{} }
 
 type supportedManager struct {
 	overlay.NoOpManager
@@ -39,7 +40,7 @@ func (m *stubManager) OverlayCapabilities() ports.FeatureCapability {
 func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&overlay.NoOpManager{},
-		&overlayTestThemeProvider{},
+		testStyles{},
 		zap.NewNop(),
 	)
 
@@ -52,7 +53,7 @@ func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 func TestAdapterHealth_ReturnsNilForSupportedOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&supportedManager{},
-		&overlayTestThemeProvider{},
+		testStyles{},
 		zap.NewNop(),
 	)
 
@@ -65,7 +66,7 @@ func TestAdapterHealth_ReturnsNilForSupportedOverlayManager(t *testing.T) {
 func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
 		&stubManager{},
-		&overlayTestThemeProvider{},
+		testStyles{},
 		zap.NewNop(),
 	)
 

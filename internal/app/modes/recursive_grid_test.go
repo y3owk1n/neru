@@ -8,8 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	overlaypkg "github.com/y3owk1n/neru/internal/adapter/overlay"
-	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/render"
@@ -113,12 +111,7 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 			},
 			zap.NewNop(),
 		),
-		renderer: render.NewOverlayRenderer(
-			&overlaypkg.NoOpManager{},
-			hintscomponent.StyleMode{},
-			gridcomponent.Style{},
-			componentrecursivegrid.Style{},
-		),
+		renderer: render.NewOverlayRenderer(&overlaypkg.NoOpManager{}, nil),
 		recursiveGrid: &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},
 		},

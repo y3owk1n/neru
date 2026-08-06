@@ -112,14 +112,14 @@ func (a *App) setupThemeObserver() {
 					continue
 				}
 
-				a.handleThemeChange(colorScheme == colorSchemeDark)
+				a.HandleThemeChange(colorScheme == colorSchemeDark)
 			}
 		}
 	})
 }
 
 // pollThemeChanges periodically checks IsDarkMode and calls
-// handleThemeChange when the value transitions. Acts as a fallback
+// HandleThemeChange when the value transitions. Acts as a fallback
 // when the D-Bus portal signal path is unavailable.
 func (a *App) pollThemeChanges(stopChan <-chan struct{}, lastIsDark bool) {
 	ticker := time.NewTicker(pollFallbackInterval)
@@ -139,7 +139,7 @@ func (a *App) pollThemeChanges(stopChan <-chan struct{}, lastIsDark bool) {
 				a.logger.Info("System theme detected change",
 					zap.Bool("is_dark", currentIsDark))
 				lastIsDark = currentIsDark
-				a.handleThemeChange(currentIsDark)
+				a.HandleThemeChange(currentIsDark)
 			}
 		}
 	}

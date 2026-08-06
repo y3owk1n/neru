@@ -6,8 +6,11 @@ package app_test
 // and what was clicked or scrolled. See simulation_harness_test.go.
 
 import (
+	"context"
 	"fmt"
 	"image"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1036,5 +1039,117 @@ func TestSimulation_RapidModeSwitching(t *testing.T) {
 
 		sim.press("Escape")
 		sim.waitMode(domain.ModeIdle)
+	}
+}
+
+// TestSimulation_ThemeChangeReachesVisibleOverlay covers the journey the
+// overlay's Style ownership exists for: hints are on screen when the system
+// switches to dark mode, and the user sees them redrawn in the new theme
+// rather than left in the old one until the mode is re-entered.
+func TestSimulation_ThemeChangeReachesVisibleOverlay(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	light, recorded := sim.overlay.lastHintStyle()
+	if !recorded {
+		t.Fatal("no hint style was recorded for the first draw")
+	}
+
+	drawsBeforeThemeChange := sim.overlay.hintDrawCount()
+
+	sim.switchToDarkMode()
+
+	sim.waitFor("hints redrawn after the theme change", func() bool {
+		return sim.overlay.hintDrawCount() > drawsBeforeThemeChange
+	})
+
+	dark, recorded := sim.overlay.lastHintStyle()
+	if !recorded {
+		t.Fatal("no hint style was recorded after the theme change")
+	}
+
+	if dark.TextColor() == light.TextColor() {
+		t.Errorf(
+			"hint text color is %q in both themes; the on-screen overlay kept the old appearance",
+			dark.TextColor(),
+		)
+	}
+
+	if dark.BackgroundColor() == light.BackgroundColor() {
+		t.Errorf(
+			"hint background color is %q in both themes; the on-screen overlay kept the old appearance",
+			dark.BackgroundColor(),
+		)
+	}
+
+	if !sim.overlay.isVisible() {
+		t.Error("the overlay was hidden by the theme change")
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeHints {
+		t.Errorf("mode after the theme change = %v, want hints", got)
+	}
+}
+
+// TestSimulation_ConfigReloadReachesTheOverlay is the config half of the same
+// ownership: a reload notifies the overlay once, and the next hints draw uses
+// the colors the reloaded file asks for. A reload exits the active mode first,
+// so "reaches the overlay" is observable on the draw that follows it.
+func TestSimulation_ConfigReloadReachesTheOverlay(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	before, recorded := sim.overlay.lastHintStyle()
+	if !recorded {
+		t.Fatal("no hint style was recorded for the first draw")
+	}
+
+	const reloadedTextColor = "#ABCDEF"
+
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+
+	writeErr := os.WriteFile(configPath, fmt.Appendf(nil, `
+[hotkeys]
+%q = "hints"
+
+[hints.ui]
+text_color = %q
+`, hintsHotkey, reloadedTextColor), 0o600)
+	if writeErr != nil {
+		t.Fatalf("failed to write the reloaded config: %v", writeErr)
+	}
+
+	reloadErr := sim.app.ReloadConfig(context.Background(), configPath)
+	if reloadErr != nil {
+		t.Fatalf("ReloadConfig() error = %v", reloadErr)
+	}
+
+	if before.TextColor() == reloadedTextColor {
+		t.Fatalf("hints already drew with %q before the reload; the assertion below proves nothing",
+			reloadedTextColor)
+	}
+
+	drawsBeforeReactivation := sim.overlay.hintDrawCount()
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints redrawn after the reload", func() bool {
+		return sim.overlay.hintDrawCount() > drawsBeforeReactivation
+	})
+
+	after, recorded := sim.overlay.lastHintStyle()
+	if !recorded {
+		t.Fatal("no hint style was recorded after the reload")
+	}
+
+	if after.TextColor() != reloadedTextColor {
+		t.Errorf("hint text color after the reload = %q, want %q",
+			after.TextColor(), reloadedTextColor)
 	}
 }

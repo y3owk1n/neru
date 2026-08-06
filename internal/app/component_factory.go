@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
@@ -25,6 +26,9 @@ type ComponentFactory struct {
 	logger         *zap.Logger
 	overlayManager OverlayManager
 	themeProvider  config.ThemeProvider
+	// overlayStyles supplies the resolved Style for the one callback that
+	// needs one. The factory never builds a style itself.
+	overlayStyles overlay.StyleSource
 }
 
 // NewComponentFactory creates a new component factory.
@@ -33,12 +37,14 @@ func NewComponentFactory(
 	logger *zap.Logger,
 	overlayManager OverlayManager,
 	themeProvider config.ThemeProvider,
+	overlayStyles overlay.StyleSource,
 ) *ComponentFactory {
 	return &ComponentFactory{
 		config:         config,
 		logger:         logger,
 		overlayManager: overlayManager,
 		themeProvider:  themeProvider,
+		overlayStyles:  overlayStyles,
 	}
 }
 
@@ -53,16 +59,13 @@ type ComponentCreationOptions struct {
 func (f *ComponentFactory) CreateHintsComponent(
 	opts ComponentCreationOptions,
 ) (*components.HintsComponent, error) {
-	component := &components.HintsComponent{
-		Theme: f.themeProvider,
-	}
+	component := &components.HintsComponent{}
 
 	// Check if component should be skipped
 	if opts.SkipIfDisabled && !f.config.Hints.Enabled {
 		return component, nil
 	}
 
-	component.Style = hints.BuildStyle(f.config.Hints, f.themeProvider)
 	component.Context = &hints.Context{}
 
 	// Create overlay
@@ -97,9 +100,7 @@ func (f *ComponentFactory) CreateHintsComponent(
 func (f *ComponentFactory) CreateGridComponent(
 	opts ComponentCreationOptions,
 ) (*components.GridComponent, error) {
-	component := &components.GridComponent{
-		Theme: f.themeProvider,
-	}
+	component := &components.GridComponent{}
 
 	// Initialize minimal context even when disabled
 	ctx := &grid.Context{}
@@ -113,7 +114,6 @@ func (f *ComponentFactory) CreateGridComponent(
 		return component, nil
 	}
 
-	component.Style = grid.BuildStyle(f.config.Grid, f.themeProvider)
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)
 
@@ -157,7 +157,7 @@ func (f *ComponentFactory) CreateGridComponent(
 			f.overlayManager.UpdateGridMatches(component.Manager.CurrentInput())
 		},
 		func(cell *domainGrid.Cell) {
-			f.overlayManager.ShowSubgrid(cell, component.Style)
+			f.overlayManager.ShowSubgrid(cell, overlay.ResolvedStyle(f.overlayStyles).Grid)
 		},
 		f.logger,
 	)
@@ -318,7 +318,6 @@ func (f *ComponentFactory) CreateRecursiveGridComponent(
 	return &components.RecursiveGridComponent{
 		Overlay: recursiveGridOverlay,
 		Context: &recursivegrid.Context{},
-		Theme:   f.themeProvider,
 	}, nil
 }
 
@@ -348,17 +347,7 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, nil //nolint:nilnil
 		}
 
-		overlay := grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr())
-		overlay.SetVirtualPointerConfig(
-			f.config.VirtualPointer.UI,
-			f.config.VirtualPointer.UI.TextColor.ForTheme(
-				f.themeProvider,
-				config.VirtualPointerTextColorLight,
-				config.VirtualPointerTextColorDark,
-			),
-		)
-
-		return overlay, nil
+		return grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr()), nil
 	case "mode_indicator":
 		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
 		if !ok {
@@ -384,21 +373,11 @@ func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, erro
 			return nil, nil //nolint:nilnil
 		}
 
-		overlay := recursivegrid.NewOverlayWithWindow(
+		return recursivegrid.NewOverlayWithWindow(
 			recursiveGridConfig,
 			f.logger,
 			f.overlayManager.WindowPtr(),
-		)
-		overlay.SetVirtualPointerConfig(
-			f.config.VirtualPointer.UI,
-			f.config.VirtualPointer.UI.TextColor.ForTheme(
-				f.themeProvider,
-				config.VirtualPointerTextColorLight,
-				config.VirtualPointerTextColorDark,
-			),
-		)
-
-		return overlay, nil
+		), nil
 	case "sticky_modifiers":
 		uiConfig, ok := cfg.(config.StickyModifiersUI)
 		if !ok {

@@ -9,9 +9,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -79,14 +76,16 @@ type handlerState struct {
 	outer *Handler
 
 	config         *configpkg.Config
-	themeProvider  configpkg.ThemeProvider
 	system         ports.SystemPort
 	logger         *zap.Logger
 	appState       *state.AppState
 	cursorState    *state.CursorState
 	modifierState  *state.ModifierState
 	overlayManager overlay.ManagerInterface
-	renderer       *render.OverlayRenderer
+	// overlayStyles is where every theme-resolved overlay appearance comes
+	// from. The handler reads it and never derives one of its own.
+	overlayStyles overlay.StyleSource
+	renderer      *render.OverlayRenderer
 	// New Services
 	hintService            *services.HintService
 	gridService            *services.GridService
@@ -176,6 +175,7 @@ type HandlerDeps struct {
 	CursorState *state.CursorState
 
 	OverlayManager overlay.ManagerInterface
+	OverlayStyles  overlay.StyleSource
 	Renderer       *render.OverlayRenderer
 
 	HintService            *services.HintService
@@ -238,6 +238,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		cursorState:            deps.CursorState,
 		modifierState:          state.NewModifierState(),
 		overlayManager:         deps.OverlayManager,
+		overlayStyles:          deps.OverlayStyles,
 		renderer:               deps.Renderer,
 		hintService:            deps.HintService,
 		gridService:            deps.GridService,
@@ -254,7 +255,6 @@ func NewHandler(deps HandlerDeps) *Handler {
 		executeActionSequence:  deps.ExecuteActionSequence,
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
-		themeProvider:          deps.System,
 		system:                 deps.System,
 		cycleHintIndex:         -1,
 	}
@@ -324,20 +324,14 @@ func (h *Handler) ActivateMode(activation modecmd.Activation) {
 	modeImpl.Activate(activation)
 }
 
-// UpdateConfig updates the handler with new configuration.
+// UpdateConfig updates the handler with new configuration. Overlay appearance
+// is not part of it: the overlay resolves its own Style and the handler reads
+// the result.
 func (h *Handler) UpdateConfig(config *configpkg.Config) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	h.config = config
-
-	if h.renderer != nil {
-		h.renderer.UpdateConfig(
-			hints.BuildStyle(config.Hints, h.themeProvider),
-			grid.BuildStyle(config.Grid, h.themeProvider),
-			recursivegrid.BuildStyle(config.RecursiveGrid, h.themeProvider),
-		)
-	}
 
 	h.syncModifierPassthrough(h.appState.CurrentMode())
 }

@@ -9,8 +9,6 @@ import (
 
 	overlaypkg "github.com/y3owk1n/neru/internal/adapter/overlay"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -124,12 +122,7 @@ func TestHandleGridModeKey_EnteringSubgridDoesNotMoveWhenCursorFollowSelectionDi
 		grid: &components.GridComponent{
 			Context: &gridcomponent.Context{},
 		},
-		renderer: render.NewOverlayRenderer(
-			&overlaypkg.NoOpManager{},
-			hintscomponent.StyleMode{},
-			gridcomponent.Style{},
-			recursivegridcomponent.Style{},
-		),
+		renderer:     render.NewOverlayRenderer(&overlaypkg.NoOpManager{}, nil),
 		screenBounds: image.Rect(0, 0, 100, 100),
 	})
 

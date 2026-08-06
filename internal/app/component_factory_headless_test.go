@@ -47,6 +47,7 @@ func TestComponentFactory_SkipsOverlaysADeclaredHeadlessManagerCannotDraw(t *tes
 		zap.NewNop(),
 		&declaredHeadlessManager{},
 		lightTheme{},
+		overlay.NewStyleResolver(nil, config.DefaultConfig(), lightTheme{}, zap.NewNop()),
 	)
 
 	component, err := factory.CreateHintsComponent(app.ComponentCreationOptions{

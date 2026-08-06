@@ -18,6 +18,7 @@ import (
 	"image"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -85,6 +86,7 @@ type simOverlayManager struct {
 	mode               overlay.Mode
 	visible            bool
 	hintDraws          [][]*renderhints.Hint
+	hintStyles         []renderhints.StyleMode
 	gridDraws          []*domainGrid.Grid
 	recursiveGridDraws []image.Rectangle
 	searchQueries      []string
@@ -163,7 +165,7 @@ func (m *simOverlayManager) Mode() overlay.Mode {
 
 func (m *simOverlayManager) DrawHintsWithStyle(
 	hintsSlice []*renderhints.Hint,
-	_ renderhints.StyleMode,
+	style renderhints.StyleMode,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -171,6 +173,7 @@ func (m *simOverlayManager) DrawHintsWithStyle(
 	drawn := make([]*renderhints.Hint, len(hintsSlice))
 	copy(drawn, hintsSlice)
 	m.hintDraws = append(m.hintDraws, drawn)
+	m.hintStyles = append(m.hintStyles, style)
 
 	return nil
 }
@@ -277,6 +280,19 @@ func (m *simOverlayManager) hintDrawCount() int {
 	defer m.mu.Unlock()
 
 	return len(m.hintDraws)
+}
+
+// lastHintStyle returns the style the most recent hint draw was given, which
+// is what a user actually sees on screen.
+func (m *simOverlayManager) lastHintStyle() (renderhints.StyleMode, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.hintStyles) == 0 {
+		return renderhints.StyleMode{}, false
+	}
+
+	return m.hintStyles[len(m.hintStyles)-1], true
 }
 
 // lastHintLabels returns the labels of the most recent hint draw.
@@ -540,14 +556,24 @@ func (c *simCursor) moveCount() int {
 // --- harness ---------------------------------------------------------------
 
 type simHarness struct {
-	t       *testing.T
-	app     *app.App
-	overlay *simOverlayManager
-	ax      *simAXPort
-	cursor  *simCursor
-	hotkeys *simHotkeyPort
-	tap     *mocks.MockEventTapPort
-	runDone chan error
+	t   *testing.T
+	app *app.App
+	// appearance is the fixture desktop's light/dark state, read by the
+	// system port the app resolves its theme through.
+	appearance *atomic.Bool
+	overlay    *simOverlayManager
+	ax         *simAXPort
+	cursor     *simCursor
+	hotkeys    *simHotkeyPort
+	tap        *mocks.MockEventTapPort
+	runDone    chan error
+}
+
+// switchToDarkMode flips the fixture desktop's appearance and notifies the app
+// the way a platform theme observer does.
+func (h *simHarness) switchToDarkMode() {
+	h.appearance.Store(true)
+	h.app.HandleThemeChange(true)
 }
 
 // simConfig returns the default config with the standard mode bindings set
@@ -642,6 +668,7 @@ func buildSimHarness(
 	}
 
 	axPort := &simAXPort{elements: elements}
+	appearance := &atomic.Bool{}
 	cursor := &simCursor{pos: displays[0].bounds.Min.Add(
 		image.Point{X: displays[0].bounds.Dx() / 2, Y: displays[0].bounds.Dy() / 2},
 	)}
@@ -662,6 +689,9 @@ func buildSimHarness(
 	}
 
 	system := &mocks.MockSystemPort{
+		IsDarkModeFunc: func() bool {
+			return appearance.Load()
+		},
 		ScreenBoundsFunc: func(_ context.Context) (image.Rectangle, error) {
 			return activeBounds(), nil
 		},
@@ -713,14 +743,15 @@ func buildSimHarness(
 	}
 
 	sim := &simHarness{
-		t:       t,
-		app:     application,
-		overlay: recorder,
-		ax:      axPort,
-		cursor:  cursor,
-		hotkeys: hotkeys,
-		tap:     tap,
-		runDone: make(chan error, 1),
+		t:          t,
+		app:        application,
+		appearance: appearance,
+		overlay:    recorder,
+		ax:         axPort,
+		cursor:     cursor,
+		hotkeys:    hotkeys,
+		tap:        tap,
+		runDone:    make(chan error, 1),
 	}
 
 	go func() {

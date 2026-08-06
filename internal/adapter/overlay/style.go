@@ -1,0 +1,292 @@
+package overlay
+
+import (
+	"sync"
+
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
+)
+
+// Style is every overlay's resolved appearance: the configuration combined
+// with the current light/dark theme. It carries no configuration and no theme
+// of its own — by the time a caller holds one, both have already been applied.
+type Style struct {
+	Hints           hints.StyleMode
+	HintSearchInput hints.SearchInputStyle
+	Grid            grid.Style
+	RecursiveGrid   recursivegrid.Style
+	MonitorSelect   MonitorSelectStyle
+	VirtualPointer  VirtualPointerStyle
+}
+
+// VirtualPointerStyle is the resolved appearance of the virtual pointer drawn
+// inside the grid and recursive-grid frames.
+type VirtualPointerStyle struct {
+	FontSize   int
+	FillColor  string
+	Char       string
+	FontFamily string
+}
+
+// StyleSource is what a caller that needs a resolved Style depends on. It is
+// deliberately read-only: resolving is the overlay's job, and a caller that
+// could resolve is a caller that would.
+type StyleSource interface {
+	// Style returns the current resolved Style.
+	Style() Style
+}
+
+// ResolvedStyle reads source, or returns the zero Style when there is none.
+// Every consumer needs that guard and none of them should spell it out again.
+//
+// It only catches an untyped nil. A nil *StyleResolver stored in the interface
+// is still a live interface value, which is why Style itself guards its
+// receiver rather than trusting this.
+func ResolvedStyle(source StyleSource) Style {
+	if source == nil {
+		return Style{}
+	}
+
+	return source.Style()
+}
+
+// StyleResolver is the one place configuration and theme become a Style, and
+// the one place a configuration or theme change is applied to the render
+// components.
+//
+// Resolution happens on a config reload or a theme change, never per draw: a
+// draw reads the cached value, so the draw path allocates no more than it did
+// when every call site built its own style.
+type StyleResolver struct {
+	manager ManagerInterface
+	theme   config.ThemeProvider
+	logger  *zap.Logger
+
+	// applyMu serializes whole applications. Resolving publishes under mu and
+	// pushing runs outside it, so without this a slower Apply could hand the
+	// render components an older configuration than the Style everything else
+	// is now reading. Lock order is applyMu -> mu, never the reverse, and no
+	// other lock is taken while either is held.
+	applyMu sync.Mutex
+
+	mu     sync.RWMutex
+	config *config.Config
+	style  Style
+}
+
+// NewStyleResolver returns a resolver holding the Style resolved from cfg and
+// the theme provider's current state. The manager may hold no render
+// components yet; they are picked up on the first Apply after registration.
+func NewStyleResolver(
+	manager ManagerInterface,
+	cfg *config.Config,
+	theme config.ThemeProvider,
+	logger *zap.Logger,
+) *StyleResolver {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+
+	resolver := &StyleResolver{
+		manager: manager,
+		theme:   theme,
+		logger:  logger.Named("overlay_style"),
+	}
+	resolver.resolve(cfg)
+
+	return resolver
+}
+
+// Style returns the Style resolved by the most recent Apply or Refresh.
+//
+// A nil receiver resolves to the zero Style rather than panicking: the app
+// hands this out as a StyleSource, and a typed nil in an interface passes
+// every `!= nil` guard a caller could write.
+func (r *StyleResolver) Style() Style {
+	if r == nil {
+		return Style{}
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.style
+}
+
+// Apply re-resolves every overlay's Style from cfg and the live theme, then
+// hands cfg to the render components so the native caches they keep are
+// rebuilt against the new values on the next draw.
+//
+// This is the single notification a config reload or a theme change needs: no
+// caller fans out to individual overlays.
+func (r *StyleResolver) Apply(cfg *config.Config) {
+	r.applyMu.Lock()
+	defer r.applyMu.Unlock()
+
+	r.applyLocked(cfg)
+}
+
+// Refresh re-applies the configuration the resolver already holds. A theme
+// change goes through here: the configuration has not moved, only the colors
+// it resolves to.
+//
+// The stored config is read with applyMu already held. Reading it first and
+// then applying would be a read-modify-write across the lock: a reload landing
+// in between would be undone by this theme change republishing the config it
+// had snapshotted.
+func (r *StyleResolver) Refresh() {
+	r.applyMu.Lock()
+	defer r.applyMu.Unlock()
+
+	r.mu.RLock()
+	cfg := r.config
+	r.mu.RUnlock()
+
+	r.applyLocked(cfg)
+}
+
+// applyLocked resolves and hands out the result. Caller must hold applyMu.
+func (r *StyleResolver) applyLocked(cfg *config.Config) {
+	style := r.resolve(cfg)
+	r.push(cfg, style)
+}
+
+// resolve builds the Style and stores it. The theme provider is consulted
+// outside the lock — it reaches the platform — and only the result is
+// published under it.
+func (r *StyleResolver) resolve(cfg *config.Config) Style {
+	if cfg == nil {
+		cfg = config.DefaultConfig()
+	}
+
+	style := Style{
+		Hints:           hints.BuildStyle(cfg.Hints, r.theme),
+		HintSearchInput: hints.BuildSearchInputStyle(cfg.Hints, r.theme),
+		Grid:            grid.BuildStyle(cfg.Grid, r.theme),
+		RecursiveGrid:   recursivegrid.BuildStyle(cfg.RecursiveGrid, r.theme),
+		MonitorSelect:   buildMonitorSelectStyle(cfg, r.theme),
+		VirtualPointer:  buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
+	}
+
+	r.mu.Lock()
+	r.config = cfg
+	r.style = style
+	r.mu.Unlock()
+
+	r.logger.Debug("Overlay style resolved")
+
+	return style
+}
+
+// push hands the configuration to every render component the manager holds.
+// Components are reached through the manager rather than passed in, so adding
+// one is not another wiring site for the app layer to remember.
+//
+// A disabled overlay is left alone, which is what the per-component reload
+// path did before this owned it: nothing draws it, so reconfiguring it would
+// only invalidate caches nobody reads. The grid overlay is built even when
+// grid mode is disabled, so it is the one that actually sits in that state.
+func (r *StyleResolver) push(cfg *config.Config, style Style) {
+	if r.manager == nil || cfg == nil {
+		return
+	}
+
+	if overlay := r.manager.HintOverlay(); overlay != nil && cfg.Hints.Enabled {
+		overlay.SetConfig(cfg.Hints)
+	}
+
+	if overlay := r.manager.GridOverlay(); overlay != nil && cfg.Grid.Enabled {
+		overlay.SetConfig(cfg.Grid)
+		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, style.VirtualPointer.FillColor)
+	}
+
+	if overlay := r.manager.RecursiveGridOverlay(); overlay != nil && cfg.RecursiveGrid.Enabled {
+		overlay.SetConfig(cfg.RecursiveGrid)
+		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, style.VirtualPointer.FillColor)
+	}
+
+	if overlay := r.manager.ModeIndicatorOverlay(); overlay != nil {
+		overlay.SetConfig(cfg.ModeIndicator)
+	}
+
+	if overlay := r.manager.StickyModifiersOverlay(); overlay != nil {
+		overlay.SetConfig(cfg.StickyModifiers.UI)
+	}
+
+	if overlay := r.manager.VirtualPointerOverlay(); overlay != nil {
+		overlay.SetConfig(cfg.VirtualPointer)
+	}
+}
+
+// buildVirtualPointerStyle resolves the cursor stand-in drawn inside the grid
+// and recursive-grid frames, falling back to the documented defaults for the
+// two fields a user can leave empty.
+func buildVirtualPointerStyle(
+	cfg config.VirtualPointerConfig,
+	theme config.ThemeProvider,
+) VirtualPointerStyle {
+	size := cfg.UI.FontSize
+	if size < 1 {
+		size = config.DefaultVirtualPointerFontSize
+	}
+
+	char := cfg.UI.Char
+	if char == "" {
+		char = config.DefaultVirtualPointerChar
+	}
+
+	return VirtualPointerStyle{
+		FontSize: size,
+		FillColor: cfg.UI.TextColor.ForTheme(
+			theme,
+			config.VirtualPointerTextColorLight,
+			config.VirtualPointerTextColorDark,
+		),
+		Char:       char,
+		FontFamily: cfg.UI.FontFamily,
+	}
+}
+
+// buildMonitorSelectStyle resolves the monitor picker's panels. It reads
+// General as well as MonitorSelect: whether the overlay hides from a screen
+// share is part of how it is drawn.
+func buildMonitorSelectStyle(cfg *config.Config, theme config.ThemeProvider) MonitorSelectStyle {
+	uiCfg := cfg.MonitorSelect.UI
+
+	return MonitorSelectStyle{
+		FontSize:           uiCfg.FontSize,
+		SubtitleFontSize:   uiCfg.SubtitleFontSize,
+		FontFamily:         uiCfg.FontFamily,
+		SubtitleFontFamily: uiCfg.SubtitleFontFamily,
+		BorderRadius:       uiCfg.BorderRadius,
+		PaddingX:           uiCfg.PaddingX,
+		PaddingY:           uiCfg.PaddingY,
+		BorderWidth:        uiCfg.BorderWidth,
+		BackgroundColor: uiCfg.BackgroundColor.ForTheme(theme,
+			config.MonitorSelectBackgroundColorLight,
+			config.MonitorSelectBackgroundColorDark),
+		TextColor: uiCfg.TextColor.ForTheme(theme,
+			config.MonitorSelectTextColorLight,
+			config.MonitorSelectTextColorDark),
+		MatchedTextColor: uiCfg.MatchedTextColor.ForTheme(theme,
+			config.MonitorSelectMatchedTextColorLight,
+			config.MonitorSelectMatchedTextColorDark),
+		BorderColor: uiCfg.BorderColor.ForTheme(theme,
+			config.MonitorSelectBorderColorLight,
+			config.MonitorSelectBorderColorDark),
+		BackdropColor: uiCfg.BackdropColor.ForTheme(theme,
+			config.MonitorSelectBackdropColorLight,
+			config.MonitorSelectBackdropColorDark),
+		SubtitleTextColor: uiCfg.SubtitleTextColor.ForTheme(theme,
+			config.MonitorSelectSubtitleTextColorLight,
+			config.MonitorSelectSubtitleTextColorDark),
+		HideInScreenShare: cfg.General.HideOverlayInScreenShare,
+	}
+}
+
+// Ensure StyleResolver satisfies the read-only contract its consumers take.
+var _ StyleSource = (*StyleResolver)(nil)

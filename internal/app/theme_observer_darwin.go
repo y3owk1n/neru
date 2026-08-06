@@ -14,7 +14,7 @@ import (
 // async dispatch and the actual observer removal) is a no-op.
 func (a *App) setupThemeObserver() {
 	darwin.SetThemeChangeHandler(func(isDark bool) {
-		a.handleThemeChange(isDark)
+		a.HandleThemeChange(isDark)
 	})
 	darwin.StartThemeObserver()
 

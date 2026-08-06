@@ -148,6 +148,13 @@ func (a *App) updateConfigSnapshot(loadResult *config.LoadResult) {
 
 func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.configureEventTapHotkeys(cfg, a.logger)
+
+	// One notification reaches every overlay: the resolver re-resolves each
+	// Style and hands the new configuration to the render components.
+	if a.overlayStyles != nil {
+		a.overlayStyles.Apply(cfg)
+	}
+
 	a.updateComponentConfigs(cfg)
 	a.updateServiceConfigs(cfg)
 	a.updateControllerConfigs(cfg)
@@ -155,33 +162,16 @@ func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.syncScrollInvertConfig(cfg)
 }
 
+// updateComponentConfigs rebuilds the domain state a component derives from
+// configuration. Overlay appearance is not here: it reaches the render
+// components through the overlay's own Style notification.
 func (a *App) updateComponentConfigs(cfg *config.Config) {
-	if a.hintsComponent != nil {
-		a.hintsComponent.UpdateConfig(cfg, a.logger)
-	}
-
 	if a.gridComponent != nil {
 		a.gridComponent.UpdateConfig(cfg, a.logger)
 	}
 
 	if a.scrollComponent != nil {
 		a.scrollComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.modeIndicatorComponent != nil {
-		a.modeIndicatorComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.stickyIndicatorComponent != nil {
-		a.stickyIndicatorComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.recursiveGridComponent != nil {
-		a.recursiveGridComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.virtualPointerOverlay != nil {
-		a.virtualPointerOverlay.SetConfig(cfg.VirtualPointer)
 	}
 }
 

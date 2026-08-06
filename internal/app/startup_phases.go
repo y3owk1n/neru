@@ -8,9 +8,6 @@ import (
 	eventtapadapter "github.com/y3owk1n/neru/internal/adapter/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/keyfeed"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
@@ -193,7 +190,13 @@ func initializeApplicationState(app *App) {
 // initializeUIComponents creates and configures all UI components
 // for the different interaction modes.
 func initializeUIComponents(app *App) error {
-	factory := NewComponentFactory(app.config, app.logger, app.overlayManager, app.systemPort)
+	factory := NewComponentFactory(
+		app.config,
+		app.logger,
+		app.overlayManager,
+		app.systemPort,
+		app.overlayStyles,
+	)
 
 	// Create UI components for different interaction modes with standardized patterns
 	hintsComponent, err := factory.CreateHintsComponent(ComponentCreationOptions{
@@ -288,27 +291,18 @@ func initializeSystrayComponent(app *App) {
 // initializeRendererAndOverlays sets up the overlay renderer and registers
 // all overlays with the overlay manager.
 func initializeRendererAndOverlays(app *App) {
-	// Build styles directly from config + live theme provider rather than
-	// reading component fields that would go stale after config reloads.
-	cfg := config.DefaultConfig()
-
-	if app.config != nil {
-		cfg = app.config
-	}
-
-	hintStyle := hints.BuildStyle(cfg.Hints, app.systemPort)
-	gridStyle := grid.BuildStyle(cfg.Grid, app.systemPort)
-	recursiveGridStyle := recursivegrid.BuildStyle(cfg.RecursiveGrid, app.systemPort)
-
-	app.renderer = render.NewOverlayRenderer(
-		app.overlayManager,
-		hintStyle,
-		gridStyle,
-		recursiveGridStyle,
-	)
+	app.renderer = render.NewOverlayRenderer(app.overlayManager, app.overlayStyles)
 
 	// Register overlays with overlay manager
 	app.registerOverlays()
+
+	// The render components exist now, so the overlay can hand them their
+	// configuration the same way a later reload or theme change does. Without
+	// this they would only ever be configured by their constructors, and the
+	// first draw would take a different path from every draw after it.
+	if app.overlayStyles != nil {
+		app.overlayStyles.Refresh()
+	}
 }
 
 // initializeModeHandler creates and configures the mode handler that
@@ -392,6 +386,7 @@ func initializeModeHandler(app *App) {
 		AppState:               deps.appState,
 		CursorState:            deps.cursorState,
 		OverlayManager:         deps.overlayManager,
+		OverlayStyles:          app.overlayStyles,
 		Renderer:               deps.renderer,
 		HintService:            deps.services.hint,
 		GridService:            deps.services.grid,
