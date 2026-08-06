@@ -7,7 +7,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
-	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 )
@@ -47,41 +46,10 @@ func (h *handlerState) hideMonitorSelect() {
 	}
 }
 
-// monitorSelectRenderData maps the active monitor_select session and the
-// resolved (theme-applied) config into the overlay's render types.
+// monitorSelectRenderData maps the active monitor_select session into the
+// overlay's render types, carrying the Style the overlay resolved.
 func (h *handlerState) monitorSelectRenderData() ([]overlay.MonitorSelectTarget, overlay.MonitorSelectStyle) {
-	uiCfg := h.config.MonitorSelect.UI
-	theme := h.themeProvider
-
-	style := overlay.MonitorSelectStyle{
-		FontSize:           uiCfg.FontSize,
-		SubtitleFontSize:   uiCfg.SubtitleFontSize,
-		FontFamily:         uiCfg.FontFamily,
-		SubtitleFontFamily: uiCfg.SubtitleFontFamily,
-		BorderRadius:       uiCfg.BorderRadius,
-		PaddingX:           uiCfg.PaddingX,
-		PaddingY:           uiCfg.PaddingY,
-		BorderWidth:        uiCfg.BorderWidth,
-		BackgroundColor: uiCfg.BackgroundColor.ForTheme(theme,
-			configpkg.MonitorSelectBackgroundColorLight,
-			configpkg.MonitorSelectBackgroundColorDark),
-		TextColor: uiCfg.TextColor.ForTheme(theme,
-			configpkg.MonitorSelectTextColorLight,
-			configpkg.MonitorSelectTextColorDark),
-		MatchedTextColor: uiCfg.MatchedTextColor.ForTheme(theme,
-			configpkg.MonitorSelectMatchedTextColorLight,
-			configpkg.MonitorSelectMatchedTextColorDark),
-		BorderColor: uiCfg.BorderColor.ForTheme(theme,
-			configpkg.MonitorSelectBorderColorLight,
-			configpkg.MonitorSelectBorderColorDark),
-		BackdropColor: uiCfg.BackdropColor.ForTheme(theme,
-			configpkg.MonitorSelectBackdropColorLight,
-			configpkg.MonitorSelectBackdropColorDark),
-		SubtitleTextColor: uiCfg.SubtitleTextColor.ForTheme(theme,
-			configpkg.MonitorSelectSubtitleTextColorLight,
-			configpkg.MonitorSelectSubtitleTextColorDark),
-		HideInScreenShare: h.config.General.HideOverlayInScreenShare,
-	}
+	style := h.overlayStyle().MonitorSelect
 
 	input := h.monitorSelect.Input()
 

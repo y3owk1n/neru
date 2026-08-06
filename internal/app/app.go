@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
@@ -58,13 +59,16 @@ type App struct {
 
 	// Core services
 	overlayManager OverlayManager
-	hotkeyManager  HotkeyService
-	hotkeys        *keybinding.Binder
-	eventTap       ports.EventTapPort
-	textInput      ports.TextInputPort
-	keyFeed        ports.KeyFeedPort
-	ipcServer      ports.IPCPort
-	appWatcher     Watcher
+	// overlayStyles is the one owner of config + theme -> Style. A config
+	// reload or a theme change notifies it, and every overlay reads it.
+	overlayStyles *overlay.StyleResolver
+	hotkeyManager HotkeyService
+	hotkeys       *keybinding.Binder
+	eventTap      ports.EventTapPort
+	textInput     ports.TextInputPort
+	keyFeed       ports.KeyFeedPort
+	ipcServer     ports.IPCPort
+	appWatcher    Watcher
 
 	modes *modes.Handler
 

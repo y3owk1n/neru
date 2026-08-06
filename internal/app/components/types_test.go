@@ -2,13 +2,10 @@ package components_test
 
 import (
 	"image"
-	"reflect"
 	"testing"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/config"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -16,12 +13,6 @@ import (
 
 // testCharacters is the label alphabet the grid fixtures are built from.
 const testCharacters = "abcd"
-
-// lightTheme is a fixed config.ThemeProvider so built styles depend only on the
-// config values a test varies.
-type lightTheme struct{}
-
-func (lightTheme) IsDarkMode() bool { return false }
 
 // newGridComponent builds a GridComponent whose Manager holds a grid created
 // from the given labels. Overlay is deliberately nil: the overlay is a native
@@ -45,10 +36,7 @@ func newGridComponent(
 
 	manager := domainGrid.NewManager(initial, 2, 2, characters, nil, nil, log)
 
-	return &components.GridComponent{
-		Manager: manager,
-		Theme:   lightTheme{},
-	}
+	return &components.GridComponent{Manager: manager}
 }
 
 // gridConfig returns a default config with the grid enabled and the given
@@ -191,11 +179,10 @@ func TestGridComponent_UpdateConfig_RecreatedGridKeepsBounds(t *testing.T) {
 }
 
 // TestGridComponent_UpdateConfig_DisabledGridIsLeftAlone makes sure a disabled
-// grid is not silently rebuilt or restyled behind the user's back.
+// grid is not silently rebuilt behind the user's back.
 func TestGridComponent_UpdateConfig_DisabledGridIsLeftAlone(t *testing.T) {
 	component := newGridComponent(t, testCharacters, "", "")
 	before := component.Manager.Grid()
-	beforeStyle := component.Style
 
 	cfg := gridConfig("wxyz", "", "")
 	cfg.Grid.Enabled = false
@@ -205,35 +192,6 @@ func TestGridComponent_UpdateConfig_DisabledGridIsLeftAlone(t *testing.T) {
 	if component.Manager.Grid() != before {
 		t.Error("grid was recreated even though cfg.Grid.Enabled is false")
 	}
-
-	if component.Style != beforeStyle {
-		t.Error("style was rebuilt even though cfg.Grid.Enabled is false")
-	}
-}
-
-// TestGridComponent_UpdateConfig_BuildsStyle checks the style is refreshed from
-// the new config, since that is the only path by which a theme or font change
-// reaches the grid overlay.
-func TestGridComponent_UpdateConfig_BuildsStyle(t *testing.T) {
-	component := newGridComponent(t, testCharacters, "", "")
-
-	cfg := gridConfig(testCharacters, "", "")
-	cfg.Grid.UI.FontSize = 33
-	cfg.Grid.UI.BorderWidth = 7
-
-	want := grid.BuildStyle(cfg.Grid, lightTheme{})
-
-	component.UpdateConfig(cfg, zap.NewNop())
-
-	if component.Style != want {
-		t.Error("Style was not rebuilt from the reloaded config")
-	}
-
-	// Guard against the assertion being vacuous: the style built from the
-	// reloaded config must differ from the zero value it started at.
-	if want == (grid.Style{}) {
-		t.Fatal("BuildStyle produced the zero Style; the assertion above proves nothing")
-	}
 }
 
 // TestGridComponent_UpdateConfig_NilManagerAndGrid covers the guarded paths.
@@ -241,18 +199,18 @@ func TestGridComponent_UpdateConfig_BuildsStyle(t *testing.T) {
 // yet must be skipped rather than panicking and taking the daemon down.
 func TestGridComponent_UpdateConfig_NilManagerAndGrid(t *testing.T) {
 	t.Run("nil manager", func(t *testing.T) {
-		component := &components.GridComponent{Theme: lightTheme{}}
+		component := &components.GridComponent{}
 
 		component.UpdateConfig(gridConfig(testCharacters, "", ""), zap.NewNop())
 
-		if component.Style == (grid.Style{}) {
-			t.Error("Style was not built when Manager is nil")
+		if component.Manager != nil {
+			t.Error("UpdateConfig built a grid manager for a component that has none")
 		}
 	})
 
 	t.Run("manager with nil grid", func(t *testing.T) {
 		manager := domainGrid.NewManager(nil, 2, 2, testCharacters, nil, nil, zap.NewNop())
-		component := &components.GridComponent{Manager: manager, Theme: lightTheme{}}
+		component := &components.GridComponent{Manager: manager}
 
 		component.UpdateConfig(gridConfig("wxyz", "", ""), zap.NewNop())
 
@@ -275,29 +233,6 @@ func TestGridComponent_UpdateConfig_NilManagerAndGrid(t *testing.T) {
 	})
 }
 
-// TestHintsComponent_UpdateConfig_OnlyAppliesWhenEnabled pins the enabled gate.
-// HintsComponent.UpdateConfig also requires a non-nil overlay, so a component
-// without one must leave its style untouched even when hints are enabled.
-func TestHintsComponent_UpdateConfig_OnlyAppliesWhenEnabled(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
-	cfg.Hints.UI.FontSize = 29
-
-	component := &components.HintsComponent{Theme: lightTheme{}}
-	before := component.Style
-
-	component.UpdateConfig(cfg, zap.NewNop())
-
-	// Overlay is nil, so nothing should have been applied.
-	if component.Style != before {
-		t.Error("Style changed even though Overlay is nil")
-	}
-
-	if before != (hints.StyleMode{}) {
-		t.Fatal("expected the initial style to be the zero value")
-	}
-}
-
 // TestScrollComponent_UpdateConfig_IsANoOp documents that ScrollComponent
 // intentionally carries no config-derived state. If it ever gains some, this
 // test should be replaced rather than deleted.
@@ -308,54 +243,6 @@ func TestScrollComponent_UpdateConfig_IsANoOp(t *testing.T) {
 
 	if component.Context != nil {
 		t.Errorf("UpdateConfig populated Context = %v, want it left nil", component.Context)
-	}
-}
-
-// TestComponents_UpdateConfig_NilOverlayLeavesComponentUntouched covers the
-// overlay-backed components. Their overlays are native types that cannot be
-// constructed in a unit test, so what is checkable — and what actually matters
-// during a live config reload — is that a component with no overlay wired up is
-// skipped entirely: not dereferenced (which would panic and take the daemon
-// down), and not partially mutated into a state inconsistent with its overlay.
-func TestComponents_UpdateConfig_NilOverlayLeavesComponentUntouched(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.RecursiveGrid.Enabled = true
-	cfg.Hints.Enabled = true
-	cfg.Hints.UI.FontSize = 31
-	cfg.ModeIndicator.UI.FontSize = 31
-
-	log := zap.NewNop()
-
-	tests := []struct {
-		name      string
-		component interface {
-			UpdateConfig(cfg *config.Config, logger *zap.Logger)
-		}
-	}{
-		{"hints", &components.HintsComponent{Theme: lightTheme{}}},
-		{"modeIndicator", &components.ModeIndicatorComponent{}},
-		{"stickyIndicator", &components.StickyIndicatorComponent{}},
-		{"recursiveGrid", &components.RecursiveGridComponent{Theme: lightTheme{}}},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			// Snapshot the component before the reload. Every field is a
-			// pointer, interface or comparable style value, so a deep copy of
-			// the pointed-to struct is a faithful "before" image.
-			before := reflect.ValueOf(testCase.component).Elem().Interface()
-
-			testCase.component.UpdateConfig(cfg, log)
-
-			after := reflect.ValueOf(testCase.component).Elem().Interface()
-
-			if !reflect.DeepEqual(before, after) {
-				t.Errorf(
-					"UpdateConfig mutated a component with no overlay:\nbefore: %+v\nafter:  %+v",
-					before, after,
-				)
-			}
-		})
 	}
 }
 

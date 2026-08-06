@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap"
 
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 )
@@ -221,16 +220,15 @@ func (h *handlerState) refreshGridVirtualPointer() {
 	}
 
 	point, ok := h.grid.Context.SelectionPoint()
-
-	style, enabled := h.virtualPointerStyle()
-	if !ok || h.grid.Context.CursorFollowSelection() || !enabled {
+	if !ok || h.grid.Context.CursorFollowSelection() {
 		h.grid.Overlay.HideVirtualPointer()
 
 		return
 	}
 
+	style := h.overlayStyle().VirtualPointer
 	localPoint := geometry.ConvertToLocalCoordinates(point, h.screenBounds)
-	h.grid.Overlay.ShowVirtualPointer(localPoint, style.fontSize, style.fillColor)
+	h.grid.Overlay.ShowVirtualPointer(localPoint, style.FontSize, style.FillColor)
 }
 
 func (h *handlerState) refreshRecursiveGridVirtualPointer() {
@@ -254,52 +252,18 @@ func (h *handlerState) currentRecursiveGridVirtualPointerState() componentrecurs
 	}
 
 	point, ok := h.recursiveGrid.Context.SelectionPoint()
-
-	style, enabled := h.virtualPointerStyle()
-	if !ok || h.recursiveGrid.Context.CursorFollowSelection() || !enabled {
+	if !ok || h.recursiveGrid.Context.CursorFollowSelection() {
 		return componentrecursivegrid.VirtualPointerState{}
 	}
+
+	style := h.overlayStyle().VirtualPointer
 
 	return componentrecursivegrid.VirtualPointerState{
 		Visible:   true,
 		Position:  geometry.ConvertToLocalCoordinates(point, h.screenBounds),
-		Size:      style.fontSize,
-		FillColor: style.fillColor,
-		Char:      style.char,
-		FontName:  style.fontName,
+		Size:      style.FontSize,
+		FillColor: style.FillColor,
+		Char:      style.Char,
+		FontName:  style.FontFamily,
 	}
-}
-
-type virtualPointerStyle struct {
-	fontSize  int
-	fillColor string
-	char      string
-	fontName  string
-}
-
-func (h *handlerState) virtualPointerStyle() (virtualPointerStyle, bool) {
-	cfg := h.config.VirtualPointer
-
-	fillColor := cfg.UI.TextColor.ForTheme(
-		h.themeProvider,
-		config.VirtualPointerTextColorLight,
-		config.VirtualPointerTextColorDark,
-	)
-
-	size := cfg.UI.FontSize
-	if size < 1 {
-		size = config.DefaultVirtualPointerFontSize
-	}
-
-	char := cfg.UI.Char
-	if char == "" {
-		char = config.DefaultVirtualPointerChar
-	}
-
-	return virtualPointerStyle{
-		fontSize:  size,
-		fillColor: fillColor,
-		char:      char,
-		fontName:  cfg.UI.FontFamily,
-	}, true
 }

@@ -4,7 +4,6 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -12,53 +11,39 @@ import (
 
 // OverlayRenderer manages rendering operations for all application overlays.
 type OverlayRenderer struct {
-	manager            overlay.ManagerInterface
-	hintStyle          hints.StyleMode
-	gridStyle          grid.Style
-	recursiveGridStyle recursivegrid.Style
+	manager overlay.ManagerInterface
+	styles  overlay.StyleSource
 }
 
-// NewOverlayRenderer creates a new overlay renderer with the specified components.
+// NewOverlayRenderer creates a new overlay renderer drawing with the Style the
+// overlay resolves. The renderer holds no style of its own: a config reload or
+// a theme change reaches it because the resolver it reads has already been
+// told, not because someone remembered to push new values here.
 func NewOverlayRenderer(
 	manager overlay.ManagerInterface,
-	hintStyle hints.StyleMode,
-	gridStyle grid.Style,
-	recursiveGridStyle recursivegrid.Style,
+	styles overlay.StyleSource,
 ) *OverlayRenderer {
 	return &OverlayRenderer{
-		manager:            manager,
-		hintStyle:          hintStyle,
-		gridStyle:          gridStyle,
-		recursiveGridStyle: recursiveGridStyle,
+		manager: manager,
+		styles:  styles,
 	}
 }
 
-// UpdateConfig updates the renderer with new configuration.
-func (r *OverlayRenderer) UpdateConfig(
-	hintStyle hints.StyleMode,
-	gridStyle grid.Style,
-	recursiveGridStyle recursivegrid.Style,
-) {
-	r.hintStyle = hintStyle
-	r.gridStyle = gridStyle
-	r.recursiveGridStyle = recursiveGridStyle
-}
-
-// DrawHints draws hints with the configured style.
+// DrawHints draws hints with the resolved style.
 func (r *OverlayRenderer) DrawHints(hs []*hints.Hint) error {
-	return r.manager.DrawHintsWithStyle(hs, r.hintStyle)
+	return r.manager.DrawHintsWithStyle(hs, overlay.ResolvedStyle(r.styles).Hints)
 }
 
-// DrawGrid draws a grid with the configured style.
+// DrawGrid draws a grid with the resolved style.
 func (r *OverlayRenderer) DrawGrid(g *domainGrid.Grid, input string) error {
-	return r.manager.DrawGrid(g, input, r.gridStyle)
+	return r.manager.DrawGrid(g, input, overlay.ResolvedStyle(r.styles).Grid)
 }
 
 // ShowSubgrid shows a subgrid for the specified cell.
 func (r *OverlayRenderer) ShowSubgrid(
 	cell *domainGrid.Cell,
 ) {
-	r.manager.ShowSubgrid(cell, r.gridStyle)
+	r.manager.ShowSubgrid(cell, overlay.ResolvedStyle(r.styles).Grid)
 }
 
 // UpdateGridMatches updates the grid matches with the specified prefix.
@@ -114,7 +99,7 @@ func (r *OverlayRenderer) DrawRecursiveGrid(
 		nextKeys,
 		nextGridCols,
 		nextGridRows,
-		r.recursiveGridStyle,
+		overlay.ResolvedStyle(r.styles).RecursiveGrid,
 		virtualPointer,
 	)
 }

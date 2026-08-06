@@ -22,16 +22,17 @@ func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
 }
 
-// currentHintStyle resolves theme-aware hint overlay colors from the live
-// config, matching search-input and mode-indicator draw paths. Caller must
-// hold h.mu.
+// currentHintStyle returns the hint overlay's resolved appearance. The overlay
+// resolved it when the config or the theme last changed; nothing is derived
+// here. Caller must hold h.mu.
 func (h *handlerState) currentHintStyle() hints.StyleMode {
-	style := hints.BuildStyle(h.config.Hints, h.themeProvider)
-	if h.hints != nil {
-		h.hints.Style = style
-	}
+	return h.overlayStyle().Hints
+}
 
-	return style
+// overlayStyle returns the Style the overlay resolved for the live config and
+// theme.
+func (h *handlerState) overlayStyle() overlay.Style {
+	return overlay.ResolvedStyle(h.overlayStyles)
 }
 
 const (

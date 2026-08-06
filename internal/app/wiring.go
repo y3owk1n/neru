@@ -106,10 +106,20 @@ func initializeAdapters(
 		)
 	}
 
+	// The overlay owns config + theme -> Style. Building it here, before any
+	// render component exists, means every later consumer reads the same
+	// resolved values rather than deriving its own.
+	app.overlayStyles = overlay.NewStyleResolver(
+		overlayManager,
+		cfg,
+		newThemeProvider(systemPort),
+		logger,
+	)
+
 	// Create overlay adapter for UI rendering
 	overlayPort := overlay.NewAdapter(
 		overlayManager,
-		newThemeProvider(systemPort),
+		app.overlayStyles,
 		logger,
 	)
 

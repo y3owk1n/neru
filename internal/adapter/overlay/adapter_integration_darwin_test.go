@@ -10,6 +10,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
@@ -48,8 +49,9 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 	logger := logger.Get()
 	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
+	styles := overlay.NewStyleResolver(manager, config.DefaultConfig(), theme, logger)
 
-	adapter := overlay.NewAdapter(manager, theme, logger)
+	adapter := overlay.NewAdapter(manager, styles, logger)
 
 	ctx := context.Background()
 
@@ -126,8 +128,9 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	logger := logger.Get()
 	manager := overlay.Init(logger)
 	theme := &testThemeProvider{darkMode: false}
+	styles := overlay.NewStyleResolver(manager, config.DefaultConfig(), theme, logger)
 
-	adapter := overlay.NewAdapter(manager, theme, logger)
+	adapter := overlay.NewAdapter(manager, styles, logger)
 
 	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())

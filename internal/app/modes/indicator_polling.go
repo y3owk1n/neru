@@ -186,13 +186,9 @@ func (h *handlerState) snapshotIndicators(cursorX, cursorY int) indicatorSnapsho
 	}
 
 	if snap.showVirtualPointer {
-		vps, enabled := h.virtualPointerStyle()
-
-		snap.showVirtualPointer = enabled
-		if enabled {
-			snap.virtualPointerSize = vps.fontSize
-			snap.virtualPointerFillColor = vps.fillColor
-		}
+		style := h.overlayStyle().VirtualPointer
+		snap.virtualPointerSize = style.FontSize
+		snap.virtualPointerFillColor = style.FillColor
 	}
 
 	if mods := h.stickyModifiers(); mods != 0 {

@@ -436,15 +436,13 @@ func (h *handlerState) drawHintSearchInput() {
 		resultCount = ctx.Hints().Count()
 	}
 
-	style := hintscomponent.BuildSearchInputStyle(h.config.Hints, h.themeProvider)
-
 	frame := h.searchInputFrame()
 
 	err := h.overlayManager.DrawHintSearchInput(
 		ctx.SearchQuery(),
 		resultCount,
 		frame,
-		style,
+		h.overlayStyle().HintSearchInput,
 	)
 	if err != nil {
 		h.logger.Error("Failed to draw hint search input", zap.Error(err))
