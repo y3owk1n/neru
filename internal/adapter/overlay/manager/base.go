@@ -26,6 +26,11 @@ const defaultSubscriberCapacity = 4
 // A backend may override an individual method to add platform behavior (the
 // darwin backend does this for UseVirtualPointerOverlay); the override should
 // still delegate to the Base method for the shared bookkeeping.
+//
+// The registry accessors below are not on Interface: components are built by
+// BuildComponents and read by the backend drawing through them, so nothing
+// outside this package has a reason to reach one. They stay exported because
+// the backends are separate packages.
 type Base struct {
 	logger *zap.Logger
 

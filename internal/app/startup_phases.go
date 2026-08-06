@@ -184,92 +184,36 @@ func initializeApplicationState(app *App) {
 	app.cursorState = state.NewCursorState()
 }
 
-// initializeUIComponents creates and configures all UI components
-// for the different interaction modes.
+// initializeUIComponents asks the overlay to build the components it draws
+// through, then assembles the per-mode components around them.
+//
+// The overlay is handed the configuration and a theme provider and nothing
+// else: the surface those components attach to is the overlay's own. Most
+// components that fail to build are logged and left nil; the virtual pointer
+// is the one whose failure still fails this phase, as it always has.
 func initializeUIComponents(app *App) error {
+	rendered, err := app.overlayManager.BuildComponents(
+		app.config,
+		newThemeProvider(app.systemPort),
+	)
+	if err != nil {
+		return err
+	}
+
 	factory := NewComponentFactory(
 		app.config,
 		app.logger,
 		app.overlayManager,
-		app.systemPort,
 		app.overlayStyles,
+		rendered,
 	)
 
-	// Create UI components for different interaction modes with standardized patterns
-	hintsComponent, err := factory.CreateHintsComponent(ComponentCreationOptions{
-		SkipIfDisabled: true,
-		Required:       false,
-		OverlayType:    "hints",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.hintsComponent = hintsComponent
-
-	gridComponent, err := factory.CreateGridComponent(ComponentCreationOptions{
-		SkipIfDisabled: false, // Grid needs minimal context even when disabled
-		Required:       false,
-		OverlayType:    "grid",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.gridComponent = gridComponent
-
-	scrollComponent, err := factory.CreateScrollComponent(ComponentCreationOptions{
-		SkipIfDisabled: false,
-		Required:       false,
-		OverlayType:    "",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.scrollComponent = scrollComponent
-
-	modeIndicatorComponent, err := factory.CreateModeIndicatorComponent(ComponentCreationOptions{
-		SkipIfDisabled: false,
-		Required:       false,
-		OverlayType:    "mode_indicator",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.modeIndicatorComponent = modeIndicatorComponent
-
-	stickyIndicatorComponent, err := factory.CreateStickyIndicatorComponent(
-		ComponentCreationOptions{
-			SkipIfDisabled: false,
-			Required:       false,
-			OverlayType:    "sticky_modifiers",
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	app.stickyIndicatorComponent = stickyIndicatorComponent
-
-	virtualPointerOverlay, err := factory.CreateVirtualPointerOverlay()
-	if err != nil {
-		return err
-	}
-
-	app.virtualPointerOverlay = virtualPointerOverlay
-
-	recursiveGridComponent, err := factory.CreateRecursiveGridComponent(ComponentCreationOptions{
-		SkipIfDisabled: false,
-		Required:       false,
-		OverlayType:    "recursive_grid",
-	})
-	if err != nil {
-		return err
-	}
-
-	app.recursiveGridComponent = recursiveGridComponent
+	app.hintsComponent = factory.CreateHintsComponent()
+	app.gridComponent = factory.CreateGridComponent()
+	app.scrollComponent = factory.CreateScrollComponent()
+	app.modeIndicatorComponent = factory.CreateModeIndicatorComponent()
+	app.stickyIndicatorComponent = factory.CreateStickyIndicatorComponent()
+	app.recursiveGridComponent = factory.CreateRecursiveGridComponent()
 
 	return nil
 }
@@ -285,13 +229,10 @@ func initializeSystrayComponent(app *App) {
 	app.systrayComponent = systrayComponent
 }
 
-// initializeRendererAndOverlays sets up the overlay renderer and registers
-// all overlays with the overlay manager.
-func initializeRendererAndOverlays(app *App) {
+// initializeRenderer sets up the overlay renderer and gives the render
+// components their first configuration.
+func initializeRenderer(app *App) {
 	app.renderer = render.NewOverlayRenderer(app.overlayManager, app.overlayStyles)
-
-	// Register overlays with overlay manager
-	app.registerOverlays()
 
 	// The render components exist now, so the overlay can hand them their
 	// configuration the same way a later reload or theme change does. Without
@@ -578,7 +519,6 @@ func cleanupUIComponents(app *App) {
 	app.scrollComponent = nil
 	app.modeIndicatorComponent = nil
 	app.stickyIndicatorComponent = nil
-	app.virtualPointerOverlay = nil
 
 	// Clean up renderer
 	app.renderer = nil

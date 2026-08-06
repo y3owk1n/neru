@@ -330,8 +330,10 @@ overrides → validation → examples → docs) is documented in
 2. Implement rendering in `internal/app/render/`
 3. macOS Objective-C goes in `internal/adapter/platform/darwin/` behind
    `//go:build darwin`, with a no-op stub elsewhere
-4. Register in `internal/app/component_factory.go` or
-   `internal/app/new.go`
+4. Build the render overlay in
+   `internal/adapter/overlay/manager/components.go` — the overlay constructs
+   what it draws — and assemble the app-side component in
+   `internal/app/component_factory.go`
 
 **CLI commands** — cobra command in `internal/cli/` (registered in an
 `init()`), the matching IPC handler in `internal/app/ipcctrl/`, `just genman`,

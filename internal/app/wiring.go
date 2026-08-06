@@ -264,30 +264,3 @@ func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
 		logger.Warn("Failed to disable event tap after setting hotkeys", zap.Error(err))
 	}
 }
-
-// registerOverlays registers all component overlays with the overlay manager.
-func (a *App) registerOverlays() {
-	if a.modeIndicatorComponent != nil && a.modeIndicatorComponent.Overlay != nil {
-		a.overlayManager.UseModeIndicatorOverlay(a.modeIndicatorComponent.Overlay)
-	}
-
-	if a.stickyIndicatorComponent != nil && a.stickyIndicatorComponent.Overlay != nil {
-		a.overlayManager.UseStickyModifiersOverlay(a.stickyIndicatorComponent.Overlay)
-	}
-
-	if a.hintsComponent != nil && a.hintsComponent.Overlay != nil {
-		a.overlayManager.UseHintOverlay(a.hintsComponent.Overlay)
-	}
-
-	if a.gridComponent != nil && a.gridComponent.Overlay != nil {
-		a.overlayManager.UseGridOverlay(a.gridComponent.Overlay)
-	}
-
-	if a.recursiveGridComponent != nil && a.recursiveGridComponent.Overlay != nil {
-		a.overlayManager.UseRecursiveGridOverlay(a.recursiveGridComponent.Overlay)
-	}
-
-	if a.virtualPointerOverlay != nil {
-		a.overlayManager.UseVirtualPointerOverlay(a.virtualPointerOverlay)
-	}
-}

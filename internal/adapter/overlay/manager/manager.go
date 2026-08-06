@@ -2,14 +2,11 @@ package manager
 
 import (
 	"image"
-	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -103,47 +100,20 @@ func (n *NoOpManager) Destroy() {}
 // Mode returns ModeIdle.
 func (n *NoOpManager) Mode() Mode { return ModeIdle }
 
-// WindowPtr returns nil.
-func (n *NoOpManager) WindowPtr() unsafe.Pointer { return nil }
-
 // Headless reports that the no-op manager has no surface to render on.
 func (n *NoOpManager) Headless() bool { return true }
 
-// UseHintOverlay is a no-op implementation.
-func (n *NoOpManager) UseHintOverlay(o *hints.Overlay) {}
+// BuildComponents builds nothing. This manager declares itself headless, and
+// that is the whole reason: there is no surface to build against.
+func (n *NoOpManager) BuildComponents(
+	cfg *config.Config,
+	theme config.ThemeProvider,
+) (Components, error) {
+	return Components{}, nil
+}
 
-// UseGridOverlay is a no-op implementation.
-func (n *NoOpManager) UseGridOverlay(o *grid.Overlay) {}
-
-// UseModeIndicatorOverlay is a no-op implementation.
-func (n *NoOpManager) UseModeIndicatorOverlay(o *modeindicator.Overlay) {}
-
-// UseRecursiveGridOverlay is a no-op implementation.
-func (n *NoOpManager) UseRecursiveGridOverlay(o *recursivegrid.Overlay) {}
-
-// UseStickyModifiersOverlay is a no-op implementation.
-func (n *NoOpManager) UseStickyModifiersOverlay(o *stickyindicator.Overlay) {}
-
-// UseVirtualPointerOverlay is a no-op implementation.
-func (n *NoOpManager) UseVirtualPointerOverlay(o *virtualpointer.Overlay) {}
-
-// HintOverlay returns nil.
-func (n *NoOpManager) HintOverlay() *hints.Overlay { return nil }
-
-// GridOverlay returns nil.
-func (n *NoOpManager) GridOverlay() *grid.Overlay { return nil }
-
-// ModeIndicatorOverlay returns nil.
-func (n *NoOpManager) ModeIndicatorOverlay() *modeindicator.Overlay { return nil }
-
-// RecursiveGridOverlay returns nil.
-func (n *NoOpManager) RecursiveGridOverlay() *recursivegrid.Overlay { return nil }
-
-// StickyModifiersOverlay returns nil.
-func (n *NoOpManager) StickyModifiersOverlay() *stickyindicator.Overlay { return nil }
-
-// VirtualPointerOverlay returns nil.
-func (n *NoOpManager) VirtualPointerOverlay() *virtualpointer.Overlay { return nil }
+// ConfigureComponents is a no-op implementation.
+func (n *NoOpManager) ConfigureComponents(cfg *config.Config, virtualPointerFill string) {}
 
 // DrawHintsWithStyle is a no-op implementation.
 func (n *NoOpManager) DrawHintsWithStyle(
@@ -329,21 +299,17 @@ type Interface interface {
 	Unsubscribe(id uint64)
 	Destroy()
 	Mode() Mode
-	WindowPtr() unsafe.Pointer
 
-	UseHintOverlay(o *hints.Overlay)
-	UseGridOverlay(o *grid.Overlay)
-	UseModeIndicatorOverlay(o *modeindicator.Overlay)
-	UseRecursiveGridOverlay(o *recursivegrid.Overlay)
-	UseStickyModifiersOverlay(o *stickyindicator.Overlay)
-	UseVirtualPointerOverlay(o *virtualpointer.Overlay)
-
-	HintOverlay() *hints.Overlay
-	GridOverlay() *grid.Overlay
-	ModeIndicatorOverlay() *modeindicator.Overlay
-	RecursiveGridOverlay() *recursivegrid.Overlay
-	StickyModifiersOverlay() *stickyindicator.Overlay
-	VirtualPointerOverlay() *virtualpointer.Overlay
+	// BuildComponents constructs the render components this manager draws
+	// through, from the configuration and theme it is handed and on the
+	// surface it owns. The set is returned as well as kept, because a few
+	// app-layer call sites still talk to a render component directly.
+	BuildComponents(cfg *config.Config, theme config.ThemeProvider) (Components, error)
+	// ConfigureComponents hands a new configuration to those components. It is
+	// the notification a config reload or a theme change needs; the resolved
+	// virtual pointer fill color comes with it because appearance is resolved
+	// above this and never here.
+	ConfigureComponents(cfg *config.Config, virtualPointerFill string)
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawHintSearchInput(

@@ -182,44 +182,16 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 	return style
 }
 
-// push hands the configuration to every render component the manager holds.
-// Components are reached through the manager rather than passed in, so adding
-// one is not another wiring site for the app layer to remember.
-//
-// A disabled overlay is left alone, which is what the per-component reload
-// path did before this owned it: nothing draws it, so reconfiguring it would
-// only invalidate caches nobody reads. The grid overlay is built even when
-// grid mode is disabled, so it is the one that actually sits in that state.
+// push hands the configuration to the render components. Which components
+// those are is the manager's business — it built them — so this passes the
+// configuration and the one resolved value they need and asks it to apply
+// them. Adding a component is not another wiring site here.
 func (r *StyleResolver) push(cfg *config.Config, style Style) {
 	if r.manager == nil || cfg == nil {
 		return
 	}
 
-	if overlay := r.manager.HintOverlay(); overlay != nil && cfg.Hints.Enabled {
-		overlay.SetConfig(cfg.Hints)
-	}
-
-	if overlay := r.manager.GridOverlay(); overlay != nil && cfg.Grid.Enabled {
-		overlay.SetConfig(cfg.Grid)
-		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, style.VirtualPointer.FillColor)
-	}
-
-	if overlay := r.manager.RecursiveGridOverlay(); overlay != nil && cfg.RecursiveGrid.Enabled {
-		overlay.SetConfig(cfg.RecursiveGrid)
-		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, style.VirtualPointer.FillColor)
-	}
-
-	if overlay := r.manager.ModeIndicatorOverlay(); overlay != nil {
-		overlay.SetConfig(cfg.ModeIndicator)
-	}
-
-	if overlay := r.manager.StickyModifiersOverlay(); overlay != nil {
-		overlay.SetConfig(cfg.StickyModifiers.UI)
-	}
-
-	if overlay := r.manager.VirtualPointerOverlay(); overlay != nil {
-		overlay.SetConfig(cfg.VirtualPointer)
-	}
+	r.manager.ConfigureComponents(cfg, style.VirtualPointer.FillColor)
 }
 
 // buildVirtualPointerStyle resolves the cursor stand-in drawn inside the grid

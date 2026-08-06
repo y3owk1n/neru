@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
@@ -105,7 +104,6 @@ type App struct {
 	modeIndicatorComponent   *components.ModeIndicatorComponent
 	stickyIndicatorComponent *components.StickyIndicatorComponent
 	recursiveGridComponent   *components.RecursiveGridComponent
-	virtualPointerOverlay    *virtualpointer.Overlay
 	systrayComponent         SystrayComponent
 
 	// Lifecycle management

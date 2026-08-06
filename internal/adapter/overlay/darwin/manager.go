@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -84,15 +85,43 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(m.window)
 }
 
-// Ensure the manager keeps declaring the optional headless capability: without
-// this, a signature drift would silently downgrade it to "can render" instead
-// of failing to compile.
+// Ensure the manager keeps declaring the optional headless capability. Its own
+// BuildComponents reads Headless directly, so drift there fails to compile;
+// this pins the shared spelling every backend answers headlessness with.
 var _ manager.HeadlessReporter = (*Manager)(nil)
 
 // Headless reports whether the overlay window failed to be created, leaving
 // nothing for the render overlays to draw on.
 func (m *Manager) Headless() bool {
 	return m == nil || m.window == nil
+}
+
+// BuildComponents constructs the render components this manager draws through,
+// on the window it owns, then hands the virtual pointer the screen-share
+// visibility the manager is already holding — it has its own window, so the
+// state the other overlays were given does not otherwise reach it.
+func (m *Manager) BuildComponents(
+	cfg *config.Config,
+	theme config.ThemeProvider,
+) (manager.Components, error) {
+	if m == nil {
+		return manager.Components{}, nil
+	}
+
+	built, err := m.Base.BuildComponents(manager.ComponentSpec{
+		Config:   cfg,
+		Theme:    theme,
+		Logger:   m.logger,
+		Window:   m.WindowPtr(),
+		Headless: m.Headless(),
+	})
+	if err != nil {
+		return manager.Components{}, err
+	}
+
+	m.UseVirtualPointerOverlay(built.VirtualPointer)
+
+	return built, nil
 }
 
 // WaylandKeyboardChannel returns nil for macOS (not applicable).
