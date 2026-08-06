@@ -3,7 +3,6 @@ package app
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -33,7 +32,10 @@ func newThemeProvider(systemPort ports.SystemPort) *bridgeThemeProvider {
 // It is one notification, not a fan-out: the overlay re-resolves every Style
 // from the configuration it already holds and invalidates the render
 // components' native caches, so the only thing left to do here is redraw
-// whichever mode is currently on screen.
+// whichever mode is currently on screen. Which mode that is, and what redrawing
+// it means, belongs to the package that owns modes: this notifies, it does not
+// choose. A mode with nothing themed on screen answers by not carrying the axis
+// at all.
 func (a *App) HandleThemeChange(isDark bool) {
 	a.logger.Info("System theme changed",
 		zap.Bool("is_dark", isDark))
@@ -43,19 +45,6 @@ func (a *App) HandleThemeChange(isDark bool) {
 	}
 
 	if a.modes != nil {
-		currentMode := a.appState.CurrentMode()
-		switch currentMode {
-		case domain.ModeHints:
-			a.modes.RefreshHintsForThemeChange()
-		case domain.ModeGrid:
-			a.modes.RefreshGridForThemeChange()
-		case domain.ModeRecursiveGrid:
-			a.modes.RefreshRecursiveGridForThemeChange()
-		case domain.ModeMonitorSelect:
-			a.modes.RefreshMonitorSelectForThemeChange()
-		case domain.ModeIdle, domain.ModeScroll:
-			// No-op for idle and scroll modes as they don't have theme-dependent persistent overlays
-			// that need immediate refresh here. Scroll mode indicator is handled via its own component refresh above.
-		}
+		a.modes.RefreshActiveModeForThemeChange()
 	}
 }

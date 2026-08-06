@@ -21,6 +21,7 @@ var (
 	_ exitStepReporter       = (*RecursiveGridMode)(nil)
 	_ inputEditor            = (*RecursiveGridMode)(nil)
 	_ hotkeyOverrideReporter = (*RecursiveGridMode)(nil)
+	_ themeRefresher         = (*RecursiveGridMode)(nil)
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -53,6 +54,25 @@ func (m *RecursiveGridMode) RefreshForMonitorMove(
 	targetBounds image.Rectangle,
 ) {
 	m.handler.refreshRecursiveGridForMonitorMove(targetBounds)
+}
+
+// RefreshForThemeChange draws the region the user has zoomed to again, so it
+// picks up the colors the overlay just re-resolved. The zoom history is
+// untouched: only the palette changed, not the screen underneath it.
+//
+// A mode with no manager has no region to draw, and says so rather than
+// reporting a redraw the overlay never received.
+func (m *RecursiveGridMode) RefreshForThemeChange() bool {
+	handler := m.handler
+
+	if handler.recursiveGrid == nil || handler.recursiveGrid.Manager == nil {
+		return false
+	}
+
+	handler.updateRecursiveGridOverlay()
+	handler.refreshRecursiveGridVirtualPointer()
+
+	return true
 }
 
 // Exit tears recursive-grid mode down.

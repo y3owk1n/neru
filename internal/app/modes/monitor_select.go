@@ -16,8 +16,9 @@ import (
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension the monitor picker opts into (extensions.go).
 var (
-	_ Mode        = (*MonitorSelectMode)(nil)
-	_ inputEditor = (*MonitorSelectMode)(nil)
+	_ Mode           = (*MonitorSelectMode)(nil)
+	_ inputEditor    = (*MonitorSelectMode)(nil)
+	_ themeRefresher = (*MonitorSelectMode)(nil)
 )
 
 // MonitorSelectMode implements the Mode interface for interactive monitor picking.
@@ -47,6 +48,20 @@ func (m *MonitorSelectMode) HandleKey(key string) {
 // leaving them off would strand the user in a mode with nothing to pick from.
 func (m *MonitorSelectMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
 	m.handler.refreshMonitorSelectForMonitorMove()
+}
+
+// RefreshForThemeChange draws the picker's panels again so they pick up the
+// colors the overlay just re-resolved. They sit on panels of their own rather
+// than the shared surface, so nothing about the other modes redrawing brings
+// the picker along.
+func (m *MonitorSelectMode) RefreshForThemeChange() bool {
+	if m.handler.monitorSelect == nil {
+		return false
+	}
+
+	m.handler.redrawMonitorSelect()
+
+	return true
 }
 
 // Exit tears the monitor picker down.

@@ -243,91 +243,29 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 	return true
 }
 
-// RefreshHintsForThemeChange redraws the hints overlay with updated styles
-// after a system theme change. Only performs the redraw if ModeHints is
-// currently active.
+// RefreshActiveModeForThemeChange puts whichever mode is on screen back on it
+// in the colors the system just switched to. The overlay has already
+// re-resolved every Style for itself, so all that is left is the mode drawing
+// what it already holds.
 //
-// Returns true if the mode was in a state to refresh. Whether the backend had
-// a surface to draw on is its own business and is reported in the log, not
-// here — the same for the two below.
-func (h *Handler) RefreshHintsForThemeChange() bool {
+// This is the whole dispatch and it runs under one hold of h.mu: the mode is
+// read once, selected once and called once, so it cannot change between being
+// chosen and being used and no implementation re-checks it (ADR 0004). Scroll
+// and idle answer by not carrying the axis — scroll draws nothing of its own,
+// and idle has no entry in the mode map at all — which is the same nothing the
+// app layer's empty switch arms used to say, now with a debug line naming what
+// declined.
+//
+// It reports whether the active mode redrew, so a caller can tell a theme
+// change that reached the screen from one that found nothing to repaint.
+func (h *Handler) RefreshActiveModeForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.appState.CurrentMode() != domain.ModeHints {
+	refresher, ok := activeModeEffect[themeRefresher](&h.handlerState, extensionThemeRefresh)
+	if !ok {
 		return false
 	}
 
-	hintCollection := h.hints.Context.Hints()
-	if hintCollection == nil {
-		return false
-	}
-
-	// The overlay is already up and resolved the new theme for itself; the
-	// same Frame drawn again is all it takes to pick the colors up.
-	h.redrawFrame(
-		ports.HintsFrame{
-			Screen: h.screenBounds,
-			Hints:  hintCollection.All(),
-		},
-		"refresh hints after theme change",
-	)
-
-	return true
-}
-
-// RefreshGridForThemeChange redraws the grid overlay with updated styles
-// after a system theme change. Only performs the redraw if ModeGrid is
-// currently active.
-//
-// Returns true if the mode was in a state to refresh.
-func (h *Handler) RefreshGridForThemeChange() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeGrid {
-		return false
-	}
-
-	gridInstancePtr := h.grid.Context.GridInstance()
-	if gridInstancePtr == nil || *gridInstancePtr == nil {
-		return false
-	}
-
-	gridInstance := *gridInstancePtr
-
-	currentInput := ""
-	if h.grid.Manager != nil {
-		currentInput = h.grid.Manager.CurrentInput()
-	}
-
-	// The overlay is already up and resolved the new theme for itself; the
-	// same Frame drawn again is all it takes to pick the colors up.
-	h.redrawFrame(
-		ports.GridFrame{Grid: gridInstance, Input: currentInput},
-		"refresh grid after theme change",
-	)
-
-	h.refreshGridVirtualPointer()
-
-	return true
-}
-
-// RefreshRecursiveGridForThemeChange redraws the recursive-grid overlay with
-// updated styles after a system theme change. Only performs the redraw if
-// ModeRecursiveGrid is currently active.
-//
-// Returns true if the mode was in a state to refresh.
-func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
-		return false
-	}
-
-	h.updateRecursiveGridOverlay()
-	h.refreshRecursiveGridVirtualPointer()
-
-	return true
+	return refresher.RefreshForThemeChange()
 }

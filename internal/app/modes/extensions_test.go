@@ -73,6 +73,14 @@ var allExtensions = []extensionAxis{
 			return ok
 		},
 	},
+	{
+		name: extensionThemeRefresh,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(themeRefresher)
+
+			return ok
+		},
+	},
 }
 
 // modeExtensionMatrix states, per mode, every optional extension that mode
@@ -87,6 +95,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionExitSteps,
 		extensionInputEditing,
 		extensionHotkeyOverrides,
+		extensionThemeRefresh,
 	},
 	domain.ModeGrid: {
 		extensionSelectionTracking,
@@ -95,6 +104,7 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionExitSteps,
 		extensionInputEditing,
 		extensionHotkeyOverrides,
+		extensionThemeRefresh,
 	},
 	domain.ModeRecursiveGrid: {
 		extensionSelectionTracking,
@@ -103,12 +113,14 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 		extensionExitSteps,
 		extensionInputEditing,
 		extensionHotkeyOverrides,
+		extensionThemeRefresh,
 	},
 	domain.ModeScroll: {
 		extensionHotkeyOverrides,
 	},
 	domain.ModeMonitorSelect: {
 		extensionInputEditing,
+		extensionThemeRefresh,
 	},
 }
 

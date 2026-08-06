@@ -19,6 +19,7 @@ var (
 	_ exitStepReporter       = (*GridMode)(nil)
 	_ inputEditor            = (*GridMode)(nil)
 	_ hotkeyOverrideReporter = (*GridMode)(nil)
+	_ themeRefresher         = (*GridMode)(nil)
 )
 
 // GridMode implements the Mode interface for grid-based navigation.
@@ -48,6 +49,37 @@ func (m *GridMode) HandleKey(key string) {
 // longer looking at, so the input and the selection go with them.
 func (m *GridMode) RefreshForMonitorMove(_ context.Context, targetBounds image.Rectangle) {
 	m.handler.refreshGridForMonitorMove(targetBounds)
+}
+
+// RefreshForThemeChange draws the grid it already holds again, with whatever
+// the user has typed so far, so it picks up the colors the overlay just
+// re-resolved. The cells describe the same screen they did before, so nothing
+// is rebuilt and no selection is lost.
+func (m *GridMode) RefreshForThemeChange() bool {
+	handler := m.handler
+
+	if handler.grid == nil || handler.grid.Context == nil {
+		return false
+	}
+
+	gridInstancePtr := handler.grid.Context.GridInstance()
+	if gridInstancePtr == nil || *gridInstancePtr == nil {
+		return false
+	}
+
+	currentInput := ""
+	if handler.grid.Manager != nil {
+		currentInput = handler.grid.Manager.CurrentInput()
+	}
+
+	handler.redrawFrame(
+		ports.GridFrame{Grid: *gridInstancePtr, Input: currentInput},
+		"refresh grid after theme change",
+	)
+
+	handler.refreshGridVirtualPointer()
+
+	return true
 }
 
 // Exit tears grid mode down.

@@ -3,7 +3,6 @@ package modes
 import (
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -71,18 +70,4 @@ func (h *handlerState) redrawMonitorSelect() {
 	}
 
 	h.redrawFrame(h.monitorSelectFrame(), "redraw monitor_select overlay")
-}
-
-// RefreshMonitorSelectForThemeChange redraws the monitor_select overlay when
-// the mode is active. The colors come from the Style the overlay resolved, so
-// a redraw is all a theme change needs.
-func (h *Handler) RefreshMonitorSelectForThemeChange() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeMonitorSelect || h.monitorSelect == nil {
-		return
-	}
-
-	h.redrawMonitorSelect()
 }
