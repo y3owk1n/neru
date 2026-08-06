@@ -146,8 +146,6 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		h.clearOverlayFrame()
 	}
 
-	h.appState.SetHintOverlayNeedsRefresh(false)
-
 	if h.hints != nil && h.hints.Context != nil {
 		applyHintFlags(h.hints.Context, activation, isRefresh)
 	}

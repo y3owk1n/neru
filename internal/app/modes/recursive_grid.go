@@ -50,8 +50,6 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		h.exitMode()
 	}
 
-	h.appState.SetRecursiveGridOverlayNeedsRefresh(false)
-
 	// Get screen bounds
 	var screenBounds image.Rectangle
 

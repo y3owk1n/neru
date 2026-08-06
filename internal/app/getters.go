@@ -85,13 +85,6 @@ func (a *App) GetConfigPath() string {
 	return p
 }
 
-// SetHintOverlayNeedsRefresh sets the hint overlay needs refresh flag.
-func (a *App) SetHintOverlayNeedsRefresh(
-	value bool,
-) {
-	a.appState.SetHintOverlayNeedsRefresh(value)
-}
-
 // GridContext returns the grid context.
 func (a *App) GridContext() *grid.Context {
 	if a.gridComponent == nil {

@@ -41,13 +41,10 @@ type AppState struct {
 	nextCallbackID             uint64
 
 	// Operational flags
-	hotkeysRegistered                bool
-	screenChangeProcessing           bool
-	screenChangePendingRetry         bool
-	gridOverlayNeedsRefresh          bool
-	hintOverlayNeedsRefresh          bool
-	recursiveGridOverlayNeedsRefresh bool
-	hotkeyRefreshPending             bool
+	hotkeysRegistered        bool
+	screenChangeProcessing   bool
+	screenChangePendingRetry bool
+	hotkeyRefreshPending     bool
 }
 
 // NewAppState creates a new AppState with default values.
@@ -451,54 +448,6 @@ func (s *AppState) FinishScreenChangeProcessing() bool {
 	}
 
 	return retry
-}
-
-// GridOverlayNeedsRefresh returns whether the grid overlay needs refresh.
-func (s *AppState) GridOverlayNeedsRefresh() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.gridOverlayNeedsRefresh
-}
-
-// SetGridOverlayNeedsRefresh sets the grid overlay refresh flag.
-func (s *AppState) SetGridOverlayNeedsRefresh(needs bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.gridOverlayNeedsRefresh = needs
-}
-
-// HintOverlayNeedsRefresh returns whether the hint overlay needs refresh.
-func (s *AppState) HintOverlayNeedsRefresh() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.hintOverlayNeedsRefresh
-}
-
-// SetHintOverlayNeedsRefresh sets the hint overlay refresh flag.
-func (s *AppState) SetHintOverlayNeedsRefresh(needs bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.hintOverlayNeedsRefresh = needs
-}
-
-// RecursiveGridOverlayNeedsRefresh returns whether the recursive-grid overlay needs refresh.
-func (s *AppState) RecursiveGridOverlayNeedsRefresh() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.recursiveGridOverlayNeedsRefresh
-}
-
-// SetRecursiveGridOverlayNeedsRefresh sets the recursive-grid overlay refresh flag.
-func (s *AppState) SetRecursiveGridOverlayNeedsRefresh(needs bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.recursiveGridOverlayNeedsRefresh = needs
 }
 
 // HotkeyRefreshPending returns whether a hotkey refresh is pending.
