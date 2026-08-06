@@ -30,6 +30,7 @@ const (
 	extensionExitSteps         extensionName = "exit step reporting"
 	extensionInputEditing      extensionName = "input editing"
 	extensionHotkeyOverrides   extensionName = "hotkey override reporting"
+	extensionThemeRefresh      extensionName = "theme change refresh"
 )
 
 // selectionTracker is an optional Mode extension: a mode that remembers where
@@ -129,6 +130,31 @@ type hotkeyOverrideReporter interface {
 	// HasAppHotkeyOverrides reports whether the mode's configuration binds any
 	// per-application hotkey override.
 	HasAppHotkeyOverrides() bool
+}
+
+// themeRefresher is an optional Mode extension: a mode with a themed drawing on
+// screen that has to be put back in the colors the system just switched to.
+//
+// Hints, grid, recursive grid and the monitor picker each hold a Frame the new
+// Style applies to. Scroll draws none of its own and idle has nothing up at all,
+// so both carry this by not implementing it rather than by an empty arm.
+//
+// This is an effect rather than a getter, so a mode that does not carry it says
+// so in the debug log (activeModeEffect): "the overlay stayed in the old theme"
+// has to be answerable from a log rather than by reading the dispatch.
+type themeRefresher interface {
+	// RefreshForThemeChange draws the mode's Frame again so it picks the new
+	// colors up. The overlay has already re-resolved every Style from the
+	// configuration it holds, so the same Frame is all it takes.
+	//
+	// It reports whether the mode was in a state to redraw — false when it has
+	// no session or nothing drawn to repaint. Whether the backend had a surface
+	// to draw on is its own business and is reported in the log, not here.
+	//
+	// The caller holds h.mu across the whole dispatch, so the mode it selected
+	// is still the active one here and an implementation must not re-check
+	// (ADR 0004).
+	RefreshForThemeChange() bool
 }
 
 // activeModeExtension resolves the active mode to the optional extension T,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Compile-time interface compliance checks: the core interface, then every
@@ -18,6 +19,7 @@ var (
 	_ exitStepReporter       = (*HintsMode)(nil)
 	_ inputEditor            = (*HintsMode)(nil)
 	_ hotkeyOverrideReporter = (*HintsMode)(nil)
+	_ themeRefresher         = (*HintsMode)(nil)
 )
 
 // HintsMode implements the Mode interface for hints-based navigation.
@@ -49,6 +51,32 @@ func (m *HintsMode) HandleKey(key string) {
 // than leaving stale labels behind.
 func (m *HintsMode) RefreshForMonitorMove(ctx context.Context, targetBounds image.Rectangle) {
 	m.handler.refreshHintsForMonitorMove(ctx, targetBounds)
+}
+
+// RefreshForThemeChange draws the labels the session already holds again, so
+// they pick up the colors the overlay just re-resolved. Nothing is regenerated:
+// the elements have not moved, only the palette changed.
+func (m *HintsMode) RefreshForThemeChange() bool {
+	handler := m.handler
+
+	if handler.hints == nil || handler.hints.Context == nil {
+		return false
+	}
+
+	hintCollection := handler.hints.Context.Hints()
+	if hintCollection == nil {
+		return false
+	}
+
+	handler.redrawFrame(
+		ports.HintsFrame{
+			Screen: handler.screenBounds,
+			Hints:  hintCollection.All(),
+		},
+		"refresh hints after theme change",
+	)
+
+	return true
 }
 
 // Exit tears hints mode down.
