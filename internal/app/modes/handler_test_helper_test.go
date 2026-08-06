@@ -5,10 +5,17 @@ import "go.uber.org/zap"
 // newHandlerWithState builds a Handler around the given state for tests,
 // wiring the outer back-reference and filling in the indicator services the
 // way NewHandler does.
-func newHandlerWithState(st handlerState) *Handler {
+func newHandlerWithState(initial handlerState) *Handler {
+	// NewHandler guarantees a logger, so the package logs without a nil check
+	// anywhere. A test state left one out gets the same guarantee rather than
+	// turning a log line into a panic.
+	if initial.logger == nil {
+		initial.logger = zap.NewNop()
+	}
+
 	handler := new(Handler)
-	st.outer = handler
-	handler.handlerState = st
+	initial.outer = handler
+	handler.handlerState = initial
 
 	fillIndicatorServices(&handler.handlerState, zap.NewNop())
 

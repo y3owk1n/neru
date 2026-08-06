@@ -3,6 +3,8 @@ package modes
 import (
 	"image"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -13,6 +15,22 @@ import (
 // The rules — the assertion each implementer owes, absence semantics, and the
 // matrix test that replaces what the exhaustive linter gives a mode switch —
 // are in the modes area guide (AGENTS.md). Read it before adding an axis.
+
+// extensionName names one optional-extension axis. There is exactly one name
+// per axis and it is used twice: in the matrix that states which modes carry
+// the axis (extensions_test.go), and in the debug line an effect axis leaves
+// behind when a mode declines it. Naming it once is what keeps the log and the
+// matrix talking about the same thing.
+type extensionName string
+
+const (
+	extensionSelectionTracking extensionName = "selection tracking"
+	extensionCellNavigation    extensionName = "cell navigation"
+	extensionCursorFollow      extensionName = "cursor follow selection"
+	extensionExitSteps         extensionName = "exit step reporting"
+	extensionInputEditing      extensionName = "input editing"
+	extensionHotkeyOverrides   extensionName = "hotkey override reporting"
+)
 
 // selectionTracker is an optional Mode extension: a mode that remembers where
 // its selection sits, separately from where the real cursor is.
@@ -51,6 +69,68 @@ type cellNavigator interface {
 	MoveCell(dir domain.Direction, count int)
 }
 
+// cursorFollowSelector is an optional Mode extension: a mode whose session
+// carries the cursor-follow-selection preference — whether the real cursor is
+// dragged along to whatever the mode selects.
+//
+// Hints, grid and recursive grid each keep it on their own session context.
+// Scroll and the monitor picker select nothing of the kind, so there is nothing
+// for a cursor to follow, and both results below are the refusal a caller
+// already handles.
+type cursorFollowSelector interface {
+	// CursorFollowSelection reports whether the session follows the selection
+	// with the real cursor, and false when the mode has no session to answer
+	// for — the same condition under which changing it is refused.
+	CursorFollowSelection() (bool, bool)
+
+	// ApplyCursorFollowSelection sets the preference to *desired, or toggles it
+	// when desired is nil, and reports the value it settled on.
+	//
+	// Setting it to the value it already holds still runs whatever the mode
+	// owes the change, which is what makes the setter idempotent in the way a
+	// caller needs: "on" always ends with the cursor on the selection.
+	ApplyCursorFollowSelection(desired *bool) (bool, bool)
+}
+
+// exitStepReporter is an optional Mode extension: a mode that can be activated
+// with --on-exit steps, the sequence run once its pending action was fulfilled.
+//
+// Only the modes that carry a pending action have any, so scroll and monitor
+// select report nothing and stay silent about it.
+type exitStepReporter interface {
+	// ExitSteps reports the --on-exit steps the mode's session was activated
+	// with, or nil when none were given or there is no session.
+	ExitSteps() []string
+}
+
+// inputEditor is an optional Mode extension: a mode with accumulated input the
+// user can edit in place — clearing it back to the start, or taking back the
+// last keystroke — without leaving the mode.
+//
+// This is an effect rather than a getter, so a mode that does not carry it says
+// so in the debug log (activeModeEffect) instead of silently doing nothing.
+type inputEditor interface {
+	// ResetInput clears the mode's input back to how its session started,
+	// leaving the session itself open.
+	ResetInput()
+
+	// Backspace takes back the most recent unit of input: a typed character, or
+	// for recursive grid a level of zoom.
+	Backspace()
+}
+
+// hotkeyOverrideReporter is an optional Mode extension: a mode whose config
+// section can bind per-application hotkey overrides.
+//
+// It exists to answer one question on the key path — whether resolving the
+// focused app's bundle ID is worth the trip — so an implementation must stay a
+// cheap read of config.
+type hotkeyOverrideReporter interface {
+	// HasAppHotkeyOverrides reports whether the mode's configuration binds any
+	// per-application hotkey override.
+	HasAppHotkeyOverrides() bool
+}
+
 // activeModeExtension resolves the active mode to the optional extension T,
 // reporting false when no mode is active or when the active one does not carry
 // that extension. It is the one place the comma-ok assertion is written, so a
@@ -74,4 +154,29 @@ func activeModeExtension[T any](h *handlerState) (T, bool) {
 	}
 
 	return extension, true
+}
+
+// activeModeEffect resolves the active mode to the optional extension T the way
+// activeModeExtension does, and leaves a debug line naming the mode and the
+// axis when the mode does not carry it.
+//
+// It is for the axes that perform an effect, never for a getter. A getter's
+// absence is a zero value the caller was already prepared for; an effect's
+// absence is a key the user pressed that did nothing, and this line is the
+// difference between answering "why did backspace do nothing here?" from a log
+// and answering it by reading the code. Idle takes the same line, with no mode
+// registered to name: nothing was open to edit, which is the same nothing.
+func activeModeEffect[T any](state *handlerState, axis extensionName) (T, bool) {
+	extension, ok := activeModeExtension[T](state)
+	if ok {
+		return extension, true
+	}
+
+	state.logger.Debug(
+		"Mode declined action",
+		zap.String("mode", domain.ModeString(state.appState.CurrentMode())),
+		zap.String("extension", string(axis)),
+	)
+
+	return extension, false
 }

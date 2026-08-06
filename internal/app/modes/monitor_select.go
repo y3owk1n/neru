@@ -13,8 +13,12 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// Compile-time interface compliance check.
-var _ Mode = (*MonitorSelectMode)(nil)
+// Compile-time interface compliance checks: the core interface, then every
+// optional extension the monitor picker opts into (extensions.go).
+var (
+	_ Mode        = (*MonitorSelectMode)(nil)
+	_ inputEditor = (*MonitorSelectMode)(nil)
+)
 
 // MonitorSelectMode implements the Mode interface for interactive monitor picking.
 type MonitorSelectMode struct {
@@ -48,6 +52,30 @@ func (m *MonitorSelectMode) RefreshForMonitorMove(_ context.Context, _ image.Rec
 // Exit tears the monitor picker down.
 func (m *MonitorSelectMode) Exit() {
 	m.handler.cleanupMonitorSelectMode()
+}
+
+// ResetInput clears the typed monitor label and puts the highlight back on the
+// first target.
+func (m *MonitorSelectMode) ResetInput() {
+	if m.handler.monitorSelect == nil {
+		return
+	}
+
+	m.handler.monitorSelect.input = ""
+	m.handler.monitorSelect.selectedIndex = 0
+
+	m.handler.redrawMonitorSelect()
+}
+
+// Backspace takes back the last character of the monitor label being typed.
+func (m *MonitorSelectMode) Backspace() {
+	if m.handler.monitorSelect == nil {
+		return
+	}
+
+	m.handler.monitorSelect.Backspace()
+
+	m.handler.redrawMonitorSelect()
 }
 
 func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
