@@ -150,47 +150,12 @@ func (h *Handler) MoveCellCurrentMode(dir domain.Direction, count int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		if h.grid == nil || h.grid.Manager == nil {
-			return
-		}
-
-		// The subgrid callback already sets the selection point, redraws the
-		// subgrid over the new cell, and moves the cursor when cursor-follow
-		// is on, so there is nothing left to do here.
-		h.grid.Manager.MoveDirection(dir, count)
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
-			return
-		}
-
-		center, moved := h.recursiveGrid.Manager.MoveDirection(dir, count)
-		if !moved {
-			return
-		}
-
-		// The update callback set the selection point and redrew the overlay;
-		// only cursor tracking is left.
-		absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-
-		if h.recursiveGrid.Context != nil &&
-			!h.recursiveGrid.Context.CursorFollowSelection() {
-			h.refreshRecursiveGridVirtualPointer()
-
-			return
-		}
-
-		err := h.actionService.MoveCursorToPoint(h.ctx, absoluteCenter)
-		if err != nil {
-			h.logger.Error(
-				"Failed to move cursor after recursive-grid cell move",
-				zap.Error(err),
-			)
-		}
-	case domain.ModeIdle, domain.ModeHints, domain.ModeScroll, domain.ModeMonitorSelect:
-		// no-op
+	navigator, ok := activeModeExtension[cellNavigator](&h.handlerState)
+	if !ok {
+		return
 	}
+
+	navigator.MoveCell(dir, count)
 }
 
 // StartHintSearch activates text filtering for hints mode.
