@@ -55,41 +55,7 @@ func (h *Handler) MoveMonitor(
 		return err
 	}
 
-	center := image.Point{
-		X: targetBounds.Min.X + targetBounds.Dx()/2,
-		Y: targetBounds.Min.Y + targetBounds.Dy()/2,
-	}
-
-	// Hide → cursor warp → redraw the active mode, in that order. The async
-	// ResizeToActiveScreen reads the mouse position on the main queue, so
-	// hiding first removes the stale overlay before the warp and everything
-	// that puts it back runs with the cursor already on the target monitor.
-	// For the two grid modes "puts it back" is one Frame and the overlay owns
-	// the resize/show/draw order inside it (#1211); the modes that still draw
-	// through the manager keep the explicit Show below.
-	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
-	if hasActiveOverlay && h.overlayManager != nil {
-		h.overlayManager.Hide()
-	}
-
-	err = h.actionService.MoveCursorToPointAndWait(ctx, center, true)
-	if err != nil {
-		if hasActiveOverlay && h.overlayManager != nil {
-			h.overlayManager.Show()
-		}
-
-		return err
-	}
-
-	h.logger.Debug("Moved cursor to monitor",
-		zap.String("monitor", targetDisplayName),
-		zap.Int("x", center.X),
-		zap.Int("y", center.Y),
-	)
-
-	h.refreshActiveModeOnNewScreen(ctx, targetBounds)
-
-	return nil
+	return h.moveCursorToMonitor(ctx, targetBounds, targetDisplayName)
 }
 
 // MoveMonitorByName moves the cursor to a specific monitor by name.
@@ -132,26 +98,41 @@ func (h *Handler) MoveMonitorByName(
 		)
 	}
 
+	return h.moveCursorToMonitor(ctx, bounds, monitorName)
+}
+
+// moveCursorToMonitor takes the active mode's overlay off the screen, warps the
+// cursor to the center of the display given, and puts the mode back on the
+// display it lands on.
+//
+// Clear → warp → redraw, in that order: sizing the overlay to a screen reads
+// the mouse position on the main queue, so taking the frame off first removes
+// the stale overlay before the warp, and everything that puts it back runs
+// with the cursor already on the target monitor. Putting it back is one Frame
+// per mode, and the overlay owns the resize/show/draw order inside it. A warp
+// that fails puts the mode back on the display it never left.
+func (h *Handler) moveCursorToMonitor(
+	ctx context.Context,
+	bounds image.Rectangle,
+	monitorName string,
+) error {
 	center := image.Point{
 		X: bounds.Min.X + bounds.Dx()/2,
 		Y: bounds.Min.Y + bounds.Dy()/2,
 	}
 
-	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
-	if hasActiveOverlay && h.overlayManager != nil {
-		h.overlayManager.Hide()
-	}
+	sourceBounds, hasActiveOverlay := h.clearFrameForMonitorMove()
 
-	err = h.actionService.MoveCursorToPointAndWait(ctx, center, true)
+	err := h.actionService.MoveCursorToPointAndWait(ctx, center, true)
 	if err != nil {
-		if hasActiveOverlay && h.overlayManager != nil {
-			h.overlayManager.Show()
+		if hasActiveOverlay {
+			h.refreshActiveModeOnNewScreen(ctx, sourceBounds)
 		}
 
 		return err
 	}
 
-	h.logger.Debug("Moved cursor to monitor by name",
+	h.logger.Debug("Moved cursor to monitor",
 		zap.String("monitor", monitorName),
 		zap.Int("x", center.X),
 		zap.Int("y", center.Y),
@@ -245,39 +226,88 @@ func indexOfScreen(
 	return 0
 }
 
-// refreshActiveModeOnNewScreen redraws the active mode overlay using the
-// supplied target screen bounds. Unlike the lifecycle screen-change path
-// (which re-queries the cursor position), this uses the bounds that
-// MoveMonitor already resolved, eliminating the race between the Go-side
-// ScreenBounds call and the native async ResizeToActiveScreen.
+// clearFrameForMonitorMove takes the active mode's overlay off the screen
+// before the cursor warps, so the drawing does not linger on the monitor being
+// left. What puts it back is the redraw on the other side.
+//
+// It reports the display the mode was drawn against, and whether there was a
+// mode drawn at all, from the same locked section that clears: read separately,
+// a mode that exited in between would leave the caller restoring a frame that
+// no longer exists.
+//
+// The clear reaches the overlay under h.mu, which on macOS makes a synchronous
+// hop to the main queue when monitor-select panels are on screen. That is safe
+// only while nothing running on the main queue takes h.mu — the invariant the
+// darwin overlay already states — and this is the third path that leans on it
+// (`internal/app/modes/AGENTS.md`).
+func (h *Handler) clearFrameForMonitorMove() (image.Rectangle, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() == domain.ModeIdle {
+		return image.Rectangle{}, false
+	}
+
+	h.clearOverlayFrameForRedraw()
+
+	return h.screenBounds, true
+}
+
+// refreshActiveModeOnNewScreen puts the active mode back on screen against the
+// supplied screen bounds. Unlike the lifecycle screen-change path (which
+// re-queries the cursor position), this uses the bounds that MoveMonitor
+// already resolved, eliminating the race between the Go-side ScreenBounds call
+// and the backend's async resize.
+//
+// Every mode comes back the way it came up in the first place: as a Frame,
+// with the overlay owning the resize, show and draw inside it.
 func (h *Handler) refreshActiveModeOnNewScreen(
 	ctx context.Context,
 	targetBounds image.Rectangle,
 ) {
-	currentMode := h.appState.CurrentMode()
-	if h.overlayManager == nil {
-		return
-	}
-
-	switch currentMode {
+	switch h.appState.CurrentMode() {
 	case domain.ModeGrid:
-		// No resize here: the Frame these two hand over is realized with one
-		// (`overlay/adapter.go`, ShowFrame), and doing it twice is two trips
-		// to the main thread for one move.
 		h.refreshGridForMonitorMove(targetBounds)
 	case domain.ModeRecursiveGrid:
 		h.refreshRecursiveGridForMonitorMove(targetBounds)
 	case domain.ModeHints:
-		h.overlayManager.ResizeToActiveScreen()
 		h.refreshHintsForMonitorMove(ctx, targetBounds)
 	case domain.ModeScroll:
-		h.overlayManager.ResizeToActiveScreen()
-		h.overlayManager.Show()
+		h.refreshScrollForMonitorMove()
+	case domain.ModeMonitorSelect:
+		h.refreshMonitorSelectForMonitorMove()
 	case domain.ModeIdle:
 		return
-	case domain.ModeMonitorSelect:
+	}
+}
+
+// refreshScrollForMonitorMove puts scroll mode back on the overlay after a
+// monitor move. It draws nothing, but the overlay has to be switched back to
+// the mode the indicators name.
+func (h *Handler) refreshScrollForMonitorMove() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeScroll {
 		return
 	}
+
+	h.showFrame(ports.ScrollFrame{}, "refresh scroll after monitor move")
+}
+
+// refreshMonitorSelectForMonitorMove redraws the monitor picker after a
+// monitor move. The panels are placed per display, so they come back exactly
+// as they were — but they were taken off the screen with the frame, and
+// leaving them off would strand the user in a mode with nothing to pick from.
+func (h *Handler) refreshMonitorSelectForMonitorMove() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.appState.CurrentMode() != domain.ModeMonitorSelect || h.monitorSelect == nil {
+		return
+	}
+
+	h.showFrame(h.monitorSelectFrame(), "refresh monitor_select after monitor move")
 }
 
 // refreshGridForMonitorMove regenerates the grid using the known target
@@ -425,6 +455,13 @@ func (h *Handler) refreshHintsForMonitorMove(
 
 	hintCollection := domainHint.NewCollection(filtered)
 
+	// The frame came off the screen before the warp, so this draw performs the
+	// window sequence again. As on the activation path, the flag is cleared
+	// immediately before SetHints — which bumps the hint manager's update
+	// generation in the same locked section, so a debounce timer that fired
+	// during the move cannot re-show the overlay on the display just left.
+	h.hintsFrameOnScreen = false
+
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to set hints after monitor move", zap.Error(setHintsErr))
@@ -432,6 +469,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 
 		return
 	}
-
-	h.overlayManager.Show()
+	// SetHints fires the hint manager's update callback, which hands the
+	// labels over as a Frame — and since the frame was cleared before the
+	// warp, that first draw is the transition that brings the overlay back up.
 }

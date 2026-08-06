@@ -5,8 +5,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // StartInteractiveScroll activates the interactive scroll mode,
@@ -25,8 +25,6 @@ func (h *handlerState) startInteractiveScroll() {
 		// scrolling keys when activating from grid mode).
 		h.performModeSpecificCleanup()
 		h.stopHeldRepeat()
-		h.overlayManager.Clear()
-		h.overlayManager.ClearCache()
 
 		if h.refreshHintsTimer != nil {
 			h.refreshHintsTimer.Stop()
@@ -56,9 +54,12 @@ func (h *handlerState) startInteractiveScroll() {
 
 	h.scroll.Context.SetIsActive(true)
 
-	h.overlayManager.ResizeToActiveScreen()
+	h.enterMode(domain.ModeScroll)
 
-	h.setMode(domain.ModeScroll, overlay.ModeScroll)
+	// Scroll draws nothing of its own, but entering it is still a transition:
+	// the frame takes the previous mode's drawing off the shared surface and
+	// tells the overlay which mode the indicators are naming.
+	h.showFrame(ports.ScrollFrame{}, "show scroll overlay")
 
 	h.logger.Info("Interactive scroll activated")
 }

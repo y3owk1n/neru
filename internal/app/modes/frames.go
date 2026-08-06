@@ -30,14 +30,28 @@ func (h *handlerState) showFrame(frame ports.Frame, operation string) bool {
 		return true
 	}
 
-	err := h.overlayPort.ShowFrame(h.ctx, frame)
-	if err == nil {
-		return true
+	return h.showFrameResult(frame, operation) == nil
+}
+
+// showFrameResult puts a Frame on screen and hands back what went wrong, so a
+// mode that must tell the user it cannot run here can tell a backend without
+// the surface apart from a draw that failed.
+//
+// Monitor-select is the only caller that needs the distinction: drawing it is
+// an optional capability, and a backend without it owes the user a
+// notification rather than a mode that silently refuses to engage. That is
+// also why a missing port is CodeNotSupported here rather than the benign
+// nothing showFrame makes of it: no port is no surface, and a mode that has to
+// report an unsupported surface must not be told the picker is up.
+func (h *handlerState) showFrameResult(frame ports.Frame, operation string) error {
+	if h.overlayPort == nil {
+		return derrors.New(derrors.CodeNotSupported, "no overlay to draw on")
 	}
 
+	err := h.overlayPort.ShowFrame(h.ctx, frame)
 	h.reportFrameError(err, operation)
 
-	return false
+	return err
 }
 
 // redrawFrame draws a Frame whose overlay is already up, reporting a failure
@@ -67,6 +81,20 @@ func (h *handlerState) redrawFrame(frame ports.Frame, operation string) {
 func (h *handlerState) clearOverlayFrame() {
 	h.hintsFrameOnScreen = false
 
+	h.clearOverlayFrameForRedraw()
+}
+
+// clearOverlayFrameForRedraw takes the frame off the screen for a mode that is
+// still running and will put it back — a monitor move, which clears before the
+// cursor warps so the drawing does not linger on the display being left.
+//
+// It deliberately leaves hintsFrameOnScreen alone. That flag may only be
+// cleared where the hint manager's pending debounced update is invalidated in
+// the same locked section (`handler.go`), and this cannot invalidate one: the
+// mode is live and its debounce timer may still fire. The redraw on the other
+// side clears the flag immediately before SetHints, which is the pattern that
+// rule describes.
+func (h *handlerState) clearOverlayFrameForRedraw() {
 	if h.overlayPort == nil {
 		return
 	}

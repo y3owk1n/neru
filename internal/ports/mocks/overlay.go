@@ -52,9 +52,11 @@ type MockOverlayPort struct {
 	// HideIndicatorFunc mocks HideIndicator.
 	HideIndicatorFunc            func(indicator ports.Indicator)
 	DrawMouseActionIndicatorFunc func(point image.Point, style ports.MouseActionIndicatorStyle)
-	IsVisibleFunc                func() bool
-	RefreshFunc                  func(context.Context) error
-	HealthFunc                   func(context.Context) error
+	// FlushFunc mocks Flush.
+	FlushFunc     func()
+	IsVisibleFunc func() bool
+	RefreshFunc   func(context.Context) error
+	HealthFunc    func(context.Context) error
 
 	frameMu sync.Mutex
 	// frames records every Frame the caller handed over, in order, so a test
@@ -75,6 +77,13 @@ type MockOverlayPort struct {
 	gridSubgrids int
 	// gridPointers records the last pointer asked for, per grid mode.
 	gridPointers map[domain.Mode]ports.GridPointer
+
+	screenMu sync.Mutex
+	// activeScreen is the display the overlay was last told its screen-local
+	// content belongs to.
+	activeScreen image.Rectangle
+	// flushes counts how many times the caller committed what it had drawn.
+	flushes int
 
 	// State tracking for tests
 	visible bool
@@ -113,6 +122,41 @@ func (m *MockOverlayPort) ClearFrame(ctx context.Context) error {
 	m.visible = false
 
 	return nil
+}
+
+// SetActiveScreen implements ports.OverlayPort.
+func (m *MockOverlayPort) SetActiveScreen(screen image.Rectangle) {
+	m.screenMu.Lock()
+	defer m.screenMu.Unlock()
+
+	m.activeScreen = screen
+}
+
+// ActiveScreen returns the display the overlay was last told about.
+func (m *MockOverlayPort) ActiveScreen() image.Rectangle {
+	m.screenMu.Lock()
+	defer m.screenMu.Unlock()
+
+	return m.activeScreen
+}
+
+// Flush implements ports.OverlayPort.
+func (m *MockOverlayPort) Flush() {
+	m.screenMu.Lock()
+	m.flushes++
+	m.screenMu.Unlock()
+
+	if m.FlushFunc != nil {
+		m.FlushFunc()
+	}
+}
+
+// FlushCount returns how many times the overlay was asked to commit its draws.
+func (m *MockOverlayPort) FlushCount() int {
+	m.screenMu.Lock()
+	defer m.screenMu.Unlock()
+
+	return m.flushes
 }
 
 // UpdateGridMatches implements ports.OverlayPort.

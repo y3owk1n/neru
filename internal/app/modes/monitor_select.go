@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
@@ -83,20 +82,23 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 	h.exitMode()
 	h.monitorSelect = session
 
-	err = h.showMonitorSelect()
+	// The picker comes up as a Frame, so the overlay owns switching to the
+	// mode and drawing the panels. An activation that cannot draw leaves the
+	// overlay switched to a mode it never showed, so it is cleared here.
+	err = h.showFrameResult(h.monitorSelectFrame(), "show monitor_select overlay")
 	if err != nil {
 		h.monitorSelect = nil
 
+		h.clearOverlayFrame()
+
 		if derrors.IsNotSupported(err) {
 			h.reportMonitorSelectNotSupported()
-		} else {
-			h.logger.Error("Failed to draw monitor_select overlay", zap.Error(err))
 		}
 
 		return
 	}
 
-	h.setMode(domain.ModeMonitorSelect, overlay.ModeMonitorSelect)
+	h.enterMode(domain.ModeMonitorSelect)
 	h.startIndicatorPolling(domain.ModeMonitorSelect)
 	h.logger.Info("Monitor select mode activated", zap.Int("targets", len(session.targets)))
 }
@@ -143,9 +145,11 @@ func (h *handlerState) confirmMonitorSelect(target *monitorSelectTarget) {
 	}()
 }
 
+// cleanupMonitorSelectMode ends the picking session. The panels come off the
+// screen with the frame, in the common cleanup that follows this: they are the
+// overlay's to take down, and a mode that took half of it down itself is how
+// one used to be left behind.
 func (h *handlerState) cleanupMonitorSelectMode() {
-	h.hideMonitorSelect()
-
 	h.monitorSelect = nil
 }
 

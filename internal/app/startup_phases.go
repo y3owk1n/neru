@@ -254,13 +254,12 @@ func initializeModeHandler(app *App) {
 
 	// Group related dependencies for better readability
 	deps := struct {
-		config         *config.Config
-		logger         *zap.Logger
-		appState       *state.AppState
-		cursorState    *state.CursorState
-		overlayManager OverlayManager
-		overlayPort    ports.OverlayPort
-		services       struct {
+		config      *config.Config
+		logger      *zap.Logger
+		appState    *state.AppState
+		cursorState *state.CursorState
+		overlayPort ports.OverlayPort
+		services    struct {
 			hint       *services.HintService
 			grid       *services.GridService
 			action     *services.ActionService
@@ -278,12 +277,11 @@ func initializeModeHandler(app *App) {
 			executeActionSequence func(source string, steps []string)
 		}
 	}{
-		config:         cfg,
-		logger:         logger,
-		appState:       app.appState,
-		cursorState:    app.cursorState,
-		overlayManager: app.overlayManager,
-		overlayPort:    app.overlayPort,
+		config:      cfg,
+		logger:      logger,
+		appState:    app.appState,
+		cursorState: app.cursorState,
+		overlayPort: app.overlayPort,
 		services: struct {
 			hint       *services.HintService
 			grid       *services.GridService
@@ -323,9 +321,7 @@ func initializeModeHandler(app *App) {
 		Logger:                 deps.logger,
 		AppState:               deps.appState,
 		CursorState:            deps.cursorState,
-		OverlayManager:         deps.overlayManager,
 		OverlayPort:            deps.overlayPort,
-		OverlayStyles:          app.overlayStyles,
 		HintService:            deps.services.hint,
 		GridService:            deps.services.grid,
 		ActionService:          deps.services.action,

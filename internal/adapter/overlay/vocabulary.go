@@ -25,6 +25,9 @@ type (
 	MonitorSelectStyle = manager.MonitorSelectStyle
 	// MonitorSelectTarget is one labeled monitor.
 	MonitorSelectTarget = manager.MonitorSelectTarget
+	// MonitorSelector is the optional capability a backend declares when it
+	// can draw the monitor picker.
+	MonitorSelector = manager.MonitorSelector
 	// CapabilityReporter reports a manager's runtime support state.
 	CapabilityReporter = manager.CapabilityReporter
 	// HeadlessReporter declares a manager that has no surface to render on.

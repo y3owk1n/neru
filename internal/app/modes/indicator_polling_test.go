@@ -7,7 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
@@ -19,25 +18,11 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-// indicatorDrawRecorder intercepts the one manager call every draw tick makes.
-type indicatorDrawRecorder struct {
-	overlay.NoOpManager
-
-	onFlush func()
-}
-
-func (m *indicatorDrawRecorder) Flush() {
-	if m.onFlush != nil {
-		m.onFlush()
-	}
-}
-
 // newIndicatorPollingHandler builds a handler whose polling tick draws the
 // mode indicator: hints mode active, its indicator enabled, cursor readable.
 func newIndicatorPollingHandler(
 	systemMock *portmocks.MockSystemPort,
 	overlayPort *portmocks.MockOverlayPort,
-	manager *indicatorDrawRecorder,
 ) *Handler {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeHints)
@@ -51,7 +36,7 @@ func newIndicatorPollingHandler(
 		},
 		appState:             appState,
 		system:               systemMock,
-		overlayManager:       manager,
+		overlayPort:          overlayPort,
 		modeIndicatorService: modeindicator.NewService(systemMock, overlayPort),
 		screenBounds:         image.Rect(0, 0, 100, 100),
 	})
@@ -103,16 +88,14 @@ func TestPollIndicatorsOnce_DrawsOnlyAfterReleasingLock(t *testing.T) {
 		HideIndicatorFunc: func(_ ports.Indicator) {
 			assertLockFree("HideIndicator")
 		},
+		FlushFunc: func() {
+			flushed = true
+
+			assertLockFree("Flush")
+		},
 	}
 
-	manager := &indicatorDrawRecorder{}
-	manager.onFlush = func() {
-		flushed = true
-
-		assertLockFree("Flush")
-	}
-
-	handler = newIndicatorPollingHandler(systemMock, overlayPort, manager)
+	handler = newIndicatorPollingHandler(systemMock, overlayPort)
 
 	handler.pollIndicatorsOnce(context.Background())
 
@@ -146,12 +129,10 @@ func TestPollIndicatorsOnce_AdoptsChangedScreenBoundsWithoutDrawing(t *testing.T
 
 	overlayPort := &portmocks.MockOverlayPort{
 		DrawModeIndicatorFunc: func(_, _ int) { drew = true },
+		FlushFunc:             func() { flushed = true },
 	}
 
-	manager := &indicatorDrawRecorder{}
-	manager.onFlush = func() { flushed = true }
-
-	handler := newIndicatorPollingHandler(systemMock, overlayPort, manager)
+	handler := newIndicatorPollingHandler(systemMock, overlayPort)
 
 	handler.pollIndicatorsOnce(context.Background())
 
@@ -175,12 +156,10 @@ func TestPollIndicatorsOnce_SkipsTickWhenLockContended(t *testing.T) {
 
 	overlayPort := &portmocks.MockOverlayPort{
 		DrawModeIndicatorFunc: func(_, _ int) { drew = true },
+		FlushFunc:             func() { flushed = true },
 	}
 
-	manager := &indicatorDrawRecorder{}
-	manager.onFlush = func() { flushed = true }
-
-	handler := newIndicatorPollingHandler(systemMock, overlayPort, manager)
+	handler := newIndicatorPollingHandler(systemMock, overlayPort)
 
 	handler.mu.Lock()
 	handler.pollIndicatorsOnce(context.Background())

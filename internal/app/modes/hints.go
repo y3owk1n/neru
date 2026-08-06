@@ -7,7 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -19,12 +18,6 @@ import (
 // debugElapsed logs the duration since start with the given message.
 func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap.Field) {
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
-}
-
-// overlayStyle returns the Style the overlay resolved for the live config and
-// theme.
-func (h *handlerState) overlayStyle() overlay.Style {
-	return overlay.ResolvedStyle(h.overlayStyles)
 }
 
 const (

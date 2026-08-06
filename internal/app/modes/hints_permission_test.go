@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
@@ -74,11 +73,10 @@ func newVisionHintsHandler(
 				Strategy: domain.StrategyVision,
 			},
 		},
-		appState:       state.NewAppState(),
-		cursorState:    state.NewCursorState(),
-		modifierState:  state.NewModifierState(),
-		overlayManager: &overlay.NoOpManager{},
-		system:         systemMock,
+		appState:      state.NewAppState(),
+		cursorState:   state.NewCursorState(),
+		modifierState: state.NewModifierState(),
+		system:        systemMock,
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
 			&portmocks.MockOverlayPort{},
