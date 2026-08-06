@@ -13,6 +13,8 @@ import (
 type (
 	// ManagerInterface is the overlay window management contract.
 	ManagerInterface = manager.Interface
+	// Components are the render components the overlay built for itself.
+	Components = manager.Components
 	// Mode is the overlay's current mode.
 	Mode = manager.Mode
 	// StateChange reports a mode transition.

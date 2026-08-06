@@ -8,27 +8,30 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/modeindicator"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/stickyindicator"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// ComponentFactory provides standardized component creation patterns.
+// ComponentFactory assembles the per-mode components: the domain state a mode
+// keeps and the callbacks it drives the overlay through.
+//
+// It builds no overlay of its own. The render components are constructed by
+// the overlay, on the surface only the overlay knows about, and arrive here
+// already built.
 type ComponentFactory struct {
 	config         *config.Config
 	logger         *zap.Logger
 	overlayManager OverlayManager
-	themeProvider  config.ThemeProvider
 	// overlayStyles supplies the resolved Style for the one callback that
 	// needs one. The factory never builds a style itself.
 	overlayStyles overlay.StyleSource
+	// rendered are the overlay's own render components. A nil entry is an
+	// overlay this session will not draw.
+	rendered overlay.Components
 }
 
 // NewComponentFactory creates a new component factory.
@@ -36,111 +39,51 @@ func NewComponentFactory(
 	config *config.Config,
 	logger *zap.Logger,
 	overlayManager OverlayManager,
-	themeProvider config.ThemeProvider,
 	overlayStyles overlay.StyleSource,
+	rendered overlay.Components,
 ) *ComponentFactory {
 	return &ComponentFactory{
 		config:         config,
 		logger:         logger,
 		overlayManager: overlayManager,
-		themeProvider:  themeProvider,
 		overlayStyles:  overlayStyles,
+		rendered:       rendered,
 	}
 }
 
-// ComponentCreationOptions defines options for component creation.
-type ComponentCreationOptions struct {
-	SkipIfDisabled bool   // Skip creation if component is disabled in config
-	Required       bool   // Component is required (return error if creation fails)
-	OverlayType    string // Type of overlay to create ("hints", "grid", "action", "scroll")
-}
-
-// CreateHintsComponent creates a hints component with standardized error handling.
-func (f *ComponentFactory) CreateHintsComponent(
-	opts ComponentCreationOptions,
-) (*components.HintsComponent, error) {
-	component := &components.HintsComponent{}
-
-	// Check if component should be skipped
-	if opts.SkipIfDisabled && !f.config.Hints.Enabled {
-		return component, nil
+// CreateHintsComponent creates the hints component.
+//
+// Hints are the one mode whose component is left empty when the mode is
+// disabled: nothing reads its context, and the overlay builds no hints overlay
+// either.
+func (f *ComponentFactory) CreateHintsComponent() *components.HintsComponent {
+	if !f.config.Hints.Enabled {
+		return &components.HintsComponent{}
 	}
 
-	component.Context = &hints.Context{}
-
-	// Create overlay
-	if opts.OverlayType != "" {
-		hintOverlay, err := f.createOverlay("hints", f.config.Hints)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create hints overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create hints overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else if hintOverlay != nil {
-			if overlay, ok := hintOverlay.(*hints.Overlay); ok {
-				component.Overlay = overlay
-			} else {
-				f.logger.Error("Unexpected overlay type for hints", zap.Any("overlay", hintOverlay))
-			}
-		}
+	return &components.HintsComponent{
+		Overlay: f.rendered.Hints,
+		Context: &hints.Context{},
 	}
-
-	return component, nil
 }
 
-// CreateGridComponent creates a grid component with standardized error handling.
-func (f *ComponentFactory) CreateGridComponent(
-	opts ComponentCreationOptions,
-) (*components.GridComponent, error) {
-	component := &components.GridComponent{}
-
-	// Initialize minimal context even when disabled
+// CreateGridComponent creates the grid component. It is built in full even
+// when grid mode is disabled, because a config reload enables the mode without
+// rebuilding the component.
+func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 	ctx := &grid.Context{}
 
 	var gridInstance *domainGrid.Grid
-	ctx.SetGridInstance(&gridInstance)
-	component.Context = ctx
 
-	// Check if component should be skipped
-	if opts.SkipIfDisabled && !f.config.Grid.Enabled {
-		return component, nil
+	ctx.SetGridInstance(&gridInstance)
+
+	component := &components.GridComponent{
+		Overlay: f.rendered.Grid,
+		Context: ctx,
 	}
 
 	gridChars := f.getGridCharacters()
 	subKeys := f.getSublayerKeys(gridChars)
-
-	// Create overlay
-	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("grid", f.config.Grid)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create grid overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create grid overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else if overlay != nil {
-			if gridOverlayTyped, ok := overlay.(*grid.Overlay); ok {
-				component.Overlay = gridOverlayTyped
-			} else {
-				f.logger.Error("Unexpected overlay type for grid", zap.Any("overlay", overlay))
-			}
-		}
-	}
 
 	// Create grid manager with callbacks
 	component.Manager = domainGrid.NewManager(
@@ -162,257 +105,36 @@ func (f *ComponentFactory) CreateGridComponent(
 		f.logger,
 	)
 
-	return component, nil
+	return component
 }
 
-// CreateScrollComponent creates a scroll component with standardized error handling.
-// This component now only owns scroll context and key mappings; the visual mode
-// indicator overlay is managed separately.
-func (f *ComponentFactory) CreateScrollComponent(
-	opts ComponentCreationOptions,
-) (*components.ScrollComponent, error) {
-	_ = opts
-
+// CreateScrollComponent creates the scroll component. It owns scroll context
+// and key mappings only; the visual mode indicator is an overlay of its own.
+func (f *ComponentFactory) CreateScrollComponent() *components.ScrollComponent {
 	return &components.ScrollComponent{
 		Context: &scroll.Context{},
-	}, nil
+	}
 }
 
-// CreateModeIndicatorComponent creates the shared mode indicator overlay component.
-func (f *ComponentFactory) CreateModeIndicatorComponent(
-	opts ComponentCreationOptions,
-) (*components.ModeIndicatorComponent, error) {
-	var indicatorOverlay *modeindicator.Overlay
-	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("mode_indicator", f.config.ModeIndicator)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create mode indicator overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create mode indicator overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else if overlay != nil {
-			if typed, ok := overlay.(*modeindicator.Overlay); ok {
-				indicatorOverlay = typed
-			} else {
-				f.logger.Error(
-					"Unexpected overlay type for mode indicator",
-					zap.Any("overlay", overlay),
-				)
-			}
-		}
-	}
-
+// CreateModeIndicatorComponent creates the shared mode indicator component.
+func (f *ComponentFactory) CreateModeIndicatorComponent() *components.ModeIndicatorComponent {
 	return &components.ModeIndicatorComponent{
-		Overlay: indicatorOverlay,
-	}, nil
+		Overlay: f.rendered.ModeIndicator,
+	}
 }
 
-// CreateStickyIndicatorComponent creates the sticky modifiers indicator overlay component.
-func (f *ComponentFactory) CreateStickyIndicatorComponent(
-	opts ComponentCreationOptions,
-) (*components.StickyIndicatorComponent, error) {
-	var stickyOverlay *stickyindicator.Overlay
-	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("sticky_modifiers", f.config.StickyModifiers.UI)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create sticky indicator overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create sticky indicator overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else if overlay != nil {
-			if typed, ok := overlay.(*stickyindicator.Overlay); ok {
-				stickyOverlay = typed
-			} else {
-				f.logger.Error(
-					"Unexpected overlay type for sticky indicator",
-					zap.Any("overlay", overlay),
-				)
-			}
-		}
-	}
-
+// CreateStickyIndicatorComponent creates the sticky modifiers indicator component.
+func (f *ComponentFactory) CreateStickyIndicatorComponent() *components.StickyIndicatorComponent {
 	return &components.StickyIndicatorComponent{
-		Overlay: stickyOverlay,
-	}, nil
+		Overlay: f.rendered.StickyModifiers,
+	}
 }
 
-// CreateVirtualPointerOverlay creates the cursor-following virtual pointer overlay.
-func (f *ComponentFactory) CreateVirtualPointerOverlay() (*virtualpointer.Overlay, error) {
-	if f.headless() {
-		return nil, nil //nolint:nilnil
-	}
-
-	overlay, err := f.createOverlay("virtual_pointer", f.config.VirtualPointer)
-	if err != nil {
-		return nil, derrors.Wrap(
-			err,
-			derrors.CodeOverlayFailed,
-			"failed to create virtual pointer overlay",
-		)
-	}
-
-	if overlay == nil {
-		return nil, nil //nolint:nilnil
-	}
-
-	typed, ok := overlay.(*virtualpointer.Overlay)
-	if !ok {
-		return nil, derrors.New(
-			derrors.CodeOverlayFailed,
-			"unexpected virtual pointer overlay type",
-		)
-	}
-
-	return typed, nil
-}
-
-// CreateRecursiveGridComponent creates a recursive-grid component with standardized error handling.
-func (f *ComponentFactory) CreateRecursiveGridComponent(
-	opts ComponentCreationOptions,
-) (*components.RecursiveGridComponent, error) {
-	// Create overlay
-	var recursiveGridOverlay *recursivegrid.Overlay
-	if opts.OverlayType != "" {
-		overlay, err := f.createOverlay("recursive_grid", f.config.RecursiveGrid)
-		if err != nil {
-			if opts.Required {
-				return nil, derrors.Wrap(
-					err,
-					derrors.CodeOverlayFailed,
-					"failed to create recursive_grid overlay",
-				)
-			}
-
-			f.logger.Warn(
-				"Failed to create recursive_grid overlay, continuing without overlay",
-				zap.Error(err),
-			)
-		} else if overlay != nil {
-			if recursiveGridOverlayTyped, ok := overlay.(*recursivegrid.Overlay); ok {
-				recursiveGridOverlay = recursiveGridOverlayTyped
-			} else {
-				f.logger.Error(
-					"Unexpected overlay type for recursive_grid",
-					zap.Any("overlay", overlay),
-				)
-			}
-		}
-	}
-
+// CreateRecursiveGridComponent creates the recursive-grid component.
+func (f *ComponentFactory) CreateRecursiveGridComponent() *components.RecursiveGridComponent {
 	return &components.RecursiveGridComponent{
-		Overlay: recursiveGridOverlay,
+		Overlay: f.rendered.RecursiveGrid,
 		Context: &recursivegrid.Context{},
-	}, nil
-}
-
-func (f *ComponentFactory) createOverlay(overlayType string, cfg any) (any, error) {
-	switch overlayType {
-	case "hints":
-		hintsConfig, ok := cfg.(config.HintsConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid hints config type")
-		}
-
-		// When no real overlay window exists (e.g. in tests with a no-op overlay
-		// manager), return nil rather than creating an overlay with a nil C window
-		// handle, which would crash on any CGo call.
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return hints.NewOverlayWithWindow(hintsConfig, f.logger, f.overlayManager.WindowPtr())
-	case "grid":
-		gridConfig, ok := cfg.(config.GridConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid grid config type")
-		}
-
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return grid.NewOverlayWithWindow(gridConfig, f.logger, f.overlayManager.WindowPtr()), nil
-	case "mode_indicator":
-		indicatorConfig, ok := cfg.(config.ModeIndicatorConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid mode indicator config type")
-		}
-
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return modeindicator.NewOverlay(
-			indicatorConfig,
-			f.themeProvider,
-			f.logger,
-		)
-	case "recursive_grid":
-		recursiveGridConfig, ok := cfg.(config.RecursiveGridConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid recursive_grid config type")
-		}
-
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return recursivegrid.NewOverlayWithWindow(
-			recursiveGridConfig,
-			f.logger,
-			f.overlayManager.WindowPtr(),
-		), nil
-	case "sticky_modifiers":
-		uiConfig, ok := cfg.(config.StickyModifiersUI)
-		if !ok {
-			return nil, derrors.New(
-				derrors.CodeInvalidInput,
-				"invalid sticky modifiers config type",
-			)
-		}
-
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return stickyindicator.NewOverlay(
-			uiConfig,
-			f.themeProvider,
-			f.logger,
-		)
-	case "virtual_pointer":
-		virtualPointerConfig, ok := cfg.(config.VirtualPointerConfig)
-		if !ok {
-			return nil, derrors.New(derrors.CodeInvalidInput, "invalid virtual pointer config type")
-		}
-
-		if f.headless() {
-			return nil, nil //nolint:nilnil
-		}
-
-		return virtualpointer.NewOverlay(
-			virtualPointerConfig,
-			f.themeProvider,
-			f.logger,
-		)
-	default:
-		return nil, derrors.New(derrors.CodeInvalidInput, "unknown overlay type: "+overlayType)
 	}
 }
 

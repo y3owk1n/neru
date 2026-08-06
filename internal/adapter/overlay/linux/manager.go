@@ -350,9 +350,32 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return nil
 }
 
-// Ensure the manager keeps declaring the optional headless capability: without
-// this, a signature drift would silently downgrade it to "can render" instead
-// of failing to compile.
+// BuildComponents constructs the render components this manager draws through,
+// on the surface it owns. The X11 and Wayland overlays render everything onto
+// that one surface, so the components hold its handle and nothing else.
+func (m *Manager) BuildComponents(
+	cfg *config.Config,
+	theme config.ThemeProvider,
+) (manager.Components, error) {
+	// Nil-guarded like every other exported method here: a backend that found
+	// no display server is handed out as a typed nil, and reaching Base
+	// through it would panic before any receiver guard ran.
+	if m == nil {
+		return manager.Components{}, nil
+	}
+
+	return m.Base.BuildComponents(manager.ComponentSpec{
+		Config:   cfg,
+		Theme:    theme,
+		Logger:   m.logger,
+		Window:   m.WindowPtr(),
+		Headless: m.Headless(),
+	})
+}
+
+// Ensure the manager keeps declaring the optional headless capability. Its own
+// BuildComponents reads Headless directly, so drift there fails to compile;
+// this pins the shared spelling every backend answers headlessness with.
 var _ manager.HeadlessReporter = (*Manager)(nil)
 
 // Headless reports whether no backend surface was created — no display server

@@ -74,7 +74,7 @@ individual steps in
 ```
 1. infrastructure   4. UI components        7. IPC controller
 2. services         4.5 systray             8. event tap + IPC server
-3. application state 5. renderer/overlays   9. shutdown channel
+3. application state 5. renderer            9. shutdown channel
                     6. mode handler
 ```
 

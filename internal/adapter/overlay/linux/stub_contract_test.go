@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -117,7 +118,7 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 
 // TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless pins the other half
 // of the no-backend contract: a Manager with no surface has to say so, because
-// the component factory reads that declaration before it builds the render
+// its own component build reads that declaration before it builds the render
 // overlays, and it must not hand the app components this Manager has no way to
 // draw.
 //
@@ -143,6 +144,22 @@ func TestLinuxOverlayManager_NoBackendDeclaresItselfHeadless(t *testing.T) {
 
 			if !reporter.Headless() {
 				t.Error("Headless() = false; there is no surface for an overlay to draw on")
+			}
+
+			// The declaration has to be what building reads. A backend that
+			// re-derived it — from a window handle it can see, say — would
+			// still pass the assertion above and then hand the app components
+			// it has no surface to draw.
+			built, err := overlayManager.BuildComponents(config.DefaultConfig(), nil)
+			if err != nil {
+				t.Fatalf("BuildComponents() error = %v, want nil", err)
+			}
+
+			if built != (manager.Components{}) {
+				t.Errorf(
+					"BuildComponents() = %+v, want nothing built: the manager declared itself headless",
+					built,
+				)
 			}
 		})
 	}

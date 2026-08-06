@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -70,39 +71,25 @@ func TestNoOpManager_ReportsEmptyState(t *testing.T) {
 		t.Error("WaylandKeyboardChannel() is non-nil; the no-op manager has no keyboard")
 	}
 
-	if noOp.WindowPtr() != nil {
-		t.Error("WindowPtr() is non-nil; the no-op manager has no window")
+	built, err := noOp.BuildComponents(config.DefaultConfig(), nil)
+	if err != nil {
+		t.Errorf("BuildComponents() error = %v, want nil", err)
 	}
 
-	if noOp.HintOverlay() != nil {
-		t.Error("HintOverlay() is non-nil")
+	if built != (manager.Components{}) {
+		t.Errorf(
+			"BuildComponents() = %+v, want nothing built on a surface that does not exist",
+			built,
+		)
 	}
 
-	if noOp.GridOverlay() != nil {
-		t.Error("GridOverlay() is non-nil")
-	}
-
-	if noOp.ModeIndicatorOverlay() != nil {
-		t.Error("ModeIndicatorOverlay() is non-nil")
-	}
-
-	if noOp.RecursiveGridOverlay() != nil {
-		t.Error("RecursiveGridOverlay() is non-nil")
-	}
-
-	if noOp.StickyModifiersOverlay() != nil {
-		t.Error("StickyModifiersOverlay() is non-nil")
-	}
-
-	if noOp.VirtualPointerOverlay() != nil {
-		t.Error("VirtualPointerOverlay() is non-nil")
-	}
+	noOp.ConfigureComponents(config.DefaultConfig(), "#ffffff")
 }
 
-// TestNoOpManager_DeclaresItselfHeadless pins the capability the component
-// factory reads before it builds render overlays. An overlay manager that
-// cannot render has to say so; if the no-op manager stopped declaring it, the
-// factory would try to build overlays on a surface that does not exist.
+// TestNoOpManager_DeclaresItselfHeadless pins the capability the overlay reads
+// before it builds render components. An overlay manager that cannot render
+// has to say so; if the no-op manager stopped declaring it, it would try to
+// build components on a surface that does not exist.
 func TestNoOpManager_DeclaresItselfHeadless(t *testing.T) {
 	var noOp manager.Interface = &manager.NoOpManager{}
 

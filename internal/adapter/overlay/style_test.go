@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
@@ -175,59 +174,97 @@ func TestStyleResolver_ZeroValueTheme(t *testing.T) {
 	}
 }
 
-// styleTestManager holds one hints overlay so a test can see what a config
-// notification handed it. Every other component stays nil, which is what a
-// partially wired manager looks like during startup.
+// styleTestManager records the configuration notifications it is handed. The
+// components themselves are the manager's own, so what a resolver can be held
+// to is that it notifies once per change and carries the resolved value the
+// components cannot derive.
 type styleTestManager struct {
 	overlay.NoOpManager
 
-	hints *renderhints.Overlay
+	mu    sync.Mutex
+	fills []string
+	sizes []int
 }
 
-func (m *styleTestManager) HintOverlay() *renderhints.Overlay { return m.hints }
+func (m *styleTestManager) ConfigureComponents(cfg *config.Config, virtualPointerFill string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-// TestStyleResolver_ApplyLeavesDisabledOverlaysAlone pins the gate the
-// per-component reload path used to carry: a disabled overlay draws nothing,
-// so reconfiguring it would only invalidate caches nobody reads.
-func TestStyleResolver_ApplyLeavesDisabledOverlaysAlone(t *testing.T) {
+	m.fills = append(m.fills, virtualPointerFill)
+	m.sizes = append(m.sizes, cfg.Hints.UI.FontSize)
+}
+
+func (m *styleTestManager) notifications() ([]string, []int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return append([]string(nil), m.fills...), append([]int(nil), m.sizes...)
+}
+
+// TestStyleResolver_ApplyNotifiesTheComponentsOnce pins what a config reload
+// owes the render components: exactly one notification carrying the new
+// configuration and the resolved value they cannot resolve for themselves.
+// Fanning out to individual overlays is what this replaced, and a missed call
+// site left an overlay drawing the previous theme's colors.
+func TestStyleResolver_ApplyNotifiesTheComponentsOnce(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.DefaultConfig()
-	cfg.Hints.Enabled = true
 	cfg.Hints.UI.FontSize = 11
 
-	hintOverlay, err := renderhints.NewOverlayWithWindow(cfg.Hints, zap.NewNop(), nil)
-	if err != nil {
-		t.Fatalf("NewOverlayWithWindow() error = %v", err)
-	}
-
-	manager := &styleTestManager{hints: hintOverlay}
+	manager := &styleTestManager{}
 	resolver := overlay.NewStyleResolver(manager, cfg, &countingTheme{}, zap.NewNop())
 
-	enabled := config.DefaultConfig()
-	enabled.Hints.Enabled = true
-	enabled.Hints.UI.FontSize = 33
-
-	resolver.Apply(enabled)
-
-	if got := hintOverlay.Config().UI.FontSize; got != 33 {
-		t.Fatalf("hints overlay font size after an enabled reload = %d, want 33", got)
+	if fills, _ := manager.notifications(); len(fills) != 0 {
+		t.Fatalf("constructing the resolver notified %d times, want 0", len(fills))
 	}
 
+	reloaded := config.DefaultConfig()
+	reloaded.Hints.UI.FontSize = 33
+
+	resolver.Apply(reloaded)
+
+	fills, sizes := manager.notifications()
+	if len(fills) != 1 {
+		t.Fatalf("a config reload notified %d times, want 1", len(fills))
+	}
+
+	if sizes[0] != 33 {
+		t.Errorf("notified hints font size = %d, want the reloaded 33", sizes[0])
+	}
+
+	if fills[0] != resolver.Style().VirtualPointer.FillColor {
+		t.Errorf(
+			"notified virtual pointer fill = %q, want the resolved %q",
+			fills[0],
+			resolver.Style().VirtualPointer.FillColor,
+		)
+	}
+
+	resolver.Refresh()
+
+	fills, sizes = manager.notifications()
+	if len(fills) != 2 {
+		t.Fatalf("a theme change notified %d times in total, want 2", len(fills))
+	}
+
+	// A theme change carries the configuration the resolver already holds, not
+	// the one it was constructed with.
+	if sizes[1] != 33 {
+		t.Errorf("theme-change notification carried font size %d, want the reloaded 33", sizes[1])
+	}
+
+	// Resolving is never gated, even though handing the configuration on can
+	// be: a mode that is disabled now and re-enabled later must not draw with
+	// pre-reload colors.
 	disabled := config.DefaultConfig()
 	disabled.Hints.Enabled = false
 	disabled.Hints.UI.FontSize = 44
 
 	resolver.Apply(disabled)
 
-	if got := hintOverlay.Config().UI.FontSize; got != 33 {
-		t.Errorf("a disabled hints overlay was reconfigured: font size = %d, want 33", got)
-	}
-
-	// The Style still follows the reload — only the push is gated, because a
-	// mode that is re-enabled later must not draw with pre-reload colors.
 	if got := resolver.Style().Hints.FontSize(); got != 44 {
-		t.Errorf("resolved hints font size = %d, want 44", got)
+		t.Errorf("resolved hints font size = %d, want 44 from the reload that disabled hints", got)
 	}
 }
 

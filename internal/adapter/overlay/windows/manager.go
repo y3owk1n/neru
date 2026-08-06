@@ -217,6 +217,30 @@ func (m *Manager) WindowPtr() unsafe.Pointer {
 	return m.win.WindowPtr()
 }
 
+// BuildComponents constructs the render components this manager draws through.
+//
+// It never reports itself headless, and deliberately does not declare the
+// HeadlessReporter capability at all: the surface is recreated on demand at
+// draw time, so having no window while components are built is not a verdict
+// on whether it can render. The components here only store the handle they are
+// given, so building them against a missing surface costs nothing.
+func (m *Manager) BuildComponents(
+	cfg *config.Config,
+	theme config.ThemeProvider,
+) (manager.Components, error) {
+	if m == nil {
+		return manager.Components{}, nil
+	}
+
+	return m.Base.BuildComponents(manager.ComponentSpec{
+		Config:   cfg,
+		Theme:    theme,
+		Logger:   m.logger,
+		Window:   m.WindowPtr(),
+		Headless: false,
+	})
+}
+
 // WaylandKeyboardChannel returns nil on Windows.
 func (m *Manager) WaylandKeyboardChannel() <-chan string {
 	return nil

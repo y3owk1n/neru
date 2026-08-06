@@ -39,20 +39,24 @@ are declarative; updates — hot, already narrow, already correct — are not.
 ## Consequences
 
 - **Overlay component construction moves out of `app` and into the adapter.**
-  This is what shrinks the interface — the six setters, six getters, and the
-  `unsafe.Pointer` that `WindowPtr()` leaks into `app` all exist only because
-  `app` builds the adapter's internals. It also gives `config + theme → style`
-  a single owner; `BuildStyle` currently has five callers across three layers,
-  and `handleThemeChange` has to fan out to six components plus the renderer to
-  keep them consistent.
-- **Startup phases move.** `internal/app/new.go` is a numbered,
-  individually-unwound sequence; several overlay phases collapse into one
-  inside the adapter. The unwind path has to stay exact.
+  Done in #1209: `manager.Base` builds the render components from a
+  configuration and a theme provider, on the surface each backend states for
+  itself, and the six setters, six getters and `WindowPtr()` left the
+  interface with them. No app package names a platform pointer type any more.
+  The manager also owns handing those components a new configuration
+  (`ConfigureComponents`), so the resolver notifies one owner instead of six.
+  `config + theme → style` got its single owner earlier, in #1207.
+- **Startup phases move.** Done in #1209: `internal/app/new.go` phase 4 asks
+  the overlay to build its components and phase 5 no longer registers them, so
+  the two overlay phases became one call. The phases themselves, their
+  numbering and their individually-unwound cleanups are unchanged, and the one
+  failure that could fail phase 4 before still fails it.
 - **Headless detection has a new signal.** Done ahead of the move in #1205:
-  `component_factory_headless.go` asked `WindowPtr() == nil`, and now asks the
-  overlay through the optional `manager.HeadlessReporter` capability, pinned by
-  tests on the no-op, macOS and Linux managers. Removing `WindowPtr` is a
-  deletion here, not a redesign.
+  `component_factory_headless.go` asked `WindowPtr() == nil`, and then asked
+  the overlay through the optional `manager.HeadlessReporter` capability,
+  pinned by tests on the no-op, macOS and Linux managers. With #1209 that file
+  is gone: each backend answers its own headlessness where it builds, and
+  removing `WindowPtr` was the deletion this predicted.
 - **The port's threading contract stays "may block; never call under
   `h.mu`".** Draws are `dispatch_async` on macOS and hold `renderMu`
   synchronously on Linux; that asymmetry is left alone here. Modes compute

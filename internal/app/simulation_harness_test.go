@@ -103,12 +103,12 @@ type simOverlayManager struct {
 // same way the darwin and Linux backends do, and declares itself headless the
 // way a backend with no surface does.
 var (
-	_ overlaymanager.MonitorSelector  = (*simOverlayManager)(nil)
-	_ overlaymanager.HeadlessReporter = (*simOverlayManager)(nil)
+	_ overlaymanager.MonitorSelector = (*simOverlayManager)(nil)
+	_ overlay.HeadlessReporter       = (*simOverlayManager)(nil)
 )
 
 // Headless states outright what the journeys rely on: there is no native
-// surface here, so the component factory must not build render overlays.
+// surface here, so nothing may build render components against it.
 func (m *simOverlayManager) Headless() bool { return true }
 
 func (m *simOverlayManager) DrawMonitorSelect(

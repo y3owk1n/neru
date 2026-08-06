@@ -130,8 +130,8 @@ func initializeApp(app *App) (*App, error) {
 		app.systrayComponent = nil
 	})
 
-	// Phase 5: Initialize renderer and register overlays
-	initializeRendererAndOverlays(app)
+	// Phase 5: Initialize renderer
+	initializeRenderer(app)
 	// Renderer and overlays are cleaned up as part of UI components
 
 	// Phase 6: Initialize mode handler
