@@ -139,7 +139,7 @@ func (h *handlerState) handleKeyPress(key string) {
 	// (rawKey and stripped key) share the same snapshot. Only needed when the
 	// active mode defines per-app hotkey overrides.
 	var bundleID string
-	if h.modeHasAppHotkeyOverrides(h.appState.CurrentMode()) {
+	if h.activeModeHasAppHotkeyOverrides() {
 		bundleID = h.focusedBundleID()
 	}
 
@@ -176,24 +176,18 @@ func (h *handlerState) handleModeSpecificKey(key string) {
 	mode.HandleKey(key)
 }
 
-// modeHasAppHotkeyOverrides reports whether the given mode defines any per-app
-// hotkey overrides. That is the only situation requiring the focused app's
-// bundle ID to be resolved to select the correct per-mode hotkey table.
-func (h *handlerState) modeHasAppHotkeyOverrides(mode domain.Mode) bool {
-	switch mode {
-	case domain.ModeHints:
-		return h.config.Hints.HasAppHotkeyOverrides()
-	case domain.ModeGrid:
-		return h.config.Grid.HasAppHotkeyOverrides()
-	case domain.ModeRecursiveGrid:
-		return h.config.RecursiveGrid.HasAppHotkeyOverrides()
-	case domain.ModeScroll:
-		return h.config.Scroll.HasAppHotkeyOverrides()
-	case domain.ModeIdle, domain.ModeMonitorSelect:
-		return false
-	default:
+// activeModeHasAppHotkeyOverrides reports whether the active mode defines any
+// per-app hotkey overrides. That is the only situation requiring the focused
+// app's bundle ID to be resolved to select the correct per-mode hotkey table,
+// and a mode that binds none — or does not take per-app bindings at all — is
+// worth a key press not paying for that lookup.
+func (h *handlerState) activeModeHasAppHotkeyOverrides() bool {
+	reporter, ok := activeModeExtension[hotkeyOverrideReporter](h)
+	if !ok {
 		return false
 	}
+
+	return reporter.HasAppHotkeyOverrides()
 }
 
 // ModeHotkeyOverride returns the per-mode hotkey actions bound to key in the
@@ -219,7 +213,7 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 	}
 
 	var bundleID string
-	if h.modeHasAppHotkeyOverrides(mode) {
+	if h.activeModeHasAppHotkeyOverrides() {
 		bundleID = h.focusedBundleID()
 	}
 

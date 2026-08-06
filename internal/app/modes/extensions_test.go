@@ -7,16 +7,12 @@ import (
 	"slices"
 	"testing"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
+
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
-)
-
-// extensionName names one optional-extension axis in the matrix below.
-type extensionName string
-
-const (
-	extensionSelectionTracking extensionName = "selection tracking"
-	extensionCellNavigation    extensionName = "cell navigation"
+	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 // extensionAxis is one optional extension declared in extensions.go, paired
@@ -45,6 +41,38 @@ var allExtensions = []extensionAxis{
 			return ok
 		},
 	},
+	{
+		name: extensionCursorFollow,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(cursorFollowSelector)
+
+			return ok
+		},
+	},
+	{
+		name: extensionExitSteps,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(exitStepReporter)
+
+			return ok
+		},
+	},
+	{
+		name: extensionInputEditing,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(inputEditor)
+
+			return ok
+		},
+	},
+	{
+		name: extensionHotkeyOverrides,
+		carried: func(mode Mode) bool {
+			_, ok := mode.(hotkeyOverrideReporter)
+
+			return ok
+		},
+	},
 }
 
 // modeExtensionMatrix states, per mode, every optional extension that mode
@@ -54,17 +82,34 @@ var allExtensions = []extensionAxis{
 // This table is what makes optional extensions safe; the modes area guide says
 // why the guarantee lives here rather than in the linter.
 var modeExtensionMatrix = map[domain.Mode][]extensionName{
-	domain.ModeHints: {},
+	domain.ModeHints: {
+		extensionCursorFollow,
+		extensionExitSteps,
+		extensionInputEditing,
+		extensionHotkeyOverrides,
+	},
 	domain.ModeGrid: {
 		extensionSelectionTracking,
 		extensionCellNavigation,
+		extensionCursorFollow,
+		extensionExitSteps,
+		extensionInputEditing,
+		extensionHotkeyOverrides,
 	},
 	domain.ModeRecursiveGrid: {
 		extensionSelectionTracking,
 		extensionCellNavigation,
+		extensionCursorFollow,
+		extensionExitSteps,
+		extensionInputEditing,
+		extensionHotkeyOverrides,
 	},
-	domain.ModeScroll:        {},
-	domain.ModeMonitorSelect: {},
+	domain.ModeScroll: {
+		extensionHotkeyOverrides,
+	},
+	domain.ModeMonitorSelect: {
+		extensionInputEditing,
+	},
 }
 
 // TestModeExtensionMatrix pins what every registered mode does on every
@@ -143,6 +188,71 @@ func TestCheckModeExtensions_AcceptsAFullyStatedMode(t *testing.T) {
 	)
 	if len(problems) != 0 {
 		t.Fatalf("expected a fully stated mode to pass, got %v", problems)
+	}
+}
+
+// TestActiveModeEffect_DeclinedEffectIsDiagnosable pins the half of the absence
+// semantics a user can feel: pressing backspace in a mode that does not edit
+// input does nothing, and "nothing happened" has to be answerable from a debug
+// log rather than by reading the dispatch.
+//
+// It drives the handler's own entry points and reads the log the way a user
+// running with --log-level debug would, so it names the mode and the axis as
+// text rather than reaching for the extension it is about.
+func TestActiveModeEffect_DeclinedEffectIsDiagnosable(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+
+	appState := state.NewAppState()
+	handler := newHandlerWithState(handlerState{
+		appState: appState,
+		logger:   zap.New(core),
+	})
+
+	appState.SetMode(domain.ModeScroll)
+
+	handler.BackspaceCurrentMode()
+
+	declined := logs.FilterLevelExact(zap.DebugLevel).All()
+	if len(declined) != 1 {
+		t.Fatalf("backspace in scroll mode logged %d debug entries, want 1", len(declined))
+	}
+
+	wantMode := domain.ModeString(domain.ModeScroll)
+
+	fields := declined[0].ContextMap()
+	if got := fields["mode"]; got != wantMode {
+		t.Errorf("declined effect named mode %v, want %q", got, wantMode)
+	}
+
+	if got := fields["extension"]; got != string(extensionInputEditing) {
+		t.Errorf("declined effect named extension %v, want %q", got, extensionInputEditing)
+	}
+}
+
+// TestActiveModeExtension_AbsentGetterStaysSilent pins the other half: a getter
+// the active mode does not carry answers with its zero value and says nothing,
+// because the caller asked a question rather than for an effect.
+func TestActiveModeExtension_AbsentGetterStaysSilent(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+
+	appState := state.NewAppState()
+	handler := newHandlerWithState(handlerState{
+		appState: appState,
+		logger:   zap.New(core),
+	})
+
+	appState.SetMode(domain.ModeScroll)
+
+	if _, ok := handler.CurrentSelectionPoint(); ok {
+		t.Fatal("scroll mode reported a selection point")
+	}
+
+	if _, ok := handler.CursorFollowSelection(); ok {
+		t.Fatal("scroll mode reported a cursor-follow preference")
+	}
+
+	if logs.Len() != 0 {
+		t.Fatalf("absent getters logged %v, want silence", logs.All())
 	}
 }
 

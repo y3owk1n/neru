@@ -8,8 +8,12 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-// Compile-time interface compliance check.
-var _ Mode = (*ScrollMode)(nil)
+// Compile-time interface compliance checks: the core interface, then every
+// optional extension scroll mode opts into (extensions.go).
+var (
+	_ Mode                   = (*ScrollMode)(nil)
+	_ hotkeyOverrideReporter = (*ScrollMode)(nil)
+)
 
 // ScrollMode implements the Mode interface for scroll-based navigation.
 type ScrollMode struct {
@@ -60,4 +64,13 @@ func (m *ScrollMode) Exit() {
 	if m.handler.cursorState != nil {
 		m.handler.cursorState.Reset()
 	}
+}
+
+// HasAppHotkeyOverrides reports whether [scroll.apps] binds any per-app hotkey.
+func (m *ScrollMode) HasAppHotkeyOverrides() bool {
+	if m.handler.config == nil {
+		return false
+	}
+
+	return m.handler.config.Scroll.HasAppHotkeyOverrides()
 }

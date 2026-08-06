@@ -6,14 +6,19 @@ import (
 
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension grid mode opts into (extensions.go).
 var (
-	_ Mode             = (*GridMode)(nil)
-	_ selectionTracker = (*GridMode)(nil)
-	_ cellNavigator    = (*GridMode)(nil)
+	_ Mode                   = (*GridMode)(nil)
+	_ selectionTracker       = (*GridMode)(nil)
+	_ cellNavigator          = (*GridMode)(nil)
+	_ cursorFollowSelector   = (*GridMode)(nil)
+	_ exitStepReporter       = (*GridMode)(nil)
+	_ inputEditor            = (*GridMode)(nil)
+	_ hotkeyOverrideReporter = (*GridMode)(nil)
 )
 
 // GridMode implements the Mode interface for grid-based navigation.
@@ -94,4 +99,103 @@ func (m *GridMode) MoveCell(dir domain.Direction, count int) {
 	}
 
 	m.handler.grid.Manager.MoveDirection(dir, count)
+}
+
+// CursorFollowSelection reports whether the real cursor rides along with the
+// selected cell.
+func (m *GridMode) CursorFollowSelection() (bool, bool) {
+	modeContext, ok := m.cursorFollowContext()
+	if !ok {
+		return false, false
+	}
+
+	return modeContext.CursorFollowSelection(), true
+}
+
+// ApplyCursorFollowSelection sets or toggles the preference and then settles
+// what the change owes: the virtual pointer stands in for the real cursor only
+// while the cursor is not following, and turning following on puts the cursor
+// on the cell that is already selected.
+func (m *GridMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
+	modeContext, ok := m.cursorFollowContext()
+	if !ok {
+		return false, false
+	}
+
+	enabled := applyCursorFollow(modeContext, desired)
+
+	m.handler.refreshGridVirtualPointer()
+	m.handler.moveCursorToSelection(enabled, m.handler.grid.Context.SelectionPoint)
+
+	return enabled, true
+}
+
+// ExitSteps reports the --on-exit steps this grid session was activated with.
+func (m *GridMode) ExitSteps() []string {
+	if m.handler.grid == nil || m.handler.grid.Context == nil {
+		return nil
+	}
+
+	return m.handler.grid.Context.OnExit()
+}
+
+// ResetInput clears the typed cell label and redraws the full grid. The
+// selection goes with the input: nothing is typed, so no cell is chosen.
+func (m *GridMode) ResetInput() {
+	handler := m.handler
+
+	if handler.grid == nil || handler.grid.Manager == nil {
+		return
+	}
+
+	handler.grid.Manager.Reset()
+
+	// Clear stale selection — input was reset so no cell is selected. The
+	// session builds its Context and Manager together, so the guard above
+	// answers for both.
+	handler.grid.Context.ClearSelectionPoint()
+
+	gridInstancePtr := handler.grid.Context.GridInstance()
+	if gridInstancePtr == nil || *gridInstancePtr == nil {
+		return
+	}
+
+	handler.redrawFrame(
+		ports.GridFrame{
+			Grid:  *gridInstancePtr,
+			Input: handler.grid.Manager.CurrentInput(),
+		},
+		"redraw grid after reset",
+	)
+
+	handler.refreshGridVirtualPointer()
+}
+
+// Backspace takes back the last character of the cell label being typed. The
+// manager's update callback redraws what is left.
+func (m *GridMode) Backspace() {
+	if m.handler.grid == nil || m.handler.grid.Manager == nil {
+		return
+	}
+
+	m.handler.grid.Manager.HandleBackspace()
+}
+
+// HasAppHotkeyOverrides reports whether [grid.apps] binds any per-app hotkey.
+func (m *GridMode) HasAppHotkeyOverrides() bool {
+	if m.handler.config == nil {
+		return false
+	}
+
+	return m.handler.config.Grid.HasAppHotkeyOverrides()
+}
+
+// cursorFollowContext is the grid session's preference carrier, or false when
+// there is no session.
+func (m *GridMode) cursorFollowContext() (cursorFollowContext, bool) {
+	if m.handler.grid == nil || m.handler.grid.Context == nil {
+		return nil, false
+	}
+
+	return m.handler.grid.Context, true
 }

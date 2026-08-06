@@ -7,136 +7,37 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// ResetCurrentMode resets current mode input state without exiting.
+// ResetCurrentMode clears the active mode's accumulated input without exiting
+// it. A mode with no input to clear says so in the debug log.
 func (h *Handler) ResetCurrentMode() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		if h.grid != nil && h.grid.Manager != nil {
-			h.grid.Manager.Reset()
-
-			// Clear stale selection — input was reset so no cell is selected.
-			h.grid.Context.ClearSelectionPoint()
-
-			gridInstancePtr := h.grid.Context.GridInstance()
-			if gridInstancePtr != nil && *gridInstancePtr != nil {
-				h.redrawFrame(
-					ports.GridFrame{
-						Grid:  *gridInstancePtr,
-						Input: h.grid.Manager.CurrentInput(),
-					},
-					"redraw grid after reset",
-				)
-
-				h.refreshGridVirtualPointer()
-			}
-		}
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
-			h.recursiveGrid.Manager.Reset()
-
-			center := h.recursiveGrid.Manager.CurrentCenter()
-
-			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-			if h.recursiveGrid.Context != nil {
-				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-			}
-
-			h.updateRecursiveGridOverlay()
-
-			if h.recursiveGrid.Context != nil {
-				if !h.recursiveGrid.Context.CursorFollowSelection() {
-					h.refreshRecursiveGridVirtualPointer()
-
-					return
-				}
-			}
-
-			err := h.actionService.MoveCursorToPoint(
-				h.ctx,
-				absoluteCenter,
-			)
-			if err != nil {
-				h.logger.Error("Failed to move cursor after recursive-grid reset", zap.Error(err))
-			}
-		}
-	case domain.ModeMonitorSelect:
-		if h.monitorSelect != nil {
-			h.monitorSelect.input = ""
-			h.monitorSelect.selectedIndex = 0
-			h.redrawMonitorSelect()
-		}
-	case domain.ModeIdle, domain.ModeHints, domain.ModeScroll:
-		// no-op
+	editor, ok := activeModeEffect[inputEditor](&h.handlerState, extensionInputEditing)
+	if !ok {
+		return
 	}
+
+	editor.ResetInput()
 }
 
-// BackspaceCurrentMode performs mode-aware backspace behavior without exiting.
+// BackspaceCurrentMode takes back the active mode's most recent unit of input
+// without exiting it. A mode with no input to take back says so in the debug
+// log.
 func (h *Handler) BackspaceCurrentMode() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		if h.hints != nil && h.hints.Context != nil && h.hints.Context.Manager() != nil {
-			backspaceErr := h.hints.Context.Manager().HandleBackspace()
-			if backspaceErr != nil {
-				h.logger.Error("Hint backspace failed", zap.Error(backspaceErr))
-			}
-		}
-
-		h.cycleHintIndex = -1
-	case domain.ModeGrid:
-		if h.grid != nil && h.grid.Manager != nil {
-			h.grid.Manager.HandleBackspace()
-		}
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil &&
-			h.recursiveGrid.Manager.Backtrack() {
-			center := h.recursiveGrid.Manager.CurrentCenter()
-
-			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-
-			if h.recursiveGrid.Context != nil {
-				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-			}
-
-			h.updateRecursiveGridOverlay()
-
-			if h.recursiveGrid.Context != nil {
-				if !h.recursiveGrid.Context.CursorFollowSelection() {
-					h.refreshRecursiveGridVirtualPointer()
-
-					return
-				}
-			}
-
-			err := h.actionService.MoveCursorToPoint(
-				h.ctx,
-				absoluteCenter,
-			)
-			if err != nil {
-				h.logger.Error(
-					"Failed to move cursor after recursive-grid backspace",
-					zap.Error(err),
-				)
-			}
-		}
-	case domain.ModeMonitorSelect:
-		if h.monitorSelect != nil {
-			h.monitorSelect.Backspace()
-			h.redrawMonitorSelect()
-		}
-	case domain.ModeIdle, domain.ModeScroll:
-		// no-op
+	editor, ok := activeModeEffect[inputEditor](&h.handlerState, extensionInputEditing)
+	if !ok {
+		return
 	}
+
+	editor.Backspace()
 }
 
 // MoveCellCurrentMode slides the active mode's selection count cells in dir

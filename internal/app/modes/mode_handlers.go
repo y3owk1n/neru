@@ -144,26 +144,17 @@ func (h *handlerState) executeActionAtPoint(
 
 // currentModeOnExit returns the --on-exit steps configured for the currently
 // active action mode, or nil when none are set or the mode has no context.
+//
+// A mode that reports no exit steps at all — scroll, the monitor picker, idle —
+// takes no pending --action either, so there is nothing here it could have been
+// asked to run and its silence is the same nothing as an empty list.
 func (h *handlerState) currentModeOnExit() []string {
-	switch h.appState.CurrentMode() {
-	case domain.ModeHints:
-		if h.hints != nil && h.hints.Context != nil {
-			return h.hints.Context.OnExit()
-		}
-	case domain.ModeGrid:
-		if h.grid != nil && h.grid.Context != nil {
-			return h.grid.Context.OnExit()
-		}
-	case domain.ModeRecursiveGrid:
-		if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
-			return h.recursiveGrid.Context.OnExit()
-		}
-	case domain.ModeIdle, domain.ModeScroll, domain.ModeMonitorSelect:
-		// These modes do not support a pending --action, so there is no
-		// --on-exit sequence to run.
+	reporter, ok := activeModeExtension[exitStepReporter](h)
+	if !ok {
+		return nil
 	}
 
-	return nil
+	return reporter.ExitSteps()
 }
 
 // runOnExit dispatches the mode's --on-exit steps after the pending action was

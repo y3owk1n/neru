@@ -14,9 +14,13 @@ import (
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension recursive-grid mode opts into (extensions.go).
 var (
-	_ Mode             = (*RecursiveGridMode)(nil)
-	_ selectionTracker = (*RecursiveGridMode)(nil)
-	_ cellNavigator    = (*RecursiveGridMode)(nil)
+	_ Mode                   = (*RecursiveGridMode)(nil)
+	_ selectionTracker       = (*RecursiveGridMode)(nil)
+	_ cellNavigator          = (*RecursiveGridMode)(nil)
+	_ cursorFollowSelector   = (*RecursiveGridMode)(nil)
+	_ exitStepReporter       = (*RecursiveGridMode)(nil)
+	_ inputEditor            = (*RecursiveGridMode)(nil)
+	_ hotkeyOverrideReporter = (*RecursiveGridMode)(nil)
 )
 
 // RecursiveGridMode implements the Mode interface for recursive-grid navigation.
@@ -122,5 +126,115 @@ func (m *RecursiveGridMode) MoveCell(dir domain.Direction, count int) {
 			"Failed to move cursor after recursive-grid cell move",
 			zap.Error(err),
 		)
+	}
+}
+
+// CursorFollowSelection reports whether the real cursor rides along with the
+// zoomed region's center.
+func (m *RecursiveGridMode) CursorFollowSelection() (bool, bool) {
+	modeContext, ok := m.cursorFollowContext()
+	if !ok {
+		return false, false
+	}
+
+	return modeContext.CursorFollowSelection(), true
+}
+
+// ApplyCursorFollowSelection sets or toggles the preference and then settles
+// what the change owes: the virtual pointer stands in for the real cursor only
+// while the cursor is not following, and turning following on puts the cursor
+// on the region center that is already selected.
+func (m *RecursiveGridMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
+	modeContext, ok := m.cursorFollowContext()
+	if !ok {
+		return false, false
+	}
+
+	enabled := applyCursorFollow(modeContext, desired)
+
+	m.handler.refreshRecursiveGridVirtualPointer()
+	m.handler.moveCursorToSelection(enabled, m.handler.recursiveGrid.Context.SelectionPoint)
+
+	return enabled, true
+}
+
+// ExitSteps reports the --on-exit steps this recursive-grid session was
+// activated with.
+func (m *RecursiveGridMode) ExitSteps() []string {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
+		return nil
+	}
+
+	return m.handler.recursiveGrid.Context.OnExit()
+}
+
+// ResetInput climbs all the way back out to the full screen, discarding the
+// zoom history.
+func (m *RecursiveGridMode) ResetInput() {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Manager == nil {
+		return
+	}
+
+	m.handler.recursiveGrid.Manager.Reset()
+
+	m.settleAtCurrentCenter("Failed to move cursor after recursive-grid reset")
+}
+
+// Backspace climbs one level back out of the zoom. A backtrack that had nowhere
+// to go leaves the region, and the cursor, where they are.
+func (m *RecursiveGridMode) Backspace() {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Manager == nil ||
+		!m.handler.recursiveGrid.Manager.Backtrack() {
+		return
+	}
+
+	m.settleAtCurrentCenter("Failed to move cursor after recursive-grid backspace")
+}
+
+// HasAppHotkeyOverrides reports whether [recursive_grid.apps] binds any per-app
+// hotkey.
+func (m *RecursiveGridMode) HasAppHotkeyOverrides() bool {
+	if m.handler.config == nil {
+		return false
+	}
+
+	return m.handler.config.RecursiveGrid.HasAppHotkeyOverrides()
+}
+
+// cursorFollowContext is the recursive-grid session's preference carrier, or
+// false when there is no session.
+func (m *RecursiveGridMode) cursorFollowContext() (cursorFollowContext, bool) {
+	if m.handler.recursiveGrid == nil || m.handler.recursiveGrid.Context == nil {
+		return nil, false
+	}
+
+	return m.handler.recursiveGrid.Context, true
+}
+
+// settleAtCurrentCenter re-selects the center of the region the manager now
+// holds, redraws it, and brings whichever pointer is standing in for the
+// selection — the virtual one, or the real cursor when it follows — onto it.
+func (m *RecursiveGridMode) settleAtCurrentCenter(moveFailureMessage string) {
+	handler := m.handler
+
+	center := handler.recursiveGrid.Manager.CurrentCenter()
+
+	absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, handler.screenBounds)
+	if handler.recursiveGrid.Context != nil {
+		handler.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+	}
+
+	handler.updateRecursiveGridOverlay()
+
+	if handler.recursiveGrid.Context != nil &&
+		!handler.recursiveGrid.Context.CursorFollowSelection() {
+		handler.refreshRecursiveGridVirtualPointer()
+
+		return
+	}
+
+	err := handler.actionService.MoveCursorToPoint(handler.ctx, absoluteCenter)
+	if err != nil {
+		handler.logger.Error(moveFailureMessage, zap.Error(err))
 	}
 }
