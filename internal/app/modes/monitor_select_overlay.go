@@ -3,54 +3,18 @@ package modes
 import (
 	"strings"
 
-	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// showMonitorSelect renders the interactive monitor picker through the overlay
-// manager's optional MonitorSelector extension (implemented by the darwin and
-// Linux backends). Backends without it report CodeNotSupported, and the mode
-// refuses to activate.
-func (h *handlerState) showMonitorSelect() error {
-	if h.monitorSelect == nil {
-		return nil
-	}
-
-	selector, ok := h.overlayManager.(overlaymanager.MonitorSelector)
-	if !ok {
-		return derrors.New(
-			derrors.CodeNotSupported,
-			"monitor_select overlay is unavailable on this backend",
-		)
-	}
-
-	targets, style := h.monitorSelectRenderData()
-	if len(targets) == 0 {
-		selector.HideMonitorSelect()
-
-		return nil
-	}
-
-	return selector.DrawMonitorSelect(targets, style)
-}
-
-// hideMonitorSelect removes the monitor-select panels. A backend without the
-// MonitorSelector extension has nothing to hide, so this cannot fail.
-func (h *handlerState) hideMonitorSelect() {
-	if selector, ok := h.overlayManager.(overlaymanager.MonitorSelector); ok {
-		selector.HideMonitorSelect()
-	}
-}
-
-// monitorSelectRenderData maps the active monitor_select session into the
-// overlay's render types, carrying the Style the overlay resolved.
-func (h *handlerState) monitorSelectRenderData() ([]overlay.MonitorSelectTarget, overlay.MonitorSelectStyle) {
-	style := h.overlayStyle().MonitorSelect
-
+// monitorSelectFrame describes the monitor picker as it should be on screen
+// for the active session: one target per selectable display, each carrying how
+// far the user's input has matched its label.
+//
+// It carries domain values only. Whether this backend can draw the picker at
+// all is an optional capability the overlay answers for itself, so no mode
+// asks a backend what it supports before describing what it wants.
+func (h *handlerState) monitorSelectFrame() ports.MonitorSelectFrame {
 	input := h.monitorSelect.Input()
 
 	selectedName := ""
@@ -60,18 +24,18 @@ func (h *handlerState) monitorSelectRenderData() ([]overlay.MonitorSelectTarget,
 
 	sessionTargets := h.monitorSelect.Targets()
 
-	targets := make([]overlay.MonitorSelectTarget, 0, len(sessionTargets))
+	targets := make([]ports.MonitorSelectTarget, 0, len(sessionTargets))
 	for _, target := range sessionTargets {
-		targets = append(targets, overlay.MonitorSelectTarget{
+		targets = append(targets, ports.MonitorSelectTarget{
 			Bounds:           target.Bounds,
 			Label:            target.Label,
-			Subtitle:         target.Name,
+			Name:             target.Name,
 			Selected:         target.Name == selectedName,
 			MatchedPrefixLen: matchedPrefixLength(target.Label, input),
 		})
 	}
 
-	return targets, style
+	return ports.MonitorSelectFrame{Targets: targets}
 }
 
 // matchedPrefixLength returns how many leading runes of label are matched by
@@ -98,19 +62,20 @@ func matchedPrefixLength(label, input string) int {
 	return len(inputRunes)
 }
 
+// redrawMonitorSelect repaints the picker over the panels already on screen.
+// Every keystroke redraws the whole surface — the picker has no incremental
+// path — so a keystroke hands over a frame, as recursive grid does.
 func (h *handlerState) redrawMonitorSelect() {
 	if h.monitorSelect == nil {
 		return
 	}
 
-	err := h.showMonitorSelect()
-	if err != nil {
-		h.logger.Debug("Failed to redraw monitor_select overlay", zap.Error(err))
-	}
+	h.redrawFrame(h.monitorSelectFrame(), "redraw monitor_select overlay")
 }
 
-// RefreshMonitorSelectForThemeChange redraws the monitor_select overlay using
-// the latest theme-resolved colors when the mode is active.
+// RefreshMonitorSelectForThemeChange redraws the monitor_select overlay when
+// the mode is active. The colors come from the Style the overlay resolved, so
+// a redraw is all a theme change needs.
 func (h *Handler) RefreshMonitorSelectForThemeChange() {
 	h.mu.Lock()
 	defer h.mu.Unlock()

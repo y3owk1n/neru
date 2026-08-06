@@ -5,7 +5,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -68,15 +67,11 @@ func (h *handlerState) cleanupHintsMode() {
 	h.stopIndicatorPolling()
 }
 
-// cleanupDefaultMode handles cleanup for default/unknown modes.
-func (h *handlerState) cleanupDefaultMode() {
-	// No domain-specific cleanup for other modes yet.
-	// But still clear and hide action overlay.
-	if overlay.Get() != nil {
-		overlay.Get().Clear()
-		overlay.Get().Hide()
-	}
-}
+// cleanupDefaultMode handles cleanup for a mode with no implementation
+// registered. There is no domain state to reset, and the frame on screen is
+// taken off by the common cleanup that follows — the same way it is for every
+// mode that does have one.
+func (h *handlerState) cleanupDefaultMode() {}
 
 // cleanupGridMode handles cleanup for grid mode.
 func (h *handlerState) cleanupGridMode() {

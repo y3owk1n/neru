@@ -7,7 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -36,12 +35,11 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 	}
 
 	handler := newHandlerWithState(handlerState{
-		logger:         zap.NewNop(),
-		config:         &configpkg.Config{},
-		appState:       appState,
-		modifierState:  state.NewModifierState(),
-		overlayManager: &overlay.NoOpManager{},
-		eventTap:       eventTap,
+		logger:        zap.NewNop(),
+		config:        &configpkg.Config{},
+		appState:      appState,
+		modifierState: state.NewModifierState(),
+		eventTap:      eventTap,
 	})
 
 	handler.modifierState.Toggle(action.ModCtrl)
@@ -89,13 +87,12 @@ func TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled(t *testing
 	cancel()
 
 	handler := newHandlerWithState(handlerState{
-		ctx:            ctx,
-		logger:         zap.NewNop(),
-		config:         &configpkg.Config{},
-		appState:       appState,
-		modifierState:  state.NewModifierState(),
-		overlayManager: &overlay.NoOpManager{},
-		overlayPort:    overlayPort,
+		ctx:           ctx,
+		logger:        zap.NewNop(),
+		config:        &configpkg.Config{},
+		appState:      appState,
+		modifierState: state.NewModifierState(),
+		overlayPort:   overlayPort,
 	})
 
 	handler.performCommonCleanup()

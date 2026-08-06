@@ -81,6 +81,29 @@ are declarative; updates — hot, already narrow, already correct — are not.
   measurable time cost. That is the price this ADR said a fully declarative
   port would charge on every keystroke, paid only where the surface was
   already being repainted anyway.
+- **The last two surfaces converted, and the mode handler kept one overlay
+  reference.** Done in #1212: `MonitorSelectFrame` carries the displays on
+  offer, and `ScrollFrame` carries nothing at all — scroll is a mode the
+  indicators name rather than a surface with content, but entering it is still
+  a transition, so saying that with a Frame is what leaves one path from a mode
+  to the screen. Drawing the picker stays an **optional capability reached by
+  type assertion**: the assertion moved from the mode into `Adapter.draw`,
+  where a backend without `manager.MonitorSelector` reports `CodeNotSupported`
+  and the mode refuses to activate, so the port never grew a monitor-select
+  method. `ClearFrame` takes the panels down as well as the shared surface —
+  they are not drawn on it, and a caller that had to take half the picker down
+  itself was a caller that could leave it behind. With `SetActiveScreen` and
+  `Flush` on the port for the two calls that were neither frame nor draw,
+  `handlerState.overlayManager` and `handlerState.overlayStyles` were deleted:
+  the handler holds `overlayPort` and nothing else it draws through — the
+  Linux keyboard-capture extension is still reached through the package
+  singleton, and draws nothing — and `setMode` went with them, because
+  switching the overlay to a mode is now something only realizing a frame does.
+  The window sequence is the one thing a frame varies, and only the picker
+  varies it: its panels are windows of their own. Scroll draws nothing yet
+  still brings the shared window up, because on Linux the indicators that name
+  the mode are painted on that surface, and deciding otherwise would put
+  macOS's one-window-per-indicator model into shared code.
 - **The hint search input went with hints.** Its geometry was computed in
   `app/modes` from configuration and handed over as a render model; it is now
   a `SearchInputLayout` resolved with the rest of the Style and placed in the

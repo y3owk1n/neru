@@ -8,7 +8,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
@@ -75,21 +74,19 @@ type handlerState struct {
 	// outer is the owning Handler. Deferred callbacks only; see the type comment.
 	outer *Handler
 
-	config         *configpkg.Config
-	system         ports.SystemPort
-	logger         *zap.Logger
-	appState       *state.AppState
-	cursorState    *state.CursorState
-	modifierState  *state.ModifierState
-	overlayManager overlay.ManagerInterface
-	// overlayPort is the contract a mode hands a Frame to. The modes still
-	// converted to it draw through here and never sequence a transition
-	// themselves; overlayManager is what is left for the surfaces that have
-	// not been converted yet (#1211, #1212).
+	config        *configpkg.Config
+	system        ports.SystemPort
+	logger        *zap.Logger
+	appState      *state.AppState
+	cursorState   *state.CursorState
+	modifierState *state.ModifierState
+	// overlayPort is the one way a mode reaches the screen: it hands over a
+	// Frame describing what should be on it and never sequences a transition
+	// itself. There is no second overlay reference to choose between for
+	// drawing (#1212); the Linux keyboard-capture extension is still reached
+	// through the package singleton in indicator_polling.go, which draws
+	// nothing.
 	overlayPort ports.OverlayPort
-	// overlayStyles is where every theme-resolved overlay appearance comes
-	// from. The handler reads it and never derives one of its own.
-	overlayStyles overlay.StyleSource
 	// hintsFrameOnScreen records whether this activation has already put the
 	// hints Frame on screen. The hint manager's update callback fires on
 	// activation and again on every narrowing keystroke; only the first needs
@@ -191,9 +188,7 @@ type HandlerDeps struct {
 	AppState    *state.AppState
 	CursorState *state.CursorState
 
-	OverlayManager overlay.ManagerInterface
-	OverlayPort    ports.OverlayPort
-	OverlayStyles  overlay.StyleSource
+	OverlayPort ports.OverlayPort
 
 	HintService            *services.HintService
 	GridService            *services.GridService
@@ -255,9 +250,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		appState:               deps.AppState,
 		cursorState:            deps.CursorState,
 		modifierState:          state.NewModifierState(),
-		overlayManager:         deps.OverlayManager,
 		overlayPort:            deps.OverlayPort,
-		overlayStyles:          deps.OverlayStyles,
 		hintService:            deps.HintService,
 		gridService:            deps.GridService,
 		actionService:          deps.ActionService,
@@ -401,16 +394,15 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 }
 
 // setScreenBounds records the active screen bounds used for overlay coordinate
-// conversion and informs the overlay backend of that screen's global origin.
-// The grid, recursive-grid and hint overlays render in screen-local coordinates
-// (origin 0,0); on backends whose overlay spans the whole desktop (Linux X11
-// and Wayland) the origin lets them translate that content onto the correct
-// monitor. It is a no-op where each screen owns an overlay window (macOS).
+// conversion and names that display to the overlay. The grid, recursive-grid
+// and hint surfaces are drawn in screen-local coordinates (origin 0,0), so a
+// backend whose surface spans the whole desktop needs the screen to place that
+// content on the right monitor; where each screen owns a window it is ignored.
 func (h *handlerState) setScreenBounds(bounds image.Rectangle) {
 	h.screenBounds = bounds
 
-	if h.overlayManager != nil {
-		h.overlayManager.SetActiveScreenOrigin(bounds.Min)
+	if h.overlayPort != nil {
+		h.overlayPort.SetActiveScreen(bounds)
 	}
 }
 

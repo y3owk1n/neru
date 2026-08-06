@@ -955,6 +955,12 @@ func TestSimulation_SystrayComponent(t *testing.T) {
 
 const monitorSelectHotkey = "Primary+Shift+M"
 
+// The two fixture displays a monitor_select journey picks between.
+const (
+	mainDisplayName   = "MainDisplay"
+	secondDisplayName = "SecondDisplay"
+)
+
 // monitorSelectConfig returns a config with monitor_select enabled and bound.
 func monitorSelectConfig() *config.Config {
 	cfg := simConfig()
@@ -972,8 +978,8 @@ func TestSimulation_MonitorSelectJourney(t *testing.T) {
 
 	second := image.Rect(1920, 0, 3840, 1080)
 	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
-		{name: "MainDisplay", bounds: simScreen},
-		{name: "SecondDisplay", bounds: second},
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: second},
 	})
 
 	sim.pressHotkey(monitorSelectHotkey)
@@ -1018,8 +1024,8 @@ func TestSimulation_MonitorSelectJourney(t *testing.T) {
 // CodeNotSupported, the mode never engages, and the app keeps working.
 func TestSimulation_MonitorSelectNotSupported(t *testing.T) {
 	sim := newSimHarnessHeadlessOverlay(t, monitorSelectConfig(), []simDisplay{
-		{name: "MainDisplay", bounds: simScreen},
-		{name: "SecondDisplay", bounds: image.Rect(1920, 0, 3840, 1080)},
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: image.Rect(1920, 0, 3840, 1080)},
 	})
 
 	sim.pressHotkey(monitorSelectHotkey)
@@ -1362,5 +1368,126 @@ func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
 			got,
 			showsAfterActivation,
 		)
+	}
+}
+
+// TestSimulation_ModeTransitionLeavesOneModeDrawn pins what a user sees when
+// one mode replaces another: the mode they left is off the screen by the time
+// the one they entered is on it, never both at once.
+//
+// It walks the four surfaces that draw — grid, hints, recursive grid and
+// monitor-select — switching straight from each to the next without going
+// through idle first, because a transition is where two overlays used to be
+// left on screen together. The assertion is on what is drawn, not on the calls
+// that got it there: which of them the overlay uses to realize a Frame is
+// exactly what this seam must be free to change.
+func TestSimulation_ModeTransitionLeavesOneModeDrawn(t *testing.T) {
+	cfg := monitorSelectConfig()
+	cfg.Hotkeys.Bindings[recursiveGridHotkey] = []string{"recursive_grid"}
+
+	sim := newSimHarnessWithDisplays(t, cfg, threeButtons(t), []simDisplay{
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: image.Rect(1920, 0, 3840, 1080)},
+	})
+
+	transitions := []struct {
+		hotkey string
+		mode   domain.Mode
+	}{
+		{gridHotkey, domain.ModeGrid},
+		{hintsHotkey, domain.ModeHints},
+		{recursiveGridHotkey, domain.ModeRecursiveGrid},
+		{monitorSelectHotkey, domain.ModeMonitorSelect},
+		{gridHotkey, domain.ModeGrid},
+	}
+
+	for _, transition := range transitions {
+		drawn := domain.ModeString(transition.mode)
+
+		sim.pressHotkey(transition.hotkey)
+		sim.waitMode(transition.mode)
+
+		sim.waitFor(drawn+" on screen", func() bool {
+			names := sim.overlay.drawnModeNames()
+
+			return len(names) == 1 && names[0] == drawn
+		})
+	}
+}
+
+// TestSimulation_LeavingMonitorSelectForScrollTakesItsPanelsDown covers the
+// one transition that does not go through the common mode cleanup: scroll is
+// entered without leaving the previous mode first, so that its event tap stays
+// up. The monitor picker draws on panels of its own rather than on the shared
+// surface, so nothing about clearing that surface takes them off the screen —
+// and a user who switched to scroll would be looking at the picker over their
+// work.
+func TestSimulation_LeavingMonitorSelectForScrollTakesItsPanelsDown(t *testing.T) {
+	sim := newSimHarnessWithDisplays(t, monitorSelectConfig(), nil, []simDisplay{
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: image.Rect(1920, 0, 3840, 1080)},
+	})
+
+	sim.pressHotkey(monitorSelectHotkey)
+	sim.waitMode(domain.ModeMonitorSelect)
+	sim.waitFor("monitor panels drawn", func() bool {
+		return len(sim.overlay.drawnModeNames()) == 1
+	})
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+
+	sim.waitFor("nothing left on screen", func() bool {
+		return len(sim.overlay.drawnModeNames()) == 0
+	})
+}
+
+// moveMonitorHotkey runs the move-monitor action rather than opening a mode.
+const moveMonitorHotkey = "Primary+Shift+N"
+
+// TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay covers what a user
+// sees when they send the cursor to another display with a mode open: the
+// overlay leaves the display they came from and is back on the one they land
+// on, with only that mode drawn.
+//
+// The path it exercises takes the frame off the screen before the warp and
+// hands over a new one after it, across the handler lock and the monitor-move
+// lock, which is why it is worth driving end to end rather than asserting on
+// the calls in between.
+func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[moveMonitorHotkey] = []string{
+		"action move_monitor --name " + secondDisplayName,
+	}
+
+	second := image.Rect(1920, 0, 3840, 1080)
+	sim := newSimHarnessWithDisplays(t, cfg, nil, []simDisplay{
+		{name: mainDisplayName, bounds: simScreen},
+		{name: secondDisplayName, bounds: second},
+	})
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid on screen", func() bool {
+		return sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 1
+	})
+
+	sim.pressHotkey(moveMonitorHotkey)
+
+	secondCenter := image.Point{X: 2880, Y: 540}
+	sim.waitFor("cursor on the second display", func() bool {
+		return sim.cursor.position() == secondCenter
+	})
+
+	sim.waitFor("grid back on screen after the move", func() bool {
+		names := sim.overlay.drawnModeNames()
+
+		return sim.overlay.isVisible() &&
+			len(names) == 1 &&
+			names[0] == domain.ModeString(domain.ModeGrid)
+	})
+
+	if sim.app.CurrentMode() != domain.ModeGrid {
+		t.Fatalf("mode after monitor move = %v, want grid", sim.app.CurrentMode())
 	}
 }

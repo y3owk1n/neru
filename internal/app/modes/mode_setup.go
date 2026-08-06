@@ -3,7 +3,6 @@ package modes
 import (
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -11,13 +10,6 @@ import (
 // CurrModeString returns the current mode as a string.
 func (h *handlerState) CurrModeString() string {
 	return domain.ModeString(h.appState.CurrentMode())
-}
-
-// overlaySwitch switches the overlay mode.
-func (h *handlerState) overlaySwitch(m overlay.Mode) {
-	if h.overlayManager != nil {
-		h.overlayManager.SwitchTo(m)
-	}
 }
 
 func (h *handlerState) setAppMode(mode domain.Mode) {
@@ -55,11 +47,11 @@ func (h *handlerState) syncStickyModifierToggle(mode domain.Mode) {
 
 // SetModeIdle switches the application to idle mode, disabling active navigation modes.
 // This function resets the application state to idle, disables event tapping,
-// and switches the overlay display to the idle state.
+// and takes whatever was on screen off it.
 //
 // NOTE: Every code path that calls appState.SetMode() must also call
 // syncModifierPassthrough() with the same mode to keep the event tap
-// passthrough state consistent. See also: performCommonCleanup, setMode.
+// passthrough state consistent. See also: performCommonCleanup, enterMode.
 func (h *Handler) SetModeIdle() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -70,7 +62,7 @@ func (h *Handler) SetModeIdle() {
 		h.disableEventTap()
 	}
 
-	h.overlaySwitch(overlay.ModeIdle)
+	h.clearOverlayFrame()
 }
 
 // enterMode sets the application mode and enables the event tap, without
@@ -84,16 +76,6 @@ func (h *handlerState) enterMode(appMode domain.Mode) {
 	if h.hasEventTap() {
 		h.enableEventTap()
 	}
-}
-
-// setMode enters a mode and switches the overlay to it. It is what the modes
-// that still draw through the manager use; the converted ones call enterMode
-// and hand over a Frame.
-// Caller must hold h.mu.
-func (h *handlerState) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
-	h.enterMode(appMode)
-
-	h.overlaySwitch(overlayMode)
 }
 
 // activateModeBase performs common activation steps for all modes.
@@ -116,10 +98,10 @@ func (h *handlerState) activateModeBase(
 	actionString := domain.ActionString(actionEnum)
 	h.logger.Debug("Activating "+modeName+" mode", zap.String("action", actionString))
 
-	// Always resize overlay to the active screen
-	if h.overlayManager != nil {
-		h.overlayManager.ResizeToActiveScreen()
-	}
+	// The overlay is not sized here. Every mode that reaches this hands over a
+	// Frame, and sizing to the active screen is the first step of realizing
+	// one; doing it here as well is a second trip to the main thread for a
+	// screen the frame is about to ask for anyway.
 
 	return actionEnum, true
 }
@@ -135,32 +117,35 @@ func (h *Handler) SetModeHints() {
 	h.enterMode(domain.ModeHints)
 }
 
-// SetModeGrid switches the application to grid mode for coordinate-based navigation.
-// This function sets the application state to grid mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to grid mode.
+// SetModeGrid switches the application to grid mode for coordinate-based
+// navigation. This function sets the application state to grid mode and
+// enables event tapping for capturing keyboard input. The overlay comes up
+// when the mode hands over its Frame, not here.
 func (h *Handler) SetModeGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setMode(domain.ModeGrid, overlay.ModeGrid)
+	h.enterMode(domain.ModeGrid)
 }
 
-// SetModeRecursiveGrid switches the application to recursive-grid mode for recursive cell navigation.
-// This function sets the application state to recursive-grid mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to recursive-grid mode.
+// SetModeRecursiveGrid switches the application to recursive-grid mode for
+// recursive cell navigation. This function sets the application state to
+// recursive-grid mode and enables event tapping for capturing keyboard input.
+// The overlay comes up when the mode hands over its Frame, not here.
 func (h *Handler) SetModeRecursiveGrid() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setMode(domain.ModeRecursiveGrid, overlay.ModeRecursiveGrid)
+	h.enterMode(domain.ModeRecursiveGrid)
 }
 
-// SetModeScroll switches the application to scroll mode for scroll-based navigation.
-// This function sets the application state to scroll mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to scroll mode.
+// SetModeScroll switches the application to scroll mode for scroll-based
+// navigation. This function sets the application state to scroll mode and
+// enables event tapping for capturing keyboard input. The overlay comes up
+// when the mode hands over its Frame, not here.
 func (h *Handler) SetModeScroll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setMode(domain.ModeScroll, overlay.ModeScroll)
+	h.enterMode(domain.ModeScroll)
 }

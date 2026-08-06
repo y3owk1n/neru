@@ -118,6 +118,58 @@ func (RecursiveGridFrame) Mode() domain.Mode { return domain.ModeRecursiveGrid }
 
 func (RecursiveGridFrame) frame() {}
 
+// MonitorSelectFrame is the monitor picker surface: one labeled panel per
+// display the user can send the cursor to.
+//
+// It is the one frame a backend may have no surface for. Drawing it is an
+// optional capability the backend declares for itself, so a backend without it
+// reports CodeNotSupported and the mode refuses to activate rather than
+// engaging with nothing on screen.
+type MonitorSelectFrame struct {
+	// Targets are the displays to draw, already labeled and narrowed to what
+	// the user has typed. An empty frame takes the panels off the screen.
+	Targets []MonitorSelectTarget
+}
+
+// MonitorSelectTarget is one display the monitor picker offers, in global
+// coordinates: the panel is centered on the display it names.
+type MonitorSelectTarget struct {
+	// Bounds is the display, in global coordinates.
+	Bounds image.Rectangle
+
+	// Label is the key sequence that picks this display.
+	Label string
+
+	// Name is the display's own name, shown under the label.
+	Name string
+
+	// Selected is whether this is the display the current input points at.
+	Selected bool
+
+	// MatchedPrefixLen is how many leading runes of Label the user has already
+	// typed, so the drawn label can show how far along they are.
+	MatchedPrefixLen int
+}
+
+// Mode names the mode a monitor-select frame draws.
+func (MonitorSelectFrame) Mode() domain.Mode { return domain.ModeMonitorSelect }
+
+func (MonitorSelectFrame) frame() {}
+
+// ScrollFrame is the scroll surface, which draws nothing: scroll mode is a
+// mode the indicators report, not a surface with content of its own.
+//
+// It is still a Frame, because entering scroll mode is still a transition —
+// whatever the previous mode drew has to come off the screen, and the overlay
+// has to know which mode it is in so the indicators can name it. Saying that
+// with a Frame is what keeps one path from a mode to the screen.
+type ScrollFrame struct{}
+
+// Mode names the mode a scroll frame draws.
+func (ScrollFrame) Mode() domain.Mode { return domain.ModeScroll }
+
+func (ScrollFrame) frame() {}
+
 // GridPointer is the pointer stand-in a grid surface draws where the selection
 // is, for a user who has told the cursor not to follow it. It carries position
 // only: how big it is and what color it is are Style, resolved by the overlay.
@@ -227,6 +279,13 @@ type OverlayPort interface {
 	// sequence, owned in the same place.
 	ClearFrame(ctx context.Context) error
 
+	// SetActiveScreen names the display the overlay's screen-local content
+	// belongs to. Grid, recursive-grid and hint content is drawn in a screen's
+	// own space; a backend whose surface spans the whole desktop needs the
+	// screen to place that content on the right monitor, and one that gives
+	// each display its own window needs nothing and ignores it.
+	SetActiveScreen(screen image.Rectangle)
+
 	// DrawHintSearch draws the hint search input over the hints frame. Like
 	// RedrawFrame it is an update rather than a transition: it fires on every
 	// keystroke typed into the search, over an overlay already on screen.
@@ -306,6 +365,11 @@ type OverlayPort interface {
 	// goroutine starts — so an implementation must not wait on anything that
 	// could itself be waiting on the app.
 	ResizeIndicatorToActiveScreen(indicator Indicator)
+
+	// Flush commits everything drawn since the last flush, so a user never
+	// sees one indicator moved and another still where it was. Backends that
+	// present every draw as it is made have nothing to commit and ignore it.
+	Flush()
 
 	// IsVisible returns true if any overlay is currently visible.
 	IsVisible() bool

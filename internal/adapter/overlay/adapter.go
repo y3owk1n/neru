@@ -27,6 +27,12 @@ type Adapter struct {
 	// the only thing that knows: it drew the subgrid, and the next grid draw
 	// has to erase it rather than trust a backend to diff it away.
 	subgridDrawn atomic.Bool
+
+	// monitorSelectDrawn is whether the monitor picker's panels are on screen,
+	// kept for the same reason: they are not drawn on the shared surface, so
+	// clearing that surface does not take them down and only this knows they
+	// need it.
+	monitorSelectDrawn atomic.Bool
 }
 
 // NewAdapter creates a new overlay adapter. styles is the resolved Style the
@@ -66,11 +72,46 @@ func (a *Adapter) ShowFrame(ctx context.Context, frame ports.Frame) error {
 
 	a.logger.Debug("Showing overlay frame", zap.String("mode", string(mode)))
 
-	a.manager.ResizeToActiveScreen()
-	a.manager.Show()
+	a.clearSurfacesTheFrameDoesNotOwn(frame)
+
+	if drawsOnSharedWindow(frame) {
+		a.manager.ResizeToActiveScreen()
+		a.manager.Show()
+	}
+
 	a.manager.SwitchTo(mode)
 
 	return a.draw(frame, transitionDraw)
+}
+
+// drawsOnSharedWindow reports whether realizing a frame needs the shared
+// overlay window sized and brought up.
+//
+// Monitor-select is the one that does not: its panels are surfaces of their
+// own, one window per display on macOS, and on Linux its own draw brings the
+// spanning window up. Bringing it up here would put a transparent
+// always-on-top window behind the panels that nothing draws into.
+//
+// Scroll draws no content of its own but still needs the window, because on
+// Linux the mode and sticky-modifier indicators are badges painted on that
+// surface: the shared window's visibility is theirs. Deciding otherwise would
+// encode macOS's one-window-per-indicator model in shared code and leave a
+// Linux user in scroll mode with no indicator after a monitor move.
+//
+// Every mode is named rather than defaulted, so a mode added without an answer
+// here fails the `exhaustive` linter instead of silently inheriting one. The
+// trailing return exists because the compiler cannot see that, and is
+// unreachable in a lint-clean tree.
+func drawsOnSharedWindow(frame ports.Frame) bool {
+	switch frame.Mode() {
+	case domain.ModeMonitorSelect:
+		return false
+	case domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
+		domain.ModeScroll, domain.ModeIdle:
+		return true
+	}
+
+	return true
 }
 
 // RedrawFrame draws a frame whose overlay is already up. Hint labels narrow on
@@ -96,11 +137,23 @@ func (a *Adapter) ClearFrame(ctx context.Context) error {
 
 	a.manager.Clear()
 	a.manager.ClearCache()
+	a.hideMonitorSelect()
 	a.manager.Hide()
 	a.manager.SwitchTo(ModeIdle)
 	a.subgridDrawn.Store(false)
 
 	return nil
+}
+
+// SetActiveScreen names the display the overlay's screen-local content belongs
+// to.
+func (a *Adapter) SetActiveScreen(screen image.Rectangle) {
+	a.manager.SetActiveScreenOrigin(screen.Min)
+}
+
+// Flush commits everything drawn since the last flush.
+func (a *Adapter) Flush() {
+	a.manager.Flush()
 }
 
 // DrawHintSearch draws the hint search input over the hints frame. Its
@@ -304,6 +357,10 @@ func (a *Adapter) draw(frame ports.Frame, kind drawKind) error {
 		return a.drawGrid(drawn, kind)
 	case ports.RecursiveGridFrame:
 		return a.drawRecursiveGrid(drawn, kind)
+	case ports.MonitorSelectFrame:
+		return a.drawMonitorSelect(drawn)
+	case ports.ScrollFrame:
+		return a.drawScroll(kind)
 	default:
 		return derrors.New(derrors.CodeNotSupported, "overlay frame cannot be drawn")
 	}
@@ -404,6 +461,98 @@ func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKin
 		}
 
 		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw recursive grid")
+	}
+
+	return nil
+}
+
+// drawMonitorSelect draws the panels a monitor-select frame carries, through
+// the backend's optional monitor-select capability.
+//
+// That capability is reached by type assertion rather than by widening the
+// port, which is the extension pattern every optional backend capability here
+// follows: a backend without it reports CodeNotSupported and the mode refuses
+// to activate rather than engaging with nothing on screen.
+func (a *Adapter) drawMonitorSelect(frame ports.MonitorSelectFrame) error {
+	selector, capable := a.manager.(MonitorSelector)
+	if !capable {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"monitor_select overlay is unavailable on this backend",
+		)
+	}
+
+	if len(frame.Targets) == 0 {
+		a.hideMonitorSelect()
+
+		return nil
+	}
+
+	targets := make([]MonitorSelectTarget, len(frame.Targets))
+	for index, target := range frame.Targets {
+		targets[index] = MonitorSelectTarget{
+			Bounds:           target.Bounds,
+			Label:            target.Label,
+			Subtitle:         target.Name,
+			Selected:         target.Selected,
+			MatchedPrefixLen: target.MatchedPrefixLen,
+		}
+	}
+
+	drawErr := selector.DrawMonitorSelect(targets, ResolvedStyle(a.styles).MonitorSelect)
+	if drawErr != nil {
+		if derrors.IsNotSupported(drawErr) {
+			return drawErr
+		}
+
+		return derrors.Wrap(drawErr, derrors.CodeOverlayFailed, "failed to draw monitor_select")
+	}
+
+	a.monitorSelectDrawn.Store(true)
+
+	return nil
+}
+
+// clearSurfacesTheFrameDoesNotOwn takes down anything still on screen that the
+// incoming frame neither owns nor draws over.
+//
+// Only the monitor picker qualifies. Every other surface is the shared window,
+// which a transition draw clears; the picker's panels are windows of their
+// own, so a mode coming up over them clears nothing that removes them. Most
+// transitions leave a mode through ClearFrame, which already takes them down —
+// but scroll is entered without leaving the previous mode first, so this is
+// what keeps the picker from outliving the mode that opened it.
+func (a *Adapter) clearSurfacesTheFrameDoesNotOwn(frame ports.Frame) {
+	if frame.Mode() == domain.ModeMonitorSelect {
+		return
+	}
+
+	a.hideMonitorSelect()
+}
+
+// hideMonitorSelect takes the monitor picker's panels off the screen, if this
+// adapter put any there. They do not live on the shared surface, so clearing
+// that surface leaves them behind — which is how an overlay outlives the mode
+// that owned it.
+func (a *Adapter) hideMonitorSelect() {
+	if !a.monitorSelectDrawn.Swap(false) {
+		return
+	}
+
+	if selector, capable := a.manager.(MonitorSelector); capable {
+		selector.HideMonitorSelect()
+	}
+}
+
+// drawScroll draws a scroll frame, which has nothing of its own to draw.
+// Coming up it still clears the shared surface: scroll puts no content there,
+// so whatever the previous mode left would stay on screen under the scroll
+// indicator. The window is up by then and empty either way, so there is
+// nothing for the clear to blink out.
+func (a *Adapter) drawScroll(kind drawKind) error {
+	if kind == transitionDraw {
+		a.manager.Clear()
+		a.manager.ClearCache()
 	}
 
 	return nil

@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -112,6 +113,12 @@ type simOverlayManager struct {
 	// A backend with no surface draws nothing, so this — not a draw — is what
 	// a journey can observe about an indicator being on screen.
 	indicatorVisible map[ports.Indicator]bool
+	// drawnModes is which modes have content on screen right now, tracked the
+	// way a display would: a draw puts a mode's content up, clearing the
+	// shared surface takes down everything drawn on it, and hiding the
+	// monitor-select panels takes down theirs. It is what lets a journey say
+	// what a user would see rather than which method was called.
+	drawnModes map[domain.Mode]bool
 }
 
 // Ensure the recorder implements the optional monitor-select extension the
@@ -136,6 +143,7 @@ func (m *simOverlayManager) DrawMonitorSelect(
 	drawn := make([]overlay.MonitorSelectTarget, len(targets))
 	copy(drawn, targets)
 	m.monitorDraws = append(m.monitorDraws, drawn)
+	m.putOnScreenLocked(domain.ModeMonitorSelect)
 
 	return nil
 }
@@ -145,6 +153,8 @@ func (m *simOverlayManager) HideMonitorSelect() {
 	defer m.mu.Unlock()
 
 	m.monitorHides++
+
+	delete(m.drawnModes, domain.ModeMonitorSelect)
 }
 
 func (m *simOverlayManager) DrawStickyModifiersIndicator(_, _ int, symbols string) {
@@ -177,6 +187,22 @@ func (m *simOverlayManager) Hide() {
 	m.visible = false
 }
 
+// Clear wipes the shared drawing surface, which is where every mode but
+// monitor-select draws: monitor-select owns panels of its own and comes off
+// the screen through HideMonitorSelect.
+func (m *simOverlayManager) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, mode := range []domain.Mode{
+		domain.ModeHints,
+		domain.ModeGrid,
+		domain.ModeRecursiveGrid,
+	} {
+		delete(m.drawnModes, mode)
+	}
+}
+
 func (m *simOverlayManager) SwitchTo(next overlay.Mode) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -202,6 +228,7 @@ func (m *simOverlayManager) DrawHintsWithStyle(
 	copy(drawn, hintsSlice)
 	m.hintDraws = append(m.hintDraws, drawn)
 	m.hintStyles = append(m.hintStyles, style)
+	m.putOnScreenLocked(domain.ModeHints)
 
 	return nil
 }
@@ -215,6 +242,7 @@ func (m *simOverlayManager) DrawGrid(
 	defer m.mu.Unlock()
 
 	m.gridDraws = append(m.gridDraws, simGridDraw{grid: grid, input: input})
+	m.putOnScreenLocked(domain.ModeGrid)
 
 	return nil
 }
@@ -261,6 +289,7 @@ func (m *simOverlayManager) DrawRecursiveGrid(
 	defer m.mu.Unlock()
 
 	m.recursiveGridDraws = append(m.recursiveGridDraws, bounds)
+	m.putOnScreenLocked(domain.ModeRecursiveGrid)
 
 	return nil
 }
@@ -288,6 +317,32 @@ func (m *simOverlayManager) setIndicatorVisible(indicator ports.Indicator, visib
 	}
 
 	m.indicatorVisible[indicator] = visible
+}
+
+// putOnScreenLocked records that a mode's content is on screen. The caller
+// holds m.mu.
+func (m *simOverlayManager) putOnScreenLocked(mode domain.Mode) {
+	if m.drawnModes == nil {
+		m.drawnModes = make(map[domain.Mode]bool)
+	}
+
+	m.drawnModes[mode] = true
+}
+
+// drawnModeNames reports every mode with content on screen right now, sorted
+// so a failure message reads the same way twice.
+func (m *simOverlayManager) drawnModeNames() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	names := make([]string, 0, len(m.drawnModes))
+	for mode := range m.drawnModes {
+		names = append(names, domain.ModeString(mode))
+	}
+
+	sort.Strings(names)
+
+	return names
 }
 
 // indicatorVisibility reports the visibility an indicator was last asked for,

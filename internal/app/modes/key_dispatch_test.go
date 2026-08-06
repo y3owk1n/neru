@@ -10,7 +10,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/components"
 	configpkg "github.com/y3owk1n/neru/internal/config"
@@ -93,10 +92,9 @@ func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 				},
 			},
 		},
-		logger:         zap.NewNop(),
-		appState:       appState,
-		modifierState:  state.NewModifierState(),
-		overlayManager: &overlay.NoOpManager{},
+		logger:        zap.NewNop(),
+		appState:      appState,
+		modifierState: state.NewModifierState(),
 		hints: &components.HintsComponent{
 			Context: &hintscomponent.Context{},
 		},

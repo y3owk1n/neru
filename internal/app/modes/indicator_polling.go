@@ -142,7 +142,9 @@ func (h *Handler) pollIndicatorsOnce(ctx context.Context) {
 	h.rehideSystemCursor()
 
 	// Flush atomically so no intermediate state shows between overlay updates.
-	h.overlayManager.Flush()
+	if h.overlayPort != nil {
+		h.overlayPort.Flush()
+	}
 }
 
 // planIndicatorTick computes what this tick should do. It takes and releases

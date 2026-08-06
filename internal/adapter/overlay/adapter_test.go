@@ -12,6 +12,7 @@ import (
 	rendergrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	renderrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
@@ -925,5 +926,187 @@ func TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid(t *testing.
 
 	if manager.searchHides != 1 {
 		t.Errorf("search input hidden %d times, want 1", manager.searchHides)
+	}
+}
+
+// monitorSelectManager is a backend that declares the optional monitor-select
+// capability, the way the darwin and Linux ones do.
+type monitorSelectManager struct {
+	*screenManager
+
+	panels []overlay.MonitorSelectTarget
+	style  overlay.MonitorSelectStyle
+	draws  int
+	hides  int
+}
+
+func newMonitorSelectManager() *monitorSelectManager {
+	return &monitorSelectManager{screenManager: newScreenManager()}
+}
+
+func (m *monitorSelectManager) DrawMonitorSelect(
+	targets []overlay.MonitorSelectTarget,
+	style overlay.MonitorSelectStyle,
+) error {
+	m.panels = targets
+	m.style = style
+	m.draws++
+
+	return nil
+}
+
+func (m *monitorSelectManager) HideMonitorSelect() { m.hides++ }
+
+// monitorSelectStyles resolves a monitor-select Style, so a test can tell that
+// the panels were met with the appearance the overlay owns rather than with
+// one a caller carried.
+type monitorSelectStyles struct{}
+
+func (monitorSelectStyles) Style() overlay.Style {
+	return overlay.Style{
+		MonitorSelect: overlay.MonitorSelectStyle{FontSize: 42, TextColor: "#abcdef"},
+	}
+}
+
+// TestAdapterShowFrame_PutsTheMonitorPickerOnScreen is the acceptance for the
+// last surface to convert: a mode says which displays are on offer, and the
+// overlay meets that with the Style it resolved and the capability the backend
+// declared.
+func TestAdapterShowFrame_PutsTheMonitorPickerOnScreen(t *testing.T) {
+	t.Parallel()
+
+	manager := newMonitorSelectManager()
+	adapter := overlay.NewAdapter(manager, monitorSelectStyles{}, zap.NewNop())
+
+	second := image.Rect(1920, 0, 3840, 1080)
+
+	showErr := adapter.ShowFrame(context.Background(), ports.MonitorSelectFrame{
+		Targets: []ports.MonitorSelectTarget{
+			{
+				Bounds:           second,
+				Label:            "b",
+				Name:             "SecondDisplay",
+				Selected:         true,
+				MatchedPrefixLen: 1,
+			},
+		},
+	})
+	if showErr != nil {
+		t.Fatalf("ShowFrame() error = %v", showErr)
+	}
+
+	if manager.mode != overlay.ModeMonitorSelect {
+		t.Errorf("overlay mode = %q, want %q", manager.mode, overlay.ModeMonitorSelect)
+	}
+
+	if len(manager.panels) != 1 {
+		t.Fatalf("panels drawn = %d, want 1", len(manager.panels))
+	}
+
+	panel := manager.panels[0]
+	if panel.Bounds != second || panel.Label != "b" || panel.Subtitle != "SecondDisplay" {
+		t.Errorf("panel drawn = %+v, want the display the frame named", panel)
+	}
+
+	if !panel.Selected || panel.MatchedPrefixLen != 1 {
+		t.Errorf("panel drawn = %+v, want the selection and match the frame carried", panel)
+	}
+
+	if manager.style.FontSize != 42 {
+		t.Errorf("panel style = %+v, want the Style the overlay resolved", manager.style)
+	}
+
+	// The picker draws on panels of its own, so the shared overlay window is
+	// left alone rather than brought up empty behind them.
+	if manager.visible {
+		t.Error("the shared overlay window was shown for a surface that does not draw on it")
+	}
+}
+
+// TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw pins the
+// extension pattern: drawing the picker is an optional capability reached by
+// type assertion, and a backend without it degrades rather than fails.
+func TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw(t *testing.T) {
+	t.Parallel()
+
+	adapter := overlay.NewAdapter(newScreenManager(), testStyles{}, zap.NewNop())
+
+	showErr := adapter.ShowFrame(context.Background(), ports.MonitorSelectFrame{
+		Targets: []ports.MonitorSelectTarget{{Bounds: image.Rect(0, 0, 10, 10), Label: "a"}},
+	})
+	if !derrors.IsNotSupported(showErr) {
+		t.Fatalf("ShowFrame() error = %v, want CodeNotSupported", showErr)
+	}
+}
+
+// TestAdapterClearFrame_TakesTheMonitorPanelsDown covers the failure the
+// Indicator work exists to prevent, one surface further: the panels are not on
+// the shared surface, so clearing that surface is not enough to take them off
+// the screen.
+func TestAdapterClearFrame_TakesTheMonitorPanelsDown(t *testing.T) {
+	t.Parallel()
+
+	manager := newMonitorSelectManager()
+	adapter := overlay.NewAdapter(manager, monitorSelectStyles{}, zap.NewNop())
+
+	clearErr := adapter.ClearFrame(context.Background())
+	if clearErr != nil {
+		t.Fatalf("ClearFrame() error = %v", clearErr)
+	}
+
+	if manager.hides != 0 {
+		t.Errorf("panels hidden %d times before any were drawn, want 0", manager.hides)
+	}
+
+	showErr := adapter.ShowFrame(context.Background(), ports.MonitorSelectFrame{
+		Targets: []ports.MonitorSelectTarget{{Bounds: image.Rect(0, 0, 10, 10), Label: "a"}},
+	})
+	if showErr != nil {
+		t.Fatalf("ShowFrame() error = %v", showErr)
+	}
+
+	clearErr = adapter.ClearFrame(context.Background())
+	if clearErr != nil {
+		t.Fatalf("ClearFrame() error = %v", clearErr)
+	}
+
+	if manager.hides != 1 {
+		t.Errorf("panels hidden %d times after being drawn, want 1", manager.hides)
+	}
+}
+
+// TestAdapterShowFrame_ScrollTakesTheSurfaceOverWithoutDrawing pins what
+// entering scroll mode means for the overlay: the mode the indicators name
+// changes and whatever the previous mode drew comes off the surface, but
+// nothing of scroll's own is drawn on it.
+//
+// The window still comes up, because on Linux the indicators that report the
+// mode are painted on that surface — a hidden window is an invisible
+// indicator.
+func TestAdapterShowFrame_ScrollTakesTheSurfaceOverWithoutDrawing(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
+
+	showErr := adapter.ShowFrame(context.Background(), ports.ScrollFrame{})
+	if showErr != nil {
+		t.Fatalf("ShowFrame() error = %v", showErr)
+	}
+
+	if manager.mode != overlay.ModeScroll {
+		t.Errorf("overlay mode = %q, want %q", manager.mode, overlay.ModeScroll)
+	}
+
+	if manager.cleared != 1 {
+		t.Errorf("surface cleared %d times, want 1", manager.cleared)
+	}
+
+	if !manager.visible {
+		t.Error("the overlay the mode indicator is painted on was left hidden")
+	}
+
+	if manager.gridDraws != 0 || len(manager.drawn) != 0 {
+		t.Error("scroll drew content of its own on the shared surface")
 	}
 }
