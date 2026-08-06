@@ -21,10 +21,10 @@ func NewScrollMode(handler *handlerState) *ScrollMode {
 			handler.startIndicatorPolling(domain.ModeScroll)
 		},
 		ExitFunc: func(handler *handlerState) {
+			// Common cleanup takes the frame off the screen; stopping the
+			// poller first keeps a late tick from putting an indicator back.
 			handler.stopIndicatorPolling()
 			handler.stopHeldRepeat()
-
-			handler.clearAndHideOverlay()
 
 			if handler.scroll != nil && handler.scroll.Context != nil {
 				handler.scroll.Context.Reset()

@@ -325,7 +325,9 @@ func (h *handlerState) cleanupRecursiveGridMode() {
 		}
 	}
 
-	h.clearAndHideOverlay()
+	// Stop the indicator poller before common cleanup takes the frame off the
+	// screen: a tick landing after the clear would put an indicator back on it.
+	h.stopIndicatorPolling()
 }
 
 // applyRecursiveGridFlags writes the flags an activation carries into the context.

@@ -51,14 +51,6 @@ func (h *handlerState) performModeSpecificCleanup() {
 	mode.Exit()
 }
 
-// clearAndHideOverlay stops indicator polling and takes the frame on screen
-// off it.
-func (h *handlerState) clearAndHideOverlay() {
-	h.stopIndicatorPolling()
-
-	h.clearOverlayFrame()
-}
-
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *handlerState) cleanupHintsMode() {
 	h.stopHintSearchTextInput(false)
@@ -70,7 +62,9 @@ func (h *handlerState) cleanupHintsMode() {
 
 	h.cycleHintIndex = -1
 
-	h.clearAndHideOverlay()
+	// Stop the indicator poller before common cleanup takes the frame off the
+	// screen: a tick landing after the clear would put an indicator back on it.
+	h.stopIndicatorPolling()
 }
 
 // cleanupDefaultMode handles cleanup for default/unknown modes.
@@ -114,7 +108,9 @@ func (h *handlerState) cleanupGridMode() {
 		h.grid.Overlay.HideVirtualPointer()
 	}
 
-	h.clearAndHideOverlay()
+	// Stop the indicator poller before common cleanup takes the frame off the
+	// screen: a tick landing after the clear would put an indicator back on it.
+	h.stopIndicatorPolling()
 }
 
 // performCommonCleanup handles common cleanup logic for all modes.
