@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
+	"github.com/y3owk1n/neru/internal/app/services/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -126,6 +127,27 @@ func initializeAdapters(
 	return accAdapter, overlayPort
 }
 
+// indicatorServices are the three services that each own one indicator end to
+// end: whether it is on screen, how big its surface is, and what it draws.
+// They are built the same way from the same ports, so they travel together.
+type indicatorServices struct {
+	mode           *modeindicator.Service
+	sticky         *stickyindicator.Service
+	virtualPointer *virtualpointer.Service
+}
+
+// newIndicatorServices builds the service for each indicator.
+func newIndicatorServices(
+	overlayAdapter ports.OverlayPort,
+	systemPort ports.SystemPort,
+) indicatorServices {
+	return indicatorServices{
+		mode:           modeindicator.NewService(systemPort, overlayAdapter),
+		sticky:         stickyindicator.NewService(systemPort, overlayAdapter),
+		virtualPointer: virtualpointer.NewService(systemPort, overlayAdapter),
+	}
+}
+
 // initializeServices creates and initializes the domain services.
 func initializeServices(
 	cfg *config.Config,
@@ -133,14 +155,14 @@ func initializeServices(
 	overlayAdapter ports.OverlayPort,
 	systemPort ports.SystemPort,
 	logger *zap.Logger,
-) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, *modeindicator.Service, *stickyindicator.Service, error) {
+) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, indicatorServices, error) {
 	// Hint Generator - creates unique labels for UI elements
 	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(
 		cfg.Hints.HintCharacters,
 		domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
 	)
 	if hintGenErr != nil {
-		return nil, nil, nil, nil, nil, nil, derrors.Wrap(
+		return nil, nil, nil, nil, indicatorServices{}, derrors.Wrap(
 			hintGenErr,
 			derrors.CodeHintGenerationFailed,
 			"failed to create hint generator",
@@ -181,21 +203,10 @@ func initializeServices(
 		logger,
 	)
 
-	// Mode Indicator Service - manages mode indicator overlay
-	modeIndicatorService := modeindicator.NewService(
-		systemPort,
-		overlayAdapter,
-		logger,
-	)
+	// Indicator services - each owns one indicator, visibility and position
+	indicators := newIndicatorServices(overlayAdapter, systemPort)
 
-	// Sticky Indicator Service - manages sticky modifiers indicator overlay
-	stickyIndicatorService := stickyindicator.NewService(
-		systemPort,
-		overlayAdapter,
-		logger,
-	)
-
-	return hintService, gridService, actionService, scrollService, modeIndicatorService, stickyIndicatorService, nil
+	return hintService, gridService, actionService, scrollService, indicators, nil
 }
 
 // processHotkeyBindings processes and filters hotkey bindings from configuration.

@@ -87,6 +87,30 @@ func (a *Adapter) DrawStickyModifiersIndicator(x, y int, symbols string) {
 	a.manager.DrawStickyModifiersIndicator(x, y, symbols)
 }
 
+// DrawVirtualPointer draws the cursor-following virtual pointer. Its size and
+// color come from the resolved Style the adapter already holds, so a caller
+// never carries appearance through the mode layer to get here.
+func (a *Adapter) DrawVirtualPointer(x, y int) {
+	style := ResolvedStyle(a.styles).VirtualPointer
+
+	a.manager.DrawVirtualPointer(x, y, style.FontSize, style.FillColor)
+}
+
+// ShowIndicator makes an indicator visible.
+func (a *Adapter) ShowIndicator(indicator ports.Indicator) {
+	a.manager.ShowIndicator(indicator)
+}
+
+// HideIndicator takes an indicator off the screen, content and all.
+func (a *Adapter) HideIndicator(indicator ports.Indicator) {
+	a.manager.HideIndicator(indicator)
+}
+
+// ResizeIndicatorToActiveScreen sizes an indicator to the active display.
+func (a *Adapter) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
+	a.manager.ResizeIndicatorToActiveScreen(indicator)
+}
+
 // DrawMouseActionIndicator draws a transient mouse action indicator.
 func (a *Adapter) DrawMouseActionIndicator(
 	point image.Point,

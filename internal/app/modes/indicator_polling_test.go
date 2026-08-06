@@ -15,6 +15,7 @@ import (
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -51,7 +52,7 @@ func newIndicatorPollingHandler(
 		appState:             appState,
 		system:               systemMock,
 		overlayManager:       manager,
-		modeIndicatorService: modeindicator.NewService(systemMock, overlayPort, zap.NewNop()),
+		modeIndicatorService: modeindicator.NewService(systemMock, overlayPort),
 		screenBounds:         image.Rect(0, 0, 100, 100),
 	})
 }
@@ -81,11 +82,26 @@ func TestPollIndicatorsOnce_DrawsOnlyAfterReleasingLock(t *testing.T) {
 		},
 	}
 
+	var showedModeIndicator bool
+
 	overlayPort := &portmocks.MockOverlayPort{
 		DrawModeIndicatorFunc: func(_, _ int) {
 			drewModeIndicator = true
 
 			assertLockFree("DrawModeIndicator")
+		},
+		// Visibility reaches the platform the same way a draw does — on Linux
+		// hiding an indicator erases the rectangle it painted — so the tick
+		// must have released the lock before it asks for either.
+		ShowIndicatorFunc: func(indicator ports.Indicator) {
+			if indicator == ports.ModeIndicator {
+				showedModeIndicator = true
+			}
+
+			assertLockFree("ShowIndicator")
+		},
+		HideIndicatorFunc: func(_ ports.Indicator) {
+			assertLockFree("HideIndicator")
 		},
 	}
 
@@ -102,6 +118,10 @@ func TestPollIndicatorsOnce_DrawsOnlyAfterReleasingLock(t *testing.T) {
 
 	if !drewModeIndicator {
 		t.Error("expected the tick to draw the mode indicator")
+	}
+
+	if !showedModeIndicator {
+		t.Error("expected the tick to show the mode indicator")
 	}
 
 	if !flushed {

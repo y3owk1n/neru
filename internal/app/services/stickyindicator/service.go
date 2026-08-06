@@ -1,54 +1,38 @@
 package stickyindicator
 
 import (
-	"context"
 	"runtime"
 
-	"go.uber.org/zap"
-
-	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/app/services/indicator"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Service manages the sticky modifiers indicator overlay.
+// Service owns the sticky modifiers indicator for its whole life: whether it is
+// on screen, how big its surface is, and the symbols it shows.
 type Service struct {
-	system  ports.SystemPort
-	overlay ports.OverlayPort
-	logger  *zap.Logger
+	indicator.Base
 }
 
 // NewService creates a new sticky indicator service.
 func NewService(
 	system ports.SystemPort,
 	overlay ports.OverlayPort,
-	logger *zap.Logger,
 ) *Service {
 	return &Service{
-		system:  system,
-		overlay: overlay,
-		logger:  logger,
+		Base: indicator.NewBase(ports.StickyModifiersIndicator, system, overlay),
 	}
-}
-
-// GetCursorPosition returns the current cursor position.
-func (s *Service) GetCursorPosition(ctx context.Context) (int, int, error) {
-	if s.system == nil {
-		return 0, 0, derrors.New(derrors.CodeActionFailed, "system port not available")
-	}
-
-	point, err := s.system.CursorPosition(ctx)
-	if err != nil {
-		return 0, 0, derrors.WrapAccessibilityFailed(err, "get cursor position")
-	}
-
-	return point.X, point.Y, nil
 }
 
 // UpdateIndicatorPosition draws the sticky modifiers indicator at the given position.
 // symbols is the string of modifier symbols to display (e.g. "⌘⇧").
-func (s *Service) UpdateIndicatorPosition(x, y int, symbols string) {
-	s.overlay.DrawStickyModifiersIndicator(x, y, symbols)
+func (s *Service) UpdateIndicatorPosition(posX, posY int, symbols string) {
+	overlay := s.Overlay()
+	if overlay == nil {
+		return
+	}
+
+	overlay.DrawStickyModifiersIndicator(posX, posY, symbols)
 }
 
 // cmdSymbol returns the platform-appropriate symbol for the Command / Super modifier.

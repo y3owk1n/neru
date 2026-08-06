@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (
@@ -231,6 +232,47 @@ func TestSimulation_ScrollJourney(t *testing.T) {
 	sim.press("Escape")
 	sim.waitMode(domain.ModeIdle)
 }
+
+// TestSimulation_ModeIndicatorDisappearsWhenModeExits pins what a user sees
+// after leaving a mode: the indicator that named it is gone. Scroll mode is
+// the one whose indicator is on by default.
+//
+// The indicator is driven by a polling goroutine racing mode teardown, which
+// is exactly how one used to be left behind on screen, so this asserts the
+// visibility the app last asked for rather than any single call.
+func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+
+	sim.waitFor("mode indicator shown", func() bool {
+		visible, asked := sim.overlay.indicatorVisibility(ports.ModeIndicator)
+
+		return asked && visible
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.waitFor("mode indicator hidden", func() bool {
+		visible, asked := sim.overlay.indicatorVisibility(ports.ModeIndicator)
+
+		return asked && !visible
+	})
+
+	// Nothing may put it back once the mode is gone: the polling goroutine is
+	// stopped before the indicator is hidden, and a late tick would show it.
+	time.Sleep(4 * indicatorSettleWindow)
+
+	if visible, _ := sim.overlay.indicatorVisibility(ports.ModeIndicator); visible {
+		t.Fatal("mode indicator was shown again after the mode exited")
+	}
+}
+
+// indicatorSettleWindow is one indicator poll interval, the window in which a
+// late tick could redraw an indicator that has just been hidden.
+const indicatorSettleWindow = 16 * time.Millisecond
 
 // TestSimulation_ModeSwitch covers chaining modes in one session: hints ->
 // escape -> grid, exercising mode teardown between activations.

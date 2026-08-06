@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // NoOpManager is what runs when there is no overlay to draw on: a headless CI
@@ -42,6 +43,11 @@ func TestNoOpManager_AnswersEveryCallWithoutADisplay(t *testing.T) {
 	noOp.DrawStickyModifiersIndicator(1, 2, "⌘")
 	noOp.DrawVirtualPointer(1, 2, 3, "#ffffff")
 	noOp.HideHintSearchInput()
+
+	// Indicators.
+	noOp.ShowIndicator(ports.ModeIndicator)
+	noOp.HideIndicator(ports.StickyModifiersIndicator)
+	noOp.ResizeIndicatorToActiveScreen(ports.VirtualPointerIndicator)
 
 	testGrid := domainGrid.NewGrid("abc", image.Rect(0, 0, 10, 10), zap.NewNop())
 

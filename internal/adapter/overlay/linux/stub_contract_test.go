@@ -5,6 +5,7 @@ package linux
 import (
 	"image"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // noBackendManager returns a Manager in the state a session with no usable
@@ -159,5 +161,81 @@ func TestLinuxOverlayManager_StubsAreRepeatable(t *testing.T) {
 			t.Fatalf("DrawHintsWithStyle call %d returned %v, want CodeNotSupported every time",
 				i+1, err)
 		}
+	}
+}
+
+// TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted pins what
+// hiding an indicator costs here: a Linux indicator is a badge painted onto
+// the one shared overlay surface, not a window of its own, so hiding it means
+// forgetting the rectangle it occupied. Without that an indicator turned off
+// mid-session would stay on screen until the whole overlay is hidden, which is
+// the mode ending rather than the indicator being turned off.
+func TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted(t *testing.T) {
+	painted := image.Rect(10, 10, 60, 30)
+
+	tests := map[string]struct {
+		indicator ports.Indicator
+		paint     func(*Manager)
+		stillOn   func(*Manager) bool
+	}{
+		"mode indicator": {
+			indicator: ports.ModeIndicator,
+			paint: func(m *Manager) {
+				m.modeIndicatorBadgeVisible = true
+				m.modeIndicatorBadgeRect = painted
+			},
+			stillOn: func(m *Manager) bool { return m.modeIndicatorBadgeVisible },
+		},
+		"sticky modifiers indicator": {
+			indicator: ports.StickyModifiersIndicator,
+			paint: func(m *Manager) {
+				m.stickyBadgeVisible = true
+				m.stickyBadgeRect = painted
+			},
+			stillOn: func(m *Manager) bool { return m.stickyBadgeVisible },
+		},
+	}
+
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			mgr := noBackendManager()
+			testCase.paint(mgr)
+
+			mgr.HideIndicator(testCase.indicator)
+
+			if testCase.stillOn(mgr) {
+				t.Error("HideIndicator left the badge painted on the shared overlay")
+			}
+		})
+	}
+}
+
+// TestLinuxOverlayManager_HidingTheVirtualPointerTakesNoRenderLock pins the
+// early return in HideIndicator, which is otherwise indistinguishable from the
+// no-op switch case below it.
+//
+// The virtual pointer is hidden from the cursor-visibility path, which runs
+// with the mode handler's lock held (`internal/app/modes/AGENTS.md`). It draws
+// into its own surface, so there is no rectangle on the shared overlay to
+// erase — and taking renderMu, which every draw contends for, would stall the
+// handler for a case body that does nothing.
+func TestLinuxOverlayManager_HidingTheVirtualPointerTakesNoRenderLock(t *testing.T) {
+	mgr := noBackendManager()
+
+	mgr.renderMu.Lock()
+	defer mgr.renderMu.Unlock()
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		mgr.HideIndicator(ports.VirtualPointerIndicator)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("HideIndicator blocked on renderMu while hiding the virtual pointer")
 	}
 }

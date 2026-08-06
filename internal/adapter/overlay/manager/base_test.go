@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // TestBase_SwitchTo_NotifiesOnRealTransitionsOnly pins the transition
@@ -59,5 +60,30 @@ func TestBase_Unsubscribe_StopsDelivery(t *testing.T) {
 
 	if calls != 1 {
 		t.Errorf("subscriber called %d times, want 1 (unsubscribed before second switch)", calls)
+	}
+}
+
+// TestBase_IndicatorCallsAreSilentWithoutARenderComponent pins the guard that
+// makes "was this indicator ever constructed" the manager's question rather
+// than its callers'. A disabled indicator and a headless backend both leave
+// the render component nil, and a nil *Overlay handed to an interface would
+// pass every != nil check downstream before panicking on the first call.
+func TestBase_IndicatorCallsAreSilentWithoutARenderComponent(t *testing.T) {
+	t.Parallel()
+
+	base := manager.NewBase(nil)
+
+	for _, indicator := range []ports.Indicator{
+		ports.ModeIndicator,
+		ports.StickyModifiersIndicator,
+		ports.VirtualPointerIndicator,
+	} {
+		base.ShowIndicator(indicator)
+		base.HideIndicator(indicator)
+		base.ResizeIndicatorToActiveScreen(indicator)
+	}
+
+	if got := base.ModeIndicatorOverlay(); got != nil {
+		t.Errorf("ModeIndicatorOverlay() = %v, want nil with nothing registered", got)
 	}
 }

@@ -175,6 +175,15 @@ func (n *NoOpManager) DrawStickyModifiersIndicator(x, y int, symbols string) {}
 // DrawVirtualPointer is a no-op implementation.
 func (n *NoOpManager) DrawVirtualPointer(_, _ int, _ int, _ string) {}
 
+// ShowIndicator is a no-op implementation.
+func (n *NoOpManager) ShowIndicator(indicator ports.Indicator) {}
+
+// HideIndicator is a no-op implementation.
+func (n *NoOpManager) HideIndicator(indicator ports.Indicator) {}
+
+// ResizeIndicatorToActiveScreen is a no-op implementation.
+func (n *NoOpManager) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {}
+
 // DrawMouseActionIndicator is a no-op implementation.
 func (n *NoOpManager) DrawMouseActionIndicator(
 	point image.Point,
@@ -347,6 +356,11 @@ type Interface interface {
 	DrawModeIndicator(x, y int)
 	DrawStickyModifiersIndicator(x, y int, symbols string)
 	DrawVirtualPointer(x, y int, size int, fillColor string)
+
+	ShowIndicator(indicator ports.Indicator)
+	HideIndicator(indicator ports.Indicator)
+	ResizeIndicatorToActiveScreen(indicator ports.Indicator)
+
 	DrawMouseActionIndicator(point image.Point, style ports.MouseActionIndicatorStyle)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
 	DrawRecursiveGrid(

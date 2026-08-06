@@ -16,8 +16,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/app/services"
-	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
-	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -91,13 +89,14 @@ type App struct {
 	configMu sync.RWMutex
 
 	// New Architecture Services
-	hintService            *services.HintService
-	gridService            *services.GridService
-	actionService          *services.ActionService
-	scrollService          *services.ScrollService
-	modeIndicatorService   *modeindicator.Service
-	stickyIndicatorService *stickyindicator.Service
-	configService          *loader.Service
+	hintService   *services.HintService
+	gridService   *services.GridService
+	actionService *services.ActionService
+	scrollService *services.ScrollService
+	// indicators owns one service per indicator: mode, sticky modifiers,
+	// virtual pointer.
+	indicators    indicatorServices
+	configService *loader.Service
 
 	// Feature components
 	hintsComponent           *components.HintsComponent
