@@ -85,7 +85,7 @@ of keeping mode knowledge in a switch the modes work exists to delete.
   under the same lock. What it buys is the end of a real data race — the
   session's filter roles, strategy and label-direction overrides were read with
   no lock held while a concurrent mode exit reset them. That is pinned by
-  `TestRefreshActiveModeOnNewScreen_ReadsTheModeSessionUnderTheHandlerLock`,
+  `TestRefreshActiveModeForMonitorMove_ReadsTheModeSessionUnderTheHandlerLock`,
   which fails under `-race` against the dispatch this ADR replaces.
 - **The hold is now as long as the slowest refresh**, so that refresh had to
   be given a bound. The hints walk gets the same `HintTimeout` budget the
