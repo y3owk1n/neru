@@ -5,6 +5,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 )
 
@@ -50,6 +51,83 @@ type HintsFrame struct {
 func (HintsFrame) Mode() domain.Mode { return domain.ModeHints }
 
 func (HintsFrame) frame() {}
+
+// GridFrame is the grid surface: the cells that should be on screen, and the
+// input they are drawn narrowed to.
+//
+// Unlike a hints frame it carries no screen. A grid is built against the
+// active display's own space and its cells already sit in it, so there is no
+// origin left for the adapter to subtract.
+type GridFrame struct {
+	// Grid is the cells to draw, in the overlay's screen-local space.
+	Grid *grid.Grid
+
+	// Input is what the user has typed so far. It selects which cells the
+	// draw marks as matched; narrowing an already-drawn grid is an update
+	// rather than a frame, and goes through UpdateGridMatches (ADR 0003).
+	Input string
+}
+
+// Mode names the mode a grid frame draws.
+func (GridFrame) Mode() domain.Mode { return domain.ModeGrid }
+
+func (GridFrame) frame() {}
+
+// RecursiveGridFrame is the recursive-grid surface: the region the user has
+// zoomed into, the keys that divide it, and a preview of what the next
+// keystroke will produce.
+//
+// Every recursive-grid keystroke redraws the whole surface — the mode has no
+// incremental path to keep off the frame — so this frame is what a keystroke
+// hands over, and it stays a plain value for that reason.
+type RecursiveGridFrame struct {
+	// Bounds is the region currently zoomed into, in the overlay's
+	// screen-local space.
+	Bounds image.Rectangle
+
+	// Depth is how many divisions deep the user has gone, counted from zero.
+	Depth int
+
+	// Layout is how Bounds is divided and what the divisions are labeled.
+	Layout RecursiveGridLayout
+
+	// NextLayout is how the next keystroke would divide the cell it picks,
+	// which each cell shows as a preview. It is zero when the grid can no
+	// longer be divided.
+	NextLayout RecursiveGridLayout
+
+	// Pointer is the stand-in for the cursor, drawn on this surface in the
+	// same pass as the cells.
+	Pointer GridPointer
+}
+
+// RecursiveGridLayout is one depth of a recursive grid: the labels dividing a
+// region, and the shape they are laid out in. A frame carries two of them —
+// the depth on screen and the one a keystroke would produce — because the
+// cells preview what pressing their key leads to.
+type RecursiveGridLayout struct {
+	// Keys are the labels, one per cell, in reading order.
+	Keys string
+
+	// GridCols and GridRows are how many cells the region is divided into.
+	GridCols, GridRows int
+}
+
+// Mode names the mode a recursive-grid frame draws.
+func (RecursiveGridFrame) Mode() domain.Mode { return domain.ModeRecursiveGrid }
+
+func (RecursiveGridFrame) frame() {}
+
+// GridPointer is the pointer stand-in a grid surface draws where the selection
+// is, for a user who has told the cursor not to follow it. It carries position
+// only: how big it is and what color it is are Style, resolved by the overlay.
+type GridPointer struct {
+	// Visible is whether the pointer should be on screen at all.
+	Visible bool
+
+	// Position is where it sits, in the overlay's screen-local space.
+	Position image.Point
+}
 
 // HintSearch is the hint search input: what has been typed into it, and how
 // many labels still match. Where it is drawn is resolved from configuration by
@@ -168,6 +246,32 @@ type OverlayPort interface {
 	// coordinate rule in AGENTS.md already carries for drawn overlay content.
 	// ports.TextInputFrame has always been fed this space.
 	HintSearchBounds(screen image.Rectangle) image.Rectangle
+
+	// UpdateGridMatches narrows the grid on screen to the cells whose label
+	// starts with prefix. With SetGridHideUnmatched it is the incremental
+	// half of grid mode: both fire on every keystroke, over a grid already
+	// drawn, and routing them through a frame is the latency regression
+	// AGENTS.md forbids (ADR 0003).
+	UpdateGridMatches(prefix string)
+
+	// SetGridHideUnmatched says whether cells that no longer match should
+	// disappear rather than dim.
+	SetGridHideUnmatched(hide bool)
+
+	// ShowGridSubgrid opens the finer grid drawn inside one cell, over the
+	// grid already on screen. It fires on the keystroke that picks the cell,
+	// so it is an update rather than a frame for the same reason.
+	ShowGridSubgrid(cell *grid.Cell)
+
+	// UpdateGridPointer moves the pointer stand-in drawn on a grid surface,
+	// or takes it off. The mode names which surface — grid or recursive grid
+	// — the same way a frame names the mode it draws.
+	//
+	// A recursive-grid frame carries the same value, because that backend
+	// paints the pointer in the same pass as the cells and a redraw without it
+	// would wipe it. This call is for the keystrokes that move the pointer and
+	// nothing else, which is most of them.
+	UpdateGridPointer(mode domain.Mode, pointer GridPointer)
 
 	// DrawModeIndicator draws a mode indicator at the specified position.
 	DrawModeIndicator(x, y int)

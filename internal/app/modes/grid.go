@@ -6,7 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -14,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // activateGridModeWithAction activates grid mode with optional action parameter.
@@ -48,14 +48,9 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 		h.exitMode()
 	}
 
-	// Clear any previous overlay content (e.g., scroll highlights) before drawing grid.
-	// Otherwise scroll highlights persist when switching from scroll to grid.
-	h.overlayManager.Clear()
-
 	h.appState.SetGridOverlayNeedsRefresh(false)
 
 	gridInstance := h.createGridInstance()
-	h.updateGridOverlayConfig()
 
 	// Reset the grid manager state when setting up the grid.
 	// Note: Manager is reused across activations (holds grid state) but reset to clear input.
@@ -68,22 +63,20 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 
 	h.grid.Router = domainGrid.NewRouter(h.grid.Manager, h.logger)
 
-	// Draw the grid to populate the overlay
-	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
-	if drawGridErr != nil {
-		h.logger.Error("Failed to draw grid", zap.Error(drawGridErr))
-
+	// Hand the grid over as a Frame: showing the overlay, switching it to grid
+	// mode and drawing the cells is one step the overlay owns, and a previous
+	// mode's content (scroll highlights, a subgrid) goes with it.
+	if !h.showFrame(ports.GridFrame{Grid: gridInstance}, "show grid overlay") {
 		if isRefresh {
 			h.exitMode()
+		} else {
+			// Nothing is entering grid mode, so nothing would take the
+			// half-shown overlay off the screen later.
+			h.clearOverlayFrame()
 		}
 
 		return
 	}
-
-	h.overlayManager.ResizeToActiveScreen()
-
-	// Show the overlay (the grid is already drawn with proper style)
-	h.overlayManager.Show()
 
 	applyGridFlags(h.grid.Context, activation, isRefresh)
 
@@ -97,9 +90,10 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 	}
 
 	// Only set mode and enable event tap on initial activation;
-	// during refresh these are already in the correct state.
+	// during refresh these are already in the correct state. The overlay was
+	// switched to grid mode when the Frame was realized.
 	if !isRefresh {
-		h.setMode(domain.ModeGrid, overlay.ModeGrid)
+		h.enterMode(domain.ModeGrid)
 	}
 
 	h.logger.Info("Grid mode activated", zap.String("action", actionString))
@@ -141,13 +135,6 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 	h.grid.Context.SetGridInstanceValue(gridInstance)
 
 	return gridInstance
-}
-
-// updateGridOverlayConfig updates the grid overlay configuration.
-func (h *handlerState) updateGridOverlayConfig() {
-	if h.grid.Overlay != nil {
-		h.grid.Overlay.SetConfig(h.config.Grid)
-	}
 }
 
 // initializeGridManager initializes the grid manager with the new grid instance.
@@ -222,24 +209,22 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 
 			input := h.grid.Manager.CurrentInput()
 
-			// Force redraw only when exiting subgrid to restore main grid
+			// Force redraw only when exiting subgrid to restore main grid.
+			// The overlay is already up, so this is a redraw and not a
+			// transition: erasing the subgrid it replaces is the overlay's
+			// business, and it is the one that knows a subgrid is there.
 			if forceRedraw {
-				h.overlayManager.Clear()
-
-				gridErr := h.renderer.DrawGrid(gridInstance, input)
-				if gridErr != nil {
-					h.logger.Error("Failed to redraw grid", zap.Error(gridErr))
-
-					return
-				}
-
-				h.overlayManager.Show()
+				h.redrawFrame(
+					ports.GridFrame{Grid: gridInstance, Input: input},
+					"restore grid overlay",
+				)
 			}
 
-			// Hide unmatched cells if configured and input exists
+			// Narrowing is the per-keystroke path and stays a plain call: no
+			// frame is built and nothing is redrawn (ADR 0003).
 			hideUnmatched := h.config.Grid.HideUnmatched && len(input) > 0
-			h.renderer.SetHideUnmatched(hideUnmatched)
-			h.renderer.UpdateGridMatches(input)
+			h.setGridHideUnmatched(hideUnmatched)
+			h.updateGridMatches(input)
 			h.refreshGridVirtualPointer()
 		},
 		// Subgrid callback: moves cursor and shows subgrid overlay
@@ -264,7 +249,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 				h.grid.Context.SetSelectionPoint(absoluteCenter)
 
 				if !h.grid.Context.CursorFollowSelection() {
-					h.renderer.ShowSubgrid(cell)
+					h.showGridSubgrid(cell)
 					h.refreshGridVirtualPointer()
 
 					return
@@ -277,7 +262,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 			}
 
 			// Draw 3x3 subgrid inside selected cell
-			h.renderer.ShowSubgrid(cell)
+			h.showGridSubgrid(cell)
 			h.refreshGridVirtualPointer()
 		},
 		h.logger,

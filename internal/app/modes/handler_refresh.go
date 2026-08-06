@@ -151,15 +151,18 @@ func (h *Handler) RefreshGridForScreenChange() bool {
 	// Clear stale selection — old coordinates are invalid on the new screen.
 	h.grid.Context.ClearSelectionPoint()
 
-	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
-	if drawGridErr != nil {
-		h.logger.Error("Failed to refresh grid after screen change", zap.Error(drawGridErr))
-
+	// The screen changed under the overlay, so this is a transition onto the
+	// new one: it is resized and shown as well as redrawn.
+	if !h.showFrame(
+		ports.GridFrame{Grid: gridInstance, Input: currentInput},
+		"refresh grid after screen change",
+	) {
 		return false
 	}
 
-	// Ensure the virtual pointer is hidden (DrawGrid may clear cursorIndicatorVisible
-	// via NeruClearOverlay, but we explicitly hide it for consistency).
+	// Ensure the virtual pointer is hidden (the grid draw may clear
+	// cursorIndicatorVisible via NeruClearOverlay, but we explicitly hide it
+	// for consistency).
 	h.refreshGridVirtualPointer()
 
 	return true
@@ -224,8 +227,9 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 // after a system theme change. Only performs the redraw if ModeHints is
 // currently active.
 //
-// Returns true if the overlay was asked to redraw. Whether the backend had a
-// surface to draw on is its own business and is reported in the log, not here.
+// Returns true if the mode was in a state to refresh. Whether the backend had
+// a surface to draw on is its own business and is reported in the log, not
+// here — the same for the two below.
 func (h *Handler) RefreshHintsForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -241,20 +245,22 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 
 	// The overlay is already up and resolved the new theme for itself; the
 	// same Frame drawn again is all it takes to pick the colors up.
-	return h.redrawFrame(
+	h.redrawFrame(
 		ports.HintsFrame{
 			Screen: h.screenBounds,
 			Hints:  hintCollection.All(),
 		},
 		"refresh hints after theme change",
 	)
+
+	return true
 }
 
 // RefreshGridForThemeChange redraws the grid overlay with updated styles
 // after a system theme change. Only performs the redraw if ModeGrid is
 // currently active.
 //
-// Returns true if a redraw was performed.
+// Returns true if the mode was in a state to refresh.
 func (h *Handler) RefreshGridForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -275,12 +281,12 @@ func (h *Handler) RefreshGridForThemeChange() bool {
 		currentInput = h.grid.Manager.CurrentInput()
 	}
 
-	drawGridErr := h.renderer.DrawGrid(gridInstance, currentInput)
-	if drawGridErr != nil {
-		h.logger.Error("Failed to refresh grid after theme change", zap.Error(drawGridErr))
-
-		return false
-	}
+	// The overlay is already up and resolved the new theme for itself; the
+	// same Frame drawn again is all it takes to pick the colors up.
+	h.redrawFrame(
+		ports.GridFrame{Grid: gridInstance, Input: currentInput},
+		"refresh grid after theme change",
+	)
 
 	h.refreshGridVirtualPointer()
 
@@ -291,7 +297,7 @@ func (h *Handler) RefreshGridForThemeChange() bool {
 // updated styles after a system theme change. Only performs the redraw if
 // ModeRecursiveGrid is currently active.
 //
-// Returns true if a redraw was performed.
+// Returns true if the mode was in a state to refresh.
 func (h *Handler) RefreshRecursiveGridForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -72,10 +72,10 @@ individual steps in
 [startup_phases.go](../internal/app/startup_phases.go):
 
 ```
-1. infrastructure   4. UI components        7. IPC controller
-2. services         4.5 systray             8. event tap + IPC server
-3. application state 5. renderer            9. shutdown channel
-                    6. mode handler
+1. infrastructure    4. UI components      7. IPC controller
+2. services          4.5 systray           8. event tap + IPC server
+3. application state 5. render components  9. shutdown channel
+                     6. mode handler
 ```
 
 Dependency injection is manual and explicit. Each phase that allocates
@@ -174,10 +174,10 @@ graph TD
   owns lifecycle and navigation modes.
 - **Adapters** (`internal/adapter`) — concrete port implementations on
   platform APIs.
-- **Rendering facade** (`internal/app/render`) — the app-layer renderer that
-  drives the overlay adapter. The native overlay backends live in
-  `internal/adapter/overlay`, not here; pure coordinate math lives in
-  `internal/domain/geometry`.
+- **Overlay** (`internal/adapter/overlay`) — the adapter behind
+  `ports.OverlayPort`: it resolves styles, builds its own render components and
+  owns the sequence a mode transition needs. A mode hands it a Frame; pure
+  coordinate math lives in `internal/domain/geometry`.
 - **CLI** (`internal/cli`) — user commands, config loading, IPC to the daemon.
 
 A directory-by-directory map for placing new code is in

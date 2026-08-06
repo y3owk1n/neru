@@ -12,7 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/app/modes"
-	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
@@ -122,8 +121,6 @@ type App struct {
 
 	// State subscriptions
 	screenShareSubscriptionID uint64
-
-	renderer *render.OverlayRenderer
 
 	ipcController *ipcctrl.Controller
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/components/scroll"
-	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -80,11 +79,6 @@ func (a *App) HintsContext() *hints.Context {
 	}
 
 	return a.hintsComponent.Context
-}
-
-// Renderer returns the overlay renderer.
-func (a *App) Renderer() *render.OverlayRenderer {
-	return a.renderer
 }
 
 // GetConfigPath returns the config path.

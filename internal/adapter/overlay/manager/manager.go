@@ -195,6 +195,12 @@ func (n *NoOpManager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {}
 // SetHideUnmatched is a no-op implementation.
 func (n *NoOpManager) SetHideUnmatched(hide bool) {}
 
+// DrawGridPointer is a no-op implementation.
+func (n *NoOpManager) DrawGridPointer(_ Mode, _ image.Point, _ int, _ string) {}
+
+// HideGridPointer is a no-op implementation.
+func (n *NoOpManager) HideGridPointer(_ Mode) {}
+
 // SetSharingType is a no-op implementation.
 func (n *NoOpManager) SetSharingType(hide bool) {}
 
@@ -344,6 +350,13 @@ type Interface interface {
 	UpdateGridMatches(prefix string)
 	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
 	SetHideUnmatched(hide bool)
+
+	// DrawGridPointer and HideGridPointer drive the pointer stand-in drawn on
+	// a grid mode's own surface, which is not one of the cursor-following
+	// Indicators: it belongs to the mode's drawing, and the mode names it by
+	// mode rather than by render component.
+	DrawGridPointer(mode Mode, point image.Point, size int, fillColor string)
+	HideGridPointer(mode Mode)
 	Flush()
 	SetSharingType(hide bool)
 }

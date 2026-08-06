@@ -7,10 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	overlaypkg "github.com/y3owk1n/neru/internal/adapter/overlay"
 	componentrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
@@ -111,7 +109,7 @@ func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 			},
 			zap.NewNop(),
 		),
-		renderer: render.NewOverlayRenderer(&overlaypkg.NoOpManager{}, nil),
+		overlayPort: &portmocks.MockOverlayPort{},
 		recursiveGrid: &components.RecursiveGridComponent{
 			Context: &componentrecursivegrid.Context{},
 		},

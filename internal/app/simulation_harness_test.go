@@ -52,12 +52,12 @@ var simScreen = image.Rect(0, 0, 1920, 1080)
 
 // simElement builds a clickable fixture element or fails the test.
 func simElement(
-	t *testing.T,
+	tb testing.TB,
 	elementID string,
 	bounds image.Rectangle,
 	title string,
 ) *element.Element {
-	t.Helper()
+	tb.Helper()
 
 	elem, err := element.NewElement(
 		element.ID(elementID),
@@ -67,13 +67,20 @@ func simElement(
 		element.WithTitle(title),
 	)
 	if err != nil {
-		t.Fatalf("failed to build fixture element %q: %v", elementID, err)
+		tb.Fatalf("failed to build fixture element %q: %v", elementID, err)
 	}
 
 	return elem
 }
 
 // --- recording overlay manager -------------------------------------------
+
+// simGridDraw is one grid drawn on the overlay: the grid itself and the input
+// it was drawn narrowed to.
+type simGridDraw struct {
+	grid  *domainGrid.Grid
+	input string
+}
 
 // simOverlayManager records what the app draws. It embeds the headless
 // NoOpManager so it satisfies the full manager contract and only overrides
@@ -92,7 +99,10 @@ type simOverlayManager struct {
 	shows              int
 	hintDraws          [][]*renderhints.Hint
 	hintStyles         []renderhints.StyleMode
-	gridDraws          []*domainGrid.Grid
+	gridDraws          []simGridDraw
+	matchPrefixes      []string
+	hideUnmatched      []bool
+	subgridCells       []*domainGrid.Cell
 	recursiveGridDraws []image.Rectangle
 	searchQueries      []string
 	monitorDraws       [][]overlay.MonitorSelectTarget
@@ -198,15 +208,41 @@ func (m *simOverlayManager) DrawHintsWithStyle(
 
 func (m *simOverlayManager) DrawGrid(
 	grid *domainGrid.Grid,
-	_ string,
+	input string,
 	_ rendergrid.Style,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.gridDraws = append(m.gridDraws, grid)
+	m.gridDraws = append(m.gridDraws, simGridDraw{grid: grid, input: input})
 
 	return nil
+}
+
+// UpdateGridMatches records the prefix the grid was narrowed to. This is the
+// per-keystroke path in grid mode: a journey asserts the user's typing reached
+// the overlay here, not that the whole grid was drawn again.
+func (m *simOverlayManager) UpdateGridMatches(prefix string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.matchPrefixes = append(m.matchPrefixes, prefix)
+}
+
+// SetHideUnmatched records whether unmatched cells were asked to disappear.
+func (m *simOverlayManager) SetHideUnmatched(hide bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.hideUnmatched = append(m.hideUnmatched, hide)
+}
+
+// ShowSubgrid records the cell a subgrid was opened inside.
+func (m *simOverlayManager) ShowSubgrid(cell *domainGrid.Cell, _ rendergrid.Style) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.subgridCells = append(m.subgridCells, cell)
 }
 
 func (m *simOverlayManager) DrawRecursiveGrid(
@@ -370,7 +406,57 @@ func (m *simOverlayManager) lastGrid() *domainGrid.Grid {
 		return nil
 	}
 
-	return m.gridDraws[len(m.gridDraws)-1]
+	return m.gridDraws[len(m.gridDraws)-1].grid
+}
+
+// gridDrawCount reports how many times the whole grid was drawn. A journey
+// uses it to pin what a keystroke costs: narrowing must not redraw the grid.
+func (m *simOverlayManager) gridDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.gridDraws)
+}
+
+// lastMatchPrefix reports the prefix the grid was last narrowed to, and
+// whether it was ever narrowed at all.
+func (m *simOverlayManager) lastMatchPrefix() (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.matchPrefixes) == 0 {
+		return "", false
+	}
+
+	return m.matchPrefixes[len(m.matchPrefixes)-1], true
+}
+
+// lastHideUnmatched reports whether unmatched cells were last asked to hide.
+func (m *simOverlayManager) lastHideUnmatched() (bool, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.hideUnmatched) == 0 {
+		return false, false
+	}
+
+	return m.hideUnmatched[len(m.hideUnmatched)-1], true
+}
+
+// subgridCount reports how many subgrids were opened.
+func (m *simOverlayManager) subgridCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.subgridCells)
+}
+
+// recursiveGridDrawCount reports how many times the recursive grid was drawn.
+func (m *simOverlayManager) recursiveGridDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.recursiveGridDraws)
 }
 
 // --- scripted accessibility port ------------------------------------------
@@ -604,7 +690,7 @@ func (c *simCursor) moveCount() int {
 // --- harness ---------------------------------------------------------------
 
 type simHarness struct {
-	t   *testing.T
+	t   testing.TB
 	app *app.App
 	// appearance is the fixture desktop's light/dark state, read by the
 	// system port the app resolves its theme through.
@@ -653,13 +739,13 @@ type simDisplay struct {
 // newSimHarness builds and starts the real app wired to the simulation fakes
 // on a single default display.
 func newSimHarness(
-	t *testing.T,
+	tb testing.TB,
 	cfg *config.Config,
 	elements []*element.Element,
 ) *simHarness {
-	t.Helper()
+	tb.Helper()
 
-	return newSimHarnessWithDisplays(t, cfg, elements, []simDisplay{
+	return newSimHarnessWithDisplays(tb, cfg, elements, []simDisplay{
 		{name: "SimDisplay", bounds: simScreen},
 	})
 }
@@ -674,45 +760,45 @@ type simHeadlessOverlayManager struct {
 // desktop with the given displays, and registers cleanup that stops it and
 // fails the test on unclean shutdown. The cursor starts on the first display.
 func newSimHarnessWithDisplays(
-	t *testing.T,
+	tb testing.TB,
 	cfg *config.Config,
 	elements []*element.Element,
 	displays []simDisplay,
 ) *simHarness {
-	t.Helper()
+	tb.Helper()
 
 	recorder := &simOverlayManager{}
 
-	return buildSimHarness(t, cfg, elements, displays, recorder, recorder)
+	return buildSimHarness(tb, cfg, elements, displays, recorder, recorder)
 }
 
 // newSimHarnessHeadlessOverlay builds the app on an overlay manager without
 // any optional extensions. The returned harness has a nil overlay recorder —
 // only for journeys asserting that a capability is refused.
 func newSimHarnessHeadlessOverlay(
-	t *testing.T,
+	tb testing.TB,
 	cfg *config.Config,
 	displays []simDisplay,
 ) *simHarness {
-	t.Helper()
+	tb.Helper()
 
-	return buildSimHarness(t, cfg, nil, displays, &simHeadlessOverlayManager{}, nil)
+	return buildSimHarness(tb, cfg, nil, displays, &simHeadlessOverlayManager{}, nil)
 }
 
 // buildSimHarness wires the app with the given overlay manager; recorder is
 // that same manager when it records, nil otherwise.
 func buildSimHarness(
-	t *testing.T,
+	tb testing.TB,
 	cfg *config.Config,
 	elements []*element.Element,
 	displays []simDisplay,
 	overlayManager app.OverlayManager,
 	recorder *simOverlayManager,
 ) *simHarness {
-	t.Helper()
+	tb.Helper()
 
 	if len(displays) == 0 {
-		t.Fatal("buildSimHarness needs at least one display")
+		tb.Fatal("buildSimHarness needs at least one display")
 	}
 
 	axPort := &simAXPort{elements: elements}
@@ -787,11 +873,11 @@ func buildSimHarness(
 		app.WithAccessibility(axPort),
 	)
 	if err != nil {
-		t.Fatalf("app.New failed: %v", err)
+		tb.Fatalf("app.New failed: %v", err)
 	}
 
 	sim := &simHarness{
-		t:          t,
+		t:          tb,
 		app:        application,
 		appearance: appearance,
 		overlay:    recorder,
@@ -806,17 +892,17 @@ func buildSimHarness(
 		sim.runDone <- application.Run()
 	}()
 
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		application.Stop()
 
 		select {
 		case runErr := <-sim.runDone:
 			if runErr != nil && !errors.Is(runErr, context.Canceled) &&
 				!derrors.IsCode(runErr, derrors.CodeContextCanceled) {
-				t.Errorf("Run() returned an unexpected error after Stop(): %v", runErr)
+				tb.Errorf("Run() returned an unexpected error after Stop(): %v", runErr)
 			}
 		case <-time.After(simWaitTimeout):
-			t.Errorf("app did not stop within %v", simWaitTimeout)
+			tb.Errorf("app did not stop within %v", simWaitTimeout)
 		}
 
 		application.Cleanup()

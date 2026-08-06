@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -209,6 +210,117 @@ func TestSimulation_GridJourney(t *testing.T) {
 			"cursor at %v, expected inside cell %q bounds %v",
 			pos, cell.Coordinate(), cell.Bounds(),
 		)
+	}
+
+	// A complete label opens the finer grid inside the cell, which is the
+	// other thing a user sees for that last keystroke.
+	if got := sim.overlay.subgridCount(); got != 1 {
+		t.Errorf("subgrids opened = %d, want 1 after a full label was typed", got)
+	}
+}
+
+// TestSimulation_GridNarrowingCostsNoRedraw is the promise ADR 0003 makes a
+// user: typing in grid mode narrows what is on screen without redrawing the
+// grid or putting the overlay up again. It asserts the domain value the user's
+// keystroke produced — the prefix the cells are matched against — rather than
+// which call carried it.
+func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	label := cells[len(cells)/2].Coordinate()
+	if len([]rune(label)) < 2 {
+		t.Fatalf("grid label %q is one character; it cannot be narrowed", label)
+	}
+
+	drawsBefore := sim.overlay.gridDrawCount()
+	showsBefore := sim.overlay.showCount()
+
+	// Labels are drawn upper case and the grid matches on them; a user types
+	// the key, so the two differ in case and only in case.
+	first := string([]rune(label)[0])
+	sim.press(strings.ToLower(first))
+
+	sim.waitFor("grid narrowed to what was typed", func() bool {
+		prefix, narrowed := sim.overlay.lastMatchPrefix()
+
+		return narrowed && prefix == first
+	})
+
+	if got := sim.overlay.gridDrawCount(); got != drawsBefore {
+		t.Errorf("grid draws = %d after one keystroke, want %d: narrowing redrew the grid",
+			got, drawsBefore)
+	}
+
+	if got := sim.overlay.showCount(); got != showsBefore {
+		t.Errorf("overlay shows = %d after one keystroke, want %d: narrowing repeated the "+
+			"window sequence", got, showsBefore)
+	}
+
+	if hidden, asked := sim.overlay.lastHideUnmatched(); !asked || !hidden {
+		t.Errorf("unmatched cells asked to hide = %v (asked = %v), want true: the cells that "+
+			"no longer match are still on screen", hidden, asked)
+	}
+
+	if !sim.overlay.isVisible() {
+		t.Error("the grid left the screen while the user was typing")
+	}
+}
+
+// TestSimulation_GridLeavesNothingOnScreen pins the leaving half: exiting grid
+// mode takes the grid off the screen and returns the overlay to idle, so the
+// next mode does not appear next to the last one.
+func TestSimulation_GridLeavesNothingOnScreen(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid on screen", func() bool {
+		return sim.overlay.lastGrid() != nil && sim.overlay.isVisible()
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.waitFor("grid off screen", func() bool {
+		return !sim.overlay.isVisible() && sim.overlay.Mode() == overlay.ModeIdle
+	})
+}
+
+// TestSimulation_RecursiveGridZoomsWithoutShowingAgain covers the other grid
+// surface: every keystroke repaints it, and none of them puts the overlay up a
+// second time.
+func TestSimulation_RecursiveGridZoomsWithoutShowingAgain(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("recursive grid drawn", func() bool {
+		_, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok
+	})
+
+	drawsBefore := sim.overlay.recursiveGridDrawCount()
+	showsBefore := sim.overlay.showCount()
+
+	sim.press("r")
+
+	sim.waitFor("recursive grid redrawn for the keystroke", func() bool {
+		return sim.overlay.recursiveGridDrawCount() > drawsBefore
+	})
+
+	if got := sim.overlay.showCount(); got != showsBefore {
+		t.Errorf("overlay shows = %d after one keystroke, want %d: zooming repeated the "+
+			"window sequence", got, showsBefore)
 	}
 }
 

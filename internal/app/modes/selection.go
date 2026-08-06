@@ -5,9 +5,9 @@ import (
 
 	"go.uber.org/zap"
 
-	componentrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // CurrentSelectionPoint returns the active selection point for the current mode, if any.
@@ -214,56 +214,57 @@ func (h *handlerState) moveCursorToSelection(
 	}
 }
 
+// refreshGridVirtualPointer puts the pointer stand-in where grid mode's
+// selection is, or takes it off when the cursor follows the selection itself
+// and there is nothing to stand in for.
 func (h *handlerState) refreshGridVirtualPointer() {
-	if h.grid == nil || h.grid.Context == nil || h.grid.Overlay == nil {
+	if h.grid == nil || h.grid.Context == nil {
 		return
 	}
 
-	point, ok := h.grid.Context.SelectionPoint()
-	if !ok || h.grid.Context.CursorFollowSelection() {
-		h.grid.Overlay.HideVirtualPointer()
-
-		return
-	}
-
-	style := h.overlayStyle().VirtualPointer
-	localPoint := geometry.ConvertToLocalCoordinates(point, h.screenBounds)
-	h.grid.Overlay.ShowVirtualPointer(localPoint, style.FontSize, style.FillColor)
+	h.updateGridPointer(domain.ModeGrid, selectionPointer(
+		h.grid.Context.SelectionPoint,
+		h.grid.Context.CursorFollowSelection(),
+		h.screenBounds,
+	))
 }
 
+// refreshRecursiveGridVirtualPointer does the same for recursive-grid mode.
 func (h *handlerState) refreshRecursiveGridVirtualPointer() {
-	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil || h.recursiveGrid.Overlay == nil {
-		return
-	}
-
-	state := h.currentRecursiveGridVirtualPointerState()
-	if !state.Visible {
-		h.recursiveGrid.Overlay.HideVirtualPointer()
-
-		return
-	}
-
-	h.recursiveGrid.Overlay.ShowVirtualPointer(state.Position, state.Size, state.FillColor)
+	h.updateGridPointer(domain.ModeRecursiveGrid, h.recursiveGridPointer())
 }
 
-func (h *handlerState) currentRecursiveGridVirtualPointerState() componentrecursivegrid.VirtualPointerState {
+// recursiveGridPointer is the pointer recursive-grid mode should be showing.
+// It is read twice — as a call of its own, and as part of the frame the
+// surface is redrawn with — because the backend paints the pointer in the same
+// pass as the cells.
+func (h *handlerState) recursiveGridPointer() ports.GridPointer {
 	if h.recursiveGrid == nil || h.recursiveGrid.Context == nil {
-		return componentrecursivegrid.VirtualPointerState{}
+		return ports.GridPointer{}
 	}
 
-	point, ok := h.recursiveGrid.Context.SelectionPoint()
-	if !ok || h.recursiveGrid.Context.CursorFollowSelection() {
-		return componentrecursivegrid.VirtualPointerState{}
+	return selectionPointer(
+		h.recursiveGrid.Context.SelectionPoint,
+		h.recursiveGrid.Context.CursorFollowSelection(),
+		h.screenBounds,
+	)
+}
+
+// selectionPointer turns a mode's selection into the pointer the overlay
+// should draw: visible only when there is a selection and the real cursor is
+// not already sitting on it, in the overlay's own screen-local space.
+func selectionPointer(
+	selection func() (image.Point, bool),
+	cursorFollowsSelection bool,
+	screenBounds image.Rectangle,
+) ports.GridPointer {
+	point, ok := selection()
+	if !ok || cursorFollowsSelection {
+		return ports.GridPointer{}
 	}
 
-	style := h.overlayStyle().VirtualPointer
-
-	return componentrecursivegrid.VirtualPointerState{
-		Visible:   true,
-		Position:  geometry.ConvertToLocalCoordinates(point, h.screenBounds),
-		Size:      style.FontSize,
-		FillColor: style.FillColor,
-		Char:      style.Char,
-		FontName:  style.FontFamily,
+	return ports.GridPointer{
+		Visible:  true,
+		Position: geometry.ConvertToLocalCoordinates(point, screenBounds),
 	}
 }

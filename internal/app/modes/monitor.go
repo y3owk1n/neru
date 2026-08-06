@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // MonitorDirection selects how MoveMonitor picks the target monitor.
@@ -59,11 +60,13 @@ func (h *Handler) MoveMonitor(
 		Y: targetBounds.Min.Y + targetBounds.Dy()/2,
 	}
 
-	// Hide → cursor warp → Resize → Draw → Show, in that order. The async
+	// Hide → cursor warp → redraw the active mode, in that order. The async
 	// ResizeToActiveScreen reads the mouse position on the main queue, so
-	// hiding first removes the stale overlay before the warp, the resize runs
-	// with the cursor already on the target monitor, and Show comes last so
-	// the overlay appears only after resize and redraw are enqueued.
+	// hiding first removes the stale overlay before the warp and everything
+	// that puts it back runs with the cursor already on the target monitor.
+	// For the two grid modes "puts it back" is one Frame and the overlay owns
+	// the resize/show/draw order inside it (#1211); the modes that still draw
+	// through the manager keep the explicit Show below.
 	hasActiveOverlay := h.appState.CurrentMode() != domain.ModeIdle
 	if hasActiveOverlay && h.overlayManager != nil {
 		h.overlayManager.Hide()
@@ -258,10 +261,11 @@ func (h *Handler) refreshActiveModeOnNewScreen(
 
 	switch currentMode {
 	case domain.ModeGrid:
-		h.overlayManager.ResizeToActiveScreen()
+		// No resize here: the Frame these two hand over is realized with one
+		// (`overlay/adapter.go`, ShowFrame), and doing it twice is two trips
+		// to the main thread for one move.
 		h.refreshGridForMonitorMove(targetBounds)
 	case domain.ModeRecursiveGrid:
-		h.overlayManager.ResizeToActiveScreen()
 		h.refreshRecursiveGridForMonitorMove(targetBounds)
 	case domain.ModeHints:
 		h.overlayManager.ResizeToActiveScreen()
@@ -311,16 +315,13 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 
 	h.grid.Context.ClearSelectionPoint()
 
-	drawGridErr := h.renderer.DrawGrid(gridInstance, "")
-	if drawGridErr != nil {
-		h.logger.Error("Failed to refresh grid after monitor move", zap.Error(drawGridErr))
-		h.overlayManager.Show()
-
+	// The grid moved to another display, so it comes up there the same way it
+	// came up here: as a Frame, resized and shown by the overlay.
+	if !h.showFrame(ports.GridFrame{Grid: gridInstance}, "refresh grid after monitor move") {
 		return
 	}
 
 	h.refreshGridVirtualPointer()
-	h.overlayManager.Show()
 }
 
 // refreshRecursiveGridForMonitorMove remaps the recursive-grid to the known
@@ -347,9 +348,12 @@ func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangl
 		h.recursiveGrid.Context.ClearSelectionPoint()
 	}
 
-	h.updateRecursiveGridOverlay()
+	// Same as grid: the recursive grid comes up on the new display as a Frame.
+	if !h.showFrame(h.recursiveGridFrame(), "refresh recursive-grid after monitor move") {
+		return
+	}
+
 	h.refreshRecursiveGridVirtualPointer()
-	h.overlayManager.Show()
 }
 
 // refreshHintsForMonitorMove refreshes hints using the known target screen

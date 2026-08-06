@@ -27,13 +27,13 @@ func (h *Handler) ResetCurrentMode() {
 
 			gridInstancePtr := h.grid.Context.GridInstance()
 			if gridInstancePtr != nil && *gridInstancePtr != nil {
-				err := h.renderer.DrawGrid(
-					*gridInstancePtr,
-					h.grid.Manager.CurrentInput(),
+				h.redrawFrame(
+					ports.GridFrame{
+						Grid:  *gridInstancePtr,
+						Input: h.grid.Manager.CurrentInput(),
+					},
+					"redraw grid after reset",
 				)
-				if err != nil {
-					h.logger.Error("Failed to redraw grid after reset", zap.Error(err))
-				}
 
 				h.refreshGridVirtualPointer()
 			}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
-	"github.com/y3owk1n/neru/internal/app/render"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
 	"github.com/y3owk1n/neru/internal/app/services/stickyindicator"
@@ -103,7 +102,6 @@ type handlerState struct {
 	// gone. The two sites that clear it both satisfy that (`hints.go`,
 	// `hintdraw.go`).
 	hintsFrameOnScreen bool
-	renderer           *render.OverlayRenderer
 	// New Services
 	hintService            *services.HintService
 	gridService            *services.GridService
@@ -196,7 +194,6 @@ type HandlerDeps struct {
 	OverlayManager overlay.ManagerInterface
 	OverlayPort    ports.OverlayPort
 	OverlayStyles  overlay.StyleSource
-	Renderer       *render.OverlayRenderer
 
 	HintService            *services.HintService
 	GridService            *services.GridService
@@ -261,7 +258,6 @@ func NewHandler(deps HandlerDeps) *Handler {
 		overlayManager:         deps.OverlayManager,
 		overlayPort:            deps.OverlayPort,
 		overlayStyles:          deps.OverlayStyles,
-		renderer:               deps.Renderer,
 		hintService:            deps.HintService,
 		gridService:            deps.GridService,
 		actionService:          deps.ActionService,
