@@ -197,7 +197,7 @@ func (a *App) setupAppWatcherCallbacks() {
 
 	// Watch for display parameter changes (monitor unplug/plug, resolution changes)
 	a.appWatcher.OnScreenParametersChanged(func() {
-		a.handleScreenParametersChange()
+		a.HandleScreenParametersChange()
 	})
 
 	// Watch for Mission Control activated events
@@ -234,8 +234,16 @@ func (a *App) setupAppWatcherCallbacks() {
 	a.appWatcher.SetMCDetection(a.configSnapshot().Hints.DetectMissionControl)
 }
 
-// handleScreenParametersChange responds to display configuration changes by updating overlays.
-func (a *App) handleScreenParametersChange() {
+// HandleScreenParametersChange is the app's entry point for a display
+// configuration change — a monitor plugged in or unplugged, a resolution
+// change, a laptop waking to a different arrangement: the platform screen
+// observers call it, and the simulation harness drives it the same way.
+//
+// It responds by putting whichever mode is on screen back onto the display as
+// it now is, and it is re-entrant by design: an event arriving while one is
+// being handled is coalesced into a single retry rather than processed
+// concurrently.
+func (a *App) HandleScreenParametersChange() {
 	if !a.appState.TrySetScreenChangeProcessing() {
 		return
 	}

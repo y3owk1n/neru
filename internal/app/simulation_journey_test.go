@@ -1470,3 +1470,300 @@ func TestSimulation_MonitorMoveRedrawsTheModeOnTheNewDisplay(t *testing.T) {
 		t.Fatalf("mode after monitor move = %v, want grid", sim.app.CurrentMode())
 	}
 }
+
+// TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden pins the quietest
+// display change there is: plugging a monitor in with no mode open must not
+// flash an overlay at the user.
+//
+// Idle is the state a user is in almost all of the time, so this is the screen
+// change that happens most; the overlay window coming up for it would be
+// visible on every dock, undock and wake.
+func TestSimulation_ScreenChangeWhileIdleLeavesTheOverlayHidden(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	if sim.app.CurrentMode() != domain.ModeIdle {
+		t.Fatalf("the app started in mode %v, want idle", sim.app.CurrentMode())
+	}
+
+	showsBefore := sim.overlay.showCount()
+
+	sim.changeScreen(simDisplayResized())
+
+	if sim.overlay.isVisible() {
+		t.Error("the screen change put the overlay on screen while the app was idle")
+	}
+
+	if drawn := sim.overlay.drawnModeNames(); len(drawn) != 0 {
+		t.Errorf("the screen change drew %v while the app was idle, want nothing", drawn)
+	}
+
+	if got := sim.overlay.showCount(); got != showsBefore {
+		t.Errorf("overlay shows = %d after an idle screen change, want %d", got, showsBefore)
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeIdle {
+		t.Errorf("mode after an idle screen change = %v, want idle", got)
+	}
+}
+
+// TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen covers the
+// heaviest thing a display change does: hints are open when the arrangement
+// changes, and the labels a user is looking at have to come from the
+// accessibility tree as it is now, drawn against the display as it is now.
+//
+// Stale labels here are worse than none: they point at positions that no
+// longer exist, so typing one moves the cursor somewhere the user did not
+// choose. The journey therefore changes the tree along with the display and
+// asserts the drawn labels followed it.
+func TestSimulation_ScreenChangeRegeneratesHintsOnTheNewScreen(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	if got := len(sim.overlay.lastHintLabels()); got != 3 {
+		t.Fatalf("hints drawn for %d elements before the screen change, want 3", got)
+	}
+
+	drawsBefore := sim.overlay.hintDrawCount()
+	cursorBefore := sim.cursor.position()
+	movesBefore := sim.cursor.moveCount()
+
+	// The display change relaid out the windows: one of the three buttons is
+	// gone from the tree.
+	sim.ax.setElements([]*element.Element{
+		simElement(t, "save", image.Rect(100, 100, 220, 140), "Save"),
+		simElement(t, "cancel", image.Rect(300, 100, 420, 140), "Cancel"),
+	})
+
+	sim.changeScreen(simDisplayResized())
+
+	sim.waitFor("hints redrawn after the screen change", func() bool {
+		return sim.overlay.hintDrawCount() > drawsBefore
+	})
+
+	if got := len(sim.overlay.lastHintLabels()); got != 2 {
+		t.Errorf(
+			"hints drawn for %d elements after the screen change, want 2: the collection was not regenerated",
+			got,
+		)
+	}
+
+	screen, drawn := sim.overlay.lastHintScreen()
+	if !drawn || screen != simScreenResized {
+		t.Errorf("hints drawn against screen %v (drawn = %v), want %v",
+			screen, drawn, simScreenResized)
+	}
+
+	if !sim.overlay.isVisible() {
+		t.Error("the screen change left the hints overlay off the screen")
+	}
+
+	// The user chose none of this: a display changing under them must leave
+	// their pointer where they put it.
+	if got := sim.cursor.moveCount(); got != movesBefore {
+		t.Errorf(
+			"the cursor was moved %d times by the screen change, from %v to %v; it must stay where the user left it",
+			got-movesBefore,
+			cursorBefore,
+			sim.cursor.position(),
+		)
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeHints {
+		t.Errorf("mode after the screen change = %v, want hints", got)
+	}
+}
+
+// TestSimulation_ScreenChangeRebuildsGridAndClearsSelection covers the grid
+// half: the cells a user is about to type have to describe the display as it
+// now is, and the selection they made on the display that is gone has to go
+// with it — a cell coordinate from the old layout selects a different point on
+// the new one.
+//
+// The selection is read off the pointer the grid draws for it, so the journey
+// turns cursor-follow off first ("`"): with the cursor following, the selection
+// has nothing on screen of its own.
+func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	if got, want := sim.overlay.lastGrid().Bounds(), localBounds(simScreen); got != want {
+		t.Fatalf("grid drawn over %v before the screen change, want %v", got, want)
+	}
+
+	sim.press("`") // stop the cursor following the selection
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	sim.typeLabel(cells[len(cells)/2].Coordinate())
+
+	sim.waitFor("the selection is on screen", func() bool {
+		pointer, drawn := sim.overlay.lastGridPointer(domain.ModeGrid)
+
+		return drawn && pointer.Visible
+	})
+
+	drawsBefore := sim.overlay.gridDrawCount()
+
+	sim.changeScreen(simDisplayResized())
+
+	sim.waitFor("grid redrawn after the screen change", func() bool {
+		return sim.overlay.gridDrawCount() > drawsBefore
+	})
+
+	if got, want := sim.overlay.lastGrid().Bounds(), localBounds(simScreenResized); got != want {
+		t.Errorf("grid drawn over %v after the screen change, want %v: it was not rebuilt",
+			got, want)
+	}
+
+	if pointer, _ := sim.overlay.lastGridPointer(domain.ModeGrid); pointer.Visible {
+		t.Errorf(
+			"the selection at %v survived the screen change; it points at a place on a display that is gone",
+			pointer.Position,
+		)
+	}
+
+	if !sim.overlay.isVisible() {
+		t.Error("the screen change left the grid off the screen")
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeGrid {
+		t.Errorf("mode after the screen change = %v, want grid", got)
+	}
+}
+
+// TestSimulation_ScreenChangePreservesTheZoomedRegion covers what a display
+// change must not cost a recursive-grid user: the region they have already
+// zoomed into. Recursive grid is a sequence of narrowing choices, so throwing
+// the region away would throw their progress away with it — the mode is
+// remapped onto the new display rather than restarted on it.
+//
+// "The same region" means the same fraction of the display, which is what the
+// journey asserts: the zoomed rectangle covers the same proportion of the
+// smaller screen as it did of the larger one.
+func TestSimulation_ScreenChangePreservesTheZoomedRegion(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(recursiveGridHotkey)
+	sim.waitMode(domain.ModeRecursiveGrid)
+	sim.waitFor("recursive grid drawn", func() bool {
+		_, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok
+	})
+
+	// "r" is the top-left cell of the default 3x3 key layout.
+	sim.press("r")
+
+	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
+	sim.waitFor("grid zoomed into the top-left cell", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.In(topLeftThird)
+	})
+
+	zoomed, _ := sim.overlay.lastRecursiveGridBounds()
+	drawsBefore := sim.overlay.recursiveGridDrawCount()
+
+	sim.changeScreen(simDisplayResized())
+
+	sim.waitFor("recursive grid redrawn after the screen change", func() bool {
+		return sim.overlay.recursiveGridDrawCount() > drawsBefore
+	})
+
+	remapped, drawn := sim.overlay.lastRecursiveGridBounds()
+	if !drawn {
+		t.Fatal("the recursive grid was never drawn")
+	}
+
+	if remapped.Empty() {
+		t.Fatalf("the zoomed region collapsed to %v; there is nothing left to pick from", remapped)
+	}
+
+	// The same fraction of the display, on both axes, to within a pixel of
+	// rounding.
+	expected := image.Rect(
+		scaleAxis(zoomed.Min.X, simScreen.Dx(), simScreenResized.Dx()),
+		scaleAxis(zoomed.Min.Y, simScreen.Dy(), simScreenResized.Dy()),
+		scaleAxis(zoomed.Max.X, simScreen.Dx(), simScreenResized.Dx()),
+		scaleAxis(zoomed.Max.Y, simScreen.Dy(), simScreenResized.Dy()),
+	)
+
+	if !boundsWithin(remapped, expected, 1) {
+		t.Errorf(
+			"the region zoomed to %v on a %v screen came back as %v on a %v one, want about %v",
+			zoomed, localBounds(simScreen), remapped, localBounds(simScreenResized), expected,
+		)
+	}
+
+	if !sim.overlay.isVisible() {
+		t.Error("the screen change left the recursive grid off the screen")
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeRecursiveGrid {
+		t.Errorf("mode after the screen change = %v, want recursive grid", got)
+	}
+}
+
+// TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode pins the failure
+// path: the display changed, hints were regenerated for it, and this time the
+// accessibility tree has nothing to offer — the window the labels belonged to
+// went with the display.
+//
+// Leaving the mode running would strand the user in hints with the old
+// display's labels on screen, so the mode is left instead and the overlay comes
+// down. Idle with nothing drawn is recoverable; a mode showing labels that
+// point nowhere is not.
+func TestSimulation_ScreenChangeWithNothingToDrawExitsTheMode(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints on screen", func() bool {
+		return sim.overlay.hintDrawCount() > 0 && sim.overlay.isVisible()
+	})
+
+	// The display change took the window the hints belonged to with it.
+	sim.ax.setElements(nil)
+
+	sim.changeScreen(simDisplayResized())
+
+	sim.waitMode(domain.ModeIdle)
+
+	sim.waitFor("the overlay came down with the mode", func() bool {
+		return !sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 0
+	})
+
+	// The app is still usable afterwards: a mode that needs no elements still
+	// activates.
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+}
+
+// localBounds is a display in the overlay's screen-local space, which is what
+// the grid surfaces are drawn in.
+func localBounds(screen image.Rectangle) image.Rectangle {
+	return image.Rect(0, 0, screen.Dx(), screen.Dy())
+}
+
+// scaleAxis maps a coordinate from a display of size from to one of size to.
+func scaleAxis(value, from, to int) int {
+	return value * to / from
+}
+
+// boundsWithin reports whether every edge of got is within tolerance pixels of
+// the same edge of want.
+func boundsWithin(got, want image.Rectangle, tolerance int) bool {
+	within := func(a, b int) bool { return a-b <= tolerance && b-a <= tolerance }
+
+	return within(got.Min.X, want.Min.X) && within(got.Min.Y, want.Min.Y) &&
+		within(got.Max.X, want.Max.X) && within(got.Max.Y, want.Max.Y)
+}
