@@ -69,36 +69,6 @@ func NewHintService(
 	}
 }
 
-// ShowHints displays hints for clickable elements on the screen.
-// If filterRoles or filterTextContains are provided, they override the configured values.
-func (s *HintService) ShowHints(
-	ctx context.Context,
-	filterRoles []string,
-	filterTextContains []string,
-) ([]*hint.Interface, error) {
-	s.logger.Debug("Showing hints")
-
-	hints, err := s.GenerateHints(ctx, filterRoles, filterTextContains, "", "", "", false)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(hints) == 0 {
-		return hints, nil
-	}
-
-	showHintsErr := s.overlay.ShowHints(ctx, hints)
-	if showHintsErr != nil {
-		s.logger.Error("Failed to show hints overlay", zap.Error(showHintsErr))
-
-		return nil, derrors.WrapOverlayFailed(showHintsErr, "show hints")
-	}
-
-	s.logger.Debug("Hints displayed successfully", zap.Int("count", len(hints)))
-
-	return hints, nil
-}
-
 // GenerateHints collects clickable elements and generates labels without
 // drawing them, so mode handlers can filter and position hints before the
 // first render. A non-empty bundleID skips the AX lookup; non-empty overrides
@@ -175,22 +145,6 @@ func (s *HintService) GenerateHints(
 	s.logger.Debug("Found clickable elements", zap.Int("count", len(elements)))
 
 	return s.labelElements(ctx, elements, labelDirection)
-}
-
-// HideHints removes the hint overlay from the screen.
-func (s *HintService) HideHints(ctx context.Context) error {
-	s.logger.Debug("Hiding hints")
-
-	err := s.HideOverlay(ctx, "hide hints")
-	if err != nil {
-		s.logger.Error("Failed to hide overlay", zap.Error(err))
-
-		return err
-	}
-
-	s.logger.Debug("Hints hidden successfully")
-
-	return nil
 }
 
 // RefreshHints updates the hint display (e.g., after screen changes).

@@ -56,6 +56,9 @@ type App struct {
 
 	// Core services
 	overlayManager OverlayManager
+	// overlayPort is the contract the app draws Frames through. It is retained
+	// because the mode handler takes it as well as the services do.
+	overlayPort ports.OverlayPort
 	// overlayStyles is the one owner of config + theme -> Style. A config
 	// reload or a theme change notifies it, and every overlay reads it.
 	overlayStyles *overlay.StyleResolver

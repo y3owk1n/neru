@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -20,13 +19,6 @@ import (
 // debugElapsed logs the duration since start with the given message.
 func debugElapsed(logger *zap.Logger, start time.Time, msg string, fields ...zap.Field) {
 	logger.Debug(msg, append(fields, zap.Duration("elapsed", time.Since(start)))...)
-}
-
-// currentHintStyle returns the hint overlay's resolved appearance. The overlay
-// resolved it when the config or the theme last changed; nothing is derived
-// here. Caller must hold h.mu.
-func (h *handlerState) currentHintStyle() hints.StyleMode {
-	return h.overlayStyle().Hints
 }
 
 // overlayStyle returns the Style the overlay resolved for the live config and
@@ -152,11 +144,13 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	}
 
 	h.setScreenBounds(activeScreenBounds)
-	// On a fresh activation, clear leftover overlay content (e.g. scroll highlights)
-	// before drawing hints. A refresh keeps its overlay so the existing labels persist
-	// until the redraw draws the new set over them.
+	// On a fresh activation, take whatever frame is on screen off it (e.g.
+	// scroll highlights) before drawing hints. Entering from another mode has
+	// already done this through exitMode above; entering from idle has not,
+	// and that is the case this covers. A refresh keeps its frame so the
+	// existing labels persist until the redraw draws the new set over them.
 	if !isRefresh {
-		h.overlayManager.Clear()
+		h.clearOverlayFrame()
 	}
 
 	h.appState.SetHintOverlayNeedsRefresh(false)
@@ -260,9 +254,11 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 	}
 
 	// Only set mode and enable event tap on initial activation;
-	// during refresh these are already in the correct state.
+	// during refresh these are already in the correct state. The overlay is
+	// not switched here: hints hands over a Frame, and switching the overlay
+	// belongs to the one place that realizes it.
 	if !isRefresh {
-		h.setMode(domain.ModeHints, overlay.ModeHints)
+		h.enterMode(domain.ModeHints)
 	} else {
 		// During a refresh (e.g., after Cmd+Tab passthrough) the focused app
 		// may have changed. Re-sync the modifier passthrough blacklist so
@@ -275,6 +271,19 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 
 	debugElapsed(h.logger, activationStart, "Manager.SetHints completed")
 
+	// Every activation puts the hints Frame on screen again, fresh or
+	// in-place: the refresh path runs after a passthrough or a space change,
+	// where the overlay has to be re-shown on the display the user is now on.
+	//
+	// This sits immediately before SetHints on purpose. Clearing the flag says
+	// "the next draw performs the window sequence", so it may only be cleared
+	// where the hint manager's pending debounced updates are invalidated in the
+	// same locked section — SetHints below bumps the update generation, and on
+	// the teardown path Manager.Clear does. Clearing it any earlier would let a
+	// debounce timer that fired in between show and switch an overlay this
+	// activation may still abandon.
+	h.hintsFrameOnScreen = false
+
 	setHintsErr := h.hints.Context.SetHints(hintCollection)
 	if setHintsErr != nil {
 		h.logger.Error("Failed to set hints in manager", zap.Error(setHintsErr))
@@ -282,9 +291,6 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 
 		return
 	}
-
-	h.overlayManager.ResizeToActiveScreen()
-	h.overlayManager.Show()
 
 	fields := []zap.Field{
 		zap.Duration("elapsed", time.Since(activationStart)),

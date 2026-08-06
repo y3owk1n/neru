@@ -83,10 +83,27 @@ type handlerState struct {
 	cursorState    *state.CursorState
 	modifierState  *state.ModifierState
 	overlayManager overlay.ManagerInterface
+	// overlayPort is the contract a mode hands a Frame to. The modes still
+	// converted to it draw through here and never sequence a transition
+	// themselves; overlayManager is what is left for the surfaces that have
+	// not been converted yet (#1211, #1212).
+	overlayPort ports.OverlayPort
 	// overlayStyles is where every theme-resolved overlay appearance comes
 	// from. The handler reads it and never derives one of its own.
 	overlayStyles overlay.StyleSource
-	renderer      *render.OverlayRenderer
+	// hintsFrameOnScreen records whether this activation has already put the
+	// hints Frame on screen. The hint manager's update callback fires on
+	// activation and again on every narrowing keystroke; only the first needs
+	// the overlay shown and switched, and paying for a window show per
+	// keystroke is the latency regression AGENTS.md forbids.
+	//
+	// It may only be cleared in a locked section that also invalidates the hint
+	// manager's pending update generation, or a debounce timer firing after the
+	// clear performs a window transition for an activation that is already
+	// gone. The two sites that clear it both satisfy that (`hints.go`,
+	// `hintdraw.go`).
+	hintsFrameOnScreen bool
+	renderer           *render.OverlayRenderer
 	// New Services
 	hintService            *services.HintService
 	gridService            *services.GridService
@@ -177,6 +194,7 @@ type HandlerDeps struct {
 	CursorState *state.CursorState
 
 	OverlayManager overlay.ManagerInterface
+	OverlayPort    ports.OverlayPort
 	OverlayStyles  overlay.StyleSource
 	Renderer       *render.OverlayRenderer
 
@@ -241,6 +259,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		cursorState:            deps.CursorState,
 		modifierState:          state.NewModifierState(),
 		overlayManager:         deps.OverlayManager,
+		overlayPort:            deps.OverlayPort,
 		overlayStyles:          deps.OverlayStyles,
 		renderer:               deps.Renderer,
 		hintService:            deps.HintService,

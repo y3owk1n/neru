@@ -51,14 +51,6 @@ func (h *handlerState) performModeSpecificCleanup() {
 	mode.Exit()
 }
 
-// clearAndHideOverlay clears and hides the overlay manager.
-func (h *handlerState) clearAndHideOverlay() {
-	h.stopIndicatorPolling()
-
-	h.overlayManager.ClearCache()
-	h.overlayManager.Hide()
-}
-
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *handlerState) cleanupHintsMode() {
 	h.stopHintSearchTextInput(false)
@@ -70,7 +62,9 @@ func (h *handlerState) cleanupHintsMode() {
 
 	h.cycleHintIndex = -1
 
-	h.clearAndHideOverlay()
+	// Stop the indicator poller before common cleanup takes the frame off the
+	// screen: a tick landing after the clear would put an indicator back on it.
+	h.stopIndicatorPolling()
 }
 
 // cleanupDefaultMode handles cleanup for default/unknown modes.
@@ -114,15 +108,16 @@ func (h *handlerState) cleanupGridMode() {
 		h.grid.Overlay.HideVirtualPointer()
 	}
 
-	h.clearAndHideOverlay()
+	// Stop the indicator poller before common cleanup takes the frame off the
+	// screen: a tick landing after the clear would put an indicator back on it.
+	h.stopIndicatorPolling()
 }
 
 // performCommonCleanup handles common cleanup logic for all modes.
 func (h *handlerState) performCommonCleanup() {
 	h.stopIndicatorPolling()
 	h.stopHeldRepeat()
-	h.overlayManager.Clear()
-	h.overlayManager.ClearCache()
+	h.clearOverlayFrame()
 
 	// Stop any pending hints refresh timer to prevent re-activation after exit
 	if h.refreshHintsTimer != nil {
@@ -161,9 +156,11 @@ func (h *handlerState) performCommonCleanup() {
 	// activationModifierSuppressionWindow expires.
 	// h.suppressedModifiers = 0
 	// h.suppressedUntil = time.Time{}
+	// The overlay is already idle: clearOverlayFrame above returned it there,
+	// because taking the frame off screen and leaving the mode behind are one
+	// step and not two a caller has to remember.
 	h.logger.Debug("Mode transition complete",
 		zap.String("to", "idle"))
-	h.overlayManager.SwitchTo(overlay.ModeIdle)
 
 	// If a hotkey refresh was deferred while in an active mode, perform it now
 	if h.appState.HotkeyRefreshPending() {

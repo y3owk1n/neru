@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -56,5 +57,50 @@ func TestPerformCommonCleanup_ReleasesStickyModifiersBeforeDisablingEventTap(t *
 
 	if got := handler.modifierState.Current(); got != 0 {
 		t.Fatalf("modifierState.Current() = %v, want 0", got)
+	}
+}
+
+// TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled pins the
+// one context the leaving half must ignore. Shutdown cancels the app's root
+// context and *then* exits the mode, so a teardown that honored h.ctx would
+// leave the last mode's overlay on screen as the daemon quit — and would log
+// an error on every clean exit while doing it.
+func TestPerformCommonCleanup_ClearsTheFrameAfterTheContextIsCanceled(t *testing.T) {
+	t.Parallel()
+
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeHints)
+
+	cleared := 0
+	overlayPort := &portmocks.MockOverlayPort{
+		ClearFrameFunc: func(ctx context.Context) error {
+			ctxErr := ctx.Err()
+			if ctxErr != nil {
+				return ctxErr
+			}
+
+			cleared++
+
+			return nil
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	handler := newHandlerWithState(handlerState{
+		ctx:            ctx,
+		logger:         zap.NewNop(),
+		config:         &configpkg.Config{},
+		appState:       appState,
+		modifierState:  state.NewModifierState(),
+		overlayManager: &overlay.NoOpManager{},
+		overlayPort:    overlayPort,
+	})
+
+	handler.performCommonCleanup()
+
+	if cleared == 0 {
+		t.Fatal("the frame was never cleared: teardown honored the canceled context")
 	}
 }

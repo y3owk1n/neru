@@ -2,21 +2,20 @@ package modes
 
 import (
 	"context"
-	"image"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // RefreshHintsForScreenChange updates the hint collection under the handler
-// mutex so that the onUpdate callback can safely read h.screenBounds and
-// write to h.overlayManager. Called from the screen-change goroutine in
+// mutex so that the onUpdate callback can safely read h.screenBounds and hand
+// the overlay a Frame. Called from the screen-change goroutine in
 // lifecycle.go.
 //
 // Returns true if the refresh was performed, false if the mode was exited
@@ -225,7 +224,8 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 // after a system theme change. Only performs the redraw if ModeHints is
 // currently active.
 //
-// Returns true if a redraw was performed.
+// Returns true if the overlay was asked to redraw. Whether the backend had a
+// surface to draw on is its own business and is reported in the log, not here.
 func (h *Handler) RefreshHintsForThemeChange() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -239,44 +239,15 @@ func (h *Handler) RefreshHintsForThemeChange() bool {
 		return false
 	}
 
-	// Convert domain hints to overlay hints for rendering
-	filteredHints := hintCollection.All()
-	overlayHints := make([]*hints.Hint, len(filteredHints))
-	screenBounds := h.screenBounds
-
-	for index, hint := range filteredHints {
-		// Convert screen-absolute coordinates to overlay-local coordinates
-		localPos := image.Point{
-			X: hint.Position().X - screenBounds.Min.X,
-			Y: hint.Position().Y - screenBounds.Min.Y,
-		}
-		overlayHints[index] = hints.NewHint(
-			hint.Label(),
-			localPos,
-			hint.Element().Bounds().Size(),
-			hint.MatchedPrefix(),
-		)
-	}
-
-	drawHintsErr := h.overlayManager.DrawHintsWithStyle(
-		overlayHints,
-		h.currentHintStyle(),
+	// The overlay is already up and resolved the new theme for itself; the
+	// same Frame drawn again is all it takes to pick the colors up.
+	return h.redrawFrame(
+		ports.HintsFrame{
+			Screen: h.screenBounds,
+			Hints:  hintCollection.All(),
+		},
+		"refresh hints after theme change",
 	)
-	if drawHintsErr != nil {
-		// A backend without a hint surface (headless) reports CodeNotSupported;
-		// that is degradation, not failure.
-		if derrors.IsNotSupported(drawHintsErr) {
-			h.logger.Debug("Hint overlay not supported on this backend")
-
-			return false
-		}
-
-		h.logger.Error("Failed to refresh hints after theme change", zap.Error(drawHintsErr))
-
-		return false
-	}
-
-	return true
 }
 
 // RefreshGridForThemeChange redraws the grid overlay with updated styles

@@ -3,9 +3,9 @@ package mocks
 import (
 	"context"
 	"image"
+	"slices"
 	"sync"
 
-	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -27,7 +27,18 @@ type MockOverlayPort struct {
 	virtualPointerY  int
 	virtualPointerN  int
 
-	ShowHintsFunc func(context.Context, []*hint.Interface) error
+	// ShowFrameFunc mocks ShowFrame.
+	ShowFrameFunc func(context.Context, ports.Frame) error
+	// RedrawFrameFunc mocks RedrawFrame.
+	RedrawFrameFunc func(context.Context, ports.Frame) error
+	// ClearFrameFunc mocks ClearFrame.
+	ClearFrameFunc func(context.Context) error
+	// DrawHintSearchFunc mocks DrawHintSearch.
+	DrawHintSearchFunc func(ports.HintSearch) error
+	// HideHintSearchFunc mocks HideHintSearch.
+	HideHintSearchFunc func()
+	// HintSearchBoundsFunc mocks HintSearchBounds.
+	HintSearchBoundsFunc func(image.Rectangle) image.Rectangle
 	// DrawModeIndicatorFunc mocks DrawModeIndicator.
 	DrawModeIndicatorFunc func(x, y int)
 	// DrawStickyModifiersIndicatorFunc mocks DrawStickyModifiersIndicator.
@@ -39,24 +50,89 @@ type MockOverlayPort struct {
 	// HideIndicatorFunc mocks HideIndicator.
 	HideIndicatorFunc            func(indicator ports.Indicator)
 	DrawMouseActionIndicatorFunc func(point image.Point, style ports.MouseActionIndicatorStyle)
-	HideFunc                     func(context.Context) error
 	IsVisibleFunc                func() bool
 	RefreshFunc                  func(context.Context) error
 	HealthFunc                   func(context.Context) error
+
+	frameMu sync.Mutex
+	// frames records every Frame the caller handed over, in order, so a test
+	// asserts on the domain values a user would have seen rather than on
+	// which method the adapter would have used to draw them.
+	frames []ports.Frame
+	// hintSearches records every search input draw, in order.
+	hintSearches []ports.HintSearch
 
 	// State tracking for tests
 	visible bool
 }
 
-// ShowHints implements ports.OverlayPort.
-func (m *MockOverlayPort) ShowHints(ctx context.Context, hints []*hint.Interface) error {
-	if m.ShowHintsFunc != nil {
-		return m.ShowHintsFunc(ctx, hints)
+// ShowFrame implements ports.OverlayPort.
+func (m *MockOverlayPort) ShowFrame(ctx context.Context, frame ports.Frame) error {
+	m.recordFrame(frame)
+
+	if m.ShowFrameFunc != nil {
+		return m.ShowFrameFunc(ctx, frame)
 	}
 
 	m.visible = true
 
 	return nil
+}
+
+// RedrawFrame implements ports.OverlayPort.
+func (m *MockOverlayPort) RedrawFrame(ctx context.Context, frame ports.Frame) error {
+	m.recordFrame(frame)
+
+	if m.RedrawFrameFunc != nil {
+		return m.RedrawFrameFunc(ctx, frame)
+	}
+
+	return nil
+}
+
+// ClearFrame implements ports.OverlayPort.
+func (m *MockOverlayPort) ClearFrame(ctx context.Context) error {
+	if m.ClearFrameFunc != nil {
+		return m.ClearFrameFunc(ctx)
+	}
+
+	m.visible = false
+
+	return nil
+}
+
+// Frames returns every Frame handed to ShowFrame or RedrawFrame, in order.
+func (m *MockOverlayPort) Frames() []ports.Frame {
+	m.frameMu.Lock()
+	defer m.frameMu.Unlock()
+
+	out := make([]ports.Frame, len(m.frames))
+	copy(out, m.frames)
+
+	return out
+}
+
+// LastHintLabels returns the labels of the most recent hints Frame, and
+// whether one was ever handed over.
+func (m *MockOverlayPort) LastHintLabels() ([]string, bool) {
+	m.frameMu.Lock()
+	defer m.frameMu.Unlock()
+
+	for _, v := range slices.Backward(m.frames) {
+		hints, ok := v.(ports.HintsFrame)
+		if !ok {
+			continue
+		}
+
+		labels := make([]string, len(hints.Hints))
+		for labelIndex, drawn := range hints.Hints {
+			labels[labelIndex] = drawn.Label()
+		}
+
+		return labels, true
+	}
+
+	return nil, false
 }
 
 // LastModeIndicatorPosition returns the coordinates of the most recent
@@ -167,15 +243,41 @@ func (m *MockOverlayPort) DrawMouseActionIndicator(
 	}
 }
 
-// Hide implements ports.OverlayPort.
-func (m *MockOverlayPort) Hide(ctx context.Context) error {
-	if m.HideFunc != nil {
-		return m.HideFunc(ctx)
+// DrawHintSearch implements ports.OverlayPort.
+func (m *MockOverlayPort) DrawHintSearch(search ports.HintSearch) error {
+	m.frameMu.Lock()
+	m.hintSearches = append(m.hintSearches, search)
+	m.frameMu.Unlock()
+
+	if m.DrawHintSearchFunc != nil {
+		return m.DrawHintSearchFunc(search)
 	}
 
-	m.visible = false
-
 	return nil
+}
+
+// HideHintSearch implements ports.OverlayPort.
+func (m *MockOverlayPort) HideHintSearch() {
+	if m.HideHintSearchFunc != nil {
+		m.HideHintSearchFunc()
+	}
+}
+
+// HintSearchBounds implements ports.OverlayPort.
+func (m *MockOverlayPort) HintSearchBounds(screen image.Rectangle) image.Rectangle {
+	if m.HintSearchBoundsFunc != nil {
+		return m.HintSearchBoundsFunc(screen)
+	}
+
+	return image.Rectangle{}
+}
+
+// HintSearchDrawCount returns how many times the search input was drawn.
+func (m *MockOverlayPort) HintSearchDrawCount() int {
+	m.frameMu.Lock()
+	defer m.frameMu.Unlock()
+
+	return len(m.hintSearches)
 }
 
 // IsVisible implements ports.OverlayPort.
@@ -214,6 +316,13 @@ func (m *MockOverlayPort) setIndicatorVisible(indicator ports.Indicator, visible
 	}
 
 	m.indicatorVisible[indicator] = visible
+}
+
+func (m *MockOverlayPort) recordFrame(frame ports.Frame) {
+	m.frameMu.Lock()
+	defer m.frameMu.Unlock()
+
+	m.frames = append(m.frames, frame)
 }
 
 // Ensure MockOverlayPort implements ports.OverlayPort.

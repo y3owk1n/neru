@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // countingTheme records every time a Style resolution asks what the system
@@ -60,12 +61,14 @@ func TestStyleResolver_ResolvesPerChangeNotPerDraw(t *testing.T) {
 		t.Fatal("constructing the resolver never consulted the theme")
 	}
 
+	frame := ports.HintsFrame{Screen: image.Rect(0, 0, 100, 100), Hints: hints}
+
 	for range 10 {
 		_ = resolver.Style()
 
-		showErr := adapter.ShowHints(context.Background(), hints)
+		showErr := adapter.ShowFrame(context.Background(), frame)
 		if showErr != nil {
-			t.Fatalf("ShowHints() error = %v", showErr)
+			t.Fatalf("ShowFrame() error = %v", showErr)
 		}
 	}
 

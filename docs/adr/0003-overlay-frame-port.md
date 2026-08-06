@@ -57,6 +57,23 @@ are declarative; updates — hot, already narrow, already correct — are not.
   pinned by tests on the no-op, macOS and Linux managers. With #1209 that file
   is gone: each backend answers its own headlessness where it builds, and
   removing `WindowPtr` was the deletion this predicted.
+- **The hybrid landed as three methods, not two.** Done in #1210: `ShowFrame`
+  is the transition and owns `ResizeToActiveScreen` → `Show` → `SwitchTo` →
+  draw; `RedrawFrame` takes the same Frame and skips the window sequence,
+  because the hint update callback fires on activation *and* on every
+  narrowing keystroke and a `Show` per keystroke is main-thread work this
+  change is not allowed to add; `ClearFrame` is the leaving half. `Frame` is a
+  sealed interface with one implementation so far, `HintsFrame`, and
+  `internal/architecture/overlay_frame_test.go` fails the build if a Frame
+  field is typed from anything but the standard library or `internal/domain/`.
+  The dead `ShowHints` and `Hide` left the port with the two service methods
+  that were their only callers.
+- **The hint search input went with hints.** Its geometry was computed in
+  `app/modes` from configuration and handed over as a render model; it is now
+  a `SearchInputLayout` resolved with the rest of the Style and placed in the
+  adapter, reached through `DrawHintSearch` / `HideHintSearch`. The IME field
+  asks where it landed through `HintSearchBounds` rather than deriving the
+  same rectangle a second time.
 - **The port's threading contract stays "may block; never call under
   `h.mu`".** Draws are `dispatch_async` on macOS and hold `renderMu`
   synchronously on Linux; that asymmetry is left alone here. Modes compute

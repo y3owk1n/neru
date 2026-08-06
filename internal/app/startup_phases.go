@@ -104,6 +104,7 @@ func initializeServicesAndAdapters(app *App) error {
 		app.systemPort,
 	)
 	app.accessibility = accAdapter
+	app.overlayPort = overlayAdapter
 
 	hintService, gridService, actionService, scrollService, indicators, err := initializeServices(
 		cfg,
@@ -262,6 +263,7 @@ func initializeModeHandler(app *App) {
 		appState       *state.AppState
 		cursorState    *state.CursorState
 		overlayManager OverlayManager
+		overlayPort    ports.OverlayPort
 		renderer       *render.OverlayRenderer
 		services       struct {
 			hint       *services.HintService
@@ -286,6 +288,7 @@ func initializeModeHandler(app *App) {
 		appState:       app.appState,
 		cursorState:    app.cursorState,
 		overlayManager: app.overlayManager,
+		overlayPort:    app.overlayPort,
 		renderer:       app.renderer,
 		services: struct {
 			hint       *services.HintService
@@ -327,6 +330,7 @@ func initializeModeHandler(app *App) {
 		AppState:               deps.appState,
 		CursorState:            deps.cursorState,
 		OverlayManager:         deps.overlayManager,
+		OverlayPort:            deps.overlayPort,
 		OverlayStyles:          app.overlayStyles,
 		Renderer:               deps.renderer,
 		HintService:            deps.services.hint,
