@@ -69,6 +69,14 @@ over a Frame; realising it — showing the overlay, switching to the mode,
 drawing — belongs to the adapter, not to the mode.
 _Avoid_: draw call, render pass, overlay state
 
+**Refresh**:
+A mode putting its [[Frame]] back on screen after the world changed underneath
+it. There are three causes and no others: a screen change, a theme change, and
+a monitor move. Anything that is not a mode restoring its own drawing is not a
+refresh, whatever the function is called today.
+_Avoid_: overlay resize, style re-resolution, hotkey re-registration, xkb state
+reload, virtual-pointer repositioning
+
 **Indicator**:
 A small overlay that tracks the cursor and reports state, independent of the
 active mode's own drawing: the mode indicator, the sticky-modifiers indicator,

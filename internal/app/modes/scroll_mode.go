@@ -1,6 +1,9 @@
 package modes
 
 import (
+	"context"
+	"image"
+
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
@@ -32,6 +35,14 @@ func (m *ScrollMode) Activate(_ modecmd.Activation) {
 // HandleKey processes a key press within scroll mode.
 func (m *ScrollMode) HandleKey(key string) {
 	m.handler.handleGenericScrollKey(key)
+}
+
+// RefreshForMonitorMove switches the overlay back to scroll on the display the
+// cursor landed on. Scroll draws nothing of its own, but on Linux the
+// indicators that name the mode are painted on the shared surface, so the
+// surface still has to come back up.
+func (m *ScrollMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
+	m.handler.refreshScrollForMonitorMove()
 }
 
 // Exit tears scroll mode down.

@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"strings"
 
@@ -35,6 +36,13 @@ func (m *MonitorSelectMode) Activate(activation modecmd.Activation) {
 // HandleKey processes a key press within the monitor picker.
 func (m *MonitorSelectMode) HandleKey(key string) {
 	m.handler.handleMonitorSelectKey(key)
+}
+
+// RefreshForMonitorMove puts the picker's panels back up after a move. They
+// are placed per display and came down with the frame before the warp, so
+// leaving them off would strand the user in a mode with nothing to pick from.
+func (m *MonitorSelectMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
+	m.handler.refreshMonitorSelectForMonitorMove()
 }
 
 // Exit tears the monitor picker down.

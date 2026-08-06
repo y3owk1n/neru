@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 
 	"go.uber.org/zap"
@@ -38,6 +39,16 @@ func (m *RecursiveGridMode) Activate(activation modecmd.Activation) {
 // HandleKey processes a key press within recursive-grid mode.
 func (m *RecursiveGridMode) HandleKey(key string) {
 	m.handler.handleRecursiveGridKey(key)
+}
+
+// RefreshForMonitorMove remaps the zoom history onto the display the cursor
+// landed on and hands the result over as a Frame, so the region the user had
+// narrowed to survives the move instead of starting over.
+func (m *RecursiveGridMode) RefreshForMonitorMove(
+	_ context.Context,
+	targetBounds image.Rectangle,
+) {
+	m.handler.refreshRecursiveGridForMonitorMove(targetBounds)
 }
 
 // Exit tears recursive-grid mode down.

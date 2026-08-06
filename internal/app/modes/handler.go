@@ -39,6 +39,18 @@ type Mode interface {
 
 	// ModeType returns the domain mode type this implementation represents.
 	ModeType() domain.Mode
+
+	// RefreshForMonitorMove puts the mode's Frame back on screen against
+	// targetBounds after the cursor has been warped to another display. The
+	// frame was taken off screen before the warp, so this is a transition onto
+	// the display the cursor landed on rather than a repaint of the one it
+	// left.
+	//
+	// The caller holds h.mu across the whole dispatch, so the mode it selected
+	// is still the active one here and an implementation must not re-check.
+	// Why it is core rather than an optional extension, and why the re-checks
+	// are gone, is ADR 0004.
+	RefreshForMonitorMove(ctx context.Context, targetBounds image.Rectangle)
 }
 
 // Handler is the locked outer shell of the mode handler: it owns the mutexes
@@ -53,9 +65,10 @@ type Handler struct {
 	mu sync.Mutex
 
 	// moveMonitorMu serializes MoveMonitor invocations. Lock ordering is
-	// always moveMonitorMu -> h.mu (MoveMonitor holds this while calling
-	// refreshActiveModeOnNewScreen, which acquires h.mu via the
-	// Refresh*ForScreenChange helpers). Never acquire in the reverse order.
+	// always moveMonitorMu -> h.mu: MoveMonitor holds this while clearing the
+	// frame and again while refreshActiveModeForMonitorMove dispatches the
+	// refresh, each of which takes h.mu for the length of its own call. Never
+	// acquire in the reverse order.
 	moveMonitorMu sync.Mutex
 }
 

@@ -364,19 +364,19 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 ### Mode interface contract
 
 Every navigation mode implements `Mode` (`Activate(modecmd.Activation)` /
-`HandleKey(string)` / `Exit()` / `ModeType()`), defined in
+`HandleKey(string)` / `Exit()` / `ModeType()` /
+`RefreshForMonitorMove(context.Context, image.Rectangle)`), defined in
 [handler.go](../internal/app/modes/handler.go). Each mode is its own type with
-its own bodies for the three behavioural methods — the shape a new mode has to
+its own bodies for the four behavioural methods — the shape a new mode has to
 follow is stated in
 [internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md).
 A new CLI flag that varies a mode's activation means a new flag descriptor in
 [internal/domain/modecmd](../internal/domain/modecmd) and the `Activation`
 field it writes, not a new interface method.
 
-`Activate`, `HandleKey`, and `Exit` run with the handler lock already held —
-the full locking contract lives in
-[internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md); read it before
-touching anything that calls back into the handler.
+All four run with the handler lock already held — the full locking contract
+lives in [internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md); read
+it before touching anything that calls back into the handler.
 
 ## Release Process
 

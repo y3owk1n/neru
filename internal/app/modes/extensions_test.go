@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"slices"
@@ -209,10 +210,11 @@ type stubMode struct {
 	modeType domain.Mode
 }
 
-func (m *stubMode) Activate(modecmd.Activation) {}
-func (m *stubMode) HandleKey(string)            {}
-func (m *stubMode) Exit()                       {}
-func (m *stubMode) ModeType() domain.Mode       { return m.modeType }
+func (m *stubMode) Activate(modecmd.Activation)                            {}
+func (m *stubMode) HandleKey(string)                                       {}
+func (m *stubMode) Exit()                                                  {}
+func (m *stubMode) ModeType() domain.Mode                                  { return m.modeType }
+func (m *stubMode) RefreshForMonitorMove(context.Context, image.Rectangle) {}
 
 // stubSelectionTrackingMode is a mode carrying exactly one of them.
 type stubSelectionTrackingMode struct {
