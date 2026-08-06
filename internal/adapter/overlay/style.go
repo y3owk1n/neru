@@ -15,12 +15,30 @@ import (
 // with the current light/dark theme. It carries no configuration and no theme
 // of its own — by the time a caller holds one, both have already been applied.
 type Style struct {
-	Hints           hints.StyleMode
-	HintSearchInput hints.SearchInputStyle
-	Grid            grid.Style
-	RecursiveGrid   recursivegrid.Style
-	MonitorSelect   MonitorSelectStyle
-	VirtualPointer  VirtualPointerStyle
+	Hints            hints.StyleMode
+	HintSearchInput  hints.SearchInputStyle
+	HintSearchLayout SearchInputLayout
+	Grid             grid.Style
+	RecursiveGrid    recursivegrid.Style
+	MonitorSelect    MonitorSelectStyle
+	VirtualPointer   VirtualPointerStyle
+}
+
+// SearchInputLayout is where the hint search input sits and how big it is,
+// resolved from configuration. It travels with the Style rather than with the
+// draw because it changes when the configuration does and not otherwise; the
+// screen it is placed against arrives with each draw.
+type SearchInputLayout struct {
+	// Position names the corner or edge the input is anchored to. It is the
+	// typed value, not the configured string: the Style is resolved once so
+	// that a draw does no conversion.
+	Position hints.SearchInputPosition
+	// Width and Height are the input's size in pixels.
+	Width  int
+	Height int
+	// XOffset and YOffset are the configured insets from the anchor.
+	XOffset int
+	YOffset int
 }
 
 // VirtualPointerStyle is the resolved appearance of the virtual pointer drawn
@@ -164,12 +182,13 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 	}
 
 	style := Style{
-		Hints:           hints.BuildStyle(cfg.Hints, r.theme),
-		HintSearchInput: hints.BuildSearchInputStyle(cfg.Hints, r.theme),
-		Grid:            grid.BuildStyle(cfg.Grid, r.theme),
-		RecursiveGrid:   recursivegrid.BuildStyle(cfg.RecursiveGrid, r.theme),
-		MonitorSelect:   buildMonitorSelectStyle(cfg, r.theme),
-		VirtualPointer:  buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
+		Hints:            hints.BuildStyle(cfg.Hints, r.theme),
+		HintSearchInput:  hints.BuildSearchInputStyle(cfg.Hints, r.theme),
+		HintSearchLayout: buildSearchInputLayout(cfg.Hints.SearchInputUI),
+		Grid:             grid.BuildStyle(cfg.Grid, r.theme),
+		RecursiveGrid:    recursivegrid.BuildStyle(cfg.RecursiveGrid, r.theme),
+		MonitorSelect:    buildMonitorSelectStyle(cfg, r.theme),
+		VirtualPointer:   buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
 	}
 
 	r.mu.Lock()
@@ -220,6 +239,37 @@ func buildVirtualPointerStyle(
 		),
 		Char:       char,
 		FontFamily: cfg.UI.FontFamily,
+	}
+}
+
+// buildSearchInputLayout resolves the hint search input's geometry, filling in
+// the documented defaults for the two values a user can leave unset. The
+// height is derived here rather than at draw time because it depends only on
+// the font size and padding a configuration reload already notifies.
+func buildSearchInputLayout(cfg config.SearchInputUI) SearchInputLayout {
+	width := cfg.Width
+	if width <= 0 {
+		width = config.DefaultSearchInputWidth
+	}
+
+	paddingY := cfg.PaddingY
+	if paddingY < 0 {
+		paddingY = max(
+			config.DefaultSearchInputMinPaddingY,
+			cfg.FontSize/config.DefaultSearchInputCenterDivisor,
+		)
+	}
+
+	height := cfg.FontSize +
+		paddingY*config.DefaultSearchInputPaddingMultiplier +
+		config.DefaultSearchInputHeightPadding
+
+	return SearchInputLayout{
+		Position: hints.SearchInputPosition(cfg.Position),
+		Width:    width,
+		Height:   height,
+		XOffset:  cfg.XOffset,
+		YOffset:  cfg.YOffset,
 	}
 }
 

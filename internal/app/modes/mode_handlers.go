@@ -8,13 +8,14 @@ import (
 
 	"go.uber.org/zap"
 
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	configpkg "github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // executeActionAtPoint executes a pending action at the given point and exits the mode.
@@ -378,7 +379,7 @@ func (h *handlerState) confirmHintSearch() {
 
 	ctx := h.hints.Context
 	ctx.SetSearchActive(false)
-	h.overlayManager.HideHintSearchInput()
+	h.hideHintSearchInput()
 
 	visibleHints := ctx.Hints()
 	if visibleHints != nil && visibleHints.Count() >= 1 {
@@ -420,12 +421,12 @@ func (h *handlerState) cancelHintSearch() {
 		}
 	}
 
-	h.overlayManager.HideHintSearchInput()
+	h.hideHintSearchInput()
 	h.cycleHintIndex = -1
 }
 
 func (h *handlerState) drawHintSearchInput() {
-	if h.hints == nil || h.hints.Context == nil {
+	if h.hints == nil || h.hints.Context == nil || h.overlayPort == nil {
 		return
 	}
 
@@ -436,87 +437,42 @@ func (h *handlerState) drawHintSearchInput() {
 		resultCount = ctx.Hints().Count()
 	}
 
-	frame := h.searchInputFrame()
-
-	err := h.overlayManager.DrawHintSearchInput(
-		ctx.SearchQuery(),
-		resultCount,
-		frame,
-		h.overlayStyle().HintSearchInput,
-	)
+	// Where the input sits is resolved from configuration by the overlay; the
+	// handler says what is in it and which screen it is on, and nothing else.
+	err := h.overlayPort.DrawHintSearch(ports.HintSearch{
+		Screen:      h.screenBounds,
+		Query:       ctx.SearchQuery(),
+		ResultCount: resultCount,
+	})
 	if err != nil {
+		if derrors.IsNotSupported(err) {
+			h.logger.Debug("Hint search input not supported on this backend")
+
+			return
+		}
+
 		h.logger.Error("Failed to draw hint search input", zap.Error(err))
 	}
 }
 
-func (h *handlerState) searchInputFrame() hintscomponent.SearchInputFrame {
-	searchInputConfig := h.config.Hints.SearchInputUI
-	screenWidth := h.screenBounds.Dx()
-	screenHeight := h.screenBounds.Dy()
-
-	width := searchInputConfig.Width
-	if width <= 0 {
-		width = configpkg.DefaultSearchInputWidth
+// hideHintSearchInput takes the search input off the screen, leaving the hint
+// labels behind it where they are.
+func (h *handlerState) hideHintSearchInput() {
+	if h.overlayPort == nil {
+		return
 	}
 
-	if screenWidth > 0 && width > screenWidth {
-		width = screenWidth
-	}
-
-	height := estimatedSearchInputHeight(searchInputConfig)
-	xOffset := searchInputConfig.XOffset
-	yOffset := searchInputConfig.YOffset
-
-	switch hintscomponent.SearchInputPosition(searchInputConfig.Position) {
-	case hintscomponent.SearchInputTopCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
-	case hintscomponent.SearchInputTopRight:
-		xOffset = screenWidth - width - searchInputConfig.XOffset
-	case hintscomponent.SearchInputCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
-		yOffset = (screenHeight-height)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.YOffset
-	case hintscomponent.SearchInputBottomLeft:
-		yOffset = screenHeight - height - searchInputConfig.YOffset
-	case hintscomponent.SearchInputBottomCenter:
-		xOffset = (screenWidth-width)/configpkg.DefaultSearchInputCenterDivisor + searchInputConfig.XOffset
-		yOffset = screenHeight - height - searchInputConfig.YOffset
-	case hintscomponent.SearchInputBottomRight:
-		xOffset = screenWidth - width - searchInputConfig.XOffset
-		yOffset = screenHeight - height - searchInputConfig.YOffset
-	case hintscomponent.SearchInputTopLeft:
-		fallthrough
-	default:
-	}
-
-	if xOffset < 0 {
-		xOffset = 0
-	}
-
-	if yOffset < 0 {
-		yOffset = 0
-	}
-
-	if screenWidth > 0 && xOffset+width > screenWidth {
-		xOffset = screenWidth - width
-	}
-
-	if screenHeight > 0 && yOffset+height > screenHeight {
-		yOffset = screenHeight - height
-	}
-
-	return hintscomponent.NewSearchInputFrame(image.Point{X: xOffset, Y: yOffset}, width)
+	h.overlayPort.HideHintSearch()
 }
 
-func estimatedSearchInputHeight(searchInputConfig configpkg.SearchInputUI) int {
-	paddingY := searchInputConfig.PaddingY
-	if paddingY < 0 {
-		paddingY = max(
-			configpkg.DefaultSearchInputMinPaddingY,
-			searchInputConfig.FontSize/configpkg.DefaultSearchInputCenterDivisor,
-		)
+// hintSearchBounds reports where the overlay places the search input on the
+// active screen, so the platform's IME field can be put over it.
+func (h *handlerState) hintSearchBounds() image.Rectangle {
+	if h.overlayPort == nil {
+		return image.Rectangle{}
 	}
 
-	return searchInputConfig.FontSize + paddingY*configpkg.DefaultSearchInputPaddingMultiplier + configpkg.DefaultSearchInputHeightPadding
+	return h.overlayPort.HintSearchBounds(h.screenBounds)
 }
 
 // handleGridModeKey handles key processing for grid mode.

@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // testThemeProvider is a simple ThemeProvider mock for integration tests.
@@ -55,19 +56,21 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("ShowHints", func(t *testing.T) {
-		// ShowHints should not error with empty hints
-		showHintsErr := adapter.ShowHints(ctx, nil)
-		if showHintsErr != nil {
-			t.Errorf("ShowHints() error = %v, want nil", showHintsErr)
+	emptyHints := ports.HintsFrame{}
+
+	t.Run("ShowFrame", func(t *testing.T) {
+		// Showing a frame should not error, even with nothing in it
+		showErr := adapter.ShowFrame(ctx, emptyHints)
+		if showErr != nil {
+			t.Errorf("ShowFrame() error = %v, want nil", showErr)
 		}
 	})
 
-	t.Run("Hide", func(t *testing.T) {
-		// Hide should not error
-		hideErr := adapter.Hide(ctx)
-		if hideErr != nil {
-			t.Errorf("Hide() error = %v, want nil", hideErr)
+	t.Run("ClearFrame", func(t *testing.T) {
+		// Clearing should not error
+		clearErr := adapter.ClearFrame(ctx)
+		if clearErr != nil {
+			t.Errorf("ClearFrame() error = %v, want nil", clearErr)
 		}
 	})
 
@@ -79,36 +82,36 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("IsVisible tracks show and hide", func(t *testing.T) {
+	t.Run("IsVisible tracks the frame on screen", func(t *testing.T) {
 		// Unlike the service-level tests, this runs against a real manager, so
 		// visibility is genuinely observable. The mode handler relies on this
 		// flag to decide whether an overlay still needs tearing down, so it
-		// must follow show/hide rather than being constant.
-		err := adapter.Hide(ctx)
+		// must follow the frame rather than being constant.
+		err := adapter.ClearFrame(ctx)
 		if err != nil {
-			t.Fatalf("Hide() error = %v, want nil", err)
+			t.Fatalf("ClearFrame() error = %v, want nil", err)
 		}
 
 		if adapter.IsVisible() {
-			t.Fatal("IsVisible() = true after Hide(), want false")
+			t.Fatal("IsVisible() = true after ClearFrame(), want false")
 		}
 
-		err = adapter.ShowHints(ctx, nil)
+		err = adapter.ShowFrame(ctx, emptyHints)
 		if err != nil {
-			t.Fatalf("ShowHints() error = %v, want nil", err)
+			t.Fatalf("ShowFrame() error = %v, want nil", err)
 		}
 
 		if !adapter.IsVisible() {
-			t.Error("IsVisible() = false after ShowHints(), want true")
+			t.Error("IsVisible() = false after ShowFrame(), want true")
 		}
 
-		err = adapter.Hide(ctx)
+		err = adapter.ClearFrame(ctx)
 		if err != nil {
-			t.Fatalf("Hide() error = %v, want nil", err)
+			t.Fatalf("ClearFrame() error = %v, want nil", err)
 		}
 
 		if adapter.IsVisible() {
-			t.Error("IsVisible() = true after Hide(), want false")
+			t.Error("IsVisible() = true after ClearFrame(), want false")
 		}
 	})
 }
@@ -136,12 +139,12 @@ func TestOverlayAdapterContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	t.Run("ShowHints with canceled context", func(t *testing.T) {
-		showHintsErr := adapter.ShowHints(ctx, nil)
-		if !errors.Is(showHintsErr, context.Canceled) {
+	t.Run("ShowFrame with canceled context", func(t *testing.T) {
+		showErr := adapter.ShowFrame(ctx, ports.HintsFrame{})
+		if !errors.Is(showErr, context.Canceled) {
 			t.Errorf(
-				"ShowHints() with canceled context error = %v, want %v",
-				showHintsErr,
+				"ShowFrame() with canceled context error = %v, want %v",
+				showErr,
 				context.Canceled,
 			)
 		}

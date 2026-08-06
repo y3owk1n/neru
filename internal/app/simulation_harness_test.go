@@ -82,9 +82,14 @@ func simElement(
 type simOverlayManager struct {
 	overlay.NoOpManager
 
-	mu                 sync.Mutex
-	mode               overlay.Mode
+	mu   sync.Mutex
+	mode overlay.Mode
+	// visible is whether the overlay is on screen; shows counts how many
+	// times it was put there. A journey needs both: entering a mode shows the
+	// overlay once, and every keystroke after it must redraw without showing
+	// again (ADR 0003).
 	visible            bool
+	shows              int
 	hintDraws          [][]*renderhints.Hint
 	hintStyles         []renderhints.StyleMode
 	gridDraws          []*domainGrid.Grid
@@ -152,6 +157,7 @@ func (m *simOverlayManager) Show() {
 	defer m.mu.Unlock()
 
 	m.visible = true
+	m.shows++
 }
 
 func (m *simOverlayManager) Hide() {
@@ -300,6 +306,14 @@ func (m *simOverlayManager) lastRecursiveGridBounds() (image.Rectangle, bool) {
 	}
 
 	return m.recursiveGridDraws[len(m.recursiveGridDraws)-1], true
+}
+
+// showCount reports how many times the overlay window was put on screen.
+func (m *simOverlayManager) showCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.shows
 }
 
 func (m *simOverlayManager) isVisible() bool {

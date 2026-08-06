@@ -1195,3 +1195,60 @@ text_color = %q
 			after.TextColor(), reloadedTextColor)
 	}
 }
+
+// TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain pins the decision
+// ADR 0003 rests on: entering hints puts the overlay on screen once, and every
+// keystroke that narrows the labels redraws it without paying for the window
+// sequence again. On macOS a show queues window-level, collection-behavior
+// and ordering work on the main thread; doing that per keystroke is the
+// latency regression AGENTS.md forbids.
+func TestSimulation_HintsNarrowingRedrawsWithoutShowingAgain(t *testing.T) {
+	elements := manyButtons(t, 12)
+	sim := newSimHarness(t, simConfig(), elements)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	labels := sim.overlay.lastHintLabels()
+
+	prefix := ""
+
+	for _, candidate := range labels {
+		if len(candidate) >= 2 {
+			prefix = strings.ToLower(candidate[:1])
+
+			break
+		}
+	}
+
+	if prefix == "" {
+		t.Fatalf("expected a multi-character label for %d elements, got %v", len(elements), labels)
+	}
+
+	showsAfterActivation := sim.overlay.showCount()
+	if showsAfterActivation == 0 {
+		t.Fatal("entering hints never put the overlay on screen")
+	}
+
+	drawsBefore := sim.overlay.hintDrawCount()
+
+	sim.press(prefix)
+	sim.waitFor("hints narrowed by prefix", func() bool {
+		remaining := sim.overlay.lastHintLabels()
+
+		return len(remaining) > 0 && len(remaining) < len(elements)
+	})
+
+	if got := sim.overlay.hintDrawCount(); got <= drawsBefore {
+		t.Fatalf("hint draws after narrowing = %d, want more than %d", got, drawsBefore)
+	}
+
+	if got := sim.overlay.showCount(); got != showsAfterActivation {
+		t.Errorf(
+			"overlay shown %d times after narrowing, want %d: a keystroke is paying for the window sequence",
+			got,
+			showsAfterActivation,
+		)
+	}
+}

@@ -49,14 +49,19 @@ func TestMockAccessibilityPort_Defaults(t *testing.T) {
 func TestMockOverlayPort_Defaults(t *testing.T) {
 	mock := &mocks.MockOverlayPort{}
 
-	err := mock.ShowHints(context.Background(), nil)
+	err := mock.ShowFrame(context.Background(), ports.HintsFrame{})
 	if err != nil {
-		t.Errorf("ShowHints() default should return nil, got %v", err)
+		t.Errorf("ShowFrame() default should return nil, got %v", err)
 	}
 
-	err = mock.Hide(context.Background())
+	err = mock.RedrawFrame(context.Background(), ports.HintsFrame{})
 	if err != nil {
-		t.Errorf("Hide() default should return nil, got %v", err)
+		t.Errorf("RedrawFrame() default should return nil, got %v", err)
+	}
+
+	err = mock.ClearFrame(context.Background())
+	if err != nil {
+		t.Errorf("ClearFrame() default should return nil, got %v", err)
 	}
 
 	visible := mock.IsVisible()

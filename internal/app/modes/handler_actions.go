@@ -352,14 +352,14 @@ func (h *handlerState) startHintSearch() error {
 	h.drawHintSearchInput()
 
 	if h.textInput != nil {
-		searchFrame := h.searchInputFrame()
-		position := searchFrame.Position()
-		height := estimatedSearchInputHeight(h.config.Hints.SearchInputUI)
+		// The IME field sits over the drawn search input, so its placement is
+		// asked for rather than derived a second time here.
+		bounds := h.hintSearchBounds()
 		textInputFrame := ports.TextInputFrame{
-			X:      position.X,
-			Y:      position.Y,
-			Width:  searchFrame.Width(),
-			Height: height,
+			X:      bounds.Min.X,
+			Y:      bounds.Min.Y,
+			Width:  bounds.Dx(),
+			Height: bounds.Dy(),
 		}
 
 		started, _ := h.textInput.StartHintSearchSession(

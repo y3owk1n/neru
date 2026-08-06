@@ -73,14 +73,25 @@ func (h *Handler) SetModeIdle() {
 	h.overlaySwitch(overlay.ModeIdle)
 }
 
-// setMode sets the application mode, enables event tap, and switches overlay.
+// enterMode sets the application mode and enables the event tap, without
+// touching the overlay. A mode that hands over a Frame gets its overlay shown
+// and switched when the Frame is realized, and doing it here as well would put
+// a second owner on a sequence that has exactly one.
 // Caller must hold h.mu.
-func (h *handlerState) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
+func (h *handlerState) enterMode(appMode domain.Mode) {
 	h.setAppMode(appMode)
 
 	if h.hasEventTap() {
 		h.enableEventTap()
 	}
+}
+
+// setMode enters a mode and switches the overlay to it. It is what the modes
+// that still draw through the manager use; the converted ones call enterMode
+// and hand over a Frame.
+// Caller must hold h.mu.
+func (h *handlerState) setMode(appMode domain.Mode, overlayMode overlay.Mode) {
+	h.enterMode(appMode)
 
 	h.overlaySwitch(overlayMode)
 }
@@ -113,14 +124,15 @@ func (h *handlerState) activateModeBase(
 	return actionEnum, true
 }
 
-// SetModeHints switches the application to hints mode for accessibility-based navigation.
-// This function sets the application state to hints mode, enables event tapping
-// for capturing keyboard input, and switches the overlay display to hints mode.
+// SetModeHints switches the application to hints mode for accessibility-based
+// navigation. This function sets the application state to hints mode and
+// enables event tapping for capturing keyboard input. The overlay comes up
+// when the mode hands over its Frame, not here.
 func (h *Handler) SetModeHints() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.setMode(domain.ModeHints, overlay.ModeHints)
+	h.enterMode(domain.ModeHints)
 }
 
 // SetModeGrid switches the application to grid mode for coordinate-based navigation.

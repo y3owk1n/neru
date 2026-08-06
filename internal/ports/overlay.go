@@ -4,8 +4,68 @@ import (
 	"context"
 	"image"
 
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 )
+
+// Frame is the complete description of what should be on screen for one mode.
+//
+// A mode hands over a Frame; realizing it — sizing the overlay to the active
+// screen, showing it, switching it to the frame's mode, drawing the frame's
+// content — belongs to the adapter. That sequence used to be open-coded at
+// every call site with nothing checking the order, and getting it wrong showed
+// an empty overlay or left the previous mode's on screen.
+//
+// A Frame carries domain values only: never a resolved Style, never a render
+// model, never a platform handle. That constraint is what keeps the overlay's
+// own vocabulary out of the app layer, so it is not negotiable.
+//
+// The interface is sealed to this package: an adapter realizes a frame by
+// naming the surfaces it knows about, and a new surface cannot appear without
+// the adapter being told.
+type Frame interface {
+	// Mode names the mode this frame draws. Naming it on the frame is what
+	// stops a frame and the mode it is realized in from disagreeing: the
+	// adapter translates one value rather than deciding twice.
+	Mode() domain.Mode
+
+	// frame seals the interface.
+	frame()
+}
+
+// HintsFrame is the hints surface: the labels that should be on screen, and
+// the display they are drawn on.
+type HintsFrame struct {
+	// Screen is the active display in global coordinates. Hint positions are
+	// global too; translating them into the overlay's screen-local space is
+	// the adapter's business.
+	Screen image.Rectangle
+
+	// Hints are the labels to draw, already narrowed to what the user should
+	// see.
+	Hints []*hint.Interface
+}
+
+// Mode names the mode a hints frame draws.
+func (HintsFrame) Mode() domain.Mode { return domain.ModeHints }
+
+func (HintsFrame) frame() {}
+
+// HintSearch is the hint search input: what has been typed into it, and how
+// many labels still match. Where it is drawn is resolved from configuration by
+// the overlay, so a caller never carries geometry through the mode layer to
+// get it on screen.
+type HintSearch struct {
+	// Screen is the active display in global coordinates, which is what the
+	// input is positioned against.
+	Screen image.Rectangle
+
+	// Query is the text typed so far.
+	Query string
+
+	// ResultCount is how many hints still match the query.
+	ResultCount int
+}
 
 // MouseActionIndicatorStyle configures a transient mouse action indicator.
 type MouseActionIndicatorStyle struct {
@@ -64,8 +124,50 @@ type OverlayPort interface {
 	// Health returns nil if the component is healthy, or an error if it is not.
 	Health(ctx context.Context) error
 
-	// ShowHints displays hint labels on the screen.
-	ShowHints(ctx context.Context, hints []*hint.Interface) error
+	// ShowFrame puts a Frame on screen. The adapter owns the whole sequence a
+	// transition needs — size the overlay to the active screen, show it,
+	// switch it to the frame's mode, draw the frame's content — so a caller
+	// says what should be on screen and never orders the steps that get it
+	// there.
+	//
+	// A draw may block; the mode handler computes what to show under its lock
+	// and shows after releasing it, with the hint update callback the one
+	// documented exception (`internal/app/modes/AGENTS.md`).
+	ShowFrame(ctx context.Context, frame Frame) error
+
+	// RedrawFrame draws a Frame whose overlay is already up, without the
+	// window sequence. It is the incremental half of this port (ADR 0003):
+	// hint labels narrow on every keystroke, and paying for a window show and
+	// a mode switch per keystroke is the latency regression AGENTS.md forbids.
+	//
+	// A backend with no surface for the frame reports CodeNotSupported, which
+	// is degradation rather than failure; callers branch on IsNotSupported.
+	RedrawFrame(ctx context.Context, frame Frame) error
+
+	// ClearFrame takes whatever frame is on screen off it, content and all,
+	// and returns the overlay to idle. It is the leaving half of the same
+	// sequence, owned in the same place.
+	ClearFrame(ctx context.Context) error
+
+	// DrawHintSearch draws the hint search input over the hints frame. Like
+	// RedrawFrame it is an update rather than a transition: it fires on every
+	// keystroke typed into the search, over an overlay already on screen.
+	DrawHintSearch(search HintSearch) error
+
+	// HideHintSearch takes the search input off the screen, leaving the hint
+	// labels behind it where they are.
+	HideHintSearch()
+
+	// HintSearchBounds reports where the search input sits on a screen. The
+	// platform's IME field has to be placed over it, and the overlay is the
+	// one place that decides where "over it" is — asking beats deriving the
+	// same rectangle a second time.
+	//
+	// The rectangle is screen-local, not global: it names a place on the
+	// overlay's own drawing surface, which is the one exception the
+	// coordinate rule in AGENTS.md already carries for drawn overlay content.
+	// ports.TextInputFrame has always been fed this space.
+	HintSearchBounds(screen image.Rectangle) image.Rectangle
 
 	// DrawModeIndicator draws a mode indicator at the specified position.
 	DrawModeIndicator(x, y int)
@@ -100,9 +202,6 @@ type OverlayPort interface {
 	// goroutine starts — so an implementation must not wait on anything that
 	// could itself be waiting on the app.
 	ResizeIndicatorToActiveScreen(indicator Indicator)
-
-	// Hide hides the overlay.s from the screen.
-	Hide(ctx context.Context) error
 
 	// IsVisible returns true if any overlay is currently visible.
 	IsVisible() bool
