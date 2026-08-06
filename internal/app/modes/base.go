@@ -2,24 +2,12 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
-const (
-	// ModeNameAction is the name for action mode.
-	ModeNameAction = "Action"
-	// ModeNameHints is the name for hints mode.
-	ModeNameHints = "Hints"
-	// ModeNameGrid is the name for grid mode.
-	ModeNameGrid = "Grid"
-	// ModeNameScroll is the name for scroll mode.
-	ModeNameScroll = "Scroll"
-	// ModeNameMonitorSelect is the name for monitor select mode.
-	ModeNameMonitorSelect = "MonitorSelect"
-)
-
-// baseMode provides common functionality for all mode implementations.
-// It contains the shared handler dependency and mode type.
+// baseMode carries what every mode implementation shares: the inner handler
+// state a mode runs against and the domain mode it represents. It answers
+// ModeType and nothing else — activate, key handling and exit belong to the
+// mode's own type, so that reading that type answers what the mode does.
 type baseMode struct {
 	handler  *handlerState
 	modeType domain.Mode
@@ -40,19 +28,4 @@ func newBaseMode(handler *handlerState, modeType domain.Mode, modeName string) b
 // ModeType returns the domain mode type.
 func (m *baseMode) ModeType() domain.Mode {
 	return m.modeType
-}
-
-// Activate provides a default empty implementation for modes that don't need activation logic.
-func (m *baseMode) Activate(_ modecmd.Activation) {
-	// Default empty implementation - modes can override if needed
-}
-
-// HandleKey provides a default empty implementation for modes that handle keys differently.
-func (m *baseMode) HandleKey(key string) {
-	// Default empty implementation - modes can override if needed
-}
-
-// Exit provides a default empty implementation for modes that don't need specific cleanup.
-func (m *baseMode) Exit() {
-	// Default empty implementation - modes can override if needed
 }

@@ -365,10 +365,10 @@ actionService := services.NewActionService(accAdapter, overlayAdapter, systemPor
 
 Every navigation mode implements `Mode` (`Activate(modecmd.Activation)` /
 `HandleKey(string)` / `Exit()` / `ModeType()`), defined in
-[handler.go](../internal/app/modes/handler.go). Modes embed `baseMode` or
-`GenericMode` ([base.go](../internal/app/modes/base.go),
-[generic_mode.go](../internal/app/modes/generic_mode.go)) rather than
-implementing the four methods by hand, and register in the handler's mode map.
+[handler.go](../internal/app/modes/handler.go). Each mode is its own type with
+its own bodies for the three behavioural methods — the shape a new mode has to
+follow is stated in
+[internal/app/modes/AGENTS.md](../internal/app/modes/AGENTS.md).
 A new CLI flag that varies a mode's activation means a new flag descriptor in
 [internal/domain/modecmd](../internal/domain/modecmd) and the `Activation`
 field it writes, not a new interface method.
