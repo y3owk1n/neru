@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 
 	"github.com/y3owk1n/neru/internal/domain"
@@ -35,6 +36,13 @@ func (m *GridMode) Activate(activation modecmd.Activation) {
 // HandleKey processes a key press within grid mode.
 func (m *GridMode) HandleKey(key string) {
 	m.handler.handleGridModeKey(key)
+}
+
+// RefreshForMonitorMove rebuilds the grid for the display the cursor landed on
+// and hands it over as a Frame. The old cells describe a screen the user is no
+// longer looking at, so the input and the selection go with them.
+func (m *GridMode) RefreshForMonitorMove(_ context.Context, targetBounds image.Rectangle) {
+	m.handler.refreshGridForMonitorMove(targetBounds)
 }
 
 // Exit tears grid mode down.

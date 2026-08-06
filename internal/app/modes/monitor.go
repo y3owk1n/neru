@@ -126,7 +126,7 @@ func (h *Handler) moveCursorToMonitor(
 	err := h.actionService.MoveCursorToPointAndWait(ctx, center, true)
 	if err != nil {
 		if hasActiveOverlay {
-			h.refreshActiveModeOnNewScreen(ctx, sourceBounds)
+			h.refreshActiveModeForMonitorMove(ctx, sourceBounds)
 		}
 
 		return err
@@ -138,7 +138,7 @@ func (h *Handler) moveCursorToMonitor(
 		zap.Int("y", center.Y),
 	)
 
-	h.refreshActiveModeOnNewScreen(ctx, bounds)
+	h.refreshActiveModeForMonitorMove(ctx, bounds)
 
 	return nil
 }
@@ -253,45 +253,44 @@ func (h *Handler) clearFrameForMonitorMove() (image.Rectangle, bool) {
 	return h.screenBounds, true
 }
 
-// refreshActiveModeOnNewScreen puts the active mode back on screen against the
-// supplied screen bounds. Unlike the lifecycle screen-change path (which
+// refreshActiveModeForMonitorMove puts the active mode back on screen against
+// the supplied screen bounds. Unlike the lifecycle screen-change path (which
 // re-queries the cursor position), this uses the bounds that MoveMonitor
 // already resolved, eliminating the race between the Go-side ScreenBounds call
 // and the backend's async resize.
 //
 // Every mode comes back the way it came up in the first place: as a Frame,
 // with the overlay owning the resize, show and draw inside it.
-func (h *Handler) refreshActiveModeOnNewScreen(
+//
+// This is the whole dispatch and it runs under one hold of h.mu: the mode is
+// read once, selected once and called once, so it cannot change between being
+// chosen and being used and no implementation re-checks it (ADR 0004). Idle
+// has no entry in the mode map, which is what makes a monitor move with
+// nothing open draw nothing.
+//
+// The lock is taken here rather than in MoveMonitor because the animated
+// cursor warp runs before this call and must stay outside the hold; the
+// blocking work that remains inside it — hint regeneration — is the same work
+// the activation and screen-change paths already do under the lock.
+func (h *Handler) refreshActiveModeForMonitorMove(
 	ctx context.Context,
 	targetBounds image.Rectangle,
 ) {
-	switch h.appState.CurrentMode() {
-	case domain.ModeGrid:
-		h.refreshGridForMonitorMove(targetBounds)
-	case domain.ModeRecursiveGrid:
-		h.refreshRecursiveGridForMonitorMove(targetBounds)
-	case domain.ModeHints:
-		h.refreshHintsForMonitorMove(ctx, targetBounds)
-	case domain.ModeScroll:
-		h.refreshScrollForMonitorMove()
-	case domain.ModeMonitorSelect:
-		h.refreshMonitorSelectForMonitorMove()
-	case domain.ModeIdle:
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	mode, exists := h.modes[h.appState.CurrentMode()]
+	if !exists {
 		return
 	}
+
+	mode.RefreshForMonitorMove(ctx, targetBounds)
 }
 
 // refreshScrollForMonitorMove puts scroll mode back on the overlay after a
 // monitor move. It draws nothing, but the overlay has to be switched back to
 // the mode the indicators name.
-func (h *Handler) refreshScrollForMonitorMove() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeScroll {
-		return
-	}
-
+func (h *handlerState) refreshScrollForMonitorMove() {
 	h.showFrame(ports.ScrollFrame{}, "refresh scroll after monitor move")
 }
 
@@ -299,11 +298,8 @@ func (h *Handler) refreshScrollForMonitorMove() {
 // monitor move. The panels are placed per display, so they come back exactly
 // as they were — but they were taken off the screen with the frame, and
 // leaving them off would strand the user in a mode with nothing to pick from.
-func (h *Handler) refreshMonitorSelectForMonitorMove() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeMonitorSelect || h.monitorSelect == nil {
+func (h *handlerState) refreshMonitorSelectForMonitorMove() {
+	if h.monitorSelect == nil {
 		return
 	}
 
@@ -313,13 +309,7 @@ func (h *Handler) refreshMonitorSelectForMonitorMove() {
 // refreshGridForMonitorMove regenerates the grid using the known target
 // screen bounds and shows the overlay. Unlike RefreshGridForScreenChange
 // this does not re-query ScreenBounds.
-func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeGrid {
-		return
-	}
+func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	// Use the known target bounds instead of re-querying ScreenBounds.
 	h.setScreenBounds(targetBounds)
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
@@ -357,14 +347,7 @@ func (h *Handler) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 // refreshRecursiveGridForMonitorMove remaps the recursive-grid to the known
 // target screen bounds and shows the overlay. Unlike
 // RefreshRecursiveGridForScreenChange this does not re-query ScreenBounds.
-func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangle) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeRecursiveGrid {
-		return
-	}
-
+func (h *handlerState) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangle) {
 	h.setScreenBounds(targetBounds)
 
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
@@ -389,16 +372,30 @@ func (h *Handler) refreshRecursiveGridForMonitorMove(targetBounds image.Rectangl
 // refreshHintsForMonitorMove refreshes hints using the known target screen
 // bounds. Unlike RefreshHintsForScreenChange this does not re-query
 // ScreenBounds.
-func (h *Handler) refreshHintsForMonitorMove(
+//
+// The whole of it — including the accessibility-tree walk GenerateHints does —
+// runs under h.mu, which is where the activation path and the screen-change
+// path already do the same work. What it buys is that the flags the session
+// was activated with are read under the same lock that writes them, rather
+// than concurrently with a mode exit clearing them.
+//
+// The walk is given the same HintTimeout budget the activation path gives it.
+// The context a move_monitor step arrives with carries no deadline of its own,
+// and a tree that never answers would pin h.mu — and with it every keystroke —
+// for as long as it took.
+func (h *handlerState) refreshHintsForMonitorMove(
 	ctx context.Context,
 	targetBounds image.Rectangle,
 ) {
 	if h.hintService == nil {
 		h.logger.Warn("Hint service unavailable after monitor move; exiting hints mode")
-		h.ExitMode()
+		h.exitMode()
 
 		return
 	}
+
+	generateCtx, cancelGenerate := context.WithTimeout(ctx, HintTimeout)
+	defer cancelGenerate()
 
 	filterRoles := h.hints.Context.FilterRoles()
 	filterTextContains := h.hints.Context.FilterTextContains()
@@ -411,7 +408,7 @@ func (h *Handler) refreshHintsForMonitorMove(
 	}
 
 	domainHints, err := h.hintService.GenerateHints(
-		ctx,
+		generateCtx,
 		filterRoles,
 		filterTextContains,
 		"",
@@ -424,24 +421,18 @@ func (h *Handler) refreshHintsForMonitorMove(
 			"Failed to refresh hints after monitor move",
 			zap.Error(err),
 		)
-		h.ExitMode()
+		h.exitMode()
 
 		return
 	}
 
 	if len(domainHints) == 0 {
 		h.logger.Warn("No hints generated on target monitor; exiting hints mode")
-		h.ExitMode()
+		h.exitMode()
 
 		return
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.appState.CurrentMode() != domain.ModeHints {
-		return
-	}
 	// Use the known target bounds instead of re-querying ScreenBounds.
 	h.setScreenBounds(targetBounds)
 

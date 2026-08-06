@@ -28,7 +28,9 @@ type recordingMode struct {
 func (m *recordingMode) Activate(modecmd.Activation) {}
 func (m *recordingMode) HandleKey(key string)        { m.keys <- key }
 func (m *recordingMode) Exit()                       {}
-func (m *recordingMode) ModeType() domain.Mode       { return domain.ModeRecursiveGrid }
+
+func (m *recordingMode) ModeType() domain.Mode                                  { return domain.ModeRecursiveGrid }
+func (m *recordingMode) RefreshForMonitorMove(context.Context, image.Rectangle) {}
 
 func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 	t.Parallel()

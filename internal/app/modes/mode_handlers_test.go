@@ -1,6 +1,7 @@
 package modes
 
 import (
+	"context"
 	"image"
 	"reflect"
 	"slices"
@@ -83,10 +84,16 @@ type activationRecordingMode struct {
 	last     modecmd.Activation
 }
 
-func (m *activationRecordingMode) Activate(activation modecmd.Activation) { m.last = activation }
-func (m *activationRecordingMode) HandleKey(string)                       {}
-func (m *activationRecordingMode) Exit()                                  {}
-func (m *activationRecordingMode) ModeType() domain.Mode                  { return m.modeType }
+func (m *activationRecordingMode) Activate(
+	activation modecmd.Activation,
+) {
+	m.last = activation
+}
+func (m *activationRecordingMode) HandleKey(string) {}
+func (m *activationRecordingMode) Exit()            {}
+
+func (m *activationRecordingMode) ModeType() domain.Mode                                  { return m.modeType }
+func (m *activationRecordingMode) RefreshForMonitorMove(context.Context, image.Rectangle) {}
 
 // newHandlerWithRecordingMode builds a handler whose only mode records what it
 // was activated with.
