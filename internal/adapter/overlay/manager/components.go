@@ -118,8 +118,9 @@ func (b *Base) BuildComponents(spec ComponentSpec) (Components, error) {
 	if err != nil {
 		// Keep what was built before handing back the failure: the indicators
 		// own native windows, and Destroy only reaches the components the
-		// manager was given. The caller still gets nothing, because a partial
-		// set is not one it can draw with.
+		// manager was given, so a caller that tears the manager down after
+		// this releases them. The caller still gets nothing back, because a
+		// partial set is not one it can draw with.
 		b.useComponents(built)
 
 		return Components{}, derrors.Wrap(

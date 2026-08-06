@@ -197,6 +197,12 @@ func initializeUIComponents(app *App) error {
 		newThemeProvider(app.systemPort),
 	)
 	if err != nil {
+		// The overlay may have built components before it failed, and some of
+		// them own native windows. This phase's cleanup closure is only
+		// registered once the phase succeeds, so releasing them is this call's
+		// job rather than the unwind's.
+		app.overlayManager.Destroy()
+
 		return err
 	}
 
