@@ -60,7 +60,7 @@ func TestRealComponents_StartupModesShutdown(t *testing.T) {
 		app.WithConfigPath(""),
 		app.WithIPCServer(&mocks.MockIPCPort{}),
 		app.WithWatcher(&mocks.MockAppWatcherPort{}),
-		app.WithOverlayManager(&simOverlayManager{}),
+		app.WithOverlayPort(&simOverlayPort{}),
 		app.WithHotkeyService(&simHotkeyPort{}),
 	)
 	if err != nil {

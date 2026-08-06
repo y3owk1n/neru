@@ -100,11 +100,25 @@ func (h *Handler) RefreshHintsForScreenChange(
 		return false
 	}
 
+	// The screen moved under the overlay, so the next draw is a transition
+	// onto the new one rather than a repaint of the old: it has to be resized
+	// to the new display, shown and switched, and that whole sequence belongs
+	// to the overlay. As on the activation and monitor-move paths, the flag is
+	// cleared immediately before SetHints, which bumps the hint manager's
+	// update generation in the same locked section, so a debounce timer that
+	// fired during the change cannot re-show the overlay on the old display.
+	h.hintsFrameOnScreen = false
+
 	setHintsErr := h.hints.Context.SetHints(
 		domainHint.NewCollection(filtered),
 	)
 	if setHintsErr != nil {
+		// The flag was cleared above, so the overlay is neither sized for the
+		// new display nor showing a collection that belongs to it. Leaving the
+		// mode running would leave the old screen's labels on screen at the old
+		// size; exiting is what the three failure paths above already do.
 		h.logger.Error("Failed to refresh hints for screen change", zap.Error(setHintsErr))
+		h.exitMode()
 
 		return false
 	}
@@ -216,8 +230,14 @@ func (h *Handler) RefreshRecursiveGridForScreenChange() bool {
 		h.recursiveGrid.Context.ClearSelectionPoint()
 	}
 
-	// Redraw the overlay with the remapped grid.
-	h.updateRecursiveGridOverlay()
+	// The screen moved under the overlay, so this is a transition onto the new
+	// one: it is resized, shown and switched as well as drawn, and the overlay
+	// owns that sequence. Handing over a redraw instead would leave the surface
+	// sized for the display just left.
+	if h.recursiveGrid != nil && h.recursiveGrid.Manager != nil {
+		h.showFrame(h.recursiveGridFrame(), "refresh recursive grid after screen change")
+	}
+
 	h.refreshRecursiveGridVirtualPointer()
 
 	return true

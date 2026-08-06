@@ -3,7 +3,7 @@ package modes
 import (
 	"testing"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
+	"github.com/y3owk1n/neru/internal/app/components/hints"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 

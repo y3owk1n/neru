@@ -19,7 +19,7 @@ import (
 // Adapter implements ports.OverlayPort by wrapping the existing overlay.Manager.
 type Adapter struct {
 	manager ManagerInterface
-	styles  StyleSource
+	styles  StyleOwner
 	logger  *zap.Logger
 
 	// subgridDrawn is whether a subgrid is on the grid surface. It is the one
@@ -40,7 +40,7 @@ type Adapter struct {
 // lookup.
 func NewAdapter(
 	manager ManagerInterface,
-	styles StyleSource,
+	styles StyleOwner,
 	logger *zap.Logger,
 ) *Adapter {
 	if logger == nil {
@@ -320,6 +320,56 @@ func (a *Adapter) Refresh(ctx context.Context) error {
 	a.logger.Debug("Overlay refreshed")
 
 	return nil
+}
+
+// ApplyConfig hands the overlay a configuration that has just changed, so it
+// re-resolves every Style and pushes the new configuration to the components it
+// draws through. This is the single notification a config reload owes the
+// overlay; the fan-out it replaced is what left an overlay in the old colors
+// when a call site was missed.
+func (a *Adapter) ApplyConfig(cfg *config.Config) {
+	if a.styles == nil {
+		return
+	}
+
+	a.styles.Apply(cfg)
+}
+
+// RefreshStyles re-resolves those Styles against the configuration the overlay
+// already holds. A light/dark change goes through here.
+func (a *Adapter) RefreshStyles() {
+	if a.styles == nil {
+		return
+	}
+
+	a.styles.Refresh()
+}
+
+// SetHiddenInScreenShare excludes the overlay from screen captures, or stops
+// excluding it. Backends that cannot exclude themselves ignore it.
+func (a *Adapter) SetHiddenInScreenShare(hidden bool) {
+	a.manager.SetSharingType(hidden)
+}
+
+// Destroy releases everything the overlay owns.
+func (a *Adapter) Destroy() {
+	a.manager.Destroy()
+}
+
+// SetKeyboardCaptureEnabled holds or releases the keyboard on the backends
+// whose surface can, and does nothing on the ones that cannot.
+//
+// Asking is always safe, so this is a plain port method rather than an
+// optional capability: what confines the behavior to Linux is the caller's own
+// gate on the event tap, and a backend with no grab to release implements
+// manager.KeyboardCaptureController as a no-op or not at all.
+func (a *Adapter) SetKeyboardCaptureEnabled(enabled bool) {
+	controller, ok := a.manager.(KeyboardCaptureController)
+	if !ok {
+		return
+	}
+
+	controller.SetKeyboardCaptureEnabled(enabled)
 }
 
 // Health checks if the overlay manager is responsive.

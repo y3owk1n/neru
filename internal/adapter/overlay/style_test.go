@@ -39,7 +39,7 @@ func TestStyleResolver_ResolvesPerChangeNotPerDraw(t *testing.T) {
 
 	theme := &countingTheme{}
 	cfg := config.DefaultConfig()
-	manager := &overlay.NoOpManager{}
+	manager := &headlessManager{}
 
 	resolver := overlay.NewStyleResolver(manager, cfg, theme, zap.NewNop())
 	adapter := overlay.NewAdapter(manager, resolver, zap.NewNop())
@@ -112,7 +112,7 @@ func TestStyleResolver_RefreshPicksUpTheNewTheme(t *testing.T) {
 	theme := &countingTheme{}
 	cfg := config.DefaultConfig()
 
-	resolver := overlay.NewStyleResolver(&overlay.NoOpManager{}, cfg, theme, zap.NewNop())
+	resolver := overlay.NewStyleResolver(&headlessManager{}, cfg, theme, zap.NewNop())
 
 	light := resolver.Style()
 
@@ -182,7 +182,7 @@ func TestStyleResolver_ZeroValueTheme(t *testing.T) {
 // to is that it notifies once per change and carries the resolved value the
 // components cannot derive.
 type styleTestManager struct {
-	overlay.NoOpManager
+	headlessManager
 
 	mu    sync.Mutex
 	fills []string
@@ -283,7 +283,7 @@ func TestStyleResolver_ConcurrentApplyAndRead(t *testing.T) {
 	reloaded.Hints.UI.FontSize = 41
 
 	resolver := overlay.NewStyleResolver(
-		&overlay.NoOpManager{},
+		&headlessManager{},
 		config.DefaultConfig(),
 		&countingTheme{},
 		zap.NewNop(),

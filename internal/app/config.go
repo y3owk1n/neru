@@ -149,10 +149,10 @@ func (a *App) updateConfigSnapshot(loadResult *config.LoadResult) {
 func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 	a.configureEventTapHotkeys(cfg, a.logger)
 
-	// One notification reaches every overlay: the resolver re-resolves each
-	// Style and hands the new configuration to the render components.
-	if a.overlayStyles != nil {
-		a.overlayStyles.Apply(cfg)
+	// One notification reaches every overlay: the overlay re-resolves each
+	// Style and hands the new configuration to the components it draws through.
+	if a.overlayPort != nil {
+		a.overlayPort.ApplyConfig(cfg)
 	}
 
 	a.updateComponentConfigs(cfg)

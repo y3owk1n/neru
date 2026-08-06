@@ -12,6 +12,7 @@ import (
 	rendergrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	renderrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -20,17 +21,20 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// testStyles is a StyleSource for the health tests, which never draw.
+// testStyles is a StyleOwner for the tests that never assert on appearance:
+// every Style it hands out is the zero one, and re-resolving is a no-op.
 type testStyles struct{}
 
-func (testStyles) Style() overlay.Style { return overlay.Style{} }
+func (testStyles) Style() overlay.Style   { return overlay.Style{} }
+func (testStyles) Apply(_ *config.Config) {}
+func (testStyles) Refresh()               {}
 
 type supportedManager struct {
-	overlay.NoOpManager
+	headlessManager
 }
 
 type stubManager struct {
-	overlay.NoOpManager
+	headlessManager
 }
 
 func (m *supportedManager) OverlayCapabilities() ports.FeatureCapability {
@@ -49,7 +53,7 @@ func (m *stubManager) OverlayCapabilities() ports.FeatureCapability {
 
 func TestAdapterHealth_ReturnsNilForHeadlessOverlayManager(t *testing.T) {
 	adapter := overlay.NewAdapter(
-		&overlay.NoOpManager{},
+		&headlessManager{},
 		testStyles{},
 		zap.NewNop(),
 	)
@@ -91,7 +95,7 @@ func TestAdapterHealth_ReturnsNotSupportedForStubOverlayManager(t *testing.T) {
 // records no call sequence — which calls the adapter uses to realize a Frame is
 // exactly what the Frame port exists to be free to change.
 type screenManager struct {
-	overlay.NoOpManager
+	headlessManager
 
 	visible bool
 	mode    overlay.Mode
@@ -695,6 +699,9 @@ const (
 // pointerStyles resolves only the virtual pointer's appearance.
 type pointerStyles struct{}
 
+func (pointerStyles) Apply(_ *config.Config) {}
+func (pointerStyles) Refresh()               {}
+
 func (pointerStyles) Style() overlay.Style {
 	return overlay.Style{
 		VirtualPointer: overlay.VirtualPointerStyle{
@@ -787,6 +794,9 @@ const searchInputTopLeft renderhints.SearchInputPosition = "top_left"
 type searchStyles struct {
 	layout overlay.SearchInputLayout
 }
+
+func (searchStyles) Apply(_ *config.Config) {}
+func (searchStyles) Refresh()               {}
 
 func (s searchStyles) Style() overlay.Style {
 	return overlay.Style{HintSearchLayout: s.layout}
@@ -961,6 +971,9 @@ func (m *monitorSelectManager) HideMonitorSelect() { m.hides++ }
 // the panels were met with the appearance the overlay owns rather than with
 // one a caller carried.
 type monitorSelectStyles struct{}
+
+func (monitorSelectStyles) Apply(_ *config.Config) {}
+func (monitorSelectStyles) Refresh()               {}
 
 func (monitorSelectStyles) Style() overlay.Style {
 	return overlay.Style{

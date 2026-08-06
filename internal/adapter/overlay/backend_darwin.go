@@ -15,8 +15,9 @@ func Init(logger *zap.Logger) manager.Interface { return darwin.Init(logger) }
 // Get returns the process-wide overlay manager, or nil before Init.
 //
 // It is a package-level accessor because the overlay is one native window per
-// process; the callers that reach for it — cleanup, indicator polling, the
-// Wayland keyboard path — have no injected handle to use instead.
+// process. Since #1213 its only caller is the Linux event tap, whose evdev and
+// Wayland keyboard paths have no injected handle to use instead; cleanup and
+// indicator polling reach the overlay through ports.OverlayPort.
 func Get() manager.Interface {
 	built := darwin.Get()
 	if built == nil {

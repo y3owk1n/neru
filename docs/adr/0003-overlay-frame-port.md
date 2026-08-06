@@ -110,6 +110,42 @@ are declarative; updates — hot, already narrow, already correct — are not.
   adapter, reached through `DrawHintSearch` / `HideHintSearch`. The IME field
   asks where it landed through `HintSearchBounds` rather than deriving the
   same rectangle a second time.
+- **The boundary became the layering test, and the app stopped naming the
+  overlay at all.** Done in #1213: `internal/adapter/overlay` left
+  `sharedInfraPackages` in `internal/architecture/layering_test.go`, and the
+  existing tests pass with only that data deleted. Four app-to-overlay calls
+  that had been reaching past the port moved onto it — `ApplyConfig` and
+  `RefreshStyles` (the single notification a reload or a theme change owes the
+  Style owner), `SetHiddenInScreenShare` and `Destroy` — so `App` holds one
+  overlay reference where it held three, and `app.WithOverlayManager` became
+  `app.WithOverlayPort`. Two things that were never overlay vocabulary moved
+  up: the per-mode `Context` types, which sat in `render/{hints,grid,
+  recursivegrid}` and knew no colour and no surface, are now
+  `internal/app/components/{hints,grid,recursivegrid}`; and the render
+  `Overlay` handles on the app's component structs, which existed only for
+  three "was this built" guards in `app/lifecycle.go`, are gone with the
+  guards. The screen-change path lost its open-coded `ResizeToActiveScreen` →
+  refresh → `Show`: hints and recursive grid now hand over a *transition* the
+  way grid already did, so the window sequence is realized where every other
+  transition realizes it. The Linux keyboard grab left the package singleton
+  for `SetKeyboardCaptureEnabled` on the port. It is a plain method, not an
+  optional capability: the adapter would have implemented the extension
+  unconditionally, so asserting it would have declared nothing. What confines
+  the behaviour to Linux is the caller's existing gate on the event tap, and
+  the real capability assertion stays where it means something, on
+  `manager.KeyboardCaptureController` inside the adapter.
+- **The no-op manager is gone from the shipped binary.** Its last production
+  caller left with the wide interface's last app-side user, and the simulation
+  harness — the reason it existed — now implements `ports.OverlayPort` outright
+  and records Frames instead of overriding eight of thirty-nine manager methods.
+  What that cost is one assertion: the journeys can no longer read the resolved
+  hint colours, because no resolver runs behind a fake port. They assert instead
+  that the change reached the overlay — the reloaded config it was handed, the
+  re-resolution a theme change asked for — and the colours stay pinned in
+  `TestStyleResolver_RefreshPicksUpTheNewTheme`, one seam down, where they are
+  produced. `manager.Interface` is still thirty-nine methods on purpose: it is
+  the adapter-to-backend contract, out of scope here, and the headless base its
+  own tests build fakes on now lives in `headless_manager_test.go`.
 - **The port's threading contract stays "may block; never call under
   `h.mu`".** Draws are `dispatch_async` on macOS and hold `renderMu`
   synchronously on Linux; that asymmetry is left alone here. Modes compute

@@ -7,7 +7,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/ipcctrl"
 	"github.com/y3owk1n/neru/internal/app/keybinding"
@@ -54,13 +53,16 @@ type App struct {
 	cursorState *state.CursorState
 
 	// Core services
+	//
+	// overlayManager is the backend the composition root built the port over.
+	// Only the composition root names it — construction in phase 1, the port in
+	// phase 3, its render components in phase 4 — and everything the running
+	// app says to the overlay goes through overlayPort instead.
 	overlayManager OverlayManager
-	// overlayPort is the contract the app draws Frames through. It is retained
-	// because the mode handler takes it as well as the services do.
-	overlayPort ports.OverlayPort
-	// overlayStyles is the one owner of config + theme -> Style. A config
-	// reload or a theme change notifies it, and every overlay reads it.
-	overlayStyles *overlay.StyleResolver
+	// overlayPort is the one contract the app has with the overlay: frames for
+	// transitions, calls for updates, and the configuration and theme changes
+	// the overlay resolves its own Styles from (ADR 0003).
+	overlayPort   ports.OverlayPort
 	hotkeyManager HotkeyService
 	hotkeys       *keybinding.Binder
 	eventTap      ports.EventTapPort
@@ -100,13 +102,11 @@ type App struct {
 	configService *loader.Service
 
 	// Feature components
-	hintsComponent           *components.HintsComponent
-	gridComponent            *components.GridComponent
-	scrollComponent          *components.ScrollComponent
-	modeIndicatorComponent   *components.ModeIndicatorComponent
-	stickyIndicatorComponent *components.StickyIndicatorComponent
-	recursiveGridComponent   *components.RecursiveGridComponent
-	systrayComponent         SystrayComponent
+	hintsComponent         *components.HintsComponent
+	gridComponent          *components.GridComponent
+	scrollComponent        *components.ScrollComponent
+	recursiveGridComponent *components.RecursiveGridComponent
+	systrayComponent       SystrayComponent
 
 	// Lifecycle management
 	gcCancel         context.CancelFunc
