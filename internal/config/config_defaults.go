@@ -511,6 +511,14 @@ func defaultGrid() GridConfig {
 
 		Characters:   "abcdefghijklmnpqrstuvwxyz",
 		SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
+
+		// Empty is the meaning, not a missing default: "" tells the grid to
+		// infer its row and column labels from the characters it is drawn
+		// with, so shipping a value here would take that inference away
+		// from everyone who only sets characters.
+		RowLabels: "",
+		ColLabels: "",
+
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
 			"`":                 {CmdToggleCursorFollowSelection},
