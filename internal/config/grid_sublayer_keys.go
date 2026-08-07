@@ -2,8 +2,6 @@ package config
 
 import (
 	"strings"
-
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 // ResolveSublayerKeys settles grid.sublayer_keys to the keys a subgrid will
@@ -45,6 +43,5 @@ func (c *Config) ResolveSublayerKeys() {
 	// keyless subgrid under a labeled grid. ValidateGrid refuses a blank
 	// grid.characters, so this is a floor rather than a configuration a user
 	// runs on; `neru config set --no-reload` is the path that skips it.
-	keys, _ := domainGrid.ResolveLabels(c.GridCharacters(), "", "")
-	c.Grid.SublayerKeys = keys
+	c.Grid.SublayerKeys = c.inferredGridKeys()
 }

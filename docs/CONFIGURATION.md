@@ -1026,6 +1026,24 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 | `prewarm_enabled`   | bool   | `true`                        | Pre-compute grid on startup |
 | `enable_gc`         | bool   | `false`                       | Periodic memory cleanup     |
 
+**The label sets are checked when the config loads.** `characters`, `row_labels`
+and `col_labels` all name cells you then have to type, so `neru config validate`
+warns when one of them holds a single character, the same character twice (case
+is folded — `aA` is one character written twice), or a character that cannot be
+typed: whitespace or a control character. None of these stops a grid being built
+— a short `characters` is replaced by `a-z`, short labels cap the grid to the
+cells they can name, and a repeat leaves one cell answering to nobody — so the
+configuration still loads and the warning is where you hear about it. A label
+left empty is checked as the `characters` it is inferred from and reported under
+that name, so one mistake is reported once.
+
+Two neighbouring rules are older and stricter, and refuse the file rather than
+warn: `characters` cannot be empty, and neither `characters` nor `sublayer_keys`
+may contain a character outside ASCII. `row_labels` and `col_labels` warn about
+non-ASCII instead. `sublayer_keys` is not checked for the three faults above:
+only its first 9 characters are drawn, and the rest are dropped, so a repeat
+among them costs nothing.
+
 ### UI
 
 | Option                     | Type   | Default | Description                          |

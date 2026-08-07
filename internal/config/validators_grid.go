@@ -8,8 +8,9 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// ValidateGrid validates the grid configuration.
-func (c *Config) ValidateGrid() error {
+// ValidateGrid validates the grid configuration, warning about the key sets
+// that load and leave part of the grid unreachable; see [warnGridKeySets].
+func (c *Config) ValidateGrid(warnings *Warnings) error {
 	if !c.Grid.Enabled {
 		return nil
 	}
@@ -71,7 +72,157 @@ func (c *Config) ValidateGrid() error {
 		return err
 	}
 
+	c.warnGridKeySets(warnings)
+
 	return nil
+}
+
+// gridKeySet is one set of characters a grid is labeled from, and what a set
+// too short to label with costs that particular field — which differs, so the
+// warning cannot word it once: a short grid.characters is replaced wholesale by
+// a-z, while short labels are used as they are and cap the grid to what they
+// can name.
+type gridKeySet struct {
+	field    string
+	keys     string
+	tooShort string
+}
+
+// warnGridKeySets reports the character sets a grid is labeled from that will
+// not label the grid the user asked for: too short to name every row or column,
+// a character used twice, or one that cannot be typed.
+//
+// It warns rather than refuses because none of the three stops a grid being
+// built — the grid is capped, relabelled, or has one cell that answers to
+// nobody — and refusing would replace the user's whole configuration with the
+// defaults over a label set they can fix in one line (ADR 0002). The refusals
+// above are unchanged: an empty or non-ASCII grid.characters still costs the
+// load, and this pass is what the fields it does not cover now get instead of
+// nothing.
+//
+// It is the tier the neighboring hints.hint_characters does not use — that one
+// refuses the same three shapes. The difference is that these labels are
+// derived: leave row_labels empty and the value validated is the one the
+// derivation wrote, and refusing a configuration over a line the user never
+// wrote is the shape ADR 0002 exists to avoid.
+//
+// grid.sublayer_keys is deliberately not here. The runtime trims, uppercases and
+// caps it at the number of subgrid cells (domain/grid.SubgridKeys), so which of
+// its characters are used at all depends on a subgrid size the mode layer owns
+// and this package cannot see — a warning from here would report faults in
+// characters that are never drawn.
+//
+// It reads the resolved labels rather than the written ones, because those are
+// what the grid is now drawn with (ResolveGridLabels): the written value is
+// legitimately empty and means "infer from characters".
+func (c *Config) warnGridKeySets(warnings *Warnings) {
+	warnGridKeySet(warnings, gridKeySet{
+		field:    "grid.characters",
+		keys:     c.Grid.Characters,
+		tooShort: "so the grid is labeled a-z instead",
+	})
+
+	// A resolved label equal to what an empty one settles to was inferred from
+	// grid.characters rather than written, so a fault in it is a fault in
+	// grid.characters — reported there, under the one name that is actually in
+	// the user's file. Reported against every field it reached, one mistake
+	// would read as three, two of them naming a line the user cannot go and fix.
+	inferred := c.inferredGridKeys()
+
+	for _, labels := range []gridKeySet{
+		{field: "grid.row_labels", keys: c.Grid.RowLabels},
+		{field: "grid.col_labels", keys: c.Grid.ColLabels},
+	} {
+		if labels.keys == inferred {
+			continue
+		}
+
+		labels.tooShort = "so the grid is capped to the cells they can name"
+		warnGridKeySet(warnings, labels)
+	}
+}
+
+// warnGridKeySet reports what one character set will not do. An empty set is
+// silent: it is the written value of a label the derivation has not settled
+// yet, and it means "infer", not "label with nothing".
+func warnGridKeySet(warnings *Warnings, set gridKeySet) {
+	if set.keys == "" {
+		return
+	}
+
+	chars := []rune(set.keys)
+
+	if len(chars) < MinCharactersLength {
+		warnings.Addf(
+			"%s has %d character and needs at least %d, %s",
+			set.field, len(chars), MinCharactersLength, set.tooShort,
+		)
+	}
+
+	warnDuplicateGridKeys(warnings, set.field, chars)
+	warnUntypeableGridKeys(warnings, set.field, chars)
+}
+
+// warnDuplicateGridKeys reports each character a key set repeats, once, on the
+// second occurrence, so that a character written three times is one thing wrong
+// rather than two.
+//
+// Case is folded because matching is: "aA" is one label written twice, and the
+// second of the two cells it names cannot be reached. The character is reported
+// folded too — the grid draws its labels upper-cased, so that is the form the
+// user is looking for on screen.
+func warnDuplicateGridKeys(warnings *Warnings, field string, chars []rune) {
+	seen := make(map[rune]struct{}, len(chars))
+	reported := make(map[rune]struct{})
+
+	for _, char := range chars {
+		upper := unicode.ToUpper(char)
+
+		_, duplicate := seen[upper]
+		if !duplicate {
+			seen[upper] = struct{}{}
+
+			continue
+		}
+
+		// A character written three times is one thing wrong, not two.
+		_, done := reported[upper]
+		if done {
+			continue
+		}
+
+		reported[upper] = struct{}{}
+
+		warnings.Addf(
+			"%s uses %q more than once, so two cells answer to the same keystroke",
+			field, upper,
+		)
+	}
+}
+
+// warnUntypeableGridKeys reports the characters in a key set that a user cannot
+// press: whitespace, control characters, and anything outside ASCII, which the
+// overlay may have no glyph for and a keyboard may have no key for.
+func warnUntypeableGridKeys(warnings *Warnings, field string, chars []rune) {
+	reported := make(map[rune]struct{})
+
+	for _, char := range chars {
+		if char <= unicode.MaxASCII && unicode.IsPrint(char) && !unicode.IsSpace(char) {
+			continue
+		}
+
+		if _, done := reported[char]; done {
+			continue
+		}
+
+		reported[char] = struct{}{}
+
+		warnings.Addf(
+			"%s contains %q, which cannot be typed as a grid label, "+
+				"so the cells it names cannot be reached",
+			field, char,
+		)
+	}
 }
 
 // ValidateMonitorSelect validates the monitor_select configuration.
