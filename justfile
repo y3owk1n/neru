@@ -193,7 +193,7 @@ test-unit:
 # prints the set that currently qualifies.
 test-foundation:
     @echo "Running cross-platform foundation tests..."
-    go test ./internal/config \
+    go test ./internal/config ./internal/config/loader \
         ./internal/app/components ./internal/app/components/scroll \
         ./internal/app/services ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \
@@ -205,7 +205,7 @@ test-foundation:
         ./internal/adapter/logger \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
-        ./internal/app/render ./internal/domain/geometry
+        ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"
 
 # Print the packages that contain no platform-tagged source, i.e. the set
