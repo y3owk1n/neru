@@ -49,6 +49,16 @@ never builds one. That is the rule the word carries, and the decision behind
 it is ADR 0005.
 _Avoid_: dispatch table, hotkey map, resolved config, keymap table
 
+### Configuring Neru
+
+**Option**:
+One setting a person can write in `config.toml`: one key path, one default,
+one meaning. An Option is declared once; its default, its line in the example
+configuration and its row in the reference are projections of that
+declaration, never independent facts. When they disagree, the declaration is
+right and the others are stale.
+_Avoid_: setting, key, field, knob, param, config value
+
 ### Entering a mode
 
 **Mode command**:
