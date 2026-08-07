@@ -12,6 +12,7 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -19,9 +20,6 @@ import (
 // Win32 overlay backend used by the Windows overlay manager for grid rendering.
 // Does not manage singleton lifecycle or mode subscriptions.
 const (
-	winSubgridCols      = 3
-	winSubgridRows      = 3
-	winSubgridHalfPixel = 0.5
 	winSubgridFontScale = 0.7
 )
 
@@ -386,52 +384,26 @@ func (o *winOverlay) flushOverlay(context string) {
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
 	// The keys the subgrid is drawn with, which are the keys the mode layer
 	// selects on (internal/domain/grid/subgrid_keys.go).
-	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, winSubgridCols*winSubgridRows)
-	maxKeys := len(keyRunes)
+	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, domainGrid.MaxKeyIndex)
 
-	xBreaks := make([]int, winSubgridCols+1)
-	yBreaks := make([]int, winSubgridRows+1)
-	xBreaks[0] = bounds.Min.X
+	// The rectangles they are drawn on, which are the rectangles the mode layer
+	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
+	cells := domainGrid.SubgridCells(bounds, domain.SubgridRows, domain.SubgridCols)
 
-	yBreaks[0] = bounds.Min.Y
-	for i := 1; i <= winSubgridCols; i++ {
-		xBreaks[i] = bounds.Min.X + int(
-			float64(i)*float64(bounds.Dx())/float64(winSubgridCols)+winSubgridHalfPixel,
+	// One cell per key, and fewer keys than cells is a configuration that
+	// leaves the last cells unlabelled: the key set is capped at the same count
+	// the division produces, which is what MaxKeyIndex is.
+	for index, key := range keyRunes {
+		cell := cells[index]
+
+		o.drawCellBorder(cell, style.LineColorARGB(), style.LineWidth())
+		o.drawTextCentered(
+			string(key),
+			cell,
+			ports.ResolveFont(style.FontFamily(), false),
+			style.LabelFontSize()*winSubgridFontScale,
+			style.TextColorARGB(),
 		)
-	}
-
-	for i := 1; i <= winSubgridRows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(
-			float64(i)*float64(bounds.Dy())/float64(winSubgridRows)+winSubgridHalfPixel,
-		)
-	}
-
-	xBreaks[winSubgridCols] = bounds.Max.X
-	yBreaks[winSubgridRows] = bounds.Max.Y
-
-	index := 0
-	for row := range winSubgridRows {
-		for col := range winSubgridCols {
-			if index >= maxKeys {
-				break
-			}
-
-			cell := image.Rect(
-				xBreaks[col],
-				yBreaks[row],
-				xBreaks[col+1],
-				yBreaks[row+1],
-			)
-			o.drawCellBorder(cell, style.LineColorARGB(), style.LineWidth())
-			o.drawTextCentered(
-				string(keyRunes[index]),
-				cell,
-				ports.ResolveFont(style.FontFamily(), false),
-				style.LabelFontSize()*winSubgridFontScale,
-				style.TextColorARGB(),
-			)
-			index++
-		}
 	}
 }
 

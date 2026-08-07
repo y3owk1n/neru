@@ -9,10 +9,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/grid"
 )
 
-// subgridCells is the size of the subgrid these cases label — the one every
-// caller in the repo draws, since all three surfaces and the manager are 3x3.
-const subgridCells = domain.SubgridRows * domain.SubgridCols
-
 // TestSubgridKeys pins the answer to "which keys does a subgrid have?". It used
 // to be answered once per overlay backend and once more by the manager, each
 // with its own trimming, its own case and its own cap, and nothing made the set
@@ -62,24 +58,32 @@ func TestSubgridKeys(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			if got := string(grid.SubgridKeys(testCase.keys, subgridCells)); got != testCase.want {
+			if got := string(
+				grid.SubgridKeys(testCase.keys, grid.MaxKeyIndex),
+			); got != testCase.want {
 				t.Errorf("SubgridKeys(%q) = %q, want %q", testCase.keys, got, testCase.want)
 			}
 		})
 	}
 }
 
-// TestSubgridKeys_CapAgreesWithTheSelectionBound keeps the two ends of the cap
-// together. SubgridKeys drops keys past the caller's last cell, and
-// handleSubgridSelection separately refuses any key index at or past
-// MaxKeyIndex; if that bound and the cell count ever disagree, a key the
-// overlay drew is a key the manager refuses — the drawn/accepted split this
-// replaced, reappearing inside the domain.
-func TestSubgridKeys_CapAgreesWithTheSelectionBound(t *testing.T) {
-	if grid.MaxKeyIndex != subgridCells {
+// TestSubgridKeys_CapAgreesWithTheCellsThereAre keeps the two ends of the cap
+// together. Every overlay caps its key set at MaxKeyIndex and then draws those
+// keys on the rectangles SubgridCells hands back; if the constant and the
+// division ever disagree, a backend draws a label with no cell under it or a
+// cell with no label on it. Both are answers to "how big is the subgrid?", and
+// this is where they have to be one answer.
+func TestSubgridKeys_CapAgreesWithTheCellsThereAre(t *testing.T) {
+	divided := grid.SubgridCells(
+		image.Rect(0, 0, 300, 150),
+		domain.SubgridRows,
+		domain.SubgridCols,
+	)
+
+	if grid.MaxKeyIndex != len(divided) {
 		t.Errorf(
-			"selection refuses key indexes at or past %d but the subgrid has %d cells",
-			grid.MaxKeyIndex, subgridCells,
+			"overlays cap the key set at %d but the subgrid divides into %d cells",
+			grid.MaxKeyIndex, len(divided),
 		)
 	}
 }
@@ -93,14 +97,14 @@ func TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith(t *testing.T) {
 	// More keys than cells, so the cap is exercised rather than assumed.
 	const configured = "asdfghjklzxc"
 
-	drawn := grid.SubgridKeys(configured, subgridCells)
+	drawn := grid.SubgridKeys(configured, grid.MaxKeyIndex)
 	if len(drawn) != domain.SubgridRows*domain.SubgridCols {
 		t.Fatalf("SubgridKeys(%q) drew %d keys, want %d", configured, len(drawn),
 			domain.SubgridRows*domain.SubgridCols)
 	}
 
 	for _, key := range drawn {
-		manager := newSubgridKeyManager(t, configured)
+		manager, _ := newSubgridKeyManager(t, configured)
 
 		if _, selected := manager.HandleInput(string(key)); !selected {
 			t.Errorf("subgrid refused %q, which it is drawn with", string(key))
@@ -108,7 +112,7 @@ func TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith(t *testing.T) {
 	}
 
 	for _, key := range "ZXC" {
-		manager := newSubgridKeyManager(t, configured)
+		manager, _ := newSubgridKeyManager(t, configured)
 
 		if _, selected := manager.HandleInput(string(key)); selected {
 			t.Errorf("subgrid selected on %q, which no cell is drawn with", string(key))
@@ -126,12 +130,12 @@ func TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint(t *testing.T) {
 	// the repeat counts as a key.
 	const configured = "aabcdefgh"
 
-	drawn := grid.SubgridKeys(configured, subgridCells)
+	drawn := grid.SubgridKeys(configured, grid.MaxKeyIndex)
 
 	points := make(map[image.Point]rune, len(drawn))
 
 	for _, key := range drawn {
-		manager := newSubgridKeyManager(t, configured)
+		manager, _ := newSubgridKeyManager(t, configured)
 
 		point, selected := manager.HandleInput(string(key))
 		if !selected {
@@ -149,12 +153,16 @@ func TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint(t *testing.T) {
 }
 
 // newSubgridKeyManager returns a manager sitting in an open subgrid, so the
-// next key it is handed is a subgrid selection.
-func newSubgridKeyManager(t *testing.T, subKeys string) *grid.Manager {
+// next key it is handed is a subgrid selection, along with the bounds of the
+// cell that subgrid was opened on — the rectangle an overlay would have been
+// handed to draw it in.
+func newSubgridKeyManager(t *testing.T, subKeys string) (*grid.Manager, image.Rectangle) {
 	t.Helper()
 
 	log := logger.Get()
 	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 800), log)
+
+	var opened image.Rectangle
 
 	manager := grid.NewManager(
 		testGrid,
@@ -162,7 +170,7 @@ func newSubgridKeyManager(t *testing.T, subKeys string) *grid.Manager {
 		domain.SubgridCols,
 		subKeys,
 		func(bool) {},
-		func(*grid.Cell) {},
+		func(cell *grid.Cell) { opened = cell.Bounds() },
 		log,
 	)
 
@@ -175,5 +183,9 @@ func newSubgridKeyManager(t *testing.T, subKeys string) *grid.Manager {
 		manager.HandleInput(string(char))
 	}
 
-	return manager
+	if opened.Empty() {
+		t.Fatal("the manager did not open a subgrid on any cell")
+	}
+
+	return manager, opened
 }

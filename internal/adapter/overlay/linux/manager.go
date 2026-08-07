@@ -32,9 +32,6 @@ const (
 	hexColorLenShort                       = 3
 	hexColorLenNoAlpha                     = 6
 	hexColorLenFull                        = 8
-	subgridCols                            = 3
-	subgridRows                            = 3
-	subgridHalfPixel                       = 0.5
 	subgridFontScale                       = 0.7
 	subgridLineWidth                       = 1
 	keyboardChanBuffer                     = 64
