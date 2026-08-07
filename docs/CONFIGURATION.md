@@ -258,7 +258,7 @@ To revert all overrides at once, delete the override file and run `neru config r
 - **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
 - **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
 - **Array replacement**: Array fields are replaced wholesale, not appended.
-- **Derived values**: Settings computed from other settings — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` inferred from `grid.characters` — are recomputed by `config set`, including when you set the setting they are computed *from*. `neru config set grid.characters "qwerty"` relabels the grid immediately, and `neru config set theme.light.surface "#1E1E2E"` recolors immediately. Setting a derived value directly still wins: labels you wrote are kept, and only the ones you left empty are inferred.
+- **Derived values**: Settings computed from other settings — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` / `grid.sublayer_keys` inferred from `grid.characters` — are recomputed by `config set`, including when you set the setting they are computed *from*. `neru config set grid.characters "qwerty"` relabels the grid immediately, and `neru config set theme.light.surface "#1E1E2E"` recolors immediately. Setting a derived value directly still wins: labels and keys you wrote are kept, and only the ones you left empty are inferred. Note `sublayer_keys` ships with a value, so it is only inferred once you blank it — `neru config set grid.sublayer_keys ""` makes the subgrid follow `grid.characters` from then on.
 - **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
 
 ---
@@ -1018,7 +1018,7 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 | ------------------- | ------ | ----------------------------- | --------------------------- |
 | `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
 | `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
-| `sublayer_keys`     | string | same as `characters`          | Subgrid labels              |
+| `sublayer_keys`     | string | `"abcdefghijklmnpqrstuvwxyz"` | Subgrid labels; empty is resolved at load time to the characters the grid is labelled with, the same ones `row_labels` is inferred from. Only the first 9 are used — the subgrid is 3×3 |
 | `row_labels`        | string | `""`                          | Custom row labels; empty is resolved at load time to the labels inferred from `characters` |
 | `col_labels`        | string | `""`                          | Custom column labels; empty is resolved the same way as `row_labels`                       |
 | `live_match_update` | bool   | `true`                        | Highlight cells as you type |

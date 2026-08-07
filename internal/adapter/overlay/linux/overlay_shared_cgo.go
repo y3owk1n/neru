@@ -872,12 +872,10 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 	// bounds is screen-local; place the subgrid on the active monitor.
 	bounds = o.offset(bounds)
 
-	keyRunes := []rune("ASDFGHJKL")
-	if o.sublayerKeys != "" {
-		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
-	}
-
-	maxKeys := min(len(keyRunes), subgridCols*subgridRows)
+	// The keys the subgrid is drawn with, which are the keys the mode layer
+	// selects on (internal/domain/grid/subgrid_keys.go).
+	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, subgridCols*subgridRows)
+	maxKeys := len(keyRunes)
 	xBreaks := make([]int, subgridCols+1)
 	yBreaks := make([]int, subgridRows+1)
 	xBreaks[0] = bounds.Min.X

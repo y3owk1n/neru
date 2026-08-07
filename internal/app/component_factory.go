@@ -1,8 +1,6 @@
 package app
 
 import (
-	"strings"
-
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components"
@@ -71,15 +69,14 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 		Context: ctx,
 	}
 
-	gridChars := f.getGridCharacters()
-	subKeys := f.getSublayerKeys(gridChars)
-
 	// Create grid manager with callbacks
 	component.Manager = domainGrid.NewManager(
 		nil,
 		domain.SubgridRows,
 		domain.SubgridCols,
-		subKeys,
+		// The keys the subgrid is drawn with, resolved once by the config
+		// (config.ResolveSublayerKeys).
+		f.config.Grid.SublayerKeys,
 		func(_ bool) {
 			instancePtr := ctx.GridInstance()
 			if instancePtr == nil || *instancePtr == nil || (*instancePtr).Characters() == "" {
@@ -110,30 +107,4 @@ func (f *ComponentFactory) CreateRecursiveGridComponent() *components.RecursiveG
 	return &components.RecursiveGridComponent{
 		Context: &recursivegrid.Context{},
 	}
-}
-
-func (f *ComponentFactory) getGridCharacters() string {
-	gridChars := f.config.Grid.Characters
-	if strings.TrimSpace(gridChars) == "" {
-		gridChars = domain.DefaultHintCharacters
-		f.logger.Warn(
-			"No grid characters configured, using default: " + domain.DefaultHintCharacters,
-		)
-	}
-
-	return gridChars
-}
-
-func (f *ComponentFactory) getSublayerKeys(gridChars string) string {
-	keys := strings.TrimSpace(f.config.Grid.SublayerKeys)
-	if keys == "" {
-		keys = gridChars
-	}
-
-	if keys == "" {
-		keys = domain.DefaultHintCharacters
-		f.logger.Warn("No subgrid keys configured, using default: " + domain.DefaultHintCharacters)
-	}
-
-	return keys
 }

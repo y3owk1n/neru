@@ -527,3 +527,37 @@ func TestIPCController_HandleConfigSet_KeepsWrittenGridLabels(t *testing.T) {
 		t.Errorf("Expected grid.col_labels=%q, got %q", testGridLabelsFromChars, cfg.Grid.ColLabels)
 	}
 }
+
+// TestIPCController_HandleConfigSet_RekeysSubgridFromNewCharacters covers the
+// third derived value: the subgrid keys are the characters the grid is labeled
+// with when nobody wrote them, so changing the characters has to move the
+// subgrid with the grid rather than leave it on the set the grid no longer uses.
+func TestIPCController_HandleConfigSet_RekeysSubgridFromNewCharacters(t *testing.T) {
+	controller := newTestController()
+
+	setConfigField(t, controller, "grid.sublayer_keys", "")
+
+	cfg := setConfigField(t, controller, "grid.characters", testGridCharsToSet)
+
+	if cfg.Grid.SublayerKeys != testGridLabelsFromChars {
+		t.Errorf(
+			"Expected grid.sublayer_keys=%q, got %q",
+			testGridLabelsFromChars, cfg.Grid.SublayerKeys,
+		)
+	}
+}
+
+// TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys guards the other
+// direction, the way the grid labels are guarded: keys the user set stay set
+// when the characters they would otherwise be inferred from change.
+func TestIPCController_HandleConfigSet_KeepsWrittenSublayerKeys(t *testing.T) {
+	controller := newTestController()
+
+	setConfigField(t, controller, "grid.sublayer_keys", "uiop")
+
+	cfg := setConfigField(t, controller, "grid.characters", testGridCharsToSet)
+
+	if cfg.Grid.SublayerKeys != "uiop" {
+		t.Errorf("Expected grid.sublayer_keys=%q, got %q", "uiop", cfg.Grid.SublayerKeys)
+	}
+}

@@ -31,9 +31,6 @@ const (
 	// DefaultGridLinesCount is the default number of grid lines.
 	DefaultGridLinesCount = 4
 
-	// GridMaxChars is the max chars for grid.
-	GridMaxChars = 9
-
 	// RoundingFactor is the factor for rounding.
 	RoundingFactor = 0.5
 
@@ -430,25 +427,26 @@ func (o *Overlay) UpdateMatches(prefix string) {
 // ShowSubgrid draws a 3x3 subgrid inside the selected cell.
 func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	// Snapshot config fields under configMu to avoid racing with SetConfig.
+	// The keys arrive resolved (config.ResolveSublayerKeys): this overlay is
+	// handed the grid configuration alone and cannot see the characters the
+	// rest of it falls back to, so a fallback here could only disagree with
+	// the keys the mode layer accepts.
 	o.configMu.RLock()
 	keys := o.config.SublayerKeys
-	characters := o.config.Characters
 	o.configMu.RUnlock()
-	if strings.TrimSpace(keys) == "" {
-		keys = characters
-	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 
-	chars := []rune(keys)
 	// Subgrid is always 3x3
 	const rows = 3
 	const cols = 3
 
-	// If not enough characters, adjust count to available characters
-	count := min(len(chars), GridMaxChars)
+	// The keys this subgrid is drawn with, which are the keys the mode layer
+	// selects on (internal/domain/grid/subgrid_keys.go).
+	chars := domainGrid.SubgridKeys(keys, rows*cols)
+	count := len(chars)
 
 	tmpCells := subgridCellSlicePool.Get()
 	cellsPtr, _ := tmpCells.(*[]C.GridCell)
@@ -492,7 +490,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	for cellIndex := range cells {
 		rowIndex := cellIndex / cols
 		colIndex := cellIndex % cols
-		label := strings.ToUpper(string(chars[cellIndex]))
+		label := string(chars[cellIndex])
 		labels[cellIndex] = o.getOrCacheLabel(label)
 		left := xBreaks[colIndex]
 		right := xBreaks[colIndex+1]

@@ -52,7 +52,7 @@ func NewManager(
 		onShowSub:   onShowSub,
 		subRows:     subRows,
 		subCols:     subCols,
-		subKeys:     strings.ToUpper(strings.TrimSpace(subKeys)),
+		subKeys:     string(SubgridKeys(subKeys, subRows*subCols)),
 	}
 }
 
@@ -149,9 +149,11 @@ func (m *Manager) UpdateGrid(g *Grid) {
 	}
 }
 
-// UpdateSubKeys updates the subgrid keys used for subgrid selection.
+// UpdateSubKeys updates the subgrid keys used for subgrid selection. It keeps
+// the set an overlay draws (SubgridKeys), so the keys accepted here are the
+// keys the user can see.
 func (m *Manager) UpdateSubKeys(subKeys string) {
-	m.subKeys = strings.ToUpper(strings.TrimSpace(subKeys))
+	m.subKeys = string(SubgridKeys(subKeys, m.subRows*m.subCols))
 }
 
 // HandleBackspace applies grid backspace behavior: delete one input character,

@@ -539,33 +539,13 @@ func (m *Manager) DrawGrid(grid *domainGrid.Grid, input string, style grid.Style
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		// Pass sublayer keys from grid overlay config so subgrid labels match config.
-		if m.GridOverlay() != nil {
-			cfg := m.GridOverlay().Config()
-
-			keys := strings.TrimSpace(cfg.SublayerKeys)
-			if keys == "" {
-				keys = cfg.Characters
-			}
-
-			m.x11.sublayerKeys = strings.ToUpper(keys)
-		}
+		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 
 		m.x11.DrawGrid(grid, input, style)
 
 		return nil
 	} else if m.wlroots != nil {
-		// Pass sublayer keys from grid overlay config so subgrid labels match config.
-		if m.GridOverlay() != nil {
-			cfg := m.GridOverlay().Config()
-
-			keys := strings.TrimSpace(cfg.SublayerKeys)
-			if keys == "" {
-				keys = cfg.Characters
-			}
-
-			m.wlroots.sublayerKeys = strings.ToUpper(keys)
-		}
+		m.syncSublayerKeysLocked(&m.wlroots.sublayerKeys)
 
 		m.wlroots.DrawGrid(grid, input, style)
 
@@ -670,31 +650,11 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		// Ensure sublayer keys are set from grid overlay config.
-		if m.GridOverlay() != nil {
-			cfg := m.GridOverlay().Config()
-
-			keys := strings.TrimSpace(cfg.SublayerKeys)
-			if keys == "" {
-				keys = cfg.Characters
-			}
-
-			m.x11.sublayerKeys = strings.ToUpper(keys)
-		}
+		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 
 		m.x11.ShowSubgrid(cell, style)
 	} else if m.wlroots != nil {
-		// Ensure sublayer keys are set from grid overlay config.
-		if m.GridOverlay() != nil {
-			cfg := m.GridOverlay().Config()
-
-			keys := strings.TrimSpace(cfg.SublayerKeys)
-			if keys == "" {
-				keys = cfg.Characters
-			}
-
-			m.wlroots.sublayerKeys = strings.ToUpper(keys)
-		}
+		m.syncSublayerKeysLocked(&m.wlroots.sublayerKeys)
 
 		m.wlroots.ShowSubgrid(cell, style)
 	}
@@ -1329,4 +1289,16 @@ func expandRect(rect image.Rectangle, amount int) image.Rectangle {
 		rect.Max.X+amount,
 		rect.Max.Y+amount,
 	)
+}
+
+// syncSublayerKeysLocked hands the surface the keys the subgrid is drawn with.
+// Every draw that can put a subgrid on screen calls it, because a surface with
+// no keys draws a subgrid the user cannot see but can still act on — the keys
+// themselves are resolved once, by the config (config.ResolveSublayerKeys).
+func (m *Manager) syncSublayerKeysLocked(target *string) {
+	if m.GridOverlay() == nil {
+		return
+	}
+
+	*target = m.GridOverlay().Config().SublayerKeys
 }
