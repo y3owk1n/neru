@@ -87,6 +87,10 @@ func (h *InfoHandler) handleConfigSetNoReload(
 		}
 	}
 
+	// A field change can land on a derived value, and what arrives is the
+	// string the user typed rather than the form the daemon holds it in.
+	newCfg.ResolveGridLabels()
+
 	// Skip Validate() here so interdependent fields (e.g. grid_cols + keys)
 	// can be updated incrementally before a final "neru config reload".
 	h.configService.Replace(newCfg)
@@ -187,6 +191,10 @@ func (h *InfoHandler) handleConfigSetInMemory(
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
+
+	// A field change can land on a derived value, and what arrives is the
+	// string the user typed rather than the form the daemon holds it in.
+	newCfg.ResolveGridLabels()
 
 	updateErr := h.configService.Update(newCfg)
 	if updateErr != nil {

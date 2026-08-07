@@ -5,12 +5,17 @@ func DefaultConfig() *Config {
 	cfg := newDefaultConfig()
 	applyPlatformDefaults(cfg)
 	cfg.ResolveThemeDefaults()
+	cfg.ResolveGridLabels()
 
 	return cfg
 }
 
 // DefaultConfigForDecoding returns the defaults used as the TOML decode
 // target: platform-adjusted, without theme resolution or launcher hotkeys.
+//
+// Leaving the derived values alone is what makes it a decode target. Resolved
+// grid labels here would read as labels the user configured, so the file's own
+// grid.characters would decode over the characters and leave the labels behind.
 func DefaultConfigForDecoding() *Config {
 	cfg := newDefaultConfig()
 	applyPlatformDefaults(cfg)

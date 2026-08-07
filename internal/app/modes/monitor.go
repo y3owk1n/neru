@@ -314,13 +314,8 @@ func (h *handlerState) refreshGridForMonitorMove(targetBounds image.Rectangle) {
 	h.setScreenBounds(targetBounds)
 	normalizedBounds := geometry.NormalizeToLocalCoordinates(targetBounds)
 
-	characters := h.config.Grid.Characters
-	if strings.TrimSpace(characters) == "" {
-		characters = h.config.Hints.HintCharacters
-	}
-
 	gridInstance := domainGrid.NewGridWithLabels(
-		characters,
+		h.config.GridCharacters(),
 		h.config.Grid.RowLabels,
 		h.config.Grid.ColLabels,
 		normalizedBounds,

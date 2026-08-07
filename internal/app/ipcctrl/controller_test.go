@@ -393,3 +393,36 @@ func TestIPCController_UpdateConfig(t *testing.T) {
 			newCfg.Hints.Enabled, updatedCfg.Hints.Enabled)
 	}
 }
+
+// TestIPCController_HandleConfigSet_GridLabelsStayResolved pins that a runtime
+// change to the grid labels leaves the config holding the labels in use rather
+// than the string as typed. The config carries the resolved form since the
+// option stopped being inferred by its consumers, and a raw value slipped in
+// here reads as a change on every subsequent reload — rebuilding the grid and
+// discarding whatever coordinate the user was part-way through typing.
+func TestIPCController_HandleConfigSet_GridLabelsStayResolved(t *testing.T) {
+	controller := newTestController()
+
+	ctx := context.Background()
+
+	commandResponse := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   []string{"grid.row_labels", "xy"},
+	})
+
+	if !commandResponse.Success {
+		t.Fatalf("Expected success=true, got %v: %s",
+			commandResponse.Success, commandResponse.Message)
+	}
+
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+
+	cfg, ok := cfgResp.Data.(*config.Config)
+	if !ok || cfg == nil {
+		t.Fatal("Failed to read config after set")
+	}
+
+	if cfg.Grid.RowLabels != "XY" {
+		t.Errorf("Expected grid.row_labels=%q, got %q", "XY", cfg.Grid.RowLabels)
+	}
+}
