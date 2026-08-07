@@ -1,8 +1,6 @@
 package components
 
 import (
-	"strings"
-
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
@@ -44,10 +42,15 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 				// used to infer the labels here, which is the only place that
 				// rule existed — and getting it wrong rebuilt the grid on every
 				// reload, discarding the user's in-flight coordinate input.
+				// Each side asked of the grid rather than compared as written,
+				// which is the same rule one step further on: the grid drops a
+				// character a set repeats, so a set that gained only a repeat is
+				// the set already in use, and comparing the strings would rebuild
+				// on every reload for the rest of that config's life.
 				characters := cfg.GridCharacters()
-				newCharacters := strings.ToUpper(characters)
-				newRowLabels := cfg.Grid.RowLabels
-				newColLabels := cfg.Grid.ColLabels
+				newCharacters := domainGrid.ResolveCharacters(characters)
+				newRowLabels := string(domainGrid.DistinctKeys(cfg.Grid.RowLabels))
+				newColLabels := string(domainGrid.DistinctKeys(cfg.Grid.ColLabels))
 
 				charactersChanged := newCharacters != oldGrid.Characters()
 				rowLabelsChanged := newRowLabels != oldGrid.RowLabels()

@@ -48,6 +48,16 @@ func TestSubgridKeys(t *testing.T) {
 			keys: "",
 			want: "",
 		},
+		{
+			name: "a key listed twice is one key",
+			keys: "aabcdefgh",
+			want: "ABCDEFGH",
+		},
+		{
+			name: "a repeat is dropped whichever case it is written in",
+			keys: "aAbB",
+			want: "AB",
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -103,6 +113,38 @@ func TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith(t *testing.T) {
 		if _, selected := manager.HandleInput(string(key)); selected {
 			t.Errorf("subgrid selected on %q, which no cell is drawn with", string(key))
 		}
+	}
+}
+
+// TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint is what a duplicated key
+// costs. Selection resolves a key by its first index, so a key listed twice used
+// to draw a second label over a second cell and then send both presses to the
+// first one: nine labels, eight reachable points, and no way to tell which of
+// the two was dead.
+func TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint(t *testing.T) {
+	// Nine keys, one of them written twice, so the set fills the subgrid only if
+	// the repeat counts as a key.
+	const configured = "aabcdefgh"
+
+	drawn := grid.SubgridKeys(configured, subgridCells)
+
+	points := make(map[image.Point]rune, len(drawn))
+
+	for _, key := range drawn {
+		manager := newSubgridKeyManager(t, configured)
+
+		point, selected := manager.HandleInput(string(key))
+		if !selected {
+			t.Errorf("subgrid refused %q, which it is drawn with", string(key))
+
+			continue
+		}
+
+		if previous, shared := points[point]; shared {
+			t.Errorf("keys %q and %q both select %v", string(previous), string(key), point)
+		}
+
+		points[point] = key
 	}
 }
 

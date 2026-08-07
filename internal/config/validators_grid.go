@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 // ValidateGrid validates the grid configuration, warning about the key sets
@@ -93,9 +94,10 @@ type gridKeySet struct {
 // a character used twice, or one that cannot be typed.
 //
 // It warns rather than refuses because none of the three stops a grid being
-// built — the grid is capped, relabelled, or has one cell that answers to
-// nobody — and refusing would replace the user's whole configuration with the
-// defaults over a label set they can fix in one line (ADR 0002). The refusals
+// built — the grid is capped, relabelled, labeled from a shorter set than was
+// written, or has one cell that answers to a key nobody can press — and refusing
+// would replace the user's whole configuration with the defaults over a label set
+// they can fix in one line (ADR 0002). The refusals
 // above are unchanged: an empty or non-ASCII grid.characters still costs the
 // load, and this pass is what the fields it does not cover now get instead of
 // nothing.
@@ -152,10 +154,16 @@ func warnGridKeySet(warnings *Warnings, set gridKeySet) {
 
 	chars := []rune(set.keys)
 
-	if len(chars) < MinCharactersLength {
+	// Counted after the repeats come out, because that is the count the grid
+	// applies its floor to (domain/grid.newGridAlphabet): "aa" is two characters
+	// written and one character to label with, and reading the written length
+	// here would let it reach the a-z fallback without a word said.
+	usable := len(domainGrid.DistinctKeys(set.keys))
+
+	if usable < MinCharactersLength {
 		warnings.Addf(
-			"%s has %d character and needs at least %d, %s",
-			set.field, len(chars), MinCharactersLength, set.tooShort,
+			"%s has %d usable character and needs at least %d, %s",
+			set.field, usable, MinCharactersLength, set.tooShort,
 		)
 	}
 
@@ -167,10 +175,12 @@ func warnGridKeySet(warnings *Warnings, set gridKeySet) {
 // second occurrence, so that a character written three times is one thing wrong
 // rather than two.
 //
-// Case is folded because matching is: "aA" is one label written twice, and the
-// second of the two cells it names cannot be reached. The character is reported
-// folded too — the grid draws its labels upper-cased, so that is the form the
-// user is looking for on screen.
+// Case is folded because matching is: "aA" is one label written twice. The grid
+// drops the second one (domain/grid.DistinctKeys) rather than labeling a cell
+// nothing can reach, so what the repeat costs is the size of the set the grid is
+// labeled from — which is why this is worth saying even though nothing is broken
+// by it. The character is reported folded too: the grid draws its labels
+// upper-cased, so that is the form the user is looking for on screen.
 func warnDuplicateGridKeys(warnings *Warnings, field string, chars []rune) {
 	seen := make(map[rune]struct{}, len(chars))
 	reported := make(map[rune]struct{})
@@ -194,7 +204,8 @@ func warnDuplicateGridKeys(warnings *Warnings, field string, chars []rune) {
 		reported[upper] = struct{}{}
 
 		warnings.Addf(
-			"%s uses %q more than once, so two cells answer to the same keystroke",
+			"%s uses %q more than once; the repeat is dropped, "+
+				"so the grid is labeled from fewer characters than the option lists",
 			field, upper,
 		)
 	}

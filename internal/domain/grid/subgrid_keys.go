@@ -22,8 +22,13 @@ import "strings"
 // a user gets by pointing sublayer_keys at their whole alphabet, and refusing
 // the configuration over it would cost them the grid. The keys that name a cell
 // are the keys, and the rest were never drawn.
+//
+// A key written twice is one key (DistinctKeys), and the repeat is dropped
+// before the cap rather than after, so the cells that do get a label get a
+// working one: selection finds a key by its first index, so the second label
+// drawn for a repeated key selected the first label's cell.
 func SubgridKeys(keys string, cells int) []rune {
-	runes := []rune(strings.ToUpper(strings.TrimSpace(keys)))
+	runes := DistinctKeys(strings.TrimSpace(keys))
 
 	return runes[:max(0, min(len(runes), cells))]
 }
