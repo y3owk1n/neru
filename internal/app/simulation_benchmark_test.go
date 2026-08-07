@@ -9,18 +9,26 @@ package app_test
 // application through the simulation harness, so a keystroke costs everything
 // it costs in production except the native draw.
 //
-// One iteration is exactly one keystroke. Getting back to an empty input costs
-// a keystroke of its own, and that one is deliberately outside the timer: it
-// is dispatched on a goroutine (backspace is a mode hotkey), so timing it
-// would measure a scheduler rather than the key path.
+// One iteration is exactly one keystroke. Where getting back to where the
+// iteration started costs a keystroke of its own, that one is deliberately
+// outside the timer: it is dispatched on a goroutine (backspace is a mode
+// hotkey), so timing it would measure a scheduler rather than the key path.
+//
+// The hints benchmark measures the other thing a keystroke can cost: with
+// per-app hotkey overrides declared, deciding what a key is bound to asks the
+// operating system which application is focused, and on macOS that is a
+// message to another process made under the lock that serializes key handling.
+// None of these gate continuous integration — a timing threshold on a
+// three-operating-system matrix is a source of flakes, and the durable
+// guarantee is the call count the journeys assert, not the nanoseconds.
 
 import (
 	"image"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
@@ -30,6 +38,15 @@ const backspaceKey = "Backspace"
 
 // benchSettleTimeout bounds the untimed wait for a backspace to land.
 const benchSettleTimeout = 2 * time.Second
+
+// benchHintElements is the size of the hint set the hints keystroke is
+// measured against: more elements than there are hint characters, so the labels
+// are the mixed one- and two-character set a real screen produces.
+const benchHintElements = 12
+
+// unmatchedHintKey is a letter outside the default hint alphabet, so it is a
+// prefix of no label on screen.
+const unmatchedHintKey = "z"
 
 // BenchmarkGridNarrowingKeystroke measures one narrowing keystroke in grid
 // mode: the event tap hands a key to the handler, the grid manager matches it,
@@ -112,6 +129,82 @@ func BenchmarkRecursiveGridKeystroke(b *testing.B) {
 	}
 }
 
+// BenchmarkHintsKeystroke measures one keystroke in hints mode — the mode a
+// user spends most of their keystrokes in — configured the way that makes a
+// keystroke expensive: the mode declares per-app hotkey overrides, so before
+// the handler can decide what the key is bound to it asks the operating system
+// which application is focused, holding the lock that serializes key handling
+// while it waits. Leaving the overrides out would quietly measure the cheap
+// path and report a better number for the same code.
+//
+// The key it presses is a prefix of no label, and that is the point rather than
+// a shortcut: it pays for the whole key path — the focused-app query, the
+// keymap resolution, the hint filter and the redraw — and leaves the drawn set
+// exactly as it found it, so every iteration measures the same keystroke and
+// none of them needs untimed work in between. A narrowing keystroke could not:
+// changing how many hints are drawn is a structural change, which the hint
+// manager deliberately debounces onto a timer, so its redraw would land outside
+// the iteration that caused it and the reset between iterations would cost far
+// more than the thing being measured.
+func BenchmarkHintsKeystroke(b *testing.B) {
+	cfg := simConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		perAppHotkeyOverride(simFixtureBundleID, unpressedOverrideKey, "action left_click"),
+	}
+
+	sim := newSimHarness(b, cfg, manyButtons(b, benchHintElements))
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
+
+	if labeled := len(sim.overlay.lastHintLabels()); labeled != benchHintElements {
+		b.Fatalf("hints drawn for %d of %d elements; the fixture is not the one being measured",
+			labeled, benchHintElements)
+	}
+
+	drawsBefore := sim.overlay.hintDrawCount()
+	movesBefore := sim.cursor.moveCount()
+	queriesBefore := sim.ax.focusedAppQueryCount()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for range b.N {
+		sim.press(unmatchedHintKey)
+	}
+
+	b.StopTimer()
+
+	if mode := sim.app.CurrentMode(); mode != domain.ModeHints {
+		b.Fatalf("benchmark left hints mode for %s; the numbers are not hints'",
+			domain.ModeString(mode))
+	}
+
+	// A key that matched a label would have selected an element and moved the
+	// cursor — a different, and much more expensive, path than the one claimed.
+	if moved := sim.cursor.moveCount() - movesBefore; moved != 0 {
+		b.Fatalf("cursor moved %d times; the keystrokes selected hints instead of missing them",
+			moved)
+	}
+
+	// Each keystroke repaints the full set exactly once. Anything else means
+	// the iterations were not the keystroke this claims to measure.
+	if drawn := sim.overlay.hintDrawCount() - drawsBefore; drawn != b.N {
+		b.Fatalf("hints redrawn %d times for %d keystrokes; the keystrokes did not all reach "+
+			"the surface", drawn, b.N)
+	}
+
+	// The expensive path, stated in the currency it is expensive in: one
+	// question to the operating system per keystroke. This is the number ADR
+	// 0005 exists to drive to zero, so the change that earns that edits it here
+	// as well as in the journey that pins it.
+	if asked := sim.ax.focusedAppQueryCount() - queriesBefore; asked != b.N {
+		b.Fatalf("%d keystrokes asked which app is focused %d times, want %d; the benchmark "+
+			"did not measure the path it claims to", b.N, asked, b.N)
+	}
+}
+
 // clearGridNarrowing takes the grid back to an empty input without leaving the
 // mode. Backspace is a mode hotkey, so the app runs it on a goroutine and this
 // waits for it to land.
@@ -149,22 +242,4 @@ func settle(sim *simHarness, desc string, cond func() bool) {
 	}
 
 	sim.t.Fatalf("timed out waiting for %s", desc)
-}
-
-// firstGridLabelKey returns the lower-case first character of a drawn cell's
-// label — the key a user would press to start narrowing to it.
-func firstGridLabelKey(sim *simHarness) string {
-	grid := sim.overlay.lastGrid()
-
-	cells := grid.Cells()
-	if len(cells) == 0 {
-		sim.t.Fatal("grid drawn with zero cells")
-	}
-
-	label := cells[0].Coordinate()
-	if label == "" {
-		sim.t.Fatal("grid cell drawn without a label")
-	}
-
-	return strings.ToLower(string([]rune(label)[0]))
 }
