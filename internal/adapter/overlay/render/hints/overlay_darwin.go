@@ -48,13 +48,22 @@ func boolToInt(v bool) int {
 	return 0
 }
 
+// hintPlacementValue translates a configured placement into the constant the
+// Objective-C overlay switches on. The strings are config's declaration of the
+// vocabulary; the constants come from the header that
+// internal/architecture/hint_placement_vocabulary_test.go pins the Objective-C
+// enum to.
+//
+// An unset or unrecognized placement draws at the default: validation refuses
+// anything else long before a draw, so that branch belongs to the zero value
+// rather than being a second opinion about what is valid.
 func hintPlacementValue(placement string) int {
 	switch placement {
-	case "top":
+	case config.HintPlacementTop:
 		return int(C.HINT_PLACEMENT_TOP)
-	case "center":
+	case config.HintPlacementCenter:
 		return int(C.HINT_PLACEMENT_CENTER)
-	case "bottom", "":
+	case config.HintPlacementBottom:
 		return int(C.HINT_PLACEMENT_BOTTOM)
 	default:
 		return int(C.HINT_PLACEMENT_BOTTOM)

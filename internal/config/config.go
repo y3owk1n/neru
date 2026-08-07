@@ -73,9 +73,6 @@ const (
 	CmdMoveMouseRight = "action move_mouse_relative --dx=10 --dy=0"
 )
 
-// Placement strings for UI configuration.
-const placementBottom = "bottom"
-
 // DisabledSentinel is a special action value that removes a default hotkey binding.
 // Use it in [hotkeys] or [<mode>.hotkeys] to disable a specific default:
 //
