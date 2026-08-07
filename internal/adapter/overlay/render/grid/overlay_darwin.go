@@ -24,15 +24,13 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 const (
 	// DefaultGridLinesCount is the default number of grid lines.
 	DefaultGridLinesCount = 4
-
-	// RoundingFactor is the factor for rounding.
-	RoundingFactor = 0.5
 
 	// NSWindowSharingNone represents NSWindowSharingNone (0) - hidden from screen sharing.
 	NSWindowSharingNone = 0
@@ -439,13 +437,9 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	// draw call so that freeLabelCache cannot free labels mid-draw.
 	o.drawMu.RLock()
 
-	// Subgrid is always 3x3
-	const rows = 3
-	const cols = 3
-
 	// The keys this subgrid is drawn with, which are the keys the mode layer
 	// selects on (internal/domain/grid/subgrid_keys.go).
-	chars := domainGrid.SubgridKeys(keys, rows*cols)
+	chars := domainGrid.SubgridKeys(keys, domainGrid.MaxKeyIndex)
 	count := len(chars)
 
 	tmpCells := subgridCellSlicePool.Get()
@@ -467,42 +461,24 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	}
 	labels := *labelsPtr
 
-	cellBounds := cell.Bounds()
-	// Build breakpoints that evenly distribute remainders to fully cover the cell
-	xBreaks := make([]int, cols+1)
-	yBreaks := make([]int, rows+1)
-	xBreaks[0] = cellBounds.Min.X
-	yBreaks[0] = cellBounds.Min.Y
-	for breakIndex := 1; breakIndex <= cols; breakIndex++ {
-		// round(i * width / cols)
-		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(cols)
-		xBreaks[breakIndex] = cellBounds.Min.X + int(val+RoundingFactor)
-	}
-	for breakIndex := 1; breakIndex <= rows; breakIndex++ {
-		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(rows)
-		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+RoundingFactor)
-	}
+	// The rectangles those keys are drawn on, which are the rectangles the mode
+	// layer moves the cursor into (internal/domain/grid/subgrid_cells.go).
+	subCells := domainGrid.SubgridCells(cell.Bounds(), domain.SubgridRows, domain.SubgridCols)
 
-	// Ensure last break exactly matches bounds max to avoid 1px drift
-	xBreaks[cols] = cellBounds.Max.X
-	yBreaks[rows] = cellBounds.Max.Y
-
+	// One cell per key, and fewer keys than cells is a configuration that
+	// leaves the last cells unlabelled: the key set is capped at the same count
+	// the division produces, which is what MaxKeyIndex is.
 	for cellIndex := range cells {
-		rowIndex := cellIndex / cols
-		colIndex := cellIndex % cols
 		label := string(chars[cellIndex])
 		labels[cellIndex] = o.getOrCacheLabel(label)
-		left := xBreaks[colIndex]
-		right := xBreaks[colIndex+1]
-		top := yBreaks[rowIndex]
-		bottom := yBreaks[rowIndex+1]
+		subCell := subCells[cellIndex]
 
 		var gridCell C.GridCell
 		gridCell.label = labels[cellIndex]
-		gridCell.bounds.origin.x = C.double(left)
-		gridCell.bounds.origin.y = C.double(top)
-		gridCell.bounds.size.width = C.double(right - left)
-		gridCell.bounds.size.height = C.double(bottom - top)
+		gridCell.bounds.origin.x = C.double(subCell.Min.X)
+		gridCell.bounds.origin.y = C.double(subCell.Min.Y)
+		gridCell.bounds.size.width = C.double(subCell.Dx())
+		gridCell.bounds.size.height = C.double(subCell.Dy())
 		gridCell.isMatched = C.int(0)
 		gridCell.isSubgrid = C.int(1)           // Mark as subgrid cell
 		gridCell.matchedPrefixLength = C.int(0) // Subgrid cells don't have matched prefixes

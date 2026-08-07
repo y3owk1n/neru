@@ -214,12 +214,6 @@ const (
 	// MinGridRows is the minimum grid rows.
 	MinGridRows = 2
 
-	// MaxKeyIndex is the maximum key index.
-	MaxKeyIndex = 9
-
-	// RoundingFactor is the rounding factor.
-	RoundingFactor = 0.5
-
 	// CenterDivisor is the center calculation divisor.
 	CenterDivisor = 2
 

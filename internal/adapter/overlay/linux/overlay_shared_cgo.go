@@ -13,6 +13,7 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -874,51 +875,26 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 
 	// The keys the subgrid is drawn with, which are the keys the mode layer
 	// selects on (internal/domain/grid/subgrid_keys.go).
-	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, subgridCols*subgridRows)
-	maxKeys := len(keyRunes)
-	xBreaks := make([]int, subgridCols+1)
-	yBreaks := make([]int, subgridRows+1)
-	xBreaks[0] = bounds.Min.X
-	yBreaks[0] = bounds.Min.Y
+	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, domainGrid.MaxKeyIndex)
 
-	for i := 1; i <= subgridCols; i++ {
-		xBreaks[i] = bounds.Min.X + int(
-			float64(i)*float64(bounds.Dx())/float64(subgridCols)+
-				subgridHalfPixel,
+	// The rectangles they are drawn on, which are the rectangles the mode layer
+	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
+	cells := domainGrid.SubgridCells(bounds, domain.SubgridRows, domain.SubgridCols)
+
+	// One cell per key, and fewer keys than cells is a configuration that
+	// leaves the last cells unlabelled: the key set is capped at the same count
+	// the division produces, which is what MaxKeyIndex is.
+	for index, key := range keyRunes {
+		cell := cells[index]
+
+		o.drawRect(cell, style.BackgroundColorARGB(),
+			style.LineColorARGB(), style.LineWidth())
+		o.drawTextCentered(
+			string(key), cell,
+			style.FontFamily(),
+			style.LabelFontSize()*subgridFontScale,
+			style.TextColorARGB(),
 		)
-	}
-
-	for i := 1; i <= subgridRows; i++ {
-		yBreaks[i] = bounds.Min.Y + int(
-			float64(i)*float64(bounds.Dy())/float64(subgridRows)+
-				subgridHalfPixel,
-		)
-	}
-
-	xBreaks[subgridCols] = bounds.Max.X
-	yBreaks[subgridRows] = bounds.Max.Y
-
-	index := 0
-	for row := range subgridRows {
-		for col := range subgridCols {
-			if index >= maxKeys {
-				break
-			}
-
-			cell := image.Rect(
-				xBreaks[col], yBreaks[row],
-				xBreaks[col+1], yBreaks[row+1],
-			)
-			o.drawRect(cell, style.BackgroundColorARGB(),
-				style.LineColorARGB(), style.LineWidth())
-			o.drawTextCentered(
-				string(keyRunes[index]), cell,
-				style.FontFamily(),
-				style.LabelFontSize()*subgridFontScale,
-				style.TextColorARGB(),
-			)
-			index++
-		}
 	}
 }
 

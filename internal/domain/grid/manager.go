@@ -324,47 +324,25 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	if keyIndex < 0 {
 		return image.Point{}, false
 	}
-	// Validate key index for 3x3 subgrid
-	if keyIndex >= MaxKeyIndex {
+	// The cells this subgrid is divided into, which are the cells every overlay
+	// backend draws (internal/domain/grid/subgrid_cells.go), so the cursor
+	// lands in the cell the key was written on.
+	cells := SubgridCells(m.selectedCell.bounds, m.subRows, m.subCols)
+
+	// A key past the last cell names nothing. The bound is this manager's own
+	// cell count rather than the shipped subgrid's, because the manager is
+	// built with the row and column count it was handed: a fixed bound would
+	// refuse keys a larger subgrid had drawn.
+	if keyIndex >= len(cells) {
 		return image.Point{}, false
 	}
 
-	// Convert linear index to 2D subgrid coordinates
-	rowIndex := keyIndex / m.subCols
-	colIndex := keyIndex % m.subCols
-	cellBounds := m.selectedCell.bounds
-
-	// Compute subgrid breakpoints for even division of the cell
-	xBreaks := make([]int, m.subCols+1)
-	yBreaks := make([]int, m.subRows+1)
-	xBreaks[0] = cellBounds.Min.X
-	yBreaks[0] = cellBounds.Min.Y
-
-	for breakIndex := 1; breakIndex <= m.subCols; breakIndex++ {
-		val := float64(breakIndex) * float64(cellBounds.Dx()) / float64(m.subCols)
-		xBreaks[breakIndex] = cellBounds.Min.X + int(val+RoundingFactor)
-	}
-
-	for breakIndex := 1; breakIndex <= m.subRows; breakIndex++ {
-		val := float64(breakIndex) * float64(cellBounds.Dy()) / float64(m.subRows)
-		yBreaks[breakIndex] = cellBounds.Min.Y + int(val+RoundingFactor)
-	}
-
-	// Ensure exact coverage of cell bounds
-	xBreaks[m.subCols] = cellBounds.Max.X
-	yBreaks[m.subRows] = cellBounds.Max.Y
-
 	// Calculate center point of the selected subgrid cell, rounded to nearest pixel
-	left := xBreaks[colIndex]
-	right := xBreaks[colIndex+1]
-	top := yBreaks[rowIndex]
-	bottom := yBreaks[rowIndex+1]
-	dx := right - left
-	dy := bottom - top
-	xCoordinate := left + gridRound(dx)
-	yCoordinate := top + gridRound(dy)
+	selected := cells[keyIndex]
+	xCoordinate := selected.Min.X + gridRound(selected.Dx())
+	yCoordinate := selected.Min.Y + gridRound(selected.Dy())
 	m.Logger.Debug("Grid manager: Subgrid selection complete",
-		zap.Int("row", rowIndex), zap.Int("col", colIndex),
+		zap.Int("row", keyIndex/m.subCols), zap.Int("col", keyIndex%m.subCols),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()
 	return image.Point{X: xCoordinate, Y: yCoordinate}, true

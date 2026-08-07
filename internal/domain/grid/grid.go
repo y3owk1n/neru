@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 const (
@@ -58,11 +60,13 @@ const (
 	// Real display bounds are well under this value (typical max is ~30000).
 	MaxDisplayDimension = 50000
 
-	// MaxKeyIndex is the maximum key index.
-	MaxKeyIndex = 9
-
-	// RoundingFactor is the factor for rounding.
-	RoundingFactor = 0.5
+	// MaxKeyIndex is how many cells the subgrid every overlay draws has, and so
+	// the index no key of it reaches. It is what those overlays cap their key
+	// set at (SubgridKeys), which is why it is derived from the shipped
+	// dimensions rather than written: the cells a backend draws and the keys it
+	// draws on them have to be counted the same way, and a 9 written by hand is
+	// a second answer waiting for the day the subgrid stops being 3x3.
+	MaxKeyIndex = domain.SubgridRows * domain.SubgridCols
 
 	// CenterDivisor is the divisor for center calculation.
 	CenterDivisor = 2
