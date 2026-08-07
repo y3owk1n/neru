@@ -236,7 +236,14 @@ func TestLoadValidatesTheLayeredConfiguration(t *testing.T) {
 // it back on has to bring the binding back, which only works because the
 // written configuration still has it.
 func TestApplyFieldChangeDropsLaunchersForADisabledMode(t *testing.T) {
-	result := loadWithOverride(t, gridConfigWithCharacters(testGridChars), "")
+	// The binding comes from the file rather than from the defaults, because
+	// the Linux defaults ship none — they would collide with terminal
+	// shortcuts — and this is a question about any launcher, not about which
+	// ones a platform starts with.
+	contents := gridConfigWithCharacters(testGridChars) +
+		"\n[hotkeys]\n\"Primary+Shift+G\" = \"grid\"\n"
+
+	result := loadWithOverride(t, contents, "")
 
 	if !hasLauncherFor(result.Config, config.ModeNameGrid) {
 		t.Fatal("the loaded configuration has no grid launcher binding to drop")
