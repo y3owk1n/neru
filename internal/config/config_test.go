@@ -504,43 +504,6 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 	}
 }
 
-func TestConfig_HotkeysForModeAndApp(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys[testKeyReturn] = config.StringOrStringArray{
-		testActionLeftClick, config.ModeNameHints,
-	}
-	cfg.Hints.Hotkeys["g"] = config.StringOrStringArray{testActionLeftClick}
-	cfg.Hints.AppConfigs = []config.AppConfig{
-		{
-			BundleID: testBundleIDSafari,
-			Hotkeys: map[string]config.StringOrStringArray{
-				testKeyReturn: {testActionLeftClick, config.ModeNameHints},
-				"g":           {config.DisabledSentinel},
-				"x":           {"action right_click"},
-			},
-		},
-	}
-
-	got := cfg.HotkeysForModeAndApp(config.ModeNameHints, testBundleIDSafari)
-
-	if actions := got[testKeyReturn]; len(actions) != 2 || actions[1] != config.ModeNameHints {
-		t.Fatalf("HotkeysForModeAndApp() did not apply app override for Return: %v", actions)
-	}
-
-	if _, exists := got["g"]; exists {
-		t.Fatal("HotkeysForModeAndApp() did not remove disabled inherited binding")
-	}
-
-	if actions := got["x"]; len(actions) != 1 || actions[0] != "action right_click" {
-		t.Fatalf("HotkeysForModeAndApp() did not include app-specific binding: %v", actions)
-	}
-
-	base := cfg.HotkeysForMode(config.ModeNameHints)
-	if actions := base[testKeyReturn]; len(actions) != 2 || actions[1] != config.ModeNameHints {
-		t.Fatalf("HotkeysForMode() unexpectedly mutated base bindings: %v", actions)
-	}
-}
-
 func TestFindConfigFile(t *testing.T) {
 	// Test that FindConfigFile doesn't panic and returns a string
 	// (We can't easily test the actual file discovery without complex mocking)

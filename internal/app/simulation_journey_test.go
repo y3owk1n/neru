@@ -2053,24 +2053,24 @@ func TestSimulation_ThemeChangeRedrawsMonitorSelect(t *testing.T) {
 }
 
 // TestSimulation_KeystrokeAsksWhichAppIsFocused pins what one keystroke inside
-// a mode costs today in questions to the operating system: exactly one when the
-// active mode declares per-app hotkey overrides, and none at all when it does
-// not.
+// a mode costs in questions to the operating system: none, whether or not the
+// active mode declares per-app hotkey overrides.
 //
-// The first number is a baseline, not an invariant — ADR 0005 is the decision
-// to drive it to zero by having the focused app published instead of asked for,
-// and the change that earns it is the change that edits this number.
+// It used to be one question per keystroke where overrides were declared, and
+// ADR 0005 is the decision that drove it to zero: the focused app is published
+// by the application watcher and the keymap is settled when it changes, so a
+// keystroke consults bindings that are already resolved.
 //
-// Asking which application is focused is the only thing on the keystroke path
-// that leaves the process — on macOS it is a message to another application,
+// Asking which application is focused was the only thing on the keystroke path
+// that left the process — on macOS it is a message to another application,
 // which can be busy or wedged — and the handler holds the lock that serializes
 // key handling, mode exit included, while it waits. The count is therefore
 // what a user can be stalled by, which is why it is asserted here rather than
 // described somewhere.
 //
-// The second direction is the cheap path a mode with no overrides already
-// takes, which nothing tested before: a refactor that dropped that gate would
-// make every keystroke in every mode pay, invisibly.
+// Both directions are kept because they fail differently: the first is the
+// regression this fixed, and the second is the mode that never paid, which a
+// settle that asked unconditionally would newly charge.
 //
 // Grid mode drives both directions because it needs no accessibility tree of
 // its own: nothing else in the keystroke being measured has any reason to ask
@@ -2096,7 +2096,7 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 
 				return cfg
 			},
-			want: 1,
+			want: 0,
 		},
 		{
 			name: "mode declares none",
@@ -2113,8 +2113,13 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 			sim.waitMode(domain.ModeGrid)
 			sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
 
-			// Entering the mode is allowed to ask; this measures the keystroke
-			// after it, so the count starts from a mode already on screen.
+			// Entering the mode is allowed to ask — that is the one-shot the
+			// keymap settles on. The grid is drawn before the mode starts
+			// taking keys, so this waits for the event tap as well: the count
+			// has to start from an activation that has finished, not one still
+			// in flight.
+			sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
 			queriesBefore := sim.ax.focusedAppQueryCount()
 
 			sim.press(firstGridLabelKey(sim))

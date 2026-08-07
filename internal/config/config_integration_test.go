@@ -182,12 +182,14 @@ bundle_id = "com.apple.Safari"
 			t.Fatalf("Config validation failed: %v", loadResult.ValidationError)
 		}
 
-		got := loadResult.Config.HotkeysForModeAndApp(hintsCommand, "com.apple.Safari")
-		if actions := got["Return"]; len(actions) != 2 || actions[1] != hintsCommand {
-			t.Fatalf("expected app-specific Return override, got %v", actions)
+		got := loadResult.Config.ResolveKeymap(hintsCommand, "com.apple.Safari")
+
+		binding, bound := got.Lookup(config.NormalizeKeyForComparison("Return"))
+		if !bound || len(binding.Steps) != 2 || binding.Steps[1] != hintsCommand {
+			t.Fatalf("expected app-specific Return override, got %v", binding.Steps)
 		}
 
-		if _, exists := got["Shift+L"]; exists {
+		if _, exists := got.Lookup(config.NormalizeKeyForComparison("Shift+L")); exists {
 			t.Fatal("expected app-specific __disabled__ to remove inherited Shift+L binding")
 		}
 	})
@@ -238,12 +240,14 @@ scroll_step_full = 1000
 			t.Errorf("expected app scroll_step_full override 1000, got %v", appCfg.ScrollStepFull)
 		}
 
-		got := cfg.HotkeysForModeAndApp("scroll", "com.apple.Safari")
-		if actions := got["Return"]; len(actions) != 1 || actions[0] != "action scroll_down" {
-			t.Fatalf("expected app-specific Return override, got %v", actions)
+		got := cfg.ResolveKeymap("scroll", "com.apple.Safari")
+
+		binding, bound := got.Lookup(config.NormalizeKeyForComparison("Return"))
+		if !bound || len(binding.Steps) != 1 || binding.Steps[0] != "action scroll_down" {
+			t.Fatalf("expected app-specific Return override, got %v", binding.Steps)
 		}
 
-		if _, exists := got["k"]; exists {
+		if _, exists := got.Lookup(config.NormalizeKeyForComparison("k")); exists {
 			t.Fatal("expected app-specific __disabled__ to remove inherited k binding")
 		}
 	})

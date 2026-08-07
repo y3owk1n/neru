@@ -14,11 +14,12 @@ package app_test
 // outside the timer: it is dispatched on a goroutine (backspace is a mode
 // hotkey), so timing it would measure a scheduler rather than the key path.
 //
-// The hints benchmark measures the other thing a keystroke can cost: with
-// per-app hotkey overrides declared, deciding what a key is bound to asks the
-// operating system which application is focused, and on macOS that is a
-// message to another process made under the lock that serializes key handling.
-// None of these gate continuous integration — a timing threshold on a
+// The hints benchmark measures the other thing a keystroke can cost: deciding
+// what a key is bound to while the mode declares per-app hotkey overrides. That
+// used to ask the operating system which application is focused — on macOS a
+// message to another process, made under the lock that serializes key handling
+// — and since ADR 0005 it consults a keymap settled when the focused app
+// changed. None of these gate continuous integration — a timing threshold on a
 // three-operating-system matrix is a source of flakes, and the durable
 // guarantee is the call count the journeys assert, not the nanoseconds.
 
@@ -130,16 +131,17 @@ func BenchmarkRecursiveGridKeystroke(b *testing.B) {
 }
 
 // BenchmarkHintsKeystroke measures one keystroke in hints mode — the mode a
-// user spends most of their keystrokes in — configured the way that makes a
-// keystroke expensive: the mode declares per-app hotkey overrides, so before
-// the handler can decide what the key is bound to it asks the operating system
-// which application is focused, holding the lock that serializes key handling
-// while it waits. Leaving the overrides out would quietly measure the cheap
-// path and report a better number for the same code.
+// user spends most of their keystrokes in — configured the way that used to
+// make a keystroke expensive: the mode declares per-app hotkey overrides, which
+// before ADR 0005 meant asking the operating system which application is
+// focused before the handler could decide what the key was bound to, holding
+// the lock that serializes key handling while it waited. Leaving the overrides
+// out would measure a mode that never took that path, and would keep reporting
+// the same number if the settled keymap were quietly given up.
 //
 // The key it presses is a prefix of no label, and that is the point rather than
-// a shortcut: it pays for the whole key path — the focused-app query, the
-// keymap resolution, the hint filter and the redraw — and leaves the drawn set
+// a shortcut: it pays for the whole key path — the keymap lookup, the hint
+// filter and the redraw — and leaves the drawn set
 // exactly as it found it, so every iteration measures the same keystroke and
 // none of them needs untimed work in between. A narrowing keystroke could not:
 // changing how many hints are drawn is a structural change, which the hint
@@ -162,6 +164,11 @@ func BenchmarkHintsKeystroke(b *testing.B) {
 		b.Fatalf("hints drawn for %d of %d elements; the fixture is not the one being measured",
 			labeled, benchHintElements)
 	}
+
+	// The activation is what settles the keymap, and it may ask the platform
+	// which app is focused while it does. Waiting for the mode to be taking
+	// keys keeps that out of the measured window.
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
 
 	drawsBefore := sim.overlay.hintDrawCount()
 	movesBefore := sim.cursor.moveCount()
@@ -195,13 +202,12 @@ func BenchmarkHintsKeystroke(b *testing.B) {
 			"the surface", drawn, b.N)
 	}
 
-	// The expensive path, stated in the currency it is expensive in: one
-	// question to the operating system per keystroke. This is the number ADR
-	// 0005 exists to drive to zero, so the change that earns that edits it here
-	// as well as in the journey that pins it.
-	if asked := sim.ax.focusedAppQueryCount() - queriesBefore; asked != b.N {
-		b.Fatalf("%d keystrokes asked which app is focused %d times, want %d; the benchmark "+
-			"did not measure the path it claims to", b.N, asked, b.N)
+	// What the measured keystroke no longer costs: a question to the operating
+	// system. It was one per keystroke before ADR 0005, and the nanoseconds
+	// above are only comparable across that change because this is zero.
+	if asked := sim.ax.focusedAppQueryCount() - queriesBefore; asked != 0 {
+		b.Fatalf("%d keystrokes asked which app is focused %d times, want 0; the keymap was "+
+			"resolved on the keystroke rather than settled", b.N, asked)
 	}
 }
 

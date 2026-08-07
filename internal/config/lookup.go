@@ -5,17 +5,14 @@ import (
 	"strings"
 )
 
-// HotkeysForMode returns the hotkeys map for the given mode name.
-// These are per-mode hotkeys that are only active while that mode is active,
-// using the same action syntax as [hotkeys] (e.g. "exec ...", "action ...", "hints", etc.).
-func (c *Config) HotkeysForMode(modeName string) map[string]StringOrStringArray {
-	return c.HotkeysForModeAndApp(modeName, "")
-}
-
 // HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
 // and focused app bundle ID. For modes without app-specific overrides, it returns the
 // base mode hotkeys unchanged. Hints, Grid, RecursiveGrid, and Scroll modes support
 // per-app hotkey overrides through [[<mode>.app_configs]].
+//
+// It is the merge itself. Everything that dispatches a key reads a settled
+// Keymap instead (ResolveKeymap, keymap.go); what is left here is validation,
+// which checks a table rather than matching against one.
 func (c *Config) HotkeysForModeAndApp(
 	modeName, bundleID string,
 ) map[string]StringOrStringArray {

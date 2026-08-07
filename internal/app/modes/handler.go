@@ -132,6 +132,19 @@ type handlerState struct {
 	// Screen bounds for coordinate conversion (grid and hints)
 	screenBounds image.Rectangle
 
+	// focusedApp is the cell the application watcher publishes the focused app
+	// into, and the keymap fields below are what the handler settles from it.
+	// Both belong to keymap.go, which is where the rules about them are
+	// written; the cell is lock-free on purpose and must stay that way.
+	focusedApp *focusedAppCell
+	// keymap is the bindings in force, keymapSettledFor is what they were
+	// settled for, and keymapSettled says one has been settled at all — the
+	// zero keymap is a legitimate answer (a mode that binds nothing), so it
+	// cannot double as "not settled yet".
+	keymap           configpkg.Keymap
+	keymapSettledFor keymapInputs
+	keymapSettled    bool
+
 	// eventTap is nil until the app's phase 8 calls SetEventTap; every use
 	// goes through the nil-guarded helpers in eventtap.go.
 	eventTap              ports.EventTapPort
@@ -280,6 +293,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
 		system:                 deps.System,
+		focusedApp:             &focusedAppCell{},
 		cycleHintIndex:         -1,
 	}
 
@@ -410,6 +424,11 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
+	// Replacing the configuration replaces what is bound, and settling it here
+	// rather than on the next keystroke is what keeps the keystroke path unable
+	// to ask the platform anything (ADR 0005).
+	h.settledKeymap()
+
 	h.syncModifierPassthrough(h.appState.CurrentMode())
 }
 
@@ -424,21 +443,6 @@ func (h *handlerState) setScreenBounds(bounds image.Rectangle) {
 	if h.overlayPort != nil {
 		h.overlayPort.SetActiveScreen(bounds)
 	}
-}
-
-func (h *handlerState) focusedBundleID() string {
-	if h.actionService == nil {
-		return ""
-	}
-
-	bundleID, err := h.actionService.FocusedAppBundleID(h.ctx)
-	if err != nil {
-		h.logger.Debug("Failed to get focused app bundle ID for mode hotkeys", zap.Error(err))
-
-		return ""
-	}
-
-	return bundleID
 }
 
 // stopHeldRepeat cancels any running held-key repeat goroutine.

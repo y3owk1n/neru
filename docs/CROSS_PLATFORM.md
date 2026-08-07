@@ -126,6 +126,7 @@ or no-op) · ❌ no code path
 | **Display hotplug events**    | ✅ screen-params notif.  | ✅ RandR event fd      | ✅ `wl_output` events        | ✅ `wl_output` events   | 🟡                           |
 | **Focused app identity**      | ✅ NSWorkspace + AX      | ✅ `_NET_ACTIVE_WINDOW` / `WM_CLASS` | ⚠️ app_id only (see below) | ⚠️ app_id only     | ✅ `GetForegroundWindow`     |
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | 🟡                           |
+| **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ⚠️ asked when the keymap settles ¹ |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ sync-surface trick        | ✅ sync-surface trick   | ✅ `GetCursorPos`            |
 | **Cursor move**               | ✅ `CGWarpMouseCursorPosition` | ✅ XTest         | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
@@ -138,7 +139,7 @@ or no-op) · ❌ no code path
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
-| **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ¹  |
+| **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
 | **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
 | **Native alerts**             | ✅ NSAlert               | 🟡                     | 🟡                           | 🟡                      | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | 🟡                     | 🟡                           | 🟡                      | 🟡                           |
@@ -149,7 +150,17 @@ or no-op) · ❌ no code path
 | **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 
-¹ macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
+¹ Per-app hotkey overrides need to know which application is focused. Where the
+app watcher fires, it publishes that identity to the mode handler and the keymap
+is re-settled from it, so switching applications mid-mode changes what the next
+key does; the platform is asked at most until the watcher first fires. Windows
+has no watcher, so the keymap asks each time it settles — which means overrides
+there settle **when the mode opens** rather than the instant you switch apps.
+The same applies to a Linux session whose compositor exposes no focused-app
+source (GNOME/Mutter). No platform is asked on a keystroke; ADR 0005 has the
+reasoning.
+
+² macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
 Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
 Cambria / Consolas and passes every other name through verbatim; an unavailable
 family falls back to whatever GDI substitutes.

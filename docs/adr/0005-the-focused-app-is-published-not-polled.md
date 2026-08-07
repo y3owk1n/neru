@@ -1,6 +1,6 @@
 # The focused app is published, not polled
 
-**Status**: proposed
+**Status**: accepted
 
 Resolving a per-mode hotkey asks the operating system which application is
 focused, on the keystroke that needs it, with `h.mu` held

@@ -520,6 +520,13 @@ Inside a mode, the dispatch order is:
 2. `<mode>.hotkeys` + per-app overrides
 3. Mode built-in keys (hint/grid character input)
 
+The merged result is resolved once — when the mode opens, when the focused app
+changes, or when the configuration is replaced — and every keystroke consults
+it. Where the focused app is learned by being told, switching apps mid-mode
+puts the new app's overrides in force on your next key; on Windows they settle
+when the mode opens instead. See
+[Keymap learns the focused app](CROSS_PLATFORM.md#capability-matrix).
+
 ### Action Reference
 
 All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#actions) for full flag documentation.

@@ -13,6 +13,12 @@ func newHandlerWithState(initial handlerState) *Handler {
 		initial.logger = zap.NewNop()
 	}
 
+	// NewHandler gives every handler a cell for the focused app, so a test one
+	// records what is published to it rather than dropping it.
+	if initial.focusedApp == nil {
+		initial.focusedApp = &focusedAppCell{}
+	}
+
 	handler := new(Handler)
 	initial.outer = handler
 	handler.handlerState = initial
