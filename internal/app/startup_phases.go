@@ -18,7 +18,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/modes"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/state"
@@ -91,7 +90,7 @@ func initializeServicesAndAdapters(app *App) error {
 	logger := app.logger
 
 	// Initialize config service
-	cfgService := loader.NewService(cfg, app.ConfigPath, logger, app.systemPort)
+	cfgService := app.newConfigService(logger)
 	configurePlatformRuntimeConfigProviders(cfgService)
 
 	// Initialize adapters

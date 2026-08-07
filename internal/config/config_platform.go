@@ -4,8 +4,7 @@ package config
 func DefaultConfig() *Config {
 	cfg := newDefaultConfig()
 	applyPlatformDefaults(cfg)
-	cfg.ResolveThemeDefaults()
-	cfg.ResolveGridLabels()
+	cfg.ResolveDerived()
 
 	return cfg
 }

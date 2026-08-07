@@ -12,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 func (h *InfoHandler) handleConfigSet(ctx context.Context, cmd ipc.Command) ipc.Response {
@@ -64,36 +65,19 @@ func (h *InfoHandler) handleConfigSetNoReload(
 	_ context.Context,
 	key, value string,
 ) ipc.Response {
-	cfg := h.configSnapshot()
-	if cfg == nil {
+	written := h.configService.Written()
+	if written == nil {
 		return h.configNotAvailableResponse()
 	}
 
-	newCfg, err := loader.DeepCopyConfig(cfg)
+	newCfg, newWritten, err := loader.ApplyFieldChange(written, key, value)
 	if err != nil {
-		return ipc.Response{
-			Success: false,
-			Message: "failed to copy config: " + err.Error(),
-			Code:    ipc.CodeActionFailed,
-		}
+		return fieldChangeFailedResponse(err)
 	}
-
-	setErr := loader.SetField(newCfg, key, value)
-	if setErr != nil {
-		return ipc.Response{
-			Success: false,
-			Message: setErr.Error(),
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	// A field change can land on a derived value, and what arrives is the
-	// string the user typed rather than the form the daemon holds it in.
-	newCfg.ResolveGridLabels()
 
 	// Skip Validate() here so interdependent fields (e.g. grid_cols + keys)
 	// can be updated incrementally before a final "neru config reload".
-	h.configService.Replace(newCfg)
+	h.configService.Replace(newCfg, newWritten)
 	h.configMu.Lock()
 	h.config = newCfg
 	h.configMu.Unlock()
@@ -167,36 +151,27 @@ func (h *InfoHandler) handleConfigSetInMemory(
 	_ context.Context,
 	key, value string,
 ) ipc.Response {
-	cfg := h.configSnapshot()
-	if cfg == nil {
+	written := h.configService.Written()
+	if written == nil {
 		return h.configNotAvailableResponse()
 	}
 
-	newCfg, err := loader.DeepCopyConfig(cfg)
+	newCfg, newWritten, err := loader.ApplyFieldChange(written, key, value)
 	if err != nil {
-		h.logger.Error("Failed to deep copy config", zap.Error(err))
-
-		return ipc.Response{
-			Success: false,
-			Message: "failed to copy config: " + err.Error(),
-			Code:    ipc.CodeActionFailed,
+		// Only the copy failure is logged, and without the error a bad key or
+		// value produced: those name the value the user typed, and the log is
+		// not a place config content goes. The response carries it to whoever
+		// asked, which is where it belongs.
+		if derrors.IsCode(err, derrors.CodeSerializationFailed) {
+			h.logger.Error("Failed to copy config for a field change",
+				zap.String("key", key),
+				zap.Error(err))
 		}
+
+		return fieldChangeFailedResponse(err)
 	}
 
-	setErr := loader.SetField(newCfg, key, value)
-	if setErr != nil {
-		return ipc.Response{
-			Success: false,
-			Message: setErr.Error(),
-			Code:    ipc.CodeInvalidInput,
-		}
-	}
-
-	// A field change can land on a derived value, and what arrives is the
-	// string the user typed rather than the form the daemon holds it in.
-	newCfg.ResolveGridLabels()
-
-	updateErr := h.configService.Update(newCfg)
+	updateErr := h.configService.Update(newCfg, newWritten)
 	if updateErr != nil {
 		h.logger.Error("Failed to update config service", zap.Error(updateErr))
 
@@ -215,6 +190,23 @@ func (h *InfoHandler) handleConfigSetInMemory(
 		Success: true,
 		Message: fmt.Sprintf("config %s set to %q", key, value),
 		Code:    ipc.CodeOK,
+	}
+}
+
+// fieldChangeFailedResponse reports why a field change did not apply. The key
+// or the value being wrong is the caller's to fix and says so; failing to copy
+// the configuration to change is not, and must not read as if the user typed
+// something bad.
+func fieldChangeFailedResponse(err error) ipc.Response {
+	code := ipc.CodeInvalidInput
+	if derrors.IsCode(err, derrors.CodeSerializationFailed) {
+		code = ipc.CodeActionFailed
+	}
+
+	return ipc.Response{
+		Success: false,
+		Message: err.Error(),
+		Code:    code,
 	}
 }
 

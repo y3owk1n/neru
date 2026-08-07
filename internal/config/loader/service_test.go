@@ -100,7 +100,7 @@ func TestService_Update(t *testing.T) {
 	newConfig := config.DefaultConfig()
 	newConfig.Hints.HintCharacters = "xyz"
 
-	updateErr := service.Update(newConfig)
+	updateErr := service.Update(newConfig, newConfig)
 	if updateErr != nil {
 		t.Fatalf("Update() failed: %v", updateErr)
 	}
@@ -114,7 +114,7 @@ func TestService_Update(t *testing.T) {
 	invalidConfig.Hints.Enabled = true
 	invalidConfig.Hints.HintCharacters = "a" // Invalid
 
-	updateErr = service.Update(invalidConfig)
+	updateErr = service.Update(invalidConfig, invalidConfig)
 	if updateErr == nil {
 		t.Error("Update() should fail with invalid config")
 	}
@@ -144,7 +144,7 @@ func TestService_Watch(t *testing.T) {
 	// Update config
 	newConfig := config.DefaultConfig()
 	newConfig.Hints.HintCharacters = "abc"
-	_ = service.Update(newConfig)
+	_ = service.Update(newConfig, newConfig)
 
 	// Should receive update
 	select {
@@ -177,7 +177,7 @@ func TestService_Replace(t *testing.T) {
 
 	modified := config.DefaultConfig()
 	modified.Hints.HintCharacters = "replaced"
-	service.Replace(modified)
+	service.Replace(modified, modified)
 
 	// Config should be updated.
 	if got := service.Get().Hints.HintCharacters; got != "replaced" {
@@ -222,7 +222,7 @@ func TestService_Concurrency(t *testing.T) {
 				cfg.Hints.HintCharacters = "odd"
 			}
 
-			_ = service.Update(cfg)
+			_ = service.Update(cfg, cfg)
 		}(idx)
 	}
 
@@ -239,7 +239,7 @@ func TestService_Concurrency(t *testing.T) {
 	final := config.DefaultConfig()
 	final.Hints.HintCharacters = concurrencyProbeChars
 
-	err := service.Update(final)
+	err := service.Update(final, final)
 	if err != nil {
 		t.Fatalf("Update() after concurrent access error = %v, want nil", err)
 	}

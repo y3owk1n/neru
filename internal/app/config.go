@@ -11,42 +11,34 @@ import (
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 )
 
+// newConfigService builds the config service from both halves of the load the
+// app was constructed with: the configuration to run on, and the one it was
+// derived from. Passing only the first leaves the service deriving from its own
+// output, which cannot re-infer — so the two travel together from here on.
+func (a *App) newConfigService(logger *zap.Logger) *loader.Service {
+	return loader.NewService(a.config, a.ConfigPath, logger, a.systemPort).
+		WithWritten(a.writtenConfig)
+}
+
 // SetConfigField applies a single runtime config field change with full
 // app-level reconfiguration (component updates, hotkey re-registration, etc.).
 // This mirrors the reload path but operates on the in-memory config rather
 // than re-reading from disk.
 //
-// Derived values are the limit of that mirroring. Normalizing what was typed
-// comes along; re-deriving does not, because a derived value already written
-// over the raw one cannot say whether the user wrote it, and only a read of
-// the whole file can. So `neru config set grid.characters` relabels the grid
-// on the next reload rather than at once, the same way `neru config set
-// theme.*` recolours only then. The change is persisted before either, so a
-// restart is correct; what is stale is this process until it reloads.
+// Derived values come along, because the change is applied to the
+// configuration the user wrote and the derivation is run again over the result
+// — so `neru config set grid.characters` relabels the grid at once, and
+// `neru config set theme.*` recolours at once. Both halves are read from the
+// service, which is the source of truth for prior --no-reload changes.
 func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	a.prepareForConfigUpdate()
 
-	// Deep copy the current config so we only mutate the new copy.
-	// Read from the service (source of truth) so prior --no-reload
-	// changes are included.
-	newCfg, err := loader.DeepCopyConfig(a.configService.Get())
+	newCfg, newWritten, err := loader.ApplyFieldChange(a.configService.Written(), key, value)
 	if err != nil {
 		a.restoreHotkeysAfterFailedReload()
 
-		return derrors.Wrap(err, derrors.CodeSerializationFailed, "deep copy config")
+		return err
 	}
-
-	// Apply the field change to the copy.
-	setErr := loader.SetField(newCfg, key, value)
-	if setErr != nil {
-		a.restoreHotkeysAfterFailedReload()
-
-		return setErr
-	}
-
-	// A field change can land on a derived value, and what arrives is the
-	// string the user typed rather than the form the daemon holds it in.
-	newCfg.ResolveGridLabels()
 
 	// Validate the new config.
 	valErr := newCfg.Validate()
@@ -57,7 +49,7 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	}
 
 	// Update the config service (notifies watchers with the new config).
-	updateErr := a.configService.Update(newCfg)
+	updateErr := a.configService.Update(newCfg, newWritten)
 	if updateErr != nil {
 		a.restoreHotkeysAfterFailedReload()
 
@@ -67,6 +59,7 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	// Build a LoadResult for the reconfiguration helpers.
 	loadResult := &config.LoadResult{
 		Config:     newCfg,
+		Written:    newWritten,
 		ConfigPath: a.ConfigPath,
 	}
 

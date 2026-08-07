@@ -70,6 +70,7 @@ func LaunchDaemon(configPath string) {
 
 	app, appErr := app.New(
 		app.WithConfig(configResult.Config),
+		app.WithWrittenConfig(configResult.Written),
 		app.WithConfigPath(configResult.ConfigPath),
 	)
 	if appErr != nil {

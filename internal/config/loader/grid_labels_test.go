@@ -16,6 +16,10 @@ import (
 const (
 	testGridChars  = "asdf"
 	testGridLabels = "ASDF"
+	// The second set, for the tests that change the characters and expect the
+	// labels to follow.
+	testGridCharsAlt  = "qwer"
+	testGridLabelsAlt = "QWER"
 )
 
 // gridConfigWithCharacters is a config file that sets nothing but the grid
@@ -79,7 +83,11 @@ func TestReloadReresolvesGridLabels(t *testing.T) {
 		t.Fatalf("Grid.RowLabels = %q, want %q", first.Config.Grid.RowLabels, testGridLabels)
 	}
 
-	rewriteErr := os.WriteFile(configPath, []byte(gridConfigWithCharacters("qwer")), 0o600)
+	rewriteErr := os.WriteFile(
+		configPath,
+		[]byte(gridConfigWithCharacters(testGridCharsAlt)),
+		0o600,
+	)
 	if rewriteErr != nil {
 		t.Fatalf("failed to rewrite config: %v", rewriteErr)
 	}
@@ -89,17 +97,17 @@ func TestReloadReresolvesGridLabels(t *testing.T) {
 		t.Fatalf("second load failed: %v", second.ValidationError)
 	}
 
-	if second.Config.Grid.RowLabels != "QWER" {
+	if second.Config.Grid.RowLabels != testGridLabelsAlt {
 		t.Errorf(
 			"after reload Grid.RowLabels = %q, want %q",
-			second.Config.Grid.RowLabels, "QWER",
+			second.Config.Grid.RowLabels, testGridLabelsAlt,
 		)
 	}
 
-	if second.Config.Grid.ColLabels != "QWER" {
+	if second.Config.Grid.ColLabels != testGridLabelsAlt {
 		t.Errorf(
 			"after reload Grid.ColLabels = %q, want %q",
-			second.Config.Grid.ColLabels, "QWER",
+			second.Config.Grid.ColLabels, testGridLabelsAlt,
 		)
 	}
 }

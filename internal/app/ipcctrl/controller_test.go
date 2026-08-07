@@ -15,11 +15,23 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
+// testGridCharsToSet is the coordinate character set the config-set cases
+// switch the grid to, and testGridLabelsFromChars the labels a grid built from
+// it carries.
+const (
+	testGridCharsToSet      = "asdf"
+	testGridLabelsFromChars = "ASDF"
+)
+
 func newTestController() *ipcctrl.Controller {
 	cfg := config.DefaultConfig()
 	appState := state.NewAppState()
 	logger, _ := zap.NewDevelopment()
-	configService := loader.NewService(cfg, "", logger, nil)
+	// WithWritten is what the daemon does with the two halves of its load, and
+	// a controller without it cannot re-derive — which is the behavior under
+	// test in the config-set cases below.
+	configService := loader.NewService(cfg, "", logger, nil).
+		WithWritten(config.DefaultConfigForDecoding())
 
 	return ipcctrl.New(ipcctrl.Deps{
 		ConfigService: configService,
@@ -424,5 +436,94 @@ func TestIPCController_HandleConfigSet_GridLabelsStayResolved(t *testing.T) {
 
 	if cfg.Grid.RowLabels != "XY" {
 		t.Errorf("Expected grid.row_labels=%q, got %q", "XY", cfg.Grid.RowLabels)
+	}
+}
+
+// setConfigField runs one `neru config set` through the controller and hands
+// back the config the daemon is left holding.
+func setConfigField(t *testing.T, controller *ipcctrl.Controller, args ...string) *config.Config {
+	t.Helper()
+
+	ctx := context.Background()
+
+	setResp := controller.HandleCommand(ctx, ipc.Command{
+		Action: domain.CommandConfigSet,
+		Args:   args,
+	})
+	if !setResp.Success {
+		t.Fatalf("config set %v failed: %s", args, setResp.Message)
+	}
+
+	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
+
+	cfg, ok := cfgResp.Data.(*config.Config)
+	if !ok || cfg == nil {
+		t.Fatal("Failed to read config after set")
+	}
+
+	return cfg
+}
+
+// TestIPCController_HandleConfigSet_RelabelsGridFromNewCharacters is the
+// acceptance for a derived value whose *source* changed. The labels are
+// inferred from the characters when nobody wrote them, and a settled label
+// reads exactly like one somebody typed — so applying the change to the
+// resolved config found the labels filled in and left the grid drawing an
+// alphabet from a character set it no longer uses.
+func TestIPCController_HandleConfigSet_RelabelsGridFromNewCharacters(t *testing.T) {
+	cfg := setConfigField(t, newTestController(), "grid.characters", testGridCharsToSet)
+
+	if cfg.Grid.RowLabels != testGridLabelsFromChars {
+		t.Errorf("Expected grid.row_labels=%q, got %q", testGridLabelsFromChars, cfg.Grid.RowLabels)
+	}
+
+	if cfg.Grid.ColLabels != testGridLabelsFromChars {
+		t.Errorf("Expected grid.col_labels=%q, got %q", testGridLabelsFromChars, cfg.Grid.ColLabels)
+	}
+}
+
+// TestIPCController_HandleConfigSet_RecoloursFromTheme is the same class one
+// derived value over: the component colors are derived from [theme], so a
+// theme change has to reach them.
+func TestIPCController_HandleConfigSet_RecoloursFromTheme(t *testing.T) {
+	cfg := setConfigField(t, newTestController(), "theme.light.surface", "#123456")
+
+	if got := cfg.Hints.UI.BackgroundColor.Light; got != "#F2123456" {
+		t.Errorf("Expected hints background %q, got %q", "#F2123456", got)
+	}
+}
+
+// TestIPCController_HandleConfigSet_NoReloadRelabelsGrid covers the batching
+// path, which persists without reconfiguring. Each change in a batch derives
+// from the last one's written half, so the second set below has to see the
+// first one's characters and not the labels it produced.
+func TestIPCController_HandleConfigSet_NoReloadRelabelsGrid(t *testing.T) {
+	controller := newTestController()
+
+	setConfigField(t, controller, "grid.characters", testGridCharsToSet, "--no-reload")
+
+	cfg := setConfigField(t, controller, "grid.hide_unmatched", "true", "--no-reload")
+
+	if cfg.Grid.RowLabels != testGridLabelsFromChars {
+		t.Errorf("Expected grid.row_labels=%q, got %q", testGridLabelsFromChars, cfg.Grid.RowLabels)
+	}
+}
+
+// TestIPCController_HandleConfigSet_KeepsWrittenGridLabels guards the other
+// direction: re-deriving fills the option in, it does not take it back from a
+// user who set it.
+func TestIPCController_HandleConfigSet_KeepsWrittenGridLabels(t *testing.T) {
+	controller := newTestController()
+
+	setConfigField(t, controller, "grid.row_labels", "xy")
+
+	cfg := setConfigField(t, controller, "grid.characters", testGridCharsToSet)
+
+	if cfg.Grid.RowLabels != "XY" {
+		t.Errorf("Expected grid.row_labels=%q, got %q", "XY", cfg.Grid.RowLabels)
+	}
+
+	if cfg.Grid.ColLabels != testGridLabelsFromChars {
+		t.Errorf("Expected grid.col_labels=%q, got %q", testGridLabelsFromChars, cfg.Grid.ColLabels)
 	}
 }

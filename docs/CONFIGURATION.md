@@ -258,7 +258,7 @@ To revert all overrides at once, delete the override file and run `neru config r
 - **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
 - **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
 - **Array replacement**: Array fields are replaced wholesale, not appended.
-- **Derived values**: Settings computed from other settings when the config is loaded — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` inferred from `grid.characters` — are not recomputed by `config set`, because it applies in memory rather than re-reading the file. So `neru config set grid.characters "qwerty"` relabels the grid on the next `neru config reload` or restart, not immediately. The value is persisted either way, so nothing is lost by reloading.
+- **Derived values**: Settings computed from other settings — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` inferred from `grid.characters` — are recomputed by `config set`, including when you set the setting they are computed *from*. `neru config set grid.characters "qwerty"` relabels the grid immediately, and `neru config set theme.light.surface "#1E1E2E"` recolors immediately. Setting a derived value directly still wins: labels you wrote are kept, and only the ones you left empty are inferred.
 - **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
 
 ---

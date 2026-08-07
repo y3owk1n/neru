@@ -28,6 +28,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -919,7 +920,11 @@ func (h *simHarness) changeScreen(displays ...simDisplay) {
 // test the binding machinery, not each platform's default binding content, so
 // they declare their own.
 func simConfig() *config.Config {
-	cfg := config.DefaultConfig()
+	// The defaults as written rather than as derived, because buildSimHarness
+	// derives — a journey that changes a source option at runtime has to start
+	// from a configuration where the values derived from it are still empty,
+	// which is what the daemon's own defaults are before a load settles them.
+	cfg := config.DefaultConfigForDecoding()
 	cfg.Hotkeys.Bindings = map[string][]string{
 		hintsHotkey:         {"hints"},
 		gridHotkey:          {"grid"},
@@ -1058,6 +1063,22 @@ func buildSimHarness(
 		tb.Fatal("buildSimHarness needs at least one display")
 	}
 
+	// The journey's cfg is the configuration as written, and the app is handed
+	// both halves of it the way the daemon hands it the two the loader produced.
+	// A journey that writes a source option and expects the values derived from
+	// it to follow — `neru config set grid.characters` relabelling the grid —
+	// only reaches that behavior through this pair.
+	written := cfg
+
+	running, deriveErr := loader.DeepCopyConfig(written)
+	if deriveErr != nil {
+		tb.Fatalf("deep copy config failed: %v", deriveErr)
+	}
+
+	loader.ResolveDerived(running)
+
+	cfg = running
+
 	axPort := &simAXPort{elements: elements, focusedApp: simFixtureBundleID}
 	appearance := &atomic.Bool{}
 	watcher := &mocks.MockAppWatcherPort{}
@@ -1125,6 +1146,7 @@ func buildSimHarness(
 
 	application, err := app.New(
 		app.WithConfig(cfg),
+		app.WithWrittenConfig(written),
 		app.WithConfigPath(""),
 		app.WithLogger(zap.NewNop()),
 		app.WithEventTap(tap),

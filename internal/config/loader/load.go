@@ -34,8 +34,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return refuse(result, decodeErr)
 	}
 
-	result.Config.ResolveThemeDefaults()
-
 	globalErr := s.applyGlobalHotkeys(result.Config, raw)
 	if globalErr != nil {
 		return refuse(result, globalErr)
@@ -50,6 +48,30 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return rejected
 	}
 
+	if overridePath := overrideFileToLayer(result.ConfigPath); overridePath != "" {
+		overrideErr := s.applyOverrideFile(result.Config, overridePath)
+		if overrideErr != nil {
+			return refuse(result, overrideErr)
+		}
+	}
+
+	// After the last layer, because the values a derivation reads can come from
+	// either file, and exactly once, because a derived value is
+	// indistinguishable from one the user wrote. What the user wrote is kept so
+	// that `neru config set` can derive again rather than derive from this.
+	written, deriveErr := derive(result.Config)
+	if deriveErr != nil {
+		return refuse(result, deriveErr)
+	}
+
+	result.Written = written
+
+	// One reading, of the configuration the daemon will actually run: an
+	// override sets a scalar, and a scalar can make a setting elsewhere in the
+	// file inert — `neru config set held_repeat.enabled false` is enough to
+	// answer for an accel_enabled the user wrote months ago — or answer a
+	// warning the file on its own would have raised. Judging the layers
+	// separately would leave both standing.
 	warnings := &config.Warnings{}
 
 	validateErr := result.Config.ValidateWithWarnings(warnings)
@@ -60,34 +82,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 		return refuse(result, wrapped)
 	}
-
-	// The override pass validates the config again, warnings included, and its
-	// reading replaces this one rather than adding to it: an override sets a
-	// scalar, and a scalar can make a setting elsewhere in the file inert —
-	// `neru config set held_repeat.enabled false` is enough to answer for an
-	// accel_enabled the user wrote months ago — or answer a warning this pass
-	// raised, which merging the two would leave standing. So what rides out is
-	// read from the config the daemon will actually run.
-	//
-	// That holds because every warning comes from ValidateWithWarnings, which
-	// both passes run in full; the phases above this sink report by refusing,
-	// so there is nothing of theirs to lose. A warning raised outside it would
-	// have to be re-raised here.
-	if overridePath := overrideFileToLayer(result.ConfigPath); overridePath != "" {
-		overrideWarnings := &config.Warnings{}
-
-		overrideErr := s.applyOverrideFile(result.Config, overridePath, overrideWarnings)
-		if overrideErr != nil {
-			return refuse(result, overrideErr)
-		}
-
-		warnings = overrideWarnings
-	}
-
-	// After the override layer, because the characters the labels are inferred
-	// from can come from either file, and exactly once, because a resolved
-	// label is indistinguishable from one the user wrote.
-	result.Config.ResolveGridLabels()
 
 	result.Warnings = warnings.Messages()
 
@@ -100,8 +94,6 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 
 	s.logger.Info("Configuration loaded successfully")
 
-	removeLauncherBindingsForDisabledModes(result.Config)
-
 	return result
 }
 
@@ -110,6 +102,10 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 func refuse(result *config.LoadResult, err error) *config.LoadResult {
 	result.ValidationError = err
 	result.Config = config.DefaultConfig()
+
+	// DefaultConfigForDecoding is DefaultConfig with nothing derived, which is
+	// what the defaults now running were written as.
+	result.Written = config.DefaultConfigForDecoding()
 
 	// The warnings were about the file that was refused, not about the defaults
 	// now running, so they go with it.
@@ -153,6 +149,7 @@ func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool 
 		s.logger.Info("No config file specified or found, using default configuration")
 
 		result.Config = config.DefaultConfig()
+		result.Written = config.DefaultConfigForDecoding()
 
 		return true
 	}
@@ -165,6 +162,7 @@ func (s *Service) locateConfigFile(result *config.LoadResult, path string) bool 
 	}
 
 	result.Config = config.DefaultConfig()
+	result.Written = config.DefaultConfigForDecoding()
 
 	if explicit {
 		result.ValidationError = derrors.WrapConfigFailed(statErr, "config file not found")
@@ -502,16 +500,10 @@ func overrideFileToLayer(configPath string) string {
 }
 
 // applyOverrideFile layers the file `neru config set` writes over the config,
-// so a runtime change outlives a restart. The result is validated again: a
-// field that is fine alone can still contradict one the config file set.
-//
-// What it collects into warnings is the whole reading of the overridden config,
-// so the caller replaces its own with it rather than adding to it.
-func (s *Service) applyOverrideFile(
-	cfg *config.Config,
-	overridePath string,
-	warnings *config.Warnings,
-) error {
+// so a runtime change outlives a restart. It is the last layer, which is why it
+// only decodes: deriving or validating here would be doing it to a
+// configuration that is finally complete, and the caller does both once, there.
+func (s *Service) applyOverrideFile(cfg *config.Config, overridePath string) error {
 	s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
 
 	_, decodeErr := toml.DecodeFile(overridePath, cfg)
@@ -521,17 +513,6 @@ func (s *Service) applyOverrideFile(
 		s.logger.Warn("Config override file parse failed",
 			zap.String("path", overridePath),
 			zap.Error(wrapped))
-
-		return wrapped
-	}
-
-	cfg.ResolveThemeDefaults()
-
-	validateErr := cfg.ValidateWithWarnings(warnings)
-	if validateErr != nil {
-		wrapped := derrors.WrapConfigFailed(validateErr, "validate configuration with overrides")
-
-		s.logger.Warn("Configuration with overrides validation failed", zap.Error(wrapped))
 
 		return wrapped
 	}
