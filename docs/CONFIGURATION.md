@@ -853,7 +853,7 @@ hints.clickable_roles: unknown role "AXButton": use "button"
 | Option               | Type   | Default    | Description                                |
 | -------------------- | ------ | ---------- | ------------------------------------------ |
 | `font_size`          | int    | `10`       | Font size in points                        |
-| `font_family`        | string | `""`       | Font family (empty = system default)       |
+| `font_family`        | string | `""`       | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `border_radius`      | int    | `-1`       | Corner radius (-1 = auto)                  |
 | `padding_x`          | int    | `-1`       | Horizontal padding (-1 = auto)             |
 | `padding_y`          | int    | `-1`       | Vertical padding (-1 = auto)               |
@@ -1058,7 +1058,7 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 | Option                     | Type   | Default | Description                          |
 | -------------------------- | ------ | ------- | ------------------------------------ |
 | `font_size`                | int    | `10`    | Font size in points                  |
-| `font_family`              | string | `""`    | Font family (empty = system default) |
+| `font_family`              | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `border_width`             | int    | `1`     | Border width in pixels               |
 | `background_color`         | color  | derived | Cell background                      |
 | `text_color`               | color  | derived | Label text                           |
@@ -1135,7 +1135,7 @@ layers = [
 | Option                                | Type   | Default | Description                                                                  |
 | ------------------------------------- | ------ | ------- | ---------------------------------------------------------------------------- |
 | `font_size`                           | int    | `10`    | Font size                                                                    |
-| `font_family`                         | string | `""`    | Font family (empty = system default)                                         |
+| `font_family`                         | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `line_width`                          | int    | `1`     | Grid line width                                                              |
 | `line_color`                          | color  | derived | Grid line color                                                              |
 | `highlight_color`                     | color  | derived | Selected cell highlight                                                      |
@@ -1407,7 +1407,7 @@ text = "Monitor Select"
 | Option               | Type   | Default | Description                             |
 | -------------------- | ------ | ------- | --------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                               |
-| `font_family`        | string | `""`    | Font family (empty = system default)    |
+| `font_family`        | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `background_color`   | color  | derived | Background with alpha                   |
 | `text_color`         | color  | derived | Text color                              |
 | `border_color`       | color  | derived | Border color                            |
@@ -1445,7 +1445,7 @@ Tap modifiers inside a mode to make them sticky for subsequent actions.
 | Option               | Type   | Default | Description                            |
 | -------------------- | ------ | ------- | -------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                              |
-| `font_family`        | string | `""`    | Font family (empty = system default)   |
+| `font_family`        | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `background_color`   | color  | derived | Background with alpha                  |
 | `text_color`         | color  | derived | Text color                             |
 | `border_color`       | color  | derived | Border color                           |
