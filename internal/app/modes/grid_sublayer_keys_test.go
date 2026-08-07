@@ -49,7 +49,8 @@ func TestInitializeGridManager_AcceptsTheKeysTheOverlayDraws(t *testing.T) {
 		},
 		{
 			// The floor. Nothing is configured anywhere, so the grid labels
-			// itself a-z and the subgrid has to follow it there rather than be
+			// itself from the default alphabet and the subgrid has to follow it
+			// there rather than be
 			// drawn with nothing.
 			name: "no keys, no grid characters and no hint characters",
 		},

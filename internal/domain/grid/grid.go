@@ -27,6 +27,16 @@ const (
 	// MinCharactersLength is the minimum length for characters.
 	MinCharactersLength = 2
 
+	// DefaultCharacters is the alphabet a grid is labeled from: a-z without
+	// `o`, which is hard to tell from `0` at label size. It is both the
+	// shipped default for grid.characters and grid.sublayer_keys (config
+	// assigns them from this constant) and the set newGridAlphabet falls back
+	// to when the configured one cannot label anything. Those were two
+	// literals and they drifted — the fallback kept the `o` the default had
+	// dropped — so they are one constant now, and a user who misconfigures
+	// grid.characters cannot be shown a character the default excludes.
+	DefaultCharacters = "abcdefghijklmnpqrstuvwxyz"
+
 	// MinGridCols is the minimum number of grid columns.
 	MinGridCols = 2
 
@@ -244,18 +254,19 @@ type gridAlphabet struct {
 	colChars   []rune
 }
 
-// newGridAlphabet uppercases the character sets and falls back to a-z when the
-// coordinate set is empty or too small to label anything.
+// newGridAlphabet uppercases the character sets and falls back to
+// DefaultCharacters when the coordinate set is empty or too small to label
+// anything.
 func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 	if characters == "" {
-		characters = "abcdefghijklmnopqrstuvwxyz"
+		characters = DefaultCharacters
 	}
 
 	upper := strings.ToUpper(characters)
 	chars := []rune(upper)
 
 	if len(chars) < MinCharactersLength {
-		upper = strings.ToUpper("abcdefghijklmnopqrstuvwxyz")
+		upper = strings.ToUpper(DefaultCharacters)
 		chars = []rune(upper)
 	}
 
@@ -276,8 +287,8 @@ func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 // ResolveLabels answers the row and column labels a grid built from these
 // arguments will actually use, so a caller can hold that answer instead of
 // re-deriving it. Empty labels are inferred from characters, which is itself
-// replaced by a-z when it is empty or too short to label anything — that
-// second step is why the answer is worth asking for rather than assuming
+// replaced by DefaultCharacters when it is empty or too short to label
+// anything — that second step is why the answer is worth asking for rather than assuming
 // "empty means characters".
 //
 // Passing the result back into NewGridWithLabels builds the same grid as

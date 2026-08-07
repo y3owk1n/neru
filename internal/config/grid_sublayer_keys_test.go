@@ -50,7 +50,8 @@ func TestResolveSublayerKeys(t *testing.T) {
 			want:           gridLabelsFromHintChars,
 		},
 		{
-			// Nothing left to infer from. The grid still labels itself a-z, so
+			// Nothing left to infer from. The grid still labels itself from
+			// the default alphabet, so
 			// resolving to the blank set here would draw a subgrid with no keys
 			// on it under a grid that has them.
 			name:           "no characters anywhere still leaves a subgrid to navigate",

@@ -1,9 +1,11 @@
 package config_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 // What a grid is built from: gridLabelHintChars is the hint alphabet it falls
@@ -17,12 +19,14 @@ const (
 )
 
 // What each of those settles to: the labels a grid built from it carries, and
-// the a-z floor for a set too short to label with.
+// the floor for a set too short to label with, read from the constant rather
+// than spelled out so a copy here cannot pass while the two disagree.
 const (
 	gridLabelsFromGridChars = "ASDFGHJKL"
 	gridLabelsFromHintChars = "QWERTY"
-	gridLabelsFloor         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
+
+var gridLabelsFloor = strings.ToUpper(domainGrid.DefaultCharacters)
 
 // TestResolveGridLabels pins the answer to "what is grid.row_labels when
 // unset?". Before this resolution existed the answer lived in a consumer, so
@@ -69,7 +73,7 @@ func TestResolveGridLabels(t *testing.T) {
 			wantColLabels:  gridLabelsFromHintChars,
 		},
 		{
-			name:           "a character set too short to label anything infers a-z",
+			name:           "a character set too short to label anything infers the default alphabet",
 			gridCharacters: "a",
 			hintCharacters: gridLabelHintChars,
 			wantRowLabels:  gridLabelsFloor,

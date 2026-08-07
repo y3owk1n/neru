@@ -39,9 +39,10 @@ func (c *Config) ResolveSublayerKeys() {
 
 	// The characters the grid is *labeled* with rather than the ones it was
 	// configured with, which is the same question ResolveGridLabels asks and
-	// has to get the same answer: those two settle to a-z when the configured
-	// set is blank or too short to label with, and a subgrid resolved to the
-	// blank set instead would be drawn with nothing and accept nothing — a
+	// has to get the same answer: those two settle to grid.DefaultCharacters
+	// when the configured set is blank or too short to label with, and a
+	// subgrid resolved to the blank set instead would be drawn with nothing
+	// and accept nothing — a
 	// keyless subgrid under a labeled grid. ValidateGrid refuses a blank
 	// grid.characters, so this is a floor rather than a configuration a user
 	// runs on; `neru config set --no-reload` is the path that skips it.
