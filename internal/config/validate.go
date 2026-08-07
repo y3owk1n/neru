@@ -75,7 +75,7 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
 	}
 
 	// Validate grid settings
-	err = c.ValidateGrid()
+	err = c.ValidateGrid(warnings)
 	if err != nil {
 		return err
 	}

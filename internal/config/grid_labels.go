@@ -21,6 +21,22 @@ func (c *Config) GridCharacters() string {
 	return c.Grid.Characters
 }
 
+// inferredGridKeys is what an empty grid.row_labels, grid.col_labels or
+// grid.sublayer_keys settles to: the characters the grid is built from, in the
+// case they are drawn in, or a-z when that set is too small to label with.
+//
+// It is one function because two callers have to agree on it. The derivation
+// fills the blank fields with it, and the validator recognizes a resolved value
+// by it — a value equal to this one was inferred rather than written, and a
+// fault in it belongs to grid.characters, under the name that is in the user's
+// file. Two copies of that rule could drift into reporting a fault twice, or
+// under a field the user never wrote.
+func (c *Config) inferredGridKeys() string {
+	keys, _ := domainGrid.ResolveLabels(c.GridCharacters(), "", "")
+
+	return keys
+}
+
 // ResolveGridLabels settles grid.row_labels and grid.col_labels to the labels
 // the grid will actually be drawn with, so that reading the option answers the
 // question rather than starting one. An empty value means "infer from
