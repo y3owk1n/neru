@@ -20,4 +20,5 @@ package config
 func (c *Config) ResolveDerived() {
 	c.ResolveThemeDefaults()
 	c.ResolveGridLabels()
+	c.ResolveSublayerKeys()
 }

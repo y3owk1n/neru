@@ -2,7 +2,6 @@ package modes
 
 import (
 	"image"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -134,8 +133,6 @@ func (h *handlerState) createGridInstance() *domainGrid.Grid {
 // It sets up subgrid configuration, creates the manager with update callbacks for
 // overlay rendering and subgrid navigation, and configures the grid router.
 func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
-	const defaultGridCharacters = "asdfghjkl"
-
 	// Defensive check for grid instance
 	if gridInstance == nil {
 		h.logger.Warn("Grid instance is nil, creating with default bounds")
@@ -161,25 +158,6 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 		)
 	}
 
-	// Configure subgrid keys for 3x3 subgrid navigation within selected cells
-	keys := strings.TrimSpace(h.config.Grid.SublayerKeys)
-	if keys == "" {
-		keys = h.config.Grid.Characters
-	}
-
-	// Ensure we have valid keys for subgrid
-	if keys == "" {
-		h.logger.Warn("No subgrid keys configured, using grid characters as fallback")
-		keys = h.config.Grid.Characters
-	}
-
-	// Final fallback to default characters if none configured
-	if keys == "" {
-		keys = defaultGridCharacters
-
-		h.logger.Warn("No characters available for subgrid, using default")
-	}
-
 	const (
 		subRows = 3
 		subCols = 3
@@ -190,7 +168,10 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 		gridInstance,
 		subRows,
 		subCols,
-		keys,
+		// The keys the subgrid is drawn with, resolved once by the config
+		// (config.ResolveSublayerKeys) so that the set accepted here is the set
+		// the overlay draws.
+		h.config.Grid.SublayerKeys,
 		// Update callback: handles grid redrawing and match filtering
 		func(forceRedraw bool) {
 			// Defensive check for grid manager

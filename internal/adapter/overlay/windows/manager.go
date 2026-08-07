@@ -6,7 +6,6 @@ import (
 	"context"
 	"image"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -688,16 +687,7 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 		m.logger.Debug("manager DrawGrid", zap.Int("cells", cellCount))
 	}
 
-	if m.GridOverlay() != nil {
-		cfg := m.GridOverlay().Config()
-
-		keys := strings.TrimSpace(cfg.SublayerKeys)
-		if keys == "" {
-			keys = cfg.Characters
-		}
-
-		m.win.sublayerKeys = strings.ToUpper(keys)
-	}
+	m.syncSublayerKeysLocked()
 
 	m.win.DrawGrid(gridValue, input, style)
 
@@ -754,6 +744,7 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	defer m.renderMu.Unlock()
 
 	if m.win != nil {
+		m.syncSublayerKeysLocked()
 		m.win.ShowSubgrid(cell, style)
 	}
 }
@@ -937,4 +928,17 @@ func (m *Manager) ensureWinOverlayLocked() {
 	if m.win == nil && m.logger != nil {
 		m.logger.Error("Windows overlay window is unavailable; grid overlay cannot render")
 	}
+}
+
+// syncSublayerKeysLocked hands the surface the keys the subgrid is drawn with.
+// Every draw that can put a subgrid on screen calls it, because the surface is
+// rebuilt behind this manager (ensureWinOverlayLocked) and a rebuilt one starts
+// with no keys — and a surface with no keys draws a subgrid the user cannot see
+// but can still act on.
+func (m *Manager) syncSublayerKeysLocked() {
+	if m.win == nil || m.GridOverlay() == nil {
+		return
+	}
+
+	m.win.sublayerKeys = m.GridOverlay().Config().SublayerKeys
 }

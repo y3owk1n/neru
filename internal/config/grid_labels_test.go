@@ -6,9 +6,23 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// gridLabelHintChars is the hint alphabet the grid falls back to when
-// grid.characters is blank.
-const gridLabelHintChars = "qwerty"
+// What a grid is built from: gridLabelHintChars is the hint alphabet it falls
+// back to when grid.characters is blank, gridLabelGridChars the characters it
+// is built from when it is not, and gridLabelBlank a value that was written and
+// says nothing.
+const (
+	gridLabelHintChars = "qwerty"
+	gridLabelGridChars = "asdfghjkl"
+	gridLabelBlank     = "   "
+)
+
+// What each of those settles to: the labels a grid built from it carries, and
+// the a-z floor for a set too short to label with.
+const (
+	gridLabelsFromGridChars = "ASDFGHJKL"
+	gridLabelsFromHintChars = "QWERTY"
+	gridLabelsFloor         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
 
 // TestResolveGridLabels pins the answer to "what is grid.row_labels when
 // unset?". Before this resolution existed the answer lived in a consumer, so
@@ -25,14 +39,14 @@ func TestResolveGridLabels(t *testing.T) {
 	}{
 		{
 			name:           "unset labels are inferred from the grid characters",
-			gridCharacters: "asdfghjkl",
+			gridCharacters: gridLabelGridChars,
 			hintCharacters: gridLabelHintChars,
-			wantRowLabels:  "ASDFGHJKL",
-			wantColLabels:  "ASDFGHJKL",
+			wantRowLabels:  gridLabelsFromGridChars,
+			wantColLabels:  gridLabelsFromGridChars,
 		},
 		{
 			name:           "configured labels are kept, uppercased",
-			gridCharacters: "asdfghjkl",
+			gridCharacters: gridLabelGridChars,
 			hintCharacters: gridLabelHintChars,
 			rowLabels:      "abc",
 			colLabels:      "def",
@@ -49,17 +63,17 @@ func TestResolveGridLabels(t *testing.T) {
 		},
 		{
 			name:           "blank grid characters infer from the hint characters",
-			gridCharacters: "   ",
+			gridCharacters: gridLabelBlank,
 			hintCharacters: gridLabelHintChars,
-			wantRowLabels:  "QWERTY",
-			wantColLabels:  "QWERTY",
+			wantRowLabels:  gridLabelsFromHintChars,
+			wantColLabels:  gridLabelsFromHintChars,
 		},
 		{
 			name:           "a character set too short to label anything infers a-z",
 			gridCharacters: "a",
 			hintCharacters: gridLabelHintChars,
-			wantRowLabels:  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-			wantColLabels:  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+			wantRowLabels:  gridLabelsFloor,
+			wantColLabels:  gridLabelsFloor,
 		},
 	}
 

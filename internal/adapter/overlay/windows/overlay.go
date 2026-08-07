@@ -384,12 +384,10 @@ func (o *winOverlay) flushOverlay(context string) {
 }
 
 func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Style) {
-	keyRunes := []rune("ASDFGHJKL")
-	if o.sublayerKeys != "" {
-		keyRunes = []rune(strings.ToUpper(o.sublayerKeys))
-	}
-
-	maxKeys := min(len(keyRunes), winSubgridCols*winSubgridRows)
+	// The keys the subgrid is drawn with, which are the keys the mode layer
+	// selects on (internal/domain/grid/subgrid_keys.go).
+	keyRunes := domainGrid.SubgridKeys(o.sublayerKeys, winSubgridCols*winSubgridRows)
+	maxKeys := len(keyRunes)
 
 	xBreaks := make([]int, winSubgridCols+1)
 	yBreaks := make([]int, winSubgridRows+1)

@@ -14,11 +14,13 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-// gridLabelHintChars is the hint alphabet these fixtures fall back to, and
-// gridLabelHintLabels the labels a grid built from it carries.
+// gridLabelHintChars is the hint alphabet these fixtures fall back to,
+// gridLabelHintLabels the labels a grid built from it carries, and
+// gridLabelGridChars the characters a grid is built from when it has its own.
 const (
 	gridLabelHintChars  = "qwerty"
 	gridLabelHintLabels = "QWERTY"
+	gridLabelGridChars  = "asdfghjkl"
 )
 
 // TestCreateGridInstance_UsesTheResolvedLabels is the invariant the config-side

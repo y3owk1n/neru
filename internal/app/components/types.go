@@ -69,13 +69,10 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 				}
 			}
 
-			// Update manager subgrid keys if they changed
-			subKeys := cfg.Grid.SublayerKeys
-			if subKeys == "" {
-				subKeys = cfg.Grid.Characters
-			}
-
-			g.Manager.UpdateSubKeys(subKeys)
+			// Update manager subgrid keys if they changed. They arrive resolved
+			// to the ones the overlay draws (config.ResolveSublayerKeys), so
+			// there is nothing to infer here.
+			g.Manager.UpdateSubKeys(cfg.Grid.SublayerKeys)
 		}
 	}
 }
