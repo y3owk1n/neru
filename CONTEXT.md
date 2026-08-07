@@ -34,6 +34,20 @@ _Avoid_: chain, pipeline, script
 A named, parameterised sequence that steps can invoke by name.
 _Avoid_: alias, function, snippet
 
+**Focused app**:
+The application the operating system currently routes keystrokes to. Neru
+names it by the platform's application identifier, and uses it to decide which
+per-app overrides apply.
+_Avoid_: frontmost app, active app, current app, bundle ID as a bare noun
+
+**Keymap**:
+The [[Binding]]s in force right now — the ones the current mode answers to, or
+the global ones when no mode is active, with the [[Focused app]]'s overrides
+already applied. A keymap is settled when the mode, the focused app or the
+configuration changes, not when a key arrives; a keystroke consults one, it
+never builds one.
+_Avoid_: dispatch table, hotkey map, resolved config, keymap table
+
 ### Entering a mode
 
 **Mode command**:
