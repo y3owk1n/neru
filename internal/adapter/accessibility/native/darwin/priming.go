@@ -27,6 +27,23 @@ var readyRoles = map[string]struct{}{
 	"AXScrollArea": {},
 }
 
+// menuRoles are the AX roles this walk must not descend into. Reading
+// kAXChildrenAttribute on a menu bar item is what makes AppKit build — and
+// display — the menu behind it, so walking them does not observe the
+// application, it operates it: for a status-bar app such as a clipboard
+// manager, priming pops the menu open on the user's screen.
+//
+// The walk roots at the application element, which is what puts AXMenuBar in
+// reach in the first place; AXMenu and AXMenuItem are here because an already
+// open menu can also hang off a window. Nothing is lost by stopping: a
+// readyRole is web content, and web content never lives inside a menu.
+var menuRoles = map[string]struct{}{
+	"AXMenuBar":     {},
+	"AXMenuBarItem": {},
+	"AXMenu":        {},
+	"AXMenuItem":    {},
+}
+
 // PrimeApplication warms an application's accessibility tree so the first hint
 // scan does not pay for a cold one. It reports whether the tree became ready.
 func PrimeApplication(bundleID string, logger *zap.Logger) bool {
@@ -97,6 +114,14 @@ func hasUsableAccessibilityTree(root *Element, logger *zap.Logger) bool {
 		}
 
 		role := info.Role()
+
+		// Stop before the menu subtree rather than after: asking for its
+		// children is itself the side effect.
+		if _, isMenu := menuRoles[role]; isMenu {
+			releaseVisited(cur.el)
+
+			continue
+		}
 
 		if _, ready := readyRoles[role]; ready {
 			logger.Info("Found usable accessibility tree", zap.String("role", role))
