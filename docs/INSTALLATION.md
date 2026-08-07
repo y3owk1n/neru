@@ -138,6 +138,7 @@ Use the nix-darwin module for system-wide installation:
 - `services.neru.package` - Package to use (default: `pkgs.neru` for latest version) or `pkgs.neru-source` for building from source
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.settings` - TOML configuration expressed as a Nix attribute set (default: `{}`, takes precedence over `config`)
 - `services.neru.launchd.enable` - Enable the launchd agent (default: `true`)
 - `services.neru.launchd.keepAlive` - Keep the launchd service alive (default: `true`)
 - `services.neru.extraEnvironment` - Additional environment variables for the launchd service (default: `{}`; includes a sensible `PATH` with Nix binary directories)
@@ -252,6 +253,7 @@ Use the NixOS module for system-wide installation on Linux:
 - `services.neru.package` - Package to use (default: `pkgs.neru`; uses release artifact on Linux, builds from source if unavailable)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.settings` - TOML configuration expressed as a Nix attribute set (default: `{}`, takes precedence over `config`)
 - `services.neru.systemd.restart` - Systemd restart policy (default: `"on-failure"`)
 - `services.neru.systemd.restartSec` - Seconds to wait before restarting (default: `5`)
 - `services.neru.extraEnvironment` - Additional environment variables for the systemd service (default: `{}`; includes a sensible `PATH` with Nix binary directories)
@@ -363,6 +365,7 @@ Use the home-manager module for user-specific installation on macOS or Linux:
 - `services.neru.package` - Package to use (default: `pkgs.neru`; uses release artifact on Linux, builds from source if unavailable)
 - `services.neru.config` - Inline TOML configuration (default: uses `configs/default-config.toml`)
 - `services.neru.configFile` - Path to existing config file (default: `null`, takes precedence over `config`)
+- `services.neru.settings` - TOML configuration expressed as a Nix attribute set (default: `{}`, takes precedence over `config`)
 - `services.neru.launchd.enable` - Enable the launchd agent on macOS (default: `true`)
 - `services.neru.launchd.keepAlive` - Keep the launchd service alive on macOS (default: `true`)
 - `services.neru.systemd.enable` - Enable the systemd user service on Linux (default: `true`)
@@ -458,6 +461,21 @@ Or with home-manager:
      "Primary+'" = "grid left_click"
      "Primary+Shift+S" = "scroll"
   '';
+}
+```
+
+**Custom hotkeys using `services.neru.settings`(home-manager):**
+
+```nix
+{
+  services.neru.enable = true;
+  services.neru.settings = {
+	hotkeys = {
+	  "Primary+;" = "hints left_click";
+	  "Primary+'" = "grid left_click";
+	  "Primary+Shift+S" = "scroll";
+	};
+  };
 }
 ```
 
