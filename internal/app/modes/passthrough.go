@@ -22,10 +22,11 @@ const passthroughHintRefreshDelay = 300 * time.Millisecond
 // answers to, so it consumes those and passes the rest through.
 //
 // Both lists it builds are the keys of the keymap in force, read rather than
-// merged: this runs on the same triggers that settle one — a mode change, a
-// configuration replacement, a hints refresh after the focused app changed — so
-// there is nothing here to invalidate. Every caller passes the mode that is
-// active, which is what makes the settled keymap the right one to read.
+// merged: this runs on the triggers that settle one — a mode change, a
+// configuration replacement, a hints refresh after the focused app changed, and
+// a focused-app change under an open mode — so there is nothing here to
+// invalidate. Every caller passes the mode that is active, which is what makes
+// the settled keymap the right one to read.
 //
 // Caller must hold h.mu.
 func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
@@ -33,9 +34,7 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 		return
 	}
 
-	enabled := h.config != nil &&
-		mode != domain.ModeIdle &&
-		h.config.General.PassthroughUnboundedKeys
+	enabled := h.passthroughEnabledFor(mode)
 
 	h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
 
@@ -59,6 +58,65 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 	h.setModifierPassthrough(enabled, blacklist)
 
 	h.setInterceptedModifierKeys(modeModifierKeys(keymap))
+}
+
+// passthroughEnabledFor reports whether the event tap should hand unbound
+// modifier chords to the focused application while mode is active. Idle counts
+// as off: a mode that is not open binds nothing, so there would be nothing to
+// hold back.
+//
+// Caller must hold h.mu.
+func (h *handlerState) passthroughEnabledFor(mode domain.Mode) bool {
+	return h.config != nil &&
+		mode != domain.ModeIdle &&
+		h.config.General.PassthroughUnboundedKeys
+}
+
+// RefreshPassthroughForFocusedAppChange re-synchronizes the event tap with the
+// bindings the application the user just switched to puts in force, so the keys
+// the tap consumes and the keys the mode is bound to keep describing the same
+// set while a mode stays open across an application switch.
+//
+// The keymap can settle lazily because a keystroke reads it, so the read is the
+// trigger (ADR 0005). Passthrough cannot: the blacklist is what decides whether
+// the next chord reaches Neru at all, so waiting for a keystroke means waiting
+// for the keystroke that already went to the other application. This has to be
+// pushed, and it is pushed from a goroutine the app layer starts
+// (`handleAppActivation`, `app/lifecycle.go`) — never inline from the watcher
+// callback, which on macOS runs on the main queue, where taking h.mu is
+// forbidden (internal/app/modes/AGENTS.md). What the goroutine buys is only
+// that the handler is reached off the main queue: this still queues behind
+// whatever holds h.mu, so it lands as soon as the handler is free rather than
+// in step with the focus change.
+//
+// It reads the published cell rather than taking the application as an
+// argument, which is what makes two of these racing harmless: whichever runs
+// last reads the newest publication and the other is a no-op against an
+// unchanged keymap. Reading it is also all it will ever do: settling a keymap
+// with nothing published asks the platform, and that call is the unbounded
+// cross-process one ADR 0005 keeps off h.mu for everything the user is not
+// waiting on. Nobody waits on a focus change, so this returns instead.
+func (h *Handler) RefreshPassthroughForFocusedAppChange() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	mode := h.appState.CurrentMode()
+
+	// Nothing to move unless all three hold: something has to have announced
+	// the application, the tap has to be routing chords by the lists at all,
+	// and the active mode has to bind something the focused application can
+	// change — the last is the reasoning keymapInputs applies to the keymap.
+	// With any of them missing, the state set when the mode opened still
+	// describes what is bound.
+	if _, published := h.focusedApp.published(); !published {
+		return
+	}
+
+	if !h.passthroughEnabledFor(mode) || !h.activeModeHasAppHotkeyOverrides() {
+		return
+	}
+
+	h.syncModifierPassthrough(mode)
 }
 
 func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) func() {

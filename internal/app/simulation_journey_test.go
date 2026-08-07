@@ -11,6 +11,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,9 +29,10 @@ const (
 	scrollHotkey = "Primary+Shift+S"
 )
 
-// The second fixture application, so a journey can switch away from the one
-// the fixture desktop starts focused on.
+// The two fixture applications a journey switches between. The desktop starts
+// focused on the first; the second is what it can switch away to.
 const (
+	simFixtureAppName   = "Sim Fixture"
 	simOtherAppBundleID = "com.example.otherapp"
 	simOtherAppName     = "Other App"
 )
@@ -2184,6 +2186,66 @@ func TestSimulation_FocusChangeMidModeRebindsTheKey(t *testing.T) {
 			simOtherAppName,
 			domain.ModeString(got),
 			domain.ModeString(domain.ModeRecursiveGrid),
+		)
+	}
+}
+
+// TestSimulation_FocusChangeMidModeRetargetsThePassthroughBlacklist is the
+// other half of the journey above, and the one #1252 reported: knowing what
+// the next key means is worth nothing if the key never arrives.
+//
+// With passthrough on, the event tap passes every modifier chord to the
+// focused application except the ones it is told to keep. Those are the chords
+// the mode binds — which per-app overrides make a function of the focused
+// application, so switching applications mid-mode has to move them. Otherwise
+// the mode consumes what the application the user left had bound and hands the
+// application they arrived in the chord it binds itself.
+func TestSimulation_FocusChangeMidModeRetargetsThePassthroughBlacklist(t *testing.T) {
+	const (
+		fixtureChord = "Cmd+Ctrl+G"
+		otherChord   = "Cmd+Ctrl+H"
+	)
+
+	canonical := config.CanonicalHotkeyForPlatform
+
+	cfg := simConfig()
+	cfg.General.PassthroughUnboundedKeys = true
+	cfg.Grid.AppConfigs = []config.AppConfig{
+		perAppHotkeyOverride(simFixtureBundleID, fixtureChord, config.ModeNameScroll),
+		perAppHotkeyOverride(simOtherAppBundleID, otherChord, config.ModeNameRecursiveGrid),
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.focusApp(simFixtureAppName, simFixtureBundleID)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+
+	sim.waitFor("the fixture application's chord to be intercepted", func() bool {
+		return slices.Contains(sim.tap.InterceptedModifierKeys(), canonical(fixtureChord))
+	})
+
+	sim.focusApp(simOtherAppName, simOtherAppBundleID)
+
+	sim.waitFor("the newly focused application's chord to be intercepted", func() bool {
+		return slices.Contains(sim.tap.InterceptedModifierKeys(), canonical(otherChord))
+	})
+
+	if got := sim.tap.InterceptedModifierKeys(); slices.Contains(got, canonical(fixtureChord)) {
+		t.Errorf(
+			"the intercepted chords are %v after switching to %s, want %q gone: "+
+				"nothing binds it there and the mode still swallows it",
+			got, simOtherAppName, canonical(fixtureChord),
+		)
+	}
+
+	_, blacklist := sim.tap.ModifierPassthrough()
+	if !slices.Contains(blacklist, canonical(otherChord)) {
+		t.Errorf(
+			"the passthrough blacklist is %v after switching to %s, want %q among them: "+
+				"the chord it binds is passed to it instead of reaching the mode",
+			blacklist, simOtherAppName, canonical(otherChord),
 		)
 	}
 }
