@@ -6,6 +6,7 @@
 }:
 let
   cfg = config.services.neru;
+  tomlFormat = pkgs.formats.toml {};
   defaultPath = lib.concatStringsSep ":" (
     [
       "${config.home.homeDirectory}/.nix-profile/bin"
@@ -55,6 +56,14 @@ in
         type = lib.types.nullOr lib.types.path;
         default = null;
         description = "Path to existing config.toml configuration file. Takes precedence over config option.";
+      };
+	
+	  settings = lib.mkOption {
+        inherit (tomlFormat) type;
+        default = {};
+        description = ''
+          Configuration of neru in nix programming language
+        '';
       };
 
       launchd = {
@@ -139,8 +148,15 @@ in
     home.packages = [ cfg.package ];
 
     # Generate config file - either from text or source file
-    xdg.configFile."neru/config.toml" =
-      if cfg.configFile != null then { source = cfg.configFile; } else { text = cfg.config; };
+	xdg.configFile."neru/config.toml" =
+      if cfg.configFile != null
+      then {source = cfg.configFile;}
+      else if cfg.settings != {}
+      then {
+        source = tomlFormat.generate "config.toml" cfg.settings;
+      }
+      else {text = cfg.config;};
+
 
     # Launch agent for macOS
     launchd.agents.neru = lib.mkIf pkgs.stdenv.isDarwin {
