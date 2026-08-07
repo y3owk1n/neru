@@ -93,6 +93,29 @@ in
           ThrottleInterval = 10;
         };
       };
+
+	  assertions = [
+        # Fail if user set more than one configuration source
+        {
+          assertion =
+            (lib.count (x: x) [
+              (cfg.settings != {})
+              (cfg.configFile != null)
+              (cfg.config != builtins.readFile ../configs/default-config.toml)
+            ])
+            <= 1;
+
+          message = ''
+            services.neru: only one of the following options may be set:
+              - services.neru.settings
+              - services.neru.config
+              - services.neru.configFile
+
+            Please choose a single configuration source.
+          '';
+        }
+      ];
+
     }
   );
 }

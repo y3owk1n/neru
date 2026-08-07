@@ -198,5 +198,28 @@ in
         WantedBy = [ "graphical-session.target" ];
       };
     };
+
+	assertions = [
+      # Fail if user set more than one configuration source
+      {
+        assertion =
+          (lib.count (x: x) [
+            (cfg.settings != {})
+            (cfg.configFile != null)
+            (cfg.config != builtins.readFile ../configs/default-config.toml)
+          ])
+          <= 1;
+
+        message = ''
+          programs.neru: only one of the following options may be set:
+            - programs.neru.settings
+            - programs.neru.config
+            - programs.neru.configFile
+
+          Please choose a single configuration source.
+        '';
+      }
+    ];
+
   };
 }
