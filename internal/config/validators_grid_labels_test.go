@@ -213,6 +213,30 @@ func TestConfigValidateGrid_RepeatedCharacterIsReportedOnce(t *testing.T) {
 	}
 }
 
+// TestConfigValidateGrid_RepeatsThatLeaveTooFewCharactersWarn covers the two
+// faults that arrive as one. Repeats come out before the grid applies its floor
+// (domain/grid.newGridAlphabet), so "aa" is a set of two characters that can
+// label with one, and the grid replaces it with a-z: the repeat and the set being
+// too short are both true, and counting the written length would have reported
+// neither.
+func TestConfigValidateGrid_RepeatsThatLeaveTooFewCharactersWarn(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Grid.Characters = "aa"
+
+	got := warningsMentioning(validateGridWithWarnings(t, cfg), "grid.characters")
+
+	want := 2
+	if len(got) != want {
+		t.Fatalf("warnings for grid.characters = %q, want %d", got, want)
+	}
+
+	for _, expected := range []string{"more than once", "usable character"} {
+		if !strings.Contains(strings.Join(got, "\n"), expected) {
+			t.Errorf("warnings = %q, want one mentioning %q", got, expected)
+		}
+	}
+}
+
 // TestConfigValidateGrid_UntypeableLabelsWarn covers the characters that load
 // and cannot be pressed: whitespace, control characters and anything outside
 // ASCII, none of which a user can type at a label prompt.

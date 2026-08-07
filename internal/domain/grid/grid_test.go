@@ -221,6 +221,44 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 	}
 }
 
+// TestGrid_RepeatedCharactersLabelOnce pins what a coordinate set that lists a
+// character twice builds: the grid the distinct characters build. A repeat used
+// to widen the alphabet the labeling pass counted on, which drew coordinates
+// twice over and left every cell past the first one carrying them unreachable —
+// `characters = "aab"` put 16 different cells under `AAAA`.
+func TestGrid_RepeatedCharactersLabelOnce(t *testing.T) {
+	log := logger.Get()
+	bounds := image.Rect(0, 0, 1000, 800)
+
+	repeated := grid.NewGrid("aab", bounds, log)
+	distinct := grid.NewGrid("ab", bounds, log)
+
+	if repeated.Characters() != distinct.Characters() {
+		t.Errorf(
+			"Characters() = %q, want %q — the repeat is not a character",
+			repeated.Characters(), distinct.Characters(),
+		)
+	}
+
+	if len(repeated.Cells()) != len(distinct.Cells()) {
+		t.Errorf(
+			"a grid built from %q has %d cells, one built from %q has %d",
+			"aab", len(repeated.Cells()), "ab", len(distinct.Cells()),
+		)
+	}
+}
+
+// TestGrid_RepeatsCanLeaveTooFewCharacters covers the floor the dedupe lands on:
+// a set that is only repeats has one distinct character, which cannot label a
+// grid at all, so it falls back like any other set too short to label with.
+func TestGrid_RepeatsCanLeaveTooFewCharacters(t *testing.T) {
+	gridInstance := grid.NewGrid("aA", image.Rect(0, 0, 300, 300), logger.Get())
+
+	if want := strings.ToUpper(grid.DefaultCharacters); gridInstance.Characters() != want {
+		t.Errorf("Characters() = %q, want the fallback %q", gridInstance.Characters(), want)
+	}
+}
+
 func TestGrid_WithCustomLabels(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 300, 300)

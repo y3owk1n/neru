@@ -24,7 +24,9 @@ const (
 	// AspectRatioAdjustment is the adjustment factor for extreme aspect ratios.
 	AspectRatioAdjustment = 1.2
 
-	// MinCharactersLength is the minimum length for characters.
+	// MinCharactersLength is the fewest distinct characters a grid can be
+	// labeled from — distinct, because repeats are dropped before the floor is
+	// applied (newGridAlphabet).
 	MinCharactersLength = 2
 
 	// DefaultCharacters is the alphabet a grid is labeled from: a-z without
@@ -254,34 +256,40 @@ type gridAlphabet struct {
 	colChars   []rune
 }
 
-// newGridAlphabet uppercases the character sets and falls back to
-// DefaultCharacters when the coordinate set is empty or too small to label
-// anything.
+// newGridAlphabet uppercases the character sets, drops the characters they
+// repeat, and falls back to DefaultCharacters when the coordinate set is left
+// too small to label anything with.
+//
+// The repeats go here rather than at each of the three sets in turn because this
+// is the one place all three are read from — a coordinate is built from chars,
+// rowChars and colChars together (DistinctKeys says what a repeat costs).
+//
+// Dropping them can be what makes a set too small — "aa" is one character, not
+// two — so the floor is applied to what is left, not to what was written.
 func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
-	if characters == "" {
-		characters = DefaultCharacters
-	}
-
-	upper := strings.ToUpper(characters)
-	chars := []rune(upper)
+	chars := DistinctKeys(characters)
 
 	if len(chars) < MinCharactersLength {
-		upper = strings.ToUpper(DefaultCharacters)
-		chars = []rune(upper)
+		chars = DistinctKeys(DefaultCharacters)
 	}
 
 	rowChars := chars
 	colChars := chars
 
 	if rowLabels != "" {
-		rowChars = []rune(strings.ToUpper(rowLabels))
+		rowChars = DistinctKeys(rowLabels)
 	}
 
 	if colLabels != "" {
-		colChars = []rune(strings.ToUpper(colLabels))
+		colChars = DistinctKeys(colLabels)
 	}
 
-	return gridAlphabet{characters: upper, chars: chars, rowChars: rowChars, colChars: colChars}
+	return gridAlphabet{
+		characters: string(chars),
+		chars:      chars,
+		rowChars:   rowChars,
+		colChars:   colChars,
+	}
 }
 
 // ResolveLabels answers the row and column labels a grid built from these
@@ -291,13 +299,43 @@ func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 // anything — that second step is why the answer is worth asking for rather than assuming
 // "empty means characters".
 //
+// A label set that was written comes back upper-cased and otherwise as it was,
+// repeats and all, even though the grid will drop those (newGridAlphabet). What
+// the derivation settles is what the *user asked for*, and a repeat is the one
+// part of that a reader still needs: config.warnGridKeySets reads these fields
+// to tell the user a character was dropped, and it runs after the derivation, so
+// dropping it here would leave nothing to report and the grid quietly labeled
+// with a set nobody chose.
+//
 // Passing the result back into NewGridWithLabels builds the same grid as
 // passing the empty strings did, which is what lets config.ResolveGridLabels
 // settle the option at load time.
 func ResolveLabels(characters, rowLabels, colLabels string) (string, string) {
-	alpha := newGridAlphabet(characters, rowLabels, colLabels)
+	alpha := newGridAlphabet(characters, "", "")
 
-	return string(alpha.rowChars), string(alpha.colChars)
+	return settleLabels(rowLabels, alpha.chars), settleLabels(colLabels, alpha.chars)
+}
+
+// settleLabels is one label set's answer: what was written, upper-cased, or the
+// characters the grid falls back on when nothing was.
+func settleLabels(labels string, inferred []rune) string {
+	if labels == "" {
+		return string(inferred)
+	}
+
+	return strings.ToUpper(labels)
+}
+
+// ResolveCharacters answers the coordinate characters a grid built from this set
+// will report ([Grid.Characters]): upper-cased, with repeats dropped, and
+// replaced by DefaultCharacters when what is left is too short to label with.
+//
+// It is for the caller comparing a reloaded configuration against the grid it is
+// already running — a set that differs from the live one only by a repeat or a
+// letter's case is the same set, and treating it as a change rebuilds the grid
+// and discards whatever coordinate the user was halfway through typing.
+func ResolveCharacters(characters string) string {
+	return newGridAlphabet(characters, "", "").characters
 }
 
 // newGridFromCells assembles a Grid and its lookup indexes from finished cells.

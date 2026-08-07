@@ -1032,17 +1032,26 @@ warns when one of them holds a single character, the same character twice (case
 is folded — `aA` is one character written twice), or a character that cannot be
 typed: whitespace or a control character. None of these stops a grid being built
 — a short `characters` is replaced by `a-z`, short labels cap the grid to the
-cells they can name, and a repeat leaves one cell answering to nobody — so the
-configuration still loads and the warning is where you hear about it. A label
-left empty is checked as the `characters` it is inferred from and reported under
-that name, so one mistake is reported once.
+cells they can name, and a repeat is dropped — so the configuration still loads
+and the warning is where you hear about it. A label left empty is checked as the
+`characters` it is inferred from and reported under that name, so one mistake is
+reported once.
+
+**A repeat is dropped, never drawn.** Every set a grid is labelled from is read as
+its distinct characters, `sublayer_keys` included, so the grid is built from `ab`
+whether you wrote `ab`, `aab` or `aAb`. That is why the repeat is worth a warning
+rather than a refusal: what it costs is a shorter alphabet, not a cell you can see
+and cannot click. Note that dropping repeats is also what can leave a set too
+short — `characters = "aa"` has one usable character, so it falls back to `a-z`,
+and both facts are reported.
 
 Two neighbouring rules are older and stricter, and refuse the file rather than
 warn: `characters` cannot be empty, and neither `characters` nor `sublayer_keys`
 may contain a character outside ASCII. `row_labels` and `col_labels` warn about
 non-ASCII instead. `sublayer_keys` is not checked for the three faults above:
-only its first 9 characters are drawn, and the rest are dropped, so a repeat
-among them costs nothing.
+only its first 9 characters are drawn, so which of them matter depends on the
+subgrid rather than on the option — a set of exactly 9 with a repeat in it leaves
+one subgrid cell unlabelled, which is visible on screen in a way a warning is not.
 
 ### UI
 

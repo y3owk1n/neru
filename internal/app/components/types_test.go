@@ -67,7 +67,10 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 		characters, rowLabels, colLabels string
 		// newCharacters etc. are what the reloaded config carries.
 		newCharacters, newRowLabels, newColLabels string
-		wantRecreate                              bool
+		// wantCharacters is the set the grid must end up describing, for the
+		// cases where that is not just newCharacters upper-cased.
+		wantCharacters string
+		wantRecreate   bool
 	}{
 		{
 			name:       "identical config keeps the existing grid",
@@ -105,6 +108,25 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 			newCharacters: testCharacters, newRowLabels: "AB", newColLabels: "cd",
 			wantRecreate: false,
 		},
+		{
+			// A repeat is dropped when the grid is built, so a set that only
+			// gained one is the same set. Comparing the string as written would
+			// see a change on every reload and rebuild the grid each time.
+			name:       "a character listed twice keeps the existing grid",
+			characters: testCharacters, rowLabels: "", colLabels: "",
+			newCharacters: "abcda", newRowLabels: "", newColLabels: "",
+			wantCharacters: "ABCD",
+			wantRecreate:   false,
+		},
+		{
+			// The same for a label set, which the derivation settles with its
+			// repeats still in it so the config can report them: the grid dropped
+			// the repeat, so the two describe the same labels.
+			name:       "a row label listed twice keeps the existing grid",
+			characters: testCharacters, rowLabels: "ab", colLabels: "cd",
+			newCharacters: testCharacters, newRowLabels: "aba", newColLabels: "cd",
+			wantRecreate: false,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -135,7 +157,12 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 
 			// Whether or not it was rebuilt, the grid must end up describing
 			// the labels the reloaded config asked for.
-			if got, want := after.Characters(), upper(testCase.newCharacters); got != want {
+			want := testCase.wantCharacters
+			if want == "" {
+				want = upper(testCase.newCharacters)
+			}
+
+			if got := after.Characters(); got != want {
 				t.Errorf("Characters() = %q, want %q", got, want)
 			}
 		})

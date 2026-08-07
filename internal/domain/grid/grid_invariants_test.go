@@ -27,8 +27,12 @@ func gridSizes() []image.Rectangle {
 	}
 }
 
+// gridAlphabets covers the sizes a coordinate set comes in, plus one that lists
+// a character twice: a repeat used to reach the labeling pass as an extra
+// character, and every invariant below broke on it at once — two cells sharing a
+// coordinate, an index smaller than the cell count, cells nothing can address.
 func gridAlphabets() []string {
-	return []string{"ab", "abcd", "asdfghjkl", "abcdefghijklmnopqrstuvwxyz"}
+	return []string{"ab", "aab", "abcd", "asdfghjkl", "abcdefghijklmnopqrstuvwxyz"}
 }
 
 func newTestGrid(bounds image.Rectangle, characters string) *grid.Grid {
