@@ -117,6 +117,9 @@ static const CGFloat kHintArrowWidthMultiplier = 3.5;
 /// Vertical gap between the arrow tip and the target element.
 static const CGFloat kHintArrowGap = 1.0;
 
+/// Where a hint badge sits relative to its element. These values must equal the
+/// HINT_PLACEMENT_* macros in overlay.h, which is what Go passes in; the pin is
+/// internal/architecture/hint_placement_vocabulary_test.go.
 typedef NS_ENUM(NSInteger, HintPlacement) {
 	HintPlacementTop = 1,
 	HintPlacementCenter = 2,

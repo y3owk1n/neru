@@ -5,6 +5,8 @@ package linux
 import (
 	"image"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // Unit tests for the pure hint badge/arrow placement math shared by the X11 and
@@ -12,7 +14,7 @@ import (
 // tests; here we only assert the geometry the C draw calls receive.
 func TestHintBadgePlacement_CenterHasNoArrow(t *testing.T) {
 	target := image.Pt(100, 100)
-	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, "center")
+	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, config.HintPlacementCenter)
 
 	if hasArrow {
 		t.Fatalf("center placement should not draw an arrow, got %+v", arrow)
@@ -36,7 +38,13 @@ func TestHintBadgePlacement_UnknownPlacementHasNoArrow(t *testing.T) {
 func TestHintBadgePlacement_Bottom(t *testing.T) {
 	target := image.Pt(200, 150)
 	badgeWidth, badgeHeight, radius := 40, 20, 4
-	badge, arrow, hasArrow := hintBadgePlacement(target, badgeWidth, badgeHeight, radius, "bottom")
+	badge, arrow, hasArrow := hintBadgePlacement(
+		target,
+		badgeWidth,
+		badgeHeight,
+		radius,
+		config.HintPlacementBottom,
+	)
 
 	if !hasArrow {
 		t.Fatal("bottom placement should draw an arrow")
@@ -85,7 +93,13 @@ func TestHintBadgePlacement_Bottom(t *testing.T) {
 func TestHintBadgePlacement_Top(t *testing.T) {
 	target := image.Pt(200, 150)
 	badgeWidth, badgeHeight, radius := 40, 20, 4
-	badge, arrow, hasArrow := hintBadgePlacement(target, badgeWidth, badgeHeight, radius, "top")
+	badge, arrow, hasArrow := hintBadgePlacement(
+		target,
+		badgeWidth,
+		badgeHeight,
+		radius,
+		config.HintPlacementTop,
+	)
 
 	if !hasArrow {
 		t.Fatal("top placement should draw an arrow")
@@ -126,7 +140,13 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 	target := image.Pt(50, 50)
 	badgeWidth, badgeHeight, radius := 14, 20, 6
 
-	badge, arrow, hasArrow := hintBadgePlacement(target, badgeWidth, badgeHeight, radius, "bottom")
+	badge, arrow, hasArrow := hintBadgePlacement(
+		target,
+		badgeWidth,
+		badgeHeight,
+		radius,
+		config.HintPlacementBottom,
+	)
 	if !hasArrow {
 		t.Fatal("expected an arrow")
 	}
@@ -144,7 +164,7 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 func TestHintTailEdge(t *testing.T) {
 	target := image.Pt(200, 150)
 
-	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, "bottom")
+	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, config.HintPlacementBottom)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailTop {
 		t.Errorf(
 			"bottom placement (arrow points up) should merge the tail into the top edge, got %d",
@@ -152,7 +172,7 @@ func TestHintTailEdge(t *testing.T) {
 		)
 	}
 
-	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, "top")
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, config.HintPlacementTop)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailBottom {
 		t.Errorf(
 			"top placement (arrow points down) should merge the tail into the bottom edge, got %d",
@@ -160,7 +180,7 @@ func TestHintTailEdge(t *testing.T) {
 		)
 	}
 
-	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, "center")
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, config.HintPlacementCenter)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailNone {
 		t.Errorf("center placement should have no tail, got %d", edge)
 	}
@@ -168,19 +188,23 @@ func TestHintTailEdge(t *testing.T) {
 
 func TestHintBadgeRadius_ReservesTailFlatEdge(t *testing.T) {
 	// Center placement is never capped — the tail doesn't exist there.
-	if got := hintBadgeRadius(100, 40, "center"); got != 100 {
+	if got := hintBadgeRadius(100, 40, config.HintPlacementCenter); got != 100 {
 		t.Errorf("center radius should be unchanged, got %d", got)
 	}
 
 	// A radius large enough to consume the whole flat edge is capped so the
 	// connector tail still has somewhere to attach.
 	// halfW = 20, so max = 20 - hintArrowMinHalfBase.
-	if got, want := hintBadgeRadius(1000, 40, "bottom"), 20-hintArrowMinHalfBase; got != want {
+	if got, want := hintBadgeRadius(
+		1000,
+		40,
+		config.HintPlacementBottom,
+	), 20-hintArrowMinHalfBase; got != want {
 		t.Errorf("oversized radius = %d, want capped to %d", got, want)
 	}
 
 	// A normal radius that already leaves room is left untouched.
-	if got := hintBadgeRadius(6, 40, "top"); got != 6 {
+	if got := hintBadgeRadius(6, 40, config.HintPlacementTop); got != 6 {
 		t.Errorf("normal radius should be unchanged, got %d", got)
 	}
 }
@@ -193,8 +217,14 @@ func TestHintBadgePlacement_FullPillKeepsTail(t *testing.T) {
 	target := image.Pt(200, 150)
 	badgeWidth, badgeHeight := 40, 24
 
-	radius := hintBadgeRadius(1000, badgeWidth, "bottom")
-	badge, arrow, hasArrow := hintBadgePlacement(target, badgeWidth, badgeHeight, radius, "bottom")
+	radius := hintBadgeRadius(1000, badgeWidth, config.HintPlacementBottom)
+	badge, arrow, hasArrow := hintBadgePlacement(
+		target,
+		badgeWidth,
+		badgeHeight,
+		radius,
+		config.HintPlacementBottom,
+	)
 
 	if !hasArrow {
 		t.Fatal("full-pill bottom placement should still draw a tail")

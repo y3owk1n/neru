@@ -48,10 +48,6 @@ const (
 	// hintPlacementGap is the pixel gap between a hint badge and its target
 	// point for top/bottom placement, mirroring the macOS overlay.
 	hintPlacementGap = 1
-	// Hint badge placement values (hints.ui.placement); "center" needs no
-	// constant as it is the implicit default branch.
-	placementTop    = "top"
-	placementBottom = "bottom"
 	// hintAutoRadiusMax caps the auto (border_radius = -1) hint badge corner
 	// radius so labels get a subtle rounded corner rather than a full pill,
 	// matching the macOS overlay's MIN(height/2, 6).
@@ -1181,7 +1177,7 @@ type hintArrowTriangle struct {
 // consumes the flat edge and the renderer drops the tail entirely. Center
 // placement (no tail) and radii that already leave room are returned unchanged.
 func hintBadgeRadius(radius, badgeWidth int, placement string) int {
-	if placement != placementTop && placement != placementBottom {
+	if placement != config.HintPlacementTop && placement != config.HintPlacementBottom {
 		return radius
 	}
 
@@ -1218,6 +1214,10 @@ func hintTailEdge(badge image.Rectangle, arrow hintArrowTriangle, hasArrow bool)
 // radius is the badge's already-resolved corner radius; it keeps the arrow base
 // on the badge's flat edge rather than over a rounded corner. hasArrow is false
 // for center or unrecognized placements, which draw no arrow.
+//
+// The placement strings are config's declaration of the vocabulary
+// (config.HintPlacements), not a spelling of its own: a value the validator
+// accepts is a value this switch recognizes.
 func hintBadgePlacement(
 	target image.Point,
 	badgeWidth, badgeHeight, radius int,
@@ -1229,11 +1229,11 @@ func hintBadgePlacement(
 	centerY := target.Y
 
 	switch placement {
-	case placementTop:
+	case config.HintPlacementTop:
 		// Badge sits above the target, offset by the gap plus arrow height so
 		// the arrow has room to point down at the target.
 		centerY = target.Y - hintPlacementGap - hintArrowHeight - halfH
-	case placementBottom:
+	case config.HintPlacementBottom:
 		// Badge sits below the target; arrow points up at the target.
 		centerY = target.Y + hintPlacementGap + hintArrowHeight + halfH
 	default:
@@ -1260,14 +1260,14 @@ func hintBadgePlacement(
 	var arrow hintArrowTriangle
 
 	switch placement {
-	case placementBottom:
+	case config.HintPlacementBottom:
 		baseY := badge.Min.Y
 		arrow = hintArrowTriangle{
 			baseLeft:  image.Pt(centerX-halfBase, baseY),
 			tip:       image.Pt(centerX, baseY-hintArrowHeight),
 			baseRight: image.Pt(centerX+halfBase, baseY),
 		}
-	case placementTop:
+	case config.HintPlacementTop:
 		baseY := badge.Max.Y
 		arrow = hintArrowTriangle{
 			baseLeft:  image.Pt(centerX-halfBase, baseY),

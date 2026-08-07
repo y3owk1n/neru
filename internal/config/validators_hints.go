@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -182,18 +183,30 @@ func (c *Config) validateHintLabelUI() error {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
 	}
 
-	switch c.Hints.UI.Placement {
-	case "top", "center", placementBottom:
-	case "":
-		c.Hints.UI.Placement = placementBottom
-	default:
-		return derrors.New(
-			derrors.CodeInvalidConfig,
-			"hints.ui.placement must be one of top, center, "+placementBottom,
-		)
+	return c.settleHintPlacement()
+}
+
+// settleHintPlacement defaults an unset hints.ui.placement and refuses any
+// value the vocabulary does not name. Both the accepted set and the error
+// message read HintPlacements(), so a placement added there is accepted here
+// without this function being touched.
+func (c *Config) settleHintPlacement() error {
+	if c.Hints.UI.Placement == "" {
+		c.Hints.UI.Placement = HintPlacementDefault
+
+		return nil
 	}
 
-	return nil
+	placements := HintPlacements()
+	if slices.Contains(placements, c.Hints.UI.Placement) {
+		return nil
+	}
+
+	return derrors.Newf(
+		derrors.CodeInvalidConfig,
+		"hints.ui.placement must be one of %s",
+		strings.Join(placements, ", "),
+	)
 }
 
 // validateHintSearchInputGeometry checks the size and shape of the search input.

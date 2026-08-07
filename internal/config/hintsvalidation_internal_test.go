@@ -33,97 +33,97 @@ func hintsCases() []hintsCase {
 			name:      "clean",
 			breakIt:   func(*Config) {},
 			message:   "",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "no clickable roles",
 			breakIt:   func(c *Config) { c.Hints.ClickableRoles = nil },
 			message:   "[INVALID_CONFIG] hints.clickable_roles cannot be empty when hints are enabled",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad clickable role",
 			breakIt:   func(c *Config) { c.Hints.ClickableRoles = []string{"!!"} },
 			message:   "[INVALID_CONFIG] hints.clickable_roles: unknown role \"!!\" (run `neru roles` for the accepted role names)",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "empty hint chars",
 			breakIt:   func(c *Config) { c.Hints.HintCharacters = "  " },
 			message:   "[INVALID_CONFIG] hint_characters cannot be empty",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "one hint char",
 			breakIt:   func(c *Config) { c.Hints.HintCharacters = "a" },
 			message:   "[INVALID_CONFIG] hint_characters must contain at least 2 characters",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "non-ascii hint chars",
 			breakIt:   func(c *Config) { c.Hints.HintCharacters = "a\u00e9" },
 			message:   "[INVALID_CONFIG] hint_characters can only contain ASCII characters",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "duplicate hint chars",
 			breakIt:   func(c *Config) { c.Hints.HintCharacters = "aA" },
 			message:   "[INVALID_CONFIG] hint_characters contains duplicate character 'A'",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad ui color",
 			breakIt:   func(c *Config) { c.Hints.UI.BackgroundColor = badColor() },
 			message:   "[INVALID_CONFIG] hints.ui.background_color (light) has invalid color format: nope",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad search color",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.BackgroundColor = badColor() },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.background_color (light) has invalid color format: nope",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad boundary color",
 			breakIt:   func(c *Config) { c.Hints.BoundaryHighlight.BorderColor = badColor() },
 			message:   "[INVALID_CONFIG] hints.boundary_highlight.border_color (light) has invalid color format: nope",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "font size zero",
 			breakIt:   func(c *Config) { c.Hints.UI.FontSize = 0 },
 			message:   "[INVALID_CONFIG] hints.ui.font_size must be between 1 and 2147483647",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "font size huge",
 			breakIt:   func(c *Config) { c.Hints.UI.FontSize = 100000 },
 			message:   "",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "negative border radius",
 			breakIt:   func(c *Config) { c.Hints.UI.BorderRadius = -5 },
 			message:   "[INVALID_CONFIG] hints.ui.border_radius must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "negative padding x",
 			breakIt:   func(c *Config) { c.Hints.UI.PaddingX = -5 },
 			message:   "[INVALID_CONFIG] hints.ui.padding_x must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "negative padding y",
 			breakIt:   func(c *Config) { c.Hints.UI.PaddingY = -5 },
 			message:   "[INVALID_CONFIG] hints.ui.padding_y must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "negative border width",
 			breakIt:   func(c *Config) { c.Hints.UI.BorderWidth = -1 },
 			message:   "[INVALID_CONFIG] hints.ui.border_width must be non-negative",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad placement",
@@ -135,67 +135,67 @@ func hintsCases() []hintsCase {
 			name:      "empty placement defaults",
 			breakIt:   func(c *Config) { c.Hints.UI.Placement = "" },
 			message:   "",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search font size zero",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.FontSize = 0 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.font_size must be between 1 and 2147483647",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search negative radius",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.BorderRadius = -5 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.border_radius must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search negative padding x",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.PaddingX = -5 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.padding_x must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search negative padding y",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.PaddingY = -5 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.padding_y must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search negative border width",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.BorderWidth = -1 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.border_width must be non-negative",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "boundary negative border width",
 			breakIt:   func(c *Config) { c.Hints.BoundaryHighlight.BorderWidth = -1 },
 			message:   "[INVALID_CONFIG] hints.boundary_highlight.border_width must be non-negative",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "boundary negative radius",
 			breakIt:   func(c *Config) { c.Hints.BoundaryHighlight.BorderRadius = -5 },
 			message:   "[INVALID_CONFIG] hints.boundary_highlight.border_radius must be at least -1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad search position",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.Position = "nowhere" },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.position must be one of top_left, top_center, top_right, center, bottom_left, bottom_center, bottom_right",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "search width zero",
 			breakIt:   func(c *Config) { c.Hints.SearchInputUI.Width = 0 },
 			message:   "[INVALID_CONFIG] hints.search_input_ui.width must be at least 1",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "negative max depth",
 			breakIt:   func(c *Config) { c.Hints.MaxDepth = -1 },
 			message:   "[INVALID_CONFIG] hints.max_depth must be at least 0",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "mc actions without detect",
@@ -204,7 +204,7 @@ func hintsCases() []hintsCase {
 				c.Hints.OnMissionControlActivated = []string{"hints"}
 			},
 			message:   "[INVALID_CONFIG] hints.on_mission_control_activated/deactivated requires hints.detect_mission_control = true",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "detect without dock",
@@ -213,7 +213,7 @@ func hintsCases() []hintsCase {
 				c.Hints.IncludeDockHints = false
 			},
 			message:   "[INVALID_CONFIG] hints.detect_mission_control requires hints.include_dock_hints = true (dock windows are the only element source available during Mission Control)",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "empty mc activated step",
@@ -223,7 +223,7 @@ func hintsCases() []hintsCase {
 				c.Hints.OnMissionControlActivated = []string{"  "}
 			},
 			message:   "[INVALID_CONFIG] hints.on_mission_control_activated[0] cannot be empty",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "bad mc activated step",
@@ -233,7 +233,7 @@ func hintsCases() []hintsCase {
 				c.Hints.OnMissionControlActivated = []string{"not_a_command"}
 			},
 			message:   "[INVALID_CONFIG] hints.on_mission_control_activated[0]: [INVALID_CONFIG] unknown command: not_a_command",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "empty mc deactivated step",
@@ -243,19 +243,19 @@ func hintsCases() []hintsCase {
 				c.Hints.OnMissionControlDeactivated = []string{"  "}
 			},
 			message:   "[INVALID_CONFIG] hints.on_mission_control_deactivated[0] cannot be empty",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad strategy",
 			breakIt:   func(c *Config) { c.Hints.Strategy = "telepathy" },
 			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\" or \"vision\"",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name:      "bad label direction",
 			breakIt:   func(c *Config) { c.Hints.LabelDirection = placementSideways },
 			message:   "[INVALID_CONFIG] hints.label_direction must be \"reverse\" or \"normal\"",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "vision detects nothing",
@@ -265,7 +265,7 @@ func hintsCases() []hintsCase {
 				c.Hints.Vision.DetectRectangles = false
 			},
 			message:   "[INVALID_CONFIG] hints.vision must enable detect_text or detect_rectangles",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "bad boundary width AND bad search position",
@@ -274,7 +274,7 @@ func hintsCases() []hintsCase {
 				c.Hints.SearchInputUI.Position = "nowhere"
 			},
 			message:   "[INVALID_CONFIG] hints.boundary_highlight.border_width must be non-negative",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "bad search border width AND bad boundary width",
@@ -283,7 +283,7 @@ func hintsCases() []hintsCase {
 				c.Hints.BoundaryHighlight.BorderWidth = -1
 			},
 			message:   "[INVALID_CONFIG] hints.search_input_ui.border_width must be non-negative",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "bad chars AND bad color",
@@ -292,7 +292,7 @@ func hintsCases() []hintsCase {
 				c.Hints.UI.BackgroundColor = badColor()
 			},
 			message:   "[INVALID_CONFIG] hint_characters must contain at least 2 characters",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 		{
 			name: "bad strategy AND bad label direction",
@@ -301,7 +301,7 @@ func hintsCases() []hintsCase {
 				c.Hints.LabelDirection = placementSideways
 			},
 			message:   "[INVALID_CONFIG] hints.strategy must be \"axtree\" or \"vision\"",
-			placement: placementBottom,
+			placement: HintPlacementBottom,
 		},
 	}
 }

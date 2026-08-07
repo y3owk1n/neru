@@ -16,7 +16,11 @@
 /// Overlay window handle
 typedef void *OverlayWindow;
 
-/// Hint placement constants (must match HintPlacement enum in overlay_darwin.m)
+/// Hint placement constants. Go reads these through cgo and passes one with
+/// every hint draw; the HintPlacement enum in overlay_darwin.m is what the
+/// drawing code compares against, so the two must agree. That is pinned by
+/// internal/architecture/hint_placement_vocabulary_test.go, which also checks
+/// both against the one Go declaration of the vocabulary (config.HintPlacements).
 #define HINT_PLACEMENT_TOP 1
 #define HINT_PLACEMENT_CENTER 2
 #define HINT_PLACEMENT_BOTTOM 3

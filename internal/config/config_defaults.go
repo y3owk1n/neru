@@ -427,7 +427,7 @@ func defaultHints() HintsConfig {
 			PaddingX:         DefaultHintPaddingX,
 			PaddingY:         DefaultHintPaddingY,
 			BorderWidth:      1,
-			Placement:        "bottom",
+			Placement:        HintPlacementDefault,
 			BackgroundColor:  Color{},
 			TextColor:        Color{},
 			MatchedTextColor: Color{},
