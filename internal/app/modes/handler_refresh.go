@@ -56,8 +56,19 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 		splitWordOverride = h.hints.Context.SplitWord()
 	}
 
+	// The walk is given the same HintTimeout budget the activation and
+	// monitor-move paths give it. The context a screen change arrives with is
+	// the application's own and carries no deadline, and this walk runs under
+	// h.mu — a tree that never answers would hold the lock, and with it every
+	// keystroke, for as long as it took.
+	//
+	// The traversal reads the context as it descends, so this bounds the
+	// expensive part rather than only the entry to it.
+	generateCtx, cancelGenerate := context.WithTimeout(ctx, HintTimeout)
+	defer cancelGenerate()
+
 	domainHints, showHintsErr := h.hintService.GenerateHints(
-		ctx,
+		generateCtx,
 		filterRoles,
 		filterTextContains,
 		"",

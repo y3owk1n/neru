@@ -94,7 +94,8 @@ of keeping mode knowledge in a switch the modes work exists to delete.
   would otherwise pin `h.mu` — and with it every keystroke — indefinitely. The
   screen-change refresh has the same unbounded context today and is left alone
   here, because it is not this change's hold; it should be bounded when those
-  refreshers move under one hold too. No keystroke runs this path — it is
+  refreshers move under one hold too. *(#1232 made that move without the bound;
+  #1243 applied it. The rule this became lives in the modes area guide.)* No keystroke runs this path — it is
   reached only from `move_monitor` — so the latency budget `AGENTS.md` protects
   is untouched.
 - **Idle is answered by absence rather than by an arm.** `domain.ModeIdle` has
