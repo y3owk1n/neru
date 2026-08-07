@@ -107,3 +107,37 @@ func TestResolveGridLabels(t *testing.T) {
 		})
 	}
 }
+
+// TestConfigDefaults_LeaveTheDerivedGridLabelsBlank pins the invariant the
+// warning attribution stands on. What a load keeps on LoadResult.Written is
+// every layer under the derivation — the declared defaults, the platform
+// layer, the config file and the override file — so "the user wrote this
+// field" is read as "this field is not blank" (config.WrittenConfig). Give
+// either label a default and every user is told to go and fix a line that is
+// not in their file, which is the failure #1281 exists to end rather than
+// relocate.
+//
+// It is the derived-option rule of internal/config/AGENTS.md read from the
+// other end: the declared default of a derived option stays the value a user
+// would have typed, and for these two that value is the blank that means
+// "infer from characters". Read through DefaultConfigForDecoding so a platform
+// layer that filled one in fails here too.
+func TestConfigDefaults_LeaveTheDerivedGridLabelsBlank(t *testing.T) {
+	cfg := config.DefaultConfigForDecoding()
+
+	for _, label := range []struct {
+		field string
+		value string
+	}{
+		{field: "grid.row_labels", value: cfg.Grid.RowLabels},
+		{field: "grid.col_labels", value: cfg.Grid.ColLabels},
+	} {
+		if label.value != "" {
+			t.Errorf(
+				"%s defaults to %q; a derived label with a default reads as one the "+
+					"user wrote, and every warning about it names a line nobody has",
+				label.field, label.value,
+			)
+		}
+	}
+}

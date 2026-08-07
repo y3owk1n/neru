@@ -106,7 +106,7 @@ func TestConfigValidateHeldRepeat_AccelWithoutRepeatWarns(t *testing.T) {
 
 	warnings := &config.Warnings{}
 
-	err := cfg.ValidateWithWarnings(warnings)
+	err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
 	if err != nil {
 		t.Fatalf("ValidateWithWarnings() refused a configuration that loads: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent(t *testing.T) {
 
 	warnings := &config.Warnings{}
 
-	err := cfg.ValidateWithWarnings(warnings)
+	err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
 	if err != nil {
 		t.Fatalf("ValidateWithWarnings() refused the working combination: %v", err)
 	}

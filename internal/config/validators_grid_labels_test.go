@@ -7,21 +7,64 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// validateGridWithWarnings runs the whole ladder and returns what it collected,
-// failing the test if the configuration was refused. Every case here describes a
-// file that loads: the point of the tier is that a label set the grid cannot use
-// costs the user the label set, not the rest of their configuration (ADR 0002).
+// The fields these cases assert about. A warning is only as useful as the name
+// it puts in front of the user, so which field a case expects to be named is
+// the assertion, and it is spelled once.
+const (
+	fieldCharacters = "grid.characters"
+	fieldRowLabels  = "grid.row_labels"
+	fieldColLabels  = "grid.col_labels"
+)
+
+// validateGridWithWarnings runs the whole ladder with nothing to compare
+// against — the shape every caller that never loaded a file is in — and returns
+// what it collected, failing the test if the configuration was refused. Every
+// case here describes a file that loads: the point of the tier is that a label
+// set the grid cannot use costs the user the label set, not the rest of their
+// configuration (ADR 0002).
 func validateGridWithWarnings(t *testing.T, cfg *config.Config) []string {
+	t.Helper()
+
+	return validateGridAgainstWritten(t, cfg, config.WrittenConfig{})
+}
+
+// validateGridAgainstWritten is the same ladder for a caller that kept what the
+// user wrote, which is what a load hands validation ([config.LoadResult.Written]).
+func validateGridAgainstWritten(
+	t *testing.T,
+	cfg *config.Config,
+	written config.WrittenConfig,
+) []string {
 	t.Helper()
 
 	warnings := &config.Warnings{}
 
-	err := cfg.ValidateWithWarnings(warnings)
+	err := cfg.ValidateWithWarnings(warnings, written)
 	if err != nil {
 		t.Fatalf("ValidateWithWarnings() refused a configuration that loads: %v", err)
 	}
 
 	return warnings.Messages()
+}
+
+// gridLabelsAsLoaded builds the pair a load produces from one set of written
+// values: the configuration the daemon runs on, derived, and the one the user
+// wrote, which is the only copy where an empty label still means "infer".
+//
+// The column labels are left empty in every case, which is what makes them the
+// control: whatever the row labels are told, a field nobody wrote must stay its
+// source's business.
+func gridLabelsAsLoaded(characters, rowLabels string) (*config.Config, *config.Config) {
+	written := config.DefaultConfigForDecoding()
+	written.Grid.Characters = characters
+	written.Grid.RowLabels = rowLabels
+
+	running := config.DefaultConfigForDecoding()
+	running.Grid.Characters = characters
+	running.Grid.RowLabels = rowLabels
+	running.ResolveDerived()
+
+	return running, written
 }
 
 // warningsMentioning returns the collected warnings that name a field, so a case
@@ -84,17 +127,17 @@ func TestConfigValidateGrid_ShortLabelsWarn(t *testing.T) {
 		{
 			name:  "row labels",
 			set:   func(c *config.Config) { c.Grid.RowLabels = "A" },
-			field: "grid.row_labels",
+			field: fieldRowLabels,
 		},
 		{
 			name:  "col labels",
 			set:   func(c *config.Config) { c.Grid.ColLabels = "A" },
-			field: "grid.col_labels",
+			field: fieldColLabels,
 		},
 		{
 			name:  "characters",
 			set:   func(c *config.Config) { c.Grid.Characters = "a" },
-			field: "grid.characters",
+			field: fieldCharacters,
 		},
 	}
 
@@ -124,7 +167,7 @@ func TestConfigValidateGrid_ShortSetsSayWhatTheyCost(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Grid.Characters = "a"
 
-	got := warningsMentioning(validateGridWithWarnings(t, cfg), "grid.characters")
+	got := warningsMentioning(validateGridWithWarnings(t, cfg), fieldCharacters)
 	if len(got) != 1 {
 		t.Fatalf("warnings for grid.characters = %q, want exactly one", got)
 	}
@@ -136,7 +179,7 @@ func TestConfigValidateGrid_ShortSetsSayWhatTheyCost(t *testing.T) {
 	cfg = config.DefaultConfig()
 	cfg.Grid.RowLabels = "a"
 
-	got = warningsMentioning(validateGridWithWarnings(t, cfg), "grid.row_labels")
+	got = warningsMentioning(validateGridWithWarnings(t, cfg), fieldRowLabels)
 	if len(got) != 1 {
 		t.Fatalf("warnings for grid.row_labels = %q, want exactly one", got)
 	}
@@ -173,17 +216,17 @@ func TestConfigValidateGrid_DuplicateLabelsWarn(t *testing.T) {
 		{
 			name:  "row labels",
 			set:   func(c *config.Config) { c.Grid.RowLabels = "aba" },
-			field: "grid.row_labels",
+			field: fieldRowLabels,
 		},
 		{
 			name:  "col labels repeated case-insensitively",
 			set:   func(c *config.Config) { c.Grid.ColLabels = "abA" },
-			field: "grid.col_labels",
+			field: fieldColLabels,
 		},
 		{
 			name:  "characters",
 			set:   func(c *config.Config) { c.Grid.Characters = "abb" },
-			field: "grid.characters",
+			field: fieldCharacters,
 		},
 	}
 
@@ -207,7 +250,7 @@ func TestConfigValidateGrid_RepeatedCharacterIsReportedOnce(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Grid.RowLabels = "aaab"
 
-	got := warningsMentioning(validateGridWithWarnings(t, cfg), "grid.row_labels")
+	got := warningsMentioning(validateGridWithWarnings(t, cfg), fieldRowLabels)
 	if len(got) != 1 {
 		t.Fatalf("warnings for grid.row_labels = %q, want exactly one", got)
 	}
@@ -223,7 +266,7 @@ func TestConfigValidateGrid_RepeatsThatLeaveTooFewCharactersWarn(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Grid.Characters = "aa"
 
-	got := warningsMentioning(validateGridWithWarnings(t, cfg), "grid.characters")
+	got := warningsMentioning(validateGridWithWarnings(t, cfg), fieldCharacters)
 
 	want := 2
 	if len(got) != want {
@@ -255,7 +298,7 @@ func TestConfigValidateGrid_UntypeableLabelsWarn(t *testing.T) {
 			cfg := config.DefaultConfig()
 			cfg.Grid.RowLabels = testCase.labels
 
-			got := warningsMentioning(validateGridWithWarnings(t, cfg), "grid.row_labels")
+			got := warningsMentioning(validateGridWithWarnings(t, cfg), fieldRowLabels)
 			if len(got) != 1 {
 				t.Fatalf("warnings for grid.row_labels = %q, want exactly one", got)
 			}
@@ -282,7 +325,7 @@ func TestConfigValidateGrid_InferredLabelsReportTheirSource(t *testing.T) {
 		t.Fatalf("warnings = %q, want exactly one naming grid.characters", got)
 	}
 
-	if !strings.Contains(got[0], "grid.characters") {
+	if !strings.Contains(got[0], fieldCharacters) {
 		t.Errorf("warning = %q, want it to name grid.characters", got[0])
 	}
 }
@@ -302,8 +345,99 @@ func TestConfigValidateGrid_WrittenLabelsAreReportedThemselves(t *testing.T) {
 		t.Fatalf("warnings = %q, want %d naming grid.row_labels", got, want)
 	}
 
-	if !strings.Contains(got[0], "grid.row_labels") {
+	if !strings.Contains(got[0], fieldRowLabels) {
 		t.Errorf("warning = %q, want it to name grid.row_labels", got[0])
+	}
+}
+
+// spacedCharacters is the fault this file's #1281 cases are built on: a space
+// between two groups of keys, which loads and cannot be typed at a grid. It is
+// the fault a hand-written label can carry while still being character-for-
+// character what an empty one would settle to — the inference drops repeats and
+// applies a floor (domain/grid.DistinctKeys), so a label equal to it has
+// neither a repeat nor too few characters left to be told off for.
+const spacedCharacters = "ab c"
+
+// TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported is issue
+// #1281: a label set the user typed by hand that is exactly what an empty one
+// would have settled to. Compared by value the two are the same string, so the
+// fault in the label went unreported until the user fixed grid.characters and
+// ran the command again — one sitting turned into two, and a "your
+// configuration is fine" in between that was not true. The written
+// configuration answers it outright: both fields are in the file, so both are
+// named, and the user fixes them together.
+func TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported(t *testing.T) {
+	cfg, written := gridLabelsAsLoaded(spacedCharacters, "AB C")
+
+	got := validateGridAgainstWritten(t, cfg, config.AsWritten(written))
+
+	for _, field := range []string{fieldCharacters, fieldRowLabels} {
+		if len(warningsMentioning(got, field)) != 1 {
+			t.Errorf("warnings = %q, want exactly one naming %s", got, field)
+		}
+	}
+
+	// The column labels were left empty, so they are the inference and stay
+	// their source's business — the fix for this file is two lines, not three.
+	if found := warningsMentioning(got, fieldColLabels); len(found) > 0 {
+		t.Errorf("warnings for grid.col_labels = %q, want none", found)
+	}
+}
+
+// TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten keeps the
+// answer above from costing the common case. Labels left empty are the
+// derivation's own output whatever they equal, and the written configuration is
+// what says so — a fault in grid.characters is still one warning, under the one
+// name that is in the user's file.
+func TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten(t *testing.T) {
+	cfg, written := gridLabelsAsLoaded(spacedCharacters, "")
+
+	got := validateGridAgainstWritten(t, cfg, config.AsWritten(written))
+
+	if len(got) != 1 {
+		t.Fatalf("warnings = %q, want exactly one naming grid.characters", got)
+	}
+
+	if !strings.Contains(got[0], fieldCharacters) {
+		t.Errorf("warning = %q, want it to name grid.characters", got[0])
+	}
+}
+
+// TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn pins the third shape:
+// a hand-written label set that differs from the characters is reported under
+// its own name, which is the case the value comparison already got right and
+// must keep getting right now that it is not the one deciding.
+func TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn(t *testing.T) {
+	cfg, written := gridLabelsAsLoaded("abcdef", "xyx")
+
+	got := validateGridAgainstWritten(t, cfg, config.AsWritten(written))
+
+	if len(got) != 1 {
+		t.Fatalf("warnings = %q, want exactly one naming grid.row_labels", got)
+	}
+
+	if !strings.Contains(got[0], fieldRowLabels) {
+		t.Errorf("warning = %q, want it to name grid.row_labels", got[0])
+	}
+}
+
+// TestConfigValidateGrid_TheComparisonIsTheFloorWithoutAWrittenConfig pins what
+// a caller that never loaded a file still gets, which is what it got before:
+// the same file judged by value alone reports the source and suppresses the
+// label. It is the case above with the answer taken away, and writing it down
+// is what keeps the fallback from being mistaken for the rule — every caller
+// that can do better hands over the written configuration.
+func TestConfigValidateGrid_TheComparisonIsTheFloorWithoutAWrittenConfig(t *testing.T) {
+	cfg, _ := gridLabelsAsLoaded(spacedCharacters, "AB C")
+
+	got := validateGridWithWarnings(t, cfg)
+
+	if len(got) != 1 {
+		t.Fatalf("warnings = %q, want exactly one naming grid.characters", got)
+	}
+
+	if !strings.Contains(got[0], fieldCharacters) {
+		t.Errorf("warning = %q, want it to name grid.characters", got[0])
 	}
 }
 
