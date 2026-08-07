@@ -30,6 +30,11 @@ type GridComponent struct {
 // UpdateConfig rebuilds the grid's domain state — the grid itself and its
 // subgrid keys — when the configuration that defines them changes. Appearance
 // is not its business; the overlay resolves that.
+//
+// It runs under the mode handler's `h.mu` (`modes.Handler.UpdateConfig`),
+// because the manager it writes is the one a keystroke reads under that same
+// lock and carries none of its own (#1277). So it must stay pure: no overlay,
+// service or port call belongs here.
 func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 	if cfg.Grid.Enabled {
 		if g.Manager != nil {
@@ -85,7 +90,11 @@ type ScrollComponent struct {
 	Context *scroll.Context
 }
 
-// UpdateConfig updates the scroll component with new configuration.
+// UpdateConfig updates the scroll component with new configuration. There is
+// nothing to derive today; it is called anyway so that whatever lands here
+// lands under the mode handler's `h.mu` (`modes.Handler.UpdateConfig`) by
+// construction rather than by someone noticing, the way the grid's did not
+// (#1277). The same rule applies: stay pure — no overlay, service or port call.
 func (s *ScrollComponent) UpdateConfig(_ *config.Config, _ *zap.Logger) {
 }
 

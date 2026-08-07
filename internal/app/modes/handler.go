@@ -424,12 +424,33 @@ func (h *Handler) UpdateConfig(config *configpkg.Config) {
 
 	h.config = config
 
+	h.updateComponentConfigs(config)
+
 	// Replacing the configuration replaces what is bound, and settling it here
 	// rather than on the next keystroke is what keeps the keystroke path unable
 	// to ask the platform anything (ADR 0005).
 	h.settledKeymap()
 
 	h.syncModifierPassthrough(h.appState.CurrentMode())
+}
+
+// updateComponentConfigs rebuilds the domain state the mode components derive
+// from configuration. Overlay appearance is not here: it reaches the render
+// components through the overlay's own Style notification.
+//
+// It runs here rather than on the app's reconfigure path because the state it
+// rebuilds is the state a keystroke reads. The grid manager is the one that
+// matters and it carries no lock of its own: the handler assigns it on
+// activation and reads it on every key, both under `h.mu`, so a reload writing
+// it from the app layer was a plain data race on live mode state (#1277).
+func (h *handlerState) updateComponentConfigs(config *configpkg.Config) {
+	if h.grid != nil {
+		h.grid.UpdateConfig(config, h.logger)
+	}
+
+	if h.scroll != nil {
+		h.scroll.UpdateConfig(config, h.logger)
+	}
 }
 
 // setScreenBounds records the active screen bounds used for overlay coordinate
