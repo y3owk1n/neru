@@ -160,24 +160,10 @@ func (a *App) reconfigureRuntimeFromConfig(cfg *config.Config) {
 		a.overlayPort.ApplyConfig(cfg)
 	}
 
-	a.updateComponentConfigs(cfg)
 	a.updateServiceConfigs(cfg)
 	a.updateControllerConfigs(cfg)
 	a.syncScreenShareConfig(cfg)
 	a.syncScrollInvertConfig(cfg)
-}
-
-// updateComponentConfigs rebuilds the domain state a component derives from
-// configuration. Overlay appearance is not here: it reaches the render
-// components through the overlay's own Style notification.
-func (a *App) updateComponentConfigs(cfg *config.Config) {
-	if a.gridComponent != nil {
-		a.gridComponent.UpdateConfig(cfg, a.logger)
-	}
-
-	if a.scrollComponent != nil {
-		a.scrollComponent.UpdateConfig(cfg, a.logger)
-	}
 }
 
 func (a *App) updateServiceConfigs(cfg *config.Config) {
