@@ -28,6 +28,13 @@ const (
 	scrollHotkey = "Primary+Shift+S"
 )
 
+// The second fixture application, so a journey can switch away from the one
+// the fixture desktop starts focused on.
+const (
+	simOtherAppBundleID = "com.example.otherapp"
+	simOtherAppName     = "Other App"
+)
+
 // threeButtons is a fixture of three well-separated clickable elements.
 func threeButtons(t *testing.T) []*element.Element {
 	t.Helper()
@@ -439,8 +446,8 @@ const recursiveGridHotkey = "Primary+Shift+C"
 
 // manyButtons builds a count-sized grid of well-separated clickable buttons,
 // enough to force multi-character hint labels.
-func manyButtons(t *testing.T, count int) []*element.Element {
-	t.Helper()
+func manyButtons(tb testing.TB, count int) []*element.Element {
+	tb.Helper()
 
 	elements := make([]*element.Element, 0, count)
 	for index := range count {
@@ -449,7 +456,7 @@ func manyButtons(t *testing.T, count int) []*element.Element {
 		bounds := image.Rect(100+col*200, 100+row*100, 220+col*200, 140+row*100)
 		elements = append(
 			elements,
-			simElement(t, fmt.Sprintf("btn-%d", index), bounds, fmt.Sprintf("Button %d", index)),
+			simElement(tb, fmt.Sprintf("btn-%d", index), bounds, fmt.Sprintf("Button %d", index)),
 		)
 	}
 
@@ -2042,6 +2049,137 @@ func TestSimulation_ThemeChangeRedrawsMonitorSelect(t *testing.T) {
 
 	if got := sim.app.CurrentMode(); got != domain.ModeMonitorSelect {
 		t.Errorf("mode after the theme change = %v, want monitor select", got)
+	}
+}
+
+// TestSimulation_KeystrokeAsksWhichAppIsFocused pins what one keystroke inside
+// a mode costs today in questions to the operating system: exactly one when the
+// active mode declares per-app hotkey overrides, and none at all when it does
+// not.
+//
+// The first number is a baseline, not an invariant — ADR 0005 is the decision
+// to drive it to zero by having the focused app published instead of asked for,
+// and the change that earns it is the change that edits this number.
+//
+// Asking which application is focused is the only thing on the keystroke path
+// that leaves the process — on macOS it is a message to another application,
+// which can be busy or wedged — and the handler holds the lock that serializes
+// key handling, mode exit included, while it waits. The count is therefore
+// what a user can be stalled by, which is why it is asserted here rather than
+// described somewhere.
+//
+// The second direction is the cheap path a mode with no overrides already
+// takes, which nothing tested before: a refactor that dropped that gate would
+// make every keystroke in every mode pay, invisibly.
+//
+// Grid mode drives both directions because it needs no accessibility tree of
+// its own: nothing else in the keystroke being measured has any reason to ask
+// which app is focused, so the count belongs to key dispatch and to nothing
+// else.
+func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  func() *config.Config
+		want int
+	}{
+		{
+			name: "mode declares per-app overrides",
+			cfg: func() *config.Config {
+				cfg := simConfig()
+				cfg.Grid.AppConfigs = []config.AppConfig{
+					perAppHotkeyOverride(
+						simFixtureBundleID,
+						unpressedOverrideKey,
+						"action left_click",
+					),
+				}
+
+				return cfg
+			},
+			want: 1,
+		},
+		{
+			name: "mode declares none",
+			cfg:  simConfig,
+			want: 0,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			sim := newSimHarness(t, testCase.cfg(), nil)
+
+			sim.pressHotkey(gridHotkey)
+			sim.waitMode(domain.ModeGrid)
+			sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+			// Entering the mode is allowed to ask; this measures the keystroke
+			// after it, so the count starts from a mode already on screen.
+			queriesBefore := sim.ax.focusedAppQueryCount()
+
+			sim.press(firstGridLabelKey(sim))
+
+			sim.waitFor("grid narrowed to what was typed", func() bool {
+				prefix, narrowed := sim.overlay.lastMatchPrefix()
+
+				return narrowed && prefix != ""
+			})
+
+			if got := sim.ax.focusedAppQueryCount() - queriesBefore; got != testCase.want {
+				t.Errorf(
+					"one keystroke asked which app is focused %d times, want %d",
+					got, testCase.want,
+				)
+			}
+		})
+	}
+}
+
+// TestSimulation_FocusChangeMidModeRebindsTheKey covers switching applications
+// without leaving the mode — passing a shortcut through to the system and
+// landing somewhere else is the ordinary way it happens — and pins what the
+// next keystroke does: it runs the binding the newly focused application's
+// overrides put on that key, not the one the mode was opened under.
+//
+// That is what per-app bindings mean, and it is the behavior most at risk
+// from anything that decides the keymap once and keeps it. The journey drives
+// the change the way the platform does, through a watcher activation event and
+// a desktop that now answers with the other application, so it stays true of
+// whichever half the handler learns from.
+func TestSimulation_FocusChangeMidModeRebindsTheKey(t *testing.T) {
+	const sharedKey = "j"
+
+	// The two applications bind the same key to a different mode, so which
+	// mode the user lands in says which application's overrides were in force.
+	cfg := simConfig()
+	cfg.Grid.AppConfigs = []config.AppConfig{
+		perAppHotkeyOverride(simFixtureBundleID, sharedKey, config.ModeNameScroll),
+		perAppHotkeyOverride(simOtherAppBundleID, sharedKey, config.ModeNameRecursiveGrid),
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	sim.focusApp(simOtherAppName, simOtherAppBundleID)
+
+	sim.press(sharedKey)
+
+	sim.waitFor("a binding for the shared key to run", func() bool {
+		return sim.app.CurrentMode() != domain.ModeGrid
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeRecursiveGrid {
+		t.Fatalf(
+			"pressing %q after switching to %s entered %s, want %s: the key still means what "+
+				"it meant in the application the mode was opened in",
+			sharedKey,
+			simOtherAppName,
+			domain.ModeString(got),
+			domain.ModeString(domain.ModeRecursiveGrid),
+		)
 	}
 }
 

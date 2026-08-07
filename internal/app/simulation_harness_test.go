@@ -599,6 +599,17 @@ type simAXPort struct {
 	elementActions []action.Type
 	scrolls        []image.Point
 	releases       int
+
+	// focusedApp is which application the fixture desktop routes keystrokes
+	// to, and focusedAppQueries how many times the app asked for it.
+	//
+	// Both exist because asking is not free on a real desktop: on macOS it is a
+	// message to another process, so an application that is busy or wedged
+	// answers slowly or not at all. How many times a single keystroke asks is
+	// therefore a property a user can be stalled by, and a journey that counts
+	// it is stating what a keystroke costs rather than describing it.
+	focusedApp        string
+	focusedAppQueries int
 }
 
 var _ ports.AccessibilityPort = (*simAXPort)(nil)
@@ -666,7 +677,12 @@ func (a *simAXPort) ReleaseHeldButtons(_ context.Context) error {
 }
 
 func (a *simAXPort) FocusedAppBundleID(_ context.Context) (string, error) {
-	return simFixtureBundleID, nil
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.focusedAppQueries++
+
+	return a.focusedApp, nil
 }
 
 func (a *simAXPort) IsAppExcluded(_ context.Context, _ string) bool {
@@ -687,6 +703,24 @@ func (a *simAXPort) setElements(elements []*element.Element) {
 	defer a.mu.Unlock()
 
 	a.elements = elements
+}
+
+// setFocusedApp changes which application the fixture desktop reports as
+// focused, the way switching applications does on a real one.
+func (a *simAXPort) setFocusedApp(bundleID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.focusedApp = bundleID
+}
+
+// focusedAppQueryCount reports how many times the app has asked which
+// application is focused.
+func (a *simAXPort) focusedAppQueryCount() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.focusedAppQueries
 }
 
 func (a *simAXPort) setExcluded(excluded bool) {
@@ -830,8 +864,25 @@ type simHarness struct {
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
 	tap        *mocks.MockEventTapPort
-	desktop    *simDesktop
-	runDone    chan error
+	// watcher is the platform application watcher: the thing that tells Neru
+	// the user switched applications. A journey drives a focus change through
+	// it rather than by poking the accessibility fake alone, because the
+	// activation event is the half of a focus change that reaches the app.
+	watcher *mocks.MockAppWatcherPort
+	desktop *simDesktop
+	runDone chan error
+}
+
+// focusApp switches the fixture desktop to another application: the desktop
+// answers with it from now on, and the platform watcher announces the
+// activation the way it does when the user brings an application to the front.
+//
+// The desktop is switched before the announcement, so everything the app reads
+// while handling it sees the application the user is now in, as it would on a
+// real desktop.
+func (h *simHarness) focusApp(appName, bundleID string) {
+	h.ax.setFocusedApp(bundleID)
+	h.watcher.EmitActivate(appName, bundleID)
 }
 
 // switchToDarkMode flips the fixture desktop's appearance and notifies the app
@@ -877,6 +928,39 @@ func simConfig() *config.Config {
 	}
 
 	return cfg
+}
+
+// unpressedOverrideKey is what a per-app override that exists only to open the
+// focused-app path is bound to. Nothing presses it: declaring an override at
+// all is what makes a keystroke resolve the focused app, so the binding's key
+// is deliberately one no journey types.
+const unpressedOverrideKey = "F13"
+
+// perAppHotkeyOverride is one mode's per-app hotkey override: the steps the
+// given key runs while that application is focused.
+func perAppHotkeyOverride(bundleID, key string, steps ...string) config.AppConfig {
+	return config.AppConfig{
+		BundleID: bundleID,
+		Hotkeys:  map[string]config.StringOrStringArray{key: steps},
+	}
+}
+
+// firstGridLabelKey returns the lower-case first character of a drawn cell's
+// label — the key a user would press to start narrowing to it.
+func firstGridLabelKey(sim *simHarness) string {
+	grid := sim.overlay.lastGrid()
+
+	cells := grid.Cells()
+	if len(cells) == 0 {
+		sim.t.Fatal("grid drawn with zero cells")
+	}
+
+	label := cells[0].Coordinate()
+	if label == "" {
+		sim.t.Fatal("grid cell drawn without a label")
+	}
+
+	return strings.ToLower(string([]rune(label)[0]))
 }
 
 // simDisplay is one monitor of the simulated desktop.
@@ -974,8 +1058,9 @@ func buildSimHarness(
 		tb.Fatal("buildSimHarness needs at least one display")
 	}
 
-	axPort := &simAXPort{elements: elements}
+	axPort := &simAXPort{elements: elements, focusedApp: simFixtureBundleID}
 	appearance := &atomic.Bool{}
+	watcher := &mocks.MockAppWatcherPort{}
 	cursor := &simCursor{pos: displays[0].bounds.Min.Add(
 		image.Point{X: displays[0].bounds.Dx() / 2, Y: displays[0].bounds.Dy() / 2},
 	)}
@@ -1045,7 +1130,7 @@ func buildSimHarness(
 		app.WithEventTap(tap),
 		app.WithTextInput(&mocks.MockTextInputPort{}),
 		app.WithIPCServer(&mocks.MockIPCPort{}),
-		app.WithWatcher(&mocks.MockAppWatcherPort{}),
+		app.WithWatcher(watcher),
 		app.WithHotkeyService(hotkeys),
 		app.WithOverlayPort(overlayPort),
 		app.WithSystemPort(system),
@@ -1064,6 +1149,7 @@ func buildSimHarness(
 		cursor:     cursor,
 		hotkeys:    hotkeys,
 		tap:        tap,
+		watcher:    watcher,
 		desktop:    desktop,
 		runDone:    make(chan error, 1),
 	}
