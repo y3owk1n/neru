@@ -528,6 +528,10 @@ puts the new app's overrides in force on your next key; on Windows they settle
 when the mode opens instead. See
 [Keymap learns the focused app](CROSS_PLATFORM.md#capability-matrix).
 
+With `general.passthrough_unbounded_keys` on, which chords Neru consumes rather
+than passes to the focused app follows the same change — see
+[Keyboard capture and hotkeys](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
+
 ### Action Reference
 
 All actions available in hotkeys. These also work as `neru action <name>` — see [CLI.md](CLI.md#actions) for full flag documentation.

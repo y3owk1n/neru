@@ -306,6 +306,15 @@ func (a *App) handleAppActivation(bundleID string) {
 	// watcher calls this inline and, on macOS, on the main queue (ADR 0005).
 	a.modes.PublishFocusedApp(bundleID)
 
+	// The keymap settles from that publication on the next read, but the event
+	// tap has to be told before the next key arrives rather than because one
+	// did: its blacklist decides whether a chord the newly focused application
+	// binds reaches Neru at all. So this one is pushed — on a goroutine, since
+	// the handler takes h.mu and this callback runs on the main queue on macOS
+	// (ADR 0005). It reads the cell published just above, so racing activations
+	// converge on the last one announced.
+	go a.modes.RefreshPassthroughForFocusedAppChange()
+
 	if a.appState.CurrentMode() == domain.ModeIdle {
 		go a.hotkeys.RefreshFor(bundleID)
 	} else {

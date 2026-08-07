@@ -18,6 +18,10 @@ type MockEventTapPort struct {
 
 	// OnCall, when set, is invoked with a short label for every mutating
 	// call. Tests that care about ordering use it to build a call log.
+	//
+	// Set it at construction, or through SetOnCall once anything else can
+	// reach the mock: the port is called from background goroutines, so a bare
+	// assignment races the read in record.
 	OnCall func(label string)
 
 	mu                      sync.Mutex
@@ -182,6 +186,25 @@ func (m *MockEventTapPort) PostedModifiers() []string {
 	return append([]string(nil), m.postedModifiers...)
 }
 
+// ModifierPassthrough returns the last state passed to
+// SetModifierPassthrough: whether unbound modifier chords reach the focused
+// application, and the chords excluded from that.
+func (m *MockEventTapPort) ModifierPassthrough() (bool, []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.passthroughEnabled, append([]string(nil), m.passthroughBlacklist...)
+}
+
+// InterceptedModifierKeys returns the last key set passed to
+// SetInterceptedModifierKeys.
+func (m *MockEventTapPort) InterceptedModifierKeys() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return append([]string(nil), m.interceptedModifierKeys...)
+}
+
 // Hotkeys returns the last hotkey set passed to SetHotkeys.
 func (m *MockEventTapPort) Hotkeys() []string {
 	m.mu.Lock()
@@ -201,8 +224,27 @@ func (m *MockEventTapPort) Destroyed() bool {
 // Ensure MockEventTapPort implements ports.EventTapPort.
 var _ ports.EventTapPort = (*MockEventTapPort)(nil)
 
+// SetOnCall installs the call log hook after construction, for a test that
+// starts recording partway through — say, once the calls a fixture made on the
+// way to the state under test are no longer interesting.
+func (m *MockEventTapPort) SetOnCall(onCall func(label string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.OnCall = onCall
+}
+
+// record invokes the call log hook, if one is installed.
+//
+// The hook is read under the mutex and called outside it: every caller of this
+// is already out of its own critical section, and a hook that reaches back into
+// the mock would otherwise deadlock.
 func (m *MockEventTapPort) record(label string) {
-	if m.OnCall != nil {
-		m.OnCall(label)
+	m.mu.Lock()
+	onCall := m.OnCall
+	m.mu.Unlock()
+
+	if onCall != nil {
+		onCall(label)
 	}
 }

@@ -297,6 +297,14 @@ refresh are shared in
 [passthrough.go](../internal/app/modes/passthrough.go); only the final
 re-injection is backend-specific. The blacklist keeps chosen chords consumed,
 and `general.should_exit_after_passthrough` exits the mode after a passthrough.
+Both lists are re-derived whenever a mode opens, the configuration is replaced,
+hints refresh after a passthrough, or — where a per-app override could move
+them — the focused application changes under an open mode. That last trigger is
+what keeps per-app overrides meaningful after passing `Cmd+Tab` through and
+carrying on in the application you landed in; it runs as soon as the mode
+handler is free rather than in step with the focus change, so a chord pressed
+in the same instant can still be routed by the lists the application you left
+put in force.
 
 ---
 
