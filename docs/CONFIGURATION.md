@@ -1548,6 +1548,11 @@ currently the sole valid entry: anything else is a config error rather than a bi
 that silently never accelerates. An empty `accel_targets` while `accel_enabled = true` is
 rejected for the same reason. Scroll and page keep their fixed step.
 
+`accel_enabled = true` while `enabled = false` is not an error: acceleration scales a
+repeat, so with no repeat to scale it simply does nothing, and refusing the file would
+stop you turning held-key repeat off without also unwinding the settings under it.
+`neru config validate` reports it as a warning instead.
+
 ---
 
 ## [systray]

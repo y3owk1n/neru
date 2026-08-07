@@ -61,24 +61,30 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return refuse(result, wrapped)
 	}
 
-	// The override pass below validates again, for refusals only: an override
-	// sets a single scalar field and no scalar field is a binding, so it can
-	// neither add a warning nor answer one.
+	// The override pass validates the config again, warnings included, and its
+	// reading replaces this one rather than adding to it: an override sets a
+	// scalar, and a scalar can make a setting elsewhere in the file inert —
+	// `neru config set held_repeat.enabled false` is enough to answer for an
+	// accel_enabled the user wrote months ago — or answer a warning this pass
+	// raised, which merging the two would leave standing. So what rides out is
+	// read from the config the daemon will actually run.
+	//
+	// That holds because every warning comes from ValidateWithWarnings, which
+	// both passes run in full; the phases above this sink report by refusing,
+	// so there is nothing of theirs to lose. A warning raised outside it would
+	// have to be re-raised here.
+	if overridePath := overrideFileToLayer(result.ConfigPath); overridePath != "" {
+		overrideWarnings := &config.Warnings{}
+
+		overrideErr := s.applyOverrideFile(result.Config, overridePath, overrideWarnings)
+		if overrideErr != nil {
+			return refuse(result, overrideErr)
+		}
+
+		warnings = overrideWarnings
+	}
+
 	result.Warnings = warnings.Messages()
-
-	overrideErr := s.applyOverrideFile(result.Config, result.ConfigPath)
-	if overrideErr != nil {
-		return refuse(result, overrideErr)
-	}
-
-	// Settings that are valid alone but inert in context warn rather than fail:
-	// rejecting them would stop someone switching a feature off without also
-	// unwinding the settings beneath it.
-	if result.Config.HeldRepeat.AccelEnabled && !result.Config.HeldRepeat.Enabled {
-		s.logger.Warn(
-			"held_repeat.accel_enabled has no effect while held_repeat.enabled is false",
-		)
-	}
 
 	// Logged as well as reported, because a hot reload has no one to print to:
 	// the CLI shows these to whoever runs `neru config validate`, and the log
@@ -472,23 +478,35 @@ func (s *Service) validateNestedHotkeys(raw map[string]any) *config.LoadResult {
 	return nil
 }
 
-// applyOverrideFile layers the file `neru config set` writes over the config,
-// so a runtime change outlives a restart. The result is validated again: a
-// field that is fine alone can still contradict one the config file set.
-func (s *Service) applyOverrideFile(cfg *config.Config, configPath string) error {
+// overrideFileToLayer names the file `neru config set` writes, or "" when there
+// is none to layer: it exists only once a runtime change has been persisted.
+func overrideFileToLayer(configPath string) string {
 	overridePath := OverridePath(configPath)
 	if overridePath == "" {
-		return nil
+		return ""
 	}
 
-	// Optional: it exists only once `neru config set` has written one.
 	overrideStat, statErr := os.Stat(overridePath)
 
 	layerable := statErr == nil && !overrideStat.IsDir()
 	if !layerable {
-		return nil
+		return ""
 	}
 
+	return overridePath
+}
+
+// applyOverrideFile layers the file `neru config set` writes over the config,
+// so a runtime change outlives a restart. The result is validated again: a
+// field that is fine alone can still contradict one the config file set.
+//
+// What it collects into warnings is the whole reading of the overridden config,
+// so the caller replaces its own with it rather than adding to it.
+func (s *Service) applyOverrideFile(
+	cfg *config.Config,
+	overridePath string,
+	warnings *config.Warnings,
+) error {
 	s.logger.Info("Loading config overrides from", zap.String("path", overridePath))
 
 	_, decodeErr := toml.DecodeFile(overridePath, cfg)
@@ -504,7 +522,7 @@ func (s *Service) applyOverrideFile(cfg *config.Config, configPath string) error
 
 	cfg.ResolveThemeDefaults()
 
-	validateErr := cfg.Validate()
+	validateErr := cfg.ValidateWithWarnings(warnings)
 	if validateErr != nil {
 		wrapped := derrors.WrapConfigFailed(validateErr, "validate configuration with overrides")
 

@@ -152,7 +152,9 @@ func assertConfigValid(t *testing.T, cfg *config.Config, what string) {
 		"ValidateMouseAction":     (*config.Config).ValidateMouseAction,
 		"ValidateSmoothCursor":    (*config.Config).ValidateSmoothCursor,
 		"ValidateSmoothScroll":    (*config.Config).ValidateSmoothScroll,
-		"ValidateHeldRepeat":      (*config.Config).ValidateHeldRepeat,
+		// Warnings are not what this asserts: the sink is nil so only a refusal
+		// can fail the case.
+		"ValidateHeldRepeat": func(c *config.Config) error { return c.ValidateHeldRepeat(nil) },
 	}
 
 	for name, validate := range validators {

@@ -86,8 +86,18 @@ func (c *Config) ValidateSmoothScroll() error {
 	return nil
 }
 
-// ValidateHeldRepeat validates held-key repeat settings.
-func (c *Config) ValidateHeldRepeat() error {
+// ValidateHeldRepeat validates held-key repeat settings, collecting into
+// warnings the ones that load and will not do anything.
+//
+// The split is ADR 0002's. A value out of range could not have run at all, so
+// it is refused. A setting that is valid on its own and inert in context —
+// acceleration turned on while the repeat it would scale is off — is left
+// loading and reported, because refusing it would stop someone switching
+// held-key repeat off without also unwinding every setting beneath it.
+//
+// The report goes through the sink rather than the log so it reaches
+// `neru config validate`; see [Warnings] for why the two are told apart.
+func (c *Config) ValidateHeldRepeat(warnings *Warnings) error {
 	if c.HeldRepeat.InitialDelay < 0 {
 		return derrors.New(derrors.CodeInvalidConfig, "held_repeat.initial_delay_ms must be >= 0")
 	}
@@ -127,6 +137,12 @@ func (c *Config) ValidateHeldRepeat() error {
 					string(action.NameMoveMouseRelative)+", got: "+target,
 			)
 		}
+	}
+
+	if c.HeldRepeat.AccelEnabled && !c.HeldRepeat.Enabled {
+		warnings.Addf(
+			"held_repeat.accel_enabled has no effect while held_repeat.enabled is false",
+		)
 	}
 
 	return nil
