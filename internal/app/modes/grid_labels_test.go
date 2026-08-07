@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -61,7 +62,7 @@ func TestCreateGridInstance_UsesTheResolvedLabels(t *testing.T) {
 			name:           "labels inferred from a character set too short to label with",
 			gridCharacters: "a",
 			hintCharacters: gridLabelHintChars,
-			wantCharacters: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+			wantCharacters: strings.ToUpper(domainGrid.DefaultCharacters),
 		},
 	}
 

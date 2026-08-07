@@ -11,7 +11,9 @@ import (
 
 const (
 	testCharacters = "ABC"
-	alphabet       = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	// allLetters is a 26-character input, not the set a grid falls back to —
+	// that one is grid.DefaultCharacters, which leaves `o` out.
+	allLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 func TestGrid_Initialization(t *testing.T) {
@@ -24,7 +26,7 @@ func TestGrid_Initialization(t *testing.T) {
 	}{
 		{
 			name:      "standard 1080p",
-			chars:     alphabet,
+			chars:     allLetters,
 			bounds:    image.Rect(0, 0, 1920, 1080),
 			wantCells: 26 * 26, // 2 chars depth
 		},
@@ -155,7 +157,7 @@ func TestCalculateOptimalGrid(t *testing.T) {
 		{"normal characters", testCharacters, 3, 3},
 		{"empty string", "", 9, 9},
 		{"single character", "A", 9, 9},
-		{"long string", alphabet, 26, 26},
+		{"long string", allLetters, 26, 26},
 	}
 
 	for _, testCase := range tests {
@@ -198,10 +200,11 @@ func TestGrid_InvalidBounds(t *testing.T) {
 func TestGrid_EmptyCharacters(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 300, 300)
+	fallback := strings.ToUpper(grid.DefaultCharacters)
 
-	// Empty characters should default to alphabet
+	// Empty characters should default to the fallback alphabet
 	gridInstance := grid.NewGrid("", bounds, logger)
-	if gridInstance.Characters() != alphabet {
+	if gridInstance.Characters() != fallback {
 		t.Errorf(
 			"Empty characters should default to alphabet, got %q",
 			gridInstance.Characters(),
@@ -210,7 +213,7 @@ func TestGrid_EmptyCharacters(t *testing.T) {
 
 	// Single character should also default
 	gridInstance = grid.NewGrid("A", bounds, logger)
-	if gridInstance.Characters() != alphabet {
+	if gridInstance.Characters() != fallback {
 		t.Errorf(
 			"Single character should default to alphabet, got %q",
 			gridInstance.Characters(),

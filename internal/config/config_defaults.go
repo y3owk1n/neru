@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 const (
@@ -509,8 +510,12 @@ func defaultGrid() GridConfig {
 	return GridConfig{
 		Enabled: true,
 
-		Characters:   "abcdefghijklmnpqrstuvwxyz",
-		SublayerKeys: "abcdefghijklmnpqrstuvwxyz",
+		// Assigned from the domain constant rather than written out, because
+		// the grid falls back to that same set when the configured characters
+		// cannot label anything. Two literals is what they were, and they
+		// drifted (see grid.DefaultCharacters).
+		Characters:   domainGrid.DefaultCharacters,
+		SublayerKeys: domainGrid.DefaultCharacters,
 
 		// Empty is the meaning, not a missing default: "" tells the grid to
 		// infer its row and column labels from the characters it is drawn
