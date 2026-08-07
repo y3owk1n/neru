@@ -115,7 +115,7 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
 	}
 
 	// Validate held-key repeat settings
-	err = c.ValidateHeldRepeat()
+	err = c.ValidateHeldRepeat(warnings)
 	if err != nil {
 		return err
 	}
