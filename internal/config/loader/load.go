@@ -72,9 +72,13 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 	// answer for an accel_enabled the user wrote months ago — or answer a
 	// warning the file on its own would have raised. Judging the layers
 	// separately would leave both standing.
+	// Read alongside what the user wrote, because a warning about a value the
+	// derivation settled has to name a line in a file: past the derivation the
+	// two are the same string, and only the snapshot above still tells them
+	// apart (config.WrittenConfig).
 	warnings := &config.Warnings{}
 
-	validateErr := result.Config.ValidateWithWarnings(warnings)
+	validateErr := result.Config.ValidateWithWarnings(warnings, config.AsWritten(written))
 	if validateErr != nil {
 		wrapped := derrors.WrapConfigFailed(validateErr, "validate configuration")
 

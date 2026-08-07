@@ -26,11 +26,14 @@ func (c *Config) GridCharacters() string {
 // case they are drawn in, or a-z when that set is too small to label with.
 //
 // It is one function because two callers have to agree on it. The derivation
-// fills the blank fields with it, and the validator recognizes a resolved value
-// by it — a value equal to this one was inferred rather than written, and a
-// fault in it belongs to grid.characters, under the name that is in the user's
-// file. Two copies of that rule could drift into reporting a fault twice, or
-// under a field the user never wrote.
+// fills the blank fields with it, and the validator falls back to it when it
+// has no written configuration to consult: a value equal to this one was
+// probably inferred rather than written, and a fault in it probably belongs to
+// grid.characters, under the name that is in the user's file. Probably is as
+// far as a comparison reaches — a label somebody typed can equal the inference
+// exactly, which is what [WrittenConfig] answers and #1281 is about. Two copies
+// of the rule could drift into reporting a fault twice, or under a field the
+// user never wrote.
 func (c *Config) inferredGridKeys() string {
 	keys, _ := domainGrid.ResolveLabels(c.GridCharacters(), "", "")
 

@@ -125,6 +125,60 @@ font_size = 30
 	}
 }
 
+// TestLoadWithValidation_ReportsAHandWrittenLabelThatMatchesTheInference is
+// issue #1281 through the path it was reported on. The space cannot be typed at
+// a grid and is in both fields, so both are named in one load — the load is
+// what keeps the pre-derivation configuration (config.LoadResult.Written),
+// which is the only place a label the user typed can still be told from one the
+// derivation settled. Judged by value alone the two are the same string, and
+// the label's warning waited for the user to fix grid.characters and run the
+// command a second time.
+func TestLoadWithValidation_ReportsAHandWrittenLabelThatMatchesTheInference(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[grid]
+characters = "ab c"
+row_labels = "AB C"
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("an untypeable label was refused: %v", result.ValidationError)
+	}
+
+	for _, field := range []string{"grid.characters", "grid.row_labels"} {
+		if !slices.ContainsFunc(result.Warnings, func(w string) bool {
+			return strings.Contains(w, field) && strings.Contains(w, "cannot be typed")
+		}) {
+			t.Errorf("result.Warnings = %q, want the space reported against %s",
+				result.Warnings, field)
+		}
+	}
+}
+
+// TestLoadWithValidation_LeavesAnInferredLabelToItsSource is the other half,
+// and the reason the answer above had to be the written configuration rather
+// than every field the fault reached. The labels are left empty here, so they
+// are grid.characters — reporting them too would send the user looking for two
+// lines that are not in their file.
+func TestLoadWithValidation_LeavesAnInferredLabelToItsSource(t *testing.T) {
+	result, _ := loadWithObservedLogger(t, `
+[grid]
+characters = "ab c"
+`, "")
+
+	if result.ValidationError != nil {
+		t.Fatalf("an untypeable character was refused: %v", result.ValidationError)
+	}
+
+	if len(result.Warnings) != 1 {
+		t.Fatalf("result.Warnings = %q, want exactly one naming grid.characters",
+			result.Warnings)
+	}
+
+	if !strings.Contains(result.Warnings[0], "grid.characters") {
+		t.Errorf("result.Warnings = %q, want it to name grid.characters", result.Warnings)
+	}
+}
+
 // loadWithObservedLogger writes a config file, and an override file when one is
 // given, then loads them the way the daemon does with a logger that records.
 func loadWithObservedLogger(

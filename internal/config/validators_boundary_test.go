@@ -46,9 +46,10 @@ func fontSizeBounds() []intBound {
 		{
 			name:     "grid.ui.font_size",
 			set:      func(c *config.Config, v int) { c.Grid.UI.FontSize = v },
-			validate: func(c *config.Config) error { return c.ValidateGrid(nil) },
-			minValid: 1, maxValid: math.MaxInt32,
-			enable: func(c *config.Config) { c.Grid.Enabled = true },
+			validate: func(c *config.Config) error { return c.ValidateGrid(nil, config.WrittenConfig{}) },
+			minValid: 1,
+			maxValid: math.MaxInt32,
+			enable:   func(c *config.Config) { c.Grid.Enabled = true },
 		},
 		{
 			name:     "monitor_select.ui.font_size",
@@ -144,7 +145,7 @@ func assertConfigValid(t *testing.T, cfg *config.Config, what string) {
 
 	validators := map[string]func(*config.Config) error{
 		"ValidateHints":           (*config.Config).ValidateHints,
-		"ValidateGrid":            func(c *config.Config) error { return c.ValidateGrid(nil) },
+		"ValidateGrid":            func(c *config.Config) error { return c.ValidateGrid(nil, config.WrittenConfig{}) },
 		"ValidateMonitorSelect":   (*config.Config).ValidateMonitorSelect,
 		"ValidateStickyModifiers": (*config.Config).ValidateStickyModifiers,
 		"ValidateRecursiveGrid":   (*config.Config).ValidateRecursiveGrid,

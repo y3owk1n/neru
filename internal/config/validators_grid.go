@@ -11,7 +11,11 @@ import (
 
 // ValidateGrid validates the grid configuration, warning about the key sets
 // that load and leave part of the grid unreachable; see [warnGridKeySets].
-func (c *Config) ValidateGrid(warnings *Warnings) error {
+//
+// written is what the user wrote, which is what tells a label they typed from
+// one the derivation settled; the zero value means there is none, and the
+// warnings fall back to a comparison. See [WrittenConfig].
+func (c *Config) ValidateGrid(warnings *Warnings, written WrittenConfig) error {
 	if !c.Grid.Enabled {
 		return nil
 	}
@@ -73,7 +77,7 @@ func (c *Config) ValidateGrid(warnings *Warnings) error {
 		return err
 	}
 
-	c.warnGridKeySets(warnings)
+	c.warnGridKeySets(warnings, written)
 
 	return nil
 }
@@ -87,6 +91,20 @@ type gridKeySet struct {
 	field    string
 	keys     string
 	tooShort string
+}
+
+// derivedGridKeySet is a key set the derivation settles when the user leaves it
+// empty: the set as the grid is now labeled from it, plus how to read the same
+// field out of the configuration the user wrote, which is what says whether the
+// set is theirs to fix. grid.characters is not one of these — it is the field
+// the others are inferred from, and is always the user's own.
+type derivedGridKeySet struct {
+	gridKeySet
+
+	// readWritten reads this field out of a *written* configuration, and is a
+	// reader rather than a value because the configuration to read it from is
+	// the caller's, and may not exist at all.
+	readWritten func(*Config) string
 }
 
 // warnGridKeySets reports the character sets a grid is labeled from that will
@@ -117,30 +135,42 @@ type gridKeySet struct {
 // It reads the resolved labels rather than the written ones, because those are
 // what the grid is now drawn with (ResolveGridLabels): the written value is
 // legitimately empty and means "infer from characters".
-func (c *Config) warnGridKeySets(warnings *Warnings) {
+//
+// Which field a fault belongs to is the other half, and it is what written
+// answers: a label the user typed is reported under its own name, and one the
+// derivation settled is left to grid.characters, the one name that is in the
+// user's file. Reported against every field it reached, one mistake would read
+// as three, two of them naming a line the user cannot go and fix.
+func (c *Config) warnGridKeySets(warnings *Warnings, written WrittenConfig) {
 	warnGridKeySet(warnings, gridKeySet{
 		field:    "grid.characters",
 		keys:     c.Grid.Characters,
 		tooShort: "so the grid is labeled a-z instead",
 	})
 
-	// A resolved label equal to what an empty one settles to was inferred from
-	// grid.characters rather than written, so a fault in it is a fault in
-	// grid.characters — reported there, under the one name that is actually in
-	// the user's file. Reported against every field it reached, one mistake
-	// would read as three, two of them naming a line the user cannot go and fix.
+	// The fallback for a caller with no written configuration to consult, and
+	// only for that: a resolved label equal to what an empty one settles to was
+	// probably inferred. Probably, because a label somebody typed can equal the
+	// inference exactly — which is the case the written configuration is here
+	// to settle (#1281).
 	inferred := c.inferredGridKeys()
 
-	for _, labels := range []gridKeySet{
-		{field: "grid.row_labels", keys: c.Grid.RowLabels},
-		{field: "grid.col_labels", keys: c.Grid.ColLabels},
+	for _, labels := range []derivedGridKeySet{
+		{
+			gridKeySet:  gridKeySet{field: "grid.row_labels", keys: c.Grid.RowLabels},
+			readWritten: func(cfg *Config) string { return cfg.Grid.RowLabels },
+		},
+		{
+			gridKeySet:  gridKeySet{field: "grid.col_labels", keys: c.Grid.ColLabels},
+			readWritten: func(cfg *Config) string { return cfg.Grid.ColLabels },
+		},
 	} {
-		if labels.keys == inferred {
+		if !written.wroteDerived(labels.readWritten, labels.keys, inferred) {
 			continue
 		}
 
 		labels.tooShort = "so the grid is capped to the cells they can name"
-		warnGridKeySet(warnings, labels)
+		warnGridKeySet(warnings, labels.gridKeySet)
 	}
 }
 

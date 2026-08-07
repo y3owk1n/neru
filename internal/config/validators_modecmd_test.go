@@ -70,7 +70,7 @@ func TestValidateModeCommands_WarnsWithoutRefusing(t *testing.T) {
 
 			warnings := &config.Warnings{}
 
-			err := cfg.ValidateWithWarnings(warnings)
+			err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
 			if err != nil {
 				t.Fatalf("ValidateWithWarnings() refused the configuration: %v", err)
 			}
@@ -120,7 +120,7 @@ func TestValidateModeCommands_RefusesAnUnreadableCommand(t *testing.T) {
 
 			warnings := &config.Warnings{}
 
-			err := cfg.ValidateWithWarnings(warnings)
+			err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
 			if err == nil {
 				t.Fatal("ValidateWithWarnings() accepted a binding that cannot run")
 			}
@@ -149,7 +149,7 @@ func TestValidateModeCommands_LeavesMacroPlaceholdersAlone(t *testing.T) {
 
 	warnings := &config.Warnings{}
 
-	err := cfg.ValidateWithWarnings(warnings)
+	err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
 	if err != nil {
 		t.Fatalf("ValidateWithWarnings() refused a macro body: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestValidateModeCommands_AcceptsTheDefaults(t *testing.T) {
 
 	warnings := &config.Warnings{}
 
-	err := config.DefaultConfig().ValidateWithWarnings(warnings)
+	err := config.DefaultConfig().ValidateWithWarnings(warnings, config.WrittenConfig{})
 	if err != nil {
 		t.Fatalf("ValidateWithWarnings() refused the defaults: %v", err)
 	}

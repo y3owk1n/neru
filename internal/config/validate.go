@@ -11,14 +11,23 @@ import (
 
 // Validate validates the configuration, reporting only what stops it loading.
 // It is the form every caller that can act on nothing else uses.
+//
+// It collects no warnings, so it has nothing to attribute and passes no written
+// configuration: the zero [WrittenConfig] is the honest answer for a caller
+// that never loaded a file.
 func (c *Config) Validate() error {
-	return c.ValidateWithWarnings(nil)
+	return c.ValidateWithWarnings(nil, WrittenConfig{})
 }
 
 // ValidateWithWarnings validates the configuration and collects, into warnings,
 // the parts of it that load and will not do what they say. A nil sink discards
 // them; see [Warnings] for why the two are told apart at all.
-func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
+//
+// The configuration validated is the one the daemon will run on, derived values
+// and all. written is what the user wrote it from, for the warnings that have
+// to name a line in a file rather than a field in a struct; see
+// [WrittenConfig], whose zero value means there is none to consult.
+func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig) error {
 	if c == nil {
 		return derrors.New(derrors.CodeInvalidConfig, "configuration cannot be nil")
 	}
@@ -75,7 +84,7 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
 	}
 
 	// Validate grid settings
-	err = c.ValidateGrid(warnings)
+	err = c.ValidateGrid(warnings, written)
 	if err != nil {
 		return err
 	}
