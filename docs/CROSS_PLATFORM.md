@@ -165,6 +165,16 @@ Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
 Cambria / Consolas and passes every other name through verbatim; an unavailable
 family falls back to whatever GDI substitutes.
 
+Which names count as generic is the same on all three: `sans`, `sans serif`,
+`serif`, `mono`, `monospace` and the empty string, matched ignoring case,
+surrounding whitespace and the separator between words — `sans-serif`,
+`sans_serif` and `sansserif` are one name. Every other family name is passed to
+the platform trimmed. One parser answers that for all three
+(`internal/adapter/platform/fontgeneric`, ADR 0007); what each generic resolves
+to is the platform's own — Helvetica Neue / Times New Roman / Menlo on macOS,
+DejaVu Sans / DejaVu Serif / DejaVu Sans Mono on Linux, the Windows families
+above.
+
 ### Notes on the ⚠️ entries
 
 **Focused app on Wayland.** wlroots and KWin resolve the focused window through

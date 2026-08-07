@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/fontgeneric"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -19,11 +20,18 @@ const (
 	defaultDarwinSerif = "Times New Roman"
 )
 
+// darwinFamilies is what the generic aliases mean on macOS.
+var darwinFamilies = fontgeneric.Families{
+	Sans:  defaultDarwinSans,
+	Serif: defaultDarwinSerif,
+	Mono:  defaultDarwinMono,
+}
+
 // NewFontResolver returns a macOS-backed ports.FontResolver. The Go-side
-// resolver maps generic aliases to known macOS families. User-supplied
-// names are returned unchanged so the existing C/Objective-C layer
-// (which already does PostScript and family lookups via NSFontManager)
-// can verify and weight-resolve them.
+// resolver maps generic aliases (platform/fontgeneric) to known macOS
+// families. A family somebody named is passed on as written, trimmed, so the
+// existing C/Objective-C layer (which already does PostScript and family
+// lookups via NSFontManager) can verify and weight-resolve it.
 func NewFontResolver() ports.FontResolver {
 	return &nsFontResolver{
 		cache: make(map[string]string),
@@ -55,32 +63,11 @@ func (r *nsFontResolver) Resolve(family string, bold bool) string {
 
 	r.mu.RUnlock()
 
-	resolved := mapDarwinGenericAlias(family)
+	resolved := darwinFamilies.Resolve(family)
 
 	r.mu.Lock()
 	r.cache[key] = resolved
 	r.mu.Unlock()
 
 	return resolved
-}
-
-// mapDarwinGenericAlias translates fontconfig-style generic names (and
-// empty input) to a concrete macOS family. Case-, whitespace-, and
-// separator-insensitive (spaces, hyphens, and underscores all
-// normalize to the same key). Non-generic names are returned unchanged
-// so the C layer can verify them via NSFontManager.
-func mapDarwinGenericAlias(family string) string {
-	normalized := strings.NewReplacer(" ", "", "-", "", "_", "").Replace(
-		strings.ToLower(strings.TrimSpace(family)),
-	)
-	switch normalized {
-	case "", "sans", "sansserif":
-		return defaultDarwinSans
-	case "serif":
-		return defaultDarwinSerif
-	case "mono", "monospace":
-		return defaultDarwinMono
-	default:
-		return family
-	}
 }

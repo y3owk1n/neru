@@ -4,43 +4,48 @@ package darwin
 
 import "testing"
 
-func TestMapDarwinGenericAlias_EmptyDefaultsToSans(t *testing.T) {
-	if got := mapDarwinGenericAlias(""); got != defaultDarwinSans {
-		t.Fatalf("expected %q for empty input, got %q", defaultDarwinSans, got)
-	}
-}
-
-func TestMapDarwinGenericAlias_GenericAliases(t *testing.T) {
+func TestNSFontResolver_GenericAliases(t *testing.T) {
+	// Which spellings count as generic is pinned by the shared parser
+	// (platform/fontgeneric); this pins what each generic means on macOS.
 	cases := map[string]string{
 		"":           defaultDarwinSans,
 		"sans":       defaultDarwinSans,
-		"Sans":       defaultDarwinSans,
-		"sans-serif": defaultDarwinSans,
 		"Sans Serif": defaultDarwinSans,
-		"SANSSERIF":  defaultDarwinSans,
+		"sans_serif": defaultDarwinSans,
 		"serif":      defaultDarwinSerif,
-		"Serif":      defaultDarwinSerif,
-		"mono":       defaultDarwinMono,
 		"Monospace":  defaultDarwinMono,
 		"   mono   ": defaultDarwinMono,
 	}
 
 	for input, want := range cases {
 		t.Run(input, func(t *testing.T) {
-			if got := mapDarwinGenericAlias(input); got != want {
-				t.Fatalf("mapDarwinGenericAlias(%q) = %q, want %q", input, got, want)
+			fontResolver := &nsFontResolver{cache: make(map[string]string)}
+
+			if got := fontResolver.Resolve(input, false); got != want {
+				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
 			}
 		})
 	}
 }
 
-func TestMapDarwinGenericAlias_NonGenericPassesThrough(t *testing.T) {
-	// Non-generic names are passed through to the C layer unchanged so
-	// NSFontManager can verify and weight-resolve them.
-	for _, input := range []string{"JetBrains Mono", "SF Mono", "Helvetica Neue"} {
-		if got := mapDarwinGenericAlias(input); got != input {
-			t.Fatalf("mapDarwinGenericAlias(%q) = %q, want %q", input, got, input)
-		}
+func TestNSFontResolver_NonGenericPassesThroughTrimmed(t *testing.T) {
+	// Non-generic names are passed through to the C layer so NSFontManager
+	// can verify and weight-resolve them, with only the surrounding
+	// whitespace removed.
+	cases := map[string]string{
+		"JetBrains Mono": "JetBrains Mono",
+		"SF Mono":        "SF Mono",
+		"  Helvetica  ":  "Helvetica",
+	}
+
+	for input, want := range cases {
+		t.Run(input, func(t *testing.T) {
+			fontResolver := &nsFontResolver{cache: make(map[string]string)}
+
+			if got := fontResolver.Resolve(input, false); got != want {
+				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
+			}
+		})
 	}
 }
 
@@ -58,13 +63,5 @@ func TestNSFontResolver_CachesByFamily(t *testing.T) {
 
 	if len(fontResolver.cache) != 1 {
 		t.Fatalf("expected exactly one cache entry, got %d", len(fontResolver.cache))
-	}
-}
-
-func TestNSFontResolver_EmptyDefaultsToSans(t *testing.T) {
-	fontResolver := &nsFontResolver{cache: make(map[string]string)}
-
-	if got := fontResolver.Resolve("", false); got != defaultDarwinSans {
-		t.Fatalf("expected empty input to resolve to %q, got %q", defaultDarwinSans, got)
 	}
 }

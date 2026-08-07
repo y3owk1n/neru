@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/fontgeneric"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -14,6 +15,13 @@ const (
 	defaultWindowsMono  = "Consolas"
 	defaultWindowsSerif = "Cambria"
 )
+
+// windowsFamilies is what the generic aliases mean on Windows.
+var windowsFamilies = fontgeneric.Families{
+	Sans:  defaultWindowsSans,
+	Serif: defaultWindowsSerif,
+	Mono:  defaultWindowsMono,
+}
 
 // NewFontResolver returns a Windows-backed ports.FontResolver.
 func NewFontResolver() ports.FontResolver {
@@ -43,29 +51,11 @@ func (r *winFontResolver) Resolve(family string, bold bool) string {
 
 	r.mu.RUnlock()
 
-	resolved := mapWindowsGenericAlias(family)
+	resolved := windowsFamilies.Resolve(family)
 
 	r.mu.Lock()
 	r.cache[key] = resolved
 	r.mu.Unlock()
 
 	return resolved
-}
-
-// mapWindowsGenericAlias translates generic font names and empty input to
-// concrete Windows font families. Non-generic names pass through unchanged.
-func mapWindowsGenericAlias(family string) string {
-	normalized := strings.NewReplacer(" ", "", "-", "", "_", "").Replace(
-		strings.ToLower(strings.TrimSpace(family)),
-	)
-	switch normalized {
-	case "", "sans", "sansserif", "sans-serif":
-		return defaultWindowsSans
-	case "serif":
-		return defaultWindowsSerif
-	case "mono", "monospace":
-		return defaultWindowsMono
-	default:
-		return family
-	}
 }
