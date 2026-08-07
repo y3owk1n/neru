@@ -105,7 +105,7 @@ func (r *fontconfigResolver) Resolve(family string, bold bool) string {
 // concrete family, then asks fontconfig to match it. If fontconfig
 // cannot match the family at all, it falls back to a hardcoded default.
 func (r *fontconfigResolver) resolve(family string) string {
-	mapped := mapGenericAlias(family)
+	mapped := linuxFamilies.Resolve(family)
 
 	cFamily := C.CString(mapped)
 	defer C.free(unsafe.Pointer(cFamily))

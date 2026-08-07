@@ -2,7 +2,7 @@
 
 package linux
 
-import "strings"
+import "github.com/y3owk1n/neru/internal/adapter/platform/fontgeneric"
 
 const (
 	// defaultLinuxSans is the baseline Linux sans-serif family used when
@@ -15,25 +15,22 @@ const (
 	defaultLinuxSerif = "DejaVu Serif"
 )
 
-// mapGenericAlias translates fontconfig-style generic names (and empty
-// input) to a known-good Linux family. Case- and whitespace-insensitive.
-// Non-generic names are returned unchanged (trimmed) so the CGO path
-// can ask fontconfig to verify them.
-func mapGenericAlias(family string) string {
-	switch strings.ToLower(strings.TrimSpace(family)) {
-	case "", "sans", "sans-serif", "sans serif", "sansserif":
-		return defaultLinuxSans
-	case "serif":
-		return defaultLinuxSerif
-	case "mono", "monospace":
-		return defaultLinuxMono
-	default:
-		return strings.TrimSpace(family)
-	}
+// linuxFamilies is what the generic aliases mean on Linux.
+var linuxFamilies = fontgeneric.Families{
+	Sans:  defaultLinuxSans,
+	Serif: defaultLinuxSerif,
+	Mono:  defaultLinuxMono,
 }
 
 // defaultForMapped returns the last-resort hardcoded family for a mapped
-// generic, falling back to the sans-serif default.
+// family, falling back to the sans-serif default.
+//
+// It matches on the mapped family rather than asking fontgeneric what the
+// written name was, which looks like the same question and is not: a person
+// who writes "DejaVu Serif" and has no DejaVu installed keeps the serif
+// baseline here, where classifying the name again would hand them the sans
+// one. Both answers are a hardcoded string for a font that is missing either
+// way, so this keeps the one it has always given.
 func defaultForMapped(mapped string) string {
 	switch mapped {
 	case defaultLinuxSerif:

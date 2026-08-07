@@ -19,5 +19,5 @@ type passthroughResolver struct{}
 
 // Resolve implements ports.FontResolver.
 func (passthroughResolver) Resolve(family string, _ bool) string {
-	return mapGenericAlias(family)
+	return linuxFamilies.Resolve(family)
 }

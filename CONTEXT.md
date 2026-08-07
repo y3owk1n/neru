@@ -117,3 +117,15 @@ _Avoid_: pill, chip, tag
 An overlay's resolved appearance: configuration combined with the current
 light/dark theme. Resolved once, at the adapter boundary.
 _Avoid_: theme, palette, config
+
+### Computing the same thing twice
+
+**Shared derivation**:
+A value more than one layer computes from the same inputs and must compute
+identically: where a grid cell is drawn and where the cursor lands inside it,
+what a written font name means. A shared derivation has exactly one
+implementation, and it lives at the lowest layer that has more than one
+caller — not in the domain by default. Where the second implementation is in
+Objective-C, Go cannot be the one implementation, so the copies are pinned by
+a test instead. ADR 0007 has the reasoning.
+_Avoid_: helper, util, common code, shared logic
