@@ -93,6 +93,19 @@ func (s *cgoSlot[T]) withValid(callback func(T)) {
 	callback(target)
 }
 
+// dispatchIfValid invokes callback with target when gen is still the live
+// generation. It is the body the async dispatch goroutine runs, named rather
+// than inline so a test can drive it at the moment a concurrent clear lands —
+// the window between scheduling the dispatch and running it is the one this
+// re-check exists to close, and a test cannot force it from outside.
+func (s *cgoSlot[T]) dispatchIfValid(target T, gen uint64, callback func(T)) {
+	if !s.stillValid(gen) {
+		return
+	}
+
+	callback(target)
+}
+
 // withValidAsync invokes callback in a new goroutine when the snapshot is still valid.
 func (s *cgoSlot[T]) withValidAsync(callback func(T)) {
 	target, gen, ok := s.snapshot()
@@ -100,11 +113,5 @@ func (s *cgoSlot[T]) withValidAsync(callback func(T)) {
 		return
 	}
 
-	go func() {
-		if !s.stillValid(gen) {
-			return
-		}
-
-		callback(target)
-	}()
+	go s.dispatchIfValid(target, gen, callback)
 }

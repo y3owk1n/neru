@@ -128,8 +128,13 @@ func TestCgoSlotDispatchesAValidSnapshot(t *testing.T) {
 //
 // The interleaving is driven rather than hoped for. The reader takes its
 // snapshot and hands the generation to the writer, the writer clears the slot
-// and says so, and only then does the reader check validity — the exact order
-// that makes the snapshot stale, on every schedule and every machine.
+// and says so, and only then does the reader dispatch — the exact order that
+// makes the snapshot stale, on every schedule and every machine.
+//
+// The reader stands in for the goroutine withValidAsync spawns, and runs the
+// same guard that goroutine runs rather than a copy of it: that window cannot
+// be forced through withValidAsync from outside, so driving the shared body
+// directly is what keeps the guard covered.
 func TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines(t *testing.T) {
 	var (
 		slot       cgoSlot[int]
@@ -144,8 +149,8 @@ func TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines(t *testing.T) {
 
 	waitGroup.Add(2)
 
-	// The reader: what withValidAsync's goroutine does, with the window
-	// between taking the snapshot and checking it opened deliberately.
+	// The reader: withValidAsync's dispatch goroutine, with the window between
+	// taking the snapshot and running the dispatch opened deliberately.
 	go func() {
 		defer waitGroup.Done()
 
@@ -165,12 +170,11 @@ func TestCgoSlotStaleSnapshotDoesNotDispatchAcrossGoroutines(t *testing.T) {
 
 		<-cleared
 
-		// The dispatch guard itself: the callback runs only for a generation
-		// the slot still recognizes. By now the clear has happened, so this
-		// must not fire.
-		if slot.stillValid(generation) {
+		// The guarded dispatch itself, the same call the async goroutine
+		// makes. By now the clear has happened, so the callback must not run.
+		slot.dispatchIfValid(value, generation, func(int) {
 			dispatched.Add(1)
-		}
+		})
 	}()
 
 	// The writer: clears only once the reader is holding its snapshot.
