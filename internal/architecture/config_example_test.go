@@ -78,10 +78,29 @@ type configOption struct {
 	exemption string
 }
 
+// schemaField is one struct field the walk passes through, intermediate tables
+// included, addressed the way Go declares it.
+//
+// The example checks work in TOML terms because an example file does; the
+// explicit-default check in config_chain_test.go has to speak Go, because what
+// it reads is a composite literal. Both come off this one walk rather than two,
+// so a schema the reflection cannot reach is invisible to neither or to both.
+type schemaField struct {
+	// owner is the name of the struct type that declares the field.
+	owner string
+	// name is the Go field name, which is what a default assigns by.
+	name string
+	// path is the TOML path, for a failure a reader can act on.
+	path string
+	// exemption is why the field needs no explicit default, or "" when it does.
+	exemption string
+}
+
 // configSchema is config.Config reflected into TOML terms.
 type configSchema struct {
 	t       *testing.T
 	options []configOption
+	fields  []schemaField
 	// known holds every path a shipped example may legitimately write,
 	// intermediate tables included.
 	known map[string]bool
@@ -239,6 +258,31 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 
 		s.known[path] = true
 
+		fieldVal := reflect.Value{}
+		if val.IsValid() {
+			fieldVal = val.Field(index)
+		}
+
+		// A collection that ships empty is exempt from needing an explicit
+		// default for the same reason it is exempt from needing an example
+		// line: nil and empty are the same collection to every reader of it,
+		// so there is no forgotten-versus-deliberate to tell apart. That is
+		// also the rule's limit — a collection meant to ship non-empty, whose
+		// default was forgotten, reads as empty and gets forgiven. A scalar
+		// gets no such pass, which is the point: grid.row_labels defaulting to
+		// "" by omission is exactly what this must not forgive.
+		fieldExemption := exemption
+		if fieldExemption == "" && isEmptyCollection(field.Type, fieldVal) {
+			fieldExemption = exemptEmptyCollection
+		}
+
+		s.fields = append(s.fields, schemaField{
+			owner:     typ.Name(),
+			name:      field.Name,
+			path:      path,
+			exemption: fieldExemption,
+		})
+
 		if freeForm {
 			// The struct decoder never sees these — internal/config/loader/
 			// load.go reads them off the raw map, because their keys are the
@@ -246,11 +290,6 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 			s.opaque = append(s.opaque, path)
 
 			continue
-		}
-
-		fieldVal := reflect.Value{}
-		if val.IsValid() {
-			fieldVal = val.Field(index)
 		}
 
 		s.walkValue(field.Type, fieldVal, path, exemption)
@@ -285,7 +324,7 @@ func (s *configSchema) walkCollection(
 	path, exemption string,
 ) {
 	// Exemption 2, structural by kind.
-	if exemption == "" && (!val.IsValid() || val.Len() == 0) {
+	if exemption == "" && isEmptyCollection(typ, val) {
 		exemption = exemptEmptyCollection
 	}
 
@@ -489,4 +528,20 @@ func collectKeyPaths(node map[string]any, prefix string, schema *configSchema, o
 			}
 		}
 	}
+}
+
+// isEmptyCollection reports whether a default value is a slice or map that
+// ships empty. A StringOrStringArray is excluded: it is a slice in Go and one
+// value in TOML, so an empty one is an option with no default rather than a
+// collection with an empty one.
+func isEmptyCollection(typ reflect.Type, val reflect.Value) bool {
+	if typ == stringOrArrayType {
+		return false
+	}
+
+	if typ.Kind() != reflect.Slice && typ.Kind() != reflect.Map {
+		return false
+	}
+
+	return !val.IsValid() || val.Len() == 0
 }

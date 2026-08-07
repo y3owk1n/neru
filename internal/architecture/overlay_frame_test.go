@@ -28,7 +28,7 @@ func TestFrameCarriesDomainValuesOnly(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	portsDir := filepath.Join(repoRoot, "internal", "ports")
 
-	files := parsedPortFiles(t, portsDir)
+	files := parsedGoFiles(t, portsDir)
 
 	frames := frameTypeNames(files)
 	if len(frames) == 0 {
@@ -200,8 +200,8 @@ func typeSpecsIn(file *ast.File) []*ast.TypeSpec {
 	return specs
 }
 
-// parsedPortFiles parses every non-test Go file in the ports package.
-func parsedPortFiles(t *testing.T, dir string) []*ast.File {
+// parsedGoFiles parses every non-test Go file in one package directory.
+func parsedGoFiles(t *testing.T, dir string) []*ast.File {
 	t.Helper()
 
 	entries, err := os.ReadDir(dir)
