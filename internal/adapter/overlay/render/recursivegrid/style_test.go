@@ -1,6 +1,7 @@
 package recursivegrid
 
 import (
+	"image"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
@@ -85,6 +86,92 @@ func TestBuildStyle_CarriesTheToggles(t *testing.T) {
 		if got := style.SubKeyPreview(); got != want {
 			t.Errorf("SubKeyPreview() = %v, want %v", got, want)
 		}
+	}
+}
+
+// TestStyle_ShowLabelIn pins the label autohide threshold every backend draws
+// by: label_autohide_multiplier x the label font size, compared against both
+// cell dimensions, with a non-positive multiplier meaning "always show".
+//
+// The Cairo and GDI backends both call this, so the cases run in every job
+// rather than only where a particular backend is built.
+func TestStyle_ShowLabelIn(t *testing.T) {
+	tests := []struct {
+		name       string
+		cell       image.Rectangle
+		fontSize   int
+		multiplier float64
+		want       bool
+	}{
+		{
+			name:       "zero multiplier always shows",
+			cell:       image.Rect(0, 0, 1, 1),
+			fontSize:   100,
+			multiplier: 0,
+			want:       true,
+		},
+		{
+			name:       "negative multiplier always shows",
+			cell:       image.Rect(0, 0, 1, 1),
+			fontSize:   100,
+			multiplier: -2,
+			want:       true,
+		},
+		{
+			name:       "cell clears the threshold on both axes",
+			cell:       image.Rect(0, 0, 30, 30),
+			fontSize:   10,
+			multiplier: 2, // threshold 20
+			want:       true,
+		},
+		{
+			name:       "cell exactly on the threshold shows",
+			cell:       image.Rect(0, 0, 20, 20),
+			fontSize:   10,
+			multiplier: 2, // threshold 20
+			want:       true,
+		},
+		{
+			name:       "cell below the threshold hides",
+			cell:       image.Rect(0, 0, 30, 30),
+			fontSize:   20,
+			multiplier: 2, // threshold 40
+			want:       false,
+		},
+		{
+			name:       "narrow cell hides even when tall enough",
+			cell:       image.Rect(0, 0, 19, 100),
+			fontSize:   10,
+			multiplier: 2, // threshold 20
+			want:       false,
+		},
+		{
+			name:       "short cell hides even when wide enough",
+			cell:       image.Rect(0, 0, 100, 19),
+			fontSize:   10,
+			multiplier: 2, // threshold 20
+			want:       false,
+		},
+		{
+			name:       "offset cell is measured by its size, not its position",
+			cell:       image.Rect(500, 700, 530, 730),
+			fontSize:   10,
+			multiplier: 2, // threshold 20
+			want:       true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			style := NewStyle(StyleOptions{
+				FontSize:                testCase.fontSize,
+				LabelAutohideMultiplier: testCase.multiplier,
+			})
+
+			if got := style.ShowLabelIn(testCase.cell); got != testCase.want {
+				t.Errorf("ShowLabelIn(%v) = %v, want %v", testCase.cell, got, testCase.want)
+			}
+		})
 	}
 }
 

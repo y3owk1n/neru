@@ -350,7 +350,7 @@ func (o *sharedOverlay) drawHints(
 
 		radius := style.BorderRadius()
 		if radius < 0 {
-			radius = min(badgeHeight/centeredRectDivisor, hintAutoRadiusMax)
+			radius = min(badgeHeight/halfDivisor, hintAutoRadiusMax)
 		}
 		// Cap the radius so a top/bottom badge keeps a flat edge for the tail.
 		radius = hintBadgeRadius(radius, badgeWidth, style.Placement())
@@ -445,7 +445,7 @@ func (o *sharedOverlay) startMouseActionAnimation(
 		if isSquare {
 			o.drawRect(rect, fill, border, lineWidth)
 		} else {
-			o.drawRoundedRect(rect, diameter/centeredRectDivisor, fill, border, lineWidth)
+			o.drawRoundedRect(rect, diameter/halfDivisor, fill, border, lineWidth)
 		}
 
 		o.srf.surfaceFlush()
@@ -777,7 +777,7 @@ func (o *sharedOverlay) drawFrame(
 				label = string(keyRunes[idx])
 			}
 
-			if shouldShowLabel(cell, style) {
+			if style.ShowLabelIn(cell) {
 				if style.LabelBackground() {
 					o.drawLabelBackground(label, cell, style)
 				}
@@ -972,7 +972,7 @@ func (o *sharedOverlay) drawLabelBackground(
 		paddingX*paddingMultiplier
 	height := badge.EstimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier
-	rect := centeredRect(cell, width, height)
+	rect := badge.CenteredIn(cell, width, height)
 	o.drawRect(rect, style.LabelBackgroundColorARGB(),
 		style.LineColorARGB(), max(style.LabelBackgroundBorderWidthF(), 0))
 }

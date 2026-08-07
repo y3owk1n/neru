@@ -110,7 +110,7 @@ func applyOpacity(color uint32, opacity float64) uint32 {
 // indicator of the given diameter centered on point. A circle indicator is
 // drawn as a rounded rect with radius = diameter/2 within this box.
 func mouseActionIndicatorRect(point image.Point, diameter float64) image.Rectangle {
-	half := diameter / centeredRectDivisor
+	half := diameter / halfDivisor
 	minX := int(math.Round(float64(point.X) - half))
 	minY := int(math.Round(float64(point.Y) - half))
 	maxX := int(math.Round(float64(point.X) + half))
