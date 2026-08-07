@@ -19,9 +19,7 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 		"k":     {"action scroll_up"},
 	}
 
-	handler := newHandlerWithState(handlerState{config: cfg})
-
-	got := handler.modeModifierKeys(domain.ModeHints, "")
+	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameHints, ""))
 	want := []string{
 		config.CanonicalHotkeyForPlatform("Alt+K"),
 		config.CanonicalHotkeyForPlatform("Cmd+L"),
@@ -41,9 +39,7 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 		"gg":       {"action go_top"},
 	}
 
-	handler := newHandlerWithState(handlerState{config: cfg})
-
-	got := handler.modeModifierKeys(domain.ModeScroll, "")
+	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameScroll, ""))
 	want := []string{
 		config.CanonicalHotkeyForPlatform("Cmd+Down"),
 		config.CanonicalHotkeyForPlatform("Cmd+Up"),

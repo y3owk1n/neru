@@ -25,6 +25,12 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 	// Cancel any pending modifier tap state from the previous mode session.
 	h.cancelPendingModifierToggle()
 
+	// Settle the keymap for the mode being entered before anything reads it.
+	// Entering a mode is a one-shot the user is waiting on, which is where
+	// learning the focused app from the platform is allowed to happen; doing it
+	// here is what leaves the keystrokes after it with nothing to ask (ADR 0005).
+	h.settledKeymap()
+
 	h.syncModifierPassthrough(mode)
 	h.syncStickyModifierToggle(mode)
 }

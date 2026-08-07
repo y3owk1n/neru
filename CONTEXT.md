@@ -46,7 +46,7 @@ the global ones when no mode is active, with the [[Focused app]]'s overrides
 already applied. A keymap is settled when the mode, the focused app or the
 configuration changes, not when a key arrives; a keystroke consults one, it
 never builds one. That is the rule the word carries, and the decision behind
-it is ADR 0005; key dispatch still resolves per keystroke until that lands.
+it is ADR 0005.
 _Avoid_: dispatch table, hotkey map, resolved config, keymap table
 
 ### Entering a mode

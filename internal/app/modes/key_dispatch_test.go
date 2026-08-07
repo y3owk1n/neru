@@ -80,6 +80,67 @@ func TestHandleKeyPressUsesStickyStrippedKeyForBindings(t *testing.T) {
 	}
 }
 
+// A keymap is settled once and consulted by every keystroke after it, so the
+// configuration being replaced has to settle a new one: otherwise a key goes on
+// meaning what it meant under the configuration that is gone.
+//
+// The mode and the focused app both stay put here, which is the whole point —
+// this is the settle trigger that nothing else moves.
+func TestHandleKeyPress_ReplacingTheConfigSettlesANewKeymap(t *testing.T) {
+	t.Parallel()
+
+	appState := state.NewAppState()
+	appState.SetMode(domain.ModeRecursiveGrid)
+
+	configWithBinding := func(step string) *configpkg.Config {
+		return &configpkg.Config{
+			RecursiveGrid: configpkg.RecursiveGridConfig{
+				Hotkeys: map[string]configpkg.StringOrStringArray{
+					"j": {step},
+				},
+			},
+		}
+	}
+
+	ran := make(chan string, 1)
+
+	handler := newHandlerWithState(handlerState{
+		config:        configWithBinding("action scroll_down"),
+		logger:        zap.NewNop(),
+		appState:      appState,
+		modifierState: state.NewModifierState(),
+		modes: map[domain.Mode]Mode{
+			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
+		},
+		executeActionSequence: func(_ string, steps []string) {
+			ran <- strings.Join(steps, ",")
+		},
+	})
+
+	handler.HandleKeyPress("j")
+	waitForStep(t, ran, "action scroll_down")
+
+	handler.UpdateConfig(configWithBinding("action scroll_up"))
+
+	handler.HandleKeyPress("j")
+	waitForStep(t, ran, "action scroll_up")
+}
+
+// waitForStep waits for the steps a binding dispatched, which run on a
+// goroutine of their own.
+func waitForStep(t *testing.T, ran <-chan string, want string) {
+	t.Helper()
+
+	select {
+	case got := <-ran:
+		if got != want {
+			t.Fatalf("the key ran %q, want %q", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for the key to run %q", want)
+	}
+}
+
 func TestHandleKeyPressRoutesAllKeysToHintSearch(t *testing.T) {
 	t.Parallel()
 

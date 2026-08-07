@@ -18,49 +18,47 @@ import (
 // AX elements.
 const passthroughHintRefreshDelay = 300 * time.Millisecond
 
+// syncModifierPassthrough tells the event tap which keys the active mode
+// answers to, so it consumes those and passes the rest through.
+//
+// Both lists it builds are the keys of the keymap in force, read rather than
+// merged: this runs on the same triggers that settle one — a mode change, a
+// configuration replacement, a hints refresh after the focused app changed — so
+// there is nothing here to invalidate. Every caller passes the mode that is
+// active, which is what makes the settled keymap the right one to read.
+//
+// Caller must hold h.mu.
 func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
-	enabled := h.config != nil &&
-		mode != domain.ModeIdle &&
-		h.config.General.PassthroughUnboundedKeys
-
-	// Resolve the focused app bundle ID once so both the blacklist and the
-	// intercepted modifier key list use a consistent snapshot. The query is
-	// only needed for hints mode — other modes have no per-app overrides.
-	var bundleID string
-	if enabled && mode == domain.ModeHints && h.config.Hints.HasAppHotkeyOverrides() {
-		bundleID = h.focusedBundleID()
-	}
-
-	if h.hasEventTap() {
-		h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
-	}
-
-	if h.hasEventTap() {
-		blacklist := []string(nil)
-		if enabled {
-			blacklist = append(blacklist, h.config.General.PassthroughUnboundedKeysBlacklist...)
-
-			// Hotkeys for the current mode must also be blacklisted
-			// so the event tap consumes them instead of passing them through.
-			hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
-			for key := range hotkeys {
-				blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(key))
-			}
-		}
-
-		h.setModifierPassthrough(enabled, blacklist)
-	}
-
 	if !h.hasEventTap() {
 		return
 	}
 
-	keys := []string(nil)
+	enabled := h.config != nil &&
+		mode != domain.ModeIdle &&
+		h.config.General.PassthroughUnboundedKeys
+
+	h.setPassthroughCallback(h.passthroughCallbackFor(mode, enabled))
+
+	// The keymap is only consulted when passthrough is on: with it off the tap
+	// consumes everything anyway, and a mode that is not open binds nothing.
+	keymap := configpkg.Keymap{}
+	blacklist := []string(nil)
+
 	if enabled {
-		keys = h.modeModifierKeys(mode, bundleID)
+		keymap = h.settledKeymap()
+
+		blacklist = append(blacklist, h.config.General.PassthroughUnboundedKeysBlacklist...)
+
+		// The keys the mode binds must also be blacklisted so the event tap
+		// consumes them instead of passing them through.
+		for _, key := range keymap.Keys() {
+			blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(key))
+		}
 	}
 
-	h.setInterceptedModifierKeys(keys)
+	h.setModifierPassthrough(enabled, blacklist)
+
+	h.setInterceptedModifierKeys(modeModifierKeys(keymap))
 }
 
 func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) func() {
@@ -77,35 +75,31 @@ func (h *handlerState) passthroughCallbackFor(mode domain.Mode, enabled bool) fu
 
 const initialCapacity = 16
 
-func (h *handlerState) modeModifierKeys(mode domain.Mode, bundleID string) []string {
-	if h.config == nil || mode == domain.ModeIdle {
+// modeModifierKeys is the modifier chords the keymap binds, in the form the
+// platform canonicalizes them to: the event tap intercepts these instead of
+// passing them through to the focused application.
+func modeModifierKeys(keymap configpkg.Keymap) []string {
+	if keymap.Len() == 0 {
 		return nil
 	}
 
 	keys := make([]string, 0, initialCapacity)
 	seen := make(map[string]struct{}, initialCapacity)
 
-	appendKey := func(key string) {
+	for _, key := range keymap.Keys() {
 		trimmed := strings.TrimSpace(key)
 		if trimmed == "" || !configpkg.HasPassthroughModifier(trimmed) {
-			return
+			continue
 		}
 
 		normalized := configpkg.CanonicalHotkeyForPlatform(trimmed)
 		if _, exists := seen[normalized]; exists {
-			return
+			continue
 		}
 
 		seen[normalized] = struct{}{}
 
 		keys = append(keys, normalized)
-	}
-
-	// Append hotkey keys for the current mode so the event tap
-	// intercepts them instead of passing them through to macOS.
-	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
-	for key := range hotkeys {
-		appendKey(key)
 	}
 
 	slices.Sort(keys)

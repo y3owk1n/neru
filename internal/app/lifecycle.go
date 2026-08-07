@@ -301,6 +301,11 @@ func (a *App) processScreenChange() {
 func (a *App) handleAppActivation(bundleID string) {
 	cfg := a.configSnapshot()
 
+	// Tell the mode handler which application is focused now, so the keymap can
+	// be settled against it. This is a lock-free write and must stay one: the
+	// watcher calls this inline and, on macOS, on the main queue (ADR 0005).
+	a.modes.PublishFocusedApp(bundleID)
+
 	if a.appState.CurrentMode() == domain.ModeIdle {
 		go a.hotkeys.RefreshFor(bundleID)
 	} else {

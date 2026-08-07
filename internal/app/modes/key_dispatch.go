@@ -135,27 +135,19 @@ func (h *handlerState) handleKeyPress(key string) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
-	// Resolve the focused app bundle ID once so that both handleHotkey calls
-	// (rawKey and stripped key) share the same snapshot. Only needed when the
-	// active mode defines per-app hotkey overrides.
-	var bundleID string
-	if h.activeModeHasAppHotkeyOverrides() {
-		bundleID = h.focusedBundleID()
-	}
-
 	// Check for per-mode hotkeys before mode-specific handling.
 	// If sticky modifiers were stripped, resolve bindings with the stripped key
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
 	// keys; using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
-		if actions, bindKey, ok := h.handleHotkey(key, bundleID); ok {
+		if actions, bindKey, ok := h.handleHotkey(key); ok {
 			if len(actions) > 0 {
 				h.maybeStartHeldRepeat(key, bindKey, actions)
 			}
 
 			return
 		}
-	} else if actions, bindKey, ok := h.handleHotkey(rawKey, bundleID); ok {
+	} else if actions, bindKey, ok := h.handleHotkey(rawKey); ok {
 		if len(actions) > 0 {
 			h.maybeStartHeldRepeat(rawKey, bindKey, actions)
 		}
@@ -177,10 +169,10 @@ func (h *handlerState) handleModeSpecificKey(key string) {
 }
 
 // activeModeHasAppHotkeyOverrides reports whether the active mode defines any
-// per-app hotkey overrides. That is the only situation requiring the focused
-// app's bundle ID to be resolved to select the correct per-mode hotkey table,
-// and a mode that binds none — or does not take per-app bindings at all — is
-// worth a key press not paying for that lookup.
+// per-app hotkey overrides. That is the only situation in which the focused app
+// selects which bindings are in force, so a mode that binds none — or does not
+// take per-app bindings at all — settles the same keymap whatever is focused,
+// and never has to learn which application that is.
 func (h *handlerState) activeModeHasAppHotkeyOverrides() bool {
 	reporter, ok := activeModeExtension[hotkeyOverrideReporter](h)
 	if !ok {
@@ -207,27 +199,16 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	mode := h.appState.CurrentMode()
-	if mode == domain.ModeIdle {
+	if h.appState.CurrentMode() == domain.ModeIdle {
 		return nil, false
 	}
 
-	var bundleID string
-	if h.activeModeHasAppHotkeyOverrides() {
-		bundleID = h.focusedBundleID()
-	}
-
-	hotkeys := h.config.HotkeysForModeAndApp(domain.ModeString(mode), bundleID)
-	if len(hotkeys) == 0 {
-		return nil, false
-	}
-
-	_, actions, ok := findHotkeyMatch(hotkeys, config.NormalizeKeyForComparison(key))
+	binding, ok := h.settledKeymap().Lookup(config.NormalizeKeyForComparison(key))
 	if !ok {
 		return nil, false
 	}
 
-	return actions, true
+	return binding.Steps, true
 }
 
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
@@ -271,27 +252,30 @@ func (h *handlerState) stripStickyModifiersFromKey(key string, mods action.Modif
 	return strings.Join(newParts, "+")
 }
 
-// handleHotkey checks if the key matches a hotkeys binding for the
-// current mode. If matched, it executes the action (IPC command or shell command)
-// using the same logic as top-level hotkeys. Returns the matched actions along
-// with true if the key was consumed; returns nil, true for sequence starts (Phase 3)
-// where no action is dispatched yet.
-// Caller must hold h.mu. The bundleID is the focused app's bundle identifier,
-// resolved once by the caller to avoid redundant accessibility IPC calls.
-func (h *handlerState) handleHotkey(key, bundleID string) (
+// handleHotkey checks whether the key matches a binding in the keymap in
+// force. If it does, it executes the binding's steps (IPC command or shell
+// command) using the same logic as top-level hotkeys. Returns the matched steps
+// along with true if the key was consumed; returns nil, true for sequence
+// starts (Phase 3) where nothing is dispatched yet.
+//
+// It consults the settled keymap and resolves nothing: which bindings are in
+// force was decided when the mode, the focused app or the configuration last
+// changed, so nothing here can ask the operating system anything (ADR 0005).
+//
+// Caller must hold h.mu.
+func (h *handlerState) handleHotkey(key string) (
 	[]string, string, bool,
 ) {
 	if h.executeActionSequence == nil {
 		return nil, "", false
 	}
 
-	currentModeName := domain.ModeString(h.appState.CurrentMode())
-
-	hotkeys := h.config.HotkeysForModeAndApp(currentModeName, bundleID)
-	if len(hotkeys) == 0 {
+	keymap := h.settledKeymap()
+	if keymap.Len() == 0 {
 		return nil, "", false
 	}
 
+	currentModeName := domain.ModeString(h.appState.CurrentMode())
 	normalizedKey := config.NormalizeKeyForComparison(key)
 
 	// Phase 1: complete pending sequence if available and still valid.
@@ -302,13 +286,10 @@ func (h *handlerState) handleHotkey(key, bundleID string) (
 		h.hotkeyLastKeyTime = 0
 
 		if pendingAt > 0 && time.Since(time.Unix(0, pendingAt)) <= hotkeySequenceTimeout {
-			if bindKey, act, ok := findHotkeySequenceMatch(
-				hotkeys,
-				pending+normalizedKey,
-			); ok {
-				h.dispatchHotkeyActions(currentModeName, bindKey, key, act)
+			if binding, ok := keymap.LookupSequence(pending + normalizedKey); ok {
+				h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
-				return act, bindKey, true
+				return binding.Steps, binding.Key, true
 			}
 		}
 
@@ -320,14 +301,14 @@ func (h *handlerState) handleHotkey(key, bundleID string) (
 	}
 
 	// Phase 2: direct single-key match.
-	if bindKey, act, ok := findHotkeyMatch(hotkeys, normalizedKey); ok {
-		h.dispatchHotkeyActions(currentModeName, bindKey, key, act)
+	if binding, ok := keymap.Lookup(normalizedKey); ok {
+		h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
-		return act, bindKey, true
+		return binding.Steps, binding.Key, true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
-	if isHotkeySequenceStart(hotkeys, normalizedKey) {
+	if keymap.IsSequenceStart(normalizedKey) {
 		h.hotkeyLastKey = normalizedKey
 		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
@@ -335,67 +316,6 @@ func (h *handlerState) handleHotkey(key, bundleID string) (
 	}
 
 	return nil, "", false
-}
-
-func findHotkeyMatch(
-	hotkeys map[string]config.StringOrStringArray,
-	normalizedKey string,
-) (string, []string, bool) {
-	for bindKey, actions := range hotkeys {
-		normalizedBindKey := config.NormalizeKeyForComparison(bindKey)
-		if normalizedBindKey == normalizedKey {
-			return bindKey, actions, true
-		}
-	}
-
-	return "", nil, false
-}
-
-// findHotkeySequenceMatch is like findHotkeyMatch but skips named keys
-// (e.g. "Up", "F1"). It is used exclusively by Phase 1 (sequence completion)
-// to prevent a concatenated sequence like "u"+"p" from matching the named key
-// "Up" whose normalized form is also "up".
-func findHotkeySequenceMatch(
-	hotkeys map[string]config.StringOrStringArray,
-	normalizedKey string,
-) (string, []string, bool) {
-	for bindKey, actions := range hotkeys {
-		if config.IsValidNamedKey(bindKey) {
-			continue
-		}
-
-		if config.NormalizeKeyForComparison(bindKey) == normalizedKey {
-			return bindKey, actions, true
-		}
-	}
-
-	return "", nil, false
-}
-
-func isHotkeySequenceStart(
-	hotkeys map[string]config.StringOrStringArray,
-	normalizedKey string,
-) bool {
-	if len(normalizedKey) != 1 {
-		return false
-	}
-
-	for bindKey := range hotkeys {
-		// Only consider genuine two-letter sequences (e.g. "gg"), not named
-		// keys that happen to be two letters (e.g. "Up" normalizes to "up").
-		if config.IsValidNamedKey(bindKey) {
-			continue
-		}
-
-		normalizedBindKey := config.NormalizeKeyForComparison(bindKey)
-		if len(normalizedBindKey) == 2 &&
-			config.IsAllLetters(normalizedBindKey) &&
-			strings.HasPrefix(normalizedBindKey, normalizedKey) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (h *handlerState) dispatchHotkeyActions(
