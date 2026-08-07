@@ -42,25 +42,12 @@ func TestEmbeddedDefaultConfig_Validates(t *testing.T) {
 	}
 }
 
-// shippedExampleConfigs are the configs the project publishes under configs/.
-//
-// They are listed rather than globbed because the directory is also a working
-// area: a local config kept there for testing is not a project artifact, and
-// its problems are not this suite's business. Adding an example here is the
-// deliberate step that puts it under test.
-var shippedExampleConfigs = []string{
-	"default-config.toml",
-	"grid-only-config.toml",
-	"hints-only-config.toml",
-	"recursive-grid-only-config.toml",
-}
-
 // TestExampleConfigs_Validate loads each shipped config the way the daemon
 // would. These files are copied by users verbatim, so a stale role vocabulary
 // in one of them is shipped breakage that no other test sees — only
 // default-config.toml is embedded and reachable through configs.DefaultConfig.
 func TestExampleConfigs_Validate(t *testing.T) {
-	for _, name := range shippedExampleConfigs {
+	for _, name := range configs.ShippedExamples {
 		path := filepath.Join("..", "..", "configs", name)
 
 		t.Run(name, func(t *testing.T) {
