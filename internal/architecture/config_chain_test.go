@@ -58,6 +58,18 @@ const minSchemaFields = 150
 // report a perfectly wired ladder made of no validators at all.
 const minLadderSteps = 15
 
+// bindingWalk is the helper that reads every action string the configuration
+// can dispatch: the global bindings, each mode's, the per-app overrides of
+// both, the Mission Control hooks and the macro bodies. A validator that goes
+// through it is not checking one section of the file — it is reading all of
+// them, which is why it cannot run before the validators that own them.
+const bindingWalk = "eachBindingAction"
+
+// minBindingWalks guards the ordering check against passing vacuously. Two
+// validators go through the binding walk today; a name match that found none
+// would leave it asserting nothing about an empty tail.
+const minBindingWalks = 2
+
 // TestEveryConfigValidatorRunsInTheLadder pins the validator link of the option
 // chain (internal/config/AGENTS.md): a validator that is written but never
 // called is indistinguishable, to a user, from one that was never written.
@@ -129,6 +141,72 @@ func TestValidatorLadderExemptionsStayHonest(t *testing.T) {
 			"Config.%s no longer calls Config.%s; it is exempt from the wiring "+
 				"check only because it delegates, so it now hides whatever it does instead",
 			plainValidator, validatorLadder,
+		)
+	}
+}
+
+// TestTheBindingWalksCloseTheLadder pins the one ordering the ladder has. Its
+// steps are otherwise independent — each reads its own section — but the two
+// that read every binding in the file are not, and they close the sequence.
+//
+// The ladder said so in a comment for two releases while it was not true: the
+// comment claimed ValidateMacros ran last and a step appended after it in
+// #1201 left the claim standing (#1270). A stated contract nothing enforces is
+// believed, which is the whole premise of the guardrails around it
+// (docs/adr/0006-config-options-get-guardrails-not-generation.md), so the
+// ordering is either declared here or it is not a contract at all.
+//
+// What it does not pin is the order of the walks among themselves: neither
+// reads what the other establishes, and pinning that would invent a dependency
+// the code does not have.
+func TestTheBindingWalksCloseTheLadder(t *testing.T) {
+	order := ladderCallOrder(t)
+	walks := validatorsWalkingBindings(t)
+
+	if len(order) < minLadderSteps {
+		t.Fatalf(
+			"found only %d validator calls in Config.%s, expected at least %d; "+
+				"the AST walk is broken and this check would pass vacuously",
+			len(order), validatorLadder, minLadderSteps,
+		)
+	}
+
+	if len(walks) < minBindingWalks {
+		t.Fatalf(
+			"found only %d validators going through %s, expected at least %d; the "+
+				"AST walk is broken and this check would pass vacuously",
+			len(walks), bindingWalk, minBindingWalks,
+		)
+	}
+
+	unwired := slices.DeleteFunc(slices.Sorted(maps.Keys(walks)), func(name string) bool {
+		return slices.Contains(order, name)
+	})
+	if len(unwired) > 0 {
+		t.Fatalf(
+			"%v go through %s but Config.%s never calls them, so there is no "+
+				"position for them to hold; TestEveryConfigValidatorRunsInTheLadder "+
+				"is the check that answers for that",
+			unwired, bindingWalk, validatorLadder,
+		)
+	}
+
+	// From the first walk rather than the last len(walks) entries: a validator
+	// the ladder happened to call twice would shift a window counted from the
+	// end, and let the step it was hiding through.
+	firstWalk := slices.IndexFunc(order, func(name string) bool { return walks[name] })
+
+	for _, name := range order[firstWalk+1:] {
+		if walks[name] {
+			continue
+		}
+
+		t.Errorf(
+			"Config.%s runs after a validator that reads every binding in the file "+
+				"through %s, so the whole-configuration walks no longer close "+
+				"Config.%s; move it above them, or the walks report faults against "+
+				"tables the validator that owns them has not read yet",
+			name, bindingWalk, validatorLadder,
 		)
 	}
 }
@@ -264,6 +342,49 @@ func validatorsCalledByLadder(t *testing.T) map[string]bool {
 	return configMethodsCalledBy(t, validatorLadder, validatorPrefix)
 }
 
+// ladderCallOrder names every validator the ladder calls on its own receiver,
+// in the order the source makes the calls. The set the wiring checks read
+// answers which validators run; only a sequence answers when.
+func ladderCallOrder(t *testing.T) []string {
+	t.Helper()
+
+	return configMethodCallOrder(t, validatorLadder, validatorPrefix)
+}
+
+// validatorsWalkingBindings names every ladder step that goes through the
+// binding walk.
+//
+// The call has to be a direct one, which is how the wiring checks read the
+// ladder itself: a validator that reached the walk through a helper would go
+// unfound here, and the ordering would stop being demanded of it. Nothing is
+// written that way today — eachBindingAction takes the visitor, so a caller
+// hands it one — and minBindingWalks catches the day this finds none at all.
+//
+// The entry points are excluded rather than found and dropped later: the ladder
+// calls the validators that walk, so it walks too, and it is not a step in the
+// sequence whose order this is about.
+func validatorsWalkingBindings(t *testing.T) map[string]bool {
+	t.Helper()
+
+	// Fails loudly on a renamed walk, rather than leaving every validator
+	// looking like it does not go through one.
+	configMethodDecl(t, bindingWalk)
+
+	walks := make(map[string]bool)
+
+	for _, name := range declaredConfigValidators(t) {
+		if _, isEntryPoint := ladderEntryPoints[name]; isEntryPoint {
+			continue
+		}
+
+		if methodCalls(t, configMethodDecl(t, name), bindingWalk) {
+			walks[name] = true
+		}
+	}
+
+	return walks
+}
+
 // configMethodsWithPrefix names every method on *Config whose name starts with
 // the prefix, sorted so failures read in a stable order. The prefix is the only
 // thing that makes such a set discoverable: there is no interface, no table and
@@ -296,20 +417,36 @@ func configMethodsWithPrefix(t *testing.T, prefix string) []string {
 func configMethodsCalledBy(t *testing.T, method, prefix string) map[string]bool {
 	t.Helper()
 
+	called := make(map[string]bool)
+
+	for _, name := range configMethodCallOrder(t, method, prefix) {
+		called[name] = true
+	}
+
+	return called
+}
+
+// configMethodCallOrder is the same reading in the order the source makes the
+// calls. The set is derived from it rather than walked separately: two passes
+// over one method would be free to disagree about what a call is.
+func configMethodCallOrder(t *testing.T, method, prefix string) []string {
+	t.Helper()
+
 	decl := configMethodDecl(t, method)
 	receiver := receiverName(decl)
-	called := make(map[string]bool)
+
+	var order []string
 
 	ast.Inspect(decl.Body, func(node ast.Node) bool {
 		name := methodCallOnReceiver(node, receiver)
 		if strings.HasPrefix(name, prefix) {
-			called[name] = true
+			order = append(order, name)
 		}
 
 		return true
 	})
 
-	return called
+	return order
 }
 
 // writesToTheConfig reports whether a method's signature leaves it nowhere to

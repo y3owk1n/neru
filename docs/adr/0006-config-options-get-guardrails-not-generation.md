@@ -58,10 +58,15 @@ we do not have yet.
   not on merit: with the ladder measured correct, it would be the only
   production change in an otherwise tests-only sequence, and an AST pass gets
   the same guarantee without touching the path. It stays available as a
-  readability change, and it has one thing going for it that the test does not
-  — `ValidateMacros` must run last so a macro call is checked against a table
-  already known to be sound, and today that is a comment rather than a declared
-  fact.
+  readability change, and it had one thing going for it that the test does not
+  — an ordering the ladder relies on, stated only in a comment. **Amended
+  (#1270):** that comment named an ordering the ladder did not have. Checking
+  macro definitions before macro calls is internal to `ValidateMacros`, not a
+  claim on its position, and the position it did claim — last — stopped being
+  true when `ValidateModeCommands` was appended below it in #1201. What the
+  ladder does rely on is that its two whole-configuration walks close it, and
+  `TestTheBindingWalksCloseTheLadder` now declares that, so the ordered table
+  has nothing left over the AST pass.
 - **Generate `docs/CONFIGURATION.md` rows too**, the third projection. Rejected
   on measurement again: the reference documents all four of the options missing
   from the example TOML, so its drift is currently zero, and matching a Go

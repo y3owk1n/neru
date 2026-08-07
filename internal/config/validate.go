@@ -132,15 +132,21 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings) error {
 		return err
 	}
 
-	// Validate macro definitions and every call to one. This runs last so a
-	// call is checked against a table that is already known to be sound.
+	// The two whole-configuration walks close the ladder. Both go through
+	// eachBindingAction, which reads every action string the configuration can
+	// dispatch rather than one section of it, so both run after the validators
+	// that own the tables it reads: a fault either reports then names a binding
+	// already read for shape.
+	//
+	// Their order relative to each other carries nothing: neither reads what the
+	// other establishes. That they come last does, and
+	// TestTheBindingWalksCloseTheLadder in internal/architecture fails when one
+	// stops being at the end.
 	err = c.ValidateMacros()
 	if err != nil {
 		return err
 	}
 
-	// Read the flags of every mode command, now that the bindings holding them
-	// are known to be well formed.
 	return c.ValidateModeCommands(warnings)
 }
 

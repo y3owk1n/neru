@@ -13,7 +13,12 @@ import (
 // Calls are checked at load rather than when a key is pressed because a
 // binding runs in the background: a mistyped macro name would otherwise
 // produce nothing but a log line, with the key appearing to do nothing at all.
+//
+// Definitions before calls, so a call is checked against a table already known
+// to be sound: a call that names a macro whose own definition is malformed
+// should be told the definition is wrong, not that the arity does not match.
 func (c *Config) ValidateMacros() error {
+	// The [macros] table first.
 	for name, steps := range c.Macros {
 		err := validateMacroDefinition(name, steps)
 		if err != nil {
@@ -21,6 +26,7 @@ func (c *Config) ValidateMacros() error {
 		}
 	}
 
+	// Then every call to it, wherever the configuration makes one.
 	return c.eachBindingAction(func(field, actionStr string) error {
 		return c.validateMacroCall(field, actionStr)
 	})
