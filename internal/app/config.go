@@ -15,6 +15,14 @@ import (
 // app-level reconfiguration (component updates, hotkey re-registration, etc.).
 // This mirrors the reload path but operates on the in-memory config rather
 // than re-reading from disk.
+//
+// Derived values are the limit of that mirroring. Normalizing what was typed
+// comes along; re-deriving does not, because a derived value already written
+// over the raw one cannot say whether the user wrote it, and only a read of
+// the whole file can. So `neru config set grid.characters` relabels the grid
+// on the next reload rather than at once, the same way `neru config set
+// theme.*` recolours only then. The change is persisted before either, so a
+// restart is correct; what is stale is this process until it reloads.
 func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 	a.prepareForConfigUpdate()
 
@@ -35,6 +43,10 @@ func (a *App) SetConfigField(ctx context.Context, key, value string) error {
 
 		return setErr
 	}
+
+	// A field change can land on a derived value, and what arrives is the
+	// string the user typed rather than the form the daemon holds it in.
+	newCfg.ResolveGridLabels()
 
 	// Validate the new config.
 	valErr := newCfg.Validate()

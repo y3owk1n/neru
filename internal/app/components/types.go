@@ -38,24 +38,16 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 			// Recreate grid if characters or labels changed
 			oldGrid := g.Manager.Grid()
 			if oldGrid != nil && cfg.Grid.Characters != "" {
-				// Empty row/column labels in config mean "infer from
-				// characters", which is what NewGridWithLabels does when it
-				// builds the grid. Resolve them the same way before comparing:
-				// the grid stores the inferred labels, so comparing those
-				// against a bare "" would never match and every config reload
-				// would rebuild the grid — discarding in-flight grid input —
-				// even when nothing about the labels changed.
-				newCharacters := strings.ToUpper(cfg.Grid.Characters)
-
-				newRowLabels := newCharacters
-				if cfg.Grid.RowLabels != "" {
-					newRowLabels = strings.ToUpper(cfg.Grid.RowLabels)
-				}
-
-				newColLabels := newCharacters
-				if cfg.Grid.ColLabels != "" {
-					newColLabels = strings.ToUpper(cfg.Grid.ColLabels)
-				}
+				// The config arrives with its labels already resolved to the
+				// ones in use (config.ResolveGridLabels), and the grid stores
+				// the same resolved form, so this is a plain comparison. It
+				// used to infer the labels here, which is the only place that
+				// rule existed — and getting it wrong rebuilt the grid on every
+				// reload, discarding the user's in-flight coordinate input.
+				characters := cfg.GridCharacters()
+				newCharacters := strings.ToUpper(characters)
+				newRowLabels := cfg.Grid.RowLabels
+				newColLabels := cfg.Grid.ColLabels
 
 				charactersChanged := newCharacters != oldGrid.Characters()
 				rowLabelsChanged := newRowLabels != oldGrid.RowLabels()
@@ -67,7 +59,7 @@ func (g *GridComponent) UpdateConfig(cfg *config.Config, logger *zap.Logger) {
 						zap.Bool("rowLabelsChanged", rowLabelsChanged),
 						zap.Bool("colLabelsChanged", colLabelsChanged))
 					newGrid := domainGrid.NewGridWithLabels(
-						cfg.Grid.Characters,
+						characters,
 						cfg.Grid.RowLabels,
 						cfg.Grid.ColLabels,
 						oldGrid.Bounds(),

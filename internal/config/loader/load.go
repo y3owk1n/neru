@@ -84,6 +84,11 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		warnings = overrideWarnings
 	}
 
+	// After the override layer, because the characters the labels are inferred
+	// from can come from either file, and exactly once, because a resolved
+	// label is indistinguishable from one the user wrote.
+	result.Config.ResolveGridLabels()
+
 	result.Warnings = warnings.Messages()
 
 	// Logged as well as reported, because a hot reload has no one to print to:

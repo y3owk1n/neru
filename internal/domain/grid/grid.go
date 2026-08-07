@@ -273,6 +273,22 @@ func newGridAlphabet(characters, rowLabels, colLabels string) gridAlphabet {
 	return gridAlphabet{characters: upper, chars: chars, rowChars: rowChars, colChars: colChars}
 }
 
+// ResolveLabels answers the row and column labels a grid built from these
+// arguments will actually use, so a caller can hold that answer instead of
+// re-deriving it. Empty labels are inferred from characters, which is itself
+// replaced by a-z when it is empty or too short to label anything — that
+// second step is why the answer is worth asking for rather than assuming
+// "empty means characters".
+//
+// Passing the result back into NewGridWithLabels builds the same grid as
+// passing the empty strings did, which is what lets config.ResolveGridLabels
+// settle the option at load time.
+func ResolveLabels(characters, rowLabels, colLabels string) (string, string) {
+	alpha := newGridAlphabet(characters, rowLabels, colLabels)
+
+	return string(alpha.rowChars), string(alpha.colChars)
+}
+
 // newGridFromCells assembles a Grid and its lookup indexes from finished cells.
 func newGridFromCells(alpha gridAlphabet, bounds image.Rectangle, cells []*Cell) *Grid {
 	index := make(map[string]*Cell, len(cells))

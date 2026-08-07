@@ -40,13 +40,17 @@ func newGridComponent(
 }
 
 // gridConfig returns a default config with the grid enabled and the given
-// labels applied.
+// labels applied, resolved the way the loader resolves one before any consumer
+// sees it. UpdateConfig reads the labels rather than inferring them, so a
+// fixture that skipped the resolution would be testing a config the daemon
+// never runs on.
 func gridConfig(characters, rowLabels, colLabels string) *config.Config {
 	cfg := config.DefaultConfig()
 	cfg.Grid.Enabled = true
 	cfg.Grid.Characters = characters
 	cfg.Grid.RowLabels = rowLabels
 	cfg.Grid.ColLabels = colLabels
+	cfg.ResolveGridLabels()
 
 	return cfg
 }
@@ -141,12 +145,12 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 // TestGridComponent_UpdateConfig_DefaultConfigReloadKeepsGrid is a regression
 // test for a spurious rebuild on every `neru config reload`.
 //
-// The default config leaves RowLabels and ColLabels empty, meaning "infer from
+// A config file that leaves row_labels and col_labels empty means "infer from
 // characters". The grid stores the *inferred* labels, so comparing them against
 // the bare "" from config never matched and the grid was rebuilt on every
 // reload — throwing away the user's in-flight coordinate input while grid mode
-// was open. The comparison now resolves empty labels the same way the grid
-// constructor does.
+// was open. Since the option is resolved at load time, DefaultConfig() already
+// carries the inferred labels and the comparison is a plain one.
 func TestGridComponent_UpdateConfig_DefaultConfigReloadKeepsGrid(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Grid.Enabled = true

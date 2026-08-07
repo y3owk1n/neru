@@ -258,6 +258,7 @@ To revert all overrides at once, delete the override file and run `neru config r
 - **`app_configs`**: Per-app overrides can't be set via `config set` (edit `config.toml` directly).
 - **Override file hotkeys**: If you manually edit the override file to add a `[hotkeys]` section, those bindings won't be loaded. The override file is intended for typed field overrides from `config set` — hotkey changes belong in `config.toml`.
 - **Array replacement**: Array fields are replaced wholesale, not appended.
+- **Derived values**: Settings computed from other settings when the config is loaded — the theme colors filled in from `[theme]`, and `grid.row_labels` / `grid.col_labels` inferred from `grid.characters` — are not recomputed by `config set`, because it applies in memory rather than re-reading the file. So `neru config set grid.characters "qwerty"` relabels the grid on the next `neru config reload` or restart, not immediately. The value is persisted either way, so nothing is lost by reloading.
 - **`config reload`**: Re-reading from disk re-applies the override file, but any in-memory-only changes (e.g. before this feature existed) are lost.
 
 ---
@@ -1014,8 +1015,8 @@ Cursor behavior is chosen per invocation: `neru grid --cursor-selection-mode fol
 | `enabled`           | bool   | `true`                        | Enable/disable grid mode    |
 | `characters`        | string | `"abcdefghijklmnpqrstuvwxyz"` | Primary grid labels         |
 | `sublayer_keys`     | string | same as `characters`          | Subgrid labels              |
-| `row_labels`        | string | `""`                          | Custom row labels           |
-| `col_labels`        | string | `""`                          | Custom column labels        |
+| `row_labels`        | string | `""`                          | Custom row labels; empty is resolved at load time to the labels inferred from `characters` |
+| `col_labels`        | string | `""`                          | Custom column labels; empty is resolved the same way as `row_labels`                       |
 | `live_match_update` | bool   | `true`                        | Highlight cells as you type |
 | `hide_unmatched`    | bool   | `true`                        | Hide non-matching cells     |
 | `prewarm_enabled`   | bool   | `true`                        | Pre-compute grid on startup |
