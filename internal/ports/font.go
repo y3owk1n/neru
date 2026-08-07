@@ -11,9 +11,10 @@ type FontResolver interface {
 	//
 	//   - empty input maps to a sensible default sans-serif family
 	//   - generic aliases ("Sans", "Sans Serif", "Serif", "Monospace", ...) are
-	//     mapped to a known-good installed family
-	//   - other family names are returned unchanged when installed; missing
-	//     families fall back to the resolved generic family
+	//     mapped to a known-good installed family; every platform reads the
+	//     same spellings (adapter/platform/fontgeneric)
+	//   - other family names are returned as written, trimmed, when installed;
+	//     missing families fall back to the resolved generic family
 	//   - bold is reserved for future weight-specific resolution and is
 	//     currently ignored by all implementations
 	Resolve(family string, bold bool) string

@@ -162,8 +162,8 @@ reasoning.
 
 ² macOS and Linux resolve font *families* through the OS (NSFont, fontconfig).
 Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
-Cambria / Consolas and passes every other name through verbatim; an unavailable
-family falls back to whatever GDI substitutes.
+Cambria / Consolas and passes every other name straight to GDI without checking
+it; an unavailable family falls back to whatever GDI substitutes.
 
 Which names count as generic is the same on all three: `sans`, `sans serif`,
 `serif`, `mono`, `monospace` and the empty string, matched ignoring case,
