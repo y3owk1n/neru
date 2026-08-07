@@ -69,7 +69,7 @@ Hard rules that apply everywhere:
 
 Runtime shape: a daemon plus a thin CLI. `neru launch` starts the daemon; other commands dial a Unix socket (`$TMPDIR/neru.sock`, 0600) or Windows named pipe — transport in `internal/adapter/ipc`, handlers in `internal/app/ipcctrl`. New user-facing behavior usually needs a CLI command, an IPC handler, and the service/mode work behind it (the `add-cli-command` skill walks it). Startup is a numbered, individually-unwound phase sequence in `internal/app/new.go`. Input flow: native event tap → `adapter/eventtap` → `app/modes/handler.go` → active `Mode` → `app/services/*` → adapter → native API.
 
-Configuration is hot-reloadable TOML; adding an option touches a five-link chain — read `internal/config/AGENTS.md` or use the `add-config-option` skill.
+Configuration is hot-reloadable TOML; adding an option touches four links every time and up to four more when it needs them, with a guardrail test behind most of them — read `internal/config/AGENTS.md` or use the `add-config-option` skill.
 
 ## Conventions
 

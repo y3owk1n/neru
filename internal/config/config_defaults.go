@@ -655,28 +655,39 @@ func defaultMouseAction() MouseActionConfig {
 	}
 }
 
+// Whether a mode's indicator shows by default, named so the table below reads
+// as a table rather than as a column of bare booleans.
+const (
+	indicatorShown  = true
+	indicatorHidden = false
+)
+
+// defaultModeIndicatorMode is one mode's row of the indicator table. Enabled
+// and Text differ per mode; the three color overrides do not, and writing them
+// once here is what keeps their default a stated one.
+func defaultModeIndicatorMode(enabled bool, text string) ModeIndicatorModeConfig {
+	return ModeIndicatorModeConfig{
+		Enabled: enabled,
+		Text:    text,
+
+		// Empty is the meaning, not a missing default: an unset per-mode color
+		// inherits the matching [mode_indicator.ui] value, light and dark leg
+		// independently (Color.ForThemeWithOverride). Shipping a value here
+		// would take that inheritance away from everyone who only styles the
+		// shared block.
+		BackgroundColor: Color{},
+		TextColor:       Color{},
+		BorderColor:     Color{},
+	}
+}
+
 func defaultModeIndicator() ModeIndicatorConfig {
 	return ModeIndicatorConfig{
-		Scroll: ModeIndicatorModeConfig{
-			Enabled: true,
-			Text:    "Scroll",
-		},
-		Hints: ModeIndicatorModeConfig{
-			Enabled: false,
-			Text:    "Hints",
-		},
-		Grid: ModeIndicatorModeConfig{
-			Enabled: false,
-			Text:    "Grid",
-		},
-		RecursiveGrid: ModeIndicatorModeConfig{
-			Enabled: false,
-			Text:    "Recursive Grid",
-		},
-		MonitorSelect: ModeIndicatorModeConfig{
-			Enabled: false,
-			Text:    "Monitor Select",
-		},
+		Scroll:        defaultModeIndicatorMode(indicatorShown, "Scroll"),
+		Hints:         defaultModeIndicatorMode(indicatorHidden, "Hints"),
+		Grid:          defaultModeIndicatorMode(indicatorHidden, "Grid"),
+		RecursiveGrid: defaultModeIndicatorMode(indicatorHidden, "Recursive Grid"),
+		MonitorSelect: defaultModeIndicatorMode(indicatorHidden, "Monitor Select"),
 		UI: ModeIndicatorUI{
 			FontSize:         DefaultScrollFontSize,
 			FontFamily:       "",
