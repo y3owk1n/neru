@@ -90,7 +90,9 @@ intentionally requires a restart, say so in the docs.
 
 ```bash
 just test-foundation    # the fast cross-platform-safe slice
-go test ./internal/config/... ./internal/architecture/
 ```
+
+That one recipe now runs every package this skill's guardrails live in — the
+config package, its loader, and `internal/architecture`.
 
 Then the standard pre-commit gate from AGENTS.md.
