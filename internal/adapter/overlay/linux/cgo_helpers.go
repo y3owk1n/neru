@@ -8,31 +8,15 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 )
 
-func centeredRect(cell image.Rectangle, width, height int) image.Rectangle {
-	centerX := cell.Min.X + cell.Dx()/centeredRectDivisor
-	centerY := cell.Min.Y + cell.Dy()/centeredRectDivisor
-
-	return image.Rect(
-		centerX-width/centeredRectDivisor,
-		centerY-height/centeredRectDivisor,
-		centerX-width/centeredRectDivisor+width,
-		centerY-height/centeredRectDivisor+height,
-	)
-}
-
-func shouldShowLabel(
-	cell image.Rectangle,
-	style recursivegrid.Style,
-) bool {
-	if style.LabelAutohideMultiplier() <= 0 {
-		return true
-	}
-
-	threshold := style.LabelFontSize() * style.LabelAutohideMultiplier()
-
-	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
-}
-
+// shouldShowSubKeyPreview reports whether the sub-key mini-grid this backend
+// draws inside a cell is legible enough to be worth drawing: every sub-cell
+// must reach sub_key_preview_autohide_multiplier x the preview font size.
+//
+// Unlike the label autohide threshold (recursivegrid.Style.ShowLabelIn) this
+// is not shared with the Windows backend, because the two do not draw the same
+// thing: Windows draws a single preview label along the bottom of the cell and
+// measures the cell, this backend and the macOS one draw a mini-grid and
+// measure a sub-cell.
 func shouldShowSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegrid.Style,

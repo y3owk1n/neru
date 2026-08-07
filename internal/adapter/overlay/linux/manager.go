@@ -42,7 +42,7 @@ const (
 	autoPaddingMinVertical                 = 4
 	textWidthMultiplier                    = 0.7
 	textHeightMultiplier                   = 1.4
-	centeredRectDivisor                    = 2
+	halfDivisor                            = 2
 	centeredRectHalf                       = 0.5
 	paddingMultiplier                      = 2
 	// hintPlacementGap is the pixel gap between a hint badge and its target
@@ -784,17 +784,17 @@ func monitorSelectPanelLayout(
 		panelH = maxH
 	}
 
-	centerX := monitor.Min.X + monitor.Dx()/centeredRectDivisor
-	centerY := monitor.Min.Y + monitor.Dy()/centeredRectDivisor
+	centerX := monitor.Min.X + monitor.Dx()/halfDivisor
+	centerY := monitor.Min.Y + monitor.Dy()/halfDivisor
 	panel := image.Rect(
-		centerX-panelW/centeredRectDivisor, centerY-panelH/centeredRectDivisor,
-		centerX+panelW/centeredRectDivisor, centerY+panelH/centeredRectDivisor,
+		centerX-panelW/halfDivisor, centerY-panelH/halfDivisor,
+		centerX+panelW/halfDivisor, centerY+panelH/halfDivisor,
 	)
 
 	// Corner radius: auto = min(panelH/2, 16), matching darwin.
 	radius := float64(style.BorderRadius) * scale
 	if style.BorderRadius < 0 {
-		radius = math.Min(float64(panelH)/centeredRectDivisor, monitorSelectMaxRadius*scale)
+		radius = math.Min(float64(panelH)/halfDivisor, monitorSelectMaxRadius*scale)
 	}
 
 	// Vertically center the label (+ subtitle) block within the panel.
@@ -803,7 +803,7 @@ func monitorSelectPanelLayout(
 		totalTextH += gap + subH
 	}
 
-	textTop := panel.Min.Y + (panelH-totalTextH)/centeredRectDivisor
+	textTop := panel.Min.Y + (panelH-totalTextH)/halfDivisor
 
 	labelRect := image.Rect(panel.Min.X, textTop, panel.Max.X, textTop+labelH)
 
@@ -1185,7 +1185,7 @@ func hintBadgeRadius(radius, badgeWidth int, placement string) int {
 		return radius
 	}
 
-	maxRadius := max(badgeWidth/centeredRectDivisor-hintArrowMinHalfBase, 0)
+	maxRadius := max(badgeWidth/halfDivisor-hintArrowMinHalfBase, 0)
 
 	if radius > maxRadius {
 		return maxRadius
@@ -1223,8 +1223,8 @@ func hintBadgePlacement(
 	badgeWidth, badgeHeight, radius int,
 	placement string,
 ) (image.Rectangle, hintArrowTriangle, bool) {
-	halfW := badgeWidth / centeredRectDivisor
-	halfH := badgeHeight / centeredRectDivisor
+	halfW := badgeWidth / halfDivisor
+	halfH := badgeHeight / halfDivisor
 	centerX := target.X
 	centerY := target.Y
 

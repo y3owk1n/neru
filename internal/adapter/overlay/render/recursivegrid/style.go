@@ -1,6 +1,8 @@
 package recursivegrid
 
 import (
+	"image"
+
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -186,6 +188,28 @@ func (s Style) SubKeyPreviewAutohideMultiplier() float64 {
 // hides itself.
 func (s Style) LabelAutohideMultiplier() float64 {
 	return s.labelAutohideMultiplier
+}
+
+// ShowLabelIn reports whether a cell is large enough for its key label to be
+// worth drawing: both cell dimensions must reach
+// label_autohide_multiplier x the label font size. A non-positive multiplier
+// disables autohide, so the label always shows.
+//
+// The Cairo and GDI backends both call this, and they have to answer the same
+// way — a cell one labels and the other leaves blank is the same configuration
+// producing two different screens. The macOS backend asks the same question in
+// Objective-C (drawGridLabel: in
+// internal/adapter/platform/darwin/overlay_darwin.m), so Go cannot be its one
+// implementation; it agrees today and nothing yet pins it, which is the test
+// ADR 0007 says is owed where the second implementation is in another language.
+func (s Style) ShowLabelIn(cell image.Rectangle) bool {
+	if s.labelAutohideMultiplier <= 0 {
+		return true
+	}
+
+	threshold := s.LabelFontSize() * s.labelAutohideMultiplier
+
+	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
 
 // SubKeyPreviewTextColor returns the preview label color as a hex string.

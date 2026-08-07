@@ -113,6 +113,22 @@ func Bounds(
 	)
 }
 
+// CenteredIn returns a width x height rectangle centered inside container.
+//
+// The centering is integer arithmetic and truncates toward the container's
+// origin on an odd container or badge dimension, so a label plate lands on the
+// same pixel on every backend. A badge larger than its container overhangs it
+// rather than being clamped: the callers draw label plates, and a plate that
+// outgrew its cell is the autohide threshold's problem, not this function's.
+func CenteredIn(container image.Rectangle, width, height int) image.Rectangle {
+	centerX := container.Min.X + container.Dx()/halfDivisor
+	centerY := container.Min.Y + container.Dy()/halfDivisor
+	originX := centerX - width/halfDivisor
+	originY := centerY - height/halfDivisor
+
+	return image.Rect(originX, originY, originX+width, originY+height)
+}
+
 // BorderRadius resolves a configured border-radius value for the given
 // rectangle. Negative values select an automatic radius: autoCap limits the
 // auto-radius for badge-style corners (e.g. 6 px for hint badges); pass 0 for

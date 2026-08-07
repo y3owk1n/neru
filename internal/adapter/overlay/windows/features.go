@@ -27,7 +27,7 @@ const (
 	winAutoPaddingMinVertical          = 4
 	winTextWidthMultiplier             = 0.7
 	winTextHeightMultiplier            = 1.4
-	winCenteredRectDivisor             = 2
+	winHalfDivisor                     = 2
 	winPaddingMultiplier               = 2
 	winSubKeyPreviewPaddingBottom      = 4
 	winAutoRadiusBadgeCap              = 6.0
@@ -111,8 +111,8 @@ func (o *winOverlay) DrawHints(
 		// center so it does not cover the element's own content (e.g. the digit
 		// on a calculator button). hint.Position() is the element center and
 		// hint.Size() its bounds, so the top-left is center minus half-size.
-		originX := hint.Position().X - hint.Size().X/winCenteredRectDivisor
-		originY := hint.Position().Y - hint.Size().Y/winCenteredRectDivisor
+		originX := hint.Position().X - hint.Size().X/winHalfDivisor
+		originY := hint.Position().Y - hint.Size().Y/winHalfDivisor
 		bounds := image.Rect(originX, originY, originX+badgeWidth, originY+badgeHeight)
 
 		textColor := style.TextColor()
@@ -200,7 +200,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 				label = string(keyRunes[idx])
 			}
 
-			if shouldShowWinLabel(cell, style) {
+			if style.ShowLabelIn(cell) {
 				if style.LabelBackground() {
 					o.drawRecursiveLabelBackground(label, cell, style)
 				}
@@ -280,7 +280,7 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	paddingY := badge.AutoPadding(fontSize, style.LabelBackgroundPaddingY(), false)
 	width := badge.EstimateTextWidth(label, fontSize) + paddingX*winPaddingMultiplier
 	height := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
-	rect := winCenteredRect(cell, width, height)
+	rect := badge.CenteredIn(cell, width, height)
 
 	o.drawFilledRect(
 		rect,
@@ -319,16 +319,14 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	)
 }
 
-func shouldShowWinLabel(cell image.Rectangle, style recursivegridcomponent.Style) bool {
-	if style.LabelAutohideMultiplier() <= 0 {
-		return true
-	}
-
-	threshold := style.LabelFontSize() * style.LabelAutohideMultiplier()
-
-	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
-}
-
+// shouldShowWinSubKeyPreview reports whether the single preview label this
+// backend draws along the bottom of a cell is worth drawing: the cell must
+// reach sub_key_preview_autohide_multiplier x the preview font size.
+//
+// Unlike the label autohide threshold (recursivegridcomponent.Style.ShowLabelIn)
+// this is not shared with the Linux backend, because the two do not draw the
+// same thing: Linux and macOS draw a mini-grid of the next level's keys and
+// measure a sub-cell, this backend draws one label and measures the cell.
 func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcomponent.Style) bool {
 	if !style.SubKeyPreview() {
 		return false
@@ -341,16 +339,4 @@ func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcompone
 	threshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()
 
 	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
-}
-
-func winCenteredRect(cell image.Rectangle, width, height int) image.Rectangle {
-	centerX := cell.Min.X + cell.Dx()/winCenteredRectDivisor
-	centerY := cell.Min.Y + cell.Dy()/winCenteredRectDivisor
-
-	return image.Rect(
-		centerX-width/winCenteredRectDivisor,
-		centerY-height/winCenteredRectDivisor,
-		centerX-width/winCenteredRectDivisor+width,
-		centerY-height/winCenteredRectDivisor+height,
-	)
 }
