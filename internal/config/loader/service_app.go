@@ -90,6 +90,7 @@ func (s *Service) ReloadWithAppContext(
 	// Update the service with the new config
 	s.mu.Lock()
 	s.config = loadResult.Config
+	s.written = loadResult.Written
 	s.path = loadResult.ConfigPath
 	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)

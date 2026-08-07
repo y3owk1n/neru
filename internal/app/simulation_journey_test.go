@@ -2269,3 +2269,51 @@ func boundsWithin(got, want image.Rectangle, tolerance int) bool {
 	return within(got.Min.X, want.Min.X) && within(got.Min.Y, want.Min.Y) &&
 		within(got.Max.X, want.Max.X) && within(got.Max.Y, want.Max.Y)
 }
+
+// TestSimulation_ConfigSetRelabelsTheGridWithoutAReload is the user-visible end
+// of issue #1268. grid.row_labels means "infer from the characters the grid is
+// drawn with" while it is empty, and a load settles it — after which a settled
+// label is indistinguishable from one somebody typed. Applying a change to
+// grid.characters on the settled configuration therefore found the labels
+// already filled in and left them, so the grid went on drawing coordinates from
+// a character set it no longer used until the next reload.
+//
+// It asserts the labels a user can actually see and press, not the config field
+// they came from: the drawn cells, through the same overlay a monitor would.
+func TestSimulation_ConfigSetRelabelsTheGridWithoutAReload(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	setErr := sim.app.SetConfigField(context.Background(), "grid.characters", "asdf")
+	if setErr != nil {
+		t.Fatalf("config set grid.characters failed: %v", setErr)
+	}
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	grid := sim.overlay.lastGrid()
+
+	if got := grid.RowLabels(); got != "ASDF" {
+		t.Errorf("drawn grid RowLabels() = %q, want %q", got, "ASDF")
+	}
+
+	if got := grid.ColLabels(); got != "ASDF" {
+		t.Errorf("drawn grid ColLabels() = %q, want %q", got, "ASDF")
+	}
+
+	cells := grid.Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	// The labels the user reads, not just the strings they were built from: a
+	// coordinate outside the new characters is a cell nobody can type.
+	for _, cell := range cells {
+		if strings.ContainsFunc(cell.Coordinate(), func(r rune) bool {
+			return !strings.ContainsRune("ASDF", r)
+		}) {
+			t.Fatalf("cell labeled %q, which the new characters cannot spell", cell.Coordinate())
+		}
+	}
+}

@@ -681,6 +681,15 @@ type LoadResult struct {
 	ValidationError error
 	ConfigPath      string
 
+	// Written is Config before any derived value was settled: the
+	// configuration the user wrote, every layer of it, and nothing the daemon
+	// worked out for them. Settling is one-way — a resolved grid label reads
+	// exactly like one somebody typed — so a change to a *source* option can
+	// only be re-derived from a configuration that never had the derivation
+	// applied. It is what `neru config set` starts from; keeping it is the
+	// price of that command not re-reading the file.
+	Written *Config
+
 	// Warnings are the parts of the loaded configuration that will not do what
 	// they say. The configuration loaded regardless — that is what separates
 	// one of these from ValidationError, which leaves the defaults running

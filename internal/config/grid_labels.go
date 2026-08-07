@@ -34,12 +34,13 @@ func (c *Config) GridCharacters() string {
 // in newDefaultConfig() stays the empty string — the empty string is what the
 // user writes, not what the daemon runs on.
 //
-// Running it again is harmless — settled labels settle to themselves — so a
-// runtime field change can re-run it to normalize what was typed. What a
-// second run cannot do is *re-infer*: a settled label is indistinguishable
-// from one the user wrote, so once the labels are filled in, a later change to
-// the characters no longer carries them along. That is why the inferring run
-// has to be the one that sees the whole configuration.
+// Running it again is harmless — settled labels settle to themselves — but a
+// second run cannot *re-infer*: a settled label is indistinguishable from one
+// the user wrote, so once the labels are filled in, a later change to the
+// characters no longer carries them along. That is why every caller runs it on
+// a configuration nobody has run it on yet, and why a runtime field change
+// starts from the one the user wrote rather than the one in use
+// (loader.ApplyFieldChange).
 //
 // It writes to the Config, so it belongs beside the code that assembled it,
 // on a Config no other goroutine can see yet — the mode handler reads these

@@ -253,6 +253,24 @@ func undefaultedSchemaFields(t *testing.T) map[string]undefaultedField {
 func declaredConfigValidators(t *testing.T) []string {
 	t.Helper()
 
+	return configMethodsWithPrefix(t, validatorPrefix)
+}
+
+// validatorsCalledByLadder names every Validate* method the ladder calls on its
+// own receiver. A call on anything else is not a step of this ladder.
+func validatorsCalledByLadder(t *testing.T) map[string]bool {
+	t.Helper()
+
+	return configMethodsCalledBy(t, validatorLadder, validatorPrefix)
+}
+
+// configMethodsWithPrefix names every method on *Config whose name starts with
+// the prefix, sorted so failures read in a stable order. The prefix is the only
+// thing that makes such a set discoverable: there is no interface, no table and
+// no registration behind either the validator ladder or the derivation chain.
+func configMethodsWithPrefix(t *testing.T, prefix string) []string {
+	t.Helper()
+
 	var names []string
 
 	for _, file := range parsedConfigPackage(t) {
@@ -262,7 +280,7 @@ func declaredConfigValidators(t *testing.T) []string {
 				continue
 			}
 
-			if strings.HasPrefix(funcDecl.Name.Name, validatorPrefix) {
+			if strings.HasPrefix(funcDecl.Name.Name, prefix) {
 				names = append(names, funcDecl.Name.Name)
 			}
 		}
@@ -273,18 +291,18 @@ func declaredConfigValidators(t *testing.T) []string {
 	return names
 }
 
-// validatorsCalledByLadder names every Validate* method the ladder calls on its
-// own receiver. A call on anything else is not a step of this ladder.
-func validatorsCalledByLadder(t *testing.T) map[string]bool {
+// configMethodsCalledBy names every prefixed method that the named Config
+// method calls on its own receiver. A call on anything else is not a step of it.
+func configMethodsCalledBy(t *testing.T, method, prefix string) map[string]bool {
 	t.Helper()
 
-	ladder := configMethodDecl(t, validatorLadder)
-	receiver := receiverName(ladder)
+	decl := configMethodDecl(t, method)
+	receiver := receiverName(decl)
 	called := make(map[string]bool)
 
-	ast.Inspect(ladder.Body, func(node ast.Node) bool {
+	ast.Inspect(decl.Body, func(node ast.Node) bool {
 		name := methodCallOnReceiver(node, receiver)
-		if strings.HasPrefix(name, validatorPrefix) {
+		if strings.HasPrefix(name, prefix) {
 			called[name] = true
 		}
 
@@ -292,6 +310,15 @@ func validatorsCalledByLadder(t *testing.T) map[string]bool {
 	})
 
 	return called
+}
+
+// writesToTheConfig reports whether a method's signature leaves it nowhere to
+// put its answer but the receiver.
+func writesToTheConfig(decl *ast.FuncDecl) bool {
+	takesNothing := decl.Type.Params == nil || len(decl.Type.Params.List) == 0
+	returnsNothing := decl.Type.Results == nil || len(decl.Type.Results.List) == 0
+
+	return takesNothing && returnsNothing
 }
 
 // methodCalls reports whether a method calls another one on its own receiver.

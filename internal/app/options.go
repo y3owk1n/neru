@@ -21,6 +21,21 @@ func WithConfig(cfg *config.Config) Option {
 	}
 }
 
+// WithWrittenConfig records what the configuration passed to WithConfig was
+// written as, before the loader settled its derived values — see
+// [config.LoadResult.Written]. It is what `neru config set` applies a change
+// to, so that a change to a source option can be derived from again.
+//
+// Optional: without it the app derives from the resolved configuration
+// instead, which normalizes what was typed but cannot re-infer.
+func WithWrittenConfig(cfg *config.Config) Option {
+	return func(a *App) error {
+		a.writtenConfig = cfg
+
+		return nil
+	}
+}
+
 // WithConfigPath sets the configuration file path.
 func WithConfigPath(path string) Option {
 	return func(a *App) error {

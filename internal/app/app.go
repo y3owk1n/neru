@@ -40,11 +40,15 @@ type SystrayComponent interface {
 
 // App is the main application instance containing all state and dependencies.
 type App struct {
-	ctx        context.Context //nolint:containedctx // Root context for all App operations
-	cancel     context.CancelFunc
-	config     *config.Config
-	ConfigPath string
-	logger     *zap.Logger
+	ctx    context.Context //nolint:containedctx // Root context for all App operations
+	cancel context.CancelFunc
+	config *config.Config
+	// writtenConfig is config before the loader settled its derived values,
+	// handed to the config service so a later `neru config set` derives from
+	// what the user wrote rather than from what was derived for them.
+	writtenConfig *config.Config
+	ConfigPath    string
+	logger        *zap.Logger
 
 	systemPort    ports.SystemPort
 	accessibility ports.AccessibilityPort

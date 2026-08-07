@@ -55,6 +55,7 @@ func validateAppConfigsHotkeys(
 			result := &config.LoadResult{
 				ValidationError: err,
 				Config:          config.DefaultConfig(),
+				Written:         config.DefaultConfigForDecoding(),
 			}
 			logger.Warn("Duplicate normalized app hotkey in config",
 				zap.String("mode", modeName),
@@ -218,7 +219,14 @@ func safeSendConfig(channel chan<- *config.Config, cfg *config.Config) bool {
 // Service manages application configuration with thread-safe access and change notifications.
 // This replaces the global configuration pattern with dependency injection.
 type Service struct {
-	config        *config.Config
+	config *config.Config
+	// written is config before any derived value was settled — see
+	// [config.LoadResult.Written]. It moves under the same lock and in the same
+	// call as config, because a running configuration paired with a stale
+	// written one would have `neru config set` deriving from values nobody
+	// wrote. Nil until a load or a WithWritten supplies one; Written() says
+	// what that falls back to.
+	written       *config.Config
 	path          string
 	mu            sync.RWMutex
 	watchers      []chan<- *config.Config
@@ -267,6 +275,37 @@ func (s *Service) WithDefaults(cfg *config.Config) *Service {
 	}
 
 	return s
+}
+
+// WithWritten records what the configuration the service was constructed with
+// was written as, for the caller that loaded it somewhere else — the daemon
+// loads once at startup and hands both halves to the app, which builds this
+// service from them.
+func (s *Service) WithWritten(cfg *config.Config) *Service {
+	if cfg != nil {
+		s.written = cfg
+	}
+
+	return s
+}
+
+// Written returns the configuration the running one was derived from, which is
+// what a field change has to be applied to. See [config.LoadResult.Written].
+//
+// It falls back to the running configuration when nothing supplied one, which
+// is a service that was handed a config rather than loading one. Deriving from
+// an already-derived configuration is what this whole pair exists to avoid, but
+// it settles to itself rather than to something wrong: what is lost is the
+// re-inference, not the value.
+func (s *Service) Written() *config.Config {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.written == nil {
+		return s.config
+	}
+
+	return s.written
 }
 
 // FindConfigFile searches for a configuration file in standard locations.
@@ -338,6 +377,7 @@ func (s *Service) LoadAndApply(path string) error {
 
 	s.mu.Lock()
 	s.config = loadResult.Config
+	s.written = loadResult.Written
 	s.path = loadResult.ConfigPath
 	s.mu.Unlock()
 
@@ -377,6 +417,7 @@ func (s *Service) Reload(ctx context.Context, path string) error {
 	// Update configuration atomically
 	s.mu.Lock()
 	s.config = loadResult.Config
+	s.written = loadResult.Written
 	s.path = loadResult.ConfigPath
 	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)
@@ -448,7 +489,12 @@ func (s *Service) Validate(cfg *config.Config) error {
 }
 
 // Update updates the configuration (for testing/internal use).
-func (s *Service) Update(cfg *config.Config) error {
+//
+// written is the configuration cfg was derived from, kept for the next field
+// change. It is not optional: a running configuration left paired with the
+// previous written one would have that next change deriving from values nobody
+// wrote. A caller with no separate written form passes cfg for both.
+func (s *Service) Update(cfg, written *config.Config) error {
 	validateErr := s.Validate(cfg)
 	if validateErr != nil {
 		return validateErr
@@ -456,6 +502,7 @@ func (s *Service) Update(cfg *config.Config) error {
 
 	s.mu.Lock()
 	s.config = cfg
+	s.written = written
 	watchers := make([]chan<- *config.Config, len(s.watchers))
 	copy(watchers, s.watchers)
 	s.mu.Unlock()
@@ -474,9 +521,15 @@ func (s *Service) Update(cfg *config.Config) error {
 // Replace swaps the in-memory config without validation or watcher
 // notification. Use only when callers manage consistency themselves
 // (e.g. --no-reload batches multiple changes before a final reload).
-func (s *Service) Replace(cfg *config.Config) {
+//
+// written is the configuration cfg was derived from, kept for the next field
+// change, and not optional for the same reason as in Update. A batch of
+// --no-reload changes is exactly where it matters: each one derives from the
+// last one's written half, not from its resolved output.
+func (s *Service) Replace(cfg, written *config.Config) {
 	s.mu.Lock()
 	s.config = cfg
+	s.written = written
 	s.mu.Unlock()
 }
 
