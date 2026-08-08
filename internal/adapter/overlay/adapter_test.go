@@ -812,9 +812,8 @@ func (s searchStyles) Style() overlay.Style {
 //
 // It is keyed by config.SearchInputPositions() and the test below fails when
 // the two disagree, so a position added to the vocabulary has to be given a
-// place here — which is the same as saying it has to be given one in the
-// overlay, since an anchor the placement does not recognize falls through to
-// the top left.
+// place here — and, since an anchor the placement does not recognize is now
+// refused rather than drawn, a branch in the overlay to go with it.
 func wantSearchInputBounds() map[string]image.Rectangle {
 	return map[string]image.Rectangle{
 		config.SearchInputPositionTopLeft:      image.Rect(10, 20, 210, 60),
@@ -948,6 +947,126 @@ func TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid(t *testing.
 
 	if manager.searchHides != 1 {
 		t.Errorf("search input hidden %d times, want 1", manager.searchHides)
+	}
+}
+
+// unknownSearchAnchor is a `hints.search_input_ui.position` value the vocabulary
+// does not declare — the shape an eighth anchor would have on the day someone
+// adds it to config and forgets the overlay.
+const unknownSearchAnchor = "floating"
+
+// anchoredSearchStyles is a resolved search-input geometry that differs from
+// the next one only in where it is anchored, which is the whole of what the
+// refusal tests below vary.
+func anchoredSearchStyles(position string) searchStyles {
+	return searchStyles{layout: overlay.SearchInputLayout{
+		Position: position,
+		Width:    200,
+		Height:   40,
+	}}
+}
+
+// TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn pins the other half
+// of the vocabulary: an anchor the placement has no branch for is refused
+// before anything is drawn, rather than being placed in the top-left corner.
+// Top-left used to be where an unrecognized anchor landed, which made an anchor
+// nobody implemented indistinguishable from `top_left` — silent everywhere and
+// wrong on screen.
+func TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn(t *testing.T) {
+	t.Parallel()
+
+	screen := image.Rect(0, 0, 1000, 800)
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, anchoredSearchStyles(unknownSearchAnchor), zap.NewNop())
+
+	err := adapter.DrawHintSearch(ports.HintSearch{
+		Screen:      screen,
+		Query:       "abc",
+		ResultCount: 3,
+	})
+	if !derrors.IsNotSupported(err) {
+		t.Errorf(
+			"DrawHintSearch() with an unrecognized anchor = %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err),
+		)
+	}
+
+	if manager.searchDraws != 0 {
+		t.Errorf(
+			"search input drawn %d times for an unrecognized anchor, want 0: "+
+				"it would have been drawn in the top-left corner",
+			manager.searchDraws,
+		)
+	}
+
+	// The vocabulary's own anchors still draw. A guard that refused everything
+	// would pass the assertion above and leave every user with no search box.
+	for _, position := range config.SearchInputPositions() {
+		drawn := newScreenManager()
+
+		drawErr := overlay.NewAdapter(drawn, anchoredSearchStyles(position), zap.NewNop()).
+			DrawHintSearch(ports.HintSearch{Screen: screen})
+		if drawErr != nil {
+			t.Errorf("DrawHintSearch() with %q = %v, want nil", position, drawErr)
+		}
+
+		if drawn.searchDraws != 1 {
+			t.Errorf("search input drawn %d times for %q, want 1", drawn.searchDraws, position)
+		}
+	}
+}
+
+// TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds pins how the bounds half
+// degrades. It answers a rectangle and cannot report, so an anchor the
+// placement refuses answers the empty one — the same nothing a handler with no
+// overlay at all already returns, and honest, because the draw refused too and
+// there is no box on screen for the IME field to be put over.
+func TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds(t *testing.T) {
+	t.Parallel()
+
+	adapter := overlay.NewAdapter(
+		newScreenManager(),
+		anchoredSearchStyles(unknownSearchAnchor),
+		zap.NewNop(),
+	)
+
+	if got := adapter.HintSearchBounds(image.Rect(0, 0, 1000, 800)); !got.Empty() {
+		t.Errorf(
+			"HintSearchBounds() with an unrecognized anchor = %v, want the empty rectangle",
+			got,
+		)
+	}
+}
+
+// TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest pins the empty string
+// as unrecognized rather than as a default, and deliberately so. Unlike
+// `hints.ui.placement`, an unset `hints.search_input_ui.position` is not settled
+// anywhere: the validator refuses it (config/search_input_position.go), so the
+// only Style that carries one is a Style nothing ever resolved — whose width and
+// height are zero too, and which would draw a box of no size wherever it landed.
+func TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, searchStyles{}, zap.NewNop())
+
+	screen := image.Rect(0, 0, 1000, 800)
+
+	err := adapter.DrawHintSearch(ports.HintSearch{Screen: screen})
+	if !derrors.IsNotSupported(err) {
+		t.Errorf(
+			"DrawHintSearch() with an unset anchor = %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err),
+		)
+	}
+
+	if manager.searchDraws != 0 {
+		t.Errorf("search input drawn %d times for an unset anchor, want 0", manager.searchDraws)
+	}
+
+	if got := adapter.HintSearchBounds(screen); !got.Empty() {
+		t.Errorf("HintSearchBounds() with an unset anchor = %v, want the empty rectangle", got)
 	}
 }
 

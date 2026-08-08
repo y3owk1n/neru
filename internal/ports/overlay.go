@@ -298,6 +298,12 @@ type OverlayPort interface {
 	// degradation rather than failure: search itself is unaffected, because the
 	// query reaches the hints through the event tap's key stream and not
 	// through this. Callers branch on IsNotSupported (#1328).
+	//
+	// An overlay that does draw one reports the same code when it cannot place
+	// the anchor it was configured with (#1329) — the box does not appear
+	// either way, and drawing it somewhere the user did not ask for is the
+	// silent fallback the error vocabulary exists to replace. So a caller reads
+	// the code as "no search input on screen", not as a verdict on the backend.
 	DrawHintSearch(search HintSearch) error
 
 	// HideHintSearch takes the search input off the screen, leaving the hint
