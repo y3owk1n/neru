@@ -451,10 +451,10 @@ discovery rather than the mode itself.
 | **Hints**         | Search input badge             | ✅                         | ❌ no-op                   | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ❌                          |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
-| **Grid**          | Sub-key preview                | ✅ centered mini-grid      | ✅ centered mini-grid      | ⚠️ single-line bottom text  |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ❌ no-op                   | ❌ no-op                    |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
+| **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ⚠️ single bottom label, see below |
 | **Scroll**        | Smooth scroll animation        | ✅                         | ❌                         | ❌                          |
 | **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | 🟡 `CodeNotSupported`       |
 
@@ -467,6 +467,32 @@ actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
 > cursor is hidden — is separate from the recursive-grid indicator above and is
 > macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
 > it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
+
+> **`recursive_grid.ui.sub_key_preview` is one option with two drawings.** macOS
+> and Linux divide each cell by the *next* level's grid dimensions and draw the
+> key that selects each sub-cell in its own place, so the preview shows **where**
+> each key lands. Windows is handed the same next-level keys and dimensions and
+> discards them: it draws one label along the bottom of the cell — the cell's own
+> label, or `sub_key_preview_label_char` when that is set — which conveys the
+> preview font and colour but none of the next level's keys. It also draws that
+> label at the deepest level, where there is no next level to preview and the
+> other two draw nothing.
+>
+> `sub_key_preview_autohide_multiplier` inherits the split, because each backend
+> measures the rectangle it actually draws into. macOS and Linux require one
+> **sub-cell** — the cell divided by the next level's dimensions — to reach
+> `sub_key_preview_font_size × multiplier` in both width and height; Windows
+> requires the **whole cell** to. The same configured number therefore stops
+> showing the preview at very different cell sizes: with a 3×3 next level,
+> Windows keeps drawing down to a cell a third of the width and height at which
+> macOS and Linux have already given up. Treat the value as platform-specific
+> rather than assuming one number behaves the same everywhere.
+>
+> Bringing the Windows drawing in line is tracked as
+> [#1297](https://github.com/y3owk1n/neru/issues/1297); until it lands the two
+> autohide predicates stay separate on purpose, because they gate different
+> drawings and answer different questions
+> ([#1288](https://github.com/y3owk1n/neru/issues/1288)).
 
 ---
 
@@ -515,6 +541,8 @@ Work that is genuinely missing, as opposed to deliberately platform-specific.
 8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
 9. `monitor_select` mode — returns `CodeNotSupported`
 10. Font resolution — alias mapping only, no system font enumeration
+11. Recursive-grid sub-key preview — a single bottom label rather than the
+    mini-grid the other platforms draw ([Mode Coverage](#mode-coverage))
 
 **macOS**
 
