@@ -3,9 +3,7 @@
 package darwin
 
 import (
-	"strings"
-	"sync"
-
+	"github.com/y3owk1n/neru/internal/adapter/platform/fontcache"
 	"github.com/y3owk1n/neru/internal/adapter/platform/fontgeneric"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -33,9 +31,7 @@ var darwinFamilies = fontgeneric.Families{
 // existing C/Objective-C layer (which already does PostScript and family
 // lookups via NSFontManager) can verify and weight-resolve it.
 func NewFontResolver() ports.FontResolver {
-	return &nsFontResolver{
-		cache: make(map[string]string),
-	}
+	return &nsFontResolver{cache: fontcache.New(darwinFamilies.Resolve)}
 }
 
 // nsFontResolver implements ports.FontResolver for macOS. Generic
@@ -43,31 +39,12 @@ func NewFontResolver() ports.FontResolver {
 // is passed through trimmed to the C layer, which already performs the
 // full NSFont + NSFontManager resolution chain.
 type nsFontResolver struct {
-	mu    sync.RWMutex
-	cache map[string]string
+	cache *fontcache.Resolver
 }
 
 // Resolve implements ports.FontResolver.
 func (r *nsFontResolver) Resolve(family string, bold bool) string {
 	_ = bold // weight is enforced at the C layer
 
-	key := strings.ToLower(strings.TrimSpace(family))
-
-	r.mu.RLock()
-
-	if cached, ok := r.cache[key]; ok {
-		r.mu.RUnlock()
-
-		return cached
-	}
-
-	r.mu.RUnlock()
-
-	resolved := darwinFamilies.Resolve(family)
-
-	r.mu.Lock()
-	r.cache[key] = resolved
-	r.mu.Unlock()
-
-	return resolved
+	return r.cache.Resolve(family)
 }

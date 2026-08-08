@@ -5,7 +5,9 @@ import "sync"
 // FontResolver resolves a user-supplied font family to a real, installed font
 // family on the host system. Implementations handle generic aliases
 // (e.g. "Sans", "Monospace"), verify family availability, and apply
-// platform-specific fallback chains. Results are cached internally.
+// platform-specific fallback chains. Results may be cached internally
+// (adapter/platform/fontcache); caching never changes an answer, so what a
+// name resolves to depends on that name alone.
 type FontResolver interface {
 	// Resolve returns a family name guaranteed to be usable on this platform.
 	//

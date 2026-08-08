@@ -203,6 +203,7 @@ test-foundation:
         ./internal/domain/hint ./internal/domain/recursivegrid \
         ./internal/domain/state ./internal/derrors \
         ./internal/adapter/logger \
+        ./internal/adapter/platform/fontcache \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
         ./internal/domain/geometry
