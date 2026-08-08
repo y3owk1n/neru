@@ -290,7 +290,7 @@ func goPackageDirs(t *testing.T) []packageDir {
 			}
 
 			if entry.IsDir() {
-				if isSkippedWalkDir(entry.Name()) {
+				if isSkippedWalkDir(repoRoot, path) {
 					return filepath.SkipDir
 				}
 
