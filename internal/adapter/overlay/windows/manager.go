@@ -20,6 +20,7 @@ import (
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -726,7 +727,13 @@ func (m *Manager) DrawRecursiveGrid(
 
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
-	m.win.DrawRecursiveGrid(bounds, keys, gridCols, gridRows, style, virtualPointer)
+	m.win.DrawRecursiveGrid(
+		bounds,
+		keys,
+		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
+		style,
+		virtualPointer,
+	)
 
 	return nil
 }
