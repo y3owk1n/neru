@@ -109,6 +109,10 @@ func applyOpacity(color uint32, opacity float64) uint32 {
 // mouseActionIndicatorRect returns the square bounding box of a mouse-action
 // indicator of the given diameter centered on point. A circle indicator is
 // drawn as a rounded rect with radius = diameter/2 within this box.
+//
+// Not badge.CenteredOn: the diameter animates as a float and each edge is
+// rounded separately, which keeps the odd pixel that integer halving drops —
+// the box has to track a growing circle smoothly rather than land on a pixel.
 func mouseActionIndicatorRect(point image.Point, diameter float64) image.Rectangle {
 	half := diameter / halfDivisor
 	minX := int(math.Round(float64(point.X) - half))

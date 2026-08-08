@@ -322,12 +322,7 @@ func (o *sharedOverlay) drawHints(
 		// translate it onto the active monitor.
 		pos := hint.Position().Add(o.originOffset)
 		if style.BoundaryHighlightEnabled() {
-			boundary := image.Rect(
-				pos.X-hint.Size().X/2,
-				pos.Y-hint.Size().Y/2,
-				pos.X+hint.Size().X/2,
-				pos.Y+hint.Size().Y/2,
-			)
+			boundary := badge.CenteredOn(pos, hint.Size().X, hint.Size().Y)
 			o.drawRect(
 				boundary,
 				badge.ParseHexARGB(style.BoundaryBackgroundColor()),
@@ -815,6 +810,8 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 
 	fontName := ports.ResolveFont(vp.FontName, false)
 	fontSize := float64(vp.Size)
+	// Not badge.CenteredOn: the half is floored at 1 so a pointer configured to
+	// size 0 or 1 still has a box to draw its glyph in.
 	halfSize := max(vp.Size/2, 1)
 	vpBounds := image.Rect(
 		vp.Position.X-halfSize,
