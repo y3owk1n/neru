@@ -768,10 +768,7 @@ func monitorSelectPanelLayout(
 		panelH = maxH
 	}
 
-	// The panel hangs on the monitor's center point rather than being fitted
-	// into the monitor rectangle: badge.CenteredOn, not badge.CenteredIn. The
-	// two differ by a pixel on an odd panel size, and this is the one the panel
-	// has always been drawn with.
+	// The panel hangs on the monitor's center point.
 	center := image.Pt(
 		monitor.Min.X+monitor.Dx()/halfDivisor,
 		monitor.Min.Y+monitor.Dy()/halfDivisor,
@@ -1232,11 +1229,8 @@ func hintBadgePlacement(
 		return badge.CenteredOn(target, badgeWidth, badgeHeight), hintArrowTriangle{}, false
 	}
 
-	// The badge hangs on the target point rather than being fitted into the
-	// element's box: badge.CenteredOn, not badge.CenteredIn. The two differ by
-	// a pixel on an odd badge size, and this is the one hints have always been
-	// drawn with. halfW and halfH stay because the arrow and the top/bottom
-	// offset are measured from them, not from the rectangle.
+	// halfW and halfH stay because the arrow and the top/bottom offset are
+	// measured from them, not from the rectangle.
 	badgeRect := badge.CenteredOn(image.Pt(centerX, centerY), badgeWidth, badgeHeight)
 
 	// Keep the arrow base within the badge's flat edge (inside the corner
