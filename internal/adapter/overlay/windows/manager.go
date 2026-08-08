@@ -464,7 +464,7 @@ func (m *Manager) DrawModeIndicator(cursorX, cursorY int) {
 	m.indicatorWin.DrawTextCentered(
 		label,
 		badgeBounds,
-		ports.ResolveFont(cfg.UI.FontFamily, true),
+		ports.ResolveFont(cfg.UI.FontFamily),
 		fontSize,
 		badge.ParseHexARGB(textColor),
 	)
@@ -574,7 +574,7 @@ func (m *Manager) DrawStickyModifiersIndicator(cursorX, cursorY int, symbols str
 	m.stickyWin.DrawTextCentered(
 		symbols,
 		badgeBounds,
-		ports.ResolveFont(indicatorUI.FontFamily, false),
+		ports.ResolveFont(indicatorUI.FontFamily),
 		fontSize,
 		badge.ParseHexARGB(textColor),
 	)

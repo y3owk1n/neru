@@ -82,7 +82,7 @@ func (s StyleMode) BoundaryBorderColor() string { return s.boundaryBorderColor }
 func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 	return StyleMode{
 		fontSize:     cfg.UI.FontSize,
-		fontFamily:   ports.ResolveFont(cfg.UI.FontFamily, true),
+		fontFamily:   ports.ResolveFont(cfg.UI.FontFamily),
 		borderRadius: cfg.UI.BorderRadius,
 		paddingX:     cfg.UI.PaddingX,
 		paddingY:     cfg.UI.PaddingY,

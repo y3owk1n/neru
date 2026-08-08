@@ -21,6 +21,6 @@ func NewFontResolver() ports.FontResolver {
 type passthroughResolver struct{}
 
 // Resolve implements ports.FontResolver.
-func (passthroughResolver) Resolve(family string, _ bool) string {
+func (passthroughResolver) Resolve(family string) string {
 	return linuxFamilies.Resolve(family)
 }

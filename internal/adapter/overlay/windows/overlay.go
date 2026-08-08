@@ -342,7 +342,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			o.drawTextCentered(
 				label,
 				cell.Bounds(),
-				ports.ResolveFont(style.FontFamily(), false),
+				ports.ResolveFont(style.FontFamily()),
 				style.LabelFontSize(),
 				text,
 			)
@@ -400,7 +400,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 		o.drawTextCentered(
 			string(key),
 			cell,
-			ports.ResolveFont(style.FontFamily(), false),
+			ports.ResolveFont(style.FontFamily()),
 			style.LabelFontSize()*winSubgridFontScale,
 			style.TextColorARGB(),
 		)

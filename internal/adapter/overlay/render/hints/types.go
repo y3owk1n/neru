@@ -113,7 +113,7 @@ func (s SearchInputStyle) BorderColor() string { return s.borderColor }
 func BuildSearchInputStyle(cfg config.HintsConfig, theme config.ThemeProvider) SearchInputStyle {
 	return SearchInputStyle{
 		fontSize:     cfg.SearchInputUI.FontSize,
-		fontFamily:   ports.ResolveFont(cfg.SearchInputUI.FontFamily, false),
+		fontFamily:   ports.ResolveFont(cfg.SearchInputUI.FontFamily),
 		borderRadius: cfg.SearchInputUI.BorderRadius,
 		paddingX:     cfg.SearchInputUI.PaddingX,
 		paddingY:     cfg.SearchInputUI.PaddingY,

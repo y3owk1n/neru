@@ -337,7 +337,7 @@ func TestStyleResolver_ConcurrentApplyAndRead(t *testing.T) {
 // apart from one copied straight out of the configuration.
 type markerFontResolver struct{}
 
-func (markerFontResolver) Resolve(family string, _ bool) string {
+func (markerFontResolver) Resolve(family string) string {
 	return "resolved(" + family + ")"
 }
 

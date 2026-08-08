@@ -1090,7 +1090,7 @@ func resolveModeIndicatorAppearance(
 	}
 
 	style := overlayBadgeStyle{
-		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily, true),
+		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily),
 		fontSize:    float64(max(cfg.UI.FontSize, 1)),
 		paddingX:    cfg.UI.PaddingX,
 		paddingY:    cfg.UI.PaddingY,
@@ -1137,7 +1137,7 @@ func resolveStickyIndicatorAppearance(
 	}
 
 	style := overlayBadgeStyle{
-		fontFamily:  ports.ResolveFont(cfg.FontFamily, false),
+		fontFamily:  ports.ResolveFont(cfg.FontFamily),
 		fontSize:    float64(max(cfg.FontSize, 1)),
 		paddingX:    cfg.PaddingX,
 		paddingY:    cfg.PaddingY,

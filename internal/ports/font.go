@@ -25,9 +25,7 @@ type FontResolver interface {
 	//     the non-CGO Linux build check nothing, pass the written name on, and
 	//     leave substitution to the native text layer, which does it when the
 	//     text is drawn either way
-	//   - bold is reserved for future weight-specific resolution and is
-	//     currently ignored by all implementations
-	Resolve(family string, bold bool) string
+	Resolve(family string) string
 }
 
 var (
@@ -52,14 +50,14 @@ func SetFontResolver(resolver FontResolver) {
 
 // ResolveFont is a convenience wrapper around the active FontResolver. Returns
 // the input unchanged when no resolver has been installed (e.g. in tests).
-func ResolveFont(family string, bold bool) string {
+func ResolveFont(family string) string {
 	fontResolverMu.RLock()
 
 	r := fontResolver
 
 	fontResolverMu.RUnlock()
 
-	return r.Resolve(family, bold)
+	return r.Resolve(family)
 }
 
 // noopFontResolver is the default resolver. It returns the input unchanged so
@@ -67,4 +65,4 @@ func ResolveFont(family string, bold bool) string {
 type noopFontResolver struct{}
 
 // Resolve returns the input family unchanged.
-func (noopFontResolver) Resolve(family string, _ bool) string { return family }
+func (noopFontResolver) Resolve(family string) string { return family }

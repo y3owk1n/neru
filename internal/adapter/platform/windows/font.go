@@ -31,8 +31,6 @@ type winFontResolver struct {
 }
 
 // Resolve implements ports.FontResolver.
-func (r *winFontResolver) Resolve(family string, bold bool) string {
-	_ = bold
-
+func (r *winFontResolver) Resolve(family string) string {
 	return r.cache.Resolve(family)
 }

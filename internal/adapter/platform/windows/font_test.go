@@ -21,7 +21,7 @@ func TestWinFontResolver_GenericAliases(t *testing.T) {
 		t.Run(input, func(t *testing.T) {
 			fontResolver := NewFontResolver()
 
-			if got := fontResolver.Resolve(input, false); got != want {
+			if got := fontResolver.Resolve(input); got != want {
 				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
 			}
 		})
@@ -40,7 +40,7 @@ func TestWinFontResolver_NamedFamilyPassesThroughTrimmed(t *testing.T) {
 		t.Run(input, func(t *testing.T) {
 			fontResolver := NewFontResolver()
 
-			if got := fontResolver.Resolve(input, false); got != want {
+			if got := fontResolver.Resolve(input); got != want {
 				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
 			}
 		})
@@ -52,11 +52,11 @@ func TestWinFontResolver_AnswersEachSpellingFromItsOwnName(t *testing.T) {
 	// on every CI leg in platform/fontcache, this pins that Windows uses it.
 	fontResolver := NewFontResolver()
 
-	if got := fontResolver.Resolve("Arial", false); got != "Arial" {
+	if got := fontResolver.Resolve("Arial"); got != "Arial" {
 		t.Fatalf("Resolve(%q) = %q, want %q", "Arial", got, "Arial")
 	}
 
-	if got := fontResolver.Resolve("ARIAL", false); got != "ARIAL" {
+	if got := fontResolver.Resolve("ARIAL"); got != "ARIAL" {
 		t.Fatalf("Resolve(%q) = %q, want %q", "ARIAL", got, "ARIAL")
 	}
 }

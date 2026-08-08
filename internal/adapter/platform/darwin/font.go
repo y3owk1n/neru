@@ -43,8 +43,6 @@ type nsFontResolver struct {
 }
 
 // Resolve implements ports.FontResolver.
-func (r *nsFontResolver) Resolve(family string, bold bool) string {
-	_ = bold // weight is enforced at the C layer
-
+func (r *nsFontResolver) Resolve(family string) string {
 	return r.cache.Resolve(family)
 }

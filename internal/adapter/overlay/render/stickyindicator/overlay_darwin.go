@@ -138,7 +138,7 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(
-			C.CString(ports.ResolveFont(o.uiConfig.FontFamily, false)),
+			C.CString(ports.ResolveFont(o.uiConfig.FontFamily)),
 		)
 		cached.BgColor = unsafe.Pointer(
 			C.CString(
