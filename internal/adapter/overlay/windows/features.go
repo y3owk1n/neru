@@ -11,7 +11,6 @@ import (
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Win32/GDI rendering for hints and recursive-grid overlays on Windows.
@@ -122,10 +121,14 @@ func (o *winOverlay) DrawHints(
 			)
 		}
 
+		// The window's own text call rather than drawTextCentered, so the
+		// label lands inside this hint's composite boundary — but the family
+		// arrives resolved here for the same reason drawTextCentered
+		// documents, and this is the surface that redraws on every keystroke.
 		o.window.DrawTextCentered(
 			hint.Label(),
 			bounds,
-			ports.ResolveFont(style.FontFamily()),
+			style.FontFamily(),
 			fontSize,
 			badge.ParseHexARGB(textColor),
 		)
@@ -202,7 +205,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 				o.drawTextCentered(
 					label,
 					cell,
-					ports.ResolveFont(style.FontFamily()),
+					style.FontFamily(),
 					style.LabelFontSize(),
 					style.TextColorARGB(),
 				)
@@ -312,7 +315,7 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	o.drawTextCentered(
 		previewLabel,
 		previewRect,
-		ports.ResolveFont(style.FontFamily()),
+		style.FontFamily(),
 		style.SubKeyPreviewFontSizeF(),
 		style.SubKeyPreviewTextColorARGB(),
 	)

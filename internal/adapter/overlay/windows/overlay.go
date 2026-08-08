@@ -14,7 +14,6 @@ import (
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Win32 overlay backend used by the Windows overlay manager for grid rendering.
@@ -342,7 +341,7 @@ func (o *winOverlay) redrawGridWithoutFlush() {
 			o.drawTextCentered(
 				label,
 				cell.Bounds(),
-				ports.ResolveFont(style.FontFamily()),
+				style.FontFamily(),
 				style.LabelFontSize(),
 				text,
 			)
@@ -400,7 +399,7 @@ func (o *winOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.Sty
 		o.drawTextCentered(
 			string(key),
 			cell,
-			ports.ResolveFont(style.FontFamily()),
+			style.FontFamily(),
 			style.LabelFontSize()*winSubgridFontScale,
 			style.TextColorARGB(),
 		)
@@ -428,6 +427,20 @@ func (o *winOverlay) drawCellBorder(
 	o.window.StrokeRect(bounds, border, lineWidth)
 }
 
+// drawTextCentered draws text in the family it is given, and resolves
+// nothing. This is the one statement of that rule for this backend; every
+// label it draws is drawn from here.
+//
+// Every family that reaches a label comes off a Style the overlay's
+// StyleResolver built, and that is the one place ports.ResolveFont runs
+// (#1305). Resolving again would be a global RWMutex read and a font-cache
+// lookup per drawn label for an answer that cannot change. The Styles this
+// backend caches to redraw from are the resolver's too: ClearCache zeroes
+// each one together with the grid or hint slice it belongs to, and a zeroed
+// Style paints nothing anyway — its font size and colors are zero as well.
+//
+// The mode and sticky-modifier indicator badges do still resolve, because
+// they read raw configuration rather than a Style.
 func (o *winOverlay) drawTextCentered(
 	text string,
 	bounds image.Rectangle,
