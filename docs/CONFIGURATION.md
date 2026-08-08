@@ -858,7 +858,7 @@ hints.clickable_roles: unknown role "AXButton": use "button"
 | `padding_x`          | int    | `-1`       | Horizontal padding (-1 = auto)             |
 | `padding_y`          | int    | `-1`       | Vertical padding (-1 = auto)               |
 | `border_width`       | int    | `1`        | Border width in pixels                     |
-| `placement`          | string | `"bottom"` | Label placement: `top`, `center`, `bottom`; [no effect on Windows](CROSS_PLATFORM.md#mode-coverage) |
+| `placement`          | string | `"bottom"` | Label placement relative to the element: `top`, `center`, `bottom`; `top` and `bottom` also draw a [connector arrow](CROSS_PLATFORM.md#mode-coverage) |
 | `background_color`   | color  | derived    | Background color                           |
 | `text_color`         | color  | derived    | Text color                                 |
 | `matched_text_color` | color  | derived    | Text color for matched characters          |

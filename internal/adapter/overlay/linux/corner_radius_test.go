@@ -6,6 +6,7 @@ import (
 	"image"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
@@ -63,7 +64,7 @@ func (s *recordingSurface) roundedRectPrim(
 }
 
 func (s *recordingSurface) hintBadgePrim(
-	image.Rectangle, float64, int, hintArrowTriangle, uint32, uint32, float64,
+	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, float64,
 ) {
 }
 
@@ -117,7 +118,7 @@ func TestSharedOverlay_DrawHints_BoundaryHighlightHonoursItsBorderRadius(t *test
 					),
 				},
 				hintscomponent.BuildStyle(cfg.Hints, nil),
-				hintBadgeOnTarget,
+				badge.HintOnTarget,
 			)
 
 			if len(surface.rects) != 1 {
