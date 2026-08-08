@@ -110,6 +110,12 @@ type RecursiveGridLayout struct {
 	// Keys are the labels, one per cell, in reading order.
 	Keys string
 
+	// Dimensions is how many cells the region is divided into. It travels as
+	// one value rather than a row count beside a column count so that no
+	// adapter, backend or cgo helper on the way to the division has a pair to
+	// put in the wrong order (#1313).
+	Dimensions domain.GridDimensions
+
 	// GridCols and GridRows are how many cells the region is divided into.
 	GridCols, GridRows int
 }

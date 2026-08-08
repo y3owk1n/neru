@@ -281,6 +281,13 @@ func (h *handlerState) updateRecursiveGridOverlay() {
 //
 // Building it in one place is what took ten positional parameters out of the
 // app layer; nothing here names a style or a render model.
+//
+// It is also where the manager's separate row and column counts become the one
+// domain.GridDimensions the whole draw path carries (#1313). That conversion
+// happens twice here — once for the depth on screen, once for the preview — and
+// nowhere else, so writing either pair under each other's names would transpose
+// every cell on every backend. TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart
+// is what stands over it.
 func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
 		return ports.RecursiveGridFrame{}
@@ -298,20 +305,25 @@ func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 	if manager.CanDivide() {
 		nextDepth := currentDepth + 1
 		layout := manager.CurrentGrid().LayoutForDepth(nextDepth)
+		nextDims := domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols}
 		next = ports.RecursiveGridLayout{
-			Keys:     manager.KeysForDepth(nextDepth),
-			GridCols: layout.GridCols,
-			GridRows: layout.GridRows,
+			Keys:       manager.KeysForDepth(nextDepth),
+			Dimensions: nextDims,
+			GridCols:   nextDims.Cols,
+			GridRows:   nextDims.Rows,
 		}
 	}
+
+	dims := domain.GridDimensions{Rows: manager.GridRows(), Cols: manager.GridCols()}
 
 	return ports.RecursiveGridFrame{
 		Bounds: manager.CurrentBounds(),
 		Depth:  currentDepth,
 		Layout: ports.RecursiveGridLayout{
-			Keys:     manager.Keys(),
-			GridCols: manager.GridCols(),
-			GridRows: manager.GridRows(),
+			Keys:       manager.Keys(),
+			Dimensions: dims,
+			GridCols:   dims.Cols,
+			GridRows:   dims.Rows,
 		},
 		NextLayout: next,
 		Pointer:    h.recursiveGridPointer(),
