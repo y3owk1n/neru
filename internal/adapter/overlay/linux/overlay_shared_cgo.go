@@ -109,7 +109,6 @@ type sharedOverlay struct {
 	animDone         chan struct{}
 	hasLast          bool
 	lastBounds       image.Rectangle
-	lastDims         domain.GridDimensions
 	lastDepth        int
 	lastRects        []image.Rectangle
 	currentAnimRects []image.Rectangle
@@ -220,7 +219,6 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 
 	o.hasLast = true
 	o.lastBounds = bounds
-	o.lastDims = dims
 	o.lastDepth = depth
 	o.lastRects = make([]image.Rectangle, len(cellRects))
 	copy(o.lastRects, cellRects)

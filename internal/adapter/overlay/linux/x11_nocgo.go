@@ -44,20 +44,6 @@ func (o *x11Overlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
 func (o *x11Overlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode, hintBadgeOffset) {
 }
 
-func (o *x11Overlay) DrawRecursiveGrid(
-	image.Rectangle,
-	int,
-	string,
-	domain.GridDimensions,
-	string,
-	domain.GridDimensions,
-	recursivegridcomponent.Style,
-	recursivegridcomponent.VirtualPointerState,
-	bool,
-	int,
-) {
-}
-
 func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	image.Rectangle,
 	int,
