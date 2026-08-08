@@ -159,13 +159,30 @@ func (a *Adapter) Flush() {
 // DrawHintSearch draws the hint search input over the hints frame. Its
 // geometry comes from the Style the overlay resolved and the screen the
 // caller names, so no caller carries a position here.
+//
+// The anchor is placed before anything is drawn, and an anchor this overlay
+// cannot place is reported instead of approximated: the search box would
+// otherwise appear in a corner the user did not configure, with nothing
+// anywhere saying so. The mode handler degrades quietly on CodeNotSupported —
+// search itself keeps working, because the query reaches the hints through the
+// key stream — so the warning that explains the missing box is logged here.
 func (a *Adapter) DrawHintSearch(search ports.HintSearch) error {
 	style := ResolvedStyle(a.styles)
+
+	frame, frameErr := searchInputFrame(style.HintSearchLayout, search.Screen)
+	if frameErr != nil {
+		a.logger.Warn(
+			"Hint search input anchor not placed by the overlay",
+			zap.String("position", style.HintSearchLayout.Position),
+		)
+
+		return frameErr
+	}
 
 	drawErr := a.manager.DrawHintSearchInput(
 		search.Query,
 		search.ResultCount,
-		searchInputFrame(style.HintSearchLayout, search.Screen),
+		frame,
 		style.HintSearchInput,
 	)
 	if drawErr != nil {
@@ -185,9 +202,21 @@ func (a *Adapter) HideHintSearch() {
 }
 
 // HintSearchBounds reports where the search input sits on a screen.
+//
+// It answers a rectangle and has no way to report, so an anchor the placement
+// refuses answers the empty one. That is the honest answer rather than a
+// degradation of its own: the draw refused too, so there is no box on screen
+// for the platform's IME field to be put over, and the empty rectangle is
+// already what the handler falls back to when it has no overlay at all. The
+// draw path logs the reason, which is why this one does not repeat it on every
+// search that opens.
 func (a *Adapter) HintSearchBounds(screen image.Rectangle) image.Rectangle {
 	layout := ResolvedStyle(a.styles).HintSearchLayout
-	placed := searchInputFrame(layout, screen)
+
+	placed, placeErr := searchInputFrame(layout, screen)
+	if placeErr != nil {
+		return image.Rectangle{}
+	}
 
 	return image.Rectangle{
 		Min: placed.Position(),
@@ -631,10 +660,24 @@ func recursiveGridPointer(
 // insets are configuration, resolved with the rest of the Style; only the
 // screen it lands on arrives with the draw. The result is clamped so a bad
 // offset cannot push the input off the display.
+//
+// Every anchor config.SearchInputPositions() declares has a branch below, and
+// an anchor outside it is reported rather than placed. `top_left` is one of
+// those branches on purpose: it is "the insets are the position outright", and
+// it used to reach that answer by falling through to the same empty default an
+// unrecognized anchor did — right for `top_left` by coincidence, and silent for
+// an anchor added to the vocabulary without a branch here, which would validate
+// and then be drawn in a corner nobody chose.
+//
+// The empty string is refused with the rest. Unlike `hints.ui.placement` there
+// is no fallback to settle it to: the validator refuses an unset anchor rather
+// than filling one in (config/search_input_position.go), so the only Style that
+// carries one is a Style that was never resolved — whose width and height are
+// zero as well.
 func searchInputFrame(
 	layout SearchInputLayout,
 	screen image.Rectangle,
-) overlayHints.SearchInputFrame {
+) (overlayHints.SearchInputFrame, error) {
 	screenWidth := screen.Dx()
 	screenHeight := screen.Dy()
 
@@ -650,6 +693,9 @@ func searchInputFrame(
 	centered := (screenWidth-width)/config.DefaultSearchInputCenterDivisor + layout.XOffset
 
 	switch layout.Position {
+	case config.SearchInputPositionTopLeft:
+		// The configured insets are the position outright; nothing to derive
+		// from the screen.
 	case config.SearchInputPositionTopCenter:
 		xOffset = centered
 	case config.SearchInputPositionTopRight:
@@ -665,9 +711,11 @@ func searchInputFrame(
 	case config.SearchInputPositionBottomRight:
 		xOffset = screenWidth - width - layout.XOffset
 		yOffset = screenHeight - height - layout.YOffset
-	case config.SearchInputPositionTopLeft:
-		fallthrough
 	default:
+		return overlayHints.SearchInputFrame{}, derrors.New(
+			derrors.CodeNotSupported,
+			"hint search input anchor is not placed by the overlay",
+		)
 	}
 
 	xOffset = max(xOffset, 0)
@@ -681,7 +729,7 @@ func searchInputFrame(
 		yOffset = screenHeight - height
 	}
 
-	return overlayHints.NewSearchInputFrame(image.Point{X: xOffset, Y: yOffset}, width)
+	return overlayHints.NewSearchInputFrame(image.Point{X: xOffset, Y: yOffset}, width), nil
 }
 
 // Ensure Adapter implements ports.OverlayPort.

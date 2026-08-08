@@ -437,7 +437,10 @@ func (h *handlerState) drawHintSearchInput() {
 	})
 	if err != nil {
 		if derrors.IsNotSupported(err) {
-			h.logger.Debug("Hint search input not supported on this backend")
+			// Either the backend draws no search input or it could not place
+			// the configured anchor; both mean nothing is on screen, and the
+			// overlay says which it was.
+			h.logger.Debug("Hint search input not drawn")
 
 			return
 		}
