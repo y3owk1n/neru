@@ -171,12 +171,20 @@ type Interface interface {
 	ConfigureComponents(cfg *config.Config, pointer PointerAppearance)
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
+	// DrawHintSearchInput draws the query and result count over the hints
+	// surface. A backend that draws no such badge reports CodeNotSupported —
+	// nil means it is on screen, and a backend that answers nil without drawing
+	// leaves the mode handler with no way to know (#1328).
 	DrawHintSearchInput(
 		query string,
 		resultCount int,
 		frame hints.SearchInputFrame,
 		style hints.SearchInputStyle,
 	) error
+	// HideHintSearchInput takes that badge off the surface. It reports nothing
+	// on purpose: a backend that never drew one has nothing left on screen, so
+	// there is no failure for it to report, and no caller could act on one from
+	// a call that runs at teardown (#1328).
 	HideHintSearchInput()
 	DrawModeIndicator(x, y int)
 	DrawStickyModifiersIndicator(x, y int, symbols string)

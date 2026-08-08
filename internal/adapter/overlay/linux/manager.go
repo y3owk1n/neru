@@ -460,17 +460,37 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return nil
 }
 
-// DrawHintSearchInput draws the hints search input using the active Linux backend.
+// DrawHintSearchInput reports that no Linux backend draws the hints search
+// input.
+//
+// Unlike the draws above, the refusal does not depend on a surface: the badge
+// is unimplemented here, so attaching X11 or wlroots changes nothing. Returning
+// nil told the caller a query and a result count were on screen when nothing
+// was — the same silent no-op the platform guide forbids, on a call that
+// already has an error channel to say it with. Hint search itself keeps
+// working: the caller degrades on CodeNotSupported and the query still comes
+// through the event tap's key stream, which is what the Linux TextInput
+// capability already promises (`ports/capability_presets.go`).
 func (m *Manager) DrawHintSearchInput(
 	_ string,
 	_ int,
 	_ hints.SearchInputFrame,
 	_ hints.SearchInputStyle,
 ) error {
-	return nil
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"overlay hint search input not implemented on linux backend",
+	)
 }
 
 // HideHintSearchInput hides the hints search input.
+//
+// It keeps its errorless signature deliberately (#1328). The two directions are
+// not symmetric: a draw makes a claim about what is on screen and the error
+// channel is the only place to withdraw it, while hiding claims nothing that
+// could be untrue here — nothing was ever painted, so there is nothing left on
+// screen and this genuinely succeeded. Widening it would hand every platform a
+// return value no caller could act on, on a call that runs from teardown.
 func (m *Manager) HideHintSearchInput() {}
 
 // DrawModeIndicator draws the mode indicator overlay.

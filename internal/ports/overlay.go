@@ -293,10 +293,20 @@ type OverlayPort interface {
 	// DrawHintSearch draws the hint search input over the hints frame. Like
 	// RedrawFrame it is an update rather than a transition: it fires on every
 	// keystroke typed into the search, over an overlay already on screen.
+	//
+	// An overlay that draws no search input reports CodeNotSupported, which is
+	// degradation rather than failure: search itself is unaffected, because the
+	// query reaches the hints through the event tap's key stream and not
+	// through this. Callers branch on IsNotSupported (#1328).
 	DrawHintSearch(search HintSearch) error
 
 	// HideHintSearch takes the search input off the screen, leaving the hint
 	// labels behind it where they are.
+	//
+	// It reports nothing, and deliberately so (#1328): unlike the draw, it
+	// makes no claim about the screen that could turn out to be untrue — an
+	// overlay that never drew a search input has nothing left to take off — and
+	// it runs from teardown, where no caller could act on an answer anyway.
 	HideHintSearch()
 
 	// HintSearchBounds reports where the search input sits on a screen. The

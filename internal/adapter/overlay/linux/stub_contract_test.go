@@ -67,6 +67,16 @@ func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing
 				return m.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})
 			},
 		},
+		{
+			name: "DrawHintSearchInput",
+			call: func(m *Manager) error {
+				return m.DrawHintSearchInput(
+					"sav", 1,
+					hints.NewSearchInputFrame(image.Pt(10, 10), 200),
+					hints.SearchInputStyle{},
+				)
+			},
+		},
 	}
 
 	for _, testCase := range tests {
@@ -115,6 +125,36 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 	err = mgr.DrawMonitorSelect(targets, manager.MonitorSelectStyle{})
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("DrawMonitorSelect with real targets returned %v, want CodeNotSupported", err)
+	}
+}
+
+// TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo pins what
+// separates the search input from every other draw above: those report
+// CodeNotSupported because there is no surface to draw on, so attaching a
+// backend would make them succeed. This one is not implemented at all — no
+// Linux backend draws the badge — so a surface changes nothing, and reporting
+// success once one exists would put the mode handler back where this started.
+func TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo(t *testing.T) {
+	tests := map[string]*Manager{
+		"x11 attached": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
+		"wlroots attached": {
+			backend: linuxOverlayBackendWaylandWlroots,
+			wlroots: &wlrootsOverlay{},
+		},
+	}
+
+	for name, mgr := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := mgr.DrawHintSearchInput(
+				"sav", 1,
+				hints.NewSearchInputFrame(image.Pt(10, 10), 200),
+				hints.SearchInputStyle{},
+			)
+			if !derrors.IsNotSupported(err) {
+				t.Errorf("DrawHintSearchInput returned %v (code %q), want CodeNotSupported",
+					err, derrors.GetCode(err))
+			}
+		})
 	}
 }
 
