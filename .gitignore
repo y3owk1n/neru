@@ -46,3 +46,8 @@ config.toml
 # Agent-guide local overrides (see AGENTS.md)
 AGENTS.local.md
 CLAUDE.local.md
+
+# Agent worktrees: whole checkouts of this repository parked inside it. The rest
+# of .claude/ stays tracked — settings.json, the agent definitions and the
+# skills symlink are pinned by internal/architecture/agent_contract_test.go.
+.claude/worktrees/
