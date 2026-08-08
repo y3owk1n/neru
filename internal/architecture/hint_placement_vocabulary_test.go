@@ -124,8 +124,8 @@ func TestHintPlacementTranslationMatchesTheVocabulary(t *testing.T) {
 		macro, translatedHere := translated[constant]
 		if !translatedHere {
 			t.Errorf(
-				"%s: %s has no `case config.%s:`, so %q draws at the default "+
-					"instead of its own placement",
+				"%s: %s has no `case config.%s:`, so %q is refused by the overlay "+
+					"instead of drawing at its own placement",
 				hintPlacementTranslator, hintPlacementFunc, constant, placement,
 			)
 
@@ -146,8 +146,9 @@ func TestHintPlacementTranslationMatchesTheVocabulary(t *testing.T) {
 // hintPlacementValue returns a macro for, keyed by the config constant's name
 // ("HintPlacementTop") and valued by the macro's ("HINT_PLACEMENT_TOP"). The
 // default case has no config constant to key on and is skipped: it is the
-// unset value's branch, which the darwin-only test in the renderer's own
-// package pins.
+// branch that refuses a placement outside the vocabulary, and the unset value
+// is settled to the documented default before the switch — both pinned by the
+// darwin-only tests in the renderer's own package.
 func parseHintPlacementSwitch(t *testing.T) map[string]string {
 	t.Helper()
 
@@ -199,7 +200,7 @@ func parseHintPlacementSwitch(t *testing.T) map[string]string {
 }
 
 // collectHintPlacementCase records one `case config.HintPlacementX: return
-// int(C.HINT_PLACEMENT_Y)` clause.
+// int(C.HINT_PLACEMENT_Y), nil` clause.
 func collectHintPlacementCase(clause *ast.CaseClause, into map[string]string) {
 	macro := ""
 
