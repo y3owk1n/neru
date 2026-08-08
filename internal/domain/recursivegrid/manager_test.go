@@ -18,8 +18,10 @@ func TestNewManager(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"rtyfghvbn",
-		func(image.Point) {},
-		func(point image.Point) {},
+		recursivegrid.SelectionCallbacks{
+			OnUpdate:   func(image.Point) {},
+			OnComplete: func(image.Point) {},
+		},
 		logger,
 	)
 
@@ -34,8 +36,7 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		bounds,
 		"", // Empty keys - should use default
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 
@@ -60,8 +61,9 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		func(image.Point) { updateCalled = true },
-		nil,
+		recursivegrid.SelectionCallbacks{
+			OnUpdate: func(image.Point) { updateCalled = true },
+		},
 		logger,
 	)
 
@@ -86,8 +88,7 @@ func TestManagerHandleInputEscapeKey(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 
@@ -109,8 +110,7 @@ func TestManagerReset(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 
@@ -139,8 +139,7 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 
@@ -171,8 +170,9 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		func(image.Point) { updateCalled = true },
-		nil,
+		recursivegrid.SelectionCallbacks{
+			OnUpdate: func(image.Point) { updateCalled = true },
+		},
 		logger,
 	)
 
@@ -199,10 +199,11 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		nil,
-		func(p image.Point) {
-			completeCalled = true
-			completePoint = p
+		recursivegrid.SelectionCallbacks{
+			OnComplete: func(p image.Point) {
+				completeCalled = true
+				completePoint = p
+			},
 		},
 		logger,
 	)
@@ -245,8 +246,10 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		2, // maxDepth
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		func(image.Point) {},
-		func(point image.Point) { completeCalled = true },
+		recursivegrid.SelectionCallbacks{
+			OnUpdate:   func(image.Point) {},
+			OnComplete: func(image.Point) { completeCalled = true },
+		},
 		logger,
 	)
 
@@ -287,8 +290,9 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 		10,       // maxDepth
 		domain.GridDimensions{Rows: 2, Cols: 3},
 		nil, nil,
-		func(image.Point) { updateCalled = true },
-		nil,
+		recursivegrid.SelectionCallbacks{
+			OnUpdate: func(image.Point) { updateCalled = true },
+		},
 		logger,
 	)
 	assert.Equal(t, 3, manager.GridCols())
@@ -316,8 +320,7 @@ func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 3, Cols: 0}, // invalid column count
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	// After fallback, should use default dimensions with default keys
@@ -337,8 +340,7 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 3, Cols: 1},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 
@@ -360,8 +362,7 @@ func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 1, Cols: 1},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
@@ -383,8 +384,7 @@ func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 0, Cols: 3}, // invalid row count
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
@@ -399,8 +399,7 @@ func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
 	manager := recursivegrid.NewManager(
 		screenBounds,
 		keys,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	assert.Equal(
@@ -429,7 +428,7 @@ func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
-		nil, nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	// At depth 0, should use default keys since the orphan override was dropped
@@ -453,7 +452,7 @@ func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
-		nil, nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	// At depth 0, should use defaults since the orphan layout override was dropped
@@ -479,7 +478,7 @@ func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
-		nil, nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	// At depth 0, should use defaults since the mismatched override was dropped
@@ -504,7 +503,7 @@ func TestNewManagerWithLayers_ConsistentOverride_Works(t *testing.T) {
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
-		nil, nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	// At depth 0, should use the override
@@ -531,8 +530,7 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		func(image.Point) {},
-		nil,
+		recursivegrid.SelectionCallbacks{OnUpdate: func(image.Point) {}},
 		logger,
 	)
 	// Pressing the literal space should map to cell index 2 (bottom-left).
@@ -555,8 +553,7 @@ func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		func(image.Point) {},
-		nil,
+		recursivegrid.SelectionCallbacks{OnUpdate: func(image.Point) {}},
 		logger,
 	)
 	// Fullwidth 'u' (U+FF55) should normalize to halfwidth 'u' and match cell 0.
@@ -580,8 +577,7 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 		10,
 		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
-		nil,
-		nil,
+		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
 	assert.Equal(

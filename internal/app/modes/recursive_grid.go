@@ -184,20 +184,20 @@ func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectang
 		},
 		depthLayouts,
 		depthKeys,
-		// Update callback
-		func(center image.Point) {
-			absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
-			if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
-				h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
-			}
+		recursivegrid.SelectionCallbacks{
+			OnUpdate: func(center image.Point) {
+				absoluteCenter := geometry.ConvertToAbsoluteCoordinates(center, h.screenBounds)
+				if h.recursiveGrid != nil && h.recursiveGrid.Context != nil {
+					h.recursiveGrid.Context.SetSelectionPoint(absoluteCenter)
+				}
 
-			h.updateRecursiveGridOverlay()
-		},
-		// Complete callback
-		func(point image.Point) {
-			h.logger.Debug("Recursive-grid selection complete",
-				zap.Int("x", point.X),
-				zap.Int("y", point.Y))
+				h.updateRecursiveGridOverlay()
+			},
+			OnComplete: func(point image.Point) {
+				h.logger.Debug("Recursive-grid selection complete",
+					zap.Int("x", point.X),
+					zap.Int("y", point.Y))
+			},
 		},
 		h.logger,
 	)
