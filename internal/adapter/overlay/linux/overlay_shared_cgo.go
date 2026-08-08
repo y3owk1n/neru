@@ -189,7 +189,10 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 	shouldAnimate := animEnabled && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
 
-	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
+	cellRects := recursivegrid.ComputeGridCells(
+		bounds,
+		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
+	)
 
 	if shouldAnimate {
 		duration := time.Duration(animDurationMS) * time.Millisecond
@@ -879,7 +882,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 
 	// The rectangles they are drawn on, which are the rectangles the mode layer
 	// moves the cursor into (internal/domain/grid/subgrid_cells.go).
-	cells := domainGrid.SubgridCells(bounds, domain.SubgridRows, domain.SubgridCols)
+	cells := domainGrid.SubgridCells(bounds, domain.SubgridDimensions())
 
 	// One cell per key, and fewer keys than cells is a configuration that
 	// leaves the last cells unlabelled: the key set is capped at the same count
@@ -984,7 +987,10 @@ func (o *sharedOverlay) drawSubKeyMiniGrid(
 	nextGridCols int, nextGridRows int,
 	style recursivegridcomponent.Style,
 ) {
-	subCells := recursivegrid.ComputeGridCells(cell, nextGridCols, nextGridRows)
+	subCells := recursivegrid.ComputeGridCells(
+		cell,
+		domain.GridDimensions{Rows: nextGridRows, Cols: nextGridCols},
+	)
 	centerIdx := -1
 
 	if nextGridCols%2 == 1 && nextGridRows%2 == 1 {

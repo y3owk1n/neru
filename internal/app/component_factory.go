@@ -72,8 +72,7 @@ func (f *ComponentFactory) CreateGridComponent() *components.GridComponent {
 	// Create grid manager with callbacks
 	component.Manager = domainGrid.NewManager(
 		nil,
-		domain.SubgridRows,
-		domain.SubgridCols,
+		domain.SubgridDimensions(),
 		// The keys the subgrid is drawn with, resolved once by the config
 		// (config.ResolveSublayerKeys).
 		f.config.Grid.SublayerKeys,

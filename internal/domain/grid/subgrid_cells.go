@@ -1,6 +1,10 @@
 package grid
 
-import "image"
+import (
+	"image"
+
+	"github.com/y3owk1n/neru/internal/domain"
+)
 
 // roundingFactor is what a positive quotient is offset by before it is
 // truncated, which rounds it to the nearest whole pixel. It is written once
@@ -26,14 +30,22 @@ const roundingFactor = 0.5
 // edge rather than the rounded value, so the subgrid covers the cell exactly:
 // no seam a click can fall into and no cell drawn a pixel past its parent.
 //
-// Rows and columns are parameters rather than the shipped 3x3
-// (domain.SubgridRows, domain.SubgridCols) because the manager already carries
-// its own, and a function that baked the constant in would leave it computing
-// its answer somewhere else the moment that stopped being true.
+// The dimensions are a parameter rather than the shipped 3x3
+// (domain.SubgridDimensions) because the manager already carries its own, and a
+// function that baked the constant in would leave it computing its answer
+// somewhere else the moment that stopped being true. They arrive together as a
+// domain.GridDimensions rather than as a row count and a column count because
+// recursivegrid.ComputeGridCells divides a rectangle too, and the two used to
+// take their counts in opposite orders — a transposed call was invisible while
+// every grid was square (#1294).
+//
+// This division is deliberately not recursivegrid.ComputeGridCells, whose doc
+// comment says how the two differ and why merging them is not on the table.
 //
 // A subgrid with no rows or no columns has no cells, which is what a caller
 // that has not been configured yet gets instead of a panic.
-func SubgridCells(bounds image.Rectangle, rows, cols int) []image.Rectangle {
+func SubgridCells(bounds image.Rectangle, dims domain.GridDimensions) []image.Rectangle {
+	rows, cols := dims.Rows, dims.Cols
 	if rows < 1 || cols < 1 {
 		return nil
 	}
@@ -52,7 +64,7 @@ func SubgridCells(bounds image.Rectangle, rows, cols int) []image.Rectangle {
 	xBreaks[cols] = bounds.Max.X
 	yBreaks[rows] = bounds.Max.Y
 
-	cells := make([]image.Rectangle, 0, rows*cols)
+	cells := make([]image.Rectangle, 0, dims.CellCount())
 
 	for row := range rows {
 		for col := range cols {

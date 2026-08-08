@@ -110,12 +110,6 @@ const (
 	DefaultExitKey = "Escape"
 )
 
-// Grid subgrid dimensions.
-const (
-	SubgridRows = 3
-	SubgridCols = 3
-)
-
 // BaseManager provides common functionality for domain managers.
 // It contains shared fields and methods used across different domain managers.
 type BaseManager struct {

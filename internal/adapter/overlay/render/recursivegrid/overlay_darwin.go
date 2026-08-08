@@ -22,6 +22,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
@@ -311,7 +312,10 @@ func (o *Overlay) DrawRecursiveGrid(
 	o.drawMu.RLock()
 
 	// Compute cell positions using the shared helper (same as Divide()).
-	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
+	cellRects := recursivegrid.ComputeGridCells(
+		bounds,
+		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
+	)
 
 	cells := make([]C.GridCell, keyCount)
 

@@ -15,15 +15,13 @@ func TestSubgridCells(t *testing.T) {
 	testCases := []struct {
 		name   string
 		bounds image.Rectangle
-		rows   int
-		cols   int
+		dims   domain.GridDimensions
 		want   []image.Rectangle
 	}{
 		{
 			name:   "a cell that divides evenly divides into equal thirds",
 			bounds: image.Rect(0, 0, 300, 150),
-			rows:   domain.SubgridRows,
-			cols:   domain.SubgridCols,
+			dims:   domain.SubgridDimensions(),
 			want: []image.Rectangle{
 				image.Rect(0, 0, 100, 50),
 				image.Rect(100, 0, 200, 50),
@@ -42,8 +40,7 @@ func TestSubgridCells(t *testing.T) {
 			// pixel lands in the middle column rather than at one end.
 			name:   "a cell that does not divide evenly rounds each break",
 			bounds: image.Rect(0, 0, 10, 8),
-			rows:   domain.SubgridRows,
-			cols:   domain.SubgridCols,
+			dims:   domain.SubgridDimensions(),
 			want: []image.Rectangle{
 				image.Rect(0, 0, 3, 3),
 				image.Rect(3, 0, 7, 3),
@@ -60,8 +57,7 @@ func TestSubgridCells(t *testing.T) {
 			// The same 10x8 cell, moved to where a grid cell actually sits.
 			name:   "a cell away from the origin divides where it is",
 			bounds: image.Rect(100, 50, 110, 58),
-			rows:   domain.SubgridRows,
-			cols:   domain.SubgridCols,
+			dims:   domain.SubgridDimensions(),
 			want: []image.Rectangle{
 				image.Rect(100, 50, 103, 53),
 				image.Rect(103, 50, 107, 53),
@@ -79,8 +75,7 @@ func TestSubgridCells(t *testing.T) {
 			// column count, so the shape has to come from the caller.
 			name:   "a subgrid that is not square divides by its own counts",
 			bounds: image.Rect(0, 0, 9, 5),
-			rows:   2,
-			cols:   4,
+			dims:   domain.GridDimensions{Rows: 2, Cols: 4},
 			want: []image.Rectangle{
 				image.Rect(0, 0, 2, 3),
 				image.Rect(2, 0, 5, 3),
@@ -95,8 +90,7 @@ func TestSubgridCells(t *testing.T) {
 		{
 			name:   "a cell narrower than its columns still gives one cell per key",
 			bounds: image.Rect(0, 0, 2, 2),
-			rows:   domain.SubgridRows,
-			cols:   domain.SubgridCols,
+			dims:   domain.SubgridDimensions(),
 			want: []image.Rectangle{
 				image.Rect(0, 0, 1, 1),
 				image.Rect(1, 0, 1, 1),
@@ -112,18 +106,17 @@ func TestSubgridCells(t *testing.T) {
 		{
 			name:   "a subgrid with no rows has no cells",
 			bounds: image.Rect(0, 0, 300, 150),
-			rows:   0,
-			cols:   domain.SubgridCols,
+			dims:   domain.GridDimensions{Rows: 0, Cols: domain.SubgridCols},
 			want:   nil,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := grid.SubgridCells(testCase.bounds, testCase.rows, testCase.cols)
+			got := grid.SubgridCells(testCase.bounds, testCase.dims)
 			if len(got) != len(testCase.want) {
-				t.Fatalf("SubgridCells(%v, %d, %d) returned %d cells, want %d",
-					testCase.bounds, testCase.rows, testCase.cols, len(got), len(testCase.want))
+				t.Fatalf("SubgridCells(%v, %+v) returned %d cells, want %d",
+					testCase.bounds, testCase.dims, len(got), len(testCase.want))
 			}
 
 			for index, want := range testCase.want {
@@ -145,7 +138,7 @@ func TestSubgridCells_CoversTheCellExactly(t *testing.T) {
 
 	for size := 1; size <= 64; size++ {
 		bounds := image.Rect(origin, origin, origin+size, origin+size)
-		cells := grid.SubgridCells(bounds, domain.SubgridRows, domain.SubgridCols)
+		cells := grid.SubgridCells(bounds, domain.SubgridDimensions())
 
 		if len(cells) != domain.SubgridRows*domain.SubgridCols {
 			t.Fatalf("a %dx%d cell divided into %d cells, want %d",
@@ -190,7 +183,43 @@ func TestManager_SubgridSelectionLandsInsideTheCellItDrew(t *testing.T) {
 	for index, key := range drawn {
 		manager, opened := newSubgridKeyManager(t, configured)
 
-		cells := grid.SubgridCells(opened, domain.SubgridRows, domain.SubgridCols)
+		cells := grid.SubgridCells(opened, domain.SubgridDimensions())
+
+		point, selected := manager.HandleInput(string(key))
+		if !selected {
+			t.Fatalf("subgrid refused %q, which it is drawn with", string(key))
+		}
+
+		if !point.In(cells[index]) {
+			t.Errorf("key %q draws %v but moves the cursor to %v",
+				string(key), cells[index], point)
+		}
+	}
+}
+
+// TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare is the same
+// stake on a subgrid whose two counts differ, which is the only shape that can
+// tell a row count from a column count. The shipped subgrid is 3x3, so a
+// manager that had its two counts the wrong way round would divide the cell
+// into exactly the same nine rectangles and this whole file would still pass —
+// the mistake would surface only for whoever configured a subgrid that was not
+// square, and would look like a rendering bug rather than a swapped pair.
+func TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare(t *testing.T) {
+	// Four columns over two rows, and eight keys to name the eight cells.
+	dims := domain.GridDimensions{Rows: 2, Cols: 4}
+
+	const configured = "asdfghjk"
+
+	drawn := grid.SubgridKeys(configured, dims.CellCount())
+	if len(drawn) != dims.CellCount() {
+		t.Fatalf("SubgridKeys(%q) drew %d keys, want %d",
+			configured, len(drawn), dims.CellCount())
+	}
+
+	for index, key := range drawn {
+		manager, opened := newSubgridManager(t, dims, configured)
+
+		cells := grid.SubgridCells(opened, dims)
 
 		point, selected := manager.HandleInput(string(key))
 		if !selected {

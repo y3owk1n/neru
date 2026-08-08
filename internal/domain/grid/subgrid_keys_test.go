@@ -76,8 +76,7 @@ func TestSubgridKeys(t *testing.T) {
 func TestSubgridKeys_CapAgreesWithTheCellsThereAre(t *testing.T) {
 	divided := grid.SubgridCells(
 		image.Rect(0, 0, 300, 150),
-		domain.SubgridRows,
-		domain.SubgridCols,
+		domain.SubgridDimensions(),
 	)
 
 	if grid.MaxKeyIndex != len(divided) {
@@ -159,6 +158,19 @@ func TestManager_EveryDrawnSubgridKeySelectsItsOwnPoint(t *testing.T) {
 func newSubgridKeyManager(t *testing.T, subKeys string) (*grid.Manager, image.Rectangle) {
 	t.Helper()
 
+	return newSubgridManager(t, domain.SubgridDimensions(), subKeys)
+}
+
+// newSubgridManager is newSubgridKeyManager for a subgrid of any shape: it
+// drives the manager into a cell's subgrid and hands back the manager and the
+// rectangle that subgrid covers.
+func newSubgridManager(
+	t *testing.T,
+	dims domain.GridDimensions,
+	subKeys string,
+) (*grid.Manager, image.Rectangle) {
+	t.Helper()
+
 	log := logger.Get()
 	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 800), log)
 
@@ -166,8 +178,7 @@ func newSubgridKeyManager(t *testing.T, subKeys string) (*grid.Manager, image.Re
 
 	manager := grid.NewManager(
 		testGrid,
-		domain.SubgridRows,
-		domain.SubgridCols,
+		dims,
 		subKeys,
 		func(bool) {},
 		func(cell *grid.Cell) { opened = cell.Bounds() },

@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -14,7 +15,14 @@ func TestGridRouter_RouteKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
+	manager := grid.NewManager(
+		testGrid,
+		domain.GridDimensions{Rows: 3, Cols: 3},
+		"123456789",
+		nil,
+		nil,
+		logger,
+	)
 	router := grid.NewRouter(manager, logger)
 
 	tests := []struct {
@@ -65,7 +73,14 @@ func TestGridRouter_EscapeKey(t *testing.T) {
 
 	// Create a simple grid for testing
 	testGrid := grid.NewGrid("ABCD", image.Rect(0, 0, 100, 100), logger)
-	manager := grid.NewManager(testGrid, 3, 3, "123456789", nil, nil, logger)
+	manager := grid.NewManager(
+		testGrid,
+		domain.GridDimensions{Rows: 3, Cols: 3},
+		"123456789",
+		nil,
+		nil,
+		logger,
+	)
 	router := grid.NewRouter(manager, logger)
 
 	// Escape is handled by top-level custom hotkeys now, not router.

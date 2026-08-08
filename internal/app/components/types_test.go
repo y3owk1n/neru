@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -34,7 +35,14 @@ func newGridComponent(
 		log,
 	)
 
-	manager := domainGrid.NewManager(initial, 2, 2, characters, nil, nil, log)
+	manager := domainGrid.NewManager(
+		initial,
+		domain.GridDimensions{Rows: 2, Cols: 2},
+		characters,
+		nil,
+		nil,
+		log,
+	)
 
 	return &components.GridComponent{Manager: manager}
 }
@@ -240,7 +248,14 @@ func TestGridComponent_UpdateConfig_NilManagerAndGrid(t *testing.T) {
 	})
 
 	t.Run("manager with nil grid", func(t *testing.T) {
-		manager := domainGrid.NewManager(nil, 2, 2, testCharacters, nil, nil, zap.NewNop())
+		manager := domainGrid.NewManager(
+			nil,
+			domain.GridDimensions{Rows: 2, Cols: 2},
+			testCharacters,
+			nil,
+			nil,
+			zap.NewNop(),
+		)
 		component := &components.GridComponent{Manager: manager}
 
 		component.UpdateConfig(gridConfig("wxyz", "", ""), zap.NewNop())
