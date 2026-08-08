@@ -275,16 +275,16 @@ func (c *Config) validateHintBoundaryHighlight() error {
 }
 
 // validateHintSearchInputPlacement checks where the search input sits and how
-// wide it is.
+// wide it is. Both the accepted set and the error message read
+// SearchInputPositions(), so a position added there is accepted here — and
+// named in the message — without this function being touched.
 func (c *Config) validateHintSearchInputPlacement() error {
-	switch c.Hints.SearchInputUI.Position {
-	case "top_left", "top_center", "top_right",
-		"center",
-		"bottom_left", "bottom_center", "bottom_right":
-	default:
-		return derrors.New(
+	positions := SearchInputPositions()
+	if !slices.Contains(positions, c.Hints.SearchInputUI.Position) {
+		return derrors.Newf(
 			derrors.CodeInvalidConfig,
-			"hints.search_input_ui.position must be one of top_left, top_center, top_right, center, bottom_left, bottom_center, bottom_right",
+			"hints.search_input_ui.position must be one of %s",
+			strings.Join(positions, ", "),
 		)
 	}
 

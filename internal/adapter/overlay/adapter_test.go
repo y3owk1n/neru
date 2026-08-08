@@ -785,10 +785,6 @@ func TestAdapterFrame_ReportsACanceledContext(t *testing.T) {
 	}
 }
 
-// searchInputTopLeft is the anchor the placement tests start from: the one
-// where the configured offsets are the position, with no edge maths.
-const searchInputTopLeft renderhints.SearchInputPosition = "top_left"
-
 // searchStyles is a StyleSource that resolves only the search input's
 // geometry, which is the half of the Style the placement depends on.
 type searchStyles struct {
@@ -802,10 +798,36 @@ func (s searchStyles) Style() overlay.Style {
 	return overlay.Style{HintSearchLayout: s.layout}
 }
 
+// wantSearchInputBounds is where a 200x40 input with a 10/20 inset lands on a
+// 1000x800 screen for each accepted anchor, worked out from the anchor's name
+// rather than from the code: top_left is the insets themselves, a centered axis
+// is the space left over halved and then inset the same way, and a far edge is
+// the screen less the box less the inset.
+//
+// It is keyed by config.SearchInputPositions() and the test below fails when
+// the two disagree, so a position added to the vocabulary has to be given a
+// place here — which is the same as saying it has to be given one in the
+// overlay, since an anchor the placement does not recognize falls through to
+// the top left.
+func wantSearchInputBounds() map[string]image.Rectangle {
+	return map[string]image.Rectangle{
+		config.SearchInputPositionTopLeft:      image.Rect(10, 20, 210, 60),
+		config.SearchInputPositionTopCenter:    image.Rect(410, 20, 610, 60),
+		config.SearchInputPositionTopRight:     image.Rect(790, 20, 990, 60),
+		config.SearchInputPositionCenter:       image.Rect(410, 400, 610, 440),
+		config.SearchInputPositionBottomLeft:   image.Rect(10, 740, 210, 780),
+		config.SearchInputPositionBottomCenter: image.Rect(410, 740, 610, 780),
+		config.SearchInputPositionBottomRight:  image.Rect(790, 740, 990, 780),
+	}
+}
+
 // TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration pins where the
-// search input lands for each configured anchor. The maths moved out of the
-// mode layer with #1210 — a caller says which screen, and the overlay says
-// where on it, because the IME field has to be put over the same rectangle.
+// search input lands for each accepted anchor. The maths moved out of the mode
+// layer with #1210 — a caller says which screen, and the overlay says where on
+// it, because the IME field has to be put over the same rectangle.
+//
+// It walks config.SearchInputPositions() rather than a list of its own, so an
+// anchor the validator accepts and the overlay does not place fails here.
 func TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration(t *testing.T) {
 	t.Parallel()
 
@@ -818,49 +840,33 @@ func TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration(t *testing.T) {
 		YOffset: 20,
 	}
 
-	tests := []struct {
-		name     string
-		position renderhints.SearchInputPosition
-		want     image.Rectangle
-	}{
-		{
-			name:     "top left is the offsets themselves",
-			position: searchInputTopLeft,
-			want:     image.Rect(10, 20, 210, 60),
-		},
-		{
-			name:     "top center centers horizontally",
-			position: "top_center",
-			want:     image.Rect(410, 20, 610, 60),
-		},
-		{
-			name:     "top right measures from the right edge",
-			position: "top_right",
-			want:     image.Rect(790, 20, 990, 60),
-		},
-		{
-			name:     "center centers on both axes",
-			position: "center",
-			want:     image.Rect(410, 400, 610, 440),
-		},
-		{
-			name:     "bottom right measures from both far edges",
-			position: "bottom_right",
-			want:     image.Rect(790, 740, 990, 780),
-		},
+	positions := config.SearchInputPositions()
+	if len(positions) == 0 {
+		t.Fatal("config.SearchInputPositions() is empty; there is no vocabulary to place")
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
+	wanted := wantSearchInputBounds()
+	if len(wanted) != len(positions) {
+		t.Errorf("%d placements expected for %d accepted positions",
+			len(wanted), len(positions))
+	}
+
+	for _, position := range positions {
+		t.Run(position, func(t *testing.T) {
 			t.Parallel()
 
+			want, expected := wanted[position]
+			if !expected {
+				t.Fatalf("%q is accepted but no placement is expected for it", position)
+			}
+
 			styles := searchStyles{layout: layout}
-			styles.layout.Position = testCase.position
+			styles.layout.Position = position
 
 			adapter := overlay.NewAdapter(newScreenManager(), styles, zap.NewNop())
 
-			if got := adapter.HintSearchBounds(screen); got != testCase.want {
-				t.Errorf("HintSearchBounds() = %v, want %v", got, testCase.want)
+			if got := adapter.HintSearchBounds(screen); got != want {
+				t.Errorf("HintSearchBounds() = %v, want %v", got, want)
 			}
 		})
 	}
@@ -873,7 +879,7 @@ func TestAdapterHintSearchBounds_KeepsTheInputOnScreen(t *testing.T) {
 	t.Parallel()
 
 	styles := searchStyles{layout: overlay.SearchInputLayout{
-		Position: searchInputTopLeft,
+		Position: config.SearchInputPositionTopLeft,
 		Width:    200,
 		Height:   40,
 		XOffset:  5000,
@@ -898,7 +904,7 @@ func TestAdapterDrawHintSearch_PutsTheQueryAndCountWhereTheStyleSaid(t *testing.
 
 	manager := newScreenManager()
 	styles := searchStyles{layout: overlay.SearchInputLayout{
-		Position: searchInputTopLeft,
+		Position: config.SearchInputPositionTopLeft,
 		Width:    200,
 		Height:   40,
 		XOffset:  10,

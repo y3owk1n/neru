@@ -440,7 +440,7 @@ func defaultHints() HintsConfig {
 			PaddingX:        DefaultHintPaddingX,
 			PaddingY:        DefaultHintPaddingY,
 			BorderWidth:     1,
-			Position:        "bottom_center",
+			Position:        SearchInputPositionDefault,
 			XOffset:         0,
 			YOffset:         DefaultSearchInputYOffset,
 			Width:           DefaultSearchInputWidth,

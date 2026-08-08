@@ -652,22 +652,22 @@ func searchInputFrame(
 	centered := (screenWidth-width)/config.DefaultSearchInputCenterDivisor + layout.XOffset
 
 	switch layout.Position {
-	case overlayHints.SearchInputTopCenter:
+	case config.SearchInputPositionTopCenter:
 		xOffset = centered
-	case overlayHints.SearchInputTopRight:
+	case config.SearchInputPositionTopRight:
 		xOffset = screenWidth - width - layout.XOffset
-	case overlayHints.SearchInputCenter:
+	case config.SearchInputPositionCenter:
 		xOffset = centered
 		yOffset = (screenHeight-height)/config.DefaultSearchInputCenterDivisor + layout.YOffset
-	case overlayHints.SearchInputBottomLeft:
+	case config.SearchInputPositionBottomLeft:
 		yOffset = screenHeight - height - layout.YOffset
-	case overlayHints.SearchInputBottomCenter:
+	case config.SearchInputPositionBottomCenter:
 		xOffset = centered
 		yOffset = screenHeight - height - layout.YOffset
-	case overlayHints.SearchInputBottomRight:
+	case config.SearchInputPositionBottomRight:
 		xOffset = screenWidth - width - layout.XOffset
 		yOffset = screenHeight - height - layout.YOffset
-	case overlayHints.SearchInputTopLeft:
+	case config.SearchInputPositionTopLeft:
 		fallthrough
 	default:
 	}
