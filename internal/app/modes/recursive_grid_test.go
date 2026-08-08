@@ -13,7 +13,9 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain/state"
+	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -72,6 +74,76 @@ func TestHandleRecursiveGridKey_CompleteSelectionDoesNotMoveWhenCursorFollowSele
 
 	if selection != (image.Point{X: 25, Y: 25}) {
 		t.Fatalf("stored selection = %v, want (25,25)", selection)
+	}
+}
+
+// TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart pins the one
+// conversion left on the recursive-grid draw path: the mode layer is where the
+// manager's separate row and column counts are paired up into the
+// domain.GridDimensions the port carries all the way to the division (#1313).
+//
+// Everything downstream now takes that value whole, so writing the counts under
+// each other's names here would transpose every recursive-grid cell on every
+// backend and nothing else would notice. The grid is deliberately non-square,
+// and its next depth a different non-square shape, so a swap cannot survive
+// either conversion — and the cells the frame's dimensions divide into are
+// checked too, because a transposition is only a bug for what it does to the
+// screen.
+func TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart(t *testing.T) {
+	overlay := &portmocks.MockOverlayPort{}
+
+	handler := newHandlerWithState(handlerState{
+		config: &config.Config{
+			RecursiveGrid: config.RecursiveGridConfig{
+				Enabled:       true,
+				GridCols:      4,
+				GridRows:      2,
+				Keys:          "uiopjkl;",
+				MinSizeWidth:  5,
+				MinSizeHeight: 5,
+				MaxDepth:      5,
+				Layers: []config.RecursiveGridLayerConfig{
+					{Depth: 1, GridCols: 3, GridRows: 2, Keys: "asdfgh"},
+				},
+				Hotkeys: map[string]config.StringOrStringArray{},
+				UI:      config.RecursiveGridUI{},
+			},
+		},
+		overlayPort: overlay,
+		recursiveGrid: &components.RecursiveGridComponent{
+			Context: &componentrecursivegrid.Context{},
+		},
+		screenBounds: image.Rect(0, 0, 400, 200),
+	})
+
+	handler.initializeRecursiveGridManager(image.Rect(0, 0, 400, 200))
+	handler.updateRecursiveGridOverlay()
+
+	frames := overlay.Frames()
+	if len(frames) != 1 {
+		t.Fatalf("overlay received %d frame(s), want 1", len(frames))
+	}
+
+	frame, isRecursiveGrid := frames[0].(ports.RecursiveGridFrame)
+	if !isRecursiveGrid {
+		t.Fatalf("overlay received a %T, want ports.RecursiveGridFrame", frames[0])
+	}
+
+	if got, want := frame.Layout.Dimensions, (domain.GridDimensions{Rows: 2, Cols: 4}); got != want {
+		t.Errorf("Layout.Dimensions = %+v, want %+v", got, want)
+	}
+
+	if got, want := frame.NextLayout.Dimensions, (domain.GridDimensions{Rows: 2, Cols: 3}); got != want {
+		t.Errorf("NextLayout.Dimensions = %+v, want %+v", got, want)
+	}
+
+	cells := recursivegrid.ComputeGridCells(frame.Bounds, frame.Layout.Dimensions)
+	if len(cells) != 8 {
+		t.Fatalf("the frame's dimensions divide into %d cells, want 8", len(cells))
+	}
+
+	if got, want := cells[0], image.Rect(0, 0, 100, 100); got != want {
+		t.Errorf("first drawn cell = %v, want %v", got, want)
 	}
 }
 

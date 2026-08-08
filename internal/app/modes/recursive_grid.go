@@ -178,8 +178,10 @@ func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectang
 		h.config.RecursiveGrid.MinSizeWidth,
 		h.config.RecursiveGrid.MinSizeHeight,
 		h.config.RecursiveGrid.MaxDepth,
-		h.config.RecursiveGrid.GridCols,
-		h.config.RecursiveGrid.GridRows,
+		domain.GridDimensions{
+			Rows: h.config.RecursiveGrid.GridRows,
+			Cols: h.config.RecursiveGrid.GridCols,
+		},
 		depthLayouts,
 		depthKeys,
 		// Update callback
@@ -281,6 +283,18 @@ func (h *handlerState) updateRecursiveGridOverlay() {
 //
 // Building it in one place is what took ten positional parameters out of the
 // app layer; nothing here names a style or a render model.
+//
+// It is also where the manager's separate row and column counts become the one
+// domain.GridDimensions the draw path carries (#1313). It is the last
+// conversion before the overlay: from here through the port, the adapter, the
+// backends and the cgo helpers the shape travels whole, so writing either pair
+// under each other's names here would transpose every cell on every backend and
+// nothing further down could tell.
+// TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart stands over it.
+//
+// Upstream of here the pair still exists, in recursivegrid.DepthLayout — which
+// #1313 left alone deliberately, because a transposition there is caught by the
+// non-square Divide tests rather than only on screen.
 func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
 		return ports.RecursiveGridFrame{}
@@ -299,9 +313,8 @@ func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 		nextDepth := currentDepth + 1
 		layout := manager.CurrentGrid().LayoutForDepth(nextDepth)
 		next = ports.RecursiveGridLayout{
-			Keys:     manager.KeysForDepth(nextDepth),
-			GridCols: layout.GridCols,
-			GridRows: layout.GridRows,
+			Keys:       manager.KeysForDepth(nextDepth),
+			Dimensions: domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols},
 		}
 	}
 
@@ -309,9 +322,8 @@ func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 		Bounds: manager.CurrentBounds(),
 		Depth:  currentDepth,
 		Layout: ports.RecursiveGridLayout{
-			Keys:     manager.Keys(),
-			GridCols: manager.GridCols(),
-			GridRows: manager.GridRows(),
+			Keys:       manager.Keys(),
+			Dimensions: domain.GridDimensions{Rows: manager.GridRows(), Cols: manager.GridCols()},
 		},
 		NextLayout: next,
 		Pointer:    h.recursiveGridPointer(),

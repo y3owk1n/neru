@@ -109,8 +109,7 @@ type sharedOverlay struct {
 	animDone         chan struct{}
 	hasLast          bool
 	lastBounds       image.Rectangle
-	lastCols         int
-	lastRows         int
+	lastDims         domain.GridDimensions
 	lastDepth        int
 	lastRects        []image.Rectangle
 	currentAnimRects []image.Rectangle
@@ -167,11 +166,9 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 	animEnabled bool,
@@ -189,10 +186,7 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 	shouldAnimate := animEnabled && o.hasLast && depth != o.lastDepth &&
 		!o.lastBounds.Empty()
 
-	cellRects := recursivegrid.ComputeGridCells(
-		bounds,
-		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
-	)
+	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 
 	if shouldAnimate {
 		duration := time.Duration(animDurationMS) * time.Millisecond
@@ -212,22 +206,21 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 		o.startGridAnimation(
 			fromRects, cellRects,
 			keyRunes, nextKeyRunes,
-			nextGridCols, nextGridRows,
+			nextDims,
 			style, virtualPointer,
 			duration, animStop, animDone,
 		)
 	} else {
 		o.clearAndDraw(
 			cellRects, keys,
-			nextKeys, nextGridCols, nextGridRows,
+			nextKeys, nextDims,
 			style, virtualPointer,
 		)
 	}
 
 	o.hasLast = true
 	o.lastBounds = bounds
-	o.lastCols = gridCols
-	o.lastRows = gridRows
+	o.lastDims = dims
 	o.lastDepth = depth
 	o.lastRects = make([]image.Rectangle, len(cellRects))
 	copy(o.lastRects, cellRects)
@@ -604,7 +597,7 @@ func (o *sharedOverlay) buildFromRects(
 func (o *sharedOverlay) startGridAnimation(
 	fromRects, toRects []image.Rectangle,
 	keyRunes, nextKeyRunes []rune,
-	nextGridCols, nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 	duration time.Duration,
@@ -645,8 +638,7 @@ func (o *sharedOverlay) startGridAnimation(
 			interpCells,
 			keyRunes,
 			nextKeyRunes,
-			nextGridCols,
-			nextGridRows,
+			nextDims,
 			style,
 			virtualPointer,
 		)
@@ -725,7 +717,7 @@ func (o *sharedOverlay) startGridAnimation(
 func (o *sharedOverlay) clearAndDraw(
 	cellRects []image.Rectangle,
 	keys string,
-	nextKeys string, nextGridCols, nextGridRows int,
+	nextKeys string, nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
@@ -743,8 +735,7 @@ func (o *sharedOverlay) clearAndDraw(
 		cellRects,
 		keyRunes,
 		nextKeyRunes,
-		nextGridCols,
-		nextGridRows,
+		nextDims,
 		style,
 		virtualPointer,
 	)
@@ -753,12 +744,12 @@ func (o *sharedOverlay) clearAndDraw(
 func (o *sharedOverlay) drawFrame(
 	cellRects []image.Rectangle,
 	keyRunes, nextKeyRunes []rune,
-	nextGridCols, nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
 	drawSubPreview := style.SubKeyPreview() && len(nextKeyRunes) > 0 &&
-		nextGridCols > 0 && nextGridRows > 0
+		nextDims.Cols > 0 && nextDims.Rows > 0
 
 	for idx, cell := range cellRects {
 		if cell.Empty() {
@@ -790,9 +781,8 @@ func (o *sharedOverlay) drawFrame(
 			}
 
 			if drawSubPreview &&
-				shouldShowSubKeyPreview(cell, style, nextGridCols, nextGridRows) {
-				o.drawSubKeyMiniGrid(cell, nextKeyRunes,
-					nextGridCols, nextGridRows, style)
+				shouldShowSubKeyPreview(cell, style, nextDims) {
+				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style)
 			}
 		}
 	}
@@ -987,17 +977,14 @@ func (o *sharedOverlay) drawLabelBackground(
 func (o *sharedOverlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
 	nextKeyRunes []rune,
-	nextGridCols int, nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 ) {
-	subCells := recursivegrid.ComputeGridCells(
-		cell,
-		domain.GridDimensions{Rows: nextGridRows, Cols: nextGridCols},
-	)
+	subCells := recursivegrid.ComputeGridCells(cell, nextDims)
 	centerIdx := -1
 
-	if nextGridCols%2 == 1 && nextGridRows%2 == 1 {
-		centerIdx = (nextGridRows/2)*nextGridCols + nextGridCols/2
+	if nextDims.Cols%2 == 1 && nextDims.Rows%2 == 1 {
+		centerIdx = (nextDims.Rows/2)*nextDims.Cols + nextDims.Cols/2
 	}
 
 	subIndex := 0

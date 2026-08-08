@@ -188,15 +188,20 @@ type Interface interface {
 
 	DrawMouseActionIndicator(point image.Point, style ports.MouseActionIndicatorStyle)
 	DrawGrid(g *domainGrid.Grid, input string, style grid.Style) error
+	// DrawRecursiveGrid draws one depth of the recursive grid, with the
+	// preview of the depth a keystroke would produce.
+	//
+	// dims and nextDims carry each depth's cell counts whole rather than as a
+	// column count beside a row count: this contract used to spell both pairs
+	// as adjacent ints, and every backend re-paired them itself right before
+	// dividing the region (#1313).
 	DrawRecursiveGrid(
 		bounds image.Rectangle,
 		depth int,
 		keys string,
-		gridCols int,
-		gridRows int,
+		dims domain.GridDimensions,
 		nextKeys string,
-		nextGridCols int,
-		nextGridRows int,
+		nextDims domain.GridDimensions,
 		style recursivegrid.Style,
 		virtualPointer recursivegrid.VirtualPointerState,
 	) error

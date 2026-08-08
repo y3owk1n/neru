@@ -38,6 +38,18 @@ const (
 // DefaultKeys is the default key mapping for cells (3x3 grid, left-to-right top-to-bottom).
 const DefaultKeys = "rtyfghvbn"
 
+// DefaultDimensions is the shape a recursive grid falls back to when the one it
+// was given is unusable.
+//
+// It is a function rather than a variable so that no caller can reshape the
+// fallback for everyone else, and it exists so that the places which fall back
+// — the overlay backends and the manager — ask for the shape by name instead of
+// each pairing the two constants up themselves. It mirrors
+// domain.SubgridDimensions for the same reason.
+func DefaultDimensions() domain.GridDimensions {
+	return domain.GridDimensions{Rows: DefaultGridRows, Cols: DefaultGridCols}
+}
+
 // DepthLayout defines the grid dimensions for a specific recursion depth.
 type DepthLayout struct {
 	GridCols int
@@ -46,16 +58,15 @@ type DepthLayout struct {
 
 // RecursiveGrid is the recursive grid state for cell-based navigation.
 type RecursiveGrid struct {
-	currentBounds image.Rectangle     // Current active area
-	initialBounds image.Rectangle     // Original screen bounds
-	depth         int                 // Current recursion depth
-	maxDepth      int                 // Maximum allowed depth
-	minSizeWidth  int                 // Minimum cell width in pixels
-	minSizeHeight int                 // Minimum cell height in pixels
-	gridCols      int                 // Default number of grid columns
-	gridRows      int                 // Default number of grid rows
-	depthLayouts  map[int]DepthLayout // Per-depth layout overrides (sparse)
-	history       []image.Rectangle   // Stack of previous bounds for backtracking
+	currentBounds image.Rectangle       // Current active area
+	initialBounds image.Rectangle       // Original screen bounds
+	depth         int                   // Current recursion depth
+	maxDepth      int                   // Maximum allowed depth
+	minSizeWidth  int                   // Minimum cell width in pixels
+	minSizeHeight int                   // Minimum cell height in pixels
+	dims          domain.GridDimensions // Default shape at depths with no override
+	depthLayouts  map[int]DepthLayout   // Per-depth layout overrides (sparse)
+	history       []image.Rectangle     // Stack of previous bounds for backtracking
 	// finalCell is the cell picked once the grid could no longer be divided.
 	// SelectCell leaves currentBounds untouched on that path so backtracking
 	// still restores the correct ancestor, which means the user's actual
@@ -76,16 +87,20 @@ func NewRecursiveGrid(
 	return NewRecursiveGridWithLayers(
 		screenBounds,
 		minSizeWidth, minSizeHeight, maxDepth,
-		DefaultGridCols, DefaultGridRows,
+		DefaultDimensions(),
 		nil,
 	)
 }
 
-// NewRecursiveGridWithLayers creates a new recursive-grid with specific column/row counts
+// NewRecursiveGridWithLayers creates a new recursive-grid with a specific shape
 // and optional per-depth layout overrides. Pass nil for depthLayouts to use default dimensions at all depths.
+//
+// dims arrives as one value rather than a column count beside a row count so
+// that a caller cannot hand over the two in the wrong order (#1313).
 func NewRecursiveGridWithLayers(
 	screenBounds image.Rectangle,
-	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
+	minSizeWidth, minSizeHeight, maxDepth int,
+	dims domain.GridDimensions,
 	depthLayouts map[int]DepthLayout,
 ) *RecursiveGrid {
 	if depthLayouts == nil {
@@ -99,8 +114,7 @@ func NewRecursiveGridWithLayers(
 		maxDepth:      maxDepth,
 		minSizeWidth:  minSizeWidth,
 		minSizeHeight: minSizeHeight,
-		gridCols:      gridCols,
-		gridRows:      gridRows,
+		dims:          dims,
 		depthLayouts:  depthLayouts,
 		history:       make([]image.Rectangle, 0, maxDepth),
 	}
@@ -113,7 +127,7 @@ func (qg *RecursiveGrid) LayoutForDepth(depth int) DepthLayout {
 		return layout
 	}
 
-	return DepthLayout{GridCols: qg.gridCols, GridRows: qg.gridRows}
+	return DepthLayout{GridCols: qg.dims.Cols, GridRows: qg.dims.Rows}
 }
 
 // GridCols returns the number of grid columns for the current depth.

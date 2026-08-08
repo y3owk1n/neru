@@ -129,11 +129,9 @@ type recursiveGridDraw struct {
 	bounds   image.Rectangle
 	depth    int
 	keys     string
-	cols     int
-	rows     int
+	dims     domain.GridDimensions
 	nextKeys string
-	nextCols int
-	nextRows int
+	nextDims domain.GridDimensions
 	pointer  renderrecursivegrid.VirtualPointerState
 }
 
@@ -214,11 +212,9 @@ func (m *screenManager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	_ renderrecursivegrid.Style,
 	virtualPointer renderrecursivegrid.VirtualPointerState,
 ) error {
@@ -226,11 +222,9 @@ func (m *screenManager) DrawRecursiveGrid(
 		bounds:   bounds,
 		depth:    depth,
 		keys:     keys,
-		cols:     gridCols,
-		rows:     gridRows,
+		dims:     dims,
 		nextKeys: nextKeys,
-		nextCols: nextGridCols,
-		nextRows: nextGridRows,
+		nextDims: nextDims,
 		pointer:  virtualPointer,
 	}
 	m.recursiveGridDraws++
@@ -543,12 +537,22 @@ func TestAdapterShowFrame_PutsTheRecursiveGridOnScreen(t *testing.T) {
 	manager := newScreenManager()
 	adapter := overlay.NewAdapter(manager, testStyles{}, zap.NewNop())
 
+	// The two layouts are deliberately non-square, and transposes of each
+	// other: a draw that swapped a layout's rows for its columns on the way
+	// through would still divide the region into the same number of cells, and
+	// only a shape this asymmetric fails on it.
 	frame := ports.RecursiveGridFrame{
-		Bounds:     image.Rect(10, 20, 210, 220),
-		Depth:      2,
-		Layout:     ports.RecursiveGridLayout{Keys: "qwer", GridCols: 2, GridRows: 2},
-		NextLayout: ports.RecursiveGridLayout{Keys: "asdf", GridCols: 2, GridRows: 2},
-		Pointer:    ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
+		Bounds: image.Rect(10, 20, 210, 220),
+		Depth:  2,
+		Layout: ports.RecursiveGridLayout{
+			Keys:       "qwerty",
+			Dimensions: domain.GridDimensions{Rows: 2, Cols: 3},
+		},
+		NextLayout: ports.RecursiveGridLayout{
+			Keys:       "asdfgh",
+			Dimensions: domain.GridDimensions{Rows: 3, Cols: 2},
+		},
+		Pointer: ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
 	}
 
 	err := adapter.ShowFrame(context.Background(), frame)
@@ -566,13 +570,12 @@ func TestAdapterShowFrame_PutsTheRecursiveGridOnScreen(t *testing.T) {
 		t.Errorf("recursive grid drawn as %+v, want the frame's bounds, depth and keys", drawn)
 	}
 
-	if drawn.cols != frame.Layout.GridCols || drawn.rows != frame.Layout.GridRows {
-		t.Errorf("recursive grid drawn %dx%d, want %dx%d",
-			drawn.cols, drawn.rows, frame.Layout.GridCols, frame.Layout.GridRows)
+	if drawn.dims != frame.Layout.Dimensions {
+		t.Errorf("recursive grid drawn as %+v, want %+v",
+			drawn.dims, frame.Layout.Dimensions)
 	}
 
-	if drawn.nextKeys != frame.NextLayout.Keys || drawn.nextCols != frame.NextLayout.GridCols ||
-		drawn.nextRows != frame.NextLayout.GridRows {
+	if drawn.nextKeys != frame.NextLayout.Keys || drawn.nextDims != frame.NextLayout.Dimensions {
 		t.Error("the next depth's preview never reached the screen")
 	}
 
@@ -594,7 +597,10 @@ func TestAdapterRedrawFrame_DrawsTheRecursiveGridWithoutClearingIt(t *testing.T)
 
 	frame := ports.RecursiveGridFrame{
 		Bounds: image.Rect(0, 0, 100, 100),
-		Layout: ports.RecursiveGridLayout{Keys: "qwer", GridCols: 2, GridRows: 2},
+		Layout: ports.RecursiveGridLayout{
+			Keys:       "qwer",
+			Dimensions: domain.GridDimensions{Rows: 2, Cols: 2},
+		},
 	}
 
 	showErr := adapter.ShowFrame(context.Background(), frame)

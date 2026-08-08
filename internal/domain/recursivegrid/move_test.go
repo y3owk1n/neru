@@ -17,7 +17,7 @@ import (
 func newMoveGrid() *recursivegrid.RecursiveGrid {
 	return recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		1, 1, 10, 3, 3,
+		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 }
@@ -181,7 +181,7 @@ func TestRecursiveGrid_MoveDirection_PerDepthLayouts(t *testing.T) {
 	// 150px wide: movement has to read the layout of each depth it walks.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		1, 1, 10, 3, 3,
+		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		map[int]recursivegrid.DepthLayout{1: {GridCols: 2, GridRows: 2}},
 	)
 
@@ -200,7 +200,7 @@ func TestRecursiveGrid_MoveDirection_MovesFinalCellAfterBottomingOut(t *testing.
 	// so the depth-1 selection is a final cell that never becomes the bounds.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		200, 200, 10, 3, 3,
+		200, 200, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -226,7 +226,7 @@ func TestRecursiveGrid_MoveDirection_MovesFinalCellAfterBottomingOut(t *testing.
 func TestRecursiveGrid_MoveDirection_FinalCellCrossesIntoNeighbouringParent(t *testing.T) {
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		200, 200, 10, 3, 3,
+		200, 200, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -253,7 +253,7 @@ func TestRecursiveGrid_MoveDirection_RefusesWhenTargetDepthIsUnreachable(t *test
 	// depth-2 selection cannot exist under the 35px neighbors.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 106, 100),
-		12, 1, 10, 3, 1,
+		12, 1, 10, domain.GridDimensions{Rows: 1, Cols: 3},
 		nil,
 	)
 
@@ -279,7 +279,7 @@ func TestManager_MoveDirection_NotifiesOnlyWhenSomethingMoved(t *testing.T) {
 	manager := recursivegrid.NewManagerWithLayers(
 		image.Rect(0, 0, 900, 900),
 		"rtyfghvbn",
-		1, 1, 10, 3, 3,
+		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil, nil,
 		func(image.Point) { updates++ },
 		func(image.Point) {},
@@ -308,7 +308,7 @@ func TestManager_MoveDirection_NotifiesOnlyWhenSomethingMoved(t *testing.T) {
 func TestRecursiveGrid_Backtrack_ClearsFinalCell(t *testing.T) {
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		200, 200, 10, 3, 3,
+		200, 200, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -328,7 +328,7 @@ func TestRecursiveGrid_Backtrack_ClearsFinalCell(t *testing.T) {
 func TestRecursiveGrid_Reset_ClearsFinalCell(t *testing.T) {
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		200, 200, 10, 3, 3,
+		200, 200, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -351,7 +351,7 @@ func TestRecursiveGrid_MoveDirection_SinglePixelCells(t *testing.T) {
 	// there used to skip a cell and drift diagonally.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 9, 9),
-		1, 1, 10, 3, 3,
+		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -382,7 +382,7 @@ func TestRecursiveGrid_MoveDirection_AfterScreenChange(t *testing.T) {
 	// new geometry.
 	grid := recursivegrid.NewRecursiveGridWithLayers(
 		image.Rect(0, 0, 900, 900),
-		200, 200, 10, 3, 3,
+		200, 200, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil,
 	)
 
@@ -414,7 +414,7 @@ func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
 	t.Run("after a directional move", func(t *testing.T) {
 		grid := recursivegrid.NewRecursiveGridWithLayers(
 			image.Rect(0, 0, 9, 9),
-			1, 1, 10, 3, 3,
+			1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 			nil,
 		)
 
@@ -436,7 +436,7 @@ func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
 		// depth are still one pixel, so the final cell is one pixel.
 		grid := recursivegrid.NewRecursiveGridWithLayers(
 			image.Rect(0, 0, 9, 9),
-			2, 2, 10, 3, 3,
+			2, 2, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 			nil,
 		)
 
@@ -458,7 +458,7 @@ func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
 	t.Run("every cell of a one-pixel grid", func(t *testing.T) {
 		grid := recursivegrid.NewRecursiveGridWithLayers(
 			image.Rect(0, 0, 3, 3),
-			1, 1, 10, 3, 3,
+			1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 			nil,
 		)
 

@@ -141,11 +141,14 @@ func (o *winOverlay) DrawHints(
 // DrawRecursiveGrid renders the recursive-grid overlay using GDI, mirroring the
 // cross-platform software renderer (cell subdivision, labels, sub-key preview,
 // and the virtual pointer indicator).
+//
+// The dimensions arrive as domain.GridDimensions rather than as a column count
+// beside a row count so that this backend has no pair to transpose on its way
+// to ComputeGridCells (#1313).
 func (o *winOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
@@ -163,7 +166,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 		return
 	}
 
-	if bounds.Empty() || gridCols <= 0 || gridRows <= 0 {
+	if bounds.Empty() || dims.Cols <= 0 || dims.Rows <= 0 {
 		return
 	}
 
@@ -175,10 +178,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 
 	keyRunes := []rune(strings.ToUpper(keys))
 
-	cellRects := recursivegrid.ComputeGridCells(
-		bounds,
-		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
-	)
+	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 	for idx, cell := range cellRects {
 		if style.HighlightColorARGB() != 0 {
 			o.window.FillRect(cell, style.HighlightColorARGB())

@@ -251,18 +251,21 @@ func (o *Overlay) ResizeToActiveScreen() {
 	}
 }
 
-// DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys, gridCols, and gridRows.
-// nextKeys/nextGridCols/nextGridRows describe the *next* depth's layout and are used
+// DrawRecursiveGrid renders the recursive_grid with current bounds, depth, keys
+// and the dimensions the region is divided into.
+// nextKeys/nextDims describe the *next* depth's layout and are used
 // for the sub-key preview mini-grid inside each cell.
+//
+// The dimensions arrive as domain.GridDimensions rather than as a column count
+// beside a row count so that this backend has no pair to transpose on its way
+// to ComputeGridCells (#1313).
 func (o *Overlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style Style,
 	virtualPointer VirtualPointerState,
 ) error {
@@ -279,23 +282,22 @@ func (o *Overlay) DrawRecursiveGrid(
 			zap.Int("bounds_width", bounds.Dx()),
 			zap.Int("bounds_height", bounds.Dy()),
 			zap.Int("depth", depth),
-			zap.Int("grid_cols", gridCols),
-			zap.Int("grid_rows", gridRows),
+			zap.Int("grid_cols", dims.Cols),
+			zap.Int("grid_rows", dims.Rows),
 			zap.String("keys", keys),
 		)
 	}
 
 	// Use the provided dimensions and calculate key count
-	keyCount := gridCols * gridRows
+	keyCount := dims.CellCount()
 
 	// Validate grid dimensions (must be at least 1, and total cells >= 2)
-	if gridCols < recursivegrid.MinGridDimension ||
-		gridRows < recursivegrid.MinGridDimension ||
-		gridCols*gridRows < 2 {
-		// Fallback to default 2x2 if invalid or degenerate (1×1)
-		gridCols = recursivegrid.DefaultGridCols
-		gridRows = recursivegrid.DefaultGridRows
-		keyCount = gridCols * gridRows
+	if dims.Cols < recursivegrid.MinGridDimension ||
+		dims.Rows < recursivegrid.MinGridDimension ||
+		dims.CellCount() < 2 {
+		// Fall back to the default shape if invalid or degenerate (1×1)
+		dims = recursivegrid.DefaultDimensions()
+		keyCount = dims.CellCount()
 		keys = recursivegrid.DefaultKeys
 	}
 
@@ -312,10 +314,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	o.drawMu.RLock()
 
 	// Compute cell positions using the shared helper (same as Divide()).
-	cellRects := recursivegrid.ComputeGridCells(
-		bounds,
-		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
-	)
+	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 
 	cells := make([]C.GridCell, keyCount)
 
@@ -342,7 +341,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	// so the native renderer gets the expected number of labels.
 	subKeyLabel := style.SubKeyPreviewLabelChar()
 	if subKeyLabel != "" {
-		subKeyLabel = strings.Repeat(subKeyLabel, nextGridCols*nextGridRows)
+		subKeyLabel = strings.Repeat(subKeyLabel, nextDims.CellCount())
 	} else {
 		subKeyLabel = strings.ToUpper(nextKeys)
 	}
@@ -376,8 +375,8 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundPaddingY:     C.int(style.LabelBackgroundPaddingY()),
 		labelBackgroundBorderRadius: C.int(style.LabelBackgroundBorderRadius()),
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
-		subKeyGridCols:              C.int(nextGridCols),
-		subKeyGridRows:              C.int(nextGridRows),
+		subKeyGridCols:              C.int(nextDims.Cols),
+		subKeyGridRows:              C.int(nextDims.Rows),
 		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview() && nextKeys != "")),
 		labelAutohideMultiplier:     C.float(style.LabelAutohideMultiplier()),
 		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),

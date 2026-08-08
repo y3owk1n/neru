@@ -497,11 +497,9 @@ func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKin
 		frame.Bounds,
 		frame.Depth,
 		frame.Layout.Keys,
-		frame.Layout.GridCols,
-		frame.Layout.GridRows,
+		frame.Layout.Dimensions,
 		frame.NextLayout.Keys,
-		frame.NextLayout.GridCols,
-		frame.NextLayout.GridRows,
+		frame.NextLayout.Dimensions,
 		style.RecursiveGrid,
 		recursiveGridPointer(frame.Pointer, style.VirtualPointer),
 	)
