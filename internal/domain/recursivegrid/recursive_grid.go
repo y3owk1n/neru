@@ -38,6 +38,18 @@ const (
 // DefaultKeys is the default key mapping for cells (3x3 grid, left-to-right top-to-bottom).
 const DefaultKeys = "rtyfghvbn"
 
+// DefaultDimensions is the shape a recursive grid falls back to when the one it
+// was given is unusable.
+//
+// It is a function rather than a variable so that no caller can reshape the
+// fallback for everyone else, and it exists so that the places which fall back
+// — the overlay backends and the manager — ask for the shape by name instead of
+// each pairing the two constants up themselves. It mirrors
+// domain.SubgridDimensions for the same reason.
+func DefaultDimensions() domain.GridDimensions {
+	return domain.GridDimensions{Rows: DefaultGridRows, Cols: DefaultGridCols}
+}
+
 // DepthLayout defines the grid dimensions for a specific recursion depth.
 type DepthLayout struct {
 	GridCols int

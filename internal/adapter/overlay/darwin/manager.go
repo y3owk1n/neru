@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -417,11 +418,9 @@ func (m *Manager) DrawRecursiveGrid(
 		bounds,
 		depth,
 		keys,
-		gridCols,
-		gridRows,
+		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
 		nextKeys,
-		nextGridCols,
-		nextGridRows,
+		domain.GridDimensions{Rows: nextGridRows, Cols: nextGridCols},
 		style,
 		virtualPointer,
 	)
