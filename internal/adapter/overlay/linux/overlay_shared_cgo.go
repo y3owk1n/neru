@@ -319,8 +319,11 @@ func (o *sharedOverlay) drawHints(
 		pos := hint.Position().Add(o.originOffset)
 		if style.BoundaryHighlightEnabled() {
 			boundary := badge.CenteredOn(pos, hint.Size().X, hint.Size().Y)
-			o.drawRect(
+			o.drawRoundedRect(
 				boundary,
+				badge.BorderRadius(
+					style.BoundaryBorderRadius(), boundary, hintBoundaryAutoRadiusMax,
+				),
 				badge.ParseHexARGB(style.BoundaryBackgroundColor()),
 				badge.ParseHexARGB(style.BoundaryBorderColor()),
 				float64(max(style.BoundaryBorderWidth(), 0)),
@@ -969,7 +972,14 @@ func (o *sharedOverlay) drawLabelBackground(
 	height := badge.EstimateTextHeight(fontSize) +
 		paddingY*paddingMultiplier
 	rect := badge.CenteredIn(cell, width, height)
-	o.drawRect(rect, style.LabelBackgroundColorARGB(),
+	// A zero auto cap means a full pill: left at -1, the plate rounds to its
+	// own half height. That is what the shared resolver documents for a label
+	// background and what Windows draws. macOS caps the same auto radius at
+	// 6 px (drawGridLabel: in overlay_darwin.m) — a divergence that predates
+	// this call site and is not settled here.
+	o.drawRoundedRect(rect,
+		badge.BorderRadius(style.LabelBackgroundBorderRadius(), rect, 0),
+		style.LabelBackgroundColorARGB(),
 		style.LineColorARGB(), max(style.LabelBackgroundBorderWidthF(), 0))
 }
 

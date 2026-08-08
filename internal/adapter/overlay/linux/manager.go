@@ -41,6 +41,12 @@ const (
 	// radius so labels get a subtle rounded corner rather than a full pill,
 	// matching the macOS overlay's MIN(height/2, 6).
 	hintAutoRadiusMax = 6
+	// hintBoundaryAutoRadiusMax caps the auto
+	// (boundary_highlight.border_radius = -1) corner radius of the element
+	// boundary, matching the macOS overlay's 4.0 fallback and the Windows
+	// winAutoRadiusBoundaryCap. An element box is much larger than a badge, so
+	// without the cap the auto radius would round it into an oval.
+	hintBoundaryAutoRadiusMax = 4
 	// hintArrowHeight is the height in pixels of the triangular connector arrow
 	// drawn between a hint badge and its target for top/bottom placement,
 	// mirroring the macOS overlay's tooltip arrow. hintArrowHalfBase is half the
