@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -215,18 +214,6 @@ var labelAutohideOperands = map[string]func(labelAutohideInputs) float64{
 	"cellRect.size.height":    func(inputs labelAutohideInputs) float64 { return inputs.cellHeight },
 }
 
-// labelAutohideComparators are the comparisons the rule may be written with.
-// Parsing rejects anything outside this set, so evaluating a parsed comparison
-// never has to decide what an unknown operator means.
-var labelAutohideComparators = map[string]func(left, right float64) bool{
-	"<":  func(left, right float64) bool { return left < right },
-	"<=": func(left, right float64) bool { return left <= right },
-	">":  func(left, right float64) bool { return left > right },
-	">=": func(left, right float64) bool { return left >= right },
-	"==": func(left, right float64) bool { return left == right },
-	"!=": func(left, right float64) bool { return left != right },
-}
-
 // labelAutohideCase is one question put to both implementations of the rule.
 //
 // It carries integers where labelAutohideInputs carries floats, because these
@@ -404,28 +391,6 @@ func labelAutohideDisagreements(rule nativeLabelAutohideRule) []labelAutohideDis
 	return disagreements
 }
 
-// nativeLabelAutohideComparison is one `a < b` of the Objective-C rule. Each
-// side is either an operand in labelAutohideOperands, the threshold the rule
-// declares, or a numeric literal.
-type nativeLabelAutohideComparison struct {
-	left  string
-	op    string
-	right string
-}
-
-// String spells the comparison the way the Objective-C source writes it.
-func (comparison nativeLabelAutohideComparison) String() string {
-	return fmt.Sprintf("%s %s %s", comparison.left, comparison.op, comparison.right)
-}
-
-// holds evaluates the comparison against the values bound so far.
-func (comparison nativeLabelAutohideComparison) holds(values map[string]float64) bool {
-	return labelAutohideComparators[comparison.op](
-		labelAutohideValue(comparison.left, values),
-		labelAutohideValue(comparison.right, values),
-	)
-}
-
 // nativeLabelAutohideRule is the Objective-C label-autohide rule in the only
 // form a Go test can hold it to: something it can run.
 //
@@ -436,7 +401,7 @@ func (comparison nativeLabelAutohideComparison) holds(values map[string]float64)
 type nativeLabelAutohideRule struct {
 	// guard decides whether autohide applies at all; when it does not hold, the
 	// label is drawn whatever size the cell is.
-	guard nativeLabelAutohideComparison
+	guard nativeRuleComparison
 
 	// thresholdName is what the rule calls the size a cell must reach, and
 	// thresholdFactors are the two things it multiplies to get there.
@@ -445,7 +410,7 @@ type nativeLabelAutohideRule struct {
 
 	// hideWhen are the comparisons that skip the label, joined by hideJoin
 	// ("||" or "&&").
-	hideWhen []nativeLabelAutohideComparison
+	hideWhen []nativeRuleComparison
 	hideJoin string
 }
 
@@ -477,8 +442,8 @@ func (rule nativeLabelAutohideRule) showsLabel(inputs labelAutohideInputs) bool 
 		return true
 	}
 
-	values[rule.thresholdName] = labelAutohideValue(rule.thresholdFactors[0], values) *
-		labelAutohideValue(rule.thresholdFactors[1], values)
+	values[rule.thresholdName] = nativeRuleValue(rule.thresholdFactors[0], values) *
+		nativeRuleValue(rule.thresholdFactors[1], values)
 
 	return !rule.hidesLabel(values)
 }
@@ -504,7 +469,7 @@ func (rule nativeLabelAutohideRule) hidesLabel(values map[string]float64) bool {
 // withoutDimension drops one of the compared cell dimensions, standing for a
 // rule that stopped measuring it.
 func (rule nativeLabelAutohideRule) withoutDimension(index int) nativeLabelAutohideRule {
-	kept := make([]nativeLabelAutohideComparison, 0, len(rule.hideWhen))
+	kept := make([]nativeRuleComparison, 0, len(rule.hideWhen))
 
 	for position, comparison := range rule.hideWhen {
 		if position != index {
@@ -520,7 +485,7 @@ func (rule nativeLabelAutohideRule) withoutDimension(index int) nativeLabelAutoh
 // withHideOperator rewrites how every cell dimension is compared against the
 // threshold.
 func (rule nativeLabelAutohideRule) withHideOperator(op string) nativeLabelAutohideRule {
-	rewritten := make([]nativeLabelAutohideComparison, 0, len(rule.hideWhen))
+	rewritten := make([]nativeRuleComparison, 0, len(rule.hideWhen))
 
 	for _, comparison := range rule.hideWhen {
 		comparison.op = op
@@ -567,18 +532,6 @@ func (rule nativeLabelAutohideRule) withThresholdFactor(
 	return rule
 }
 
-// labelAutohideValue reads a token that parsing has already accepted: a bound
-// name, or a numeric literal.
-func labelAutohideValue(token string, values map[string]float64) float64 {
-	if value, bound := values[token]; bound {
-		return value
-	}
-
-	literal, _ := strconv.ParseFloat(token, 64)
-
-	return literal
-}
-
 // nativeLabelAutohideMethodPattern matches the opening line of the
 // drawGridLabel: definition that carries the rule. The four-argument
 // forwarder above it and the two declarations in the @interface are excluded
@@ -587,26 +540,12 @@ var nativeLabelAutohideMethodPattern = regexp.MustCompile(
 	`(?m)^- \(void\)drawGridLabel:[^{};]*alpha:\(CGFloat\)alpha[ \t]*\{`,
 )
 
-// nativeLabelAutohideMethodEndPattern matches the closing brace of an
-// Objective-C method definition, which sits in the first column.
-var nativeLabelAutohideMethodEndPattern = regexp.MustCompile(`(?m)^\}`)
-
-// labelAutohideComparisonOperators is the alternation every comparison in the
-// rule is read with; the longer spellings come first so `<=` is never read as
-// `<`.
-const labelAutohideComparisonOperators = `(<=|>=|==|!=|<|>)`
-
 // nativeLabelAutohideRulePattern matches the whole guard: the multiplier check,
 // the threshold it declares, and the comparison that skips the label.
 var nativeLabelAutohideRulePattern = regexp.MustCompile(
-	`if[ \t]*\([ \t]*([\w.]+)[ \t]*` + labelAutohideComparisonOperators + `[ \t]*([-\w.]+)[ \t]*\)[ \t]*\{\s*` +
+	`if[ \t]*\([ \t]*([\w.]+)[ \t]*` + nativeRuleComparisonOperators + `[ \t]*([-\w.]+)[ \t]*\)[ \t]*\{\s*` +
 		`CGFloat[ \t]+(\w+)[ \t]*=[ \t]*([\w.]+)[ \t]*\*[ \t]*([\w.]+)[ \t]*;\s*` +
 		`if[ \t]*\(([^()]+)\)\s*\{?\s*return[ \t]*;\s*\}?\s*\}`,
-)
-
-// nativeLabelAutohideTermPattern matches one comparison of the skip condition.
-var nativeLabelAutohideTermPattern = regexp.MustCompile(
-	`^[ \t]*([-\w.]+)[ \t]*` + labelAutohideComparisonOperators + `[ \t]*([-\w.]+)[ \t]*$`,
 )
 
 // readNativeLabelAutohideRule reads the rule out of the macOS overlay, failing
@@ -629,7 +568,12 @@ func readNativeLabelAutohideRule(t *testing.T) nativeLabelAutohideRule {
 // read, and is empty when it could — an error value would buy nothing here,
 // since the only caller turns it straight into a test failure.
 func parseNativeLabelAutohideRule(source string) (nativeLabelAutohideRule, string) {
-	body, problem := nativeLabelAutohideMethodBody(source)
+	body, problem := nativeRuleMethodBody(
+		source,
+		nativeLabelAutohideMethodPattern,
+		labelAutohideNativeMethod,
+		"- (void)drawGridLabel:...alpha:(CGFloat)alpha {",
+	)
 	if problem != "" {
 		return nativeLabelAutohideRule{}, problem
 	}
@@ -647,7 +591,7 @@ func parseNativeLabelAutohideRule(source string) (nativeLabelAutohideRule, strin
 	match := matches[0]
 
 	rule := nativeLabelAutohideRule{
-		guard: nativeLabelAutohideComparison{
+		guard: nativeRuleComparison{
 			left:  match[1],
 			op:    match[2],
 			right: match[3],
@@ -656,67 +600,12 @@ func parseNativeLabelAutohideRule(source string) (nativeLabelAutohideRule, strin
 		thresholdFactors: [2]string{match[5], match[6]},
 	}
 
-	rule.hideWhen, rule.hideJoin, problem = parseNativeLabelAutohideCondition(match[7])
+	rule.hideWhen, rule.hideJoin, problem = parseNativeRuleCondition(match[7])
 	if problem != "" {
 		return nativeLabelAutohideRule{}, problem
 	}
 
 	return rule, validateNativeLabelAutohideRule(rule)
-}
-
-// nativeLabelAutohideMethodBody returns the body of the drawGridLabel:
-// definition the rule lives in. Addressing it by name means a rename surfaces
-// here rather than as a silent pass over a method that no longer exists.
-func nativeLabelAutohideMethodBody(source string) (string, string) {
-	header := nativeLabelAutohideMethodPattern.FindStringIndex(source)
-	if header == nil {
-		return "", "no `- (void)drawGridLabel:...alpha:(CGFloat)alpha {` definition to read the autohide rule from (renamed?)"
-	}
-
-	body := source[header[1]:]
-
-	end := nativeLabelAutohideMethodEndPattern.FindStringIndex(body)
-	if end == nil {
-		return "", fmt.Sprintf("the %s definition is never closed", labelAutohideNativeMethod)
-	}
-
-	return body[:end[0]], ""
-}
-
-// parseNativeLabelAutohideCondition splits the skip condition into its
-// comparisons and the operator joining them.
-func parseNativeLabelAutohideCondition(
-	condition string,
-) ([]nativeLabelAutohideComparison, string, string) {
-	join := "||"
-	if !strings.Contains(condition, join) && strings.Contains(condition, "&&") {
-		join = "&&"
-	}
-
-	if strings.Contains(condition, "||") && strings.Contains(condition, "&&") {
-		return nil, "", fmt.Sprintf(
-			"the skip condition `%s` mixes || and &&, which this pin does not read",
-			strings.TrimSpace(condition),
-		)
-	}
-
-	var comparisons []nativeLabelAutohideComparison
-
-	for term := range strings.SplitSeq(condition, join) {
-		parsed := nativeLabelAutohideTermPattern.FindStringSubmatch(term)
-		if parsed == nil {
-			return nil, "", fmt.Sprintf(
-				"`%s` in the skip condition is not a comparison this pin reads",
-				strings.TrimSpace(term),
-			)
-		}
-
-		comparisons = append(comparisons, nativeLabelAutohideComparison{
-			left: parsed[1], op: parsed[2], right: parsed[3],
-		})
-	}
-
-	return comparisons, join, ""
 }
 
 // validateNativeLabelAutohideRule checks that every name and operator the rule
@@ -733,12 +622,12 @@ func validateNativeLabelAutohideRule(rule nativeLabelAutohideRule) string {
 		)
 	}
 
-	comparisons := append([]nativeLabelAutohideComparison{rule.guard}, rule.hideWhen...)
+	comparisons := append([]nativeRuleComparison{rule.guard}, rule.hideWhen...)
 
 	tokens := []string{rule.thresholdFactors[0], rule.thresholdFactors[1]}
 
 	for _, comparison := range comparisons {
-		if _, known := labelAutohideComparators[comparison.op]; !known {
+		if _, known := nativeRuleComparators[comparison.op]; !known {
 			return fmt.Sprintf(
 				"`%s` compares with %q, which this pin does not read",
 				comparison,
@@ -766,24 +655,11 @@ func validateNativeLabelAutohideRule(rule nativeLabelAutohideRule) string {
 		return fmt.Sprintf(
 			"the rule reads %s, which this pin cannot value; it knows %s, the threshold it declares, and numeric literals",
 			token,
-			strings.Join(sortedLabelAutohideOperands(), ", "),
+			strings.Join(sortedNativeRuleOperands(labelAutohideOperands), ", "),
 		)
 	}
 
 	return ""
-}
-
-// sortedLabelAutohideOperands lists the pin's vocabulary in a stable order for
-// failure messages.
-func sortedLabelAutohideOperands() []string {
-	names := make([]string, 0, len(labelAutohideOperands))
-	for name := range labelAutohideOperands {
-		names = append(names, name)
-	}
-
-	sort.Strings(names)
-
-	return names
 }
 
 // nativeLabelAutohideMethodSource wraps a body in the method definition the

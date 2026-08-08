@@ -18,6 +18,15 @@ import (
 // thing: Windows draws a single preview label along the bottom of the cell and
 // measures the cell, this backend and the macOS one draw a mini-grid and
 // measure a sub-cell.
+//
+// The macOS one asks the same question in Objective-C
+// (drawSubKeyPreviewInCellRect: in
+// internal/adapter/platform/darwin/overlay_darwin.m), so Go cannot be its one
+// implementation; ADR 0007 asks for a test holding the two copies together
+// instead, and internal/architecture/sub_key_preview_autohide_rule_test.go is
+// it — change the rule here and that test fails until the Objective-C copy
+// follows. It reads this function out of the source rather than calling it,
+// because the build tag above puts it out of reach of a test running on macOS.
 func shouldShowSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegrid.Style,

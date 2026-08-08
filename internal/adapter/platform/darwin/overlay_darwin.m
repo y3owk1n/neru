@@ -1703,6 +1703,12 @@ typedef NS_ENUM(NSInteger, HintPlacement) {
 	// Skip sub-key preview when sub-cells are too small to render legibly.
 	// Each sub-cell must be at least (multiplier × font size) in both dimensions.
 	// A multiplier of 0 disables autohide.
+	// This is the same rule as shouldShowSubKeyPreview in
+	// internal/adapter/overlay/linux/cgo_helpers.go, which the Cairo
+	// recursive-grid overlay calls; the pin is
+	// internal/architecture/sub_key_preview_autohide_rule_test.go, and it reads
+	// both copies by their shape, so a rewrite fails it even when the behaviour
+	// holds.
 	CGFloat subCellWidth = cellRect.size.width / cols;
 	CGFloat subCellHeight = cellRect.size.height / rows;
 	CGFloat minSubCell = subFont.pointSize * self.gridSubKeyAutohideMultiplier;

@@ -86,7 +86,39 @@ are the precedent, not the exception.
   guard in `drawGridLabel:` into something it can run, and holds its answer to
   `recursivegrid.Style.ShowLabelIn` over the cases that separate them — the
   multiplier that disables autohide, the threshold itself, and each cell
-  dimension one pixel under it.
+  dimension one pixel under it. The third is the sub-key-preview autohide rule
+  (#1323), which is the same shape one level down — every sub-cell of the
+  mini-grid previewing the next depth must reach the multiplier times the
+  preview font size — and which this list had not named until it was pinned.
+  `internal/architecture/sub_key_preview_autohide_rule_test.go` reads *both*
+  copies out of their sources and runs them against each other, rather than
+  running one and reading the other: the Go copy
+  (`shouldShowSubKeyPreview` in `internal/adapter/overlay/linux/cgo_helpers.go`)
+  is behind `//go:build linux && cgo`, so a test on the macOS host cannot link
+  it. Giving it an untagged home belongs to #1297, which converges the Windows
+  backend — whose predicate measures a different rectangle today, a deliberate
+  difference recorded in `docs/CROSS_PLATFORM.md` rather than drift, and one the
+  pin asserts nothing about.
+- **The exception is the half of this rule deletion cannot enforce, so what is
+  pinned is inventoried here.** Four language-boundary copies are pinned as of
+  #1323: the three named above, plus the synthetic key-up and modifier-toggle
+  wire prefixes, which `internal/adapter/platform/darwin/eventtap_darwin.m` and
+  `internal/adapter/platform/linux/overlay_wayland.c` format with `printf`
+  because neither can import `internal/domain/keyvocab`, held to that package by
+  `internal/architecture/keyvocab_wire_test.go`. That one predates this ADR and
+  is the precedent the placement-vocabulary pin followed.
+
+  That list is the complete set of *pinned* copies, and it is deliberately not a
+  claim that no others exist — sweeping for them while writing the sub-key
+  preview pin turned up more, the nearest one ten lines below it in the same
+  pair of methods: which sub-cell of the preview mini-grid is left blank, the
+  center one when both next-level dimensions are odd, decided in
+  `drawSubKeyPreviewInCellRect:` and again in `drawSubKeyMiniGrid` in
+  `internal/adapter/overlay/linux/overlay_shared_cgo.go`. It is not pinned, and
+  naming it unpinned is the honest form of this inventory: everywhere else this
+  ADR is enforced by there being nothing left to diverge from, and here it is
+  enforced only by someone having written the pin. A copy that gains one adds
+  itself to this paragraph in the same change.
 - **"Lowest layer with more than one caller" is a judgement someone has to
   make, and it moves.** A derivation with one caller is not shared and should
   stay private; the second caller is what triggers the move, and the move is
