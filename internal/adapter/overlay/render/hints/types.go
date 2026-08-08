@@ -45,30 +45,6 @@ func (h *Hint) MatchedPrefix() string {
 	return h.matchedPrefix
 }
 
-// SearchInputPosition identifies where the hints search UI is anchored.
-type SearchInputPosition string
-
-// SearchInputTopLeft is the top-left position for search input.
-const SearchInputTopLeft SearchInputPosition = "top_left"
-
-// SearchInputTopCenter is the top-center position for search input.
-const SearchInputTopCenter SearchInputPosition = "top_center"
-
-// SearchInputTopRight is the top-right position for search input.
-const SearchInputTopRight SearchInputPosition = "top_right"
-
-// SearchInputCenter is the center position for search input.
-const SearchInputCenter SearchInputPosition = "center"
-
-// SearchInputBottomLeft is the bottom-left position for search input.
-const SearchInputBottomLeft SearchInputPosition = "bottom_left"
-
-// SearchInputBottomCenter is the bottom-center position for search input.
-const SearchInputBottomCenter SearchInputPosition = "bottom_center"
-
-// SearchInputBottomRight is the bottom-right position for search input.
-const SearchInputBottomRight SearchInputPosition = "bottom_right"
-
 // SearchInputFrame describes the search UI geometry in overlay-local coordinates.
 type SearchInputFrame struct {
 	position image.Point

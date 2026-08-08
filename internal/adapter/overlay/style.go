@@ -29,10 +29,11 @@ type Style struct {
 // draw because it changes when the configuration does and not otherwise; the
 // screen it is placed against arrives with each draw.
 type SearchInputLayout struct {
-	// Position names the corner or edge the input is anchored to. It is the
-	// typed value, not the configured string: the Style is resolved once so
-	// that a draw does no conversion.
-	Position hints.SearchInputPosition
+	// Position names the corner or edge the input is anchored to: one of the
+	// values `hints.search_input_ui.position` accepts
+	// (config.SearchInputPositions), carried through as written rather than
+	// respelled here.
+	Position string
 	// Width and Height are the input's size in pixels.
 	Width  int
 	Height int
@@ -280,7 +281,7 @@ func buildSearchInputLayout(cfg config.SearchInputUI) SearchInputLayout {
 		config.DefaultSearchInputHeightPadding
 
 	return SearchInputLayout{
-		Position: hints.SearchInputPosition(cfg.Position),
+		Position: cfg.Position,
 		Width:    width,
 		Height:   height,
 		XOffset:  cfg.XOffset,

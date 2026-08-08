@@ -306,6 +306,29 @@ func hintsCases() []hintsCase {
 	}
 }
 
+// TestValidateHints_AcceptsEverySearchInputPosition holds the validator to the
+// vocabulary rather than to a list of its own: every value
+// SearchInputPositions() names has to validate, so a position added there and
+// not to the check is caught here instead of at the draw.
+func TestValidateHints_AcceptsEverySearchInputPosition(t *testing.T) {
+	positions := SearchInputPositions()
+	if len(positions) == 0 {
+		t.Fatal("SearchInputPositions() is empty; there is no vocabulary to validate against")
+	}
+
+	for _, position := range positions {
+		t.Run(position, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Hints.SearchInputUI.Position = position
+
+			validateErr := cfg.ValidateHints()
+			if validateErr != nil {
+				t.Errorf("ValidateHints() = %v, want nil for position %q", validateErr, position)
+			}
+		})
+	}
+}
+
 // ValidateHints reports the first problem it finds, so which problem a user is
 // told about depends on the order the checks run in. These cases record the
 // message for one broken setting at a time, and for a few configs broken in more
