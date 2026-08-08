@@ -136,8 +136,6 @@ border_radius = -1                          # -1 = auto pill
 padding_x = -1                              # -1 = auto based on font size
 padding_y = -1                              # -1 = auto based on font size
 border_width = 1
-# The placement option below has no effect on Windows:
-# https://github.com/y3owk1n/neru/blob/main/docs/CROSS_PLATFORM.md#mode-coverage
 placement = "bottom"                        # top, center, bottom
 
 [hints.search_input_ui]

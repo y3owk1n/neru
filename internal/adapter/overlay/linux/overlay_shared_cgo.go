@@ -69,7 +69,7 @@ type overlaySurface interface {
 	rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64)
 	roundedRectPrim(bounds image.Rectangle, radius float64, fill, border uint32, lineWidth float64)
 	hintBadgePrim(
-		badgeRect image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
+		badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
 		fill, border uint32, lineWidth float64,
 	)
 	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32)
@@ -300,7 +300,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 func (o *sharedOverlay) drawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
-	offset hintBadgeOffset,
+	offset badge.HintOffset,
 ) {
 	o.srf.ensureBuffers()
 	o.cancelAnimation()
@@ -350,13 +350,13 @@ func (o *sharedOverlay) drawHints(
 			radius = min(badgeHeight/halfDivisor, hintAutoRadiusMax)
 		}
 		// Cap the radius so an offset badge keeps a flat edge for the tail.
-		radius = hintBadgeRadius(radius, badgeWidth, offset)
+		radius = badge.HintRadius(radius, badgeWidth, offset)
 
 		// pos is the element center (set in modes/hints.go). The badge is
 		// centered horizontally on it and placed above / on / below the center
 		// to match macOS; an offset badge also draws a connector arrow pointing
 		// back at the target.
-		badgeRect, arrow, hasArrow := hintBadgePlacement(
+		badgeRect, arrow, hasArrow := badge.PlaceHint(
 			pos, badgeWidth, badgeHeight, radius, offset,
 		)
 
@@ -927,7 +927,7 @@ func (o *sharedOverlay) drawRoundedRect(
 }
 
 func (o *sharedOverlay) drawHintBadge(
-	badgeRect image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
+	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
 	fill uint32, border uint32, lineWidth float64,
 ) {
 	o.srf.hintBadgePrim(

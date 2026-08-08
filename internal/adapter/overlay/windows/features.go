@@ -25,13 +25,19 @@ const (
 )
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
-// software renderer: an element-sized box per hint with a centered label.
-// Each hint is rendered as an atomic unit (fill + stroke + text) so that
-// overlapping hints have correct Z-ordering — later hints are fully on top of
-// earlier ones, matching macOS behavior.
+// software renderer: a label badge per hint, placed against the element the
+// hint labels. Each hint is rendered as an atomic unit (fill + arrow + stroke +
+// text) so that overlapping hints have correct Z-ordering — later hints are
+// fully on top of earlier ones, matching macOS behavior.
+//
+// offset is the resolved `hints.ui.placement`: the caller reads the vocabulary
+// and refuses a placement this backend cannot draw before anything is painted
+// (Manager.DrawHintsWithStyle), so there is no configured string here and no
+// unrecognized case to answer.
 func (o *winOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
+	offset badge.HintOffset,
 ) {
 	if o == nil {
 		return
@@ -56,18 +62,20 @@ func (o *winOverlay) DrawHints(
 
 	o.lastHints = hintsSlice
 	o.lastHintStyle = style
+	o.lastHintOffset = offset
 
 	for _, hint := range hintsSlice {
 		if hint == nil {
 			continue
 		}
 
-		// The element's own box, rebuilt from what the hint carries:
-		// hint.Position() is the element center and hint.Size() its bounds. The
-		// boundary highlight draws it and the badge is anchored to its corner.
-		element := badge.CenteredOn(hint.Position(), hint.Size().X, hint.Size().Y)
-
 		if style.BoundaryHighlightEnabled() {
+			// The element's own box, rebuilt from what the hint carries:
+			// hint.Position() is the element center and hint.Size() its
+			// bounds. Only the boundary highlight draws it; the badge is
+			// placed against the same center point below.
+			element := badge.CenteredOn(hint.Position(), hint.Size().X, hint.Size().Y)
+
 			bdr := badge.BorderRadius(
 				style.BoundaryBorderRadius(), element, winAutoRadiusBoundaryCap,
 			)
@@ -94,15 +102,26 @@ func (o *winOverlay) DrawHints(
 		) + paddingX*winPaddingMultiplier
 		badgeHeight := badge.EstimateTextHeight(fontSize) + paddingY*winPaddingMultiplier
 
-		// Anchor the badge at the element's top-left corner rather than its
-		// center so it does not cover the element's own content (e.g. the digit
-		// on a calculator button) — deliberately not badge.CenteredIn, which
-		// would put the badge in the middle of the element.
-		bounds := image.Rect(
-			element.Min.X,
-			element.Min.Y,
-			element.Min.X+badgeWidth,
-			element.Min.Y+badgeHeight,
+		// The corner radius is resolved from the badge's size alone — where the
+		// badge lands does not change how round it is — and then capped so an
+		// offset badge keeps a flat edge for the connector arrow to attach to.
+		radius := badge.HintRadius(
+			int(badge.BorderRadius(
+				style.BorderRadius(),
+				image.Rect(0, 0, badgeWidth, badgeHeight),
+				winAutoRadiusBadgeCap,
+			)),
+			badgeWidth,
+			offset,
+		)
+
+		// hint.Position() is the element center, the same point the boundary
+		// highlight is drawn around. The badge is centered horizontally on it
+		// and placed above / on / below it exactly as the macOS and Linux
+		// overlays place theirs; an offset badge also gets a connector arrow
+		// pointing back at the target.
+		bounds, arrow, hasArrow := badge.PlaceHint(
+			hint.Position(), badgeWidth, badgeHeight, radius, offset,
 		)
 
 		textColor := style.TextColor()
@@ -110,14 +129,20 @@ func (o *winOverlay) DrawHints(
 			textColor = style.MatchedTextColor()
 		}
 
-		bdr := badge.BorderRadius(style.BorderRadius(), bounds, winAutoRadiusBadgeCap)
+		bdr := float64(radius)
+		borderWidth := float64(max(style.BorderWidth(), 0))
+
 		o.window.FillRoundedRect(
 			bounds, bdr, badge.ParseHexARGB(style.BackgroundColor()),
 		)
 
-		if bw := float64(max(style.BorderWidth(), 0)); bw > 0 {
+		if hasArrow {
+			o.drawHintArrow(arrow, style, borderWidth)
+		}
+
+		if borderWidth > 0 {
 			o.window.StrokeRoundedRect(
-				bounds, bdr, badge.ParseHexARGB(style.BorderColor()), bw,
+				bounds, bdr, badge.ParseHexARGB(style.BorderColor()), borderWidth,
 			)
 		}
 
@@ -139,6 +164,53 @@ func (o *winOverlay) DrawHints(
 	}
 
 	o.flushOverlay("hints")
+}
+
+// drawHintArrow draws the connector arrow that ties an offset hint badge back
+// to the element it labels.
+//
+// The Cairo and Quartz backends build the badge and the arrow as one outline,
+// so their border runs around both. This surface has no path primitive to do
+// that with, so the arrow is a triangle drawn over a slightly larger triangle
+// in the border color — which gives its two slanted edges the same border,
+// leaving only the badge's own edge running across the arrow's base.
+func (o *winOverlay) drawHintArrow(
+	arrow badge.HintArrow,
+	style hintscomponent.StyleMode,
+	borderWidth float64,
+) {
+	if borderWidth > 0 {
+		outset := outsetHintArrow(arrow, int(borderWidth))
+		o.window.FillTriangle(
+			outset.BaseLeft, outset.Tip, outset.BaseRight,
+			badge.ParseHexARGB(style.BorderColor()),
+		)
+	}
+
+	o.window.FillTriangle(
+		arrow.BaseLeft, arrow.Tip, arrow.BaseRight,
+		badge.ParseHexARGB(style.BackgroundColor()),
+	)
+}
+
+// outsetHintArrow grows an arrow by width pixels along the two edges that show:
+// outwards at the base corners and forwards at the tip, so the original
+// triangle drawn on top of it leaves a border of that width on both slanted
+// edges. The base moves back into the badge, where the badge's own fill and
+// border already cover it.
+func outsetHintArrow(arrow badge.HintArrow, width int) badge.HintArrow {
+	// Which way the arrow points: down for a badge above its target, up for a
+	// badge below it.
+	toward := 1
+	if arrow.Tip.Y < arrow.BaseLeft.Y {
+		toward = -1
+	}
+
+	return badge.HintArrow{
+		BaseLeft:  image.Pt(arrow.BaseLeft.X-width, arrow.BaseLeft.Y-toward*width),
+		Tip:       image.Pt(arrow.Tip.X, arrow.Tip.Y+toward*width),
+		BaseRight: image.Pt(arrow.BaseRight.X+width, arrow.BaseRight.Y-toward*width),
+	}
 }
 
 // DrawRecursiveGrid renders the recursive-grid overlay using GDI, mirroring the

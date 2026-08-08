@@ -35,13 +35,13 @@ const (
 // placement that validates a placement that draws.
 //
 // `hints.ui.placement` is declared once in Go (config.HintPlacements), and the
-// default, the validator, the macOS renderer and the Linux overlay all read
-// that declaration. The values then cross into Objective-C, where the header
-// macros Go reads and the enum overlay_darwin.m switches on were held together
-// by a comment saying they must match. This is ADR 0007's deliberate exception
-// to the one-implementation rule: Go cannot be the implementation of an
-// Objective-C enum, so the copies get a pin instead of a deletion
-// (docs/adr/0007-a-shared-derivation-has-one-implementation.md).
+// default, the validator, the macOS renderer and the Linux and Windows
+// overlays all read that declaration. The values then cross into Objective-C,
+// where the header macros Go reads and the enum overlay_darwin.m switches on
+// were held together by a comment saying they must match. This is ADR 0007's
+// deliberate exception to the one-implementation rule: Go cannot be the
+// implementation of an Objective-C enum, so the copies get a pin instead of a
+// deletion (docs/adr/0007-a-shared-derivation-has-one-implementation.md).
 //
 // It fails on three shapes: a Go placement with no native constant, a header
 // macro and an enum member that disagree on a number, and a native constant
