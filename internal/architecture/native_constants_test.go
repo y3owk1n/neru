@@ -78,21 +78,29 @@ func objcEnumIntConstants(t *testing.T, repoRelPath, enumName string) map[string
 	return members
 }
 
-// readNativeSource reads a repo-relative native source file, failing with a
-// message that names the likely cause: these pins address files by path, so a
-// rename shows up here rather than as a silent pass over nothing.
+// readNativeSource reads a repo-relative source file, failing with a message
+// that names the likely cause: these pins address files by path, so a rename
+// shows up here rather than as a silent pass over nothing.
 //
-// It is the entry point every language-boundary pin in this package shares.
+// It is the entry point every language-boundary pin in this package shares —
+// on both sides of the boundary. Usually the file it reads is the native one,
+// which is where the name comes from; a pin whose Go side is behind a build
+// tag this test binary was not built with reads that side through here too,
+// because it cannot link it.
+//
 // ADR 0007 (docs/adr/0007-a-shared-derivation-has-one-implementation.md) lets
 // a native copy of a Go declaration exist — Go cannot be the one
 // implementation for a .m file — and asks for a test holding the copies
 // together instead of a deletion. Writing a second such pin means reading the
-// native source through here and then matching whatever shape the copy takes:
+// source through here and then matching whatever shape the copy takes:
 // cHeaderIntConstants and objcEnumIntConstants below cover the two shapes that
 // exist today, a numeric macro and an NS_ENUM member, and a copy that is a
 // rule rather than a constant brings its own pattern rather than a second
-// reader. label_autohide_rule_test.go is that third shape: it reads its copy
-// through here and then runs it, because a rule has no constant to compare.
+// reader. label_autohide_rule_test.go and
+// sub_key_preview_autohide_rule_test.go are that third shape: they read their
+// copies through here and then run them, because a rule has no constant to
+// compare. What those two have in common — the comparisons, and how a
+// condition is split into them — lives in native_rule_test.go.
 func readNativeSource(t *testing.T, repoRelPath string) string {
 	t.Helper()
 

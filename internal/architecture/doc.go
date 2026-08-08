@@ -36,6 +36,9 @@
 //     grammar declares, and docs/CLI.md is generated from the descriptor table.
 //   - native_constants_test.go — the shared reader every language-boundary pin
 //     goes through, rather than a second way to read a .h or a .m.
+//   - native_rule_test.go — the comparison vocabulary the rule-shaped
+//     language-boundary pins share, so no two of them read an operator
+//     differently.
 //   - overlay_frame_test.go — an overlay Frame carries domain values only.
 //   - platform_slots_test.go — platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
@@ -45,6 +48,8 @@
 //     it hands over, and the vacuity floor every caller asserts on it.
 //   - role_vocabulary_docs_test.go — the config docs cover the current
 //     semantic role vocabulary and nothing retired.
+//   - sub_key_preview_autohide_rule_test.go — the sub-key-preview autohide rule
+//     is pinned across that same boundary, by running both copies.
 //   - subgrid_cells_test.go — a subgrid's rectangles are computed once, so the
 //     cell drawn and the cell clicked are the same one.
 //   - subgrid_keys_test.go — the subgrid key set is decided once, and handed
