@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
@@ -57,8 +58,7 @@ func TestManagerHandleInputCellSelection(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		func(image.Point) { updateCalled = true },
 		nil,
@@ -84,8 +84,7 @@ func TestManagerHandleInputEscapeKey(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		nil,
 		nil,
@@ -108,8 +107,7 @@ func TestManagerReset(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		nil,
 		nil,
@@ -139,8 +137,7 @@ func TestManagerHandleInputBacktrack(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		nil,
 		nil,
@@ -172,8 +169,7 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		func(image.Point) { updateCalled = true },
 		nil,
@@ -201,8 +197,7 @@ func TestManagerHandleInputCompletion(t *testing.T) {
 		50, // minSizeWidth large enough to complete quickly
 		50, // minSizeHeight
 		10,
-		2, // gridCols 2
-		2, // gridRows 2
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		nil,
 		func(p image.Point) {
@@ -248,8 +243,7 @@ func TestManagerHandleInputMaxDepth(t *testing.T) {
 		1, // minSizeWidth
 		1, // minSizeHeight
 		2, // maxDepth
-		2, // gridCols 2
-		2, // gridRows 2
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		func(image.Point) {},
 		func(point image.Point) { completeCalled = true },
@@ -291,8 +285,7 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 		10,       // minSizeWidth
 		10,       // minSizeHeight
 		10,       // maxDepth
-		3,        // gridCols
-		2,        // gridRows
+		domain.GridDimensions{Rows: 2, Cols: 3},
 		nil, nil,
 		func(image.Point) { updateCalled = true },
 		nil,
@@ -312,8 +305,8 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridCols=0 is invalid (< MinGridDimension), so both dimensions are
-	// reset to DefaultGridCols×DefaultGridRows (default).
+	// A zero column count is invalid (< MinGridDimension), so both
+	// dimensions are reset to DefaultDimensions().
 	// provided keys match default dimensions, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
@@ -321,8 +314,7 @@ func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
 		10,
 		10,
 		10,
-		0, // invalid gridCols
-		3, // valid gridRows
+		domain.GridDimensions{Rows: 3, Cols: 0}, // invalid column count
 		nil, nil,
 		nil,
 		nil,
@@ -343,8 +335,7 @@ func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
 		10,
 		10,
 		10,
-		1,
-		3,
+		domain.GridDimensions{Rows: 3, Cols: 1},
 		nil, nil,
 		nil,
 		nil,
@@ -367,8 +358,7 @@ func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 		10,
 		10,
 		10,
-		1, // gridCols
-		1, // gridRows
+		domain.GridDimensions{Rows: 1, Cols: 1},
 		nil, nil,
 		nil,
 		nil,
@@ -382,8 +372,8 @@ func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
 func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
-	// gridRows=0 is invalid (< MinGridDimension), so both dimensions are
-	// reset to DefaultGridCols×DefaultGridRows (default).
+	// A zero row count is invalid (< MinGridDimension), so both
+	// dimensions are reset to DefaultDimensions().
 	// provided keys match default dimensions, so no further fallback is needed.
 	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
@@ -391,8 +381,7 @@ func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
 		10,
 		10,
 		10,
-		3, // valid gridCols
-		0, // invalid gridRows
+		domain.GridDimensions{Rows: 0, Cols: 3}, // invalid row count
 		nil, nil,
 		nil,
 		nil,
@@ -437,7 +426,7 @@ func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
 		bounds,
 		"uijk",
 		10, 10, 10,
-		2, 2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
 		nil, nil,
@@ -461,7 +450,7 @@ func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
 		bounds,
 		"uijk",
 		10, 10, 10,
-		2, 2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
 		nil, nil,
@@ -487,7 +476,7 @@ func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
 		bounds,
 		"uijk",
 		10, 10, 10,
-		2, 2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
 		nil, nil,
@@ -512,7 +501,7 @@ func TestNewManagerWithLayers_ConsistentOverride_Works(t *testing.T) {
 		bounds,
 		"uijk",
 		10, 10, 10,
-		2, 2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		depthLayouts,
 		depthKeys,
 		nil, nil,
@@ -540,8 +529,7 @@ func TestManagerHandleInput_KeyToCellLiteralSpaceKey(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		func(image.Point) {},
 		nil,
@@ -565,8 +553,7 @@ func TestManagerHandleInput_KeyToCellNormalizesFullwidthChars(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		func(image.Point) {},
 		nil,
@@ -591,8 +578,7 @@ func TestHandleInput_ValidMultibyteKeys(t *testing.T) {
 		25,
 		25,
 		10,
-		2,
-		2,
+		domain.GridDimensions{Rows: 2, Cols: 2},
 		nil, nil,
 		nil,
 		nil,

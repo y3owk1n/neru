@@ -178,8 +178,10 @@ func (h *handlerState) initializeRecursiveGridManager(screenBounds image.Rectang
 		h.config.RecursiveGrid.MinSizeWidth,
 		h.config.RecursiveGrid.MinSizeHeight,
 		h.config.RecursiveGrid.MaxDepth,
-		h.config.RecursiveGrid.GridCols,
-		h.config.RecursiveGrid.GridRows,
+		domain.GridDimensions{
+			Rows: h.config.RecursiveGrid.GridRows,
+			Cols: h.config.RecursiveGrid.GridCols,
+		},
 		depthLayouts,
 		depthKeys,
 		// Update callback

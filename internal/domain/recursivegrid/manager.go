@@ -16,12 +16,11 @@ type Manager struct {
 	domain.BaseManager
 
 	grid       *RecursiveGrid
-	keys       string            // Default key mapping (e.g., "rtyfghvbn")
-	depthKeys  map[int]string    // Per-depth key overrides (sparse)
-	gridCols   int               // Default number of grid columns
-	gridRows   int               // Default number of grid rows
-	onUpdate   func(image.Point) // Callback for overlay updates
-	onComplete func(image.Point) // Callback when selection is complete
+	keys       string                // Default key mapping (e.g., "rtyfghvbn")
+	depthKeys  map[int]string        // Per-depth key overrides (sparse)
+	dims       domain.GridDimensions // Default shape at depths with no override
+	onUpdate   func(image.Point)     // Callback for overlay updates
+	onComplete func(image.Point)     // Callback when selection is complete
 }
 
 // NewManager creates a recursive-grid manager with default dimensions (3×3)
@@ -39,8 +38,7 @@ func NewManager(
 		25, //nolint:mnd
 		25, //nolint:mnd
 		10, //nolint:mnd
-		DefaultGridCols,
-		DefaultGridRows,
+		DefaultDimensions(),
 		nil, nil,
 		onUpdate,
 		onComplete,
@@ -48,13 +46,17 @@ func NewManager(
 	)
 }
 
-// NewManagerWithLayers creates a manager with custom dimensions and optional
+// NewManagerWithLayers creates a manager with a custom shape and optional
 // per-depth layout and key overrides. Pass nil for depthLayouts/depthKeys
 // to use default dimensions at all depths.
+//
+// dims arrives as one value rather than a column count beside a row count so
+// that a caller cannot hand over the two in the wrong order (#1313).
 func NewManagerWithLayers(
 	screenBounds image.Rectangle,
 	keys string,
-	minSizeWidth, minSizeHeight, maxDepth, gridCols, gridRows int,
+	minSizeWidth, minSizeHeight, maxDepth int,
+	dims domain.GridDimensions,
 	depthLayouts map[int]DepthLayout,
 	depthKeys map[int]string,
 	onUpdate func(image.Point),
@@ -63,13 +65,12 @@ func NewManagerWithLayers(
 ) *Manager {
 	// Use default grid dimensions if either is invalid (< 1) or if the grid
 	// is degenerate (1×1 cannot subdivide). Reset both to default for consistency.
-	if gridCols < MinGridDimension || gridRows < MinGridDimension ||
-		gridCols*gridRows < 2 {
+	if dims.Cols < MinGridDimension || dims.Rows < MinGridDimension ||
+		dims.CellCount() < 2 {
 		logger.Warn("Invalid grid dimensions, using default",
-			zap.Int("provided_cols", gridCols),
-			zap.Int("provided_rows", gridRows))
-		gridCols = DefaultGridCols
-		gridRows = DefaultGridRows
+			zap.Int("provided_cols", dims.Cols),
+			zap.Int("provided_rows", dims.Rows))
+		dims = DefaultDimensions()
 	}
 
 	// Use default keys if not provided
@@ -78,15 +79,14 @@ func NewManagerWithLayers(
 	}
 
 	// Ensure we have the correct number of keys based on grid dimensions
-	expectedKeyCount := gridCols * gridRows
+	expectedKeyCount := dims.CellCount()
 	if utf8.RuneCountInString(keys) != expectedKeyCount {
 		logger.Warn("Invalid key mapping length, using default",
 			zap.String("provided", keys),
 			zap.Int("length", utf8.RuneCountInString(keys)),
 			zap.Int("expected", expectedKeyCount))
 		keys = DefaultKeys
-		gridCols = DefaultGridCols
-		gridRows = DefaultGridRows
+		dims = DefaultDimensions()
 	}
 
 	if depthKeys == nil {
@@ -151,14 +151,12 @@ func NewManagerWithLayers(
 			minSizeWidth,
 			minSizeHeight,
 			maxDepth,
-			gridCols,
-			gridRows,
+			dims,
 			depthLayouts,
 		),
 		keys:       strings.ToLower(keys),
 		depthKeys:  normalizedDepthKeys,
-		gridCols:   gridCols,
-		gridRows:   gridRows,
+		dims:       dims,
 		onUpdate:   onUpdate,
 		onComplete: onComplete,
 	}
@@ -303,7 +301,7 @@ func (m *Manager) GridRows() int {
 
 // UpdateKeys updates the default key mapping.
 func (m *Manager) UpdateKeys(keys string) {
-	expectedKeyCount := m.gridCols * m.gridRows
+	expectedKeyCount := m.dims.CellCount()
 	if utf8.RuneCountInString(keys) == expectedKeyCount {
 		m.keys = strings.ToLower(keys)
 	}
