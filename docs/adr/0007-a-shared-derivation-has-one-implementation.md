@@ -103,3 +103,21 @@ are the precedent, not the exception.
   cells rather than divide the rectangle themselves. Naming the rule before finishing the work
   is the point: the next platform backend should not have to infer it from two
   packages that never explained themselves.
+- **A near-miss earns a second name, not one implementation.** #1299 finished
+  the centering sweep #1288 started, and what it turned on is a pixel. Two
+  forms of "put this rectangle on that point" were in use: `center ± half`, and
+  the `center - half, + size` the shared `badge.CenteredIn` already spoke. They
+  agree on the near edge always and on the far edge only when the dimension is
+  even, so collapsing them would have moved the monitor-select panel's right
+  edge and a hint badge's by a pixel. Both are named now — `badge.CenteredOn`
+  beside `badge.CenteredIn`, each doc comment pointing at the other — and the
+  sites that hang a static rectangle on a point (hint badges, the hint boundary
+  highlight, the monitor-select panel) call one of them on both Linux and
+  Windows. The animated indicators are left out on purpose, and each says so
+  where it is written: the virtual pointer floors its half at one pixel, and
+  the mouse-action indicator rounds a float diameter on Linux and places a
+  native window on Windows, so neither is this derivation wearing a different
+  spelling. This rule asks for one implementation per derivation; two
+  derivations that merely look alike are the case where the honest answer is to
+  say so out loud, because a near-miss is exactly what a later reader
+  "simplifies".

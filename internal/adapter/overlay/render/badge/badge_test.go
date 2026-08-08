@@ -255,6 +255,126 @@ func TestCenteredIn_CentersAndKeepsSize(t *testing.T) {
 	}
 }
 
+func TestCenteredOn_SpansHalfEitherSideOfThePoint(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		center        image.Point
+		width, height int
+		want          image.Rectangle
+	}{
+		{
+			name:   "even size keeps the requested size",
+			center: image.Pt(100, 100),
+			width:  40,
+			height: 20,
+			want:   image.Rect(80, 90, 120, 110),
+		},
+		{
+			name:   "odd width drops its last pixel",
+			center: image.Pt(100, 100),
+			width:  41,
+			height: 20,
+			want:   image.Rect(80, 90, 120, 110),
+		},
+		{
+			name:   "odd height drops its last pixel",
+			center: image.Pt(100, 100),
+			width:  40,
+			height: 21,
+			want:   image.Rect(80, 90, 120, 110),
+		},
+		{
+			name:   "odd center coordinates shift the whole rectangle",
+			center: image.Pt(101, 99),
+			width:  40,
+			height: 20,
+			want:   image.Rect(81, 89, 121, 109),
+		},
+		{
+			name:   "negative center coordinates",
+			center: image.Pt(-100, -40),
+			width:  30,
+			height: 10,
+			want:   image.Rect(-115, -45, -85, -35),
+		},
+		{
+			name:   "zero size collapses onto the point",
+			center: image.Pt(7, 9),
+			width:  0,
+			height: 0,
+			want:   image.Rect(7, 9, 7, 9),
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := badge.CenteredOn(testCase.center, testCase.width, testCase.height)
+			if got != testCase.want {
+				t.Errorf("CenteredOn(%v, %d, %d) = %v, want %v",
+					testCase.center, testCase.width, testCase.height, got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestCenteredOn_IsNotCenteredInOnOddSizes pins the near-miss the two functions
+// are: they agree on the near edge always and on the far edge only when both
+// dimensions are even, so swapping one for the other silently moves a panel or
+// badge edge by a pixel on odd sizes.
+func TestCenteredOn_IsNotCenteredInOnOddSizes(t *testing.T) {
+	t.Parallel()
+
+	container := image.Rect(0, 0, 100, 100)
+	center := image.Pt(50, 50)
+
+	tests := []struct {
+		name          string
+		width, height int
+		wantOn        image.Rectangle
+		wantIn        image.Rectangle
+	}{
+		{
+			name:   "even dimensions agree",
+			width:  40,
+			height: 20,
+			wantOn: image.Rect(30, 40, 70, 60),
+			wantIn: image.Rect(30, 40, 70, 60),
+		},
+		{
+			name:   "odd dimensions disagree on the far edge only",
+			width:  41,
+			height: 21,
+			wantOn: image.Rect(30, 40, 70, 60),
+			wantIn: image.Rect(30, 40, 71, 61),
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotOn := badge.CenteredOn(center, testCase.width, testCase.height)
+			if gotOn != testCase.wantOn {
+				t.Errorf("CenteredOn = %v, want %v", gotOn, testCase.wantOn)
+			}
+
+			gotIn := badge.CenteredIn(container, testCase.width, testCase.height)
+			if gotIn != testCase.wantIn {
+				t.Errorf("CenteredIn = %v, want %v", gotIn, testCase.wantIn)
+			}
+
+			if gotOn.Min != gotIn.Min {
+				t.Errorf("near edges must agree: CenteredOn %v, CenteredIn %v",
+					gotOn.Min, gotIn.Min)
+			}
+		})
+	}
+}
+
 func TestBorderRadius_Modes(t *testing.T) {
 	t.Parallel()
 

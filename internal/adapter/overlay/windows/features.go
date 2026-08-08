@@ -17,24 +17,12 @@ import (
 // Win32/GDI rendering for hints and recursive-grid overlays on Windows.
 // Does not own window lifecycle or grid rendering (see overlay.go).
 const (
-	winHexColorOpaque                  = 0xFFFFFFFF
-	winHexRepeatCount                  = 2
-	winHexColorLenShort                = 3
-	winHexColorLenNoAlpha              = 6
-	winHexColorLenFull                 = 8
-	winAutoPaddingHorizontalMultiplier = 0.6
-	winAutoPaddingVerticalMultiplier   = 0.35
-	winAutoPaddingMinHorizontal        = 6
-	winAutoPaddingMinVertical          = 4
-	winTextWidthMultiplier             = 0.7
-	winTextHeightMultiplier            = 1.4
-	winHalfDivisor                     = 2
-	winPaddingMultiplier               = 2
-	winSubKeyPreviewPaddingBottom      = 4
-	winAutoRadiusBadgeCap              = 6.0
-	winAutoRadiusBoundaryCap           = 4.0
-	winMouseActionSquareRadiusScale    = 0.18
-	winMouseActionMinSquareRadius      = 2.0
+	winPaddingMultiplier            = 2
+	winSubKeyPreviewPaddingBottom   = 4
+	winAutoRadiusBadgeCap           = 6.0
+	winAutoRadiusBoundaryCap        = 4.0
+	winMouseActionSquareRadiusScale = 0.18
+	winMouseActionMinSquareRadius   = 2.0
 )
 
 // DrawHints renders the hint overlay using GDI, mirroring the cross-platform
@@ -75,23 +63,22 @@ func (o *winOverlay) DrawHints(
 			continue
 		}
 
+		// The element's own box, rebuilt from what the hint carries:
+		// hint.Position() is the element center and hint.Size() its bounds. The
+		// boundary highlight draws it and the badge is anchored to its corner.
+		element := badge.CenteredOn(hint.Position(), hint.Size().X, hint.Size().Y)
+
 		if style.BoundaryHighlightEnabled() {
-			boundary := image.Rect(
-				hint.Position().X-hint.Size().X/2,
-				hint.Position().Y-hint.Size().Y/2,
-				hint.Position().X+hint.Size().X/2,
-				hint.Position().Y+hint.Size().Y/2,
-			)
 			bdr := badge.BorderRadius(
-				style.BoundaryBorderRadius(), boundary, winAutoRadiusBoundaryCap,
+				style.BoundaryBorderRadius(), element, winAutoRadiusBoundaryCap,
 			)
 			o.window.FillRoundedRect(
-				boundary, bdr, badge.ParseHexARGB(style.BoundaryBackgroundColor()),
+				element, bdr, badge.ParseHexARGB(style.BoundaryBackgroundColor()),
 			)
 
 			if bw := float64(max(style.BoundaryBorderWidth(), 0)); bw > 0 {
 				o.window.StrokeRoundedRect(
-					boundary, bdr, badge.ParseHexARGB(style.BoundaryBorderColor()), bw,
+					element, bdr, badge.ParseHexARGB(style.BoundaryBorderColor()), bw,
 				)
 			}
 		}
@@ -110,11 +97,14 @@ func (o *winOverlay) DrawHints(
 
 		// Anchor the badge at the element's top-left corner rather than its
 		// center so it does not cover the element's own content (e.g. the digit
-		// on a calculator button). hint.Position() is the element center and
-		// hint.Size() its bounds, so the top-left is center minus half-size.
-		originX := hint.Position().X - hint.Size().X/winHalfDivisor
-		originY := hint.Position().Y - hint.Size().Y/winHalfDivisor
-		bounds := image.Rect(originX, originY, originX+badgeWidth, originY+badgeHeight)
+		// on a calculator button) — deliberately not badge.CenteredIn, which
+		// would put the badge in the middle of the element.
+		bounds := image.Rect(
+			element.Min.X,
+			element.Min.Y,
+			element.Min.X+badgeWidth,
+			element.Min.Y+badgeHeight,
+		)
 
 		textColor := style.TextColor()
 		if hint.MatchedPrefix() != "" {
@@ -233,6 +223,8 @@ func (o *winOverlay) DrawRecursiveGrid(
 		fontName := ports.ResolveFont(virtualPointer.FontName, false)
 
 		fontSize := float64(virtualPointer.Size)
+		// Not badge.CenteredOn: the half is floored at 1 so a pointer
+		// configured to size 0 or 1 still has a box to draw its glyph in.
 		halfSize := max(virtualPointer.Size/2, 1) //nolint:mnd
 
 		vpBounds := image.Rect(

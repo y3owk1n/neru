@@ -627,6 +627,9 @@ func (m *Manager) DrawMouseActionIndicator(
 	winSize := int(maxIndicatorSize) + int(borderWidth)*2 + paddingFactor
 	halfWinSize := winSize / 2 //nolint:mnd // divide by 2
 
+	// Not badge.CenteredOn: this places a native window, which takes an origin
+	// and a size rather than a rectangle, and the animation inside it measures
+	// from the same half.
 	posX := point.X - halfWinSize
 	posY := point.Y - halfWinSize
 

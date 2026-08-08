@@ -25,26 +25,14 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// subgridCellBackground is the translucent fill painted behind a subgrid cell.
+const subgridCellBackground uint32 = 0x10000000
+
 const (
-	subgridCellBackground           uint32 = 0x10000000
-	hexColorOpaque                  uint32 = 0xFFFFFFFF
-	hexColorRepeatCount                    = 2
-	hexColorLenShort                       = 3
-	hexColorLenNoAlpha                     = 6
-	hexColorLenFull                        = 8
-	subgridFontScale                       = 0.7
-	subgridLineWidth                       = 1
-	keyboardChanBuffer                     = 64
-	badgePaddingSides                      = 2
-	autoPaddingHorizontalMultiplier        = 0.6
-	autoPaddingVerticalMultiplier          = 0.35
-	autoPaddingMinHorizontal               = 6
-	autoPaddingMinVertical                 = 4
-	textWidthMultiplier                    = 0.7
-	textHeightMultiplier                   = 1.4
-	halfDivisor                            = 2
-	centeredRectHalf                       = 0.5
-	paddingMultiplier                      = 2
+	subgridFontScale   = 0.7
+	keyboardChanBuffer = 64
+	halfDivisor        = 2
+	paddingMultiplier  = 2
 	// hintPlacementGap is the pixel gap between a hint badge and its target
 	// point for top/bottom placement, mirroring the macOS overlay.
 	hintPlacementGap = 1
@@ -780,12 +768,15 @@ func monitorSelectPanelLayout(
 		panelH = maxH
 	}
 
-	centerX := monitor.Min.X + monitor.Dx()/halfDivisor
-	centerY := monitor.Min.Y + monitor.Dy()/halfDivisor
-	panel := image.Rect(
-		centerX-panelW/halfDivisor, centerY-panelH/halfDivisor,
-		centerX+panelW/halfDivisor, centerY+panelH/halfDivisor,
+	// The panel hangs on the monitor's center point rather than being fitted
+	// into the monitor rectangle: badge.CenteredOn, not badge.CenteredIn. The
+	// two differ by a pixel on an odd panel size, and this is the one the panel
+	// has always been drawn with.
+	center := image.Pt(
+		monitor.Min.X+monitor.Dx()/halfDivisor,
+		monitor.Min.Y+monitor.Dy()/halfDivisor,
 	)
+	panel := badge.CenteredOn(center, panelW, panelH)
 
 	// Corner radius: auto = min(panelH/2, 16), matching darwin.
 	radius := float64(style.BorderRadius) * scale
@@ -1226,7 +1217,8 @@ func hintBadgePlacement(
 	halfW := badgeWidth / halfDivisor
 	halfH := badgeHeight / halfDivisor
 	centerX := target.X
-	centerY := target.Y
+
+	var centerY int
 
 	switch placement {
 	case config.HintPlacementTop:
@@ -1237,12 +1229,15 @@ func hintBadgePlacement(
 		// Badge sits below the target; arrow points up at the target.
 		centerY = target.Y + hintPlacementGap + hintArrowHeight + halfH
 	default:
-		badge := image.Rect(centerX-halfW, centerY-halfH, centerX+halfW, centerY+halfH)
-
-		return badge, hintArrowTriangle{}, false
+		return badge.CenteredOn(target, badgeWidth, badgeHeight), hintArrowTriangle{}, false
 	}
 
-	badge := image.Rect(centerX-halfW, centerY-halfH, centerX+halfW, centerY+halfH)
+	// The badge hangs on the target point rather than being fitted into the
+	// element's box: badge.CenteredOn, not badge.CenteredIn. The two differ by
+	// a pixel on an odd badge size, and this is the one hints have always been
+	// drawn with. halfW and halfH stay because the arrow and the top/bottom
+	// offset are measured from them, not from the rectangle.
+	badgeRect := badge.CenteredOn(image.Pt(centerX, centerY), badgeWidth, badgeHeight)
 
 	// Keep the arrow base within the badge's flat edge (inside the corner
 	// radius). The caller caps the radius (see hintBadgeRadius) so a flat edge
@@ -1254,21 +1249,21 @@ func hintBadgePlacement(
 	}
 
 	if halfBase < 1 {
-		return badge, hintArrowTriangle{}, false
+		return badgeRect, hintArrowTriangle{}, false
 	}
 
 	var arrow hintArrowTriangle
 
 	switch placement {
 	case config.HintPlacementBottom:
-		baseY := badge.Min.Y
+		baseY := badgeRect.Min.Y
 		arrow = hintArrowTriangle{
 			baseLeft:  image.Pt(centerX-halfBase, baseY),
 			tip:       image.Pt(centerX, baseY-hintArrowHeight),
 			baseRight: image.Pt(centerX+halfBase, baseY),
 		}
 	case config.HintPlacementTop:
-		baseY := badge.Max.Y
+		baseY := badgeRect.Max.Y
 		arrow = hintArrowTriangle{
 			baseLeft:  image.Pt(centerX-halfBase, baseY),
 			tip:       image.Pt(centerX, baseY+hintArrowHeight),
@@ -1276,7 +1271,7 @@ func hintBadgePlacement(
 		}
 	}
 
-	return badge, arrow, true
+	return badgeRect, arrow, true
 }
 
 func expandRect(rect image.Rectangle, amount int) image.Rectangle {
