@@ -239,7 +239,7 @@ func BuildStyle(cfg config.RecursiveGridConfig, theme config.ThemeProvider) Styl
 			config.RecursiveGridTextColorDark,
 		),
 		fontSize:        cfg.UI.FontSize,
-		fontFamily:      ports.ResolveFont(cfg.UI.FontFamily, true),
+		fontFamily:      ports.ResolveFont(cfg.UI.FontFamily),
 		labelBackground: cfg.UI.LabelBackground,
 		labelBackgroundColor: cfg.UI.LabelBackgroundColor.ForTheme(
 			theme,

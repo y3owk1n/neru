@@ -107,8 +107,8 @@ import (
 )
 
 // NewFontResolver returns a fontconfig-backed ports.FontResolver.
-// Each (family) tuple is resolved on first use and cached for the
-// lifetime of the process.
+// Each family is resolved on first use and cached for the lifetime of the
+// process.
 func NewFontResolver() ports.FontResolver {
 	resolver := &fontconfigResolver{}
 	resolver.cache = fontcache.New(resolver.resolve)
@@ -125,9 +125,7 @@ type fontconfigResolver struct {
 }
 
 // Resolve implements ports.FontResolver.
-func (r *fontconfigResolver) Resolve(family string, bold bool) string {
-	_ = bold // reserved for future weight-specific resolution
-
+func (r *fontconfigResolver) Resolve(family string) string {
 	return r.cache.Resolve(family)
 }
 

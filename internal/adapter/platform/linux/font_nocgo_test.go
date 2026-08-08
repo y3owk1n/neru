@@ -9,7 +9,7 @@ func TestPassthroughResolver_CachesByFamily(t *testing.T) {
 
 	// Repeated calls with the same input should not mutate behaviour.
 	for range 3 {
-		if got := r.Resolve("sans", true); got != defaultLinuxSans {
+		if got := r.Resolve("sans"); got != defaultLinuxSans {
 			t.Fatalf("expected generic alias to resolve to %q, got %q", defaultLinuxSans, got)
 		}
 	}
@@ -18,7 +18,7 @@ func TestPassthroughResolver_CachesByFamily(t *testing.T) {
 func TestPassthroughResolver_EmptyDefaultsToSans(t *testing.T) {
 	r := passthroughResolver{}
 
-	if got := r.Resolve("", false); got != defaultLinuxSans {
+	if got := r.Resolve(""); got != defaultLinuxSans {
 		t.Fatalf("expected empty input to resolve to %q, got %q", defaultLinuxSans, got)
 	}
 }

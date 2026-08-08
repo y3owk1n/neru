@@ -261,7 +261,7 @@ func buildVirtualPointerStyle(
 		// Through the shared resolver, like every other overlay's family: a
 		// generic alias reaches the platform as a family it can actually find
 		// rather than as a name nothing is installed under (#1305).
-		FontFamily: ports.ResolveFont(cfg.UI.FontFamily, false),
+		FontFamily: ports.ResolveFont(cfg.UI.FontFamily),
 	}
 }
 
@@ -316,11 +316,11 @@ func buildMonitorSelectStyle(cfg *config.Config, theme config.ThemeProvider) Mon
 		SubtitleFontSize: uiCfg.SubtitleFontSize,
 		// Both families go through the shared resolver, like every other
 		// overlay's, so a generic alias reaches the platform as a family it can
-		// actually find (#1305). Weight travels with the request — the label is
-		// drawn bold and the subtitle is not — even though no resolver weights
-		// on it yet.
-		FontFamily:         ports.ResolveFont(uiCfg.FontFamily, true),
-		SubtitleFontFamily: ports.ResolveFont(subtitleFamily, false),
+		// actually find (#1305). The label is drawn bold and the subtitle is
+		// not, but weight is the drawing layer's business: resolution answers
+		// on the family name alone.
+		FontFamily:         ports.ResolveFont(uiCfg.FontFamily),
+		SubtitleFontFamily: ports.ResolveFont(subtitleFamily),
 		BorderRadius:       uiCfg.BorderRadius,
 		PaddingX:           uiCfg.PaddingX,
 		PaddingY:           uiCfg.PaddingY,

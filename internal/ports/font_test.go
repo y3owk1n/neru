@@ -13,7 +13,7 @@ type fakeResolver struct {
 	last  string
 }
 
-func (f *fakeResolver) Resolve(family string, _ bool) string {
+func (f *fakeResolver) Resolve(family string) string {
 	f.calls++
 	f.last = family
 
@@ -24,11 +24,11 @@ func TestResolveFont_DefaultNoopReturnsInput(t *testing.T) {
 	ports.SetFontResolver(nil)
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
 
-	if got := ports.ResolveFont("Anything", true); got != "Anything" {
+	if got := ports.ResolveFont("Anything"); got != "Anything" {
 		t.Fatalf("expected input to be returned unchanged, got %q", got)
 	}
 
-	if got := ports.ResolveFont("", false); got != "" {
+	if got := ports.ResolveFont(""); got != "" {
 		t.Fatalf("expected empty input to be returned unchanged, got %q", got)
 	}
 }
@@ -39,7 +39,7 @@ func TestResolveFont_DispatchesToInstalledResolver(t *testing.T) {
 	ports.SetFontResolver(fake)
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
 
-	if got := ports.ResolveFont("JetBrains Mono", true); got != "RESOLVED:JetBrains Mono" {
+	if got := ports.ResolveFont("JetBrains Mono"); got != "RESOLVED:JetBrains Mono" {
 		t.Fatalf("expected resolver to be called, got %q", got)
 	}
 
@@ -57,7 +57,7 @@ func TestResolveFont_NilResetRestoresNoop(t *testing.T) {
 	ports.SetFontResolver(nil)
 	t.Cleanup(func() { ports.SetFontResolver(nil) })
 
-	if got := ports.ResolveFont("X", false); got != "X" {
+	if got := ports.ResolveFont("X"); got != "X" {
 		t.Fatalf("expected noop default after reset, got %q", got)
 	}
 }

@@ -34,7 +34,7 @@ func TestFontconfigResolver_Resolve_GenericAliasesGiveAnInstalledFamily(t *testi
 		}
 
 		t.Run(name, func(t *testing.T) {
-			got := resolver.Resolve(alias, false)
+			got := resolver.Resolve(alias)
 
 			if !isInstalled(installed, got) {
 				t.Fatalf(
@@ -66,7 +66,7 @@ func TestFontconfigResolver_Resolve_InstalledFamilyComesBackAsWritten(t *testing
 
 	for input, want := range cases {
 		t.Run(input, func(t *testing.T) {
-			if got := resolver.Resolve(input, false); got != want {
+			if got := resolver.Resolve(input); got != want {
 				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
 			}
 		})
@@ -99,7 +99,7 @@ func TestFontconfigResolver_Resolve_MissingFamilyFallsBackToTheResolvedGeneric(t
 
 	for _, family := range missing {
 		t.Run(family, func(t *testing.T) {
-			got := resolver.Resolve(family, false)
+			got := resolver.Resolve(family)
 
 			if got != want {
 				t.Fatalf(
@@ -131,7 +131,7 @@ func theResolvedGeneric(t *testing.T, installed []string, resolver ports.FontRes
 		return defaultLinuxSans
 	}
 
-	return resolver.Resolve("sans", false)
+	return resolver.Resolve("sans")
 }
 
 // installedFamilies asks fontconfig which families this machine has, through

@@ -125,7 +125,7 @@ func (o *winOverlay) DrawHints(
 		o.window.DrawTextCentered(
 			hint.Label(),
 			bounds,
-			ports.ResolveFont(style.FontFamily(), false),
+			ports.ResolveFont(style.FontFamily()),
 			fontSize,
 			badge.ParseHexARGB(textColor),
 		)
@@ -202,7 +202,7 @@ func (o *winOverlay) DrawRecursiveGrid(
 				o.drawTextCentered(
 					label,
 					cell,
-					ports.ResolveFont(style.FontFamily(), false),
+					ports.ResolveFont(style.FontFamily()),
 					style.LabelFontSize(),
 					style.TextColorARGB(),
 				)
@@ -312,7 +312,7 @@ func (o *winOverlay) drawRecursiveSubKeyPreview(
 	o.drawTextCentered(
 		previewLabel,
 		previewRect,
-		ports.ResolveFont(style.FontFamily(), false),
+		ports.ResolveFont(style.FontFamily()),
 		style.SubKeyPreviewFontSizeF(),
 		style.SubKeyPreviewTextColorARGB(),
 	)

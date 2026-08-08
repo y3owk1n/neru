@@ -95,7 +95,7 @@ func (s Style) MatchedBorderColorARGB() uint32 { return s.matchedBorderColorARGB
 func BuildStyle(cfg config.GridConfig, theme config.ThemeProvider) Style {
 	style := Style{
 		fontSize:    cfg.UI.FontSize,
-		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily, true),
+		fontFamily:  ports.ResolveFont(cfg.UI.FontFamily),
 		borderWidth: cfg.UI.BorderWidth,
 		backgroundColor: cfg.UI.BackgroundColor.ForTheme(
 			theme,
