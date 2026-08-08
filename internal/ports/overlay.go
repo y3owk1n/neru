@@ -267,6 +267,10 @@ type OverlayPort interface {
 	// A draw may block; the mode handler computes what to show under its lock
 	// and shows after releasing it, with the hint update callback the one
 	// documented exception (`internal/app/modes/AGENTS.md`).
+	//
+	// It reports CodeNotSupported for the same reasons RedrawFrame does — the
+	// frame's first draw goes out through here — so a caller that acts on the
+	// verdict reads that code as degradation, not failure.
 	ShowFrame(ctx context.Context, frame Frame) error
 
 	// RedrawFrame draws a Frame whose overlay is already up, without the
@@ -276,6 +280,11 @@ type OverlayPort interface {
 	//
 	// A backend with no surface for the frame reports CodeNotSupported, which
 	// is degradation rather than failure; callers branch on IsNotSupported.
+	// A backend that has the surface but cannot place what the frame carries
+	// reports the same code — a hint placement it has no branch for (#1331,
+	// #1333) — because the caller reads it as "this content is not on screen",
+	// and drawing it somewhere the user did not configure is the silent
+	// fallback the error vocabulary exists to replace.
 	RedrawFrame(ctx context.Context, frame Frame) error
 
 	// ClearFrame takes whatever frame is on screen off it, content and all,

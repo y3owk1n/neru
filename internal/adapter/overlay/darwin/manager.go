@@ -266,12 +266,21 @@ func (m *Manager) UseVirtualPointerOverlay(overlay *virtualpointer.Overlay) {
 }
 
 // DrawHintsWithStyle draws hints with the specified style using the hint overlay renderer.
+//
+// A placement the renderer cannot draw is reported as CodeNotSupported (#1333),
+// and the caller degrades on that code — so it travels unwrapped, the way the
+// overlay adapter already passes one on. Wrapping it as an overlay failure
+// would report a degradation as a fault.
 func (m *Manager) DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error {
 	if m.HintOverlay() == nil {
 		return nil
 	}
 	drawHintsErr := m.HintOverlay().DrawHintsWithStyle(hs, style)
 	if drawHintsErr != nil {
+		if derrors.IsNotSupported(drawHintsErr) {
+			return drawHintsErr
+		}
+
 		return derrors.Wrap(
 			drawHintsErr,
 			derrors.CodeOverlayFailed,

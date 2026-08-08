@@ -22,6 +22,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 //export resizeHintCompletionCallback
@@ -54,19 +55,36 @@ func boolToInt(v bool) int {
 // internal/architecture/hint_placement_vocabulary_test.go pins the Objective-C
 // enum to.
 //
-// An unset or unrecognized placement draws at the default: validation refuses
-// anything else long before a draw, so that branch belongs to the zero value
-// rather than being a second opinion about what is valid.
-func hintPlacementValue(placement string) int {
+// Every value config.HintPlacements() declares has a branch, and anything else
+// is refused rather than translated. The switch used to answer an unrecognized
+// placement with HINT_PLACEMENT_BOTTOM — right for `bottom` by coincidence, and
+// silent for a placement added to the vocabulary without a branch here: it
+// would validate, reach the overlay, and draw every label at the bottom with
+// nothing failing anywhere. The refusal answers no constant at all, because
+// there is no honest placement to hand the drawing code; its caller does not
+// draw once it is set.
+//
+// The empty string is not one of those: it is a style that reached the overlay
+// before a configuration settled it, and it draws at the documented default —
+// the same answer the Linux overlay gives it (`resolveHintBadgeOffset`), so a
+// draw that beats the first Apply puts hints in the same place on both.
+func hintPlacementValue(placement string) (int, error) {
+	if placement == "" {
+		placement = config.HintPlacementDefault
+	}
+
 	switch placement {
 	case config.HintPlacementTop:
-		return int(C.HINT_PLACEMENT_TOP)
+		return int(C.HINT_PLACEMENT_TOP), nil
 	case config.HintPlacementCenter:
-		return int(C.HINT_PLACEMENT_CENTER)
+		return int(C.HINT_PLACEMENT_CENTER), nil
 	case config.HintPlacementBottom:
-		return int(C.HINT_PLACEMENT_BOTTOM)
+		return int(C.HINT_PLACEMENT_BOTTOM), nil
 	default:
-		return int(C.HINT_PLACEMENT_BOTTOM)
+		return 0, derrors.New(
+			derrors.CodeNotSupported,
+			"hint placement is not drawn by the macos overlay",
+		)
 	}
 }
 
@@ -210,6 +228,12 @@ func (o *Overlay) ResizeToActiveScreen() {
 }
 
 // DrawHintsWithStyle draws hints on the overlay with custom style.
+//
+// A placement this overlay cannot draw is reported rather than approximated:
+// the labels would otherwise appear in a placement the user did not configure,
+// with nothing anywhere saying so. The caller degrades quietly on
+// CodeNotSupported, so the warning that explains the missing labels is logged
+// here.
 func (o *Overlay) DrawHintsWithStyle(hints []*Hint, style StyleMode) error {
 	return o.drawHintsInternal(hints, style, true)
 }
@@ -340,11 +364,35 @@ func (o *Overlay) getOrCacheLabel(label string) *C.char {
 }
 
 // drawHintsInternal is the internal implementation for drawing hints.
+//
+// The placement is resolved once, before anything is drawn: it is the same for
+// every label in the set, and both draw paths below take the resolved constant
+// rather than the configured string, so a placement this overlay has no branch
+// for cannot reach the Objective-C side.
+//
+// An empty set is the one draw the refusal does not cover. It means "take the
+// labels off the screen", and a placement decides where a label goes, not
+// whether one can be removed — refusing here would strand whatever is on
+// screen there.
 func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bool) error {
 	if len(hints) == 0 {
 		o.Clear()
 
 		return nil
+	}
+
+	placement, placementErr := hintPlacementValue(style.Placement())
+	if placementErr != nil {
+		// The error reaches the mode handler, which degrades quietly on
+		// CodeNotSupported — so say it here too, or a placement this overlay
+		// cannot draw costs the user every hint with only a debug line to
+		// explain it. The placement is a fixed configuration keyword.
+		o.logger.Warn(
+			"Hint placement not drawn by the macos overlay",
+			zap.String("placement", style.Placement()),
+		)
+
+		return placementErr
 	}
 
 	start := time.Now()
@@ -366,7 +414,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 
 	if canIncrementalUpdate {
 		// Try incremental update
-		if o.drawHintsIncremental(hints, currentInput, style, showArrow) {
+		if o.drawHintsIncremental(hints, currentInput, style, placement, showArrow) {
 			// Update cached state on successful incremental update
 			o.hintStateMu.Lock()
 			o.previousHints = make([]*Hint, len(hints))
@@ -462,7 +510,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 		paddingX:                 C.int(style.PaddingX()),
 		paddingY:                 C.int(style.PaddingY()),
 		showArrow:                C.int(arrowFlag),
-		placement:                C.int(hintPlacementValue(style.Placement())),
+		placement:                C.int(placement),
 		boundaryHighlightEnabled: C.int(boolToInt(style.BoundaryHighlightEnabled())),
 		boundaryBorderWidth:      C.int(style.BoundaryBorderWidth()),
 		boundaryBorderRadius:     C.int(style.BoundaryBorderRadius()),
@@ -500,11 +548,14 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	return nil
 }
 
-// drawHintsIncremental performs incremental updates by only updating changed hints.
+// drawHintsIncremental performs incremental updates by only updating changed
+// hints. It takes the placement already resolved from style, because the caller
+// refuses one it cannot draw before either path begins.
 func (o *Overlay) drawHintsIncremental(
 	hints []*Hint,
 	currentInput string,
 	style StyleMode,
+	placement int,
 	showArrow bool,
 ) bool {
 	o.hintStateMu.RLock()
@@ -543,6 +594,7 @@ func (o *Overlay) drawHintsIncremental(
 		style,
 		previousInput,
 		previousStyle,
+		placement,
 		showArrow,
 	)
 }
@@ -607,7 +659,9 @@ func (o *Overlay) updateMatchesIncremental(newInput string) {
 	}
 }
 
-// drawHintsIncrementalStructural handles structural changes using the incremental C API.
+// drawHintsIncrementalStructural handles structural changes using the
+// incremental C API. Like the full redraw, it takes the resolved placement
+// rather than the configured string.
 func (o *Overlay) drawHintsIncrementalStructural(
 	currentHints []*Hint,
 	previousHints []*Hint,
@@ -615,6 +669,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	currentStyle StyleMode,
 	previousInput string,
 	previousStyle StyleMode,
+	placement int,
 	showArrow bool,
 ) bool {
 	// Build maps for efficient lookup
@@ -714,7 +769,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		paddingX:                 C.int(currentStyle.PaddingX()),
 		paddingY:                 C.int(currentStyle.PaddingY()),
 		showArrow:                C.int(arrowFlag),
-		placement:                C.int(hintPlacementValue(currentStyle.Placement())),
+		placement:                C.int(placement),
 		boundaryHighlightEnabled: C.int(boolToInt(currentStyle.BoundaryHighlightEnabled())),
 		boundaryBorderWidth:      C.int(currentStyle.BoundaryBorderWidth()),
 		boundaryBorderRadius:     C.int(currentStyle.BoundaryBorderRadius()),

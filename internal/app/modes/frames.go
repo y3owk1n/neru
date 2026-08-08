@@ -149,14 +149,19 @@ func (h *handlerState) updateGridPointer(mode domain.Mode, pointer ports.GridPoi
 }
 
 // reportFrameError logs a frame failure. A backend without a surface for the
-// frame says CodeNotSupported, which is degradation rather than failure.
+// frame says CodeNotSupported, which is degradation rather than failure — and
+// so does a backend that has the surface but cannot place what the frame
+// carries, such as a hint placement it has no branch for (#1333).
 func (h *handlerState) reportFrameError(err error, operation string) {
 	if err == nil {
 		return
 	}
 
 	if derrors.IsNotSupported(err) {
-		h.logger.Debug("Overlay frame not supported on this backend",
+		// Either the backend has no surface for this frame or it could not
+		// place the content on one; both mean nothing is on screen, and the
+		// overlay says which it was.
+		h.logger.Debug("Overlay frame not drawn",
 			zap.String("operation", operation))
 
 		return
