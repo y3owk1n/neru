@@ -292,9 +292,11 @@ func (o *sharedOverlay) drawMonitorSelect(
 		o.drawTextCentered(target.Label, labelRect, style.FontFamily, spec.labelFont, spec.text)
 
 		if target.Subtitle != "" {
+			// The subtitle family is never empty: an unset one is settled to
+			// the label's family with the rest of the Style.
 			o.drawTextCentered(
 				target.Subtitle, subtitleRect,
-				monitorSelectSubtitleFamily(style), spec.subtitleFont, spec.subtitleText,
+				style.SubtitleFontFamily, spec.subtitleFont, spec.subtitleText,
 			)
 		}
 	}
@@ -809,7 +811,10 @@ func (o *sharedOverlay) drawVirtualPointer(vp recursivegridcomponent.VirtualPoin
 		vpChar = "\u25CF"
 	}
 
-	fontName := ports.ResolveFont(vp.FontName, false)
+	// FontName arrives resolved: it comes from the Style, which settles every
+	// family it hands out. Resolving again here would be a lock and a cache
+	// lookup per drawn frame for the same answer.
+	fontName := vp.FontName
 	fontSize := float64(vp.Size)
 	// Not badge.CenteredOn: the half is floored at 1 so a pointer configured to
 	// size 0 or 1 still has a box to draw its glyph in.

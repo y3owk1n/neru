@@ -184,24 +184,28 @@ func TestStyleResolver_ZeroValueTheme(t *testing.T) {
 type styleTestManager struct {
 	headlessManager
 
-	mu    sync.Mutex
-	fills []string
-	sizes []int
+	mu       sync.Mutex
+	pointers []overlay.PointerAppearance
+	sizes    []int
 }
 
-func (m *styleTestManager) ConfigureComponents(cfg *config.Config, virtualPointerFill string) {
+func (m *styleTestManager) ConfigureComponents(
+	cfg *config.Config,
+	pointer overlay.PointerAppearance,
+) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.fills = append(m.fills, virtualPointerFill)
+	m.pointers = append(m.pointers, pointer)
 	m.sizes = append(m.sizes, cfg.Hints.UI.FontSize)
 }
 
-func (m *styleTestManager) notifications() ([]string, []int) {
+func (m *styleTestManager) notifications() ([]overlay.PointerAppearance, []int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return append([]string(nil), m.fills...), append([]int(nil), m.sizes...)
+	return append([]overlay.PointerAppearance(nil), m.pointers...),
+		append([]int(nil), m.sizes...)
 }
 
 // TestStyleResolver_ApplyNotifiesTheComponentsOnce pins what a config reload
@@ -218,8 +222,8 @@ func TestStyleResolver_ApplyNotifiesTheComponentsOnce(t *testing.T) {
 	manager := &styleTestManager{}
 	resolver := overlay.NewStyleResolver(manager, cfg, &countingTheme{}, zap.NewNop())
 
-	if fills, _ := manager.notifications(); len(fills) != 0 {
-		t.Fatalf("constructing the resolver notified %d times, want 0", len(fills))
+	if pointers, _ := manager.notifications(); len(pointers) != 0 {
+		t.Fatalf("constructing the resolver notified %d times, want 0", len(pointers))
 	}
 
 	reloaded := config.DefaultConfig()
@@ -227,28 +231,28 @@ func TestStyleResolver_ApplyNotifiesTheComponentsOnce(t *testing.T) {
 
 	resolver.Apply(reloaded)
 
-	fills, sizes := manager.notifications()
-	if len(fills) != 1 {
-		t.Fatalf("a config reload notified %d times, want 1", len(fills))
+	pointers, sizes := manager.notifications()
+	if len(pointers) != 1 {
+		t.Fatalf("a config reload notified %d times, want 1", len(pointers))
 	}
 
 	if sizes[0] != 33 {
 		t.Errorf("notified hints font size = %d, want the reloaded 33", sizes[0])
 	}
 
-	if fills[0] != resolver.Style().VirtualPointer.FillColor {
+	if pointers[0].FillColor != resolver.Style().VirtualPointer.FillColor {
 		t.Errorf(
 			"notified virtual pointer fill = %q, want the resolved %q",
-			fills[0],
+			pointers[0].FillColor,
 			resolver.Style().VirtualPointer.FillColor,
 		)
 	}
 
 	resolver.Refresh()
 
-	fills, sizes = manager.notifications()
-	if len(fills) != 2 {
-		t.Fatalf("a theme change notified %d times in total, want 2", len(fills))
+	pointers, sizes = manager.notifications()
+	if len(pointers) != 2 {
+		t.Fatalf("a theme change notified %d times in total, want 2", len(pointers))
 	}
 
 	// A theme change carries the configuration the resolver already holds, not
@@ -325,6 +329,170 @@ func TestStyleResolver_ConcurrentApplyAndRead(t *testing.T) {
 	// value here.
 	if got := resolver.Style().Hints.FontSize(); got != 41 {
 		t.Errorf("resolved hints font size = %d, want 41: a theme change reverted a reload", got)
+	}
+}
+
+// markerFontResolver stands in for a platform font resolver. It answers with a
+// marker around the name it was asked, so a family that reached it can be told
+// apart from one copied straight out of the configuration.
+type markerFontResolver struct{}
+
+func (markerFontResolver) Resolve(family string, _ bool) string {
+	return "resolved(" + family + ")"
+}
+
+// writtenAlias is a generic alias in a spelling no font engine understands
+// literally, and resolvedAlias is what markerFontResolver answers it with. A
+// family that still reads as the written one never reached the resolver.
+const (
+	writtenAlias  = "sans_serif"
+	resolvedAlias = "resolved(" + writtenAlias + ")"
+)
+
+// TestStyleResolver_RoutesItsFontFamiliesThroughTheResolver pins the three
+// families that used to be copied out of the configuration verbatim, so a
+// generic alias reached the platform as a family name nothing is installed
+// under and the overlay silently fell back to the system font (#1305). Every
+// other overlay's family goes through the shared resolver; these must too.
+//
+// Not parallel: the font resolver is process-wide.
+func TestStyleResolver_RoutesItsFontFamiliesThroughTheResolver(t *testing.T) {
+	ports.SetFontResolver(markerFontResolver{})
+	t.Cleanup(func() { ports.SetFontResolver(nil) })
+
+	cfg := config.DefaultConfig()
+	cfg.MonitorSelect.UI.FontFamily = writtenAlias
+	cfg.MonitorSelect.UI.SubtitleFontFamily = "mono space"
+	cfg.VirtualPointer.UI.FontFamily = "sans-serif"
+
+	style := overlay.NewStyleResolver(
+		&headlessManager{}, cfg, &countingTheme{}, zap.NewNop(),
+	).Style()
+
+	cases := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"monitor-select label", style.MonitorSelect.FontFamily, resolvedAlias},
+		{"monitor-select subtitle", style.MonitorSelect.SubtitleFontFamily, "resolved(mono space)"},
+		{"virtual pointer", style.VirtualPointer.FontFamily, "resolved(sans-serif)"},
+	}
+
+	for _, testCase := range cases {
+		if testCase.got != testCase.want {
+			t.Errorf(
+				"%s font family = %q, want %q: the configured family never reached the resolver",
+				testCase.name,
+				testCase.got,
+				testCase.want,
+			)
+		}
+	}
+}
+
+// TestStyleResolver_NotifiesTheComponentsOfTheResolvedPointerFamily pins the
+// other half of the same fix: the components that draw the virtual pointer
+// read the family out of the configuration they are handed, so the resolved
+// one has to travel with the notification. Without it macOS keeps drawing the
+// written name — the alias never reaches a face, and the platform falls back
+// to the system font (#1305).
+//
+// Not parallel: the font resolver is process-wide.
+func TestStyleResolver_NotifiesTheComponentsOfTheResolvedPointerFamily(t *testing.T) {
+	ports.SetFontResolver(markerFontResolver{})
+	t.Cleanup(func() { ports.SetFontResolver(nil) })
+
+	cfg := config.DefaultConfig()
+	cfg.VirtualPointer.UI.FontFamily = writtenAlias
+
+	manager := &styleTestManager{}
+	resolver := overlay.NewStyleResolver(
+		manager,
+		config.DefaultConfig(),
+		&countingTheme{},
+		zap.NewNop(),
+	)
+
+	resolver.Apply(cfg)
+
+	pointers, _ := manager.notifications()
+	if len(pointers) != 1 {
+		t.Fatalf("a config reload notified %d times, want 1", len(pointers))
+	}
+
+	if got := pointers[0].FontFamily; got != resolvedAlias {
+		t.Errorf(
+			"notified virtual pointer font family = %q, want the resolved %q",
+			got,
+			resolvedAlias,
+		)
+	}
+}
+
+// TestAdapterShowFrame_CarriesTheResolvedPointerFamily is the third and last
+// way the pointer's family reaches a backend: on the recursive-grid frame.
+// The Linux and Windows draws take that name straight to the text layer now
+// that nothing resolves a second time downstream, so a frame carrying the
+// written name would put an alias in front of a font engine again (#1305).
+//
+// Not parallel: the font resolver is process-wide.
+func TestAdapterShowFrame_CarriesTheResolvedPointerFamily(t *testing.T) {
+	ports.SetFontResolver(markerFontResolver{})
+	t.Cleanup(func() { ports.SetFontResolver(nil) })
+
+	cfg := config.DefaultConfig()
+	cfg.VirtualPointer.UI.FontFamily = writtenAlias
+
+	manager := newScreenManager()
+	resolver := overlay.NewStyleResolver(manager, cfg, &countingTheme{}, zap.NewNop())
+	adapter := overlay.NewAdapter(manager, resolver, zap.NewNop())
+
+	err := adapter.ShowFrame(context.Background(), ports.RecursiveGridFrame{
+		Bounds:     image.Rect(10, 20, 210, 220),
+		Layout:     ports.RecursiveGridLayout{Keys: "uiop", GridCols: 2, GridRows: 2},
+		NextLayout: ports.RecursiveGridLayout{Keys: "hjkl", GridCols: 2, GridRows: 2},
+		Pointer:    ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
+	})
+	if err != nil {
+		t.Fatalf("ShowFrame() error = %v", err)
+	}
+
+	if got := manager.recursiveGrid.pointer.FontName; got != resolvedAlias {
+		t.Errorf(
+			"pointer font name on the frame = %q, want the resolved %q",
+			got,
+			resolvedAlias,
+		)
+	}
+}
+
+// TestStyleResolver_SubtitleFamilyFallsBackBeforeResolution pins that an unset
+// subtitle family still means "draw the subtitle in the label's family". The
+// resolver answers an empty name with the platform's sans-serif face, so
+// resolving first and falling back afterwards would never fall back at all,
+// and a monitor picker configured with one family would draw its subtitles in
+// another.
+//
+// Not parallel: the font resolver is process-wide.
+func TestStyleResolver_SubtitleFamilyFallsBackBeforeResolution(t *testing.T) {
+	ports.SetFontResolver(markerFontResolver{})
+	t.Cleanup(func() { ports.SetFontResolver(nil) })
+
+	cfg := config.DefaultConfig()
+	cfg.MonitorSelect.UI.FontFamily = "JetBrains Mono"
+	cfg.MonitorSelect.UI.SubtitleFontFamily = ""
+
+	style := overlay.NewStyleResolver(
+		&headlessManager{}, cfg, &countingTheme{}, zap.NewNop(),
+	).Style()
+
+	if got := style.MonitorSelect.SubtitleFontFamily; got != style.MonitorSelect.FontFamily {
+		t.Errorf(
+			"subtitle font family = %q, want the label's %q",
+			got,
+			style.MonitorSelect.FontFamily,
+		)
 	}
 }
 

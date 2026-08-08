@@ -858,16 +858,6 @@ func newMonitorSelectDrawSpec(style manager.MonitorSelectStyle) monitorSelectDra
 	}
 }
 
-// monitorSelectSubtitleFamily falls back to the primary font family when no
-// dedicated subtitle family is configured.
-func monitorSelectSubtitleFamily(style manager.MonitorSelectStyle) string {
-	if style.SubtitleFontFamily != "" {
-		return style.SubtitleFontFamily
-	}
-
-	return style.FontFamily
-}
-
 // DrawMonitorSelect renders one labeled panel per monitor for the interactive
 // monitor picker, then shows the overlay. Unlike macOS (one NSPanel per display)
 // this reuses the shared spanning X11 window / per-output layer-shell surfaces.

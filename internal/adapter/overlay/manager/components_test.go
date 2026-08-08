@@ -11,6 +11,11 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// testPointer is a resolved virtual-pointer appearance for the notifications
+// these tests send. Its values are arbitrary; what they stand for is that a
+// caller always has both resolved by the time it notifies.
+var testPointer = manager.PointerAppearance{FillColor: "#ffffff", FontFamily: "Test Sans"}
+
 // lightTheme is a fixed appearance, so building a component needs no system.
 type lightTheme struct{}
 
@@ -75,7 +80,7 @@ func TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone(t *testing.T) {
 	enabled.Hints.Enabled = true
 	enabled.Hints.UI.FontSize = 33
 
-	base.ConfigureComponents(enabled, "#ffffff")
+	base.ConfigureComponents(enabled, testPointer)
 
 	if got := hintOverlay.Config().UI.FontSize; got != 33 {
 		t.Fatalf("hints overlay font size after an enabled reload = %d, want 33", got)
@@ -85,7 +90,7 @@ func TestBase_ConfigureComponents_LeavesDisabledOverlaysAlone(t *testing.T) {
 	disabled.Hints.Enabled = false
 	disabled.Hints.UI.FontSize = 44
 
-	base.ConfigureComponents(disabled, "#ffffff")
+	base.ConfigureComponents(disabled, testPointer)
 
 	if got := hintOverlay.Config().UI.FontSize; got != 33 {
 		t.Errorf("a disabled hints overlay was reconfigured: font size = %d, want 33", got)
@@ -101,8 +106,8 @@ func TestBase_ConfigureComponents_WithoutComponents(t *testing.T) {
 
 	base := manager.NewBase(nil)
 
-	base.ConfigureComponents(config.DefaultConfig(), "#ffffff")
-	base.ConfigureComponents(nil, "")
+	base.ConfigureComponents(config.DefaultConfig(), testPointer)
+	base.ConfigureComponents(nil, manager.PointerAppearance{})
 
 	if got := base.GridOverlay(); got != nil {
 		t.Errorf("GridOverlay() = %v, want nil: a notification registered a component", got)

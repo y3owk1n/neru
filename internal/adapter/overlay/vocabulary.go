@@ -19,6 +19,9 @@ type (
 	StateChange = manager.StateChange
 	// MonitorSelectStyle styles the monitor-select overlay.
 	MonitorSelectStyle = manager.MonitorSelectStyle
+	// PointerAppearance is the resolved virtual-pointer look a configuration
+	// notification carries to the render components.
+	PointerAppearance = manager.PointerAppearance
 	// MonitorSelectTarget is one labeled monitor.
 	MonitorSelectTarget = manager.MonitorSelectTarget
 	// MonitorSelector is the optional capability a backend declares when it

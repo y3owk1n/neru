@@ -64,7 +64,7 @@ func (m *lifecycleManager) SetSharingType(hide bool) {
 
 func (m *lifecycleManager) Destroy() { m.destroys++ }
 
-func (m *lifecycleManager) ConfigureComponents(cfg *config.Config, _ string) {
+func (m *lifecycleManager) ConfigureComponents(cfg *config.Config, _ overlay.PointerAppearance) {
 	m.configures++
 	m.configuredFor = cfg.Hints.UI.FontSize
 }

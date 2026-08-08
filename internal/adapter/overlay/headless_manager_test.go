@@ -79,7 +79,11 @@ func (n *headlessManager) BuildComponents(
 }
 
 // ConfigureComponents is a no-op implementation.
-func (n *headlessManager) ConfigureComponents(cfg *config.Config, virtualPointerFill string) {}
+func (n *headlessManager) ConfigureComponents(
+	cfg *config.Config,
+	pointer overlay.PointerAppearance,
+) {
+}
 
 // DrawHintsWithStyle is a no-op implementation.
 func (n *headlessManager) DrawHintsWithStyle(
