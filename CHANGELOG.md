@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.51.0](https://github.com/y3owk1n/neru/compare/v1.50.0...v1.51.0) (2026-08-08)
+
+
+### Features
+
+* **cli:** refuse mode command arguments that were accepted and ignored ([#1200](https://github.com/y3owk1n/neru/issues/1200)) ([17f304e](https://github.com/y3owk1n/neru/commit/17f304eb5377edf68a9e4d9de71ae34a3baa23b4))
+* **config:** catch a mistyped mode flag in a binding when the config loads ([#1201](https://github.com/y3owk1n/neru/issues/1201)) ([9bce87c](https://github.com/y3owk1n/neru/commit/9bce87ce5f13a74e074ca1b0d0cd626fe8982a0c))
+* **hints:** make --debug a read-only probe command of its own ([#1197](https://github.com/y3owk1n/neru/issues/1197)) ([5db952f](https://github.com/y3owk1n/neru/commit/5db952f56be006ee6902ead7f14364fb7fe8c9d3))
+* **modes:** refuse mode flags that were accepted and then ignored ([#1198](https://github.com/y3owk1n/neru/issues/1198)) ([1a3d9c0](https://github.com/y3owk1n/neru/commit/1a3d9c0cd3774c87db380154327b67e24798d346))
+* **nix:** add services.neru.settings TOML configuration support ([#1332](https://github.com/y3owk1n/neru/issues/1332)) ([4bc637e](https://github.com/y3owk1n/neru/commit/4bc637e770251276cf1894ee5638d30fb4c67074))
+* **smooth_cursor:** animate relative cursor moves on Linux ([#1183](https://github.com/y3owk1n/neru/issues/1183)) ([cb00d07](https://github.com/y3owk1n/neru/commit/cb00d079a402fdbbb4a67563502987bbdf21d98a))
+* **smooth_cursor:** animate relative cursor moves with a fixed per-move duration ([#1179](https://github.com/y3owk1n/neru/issues/1179)) ([471235a](https://github.com/y3owk1n/neru/commit/471235a628da983756d38ce39c5f25253cf45b80))
+
+
+### Bug Fixes
+
+* **accessibility:** stop priming from opening status-bar menus ([#1307](https://github.com/y3owk1n/neru/issues/1307)) ([c8cee2f](https://github.com/y3owk1n/neru/commit/c8cee2fddb3ed61c89cf3f236f4d1ff08e6d10fb))
+* **app:** notice the first application switch after the daemon starts ([#1355](https://github.com/y3owk1n/neru/issues/1355)) ([4506c3c](https://github.com/y3owk1n/neru/commit/4506c3ced9ebeb84a4d8d04d6568845eba51f5eb))
+* **config:** keep the grid labelled from the characters it is built with ([#1264](https://github.com/y3owk1n/neru/issues/1264)) ([3950c8a](https://github.com/y3owk1n/neru/commit/3950c8aefc2be7ffccb12378b106f65996667684))
+* **config:** reload the grid without racing a mode activation ([#1284](https://github.com/y3owk1n/neru/issues/1284)) ([bab09a2](https://github.com/y3owk1n/neru/commit/bab09a2e2384f0012bb4cd2668d3080b1e121cc8))
+* **config:** report a grid label set that leaves cells unreachable ([#1280](https://github.com/y3owk1n/neru/issues/1280)) ([339ae1f](https://github.com/y3owk1n/neru/commit/339ae1fb63ec4ac241326dcd92258cdf29c45c29))
+* **config:** report an inert held-repeat acceleration setting in config validate ([#1260](https://github.com/y3owk1n/neru/issues/1260)) ([530981e](https://github.com/y3owk1n/neru/commit/530981e1d55e3bcbfeeca1e699999d9ad4c07115))
+* **config:** report every faulty grid label in one validate run ([#1285](https://github.com/y3owk1n/neru/issues/1285)) ([dfdb0c8](https://github.com/y3owk1n/neru/commit/dfdb0c8d47093b0186c113b753355d4fb0219fa2))
+* **config:** update derived values when config set changes their source ([#1274](https://github.com/y3owk1n/neru/issues/1274)) ([76e444d](https://github.com/y3owk1n/neru/commit/76e444d8cf6954267f93226e0c07d89e5ae2ef42))
+* **darwin:** repair overlays the WindowServer silently pins to one Space ([#1181](https://github.com/y3owk1n/neru/issues/1181)) ([3129f3a](https://github.com/y3owk1n/neru/commit/3129f3a27004222b096e233acaf17ddc79ce8fb9))
+* **eventtap:** apply per-app hotkey overrides after switching apps mid-mode ([#1273](https://github.com/y3owk1n/neru/issues/1273)) ([17a34a9](https://github.com/y3owk1n/neru/commit/17a34a9b02454f5cf43c5beb160a1b7d039a1592))
+* **grid:** draw the subgrid with the keys it accepts ([#1275](https://github.com/y3owk1n/neru/issues/1275)) ([16564ea](https://github.com/y3owk1n/neru/commit/16564eab743ff095335df19d083e28effe03ec18))
+* **grid:** drop o from the alphabet a misconfigured grid falls back to ([#1282](https://github.com/y3owk1n/neru/issues/1282)) ([ccfc21c](https://github.com/y3owk1n/neru/commit/ccfc21cd2fd596c45598ade313d6a46f16d7526c))
+* **grid:** stop a repeated character drawing cells nothing can select ([#1283](https://github.com/y3owk1n/neru/issues/1283)) ([247c5c1](https://github.com/y3owk1n/neru/commit/247c5c1a6d7348f953f012dd05f83609876c9c8d))
+* **hints:** restore --debug printing elements instead of drawing hints ([#1196](https://github.com/y3owk1n/neru/issues/1196)) ([c9bae53](https://github.com/y3owk1n/neru/commit/c9bae5358762e4521edc929ae90df372dc5d4e54))
+* **hints:** stop a hung app blocking the keyboard when a display changes ([#1248](https://github.com/y3owk1n/neru/issues/1248)) ([e6ff491](https://github.com/y3owk1n/neru/commit/e6ff491f56043dbff23b2b6960f2b46cc3a48933))
+* **linux:** fall back to the generic font when the configured family is not installed ([#1340](https://github.com/y3owk1n/neru/issues/1340)) ([7fcdc3e](https://github.com/y3owk1n/neru/commit/7fcdc3e54934aaa4b2a5bd262626da068da5ec03))
+* **linux:** honour the corner radius on hint boundaries and recursive-grid labels ([#1357](https://github.com/y3owk1n/neru/issues/1357)) ([c067d44](https://github.com/y3owk1n/neru/commit/c067d4488c41982b823c041212cafeac625a0695))
+* **linux:** report a hint placement the overlay cannot draw ([#1331](https://github.com/y3owk1n/neru/issues/1331)) ([b1afe4b](https://github.com/y3owk1n/neru/commit/b1afe4bcff5618982393df41093e30c7a7d66c56))
+* **linux:** stop reporting a hint search input the overlay never draws ([#1354](https://github.com/y3owk1n/neru/issues/1354)) ([10efe0f](https://github.com/y3owk1n/neru/commit/10efe0f2a9450cdc2a6b1c675a9e2118a77deb25))
+* **modes:** keep a wedged app from stalling a keystroke inside a mode ([#1251](https://github.com/y3owk1n/neru/issues/1251)) ([e70dc86](https://github.com/y3owk1n/neru/commit/e70dc86c3d4147078a3e5a06d48219fafeba1ead))
+* **modes:** stop the monitor-move lock test failing on a busy machine ([#1247](https://github.com/y3owk1n/neru/issues/1247)) ([b11d008](https://github.com/y3owk1n/neru/commit/b11d00868abd731ccfeea723a13c624bc3f61e67))
+* **overlay:** honour generic font aliases in the monitor picker and virtual pointer ([#1336](https://github.com/y3owk1n/neru/issues/1336)) ([4f7d684](https://github.com/y3owk1n/neru/commit/4f7d684949d08a491e84ef39e94da186c19877d2))
+* **overlay:** honour the virtual pointer's char and font size defaults on macOS ([#1358](https://github.com/y3owk1n/neru/issues/1358)) ([297f4e4](https://github.com/y3owk1n/neru/commit/297f4e449f7370ecdb1f805eb41ec72f4584c69a))
+* **overlay:** keep odd-sized badges at their full size ([#1330](https://github.com/y3owk1n/neru/issues/1330)) ([bcc63f7](https://github.com/y3owk1n/neru/commit/bcc63f7df1805596786eebe7b938ae54150809ec))
+* **overlay:** report a hint label placement the macOS overlay cannot draw ([#1360](https://github.com/y3owk1n/neru/issues/1360)) ([d7b5844](https://github.com/y3owk1n/neru/commit/d7b5844b435f810269f9bcbf933a8aa7f01910e6))
+* **overlay:** report a hint search input anchor the overlay cannot place ([#1356](https://github.com/y3owk1n/neru/issues/1356)) ([e1d5558](https://github.com/y3owk1n/neru/commit/e1d55587c1762aeff75eab0217c5866fa66a4b62))
+* **overlay:** resolve each font family name from its own spelling ([#1308](https://github.com/y3owk1n/neru/issues/1308)) ([c053f52](https://github.com/y3owk1n/neru/commit/c053f529cb53b84a3452021440183b1f2d46f971))
+* **overlay:** resolve generic font names the same way on every platform ([#1290](https://github.com/y3owk1n/neru/issues/1290)) ([8accea2](https://github.com/y3owk1n/neru/commit/8accea26ac1e32f559a6c892ac66fecaed4a7804))
+* **scroll:** anchor scrolls where the cursor is headed during animated moves ([#1182](https://github.com/y3owk1n/neru/issues/1182)) ([c56be6b](https://github.com/y3owk1n/neru/commit/c56be6bd2414b242231a7774622af3ec32d4f8d9))
+
+
+### Performance Improvements
+
+* **windows:** stop re-resolving the font family on every drawn overlay label ([#1361](https://github.com/y3owk1n/neru/issues/1361)) ([c68f80b](https://github.com/y3owk1n/neru/commit/c68f80b85fec1048cf1469eb6d178467782fa761))
+
 ## [1.50.0](https://github.com/y3owk1n/neru/compare/v1.49.0...v1.50.0) (2026-08-04)
 
 
