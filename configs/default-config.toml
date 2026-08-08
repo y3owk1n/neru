@@ -131,7 +131,7 @@ visible_check_enabled = false
 
 [hints.ui]
 font_size = 10
-font_family = ""                            # Empty = system font
+font_family = ""                            # Empty = the platform's sans, per the aliases above
 border_radius = -1                          # -1 = auto pill
 padding_x = -1                              # -1 = auto based on font size
 padding_y = -1                              # -1 = auto based on font size
@@ -142,7 +142,7 @@ placement = "bottom"                        # top, center, bottom
 
 [hints.search_input_ui]
 font_size = 10
-font_family = ""                            # Empty = system font
+font_family = ""                            # Empty = the platform's sans, per the aliases above
 border_radius = -1                          # -1 = auto pill
 padding_x = -1                              # -1 = auto based on font size
 padding_y = -1                              # -1 = auto based on font size

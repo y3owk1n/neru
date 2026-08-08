@@ -853,7 +853,7 @@ hints.clickable_roles: unknown role "AXButton": use "button"
 | Option               | Type   | Default    | Description                                |
 | -------------------- | ------ | ---------- | ------------------------------------------ |
 | `font_size`          | int    | `10`       | Font size in points                        |
-| `font_family`        | string | `""`       | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`        | string | `""`       | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `border_radius`      | int    | `-1`       | Corner radius (-1 = auto)                  |
 | `padding_x`          | int    | `-1`       | Horizontal padding (-1 = auto)             |
 | `padding_y`          | int    | `-1`       | Vertical padding (-1 = auto)               |
@@ -1058,7 +1058,7 @@ one subgrid cell unlabelled, which is visible on screen in a way a warning is no
 | Option                     | Type   | Default | Description                          |
 | -------------------------- | ------ | ------- | ------------------------------------ |
 | `font_size`                | int    | `10`    | Font size in points                  |
-| `font_family`              | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`              | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `border_width`             | int    | `1`     | Border width in pixels               |
 | `background_color`         | color  | derived | Cell background                      |
 | `text_color`               | color  | derived | Label text                           |
@@ -1135,7 +1135,7 @@ layers = [
 | Option                                | Type   | Default | Description                                                                  |
 | ------------------------------------- | ------ | ------- | ---------------------------------------------------------------------------- |
 | `font_size`                           | int    | `10`    | Font size                                                                    |
-| `font_family`                         | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`                         | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `line_width`                          | int    | `1`     | Grid line width                                                              |
 | `line_color`                          | color  | derived | Grid line color                                                              |
 | `highlight_color`                     | color  | derived | Selected cell highlight                                                      |
@@ -1241,7 +1241,7 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | Key                    | Default       | Description                       |
 | ---------------------- | ------------- | --------------------------------- |
 | `font_size`            | `96`          | Badge label font size             |
-| `font_family`          | `""` (system) | Badge label font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`          | `""` (sans)   | Badge label font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `subtitle_font_size`   | `18`          | Monitor name subtitle font size   |
 | `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `border_radius`        | `-1` (auto)   | Badge corner radius               |
@@ -1303,7 +1303,7 @@ from them too; which platforms draw which is in the
 | ------------- | ------ | ------- | ---------------------------- |
 | `char`        | string | `"●"`   | Character to display         |
 | `font_size`   | int    | `8`     | Font size in points          |
-| `font_family` | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family` | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `text_color`  | color  | derived | Character color              |
 
 ```toml
@@ -1411,7 +1411,7 @@ text = "Monitor Select"
 | Option               | Type   | Default | Description                             |
 | -------------------- | ------ | ------- | --------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                               |
-| `font_family`        | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`        | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `background_color`   | color  | derived | Background with alpha                   |
 | `text_color`         | color  | derived | Text color                              |
 | `border_color`       | color  | derived | Border color                            |
@@ -1449,7 +1449,7 @@ Tap modifiers inside a mode to make them sticky for subsequent actions.
 | Option               | Type   | Default | Description                            |
 | -------------------- | ------ | ------- | -------------------------------------- |
 | `font_size`          | int    | `10`    | Font size                              |
-| `font_family`        | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
+| `font_family`        | string | `""`    | Font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted, empty among them — it asks for the platform's sans family |
 | `background_color`   | color  | derived | Background with alpha                  |
 | `text_color`         | color  | derived | Text color                             |
 | `border_color`       | color  | derived | Border color                           |
