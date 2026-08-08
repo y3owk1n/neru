@@ -200,8 +200,9 @@ func (s Style) LabelAutohideMultiplier() float64 {
 // producing two different screens. The macOS backend asks the same question in
 // Objective-C (drawGridLabel: in
 // internal/adapter/platform/darwin/overlay_darwin.m), so Go cannot be its one
-// implementation; it agrees today and nothing yet pins it, which is the test
-// ADR 0007 says is owed where the second implementation is in another language.
+// implementation; ADR 0007 asks for a test holding that copy to this one
+// instead, and internal/architecture/label_autohide_rule_test.go is it — change
+// the rule here and that test fails until the Objective-C copy follows.
 func (s Style) ShowLabelIn(cell image.Rectangle) bool {
 	if s.labelAutohideMultiplier <= 0 {
 		return true
