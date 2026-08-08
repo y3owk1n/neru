@@ -103,7 +103,7 @@ Every option not listed here behaves the same on all three platforms.
 | `hints.on_mission_control_deactivated`    | Yes   | No    | No      | Never fires.                                         |
 | `[hints.search_input_ui]`                 | Yes   | No    | Yes     | Linux: search filtering works, but the input badge is not drawn. |
 | `[monitor_select]`                        | Yes   | Yes   | No      | Windows: the mode returns `ERR_NOT_SUPPORTED`.       |
-| `[virtual_pointer]`                       | Yes   | No    | No      | Ignored; pairs with macOS-only cursor hiding.        |
+| `[virtual_pointer]`                       | Yes   | Partial | Partial | Linux and Windows: the standalone overlay is not drawn (it pairs with macOS-only cursor hiding), but these options still style the recursive-grid in-frame pointer. |
 | `[smooth_cursor]`                         | Yes   | Yes   | No      | Windows: cursor moves instantly.                     |
 | `smooth_cursor.relative_movement_duration` | Yes  | Yes   | No      | Windows: relative moves stay instant.                |
 | `[smooth_scroll]`                         | Yes   | No    | No      | Linux and Windows: scrolling is instant.             |
@@ -1286,12 +1286,16 @@ backdrop_color = ""
 ## [virtual_pointer]
 
 A small character rendered at the cursor position when the system cursor is
-hidden.
+hidden — the standalone virtual-pointer overlay.
 
-**Platforms:** macOS only. This section pairs with `hide_cursor`, which has no
-cross-platform equivalent, so it is a no-op on Linux and Windows. The separate
-virtual-pointer indicator drawn inside the recursive-grid overlay works on all
-platforms and is configured under [`[recursive_grid]`](#recursive_grid).
+**Platforms:** macOS only for that standalone overlay. It pairs with
+`hide_cursor`, which has no cross-platform equivalent, so it is a no-op on Linux
+and Windows. The separate virtual-pointer indicator drawn inside the
+recursive-grid overlay works on all platforms, and it takes its character, size,
+family and color from these same `[virtual_pointer.ui]` options — there is no
+pointer option under `[recursive_grid]`. Grid mode draws its in-frame indicator
+from them too; which platforms draw which is in the
+[mode coverage matrix](CROSS_PLATFORM.md#mode-coverage).
 
 ### UI
 
