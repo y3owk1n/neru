@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -184,7 +185,10 @@ func (o *winOverlay) DrawRecursiveGrid(
 
 	keyRunes := []rune(strings.ToUpper(keys))
 
-	cellRects := recursivegrid.ComputeGridCells(bounds, gridCols, gridRows)
+	cellRects := recursivegrid.ComputeGridCells(
+		bounds,
+		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
+	)
 	for idx, cell := range cellRects {
 		if style.HighlightColorARGB() != 0 {
 			o.window.FillRect(cell, style.HighlightColorARGB())

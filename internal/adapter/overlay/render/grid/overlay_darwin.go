@@ -463,7 +463,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 
 	// The rectangles those keys are drawn on, which are the rectangles the mode
 	// layer moves the cursor into (internal/domain/grid/subgrid_cells.go).
-	subCells := domainGrid.SubgridCells(cell.Bounds(), domain.SubgridRows, domain.SubgridCols)
+	subCells := domainGrid.SubgridCells(cell.Bounds(), domain.SubgridDimensions())
 
 	// One cell per key, and fewer keys than cells is a configuration that
 	// leaves the last cells unlabelled: the key set is capped at the same count

@@ -21,16 +21,20 @@ type Manager struct {
 	inSubgrid     bool
 	selectedCell  *Cell
 	// Subgrid configuration
-	subRows int
-	subCols int
+	subDims domain.GridDimensions
 	subKeys string
 }
 
 // NewManager creates a new grid manager with the specified configuration.
+//
+// subDims is the shape of the subgrid a cell opens into. It is one value rather
+// than a row count beside a column count because it is handed straight to
+// SubgridCells, which decides where a subgrid key sends the cursor: an adjacent
+// pair here would just be the transposition SubgridCells no longer has, one
+// call up (#1294).
 func NewManager(
 	grid *Grid,
-	subRows int,
-	subCols int,
+	subDims domain.GridDimensions,
 	subKeys string,
 	onUpdate func(redraw bool),
 	onShowSub func(cell *Cell),
@@ -50,9 +54,8 @@ func NewManager(
 		labelLength: labelLength,
 		onUpdate:    onUpdate,
 		onShowSub:   onShowSub,
-		subRows:     subRows,
-		subCols:     subCols,
-		subKeys:     string(SubgridKeys(subKeys, subRows*subCols)),
+		subDims:     subDims,
+		subKeys:     string(SubgridKeys(subKeys, subDims.CellCount())),
 	}
 }
 
@@ -153,7 +156,7 @@ func (m *Manager) UpdateGrid(g *Grid) {
 // the set an overlay draws (SubgridKeys), so the keys accepted here are the
 // keys the user can see.
 func (m *Manager) UpdateSubKeys(subKeys string) {
-	m.subKeys = string(SubgridKeys(subKeys, m.subRows*m.subCols))
+	m.subKeys = string(SubgridKeys(subKeys, m.subDims.CellCount()))
 }
 
 // HandleBackspace applies grid backspace behavior: delete one input character,
@@ -327,7 +330,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	// The cells this subgrid is divided into, which are the cells every overlay
 	// backend draws (internal/domain/grid/subgrid_cells.go), so the cursor
 	// lands in the cell the key was written on.
-	cells := SubgridCells(m.selectedCell.bounds, m.subRows, m.subCols)
+	cells := SubgridCells(m.selectedCell.bounds, m.subDims)
 
 	// A key past the last cell names nothing. The bound is this manager's own
 	// cell count rather than the shipped subgrid's, because the manager is
@@ -342,7 +345,7 @@ func (m *Manager) handleSubgridSelection(key string) (image.Point, bool) {
 	xCoordinate := selected.Min.X + gridRound(selected.Dx())
 	yCoordinate := selected.Min.Y + gridRound(selected.Dy())
 	m.Logger.Debug("Grid manager: Subgrid selection complete",
-		zap.Int("row", keyIndex/m.subCols), zap.Int("col", keyIndex%m.subCols),
+		zap.Int("row", keyIndex/m.subDims.Cols), zap.Int("col", keyIndex%m.subDims.Cols),
 		zap.Int("x", xCoordinate), zap.Int("y", yCoordinate))
 	// m.Reset()
 	return image.Point{X: xCoordinate, Y: yCoordinate}, true

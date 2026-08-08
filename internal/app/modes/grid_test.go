@@ -11,6 +11,7 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
@@ -31,8 +32,7 @@ func TestHandleGridModeKey_CompleteSelectionDoesNotMoveWhenCursorFollowSelection
 
 	manager := domainGrid.NewManager(
 		gridInstance,
-		3,
-		3,
+		domain.GridDimensions{Rows: 3, Cols: 3},
 		"asdfghjkl",
 		nil,
 		nil,

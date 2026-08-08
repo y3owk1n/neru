@@ -2,6 +2,8 @@ package recursivegrid
 
 import (
 	"image"
+
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 const (
@@ -129,13 +131,25 @@ func (qg *RecursiveGrid) GridRows() int {
 // single level differ in size by at most 1 pixel and the grid fills the entire
 // bounds contiguously without gaps. This is the single source of truth for cell
 // positions shared by Divide() and all platform overlay renderers.
-func ComputeGridCells(bounds image.Rectangle, cols, rows int) []image.Rectangle {
+//
+// The dimensions arrive together as a domain.GridDimensions rather than as a
+// row count and a column count so that there is no pair of ints to transpose:
+// grid.SubgridCells divides a rectangle too, and the two used to take their
+// counts in opposite orders (#1294).
+//
+// This division is deliberately not grid.SubgridCells. It gives the spare
+// pixels of an uneven division to the first cells, where the subgrid rounds
+// each break instead; both are correct for their caller and merging them would
+// move where a key sends the cursor.
+func ComputeGridCells(bounds image.Rectangle, dims domain.GridDimensions) []image.Rectangle {
+	rows, cols := dims.Rows, dims.Cols
+
 	baseW := bounds.Dx() / cols
 	baseH := bounds.Dy() / rows
 	remW := bounds.Dx() % cols
 	remH := bounds.Dy() % rows
 
-	cells := make([]image.Rectangle, cols*rows)
+	cells := make([]image.Rectangle, dims.CellCount())
 
 	currentY := bounds.Min.Y
 	for row := range rows {
@@ -171,7 +185,13 @@ func ComputeGridCells(bounds image.Rectangle, cols, rows int) []image.Rectangle 
 func (qg *RecursiveGrid) Divide() []image.Rectangle {
 	layout := qg.LayoutForDepth(qg.depth)
 
-	return ComputeGridCells(qg.currentBounds, layout.GridCols, layout.GridRows)
+	// The one place this grid's column and row counts are paired up, so a
+	// transposition here is a transposition everywhere the recursive grid
+	// divides — which is what the non-square Divide tests are watching.
+	return ComputeGridCells(
+		qg.currentBounds,
+		domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols},
+	)
 }
 
 // rectCenter returns the center point of rect, rounded to nearest pixel and

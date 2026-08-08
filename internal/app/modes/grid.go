@@ -161,8 +161,7 @@ func (h *handlerState) initializeGridManager(gridInstance *domainGrid.Grid) {
 	// Create grid manager with callbacks for overlay updates and subgrid navigation
 	h.grid.Manager = domainGrid.NewManager(
 		gridInstance,
-		domain.SubgridRows,
-		domain.SubgridCols,
+		domain.SubgridDimensions(),
 		// The keys the subgrid is drawn with, resolved once by the config
 		// (config.ResolveSublayerKeys) so that the set accepted here is the set
 		// the overlay draws.

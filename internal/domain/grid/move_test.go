@@ -28,8 +28,7 @@ func newMoveHarness(t *testing.T) *moveHarness {
 
 	harness.manager = grid.NewManager(
 		harness.grid,
-		domain.SubgridRows,
-		domain.SubgridCols,
+		domain.SubgridDimensions(),
 		"asdfghjkl",
 		func(bool) {},
 		func(cell *grid.Cell) { harness.shown = append(harness.shown, cell) },
