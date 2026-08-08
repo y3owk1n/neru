@@ -4,6 +4,11 @@
 # Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md
 # Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
 
+# Most font_family options below take a generic alias as well as an installed
+# family name; the config reference above marks which, and the accepted aliases
+# are listed here:
+# https://github.com/y3owk1n/neru/blob/main/docs/CROSS_PLATFORM.md#capability-matrix
+
 # General settings
 # See https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md#general
 [general]
