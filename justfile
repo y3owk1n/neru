@@ -193,6 +193,9 @@ test-unit:
 # in internal/architecture parses it and fails when it stops matching the
 # packages that qualify, naming each one. `just list-foundation-packages` prints
 # the corrected list to paste back in.
+#
+# CI runs this recipe too, via test-ci, so a list that no longer resolves fails
+# the build rather than only the next person to type it.
 test-foundation:
     @echo "Running cross-platform foundation tests..."
     go test ./internal/config ./internal/config/loader \
@@ -294,11 +297,20 @@ test-integration-ci:
     @echo "Running integration tests (CI profile: -short)..."
     go test -tags=integration -short -p 1 -count=1 ./...
 
-# Everything CI's test job runs: unit, unit under -race, and the CI profile
-# of the integration suite. Race coverage on the integration half is left to
-# test-all on real machines — on a permission-less runner it doubles the
-# runtime of the least meaningful pass.
-test-ci: test-unit test-race-unit test-integration-ci
+# Everything CI's test job runs: the foundation slice, unit, unit under -race,
+# and the CI profile of the integration suite. Race coverage on the integration
+# half is left to test-all on real machines — on a permission-less runner it
+# doubles the runtime of the least meaningful pass.
+#
+# test-foundation runs first and is otherwise pure duplication: every package it
+# names, test-unit runs again seconds later. It is here for the recipe itself.
+# Nothing gated on it until #1267, and it spent weeks aborting before it ran a
+# single test — a package deleted in #1221 stayed in its list, so every
+# invocation died on "directory not found" and reported that to nobody.
+# TestFoundationSliceRunsInCI keeps it reachable from here; the workflow invokes
+# this recipe on macOS, Linux and Windows alike, which is where a slice claiming
+# to be cross-platform-safe should be proven.
+test-ci: test-foundation test-unit test-race-unit test-integration-ci
 
 # Run the exact set of checks CI gates a pull request on, in the same order.
 # This is the real pre-push bar — `just test` alone is a subset of it. For

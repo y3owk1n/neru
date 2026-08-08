@@ -39,7 +39,7 @@ just genman             # man pages via ./cmd/genman
 just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
 ```
 
-Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — exactly what CI gates on (adds `vet`, `-race`, `vuln`).
+Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — exactly what CI gates on (adds `vet`, `test-foundation`, `-race`, `vuln`).
 
 Single test: `go test -run TestHandler_HandleKey ./internal/app/modes/`; integration tests need `-tags=integration`.
 

@@ -129,12 +129,12 @@ Wayland protocol generation and icon recipes.
 | Test    | `just test-unit`             | Unit tests only                                 |
 | Test    | `just test-integration`      | Integration tests only (desktop-safe)           |
 | Test    | `just test-desktop`          | Integration incl. tests that drive the real cursor/keyboard/overlays |
-| Test    | `just test-foundation`       | Fast cross-platform-safe slice                  |
+| Test    | `just test-foundation`       | Fast cross-platform-safe slice; CI runs it too  |
 | Test    | `just test-race`             | Unit + integration with `-race`                 |
 | Test    | `just test-race-unit`        | Unit tests with `-race`                         |
 | Test    | `just test-race-integration` | Integration tests with `-race`                  |
 | Test    | `just test-all`              | `test` **and** `test-race`, desktop tests included — the deepest sweep |
-| Test    | `just test-ci`               | What CI gates on: unit, race-unit, short-integration |
+| Test    | `just test-ci`               | What CI gates on: foundation, unit, race-unit, short-integration |
 | Test    | `just coverage`              | Unit tests with coverage; prints the total      |
 | Test    | `just coverage-html`         | Coverage as a browsable `coverage.html`         |
 | Lint    | `just lint`                  | golangci-lint + clang-tidy on `.m` files (macOS) |

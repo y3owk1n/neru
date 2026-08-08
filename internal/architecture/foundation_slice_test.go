@@ -28,6 +28,16 @@ const (
 	foundationRecipe = "test-foundation"
 )
 
+// ciWorkflow is what CI actually runs. It invokes the individual just recipes
+// rather than the justfile's own `ci` recipe, so a recipe reachable only from
+// `ci` is still ungated — which is why this file checks both.
+const ciWorkflow = ".github/workflows/ci.yml"
+
+// localCIRecipe is the recipe CONTRIBUTING.md and AGENTS.md call "exactly what
+// CI gates your PR on". That claim is only true while it reaches everything
+// ciWorkflow reaches.
+const localCIRecipe = "ci"
+
 // listFoundationEnv makes the test print the slice it computes, one package per
 // line, so `just list-foundation-packages` can show it without a second
 // implementation. Unset — every other run, including CI — it prints nothing.
@@ -81,7 +91,7 @@ func TestFoundationSliceMatchesTheRecipe(t *testing.T) {
 		)
 	}
 
-	got := recipePackages(t)
+	got := recipePackages(t, parseJustfile(t))
 
 	for _, pkg := range want {
 		if !slices.Contains(got, pkg) {
@@ -117,6 +127,53 @@ func TestFoundationSliceMatchesTheRecipe(t *testing.T) {
 				"(`just list-foundation-packages` prints them):\n%s",
 			foundationRecipe,
 			strings.Join(want, "\n"),
+		)
+	}
+}
+
+// TestFoundationSliceRunsInCI fails when nothing CI runs reaches the
+// test-foundation recipe.
+//
+// TestFoundationSliceMatchesTheRecipe above pins the package *list*; this pins
+// that the recipe is executed. Both are needed. The list check would not have
+// caught a mistyped flag, a `go test` that stopped being reached at all, or a
+// package whose tests only fail in the slice's own invocation — and for weeks
+// nothing caught anything, because CI ran every recipe except this one while
+// AGENTS.md told agents to trust it.
+func TestFoundationSliceRunsInCI(t *testing.T) {
+	recipes := parseJustfile(t)
+
+	// Establish the recipe exists before asking what reaches it. "Nothing runs
+	// test-foundation" is a true but useless thing to say about a recipe that
+	// has been renamed or deleted.
+	recipes.mustFind(t, foundationRecipe)
+
+	roots := workflowRecipes(t, recipes)
+	if len(roots) == 0 {
+		t.Fatalf(
+			"%s runs no recipe %s defines; the invocation match is broken, not CI",
+			ciWorkflow,
+			justfileName,
+		)
+	}
+
+	if !recipes.reaches(roots, foundationRecipe) {
+		t.Errorf(
+			"%s runs %s, and none of them reaches %s; CI does not gate on the "+
+				"recipe contributors are told to trust",
+			ciWorkflow,
+			strings.Join(roots, ", "),
+			foundationRecipe,
+		)
+	}
+
+	if !recipes.reaches([]string{localCIRecipe}, foundationRecipe) {
+		t.Errorf(
+			"the %s recipe in %s does not reach %s, so it is no longer the local "+
+				"mirror of CI that CONTRIBUTING.md says it is",
+			localCIRecipe,
+			justfileName,
+			foundationRecipe,
 		)
 	}
 }
@@ -336,10 +393,10 @@ var recipePackagePattern = regexp.MustCompile(`\./[A-Za-z0-9._/-]+`)
 
 // recipePackages returns the packages the test-foundation recipe passes to
 // `go test`, sorted, failing on a package listed twice.
-func recipePackages(t *testing.T) []string {
+func recipePackages(t *testing.T, recipes justRecipes) []string {
 	t.Helper()
 
-	listed := recipePackagePattern.FindAllString(justRecipeBody(t, foundationRecipe), -1)
+	listed := recipePackagePattern.FindAllString(recipes.mustFind(t, foundationRecipe).body, -1)
 	slices.Sort(listed)
 
 	deduped := slices.Compact(slices.Clone(listed))
@@ -354,42 +411,246 @@ func recipePackages(t *testing.T) []string {
 	return deduped
 }
 
-// justRecipeBody returns the indented body of a just recipe: every line after
-// its header up to the next line that starts in column one.
-func justRecipeBody(t *testing.T, recipe string) string {
+// justRecipes is the justfile read as a graph, keyed by recipe name.
+type justRecipes map[string]justRecipe
+
+// justRecipe is one recipe: the indented lines under its header, and the
+// recipes running it runs — its header dependencies plus any `just <name>` call
+// in that body.
+type justRecipe struct {
+	body string
+	runs []string
+}
+
+// mustFind returns a recipe, failing the test when the justfile has none by
+// that name. Every caller here names a recipe this repo is supposed to have, so
+// its absence is a rename nobody finished, not a condition to handle.
+func (recipes justRecipes) mustFind(t *testing.T, name string) justRecipe {
 	t.Helper()
 
-	path := filepath.Join(findRepoRoot(t), justfileName)
+	recipe, defined := recipes[name]
+	if !defined {
+		t.Fatalf("%s defines no %s recipe", justfileName, name)
+	}
+
+	return recipe
+}
+
+// reaches reports whether target runs when any of roots does.
+func (recipes justRecipes) reaches(roots []string, target string) bool {
+	seen := map[string]bool{}
+	queue := slices.Clone(roots)
+
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+
+		if name == target {
+			return true
+		}
+
+		if seen[name] {
+			continue
+		}
+
+		seen[name] = true
+		queue = append(queue, recipes[name].runs...)
+	}
+
+	return false
+}
+
+// invokedIn returns the recipes text calls with `just <name>`, keeping only
+// names the justfile defines — so prose in a workflow step, "Install just on
+// Linux", contributes nothing.
+func (recipes justRecipes) invokedIn(text string) []string {
+	var invoked []string
+
+	for _, match := range justInvocationPattern.FindAllStringSubmatch(text, -1) {
+		if _, defined := recipes[match[1]]; defined {
+			invoked = append(invoked, match[1])
+		}
+	}
+
+	return invoked
+}
+
+// justInvocationPattern matches a `just <recipe>` call.
+var justInvocationPattern = regexp.MustCompile(`\bjust\s+([a-zA-Z_][a-zA-Z0-9_-]*)`)
+
+// justHeaderLine splits a recipe header into its name and its dependencies:
+// `name PARAM…: dep…`. A `name := value` assignment is not a header, and the
+// dependency list ends at a comment.
+func justHeaderLine(line string) (string, []string, bool) {
+	header, rest, found := strings.Cut(line, ":")
+	if !found || strings.HasPrefix(rest, "=") {
+		return "", nil, false
+	}
+
+	name, _, _ := strings.Cut(strings.TrimSpace(header), " ")
+	if name == "" {
+		return "", nil, false
+	}
+
+	listed, _, _ := strings.Cut(rest, "#")
+
+	return name, strings.Fields(listed), true
+}
+
+// parseJustfile reads the justfile once and returns every recipe with its body
+// and the recipes it runs.
+//
+// A recipe runs another two ways — as a header dependency, and as a `just
+// <name>` call in its body, which is how test-all reaches its work. Following
+// only the first would report a recipe as ungated for moving between two forms
+// that run the same thing.
+func parseJustfile(t *testing.T) justRecipes {
+	t.Helper()
+
+	var (
+		recipes = justRecipes{}
+		bodies  = map[string][]string{}
+		current string
+	)
+
+	for line := range strings.Lines(readRepoFile(t, justfileName)) {
+		line = strings.TrimRight(line, "\n")
+
+		switch {
+		case line == "":
+		case strings.HasPrefix(line, " "), strings.HasPrefix(line, "\t"):
+			if current != "" {
+				bodies[current] = append(bodies[current], line)
+			}
+		// A comment or an attribute in column one interrupts nothing: the
+		// recipe it decorates has not started yet.
+		case strings.HasPrefix(line, "#"), strings.HasPrefix(line, "["):
+		default:
+			name, deps, isHeader := justHeaderLine(line)
+			if !isHeader {
+				current = ""
+
+				continue
+			}
+
+			current = name
+			recipes[name] = justRecipe{runs: deps}
+		}
+	}
+
+	if len(recipes) == 0 {
+		t.Fatalf("%s defines no recipes; the header match is broken", justfileName)
+	}
+
+	for name, lines := range bodies {
+		body := strings.Join(lines, "\n")
+
+		recipe := recipes[name]
+		recipe.body = body
+		recipe.runs = append(recipe.runs, recipes.invokedIn(withoutComments(body))...)
+		recipes[name] = recipe
+	}
+
+	return recipes
+}
+
+// workflowRecipes returns the recipes the CI workflow executes, sorted.
+func workflowRecipes(t *testing.T, recipes justRecipes) []string {
+	t.Helper()
+
+	invoked := recipes.invokedIn(withoutComments(workflowRunCommands(t)))
+	slices.Sort(invoked)
+
+	return slices.Compact(invoked)
+}
+
+// runKeyPattern matches a step's `run:` key and captures both its indentation
+// and whatever follows on the same line — empty for a block scalar, the whole
+// command for an inline one.
+var runKeyPattern = regexp.MustCompile(`^(\s*)(?:-\s+)?run:\s*(.*)$`)
+
+// workflowRunCommands returns only the shell the CI workflow's steps run: every
+// `run:` value, inline or block scalar, and nothing else in the file.
+//
+// Reading the whole file instead would blur the difference between "CI runs
+// this recipe" and "the recipe's name appears somewhere". Every step here is
+// named for what it runs — `- name: Run just test-ci` — so a match on the file
+// reports each recipe CI merely claims to run, and would go on reporting it
+// after the run: line underneath was deleted.
+func workflowRunCommands(t *testing.T) string {
+	t.Helper()
+
+	var (
+		commands       []string
+		blockKeyIndent int
+		inBlock        bool
+	)
+
+	for line := range strings.Lines(readRepoFile(t, ciWorkflow)) {
+		line = strings.TrimRight(line, "\n")
+
+		if inBlock {
+			indent := len(line) - len(strings.TrimLeft(line, " "))
+			if strings.TrimSpace(line) == "" || indent > blockKeyIndent {
+				commands = append(commands, line)
+
+				continue
+			}
+
+			inBlock = false
+		}
+
+		match := runKeyPattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+
+		// `run: |` and `run: >` carry the command on the lines below, indented
+		// past the key; anything else is the command itself.
+		if strings.HasPrefix(match[2], "|") || strings.HasPrefix(match[2], ">") {
+			blockKeyIndent = len(match[1])
+			inBlock = true
+
+			continue
+		}
+
+		commands = append(commands, match[2])
+	}
+
+	if len(commands) == 0 {
+		t.Fatalf("%s runs no steps; the run: match is broken, not CI", ciWorkflow)
+	}
+
+	return strings.Join(commands, "\n")
+}
+
+// withoutComments drops whole-line # comments, shared by the justfile and the
+// workflow's shell because both use them. A comment naming a recipe would
+// otherwise be read as running it, and the false edge points the wrong way:
+// "# `just ci` covers this locally" would satisfy the very assertion it was
+// written to excuse.
+func withoutComments(text string) string {
+	var kept []string
+
+	for line := range strings.Lines(text) {
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			kept = append(kept, line)
+		}
+	}
+
+	return strings.Join(kept, "")
+}
+
+// readRepoFile returns the contents of a path relative to the repo root.
+func readRepoFile(t *testing.T, rel string) string {
+	t.Helper()
+
+	path := filepath.Join(findRepoRoot(t), filepath.FromSlash(rel))
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)
 	}
 
-	var (
-		body       []string
-		collecting bool
-	)
-
-	for line := range strings.Lines(string(data)) {
-		line = strings.TrimRight(line, "\n")
-
-		if !collecting {
-			collecting = strings.HasPrefix(line, recipe+":")
-
-			continue
-		}
-
-		if line != "" && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-			break
-		}
-
-		body = append(body, line)
-	}
-
-	if !collecting {
-		t.Fatalf("%s defines no %s recipe", justfileName, recipe)
-	}
-
-	return strings.Join(body, "\n")
+	return string(data)
 }
