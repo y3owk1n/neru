@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -41,7 +42,7 @@ func (o *x11Overlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
 func (o *x11Overlay) SetHideUnmatched(bool)                                  {}
 func (o *x11Overlay) setOriginOffset(image.Point)                            {}
 func (o *x11Overlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
-func (o *x11Overlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode, hintBadgeOffset) {
+func (o *x11Overlay) DrawHints([]*hintscomponent.Hint, hintscomponent.StyleMode, badge.HintOffset) {
 }
 
 func (o *x11Overlay) DrawRecursiveGrid(

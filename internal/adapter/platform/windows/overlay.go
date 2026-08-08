@@ -64,6 +64,15 @@ const (
 	// GDI text rendering defaults.
 	defaultFontSize = 14
 	gdiWhiteText    = 0x00FFFFFF
+
+	// Triangle rasterization. A filled triangle has no signed-distance form as
+	// cheap as sdRoundedBox, so coverage is sampled on a grid inside each pixel
+	// instead: triangleSamples x triangleSamples points, counted against the
+	// three half-planes. The shape this draws is a hint connector arrow a few
+	// pixels on a side, so the sample count costs nothing and the edges land as
+	// smooth as the badge they hang off.
+	triangleVertices = 3
+	triangleSamples  = 4
 )
 
 var (
@@ -133,6 +142,14 @@ type rectStroke struct {
 	radius float64
 }
 
+// triFill is one filled triangle: the connector arrow a hint badge grows when
+// `hints.ui.placement` puts it above or below its target. It is its own command
+// because no rectangle can describe it.
+type triFill struct {
+	vertices [triangleVertices]image.Point
+	color    uint32
+}
+
 type textDraw struct {
 	text       string
 	rect       image.Rectangle
@@ -190,6 +207,7 @@ type OverlayWindow struct {
 	dirty   bool
 
 	fills   []rectFill
+	tris    []triFill
 	strokes []rectStroke
 	texts   []textDraw
 
@@ -385,6 +403,7 @@ func (o *OverlayWindow) Clear() {
 	defer o.mu.Unlock()
 
 	o.fills = o.fills[:0]
+	o.tris = o.tris[:0]
 	o.strokes = o.strokes[:0]
 	o.texts = o.texts[:0]
 	// Clear pixel buffer to transparent black (all zeros).
@@ -535,6 +554,14 @@ func (o *OverlayWindow) StrokeRect(bounds image.Rectangle, color uint32, lineWid
 
 // FillRoundedRect fills a rounded rectangle with an ARGB color using
 // signed-distance-function anti-aliasing.
+//
+// A rectangle hanging off the surface is queued whole, unlike the square fill
+// above: the distance field is derived from the rectangle's own center and
+// half-extents, so handing it a clipped rectangle would round the corners of
+// the *visible* part instead — a badge at the screen edge would be redrawn as
+// a smaller, differently rounded badge, while its stroke and its label (which
+// are not clipped here) stayed where the real one was. The rasterizer clamps
+// its own loop to the buffer, so nothing is drawn out of bounds either way.
 func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, color uint32) {
 	if o == nil || bounds.Empty() || radius <= 0 {
 		o.FillRect(bounds, color)
@@ -542,13 +569,12 @@ func (o *OverlayWindow) FillRoundedRect(bounds image.Rectangle, radius float64, 
 		return
 	}
 
-	rect := bounds.Intersect(o.localBounds())
-	if rect.Empty() {
+	if bounds.Intersect(o.localBounds()).Empty() {
 		return
 	}
 
 	o.mu.Lock()
-	o.fills = append(o.fills, rectFill{rect: rect, color: color, radius: radius})
+	o.fills = append(o.fills, rectFill{rect: bounds, color: color, radius: radius})
 	o.dirty = true
 	o.mu.Unlock()
 }
@@ -574,6 +600,26 @@ func (o *OverlayWindow) StrokeRoundedRect(
 		o.strokes,
 		rectStroke{rect: bounds, color: color, width: width, radius: radius},
 	)
+	o.dirty = true
+	o.mu.Unlock()
+}
+
+// FillTriangle fills the triangle through the three points with an ARGB color,
+// anti-aliased by area sampling.
+//
+// It is queued with the fills and composited after them, so a triangle drawn to
+// tie a badge back to its target lands over the badge's own fill rather than
+// under it; the badge's stroke still runs last and closes the shared edge.
+func (o *OverlayWindow) FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32) {
+	if o == nil {
+		return
+	}
+
+	o.mu.Lock()
+	o.tris = append(o.tris, triFill{
+		vertices: [triangleVertices]image.Point{vertexA, vertexB, vertexC},
+		color:    color,
+	})
 	o.dirty = true
 	o.mu.Unlock()
 }
@@ -621,9 +667,11 @@ func (o *OverlayWindow) CompositeCurrent() {
 	defer o.mu.Unlock()
 
 	fills := append([]rectFill(nil), o.fills...)
+	tris := append([]triFill(nil), o.tris...)
 	strokes := append([]rectStroke(nil), o.strokes...)
 	texts := append([]textDraw(nil), o.texts...)
 	o.fills = o.fills[:0]
+	o.tris = o.tris[:0]
 	o.strokes = o.strokes[:0]
 	o.texts = o.texts[:0]
 
@@ -633,6 +681,10 @@ func (o *OverlayWindow) CompositeCurrent() {
 		} else {
 			alphaFillRect(o.pixels, o.width, o.height, f.rect, f.color)
 		}
+	}
+
+	for _, t := range tris {
+		alphaFillTriangle(o.pixels, o.width, o.height, t.vertices, t.color)
 	}
 
 	for _, s := range strokes {
@@ -667,10 +719,12 @@ func (o *OverlayWindow) Flush() error {
 	o.dirty = false
 
 	fills := append([]rectFill(nil), o.fills...)
+	tris := append([]triFill(nil), o.tris...)
 	strokes := append([]rectStroke(nil), o.strokes...)
 	texts := append([]textDraw(nil), o.texts...)
 
 	o.fills = o.fills[:0]
+	o.tris = o.tris[:0]
 	o.strokes = o.strokes[:0]
 	o.texts = o.texts[:0]
 	// Copy pixels under the lock so compositing outside the lock is safe.
@@ -685,6 +739,11 @@ func (o *OverlayWindow) Flush() error {
 		} else {
 			alphaFillRect(pixels, o.width, o.height, f.rect, f.color)
 		}
+	}
+
+	// Render triangles over the fills they attach to.
+	for _, t := range tris {
+		alphaFillTriangle(pixels, o.width, o.height, t.vertices, t.color)
 	}
 
 	// Render strokes with alpha compositing.
@@ -1067,6 +1126,120 @@ func alphaStrokeRect(
 		// Right edge
 		alphaFillRect(pixels, bufW, bufH,
 			image.Rect(inset.Max.X-1, inset.Min.Y, inset.Max.X, inset.Max.Y), color)
+	}
+}
+
+// triangleCoverage returns how much of the pixel at (col, row) the triangle
+// covers, as a fraction of 1, by testing a triangleSamples x triangleSamples
+// grid of points inside it against the triangle's three edges.
+//
+// A point is inside when it is on the same side of all three directed edges;
+// the winding is unknown, so both all-non-negative and all-non-positive count.
+// A degenerate triangle (three collinear points) has every cross product zero
+// and would read as fully covered, so the caller drops it before sampling.
+func triangleCoverage(vertices [triangleVertices]image.Point, col, row int) float64 {
+	step := 1.0 / float64(triangleSamples)
+	inside := 0
+
+	for sampleY := range triangleSamples {
+		pointY := float64(row) + (float64(sampleY)+pixelHalf)*step
+
+		for sampleX := range triangleSamples {
+			pointX := float64(col) + (float64(sampleX)+pixelHalf)*step
+
+			negative, positive := false, false
+
+			for edge := range triangleVertices {
+				from := vertices[edge]
+				to := vertices[(edge+1)%triangleVertices]
+
+				cross := (float64(to.X-from.X))*(pointY-float64(from.Y)) -
+					(float64(to.Y-from.Y))*(pointX-float64(from.X))
+
+				if cross < 0 {
+					negative = true
+				}
+
+				if cross > 0 {
+					positive = true
+				}
+			}
+
+			if !negative || !positive {
+				inside++
+			}
+		}
+	}
+
+	return float64(inside) / float64(triangleSamples*triangleSamples)
+}
+
+// alphaFillTriangle composites an anti-aliased filled triangle over the pixel
+// buffer. It is what draws the connector arrow between an offset hint badge and
+// the element it labels; the Cairo and Quartz backends get the same shape from
+// a path primitive they already have.
+func alphaFillTriangle(
+	pixels []byte,
+	bufW, bufH int,
+	vertices [triangleVertices]image.Point,
+	color uint32,
+) {
+	colA := color >> alphaShift
+	if colA == 0 {
+		return
+	}
+
+	// A triangle with no area covers nothing; sampling it would read every
+	// point as "inside" because all three cross products are zero.
+	area := (vertices[1].X-vertices[0].X)*(vertices[2].Y-vertices[0].Y) -
+		(vertices[1].Y-vertices[0].Y)*(vertices[2].X-vertices[0].X)
+	if area == 0 {
+		return
+	}
+
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
+
+	bounds := image.Rectangle{Min: vertices[0], Max: vertices[0]}
+	for _, vertex := range vertices {
+		bounds.Min.X = min(bounds.Min.X, vertex.X)
+		bounds.Min.Y = min(bounds.Min.Y, vertex.Y)
+		bounds.Max.X = max(bounds.Max.X, vertex.X)
+		bounds.Max.Y = max(bounds.Max.Y, vertex.Y)
+	}
+
+	startY := clamp(bounds.Min.Y, bufH)
+	endY := clamp(bounds.Max.Y+1, bufH)
+	startX := clamp(bounds.Min.X, bufW)
+	endX := clamp(bounds.Max.X+1, bufW)
+
+	for y := startY; y < endY; y++ {
+		row := y * bufW * bytesPerPixel
+
+		for col := startX; col < endX; col++ {
+			coverage := triangleCoverage(vertices, col, y)
+			if coverage == 0 {
+				continue
+			}
+
+			pixelAlpha := uint32(coverage * float64(colA))
+			if pixelAlpha == 0 {
+				continue
+			}
+
+			invA := alphaMax - pixelAlpha
+			idx := row + col*bytesPerPixel
+			dstB := uint32(pixels[idx])
+			dstG := uint32(pixels[idx+1])
+			dstR := uint32(pixels[idx+2])
+			dstA := uint32(pixels[idx+3])
+
+			pixels[idx] = byte((colB*pixelAlpha + dstB*invA) / alphaMax)
+			pixels[idx+1] = byte((colG*pixelAlpha + dstG*invA) / alphaMax)
+			pixels[idx+2] = byte((colR*pixelAlpha + dstR*invA) / alphaMax)
+			pixels[idx+3] = byte(pixelAlpha + (dstA*invA)/alphaMax)
+		}
 	}
 }
 

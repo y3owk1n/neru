@@ -262,6 +262,12 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 }
 
 // DrawHintsWithStyle draws the hints overlay using the Windows GDI backend.
+//
+// The placement is resolved once, before anything is drawn: it is the same for
+// every badge in the frame, and a placement this overlay cannot draw is
+// reported rather than approximated. Drawing every hint centered instead would
+// leave the user looking at labels in a placement they did not choose, with
+// nothing anywhere saying so.
 func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -275,11 +281,60 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		)
 	}
 
+	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
+	if offsetErr != nil {
+		// The error reaches the mode handler, which degrades quietly on
+		// CodeNotSupported — so say it here too, or a placement this overlay
+		// cannot draw costs the user every hint with only a debug line to
+		// explain it. The placement is a fixed configuration keyword.
+		if m.logger != nil {
+			m.logger.Warn(
+				"hint placement not drawn by the windows overlay",
+				zap.String("placement", style.Placement()),
+			)
+		}
+
+		return offsetErr
+	}
+
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
-	m.win.DrawHints(hintsSlice, style)
+	m.win.DrawHints(hintsSlice, style, offset)
 
 	return nil
+}
+
+// resolveHintBadgeOffset maps a configured placement onto the offset this
+// overlay draws it with. It is the one place the placement vocabulary is read
+// here, and every value config.HintPlacements() declares has a branch.
+//
+// Anything else is refused rather than drawn, the way the Linux and macOS
+// overlays refuse it: a placement added to the vocabulary without a branch
+// here would otherwise validate, reach this backend and draw somewhere nobody
+// chose, with nothing failing anywhere.
+//
+// The empty string is not one of those: it is a style that reached the overlay
+// before a configuration settled it, and it draws at the documented default —
+// the same answer the other two backends give it, so a draw that beats the
+// first Apply puts hints in the same place on all three.
+func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
+	if placement == "" {
+		placement = config.HintPlacementDefault
+	}
+
+	switch placement {
+	case config.HintPlacementTop:
+		return badge.HintAbove, nil
+	case config.HintPlacementCenter:
+		return badge.HintOnTarget, nil
+	case config.HintPlacementBottom:
+		return badge.HintBelow, nil
+	default:
+		return badge.HintOnTarget, derrors.New(
+			derrors.CodeNotSupported,
+			"hint placement is not drawn by the windows overlay",
+		)
+	}
 }
 
 // DrawHintSearchInput renders the hints search input on the Windows overlay.
@@ -301,7 +356,7 @@ func (m *Manager) DrawHintSearchInput(
 	m.win.Resize()
 
 	if m.win.lastHints != nil {
-		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle)
+		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle, m.win.lastHintOffset)
 	} else {
 		m.win.Clear()
 	}
@@ -357,7 +412,7 @@ func (m *Manager) HideHintSearchInput() {
 	if m.win.lastHints != nil {
 		m.win.Resize()
 		// DrawHints clears + redraws; using it erases the search overlay.
-		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle)
+		m.win.DrawHints(m.win.lastHints, m.win.lastHintStyle, m.win.lastHintOffset)
 	}
 }
 

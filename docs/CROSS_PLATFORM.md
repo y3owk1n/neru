@@ -464,8 +464,8 @@ discovery rather than the mode itself.
 | **Hints**         | `vision` strategy + per-app overrides | ✅                  | ❌ macOS-only              | ❌ macOS-only               |
 | **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
 | **Hints**         | Search input badge             | ✅                         | 🟡 `CodeNotSupported`      | ✅                          |
-| **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ❌                          |
-| **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ❌ ignored, see below       |
+| **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
+| **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ❌ no-op                   | ❌ no-op                    |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
@@ -484,25 +484,28 @@ actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
 > macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
 > it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
 
-> **`hints.ui.placement` is honoured on two platforms of three.** macOS and
-> Linux both read it and offset the badge from the target point at the
-> element's centre, keeping it horizontally centred there: `top` puts the badge
-> above that point with a connector arrow pointing down at it, `center` over it
-> with no arrow, `bottom` below it with an arrow pointing up (the default).
-> Windows reads the value nowhere. Its `DrawHints` anchors every badge at the
-> element's **top-left corner**, growing right and down from it, and draws the
-> same thing whichever of the three values is configured — so a Windows user
-> gets none of the three, not one of them, and no connector arrow either (the
-> **Label arrow / tail** row). The value still validates on Windows: all three
-> are accepted, so nothing warns and nothing errors, and the option is simply
-> inert.
+> **`hints.ui.placement` means the same thing on all three platforms.** Each
+> backend offsets the badge from the target point at the element's centre,
+> keeping it horizontally centred there: `top` puts the badge above that point
+> with a connector arrow pointing down at it, `center` over it with no arrow,
+> `bottom` below it with an arrow pointing up (the default).
 >
-> Drawing the three placements on Windows is tracked as
-> [#1303](https://github.com/y3owk1n/neru/issues/1303); it needs a Windows
-> contributor. The values themselves are unambiguous — they are declared once
-> in Go and pinned across the Objective-C chain
-> ([#1289](https://github.com/y3owk1n/neru/issues/1289)) — so what is missing
-> is the drawing, not the vocabulary.
+> The rule is shared; the exact pixels are not. Linux and Windows take the
+> offsets and the arrow from one implementation
+> (`adapter/overlay/render/badge.PlaceHint`), so a configured placement lands
+> on the same pixel on both. macOS computes its own in Objective-C — the
+> deliberate exception ADR 0007 records — with a shorter, wider arrow, so an
+> offset badge sits a few pixels closer to its element there than it does on
+> the other two.
+>
+> One detail of the arrow differs on Windows
+> ([#1303](https://github.com/y3owk1n/neru/issues/1303), which is also where
+> that backend started reading the option at all). macOS and Linux build the
+> badge and the arrow as a single outline, so the border runs around both,
+> while the Win32 surface has no path primitive: it draws the arrow as a
+> triangle over a slightly larger one in the border colour, which borders its
+> two slanted edges but leaves the badge's own edge running across the arrow's
+> base.
 
 > **`recursive_grid.ui.sub_key_preview` is one option with two drawings.** macOS
 > and Linux divide each cell by the *next* level's grid dimensions and draw the
@@ -581,9 +584,6 @@ Work that is genuinely missing, as opposed to deliberately platform-specific.
 10. Font resolution — alias mapping only, no system font enumeration
 11. Recursive-grid sub-key preview — a single bottom label rather than the
     mini-grid the other platforms draw ([Mode Coverage](#mode-coverage))
-12. Hint badge placement — `hints.ui.placement` has no effect; the badge is
-    always anchored at the element's top-left corner
-    ([Mode Coverage](#mode-coverage))
 
 **macOS**
 
