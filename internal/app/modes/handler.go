@@ -176,7 +176,10 @@ type handlerState struct {
 	indicatorStopCh chan struct{}
 	indicatorDoneCh chan struct{}
 
-	// systemCursorHidden tracks whether hide_cursor (or hints virtual pointer) is active.
+	// systemCursorHidden tracks whether the hide_cursor action is holding the
+	// system cursor hidden. It is also what gates the standalone
+	// cursor-following virtual pointer that stands in for it; the in-frame
+	// pointers the grid modes draw are unrelated and no mode sets this.
 	systemCursorHidden bool
 
 	// lastCursorRehideTime records the last time RehideSystemCursor was called
