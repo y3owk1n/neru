@@ -6,6 +6,7 @@ import (
 	"image"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // shouldShowSubKeyPreview reports whether the sub-key mini-grid this backend
@@ -20,8 +21,7 @@ import (
 func shouldShowSubKeyPreview(
 	cell image.Rectangle,
 	style recursivegrid.Style,
-	subGridCols int,
-	subGridRows int,
+	subDims domain.GridDimensions,
 ) bool {
 	if !style.SubKeyPreview() {
 		return false
@@ -32,8 +32,8 @@ func shouldShowSubKeyPreview(
 	}
 
 	threshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()
-	subCellW := float64(cell.Dx()) / float64(subGridCols)
-	subCellH := float64(cell.Dy()) / float64(subGridRows)
+	subCellW := float64(cell.Dx()) / float64(subDims.Cols)
+	subCellH := float64(cell.Dy()) / float64(subDims.Rows)
 
 	return subCellW >= threshold && subCellH >= threshold
 }

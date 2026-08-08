@@ -23,6 +23,7 @@ import (
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -157,19 +158,17 @@ func (o *wlrootsOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 	animEnabled bool,
 	animDurationMS int,
 ) {
 	o.DrawRecursiveGridWithSubKeyPreview(
-		bounds, depth, keys, gridCols, gridRows,
-		nextKeys, nextGridCols, nextGridRows,
+		bounds, depth, keys, dims,
+		nextKeys, nextDims,
 		style, virtualPointer, animEnabled, animDurationMS,
 	)
 }
@@ -178,23 +177,21 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 	animEnabled bool,
 	animDurationMS int,
 ) {
-	if o == nil || o.raw == nil || bounds.Empty() || gridCols <= 0 || gridRows <= 0 {
+	if o == nil || o.raw == nil || bounds.Empty() || dims.Cols <= 0 || dims.Rows <= 0 {
 		return
 	}
 
 	o.drawRecursiveGridWithSubKeyPreview(
-		bounds, depth, keys, gridCols, gridRows,
-		nextKeys, nextGridCols, nextGridRows,
+		bounds, depth, keys, dims,
+		nextKeys, nextDims,
 		style, virtualPointer, animEnabled, animDurationMS,
 	)
 }

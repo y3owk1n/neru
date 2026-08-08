@@ -13,6 +13,7 @@ import (
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -47,11 +48,9 @@ func (o *x11Overlay) DrawRecursiveGrid(
 	image.Rectangle,
 	int,
 	string,
-	int,
-	int,
+	domain.GridDimensions,
 	string,
-	int,
-	int,
+	domain.GridDimensions,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
 	bool,
@@ -63,11 +62,9 @@ func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	image.Rectangle,
 	int,
 	string,
-	int,
-	int,
+	domain.GridDimensions,
 	string,
-	int,
-	int,
+	domain.GridDimensions,
 	recursivegridcomponent.Style,
 	recursivegridcomponent.VirtualPointerState,
 	bool,

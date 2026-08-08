@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -598,16 +599,17 @@ func (m *Manager) DrawRecursiveGrid(
 		animDurationMS = animCfg.DurationMS
 	}
 
+	dims := domain.GridDimensions{Rows: gridRows, Cols: gridCols}
+	nextDims := domain.GridDimensions{Rows: nextGridRows, Cols: nextGridCols}
+
 	if m.x11 != nil {
 		m.x11.DrawRecursiveGridWithSubKeyPreview(
 			bounds,
 			depth,
 			keys,
-			gridCols,
-			gridRows,
+			dims,
 			nextKeys,
-			nextGridCols,
-			nextGridRows,
+			nextDims,
 			style,
 			virtualPointer,
 			animEnabled,
@@ -620,11 +622,9 @@ func (m *Manager) DrawRecursiveGrid(
 			bounds,
 			depth,
 			keys,
-			gridCols,
-			gridRows,
+			dims,
 			nextKeys,
-			nextGridCols,
-			nextGridRows,
+			nextDims,
 			style,
 			virtualPointer,
 			animEnabled,
