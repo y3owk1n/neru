@@ -115,9 +115,6 @@ type RecursiveGridLayout struct {
 	// adapter, backend or cgo helper on the way to the division has a pair to
 	// put in the wrong order (#1313).
 	Dimensions domain.GridDimensions
-
-	// GridCols and GridRows are how many cells the region is divided into.
-	GridCols, GridRows int
 }
 
 // Mode names the mode a recursive-grid frame draws.

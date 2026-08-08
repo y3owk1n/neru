@@ -569,11 +569,9 @@ func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -598,9 +596,6 @@ func (m *Manager) DrawRecursiveGrid(
 		animEnabled = animCfg.Enabled
 		animDurationMS = animCfg.DurationMS
 	}
-
-	dims := domain.GridDimensions{Rows: gridRows, Cols: gridCols}
-	nextDims := domain.GridDimensions{Rows: nextGridRows, Cols: nextGridCols}
 
 	if m.x11 != nil {
 		m.x11.DrawRecursiveGridWithSubKeyPreview(

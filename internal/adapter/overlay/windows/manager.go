@@ -705,11 +705,9 @@ func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	_ int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	_ string,
-	_ int,
-	_ int,
+	_ domain.GridDimensions,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -727,13 +725,7 @@ func (m *Manager) DrawRecursiveGrid(
 
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
-	m.win.DrawRecursiveGrid(
-		bounds,
-		keys,
-		domain.GridDimensions{Rows: gridRows, Cols: gridCols},
-		style,
-		virtualPointer,
-	)
+	m.win.DrawRecursiveGrid(bounds, keys, dims, style, virtualPointer)
 
 	return nil
 }

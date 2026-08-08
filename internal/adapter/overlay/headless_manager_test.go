@@ -9,6 +9,7 @@ import (
 	renderhints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	renderrecursivegrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -145,11 +146,9 @@ func (n *headlessManager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	depth int,
 	keys string,
-	gridCols int,
-	gridRows int,
+	dims domain.GridDimensions,
 	nextKeys string,
-	nextGridCols int,
-	nextGridRows int,
+	nextDims domain.GridDimensions,
 	style renderrecursivegrid.Style,
 	virtualPointer renderrecursivegrid.VirtualPointerState,
 ) error {

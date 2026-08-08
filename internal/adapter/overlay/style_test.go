@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -449,10 +450,16 @@ func TestAdapterShowFrame_CarriesTheResolvedPointerFamily(t *testing.T) {
 	adapter := overlay.NewAdapter(manager, resolver, zap.NewNop())
 
 	err := adapter.ShowFrame(context.Background(), ports.RecursiveGridFrame{
-		Bounds:     image.Rect(10, 20, 210, 220),
-		Layout:     ports.RecursiveGridLayout{Keys: "uiop", GridCols: 2, GridRows: 2},
-		NextLayout: ports.RecursiveGridLayout{Keys: "hjkl", GridCols: 2, GridRows: 2},
-		Pointer:    ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
+		Bounds: image.Rect(10, 20, 210, 220),
+		Layout: ports.RecursiveGridLayout{
+			Keys:       "uiop",
+			Dimensions: domain.GridDimensions{Rows: 2, Cols: 2},
+		},
+		NextLayout: ports.RecursiveGridLayout{
+			Keys:       "hjkl",
+			Dimensions: domain.GridDimensions{Rows: 2, Cols: 2},
+		},
+		Pointer: ports.GridPointer{Visible: true, Position: image.Pt(30, 40)},
 	})
 	if err != nil {
 		t.Fatalf("ShowFrame() error = %v", err)

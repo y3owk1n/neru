@@ -305,25 +305,18 @@ func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 	if manager.CanDivide() {
 		nextDepth := currentDepth + 1
 		layout := manager.CurrentGrid().LayoutForDepth(nextDepth)
-		nextDims := domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols}
 		next = ports.RecursiveGridLayout{
 			Keys:       manager.KeysForDepth(nextDepth),
-			Dimensions: nextDims,
-			GridCols:   nextDims.Cols,
-			GridRows:   nextDims.Rows,
+			Dimensions: domain.GridDimensions{Rows: layout.GridRows, Cols: layout.GridCols},
 		}
 	}
-
-	dims := domain.GridDimensions{Rows: manager.GridRows(), Cols: manager.GridCols()}
 
 	return ports.RecursiveGridFrame{
 		Bounds: manager.CurrentBounds(),
 		Depth:  currentDepth,
 		Layout: ports.RecursiveGridLayout{
 			Keys:       manager.Keys(),
-			Dimensions: dims,
-			GridCols:   dims.Cols,
-			GridRows:   dims.Rows,
+			Dimensions: domain.GridDimensions{Rows: manager.GridRows(), Cols: manager.GridCols()},
 		},
 		NextLayout: next,
 		Pointer:    h.recursiveGridPointer(),

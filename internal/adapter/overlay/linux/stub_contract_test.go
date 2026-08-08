@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -53,7 +54,8 @@ func TestLinuxOverlayManager_DrawCallsReportNotSupportedWithNoBackend(t *testing
 			call: func(m *Manager) error {
 				return m.DrawRecursiveGrid(
 					image.Rect(0, 0, 100, 100),
-					0, "", 2, 2, "", 2, 2,
+					0, "", domain.GridDimensions{Rows: 2, Cols: 2},
+					"", domain.GridDimensions{Rows: 2, Cols: 2},
 					recursivegrid.Style{},
 					recursivegrid.VirtualPointerState{},
 				)
