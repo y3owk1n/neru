@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Style is every overlay's resolved appearance: the configuration combined
@@ -219,14 +220,17 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 
 // push hands the configuration to the render components. Which components
 // those are is the manager's business — it built them — so this passes the
-// configuration and the one resolved value they need and asks it to apply
-// them. Adding a component is not another wiring site here.
+// configuration and the resolved values they need and asks it to apply them.
+// Adding a component is not another wiring site here.
 func (r *StyleResolver) push(cfg *config.Config, style Style) {
 	if r.manager == nil || cfg == nil {
 		return
 	}
 
-	r.manager.ConfigureComponents(cfg, style.VirtualPointer.FillColor)
+	r.manager.ConfigureComponents(cfg, PointerAppearance{
+		FillColor:  style.VirtualPointer.FillColor,
+		FontFamily: style.VirtualPointer.FontFamily,
+	})
 }
 
 // buildVirtualPointerStyle resolves the cursor stand-in drawn inside the grid
@@ -253,8 +257,11 @@ func buildVirtualPointerStyle(
 			config.VirtualPointerTextColorLight,
 			config.VirtualPointerTextColorDark,
 		),
-		Char:       char,
-		FontFamily: cfg.UI.FontFamily,
+		Char: char,
+		// Through the shared resolver, like every other overlay's family: a
+		// generic alias reaches the platform as a family it can actually find
+		// rather than as a name nothing is installed under (#1305).
+		FontFamily: ports.ResolveFont(cfg.UI.FontFamily, false),
 	}
 }
 
@@ -295,11 +302,25 @@ func buildSearchInputLayout(cfg config.SearchInputUI) SearchInputLayout {
 func buildMonitorSelectStyle(cfg *config.Config, theme config.ThemeProvider) MonitorSelectStyle {
 	uiCfg := cfg.MonitorSelect.UI
 
+	// An unset subtitle family means "draw the subtitle in the label's family",
+	// so it falls back before resolution and not after: the resolver answers an
+	// empty name with the platform's sans-serif face, which would make the
+	// fallback unreachable.
+	subtitleFamily := uiCfg.SubtitleFontFamily
+	if subtitleFamily == "" {
+		subtitleFamily = uiCfg.FontFamily
+	}
+
 	return MonitorSelectStyle{
-		FontSize:           uiCfg.FontSize,
-		SubtitleFontSize:   uiCfg.SubtitleFontSize,
-		FontFamily:         uiCfg.FontFamily,
-		SubtitleFontFamily: uiCfg.SubtitleFontFamily,
+		FontSize:         uiCfg.FontSize,
+		SubtitleFontSize: uiCfg.SubtitleFontSize,
+		// Both families go through the shared resolver, like every other
+		// overlay's, so a generic alias reaches the platform as a family it can
+		// actually find (#1305). Weight travels with the request — the label is
+		// drawn bold and the subtitle is not — even though no resolver weights
+		// on it yet.
+		FontFamily:         ports.ResolveFont(uiCfg.FontFamily, true),
+		SubtitleFontFamily: ports.ResolveFont(subtitleFamily, false),
 		BorderRadius:       uiCfg.BorderRadius,
 		PaddingX:           uiCfg.PaddingX,
 		PaddingY:           uiCfg.PaddingY,

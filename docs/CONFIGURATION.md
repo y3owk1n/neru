@@ -1241,9 +1241,9 @@ Interactive display picking mode. Shows per-monitor overlay badges labelled with
 | Key                    | Default       | Description                       |
 | ---------------------- | ------------- | --------------------------------- |
 | `font_size`            | `96`          | Badge label font size             |
-| `font_family`          | `""` (system) | Badge label font family           |
+| `font_family`          | `""` (system) | Badge label font family; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `subtitle_font_size`   | `18`          | Monitor name subtitle font size   |
-| `subtitle_font_family` | `""` (system) | Subtitle font family              |
+| `subtitle_font_family` | `""` (label's) | Subtitle font family, defaulting to the label's; [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `border_radius`        | `-1` (auto)   | Badge corner radius               |
 | `padding_x`            | `-1` (auto)   | Horizontal padding                |
 | `padding_y`            | `-1` (auto)   | Vertical padding                  |
@@ -1299,7 +1299,7 @@ platforms and is configured under [`[recursive_grid]`](#recursive_grid).
 | ------------- | ------ | ------- | ---------------------------- |
 | `char`        | string | `"●"`   | Character to display         |
 | `font_size`   | int    | `8`     | Font size in points          |
-| `font_family` | string | `""`    | Font family (empty = system) |
+| `font_family` | string | `""`    | Font family (empty = system default); [generic aliases](CROSS_PLATFORM.md#capability-matrix) accepted |
 | `text_color`  | color  | derived | Character color              |
 
 ```toml

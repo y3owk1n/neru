@@ -152,20 +152,27 @@ func (b *Base) useComponents(built Components) {
 }
 
 // ConfigureComponents hands a new configuration to the render components, so
-// the native caches they keep are rebuilt against it on the next draw.
-// virtualPointerFill is the resolved fill color of the pointer drawn inside the
-// grid frames; it arrives already themed because the overlay resolves Style in
-// one place and this is not it.
+// the native caches they keep are rebuilt against it on the next draw. pointer
+// is the resolved appearance of the virtual pointer; it arrives already themed
+// and with its font family already settled, because the overlay resolves Style
+// in one place and this is not it.
 //
 // A disabled overlay is left alone: nothing draws it, so reconfiguring it would
 // only invalidate caches nobody reads. The grid overlays are built even when
 // their mode is disabled, so they are the ones that actually sit in that state.
-func (b *Base) ConfigureComponents(cfg *config.Config, virtualPointerFill string) {
+func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance) {
 	// This one is reached straight through the contract rather than through a
 	// backend delegate, so it carries the nil-receiver guard itself.
 	if b == nil || cfg == nil {
 		return
 	}
+
+	// The pointer's configuration reaches its components with the resolved
+	// family in place of the written one: a component draws the family it is
+	// handed, and only this notification knows what the written name settled
+	// to.
+	pointerCfg := cfg.VirtualPointer
+	pointerCfg.UI.FontFamily = pointer.FontFamily
 
 	if overlay := b.hintOverlay; overlay != nil && cfg.Hints.Enabled {
 		overlay.SetConfig(cfg.Hints)
@@ -173,12 +180,12 @@ func (b *Base) ConfigureComponents(cfg *config.Config, virtualPointerFill string
 
 	if overlay := b.gridOverlay; overlay != nil && cfg.Grid.Enabled {
 		overlay.SetConfig(cfg.Grid)
-		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, virtualPointerFill)
+		overlay.SetVirtualPointerConfig(pointerCfg.UI, pointer.FillColor)
 	}
 
 	if overlay := b.recursiveGridOverlay; overlay != nil && cfg.RecursiveGrid.Enabled {
 		overlay.SetConfig(cfg.RecursiveGrid)
-		overlay.SetVirtualPointerConfig(cfg.VirtualPointer.UI, virtualPointerFill)
+		overlay.SetVirtualPointerConfig(pointerCfg.UI, pointer.FillColor)
 	}
 
 	if overlay := b.modeIndicatorOverlay; overlay != nil {
@@ -190,6 +197,6 @@ func (b *Base) ConfigureComponents(cfg *config.Config, virtualPointerFill string
 	}
 
 	if overlay := b.virtualPointerOverlay; overlay != nil {
-		overlay.SetConfig(cfg.VirtualPointer)
+		overlay.SetConfig(pointerCfg)
 	}
 }

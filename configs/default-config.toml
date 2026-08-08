@@ -4,9 +4,8 @@
 # Full config reference: https://github.com/y3owk1n/neru/blob/main/docs/CONFIGURATION.md
 # Full CLI reference: https://github.com/y3owk1n/neru/blob/main/docs/CLI.md
 
-# Most font_family options below take a generic alias as well as an installed
-# family name; the config reference above marks which, and the accepted aliases
-# are listed here:
+# Every font_family option below takes a generic alias as well as an installed
+# family name; the accepted aliases are listed here:
 # https://github.com/y3owk1n/neru/blob/main/docs/CROSS_PLATFORM.md#capability-matrix
 
 # General settings
@@ -309,7 +308,7 @@ characters = "123456789"                       # Characters used for monitor lab
 font_size = 96                                 # Badge label font size
 font_family = ""                               # Badge label font family
 subtitle_font_size = 18                        # Monitor name subtitle font size
-subtitle_font_family = ""                      # Subtitle font family
+subtitle_font_family = ""                      # Subtitle font family (empty = the badge label's)
 border_radius = -1                             # Badge corner radius (-1 = auto)
 padding_x = -1                                 # Badge horizontal padding (-1 = auto)
 padding_y = -1                                 # Badge vertical padding (-1 = auto)

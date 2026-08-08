@@ -95,6 +95,20 @@ type MonitorSelectTarget struct {
 	MatchedPrefixLen int
 }
 
+// PointerAppearance is the part of the virtual pointer's look that a render
+// component cannot read out of the configuration it is handed: the fill color
+// resolved against the active theme, and the font family settled through the
+// shared font resolver. Both are resolved once per configuration or theme
+// change and travel with that notification, so no component resolves per draw
+// — and the pointer redraws on every cursor move.
+type PointerAppearance struct {
+	// FillColor is the themed fill, as a hex string.
+	FillColor string
+	// FontFamily is the family the platform will actually find, with generic
+	// aliases already settled.
+	FontFamily string
+}
+
 // MonitorSelectStyle carries the resolved (theme-applied) appearance for the
 // monitor_select overlay. Colors are hex strings, parsed by the backend, to
 // mirror how the hints/grid styles are threaded.
@@ -152,9 +166,9 @@ type Interface interface {
 	BuildComponents(cfg *config.Config, theme config.ThemeProvider) (Components, error)
 	// ConfigureComponents hands a new configuration to those components. It is
 	// the notification a config reload or a theme change needs; the resolved
-	// virtual pointer fill color comes with it because appearance is resolved
+	// virtual pointer appearance comes with it because appearance is resolved
 	// above this and never here.
-	ConfigureComponents(cfg *config.Config, virtualPointerFill string)
+	ConfigureComponents(cfg *config.Config, pointer PointerAppearance)
 
 	DrawHintsWithStyle(hs []*hints.Hint, style hints.StyleMode) error
 	DrawHintSearchInput(

@@ -220,7 +220,10 @@ func (o *winOverlay) DrawRecursiveGrid(
 			vpChar = "\u25CF"
 		}
 
-		fontName := ports.ResolveFont(virtualPointer.FontName, false)
+		// FontName arrives resolved: it comes from the Style, which settles
+		// every family it hands out. Resolving again here would be a lock and
+		// a cache lookup per drawn frame for the same answer.
+		fontName := virtualPointer.FontName
 
 		fontSize := float64(virtualPointer.Size)
 		// Not badge.CenteredOn: the half is floored at 1 so a pointer
