@@ -91,8 +91,8 @@ func objcEnumIntConstants(t *testing.T, repoRelPath, enumName string) map[string
 // cHeaderIntConstants and objcEnumIntConstants below cover the two shapes that
 // exist today, a numeric macro and an NS_ENUM member, and a copy that is a
 // rule rather than a constant brings its own pattern rather than a second
-// reader. The label-autohide copy that ADR 0007 still owes a pin (#1298) is
-// that third shape.
+// reader. label_autohide_rule_test.go is that third shape: it reads its copy
+// through here and then runs it, because a rule has no constant to compare.
 func readNativeSource(t *testing.T, repoRelPath string) string {
 	t.Helper()
 

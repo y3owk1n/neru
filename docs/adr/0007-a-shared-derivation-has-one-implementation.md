@@ -80,8 +80,13 @@ are the precedent, not the exception.
   and the `HintPlacement` enum to the same numbering. It pins *which placement
   each value means*, not where the badge is then drawn — `hintRectForPlacement:`
   remains a single Objective-C implementation with no Go counterpart to
-  disagree with. One copy of this kind is still owed a pin: the recursive-grid
-  label-autohide rule (#1298).
+  disagree with. The second such pin landed with the recursive-grid
+  label-autohide rule (#1298), where the copy is a rule rather than a constant:
+  `internal/architecture/label_autohide_rule_test.go` reads the Objective-C
+  guard in `drawGridLabel:` into something it can run, and holds its answer to
+  `recursivegrid.Style.ShowLabelIn` over the cases that separate them — the
+  multiplier that disables autohide, the threshold itself, and each cell
+  dimension one pixel under it.
 - **"Lowest layer with more than one caller" is a judgement someone has to
   make, and it moves.** A derivation with one caller is not shared and should
   stay private; the second caller is what triggers the move, and the move is
@@ -90,9 +95,11 @@ are the precedent, not the exception.
   which is why `CONTEXT.md` lists *helper*, *util*, *common code* and *shared
   logic* as the words to avoid. A shared derivation is named for what it
   derives.
-- **This ADR ships one instance and leaves two known ones standing.** The font
+- **This ADR shipped one instance and left two known ones standing.** The font
   parser is collapsed here (#1286). The subgrid breakpoints and the 3×3 written
-  five times are filed separately (#1287), because they touch the drawing path on every
-  backend and deserve their own diff. Naming the rule before finishing the work
+  five times were filed separately (#1287), because they touch the drawing path on every
+  backend and deserved their own diff; they were collapsed in #1292, where the
+  mode layer and all three overlays came to ask `internal/domain/grid` for the
+  cells rather than divide the rectangle themselves. Naming the rule before finishing the work
   is the point: the next platform backend should not have to infer it from two
   packages that never explained themselves.
