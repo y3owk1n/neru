@@ -234,13 +234,23 @@ main-run-loop test harness is documented in
 processing, mode transitions, config parsing/validation/defaults, and CLI
 argument handling. These run everywhere.
 
-**Integration** — today these are **macOS only**: real Accessibility and event
-tap APIs, global hotkey registration, overlay and window management, Unix socket
-IPC, config file loading and reloading, and service-to-adapter coordination.
-`*_integration_linux_test.go` and `*_integration_windows_test.go` are the
-reserved slots — no such tests exist yet, so Linux and Windows behavior is
-currently pinned by unit and contract tests alone. Adding real ones is one of
-the more valuable contributions available.
+**Integration** — almost all of these are **macOS**: real Accessibility and
+event tap APIs, global hotkey registration, overlay and window management, Unix
+socket IPC, config file loading and reloading, and service-to-adapter
+coordination. Linux has exactly one so far — the fontconfig font resolver
+(`internal/adapter/platform/linux/font_integration_linux_test.go`, which reads
+what is installed with `fc-list` and skips where fontconfig has nothing to
+report) — and Windows has none, so behavior on both is otherwise pinned by unit
+and contract tests alone. Adding real ones is one of the more valuable
+contributions available.
+
+No `just` recipe runs the Linux ones: `just test-linux` runs the container
+without the `integration` tag, and `just test-integration` runs on the host.
+Until there is a recipe, run them the way the container recipe does and add the
+tag — `docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci go
+test -tags=integration ./...` — on an image with fonts and `fc-list` installed
+(`fontconfig fonts-dejavu-core`). CI covers them on `ubuntu-latest`, where
+`just test-ci` runs the integration suite natively.
 
 ### Running integration tests
 

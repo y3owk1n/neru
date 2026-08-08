@@ -165,6 +165,21 @@ Windows only maps the generic aliases `sans` / `serif` / `mono` to Segoe UI /
 Cambria / Consolas and passes every other name straight to GDI without checking
 it; an unavailable family falls back to whatever GDI substitutes.
 
+A family somebody named resolves to **that name**: the answer is the family the
+config asked for, not the family the platform would render in its place. The one
+exception is Linux with fontconfig, the only backend that can tell an installed
+family from a missing one — a missing one falls back to DejaVu Sans rather than
+to fontconfig's own substitution for the name, so `font_family = "Arial"`
+without Arial installed reports DejaVu Sans and not the Liberation Sans
+`fc-match Arial` names. It is the sans baseline whatever face the name asked
+for: the serif and mono baselines are what the `serif` and `mono` aliases
+resolve to, so a missing `Times New Roman` also lands on DejaVu Sans. Where the
+baseline is itself missing, fontconfig chooses that machine's generic, so the
+fallback is always a family it has. macOS, Windows, the non-CGO Linux build, and a CGO build whose
+fontconfig cannot be consulted at all check nothing: they hand the written name
+to NSFont / GDI / Cairo, which substitute when the text is drawn — as Cairo does
+on Linux too, for whichever name it is given.
+
 Which names count as generic is the same on all three: `sans`, `sans serif`,
 `serif`, `mono`, `monospace` and the empty string, matched ignoring case,
 surrounding whitespace and the separator between words — `sans-serif`,

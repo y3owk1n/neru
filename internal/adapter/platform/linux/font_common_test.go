@@ -45,7 +45,7 @@ func TestLinuxFamilies_Resolve_NamedFamilyPassesThroughTrimmed(t *testing.T) {
 }
 
 func TestDefaultForMapped_KeepsTheBaselineThatWasMapped(t *testing.T) {
-	// When fontconfig matches nothing at all, a mapped baseline is kept and
+	// When fontconfig says the family is missing, a mapped baseline is kept and
 	// anything else falls back to sans. The input is a family already mapped,
 	// not what the user wrote.
 	cases := map[string]string{

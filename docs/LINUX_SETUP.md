@@ -359,11 +359,13 @@ Set a font with modifier glyphs:
 font_family = "Your installed symbol-capable font"
 ```
 
-Verify candidates with fontconfig:
+Check the family is installed — a family fontconfig does not have falls back to
+the DejaVu generic rather than to fontconfig's substitute for it
+([font resolution](CROSS_PLATFORM.md#capability-matrix)), so the name has to be
+one `fc-list` reports:
 
 ```bash
-fc-match "sans-serif"
-fc-match "monospace"
+fc-list : family | grep -i "your font"
 ```
 
 Paste `❖⇧⌥⌃` into a text editor to confirm the font renders before relying on it
