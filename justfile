@@ -364,7 +364,25 @@ clean:
     rm -rf build/
     rm -rf *.app
     rm -f cmd/neru/rsrc_windows_*.syso
+    rm -rf "{{ GOLANGCI_LINT_CACHE }}"
     @echo "✓ Clean complete"
+
+# Where golangci-lint keeps its cache, scoped to this checkout.
+#
+# Its default is one host-level directory shared by every checkout on the
+# machine, and the agent worktrees parked under .claude/worktrees/ are separate
+# checkouts of this repository. They all wrote to that one cache, so removing a
+# worktree left entries behind naming files under a directory that no longer
+# exists, and the next `just fmt` in another checkout reported them as a lint
+# failure against a real-looking path — nothing wrong with the code, and no hint
+# in the message that the cache was the problem.
+#
+# Keeping the cache in the checkout gives each one its own, keeps repeat lints
+# warm (it persists between runs, and `just clean` is what removes it), and lets
+# a removed checkout take its cache with it rather than leaving one behind to go
+# stale. It is gitignored. The containerized lint-cross recipe passes its own
+# value to the container and is unaffected.
+export GOLANGCI_LINT_CACHE := justfile_directory() / ".golangci-cache"
 
 # Format code
 fmt:

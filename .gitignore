@@ -43,6 +43,10 @@ config.toml
 
 .direnv/
 
+# golangci-lint cache. The justfile points it here so every checkout gets its
+# own and none can poison another's — see the GOLANGCI_LINT_CACHE comment there.
+.golangci-cache/
+
 # Agent-guide local overrides (see AGENTS.md)
 AGENTS.local.md
 CLAUDE.local.md
