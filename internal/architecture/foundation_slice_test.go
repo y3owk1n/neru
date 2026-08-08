@@ -339,38 +339,15 @@ func goPackageDirs(t *testing.T) []packageDir {
 	repoRoot := findRepoRoot(t)
 	byDir := map[string][]string{}
 
-	walkErr := filepath.WalkDir(
-		repoRoot,
-		func(path string, entry os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if filepath.Ext(file.name) != goExt {
+			return
+		}
 
-			if entry.IsDir() {
-				if isSkippedWalkDir(repoRoot, path) {
-					return filepath.SkipDir
-				}
+		byDir[file.dir] = append(byDir[file.dir], file.name)
+	})
 
-				return nil
-			}
-
-			if filepath.Ext(entry.Name()) != ".go" {
-				return nil
-			}
-
-			relDir, relErr := filepath.Rel(repoRoot, filepath.Dir(path))
-			if relErr != nil {
-				return relErr
-			}
-
-			byDir[filepath.ToSlash(relDir)] = append(byDir[filepath.ToSlash(relDir)], entry.Name())
-
-			return nil
-		},
-	)
-	if walkErr != nil {
-		t.Fatalf("WalkDir(%s) error = %v", repoRoot, walkErr)
-	}
+	assertWalkedAtLeast(t, "directories of Go source", len(byDir), bulkWalkFloor)
 
 	dirs := make([]packageDir, 0, len(byDir))
 

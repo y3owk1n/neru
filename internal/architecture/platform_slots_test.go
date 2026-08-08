@@ -4,7 +4,6 @@ import (
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -295,46 +294,20 @@ func goFiles(t *testing.T) []goFile {
 
 	var files []goFile
 
-	walkErr := filepath.WalkDir(
-		repoRoot,
-		func(path string, entry os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if filepath.Ext(file.name) != goExt || strings.HasSuffix(file.name, "_test.go") {
+			return
+		}
 
-			if entry.IsDir() {
-				if isSkippedWalkDir(repoRoot, path) {
-					return filepath.SkipDir
-				}
+		files = append(files, goFile{
+			absPath: file.abs,
+			relPath: file.rel,
+			dir:     file.dir,
+			base:    file.name,
+		})
+	})
 
-				return nil
-			}
-
-			name := entry.Name()
-			if filepath.Ext(name) != ".go" || strings.HasSuffix(name, "_test.go") {
-				return nil
-			}
-
-			relPath, relErr := filepath.Rel(repoRoot, path)
-			if relErr != nil {
-				return relErr
-			}
-
-			slashed := filepath.ToSlash(relPath)
-
-			files = append(files, goFile{
-				absPath: path,
-				relPath: slashed,
-				dir:     filepath.ToSlash(filepath.Dir(slashed)),
-				base:    name,
-			})
-
-			return nil
-		},
-	)
-	if walkErr != nil {
-		t.Fatalf("WalkDir() error = %v", walkErr)
-	}
+	assertWalkedAtLeast(t, "non-test Go files", len(files), bulkWalkFloor)
 
 	return files
 }

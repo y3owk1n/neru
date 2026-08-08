@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,7 +29,7 @@ var failCalls = map[string]bool{
 func TestNoTestSwallowsAnErrorWithoutFailing(t *testing.T) {
 	var offenders []string
 
-	forEachTestFile(t, func(path string, fset *token.FileSet, file *ast.File) {
+	forEachTestFile(t, func(_ repoFile, fset *token.FileSet, file *ast.File) {
 		ast.Inspect(file, func(node ast.Node) bool {
 			ifStmt, ok := node.(*ast.IfStmt)
 			if !ok {
@@ -63,7 +62,7 @@ func TestNoTestSwallowsAnErrorWithoutFailing(t *testing.T) {
 func TestEveryTestBodyCanFail(t *testing.T) {
 	var offenders []string
 
-	forEachTestFile(t, func(path string, fset *token.FileSet, file *ast.File) {
+	forEachTestFile(t, func(_ repoFile, fset *token.FileSet, file *ast.File) {
 		for _, decl := range file.Decls {
 			funcDecl, ok := decl.(*ast.FuncDecl)
 			if !ok || funcDecl.Body == nil {
@@ -205,42 +204,30 @@ func isErrNotNilCond(cond ast.Expr) bool {
 // built, so integration tests are covered on every platform.
 func forEachTestFile(
 	t *testing.T,
-	visit func(path string, fset *token.FileSet, file *ast.File),
+	visit func(source repoFile, fset *token.FileSet, file *ast.File),
 ) {
 	t.Helper()
 
 	repoRoot := findRepoRoot(t)
 	fset := token.NewFileSet()
+	visited := 0
 
-	walkErr := filepath.WalkDir(repoRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if !strings.HasSuffix(file.name, "_test.go") {
+			return
 		}
 
-		if entry.IsDir() {
-			if isSkippedWalkDir(repoRoot, path) {
-				return filepath.SkipDir
-			}
-
-			return nil
-		}
-
-		if !strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-
-		parsed, parseErr := parser.ParseFile(fset, path, nil, 0)
+		parsed, parseErr := parser.ParseFile(fset, file.abs, nil, 0)
 		if parseErr != nil {
-			return parseErr
+			t.Fatalf("ParseFile(%s) error = %v", file.rel, parseErr)
 		}
 
-		visit(path, fset, parsed)
+		visited++
 
-		return nil
+		visit(file, fset, parsed)
 	})
-	if walkErr != nil {
-		t.Fatalf("walking the repository: %v", walkErr)
-	}
+
+	assertWalkedAtLeast(t, "test files", visited, bulkWalkFloor)
 }
 
 // reportOffenders fails the test with one line per offending site, relative to
