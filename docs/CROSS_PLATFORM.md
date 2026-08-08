@@ -463,7 +463,7 @@ discovery rather than the mode itself.
 | **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, shallow tree      |
 | **Hints**         | `vision` strategy + per-app overrides | ✅                  | ❌ macOS-only              | ❌ macOS-only               |
 | **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
-| **Hints**         | Search input badge             | ✅                         | ❌ no-op                   | ✅                          |
+| **Hints**         | Search input badge             | ✅                         | 🟡 `CodeNotSupported`      | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ❌                          |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ❌ ignored, see below       |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
@@ -561,7 +561,9 @@ Work that is genuinely missing, as opposed to deliberately platform-specific.
 1. Native notifications and alerts — stubs; target freedesktop D-Bus notifications
 2. Smooth scroll animation — not implemented
 3. GNOME/Mutter Wayland — unsupported; the daemon refuses to start
-4. Hints search input badge — no-op in the overlay manager
+4. Hints search input badge — not drawn; the overlay manager reports
+   `CodeNotSupported` and the query goes on reaching hints through the event
+   tap's key stream
 5. Secure input detection — always false
 6. Wayland global hotkeys — need `input`-group access and a CGO build
 

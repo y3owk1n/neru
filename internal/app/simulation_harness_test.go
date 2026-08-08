@@ -183,6 +183,10 @@ type simOverlayPort struct {
 	// monitor picker: showing that frame reports CodeNotSupported, the way an
 	// adapter over a backend without the capability does.
 	refuseMonitorSelect bool
+	// refuseHintSearch stands in for a backend that draws no hint search
+	// badge: the draw reports CodeNotSupported, the way the Linux overlay does
+	// for a search input no backend there implements.
+	refuseHintSearch bool
 
 	mu sync.Mutex
 	// visible is whether the overlay is on screen; shows counts how many times
@@ -271,11 +275,19 @@ func (m *simOverlayPort) ClearFrame(_ context.Context) error {
 
 func (m *simOverlayPort) SetActiveScreen(_ image.Rectangle) {}
 
+// DrawHintSearch records the query the search input was asked to show. A
+// refusing overlay records the ask too and then reports CodeNotSupported —
+// what a journey observes there is that the user was asked for, not that
+// anything was drawn.
 func (m *simOverlayPort) DrawHintSearch(search ports.HintSearch) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.searchQueries = append(m.searchQueries, search.Query)
+
+	if m.refuseHintSearch {
+		return derrors.New(derrors.CodeNotSupported, "no hint search input on this backend")
+	}
 
 	return nil
 }
@@ -463,7 +475,11 @@ func (m *simOverlayPort) indicatorVisibility(indicator ports.Indicator) (bool, b
 	return visible, asked
 }
 
-func (m *simOverlayPort) searchInputDrawCount() int {
+// searchInputAskCount reports how many times the overlay was asked to show the
+// search input. It counts asks rather than draws because a refusing overlay
+// records the ask and then declines it, and "search is open" is what a journey
+// needs to observe either way.
+func (m *simOverlayPort) searchInputAskCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1100,6 +1116,25 @@ func newSimHarnessWithDisplays(
 	recorder := &simOverlayPort{}
 
 	return buildSimHarness(tb, cfg, elements, displays, recorder, recorder)
+}
+
+// newSimHarnessRefusingHintSearch builds the app on an overlay that draws
+// everything except the hint search badge, which it refuses with
+// CodeNotSupported — the Linux overlay's answer for a search input no backend
+// there implements. The recorder is kept, because what this stands up is a
+// mode that has to go on working without it.
+func newSimHarnessRefusingHintSearch(
+	tb testing.TB,
+	cfg *config.Config,
+	elements []*element.Element,
+) *simHarness {
+	tb.Helper()
+
+	recorder := &simOverlayPort{refuseHintSearch: true}
+
+	return buildSimHarness(tb, cfg, elements, []simDisplay{
+		{name: defaultDisplayName, bounds: simScreen},
+	}, recorder, recorder)
 }
 
 // newSimHarnessHeadlessOverlay builds the app on an overlay with no surface
