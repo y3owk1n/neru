@@ -38,11 +38,87 @@ import (
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
+const simFixtureBundleID = "com.example.simfixture"
+
+// --- wait budgets ----------------------------------------------------------
+//
+// Every journey below waits on the same shape of thing: in-process
+// asynchronous work — a hotkey callback, a goroutine the app started, a mode
+// transition queued behind the handler lock — that finishes in single-digit
+// milliseconds on an idle machine. So a wait's budget is not an estimate of
+// how long its step takes. It is headroom against the machine, plus, where the
+// awaited thing has a duration of its own, that duration.
+//
+// Two things move the machine side of it, and only one of them is fixable with
+// a number:
+//
+//   - The race detector instruments every memory access, which is why the
+//     -race pass is where a fixed budget runs out first. That is a bounded,
+//     knowable factor, so simWaitHeadroom scales by simRaceSlowdown.
+//   - A loaded shared runner can deschedule this process for whole seconds
+//     regardless of how little work it has left. No budget survives that by
+//     being bigger, so waitForWithin does not rely on one: it evaluates the
+//     condition and only then looks at the clock, so the last thing a wait
+//     does before giving up is ask again. A wait therefore fails only on work
+//     that has not happened — never on work that happened while the process
+//     was not running. Of the two halves of #1324, that is the half no bigger
+//     number could have bought.
+//
+// What the budget buys after that is the case where the work is genuinely
+// still coming, and what it costs is how long a genuinely hung journey takes
+// to report — which is why it is seconds and not minutes.
+//
+// Adding a journey: call waitFor and inherit simWaitHeadroom. Reach for
+// waitForWithin only when what you are awaiting has its own duration — a
+// configured repeat interval, a sampling window — and write that duration into
+// the call as `simWaitHeadroom + <it>`, so the headroom stays one thing and
+// the journey's own timing stays visible. Growing simWaitHeadroom to cover one
+// slow wait puts every other journey's hang detection behind it.
 const (
-	simFixtureBundleID = "com.example.simfixture"
-	simWaitTimeout     = 5 * time.Second
-	simPollInterval    = 2 * time.Millisecond
+	// simWaitHeadroomBase is the machine headroom one wait gets on an
+	// uninstrumented build. The work these journeys await completes in
+	// single-digit milliseconds, so this is roughly three orders of magnitude
+	// of slack — sized for a shared runner having a bad minute, not for the
+	// work.
+	simWaitHeadroomBase = 5 * time.Second
+
+	// simRaceSlowdown is how much further to stretch a wait budget when the
+	// binary carries the race detector. The detector's documented cost is a
+	// 2-20x slowdown; 4 sits inside that on top of a base that is already
+	// mostly slack, and it is applied once, here, so no journey has to know
+	// how it was built.
+	simRaceSlowdown = 4
+
+	// simPollInterval is how often a wait re-asks its condition. Short enough
+	// that a journey is not measuring the poller, long enough that a hundred
+	// waits do not busy-spin a constrained CPU away from the app they are
+	// waiting on.
+	simPollInterval = 2 * time.Millisecond
+
+	// simShutdownBudgetBase is what Stop() gets to unwind every startup phase
+	// and return from Run(). It is a budget of its own rather than a reuse of
+	// the wait headroom because it covers a different thing: not one
+	// asynchronous hop, but the whole application coming down.
+	simShutdownBudgetBase = 5 * time.Second
 )
+
+// simWaitHeadroom is the default budget for a single waitFor, and
+// simShutdownBudget the one the harness gives a stopping app; both are stated
+// above in idle-machine terms and scaled here, once.
+var (
+	simWaitHeadroom   = simScaleForRace(simWaitHeadroomBase)
+	simShutdownBudget = simScaleForRace(simShutdownBudgetBase)
+)
+
+// simScaleForRace stretches a budget stated for an uninstrumented build to
+// what the same wait needs under -race.
+func simScaleForRace(budget time.Duration) time.Duration {
+	if !simRaceDetectorEnabled {
+		return budget
+	}
+
+	return budget * simRaceSlowdown
+}
 
 // defaultDisplayName is the name of the fixture desktop's single display.
 const defaultDisplayName = "SimDisplay"
@@ -1189,8 +1265,8 @@ func buildSimHarness(
 				!derrors.IsCode(runErr, derrors.CodeContextCanceled) {
 				tb.Errorf("Run() returned an unexpected error after Stop(): %v", runErr)
 			}
-		case <-time.After(simWaitTimeout):
-			tb.Errorf("app did not stop within %v", simWaitTimeout)
+		case <-time.After(simShutdownBudget):
+			tb.Errorf("app did not stop within %v", simShutdownBudget)
 		}
 
 		application.Cleanup()
@@ -1234,20 +1310,41 @@ func (h *simHarness) typeLabel(label string) {
 	}
 }
 
-// waitFor polls cond until it holds or the harness timeout elapses.
+// waitFor polls cond until it holds, giving it the default machine headroom.
 func (h *simHarness) waitFor(desc string, cond func() bool) {
 	h.t.Helper()
 
-	deadline := time.Now().Add(simWaitTimeout)
-	for time.Now().Before(deadline) {
+	h.waitForWithin(simWaitHeadroom, desc, cond)
+}
+
+// waitForWithin polls cond until it holds or budget elapses.
+//
+// The order of the two checks is the load-bearing part: cond is evaluated
+// first and the clock consulted only after it comes back false, so however far
+// past the budget a descheduled poll wakes up, the condition is still asked
+// once more before the wait gives up. A journey therefore fails on work that
+// did not happen, never on work that happened while this process was starved
+// of a CPU — the flake #1324 reported.
+//
+// The budget is therefore when a wait stops trying, not a ceiling on how long
+// it takes: a wait can outlast it by one evaluation of cond, which matters
+// only for a condition that is itself slow to answer.
+func (h *simHarness) waitForWithin(budget time.Duration, desc string, cond func() bool) {
+	h.t.Helper()
+
+	deadline := time.Now().Add(budget)
+
+	for {
 		if cond() {
 			return
 		}
 
+		if !time.Now().Before(deadline) {
+			h.t.Fatalf("timed out after %v waiting for %s", budget, desc)
+		}
+
 		time.Sleep(simPollInterval)
 	}
-
-	h.t.Fatalf("timed out after %v waiting for %s", simWaitTimeout, desc)
 }
 
 // waitMode waits for the app to reach the given mode.
@@ -1262,6 +1359,14 @@ func (h *simHarness) waitMode(mode domain.Mode) {
 // neverMode asserts the app does not enter the given mode within the window.
 // Absence can only be checked for a bounded time; the window is generous
 // relative to the (in-process, no-IO) activation path it guards against.
+//
+// Deliberately not scaled by simScaleForRace, unlike every wait budget above.
+// A wait is scaled because slowness turns it into a failure; this window's
+// failure mode is the opposite one — a starved process watches nothing and
+// passes vacuously — and stretching the window does not fix that, because a
+// starved four seconds is as empty as a starved 250 milliseconds. It would
+// only add real seconds to every -race run. The window a caller writes is the
+// window it gets.
 func (h *simHarness) neverMode(mode domain.Mode, window time.Duration) {
 	h.t.Helper()
 

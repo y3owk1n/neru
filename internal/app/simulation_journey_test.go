@@ -1083,10 +1083,21 @@ func TestSimulation_StickyModifierClick(t *testing.T) {
 // TestSimulation_HeldRepeatScroll covers held-key repeat: holding j keeps
 // scrolling on the configured interval, and the key release stops it.
 func TestSimulation_HeldRepeatScroll(t *testing.T) {
+	const (
+		repeatDelayMS    = 5
+		repeatIntervalMS = 5
+		// scrollsAwaited is enough repeats to say the engine is running rather
+		// than that the key was handled once.
+		scrollsAwaited = 4
+		// stopSampleWindow is how long the stop check lets the engine run
+		// between its two samples.
+		stopSampleWindow = 100 * time.Millisecond
+	)
+
 	cfg := simConfig()
 	cfg.HeldRepeat.Enabled = true
-	cfg.HeldRepeat.InitialDelay = 5
-	cfg.HeldRepeat.Interval = 5
+	cfg.HeldRepeat.InitialDelay = repeatDelayMS
+	cfg.HeldRepeat.Interval = repeatIntervalMS
 
 	sim := newSimHarness(t, cfg, nil)
 
@@ -1096,20 +1107,41 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	// Key down without a release: the repeat engine takes over.
 	sim.press("j")
 
-	sim.waitFor("held key repeated at least 4 scrolls", func() bool {
-		return len(sim.ax.recordedScrolls()) >= 4
-	})
+	// Unlike every other wait in these journeys, this one is waiting on a
+	// timer: the first scroll cannot arrive before the initial delay and each
+	// one after it costs an interval, however fast the machine is. That
+	// duration is stated on top of the headroom rather than absorbed into it,
+	// so a journey that turns the interval up does not silently eat the slack
+	// every other wait is relying on.
+	repeatRunUp := repeatDelayMS*time.Millisecond +
+		(scrollsAwaited-1)*repeatIntervalMS*time.Millisecond
 
-	// Release stops the repeat: wait for two identical samples 100ms apart.
+	sim.waitForWithin(
+		simWaitHeadroom+repeatRunUp,
+		fmt.Sprintf("held key repeated at least %d scrolls", scrollsAwaited),
+		func() bool {
+			return len(sim.ax.recordedScrolls()) >= scrollsAwaited
+		},
+	)
+
+	// Release stops the repeat: wait for two identical samples a
+	// stopSampleWindow apart. Each attempt at that costs the window, and the
+	// first one may still catch a scroll dispatched before the release landed,
+	// so the budget carries room for the sample that fails and the one that
+	// confirms.
 	sim.press("__keyup_j")
 
-	sim.waitFor("repeat stopped after key release", func() bool {
-		before := len(sim.ax.recordedScrolls())
+	sim.waitForWithin(
+		simWaitHeadroom+2*stopSampleWindow,
+		"repeat stopped after key release",
+		func() bool {
+			before := len(sim.ax.recordedScrolls())
 
-		time.Sleep(100 * time.Millisecond)
+			time.Sleep(stopSampleWindow)
 
-		return len(sim.ax.recordedScrolls()) == before
-	})
+			return len(sim.ax.recordedScrolls()) == before
+		},
+	)
 
 	sim.press("Escape")
 	sim.waitMode(domain.ModeIdle)
