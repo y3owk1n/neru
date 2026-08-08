@@ -50,20 +50,6 @@ func (o *wlrootsOverlay) DrawHints(
 ) {
 }
 
-func (o *wlrootsOverlay) DrawRecursiveGrid(
-	image.Rectangle,
-	int,
-	string,
-	domain.GridDimensions,
-	string,
-	domain.GridDimensions,
-	recursivegridcomponent.Style,
-	recursivegridcomponent.VirtualPointerState,
-	bool,
-	int,
-) {
-}
-
 func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 	image.Rectangle,
 	int,

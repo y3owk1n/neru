@@ -147,25 +147,6 @@ func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcompon
 	o.drawGrid(g, input, style)
 }
 
-func (o *x11Overlay) DrawRecursiveGrid(
-	bounds image.Rectangle,
-	depth int,
-	keys string,
-	dims domain.GridDimensions,
-	nextKeys string,
-	nextDims domain.GridDimensions,
-	style recursivegridcomponent.Style,
-	virtualPointer recursivegridcomponent.VirtualPointerState,
-	animEnabled bool,
-	animDurationMS int,
-) {
-	o.DrawRecursiveGridWithSubKeyPreview(
-		bounds, depth, keys, dims,
-		nextKeys, nextDims,
-		style, virtualPointer, animEnabled, animDurationMS,
-	)
-}
-
 func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
 	bounds image.Rectangle,
 	depth int,
