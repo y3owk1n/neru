@@ -189,38 +189,47 @@ test-unit:
 # work — a failure here is a real cross-platform regression, not a
 # host-specific one.
 #
-# Keep this list in sync when adding a package; `just list-foundation-packages`
-# prints the set that currently qualifies.
+# This list is kept by hand but not on trust: TestFoundationSliceMatchesTheRecipe
+# in internal/architecture parses it and fails when it stops matching the
+# packages that qualify, naming each one. `just list-foundation-packages` prints
+# the corrected list to paste back in.
 test-foundation:
     @echo "Running cross-platform foundation tests..."
     go test ./internal/config ./internal/config/loader \
         ./internal/app/components ./internal/app/components/scroll \
-        ./internal/app/services ./internal/app/services/modeindicator \
+        ./internal/app/heldrepeat ./internal/app/ipcctrl \
+        ./internal/app/keybinding \
+        ./internal/app/services ./internal/app/services/indicator \
+        ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \
+        ./internal/app/services/virtualpointer \
         ./internal/architecture ./internal/cli/cliutil \
         ./internal/domain ./internal/domain/action \
         ./internal/domain/element ./internal/domain/grid \
-        ./internal/domain/hint ./internal/domain/recursivegrid \
+        ./internal/domain/hint ./internal/domain/keyvocab \
+        ./internal/domain/modecmd ./internal/domain/recursivegrid \
         ./internal/domain/state ./internal/derrors \
+        ./internal/flagref \
         ./internal/adapter/logger \
+        ./internal/adapter/overlay/render/badge \
         ./internal/adapter/platform/fontcache \
+        ./internal/adapter/platform/fontgeneric \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
         ./internal/domain/geometry
     @echo "✓ Cross-platform foundation tests passed"
 
-# Print the packages that contain no platform-tagged source, i.e. the set
-# test-foundation should be running. Use it to spot drift after adding a package.
+# Print the packages test-foundation should be running. Use it to fix the recipe
+# after TestFoundationSliceMatchesTheRecipe reports drift.
+#
+# The rule this applies — a package compiles to the same files on darwin, linux
+# and windows, and has tests — lives in that test and only there. Deciding it a
+# second time here is what let the old version of this recipe report packages
+# that were platform-specific by directory or by a //go:build line no filename
+# check could see.
 list-foundation-packages:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    for d in $(go list ./... | sed 's|github.com/y3owk1n/neru/||'); do
-        [ -d "$d" ] || continue
-        tagged=$(find "$d" -maxdepth 1 \( -name '*_darwin.go' -o -name '*_linux*.go' \
-            -o -name '*_windows.go' -o -name '*_other.go' \) | wc -l | tr -d ' ')
-        tests=$(find "$d" -maxdepth 1 -name '*_test.go' | wc -l | tr -d ' ')
-        [ "$tagged" = "0" ] && [ "$tests" != "0" ] && echo "./$d"
-    done
+    @NERU_LIST_FOUNDATION=1 go test -count=1 -v \
+        -run TestFoundationSliceMatchesTheRecipe ./internal/architecture | grep '^\./'
 
 # Run integration tests (desktop-safe subset)
 # Tests that drive the real cursor, keyboard or overlays gate themselves on

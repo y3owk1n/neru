@@ -1,0 +1,395 @@
+package architecture_test
+
+import (
+	"fmt"
+	"go/build"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+	"testing"
+)
+
+// These tests pin the cross-platform foundation slice: the package list that
+// `just test-foundation` runs, documented in docs/DEVELOPMENT.md as the fast
+// check to run before or during Linux/Windows work.
+//
+// The slice only earns that description if it holds every package whose
+// behavior really is identical on every target. Kept by hand it drifted both
+// ways — nine eligible packages missing, one platform-dependent package listed
+// — and nothing noticed, because nothing checked. This is the check.
+//
+// The rule lives here and nowhere else. `just list-foundation-packages` prints
+// what this file computes rather than deciding for itself, so there is no
+// second definition of "platform-free" to disagree with the first.
+const (
+	justfileName     = "justfile"
+	foundationRecipe = "test-foundation"
+)
+
+// listFoundationEnv makes the test print the slice it computes, one package per
+// line, so `just list-foundation-packages` can show it without a second
+// implementation. Unset — every other run, including CI — it prints nothing.
+const listFoundationEnv = "NERU_LIST_FOUNDATION"
+
+// foundationGOARCH holds the architecture constant while GOOS varies. The rule
+// is about operating systems; letting the arch move too would report a package
+// split by *_arm64.go as platform-dependent, which is a different concern with
+// a different answer.
+const foundationGOARCH = "amd64"
+
+// minFoundationPackages guards against a vacuous pass. The walk finds a few
+// dozen packages today; a bug that matched none — a renamed directory, a walk
+// that never descended — would satisfy every assertion below while checking
+// nothing at all.
+const minFoundationPackages = 25
+
+// foundationExemptions are packages the slice runs even though they carry
+// platform-tagged source, mapped to why running them anyway is honest.
+//
+// An exemption is a claim that the package's platform files are narrow enough
+// that a failure in it is still a real cross-platform regression rather than a
+// host-specific one. TestFoundationExemptionsStayHonest holds each entry to
+// that: the package must still compile, with tests, on every target, and must
+// still be genuinely ineligible. So this list can only shrink.
+var foundationExemptions = map[string]string{
+	"./internal/config": "its four platform files hold applyPlatformDefaults and " +
+		"nothing else; the schema, the validators and the loader they gate are " +
+		"shared, and they are what Linux and Windows work breaks",
+}
+
+// TestFoundationSliceMatchesTheRecipe fails when the hand-kept package list in
+// the test-foundation recipe stops matching the packages that qualify.
+func TestFoundationSliceMatchesTheRecipe(t *testing.T) {
+	want := foundationSlice(t)
+
+	if os.Getenv(listFoundationEnv) != "" {
+		for _, pkg := range want {
+			// This print is the output of `just list-foundation-packages`.
+			//nolint:forbidigo
+			fmt.Println(pkg)
+		}
+	}
+
+	if len(want) < minFoundationPackages {
+		t.Fatalf(
+			"found %d foundation packages, expected at least %d; the walk or the "+
+				"build-constraint match is broken, not the recipe",
+			len(want),
+			minFoundationPackages,
+		)
+	}
+
+	got := recipePackages(t)
+
+	for _, pkg := range want {
+		if !slices.Contains(got, pkg) {
+			t.Errorf(
+				"%s compiles to the same files on %s and has tests, but the %s "+
+					"recipe in %s does not run it",
+				pkg,
+				strings.Join(knownOS, ", "),
+				foundationRecipe,
+				justfileName,
+			)
+		}
+	}
+
+	for _, pkg := range got {
+		if slices.Contains(want, pkg) {
+			continue
+		}
+
+		t.Errorf(
+			"the %s recipe in %s runs %s, which does not compile to the same "+
+				"files on %s; drop it, or add it to foundationExemptions with a reason",
+			foundationRecipe,
+			justfileName,
+			pkg,
+			strings.Join(knownOS, ", "),
+		)
+	}
+
+	if t.Failed() {
+		t.Logf(
+			"the %s recipe should run exactly these packages "+
+				"(`just list-foundation-packages` prints them):\n%s",
+			foundationRecipe,
+			strings.Join(want, "\n"),
+		)
+	}
+}
+
+// TestFoundationExemptionsStayHonest keeps foundationExemptions from outliving
+// its reasons. An entry whose package became platform-free belongs in the
+// derived set, not the allowlist; an entry that stopped compiling everywhere
+// was never safe to run everywhere.
+func TestFoundationExemptionsStayHonest(t *testing.T) {
+	byPath := map[string]packageDir{}
+	for _, dir := range goPackageDirs(t) {
+		byPath[dir.rel] = dir
+	}
+
+	for pkg, reason := range foundationExemptions {
+		if reason == "" {
+			t.Errorf("%s is exempt with no reason given", pkg)
+		}
+
+		dir, found := byPath[pkg]
+		if !found {
+			t.Errorf("%s is exempt but no such package exists; drop the entry", pkg)
+
+			continue
+		}
+
+		if isFoundationPackage(t, dir) {
+			t.Errorf(
+				"%s no longer carries platform-tagged source, so it needs no "+
+					"exemption; drop the entry and let it be derived",
+				pkg,
+			)
+		}
+
+		for _, goos := range knownOS {
+			built := buildableFiles(t, dir, goos)
+			if len(built.source) == 0 || len(built.tests) == 0 {
+				t.Errorf(
+					"%s is exempt from the foundation slice, but on %s it has %d "+
+						"source and %d test files; the slice cannot claim to run it "+
+						"everywhere",
+					pkg,
+					goos,
+					len(built.source),
+					len(built.tests),
+				)
+			}
+		}
+	}
+}
+
+// foundationSlice returns the packages the recipe should run, sorted: every
+// package that compiles to the same files on every target and has tests, plus
+// the exemptions.
+func foundationSlice(t *testing.T) []string {
+	t.Helper()
+
+	var slice []string
+
+	for _, dir := range goPackageDirs(t) {
+		if isFoundationPackage(t, dir) {
+			slice = append(slice, dir.rel)
+		}
+	}
+
+	for pkg := range foundationExemptions {
+		slice = append(slice, pkg)
+	}
+
+	slices.Sort(slice)
+
+	return slices.Compact(slice)
+}
+
+// isFoundationPackage reports whether a package compiles to the identical set
+// of files on every target and has tests to run there.
+//
+// Comparing the matched files, rather than looking for platform-tagged ones,
+// is what makes this see everything the old filename check could not: a package
+// that is one platform's code by directory has no files at all on the others,
+// and a file gated by //go:build !darwin says nothing in its name.
+func isFoundationPackage(t *testing.T, dir packageDir) bool {
+	t.Helper()
+
+	reference := buildableFiles(t, dir, knownOS[0])
+	if len(reference.source) == 0 || len(reference.tests) == 0 {
+		return false
+	}
+
+	for _, goos := range knownOS[1:] {
+		built := buildableFiles(t, dir, goos)
+		if !slices.Equal(built.source, reference.source) ||
+			!slices.Equal(built.tests, reference.tests) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// buildSet is the sorted result of asking the toolchain which of a package's
+// files compile for one target.
+type buildSet struct {
+	source []string
+	tests  []string
+}
+
+// buildableFiles asks go/build which files in dir compile for goos, using the
+// same matcher the toolchain uses — so it reads filename suffixes and //go:build
+// lines alike, which is the whole point.
+//
+// Cgo is enabled so that a package's cgo files count as present on the target
+// that has them. With it off they would be excluded everywhere, and a native
+// package would look identical on all three by virtue of being empty on all
+// three.
+func buildableFiles(t *testing.T, dir packageDir, goos string) buildSet {
+	t.Helper()
+
+	context := build.Default
+	context.GOOS = goos
+	context.GOARCH = foundationGOARCH
+	context.CgoEnabled = true
+
+	var built buildSet
+
+	for _, name := range dir.files {
+		matched, err := context.MatchFile(dir.abs, name)
+		if err != nil {
+			t.Fatalf("MatchFile(%s, %s) for %s error = %v", dir.rel, name, goos, err)
+		}
+
+		if !matched {
+			continue
+		}
+
+		if strings.HasSuffix(name, "_test.go") {
+			built.tests = append(built.tests, name)
+		} else {
+			built.source = append(built.source, name)
+		}
+	}
+
+	slices.Sort(built.source)
+	slices.Sort(built.tests)
+
+	return built
+}
+
+// packageDir is one directory of Go source, named the way the recipe names it.
+type packageDir struct {
+	// rel is the import path as `go test` takes it, e.g. "./internal/domain/hint".
+	rel   string
+	abs   string
+	files []string
+}
+
+// goPackageDirs returns every directory in the repo holding Go source, test
+// files included — a package whose only tests are platform-tagged is not one
+// the slice can run everywhere, and that is invisible without them.
+func goPackageDirs(t *testing.T) []packageDir {
+	t.Helper()
+
+	repoRoot := findRepoRoot(t)
+	byDir := map[string][]string{}
+
+	walkErr := filepath.WalkDir(
+		repoRoot,
+		func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if entry.IsDir() {
+				if isSkippedWalkDir(entry.Name()) {
+					return filepath.SkipDir
+				}
+
+				return nil
+			}
+
+			if filepath.Ext(entry.Name()) != ".go" {
+				return nil
+			}
+
+			relDir, relErr := filepath.Rel(repoRoot, filepath.Dir(path))
+			if relErr != nil {
+				return relErr
+			}
+
+			byDir[filepath.ToSlash(relDir)] = append(byDir[filepath.ToSlash(relDir)], entry.Name())
+
+			return nil
+		},
+	)
+	if walkErr != nil {
+		t.Fatalf("WalkDir(%s) error = %v", repoRoot, walkErr)
+	}
+
+	dirs := make([]packageDir, 0, len(byDir))
+
+	for relDir, files := range byDir {
+		dirs = append(dirs, packageDir{
+			rel:   "./" + relDir,
+			abs:   filepath.Join(repoRoot, filepath.FromSlash(relDir)),
+			files: files,
+		})
+	}
+
+	slices.SortFunc(dirs, func(a, b packageDir) int { return strings.Compare(a.rel, b.rel) })
+
+	return dirs
+}
+
+// recipePackagePattern matches the package arguments in a just recipe. The
+// recipe's echo lines carry no "./" token, so nothing else in the body matches.
+var recipePackagePattern = regexp.MustCompile(`\./[A-Za-z0-9._/-]+`)
+
+// recipePackages returns the packages the test-foundation recipe passes to
+// `go test`, sorted, failing on a package listed twice.
+func recipePackages(t *testing.T) []string {
+	t.Helper()
+
+	listed := recipePackagePattern.FindAllString(justRecipeBody(t, foundationRecipe), -1)
+	slices.Sort(listed)
+
+	deduped := slices.Compact(slices.Clone(listed))
+	if len(deduped) != len(listed) {
+		t.Errorf(
+			"the %s recipe in %s lists a package more than once",
+			foundationRecipe,
+			justfileName,
+		)
+	}
+
+	return deduped
+}
+
+// justRecipeBody returns the indented body of a just recipe: every line after
+// its header up to the next line that starts in column one.
+func justRecipeBody(t *testing.T, recipe string) string {
+	t.Helper()
+
+	path := filepath.Join(findRepoRoot(t), justfileName)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) error = %v", path, err)
+	}
+
+	var (
+		body       []string
+		collecting bool
+	)
+
+	for line := range strings.Lines(string(data)) {
+		line = strings.TrimRight(line, "\n")
+
+		if !collecting {
+			collecting = strings.HasPrefix(line, recipe+":")
+
+			continue
+		}
+
+		if line != "" && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			break
+		}
+
+		body = append(body, line)
+	}
+
+	if !collecting {
+		t.Fatalf("%s defines no %s recipe", justfileName, recipe)
+	}
+
+	return strings.Join(body, "\n")
+}
