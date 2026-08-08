@@ -285,11 +285,16 @@ func (h *handlerState) updateRecursiveGridOverlay() {
 // app layer; nothing here names a style or a render model.
 //
 // It is also where the manager's separate row and column counts become the one
-// domain.GridDimensions the whole draw path carries (#1313). That conversion
-// happens twice here — once for the depth on screen, once for the preview — and
-// nowhere else, so writing either pair under each other's names would transpose
-// every cell on every backend. TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart
-// is what stands over it.
+// domain.GridDimensions the draw path carries (#1313). It is the last
+// conversion before the overlay: from here through the port, the adapter, the
+// backends and the cgo helpers the shape travels whole, so writing either pair
+// under each other's names here would transpose every cell on every backend and
+// nothing further down could tell.
+// TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart stands over it.
+//
+// Upstream of here the pair still exists, in recursivegrid.DepthLayout — which
+// #1313 left alone deliberately, because a transposition there is caught by the
+// non-square Divide tests rather than only on screen.
 func (h *handlerState) recursiveGridFrame() ports.RecursiveGridFrame {
 	if h.recursiveGrid == nil || h.recursiveGrid.Manager == nil {
 		return ports.RecursiveGridFrame{}

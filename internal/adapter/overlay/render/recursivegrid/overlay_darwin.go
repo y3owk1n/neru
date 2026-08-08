@@ -295,7 +295,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	if dims.Cols < recursivegrid.MinGridDimension ||
 		dims.Rows < recursivegrid.MinGridDimension ||
 		dims.CellCount() < 2 {
-		// Fallback to default 2x2 if invalid or degenerate (1×1)
+		// Fall back to the default shape if invalid or degenerate (1×1)
 		dims = recursivegrid.DefaultDimensions()
 		keyCount = dims.CellCount()
 		keys = recursivegrid.DefaultKeys
