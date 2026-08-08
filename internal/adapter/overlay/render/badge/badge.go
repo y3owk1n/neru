@@ -120,39 +120,19 @@ func Bounds(
 // same pixel on every backend. A badge larger than its container overhangs it
 // rather than being clamped: the callers draw label plates, and a plate that
 // outgrew its cell is the autohide threshold's problem, not this function's.
-//
-// This is not CenteredOn with the container's center substituted for the
-// point: this one keeps the requested size, CenteredOn drops the last pixel of
-// an odd one. See CenteredOn.
 func CenteredIn(container image.Rectangle, width, height int) image.Rectangle {
 	centerX := container.Min.X + container.Dx()/halfDivisor
 	centerY := container.Min.Y + container.Dy()/halfDivisor
-	originX := centerX - width/halfDivisor
-	originY := centerY - height/halfDivisor
 
-	return image.Rect(originX, originY, originX+width, originY+height)
+	return CenteredOn(image.Pt(centerX, centerY), width, height)
 }
 
-// CenteredOn returns the rectangle spanning half of width and half of height
-// either side of center: what a backend draws when it hangs something on a
-// point rather than fitting it into a container — a hint badge on its target
-// element, the monitor-select panel on its monitor.
-//
-// It is deliberately not CenteredIn's point form, and the two are not
-// interchangeable. This is center ± half, so an odd width or height loses its
-// last pixel — a 41-wide badge is drawn 40 wide — where CenteredIn is
-// center - half, + size and keeps it. Both put the near edge on the same
-// pixel, which is what makes the difference easy to miss: only the far edge
-// moves, and only on odd sizes. This function exists so that pixel is a
-// documented choice rather than something the next reader "simplifies" away.
+// CenteredOn returns a width x height rectangle centered on a point.
 func CenteredOn(center image.Point, width, height int) image.Rectangle {
-	halfWidth := width / halfDivisor
-	halfHeight := height / halfDivisor
+	originX := center.X - width/halfDivisor
+	originY := center.Y - height/halfDivisor
 
-	return image.Rect(
-		center.X-halfWidth, center.Y-halfHeight,
-		center.X+halfWidth, center.Y+halfHeight,
-	)
+	return image.Rect(originX, originY, originX+width, originY+height)
 }
 
 // BorderRadius resolves a configured border-radius value for the given

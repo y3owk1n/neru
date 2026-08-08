@@ -161,22 +161,16 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 	}
 }
 
-// TestHintBadgePlacement_OddBadgeSizeDropsItsLastPixel pins the rounding the
-// badge is placed with. The badge hangs on its target point as center ± half,
-// so a badge sized to an odd width or height is drawn one pixel short of that
-// size. The alternative rounding (badge.CenteredIn's center - half, + size)
-// would keep that pixel and move the badge's right and bottom edges, so this
-// test is what stops the two being swapped.
-func TestHintBadgePlacement_OddBadgeSizeDropsItsLastPixel(t *testing.T) {
+func TestHintBadgePlacement_OddBadgeSizeKeepsItsSize(t *testing.T) {
 	target := image.Pt(100, 100)
 
 	centered, _, _ := hintBadgePlacement(target, 41, 21, 4, config.HintPlacementCenter)
-	if want := image.Rect(80, 90, 120, 110); centered != want {
+	if want := image.Rect(80, 90, 121, 111); centered != want {
 		t.Errorf("center placement badge = %v, want %v", centered, want)
 	}
 
 	below, _, _ := hintBadgePlacement(target, 41, 21, 4, config.HintPlacementBottom)
-	if want := image.Rect(80, 106, 120, 126); below != want {
+	if want := image.Rect(80, 106, 121, 127); below != want {
 		t.Errorf("bottom placement badge = %v, want %v", below, want)
 	}
 }

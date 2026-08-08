@@ -255,7 +255,7 @@ func TestCenteredIn_CentersAndKeepsSize(t *testing.T) {
 	}
 }
 
-func TestCenteredOn_SpansHalfEitherSideOfThePoint(t *testing.T) {
+func TestCenteredOn_CentersAndKeepsSize(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -272,18 +272,18 @@ func TestCenteredOn_SpansHalfEitherSideOfThePoint(t *testing.T) {
 			want:   image.Rect(80, 90, 120, 110),
 		},
 		{
-			name:   "odd width drops its last pixel",
+			name:   "odd width keeps the requested size",
 			center: image.Pt(100, 100),
 			width:  41,
 			height: 20,
-			want:   image.Rect(80, 90, 120, 110),
+			want:   image.Rect(80, 90, 121, 110),
 		},
 		{
-			name:   "odd height drops its last pixel",
+			name:   "odd height keeps the requested size",
 			center: image.Pt(100, 100),
 			width:  40,
 			height: 21,
-			want:   image.Rect(80, 90, 120, 110),
+			want:   image.Rect(80, 90, 120, 111),
 		},
 		{
 			name:   "odd center coordinates shift the whole rectangle",
@@ -317,15 +317,16 @@ func TestCenteredOn_SpansHalfEitherSideOfThePoint(t *testing.T) {
 				t.Errorf("CenteredOn(%v, %d, %d) = %v, want %v",
 					testCase.center, testCase.width, testCase.height, got, testCase.want)
 			}
+
+			if got.Dx() != testCase.width || got.Dy() != testCase.height {
+				t.Errorf("CenteredOn size = %dx%d, want %dx%d",
+					got.Dx(), got.Dy(), testCase.width, testCase.height)
+			}
 		})
 	}
 }
 
-// TestCenteredOn_IsNotCenteredInOnOddSizes pins the near-miss the two functions
-// are: they agree on the near edge always and on the far edge only when both
-// dimensions are even, so swapping one for the other silently moves a panel or
-// badge edge by a pixel on odd sizes.
-func TestCenteredOn_IsNotCenteredInOnOddSizes(t *testing.T) {
+func TestCenteredOn_MatchesCenteredIn(t *testing.T) {
 	t.Parallel()
 
 	container := image.Rect(0, 0, 100, 100)
@@ -345,10 +346,10 @@ func TestCenteredOn_IsNotCenteredInOnOddSizes(t *testing.T) {
 			wantIn: image.Rect(30, 40, 70, 60),
 		},
 		{
-			name:   "odd dimensions disagree on the far edge only",
+			name:   "odd dimensions agree",
 			width:  41,
 			height: 21,
-			wantOn: image.Rect(30, 40, 70, 60),
+			wantOn: image.Rect(30, 40, 71, 61),
 			wantIn: image.Rect(30, 40, 71, 61),
 		},
 	}
@@ -367,9 +368,8 @@ func TestCenteredOn_IsNotCenteredInOnOddSizes(t *testing.T) {
 				t.Errorf("CenteredIn = %v, want %v", gotIn, testCase.wantIn)
 			}
 
-			if gotOn.Min != gotIn.Min {
-				t.Errorf("near edges must agree: CenteredOn %v, CenteredIn %v",
-					gotOn.Min, gotIn.Min)
+			if gotOn != gotIn {
+				t.Errorf("CenteredOn = %v, CenteredIn = %v", gotOn, gotIn)
 			}
 		})
 	}
