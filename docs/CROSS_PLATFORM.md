@@ -175,6 +175,12 @@ to is the platform's own — Helvetica Neue / Times New Roman / Menlo on macOS,
 DejaVu Sans / DejaVu Serif / DejaVu Sans Mono on Linux, the Windows families
 above.
 
+Where an answer is remembered — macOS, Windows and the fontconfig-backed Linux
+resolver — it is remembered under the family name exactly as written
+(`internal/adapter/platform/fontcache`); the non-CGO Linux build re-derives it
+each time. Either way what a name resolves to depends on that name alone and
+never on what was resolved before it.
+
 ### Notes on the ⚠️ entries
 
 **Focused app on Wayland.** wlroots and KWin resolve the focused window through

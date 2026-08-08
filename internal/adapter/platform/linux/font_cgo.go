@@ -53,10 +53,9 @@ static char *fc_match_family(const char *family) {
 import "C"
 
 import (
-	"strings"
-	"sync"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/fontcache"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -64,9 +63,10 @@ import (
 // Each (family) tuple is resolved on first use and cached for the
 // lifetime of the process.
 func NewFontResolver() ports.FontResolver {
-	return &fontconfigResolver{
-		cache: make(map[string]string),
-	}
+	resolver := &fontconfigResolver{}
+	resolver.cache = fontcache.New(resolver.resolve)
+
+	return resolver
 }
 
 // fontconfigResolver implements ports.FontResolver using libfontconfig.
@@ -74,31 +74,14 @@ func NewFontResolver() ports.FontResolver {
 // fontconfig to verify user-supplied names, and falls back to a hardcoded
 // default when fontconfig cannot resolve a family at all.
 type fontconfigResolver struct {
-	mu    sync.RWMutex
-	cache map[string]string
+	cache *fontcache.Resolver
 }
 
 // Resolve implements ports.FontResolver.
 func (r *fontconfigResolver) Resolve(family string, bold bool) string {
 	_ = bold // reserved for future weight-specific resolution
 
-	key := strings.ToLower(strings.TrimSpace(family))
-
-	r.mu.RLock()
-	if cached, ok := r.cache[key]; ok {
-		r.mu.RUnlock()
-
-		return cached
-	}
-	r.mu.RUnlock()
-
-	resolved := r.resolve(family)
-
-	r.mu.Lock()
-	r.cache[key] = resolved
-	r.mu.Unlock()
-
-	return resolved
+	return r.cache.Resolve(family)
 }
 
 // resolve performs the actual lookup. It first maps the input to a

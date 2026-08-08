@@ -19,7 +19,7 @@ func TestNSFontResolver_GenericAliases(t *testing.T) {
 
 	for input, want := range cases {
 		t.Run(input, func(t *testing.T) {
-			fontResolver := &nsFontResolver{cache: make(map[string]string)}
+			fontResolver := NewFontResolver()
 
 			if got := fontResolver.Resolve(input, false); got != want {
 				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
@@ -40,7 +40,7 @@ func TestNSFontResolver_NonGenericPassesThroughTrimmed(t *testing.T) {
 
 	for input, want := range cases {
 		t.Run(input, func(t *testing.T) {
-			fontResolver := &nsFontResolver{cache: make(map[string]string)}
+			fontResolver := NewFontResolver()
 
 			if got := fontResolver.Resolve(input, false); got != want {
 				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
@@ -49,19 +49,16 @@ func TestNSFontResolver_NonGenericPassesThroughTrimmed(t *testing.T) {
 	}
 }
 
-func TestNSFontResolver_CachesByFamily(t *testing.T) {
-	fontResolver := &nsFontResolver{cache: make(map[string]string)}
+func TestNSFontResolver_AnswersEachSpellingFromItsOwnName(t *testing.T) {
+	// Caching must not rewrite a caller's spelling; the shared rule is pinned
+	// on every CI leg in platform/fontcache, this pins that macOS uses it.
+	fontResolver := NewFontResolver()
 
-	for range 3 {
-		if got := fontResolver.Resolve("sans", true); got != defaultDarwinSans {
-			t.Fatalf("expected generic alias to resolve to %q, got %q", defaultDarwinSans, got)
-		}
+	if got := fontResolver.Resolve("Arial", false); got != "Arial" {
+		t.Fatalf("Resolve(%q) = %q, want %q", "Arial", got, "Arial")
 	}
 
-	fontResolver.mu.RLock()
-	defer fontResolver.mu.RUnlock()
-
-	if len(fontResolver.cache) != 1 {
-		t.Fatalf("expected exactly one cache entry, got %d", len(fontResolver.cache))
+	if got := fontResolver.Resolve("ARIAL", false); got != "ARIAL" {
+		t.Fatalf("Resolve(%q) = %q, want %q", "ARIAL", got, "ARIAL")
 	}
 }
