@@ -17,6 +17,13 @@ type MockAppWatcherPort struct {
 	stopped     bool
 	mcDetection bool
 
+	// activateCallbacksAtStart is how many activate callbacks were registered
+	// when Start was called. It is that instant rather than the count now
+	// because a watcher started before anything registered drops what it
+	// reports until something does, and nothing goes back for a dropped
+	// activation.
+	activateCallbacksAtStart int
+
 	activateCallbacks   []ports.AppEventCallback
 	deactivateCallbacks []ports.AppEventCallback
 	terminateCallbacks  []ports.AppEventCallback
@@ -31,6 +38,7 @@ func (m *MockAppWatcherPort) Start() {
 	defer m.mu.Unlock()
 
 	m.started = true
+	m.activateCallbacksAtStart = len(m.activateCallbacks)
 }
 
 // Stop implements ports.AppWatcherPort.
@@ -103,6 +111,15 @@ func (m *MockAppWatcherPort) Started() bool {
 	defer m.mu.Unlock()
 
 	return m.started
+}
+
+// ActivateCallbacksAtStart reports how many activate callbacks were registered
+// at the moment Start was called, and false when Start has not been called.
+func (m *MockAppWatcherPort) ActivateCallbacksAtStart() (int, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.activateCallbacksAtStart, m.started
 }
 
 // Stopped reports whether Stop was called.

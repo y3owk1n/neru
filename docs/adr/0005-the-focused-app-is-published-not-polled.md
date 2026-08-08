@@ -74,6 +74,17 @@ exit included, since it takes the same lock.
   about focus instead of asking. One `resolveFocusedApp` covers both: read the
   cell when it is fed, ask when it is not. `docs/CROSS_PLATFORM.md` gains the
   row.
+- **Publishing only works while something is listening, so the order the daemon
+  starts in became load-bearing.** Polling was self-healing: whoever asked got
+  an answer, however late they asked. A publication has one delivery and no
+  retry, so a watcher started before `App.Run` registers its activation callback
+  drops what it reports, and on Linux — where the watcher samples once as it
+  starts and reports only changes after that — the lost sample is not
+  re-reported until the user switches application again. Until then the keymap
+  settles by asking, which is what this ADR set out to avoid, and per-app
+  overrides bind to whatever was focused when the mode opened. #1348 is that
+  bug; `app/lifecycle.go` registers before it starts, and the simulation journey
+  pins the order.
 - **`handlerState.focusedBundleID` is deleted.** Leaving it would leave the
   regression writable; deleting it means the only way to learn the focused app
   inside the handler is the published cell. Callers that legitimately need a

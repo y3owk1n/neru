@@ -1307,7 +1307,13 @@ func buildSimHarness(
 		application.Cleanup()
 	})
 
-	sim.waitFor("app running", application.IsEnabled)
+	// Wait for the app watcher to be running, not for IsEnabled: the app is
+	// enabled before Run is entered at all, so waiting on that waited for
+	// nothing and a journey could drive the fixture desktop before the app was
+	// listening. Run starts the watcher last of the three steps that have to be
+	// in place first (lifecycle.go), so this says exactly that a focus change
+	// from here on is one the app hears — and no more than that.
+	sim.waitFor("the app watcher running", watcher.Started)
 
 	return sim
 }

@@ -2192,6 +2192,46 @@ func TestSimulation_KeystrokeAsksWhichAppIsFocused(t *testing.T) {
 	}
 }
 
+// TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem is the
+// precondition the two journeys below it rest on, and #1348 is what happens
+// without it: the daemon started the application watcher and made the hotkeys
+// live before it registered the callback activations are delivered to, so an
+// application switch in that window reached nobody, was never retried, and left
+// the journey below entering the mode the *previous* application bound the key
+// to. ADR 0005 carries why a dropped publication is unrecoverable rather than
+// merely late.
+//
+// Worth stating what it is not, because the intermittency points elsewhere and
+// #1348 named two suspects: neither goroutine `handleAppActivation` starts is
+// involved. Publication is a lock-free cell write on the caller's goroutine, so
+// it is already in place before the keystroke that reads it; the passthrough
+// refresh only reads; and the hotkey refresh is deferred outright while a mode
+// is open. What was intermittent was whether the daemon had finished starting,
+// not what it did once it had.
+//
+// It asserts the order rather than the symptom because the order is what makes
+// the symptom impossible: whether the window is wide enough to fall into is a
+// property of the machine, and CI found it on a busy runner.
+func TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	// The harness already waits for this, and asking again is what keeps the
+	// assertion below from passing vacuously if that ever stops being true.
+	registered, started := sim.watcher.ActivateCallbacksAtStart()
+	if !started {
+		t.Fatal("the app watcher was never started")
+	}
+
+	if registered == 0 {
+		t.Error(
+			"the app watcher was started before anything registered for activations: " +
+				"an application switch reported in that window is dropped and never " +
+				"retried, so per-app hotkey overrides go on binding to the application " +
+				"the mode was opened in",
+		)
+	}
+}
+
 // TestSimulation_FocusChangeMidModeRebindsTheKey covers switching applications
 // without leaving the mode — passing a shortcut through to the system and
 // landing somewhere else is the ordinary way it happens — and pins what the

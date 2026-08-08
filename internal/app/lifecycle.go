@@ -69,15 +69,38 @@ func (a *App) Run() error {
 
 	a.logger.Info("IPC server started")
 
-	a.appWatcher.Start()
-	a.logger.Info("App watcher started")
+	// These three are ordered, not merely sequential, and the order is starting
+	// the watcher last: an activation it delivers reaches both of the things
+	// above it, and neither absorbs one until it has run. Registering after the
+	// watcher started meant a dropped activation, which nothing retries — ADR
+	// 0005 has the consequence, #1348 was the bug, and
+	// TestSimulation_TheAppHearsFocusChangesFromTheMomentItWatchesForThem pins
+	// it. Registering the hotkeys after it would hand the same activation a
+	// binder holding nothing, and the refresh here would then re-register the
+	// global table over the per-app one it had just installed
+	// (keybinding/binder.go).
+	//
+	// Only the registrations belong ahead of this; nothing that can block does.
+	// The observers below reach a session bus on Linux, and putting a bus round
+	// trip in front of the watcher and the hotkeys would delay the daemon
+	// accepting its first chord to hurry up something nothing is waiting on.
+	a.registerAppWatcherCallbacks()
 
 	a.hotkeys.RefreshFor("")
 	a.logger.Info("Hotkeys initialized")
 
-	a.setupSleepObserver()
+	a.appWatcher.Start()
+	a.logger.Info("App watcher started")
 
-	a.setupAppWatcherCallbacks()
+	// Watch for theme changes (Dark Mode / Light Mode) so theme-aware label
+	// colors follow without a restart.
+	a.setupThemeObserver()
+
+	// Gate Mission Control detection at all levels using config. It stays after
+	// the hotkeys are live because what it arms can run an action sequence.
+	a.appWatcher.SetMCDetection(cfg.Hints.DetectMissionControl)
+
+	a.setupSleepObserver()
 
 	if cfg.Grid.EnableGC {
 		ctx, cancel := context.WithCancel(a.ctx)
@@ -188,8 +211,10 @@ func (a *App) adaptiveGC() bool {
 	}
 }
 
-// setupAppWatcherCallbacks configures callbacks for application watcher events.
-func (a *App) setupAppWatcherCallbacks() {
+// registerAppWatcherCallbacks registers the handlers for application watcher
+// events. It only registers — everything here has to be in place before the
+// watcher starts, so nothing that can block belongs in it (see Run).
+func (a *App) registerAppWatcherCallbacks() {
 	a.appWatcher.OnActivate(func(_, bundleID string) {
 		a.handleAppActivation(bundleID)
 	})
@@ -224,13 +249,6 @@ func (a *App) setupAppWatcherCallbacks() {
 			)
 		}
 	})
-
-	// Watch for macOS theme changes (Dark Mode / Light Mode) to update
-	// theme-aware label colors without requiring restart.
-	a.setupThemeObserver()
-
-	// Gate Mission Control detection at all levels using config
-	a.appWatcher.SetMCDetection(a.configSnapshot().Hints.DetectMissionControl)
 }
 
 // HandleScreenParametersChange is the app's entry point for a display
