@@ -563,7 +563,8 @@ type VirtualPointerUI struct {
 	TextColor  Color  `json:"textColor"  toml:"text_color"`
 }
 
-// VirtualPointerConfig defines settings for the hold-mode virtual pointer.
+// VirtualPointerConfig styles the standalone pointer drawn when the system
+// cursor is hidden, plus the in-frame grid and recursive-grid indicators.
 type VirtualPointerConfig struct {
 	UI VirtualPointerUI `json:"ui" toml:"ui"`
 }
