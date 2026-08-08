@@ -42,7 +42,7 @@ func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 		}
 
 		if entry.IsDir() {
-			if isSkippedWalkDir(entry.Name()) {
+			if isSkippedWalkDir(repoRoot, path) {
 				return filepath.SkipDir
 			}
 
@@ -106,7 +106,7 @@ func TestCgoIncludes_NativeBridgePointsAtThePlatformPackages(t *testing.T) {
 		}
 
 		if entry.IsDir() {
-			if isSkippedWalkDir(entry.Name()) {
+			if isSkippedWalkDir(repoRoot, path) {
 				return filepath.SkipDir
 			}
 
