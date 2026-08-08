@@ -223,12 +223,16 @@ func (o *x11Overlay) DrawMonitorSelect(
 	o.drawMonitorSelect(targets, style)
 }
 
-func (o *x11Overlay) DrawHints(hintsSlice []*hintscomponent.Hint, style hintscomponent.StyleMode) {
+func (o *x11Overlay) DrawHints(
+	hintsSlice []*hintscomponent.Hint,
+	style hintscomponent.StyleMode,
+	offset hintBadgeOffset,
+) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
-	o.drawHints(hintsSlice, style)
+	o.drawHints(hintsSlice, style, offset)
 }
 
 func (o *x11Overlay) DrawMouseActionIndicator(

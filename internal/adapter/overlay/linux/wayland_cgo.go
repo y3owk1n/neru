@@ -233,12 +233,13 @@ func (o *wlrootsOverlay) DrawMonitorSelect(
 func (o *wlrootsOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
+	offset hintBadgeOffset,
 ) {
 	if o == nil || o.raw == nil {
 		return
 	}
 
-	o.drawHints(hintsSlice, style)
+	o.drawHints(hintsSlice, style, offset)
 }
 
 func (o *wlrootsOverlay) DrawMouseActionIndicator(

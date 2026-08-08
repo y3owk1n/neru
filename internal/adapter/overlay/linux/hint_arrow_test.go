@@ -6,7 +6,9 @@ import (
 	"image"
 	"testing"
 
+	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Unit tests for the pure hint badge/arrow placement math shared by the X11 and
@@ -14,7 +16,7 @@ import (
 // tests; here we only assert the geometry the C draw calls receive.
 func TestHintBadgePlacement_CenterHasNoArrow(t *testing.T) {
 	target := image.Pt(100, 100)
-	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, config.HintPlacementCenter)
+	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, hintBadgeOnTarget)
 
 	if hasArrow {
 		t.Fatalf("center placement should not draw an arrow, got %+v", arrow)
@@ -29,9 +31,113 @@ func TestHintBadgePlacement_CenterHasNoArrow(t *testing.T) {
 	}
 }
 
-func TestHintBadgePlacement_UnknownPlacementHasNoArrow(t *testing.T) {
-	if _, _, hasArrow := hintBadgePlacement(image.Pt(10, 10), 40, 20, 4, "floating"); hasArrow {
-		t.Fatal("unrecognized placement should not draw an arrow")
+// TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary pins this overlay to
+// config's declaration of the vocabulary: every value `hints.ui.placement`
+// accepts has to resolve to an offset here. A placement added to
+// config.HintPlacements() without a branch below fails this test rather than
+// drawing a badge in a placement nobody chose.
+func TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary(t *testing.T) {
+	want := map[string]hintBadgeOffset{
+		config.HintPlacementTop:    hintBadgeAbove,
+		config.HintPlacementCenter: hintBadgeOnTarget,
+		config.HintPlacementBottom: hintBadgeBelow,
+	}
+
+	for _, placement := range config.HintPlacements() {
+		t.Run(placement, func(t *testing.T) {
+			offset, err := resolveHintBadgeOffset(placement)
+			if err != nil {
+				t.Fatalf("resolveHintBadgeOffset(%q) error = %v, want an offset", placement, err)
+			}
+
+			if offset != want[placement] {
+				t.Errorf(
+					"resolveHintBadgeOffset(%q) = %v, want %v",
+					placement,
+					offset,
+					want[placement],
+				)
+			}
+		})
+	}
+
+	if len(want) != len(config.HintPlacements()) {
+		t.Fatalf(
+			"the vocabulary has %d values but this test maps %d; every one needs an expected offset",
+			len(config.HintPlacements()),
+			len(want),
+		)
+	}
+}
+
+// TestResolveHintBadgeOffset_UnsetDrawsTheDefault pins the empty string to the
+// offset the declared default resolves to, matching what the macOS renderer
+// answers it (TestHintPlacementValue_UnsetDrawsTheDefault). A style can reach
+// an overlay before a configuration settles it, and a hint that draws on macOS
+// and vanishes on Linux would be this package disagreeing with that one.
+func TestResolveHintBadgeOffset_UnsetDrawsTheDefault(t *testing.T) {
+	unset, err := resolveHintBadgeOffset("")
+	if err != nil {
+		t.Fatalf(`resolveHintBadgeOffset("") error = %v, want the default's offset`, err)
+	}
+
+	fallback, err := resolveHintBadgeOffset(config.HintPlacementDefault)
+	if err != nil {
+		t.Fatalf("resolveHintBadgeOffset(%q) error = %v", config.HintPlacementDefault, err)
+	}
+
+	if unset != fallback {
+		t.Errorf(`resolveHintBadgeOffset("") = %v, want %v (the offset of %q)`,
+			unset, fallback, config.HintPlacementDefault)
+	}
+}
+
+// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half:
+// a value outside the vocabulary is refused, not drawn. It used to be drawn
+// centered, which made a placement with no Linux branch indistinguishable from
+// `center` — silent everywhere and wrong on screen.
+func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
+	offset, err := resolveHintBadgeOffset("floating")
+	if err == nil {
+		t.Fatalf("resolveHintBadgeOffset(%q) = %v, nil; an unrecognized placement must be refused",
+			"floating", offset)
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("resolveHintBadgeOffset returned %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err))
+	}
+}
+
+// TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn pins where that
+// refusal reaches a caller: the draw call the mode handler makes, before a
+// single badge is painted. A backend is attached here on purpose — with none,
+// every draw already reports CodeNotSupported and the assertion would prove
+// nothing about the placement.
+func TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn(t *testing.T) {
+	mgr := &Manager{x11: &x11Overlay{}}
+
+	cfg := config.DefaultConfig()
+	cfg.Hints.UI.Placement = "floating"
+
+	err := mgr.DrawHintsWithStyle(nil, hintscomponent.BuildStyle(cfg.Hints, nil))
+	if !derrors.IsNotSupported(err) {
+		t.Errorf(
+			"DrawHintsWithStyle with an unrecognized placement returned %v (code %q), "+
+				"want CodeNotSupported: the hints would be drawn centered instead",
+			err, derrors.GetCode(err),
+		)
+	}
+
+	// The vocabulary's own values still draw. A guard that refused everything
+	// would pass the assertion above and blank the hints overlay.
+	for _, placement := range config.HintPlacements() {
+		cfg.Hints.UI.Placement = placement
+
+		drawErr := mgr.DrawHintsWithStyle(nil, hintscomponent.BuildStyle(cfg.Hints, nil))
+		if drawErr != nil {
+			t.Errorf("DrawHintsWithStyle(%q) = %v, want nil", placement, drawErr)
+		}
 	}
 }
 
@@ -43,7 +149,7 @@ func TestHintBadgePlacement_Bottom(t *testing.T) {
 		badgeWidth,
 		badgeHeight,
 		radius,
-		config.HintPlacementBottom,
+		hintBadgeBelow,
 	)
 
 	if !hasArrow {
@@ -98,7 +204,7 @@ func TestHintBadgePlacement_Top(t *testing.T) {
 		badgeWidth,
 		badgeHeight,
 		radius,
-		config.HintPlacementTop,
+		hintBadgeAbove,
 	)
 
 	if !hasArrow {
@@ -145,7 +251,7 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 		badgeWidth,
 		badgeHeight,
 		radius,
-		config.HintPlacementBottom,
+		hintBadgeBelow,
 	)
 	if !hasArrow {
 		t.Fatal("expected an arrow")
@@ -164,12 +270,12 @@ func TestHintBadgePlacement_ArrowBaseClampedToFlatEdge(t *testing.T) {
 func TestHintBadgePlacement_OddBadgeSizeKeepsItsSize(t *testing.T) {
 	target := image.Pt(100, 100)
 
-	centered, _, _ := hintBadgePlacement(target, 41, 21, 4, config.HintPlacementCenter)
+	centered, _, _ := hintBadgePlacement(target, 41, 21, 4, hintBadgeOnTarget)
 	if want := image.Rect(80, 90, 121, 111); centered != want {
 		t.Errorf("center placement badge = %v, want %v", centered, want)
 	}
 
-	below, _, _ := hintBadgePlacement(target, 41, 21, 4, config.HintPlacementBottom)
+	below, _, _ := hintBadgePlacement(target, 41, 21, 4, hintBadgeBelow)
 	if want := image.Rect(80, 106, 121, 127); below != want {
 		t.Errorf("bottom placement badge = %v, want %v", below, want)
 	}
@@ -178,7 +284,7 @@ func TestHintBadgePlacement_OddBadgeSizeKeepsItsSize(t *testing.T) {
 func TestHintTailEdge(t *testing.T) {
 	target := image.Pt(200, 150)
 
-	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, config.HintPlacementBottom)
+	badge, arrow, hasArrow := hintBadgePlacement(target, 40, 20, 4, hintBadgeBelow)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailTop {
 		t.Errorf(
 			"bottom placement (arrow points up) should merge the tail into the top edge, got %d",
@@ -186,7 +292,7 @@ func TestHintTailEdge(t *testing.T) {
 		)
 	}
 
-	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, config.HintPlacementTop)
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, hintBadgeAbove)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailBottom {
 		t.Errorf(
 			"top placement (arrow points down) should merge the tail into the bottom edge, got %d",
@@ -194,7 +300,7 @@ func TestHintTailEdge(t *testing.T) {
 		)
 	}
 
-	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, config.HintPlacementCenter)
+	badge, arrow, hasArrow = hintBadgePlacement(target, 40, 20, 4, hintBadgeOnTarget)
 	if edge := hintTailEdge(badge, arrow, hasArrow); edge != hintTailNone {
 		t.Errorf("center placement should have no tail, got %d", edge)
 	}
@@ -202,7 +308,7 @@ func TestHintTailEdge(t *testing.T) {
 
 func TestHintBadgeRadius_ReservesTailFlatEdge(t *testing.T) {
 	// Center placement is never capped — the tail doesn't exist there.
-	if got := hintBadgeRadius(100, 40, config.HintPlacementCenter); got != 100 {
+	if got := hintBadgeRadius(100, 40, hintBadgeOnTarget); got != 100 {
 		t.Errorf("center radius should be unchanged, got %d", got)
 	}
 
@@ -212,13 +318,13 @@ func TestHintBadgeRadius_ReservesTailFlatEdge(t *testing.T) {
 	if got, want := hintBadgeRadius(
 		1000,
 		40,
-		config.HintPlacementBottom,
+		hintBadgeBelow,
 	), 20-hintArrowMinHalfBase; got != want {
 		t.Errorf("oversized radius = %d, want capped to %d", got, want)
 	}
 
 	// A normal radius that already leaves room is left untouched.
-	if got := hintBadgeRadius(6, 40, config.HintPlacementTop); got != 6 {
+	if got := hintBadgeRadius(6, 40, hintBadgeAbove); got != 6 {
 		t.Errorf("normal radius should be unchanged, got %d", got)
 	}
 }
@@ -231,13 +337,13 @@ func TestHintBadgePlacement_FullPillKeepsTail(t *testing.T) {
 	target := image.Pt(200, 150)
 	badgeWidth, badgeHeight := 40, 24
 
-	radius := hintBadgeRadius(1000, badgeWidth, config.HintPlacementBottom)
+	radius := hintBadgeRadius(1000, badgeWidth, hintBadgeBelow)
 	badge, arrow, hasArrow := hintBadgePlacement(
 		target,
 		badgeWidth,
 		badgeHeight,
 		radius,
-		config.HintPlacementBottom,
+		hintBadgeBelow,
 	)
 
 	if !hasArrow {

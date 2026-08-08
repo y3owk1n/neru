@@ -407,29 +407,56 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 }
 
 // DrawHintsWithStyle draws the hints overlay using the active Linux backend.
+//
+// The placement is resolved once, before anything is drawn: it is the same for
+// every badge in the frame, and a placement this overlay cannot draw is
+// reported rather than approximated. Drawing every hint centered instead would
+// leave the user looking at labels in a placement they did not choose, with
+// nothing anywhere saying so.
 func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
+	if m.x11 == nil && m.wlroots == nil {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"overlay hints not implemented on linux backend",
+		)
+	}
+
+	// Canceling first keeps the refusal below from leaving an animation
+	// painting the surface this draw was about to replace.
 	if m.wlroots != nil {
 		m.wlroots.cancelAnimation()
-	} else if m.x11 != nil {
+	} else {
 		m.x11.cancelAnimation()
+	}
+
+	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
+	if offsetErr != nil {
+		// The error reaches the mode handler, which degrades quietly on
+		// CodeNotSupported — so say it here too, or a placement this overlay
+		// cannot draw costs the user every hint with only a debug line to
+		// explain it. The placement is a fixed configuration keyword.
+		if m.logger != nil {
+			m.logger.Warn(
+				"hint placement not drawn by the linux overlay",
+				zap.String("placement", style.Placement()),
+			)
+		}
+
+		return offsetErr
 	}
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		m.x11.DrawHints(hintsSlice, style)
+		m.x11.DrawHints(hintsSlice, style, offset)
 
 		return nil
 	}
 
-	if m.wlroots != nil {
-		m.wlroots.DrawHints(hintsSlice, style)
+	m.wlroots.DrawHints(hintsSlice, style, offset)
 
-		return nil
-	}
-
-	return derrors.New(derrors.CodeNotSupported, "overlay hints not implemented on linux backend")
+	return nil
 }
 
 // DrawHintSearchInput draws the hints search input using the active Linux backend.
@@ -1159,13 +1186,65 @@ type hintArrowTriangle struct {
 	baseRight image.Point
 }
 
-// hintBadgeRadius caps the badge corner radius for top/bottom placement so the
-// badge always keeps a flat top/bottom edge wide enough for the connector tail
-// to attach to. Without this, a large configured radius (e.g. a full pill)
-// consumes the flat edge and the renderer drops the tail entirely. Center
-// placement (no tail) and radii that already leave room are returned unchanged.
-func hintBadgeRadius(radius, badgeWidth int, placement string) int {
-	if placement != config.HintPlacementTop && placement != config.HintPlacementBottom {
+// hintBadgeOffset is everything a `hints.ui.placement` value decides for this
+// overlay: where a hint badge sits relative to the point it labels, and so
+// whether there is a connector arrow at all. The drawing code takes one of
+// these rather than the configured string, so a placement string it has no
+// branch for cannot reach it.
+type hintBadgeOffset int
+
+const (
+	// hintBadgeOnTarget draws the badge over the target point, with no arrow.
+	hintBadgeOnTarget hintBadgeOffset = iota
+	// hintBadgeAbove draws the badge above the target, with an arrow hanging
+	// off its bottom edge and pointing down at the target.
+	hintBadgeAbove
+	// hintBadgeBelow draws the badge below the target, with an arrow on its top
+	// edge pointing up at the target.
+	hintBadgeBelow
+)
+
+// resolveHintBadgeOffset maps a configured placement onto the offset this
+// overlay draws it with. It is the one place the placement vocabulary is read
+// here, and every value config.HintPlacements() declares has a branch.
+//
+// Anything else is refused rather than drawn. The switch used to treat an
+// unrecognized value as its default case, which drew a centered badge with no
+// arrow — right for `center` by coincidence, and silent for a placement added
+// to the vocabulary without a Linux branch: it would validate, be forced to
+// exist on macOS, and then draw centered here with nothing failing anywhere.
+//
+// The empty string is not one of those: it is a style that reached the overlay
+// before a configuration settled it, and it draws at the documented default —
+// the same answer the macOS renderer gives it (`hintPlacementValue`), so a
+// draw that beats the first Apply puts hints in the same place on both.
+func resolveHintBadgeOffset(placement string) (hintBadgeOffset, error) {
+	if placement == "" {
+		placement = config.HintPlacementDefault
+	}
+
+	switch placement {
+	case config.HintPlacementTop:
+		return hintBadgeAbove, nil
+	case config.HintPlacementCenter:
+		return hintBadgeOnTarget, nil
+	case config.HintPlacementBottom:
+		return hintBadgeBelow, nil
+	default:
+		return hintBadgeOnTarget, derrors.New(
+			derrors.CodeNotSupported,
+			"hint placement is not drawn by the linux overlay",
+		)
+	}
+}
+
+// hintBadgeRadius caps the badge corner radius for an offset badge so it always
+// keeps a flat top/bottom edge wide enough for the connector tail to attach to.
+// Without this, a large configured radius (e.g. a full pill) consumes the flat
+// edge and the renderer drops the tail entirely. A badge on its target has no
+// tail, and radii that already leave room are returned unchanged.
+func hintBadgeRadius(radius, badgeWidth int, offset hintBadgeOffset) int {
+	if offset == hintBadgeOnTarget {
 		return radius
 	}
 
@@ -1194,22 +1273,22 @@ func hintTailEdge(badge image.Rectangle, arrow hintArrowTriangle, hasArrow bool)
 }
 
 // hintBadgePlacement computes the badge rect for a hint given its target point
-// (the element center) and, for top/bottom placement, the connector arrow that
-// visually ties the badge to the target. It centralizes the placement math
-// shared by the X11 and Wayland overlays so both stay in lockstep with the
-// macOS overlay's arrow behavior.
+// (the element center) and, for an offset badge, the connector arrow that
+// visually ties it back to the target. It centralizes the placement math shared
+// by the X11 and Wayland overlays so both stay in lockstep with the macOS
+// overlay's arrow behavior.
 //
 // radius is the badge's already-resolved corner radius; it keeps the arrow base
 // on the badge's flat edge rather than over a rounded corner. hasArrow is false
-// for center or unrecognized placements, which draw no arrow.
+// for a badge drawn on its target, which needs nothing to tie it to one.
 //
-// The placement strings are config's declaration of the vocabulary
-// (config.HintPlacements), not a spelling of its own: a value the validator
-// accepts is a value this switch recognizes.
+// It takes the resolved offset rather than the configured placement string, so
+// there is no unrecognized case for it to answer: resolveHintBadgeOffset
+// refuses one before a draw begins.
 func hintBadgePlacement(
 	target image.Point,
 	badgeWidth, badgeHeight, radius int,
-	placement string,
+	offset hintBadgeOffset,
 ) (image.Rectangle, hintArrowTriangle, bool) {
 	halfW := badgeWidth / halfDivisor
 	halfH := badgeHeight / halfDivisor
@@ -1217,16 +1296,18 @@ func hintBadgePlacement(
 
 	var centerY int
 
-	switch placement {
-	case config.HintPlacementTop:
+	switch offset {
+	case hintBadgeOnTarget:
+		// The badge covers the target, so there is nothing for an arrow to
+		// point at.
+		return badge.CenteredOn(target, badgeWidth, badgeHeight), hintArrowTriangle{}, false
+	case hintBadgeAbove:
 		// Badge sits above the target, offset by the gap plus arrow height so
 		// the arrow has room to point down at the target.
 		centerY = target.Y - hintPlacementGap - hintArrowHeight - halfH
-	case config.HintPlacementBottom:
+	case hintBadgeBelow:
 		// Badge sits below the target; arrow points up at the target.
 		centerY = target.Y + hintPlacementGap + hintArrowHeight + halfH
-	default:
-		return badge.CenteredOn(target, badgeWidth, badgeHeight), hintArrowTriangle{}, false
 	}
 
 	// halfW and halfH stay because the arrow and the top/bottom offset are
@@ -1246,23 +1327,17 @@ func hintBadgePlacement(
 		return badgeRect, hintArrowTriangle{}, false
 	}
 
-	var arrow hintArrowTriangle
+	// Only the two offset placements reach here, and they are mirror images:
+	// the arrow leaves the edge of the badge that faces the target.
+	baseY, tipY := badgeRect.Min.Y, badgeRect.Min.Y-hintArrowHeight
+	if offset == hintBadgeAbove {
+		baseY, tipY = badgeRect.Max.Y, badgeRect.Max.Y+hintArrowHeight
+	}
 
-	switch placement {
-	case config.HintPlacementBottom:
-		baseY := badgeRect.Min.Y
-		arrow = hintArrowTriangle{
-			baseLeft:  image.Pt(centerX-halfBase, baseY),
-			tip:       image.Pt(centerX, baseY-hintArrowHeight),
-			baseRight: image.Pt(centerX+halfBase, baseY),
-		}
-	case config.HintPlacementTop:
-		baseY := badgeRect.Max.Y
-		arrow = hintArrowTriangle{
-			baseLeft:  image.Pt(centerX-halfBase, baseY),
-			tip:       image.Pt(centerX, baseY+hintArrowHeight),
-			baseRight: image.Pt(centerX+halfBase, baseY),
-		}
+	arrow := hintArrowTriangle{
+		baseLeft:  image.Pt(centerX-halfBase, baseY),
+		tip:       image.Pt(centerX, tipY),
+		baseRight: image.Pt(centerX+halfBase, baseY),
 	}
 
 	return badgeRect, arrow, true
