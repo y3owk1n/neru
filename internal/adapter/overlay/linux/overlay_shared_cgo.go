@@ -305,6 +305,7 @@ func (o *sharedOverlay) drawMonitorSelect(
 func (o *sharedOverlay) drawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
+	offset hintBadgeOffset,
 ) {
 	o.srf.ensureBuffers()
 	o.cancelAnimation()
@@ -350,15 +351,15 @@ func (o *sharedOverlay) drawHints(
 		if radius < 0 {
 			radius = min(badgeHeight/halfDivisor, hintAutoRadiusMax)
 		}
-		// Cap the radius so a top/bottom badge keeps a flat edge for the tail.
-		radius = hintBadgeRadius(radius, badgeWidth, style.Placement())
+		// Cap the radius so an offset badge keeps a flat edge for the tail.
+		radius = hintBadgeRadius(radius, badgeWidth, offset)
 
 		// pos is the element center (set in modes/hints.go). The badge is
 		// centered horizontally on it and placed above / on / below the center
-		// to match macOS; top/bottom placement also draws a connector arrow
-		// pointing back at the target.
+		// to match macOS; an offset badge also draws a connector arrow pointing
+		// back at the target.
 		badgeRect, arrow, hasArrow := hintBadgePlacement(
-			pos, badgeWidth, badgeHeight, radius, style.Placement(),
+			pos, badgeWidth, badgeHeight, radius, offset,
 		)
 
 		fill := badge.ParseHexARGB(style.BackgroundColor())
