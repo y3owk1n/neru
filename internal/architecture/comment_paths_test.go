@@ -120,7 +120,7 @@ func resolvesUnderInternal(t *testing.T, repoRoot, name string) bool {
 			}
 
 			if entry.IsDir() {
-				if isSkippedWalkDir(entry.Name()) {
+				if isSkippedWalkDir(repoRoot, path) {
 					return filepath.SkipDir
 				}
 
