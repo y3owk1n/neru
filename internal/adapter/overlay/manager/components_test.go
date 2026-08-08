@@ -13,8 +13,13 @@ import (
 
 // testPointer is a resolved virtual-pointer appearance for the notifications
 // these tests send. Its values are arbitrary; what they stand for is that a
-// caller always has both resolved by the time it notifies.
-var testPointer = manager.PointerAppearance{FillColor: "#ffffff", FontFamily: "Test Sans"}
+// caller always has every one of them settled by the time it notifies.
+var testPointer = manager.PointerAppearance{
+	FillColor:  "#ffffff",
+	FontFamily: "Test Sans",
+	Char:       "x",
+	FontSize:   9,
+}
 
 // lightTheme is a fixed appearance, so building a component needs no system.
 type lightTheme struct{}

@@ -230,6 +230,8 @@ func (r *StyleResolver) push(cfg *config.Config, style Style) {
 	r.manager.ConfigureComponents(cfg, PointerAppearance{
 		FillColor:  style.VirtualPointer.FillColor,
 		FontFamily: style.VirtualPointer.FontFamily,
+		Char:       style.VirtualPointer.Char,
+		FontSize:   style.VirtualPointer.FontSize,
 	})
 }
 

@@ -154,8 +154,8 @@ func (b *Base) useComponents(built Components) {
 // ConfigureComponents hands a new configuration to the render components, so
 // the native caches they keep are rebuilt against it on the next draw. pointer
 // is the resolved appearance of the virtual pointer; it arrives already themed
-// and with its font family already settled, because the overlay resolves Style
-// in one place and this is not it.
+// and with its font family, char and font size already settled, because the
+// overlay resolves Style in one place and this is not it.
 //
 // A disabled overlay is left alone: nothing draws it, so reconfiguring it would
 // only invalidate caches nobody reads. The grid overlays are built even when
@@ -167,12 +167,16 @@ func (b *Base) ConfigureComponents(cfg *config.Config, pointer PointerAppearance
 		return
 	}
 
-	// The pointer's configuration reaches its components with the resolved
-	// family in place of the written one: a component draws the family it is
-	// handed, and only this notification knows what the written name settled
-	// to.
+	// The pointer's configuration reaches its components with the settled
+	// values in place of the written ones: a component draws what it is handed,
+	// and only this notification knows what an alias, an empty char or a zero
+	// font size settled to. Substituting here rather than in each component
+	// keeps the defaulting in one place — the style resolver — instead of three
+	// copies on the Objective-C boundary (#1305, #1337).
 	pointerCfg := cfg.VirtualPointer
 	pointerCfg.UI.FontFamily = pointer.FontFamily
+	pointerCfg.UI.Char = pointer.Char
+	pointerCfg.UI.FontSize = pointer.FontSize
 
 	if overlay := b.hintOverlay; overlay != nil && cfg.Hints.Enabled {
 		overlay.SetConfig(cfg.Hints)

@@ -431,6 +431,54 @@ func TestStyleResolver_NotifiesTheComponentsOfTheResolvedPointerFamily(t *testin
 	}
 }
 
+// TestStyleResolver_NotifiesTheComponentsOfTheSettledPointerCharAndSize pins
+// the same propagation for the two fields a user can leave empty. The resolver
+// falls back to the documented `●` at 8pt for them, and the Linux and Windows
+// draws see that because they read the Style; the macOS components read char
+// and font size out of the configuration they are handed, so an explicitly
+// empty char or zero font size drew nothing at no size there (#1337). The
+// settled values have to travel with the notification, like the family.
+func TestStyleResolver_NotifiesTheComponentsOfTheSettledPointerCharAndSize(t *testing.T) {
+	t.Parallel()
+
+	// Written empty on purpose: omitting the keys is filled in by the config
+	// defaults, so only an explicit empty string or zero reaches the resolver.
+	cfg := config.DefaultConfig()
+	cfg.VirtualPointer.UI.Char = ""
+	cfg.VirtualPointer.UI.FontSize = 0
+
+	manager := &styleTestManager{}
+	resolver := overlay.NewStyleResolver(
+		manager,
+		config.DefaultConfig(),
+		&countingTheme{},
+		zap.NewNop(),
+	)
+
+	resolver.Apply(cfg)
+
+	pointers, _ := manager.notifications()
+	if len(pointers) != 1 {
+		t.Fatalf("a config reload notified %d times, want 1", len(pointers))
+	}
+
+	if got := pointers[0].Char; got != config.DefaultVirtualPointerChar {
+		t.Errorf(
+			"notified virtual pointer char = %q, want the settled default %q",
+			got,
+			config.DefaultVirtualPointerChar,
+		)
+	}
+
+	if got := pointers[0].FontSize; got != config.DefaultVirtualPointerFontSize {
+		t.Errorf(
+			"notified virtual pointer font size = %d, want the settled default %d",
+			got,
+			config.DefaultVirtualPointerFontSize,
+		)
+	}
+}
+
 // TestAdapterShowFrame_CarriesTheResolvedPointerFamily is the third and last
 // way the pointer's family reaches a backend: on the recursive-grid frame.
 // The Linux and Windows draws take that name straight to the text layer now

@@ -96,17 +96,24 @@ type MonitorSelectTarget struct {
 }
 
 // PointerAppearance is the part of the virtual pointer's look that a render
-// component cannot read out of the configuration it is handed: the fill color
-// resolved against the active theme, and the font family settled through the
-// shared font resolver. Both are resolved once per configuration or theme
-// change and travel with that notification, so no component resolves per draw
-// — and the pointer redraws on every cursor move.
+// component cannot take from the configuration it is handed as written: the
+// fill color resolved against the active theme, the font family settled
+// through the shared font resolver, and the char and font size settled against
+// their documented defaults. All of them are resolved once per configuration
+// or theme change and travel with that notification, so no component resolves
+// per draw — and the pointer redraws on every cursor move.
 type PointerAppearance struct {
 	// FillColor is the themed fill, as a hex string.
 	FillColor string
 	// FontFamily is the family the platform will actually find, with generic
 	// aliases already settled.
 	FontFamily string
+	// Char is the glyph to draw, with an empty configured value already
+	// replaced by the documented default.
+	Char string
+	// FontSize is the glyph's point size, with a configured value below 1
+	// already replaced by the documented default.
+	FontSize int
 }
 
 // MonitorSelectStyle carries the resolved (theme-applied) appearance for the
