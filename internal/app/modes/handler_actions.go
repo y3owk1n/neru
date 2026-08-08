@@ -217,66 +217,88 @@ func (h *handlerState) startHintSearch() error {
 	h.cycleHintIndex = -1
 	h.drawHintSearchInput()
 
-	if h.textInput != nil {
-		// The IME field sits over the drawn search input, so its placement is
-		// asked for rather than derived a second time here.
-		bounds := h.hintSearchBounds()
-		textInputFrame := ports.TextInputFrame{
-			X:      bounds.Min.X,
-			Y:      bounds.Min.Y,
-			Width:  bounds.Dx(),
-			Height: bounds.Dy(),
-		}
+	if h.textInput == nil {
+		return nil
+	}
 
-		started, _ := h.textInput.StartHintSearchSession(
-			h.ctx,
-			ports.TextInputCallbacks{
-				OnQueryChanged: func(query string) {
-					h.outer.mu.Lock()
-					defer h.outer.mu.Unlock()
+	// The IME field sits over the drawn search input, so its placement is
+	// asked for rather than derived a second time here.
+	bounds := h.hintSearchBounds()
+	if bounds.Empty() {
+		// The overlay put no box on screen — it draws none, or it could not
+		// place the anchor it was configured with. Handing the platform's field
+		// the keyboard anyway would put an invisible input somewhere the user
+		// is not looking; the query keeps arriving through the event tap's key
+		// stream instead, which is what every overlay without a search box
+		// already relies on.
+		//
+		// That promise only holds if the tap is on, and this method opened by
+		// stopping any live session *without* re-enabling it — on the
+		// assumption that the session about to start would want it off. There
+		// is no session now, so give the keyboard back or the search has no way
+		// left to receive a key.
+		h.stopHintSearchTextInput(false)
+		h.logger.Debug("Hint search text input skipped: no search input on screen")
 
-					if h.appState.CurrentMode() != domain.ModeHints || h.hints == nil ||
-						h.hints.Context == nil {
-						return
-					}
+		return nil
+	}
 
-					if !h.hints.Context.SearchActive() {
-						return
-					}
+	textInputFrame := ports.TextInputFrame{
+		X:      bounds.Min.X,
+		Y:      bounds.Min.Y,
+		Width:  bounds.Dx(),
+		Height: bounds.Dy(),
+	}
 
-					h.hints.Context.SetSearchQuery(query)
-					h.applyHintSearchFilter()
-				},
-				OnConfirm: func() {
-					h.outer.mu.Lock()
-					defer h.outer.mu.Unlock()
+	started, _ := h.textInput.StartHintSearchSession(
+		h.ctx,
+		ports.TextInputCallbacks{
+			OnQueryChanged: func(query string) {
+				h.outer.mu.Lock()
+				defer h.outer.mu.Unlock()
 
-					if h.appState.CurrentMode() != domain.ModeHints {
-						return
-					}
+				if h.appState.CurrentMode() != domain.ModeHints || h.hints == nil ||
+					h.hints.Context == nil {
+					return
+				}
 
-					h.confirmHintSearch()
-				},
-				OnCancel: func() {
-					h.outer.mu.Lock()
-					defer h.outer.mu.Unlock()
+				if !h.hints.Context.SearchActive() {
+					return
+				}
 
-					if h.appState.CurrentMode() != domain.ModeHints {
-						return
-					}
-
-					h.cancelHintSearch()
-				},
+				h.hints.Context.SetSearchQuery(query)
+				h.applyHintSearchFilter()
 			},
-			textInputFrame,
-		)
+			OnConfirm: func() {
+				h.outer.mu.Lock()
+				defer h.outer.mu.Unlock()
 
-		if started {
-			h.hintSearchTextInputActive = true
-			if h.hasEventTap() {
-				h.disableEventTap()
-				h.hintSearchEventTapDisabled = true
-			}
+				if h.appState.CurrentMode() != domain.ModeHints {
+					return
+				}
+
+				h.confirmHintSearch()
+			},
+			OnCancel: func() {
+				h.outer.mu.Lock()
+				defer h.outer.mu.Unlock()
+
+				if h.appState.CurrentMode() != domain.ModeHints {
+					return
+				}
+
+				h.cancelHintSearch()
+			},
+		},
+		textInputFrame,
+	)
+
+	if started {
+		h.hintSearchTextInputActive = true
+
+		if h.hasEventTap() {
+			h.disableEventTap()
+			h.hintSearchEventTapDisabled = true
 		}
 	}
 
