@@ -85,10 +85,11 @@ recommended path and provides every tool pre-configured.
     > [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing).
 
     Before pushing, run **`just ci`** — it is exactly what CI gates your PR on,
-    and it is a superset of the checks above (adds `go vet`, a `-race` pass
-    over the unit suite, the CI profile of the integration suite, and a
-    vulnerability scan). For the deepest verification on a real desktop
-    session, `just test-all` runs full integration under `-race` too. Doing Linux or Windows work? Start with
+    and it is a superset of the checks above (adds `go vet`, the
+    cross-platform foundation slice, a `-race` pass over the unit suite, the
+    CI profile of the integration suite, and a vulnerability scan). For the
+    deepest verification on a real desktop session, `just test-all` runs full
+    integration under `-race` too. Doing Linux or Windows work? Start with
     `just test-foundation` and `just build-linux` / `just build-windows`.
 
 6. **Update the docs** in the same PR. Each fact has one home — the
