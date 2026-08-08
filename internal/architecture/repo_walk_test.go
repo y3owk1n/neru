@@ -23,8 +23,13 @@ const bulkWalkFloor = 10
 const keptGoFile = "internal/domain/keep.go"
 
 // skippedWalkDirNames are the directory names every repository walk in this
-// package skips: version control, build outputs and vendored third-party code,
-// none of which contain first-party source subject to these guardrails.
+// package skips: version control, build outputs, the golangci-lint cache the
+// justfile keeps in the checkout, and vendored third-party code, none of which
+// contain first-party source subject to these guardrails.
+//
+// The lint cache earns its place twice over: it holds thousands of files, and
+// golangci-lint trims it while it runs, so a walk crossing it during a
+// concurrent lint can fail on a file that vanished mid-walk.
 //
 // This is the only such list in the package. doc_links_test.go used to carry a
 // second one naming .devbox, .opencode and demos as well; those three are not
@@ -33,7 +38,7 @@ const keptGoFile = "internal/domain/keep.go"
 // consolidation of where the rule lives. That list never did any work of its
 // own — the root-and-docs rule beside it had already excluded all three.
 var skippedWalkDirNames = map[string]bool{
-	".git": true, "bin": true, "build": true,
+	".git": true, ".golangci-cache": true, "bin": true, "build": true,
 	"node_modules": true, "vendor": true,
 }
 
@@ -228,6 +233,10 @@ func TestRepoWalk_SkipsOtherCheckoutsOnly(t *testing.T) {
 	// The names pruned before nested checkouts were a concern, still pruned.
 	writeWalkFile(t, root, "vendor/dep/keep.go")
 	writeWalkFile(t, root, "node_modules/dep/index.js")
+
+	// The lint cache the justfile parks in the checkout, which golangci-lint
+	// trims underneath a walk that wanders into it.
+	writeWalkFile(t, root, ".golangci-cache/00/00deadbeef-a")
 
 	want := []string{
 		".claude/skills/create-pr/SKILL.md",
