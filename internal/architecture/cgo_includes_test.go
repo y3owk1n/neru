@@ -22,6 +22,42 @@ var cgoSourceExtensions = map[string]bool{
 	".c":  true,
 }
 
+// cgoSourceRoots are the trees whose includes are this repo's business — the
+// reach the walkSourceRoots helper these tests used to call gave them, kept
+// exactly. It is what keeps the whole-checkout walker off .devbox, where a
+// vendored Rust toolchain ships C headers whose relative includes resolve
+// against rules that are not ours. Widening a guardrail is a decision of its
+// own: the answer to a new tree wanting the check is to name it here.
+var cgoSourceRoots = []string{"internal/", "cmd/"}
+
+// nativeCgoFloor is the fewest .h/.m/.c files the native bridges hold. The
+// files a relative #include can appear in are mostly Go, so the floor on the
+// whole set says nothing about the half that carries the includes; this one
+// does.
+const nativeCgoFloor = 10
+
+// isCgoSource reports whether a walked file is one a relative #include can
+// appear in, inside a tree this repo owns.
+func isCgoSource(file repoFile) bool {
+	if !cgoSourceExtensions[filepath.Ext(file.name)] {
+		return false
+	}
+
+	for _, root := range cgoSourceRoots {
+		if strings.HasPrefix(file.rel, root) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isNativeSource reports whether a walked file is C or Objective-C rather than
+// Go.
+func isNativeSource(file repoFile) bool {
+	return filepath.Ext(file.name) != goExt
+}
+
 // A relative #include that no longer resolves is the most expensive mistake in
 // this tree to find by hand: `go vet` does not see it (CGO_ENABLED=0 skips the
 // file), the cross-platform vet does not see it, and it only surfaces when the
@@ -35,38 +71,29 @@ var cgoSourceExtensions = map[string]bool{
 // against the including file's directory and stat it.
 func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 	repoRoot := findRepoRoot(t)
+	checked := 0
+	native := 0
 
-	walkErr := walkSourceRoots(repoRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if !isCgoSource(file) {
+			return
 		}
 
-		if entry.IsDir() {
-			if isSkippedWalkDir(repoRoot, path) {
-				return filepath.SkipDir
-			}
+		checked++
 
-			return nil
+		if isNativeSource(file) {
+			native++
 		}
 
-		if !cgoSourceExtensions[filepath.Ext(path)] {
-			return nil
-		}
-
-		content, readErr := os.ReadFile(path)
+		content, readErr := os.ReadFile(file.abs)
 		if readErr != nil {
-			return readErr
-		}
-
-		relPath, relErr := filepath.Rel(repoRoot, path)
-		if relErr != nil {
-			return relErr
+			t.Fatalf("ReadFile(%s) error = %v", file.rel, readErr)
 		}
 
 		for _, match := range relativeIncludePattern.FindAllStringSubmatch(string(content), -1) {
 			include := match[1]
 
-			target := filepath.Join(filepath.Dir(path), filepath.FromSlash(include))
+			target := filepath.Join(filepath.Dir(file.abs), filepath.FromSlash(include))
 
 			_, statErr := os.Stat(target)
 			if statErr == nil {
@@ -77,16 +104,14 @@ func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 				"%s includes %q, which does not resolve; a relative include "+
 					"breaks when its package moves a directory deeper, and only "+
 					"a cgo build for that platform would otherwise catch it",
-				filepath.ToSlash(relPath),
+				file.rel,
 				include,
 			)
 		}
-
-		return nil
 	})
-	if walkErr != nil {
-		t.Fatalf("WalkDir(%s) error = %v", repoRoot, walkErr)
-	}
+
+	assertWalkedAtLeast(t, "sources that could carry a relative include", checked, bulkWalkFloor)
+	assertWalkedAtLeast(t, "native sources among them", native, nativeCgoFloor)
 }
 
 // TestNativeBridgeIsReachedByRelativeInclude documents the convention the test
@@ -99,39 +124,23 @@ func TestCgoIncludes_RelativeIncludesResolve(t *testing.T) {
 // invent a second convention.
 func TestCgoIncludes_NativeBridgePointsAtThePlatformPackages(t *testing.T) {
 	repoRoot := findRepoRoot(t)
+	checked := 0
 
-	walkErr := walkSourceRoots(repoRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if !isCgoSource(file) {
+			return
 		}
-
-		if entry.IsDir() {
-			if isSkippedWalkDir(repoRoot, path) {
-				return filepath.SkipDir
-			}
-
-			return nil
-		}
-
-		if !cgoSourceExtensions[filepath.Ext(path)] {
-			return nil
-		}
-
-		relPath, relErr := filepath.Rel(repoRoot, path)
-		if relErr != nil {
-			return relErr
-		}
-
-		slashed := filepath.ToSlash(relPath)
 
 		// Files inside the platform packages include their own headers.
-		if strings.Contains(slashed, "internal/adapter/platform/") {
-			return nil
+		if strings.Contains(file.rel, "internal/adapter/platform/") {
+			return
 		}
 
-		content, readErr := os.ReadFile(path)
+		checked++
+
+		content, readErr := os.ReadFile(file.abs)
 		if readErr != nil {
-			return readErr
+			t.Fatalf("ReadFile(%s) error = %v", file.rel, readErr)
 		}
 
 		for _, match := range relativeIncludePattern.FindAllStringSubmatch(string(content), -1) {
@@ -144,28 +153,11 @@ func TestCgoIncludes_NativeBridgePointsAtThePlatformPackages(t *testing.T) {
 				"%s includes %q; native headers live in "+
 					"internal/adapter/platform/<os>/ and are reached through a "+
 					"path containing platform/",
-				slashed,
+				file.rel,
 				include,
 			)
 		}
-
-		return nil
 	})
-	if walkErr != nil {
-		t.Fatalf("WalkDir(%s) error = %v", repoRoot, walkErr)
-	}
-}
 
-// walkSourceRoots walks only the directories this repo owns. Walking from the
-// repo root would descend into .devbox, where a vendored Rust toolchain ships C
-// headers whose relative includes are none of our business.
-func walkSourceRoots(repoRoot string, fn func(string, os.DirEntry, error) error) error {
-	for _, root := range []string{"internal", "cmd"} {
-		walkErr := filepath.WalkDir(filepath.Join(repoRoot, root), fn)
-		if walkErr != nil {
-			return walkErr
-		}
-	}
-
-	return nil
+	assertWalkedAtLeast(t, "sources outside the platform packages", checked, bulkWalkFloor)
 }

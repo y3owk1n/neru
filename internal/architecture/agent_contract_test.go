@@ -20,36 +20,21 @@ func TestClaudeGuideIsSymlinkToAgentsGuide(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	found := 0
 
-	walkErr := filepath.WalkDir(repoRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if entry.IsDir() {
-			if isSkippedWalkDir(repoRoot, path) {
-				return filepath.SkipDir
-			}
-
-			return nil
-		}
-
-		if entry.Name() != "AGENTS.md" {
-			return nil
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if file.name != "AGENTS.md" {
+			return
 		}
 
 		found++
 
-		assertSymlinkTarget(t, filepath.Join(filepath.Dir(path), "CLAUDE.md"), "AGENTS.md")
-
-		return nil
+		assertSymlinkTarget(t, filepath.Join(filepath.Dir(file.abs), "CLAUDE.md"), "AGENTS.md")
 	})
-	if walkErr != nil {
-		t.Fatalf("walking repository: %v", walkErr)
-	}
 
-	if found == 0 {
-		t.Fatal("no AGENTS.md found anywhere; the agent guide is gone")
-	}
+	// Two, not one: the root guide sits at the top of the checkout and would
+	// still be reached by a walk that had lost everything below it, which is
+	// exactly the pruning mistake worth catching. The nested area guides are
+	// what prove the walk descended.
+	assertWalkedAtLeast(t, "AGENTS.md agent guides", found, 2)
 }
 
 // TestAgentSkillsStayCanonical pins the skill layout: .agents/skills is the

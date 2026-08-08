@@ -2,8 +2,8 @@ package architecture_test
 
 import (
 	"os"
-	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -76,7 +76,7 @@ var siblingRefPattern = regexp.MustCompile(`\bsee ([a-z][a-z0-9_]*(?:/[a-z][a-z0
 // commenting file, because these point at near neighbors and a package split
 // legitimately moves one into a subdirectory.
 func TestCommentPaths_SiblingReferencesResolve(t *testing.T) {
-	repoRoot := findRepoRoot(t)
+	internalPaths := internalFilePaths(t)
 
 	for _, file := range goFiles(t) {
 		content, readErr := os.ReadFile(file.absPath)
@@ -90,7 +90,7 @@ func TestCommentPaths_SiblingReferencesResolve(t *testing.T) {
 			}
 
 			for _, match := range siblingRefPattern.FindAllStringSubmatch(line, -1) {
-				if resolvesUnderInternal(t, repoRoot, match[1]) {
+				if resolvesUnderInternal(internalPaths, match[1]) {
 					continue
 				}
 
@@ -105,40 +105,36 @@ func TestCommentPaths_SiblingReferencesResolve(t *testing.T) {
 	}
 }
 
-// resolvesUnderInternal reports whether name matches a file anywhere in the
-// internal tree.
-func resolvesUnderInternal(t *testing.T, repoRoot, name string) bool {
+// internalFilePaths returns the slash-relative path of every file under
+// internal/, indexed once for the whole test: the references being resolved
+// number in the hundreds, and a walk apiece would read the tree that many
+// times over.
+func internalFilePaths(t *testing.T) []string {
 	t.Helper()
 
-	found := false
+	var found []string
 
-	walkErr := filepath.WalkDir(
-		filepath.Join(repoRoot, "internal"),
-		func(path string, entry os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
+	walkRepoFiles(t, findRepoRoot(t), func(file repoFile) {
+		if strings.HasPrefix(file.rel, "internal/") {
+			found = append(found, file.rel)
+		}
+	})
 
-			if entry.IsDir() {
-				if isSkippedWalkDir(repoRoot, path) {
-					return filepath.SkipDir
-				}
-
-				return nil
-			}
-
-			if strings.HasSuffix(filepath.ToSlash(path), "/"+name) {
-				found = true
-
-				return filepath.SkipAll
-			}
-
-			return nil
-		},
-	)
-	if walkErr != nil {
-		t.Fatalf("WalkDir error = %v", walkErr)
-	}
+	assertWalkedAtLeast(t, "files under internal/", len(found), bulkWalkFloor)
 
 	return found
+}
+
+// resolvesUnderInternal reports whether name matches a file anywhere in the
+// internal tree. A reference may be a bare file name, a trailing directory or
+// two ("darwin/element.go"), or the whole path from the repository root, so it
+// matches on a path component boundary rather than on the string.
+//
+// The paths are repo-relative, which is a narrowing: matching against absolute
+// paths, as this did before the walks were shared, let the directory the
+// checkout happens to sit in complete a reference and pass it.
+func resolvesUnderInternal(internalPaths []string, name string) bool {
+	return slices.ContainsFunc(internalPaths, func(relPath string) bool {
+		return relPath == name || strings.HasSuffix(relPath, "/"+name)
+	})
 }

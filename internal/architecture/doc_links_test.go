@@ -100,48 +100,34 @@ type markdownFile struct {
 }
 
 // markdownFiles returns the documentation a contributor actually reads: the
-// top-level guides and everything under docs/. Vendored and generated trees are
-// skipped.
+// top-level guides and everything under docs/.
+//
+// It carried its own skip list until the walks in this package were collapsed
+// into one — vendored and generated trees are the shared walker's business
+// now, and were never this list's real work: the root-and-docs rule below had
+// already excluded every one of them.
 func markdownFiles(t *testing.T, repoRoot string) []markdownFile {
 	t.Helper()
 
 	var found []markdownFile
 
-	walkErr := filepath.WalkDir(repoRoot, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	walkRepoFiles(t, repoRoot, func(file repoFile) {
+		if !strings.HasSuffix(file.rel, ".md") || !isContributorDoc(file.rel) {
+			return
 		}
 
-		relPath, relErr := filepath.Rel(repoRoot, path)
-		if relErr != nil {
-			return relErr
-		}
-
-		relPath = filepath.ToSlash(relPath)
-
-		if entry.IsDir() {
-			switch relPath {
-			case ".git", ".devbox", "bin", "build", "node_modules", ".opencode", "demos":
-				return filepath.SkipDir
-			}
-
-			// Only the root and docs/ hold contributor documentation.
-			if relPath != "." && relPath != "docs" && !strings.HasPrefix(relPath, "docs/") {
-				return filepath.SkipDir
-			}
-
-			return nil
-		}
-
-		if strings.HasSuffix(relPath, ".md") {
-			found = append(found, markdownFile{relPath: relPath, absPath: path})
-		}
-
-		return nil
+		found = append(found, markdownFile{relPath: file.rel, absPath: file.abs})
 	})
-	if walkErr != nil {
-		t.Fatalf("WalkDir(%s) error = %v", repoRoot, walkErr)
-	}
+
+	assertWalkedAtLeast(t, "contributor documents", len(found), bulkWalkFloor)
 
 	return found
+}
+
+// isContributorDoc reports whether a repo-relative path is documentation a
+// contributor reads: a guide at the root, or anything under docs/. Everything
+// else in the checkout is code, or prose written for a tool rather than a
+// person.
+func isContributorDoc(relPath string) bool {
+	return !strings.Contains(relPath, "/") || strings.HasPrefix(relPath, "docs/")
 }
