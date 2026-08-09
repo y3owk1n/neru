@@ -521,7 +521,21 @@ func (o *sharedOverlay) startMouseActionAnimation(
 	}()
 }
 
+// cancelAnimation stops a running animation and waits for its goroutine to
+// exit. The caller must not hold renderMu: the goroutine takes it on every
+// frame and would never reach the stop signal.
+//
+// The nil-receiver guard matches every other method a backend exposes to the
+// manager, and buys consistency rather than safety: this one is promoted from
+// the embedded sharedOverlay, so calling it through a nil *x11Overlay /
+// *wlrootsOverlay panics on the promotion before the guard runs (see
+// ../AGENTS.md). What keeps a nil backend out of here is Manager.cancelBackendAnimation,
+// which captures the pointer under renderMu.
 func (o *sharedOverlay) cancelAnimation() {
+	if o == nil {
+		return
+	}
+
 	o.cancelMu.Lock()
 
 	var doneCh chan struct{}
