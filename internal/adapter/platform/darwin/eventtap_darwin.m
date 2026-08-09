@@ -588,6 +588,37 @@ CGEventRef eventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef 
 			return event;
 		}
 
+		// Physical mouse buttons are reported to the active mode as the named keys
+		// "MouseLeft", "MouseRight" and "MouseMiddle", so they can be bound in a
+		// mode's [<mode>.hotkeys] table like any other key.
+		//
+		// Two deliberate differences from key handling:
+		//   - The event is always returned, never swallowed. A mode reacting to a
+		//     click must not stop that click from reaching the app underneath.
+		//   - Modifiers are not encoded into the name. Cmd-click and Shift-click are
+		//     ordinary system gestures, and a mode that wants to exit on a click
+		//     wants to do so however the click was modified.
+		//
+		// Events Neru posted itself already returned above via the 0x1337 marker
+		// check, so `action left_click` cannot trigger these.
+		if (type == kCGEventLeftMouseDown || type == kCGEventRightMouseDown || type == kCGEventOtherMouseDown) {
+			NSString *buttonName = nil;
+			if (type == kCGEventLeftMouseDown) {
+				buttonName = @"MouseLeft";
+			} else if (type == kCGEventRightMouseDown) {
+				buttonName = @"MouseRight";
+			} else if (CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber) == 2) {
+				// Only button 2 is the middle button; buttons 3+ stay unbindable.
+				buttonName = @"MouseMiddle";
+			}
+
+			if (buttonName && context->callback) {
+				context->callback([buttonName UTF8String], context->userData);
+			}
+
+			return event;
+		}
+
 		if (type == kCGEventKeyUp) {
 			CGKeyCode keyCode = (CGKeyCode)CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
 			NSString *keyName = specialKeyName(keyCode);
@@ -867,8 +898,14 @@ EventTap NeruCreateEventTap(EventTapCallback callback, void *userData) {
 
 	context->pendingAddSourceBlock = nil;
 
-	// Create the event tap
-	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged);
+	// Create the event tap.
+	//
+	// Mouse-down types are observed, never consumed: they let a mode react to a
+	// physical click (e.g. binding "MouseLeft" = "idle" so clicking dismisses the
+	// overlay) while the click itself still reaches the application underneath.
+	CGEventMask eventMask = (1 << kCGEventKeyDown) | (1 << kCGEventKeyUp) | (1 << kCGEventFlagsChanged) |
+	                        (1 << kCGEventLeftMouseDown) | (1 << kCGEventRightMouseDown) |
+	                        (1 << kCGEventOtherMouseDown);
 	context->eventTap = CGEventTapCreate(
 	    kCGSessionEventTap, kCGHeadInsertEventTap, kCGEventTapOptionDefault, eventMask, eventTapCallback, context);
 
