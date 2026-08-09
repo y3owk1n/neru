@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -40,9 +41,13 @@ func NewOverlayWithWindow(
 	}
 }
 
-// DrawGrid draws the grid for the specified grid instance (non-darwin stub).
-func (o *Overlay) DrawGrid(grid *domainGrid.Grid) error {
-	return nil
+// DrawGrid reports CodeNotSupported: off darwin this type owns no surface, so
+// there is nothing here that can paint a grid. The manager's backend draws it.
+func (o *Overlay) DrawGrid(_ *domainGrid.Grid) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"grid drawing is handled by the overlay manager's native surface off darwin",
+	)
 }
 
 // Show shows the grid overlay (non-darwin stub).

@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// GlobalHotkeyListener is a no-op stub when cgo is disabled.
-//
-// No-op GlobalHotkeyListener for builds without cgo (evdev needs cgo).
-// Does nothing; exists only so the hotkey manager compiles without cgo.
+// GlobalHotkeyListener is the stub for builds without cgo, which evdev needs.
+// It watches nothing; it exists so the hotkey manager compiles, and Start says
+// so rather than letting the manager believe a reader is running.
 type GlobalHotkeyListener struct{}
 
 // NewGlobalHotkeyListener returns a stub listener.
@@ -25,8 +26,15 @@ func (l *GlobalHotkeyListener) SetBinding(_ string, _ func()) {}
 // ClearBindings is a no-op without cgo.
 func (l *GlobalHotkeyListener) ClearBindings() {}
 
-// Start is a no-op without cgo.
-func (l *GlobalHotkeyListener) Start() error { return nil }
+// Start reports CodeNotSupported without cgo: evdev needs it, so there is no
+// reader to start. Answering nil would tell the hotkey manager the user's
+// config keybindings are live while nothing is watching the keyboard.
+func (l *GlobalHotkeyListener) Start() error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"Wayland global hotkeys require CGO-enabled Linux builds",
+	)
+}
 
 // Stop is a no-op without cgo.
 func (l *GlobalHotkeyListener) Stop() {}

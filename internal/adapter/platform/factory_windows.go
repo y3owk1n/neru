@@ -37,13 +37,3 @@ func CheckAccessibilityPermissions() bool {
 func ShowAccessibilityPermissionStartupAlert() int {
 	return AccessibilityPermissionStartupGranted
 }
-
-// CheckScreenCapturePermissions is always true on Windows.
-func CheckScreenCapturePermissions() bool {
-	return true
-}
-
-// ShowScreenCapturePermissionAlert is a no-op on Windows.
-func ShowScreenCapturePermissionAlert() int {
-	return ScreenCapturePermissionStartupGranted
-}
