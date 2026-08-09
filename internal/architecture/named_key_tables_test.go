@@ -280,6 +280,16 @@ func TestDarwinNamedKeyTablePinReportsATableItCannotRead(t *testing.T) {
 			),
 		},
 		{
+			name: "a code-to-name override assigning a name built at runtime",
+			keymap: mustRewrite(
+				t,
+				keymap,
+				`codeToName[@(kKeyCodeNumpadEnter)] = @"Return";`,
+				`codeToName[@(kKeyCodeNumpadEnter)] = returnName();`,
+			),
+			eventTap: eventTap,
+		},
+		{
 			name:     "an outbound arm returning a name built at runtime",
 			keymap:   keymap,
 			eventTap: mustRewrite(t, eventTap, "\t\treturn @\"Space\";", "\t\treturn spaceName();"),
@@ -303,6 +313,42 @@ func TestDarwinNamedKeyTablePinReportsATableItCannotRead(t *testing.T) {
 				source.name,
 			)
 		}
+	}
+}
+
+// TestDarwinNamedKeyFoldParserSkipsCommentedOverrides is the other half of
+// reading the folds by pattern rather than out of a literal.
+//
+// The overrides are matched line by line inside a longer function, which makes
+// a commented-out override look exactly like a live one. Reading one as live
+// would have the pin holding the vocabulary to code that never runs — and,
+// worse, reporting coverage of a fold that is not there.
+func TestDarwinNamedKeyFoldParserSkipsCommentedOverrides(t *testing.T) {
+	t.Parallel()
+
+	keymap := readNativeSource(t, namedKeyKeymapSource)
+	eventTap := readNativeSource(t, namedKeyEventTapSource)
+
+	live, problem := parseDarwinNamedKeyTables(keymap, eventTap)
+	if problem != "" {
+		t.Fatalf("the sources in the tree do not parse: %s", problem)
+	}
+
+	override := `codeToName[@(kKeyCodeNumpadClear)] = @"Clear";`
+
+	commented, problem := parseDarwinNamedKeyTables(
+		mustRewrite(t, keymap, override, override+"\n\t// "+override),
+		eventTap,
+	)
+	if problem != "" {
+		t.Fatalf("a commented-out override was read as one this pin cannot parse: %s", problem)
+	}
+
+	if !maps.Equal(live.folds, commented.folds) {
+		t.Errorf(
+			"a commented-out override changed the folds this pin read: %v became %v",
+			live.folds, commented.folds,
+		)
 	}
 }
 
@@ -813,8 +859,16 @@ var (
 	namedKeyDictClosingPattern = regexp.MustCompile(`(?m)^[ \t]*\}[ \t]*copy\];`)
 
 	namedKeyDictEntryPattern = regexp.MustCompile(`^@"([^"]*)"[ \t]*:[ \t]*@\((\w+)\),$`)
-	namedKeyFoldPattern      = regexp.MustCompile(
-		`codeToName\[@\((\w+)\)\][ \t]*=[ \t]*@"([^"]*)";`,
+
+	// namedKeyFoldOpeningPattern marks a line as an override written against a
+	// literal keycode, and namedKeyFoldPattern reads the whole of one. The
+	// split is what lets an unreadable override be reported: the enumerate
+	// block's `codeToName[code] = name;` is not an override and must be passed
+	// over, while `codeToName[@(kKeyCodeNumpadEnter)] = someName;` is one this
+	// pin cannot read and must not be.
+	namedKeyFoldOpeningPattern = regexp.MustCompile(`^codeToName\[@\(`)
+	namedKeyFoldPattern        = regexp.MustCompile(
+		`^codeToName\[@\((\w+)\)\][ \t]*=[ \t]*@"([^"]*)";$`,
 	)
 	namedKeySwitchCasePattern = regexp.MustCompile(`^case[ \t]+(\w+):$`)
 	namedKeySwitchNamePattern = regexp.MustCompile(`^return[ \t]+@"([^"]*)";$`)
@@ -858,16 +912,9 @@ func parseDarwinNamedKeyTables(
 		return darwinNamedKeyTables{}, namedKeyKeymapSource + ": " + problem
 	}
 
-	folds := make(map[string]string)
-	for _, match := range namedKeyFoldPattern.FindAllStringSubmatch(builder, -1) {
-		folds[match[1]] = match[2]
-	}
-
-	if len(folds) == 0 {
-		return darwinNamedKeyTables{}, fmt.Sprintf(
-			"%s: %s writes no `codeToName[@(<keycode>)] = @\"<name>\";` overrides (rewritten?)",
-			namedKeyKeymapSource, namedKeyInboundFunc,
-		)
+	folds, problem := parseDarwinNamedKeyFolds(builder)
+	if problem != "" {
+		return darwinNamedKeyTables{}, namedKeyKeymapSource + ": " + problem
 	}
 
 	switchBody, problem := nativeRuleMethodBody(
@@ -936,6 +983,45 @@ func parseDarwinNamedKeyDictionary(builder string) (map[string]string, string) {
 	}
 
 	return entries, ""
+}
+
+// parseDarwinNamedKeyFolds reads the `codeToName[@(kKeyCodeName)] = @"Name";`
+// overrides out of the builder function.
+//
+// Unlike the other two tables, these are found inside a longer function rather
+// than inside a literal, so "this line is not an override" and "this override
+// is one I cannot read" would otherwise be the same answer — and a pin that
+// answers them the same way quietly covers fewer folds than it claims. A line
+// that starts an override against a literal keycode therefore has to be
+// readable in full, and a commented-out one is skipped rather than read as
+// live code.
+func parseDarwinNamedKeyFolds(builder string) (map[string]string, string) {
+	folds := make(map[string]string)
+
+	for line := range strings.SplitSeq(builder, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !namedKeyFoldOpeningPattern.MatchString(trimmed) {
+			continue
+		}
+
+		override := namedKeyFoldPattern.FindStringSubmatch(trimmed)
+		if override == nil {
+			return nil, fmt.Sprintf(
+				"%s holds `%s`, which this pin does not read; it reads "+
+					"`codeToName[@(<keycode>)] = @\"<name>\";` overrides",
+				namedKeyInboundFunc, trimmed,
+			)
+		}
+
+		folds[override[1]] = override[2]
+	}
+
+	if len(folds) == 0 {
+		return nil, namedKeyInboundFunc +
+			" writes no `codeToName[@(<keycode>)] = @\"<name>\";` overrides (rewritten?)"
+	}
+
+	return folds, ""
 }
 
 // parseDarwinNamedKeySwitch reads the `case kKeyCodeName: return @"Name";` arms
