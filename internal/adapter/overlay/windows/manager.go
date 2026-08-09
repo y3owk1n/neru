@@ -754,15 +754,18 @@ func (m *Manager) DrawGrid(gridValue *domainGrid.Grid, input string, style grid.
 }
 
 // DrawRecursiveGrid draws the recursive-grid overlay using the Windows GDI backend.
-// The next-depth preview parameters are folded into the style by the renderer,
-// so they are unused here (matching the cross-platform software renderer).
+//
+// The next-depth keys and dimensions are handed on to the draw, which previews
+// them as a mini-grid inside each cell. The depth is not: this backend has no
+// transition animation, so nothing here compares the depth against the last one
+// drawn (docs/CROSS_PLATFORM.md owns that status).
 func (m *Manager) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	_ int,
 	keys string,
 	dims domain.GridDimensions,
-	_ string,
-	_ domain.GridDimensions,
+	nextKeys string,
+	nextDims domain.GridDimensions,
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
@@ -780,7 +783,7 @@ func (m *Manager) DrawRecursiveGrid(
 
 	// Shared activation may draw before the resize; enforce monitor bounds here.
 	m.win.Resize()
-	m.win.DrawRecursiveGrid(bounds, keys, dims, style, virtualPointer)
+	m.win.DrawRecursiveGrid(bounds, keys, dims, nextKeys, nextDims, style, virtualPointer)
 
 	return nil
 }

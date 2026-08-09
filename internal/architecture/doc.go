@@ -49,7 +49,8 @@
 //   - role_vocabulary_docs_test.go — the config docs cover the current
 //     semantic role vocabulary and nothing retired.
 //   - sub_key_preview_autohide_rule_test.go — the sub-key-preview autohide rule
-//     is pinned across that same boundary, by running both copies.
+//     is pinned across that same boundary, by running the native copy against
+//     the shared one.
 //   - subgrid_cells_test.go — a subgrid's rectangles are computed once, so the
 //     cell drawn and the cell clicked are the same one.
 //   - subgrid_keys_test.go — the subgrid key set is decided once, and handed

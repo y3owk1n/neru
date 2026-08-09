@@ -90,15 +90,17 @@ are the precedent, not the exception.
   (#1323), which is the same shape one level down — every sub-cell of the
   mini-grid previewing the next depth must reach the multiplier times the
   preview font size — and which this list had not named until it was pinned.
-  `internal/architecture/sub_key_preview_autohide_rule_test.go` reads *both*
-  copies out of their sources and runs them against each other, rather than
-  running one and reading the other: the Go copy
-  (`shouldShowSubKeyPreview` in `internal/adapter/overlay/linux/cgo_helpers.go`)
-  is behind `//go:build linux && cgo`, so a test on the macOS host cannot link
-  it. Giving it an untagged home belongs to #1297, which converges the Windows
-  backend — whose predicate measures a different rectangle today, a deliberate
-  difference recorded in `docs/CROSS_PLATFORM.md` rather than drift, and one the
-  pin asserts nothing about.
+  `internal/architecture/sub_key_preview_autohide_rule_test.go` read *both*
+  copies out of their sources and ran them against each other, rather than
+  running one and reading the other: the Go copy was behind
+  `//go:build linux && cgo`, so a test on the macOS host could not link it.
+  #1297 gave it an untagged home — `recursivegrid.Style.ShowSubKeyPreviewIn`,
+  beside `ShowLabelIn` — and what unblocked that was converging the Windows
+  drawing. Its predicate measured the whole cell rather than a sub-cell, which
+  was a real difference and not drift, because the two backends drew different
+  things: one mini-grid means one question, and one question means one
+  predicate. The pin now runs the shared Go rule and reads only the Objective-C
+  one, exactly as the label-autohide pin beside it does.
 - **The exception is the half of this rule deletion cannot enforce, so what is
   pinned is inventoried here.** Four language-boundary copies are pinned as of
   #1323: the three named above, plus the synthetic key-up and modifier-toggle
@@ -113,9 +115,19 @@ are the precedent, not the exception.
   preview pin turned up more, the nearest one ten lines below it in the same
   pair of methods: which sub-cell of the preview mini-grid is left blank, the
   center one when both next-level dimensions are odd, decided in
-  `drawSubKeyPreviewInCellRect:` and again in `drawSubKeyMiniGrid` in
-  `internal/adapter/overlay/linux/overlay_shared_cgo.go`. It is not pinned, and
-  naming it unpinned is the honest form of this inventory: everywhere else this
+  `drawSubKeyPreviewInCellRect:` and again in Go. #1297 changed its count and
+  not its status — the Go copy is now `blankSubKeyPreviewIndex`
+  (`internal/adapter/overlay/render/recursivegrid/subkeypreview.go`), which
+  Linux and Windows both draw from, so the drawing that would otherwise have
+  been a third copy is not one. It is still not pinned, and naming it unpinned
+  is the honest form of this inventory. #1297 also found a second unpinned
+  difference in the same pair of methods and left it standing: handed fewer keys
+  than sub-cells, `drawSubKeyPreviewInCellRect:` refuses the whole mini-grid
+  while `SubKeyPreviewCells` labels what it can. No configuration reaches it —
+  `recursivegrid.Manager` refuses a key mapping of the wrong length and drops a
+  per-depth override that does not match its depth's shape — so correcting
+  either would be a behaviour change on a platform with no bug to fix; it is
+  written down here rather than pinned. Everywhere else this
   ADR is enforced by there being nothing left to diverge from, and here it is
   enforced only by someone having written the pin. A copy that gains one adds
   itself to this paragraph in the same change.

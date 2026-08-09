@@ -377,13 +377,15 @@ func (o *Overlay) DrawRecursiveGrid(
 		labelBackgroundBorderWidth:  C.int(style.LabelBackgroundBorderWidth()),
 		subKeyGridCols:              C.int(nextDims.Cols),
 		subKeyGridRows:              C.int(nextDims.Rows),
-		drawSubKeyPreview:           C.int(boolToInt(style.SubKeyPreview() && nextKeys != "")),
-		labelAutohideMultiplier:     C.float(style.LabelAutohideMultiplier()),
-		subKeyFontSize:              C.int(style.SubKeyPreviewFontSize()),
-		subKeyFontFamily:            (*C.char)(cachedStyle.SubKeyFontFamily),
-		subKeyAutohideMultiplier:    C.float(style.SubKeyPreviewAutohideMultiplier()),
-		subKeyTextColor:             (*C.char)(cachedStyle.SubKeyTextColor),
-		subKeyKeys:                  o.getOrCacheLabel(subKeyLabel),
+		drawSubKeyPreview: C.int(boolToInt(
+			style.PreviewsNextDepth(len(nextKeys), nextDims),
+		)),
+		labelAutohideMultiplier:  C.float(style.LabelAutohideMultiplier()),
+		subKeyFontSize:           C.int(style.SubKeyPreviewFontSize()),
+		subKeyFontFamily:         (*C.char)(cachedStyle.SubKeyFontFamily),
+		subKeyAutohideMultiplier: C.float(style.SubKeyPreviewAutohideMultiplier()),
+		subKeyTextColor:          (*C.char)(cachedStyle.SubKeyTextColor),
+		subKeyKeys:               o.getOrCacheLabel(subKeyLabel),
 	}
 
 	shouldAnimate := o.Config().Animation.Enabled && o.hasLast && depth != o.lastDepth &&
