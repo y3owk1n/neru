@@ -437,7 +437,7 @@ important thing to know before touching overlay code:
 | **Rounded rects / borders** | NSBezierPath                       | Cairo arc path + stroke                | Cairo arc path + stroke                          | software SDF fill + multi-pass stroke |
 | **Text**              | NSFontManager                            | Cairo `select_font_face` / `show_text` | Cairo `select_font_face` / `show_text`           | GDI `CreateFontW` + `DrawTextW` + alpha composite |
 | **Coordinate origin** | bottom-left (Y-flipped in the adapter)   | top-left                               | top-left                                         | top-left (negative DIB height)     |
-| **Thread model**      | main-thread dispatch                     | `renderMu` mutex                       | `displayMu` mutex (shared with `renderMu`)       | dedicated UI thread (`LockOSThread`) |
+| **Thread model**      | main-thread dispatch                     | `renderMu` mutex                       | `renderMu` mutex (also guards `wl_display`)      | dedicated UI thread (`LockOSThread`) |
 
 ### Animation
 

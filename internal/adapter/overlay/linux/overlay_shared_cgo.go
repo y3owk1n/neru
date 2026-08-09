@@ -27,6 +27,14 @@ import (
 // interface. The shared code never touches cgo: primitives take Go types and
 // do their own C marshaling (including CString lifetimes).
 type overlaySurface interface {
+	// alive reports whether the backend still holds an open native handle.
+	// It is the one question the shared delegates below cannot answer for
+	// themselves: the handle is a *C.NeruX11Overlay on one side and a
+	// *C.NeruWaylandOverlay on the other, and a draw that reaches C through a
+	// closed one is a nil dereference inside cgo. Every exported delegate that
+	// used to guard `o.raw != nil` per backend asks this instead.
+	alive() bool
+
 	// surfaceScale is the HiDPI factor applied to fonts, stroke widths and
 	// text-fitted geometry. X11 probes Xft.dpi; Wayland reports 1.
 	surfaceScale() float64
@@ -76,11 +84,10 @@ type overlaySurface interface {
 }
 
 // sharedOverlay is the backend-independent half of a Linux overlay: all
-// drawing, layout and animation state plus the logic that drives the
-// overlaySurface primitives. X11 and Wayland embed it; their exported
-// methods are thin nil-guarded delegates (a promoted method called through a
-// nil backend pointer would panic before any receiver guard could run, and
-// the manager relies on nil-safe calls).
+// drawing, layout and animation state, the logic that drives the
+// overlaySurface primitives, and the exported methods the manager calls. X11
+// and Wayland embed it, so those methods are promoted into both, which is what
+// makes the manager's nil-checked dispatch load-bearing (../AGENTS.md).
 type sharedOverlay struct {
 	srf overlaySurface
 
@@ -114,8 +121,178 @@ type sharedOverlay struct {
 	currentAnimRects []image.Rectangle
 }
 
-func (o *sharedOverlay) setRenderMuShared(mu *sync.Mutex) {
+// The exported methods below are what the manager calls on a backend. They
+// live here rather than once per backend because thirteen of the fourteen make
+// no C call at all — the whole of each was a nil-guard prologue and one
+// delegate into the code beneath it — and the fourteenth, Flush, goes through
+// the surfaceFlush primitive this seam already declares. Show, Resize and
+// Destroy stay per-backend: Wayland re-runs buffer setup before showing, layer
+// shells auto-resize so Resize is empty there, and Wayland's Destroy waits on
+// the keyboard poller.
+//
+// What they guard for themselves is a surface worth drawing on (`drawable`
+// below). What they cannot guard is a nil backend pointer, which the manager
+// nil-checks before every dispatch — see ../AGENTS.md.
+
+func (o *sharedOverlay) Hide() {
+	if !o.drawable() {
+		return
+	}
+
+	o.hide()
+}
+
+func (o *sharedOverlay) Clear() {
+	if !o.drawable() {
+		return
+	}
+
+	o.clear()
+}
+
+func (o *sharedOverlay) ClearRect(rect image.Rectangle) {
+	if !o.drawable() || rect.Empty() {
+		return
+	}
+
+	o.clearRect(rect)
+}
+
+func (o *sharedOverlay) UpdateGridMatches(prefix string) {
+	if !o.drawable() {
+		return
+	}
+
+	o.updateGridMatches(prefix)
+}
+
+func (o *sharedOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
+	if !o.drawable() || cell == nil {
+		return
+	}
+
+	o.showSubgrid(cell)
+}
+
+// SetHideUnmatched sets a Go field and reaches no surface, so it deliberately
+// does not ask drawable: a backend whose handle has been closed still answers
+// the next draw with the flag it was last given.
+func (o *sharedOverlay) SetHideUnmatched(hide bool) {
+	o.hideUnmatched = hide
+}
+
+func (o *sharedOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
+	if !o.drawable() || g == nil {
+		return
+	}
+
+	o.drawGrid(g, input, style)
+}
+
+func (o *sharedOverlay) DrawRecursiveGridWithSubKeyPreview(
+	bounds image.Rectangle,
+	depth int,
+	keys string,
+	dims domain.GridDimensions,
+	nextKeys string,
+	nextDims domain.GridDimensions,
+	style recursivegridcomponent.Style,
+	virtualPointer recursivegridcomponent.VirtualPointerState,
+	animEnabled bool,
+	animDurationMS int,
+) {
+	if !o.drawable() || bounds.Empty() || dims.Cols <= 0 || dims.Rows <= 0 {
+		return
+	}
+
+	o.drawRecursiveGridWithSubKeyPreview(
+		bounds, depth, keys, dims,
+		nextKeys, nextDims,
+		style, virtualPointer, animEnabled, animDurationMS,
+	)
+}
+
+func (o *sharedOverlay) DrawBadge(
+	posX, posY int,
+	text string,
+	colors overlayColors,
+	style overlayBadgeStyle,
+) {
+	if !o.drawable() || text == "" {
+		return
+	}
+
+	o.drawBadge(posX, posY, text, colors, style)
+}
+
+// Flush is the one of these that reaches C, through the primitive both
+// backends already implement as the same one-line flush of their own handle.
+func (o *sharedOverlay) Flush() {
+	if !o.drawable() {
+		return
+	}
+
+	o.srf.surfaceFlush()
+}
+
+func (o *sharedOverlay) DrawMonitorSelect(
+	targets []manager.MonitorSelectTarget,
+	style manager.MonitorSelectStyle,
+) {
+	if !o.drawable() {
+		return
+	}
+
+	o.drawMonitorSelect(targets, style)
+}
+
+func (o *sharedOverlay) DrawHints(
+	hintsSlice []*hintscomponent.Hint,
+	style hintscomponent.StyleMode,
+	offset badge.HintOffset,
+) {
+	if !o.drawable() {
+		return
+	}
+
+	o.drawHints(hintsSlice, style, offset)
+}
+
+func (o *sharedOverlay) DrawMouseActionIndicator(
+	point image.Point,
+	style ports.MouseActionIndicatorStyle,
+) {
+	if !o.drawable() {
+		return
+	}
+
+	o.drawMouseActionIndicator(point, style)
+}
+
+// setRenderMu wires the mutex that serializes rendering on *this* surface. On
+// Wayland it is also what serializes wl_display access between rendering and
+// the keyboard poller — the Wayland client API is not thread-safe — which is
+// why the manager wires it before starting that poller, and why this used to
+// carry a second name (setDisplayMu) on that side. One operation, one name.
+//
+// Which mutex arrives is the caller's decision and not a detail: the mode
+// overlay gets the manager's renderMu, the click indicator gets its own
+// indicatorRenderMu, and the two must never be the same lock (../AGENTS.md).
+func (o *sharedOverlay) setRenderMu(mu *sync.Mutex) {
 	o.renderMu = mu
+}
+
+// drawable reports whether there is a native surface to draw on: a backend
+// whose overlaySurface was wired and whose handle is still open. It is the
+// guard the exported delegates above share, standing in for the per-backend
+// `o.raw != nil` prologue each of them used to carry.
+//
+// The srf half is not ceremony. Only the constructors wire it, so a backend
+// value built any other way has no surface at all — which is what the tests
+// that stand a Manager up without a display server attach — and reaching
+// through a nil interface would panic where the old prologue returned.
+func (o *sharedOverlay) drawable() bool {
+	return o.srf != nil && o.srf.alive()
 }
 
 func (o *sharedOverlay) hide() {
@@ -910,6 +1087,11 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 
 // setOriginOffset stores the active screen origin used to translate
 // screen-local grid/recursive-grid/hint coordinates onto the correct monitor.
+//
+// It is the fourteenth of the delegates above and the one that was already
+// here: the per-backend wrappers only added the receiver guard promotion makes
+// unreachable. Like SetHideUnmatched it touches no surface, so a closed handle
+// does not stop it recording where the next draw belongs.
 func (o *sharedOverlay) setOriginOffset(origin image.Point) {
 	o.originOffset = origin
 }

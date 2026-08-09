@@ -21,12 +21,12 @@
 #include <xkbcommon/xkbcommon.h>
 
 // Keyboard event ring buffer.
-// Thread safety: all accesses happen while the Go-side displayMu mutex is
-// held (shared with renderMu). The Wayland keyboard callback
+// Thread safety: all accesses happen while the Go-side renderMu mutex is held.
+// The Wayland keyboard callback
 // (neru_keyboard_key) fires inside wl_display_dispatch / wl_display_roundtrip,
-// which only run while displayMu is held. The consumer
+// which only run while renderMu is held. The consumer
 // (neru_wayland_overlay_get_key) is called from the keyboard poller goroutine
-// which also holds displayMu. Therefore no concurrent access can occur.
+// which also holds renderMu. Therefore no concurrent access can occur.
 //
 // A ring buffer (rather than a single slot) is necessary because
 // wl_display_roundtrip — called from the rendering path — may dispatch
