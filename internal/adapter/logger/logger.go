@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
@@ -22,8 +23,11 @@ const (
 var (
 	// globalLogger is the global logger instance.
 	globalLogger *zap.Logger
-	logFile      *lumberjack.Logger
-	logFileMu    sync.RWMutex
+	// logFile is the rotating file sink underneath the global logger, held as an
+	// io.WriteCloser because writing to it and closing it is all this package
+	// asks of it — and because a test can then stand in for it.
+	logFile   io.WriteCloser
+	logFileMu sync.RWMutex
 )
 
 // Init configures and initializes the global logger with the specified settings.
@@ -206,30 +210,47 @@ func Sync() error {
 
 // Close releases all logger resources and ensures all pending log entries are written.
 // It synchronizes the logger and closes the log file if file logging is enabled.
+//
+// Every teardown step runs even when an earlier one fails, and the failures are
+// reported together: a logger that could not be flushed still gets its log file
+// closed and its global cleared, rather than leaking the file handle behind a
+// stale logger. Close therefore leaves nothing behind to close twice, so the
+// second Close of a shutdown path that already failed is a quiet no-op.
 func Close() error {
 	logFileMu.Lock()
 	defer logFileMu.Unlock()
 
+	var failures error
+
 	if globalLogger != nil {
-		err := genuineSyncFailure(globalLogger.Sync())
-		if err != nil {
-			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
-		}
+		failures = appendLoggingFailure(
+			failures,
+			genuineSyncFailure(globalLogger.Sync()),
+			"failed to sync logger",
+		)
 
 		globalLogger = nil
 	}
 
 	if logFile != nil {
 		// lumberjack.Logger doesn't have a Sync method, but Close will flush
-		err := logFile.Close()
-		if err != nil {
-			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to close log file")
-		}
+		failures = appendLoggingFailure(failures, logFile.Close(), "failed to close log file")
 
 		logFile = nil
 	}
 
-	return nil
+	return failures
+}
+
+// appendLoggingFailure adds err, under the given message, to the failures a
+// teardown has collected so far. A step that succeeded adds nothing, so the
+// caller can run every step and report whatever the run collected.
+func appendLoggingFailure(failures, err error, message string) error {
+	if err == nil {
+		return failures
+	}
+
+	return multierr.Append(failures, derrors.Wrap(err, derrors.CodeLoggingFailed, message))
 }
 
 // Debug logs a debug-level message with optional structured fields.
