@@ -749,8 +749,7 @@ func (o *sharedOverlay) drawFrame(
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
-	drawSubPreview := style.SubKeyPreview() && len(nextKeyRunes) > 0 &&
-		nextDims.Cols > 0 && nextDims.Rows > 0
+	drawSubPreview := style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 
 	for idx, cell := range cellRects {
 		if cell.Empty() {
@@ -782,7 +781,7 @@ func (o *sharedOverlay) drawFrame(
 			}
 
 			if drawSubPreview &&
-				shouldShowSubKeyPreview(cell, style, nextDims) {
+				style.ShowSubKeyPreviewIn(cell, nextDims) {
 				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style)
 			}
 		}
@@ -981,43 +980,24 @@ func (o *sharedOverlay) drawLabelBackground(
 		style.LineColorARGB(), max(style.LabelBackgroundBorderWidthF(), 0))
 }
 
-//nolint:mnd
+// drawSubKeyMiniGrid paints the next depth's keys inside one cell, each on the
+// sub-cell it would select.
+//
+// Where they go is not this backend's arithmetic: Style.SubKeyPreviewCells
+// divides the cell and decides which sub-cell is left blank, and the GDI backend
+// draws the same list (ADR 0007). What is left here is the painting — the shared
+// text primitive, which is where the HiDPI scale is applied.
 func (o *sharedOverlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
 	nextKeyRunes []rune,
 	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 ) {
-	subCells := recursivegrid.ComputeGridCells(cell, nextDims)
-	centerIdx := -1
-
-	if nextDims.Cols%2 == 1 && nextDims.Rows%2 == 1 {
-		centerIdx = (nextDims.Rows/2)*nextDims.Cols + nextDims.Cols/2
-	}
-
-	subIndex := 0
-	for idx, subCell := range subCells {
-		if idx == centerIdx {
-			subIndex++
-
-			continue
-		}
-
-		if subIndex >= len(nextKeyRunes) {
-			return
-		}
-
-		subLabel := style.SubKeyPreviewLabelChar()
-		if subLabel == "" {
-			subLabel = string(nextKeyRunes[subIndex])
-		}
-
+	for _, subCell := range style.SubKeyPreviewCells(cell, nextKeyRunes, nextDims) {
 		o.drawTextCentered(
-			subLabel, subCell,
+			subCell.Label, subCell.Bounds,
 			style.FontFamily(), style.SubKeyPreviewFontSizeF(),
 			style.SubKeyPreviewTextColorARGB(),
 		)
-
-		subIndex++
 	}
 }

@@ -1,12 +1,7 @@
 package architecture_test
 
 import (
-	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
 	"image"
 	"regexp"
 	"strconv"
@@ -14,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 // The two sides of the recursive-grid sub-key-preview autohide rule.
@@ -25,61 +21,45 @@ const (
 	// this test.
 	subKeyPreviewNativeMethod = "drawSubKeyPreviewInCellRect:"
 
-	// subKeyPreviewGoSource and subKeyPreviewGoDeclaration name the Go side the
-	// same way.
-	subKeyPreviewGoSource      = "internal/adapter/overlay/linux/cgo_helpers.go"
-	subKeyPreviewGoDeclaration = "shouldShowSubKeyPreview"
-
-	// subKeyPreviewGoEnableOperand is the check the Go rule opens with, and the
-	// one part of it this pin holds constant rather than comparing: whether the
-	// preview is switched on at all. The Objective-C method has no counterpart
-	// inside it, because its caller gates on self.gridDrawSubKeyPreview before
-	// calling it. Every case here is asked with the preview enabled, which is
-	// the only state in which the two rules are answering the same question.
-	subKeyPreviewGoEnableOperand = "style.SubKeyPreview()"
+	// subKeyPreviewGoDeclaration names the Go side the same way.
+	subKeyPreviewGoDeclaration = "recursivegrid.Style.ShowSubKeyPreviewIn"
 )
 
-// TestSubKeyPreviewAutohideRuleIsPinnedAcrossTheLanguageBoundary keeps the
-// macOS overlay hiding the same sub-key previews as the Cairo one.
+// TestSubKeyPreviewAutohideRuleIsPinnedAcrossTheLanguageBoundary keeps the macOS
+// overlay hiding the same sub-key previews as every other backend.
 //
 // Whether a recursive-grid cell is divided finely enough for the mini-grid of
-// the next level's keys to be worth drawing is one question with one answer:
-// every sub-cell must reach sub_key_preview_autohide_multiplier x the preview
-// font size, and a non-positive multiplier means "always draw". It is written
-// twice — in Go for the Cairo backend and in Objective-C for macOS — and
-// nothing held the two together. It is the third copy standing on ADR 0007's
+// the next level's keys to be worth drawing is one question with one shared
+// answer: recursivegrid.Style.ShowSubKeyPreviewIn, which the Cairo and GDI
+// backends both call. macOS asks it in Objective-C, inside
+// drawSubKeyPreviewInCellRect:, and cannot call Go. This is ADR 0007's
 // deliberate exception to the one-implementation rule
-// (docs/adr/0007-a-shared-derivation-has-one-implementation.md), and the second
-// that is a rule rather than a vocabulary: where the second implementation is
-// in another language, what the rule asks for is a test holding the copies
-// together rather than a deletion.
+// (docs/adr/0007-a-shared-derivation-has-one-implementation.md): where the
+// second implementation is in another language, what the rule asks for is a test
+// holding the copies together rather than a deletion.
 //
-// Both copies are rules rather than constants, so both are pinned by running
-// them. Each is read out of its own source into something this test can
-// evaluate, and the two are asked the same questions over cases that straddle
-// every edge the rule has: the multiplier that disables it, the threshold
-// itself, each sub-cell dimension one pixel under it, and a cell that clears
-// the threshold whole while its sub-cells do not. A disagreement is one
-// configuration drawing a preview on macOS and leaving the cell bare on Linux.
+// It read both copies out of their sources until #1297, because the Go one sat
+// behind `//go:build linux && cgo` and a test running on the macOS host could
+// not link it. Converging the Windows backend on the same mini-grid gave the
+// predicate an untagged home, so the shared side is now run rather than parsed —
+// which pins its behavior rather than its shape, the way the label-autohide pin
+// next door always has.
 //
-// The Go side is read from source rather than called, which the label-autohide
-// pin next door does not have to do. Its rule is a method on a shared style;
-// this one sits behind `//go:build linux && cgo`, so a test running on the
-// macOS host cannot link it. Giving it an untagged home is #1297's work — that
-// issue converges the Windows backend, which deliberately measures the whole
-// cell rather than a sub-cell (docs/CROSS_PLATFORM.md records the difference),
-// and only then is there one predicate to share. Reading it here holds the two
-// copies together in the meantime, and holds them in both directions: change
-// either side alone and the two stop answering alike.
+// The Objective-C copy is a rule and not a constant, so it is pinned by running
+// it too. It is read into something this test can evaluate, and the two are asked
+// the same questions over cases that straddle every edge the rule has: the
+// multiplier that disables it, the threshold itself, each sub-cell dimension one
+// pixel under it, and a cell that clears the threshold whole while its sub-cells
+// do not. A disagreement is one configuration drawing a preview on macOS and
+// leaving the cell bare everywhere else.
 func TestSubKeyPreviewAutohideRuleIsPinnedAcrossTheLanguageBoundary(t *testing.T) {
 	t.Parallel()
 
 	native := readNativeSubKeyPreviewRule(t)
-	shared := readGoSubKeyPreviewRule(t)
 
-	for _, disagreement := range subKeyPreviewDisagreements(native, shared) {
+	for _, disagreement := range subKeyPreviewDisagreements(native) {
 		t.Errorf(
-			"%s: %s and %s disagree on %s\n\t%s draws the preview: %t\n\t%s draws it: %t\n\tthe rule read from %s is: %s\n\tthe rule read from %s is: %s",
+			"%s: %s and %s disagree on %s\n\t%s draws the preview: %t\n\t%s draws it: %t\n\tthe rule read from %s is: %s",
 			subKeyPreviewNativeSource,
 			subKeyPreviewNativeMethod,
 			subKeyPreviewGoDeclaration,
@@ -90,8 +70,6 @@ func TestSubKeyPreviewAutohideRuleIsPinnedAcrossTheLanguageBoundary(t *testing.T
 			disagreement.shared,
 			subKeyPreviewNativeSource,
 			native,
-			subKeyPreviewGoSource,
-			shared,
 		)
 	}
 }
@@ -104,15 +82,14 @@ func TestSubKeyPreviewAutohideRuleIsPinnedAcrossTheLanguageBoundary(t *testing.T
 // square sub-cell still agrees, measure the whole cell instead of a sub-cell
 // and every undivided dimension still agrees. So each way the Objective-C rule could
 // plausibly drift is applied to the rule this pin actually read, and the mutant
-// has to disagree with the Go one somewhere. Mutating the rule rather than the
-// source text keeps this honest across a reformat of the .m file, and keeps "we
-// broke it by hand once and watched it fail" from being the only evidence the
-// guardrail has teeth.
+// has to disagree with the shared implementation somewhere. Mutating the rule
+// rather than the source text keeps this honest across a reformat of the .m file,
+// and keeps "we broke it by hand once and watched it fail" from being the only
+// evidence the guardrail has teeth.
 func TestSubKeyPreviewAutohideRulePinCatchesNativeDrift(t *testing.T) {
 	t.Parallel()
 
 	native := readNativeSubKeyPreviewRule(t)
-	shared := readGoSubKeyPreviewRule(t)
 
 	drifted := []struct {
 		name  string
@@ -179,7 +156,7 @@ func TestSubKeyPreviewAutohideRulePinCatchesNativeDrift(t *testing.T) {
 	for _, drift := range drifted {
 		mutant := drift.apply(native)
 
-		if len(subKeyPreviewDisagreements(mutant, shared)) == 0 {
+		if len(subKeyPreviewDisagreements(mutant)) == 0 {
 			t.Errorf(
 				"no case tells %s apart from %s: %s would pass the pin\n\tthe drifted rule is: %s",
 				drift.name, subKeyPreviewGoDeclaration, subKeyPreviewNativeSource, mutant,
@@ -189,21 +166,21 @@ func TestSubKeyPreviewAutohideRulePinCatchesNativeDrift(t *testing.T) {
 }
 
 // TestSubKeyPreviewAutohideRulePinReportsARuleItCannotRead pins the other half
-// of the guardrail: a rule this pin cannot read must be reported, never
+// of the guardrail: a native rule this pin cannot read must be reported, never
 // skipped. A pin that reads nothing and passes is worse than no pin, because it
 // reads as coverage.
 //
-// This is where the pin's one deliberate cost sits. It reads one shape per
-// side, and a rewrite that keeps the behavior — unfolding the Objective-C
-// guard into the nested form drawGridLabel: writes it, say — fails here rather
-// than being understood. Teaching it every equivalent spelling of the same rule
-// is more machinery than the copy is worth; failing loudly and naming the shape
-// it expected leaves the next author a one-line change to this file, which the
-// same author is already making to the source it reads.
+// This is where the pin's one deliberate cost sits. It reads one shape, and a
+// rewrite that keeps the behavior — unfolding the Objective-C guard into the
+// nested form drawGridLabel: writes it, say — fails here rather than being
+// understood. Teaching it every equivalent spelling of the same rule is more
+// machinery than the copy is worth; failing loudly and naming the shape it
+// expected leaves the next author a one-line change to this file, which the same
+// author is already making to the .m one.
 func TestSubKeyPreviewAutohideRulePinReportsARuleItCannotRead(t *testing.T) {
 	t.Parallel()
 
-	unreadableNative := []struct {
+	unreadable := []struct {
 		name   string
 		source string
 	}{
@@ -245,66 +222,10 @@ func TestSubKeyPreviewAutohideRulePinReportsARuleItCannotRead(t *testing.T) {
 		},
 	}
 
-	for _, source := range unreadableNative {
+	for _, source := range unreadable {
 		if _, problem := parseNativeSubKeyPreviewRule(source.source); problem == "" {
 			t.Errorf(
 				"parsing accepted an Objective-C source with %s; the pin would then run a rule it never read",
-				source.name,
-			)
-		}
-	}
-
-	unreadableGo := []struct {
-		name   string
-		source string
-	}{
-		{
-			name:   "the function renamed",
-			source: goSubKeyPreviewFuncSource("shouldDrawSubKeyPreview", "\treturn true\n"),
-		},
-		{
-			name: "the enable check gone, so the pin cannot tell it is holding one constant",
-			source: goSubKeyPreviewFuncSource(subKeyPreviewGoDeclaration,
-				"\tif style.SubKeyPreviewAutohideMultiplier() <= 0 {\n"+
-					"\t\treturn true\n"+
-					"\t}\n\n"+
-					"\tthreshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()\n"+
-					"\tsubCellW := float64(cell.Dx()) / float64(subDims.Cols)\n"+
-					"\tsubCellH := float64(cell.Dy()) / float64(subDims.Rows)\n\n"+
-					"\treturn subCellW >= threshold && subCellH >= threshold\n"),
-		},
-		{
-			name: "the guard folded into the returned expression",
-			source: goSubKeyPreviewFuncSource(subKeyPreviewGoDeclaration,
-				"\tif !style.SubKeyPreview() {\n"+
-					"\t\treturn false\n"+
-					"\t}\n\n"+
-					"\tthreshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()\n"+
-					"\tsubCellW := float64(cell.Dx()) / float64(subDims.Cols)\n"+
-					"\tsubCellH := float64(cell.Dy()) / float64(subDims.Rows)\n\n"+
-					"\treturn style.SubKeyPreviewAutohideMultiplier() <= 0 ||\n"+
-					"\t\t(subCellW >= threshold && subCellH >= threshold)\n"),
-		},
-		{
-			name: "a sub-cell measured from an operand this pin cannot value",
-			source: goSubKeyPreviewFuncSource(subKeyPreviewGoDeclaration,
-				"\tif !style.SubKeyPreview() {\n"+
-					"\t\treturn false\n"+
-					"\t}\n\n"+
-					"\tif style.SubKeyPreviewAutohideMultiplier() <= 0 {\n"+
-					"\t\treturn true\n"+
-					"\t}\n\n"+
-					"\tthreshold := style.LabelFontSize() * style.SubKeyPreviewAutohideMultiplier()\n"+
-					"\tsubCellW := float64(cell.Dx()) / float64(subDims.Cols)\n"+
-					"\tsubCellH := float64(cell.Dy()) / float64(subDims.Rows)\n\n"+
-					"\treturn subCellW >= threshold && subCellH >= threshold\n"),
-		},
-	}
-
-	for _, source := range unreadableGo {
-		if _, problem := parseGoSubKeyPreviewRule(source.source); problem == "" {
-			t.Errorf(
-				"parsing accepted a Go source with %s; the pin would then run a rule it never read",
 				source.name,
 			)
 		}
@@ -314,8 +235,9 @@ func TestSubKeyPreviewAutohideRulePinReportsARuleItCannotRead(t *testing.T) {
 // subKeyPreviewInputs are the values both rules are functions of.
 //
 // The two sides name them differently — cellRect.size.width against cell.Dx(),
-// self.gridSubKeyAutohideMultiplier against a method on the style — so each
-// side brings its own vocabulary binding its names to these.
+// self.gridSubKeyAutohideMultiplier against a method on the style — so the
+// Objective-C side brings a vocabulary binding its names to these, and the Go
+// side is handed them as the style and the arguments it actually takes.
 type subKeyPreviewInputs struct {
 	fontSize   int
 	multiplier float64
@@ -324,9 +246,12 @@ type subKeyPreviewInputs struct {
 	subRows    int
 }
 
-// style builds the resolved style the Go rule reads its inputs through, so the
-// pin values style.SubKeyPreviewFontSizeF() by calling it rather than by
-// assuming what it returns.
+// style builds the resolved style the shared rule reads its inputs through.
+//
+// The preview is switched on in every case, because the Objective-C method has
+// no counterpart to that check inside it — its caller gates on
+// self.gridDrawSubKeyPreview before calling it — and enabled is the only state in
+// which the two rules are answering the same question.
 func (inputs subKeyPreviewInputs) style() recursivegrid.Style {
 	return recursivegrid.NewStyle(recursivegrid.StyleOptions{
 		SubKeyPreview:                   true,
@@ -335,24 +260,18 @@ func (inputs subKeyPreviewInputs) style() recursivegrid.Style {
 	})
 }
 
-// subKeyPreviewGoOperands binds every name the Go rule is allowed to mention to
-// the input it stands for. It is that side's vocabulary: a rule reading
-// anything else is one this test cannot evaluate, and parsing says so rather
-// than guessing a value.
-var subKeyPreviewGoOperands = map[string]func(subKeyPreviewInputs) float64{
-	"style.SubKeyPreviewAutohideMultiplier()": func(inputs subKeyPreviewInputs) float64 {
-		return inputs.style().SubKeyPreviewAutohideMultiplier()
-	},
-	"style.SubKeyPreviewFontSizeF()": func(inputs subKeyPreviewInputs) float64 {
-		return inputs.style().SubKeyPreviewFontSizeF()
-	},
-	"cell.Dx()":    func(inputs subKeyPreviewInputs) float64 { return float64(inputs.cell.Dx()) },
-	"cell.Dy()":    func(inputs subKeyPreviewInputs) float64 { return float64(inputs.cell.Dy()) },
-	"subDims.Cols": func(inputs subKeyPreviewInputs) float64 { return float64(inputs.subCols) },
-	"subDims.Rows": func(inputs subKeyPreviewInputs) float64 { return float64(inputs.subRows) },
+// showsPreview asks the shared Go rule the case.
+func (inputs subKeyPreviewInputs) showsPreview() bool {
+	return inputs.style().ShowSubKeyPreviewIn(
+		inputs.cell,
+		domain.GridDimensions{Rows: inputs.subRows, Cols: inputs.subCols},
+	)
 }
 
-// subKeyPreviewNativeOperands is the same vocabulary for the Objective-C side.
+// subKeyPreviewNativeOperands binds every name the Objective-C rule is allowed to
+// mention to the input it stands for. It is that side's vocabulary: a rule
+// reading anything else is one this test cannot evaluate, and parsing says so
+// rather than guessing a value.
 //
 // Its names are bound to what the cgo bridge hands the overlay, which this pin
 // asserts rather than checks: the multiplier and the sub-grid dimensions travel
@@ -378,8 +297,8 @@ var subKeyPreviewNativeOperands = map[string]func(subKeyPreviewInputs) float64{
 }
 
 // subKeyPreviewArithmetic are the operators a measured value may be built with.
-// Both rules build every one of theirs from exactly two operands, so nothing
-// here needs precedence.
+// The Objective-C rule builds every one of its measurements from exactly two
+// operands, so nothing here needs precedence.
 var subKeyPreviewArithmetic = map[string]func(left, right float64) float64{
 	"*": func(left, right float64) float64 { return left * right },
 	"/": func(left, right float64) float64 { return left / right },
@@ -443,13 +362,13 @@ type subKeyPreviewDisagreement struct {
 // threshold on its own, because a rule comparing only one of them agrees on
 // every square sub-cell; the threshold is landed on exactly, because >= and >
 // differ nowhere else; a cell that clears the threshold whole while its
-// sub-cells do not is asked, because that is the shape the Windows backend
-// deliberately has and the one this copy must not drift into; the division is
-// asked with unequal columns and rows, because a rule dividing the width by the
-// row count agrees on every square division; and a multiplier below 1 is asked,
-// because a guard that admitted only multipliers above 1 agrees everywhere
-// else. TestSubKeyPreviewAutohideRulePinCatchesNativeDrift is what keeps this
-// list honest.
+// sub-cells do not is asked, because that is the shape the Windows backend used
+// to measure and the one no copy may drift back into; the division is asked with
+// unequal columns and rows, because a rule dividing the width by the row count
+// agrees on every square division; and a multiplier below 1 is asked, because a
+// guard that admitted only multipliers above 1 agrees everywhere else.
+// TestSubKeyPreviewAutohideRulePinCatchesNativeDrift is what keeps this list
+// honest.
 //
 // One part of the rule no case here can reach: with a cell size and a font size
 // both non-negative, dropping the multiplier guard entirely answers exactly as
@@ -614,9 +533,9 @@ func subKeyPreviewCases() []subKeyPreviewCase {
 	}
 }
 
-// subKeyPreviewDisagreements runs every case through both rules and returns the
-// cases they answer differently.
-func subKeyPreviewDisagreements(native, shared subKeyPreviewRule) []subKeyPreviewDisagreement {
+// subKeyPreviewDisagreements runs every case through the native rule and through
+// the shared Go implementation, and returns the cases they answer differently.
+func subKeyPreviewDisagreements(native subKeyPreviewRule) []subKeyPreviewDisagreement {
 	var disagreements []subKeyPreviewDisagreement
 
 	for _, testCase := range subKeyPreviewCases() {
@@ -624,7 +543,7 @@ func subKeyPreviewDisagreements(native, shared subKeyPreviewRule) []subKeyPrevie
 
 		nativeAnswer := native.showsPreview(inputs)
 
-		sharedAnswer := shared.showsPreview(inputs)
+		sharedAnswer := inputs.showsPreview()
 		if nativeAnswer == sharedAnswer {
 			continue
 		}
@@ -639,8 +558,8 @@ func subKeyPreviewDisagreements(native, shared subKeyPreviewRule) []subKeyPrevie
 	return disagreements
 }
 
-// subKeyPreviewMeasure is one value a rule works out before comparing anything:
-// the threshold, and each sub-cell dimension.
+// subKeyPreviewMeasure is one value the native rule works out before comparing
+// anything: the threshold, and each sub-cell dimension.
 type subKeyPreviewMeasure struct {
 	name  string
 	left  string
@@ -661,50 +580,33 @@ func (measure subKeyPreviewMeasure) value(values map[string]float64) float64 {
 	)
 }
 
-// subKeyPreviewRule is one implementation of the sub-key-preview autohide rule
-// in the only form a Go test can hold another to: something it can run.
+// subKeyPreviewRule is the Objective-C sub-key-preview autohide rule in the only
+// form a Go test can hold it to: something it can run.
 //
-// Nothing here is an expectation. Every field is read out of a source file, and
-// each rule's only expectation is the other one — which is what makes the pin
-// bidirectional: change either side alone and the two stop answering alike.
+// Nothing here is an expectation. Every field is read out of the .m file, and the
+// shared Go implementation is the only expectation this pin has — which is what
+// makes the pin bidirectional: change either side alone and the two stop
+// answering alike.
 type subKeyPreviewRule struct {
-	// operands is the vocabulary this side is written in.
-	operands map[string]func(subKeyPreviewInputs) float64
-
-	// guard decides whether autohide applies at all. guardShows says which way
-	// round its source writes it: the Go rule returns early when the guard holds
-	// (so holding means the preview is drawn whatever the size), the Objective-C
-	// one folds the guard into the condition that skips the preview (so holding
-	// means the size check runs).
-	guard      nativeRuleComparison
-	guardShows bool
+	// guard decides whether autohide applies at all. The multiplier check is a
+	// conjunct of the condition that returns early, so it holding is what makes
+	// the size check run.
+	guard nativeRuleComparison
 
 	// measures are the values the rule works out before comparing, in the order
 	// it declares them.
 	measures []subKeyPreviewMeasure
 
 	// verdict are the comparisons that decide the answer, joined by verdictJoin
-	// ("||" or "&&"). verdictShows says what the joined condition holding means:
-	// the Go rule returns it as the answer, the Objective-C one returns early
-	// when it holds.
-	verdict      []nativeRuleComparison
-	verdictJoin  string
-	verdictShows bool
+	// ("||" or "&&"). The condition returns out of the method, so it holding is
+	// what skips the preview.
+	verdict     []nativeRuleComparison
+	verdictJoin string
 }
 
-// String renders the rule back as one sentence, so a failure shows what was
-// read out of the source rather than only that it disagreed.
+// String renders the rule back as one sentence, so a failure shows what was read
+// out of the source rather than only that it disagreed.
 func (rule subKeyPreviewRule) String() string {
-	guardClause := "autohide applies when %s"
-	if rule.guardShows {
-		guardClause = "autohide is off when %s"
-	}
-
-	verdictClause := "the preview is skipped when %s"
-	if rule.verdictShows {
-		verdictClause = "the preview is drawn when %s"
-	}
-
 	measures := make([]string, 0, len(rule.measures))
 	for _, measure := range rule.measures {
 		measures = append(measures, measure.String())
@@ -716,22 +618,22 @@ func (rule subKeyPreviewRule) String() string {
 	}
 
 	return fmt.Sprintf(
-		guardClause+"; %s; and "+verdictClause,
+		"autohide applies when %s; %s; and the preview is skipped when %s",
 		rule.guard,
 		strings.Join(measures, ", "),
 		strings.Join(comparisons, " "+rule.verdictJoin+" "),
 	)
 }
 
-// showsPreview answers the question both implementations answer: is this cell
-// divided finely enough for the sub-key preview to be drawn in it?
+// showsPreview answers the question the shared implementation answers: is this
+// cell divided finely enough for the sub-key preview to be drawn in it?
 func (rule subKeyPreviewRule) showsPreview(inputs subKeyPreviewInputs) bool {
-	values := make(map[string]float64, len(rule.operands)+len(rule.measures))
-	for name, read := range rule.operands {
+	values := make(map[string]float64, len(subKeyPreviewNativeOperands)+len(rule.measures))
+	for name, read := range subKeyPreviewNativeOperands {
 		values[name] = read(inputs)
 	}
 
-	if rule.guard.holds(values) == rule.guardShows {
+	if !rule.guard.holds(values) {
 		return true
 	}
 
@@ -739,7 +641,7 @@ func (rule subKeyPreviewRule) showsPreview(inputs subKeyPreviewInputs) bool {
 		values[measure.name] = measure.value(values)
 	}
 
-	return rule.verdictHolds(values) == rule.verdictShows
+	return !rule.verdictHolds(values)
 }
 
 // verdictHolds folds the deciding comparisons together the way the source joins
@@ -899,7 +801,7 @@ func validateSubKeyPreviewRule(rule subKeyPreviewRule) string {
 		}
 
 		for _, token := range []string{measure.left, measure.right} {
-			if problem := subKeyPreviewToken(token, rule.operands, measured); problem != "" {
+			if problem := subKeyPreviewToken(token, measured); problem != "" {
 				return problem
 			}
 		}
@@ -908,8 +810,8 @@ func validateSubKeyPreviewRule(rule subKeyPreviewRule) string {
 	}
 
 	// The guard is evaluated before anything is measured, which is also true of
-	// both sources it is read from. A guard naming a measured value would be
-	// valued at nothing rather than reported.
+	// the source it is read from. A guard naming a measured value would be valued
+	// at nothing rather than reported.
 	for _, token := range []string{rule.guard.left, rule.guard.right} {
 		if measured[token] {
 			return fmt.Sprintf(
@@ -929,7 +831,7 @@ func validateSubKeyPreviewRule(rule subKeyPreviewRule) string {
 		}
 
 		for _, token := range []string{comparison.left, comparison.right} {
-			if problem := subKeyPreviewToken(token, rule.operands, measured); problem != "" {
+			if problem := subKeyPreviewToken(token, measured); problem != "" {
 				return problem
 			}
 		}
@@ -940,12 +842,8 @@ func validateSubKeyPreviewRule(rule subKeyPreviewRule) string {
 
 // subKeyPreviewToken reports why a token cannot be valued, and nothing when it
 // can.
-func subKeyPreviewToken(
-	token string,
-	operands map[string]func(subKeyPreviewInputs) float64,
-	measured map[string]bool,
-) string {
-	if _, bound := operands[token]; bound {
+func subKeyPreviewToken(token string, measured map[string]bool) string {
+	if _, bound := subKeyPreviewNativeOperands[token]; bound {
 		return ""
 	}
 
@@ -961,7 +859,7 @@ func subKeyPreviewToken(
 	return fmt.Sprintf(
 		"the rule reads %s, which this pin cannot value; it knows %s, the values the rule measures for itself, and numeric literals",
 		token,
-		strings.Join(sortedNativeRuleOperands(operands), ", "),
+		strings.Join(sortedNativeRuleOperands(subKeyPreviewNativeOperands), ", "),
 	)
 }
 
@@ -986,9 +884,9 @@ var nativeSubKeyPreviewMeasurePattern = regexp.MustCompile(
 )
 
 // readNativeSubKeyPreviewRule reads the rule out of the macOS overlay, failing
-// the test when it cannot — a rule this pin cannot read is a rule it cannot
-// hold to the other one, and passing quietly there would be worse than having
-// no pin at all.
+// the test when it cannot — a rule this pin cannot read is a rule it cannot hold
+// to the shared one, and passing quietly there would be worse than having no pin
+// at all.
 func readNativeSubKeyPreviewRule(t *testing.T) subKeyPreviewRule {
 	t.Helper()
 
@@ -997,9 +895,8 @@ func readNativeSubKeyPreviewRule(t *testing.T) subKeyPreviewRule {
 	)
 	if problem != "" {
 		t.Fatalf(
-			"%s: %s\n\tuntil this reads again, nothing holds it to %s in %s",
-			subKeyPreviewNativeSource, problem,
-			subKeyPreviewGoDeclaration, subKeyPreviewGoSource,
+			"%s: %s\n\tuntil this reads again, nothing holds it to %s",
+			subKeyPreviewNativeSource, problem, subKeyPreviewGoDeclaration,
 		)
 	}
 
@@ -1037,18 +934,11 @@ func parseNativeSubKeyPreviewRule(source string) (subKeyPreviewRule, string) {
 	}
 
 	rule := subKeyPreviewRule{
-		operands: subKeyPreviewNativeOperands,
 		guard: nativeRuleComparison{
 			left:  capture(1),
 			op:    capture(2),
 			right: capture(3),
 		},
-		// The multiplier check is a conjunct of the condition that returns
-		// early, so it holding is what makes the size check run.
-		guardShows: false,
-		// The condition returns out of the method, so it holding is what skips
-		// the preview.
-		verdictShows: false,
 	}
 
 	// Only what the rule works out before the guard can be read by it.
@@ -1084,358 +974,9 @@ func nativeSubKeyPreviewMeasures(body string) []subKeyPreviewMeasure {
 	return measures
 }
 
-// readGoSubKeyPreviewRule reads the rule out of the Cairo backend, failing the
-// test when it cannot, for the same reason the Objective-C reader does.
-func readGoSubKeyPreviewRule(t *testing.T) subKeyPreviewRule {
-	t.Helper()
-
-	rule, problem := parseGoSubKeyPreviewRule(readNativeSource(t, subKeyPreviewGoSource))
-	if problem != "" {
-		t.Fatalf(
-			"%s: %s\n\tuntil this reads again, nothing holds %s in %s to it",
-			subKeyPreviewGoSource, problem,
-			subKeyPreviewNativeMethod, subKeyPreviewNativeSource,
-		)
-	}
-
-	return rule
-}
-
-// parseGoSubKeyPreviewRule reads the autohide rule out of a Go source. Go's own
-// parser does the reading, so this only has to recognize the statements the
-// rule is written with and refuse everything else.
-func parseGoSubKeyPreviewRule(source string) (subKeyPreviewRule, string) {
-	fileSet := token.NewFileSet()
-
-	parsed, err := parser.ParseFile(fileSet, "cgo_helpers.go", source, 0)
-	if err != nil {
-		return subKeyPreviewRule{}, fmt.Sprintf("cannot be parsed as Go: %v", err)
-	}
-
-	body := goSubKeyPreviewFuncBody(parsed)
-	if body == nil {
-		return subKeyPreviewRule{}, fmt.Sprintf(
-			"no `func %s` to read the autohide rule from (renamed?)",
-			subKeyPreviewGoDeclaration,
-		)
-	}
-
-	rule := subKeyPreviewRule{
-		operands: subKeyPreviewGoOperands,
-		// The guard returns out of the function with the preview drawn, so it
-		// holding is what switches autohide off.
-		guardShows: true,
-		// The deciding comparisons are what the function returns, so them
-		// holding is what draws the preview.
-		verdictShows: true,
-	}
-
-	var read goSubKeyPreviewParts
-
-	for _, statement := range body.List {
-		var problem string
-
-		switch typed := statement.(type) {
-		case *ast.IfStmt:
-			problem = goSubKeyPreviewGuard(fileSet, typed, &rule, &read)
-		case *ast.AssignStmt:
-			problem = goSubKeyPreviewMeasure(fileSet, typed, &rule)
-		case *ast.ReturnStmt:
-			problem = goSubKeyPreviewVerdict(fileSet, typed, &rule)
-			read.answer = true
-		default:
-			problem = subKeyPreviewGoDeclaration + " is written with a statement this pin does not read"
-		}
-
-		if problem != "" {
-			return subKeyPreviewRule{}, problem
-		}
-	}
-
-	if problem := read.missing(rule); problem != "" {
-		return subKeyPreviewRule{}, problem
-	}
-
-	return rule, validateSubKeyPreviewRule(rule)
-}
-
-// goSubKeyPreviewParts records which statements of the rule the parser has
-// found, so the reader can say which one is missing rather than run a rule with
-// a hole in it.
-type goSubKeyPreviewParts struct {
-	// enable is the check that the preview is switched on, guard the check that
-	// autohide applies, and answer the comparison the function returns.
-	enable bool
-	guard  bool
-	answer bool
-}
-
-// missing reports which part of the rule was never found, and nothing when all
-// of them were.
-func (read goSubKeyPreviewParts) missing(rule subKeyPreviewRule) string {
-	switch {
-	case !read.enable:
-		return fmt.Sprintf(
-			"%s no longer opens with `if !%s { return false }` (rewritten?)",
-			subKeyPreviewGoDeclaration, subKeyPreviewGoEnableOperand,
-		)
-	case !read.guard:
-		return subKeyPreviewGoDeclaration + " holds no autohide guard shaped `if <multiplier> <op> <literal> { return true }` (rewritten?)"
-	case len(rule.measures) == 0:
-		return subKeyPreviewGoDeclaration + " works out nothing shaped `<name> := <a> <*|/> <b>` before deciding (rewritten?)"
-	case !read.answer:
-		return subKeyPreviewGoDeclaration + " returns nothing (rewritten?)"
-	}
-
-	return ""
-}
-
-// goSubKeyPreviewFuncBody returns the body of the shouldShowSubKeyPreview
-// declaration, or nil when the file does not declare it.
-func goSubKeyPreviewFuncBody(file *ast.File) *ast.BlockStmt {
-	for _, decl := range file.Decls {
-		funcDecl, isFunc := decl.(*ast.FuncDecl)
-		if !isFunc || funcDecl.Name.Name != subKeyPreviewGoDeclaration {
-			continue
-		}
-
-		return funcDecl.Body
-	}
-
-	return nil
-}
-
-// goSubKeyPreviewGuard reads one of the two early returns the rule opens with:
-// the check that the preview is switched on, and the check that autohide
-// applies. Which one it is read from the value returned, not assumed.
-func goSubKeyPreviewGuard(
-	fileSet *token.FileSet,
-	statement *ast.IfStmt,
-	rule *subKeyPreviewRule,
-	read *goSubKeyPreviewParts,
-) string {
-	answer, isEarlyReturn := goSubKeyPreviewEarlyReturn(statement)
-	if !isEarlyReturn {
-		return fmt.Sprintf(
-			"an `if` in %s does not return a plain true or false, which this pin does not read",
-			subKeyPreviewGoDeclaration,
-		)
-	}
-
-	if !answer {
-		negated, isNegation := statement.Cond.(*ast.UnaryExpr)
-		if !isNegation || negated.Op != token.NOT ||
-			goSubKeyPreviewOperandName(fileSet, negated.X) != subKeyPreviewGoEnableOperand {
-			return fmt.Sprintf(
-				"%s returns false on something other than `!%s`, so this pin cannot tell which check it is holding constant",
-				subKeyPreviewGoDeclaration,
-				subKeyPreviewGoEnableOperand,
-			)
-		}
-
-		read.enable = true
-
-		return ""
-	}
-
-	comparison, problem := goSubKeyPreviewComparison(fileSet, statement.Cond)
-	if problem != "" {
-		return problem
-	}
-
-	rule.guard = comparison
-	read.guard = true
-
-	return ""
-}
-
-// goSubKeyPreviewEarlyReturn reports the boolean an `if` returns, and whether
-// its body is a single such return at all.
-func goSubKeyPreviewEarlyReturn(statement *ast.IfStmt) (bool, bool) {
-	if statement.Else != nil || statement.Init != nil || len(statement.Body.List) != 1 {
-		return false, false
-	}
-
-	returned, isReturn := statement.Body.List[0].(*ast.ReturnStmt)
-	if !isReturn || len(returned.Results) != 1 {
-		return false, false
-	}
-
-	answer, isIdent := returned.Results[0].(*ast.Ident)
-	if !isIdent || (answer.Name != "true" && answer.Name != "false") {
-		return false, false
-	}
-
-	return answer.Name == "true", true
-}
-
-// goSubKeyPreviewMeasure reads one `name := a * b` the rule works out before
-// deciding.
-func goSubKeyPreviewMeasure(
-	fileSet *token.FileSet,
-	statement *ast.AssignStmt,
-	rule *subKeyPreviewRule,
-) string {
-	if statement.Tok != token.DEFINE || len(statement.Lhs) != 1 || len(statement.Rhs) != 1 {
-		return fmt.Sprintf(
-			"an assignment in %s is not the single `<name> := <expression>` this pin reads",
-			subKeyPreviewGoDeclaration,
-		)
-	}
-
-	name, isIdent := statement.Lhs[0].(*ast.Ident)
-	if !isIdent {
-		return fmt.Sprintf(
-			"an assignment in %s does not name a single value",
-			subKeyPreviewGoDeclaration,
-		)
-	}
-
-	binary, isBinary := statement.Rhs[0].(*ast.BinaryExpr)
-	if !isBinary {
-		return name.Name + " is worked out from something other than two operands, which this pin does not read"
-	}
-
-	rule.measures = append(rule.measures, subKeyPreviewMeasure{
-		name:  name.Name,
-		left:  goSubKeyPreviewOperandName(fileSet, binary.X),
-		op:    binary.Op.String(),
-		right: goSubKeyPreviewOperandName(fileSet, binary.Y),
-	})
-
-	return ""
-}
-
-// goSubKeyPreviewVerdict reads the comparisons the rule returns and the
-// operator joining them.
-func goSubKeyPreviewVerdict(
-	fileSet *token.FileSet,
-	statement *ast.ReturnStmt,
-	rule *subKeyPreviewRule,
-) string {
-	if len(statement.Results) != 1 {
-		return subKeyPreviewGoDeclaration + " returns something other than one expression"
-	}
-
-	joined, isBinary := statement.Results[0].(*ast.BinaryExpr)
-	if !isBinary {
-		return subKeyPreviewGoDeclaration + " returns an expression this pin does not read"
-	}
-
-	if joined.Op != token.LAND && joined.Op != token.LOR {
-		comparison, problem := goSubKeyPreviewComparison(fileSet, joined)
-		if problem != "" {
-			return problem
-		}
-
-		rule.verdict = []nativeRuleComparison{comparison}
-		rule.verdictJoin = "&&"
-
-		return ""
-	}
-
-	rule.verdictJoin = joined.Op.String()
-
-	return goSubKeyPreviewJoined(fileSet, joined, joined.Op, rule)
-}
-
-// goSubKeyPreviewJoined flattens a chain of comparisons joined by one operator,
-// refusing a chain that mixes two.
-func goSubKeyPreviewJoined(
-	fileSet *token.FileSet,
-	expr ast.Expr,
-	join token.Token,
-	rule *subKeyPreviewRule,
-) string {
-	binary, isBinary := expr.(*ast.BinaryExpr)
-	if isBinary && (binary.Op == token.LAND || binary.Op == token.LOR) {
-		if binary.Op != join {
-			return subKeyPreviewGoDeclaration + " mixes && and ||, which this pin does not read"
-		}
-
-		if problem := goSubKeyPreviewJoined(fileSet, binary.X, join, rule); problem != "" {
-			return problem
-		}
-
-		return goSubKeyPreviewJoined(fileSet, binary.Y, join, rule)
-	}
-
-	comparison, problem := goSubKeyPreviewComparison(fileSet, expr)
-	if problem != "" {
-		return problem
-	}
-
-	rule.verdict = append(rule.verdict, comparison)
-
-	return ""
-}
-
-// goSubKeyPreviewComparison reads one `a >= b` out of the syntax tree.
-func goSubKeyPreviewComparison(
-	fileSet *token.FileSet,
-	expr ast.Expr,
-) (nativeRuleComparison, string) {
-	binary, isBinary := expr.(*ast.BinaryExpr)
-	if !isBinary {
-		return nativeRuleComparison{}, fmt.Sprintf(
-			"`%s` in %s is not a comparison this pin reads",
-			goSubKeyPreviewSource(fileSet, expr), subKeyPreviewGoDeclaration,
-		)
-	}
-
-	return nativeRuleComparison{
-		left:  goSubKeyPreviewOperandName(fileSet, binary.X),
-		op:    binary.Op.String(),
-		right: goSubKeyPreviewOperandName(fileSet, binary.Y),
-	}, ""
-}
-
-// goSubKeyPreviewOperandName spells an operand the way the vocabulary names it,
-// looking through the parentheses and float64 conversions the Go rule needs and
-// the Objective-C one does not.
-func goSubKeyPreviewOperandName(fileSet *token.FileSet, expr ast.Expr) string {
-	for {
-		switch typed := expr.(type) {
-		case *ast.ParenExpr:
-			expr = typed.X
-		case *ast.CallExpr:
-			conversion, isIdent := typed.Fun.(*ast.Ident)
-			if !isIdent || conversion.Name != "float64" || len(typed.Args) != 1 {
-				return goSubKeyPreviewSource(fileSet, expr)
-			}
-
-			expr = typed.Args[0]
-		default:
-			return goSubKeyPreviewSource(fileSet, expr)
-		}
-	}
-}
-
-// goSubKeyPreviewSource renders an expression back as the source wrote it.
-func goSubKeyPreviewSource(fileSet *token.FileSet, expr ast.Expr) string {
-	var rendered bytes.Buffer
-
-	err := printer.Fprint(&rendered, fileSet, expr)
-	if err != nil {
-		return fmt.Sprintf("an expression this pin cannot render: %v", err)
-	}
-
-	return rendered.String()
-}
-
 // nativeSubKeyPreviewMethodSource wraps a body in the method definition the
 // Objective-C parser looks for, so a test can hand it a rule shaped differently
 // from the one in the tree.
 func nativeSubKeyPreviewMethodSource(body string) string {
 	return "- (void)drawSubKeyPreviewInCellRect:(NSRect)cellRect {\n" + body + "\n}\n"
-}
-
-// goSubKeyPreviewFuncSource wraps a body in the function declaration the Go
-// parser looks for, for the same reason.
-func goSubKeyPreviewFuncSource(name, body string) string {
-	return "package linux\n\nfunc " + name + "(\n" +
-		"\tcell image.Rectangle,\n" +
-		"\tstyle recursivegrid.Style,\n" +
-		"\tsubDims domain.GridDimensions,\n" +
-		") bool {\n" + body + "}\n"
 }

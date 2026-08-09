@@ -1148,9 +1148,9 @@ layers = [
 | `label_background_border_width`       | int    | `1`     | Label border width                                                           |
 | `label_char`                          | string | `""`    | Override all cell labels with a single character (e.g. `·`); empty = use key |
 | `label_autohide_multiplier`           | float  | `1.5`   | Hide labels when cell < fontSize × multiplier (0 = disable)                  |
-| `sub_key_preview`                     | bool   | `false` | Show sub-key previews in cells; [Windows draws a different aid](CROSS_PLATFORM.md#mode-coverage) |
+| `sub_key_preview`                     | bool   | `false` | Show a mini-grid of the next level's keys inside each cell                    |
 | `sub_key_preview_font_size`           | int    | `8`     | Sub-key preview font size                                                    |
-| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier; [measured against a different rectangle on Windows](CROSS_PLATFORM.md#mode-coverage) |
+| `sub_key_preview_autohide_multiplier` | float  | `1.5`   | Autohide threshold multiplier, measured against one sub-cell of that mini-grid |
 | `sub_key_preview_text_color`          | color  | derived | Sub-key preview text color                                                   |
 | `sub_key_preview_label_char`          | string | `""`    | Override sub-key labels with a single character (e.g. `·`); empty = use key  |
 

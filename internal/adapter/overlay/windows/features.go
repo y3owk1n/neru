@@ -17,7 +17,6 @@ import (
 // Does not own window lifecycle or grid rendering (see overlay.go).
 const (
 	winPaddingMultiplier            = 2
-	winSubKeyPreviewPaddingBottom   = 4
 	winAutoRadiusBadgeCap           = 6.0
 	winAutoRadiusBoundaryCap        = 4.0
 	winMouseActionSquareRadiusScale = 0.18
@@ -217,6 +216,10 @@ func outsetHintArrow(arrow badge.HintArrow, width int) badge.HintArrow {
 // cross-platform software renderer (cell subdivision, labels, sub-key preview,
 // and the virtual pointer indicator).
 //
+// nextKeys/nextDims describe the *next* depth's layout, which each cell previews
+// as a mini-grid of the keys that would select its sub-cells. They are zero when
+// the region can no longer be divided, and then nothing is previewed.
+//
 // The dimensions arrive as domain.GridDimensions rather than as a column count
 // beside a row count so that this backend has no pair to transpose on its way
 // to ComputeGridCells (#1313).
@@ -224,6 +227,8 @@ func (o *winOverlay) DrawRecursiveGrid(
 	bounds image.Rectangle,
 	keys string,
 	dims domain.GridDimensions,
+	nextKeys string,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 	virtualPointer recursivegridcomponent.VirtualPointerState,
 ) {
@@ -252,6 +257,8 @@ func (o *winOverlay) DrawRecursiveGrid(
 	o.Clear()
 
 	keyRunes := []rune(strings.ToUpper(keys))
+	nextKeyRunes := []rune(strings.ToUpper(nextKeys))
+	drawSubPreview := style.PreviewsNextDepth(len(nextKeyRunes), nextDims)
 
 	cellRects := recursivegrid.ComputeGridCells(bounds, dims)
 	for idx, cell := range cellRects {
@@ -283,8 +290,8 @@ func (o *winOverlay) DrawRecursiveGrid(
 				)
 			}
 
-			if shouldShowWinSubKeyPreview(cell, style) {
-				o.drawRecursiveSubKeyPreview(label, cell, style)
+			if drawSubPreview && style.ShowSubKeyPreviewIn(cell, nextDims) {
+				o.drawSubKeyMiniGrid(cell, nextKeyRunes, nextDims, style)
 			}
 		}
 	}
@@ -365,52 +372,25 @@ func (o *winOverlay) drawRecursiveLabelBackground(
 	)
 }
 
-func (o *winOverlay) drawRecursiveSubKeyPreview(
-	label string,
+// drawSubKeyMiniGrid paints the next depth's keys inside one cell, each on the
+// sub-cell it would select.
+//
+// Where they go is not this backend's arithmetic: Style.SubKeyPreviewCells
+// divides the cell and decides which sub-cell is left blank, and the Cairo
+// backend draws the same list (ADR 0007). What is left here is the painting.
+func (o *winOverlay) drawSubKeyMiniGrid(
 	cell image.Rectangle,
+	nextKeyRunes []rune,
+	nextDims domain.GridDimensions,
 	style recursivegridcomponent.Style,
 ) {
-	previewLabel := style.SubKeyPreviewLabelChar()
-	if previewLabel == "" {
-		previewLabel = label
-	}
-
-	previewRect := image.Rect(
-		cell.Min.X,
-		cell.Max.Y-badge.EstimateTextHeight(
+	for _, subCell := range style.SubKeyPreviewCells(cell, nextKeyRunes, nextDims) {
+		o.drawTextCentered(
+			subCell.Label,
+			subCell.Bounds,
+			style.FontFamily(),
 			style.SubKeyPreviewFontSizeF(),
-		)-winSubKeyPreviewPaddingBottom,
-		cell.Max.X,
-		cell.Max.Y,
-	)
-
-	o.drawTextCentered(
-		previewLabel,
-		previewRect,
-		style.FontFamily(),
-		style.SubKeyPreviewFontSizeF(),
-		style.SubKeyPreviewTextColorARGB(),
-	)
-}
-
-// shouldShowWinSubKeyPreview reports whether the single preview label this
-// backend draws along the bottom of a cell is worth drawing: the cell must
-// reach sub_key_preview_autohide_multiplier x the preview font size.
-//
-// Unlike the label autohide threshold (recursivegridcomponent.Style.ShowLabelIn)
-// this is not shared with the Linux backend, because the two do not draw the
-// same thing: Linux and macOS draw a mini-grid of the next level's keys and
-// measure a sub-cell, this backend draws one label and measures the cell.
-func shouldShowWinSubKeyPreview(cell image.Rectangle, style recursivegridcomponent.Style) bool {
-	if !style.SubKeyPreview() {
-		return false
+			style.SubKeyPreviewTextColorARGB(),
+		)
 	}
-
-	if style.SubKeyPreviewAutohideMultiplier() <= 0 {
-		return true
-	}
-
-	threshold := style.SubKeyPreviewFontSizeF() * style.SubKeyPreviewAutohideMultiplier()
-
-	return float64(cell.Dx()) >= threshold && float64(cell.Dy()) >= threshold
 }
