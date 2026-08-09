@@ -180,6 +180,22 @@ func x11KeyFromLookup(length C.int, buffer []C.char, keysym C.KeySym) string {
 	return keyvocab.NormalizeKey(key)
 }
 
+// x11KeypadBeginName is what the keypad's center key answers with NumLock off.
+// It has no navigation function, and the digit it carries is the name the
+// Wayland keymap gives it.
+const x11KeypadBeginName = "5"
+
+// x11KeysymName maps the keysyms XLookupString produces no character for onto
+// the names Neru binds. A key with no entry here is dropped.
+//
+// The keypad reports keysyms of its own while NumLock is off, and they mean the
+// same keys as their main-keyboard equivalents — so they fold onto the same
+// names, the ones neru_normalize_xkb_name already gives them
+// (internal/adapter/platform/linux/wayland_keymap.c). That keeps one physical
+// key reaching one binding across the Linux backends, since the evdev tap reads
+// its names from that same table. With NumLock on the keypad reports KP_0
+// through KP_9 and the operators instead, which XLookupString does resolve to
+// characters; those never reach this lookup and deliberately have no case here.
 func x11KeysymName(keysym C.KeySym) string {
 	switch keysym {
 	case C.XK_Return:
@@ -192,25 +208,33 @@ func x11KeysymName(keysym C.KeySym) string {
 		return evdevKeyNameEscape
 	case C.XK_BackSpace:
 		return "Backspace"
-	case C.XK_Left:
+	case C.XK_Left, C.XK_KP_Left:
 		return evdevKeyNameLeft
-	case C.XK_Right:
+	case C.XK_Right, C.XK_KP_Right:
 		return "Right"
-	case C.XK_Up:
+	case C.XK_Up, C.XK_KP_Up:
 		return "Up"
-	case C.XK_Down:
+	case C.XK_Down, C.XK_KP_Down:
 		return "Down"
 	// Like the function keys below, the navigation keys produce no character
 	// from XLookupString, so this lookup is the only way they reach the
 	// handler. The names match the evdev and Wayland backends.
-	case C.XK_Home:
+	case C.XK_Home, C.XK_KP_Home:
 		return evdevKeyNameHome
-	case C.XK_End:
+	case C.XK_End, C.XK_KP_End:
 		return evdevKeyNameEnd
-	case C.XK_Page_Up:
+	case C.XK_Page_Up, C.XK_KP_Page_Up:
 		return evdevKeyNamePageUp
-	case C.XK_Page_Down:
+	case C.XK_Page_Down, C.XK_KP_Page_Down:
 		return evdevKeyNamePageDown
+	// Keypad-only, for want of a main-keyboard equivalent that reaches this
+	// lookup: XLookupString answers the main Delete key with a character.
+	case C.XK_KP_Insert:
+		return evdevKeyNameInsert
+	case C.XK_KP_Delete:
+		return evdevKeyNameDelete
+	case C.XK_KP_Begin:
+		return x11KeypadBeginName
 	default:
 		return x11FunctionKeysymName(keysym)
 	}

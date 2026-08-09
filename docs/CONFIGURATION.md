@@ -343,7 +343,7 @@ which of the two applies to your session.
 | Numbers    | `0`–`9`                                                                                                 |
 | Symbols    | `` ` ``, `-`, `=`, `[`, `]`, `\`, `;`, `'`, `,`, `.`, `/`                                               |
 | Named      | `Space`, `Return`, `Enter`, `Escape`, `Tab`, `Delete`, `Backspace`                                      |
-| Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`, `Insert` (Linux Wayland/evdev only) |
+| Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`, `Insert` (Linux only; on X11 the keypad Insert key) |
 | Function   | `F1`–`F24` (`F21`–`F24` on Linux and Windows only)                                                      |
 
 See [CLI.md](CLI.md#neru-action-feed) for a full key reference with key codes and platform behavior.
