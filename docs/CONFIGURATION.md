@@ -573,7 +573,7 @@ All actions available in hotkeys. These also work as `neru action <name>` — se
 
 # Feed into Neru's own mode system (--mode)
 "Cmd+3"           = [
-    "hints --role AXRadioButton --text design --action left_click",
+    "hints --role radio --text design --action left_click",
     "action feed --mode a",
 ]
 ```

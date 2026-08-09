@@ -291,7 +291,7 @@ nothing.
 | `--toggle` | `-t` | none | `hints` · `grid` · `recursive_grid` · `scroll` · `monitor_select` | Toggle mode on/off (exit to idle if already active) |
 | `--search` | `-s` | none | `hints` | Show search input when the mode is activated |
 | `--hide-on-empty-search` |  | none | `hints` | Hide all hints when search query is empty (requires --search) |
-| `--role` |  | value, repeatable | `hints` | Filter by AX role (comma-separated: AXButton,AXLink). Repeat the flag to add more |
+| `--role` |  | value, repeatable | `hints` | Filter by element role (comma-separated: button,link — the hints.clickable_roles vocabulary, see 'neru roles'). Repeat the flag to add more |
 | `--text` |  | value, repeatable | `hints` | Filter elements by text content (comma-separated, case-insensitive substring match). Repeat the flag to add more |
 | `--strategy` |  | value | `hints` | Element detection strategy: axtree (macOS AX API) or vision (Vision Framework) |
 | `--label-direction` |  | value | `hints` | Hint label enumeration: normal (default, prefix-avoidance, prefers shorter labels) or reverse (spreads labels across the alphabet) |
@@ -1593,7 +1593,7 @@ mode, so it takes only the flags that decide which elements are collected:
 `ERR_INVALID_INPUT`. This is what `neru hints --debug` sends.
 
 ```json
-{ "action": "hints-probe", "args": ["--role=AXButton", "--strategy=vision"] }
+{ "action": "hints-probe", "args": ["--role=button", "--strategy=vision"] }
 ```
 
 **Response**

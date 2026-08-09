@@ -336,7 +336,7 @@ func TestParse_ListFlagsRefuseAnEmptyValue(t *testing.T) {
 	}{
 		{
 			[]string{"--role="},
-			"--role requires a value (use comma-separated: --role=AXButton,AXLink)",
+			"--role requires a value (use comma-separated: --role=button,link)",
 		},
 		{[]string{"--text="}, "--text requires a value (use comma-separated: --text=foo,bar)"},
 	}
@@ -689,7 +689,7 @@ func TestParse_RefusalMessages(t *testing.T) {
 		{
 			domain.ModeHints,
 			[]string{flagRole},
-			"--role requires a value (use comma-separated: --role=AXButton,AXLink)",
+			"--role requires a value (use comma-separated: --role=button,link)",
 		},
 		{
 			domain.ModeHints,

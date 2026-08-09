@@ -24,7 +24,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
   it easier to focus on matching results.
 
   Use --role and --text to filter which elements get hinted:
-    --role AXButton,AXLink       Only hint buttons and links
+    --role button,link           Only hint buttons and links
     --text "Submit,Cancel"        Only hint elements containing "Submit" or "Cancel"
 
   Use --strategy vision to use the Vision Framework (macOS) for element
@@ -48,7 +48,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     neru hints --action left_click --repeat  Click multiple elements in sequence
     neru hints --search                      Start with search input shown
     neru hints --search --hide-on-empty-search  Start search with hints hidden until you type
-    neru hints --role AXButton               Hint only buttons
+    neru hints --role button                 Hint only buttons
     neru hints --strategy vision             Use Vision Framework detection
     neru hints --strategy vision --split-word  Use vision strategy with word-level splitting
     neru hints --debug                       Print detected elements, no overlay (used on windows),

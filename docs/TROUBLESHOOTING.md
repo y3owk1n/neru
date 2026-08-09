@@ -367,7 +367,7 @@ Possible causes:\*\*
 **Solution:**
 
 ```bash
-# 1. Remove unnecessary AXRoles in your config
+# 1. Remove unnecessary clickable roles from your config
 # 2. Disable debug logging
 [logging]
 log_level = "info"  # Not "debug"
