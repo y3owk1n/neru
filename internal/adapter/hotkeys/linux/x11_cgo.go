@@ -17,6 +17,7 @@ import (
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -257,6 +258,17 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 	return C.uint(keycode), modifiers, nil
 }
 
+// x11KeysymFor resolves the base key of a hotkey to the X11 keysym a grab
+// needs. The keys below are mapped here rather than left to XStringToKeysym,
+// which knows X11's own spellings ("Page_Up", "Prior") and not Neru's: a name
+// from the vocabulary resolves only where this switch says it does, and "Home"
+// and "End" landing on the right keysym through XStringToKeysym is a
+// coincidence of spelling, not a contract.
+//
+// The rest fall through to XStringToKeysym: punctuation, and the named keys
+// X11 spells the same way Neru does — Delete, Insert and F1-F24. "Backspace"
+// is the one named key neither path resolves, since X11 spells it "BackSpace";
+// that gap predates this switch and is untouched here.
 func x11KeysymFor(key string) C.KeySym {
 	key = strings.TrimSpace(key)
 	if len(key) == 1 {
@@ -268,29 +280,66 @@ func x11KeysymFor(key string) C.KeySym {
 		return C.XStringToKeysym(cKey)
 	}
 
-	switch strings.ToLower(key) {
-	case "space":
+	name := x11CanonicalKeyName(key)
+
+	switch name {
+	case keyvocab.KeySpace:
 		return C.XK_space
-	case "return", "enter":
+	case keyvocab.KeyReturn, keyvocab.KeyEnter:
 		return C.XK_Return
-	case "tab":
+	case keyvocab.KeyTab:
 		return C.XK_Tab
-	case "escape", "esc":
+	case keyvocab.KeyEscape:
 		return C.XK_Escape
-	case "up":
+	case keyvocab.KeyUp:
 		return C.XK_Up
-	case "down":
+	case keyvocab.KeyDown:
 		return C.XK_Down
-	case "left":
+	case keyvocab.KeyLeft:
 		return C.XK_Left
-	case "right":
+	case keyvocab.KeyRight:
 		return C.XK_Right
+	case keyvocab.KeyHome:
+		return C.XK_Home
+	case keyvocab.KeyEnd:
+		return C.XK_End
+	case keyvocab.KeyPageUp:
+		return C.XK_Page_Up
+	case keyvocab.KeyPageDown:
+		return C.XK_Page_Down
 	default:
-		cKey := C.CString(key)
+		cKey := C.CString(name)
 		defer C.free(unsafe.Pointer(cKey))
 
 		return C.XStringToKeysym(cKey)
 	}
+}
+
+// x11CanonicalKeyName gives a written key name its vocabulary spelling
+// ("pageup" -> "PageUp"), so the switch above compares against the named-key
+// declaration instead of a second set of lowercase literals. A name the
+// vocabulary does not know is returned unchanged for XStringToKeysym to try.
+//
+// This is keyvocab.NormalizeKey minus the alias fold, which is how the hotkey
+// strings reaching this adapter were already canonicalized — config's
+// CanonicalHotkeyForPlatform display-cases the base key without folding
+// aliases — and it is what a grab needs: a grab names a physical key, and the
+// vocabulary's aliases cross keys that X11 keeps apart. Folding "Backspace" to
+// "Delete" the way the taps do would resolve XK_Delete and grab the
+// forward-delete key for a binding written "Backspace". So a named key keeps
+// its own spelling here — "Enter" does not become "Return", though both are
+// mapped above — and only "esc", which the vocabulary deliberately keeps out of
+// the named-key set, resolves through its alias.
+func x11CanonicalKeyName(key string) string {
+	if display, isNamed := keyvocab.NamedKeyDisplay(key); isNamed {
+		return display
+	}
+
+	if means, isAlias := keyvocab.ResolveAlias(key); isAlias {
+		return means
+	}
+
+	return key
 }
 
 func x11BindingKey(keycode C.uint, modifiers C.uint) string {
