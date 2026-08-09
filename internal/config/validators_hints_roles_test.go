@@ -69,7 +69,7 @@ func TestValidateWithWarnings_ReportsAnApplicationRoleThisPlatformCannotExpress(
 	}
 
 	want := []string{
-		`hints.app_configs.additional_clickable_roles: "` + role +
+		`hints.app_configs[0].additional_clickable_roles: "` + role +
 			`" has no equivalent on ` + runtime.GOOS + " and is ignored",
 	}
 	if got := warnings.Messages(); !slices.Equal(got, want) {

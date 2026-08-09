@@ -113,22 +113,32 @@ func TestConfig_WarnUnresolvableClickableRoles_LeavesTheShippedListAlone(t *test
 // TestConfig_WarnUnresolvableClickableRoles_ReadsAnApplicationsExtraRoles pins
 // the other place a role list is written. An application's extra roles are
 // never shipped, so every entry in one is the user's own and there is nothing
-// to compare against.
+// to compare against — and each list is named with its index, so a file with
+// several overrides says which one to go and edit rather than reporting them
+// all under one name.
 func TestConfig_WarnUnresolvableClickableRoles_ReadsAnApplicationsExtraRoles(t *testing.T) {
 	t.Parallel()
 
 	cfg := DefaultConfig()
-	cfg.Hints.AppConfigs = []AppConfig{{
-		BundleID:            "com.apple.Safari",
-		AdditionalClickable: []string{testRoleButton, "toolbar_button"},
-	}}
+	cfg.Hints.AppConfigs = []AppConfig{
+		{
+			BundleID:            "com.apple.Safari",
+			AdditionalClickable: []string{testRoleButton, "toolbar_button"},
+		},
+		{
+			BundleID:            "com.apple.Terminal",
+			AdditionalClickable: []string{"disclosure"},
+		},
+	}
 
 	warnings := &Warnings{}
 	cfg.warnUnresolvableClickableRoles(warnings, goosLinux)
 
 	want := []string{
-		`hints.app_configs.additional_clickable_roles: ` +
+		`hints.app_configs[0].additional_clickable_roles: ` +
 			`"toolbar_button" has no equivalent on linux and is ignored`,
+		`hints.app_configs[1].additional_clickable_roles: ` +
+			`"disclosure" has no equivalent on linux and is ignored`,
 	}
 	if got := warnings.Messages(); !slices.Equal(got, want) {
 		t.Errorf("warnings = %q, want %q", got, want)
