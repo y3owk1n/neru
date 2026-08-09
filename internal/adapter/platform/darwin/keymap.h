@@ -162,10 +162,20 @@ NSString *NeruKeyCodeToName(CGKeyCode keyCode);
 /// Map keycode to character with shift/capslock handling
 /// Uses UCKeyTranslate to respect Colemak, Dvorak, etc. while bypassing IME.
 /// Falls back to US QWERTY if layout translation fails.
+/// Numpad keys with a named-key equivalent return the named key instead of a
+/// raw control character ("Return" for numpad Enter, "Clear" for numpad Clear).
 /// @param keyCode Key code
 /// @param flags Event flags (for shift/capslock detection)
-/// @return Character string or nil if not found
+/// @return Character string or named key, nil if not found
 NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
+
+/// C-string copy of NeruKeyCodeToCharacter for the CGO boundary.
+/// @return Malloc'd UTF-8 string the caller must free(), or NULL if not found
+char *NeruCopyKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags);
+
+/// C-string copy of NeruKeyCodeToName for the CGO boundary.
+/// @return Malloc'd UTF-8 string the caller must free(), or NULL if not found
+char *NeruCopyKeyCodeToName(CGKeyCode keyCode);
 
 /// Rebuild layout-aware key maps after a keyboard layout change.
 /// Called automatically via kTISNotifySelectedKeyboardInputSourceChanged.

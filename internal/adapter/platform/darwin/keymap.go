@@ -41,6 +41,34 @@ func keymapLayoutChangeBridge() {
 	})
 }
 
+// KeyCodeToCharacter returns the key string the event tap would produce for a
+// raw virtual key code with the given CGEventFlags: a character ("a", "5", "."),
+// or a named key for keys that fold to one (numpad Enter -> "Return"). Returns
+// "" when the key code does not resolve. It exists so tests can pin the
+// keycode-translation contract from Go.
+func KeyCodeToCharacter(keyCode uint16, flags uint64) string {
+	cStr := C.NeruCopyKeyCodeToCharacter(C.CGKeyCode(keyCode), C.CGEventFlags(flags))
+	if cStr == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(cStr))
+
+	return C.GoString(cStr)
+}
+
+// KeyCodeToName returns the layout-independent name for a raw virtual key
+// code ("Return", "Escape", "A"), or "" when the key code has none. It exists
+// so tests can pin the keycode-translation contract from Go.
+func KeyCodeToName(keyCode uint16) string {
+	cStr := C.NeruCopyKeyCodeToName(C.CGKeyCode(keyCode))
+	if cStr == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(cStr))
+
+	return C.GoString(cStr)
+}
+
 // SetReferenceKeyboardLayout configures the key translation reference layout.
 // Pass an empty inputSourceID to use automatic fallback resolution.
 // Returns false only when a non-empty layout ID was provided but could not be resolved.
