@@ -239,6 +239,27 @@ func (ei *ElementInfo) PID() int {
 	return ei.pid
 }
 
+// matchesRoleFilter reports whether the element satisfies a configured role
+// filter. AppKit declares several vocabulary names as subroles rather than
+// roles (element.AXSubroleNames) — a search field is AXTextField /
+// AXSearchField, a SwiftUI toggle AXCheckBox / AXSwitch — so a configured
+// name matches when it appears in either attribute. The result is a single
+// yes/no per element: an element whose role and subrole are both configured
+// is still one hint target.
+func (ei *ElementInfo) matchesRoleFilter(allowed map[string]struct{}) bool {
+	if _, ok := allowed[ei.role]; ok {
+		return true
+	}
+
+	if ei.subrole == "" {
+		return false
+	}
+
+	_, ok := allowed[ei.subrole]
+
+	return ok
+}
+
 // CheckAccessibilityPermissions verifies that the application has been granted accessibility permissions.
 func CheckAccessibilityPermissions() bool {
 	result := C.NeruCheckAccessibilityPermissions()
@@ -719,13 +740,14 @@ func (e *Element) IsClickable(
 		}
 	}
 
-	// Check roles
+	// Check roles (and subroles: several AX vocabulary names only ever
+	// appear in AXSubrole — see ElementInfo.matchesRoleFilter).
 	var isRoleAllowed bool
 	if len(allowedRoles) > 0 {
-		_, isRoleAllowed = allowedRoles[info.Role()]
+		isRoleAllowed = info.matchesRoleFilter(allowedRoles)
 	} else {
 		clickableRolesMu.RLock()
-		_, isRoleAllowed = clickableRoles[info.Role()]
+		isRoleAllowed = info.matchesRoleFilter(clickableRoles)
 		clickableRolesMu.RUnlock()
 	}
 

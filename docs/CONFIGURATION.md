@@ -799,14 +799,14 @@ name resolves here, and `neru roles --explain` to see how your own config resolv
 | `link`         | `AXLink`               | `link`                                  | `Hyperlink`           |
 | `checkbox`     | `AXCheckBox`           | `check box`, `check menu item`          | `CheckBox`            |
 | `radio`        | `AXRadioButton`        | `radio button`, `radio menu item`       | `RadioButton`         |
-| `switch`       | `AXSwitch`             | `switch`, `toggle button`               | —                     |
+| `switch`       | `AXSwitch` †           | `switch`, `toggle button`               | —                     |
 | `disclosure`   | `AXDisclosureTriangle` | —                                       | —                     |
 | `text_field`   | `AXTextField`          | `entry`, `password text`                | `Edit`                |
 | `text_area`    | `AXTextArea`           | `entry`                                 | `Edit`                |
-| `search_field` | `AXSearchField`        | `entry`                                 | `Edit`                |
+| `search_field` | `AXSearchField` †      | `entry`                                 | `Edit`                |
 | `slider`       | `AXSlider`             | `slider`                                | `Slider`              |
 | `stepper`      | `AXIncrementor`        | `spin button`                           | `Spinner`             |
-| `tab`          | `AXTabButton`          | `page tab`                              | `TabItem`             |
+| `tab`          | `AXTabButton` †        | `page tab`                              | `TabItem`             |
 | `menu_item`    | `AXMenuItem`           | `menu item`                             | `MenuItem`            |
 | `menubar_item` | `AXMenuBarItem`        | —                                       | —                     |
 | `dock_item`    | `AXDockItem`           | —                                       | —                     |
@@ -817,10 +817,15 @@ name resolves here, and `neru roles --explain` to see how your own config resolv
 | `static_text`  | `AXStaticText`         | `static`, `label`, `text`               | `Text`                |
 | `heading`      | `AXHeading`            | `heading`                               | —                     |
 | `color_well`   | `AXColorWell`          | `color chooser`                         | —                     |
-| `toolbar_button` | `AXToolbarButton`    | —                                       | —                     |
+| `toolbar_button` | `AXToolbarButton` †  | —                                       | —                     |
 
 A `—` means the platform has no equivalent; that entry is ignored there and reported by
 `neru roles --explain` and `neru doctor`.
+
+† A subrole, not a role: AppKit reports these names in the element's *subrole* while the
+role stays generic — a search field is an `AXTextField` with subrole `AXSearchField`, a
+SwiftUI toggle an `AXCheckBox` with subrole `AXSwitch`. Neru matches configured names
+against both the role and the subrole, so these entries work as written.
 
 #### Native roles
 

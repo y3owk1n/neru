@@ -73,8 +73,20 @@ func runRolesList(cmd *cobra.Command) {
 	for _, mapping := range element.RoleVocabulary {
 		native := mapping.Native(vocabulary)
 
-		expansion := strings.Join(native, ", ")
-		if len(native) == 0 {
+		names := make([]string, len(native))
+		for index, name := range native {
+			names[index] = name
+			// AppKit declares some AX names as subroles: an element carries
+			// them in AXSubrole while its AXRole stays generic, and neru
+			// matches them against both. Say so, or the column misdescribes
+			// what an element reports as its role.
+			if vocabulary == element.VocabularyAX && element.AXSubroleNames[name] {
+				names[index] = name + " (subrole)"
+			}
+		}
+
+		expansion := strings.Join(names, ", ")
+		if len(names) == 0 {
 			expansion = "— no equivalent on this platform"
 		}
 

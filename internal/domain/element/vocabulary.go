@@ -103,6 +103,13 @@ type RoleMapping struct {
 	Semantic SemanticRole
 	// AX lists the macOS role names this semantic role expands to.
 	AX []string
+	// AXIsSubrole marks that AppKit declares this mapping's AX names as
+	// subroles (NSAccessibilitySubrole constants in
+	// NSAccessibilityConstants.h), not roles: an element reports such a name
+	// in its AXSubrole attribute while its AXRole stays something more
+	// generic, so the macOS matcher compares configured names against the
+	// subrole as well as the role. AXSubroleNames collects the marked names.
+	AXIsSubrole bool
 	// ATSPI lists the Linux AT-SPI role names this semantic role expands to.
 	ATSPI []string
 	// UIA lists the Windows UI Automation control-type programmatic names this
@@ -177,7 +184,9 @@ var RoleVocabulary = []RoleMapping{
 	},
 	{
 		Semantic: SemanticSwitch,
-		AX:       []string{string(RoleSwitch)},
+		// SwiftUI toggles report AXCheckBox / AXSwitch.
+		AX:          []string{string(RoleSwitch)},
+		AXIsSubrole: true,
 		// ATSPI_ROLE_SWITCH is the dedicated role (GTK4 GtkSwitch and friends);
 		// older toolkits still report a toggle button.
 		ATSPI: []string{"switch", "toggle button"},
@@ -200,9 +209,11 @@ var RoleVocabulary = []RoleMapping{
 	},
 	{
 		Semantic: SemanticSearchField,
-		AX:       []string{string(RoleSearchField)},
-		ATSPI:    []string{atspiRoleEntry},
-		UIA:      []string{uiaControlEdit},
+		// AppKit search fields report AXTextField / AXSearchField.
+		AX:          []string{string(RoleSearchField)},
+		AXIsSubrole: true,
+		ATSPI:       []string{atspiRoleEntry},
+		UIA:         []string{uiaControlEdit},
 	},
 	{
 		Semantic: SemanticSlider,
@@ -218,9 +229,11 @@ var RoleVocabulary = []RoleMapping{
 	},
 	{
 		Semantic: SemanticTab,
-		AX:       []string{string(RoleTabButton)},
-		ATSPI:    []string{"page tab"},
-		UIA:      []string{"TabItem"},
+		// AppKit tab buttons report AXRadioButton / AXTabButton.
+		AX:          []string{string(RoleTabButton)},
+		AXIsSubrole: true,
+		ATSPI:       []string{"page tab"},
+		UIA:         []string{"TabItem"},
 	},
 	{
 		Semantic: SemanticMenuItem,
@@ -278,9 +291,30 @@ var RoleVocabulary = []RoleMapping{
 	},
 	{
 		Semantic: SemanticToolbarButton,
-		AX:       []string{string(RoleToolbarButton)},
+		// Toolbar buttons report AXButton / AXToolbarButton.
+		AX:          []string{string(RoleToolbarButton)},
+		AXIsSubrole: true,
 	},
 }
+
+// AXSubroleNames collects the AX names RoleVocabulary marks with AXIsSubrole:
+// the names AppKit delivers in AXSubrole rather than AXRole. None of them is
+// also declared as a role, which is what keeps the matcher's two comparisons
+// from colliding.
+var AXSubroleNames = func() map[string]bool {
+	names := make(map[string]bool)
+	for _, mapping := range RoleVocabulary {
+		if !mapping.AXIsSubrole {
+			continue
+		}
+
+		for _, name := range mapping.AX {
+			names[name] = true
+		}
+	}
+
+	return names
+}()
 
 // DefaultClickableRoles is the role list neru ships as the default value of
 // hints.clickable_roles. It is also the fallback an accessibility backend uses
