@@ -34,9 +34,6 @@ const (
 	keyboardChanBuffer = 64
 	halfDivisor        = 2
 	paddingMultiplier  = 2
-	// hintPlacementGap is the pixel gap between a hint badge and its target
-	// point for top/bottom placement, mirroring the macOS overlay.
-	hintPlacementGap = 1
 	// hintAutoRadiusMax caps the auto (border_radius = -1) hint badge corner
 	// radius so labels get a subtle rounded corner rather than a full pill,
 	// matching the macOS overlay's MIN(height/2, 6).
@@ -47,15 +44,6 @@ const (
 	// winAutoRadiusBoundaryCap. An element box is much larger than a badge, so
 	// without the cap the auto radius would round it into an oval.
 	hintBoundaryAutoRadiusMax = 4
-	// hintArrowHeight is the height in pixels of the triangular connector arrow
-	// drawn between a hint badge and its target for top/bottom placement,
-	// mirroring the macOS overlay's tooltip arrow. hintArrowHalfBase is half the
-	// arrow's base width where it meets the badge edge; hintArrowMinHalfBase is
-	// the smallest half-base still worth drawing, and the flat edge the badge
-	// radius must leave for the tail to attach.
-	hintArrowHeight      = 5
-	hintArrowHalfBase    = 5
-	hintArrowMinHalfBase = 2
 
 	stickyBadgeClearPadding = 3
 )
@@ -1188,33 +1176,6 @@ const (
 	hintTailBottom = 2 // tail on the badge's bottom edge, apex below (placement "top")
 )
 
-// hintArrowTriangle holds the three vertices of a hint connector arrow in
-// screen coordinates: the two base corners flush with the badge edge and the
-// tip pointing at the target element.
-type hintArrowTriangle struct {
-	baseLeft  image.Point
-	tip       image.Point
-	baseRight image.Point
-}
-
-// hintBadgeOffset is everything a `hints.ui.placement` value decides for this
-// overlay: where a hint badge sits relative to the point it labels, and so
-// whether there is a connector arrow at all. The drawing code takes one of
-// these rather than the configured string, so a placement string it has no
-// branch for cannot reach it.
-type hintBadgeOffset int
-
-const (
-	// hintBadgeOnTarget draws the badge over the target point, with no arrow.
-	hintBadgeOnTarget hintBadgeOffset = iota
-	// hintBadgeAbove draws the badge above the target, with an arrow hanging
-	// off its bottom edge and pointing down at the target.
-	hintBadgeAbove
-	// hintBadgeBelow draws the badge below the target, with an arrow on its top
-	// edge pointing up at the target.
-	hintBadgeBelow
-)
-
 // resolveHintBadgeOffset maps a configured placement onto the offset this
 // overlay draws it with. It is the one place the placement vocabulary is read
 // here, and every value config.HintPlacements() declares has a branch.
@@ -1229,129 +1190,43 @@ const (
 // before a configuration settled it, and it draws at the documented default —
 // the same answer the macOS renderer gives it (`hintPlacementValue`), so a
 // draw that beats the first Apply puts hints in the same place on both.
-func resolveHintBadgeOffset(placement string) (hintBadgeOffset, error) {
+func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
 	if placement == "" {
 		placement = config.HintPlacementDefault
 	}
 
 	switch placement {
 	case config.HintPlacementTop:
-		return hintBadgeAbove, nil
+		return badge.HintAbove, nil
 	case config.HintPlacementCenter:
-		return hintBadgeOnTarget, nil
+		return badge.HintOnTarget, nil
 	case config.HintPlacementBottom:
-		return hintBadgeBelow, nil
+		return badge.HintBelow, nil
 	default:
-		return hintBadgeOnTarget, derrors.New(
+		return badge.HintOnTarget, derrors.New(
 			derrors.CodeNotSupported,
 			"hint placement is not drawn by the linux overlay",
 		)
 	}
 }
 
-// hintBadgeRadius caps the badge corner radius for an offset badge so it always
-// keeps a flat top/bottom edge wide enough for the connector tail to attach to.
-// Without this, a large configured radius (e.g. a full pill) consumes the flat
-// edge and the renderer drops the tail entirely. A badge on its target has no
-// tail, and radii that already leave room are returned unchanged.
-func hintBadgeRadius(radius, badgeWidth int, offset hintBadgeOffset) int {
-	if offset == hintBadgeOnTarget {
-		return radius
-	}
-
-	maxRadius := max(badgeWidth/halfDivisor-hintArrowMinHalfBase, 0)
-
-	if radius > maxRadius {
-		return maxRadius
-	}
-
-	return radius
-}
-
 // hintTailEdge reports which badge edge the connector tail merges into, so the
 // renderer can build the badge and tail as one outline. It returns hintTailNone
 // when there is no arrow.
-func hintTailEdge(badge image.Rectangle, arrow hintArrowTriangle, hasArrow bool) int {
+//
+// It stays here rather than beside badge.PlaceHint because the values it
+// answers are the C hint-badge renderer's, not geometry: the Windows backend
+// draws the same arrow without a merged outline to describe.
+func hintTailEdge(badgeRect image.Rectangle, arrow badge.HintArrow, hasArrow bool) int {
 	if !hasArrow {
 		return hintTailNone
 	}
 
-	if arrow.tip.Y < badge.Min.Y {
+	if arrow.Tip.Y < badgeRect.Min.Y {
 		return hintTailTop
 	}
 
 	return hintTailBottom
-}
-
-// hintBadgePlacement computes the badge rect for a hint given its target point
-// (the element center) and, for an offset badge, the connector arrow that
-// visually ties it back to the target. It centralizes the placement math shared
-// by the X11 and Wayland overlays so both stay in lockstep with the macOS
-// overlay's arrow behavior.
-//
-// radius is the badge's already-resolved corner radius; it keeps the arrow base
-// on the badge's flat edge rather than over a rounded corner. hasArrow is false
-// for a badge drawn on its target, which needs nothing to tie it to one.
-//
-// It takes the resolved offset rather than the configured placement string, so
-// there is no unrecognized case for it to answer: resolveHintBadgeOffset
-// refuses one before a draw begins.
-func hintBadgePlacement(
-	target image.Point,
-	badgeWidth, badgeHeight, radius int,
-	offset hintBadgeOffset,
-) (image.Rectangle, hintArrowTriangle, bool) {
-	halfW := badgeWidth / halfDivisor
-	halfH := badgeHeight / halfDivisor
-	centerX := target.X
-
-	var centerY int
-
-	switch offset {
-	case hintBadgeOnTarget:
-		// The badge covers the target, so there is nothing for an arrow to
-		// point at.
-		return badge.CenteredOn(target, badgeWidth, badgeHeight), hintArrowTriangle{}, false
-	case hintBadgeAbove:
-		// Badge sits above the target, offset by the gap plus arrow height so
-		// the arrow has room to point down at the target.
-		centerY = target.Y - hintPlacementGap - hintArrowHeight - halfH
-	case hintBadgeBelow:
-		// Badge sits below the target; arrow points up at the target.
-		centerY = target.Y + hintPlacementGap + hintArrowHeight + halfH
-	}
-
-	// halfW and halfH stay because the arrow and the top/bottom offset are
-	// measured from them, not from the rectangle.
-	badgeRect := badge.CenteredOn(image.Pt(centerX, centerY), badgeWidth, badgeHeight)
-
-	// Keep the arrow base within the badge's flat edge (inside the corner
-	// radius). The caller caps the radius (see hintBadgeRadius) so a flat edge
-	// remains; only a degenerately narrow badge leaves no room, in which case
-	// the tail is dropped rather than collapsed onto the corners.
-	halfBase := hintArrowHalfBase
-	if limit := halfW - max(radius, 0); halfBase > limit {
-		halfBase = limit
-	}
-
-	if halfBase < 1 {
-		return badgeRect, hintArrowTriangle{}, false
-	}
-
-	// Only the two offset placements reach here, and they are mirror images:
-	// the arrow leaves the edge of the badge that faces the target.
-	baseY, tipY := badgeRect.Min.Y, badgeRect.Min.Y-hintArrowHeight
-	if offset == hintBadgeAbove {
-		baseY, tipY = badgeRect.Max.Y, badgeRect.Max.Y+hintArrowHeight
-	}
-
-	arrow := hintArrowTriangle{
-		baseLeft:  image.Pt(centerX-halfBase, baseY),
-		tip:       image.Pt(centerX, tipY),
-		baseRight: image.Pt(centerX+halfBase, baseY),
-	}
-
-	return badgeRect, arrow, true
 }
 
 func expandRect(rect image.Rectangle, amount int) image.Rectangle {

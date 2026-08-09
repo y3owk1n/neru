@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -46,7 +47,7 @@ func (o *wlrootsOverlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style)
 func (o *wlrootsOverlay) DrawHints(
 	[]*hintscomponent.Hint,
 	hintscomponent.StyleMode,
-	hintBadgeOffset,
+	badge.HintOffset,
 ) {
 }
 

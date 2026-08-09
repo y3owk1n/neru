@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -204,7 +205,7 @@ func (o *x11Overlay) DrawMonitorSelect(
 func (o *x11Overlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
-	offset hintBadgeOffset,
+	offset badge.HintOffset,
 ) {
 	if o == nil || o.raw == nil {
 		return
@@ -323,7 +324,7 @@ func (o *x11Overlay) roundedRectPrim(
 }
 
 func (o *x11Overlay) hintBadgePrim(
-	badgeRect image.Rectangle, radius float64, edge int, arrow hintArrowTriangle,
+	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
 	fill, border uint32, lineWidth float64,
 ) {
 	C.neru_x11_overlay_hint_badge(
@@ -332,8 +333,8 @@ func (o *x11Overlay) hintBadgePrim(
 		C.double(badgeRect.Dx()), C.double(badgeRect.Dy()),
 		C.double(radius),
 		C.int(edge),
-		C.double(arrow.baseLeft.X), C.double(arrow.baseRight.X),
-		C.double(arrow.tip.X), C.double(arrow.tip.Y),
+		C.double(arrow.BaseLeft.X), C.double(arrow.BaseRight.X),
+		C.double(arrow.Tip.X), C.double(arrow.Tip.Y),
 		C.uint(fill), C.uint(border), C.double(lineWidth),
 	)
 }

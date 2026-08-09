@@ -8,8 +8,8 @@ package config
 // overlay each spelled the three strings for itself — and a spelling missed in
 // one of them is a placement that validates and then does not draw. It lives
 // here rather than in the domain because no domain code places a badge: the
-// callers are this package and the two overlay backends, and this package is
-// the lowest layer all of them already reach (ADR 0007,
+// callers are this package and the overlay backends that draw one, and this
+// package is the lowest layer all of them already reach (ADR 0007,
 // docs/adr/0007-a-shared-derivation-has-one-implementation.md).
 //
 // The values cross into Objective-C as well, where the macOS overlay compares

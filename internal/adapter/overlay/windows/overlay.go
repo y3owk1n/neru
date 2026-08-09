@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
@@ -35,6 +36,12 @@ type winOverlay struct {
 
 	lastHints     []*hintscomponent.Hint
 	lastHintStyle hintscomponent.StyleMode
+	// lastHintOffset is the placement the last accepted hint draw resolved to.
+	// The redraws that put the hints back after the search input comes or goes
+	// replay it rather than re-reading the placement: the offset a draw was
+	// accepted with is what is on screen, and re-resolving would hand a
+	// void-returning redraw a refusal it has nowhere to report.
+	lastHintOffset badge.HintOffset
 }
 
 func newWinOverlay(logger *zap.Logger) *winOverlay {
@@ -148,6 +155,7 @@ func (o *winOverlay) ClearCache() {
 	o.currentSubgrid = nil
 	o.lastHints = nil
 	o.lastHintStyle = hintscomponent.StyleMode{}
+	o.lastHintOffset = badge.HintOnTarget
 }
 
 func (o *winOverlay) Resize() {
