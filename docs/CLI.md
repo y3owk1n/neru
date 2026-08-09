@@ -1217,6 +1217,10 @@ Configuration is valid, with warnings:
 These parts of the configuration load and will not take effect.
 ```
 
+A clickable role that this platform's accessibility vocabulary has no name for
+— the shape a configuration written on another machine has — is reported the
+same way; see [Clickable roles](CONFIGURATION.md#clickable-roles).
+
 See [Global Hotkeys](CONFIGURATION.md#global-hotkeys) for which mistakes warn
 and which refuse the file.
 

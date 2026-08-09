@@ -321,7 +321,7 @@ func TestValidateHints_AcceptsEverySearchInputPosition(t *testing.T) {
 			cfg := DefaultConfig()
 			cfg.Hints.SearchInputUI.Position = position
 
-			validateErr := cfg.ValidateHints()
+			validateErr := cfg.ValidateHints(nil)
 			if validateErr != nil {
 				t.Errorf("ValidateHints() = %v, want nil for position %q", validateErr, position)
 			}
@@ -346,7 +346,7 @@ func TestValidateHints_ReportsTheFirstProblem(t *testing.T) {
 			cfg := DefaultConfig()
 			testCase.breakIt(cfg)
 
-			validateErr := cfg.ValidateHints()
+			validateErr := cfg.ValidateHints(nil)
 
 			message := ""
 			if validateErr != nil {

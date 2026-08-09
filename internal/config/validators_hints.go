@@ -1,6 +1,7 @@
 package config
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"unicode"
@@ -10,10 +11,19 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
+// The two places a clickable-role list is written. Both a refusal and a warning
+// name one of them, and a user matching a report to a line in their file is
+// what the names are for, so they are spelled once.
+const (
+	fieldClickableRoles           = "hints.clickable_roles"
+	fieldAdditionalClickableRoles = "hints.app_configs.additional_clickable_roles"
+)
+
 // validateClickableRoles rejects role entries that name neither a semantic role
-// nor a native role in a known vocabulary. Entries that are well-formed but
-// belong to another platform are accepted silently here and reported by
-// `neru roles` / `neru doctor`, so one config can serve several machines.
+// nor a native role in a known vocabulary. Entries that are well-formed but do
+// not apply to this machine are not refused here, so one config can serve
+// several: those go to [Config.warnUnresolvableClickableRoles] or, for a native
+// entry addressed to another platform, to `neru roles` / `neru doctor`.
 func validateClickableRoles(field string, roles []string) error {
 	resolution := element.ResolveRolesForCurrentPlatform(roles)
 
@@ -30,17 +40,82 @@ func validateClickableRoles(field string, roles []string) error {
 	)
 }
 
+// warnUnresolvableClickableRoles reports the configured roles that name nothing
+// this platform's accessibility vocabulary can express, so `neru config
+// validate` stops calling a configuration valid when part of it draws no hints
+// at all (ADR 0002's tier, ADR 0008).
+//
+// Such an entry is not refused — a list written on a Mac and carried to a
+// Windows machine is the shape the semantic vocabulary exists to allow, and
+// refusing it would replace the user's whole configuration with the defaults
+// over a line that costs them one role. Entries addressed to another platform's
+// vocabulary ("atspi:push button" on macOS) stay silent for the same reason:
+// those are the other machine's lines and are expected to be there.
+//
+// The shipped list is exempt, and that gate is the point of this pass rather
+// than a detail of it. hints.clickable_roles ships one list for every platform
+// and several of its roles have no Linux or Windows counterpart, so reporting
+// them would greet every user of two platforms with a complaint about a file
+// they never wrote. A list that differs from the shipped one, on the other
+// hand, is a list the user wrote out in full — the option replaces rather than
+// merges — so every entry in it is a line they can go and edit.
+//
+// The blind spot the gate buys is a user who types the shipped list out
+// verbatim and is told nothing. That is the same trade #1281 named for the
+// derived grid labels: comparing against what the default would be is right for
+// the common case and knowingly wrong for the one person who wrote it by hand.
+// Unlike the labels there is no written configuration to ask instead — the
+// option's default is a list, not the blank that means "infer" — so the
+// comparison is the answer rather than a fallback.
+//
+// An application's extra roles are never shipped, so there is nothing to
+// compare a list of those against: every entry in one is the user's own.
+func (c *Config) warnUnresolvableClickableRoles(warnings *Warnings, goos string) {
+	if !clickableRolesAreShipped(c.Hints.ClickableRoles) {
+		warnUnresolvableRoles(warnings, fieldClickableRoles, c.Hints.ClickableRoles, goos)
+	}
+
+	for _, appConfig := range c.Hints.AppConfigs {
+		warnUnresolvableRoles(
+			warnings,
+			fieldAdditionalClickableRoles,
+			appConfig.AdditionalClickable,
+			goos,
+		)
+	}
+}
+
+// clickableRolesAreShipped reports whether a role list is the one neru ships,
+// which is the list a user who has never touched the option is running.
+func clickableRolesAreShipped(roles []string) bool {
+	return slices.Equal(roles, DefaultConfig().Hints.ClickableRoles)
+}
+
+// warnUnresolvableRoles reports the entries of one role list that this
+// platform's vocabulary has no name for, one warning each so a list with two
+// dead entries does not hide one behind the other.
+func warnUnresolvableRoles(warnings *Warnings, field string, roles []string, goos string) {
+	for _, diagnostic := range element.ResolveRoles(roles, goos).Diagnostics {
+		if diagnostic.Kind != element.RoleDiagnosticNoNativeEquivalent {
+			continue
+		}
+
+		warnings.Addf("%s: %s", field, diagnostic.Message())
+	}
+}
+
 // ValidateHints checks the hints configuration, reporting the first problem it
-// finds.
+// finds and collecting, into warnings, the parts of it that load and will draw
+// no hints. A nil sink discards them; see [Warnings].
 //
 // The order the checks run in is the order a user sees their mistakes, so it is
 // listed here rather than left implicit in one long body. It is also why the
 // search-input checks come in two parts with the boundary-highlight checks
 // between them: that is where they have always run, and moving them would change
 // which problem a config with several is told about first.
-func (c *Config) ValidateHints() error {
+func (c *Config) ValidateHints(warnings *Warnings) error {
 	checks := []func() error{
-		c.validateHintClickableRoles,
+		func() error { return c.validateHintClickableRoles(warnings) },
 		c.validateHintCharacters,
 		c.validateHintColors,
 		c.validateHintLabelUI,
@@ -65,26 +140,32 @@ func (c *Config) ValidateHints() error {
 
 // validateHintClickableRoles checks the roles hints are drawn for, including the
 // extra roles an individual application adds.
-func (c *Config) validateHintClickableRoles() error {
+//
+// The refusals run first and to the end: an entry naming no role at all is the
+// whole file's problem, and a configuration that is going to be replaced by the
+// defaults has nothing to be advised about.
+func (c *Config) validateHintClickableRoles(warnings *Warnings) error {
 	if c.Hints.Enabled && len(c.Hints.ClickableRoles) == 0 {
 		return derrors.New(derrors.CodeInvalidConfig,
 			"hints.clickable_roles cannot be empty when hints are enabled")
 	}
 
-	rolesErr := validateClickableRoles("hints.clickable_roles", c.Hints.ClickableRoles)
+	rolesErr := validateClickableRoles(fieldClickableRoles, c.Hints.ClickableRoles)
 	if rolesErr != nil {
 		return rolesErr
 	}
 
 	for _, appConfig := range c.Hints.AppConfigs {
 		appRolesErr := validateClickableRoles(
-			"hints.app_configs.additional_clickable_roles",
+			fieldAdditionalClickableRoles,
 			appConfig.AdditionalClickable,
 		)
 		if appRolesErr != nil {
 			return appRolesErr
 		}
 	}
+
+	c.warnUnresolvableClickableRoles(warnings, runtime.GOOS)
 
 	return nil
 }

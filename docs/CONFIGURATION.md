@@ -819,8 +819,11 @@ name resolves here, and `neru roles --explain` to see how your own config resolv
 | `color_well`   | `AXColorWell`          | `color chooser`                         | —                     |
 | `toolbar_button` | `AXToolbarButton` †  | —                                       | —                     |
 
-A `—` means the platform has no equivalent; that entry is ignored there and reported by
-`neru roles --explain` and `neru doctor`.
+A `—` means the platform has no equivalent; that entry is ignored there. `neru config
+validate` warns about one as soon as your `clickable_roles` differs from the shipped list
+— the shipped list itself stays silent, since it is one list for every platform — and
+`neru roles --explain` and `neru doctor` report it either way. An application's
+`additional_clickable_roles` are always your own, so those are always reported.
 
 † A subrole, not a role: AppKit reports these names in the element's *subrole* while the
 role stays generic — a search field is an `AXTextField` with subrole `AXSearchField`, a

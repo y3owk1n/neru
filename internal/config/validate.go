@@ -57,7 +57,7 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
-	err = c.ValidateHints()
+	err = c.ValidateHints(warnings)
 	if err != nil {
 		return err
 	}
