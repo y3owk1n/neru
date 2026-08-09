@@ -98,7 +98,11 @@ type handlerState struct {
 	// itself. Since #1213 it is the only overlay reference this package has:
 	// the Linux keyboard grab goes through this same port rather than through
 	// the overlay package's singleton (indicator_polling.go).
-	overlayPort ports.OverlayPort
+	//
+	// Its type is overlaySurface, not ports.OverlayPort: the calls the handler
+	// must never make are not on it, so making one is a compile error rather
+	// than a rule to remember (overlay.go).
+	overlayPort overlaySurface
 	// hintsFrameOnScreen records whether this activation has already put the
 	// hints Frame on screen. The hint manager's update callback fires on
 	// activation and again on every narrowing keystroke; only the first needs
@@ -216,7 +220,11 @@ type HandlerDeps struct {
 	AppState    *state.AppState
 	CursorState *state.CursorState
 
-	OverlayPort ports.OverlayPort
+	// OverlayPort is what the modes draw through. It is narrowed to
+	// overlaySurface here rather than taken as ports.OverlayPort: a caller
+	// passes the full port and the handler keeps only the part it may call
+	// (overlay.go).
+	OverlayPort overlaySurface
 
 	HintService            *services.HintService
 	GridService            *services.GridService
