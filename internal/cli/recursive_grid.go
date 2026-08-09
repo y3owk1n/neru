@@ -9,12 +9,13 @@ var RecursiveGridCmd = BuildModeCommand(ModeConfig{
 	Short:   "Activate recursive-grid navigation mode",
 	Long: `Recursive-grid mode provides recursive cell-based navigation.
 
-The screen is divided into NxN cells (default 2x2, keys: u,i,j,k).
+The screen is divided into a grid of cells (default 3x3, keys: r,t,y,f,g,h,v,b,n).
 Each selection recursively narrows the active area until minimum size is reached.
 
-Key mappings (warpd convention):
-  u = upper-left cell    i = upper-right cell
-  j = lower-left cell    k = lower-right cell
+Key mappings (default 3x3 grid, left to right then top to bottom):
+  r = upper-left    t = upper-middle    y = upper-right
+  f = middle-left   g = center          h = middle-right
+  v = lower-left    b = lower-middle    n = lower-right
 
 Navigation:
   - Press cell key to narrow selection
