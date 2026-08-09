@@ -145,10 +145,23 @@ func (w syncStubWriter) Write(p []byte) (int, error) { return len(p), nil }
 func (w syncStubWriter) Sync() error { return w.syncErr }
 
 // stdStreamSyncErr is what os.Stderr.Sync() returns when stderr is a pipe
-// rather than a syncable device — the zap-on-stderr caveat that floods test
-// teardown with warnings.
+// rather than a flushable destination — the zap-on-stderr caveat that floods
+// test teardown with warnings.
 func stdStreamSyncErr(errno syscall.Errno) error {
-	return &fs.PathError{Op: "sync", Path: "/dev/stderr", Err: errno}
+	return &fs.PathError{Op: "sync", Path: os.Stderr.Name(), Err: errno}
+}
+
+// requirePipedStderr skips a test whose premise is that this binary's stderr
+// cannot be flushed. That holds for the pipe or terminal a test run normally
+// has; a run redirected straight to a file is the case where such a failure is
+// real and reported, so there is nothing to assert here.
+func requirePipedStderr(t *testing.T) {
+	t.Helper()
+
+	info, err := os.Stderr.Stat()
+	if err == nil && info.Mode().IsRegular() {
+		t.Skip("stderr is redirected to a regular file, so a failed flush of it is a real failure")
+	}
 }
 
 func TestSyncAndClose_IgnoreStandardStreamSyncFailure(t *testing.T) {
@@ -163,6 +176,8 @@ func TestSyncAndClose_IgnoreStandardStreamSyncFailure(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			requirePipedStderr(t)
+
 			logger.Reset()
 			t.Cleanup(logger.Reset)
 
