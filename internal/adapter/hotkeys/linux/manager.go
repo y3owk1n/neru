@@ -53,23 +53,11 @@ func NewManager(logger *zap.Logger) *Manager {
 		backend:   platformBackend(),
 	}
 
-	if isWaylandBackend(mgr.backend) {
+	if mgr.backend.IsWayland() {
 		mgr.waylandHotkeys = eventtaplinux.NewGlobalHotkeyListener(logger)
 	}
 
 	return mgr
-}
-
-func isWaylandBackend(backend platform.LinuxBackend) bool {
-	switch backend {
-	case platform.BackendWaylandWlroots, platform.BackendWaylandKDE,
-		platform.BackendWaylandGNOME, platform.BackendWaylandOther:
-		return true
-	case platform.BackendUnknown, platform.BackendX11:
-		return false
-	default:
-		return false
-	}
 }
 
 // Register adds a new global hotkey (Linux stub).
@@ -127,7 +115,7 @@ func (m *Manager) Unregister(hotkeyID ports.HotkeyID) {
 	delete(m.callbacks, hotkeyID)
 	delete(m.keys, hotkeyID)
 
-	if isWaylandBackend(m.backend) {
+	if m.backend.IsWayland() {
 		m.rebuildWaylandBindings()
 
 		if len(m.callbacks) == 0 {
@@ -148,7 +136,7 @@ func (m *Manager) UnregisterAll() {
 	m.callbacks = make(map[ports.HotkeyID]ports.HotkeyCallback)
 	m.keys = make(map[ports.HotkeyID]string)
 
-	if isWaylandBackend(m.backend) {
+	if m.backend.IsWayland() {
 		m.stopWayland()
 	}
 }
@@ -167,7 +155,7 @@ func (m *Manager) HealthCheck() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if !isWaylandBackend(m.backend) {
+	if !m.backend.IsWayland() {
 		return true
 	}
 

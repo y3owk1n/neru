@@ -14,6 +14,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
@@ -75,7 +76,9 @@ func (et *EventTap) runX11() {
 	// XWayland grabs conflict with Wayland compositor focus policies and frequently
 	// result in the compositor sending synthetic "Escape" or "Cancel" keycodes
 	// to forcefully break the unauthorized grab, accidentally quitting modes.
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
+	// run() already routes a Wayland backend elsewhere; this stays as the
+	// backstop for a direct caller, and asks the same detector run() does.
+	if platform.DetectLinuxBackend().IsWayland() {
 		return
 	}
 
@@ -314,8 +317,11 @@ func x11ModifierName(keysym C.KeySym) string {
 	}
 }
 
+// postLinuxModifierEvent injects a modifier through the running backend: the
+// Wayland virtual keyboard, or XTest on X11. PostModifierEvent decides whether
+// to expect the event back from the same detector, so the two cannot disagree.
 func postLinuxModifierEvent(modifier string, isDown bool) bool {
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
+	if platform.DetectLinuxBackend().IsWayland() {
 		return linux.WaylandModifierEvent(modifier, isDown) == nil
 	}
 

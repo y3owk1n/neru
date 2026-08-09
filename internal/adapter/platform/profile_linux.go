@@ -5,12 +5,17 @@ package platform
 // Runtime Linux profile selection for doctor/status output. When KDE Plasma
 // Wayland is detected, returns user-facing backend descriptions for that stack.
 // It does not perform live capability probes or alter runtime backend selection.
+//
+// Both halves come off the one detector: the profile must describe the stack
+// NewSystemPort is driving, and reading the environment a second time to name
+// it is how it came to disagree with itself (#1429).
 func linuxProfileForCurrentBackend() Profile {
-	if DetectLinuxBackend() == BackendWaylandKDE {
+	backend := DetectLinuxBackend()
+	if backend == BackendWaylandKDE {
 		return linuxKDEProfile()
 	}
 
-	return linuxProfile(DetectLinuxDisplayServer())
+	return linuxProfile(backend.displayServer())
 }
 
 func linuxKDEProfile() Profile {

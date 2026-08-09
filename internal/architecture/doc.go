@@ -15,6 +15,9 @@
 //     headers are reached through internal/adapter/platform/<os>/.
 //   - comment_paths_test.go — a path header, or a comment pointing at a
 //     sibling source file, names a file that exists.
+//   - compositor_detector_test.go — the compositor family is decided in one
+//     place: the environment variables naming the desktop are read only by the
+//     detector that owns them.
 //   - config_chain_test.go — the links no projection can show: every config
 //     validator reaching the ladder, every schema field reaching a default.
 //   - config_derivation_test.go — every derived config value is derived in the

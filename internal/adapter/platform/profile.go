@@ -1,10 +1,5 @@
 package platform
 
-import (
-	"os"
-	"strings"
-)
-
 // DisplayServer identifies the active or planned display-system family.
 type DisplayServer string
 
@@ -178,27 +173,5 @@ func linuxProfile(ds DisplayServer) Profile {
 			BuildMode: BuildModePureGo,
 			Notes:     "D-Bus notifications should be achievable without CGO",
 		},
-	}
-}
-
-// DetectLinuxDisplayServer identifies the Linux display stack from environment
-// variables. It is intentionally conservative because backend selection is an
-// important contributor decision point.
-func DetectLinuxDisplayServer() DisplayServer {
-	return detectLinuxDisplayServer(
-		os.Getenv("XDG_SESSION_TYPE"),
-		os.Getenv("WAYLAND_DISPLAY"),
-		os.Getenv("DISPLAY"),
-	)
-}
-
-func detectLinuxDisplayServer(sessionType, waylandDisplay, xDisplay string) DisplayServer {
-	switch {
-	case strings.EqualFold(sessionType, "wayland"), waylandDisplay != "":
-		return DisplayServerWayland
-	case strings.EqualFold(sessionType, "x11"), xDisplay != "":
-		return DisplayServerX11
-	default:
-		return DisplayServerUnknown
 	}
 }
