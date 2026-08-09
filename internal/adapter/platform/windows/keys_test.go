@@ -97,6 +97,50 @@ func TestFunctionKeyRoundTrip(t *testing.T) {
 	}
 }
 
+// TestNavigationKeyRoundTrip pins the navigation keys on Windows. They are
+// documented as valid on every platform and the other backends emit them, so
+// the hook has to name them and a global hotkey has to register them rather
+// than fail with errUnsupportedHotkeyKey. MapVirtualKey yields no character for
+// these codes, so the explicit table is the only path that names them.
+func TestNavigationKeyRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name       string
+		virtualKey uint32
+		want       string
+	}{
+		{name: "page up", virtualKey: vkPrior, want: "PageUp"},
+		{name: "page down", virtualKey: vkNext, want: "PageDown"},
+		{name: "home", virtualKey: vkHome, want: "Home"},
+		{name: "end", virtualKey: vkEnd, want: "End"},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := KeyNameFromVirtualKey(testCase.virtualKey); got != testCase.want {
+				t.Fatalf("KeyNameFromVirtualKey(%#x) = %q, want %q",
+					testCase.virtualKey, got, testCase.want)
+			}
+
+			// Config files and the CLI both accept lowercase spellings.
+			for _, spelling := range []string{testCase.want, strings.ToLower(testCase.want)} {
+				mods, virtualKey, err := ParseHotkeyString(spelling)
+				if err != nil {
+					t.Fatalf("ParseHotkeyString(%q) = %v, want no error", spelling, err)
+				}
+
+				if mods != 0 || virtualKey != testCase.virtualKey {
+					t.Fatalf("ParseHotkeyString(%q) = mods %#x vk %#x, want mods 0 vk %#x",
+						spelling, mods, virtualKey, testCase.virtualKey)
+				}
+			}
+		})
+	}
+}
+
 func TestFunctionKeyOutOfRange(t *testing.T) {
 	t.Parallel()
 
