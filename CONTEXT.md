@@ -129,3 +129,14 @@ caller — not in the domain by default. Where the second implementation is in
 Objective-C, Go cannot be the one implementation, so the copies are pinned by
 a test instead. ADR 0007 has the reasoning.
 _Avoid_: helper, util, common code, shared logic
+
+### Naming what a person can write
+
+**Vocabulary**:
+A closed set of names a person can write and Neru promises to recognise — the
+semantic roles, the named keys, the hint placements. A vocabulary is declared
+exactly once, in Go; a validator, a platform table or a docs row is a
+projection of that declaration, and a copy in another language is pinned to it
+the way a [[Shared derivation]]'s language-boundary copy is, never generated.
+Which declaration a contested vocabulary belongs to is ADR 0008.
+_Avoid_: role list, key table, lookup table, enum
