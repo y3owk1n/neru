@@ -13,6 +13,11 @@ import (
 
 	"go.uber.org/zap"
 
+	// The overlay.h included above only declares its symbols; importing the
+	// bridge is what links the Objective-C that defines them (ADR 0009). It
+	// belongs here rather than in util.go, which carries no build tag and so
+	// may not name a platform package at all.
+	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 

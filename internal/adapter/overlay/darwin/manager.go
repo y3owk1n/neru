@@ -21,6 +21,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/virtualpointer"
+	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin" // links the Objective-C behind overlay.h (ADR 0009)
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"

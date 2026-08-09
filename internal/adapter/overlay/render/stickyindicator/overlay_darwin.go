@@ -16,6 +16,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil"
+	// The overlay.h included above only declares its symbols; importing the
+	// bridge is what links the Objective-C that defines them (ADR 0009).
+	_ "github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
 )
