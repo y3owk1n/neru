@@ -8,6 +8,7 @@
 #import "keymap.h"
 
 #include <stdatomic.h>
+#include <string.h>
 
 #pragma mark - Static Data
 
@@ -664,6 +665,13 @@ static void initializeSpecialKeyMaps(void) {
 	codeToName[@(kKeyCodeReturn)] = @"Return";
 	codeToName[@(kKeyCodeDelete)] = @"Delete";
 
+	// Numpad keys with a named-key equivalent fold to it (issue #1372), the
+	// way the Wayland keymap folds KP_Enter -> Return. Only the code-to-name
+	// direction learns them: name-to-code must keep resolving "Return" to the
+	// main Return key for key synthesis.
+	codeToName[@(kKeyCodeNumpadEnter)] = @"Return";
+	codeToName[@(kKeyCodeNumpadClear)] = @"Clear";
+
 	gSpecialCodeToNameMap = [codeToName copy];
 }
 
@@ -1019,6 +1027,20 @@ NSString *NeruKeyCodeToName(CGKeyCode keyCode) {
 	return map[@(keyCode)];
 }
 
+char *NeruCopyKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
+	@autoreleasepool {
+		NSString *result = NeruKeyCodeToCharacter(keyCode, flags);
+		return result ? strdup(result.UTF8String) : NULL;
+	}
+}
+
+char *NeruCopyKeyCodeToName(CGKeyCode keyCode) {
+	@autoreleasepool {
+		NSString *result = NeruKeyCodeToName(keyCode);
+		return result ? strdup(result.UTF8String) : NULL;
+	}
+}
+
 NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	initializeKeyMaps();
 	ensureLayoutMapsInitialized();
@@ -1032,7 +1054,11 @@ NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	case kKeyCodeTab:
 		return @"\t";
 
-	// Numpad keys are layout-independent
+	// Numpad keys are layout-independent. Keys with a named-key equivalent
+	// fold to it, the way the Wayland keymap folds KP_Enter -> Return
+	// (wayland_keymap.c) — a raw control character here would either match
+	// no binding ("\x03") or impersonate the Delete key ("\x7f"). "Clear"
+	// is not a bindable named key; it deliberately matches nothing.
 	case kKeyCodeNumpadDot:
 		return @".";
 	case kKeyCodeNumpadMultiply:
@@ -1040,11 +1066,11 @@ NSString *NeruKeyCodeToCharacter(CGKeyCode keyCode, CGEventFlags flags) {
 	case kKeyCodeNumpadPlus:
 		return @"+";
 	case kKeyCodeNumpadClear:
-		return @"\x7f";
+		return @"Clear";
 	case kKeyCodeNumpadDivide:
 		return @"/";
 	case kKeyCodeNumpadEnter:
-		return @"\x03";
+		return @"Return";
 	case kKeyCodeNumpadMinus:
 		return @"-";
 	case kKeyCodeNumpadEquals:
