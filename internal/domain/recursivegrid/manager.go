@@ -60,15 +60,17 @@ func NewManagerWithLayers(
 	callbacks SelectionCallbacks,
 	logger *zap.Logger,
 ) *Manager {
-	// Use default grid dimensions if either is invalid (< 1) or if the grid
-	// is degenerate (1×1 cannot subdivide). Reset both to default for consistency.
-	if dims.Cols < MinGridDimension || dims.Rows < MinGridDimension ||
-		dims.CellCount() < 2 {
+	// A shape that cannot narrow anything is replaced with the default one.
+	// UsableDimensions owns that rule; what belongs here is naming the values
+	// it rejected, which it cannot report once it has replaced them.
+	usableDims, asGiven := UsableDimensions(dims)
+	if !asGiven {
 		logger.Warn("Invalid grid dimensions, using default",
 			zap.Int("provided_cols", dims.Cols),
 			zap.Int("provided_rows", dims.Rows))
-		dims = DefaultDimensions()
 	}
+
+	dims = usableDims
 
 	// Use default keys if not provided
 	if strings.TrimSpace(keys) == "" {

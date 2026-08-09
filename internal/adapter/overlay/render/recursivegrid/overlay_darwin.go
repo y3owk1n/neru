@@ -288,18 +288,18 @@ func (o *Overlay) DrawRecursiveGrid(
 		)
 	}
 
-	// Use the provided dimensions and calculate key count
-	keyCount := dims.CellCount()
-
-	// Validate grid dimensions (must be at least 1, and total cells >= 2)
-	if dims.Cols < recursivegrid.MinGridDimension ||
-		dims.Rows < recursivegrid.MinGridDimension ||
-		dims.CellCount() < 2 {
-		// Fall back to the default shape if invalid or degenerate (1×1)
-		dims = recursivegrid.DefaultDimensions()
-		keyCount = dims.CellCount()
+	// A shape that cannot narrow anything is replaced with the default one;
+	// recursivegrid.UsableDimensions owns that rule for the manager and for
+	// this draw alike. The key mapping goes with it: the one handed over was
+	// cut for the shape being replaced, so it is the wrong length for the
+	// fallback and would leave cells unlabelled.
+	usableDims, asGiven := recursivegrid.UsableDimensions(dims)
+	if !asGiven {
 		keys = recursivegrid.DefaultKeys
 	}
+
+	dims = usableDims
+	keyCount := dims.CellCount()
 
 	// Validate keys length matches grid dimensions
 	keyRunes := []rune(keys)

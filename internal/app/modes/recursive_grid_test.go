@@ -147,6 +147,97 @@ func TestRecursiveGridFrame_NonSquareGridKeepsRowsAndColumnsApart(t *testing.T) 
 	}
 }
 
+// TestRecursiveGridFrame_DegenerateShapeReachesEveryBackendAsTheDefault is what
+// makes "every backend draws the same thing" true for a shape that cannot
+// narrow anything (#1345).
+//
+// Only macOS corrects such a shape in its draw. Linux and Windows guard the
+// division and nothing more: a side of zero or less stops their draw entirely,
+// and a 1x1 divides into one cell over the whole region that no key can narrow.
+// That difference is unreachable, and this is where it is held unreachable: the
+// manager replaces an unusable shape before anything is drawn, so the frame
+// every backend is handed already carries a usable one and the key mapping that
+// fits it. If the fallback ever moved out of the domain and into the macOS draw
+// alone, this fails rather than the two other platforms quietly drawing
+// something a person cannot navigate.
+func TestRecursiveGridFrame_DegenerateShapeReachesEveryBackendAsTheDefault(t *testing.T) {
+	testCases := []struct {
+		name string
+		cols int
+		rows int
+		keys string
+	}{
+		{name: "one cell cannot narrow", cols: 1, rows: 1, keys: "u"},
+		{name: "no columns", cols: 0, rows: 3, keys: "rtyfghvbn"},
+		{name: "no rows", cols: 3, rows: 0, keys: "rtyfghvbn"},
+		{name: "nothing configured at all", cols: 0, rows: 0, keys: ""},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			overlay := &portmocks.MockOverlayPort{}
+
+			handler := newHandlerWithState(handlerState{
+				config: &config.Config{
+					RecursiveGrid: config.RecursiveGridConfig{
+						Enabled:       true,
+						GridCols:      testCase.cols,
+						GridRows:      testCase.rows,
+						Keys:          testCase.keys,
+						MinSizeWidth:  5,
+						MinSizeHeight: 5,
+						MaxDepth:      5,
+						Hotkeys:       map[string]config.StringOrStringArray{},
+						UI:            config.RecursiveGridUI{},
+					},
+				},
+				overlayPort: overlay,
+				recursiveGrid: &components.RecursiveGridComponent{
+					Context: &componentrecursivegrid.Context{},
+				},
+				screenBounds: image.Rect(0, 0, 300, 300),
+			})
+
+			handler.initializeRecursiveGridManager(image.Rect(0, 0, 300, 300))
+			handler.updateRecursiveGridOverlay()
+
+			frames := overlay.Frames()
+			if len(frames) != 1 {
+				t.Fatalf("overlay received %d frame(s), want 1", len(frames))
+			}
+
+			frame, isRecursiveGrid := frames[0].(ports.RecursiveGridFrame)
+			if !isRecursiveGrid {
+				t.Fatalf("overlay received a %T, want ports.RecursiveGridFrame", frames[0])
+			}
+
+			if got, want := frame.Layout.Dimensions, recursivegrid.DefaultDimensions(); got != want {
+				t.Errorf("Layout.Dimensions = %+v, want %+v", got, want)
+			}
+
+			if got, want := frame.Layout.Keys, recursivegrid.DefaultKeys; got != want {
+				t.Errorf("Layout.Keys = %q, want %q", got, want)
+			}
+
+			// The division is what a backend actually paints, and every
+			// backend runs this same one over the frame's dimensions. A
+			// 300x300 screen in the default 3x3 gives nine 100x100 cells.
+			cells := recursivegrid.ComputeGridCells(frame.Bounds, frame.Layout.Dimensions)
+			if len(cells) != 9 {
+				t.Fatalf("the frame's dimensions divide into %d cells, want 9", len(cells))
+			}
+
+			if got, want := cells[0], image.Rect(0, 0, 100, 100); got != want {
+				t.Errorf("first drawn cell = %v, want %v", got, want)
+			}
+
+			if got, want := cells[8], image.Rect(200, 200, 300, 300); got != want {
+				t.Errorf("last drawn cell = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
 func TestResetCurrentMode_RecursiveGridPreservesHoldMode(t *testing.T) {
 	moveCount := 0
 
