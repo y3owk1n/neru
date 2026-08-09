@@ -128,7 +128,7 @@ or no-op) · ❌ no code path
 | **App watcher (focus change)**| ✅ NSWorkspace observer  | ✅ event-driven        | ✅ event-driven              | ✅ event-driven         | 🟡                           |
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ⚠️ asked when the keymap settles ¹ |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ sync-surface trick        | ✅ sync-surface trick   | ✅ `GetCursorPos`            |
-| **Cursor move**               | ✅ `CGWarpMouseCursorPosition` | ✅ XTest         | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SetCursorPos`            |
+| **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
@@ -265,13 +265,13 @@ scroll — is dispatched through the shared `InfraAXClient.PerformAction`. The
 dispatch, the action set, and the mode logic that drives it are platform-neutral
 Go; only the final injection primitive differs:
 
-| Platform              | Primitive                                                      |
-| --------------------- | -------------------------------------------------------------- |
-| macOS                 | `CGEventPost` (+ `CGWarpMouseCursorPosition` for moves)         |
-| Linux X11             | XTest (`XWarpPointer`, buttons 1/2/3, scroll buttons 4/5)       |
-| Linux Wayland wlroots | `zwlr_virtual_pointer` (+ `/dev/uinput` for scroll)             |
-| Linux Wayland KDE     | libei via `org.freedesktop.portal.RemoteDesktop`                |
-| Windows               | `SendInput` / `SetCursorPos`                                    |
+| Platform              | Primitive                                                                    |
+| --------------------- | ---------------------------------------------------------------------------- |
+| macOS                 | `CGEventPost` (`kCGEventMouseMoved` / `*MouseDragged` for moves)              |
+| Linux X11             | XTest (`XTestFakeMotionEvent`, buttons 1/2/3, scroll 4/5 vert. + 6/7 horiz.)  |
+| Linux Wayland wlroots | `zwlr_virtual_pointer` (+ `/dev/uinput` for scroll)                           |
+| Linux Wayland KDE     | libei via `org.freedesktop.portal.RemoteDesktop`                              |
+| Windows               | `SendInput` / `SetCursorPos`                                                  |
 
 **The one behavioral difference:** Windows `ScrollAtCursor` ignores `deltaX`, so
 horizontal scrolling is a no-op there. Everything else behaves the same on all
@@ -445,7 +445,7 @@ important thing to know before touching overlay code:
 | ---------------------------- | ------------------------------------ | ---------------------------------- | ---------------------------------- |
 | **Grid transition**          | CoreAnimation, ease-in-out @120Hz    | goroutine, smoothstep @120fps      | ❌                                 |
 | **Mouse action indicator**   | `CABasicAnimation` (scale + opacity) | goroutine, scale + opacity @120fps | goroutine, cubic easing @60fps     |
-| **Smooth cursor**            | ✅ configurable easing               | ✅ stepped warp, incl. relative (opt-in) | ❌                           |
+| **Smooth cursor**            | ✅ stepped linear interpolation      | ✅ stepped linear interpolation    | ❌                                 |
 | **Smooth scroll**            | ✅ ease-out cubic                    | ❌                                 | ❌                                 |
 
 ---
