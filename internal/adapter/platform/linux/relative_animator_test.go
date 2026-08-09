@@ -77,6 +77,44 @@ func TestRelativeCursorAnimatorDrainsExactly(t *testing.T) {
 	}
 }
 
+// TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum is the drain twin
+// of TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum: this
+// animator floors a below-floor drain at the same
+// config.MinSmoothCursorAnimationDuration, so a gesture asked for in more
+// chunks than the floor can schedule posts exactly one chunk per
+// minCursorStepDelay of the floor. Exactness of the drained total is
+// TestRelativeCursorAnimatorDrainsExactly's question, not this one's.
+func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
+	t.Parallel()
+
+	wantChunks := config.MinSmoothCursorAnimationDuration / minCursorStepDelay
+
+	rec := &deltaRecorder{}
+	animator := newRelativeCursorAnimator(rec.moveBy)
+
+	// Sized so every scheduled chunk carries at least one pixel; a chunk that
+	// rounded to zero would post nothing and undercount the schedule.
+	delta := image.Point{X: 10 * wantChunks, Y: 0}
+	animator.addDelta(delta, wantChunks*100, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait returned error: %v", err)
+	}
+
+	if got := rec.count(); got != wantChunks {
+		t.Fatalf(
+			"posted %d chunks for a below-floor drain, want %d "+
+				"(config.MinSmoothCursorAnimationDuration / minCursorStepDelay)",
+			got,
+			wantChunks,
+		)
+	}
+}
+
 // TestRelativeCursorAnimatorComposesConcurrentDeltas pins that deltas folded
 // in from concurrent movers all reach the compositor — the drain equivalent
 // of the absolute animator's pending-endpoint extension.
