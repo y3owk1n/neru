@@ -218,6 +218,18 @@ type bridgeConsumer struct {
 // binary, and a test binary that fails to link says so on the spot, in the
 // package being tested.
 //
+// The judgement is per package, not per build constraint, which is the
+// granularity the rule is stated at: it does not ask whether the file holding
+// the include and the file holding the import are compiled together. For the
+// darwin bridge nothing can slip through that gap — the One Rule allows the
+// import only in a darwin-tagged file or a darwin/ directory, and depguard and
+// TestNonDarwinFilesDoNotImportDarwinPlatformPackage both enforce it. For a
+// bridge with no such rule the mismatch is a build failure rather than a
+// missing symbol, because a package tagged for one OS cannot import another
+// OS's bridge at all. Evaluating constraints here would mean resolving every
+// file against every GOOS and cgo setting, for a case neither bridge can
+// currently reach.
+//
 // Reaching the archive transitively instead is what this forbids, and the
 // failure it prevents is the expensive kind: the whole overlay render tree
 // once arrived through overlay/render/overlayutil/native, so refactoring
