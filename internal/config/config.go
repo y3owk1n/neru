@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -25,15 +26,16 @@ const (
 	ModeNameMonitorSelect = "monitor_select"
 )
 
-// Display-form key name constants used in config files and maps.
+// Display-form key name constants used in config files and maps. The spellings
+// come from internal/domain/keyvocab, which declares the named-key vocabulary.
 const (
-	KeyDisplaySpace     = "Space"
-	KeyDisplayEscape    = "Escape"
-	KeyDisplayBackspace = "Backspace"
-	KeyDisplayDown      = "Down"
-	KeyDisplayLeft      = "Left"
-	KeyDisplayRight     = "Right"
-	KeyReturn           = "Return"
+	KeyDisplaySpace     = keyvocab.KeySpace
+	KeyDisplayEscape    = keyvocab.KeyEscape
+	KeyDisplayBackspace = keyvocab.KeyBackspace
+	KeyDisplayDown      = keyvocab.KeyDown
+	KeyDisplayLeft      = keyvocab.KeyLeft
+	KeyDisplayRight     = keyvocab.KeyRight
+	KeyReturn           = keyvocab.KeyReturn
 )
 
 // Common action command constants.
@@ -85,99 +87,22 @@ const DisabledSentinel = "__disabled__"
 // "config.override.toml", and "my-neru.toml" produces "my-neru.override.toml".
 const OverrideSuffix = ".override.toml"
 
-// Key name constants for normalization.
-// These are the canonical lowercase forms used throughout the codebase.
+// The comparison forms the control characters a tap delivers resolve to, and
+// the modifier names. These are not a listing of the named keys —
+// internal/domain/keyvocab declares those, and every other named key reaches
+// its comparison form by being lowercased rather than by being named here.
 const (
 	minimumModifierParts = 2
 	KeyNameEscape        = "escape"
 	KeyNameReturn        = "return"
 	KeyNameTab           = "tab"
 	KeyNameSpace         = "space"
-	KeyNameBackspace     = "backspace"
 	KeyNameDelete        = "delete"
-	KeyNameHome          = "home"
-	KeyNameEnd           = "end"
-	KeyNamePageUp        = "pageup"
-	KeyNamePageDown      = "pagedown"
-	KeyNameUp            = "up"
-	KeyNameDown          = "down"
-	KeyNameLeft          = "left"
-	KeyNameRight         = "right"
 	modifierNameCmd      = "cmd"
 	modifierNameCtrl     = "ctrl"
 	modifierNameAlt      = "alt"
 	modifierNameShift    = "shift"
 )
-
-// validNamedKeys is the canonical set of all named keys the system supports.
-// Every validator, normalizer, and key parser should reference this set via the
-// public helpers (IsValidNamedKey, CanonicalNamedKeyForm) instead of maintaining
-// its own ad-hoc list. The keys are stored in their display form (the casing
-// that the event tap / config files use).
-//
-// The variable is unexported to prevent accidental mutation by other packages.
-var validNamedKeys = map[string]bool{
-	// Special keys
-	KeyDisplaySpace:     true,
-	KeyReturn:           true,
-	"Enter":             true, // alias for Return
-	KeyDisplayEscape:    true,
-	"Tab":               true,
-	"Delete":            true,
-	KeyDisplayBackspace: true, // alias for Delete on macOS
-	// Navigation keys
-	"Up":            true,
-	KeyDisplayDown:  true,
-	KeyDisplayLeft:  true,
-	KeyDisplayRight: true,
-	"Home":          true,
-	"End":           true,
-	"PageUp":        true,
-	"PageDown":      true,
-	// Function keys
-	"F1":  true,
-	"F2":  true,
-	"F3":  true,
-	"F4":  true,
-	"F5":  true,
-	"F6":  true,
-	"F7":  true,
-	"F8":  true,
-	"F9":  true,
-	"F10": true,
-	"F11": true,
-	"F12": true,
-	"F13": true,
-	"F14": true,
-	"F15": true,
-	"F16": true,
-	"F17": true,
-	"F18": true,
-	"F19": true,
-	"F20": true,
-	// F21-F24 have no macOS virtual keycode (Carbon stops at F20), so they are
-	// Linux/Windows only. They stay in the shared set so a config file can be
-	// shared across platforms without failing validation.
-	"F21": true,
-	"F22": true,
-	"F23": true,
-	"F24": true,
-}
-
-// validNamedKeysLower is a precomputed lowercase lookup for IsValidNamedKey.
-var validNamedKeysLower map[string]bool
-
-// namedKeyDisplayForm maps lowercase key names to their canonical display form
-// (e.g. "pagedown" → "PageDown", "f1" → "F1"). Used by CanonicalNamedKeyForm.
-var namedKeyDisplayForm map[string]string
-
-// comboKeyAliases maps alias key names to their canonical forms.
-// Used by normalizeKeyAliasesInCombo to resolve the final segment of compound keys.
-var comboKeyAliases = map[string]string{
-	"enter":     "return",
-	"backspace": "delete",
-	"esc":       "escape",
-}
 
 // Config is the complete application configuration structure.
 type Config struct {

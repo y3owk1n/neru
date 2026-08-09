@@ -27,10 +27,11 @@ const (
 )
 
 // NormalizeKey canonicalizes a key string of the form
-// "modifier+...+baseKey": named base keys get their canonical spelling
-// (return/enter -> Return, esc -> Escape, backspace -> Delete, ...) and
-// single-rune base keys are lowercased. Modifier segments pass through
-// untouched. Empty input normalizes to "".
+// "modifier+...+baseKey": an alias base key becomes the key it means
+// (enter -> Return, esc -> Escape, backspace -> Delete), every other named base
+// key gets its display spelling (pagedown -> PageDown), and single-rune base
+// keys are lowercased. Anything else passes through unchanged, as do modifier
+// segments. Empty input normalizes to "".
 func NormalizeKey(key string) string {
 	key = strings.TrimSpace(key)
 	if key == "" {
@@ -38,36 +39,27 @@ func NormalizeKey(key string) string {
 	}
 
 	parts := strings.Split(key, "+")
-	baseKey := parts[len(parts)-1]
-
-	switch strings.ToLower(baseKey) {
-	case "return", "enter":
-		baseKey = "Return"
-	case "space":
-		baseKey = "Space"
-	case "tab":
-		baseKey = "Tab"
-	case "escape", "esc":
-		baseKey = "Escape"
-	case "backspace":
-		baseKey = "Delete"
-	case "left":
-		baseKey = "Left"
-	case "right":
-		baseKey = "Right"
-	case "up":
-		baseKey = "Up"
-	case "down":
-		baseKey = "Down"
-	default:
-		if len([]rune(baseKey)) == 1 {
-			baseKey = strings.ToLower(baseKey)
-		}
-	}
-
-	parts[len(parts)-1] = baseKey
+	parts[len(parts)-1] = normalizeBaseKey(parts[len(parts)-1])
 
 	return strings.Join(parts, "+")
+}
+
+// normalizeBaseKey canonicalizes the key a combo ends in, reading the named-key
+// declaration rather than listing spellings a second time.
+func normalizeBaseKey(baseKey string) string {
+	if means, isAlias := ResolveAlias(baseKey); isAlias {
+		return means
+	}
+
+	if display, isNamed := NamedKeyDisplay(baseKey); isNamed {
+		return display
+	}
+
+	if len([]rune(baseKey)) == 1 {
+		return strings.ToLower(baseKey)
+	}
+
+	return baseKey
 }
 
 // CanonicalModifier maps a modifier spelling (including platform aliases:

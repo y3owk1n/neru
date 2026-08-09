@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // StringOrStringArray is a type that can unmarshal from either a TOML string
@@ -43,20 +44,10 @@ func (s *StringOrStringArray) UnmarshalTOML(value any) error {
 	return nil
 }
 
-func init() {
-	validNamedKeysLower = make(map[string]bool, len(validNamedKeys))
-	namedKeyDisplayForm = make(map[string]string, len(validNamedKeys))
-
-	for k := range validNamedKeys {
-		lower := strings.ToLower(k)
-		validNamedKeysLower[lower] = true
-		namedKeyDisplayForm[lower] = k
-	}
-}
-
-// IsValidNamedKey checks whether a key name is a recognized named key (case-insensitive).
+// IsValidNamedKey checks whether a key name is a recognized named key
+// (case-insensitive). The set it asks is declared in internal/domain/keyvocab.
 func IsValidNamedKey(key string) bool {
-	return validNamedKeysLower[strings.ToLower(key)]
+	return keyvocab.IsNamedKey(key)
 }
 
 // CanonicalNamedKeyForm returns the canonical display form of a named key
@@ -64,13 +55,7 @@ func IsValidNamedKey(key string) bool {
 // If the key is not a recognized named key, it returns the input unchanged
 // and false as the second return value.
 func CanonicalNamedKeyForm(key string) (string, bool) {
-	display, displayOk := namedKeyDisplayForm[strings.ToLower(key)]
-
-	if !displayOk {
-		return key, false
-	}
-
-	return display, displayOk
+	return keyvocab.NamedKeyDisplay(key)
 }
 
 // NormalizeKeyForComparison puts escape sequences and key names into one form,
@@ -85,28 +70,27 @@ func NormalizeKeyForComparison(key string) string {
 	key = normalizeFullwidthChars(key)
 	key = strings.ToLower(key)
 
-	// Handle escape sequences and aliases that map to a different canonical form.
+	// Handle the control characters a tap delivers instead of a key name.
 	switch key {
-	case "\x1b", "esc":
+	case "\x1b":
 		return KeyNameEscape
-	case "\r", "enter":
+	case "\r":
 		return KeyNameReturn
 	case "\t":
 		return KeyNameTab
 	case " ":
 		return KeyNameSpace
-	case "\x08", "\x7f", KeyNameBackspace:
+	case "\x08", "\x7f":
 		// On macOS, the Delete key (above Return) sends \x7f.
 		// \x08 is the ASCII BS control character (rarely generated on macOS but included for completeness).
-		// Treat "delete", "backspace", \x7f, and \x08 as synonyms for user-friendly matching.
+		// Treat \x7f and \x08 as synonyms of "delete" for user-friendly matching.
 		return KeyNameDelete
 	}
 
-	// Normalize key aliases inside modifier combos.
-	// The switch above only handles bare "enter" / "backspace" etc., but users may
-	// write "Shift+Enter" which lowercases to "shift+enter". The event tap always
-	// produces the canonical form "shift+return", so we must resolve the alias here.
-	key = normalizeKeyAliasesInCombo(key)
+	// Resolve a key-name alias to the key it means, bare ("enter") or at the end
+	// of a combo ("shift+enter"). The event tap always produces the canonical
+	// form, so a binding written with an alias has to reach the same string.
+	key = normalizeKeyAliases(key)
 
 	// Normalize modifier aliases like "Primary" to the platform-native token
 	// so shared config can map to Cmd on macOS and Ctrl elsewhere.
@@ -162,21 +146,28 @@ func normalizeModifierTokenForOS(token, goos string) string {
 	}
 }
 
-// normalizeKeyAliasesInCombo resolves key name aliases inside modifier combos.
-// e.g. "shift+enter" → "shift+return", "cmd+backspace" → "cmd+delete".
-// Only applies to compound keys (containing "+"); bare keys are handled by the
-// switch in NormalizeKeyForComparison.
-// Splits on the last "+" and only normalizes the final segment to avoid mangling
-// modifier names or canonical forms that share a prefix (e.g. "escape" vs "esc").
-func normalizeKeyAliasesInCombo(key string) string {
+// normalizeKeyAliases resolves a key-name alias to the key it means, in the
+// lowercase comparison form: "enter" → "return", "cmd+backspace" →
+// "cmd+delete", "esc" → "escape". The aliases are keyvocab's, so config does
+// not carry a second list of them.
+//
+// Only the base key — the segment after the last "+", or the whole string when
+// there is none — is a candidate. A modifier name is never an alias, and
+// splitting on the last "+" keeps a canonical form from being mangled into one
+// that shares its prefix ("escape" vs "esc").
+//
+// This is a deliberate near-miss of keyvocab.NormalizeKey (ADR 0007): both
+// resolve the same aliases from the same declaration, but they canonicalize to
+// different forms — NormalizeKey produces the display spelling a tap emits,
+// this produces the lowercase form a keystroke is matched in. Calling
+// NormalizeKey and lowercasing would also trim the key, which comparison must
+// not do.
+func normalizeKeyAliases(key string) string {
 	idx := strings.LastIndex(key, "+")
-	if idx < 0 {
-		return key
-	}
+	prefix, base := key[:idx+1], key[idx+1:]
 
-	prefix, suffix := key[:idx+1], key[idx+1:]
-	if canonical, ok := comboKeyAliases[suffix]; ok {
-		return prefix + canonical
+	if means, isAlias := keyvocab.ResolveAlias(base); isAlias {
+		return prefix + strings.ToLower(means)
 	}
 
 	return key
