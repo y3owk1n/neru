@@ -21,7 +21,6 @@ When a feature doesn't clearly fit, park it in a GitHub Discussion instead of im
 
 - **Mode**: navigation context (hints, grid, recursive_grid, scroll, monitor_select; idle when none is active)
 - **Port / Adapter**: interface in `internal/ports` / its implementation in `internal/adapter`
-- **Bridge**: Objective-C macOS integration layer
 - **Semantic role**: platform-neutral role name in `hints.clickable_roles` (`button`, `text_field`), resolved to native vocabulary (AX / AT-SPI / UIA) at config load; native roles use prefixes (`ax:`, `atspi:`, `uia:`). See `internal/domain/element/vocabulary.go`
 
 ## Commands

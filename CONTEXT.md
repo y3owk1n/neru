@@ -4,7 +4,7 @@ Neru is a keyboard-driven, mouse-free navigation tool: every pointer action
 reachable from the keyboard, instantly. This file is the glossary — the words
 this repo uses for its own concepts, and the words it deliberately does not.
 
-Mode, Port / Adapter, Bridge and Semantic role are defined in `AGENTS.md`
+Mode, Port / Adapter and Semantic role are defined in `AGENTS.md`
 under Domain Concepts and are not repeated here; each fact has one home.
 
 ## Language
@@ -117,6 +117,19 @@ _Avoid_: pill, chip, tag
 An overlay's resolved appearance: configuration combined with the current
 light/dark theme. Resolved once, at the adapter boundary.
 _Avoid_: theme, palette, config
+
+### Reaching the operating system
+
+**Bridge**:
+A package that compiles native source — Objective-C on macOS, C on Linux — and
+publishes it as headers. A Bridge's interface is those headers, not its Go API:
+other packages call it by including a header, and the Go import is what links
+the compiled objects into the binary. So a package that includes a Bridge's
+header states a direct import of it even when it calls no Go symbol there, and
+that import is deliberate rather than dead. Untagged code cannot import a
+Bridge at all — it crosses through a build-tagged pair. The decision is ADR
+0009.
+_Avoid_: cgo package, native layer, FFI layer, glue
 
 ### Computing the same thing twice
 
