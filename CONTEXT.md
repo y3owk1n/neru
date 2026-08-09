@@ -143,6 +143,26 @@ Objective-C, Go cannot be the one implementation, so the copies are pinned by
 a test instead. ADR 0007 has the reasoning.
 _Avoid_: helper, util, common code, shared logic
 
+### Stating a rule and keeping it true
+
+**Contract**:
+A binding rule stated in an `AGENTS.md`: something the code must do or must
+never do. The guide files also carry guidance, rationale and product direction,
+and those are not contracts — only a contract can be *broken*, and only a
+contract is a candidate for a [[Guardrail]]. A sentence claiming a guardrail
+exists must name it.
+_Avoid_: rule, convention, invariant, guideline, policy
+
+**Guardrail**:
+A test in `internal/architecture` that fails when a [[Contract]] is broken. A
+contract earns one when breaking it is *silent* — the code compiles, the linter
+passes, every other test passes, and the breach ships anyway. A guardrail states
+the rule in its failure message and cites the document that states it; the
+document never cites the guardrail back. Where the type system can be made to
+carry the rule instead, that is better than a guardrail, because it deletes the
+contract rather than pinning it. The reasoning is ADR 0011.
+_Avoid_: architecture test, lint rule, invariant test, check, assertion
+
 ### Naming what a person can write
 
 **Vocabulary**:
