@@ -42,6 +42,10 @@
 //     reaches infra only through ports.
 //   - mode_flag_contract_test.go — mode commands register exactly what the
 //     grammar declares, and docs/CLI.md is generated from the descriptor table.
+//   - mode_lock_registry_test.go — every mutex the mode handler declares has a
+//     stated position in the lock order that package's guide gives.
+//   - mode_lock_release_test.go — the mode handler releases every lock via
+//     defer, in the scope that took it.
 //   - named_key_tables_test.go — the two Objective-C key-name tables spell the
 //     named-key vocabulary, agree with each other, and gap only where macOS has
 //     no keycode.
