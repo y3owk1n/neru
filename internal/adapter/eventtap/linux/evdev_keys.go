@@ -65,6 +65,7 @@ const (
 	evdevKeyDot        uint16 = 52
 	evdevKeySlash      uint16 = 53
 	evdevKeyRightShift uint16 = 54
+	evdevKeyKPAsterisk uint16 = 55
 	evdevKeyLeftAlt    uint16 = 56
 	evdevKeySpace      uint16 = 57
 	evdevKeyF1         uint16 = 59
@@ -77,9 +78,24 @@ const (
 	evdevKeyF8         uint16 = 66
 	evdevKeyF9         uint16 = 67
 	evdevKeyF10        uint16 = 68
+	evdevKeyKP7        uint16 = 71
+	evdevKeyKP8        uint16 = 72
+	evdevKeyKP9        uint16 = 73
+	evdevKeyKPMinus    uint16 = 74
+	evdevKeyKP4        uint16 = 75
+	evdevKeyKP5        uint16 = 76
+	evdevKeyKP6        uint16 = 77
+	evdevKeyKPPlus     uint16 = 78
+	evdevKeyKP1        uint16 = 79
+	evdevKeyKP2        uint16 = 80
+	evdevKeyKP3        uint16 = 81
+	evdevKeyKP0        uint16 = 82
+	evdevKeyKPDot      uint16 = 83
 	evdevKeyF11        uint16 = 87
 	evdevKeyF12        uint16 = 88
+	evdevKeyKPEnter    uint16 = 96
 	evdevKeyRightCtrl  uint16 = 97
+	evdevKeyKPSlash    uint16 = 98
 	evdevKeyRightAlt   uint16 = 100
 	evdevKeyHome       uint16 = 102
 	evdevKeyUp         uint16 = 103
@@ -173,6 +189,10 @@ var evdevModifierNames = map[uint16]string{
 	evdevKeyRightMeta:  evdevModifierCmd,
 }
 
+// evdevKeyNames names a raw evdev key code without consulting a keyboard
+// layout. It is the fallback the evdev tap drops to when xkb state creation
+// fails, and the only table the global hotkey reader has; a code with no entry
+// here reaches nothing.
 var evdevKeyNames = map[uint16]string{
 	evdevKeyA:          "a",
 	evdevKeyB:          "b",
@@ -260,6 +280,40 @@ var evdevKeyNames = map[uint16]string{
 	evdevKeyPageUp:     evdevKeyNamePageUp,
 	evdevKeyPageDown:   evdevKeyNamePageDown,
 	evdevKeyInsert:     evdevKeyNameInsert,
+
+	// The keypad. Every name below is the one neru_normalize_xkb_name gives
+	// the keysym this key reports with NumLock off
+	// (internal/adapter/platform/linux/wayland_keymap.c) — the table the
+	// Wayland tap reads and the X11 keysym lookup was copied from — so one
+	// physical key reaches one binding whichever Linux tap is running.
+	//
+	// NumLock off is the only state this table can answer for: the kernel
+	// reports the same code either way, and resolving the digit is exactly the
+	// layout work this table has no keymap to do. The keys whose keysym does
+	// not change with NumLock — the operators, the keypad Enter, and the center
+	// key, whose KP_Begin fold is the digit it carries — are therefore right in
+	// both states. The ten dual-function keys are right only with NumLock off,
+	// which for the tap is the degraded half of an already-degraded path but
+	// for the global hotkey reader is the only answer it has: a Home hotkey is
+	// reachable from the keypad and a keypad 7 typed with NumLock on can reach
+	// it. Naming them a third way rather than Wayland's would trade that for a
+	// keypad no Linux backend agrees about.
+	evdevKeyKPAsterisk: "*",
+	evdevKeyKPMinus:    "-",
+	evdevKeyKPPlus:     "+",
+	evdevKeyKPSlash:    "/",
+	evdevKeyKPEnter:    evdevKeyNameReturn,
+	evdevKeyKP5:        "5",
+	evdevKeyKP7:        evdevKeyNameHome,
+	evdevKeyKP8:        evdevKeyNameUp,
+	evdevKeyKP9:        evdevKeyNamePageUp,
+	evdevKeyKP4:        evdevKeyNameLeft,
+	evdevKeyKP6:        evdevKeyNameRight,
+	evdevKeyKP1:        evdevKeyNameEnd,
+	evdevKeyKP2:        evdevKeyNameDown,
+	evdevKeyKP3:        evdevKeyNamePageDown,
+	evdevKeyKP0:        evdevKeyNameInsert,
+	evdevKeyKPDot:      evdevKeyNameDelete,
 }
 
 type evdevModifierState struct {
