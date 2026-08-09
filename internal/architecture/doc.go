@@ -34,6 +34,9 @@
 //     reaches infra only through ports.
 //   - mode_flag_contract_test.go — mode commands register exactly what the
 //     grammar declares, and docs/CLI.md is generated from the descriptor table.
+//   - named_key_tables_test.go — the two Objective-C key-name tables spell the
+//     named-key vocabulary, agree with each other, and gap only where macOS has
+//     no keycode.
 //   - native_constants_test.go — the shared reader every language-boundary pin
 //     goes through, rather than a second way to read a .h or a .m.
 //   - native_rule_test.go — the comparison vocabulary the rule-shaped
