@@ -19,16 +19,23 @@ func TestNormalizeKey_CanonicalSpellings(t *testing.T) {
 		in   string
 		want string
 	}{
-		{name: "return", in: "return", want: "Return"},
-		{name: "enter aliases to Return", in: "enter", want: "Return"},
-		{name: "enter with modifiers", in: "ctrl+enter", want: "ctrl+Return"},
-		{name: "esc aliases to Escape", in: "esc", want: "Escape"},
-		{name: "backspace maps to Delete", in: "backspace", want: "Delete"},
+		{name: "return", in: "return", want: keyReturn},
+		{name: "enter aliases to Return", in: nameEnter, want: keyReturn},
+		{name: "enter with modifiers", in: "ctrl+" + nameEnter, want: "ctrl+" + keyReturn},
+		{name: "esc aliases to Escape", in: nameEsc, want: keyEscape},
+		{name: "backspace maps to Delete", in: nameBackspace, want: keyDelete},
 		{name: "single rune lowercased", in: "A", want: "a"},
 		{name: "modifiers pass through", in: "cmd+shift+K", want: "cmd+shift+k"},
-		{name: "named keys keep case", in: "Left", want: "Left"},
+		{name: "named keys keep case", in: keyLeft, want: keyLeft},
 		{name: "empty", in: "", want: ""},
 		{name: "whitespace only", in: "   ", want: ""},
+		// Every named key gets its display spelling, not just the handful the
+		// normalizer used to special-case.
+		{name: namePageDown, in: namePageDown, want: keyPageDown},
+		{name: "home", in: "HOME", want: "Home"},
+		{name: "function key", in: "f13", want: "F13"},
+		{name: nameInsert, in: nameInsert, want: keyInsert},
+		{name: "unknown multi-rune passes through", in: "Fn", want: "Fn"},
 	}
 
 	for _, testCase := range tests {
@@ -82,7 +89,7 @@ func TestKeyUpEvent_UsesNormalizedBaseKey(t *testing.T) {
 	}{
 		{name: "plain key", in: "j", want: wantKeyUpJ},
 		{name: "strips modifiers", in: "cmd+shift+J", want: wantKeyUpJ},
-		{name: "named key normalized", in: "enter", want: "__keyup_Return"},
+		{name: "named key normalized", in: nameEnter, want: keyvocab.KeyUpPrefix + keyReturn},
 		{name: "empty", in: "", want: ""},
 	}
 

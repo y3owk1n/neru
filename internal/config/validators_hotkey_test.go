@@ -42,6 +42,27 @@ func TestValidateHotkey(t *testing.T) {
 			wantErr:   false,
 		},
 		{
+			// evdev and Wayland emit Insert, so a binding may name it.
+			name:      "valid Insert key",
+			hotkey:    "Insert",
+			fieldName: testHotkeyFieldName,
+			wantErr:   false,
+		},
+		{
+			name:      "valid Insert in a modifier combo",
+			hotkey:    "Cmd+Insert",
+			fieldName: testHotkeyFieldName,
+			wantErr:   false,
+		},
+		{
+			// A modifier-shaped key with per-platform semantics, declined by
+			// ADR 0008.
+			name:      "CapsLock is not a named key",
+			hotkey:    "CapsLock",
+			fieldName: testHotkeyFieldName,
+			wantErr:   true,
+		},
+		{
 			name:      "valid Option modifier",
 			hotkey:    "Option+D",
 			fieldName: testHotkeyFieldName,
