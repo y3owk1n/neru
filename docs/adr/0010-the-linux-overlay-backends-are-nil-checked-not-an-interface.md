@@ -1,6 +1,6 @@
 # The Linux overlay backends are nil-checked, not an interface
 
-**Status**: proposed
+**Status**: accepted
 
 `internal/adapter/overlay/linux/manager.go` is 1,251 lines carrying 52
 `m.x11 != nil` / `m.wlroots != nil` checks — 62 counting the `== nil` forms and
@@ -68,12 +68,21 @@ surface. This ADR extends that seam rather than adding a second one beside it.
   are promoted into both types. `Show`, `Resize` and `Destroy` stay per-backend:
   Wayland re-runs buffer setup before showing, layer shells auto-resize so
   `Resize` is empty, and Wayland's `Destroy` waits on the keyboard poller.
-- `setRenderMu` and `setDisplayMu` are one operation under two names, both
-  forwarding to `setRenderMuShared` (`x11_cgo.go:238`, `wayland_cgo.go:240`).
-  They unify to one name. This costs nothing and is the precondition for the
-  point above.
-- The manager's 52 guards stay, and this ADR is what stops the next reader
-  removing them.
+- `setRenderMu` and `setDisplayMu` were one operation under two names, both
+  forwarding to the same `sharedOverlay` setter. They unify to `setRenderMu`,
+  declared once beside the mutex it wires. This costs nothing and is the
+  precondition for the point above. What the Wayland name was carrying — that
+  the same lock serializes wl_display access against the keyboard poller, so it
+  must be wired before that poller starts — moves onto the surviving method,
+  where both backends can read it.
+- The manager's guards stay, and this ADR is what stops the next reader
+  removing them. Moving the delegates made them load-bearing rather than
+  belt-and-braces — a promoted method reached through a nil backend pointer
+  panics on the promotion — so the count went *up*, from 52 to 55: `DrawHints`
+  dispatched on `m.wlroots` without checking it, and the two lazily-built
+  indicator overlays were drawn on straight after a constructor that can return
+  a raw nil. All three used to be caught by the delegate's own nil-receiver
+  guard, which is the guard that no longer exists.
 - Roughly twenty exported `Manager` methods no-op silently when no backend is
   attached, which reads against `AGENTS.md`'s rule that unsupported behaviour
   returns `CodeNotSupported` rather than a silent no-op. It is not a breach of
@@ -93,15 +102,21 @@ surface. This ADR extends that seam rather than adding a second one beside it.
   compositor moves out of that bucket — COSMIC (#898) is `wayland-other` today
   and `CROSS_PLATFORM.md:1023` already records that layer-shell works there.
   Whoever lands COSMIC support fixes `Init` in the same change.
-- Out of scope, and a real defect: `Hide` and `Clear` read `m.x11`/`m.wlroots`
-  outside `renderMu` — deliberately, to avoid deadlocking the animation
-  goroutine (`manager.go:167-175`, `:207-215`) — while `Destroy` nils both under
-  it (`manager.go:283-289`). That is an unsynchronised read racing a
-  synchronised write, and `sharedOverlay.cancelAnimation`
-  (`overlay_shared_cgo.go:524`) is the one backend method with no nil-receiver
-  guard, so losing the race dereferences nil. It is shutdown-only and
-  race-detector-visible. It is a locking bug, not a dispatch-shape bug, and
-  moving the delegates does not fix it.
+- The shutdown race this decision was drafted beside is **fixed**, and not by
+  this decision. Every call that cancelled an animation before taking `renderMu`
+  used to read `m.x11`/`m.wlroots` beside the lock rather than under it, racing
+  the `Destroy` that nils both under it, and losing the race dereferenced nil.
+  #1419 routed all five through `Manager.cancelBackendAnimation`, which reads
+  both pointers under `renderMu` and captures each *once* — reading twice, to
+  nil-test and then to dispatch, is what left the nil test meaningless — and
+  released the lock before cancelling, because the cancel waits on a goroutine
+  that takes `renderMu` every frame. `sharedOverlay.cancelAnimation` gained a
+  nil-receiver guard in the same change; it is consistency rather than safety,
+  since that method is promoted and a nil backend pointer panics on the
+  promotion before any guard could run, which is exactly why the capture is what
+  does the work. `TestManager_Destroy_RacedByCancelingCalls` pins it, under
+  `-race`. The point this bullet was making stands: it was a locking bug, not a
+  dispatch-shape bug, and moving the delegates neither caused nor fixed it.
 - No new word enters `CONTEXT.md`. *Overlay* already names the thing, and the
   two backends are an implementation detail below the port — naming them in the
   glossary would be the first entry that describes how something is built rather

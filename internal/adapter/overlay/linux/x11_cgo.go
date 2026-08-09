@@ -11,26 +11,20 @@ import "C"
 
 import (
 	"image"
-	"sync"
 	"unsafe"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
-	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // x11Overlay is the X11 backend: the cgo connection, the HiDPI scale probe,
-// and the overlaySurface primitives. All drawing and animation logic lives on
-// the embedded sharedOverlay; the exported methods below are nil-guarded
-// delegates into it (the manager calls them on possibly-nil pointers).
+// and the overlaySurface primitives. Everything above the primitives —
+// drawing, animation, and the exported methods the manager calls — lives on
+// the embedded sharedOverlay and is promoted from there. What stays here is
+// what X11 does differently: Show, Resize and Destroy, the scale probe, and
+// the primitives themselves.
 type x11Overlay struct {
 	sharedOverlay
 
@@ -67,7 +61,7 @@ func (o *x11Overlay) Scale() float64 {
 }
 
 func (o *x11Overlay) Healthy() bool {
-	return o != nil && o.raw != nil
+	return o.alive()
 }
 
 func (o *x11Overlay) WindowPtr() unsafe.Pointer {
@@ -81,24 +75,6 @@ func (o *x11Overlay) WindowPtr() unsafe.Pointer {
 func (o *x11Overlay) Show() {
 	if o != nil && o.raw != nil {
 		C.neru_x11_overlay_show(o.raw)
-	}
-}
-
-func (o *x11Overlay) Hide() {
-	if o != nil && o.raw != nil {
-		o.hide()
-	}
-}
-
-func (o *x11Overlay) Clear() {
-	if o != nil && o.raw != nil {
-		o.clear()
-	}
-}
-
-func (o *x11Overlay) ClearRect(rect image.Rectangle) {
-	if o != nil && o.raw != nil && !rect.Empty() {
-		o.clearRect(rect)
 	}
 }
 
@@ -116,113 +92,12 @@ func (o *x11Overlay) Destroy() {
 	}
 }
 
-func (o *x11Overlay) UpdateGridMatches(prefix string) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.updateGridMatches(prefix)
-}
-
-func (o *x11Overlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	if o == nil || o.raw == nil || cell == nil {
-		return
-	}
-
-	o.showSubgrid(cell)
-}
-
-func (o *x11Overlay) SetHideUnmatched(hide bool) {
-	if o == nil {
-		return
-	}
-
-	o.hideUnmatched = hide
-}
-
-func (o *x11Overlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
-	if o == nil || o.raw == nil || g == nil {
-		return
-	}
-
-	o.drawGrid(g, input, style)
-}
-
-func (o *x11Overlay) DrawRecursiveGridWithSubKeyPreview(
-	bounds image.Rectangle,
-	depth int,
-	keys string,
-	dims domain.GridDimensions,
-	nextKeys string,
-	nextDims domain.GridDimensions,
-	style recursivegridcomponent.Style,
-	virtualPointer recursivegridcomponent.VirtualPointerState,
-	animEnabled bool,
-	animDurationMS int,
-) {
-	if o == nil || o.raw == nil || bounds.Empty() || dims.Cols <= 0 || dims.Rows <= 0 {
-		return
-	}
-
-	o.drawRecursiveGridWithSubKeyPreview(
-		bounds, depth, keys, dims,
-		nextKeys, nextDims,
-		style, virtualPointer, animEnabled, animDurationMS,
-	)
-}
-
-func (o *x11Overlay) DrawBadge(
-	posX, posY int,
-	text string,
-	colors overlayColors,
-	style overlayBadgeStyle,
-) {
-	if o == nil || o.raw == nil || text == "" {
-		return
-	}
-
-	o.drawBadge(posX, posY, text, colors, style)
-}
-
-func (o *x11Overlay) Flush() {
-	if o == nil || o.raw == nil {
-		return
-	}
-	C.neru_x11_overlay_flush(o.raw)
-}
-
-func (o *x11Overlay) DrawMonitorSelect(
-	targets []manager.MonitorSelectTarget,
-	style manager.MonitorSelectStyle,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawMonitorSelect(targets, style)
-}
-
-func (o *x11Overlay) DrawHints(
-	hintsSlice []*hintscomponent.Hint,
-	style hintscomponent.StyleMode,
-	offset badge.HintOffset,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawHints(hintsSlice, style, offset)
-}
-
-func (o *x11Overlay) DrawMouseActionIndicator(
-	point image.Point,
-	style ports.MouseActionIndicatorStyle,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawMouseActionIndicator(point, style)
+// alive answers the overlaySurface question the shared delegates ask before
+// they draw: is the native handle still open. It is nil-receiver safe so
+// Healthy, which the manager may reach on a backend it never built, has one
+// implementation to defer to.
+func (o *x11Overlay) alive() bool {
+	return o != nil && o.raw != nil
 }
 
 // s returns the overlay's HiDPI scale factor, guarding against a zero value.
@@ -232,18 +107,6 @@ func (o *x11Overlay) s() float64 {
 	}
 
 	return o.scale
-}
-
-func (o *x11Overlay) setRenderMu(mu *sync.Mutex) {
-	o.setRenderMuShared(mu)
-}
-
-func (o *x11Overlay) setOriginOffset(origin image.Point) {
-	if o == nil {
-		return
-	}
-
-	o.sharedOverlay.setOriginOffset(origin)
 }
 
 // --- overlaySurface primitives ---

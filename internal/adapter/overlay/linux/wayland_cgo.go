@@ -11,22 +11,14 @@ import "C"
 
 import (
 	"image"
-	"sync"
 	"time"
 	"unsafe"
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
-	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
-	hintscomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
-	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux/wlr_protocol"
-	"github.com/y3owk1n/neru/internal/domain"
-	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func init() {
@@ -35,9 +27,11 @@ func init() {
 
 // wlrootsOverlay is the wlroots layer-shell backend: the cgo connection, the
 // shared-memory buffer pool, the keyboard poller, and the overlaySurface
-// primitives. All drawing and animation logic lives on the embedded
-// sharedOverlay; the exported methods below are nil-guarded delegates into it
-// (the manager calls them on possibly-nil pointers).
+// primitives. Everything above the primitives — drawing, animation, and the
+// exported methods the manager calls — lives on the embedded sharedOverlay and
+// is promoted from there. What stays here is what Wayland does differently:
+// Show (buffer setup first), Resize (nothing; layer shells auto-resize),
+// Destroy (waits on the poller), the poller itself, and the primitives.
 type wlrootsOverlay struct {
 	sharedOverlay
 
@@ -71,7 +65,7 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 }
 
 func (o *wlrootsOverlay) Healthy() bool {
-	return o != nil && o.raw != nil
+	return o.alive()
 }
 
 func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
@@ -86,24 +80,6 @@ func (o *wlrootsOverlay) Show() {
 	if o != nil && o.raw != nil {
 		C.neru_wayland_overlay_setup_buffers(o.raw)
 		C.neru_wayland_overlay_show(o.raw)
-	}
-}
-
-func (o *wlrootsOverlay) Hide() {
-	if o != nil && o.raw != nil {
-		o.hide()
-	}
-}
-
-func (o *wlrootsOverlay) Clear() {
-	if o != nil && o.raw != nil {
-		o.clear()
-	}
-}
-
-func (o *wlrootsOverlay) ClearRect(rect image.Rectangle) {
-	if o != nil && o.raw != nil && !rect.Empty() {
-		o.clearRect(rect)
 	}
 }
 
@@ -123,129 +99,12 @@ func (o *wlrootsOverlay) Destroy() {
 	o.raw = nil
 }
 
-func (o *wlrootsOverlay) UpdateGridMatches(prefix string) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.updateGridMatches(prefix)
-}
-
-func (o *wlrootsOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	if o == nil || o.raw == nil || cell == nil {
-		return
-	}
-
-	o.showSubgrid(cell)
-}
-
-func (o *wlrootsOverlay) SetHideUnmatched(hide bool) {
-	if o == nil {
-		return
-	}
-
-	o.hideUnmatched = hide
-}
-
-func (o *wlrootsOverlay) DrawGrid(g *domainGrid.Grid, input string, style gridcomponent.Style) {
-	if o == nil || o.raw == nil || g == nil {
-		return
-	}
-
-	o.drawGrid(g, input, style)
-}
-
-func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
-	bounds image.Rectangle,
-	depth int,
-	keys string,
-	dims domain.GridDimensions,
-	nextKeys string,
-	nextDims domain.GridDimensions,
-	style recursivegridcomponent.Style,
-	virtualPointer recursivegridcomponent.VirtualPointerState,
-	animEnabled bool,
-	animDurationMS int,
-) {
-	if o == nil || o.raw == nil || bounds.Empty() || dims.Cols <= 0 || dims.Rows <= 0 {
-		return
-	}
-
-	o.drawRecursiveGridWithSubKeyPreview(
-		bounds, depth, keys, dims,
-		nextKeys, nextDims,
-		style, virtualPointer, animEnabled, animDurationMS,
-	)
-}
-
-func (o *wlrootsOverlay) DrawBadge(
-	posX, posY int,
-	text string,
-	colors overlayColors,
-	style overlayBadgeStyle,
-) {
-	if o == nil || o.raw == nil || text == "" {
-		return
-	}
-
-	o.drawBadge(posX, posY, text, colors, style)
-}
-
-func (o *wlrootsOverlay) Flush() {
-	if o == nil || o.raw == nil {
-		return
-	}
-	C.neru_wayland_overlay_flush(o.raw)
-}
-
-func (o *wlrootsOverlay) DrawMonitorSelect(
-	targets []manager.MonitorSelectTarget,
-	style manager.MonitorSelectStyle,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawMonitorSelect(targets, style)
-}
-
-func (o *wlrootsOverlay) DrawHints(
-	hintsSlice []*hintscomponent.Hint,
-	style hintscomponent.StyleMode,
-	offset badge.HintOffset,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawHints(hintsSlice, style, offset)
-}
-
-func (o *wlrootsOverlay) DrawMouseActionIndicator(
-	point image.Point,
-	style ports.MouseActionIndicatorStyle,
-) {
-	if o == nil || o.raw == nil {
-		return
-	}
-
-	o.drawMouseActionIndicator(point, style)
-}
-
-// setDisplayMu wires the mutex that serializes wl_display access between
-// rendering and the keyboard poller — the Wayland client API is not
-// thread-safe. It is the Wayland-flavored name for the shared render mutex;
-// the manager passes the same lock it holds around synchronous draws.
-func (o *wlrootsOverlay) setDisplayMu(mu *sync.Mutex) {
-	o.setRenderMuShared(mu)
-}
-
-func (o *wlrootsOverlay) setOriginOffset(origin image.Point) {
-	if o == nil {
-		return
-	}
-
-	o.sharedOverlay.setOriginOffset(origin)
+// alive answers the overlaySurface question the shared delegates ask before
+// they draw: is the native handle still open. It is nil-receiver safe so
+// Healthy, which the manager may reach on a backend it never built, has one
+// implementation to defer to.
+func (o *wlrootsOverlay) alive() bool {
+	return o != nil && o.raw != nil
 }
 
 // startPoller launches the keyboard poller goroutine. Called once per overlay

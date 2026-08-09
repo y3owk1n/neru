@@ -120,10 +120,10 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 		// Share renderMu with the wlroots overlay so the keyboard poller
 		// serializes wl_display access with the rendering path. The Wayland
 		// client API is not thread-safe.
-		// setDisplayMu must be called before startPoller — the poller reads
-		// displayMu on every iteration, so it must be visible before launch.
+		// setRenderMu must be called before startPoller — the poller reads
+		// the mutex on every iteration, so it must be visible before launch.
 		if instance.wlroots != nil {
-			instance.wlroots.setDisplayMu(&instance.renderMu)
+			instance.wlroots.setRenderMu(&instance.renderMu)
 			instance.wlroots.startPoller()
 		}
 	case linuxOverlayBackendUnknown:
@@ -269,7 +269,7 @@ func (m *Manager) Destroy() {
 	// Capture and nil-out backend pointers under the lock, then release
 	// the lock *before* calling Destroy on each backend. The wlroots
 	// Destroy waits for the keyboardPoller goroutine to exit, and that
-	// goroutine acquires displayMu (== renderMu) on every iteration.
+	// goroutine acquires renderMu on every iteration.
 	// Holding renderMu while waiting on the poller would deadlock.
 	m.renderMu.Lock()
 	x11 := m.x11
@@ -436,7 +436,13 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		return nil
 	}
 
-	m.wlroots.DrawHints(hintsSlice, style, offset)
+	// Nil-checked like every other dispatch here rather than trusting the
+	// answer above: that one was taken before renderMu was released for the
+	// cancel, so a Destroy landing in between leaves this pointer nil. This is
+	// the site that used to dispatch on it unchecked (../AGENTS.md).
+	if m.wlroots != nil {
+		m.wlroots.DrawHints(hintsSlice, style, offset)
+	}
 
 	return nil
 }
@@ -924,6 +930,10 @@ func (m *Manager) DrawMouseActionIndicator(
 	m.indicatorMu.Lock()
 	defer m.indicatorMu.Unlock()
 
+	// Both draws are nil-checked because the lazy build below can fail: a
+	// constructor that cannot reach the display server returns a raw nil, and
+	// this is the one place a backend pointer is created outside startup
+	// (../AGENTS.md).
 	switch m.backend {
 	case linuxOverlayBackendX11:
 		if m.x11Indicator == nil {
@@ -933,7 +943,9 @@ func (m *Manager) DrawMouseActionIndicator(
 			}
 		}
 
-		m.x11Indicator.DrawMouseActionIndicator(point, style)
+		if m.x11Indicator != nil {
+			m.x11Indicator.DrawMouseActionIndicator(point, style)
+		}
 	case linuxOverlayBackendWaylandWlroots:
 		if m.wlrootsIndicator == nil {
 			m.wlrootsIndicator = newWlrootsOverlay(m.logger)
@@ -941,13 +953,15 @@ func (m *Manager) DrawMouseActionIndicator(
 				// The indicator surface shares the dedicated render lock and
 				// runs its own event poller (keyboard capture stays disabled,
 				// so it only pumps the surface's configure/frame events).
-				m.wlrootsIndicator.setDisplayMu(&m.indicatorRenderMu)
+				m.wlrootsIndicator.setRenderMu(&m.indicatorRenderMu)
 				m.wlrootsIndicator.setKeyboardCaptureEnabled(false)
 				m.wlrootsIndicator.startPoller()
 			}
 		}
 
-		m.wlrootsIndicator.DrawMouseActionIndicator(point, style)
+		if m.wlrootsIndicator != nil {
+			m.wlrootsIndicator.DrawMouseActionIndicator(point, style)
+		}
 	case linuxOverlayBackendUnknown:
 	}
 }

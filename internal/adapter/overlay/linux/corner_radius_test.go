@@ -31,6 +31,8 @@ type recordingSurface struct {
 	rects []recordedRect
 }
 
+func (s *recordingSurface) alive() bool { return true }
+
 func (s *recordingSurface) surfaceScale() float64 { return s.scale }
 
 func (s *recordingSurface) ensureBuffers() {}
