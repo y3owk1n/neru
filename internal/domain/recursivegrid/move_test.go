@@ -281,8 +281,10 @@ func TestManager_MoveDirection_NotifiesOnlyWhenSomethingMoved(t *testing.T) {
 		"rtyfghvbn",
 		1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
 		nil, nil,
-		func(image.Point) { updates++ },
-		func(image.Point) {},
+		recursivegrid.SelectionCallbacks{
+			OnUpdate:   func(image.Point) { updates++ },
+			OnComplete: func(image.Point) {},
+		},
 		zap.NewNop(),
 	)
 

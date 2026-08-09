@@ -15,12 +15,11 @@ import (
 type Manager struct {
 	domain.BaseManager
 
-	grid       *RecursiveGrid
-	keys       string                // Default key mapping (e.g., "rtyfghvbn")
-	depthKeys  map[int]string        // Per-depth key overrides (sparse)
-	dims       domain.GridDimensions // Default shape at depths with no override
-	onUpdate   func(image.Point)     // Callback for overlay updates
-	onComplete func(image.Point)     // Callback when selection is complete
+	grid      *RecursiveGrid
+	keys      string                // Default key mapping (e.g., "rtyfghvbn")
+	depthKeys map[int]string        // Per-depth key overrides (sparse)
+	dims      domain.GridDimensions // Default shape at depths with no override
+	callbacks SelectionCallbacks    // What the selection tells its owner
 }
 
 // NewManager creates a recursive-grid manager with default dimensions (3×3)
@@ -28,8 +27,7 @@ type Manager struct {
 func NewManager(
 	screenBounds image.Rectangle,
 	keys string,
-	onUpdate func(image.Point),
-	onComplete func(image.Point),
+	callbacks SelectionCallbacks,
 	logger *zap.Logger,
 ) *Manager {
 	return NewManagerWithLayers(
@@ -40,8 +38,7 @@ func NewManager(
 		10, //nolint:mnd
 		DefaultDimensions(),
 		nil, nil,
-		onUpdate,
-		onComplete,
+		callbacks,
 		logger,
 	)
 }
@@ -51,7 +48,8 @@ func NewManager(
 // to use default dimensions at all depths.
 //
 // dims arrives as one value rather than a column count beside a row count so
-// that a caller cannot hand over the two in the wrong order (#1313).
+// that a caller cannot hand over the two in the wrong order (#1313), and
+// callbacks arrives as one value for the same reason (#1346).
 func NewManagerWithLayers(
 	screenBounds image.Rectangle,
 	keys string,
@@ -59,8 +57,7 @@ func NewManagerWithLayers(
 	dims domain.GridDimensions,
 	depthLayouts map[int]DepthLayout,
 	depthKeys map[int]string,
-	onUpdate func(image.Point),
-	onComplete func(image.Point),
+	callbacks SelectionCallbacks,
 	logger *zap.Logger,
 ) *Manager {
 	// Use default grid dimensions if either is invalid (< 1) or if the grid
@@ -154,11 +151,10 @@ func NewManagerWithLayers(
 			dims,
 			depthLayouts,
 		),
-		keys:       strings.ToLower(keys),
-		depthKeys:  normalizedDepthKeys,
-		dims:       dims,
-		onUpdate:   onUpdate,
-		onComplete: onComplete,
+		keys:      strings.ToLower(keys),
+		depthKeys: normalizedDepthKeys,
+		dims:      dims,
+		callbacks: callbacks,
 	}
 }
 
@@ -191,16 +187,16 @@ func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// If complete, call the completion callback and skip the overlay update
 	// because SelectCell returns early without changing bounds/depth.
 	if isComplete {
-		if m.onComplete != nil {
-			m.onComplete(center)
+		if m.callbacks.OnComplete != nil {
+			m.callbacks.OnComplete(center)
 		}
 
 		return center, isComplete
 	}
 
 	// Trigger update for visual feedback
-	if m.onUpdate != nil {
-		m.onUpdate(center)
+	if m.callbacks.OnUpdate != nil {
+		m.callbacks.OnUpdate(center)
 	}
 
 	return center, isComplete
@@ -222,8 +218,8 @@ func (m *Manager) MoveDirection(dir domain.Direction, count int) (image.Point, b
 		return center, false
 	}
 
-	if m.onUpdate != nil {
-		m.onUpdate(center)
+	if m.callbacks.OnUpdate != nil {
+		m.callbacks.OnUpdate(center)
 	}
 
 	return center, true
@@ -326,15 +322,15 @@ func (m *Manager) ZoomToPoint(point image.Point, targetDepth int) (image.Point, 
 	m.SetCurrentInput("")
 
 	if isComplete {
-		if m.onComplete != nil {
-			m.onComplete(center)
+		if m.callbacks.OnComplete != nil {
+			m.callbacks.OnComplete(center)
 		}
 
 		return center, true
 	}
 
-	if m.onUpdate != nil {
-		m.onUpdate(center)
+	if m.callbacks.OnUpdate != nil {
+		m.callbacks.OnUpdate(center)
 	}
 
 	return center, false
