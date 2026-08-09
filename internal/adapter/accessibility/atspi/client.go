@@ -17,6 +17,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -164,6 +165,10 @@ type Client struct {
 // New builds the Linux accessibility client. AT-SPI is not
 // activated until ensureA11yEnabled is called (lazily on first hints request),
 // so hints-disabled sessions never touch the session-wide a11y status.
+//
+// AT-SPI itself is the accessibility API on every Linux backend, so this client
+// is built on all of them; only the window-origin source is backend-specific,
+// and it is chosen here rather than probing for a compositor of its own.
 func New(logger *zap.Logger, configProvider config.Provider) *Client {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -172,7 +177,7 @@ func New(logger *zap.Logger, configProvider config.Provider) *Client {
 	return &Client{
 		Client:       native.New(logger, configProvider),
 		logger:       logger.Named("accessibility.atspi"),
-		windowOrigin: newWindowOriginSource(logger),
+		windowOrigin: newWindowOriginSource(platform.DetectLinuxBackend(), logger),
 	}
 }
 
