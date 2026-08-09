@@ -87,3 +87,21 @@ func TestMouseActionIndicatorRect(t *testing.T) {
 		t.Errorf("indicator rect size = %dx%d, want 36x36", rect.Dx(), rect.Dy())
 	}
 }
+
+// Every method a Linux overlay backend exposes to the manager survives a nil
+// receiver, because the manager dispatches on possibly-nil backend pointers.
+// cancelAnimation was the one exception: it took cancelMu straight off the
+// receiver.
+func TestSharedOverlay_CancelAnimation_NilReceiver(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("cancelAnimation panicked on a nil receiver: %v", recovered)
+		}
+	}()
+
+	var overlay *sharedOverlay
+
+	overlay.cancelAnimation()
+}

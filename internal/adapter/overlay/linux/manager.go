@@ -166,13 +166,7 @@ func (m *Manager) Show() {
 
 // Hide hides the overlay.
 func (m *Manager) Hide() {
-	// Cancel any running animation before acquiring renderMu to avoid
-	// deadlock with the animation goroutine.
-	if m.wlroots != nil {
-		m.wlroots.cancelAnimation()
-	} else if m.x11 != nil {
-		m.x11.cancelAnimation()
-	}
+	m.cancelBackendAnimation()
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -208,11 +202,7 @@ func (m *Manager) SetKeyboardCaptureEnabled(enabled bool) {
 
 // Clear clears the overlay content.
 func (m *Manager) Clear() {
-	if m.wlroots != nil {
-		m.wlroots.cancelAnimation()
-	} else if m.x11 != nil {
-		m.x11.cancelAnimation()
-	}
+	m.cancelBackendAnimation()
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -409,19 +399,16 @@ func (m *Manager) OverlayCapabilities() ports.FeatureCapability {
 // leave the user looking at labels in a placement they did not choose, with
 // nothing anywhere saying so.
 func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.StyleMode) error {
-	if m.x11 == nil && m.wlroots == nil {
+	// Canceling first keeps the refusal below from leaving an animation
+	// painting the surface this draw was about to replace, and the same call
+	// answers whether there is a backend to draw on — so this refusal reads
+	// the backend pointers under renderMu instead of beside it.
+	attached := m.cancelBackendAnimation()
+	if !attached {
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"overlay hints not implemented on linux backend",
 		)
-	}
-
-	// Canceling first keeps the refusal below from leaving an animation
-	// painting the surface this draw was about to replace.
-	if m.wlroots != nil {
-		m.wlroots.cancelAnimation()
-	} else {
-		m.x11.cancelAnimation()
 	}
 
 	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
@@ -589,14 +576,7 @@ func (m *Manager) DrawRecursiveGrid(
 	style recursivegrid.Style,
 	virtualPointer recursivegrid.VirtualPointerState,
 ) error {
-	// Cancel any running animation before acquiring renderMu to avoid
-	// deadlock: the animation goroutine may be waiting for renderMu and
-	// won't see the stop signal until it runs a full loop iteration.
-	if m.wlroots != nil {
-		m.wlroots.cancelAnimation()
-	} else if m.x11 != nil {
-		m.x11.cancelAnimation()
-	}
+	m.cancelBackendAnimation()
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -874,11 +854,7 @@ func (m *Manager) DrawMonitorSelect(
 	targets []manager.MonitorSelectTarget,
 	style manager.MonitorSelectStyle,
 ) error {
-	if m.wlroots != nil {
-		m.wlroots.cancelAnimation()
-	} else if m.x11 != nil {
-		m.x11.cancelAnimation()
-	}
+	m.cancelBackendAnimation()
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
@@ -1006,6 +982,38 @@ func (m *Manager) HideIndicator(indicator ports.Indicator) {
 	case ports.VirtualPointerIndicator:
 		// Returned above.
 	}
+}
+
+// cancelBackendAnimation stops any animation the attached backend is running,
+// and reports whether there was a backend attached to cancel on.
+//
+// Destroy nils both backend pointers under renderMu, so this call reads them
+// under it too — and then releases the lock before canceling, because the
+// cancel waits for the animation goroutine to exit and that goroutine takes
+// renderMu on every frame.
+//
+// Capturing each pointer once is what makes that read synchronized without
+// widening the hold. Reading the field twice — once to nil-test it, once to
+// make the call — would leave the nil test meaningless: a concurrent Destroy
+// landing between the two hands a nil backend to cancelAnimation, which is
+// promoted from the embedded sharedOverlay and so dereferences the receiver
+// before any guard inside it can run.
+func (m *Manager) cancelBackendAnimation() bool {
+	m.renderMu.Lock()
+	x11 := m.x11
+	wlroots := m.wlroots
+	m.renderMu.Unlock()
+
+	switch {
+	case wlroots != nil:
+		wlroots.cancelAnimation()
+	case x11 != nil:
+		x11.cancelAnimation()
+	default:
+		return false
+	}
+
+	return true
 }
 
 // overlayScale returns the active backend's HiDPI UI scale. The X11 overlay
