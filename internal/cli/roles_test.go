@@ -102,6 +102,25 @@ func TestRolesCmd_ListsEverySemanticRole(t *testing.T) {
 	}
 }
 
+// TestRolesCmd_MarksAXSubroleNames checks that the listing tells a macOS user
+// which AX names are subroles. AppKit delivers those names in AXSubrole while
+// AXRole stays generic, so the mark is how the expansion column stays an
+// honest description of what an element reports.
+func TestRolesCmd_MarksAXSubroleNames(t *testing.T) {
+	vocabulary, supported := element.CurrentVocabulary()
+	if !supported || vocabulary != element.VocabularyAX {
+		t.Skipf("AX names are only listed on macOS, not %s", runtime.GOOS)
+	}
+
+	output := runRolesCmd(t, writeRolesConfig(t, `["button"]`))
+
+	for name := range element.AXSubroleNames {
+		if !strings.Contains(output, name+" (subrole)") {
+			t.Errorf("neru roles output does not mark %q as a subrole:\n%s", name, output)
+		}
+	}
+}
+
 // TestRolesCmd_ExplainReportsEveryEntry covers the --explain path, including
 // the entries that do not apply on this platform — the case the command exists
 // to make visible.

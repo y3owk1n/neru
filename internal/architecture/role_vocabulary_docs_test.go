@@ -35,6 +35,30 @@ func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
 	}
 }
 
+// TestConfigurationDocsMarkTheAXSubroleNames keeps the documented role table
+// honest about the AX names AppKit declares as subroles: an element reports
+// them in its subrole while its role stays generic, and the table is where a
+// user would otherwise learn the wrong shape.
+func TestConfigurationDocsMarkTheAXSubroleNames(t *testing.T) {
+	docPath := filepath.Join(findRepoRoot(t), "docs", "CONFIGURATION.md")
+
+	contents, err := os.ReadFile(docPath)
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", docPath, err)
+	}
+
+	doc := string(contents)
+
+	for name := range element.AXSubroleNames {
+		if !strings.Contains(doc, "`"+name+"` †") {
+			t.Errorf(
+				"docs/CONFIGURATION.md does not mark `%s` with the subrole footnote †",
+				name,
+			)
+		}
+	}
+}
+
 // TestConfigurationDocsUseTheCurrentRoleVocabulary catches documentation that
 // still tells users to write native role names without a vocabulary prefix,
 // which is now a configuration error.

@@ -669,3 +669,50 @@ func TestResolveRoles_SemanticNamesAreCaseSensitive(t *testing.T) {
 		t.Errorf("ResolveRoles(Button) = %v, want it rejected as unknown", got.Native)
 	}
 }
+
+// TestAXSubroleNames_PinTheAppKitSubroleDeclarations pins the AX names in the
+// vocabulary that AppKit declares as subroles (NSAccessibilitySubrole
+// constants), not roles: elements carry them in AXSubrole, so the macOS
+// matcher must compare them against the element's subrole or they match
+// nothing. The expected set comes from NSAccessibilityConstants.h
+// (SearchField, Switch, ToolbarButton, TabButton — all Subrole constants,
+// none declared as a role).
+func TestAXSubroleNames_PinTheAppKitSubroleDeclarations(t *testing.T) {
+	t.Parallel()
+
+	want := []string{"AXSearchField", "AXSwitch", "AXTabButton", "AXToolbarButton"}
+
+	got := make([]string, 0, len(element.AXSubroleNames))
+	for name := range element.AXSubroleNames {
+		got = append(got, name)
+	}
+
+	slices.Sort(got)
+
+	if !slices.Equal(got, want) {
+		t.Errorf("AXSubroleNames = %v, want %v", got, want)
+	}
+}
+
+// TestAXSubroleNames_DoNotDoubleAsRoleNames guards the invariant the macOS
+// matcher relies on: a configured name is compared against both the role and
+// the subrole, which stays unambiguous only while no AX name appears in the
+// vocabulary as a role in one mapping and a subrole in another.
+func TestAXSubroleNames_DoNotDoubleAsRoleNames(t *testing.T) {
+	t.Parallel()
+
+	for _, mapping := range element.RoleVocabulary {
+		if mapping.AXIsSubrole {
+			continue
+		}
+
+		for _, name := range mapping.AX {
+			if element.AXSubroleNames[name] {
+				t.Errorf(
+					"%q is a plain role name in mapping %q but also marked as a subrole",
+					name, mapping.Semantic,
+				)
+			}
+		}
+	}
+}
