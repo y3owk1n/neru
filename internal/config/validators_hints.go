@@ -15,15 +15,12 @@ import (
 // The places a clickable-role list is written, spelled once because a user
 // matching a report to the line in their file is what the names are for.
 //
-// A warning about an application's list carries the index, the way every other
-// app_configs diagnostic names one (validators_appconfig.go): a file with
-// several overrides otherwise reports every one of them under the same name and
-// leaves the user to find which. The refusal keeps the flat spelling it has
-// always had — that is a message users may have seen, and it is not what this
-// change is about.
+// Both tiers of a report about an application's list carry the index, the way
+// every other app_configs diagnostic names one (validators_appconfig.go): a
+// file with several overrides otherwise reports every one of them under the
+// same name and leaves the user to find which.
 const (
 	fieldClickableRoles              = "hints.clickable_roles"
-	fieldAdditionalClickableRoles    = "hints.app_configs.additional_clickable_roles"
 	fieldAppAdditionalClickableRoles = "hints.app_configs[%d].additional_clickable_roles"
 )
 
@@ -163,9 +160,9 @@ func (c *Config) validateHintClickableRoles(warnings *Warnings) error {
 		return rolesErr
 	}
 
-	for _, appConfig := range c.Hints.AppConfigs {
+	for idx, appConfig := range c.Hints.AppConfigs {
 		appRolesErr := validateClickableRoles(
-			fieldAdditionalClickableRoles,
+			fmt.Sprintf(fieldAppAdditionalClickableRoles, idx),
 			appConfig.AdditionalClickable,
 		)
 		if appRolesErr != nil {

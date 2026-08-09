@@ -129,6 +129,37 @@ func TestValidateWithWarnings_KeepsRefusingAnUnknownRole(t *testing.T) {
 	}
 }
 
+// TestValidateWithWarnings_NamesTheApplicationWhoseRoleIsUnknown pins the
+// refusal's half of the same question the warning above answers: which of a
+// file's overrides to go and edit. Two of them are configured and the second is
+// the one at fault, so a message that named the field without the index — or
+// named the first one — fails here.
+func TestValidateWithWarnings_NamesTheApplicationWhoseRoleIsUnknown(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultConfig()
+	cfg.Hints.AppConfigs = []config.AppConfig{
+		{
+			BundleID:            bundleExample,
+			AdditionalClickable: []string{TestRoleTextField},
+		},
+		{
+			BundleID:            bundleOther,
+			AdditionalClickable: []string{"AXButton"},
+		},
+	}
+
+	err := cfg.ValidateWithWarnings(&config.Warnings{}, config.WrittenConfig{})
+	if err == nil {
+		t.Fatal("ValidateWithWarnings() accepted a role name nothing recognizes")
+	}
+
+	want := `hints.app_configs[1].additional_clickable_roles: unknown role "AXButton"`
+	if got := err.Error(); !strings.Contains(got, want) {
+		t.Errorf("error = %q, want it to contain %q", got, want)
+	}
+}
+
 // roleWithNoNativeEquivalentHere returns the first semantic role that resolves
 // to nothing on the running platform, and false when every one of them
 // resolves. It reads the vocabulary rather than naming a role, so a mapping

@@ -10,6 +10,7 @@ const (
 	dirNormal     = "normal"
 	dirReverse    = "reverse"
 	bundleExample = "com.example"
+	bundleOther   = "com.example.other"
 )
 
 func TestValidateHints_EnabledRequiresClickableRoles(t *testing.T) {
