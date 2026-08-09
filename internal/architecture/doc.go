@@ -21,6 +21,8 @@
 //     chain rather than recomputed at its reader.
 //   - config_example_test.go — the pairing between the config schema and the
 //     example TOML shipped with it.
+//   - darwin_entry_point_headers_test.go — every non-static Neru* entry point
+//     the darwin bridge defines is declared in its own subsystem's header.
 //   - dependency_boundary_test.go — the darwin One Rule: only darwin-tagged
 //     code reaches internal/adapter/platform/darwin.
 //   - doc_inventory_test.go — this list, against the directory.
