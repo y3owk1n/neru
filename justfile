@@ -29,12 +29,50 @@ build:
     {{ if os() == "windows" { "CGO_ENABLED=0" } else { "CGO_ENABLED=1" } }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru{{ if os() == "windows" { ".exe" } else { "" } }} ./cmd/neru
     @echo "✓ Build complete: bin/neru"
 
-# Build a Linux binary. Must run on a Linux host (CGO required for native backends).
+# Build a Linux binary. Needs a C compiler that targets linux/ARCH.
+#
+# The Linux build turns CGO on for the X11 and Wayland backends, which also
+# drags in Go's own cgo runtime (linux_syscall.c, gcc_amd64.S). A macOS clang
+# compiles those against the macOS SDK and dies in a wall of assembler errors,
+# so this recipe asks the compiler what it targets before starting, and names
+# the supported alternatives when the answer is not Linux. Point CC at a
+# Linux-targeting cross compiler and the build runs.
+#
+# Two deliberate soft spots: the arch half of the triple is only checked for the
+# arches Neru ships (amd64, arm64), and a compiler that cannot answer
+# -dumpmachine gets the benefit of the doubt. Both fail open, so the guard never
+# blocks a build that would have worked.
 build-linux ARCH="amd64":
-    @echo "Building Neru for linux/{{ ARCH }}..."
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # CC is what cgo actually runs, and it may carry flags ("clang --target=...",
+    # "ccache gcc"), so it stays unquoted on the -dumpmachine call.
+    cc=${CC:-$(go env CC)}
+    triple=$($cc -dumpmachine 2>/dev/null || true)
+    case "{{ ARCH }}" in
+        amd64) linux_triple='^(x86_64|amd64)-.*linux' ;;
+        arm64) linux_triple='^(aarch64|arm64)-.*linux' ;;
+        *) linux_triple='linux' ;;
+    esac
+    if [[ -n "$triple" ]] && ! echo "$triple" | grep -Eq "$linux_triple"; then
+        echo "error: cannot build linux/{{ ARCH }} with CGO here — the C compiler ($cc) targets $triple." >&2
+        echo "       Neru's Linux build needs CGO for the X11 and Wayland backends, so Go's own cgo" >&2
+        echo "       runtime is compiled too, against the host SDK, and fails." >&2
+        echo "" >&2
+        echo "Supported alternatives:" >&2
+        echo "  just lint-cross    compiles and lints the Linux build (amd64) with CGO on, in Docker" >&2
+        echo "  just check-cross   fast type-check of the Linux and Windows builds, CGO off, no Docker" >&2
+        echo "  CGO_ENABLED=0 GOOS=linux GOARCH={{ ARCH }} go build ./cmd/neru" >&2
+        echo "                     pure-Go Linux binary; the CGO-only backends compile out, so it is" >&2
+        echo "                     not the shipped product (docs/CROSS_PLATFORM.md#cgo-guidance)" >&2
+        echo "" >&2
+        echo "Have a Linux cross toolchain? Re-run with CC=<linux-targeting-compiler>." >&2
+        exit 1
+    fi
+    echo "Building Neru for linux/{{ ARCH }}..."
     mkdir -p bin
     CGO_ENABLED=1 GOOS=linux GOARCH={{ ARCH }} go build -ldflags="{{ LDFLAGS }}" -o bin/neru-linux-{{ ARCH }} ./cmd/neru
-    @echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
+    echo "✓ Build complete: bin/neru-linux-{{ ARCH }}"
 
 # Generate Windows resource files (.syso) for embedding the app icon and manifest.
 #
