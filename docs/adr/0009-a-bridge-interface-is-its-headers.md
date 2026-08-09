@@ -1,6 +1,6 @@
 # A bridge's interface is its headers, not its Go API
 
-**Status**: proposed
+**Status**: accepted
 
 `internal/adapter/platform/darwin` compiles roughly 5,400 lines of Objective-C
 that no `.go` file in the package includes: `overlay.h` and its 3,920-line
@@ -99,12 +99,16 @@ shape, and *Bridge* in `CONTEXT.md` is written for both.
   are callback targets means following `//export` reachability, and every
   approximation of that either misses the case it exists for or fires on
   innocent vars. The contract carries this one, not a test.
-- `callback_context.h:13` says its struct *"matches overlayutil.CallbackContext
-  in Go"*, a layout pinned across the language boundary by a comment, with the
-  two halves in packages that cannot see each other. It joins ADR 0007's
-  inventory as a pin, using the `readNativeSource` entry point
-  `native_constants_test.go` already publishes. This is a missed case of a
-  convention that already runs, not a new one.
+- `callback_context.h` said its struct *"matches overlayutil.CallbackContext in
+  Go"* — a layout pinned across the language boundary by a comment, with the two
+  halves in packages that cannot see each other. It joins ADR 0007's inventory
+  as a pin instead, reading the header through the `readNativeSource` entry
+  point `native_constants_test.go` already publishes, and the comment now points
+  at that pin rather than standing in for it. This is a missed case of a
+  convention that already runs, not a new one. The one thing it settled that
+  this decision had assumed: the Go half is *not* behind a build tag, so it is
+  linked and reflected over rather than read as text, and only the header is a
+  reading. ADR 0007's inventory carries the detail.
 - *Bridge* moves into `CONTEXT.md` and carries this rule; the one-line
   definition under `AGENTS.md` Domain Concepts goes, because each fact has one
   home.
