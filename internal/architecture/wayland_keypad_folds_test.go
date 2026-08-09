@@ -993,9 +993,12 @@ var (
 )
 
 // keypadDigitRuleFragments are the parts of the KP_0-KP_9 rule this pin reads,
-// in the order the C source writes them. Together they say: a four-character
-// name beginning "KP_" and ending in a digit becomes that digit alone.
+// in the order the C source writes them. Together they say: a name of exactly
+// four characters, beginning "KP_" and ending in a digit, becomes that digit
+// alone. The length guard is one of them — without it "KP_01" would be
+// truncated to "0", which is a different rule.
 var keypadDigitRuleFragments = []string{
+	`blen == 4`,
 	`buf[0] == 'K'`,
 	`buf[1] == 'P'`,
 	`buf[2] == '_'`,
@@ -1870,6 +1873,17 @@ func parseKeypadFoldTable(body string) (map[string]string, string, string) {
 			return nil, "", fmt.Sprintf(
 				"%s holds `%s`, whose strings this pin cannot read",
 				keypadFoldTable, trimmed,
+			)
+		}
+
+		// The C lookup returns on the first row that matches, so a second row
+		// for the same keysym is dead code — and reading it would have this pin
+		// hold the Go copies to a name the keypad never produces.
+		if existing, folded := folds[keysym]; folded {
+			return nil, "", fmt.Sprintf(
+				"%s folds %q twice, to %q and then to %q; "+
+					"the second row never runs",
+				keypadFoldTable, keysym, existing, name,
 			)
 		}
 
