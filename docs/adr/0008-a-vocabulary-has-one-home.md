@@ -21,6 +21,14 @@ the raw character `"\x03"` and matches nothing, while numpad Clear arrives as
 validator rejects. Every one of these fails silently, which is what a
 vocabulary written four times does.
 
+Those four are the state this ADR was written against, and three are now
+fixed: the navigation keys reach X11 and Windows (#1382), the macOS numpad
+folds to named keys (#1377), and `Insert` validates everywhere (#1390). The
+paragraph above is kept as written because the decision below was made against
+it, and because the shape it describes outlived the instances — `Insert` is
+now the accepted spelling that X11, Windows and macOS all drop, which is the
+same failure wearing the opposite sign.
+
 The element roles have the opposite shape: one real home —
 `internal/domain/element`'s `RoleVocabulary` table, with per-platform coverage
 tests on the AT-SPI and UIA columns — and a spelling that looks like a
