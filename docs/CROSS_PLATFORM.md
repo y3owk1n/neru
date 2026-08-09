@@ -225,10 +225,14 @@ focused app still receives every key
 ([global_hotkey_cgo.go](../internal/adapter/eventtap/linux/global_hotkey_cgo.go)).
 Two conditions apply: the process needs read access to `/dev/input` (add your
 user to the `input` group), and it requires CGO — a `CGO_ENABLED=0` build gets a
-no-op stub. When the listener cannot start, Neru logs a warning pointing at both
-the `input` group and the fallback: bind `neru <mode>` as a compositor
-keybinding. While a mode is active the in-mode event tap grabs the same devices,
-so the listener naturally goes quiet until the mode exits.
+stub whose `Start` reports `CodeNotSupported`
+([global_hotkey_nocgo.go](../internal/adapter/eventtap/linux/global_hotkey_nocgo.go)).
+Either way the listener cannot start, and Neru warns with the remediation that
+fits. An unreadable `/dev/input` points at the `input` group; a no-cgo build
+points at the build, and is warned about once, since no retry changes how the
+binary was compiled. Both name the same fallback — bind `neru <mode>` as a
+compositor keybinding. While a mode is active the in-mode event tap grabs the
+same devices, so the listener naturally goes quiet until the mode exits.
 
 **Smooth cursor animation on Linux.** Off by default; opt in with
 `smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`

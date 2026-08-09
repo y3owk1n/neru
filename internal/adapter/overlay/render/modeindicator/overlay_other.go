@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Overlay manages the rendering of mode indicator overlays (non-darwin stub).
@@ -34,9 +35,14 @@ func NewOverlay(
 	}, nil
 }
 
-// DrawModeIndicator draws the mode indicator for the specified mode (non-darwin stub).
-func (o *Overlay) DrawModeIndicator(mode string) error {
-	return nil
+// DrawModeIndicator reports CodeNotSupported: off darwin the badge is painted
+// onto the manager's shared surface, not by this type. ResolveLabelText below
+// is the part of the indicator that does live here.
+func (o *Overlay) DrawModeIndicator(_ string) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"mode indicator drawing is handled by the overlay manager's native surface off darwin",
+	)
 }
 
 // Show shows the mode indicator overlay (non-darwin stub).

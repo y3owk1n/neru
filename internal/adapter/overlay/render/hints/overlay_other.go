@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Overlay is the non-darwin hints overlay. Drawing happens in the overlay
@@ -41,9 +42,14 @@ func NewOverlayWithWindow(
 	}, nil
 }
 
-// DrawHints draws the hints using the specified style (non-darwin stub).
-func (o *Overlay) DrawHints(hints []*Hint, style StyleMode) error {
-	return nil
+// DrawHints reports CodeNotSupported: off darwin this type owns no surface, so
+// there is nothing here that can paint a label. The manager's backend draws
+// them.
+func (o *Overlay) DrawHints(_ []*Hint, _ StyleMode) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"hint drawing is handled by the overlay manager's native surface off darwin",
+	)
 }
 
 // Show shows the hint overlay (non-darwin stub).

@@ -10,6 +10,7 @@ import (
 
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -29,6 +30,12 @@ type Manager struct {
 	// reads, since compositors do not expose global hotkeys to clients.
 	waylandHotkeys *eventtaplinux.GlobalHotkeyListener
 	waylandStarted bool
+	// waylandUnsupportedLogged latches the CodeNotSupported refusal so the
+	// build-is-missing-evdev warning is said once. Registration retries Start
+	// per hotkey, and the sleep/reload recovery loop retries registration up to
+	// ten times, so an unlatched warning would repeat dozens of times for an
+	// answer fixed at compile time.
+	waylandUnsupportedLogged bool
 }
 
 // NewManager creates and creates a new hotkey manager instance.
@@ -214,11 +221,7 @@ func (m *Manager) ensureWaylandStarted() {
 
 	err := m.waylandHotkeys.Start()
 	if err != nil {
-		m.logger.Warn(
-			"Wayland global hotkeys unavailable; grant read access to /dev/input "+
-				"(add your user to the `input` group) or bind `neru <mode>` in your compositor instead",
-			zap.Error(err),
-		)
+		m.logWaylandStartFailure(err)
 
 		return
 	}
@@ -226,6 +229,41 @@ func (m *Manager) ensureWaylandStarted() {
 	m.waylandStarted = true
 
 	m.logger.Info("Wayland global hotkeys enabled via evdev; config keybindings are active")
+}
+
+// logWaylandStartFailure explains a failed Start in terms the user can act on.
+// Callers must hold m.mu.
+//
+// The two failures need different advice. A CodeNotSupported refusal means this
+// binary was built without cgo and carries no evdev reader at all, so telling
+// the user to join the `input` group sends them after a fix that cannot work —
+// and nothing about a compile-time answer changes on a later attempt, which is
+// why it is said once. Everything else is a live listener that could not read
+// `/dev/input`, which permissions can still fix, so that one keeps warning per
+// attempt.
+func (m *Manager) logWaylandStartFailure(err error) {
+	if derrors.IsNotSupported(err) {
+		if m.waylandUnsupportedLogged {
+			return
+		}
+
+		m.waylandUnsupportedLogged = true
+
+		m.logger.Warn(
+			"Wayland global hotkeys unavailable: this build has no evdev support "+
+				"(built without cgo). Bind `neru <mode>` in your compositor instead, "+
+				"or use a cgo-enabled build",
+			zap.Error(err),
+		)
+
+		return
+	}
+
+	m.logger.Warn(
+		"Wayland global hotkeys unavailable; grant read access to /dev/input "+
+			"(add your user to the `input` group) or bind `neru <mode>` in your compositor instead",
+		zap.Error(err),
+	)
 }
 
 func (m *Manager) stopWayland() {
