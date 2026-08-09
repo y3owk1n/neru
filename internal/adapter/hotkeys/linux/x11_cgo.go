@@ -265,10 +265,16 @@ func parseX11Hotkey(display *C.Display, keyString string) (C.uint, C.uint, error
 // and "End" landing on the right keysym through XStringToKeysym is a
 // coincidence of spelling, not a contract.
 //
-// The rest fall through to XStringToKeysym: punctuation, and the named keys
-// X11 spells the same way Neru does — Delete, Insert and F1-F24. "Backspace"
-// is the one named key neither path resolves, since X11 spells it "BackSpace";
-// that gap predates this switch and is untouched here.
+// "Backspace" is the same story with a sharper edge: X11 spells it "BackSpace",
+// so it resolved through neither path, and the repair that suggests itself —
+// folding the name through the vocabulary's aliases — grabs the wrong physical
+// key, for the reason x11CanonicalKeyName below sets out. Delete and Insert are
+// mapped alongside it rather than left to their matching spellings, so a reader
+// sees the three editing keys and their distinct keysyms in one place.
+//
+// The rest fall through to XStringToKeysym: punctuation, and F1-F24, where
+// X11's own name for the key is the name Neru writes. Those are pinned by test
+// across the range instead of restating 24 spellings here.
 func x11KeysymFor(key string) C.KeySym {
 	key = strings.TrimSpace(key)
 	if len(key) == 1 {
@@ -291,6 +297,12 @@ func x11KeysymFor(key string) C.KeySym {
 		return C.XK_Tab
 	case keyvocab.KeyEscape:
 		return C.XK_Escape
+	case keyvocab.KeyBackspace:
+		return C.XK_BackSpace
+	case keyvocab.KeyDelete:
+		return C.XK_Delete
+	case keyvocab.KeyInsert:
+		return C.XK_Insert
 	case keyvocab.KeyUp:
 		return C.XK_Up
 	case keyvocab.KeyDown:
