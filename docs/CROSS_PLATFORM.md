@@ -934,8 +934,31 @@ platform work:
 - `just release-ci-linux <arch> <version>` / `just release-ci-windows <arch>
   <version>` — the tagged release binaries CI produces.
 
-Cross-compiled binaries build from any host, but only the target OS can run
-`just test` meaningfully — integration tests are tagged per-OS.
+Only the target OS can run `just test` meaningfully — integration tests are
+tagged per-OS.
+
+### `just build-linux` needs a Linux-targeting C compiler
+
+`just build-windows` cross-compiles from any host, because Windows is a CGO-off
+build. `just build-linux` does not: Linux needs CGO for the X11 and Wayland
+backends, which drags in Go's own cgo runtime (`linux_syscall.c`,
+`gcc_<arch>.S`). A macOS clang compiles that against the macOS SDK and fails.
+
+The recipe checks the compiler's target triple up front and refuses with the
+alternatives rather than failing inside Go's runtime. From a macOS host, use:
+
+- `just lint-cross` — compiles and lints the linux/amd64 build with CGO on, in
+  Docker
+- `just check-cross` — a fast CGO-off type-check of the Linux and Windows
+  builds, no Docker needed
+- `CGO_ENABLED=0 GOOS=linux GOARCH=<arch> go build ./cmd/neru` — a pure-Go Linux
+  binary. The CGO-only backends compile out, so it is not the shipped product
+
+`just build-linux` still runs on a Linux host, and on any host whose `CC` is a
+Linux cross toolchain. The guard fails open — it only refuses when the compiler
+positively reports a non-Linux target — so it never blocks a build that would
+have worked. The tagged Linux release binaries are built by CI on a native Linux
+runner (`just release-ci-linux`).
 
 ### `just lint` only sees your own platform
 
@@ -953,8 +976,9 @@ with a second value is reported by `unparam`. Those are artifacts of the
 no-cgo build, not real findings — CI lints Linux with cgo enabled. Findings in
 plain-`linux` files (`funcorder`, `godoclint`, `revive`, and similar) are real.
 
-The cgo-only Linux paths cannot be linted from a non-Linux host at all. CI is
-the check for those.
+The cgo-only Linux paths need a real Linux toolchain, so the host cannot lint
+them directly. `just lint-cross` runs them in the same container image the Linux
+CI job uses; without Docker, CI is the check for those.
 
 ## Linux Backend Model
 
