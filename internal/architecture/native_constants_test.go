@@ -181,3 +181,22 @@ func parseNativeInt(t *testing.T, repoRelPath, name, literal string) int64 {
 
 	return value
 }
+
+// mustRewrite doctors a source for an unreadable-copy test, failing when the
+// text it rewrites is no longer there. Without that check a source the rewrite
+// missed would be the source in the tree, which parses fine — and the test
+// would report the pin as strict when it had tested nothing.
+//
+// It lives here rather than with either pin that doctors sources
+// (named_key_tables_test.go, wayland_keypad_folds_test.go) for the reason
+// readNativeSource does: two pins reading the same file two ways is the
+// divergence these guardrails exist to catch.
+func mustRewrite(t *testing.T, source, from, into string) string {
+	t.Helper()
+
+	if !strings.Contains(source, from) {
+		t.Fatalf("no %q in the source to rewrite; this test needs updating", from)
+	}
+
+	return strings.Replace(source, from, into, 1)
+}

@@ -102,8 +102,8 @@ are the precedent, not the exception.
   predicate. The pin now runs the shared Go rule and reads only the Objective-C
   one, exactly as the label-autohide pin beside it does.
 - **The exception is the half of this rule deletion cannot enforce, so what is
-  pinned is inventoried here.** Five language-boundary copies are pinned as of
-  #1374: the three named above, plus the synthetic key-up and modifier-toggle
+  pinned is inventoried here.** Six language-boundary copies are pinned as of
+  #1402: the three named above, plus the synthetic key-up and modifier-toggle
   wire prefixes, which `internal/adapter/platform/darwin/eventtap_darwin.m` and
   `internal/adapter/platform/linux/overlay_wayland.c` format with `printf`
   because neither can import `internal/domain/keyvocab`, held to that package by
@@ -128,6 +128,35 @@ are the precedent, not the exception.
   where, which `keymap_integration_darwin_test.go` owns — on a tagged,
   macOS-only run, so deleting a fold outright is caught there and not by the
   pin.
+
+  The sixth is a list again, and the first list whose Go side this package
+  cannot link: what each keysym the keypad reports is called. That is decided
+  in `neru_normalize_xkb_name`
+  (`internal/adapter/platform/linux/wayland_keymap.c`) and transcribed into Go
+  three times — the keysym cascade in
+  `internal/adapter/eventtap/linux/x11_cgo.go` (#1385), `evdevKeyNames` in
+  `internal/adapter/eventtap/linux/evdev_keys.go` (#1399), and the test tables
+  mirroring both, which carry `want` columns of their own and so are a copy and
+  not a reading of one. `internal/architecture/wayland_keypad_folds_test.go`
+  holds all four to the C source. What it had to do differently is read the Go
+  copies as text as well as the C one: both are behind `//go:build linux` and
+  one behind cgo besides, so an untagged package cannot reference them, where
+  the pins above hold their native side to a Go declaration they import.
+  `hint_placement_vocabulary_test.go` already reads one build-tagged Go
+  function with `go/ast` for that reason; this is the same move over two whole
+  tables and the two test tables mirroring them. It declares per keysym which
+  copy must carry the name: the keypad operators and `KP_Decimal` reach the X11 tap through
+  XLookupString's character branch rather than through the cascade, `KP_Enter`
+  reaches it the way the main `Return` key does, and `KP_Decimal` is the
+  NumLock-on keysym of the key the evdev fallback names through `KP_Delete`.
+  Each of those absences fails the day it stops being one, and `KP_Decimal`,
+  excused from both, is held for presence only — no Go table spells the name
+  that row gives, so it is the one keypad row that is not a decision made
+  twice. The same table's rows outside the keypad — the punctuation,
+  `Page_Up`/`Page_Down` and `Caps_Lock` — are read but not pinned, and the
+  reason is a join rather than a judgement: `evdevKeyNames` answers by kernel
+  key code, and only for the keypad does the tree say which keysym a code
+  reports, which is what `keypadKeyNameCases` is.
 
   That list is the complete set of *pinned* copies, and it is deliberately not a
   claim that no others exist — sweeping for them while writing the sub-key

@@ -41,7 +41,7 @@
 //     goes through, rather than a second way to read a .h or a .m.
 //   - native_rule_test.go — the comparison vocabulary the rule-shaped
 //     language-boundary pins share, so no two of them read an operator
-//     differently.
+//     differently, plus the reader that finds a native definition's body.
 //   - overlay_frame_test.go — an overlay Frame carries domain values only.
 //   - platform_slots_test.go — platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
@@ -60,4 +60,7 @@
 //     over by every draw that can put one on screen.
 //   - test_quality_test.go — no test swallows an error, and every test body
 //     can fail.
+//   - wayland_keypad_folds_test.go — the keypad names the Wayland keymap folds
+//     to are the names the X11 and evdev taps answer with, and the ones their
+//     tests expect.
 package architecture
