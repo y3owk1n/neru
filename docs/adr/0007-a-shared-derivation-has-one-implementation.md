@@ -102,8 +102,8 @@ are the precedent, not the exception.
   predicate. The pin now runs the shared Go rule and reads only the Objective-C
   one, exactly as the label-autohide pin beside it does.
 - **The exception is the half of this rule deletion cannot enforce, so what is
-  pinned is inventoried here.** Six language-boundary copies are pinned as of
-  #1402: the three named above, plus the synthetic key-up and modifier-toggle
+  pinned is inventoried here.** Seven language-boundary copies are pinned as of
+  #1407: the three named above, plus the synthetic key-up and modifier-toggle
   wire prefixes, which `internal/adapter/platform/darwin/eventtap_darwin.m` and
   `internal/adapter/platform/linux/overlay_wayland.c` format with `printf`
   because neither can import `internal/domain/keyvocab`, held to that package by
@@ -157,6 +157,27 @@ are the precedent, not the exception.
   reason is a join rather than a judgement: `evdevKeyNames` answers by kernel
   key code, and only for the keypad does the tree say which keysym a code
   reports, which is what `keypadKeyNameCases` is.
+
+  The seventh is neither a constant, a rule nor a list but a *layout*, and it
+  is the one whose Go side this package can link. `callbackContext`
+  (`internal/adapter/platform/darwin/callback_context.h`) is allocated on the C
+  heap, retained across two `dispatch_async` hops, and cast straight to
+  `overlayutil.CallbackContext` by the `//export`ed Go side that reads it back;
+  a disagreement is a callback ID and a generation read from the wrong offsets,
+  and nothing fails to compile.
+  `internal/architecture/callback_context_layout_test.go` holds the two to the
+  same field names, order and integer widths. It reads the header through
+  `readNativeSource` like every pin here and *reflects* over the Go struct
+  rather than parsing it, which is the state the sub-key-preview pin above
+  reached only after #1297 gave its Go copy an untagged home: `overlayutil`
+  never had a build tag, so the Go side can be linked on every CI leg, and
+  `reflect` answers with the field order and width the cast actually depends on
+  rather than with the spelling the declaration happens to use. What the pin
+  buys differs by leg, because the cgo allocator in
+  `internal/adapter/platform/darwin/cstring.go` already catches some of these
+  as compile errors on macOS and nothing catches any of them off it; which
+  cases are left to the pin is written in the pin's own doc comment, where
+  someone editing it will read it.
 
   That list is the complete set of *pinned* copies, and it is deliberately not a
   claim that no others exist — sweeping for them while writing the sub-key

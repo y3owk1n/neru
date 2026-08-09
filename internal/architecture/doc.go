@@ -8,6 +8,9 @@
 //
 //   - agent_contract_test.go — the agent guide layout: an AGENTS.md beside
 //     every CLAUDE.md symlink, .agents/skills canonical, worktrees ignored.
+//   - callback_context_layout_test.go — the C callback context struct and the
+//     Go struct it is cast to have the same fields, in the same order, at the
+//     same widths.
 //   - cgo_includes_test.go — relative #include paths resolve, and native
 //     headers are reached through internal/adapter/platform/<os>/.
 //   - comment_paths_test.go — a path header, or a comment pointing at a
