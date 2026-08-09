@@ -118,15 +118,22 @@ func parseNativeRuleCondition(condition string) ([]nativeRuleComparison, string,
 	return comparisons, join, ""
 }
 
-// nativeRuleMethodEndPattern matches the closing brace of an Objective-C method
-// definition, which sits in the first column.
+// nativeRuleMethodEndPattern matches the closing brace of a native definition,
+// which sits in the first column in the Objective-C methods and the C functions
+// these pins read alike.
 var nativeRuleMethodEndPattern = regexp.MustCompile(`(?m)^\}`)
 
-// nativeRuleMethodBody returns the body of the Objective-C method a rule lives
-// in, found by the pattern matching its opening line. Addressing a method by
-// name means a rename surfaces as a failure rather than as a silent pass over a
-// method that no longer exists, so a source the opening pattern does not match
-// is reported with the spelling it was looked for by.
+// nativeRuleMethodBody returns the body of the native definition a pinned copy
+// lives in — an Objective-C method or a C function — found by the pattern
+// matching its opening line. Addressing it by name means a rename surfaces as a
+// failure rather than as a silent pass over a definition that no longer exists,
+// so a source the opening pattern does not match is reported with the spelling
+// it was looked for by.
+//
+// It is the one part of this file a pin that is not rule-shaped uses:
+// named_key_tables_test.go reads its tables out of two methods this way, and
+// wayland_keypad_folds_test.go reads the keypad fold table out of a C
+// function.
 func nativeRuleMethodBody(
 	source string,
 	opening *regexp.Regexp,

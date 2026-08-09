@@ -1080,17 +1080,3 @@ func parseDarwinNamedKeySwitch(body string) (map[string]string, string) {
 
 	return arms, ""
 }
-
-// mustRewrite doctors a native source for the unreadable-table test, failing
-// when the text it rewrites is no longer there. Without that check a source the
-// rewrite missed would be the source in the tree, which parses fine — and the
-// test would report the pin as strict when it had tested nothing.
-func mustRewrite(t *testing.T, source, from, into string) string {
-	t.Helper()
-
-	if !strings.Contains(source, from) {
-		t.Fatalf("no %q in the native source to rewrite; this test needs updating", from)
-	}
-
-	return strings.Replace(source, from, into, 1)
-}
