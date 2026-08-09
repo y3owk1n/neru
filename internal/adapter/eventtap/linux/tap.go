@@ -3,7 +3,6 @@
 package linux
 
 import (
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
@@ -374,7 +374,11 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 	// or wl_keyboard events, so the synthetic event never re-enters.
 	// Remembering it would falsely suppress a genuine physical modifier
 	// press within the suppression window.
-	onWayland := os.Getenv("WAYLAND_DISPLAY") != ""
+	//
+	// This must be the same answer postLinuxModifierEvent gives, or the
+	// bookkeeping is kept for an injection that never happens; both ask the
+	// one detector.
+	onWayland := platform.DetectLinuxBackend().IsWayland()
 	if !onWayland {
 		et.rememberSyntheticModifierEvent(modifier, isDown)
 	}
@@ -460,9 +464,16 @@ func (et *EventTap) firePassthroughCallback() {
 	}
 }
 
-// run starts the event interception loop.
+// run starts the event interception loop: evdev under a Wayland compositor, a
+// keyboard grab on X11.
+//
+// The choice comes off platform.DetectLinuxBackend, the one detector for the
+// compositor family, rather than a read of the environment here — this package
+// has always documented it that way and did not do it (#1429). A backend the
+// factory refuses to serve runs the X11 loop, which finds no DISPLAY and
+// returns.
 func (et *EventTap) run() {
-	if os.Getenv("WAYLAND_DISPLAY") != "" {
+	if platform.DetectLinuxBackend().IsWayland() {
 		et.runWayland()
 	} else {
 		et.runX11()

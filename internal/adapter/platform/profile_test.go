@@ -74,8 +74,9 @@ func TestProfileFor(t *testing.T) {
 			var got Profile
 			if testCase.target == Linux {
 				// Use linuxProfile directly so the test does not depend on
-				// ambient environment variables (DISPLAY, XDG_SESSION_TYPE, …).
-				// Display-server detection is covered by TestDetectLinuxDisplayServer.
+				// ambient environment variables (DISPLAY, XDG_CURRENT_DESKTOP, …).
+				// Which display server the running session gets is covered by
+				// TestProfileFor_LinuxReportsTheStackTheDaemonDrives.
 				got = linuxProfile(testCase.wantDisplay)
 			} else {
 				got = ProfileFor(testCase.target)
@@ -159,39 +160,6 @@ func TestProfileFor(t *testing.T) {
 					got.Notifications.BuildMode,
 					testCase.wantNotifyBuild,
 				)
-			}
-		})
-	}
-}
-
-func TestDetectLinuxDisplayServer(t *testing.T) {
-	tests := []struct {
-		name        string
-		sessionType string
-		waylandEnv  string
-		xDisplayEnv string
-		wantDisplay DisplayServer
-	}{
-		{
-			name:        "wayland from session type",
-			sessionType: "wayland",
-			wantDisplay: DisplayServerWayland,
-		},
-		{name: "wayland from env", waylandEnv: "wayland-0", wantDisplay: DisplayServerWayland},
-		{name: "x11 from session type", sessionType: "x11", wantDisplay: DisplayServerX11},
-		{name: "x11 from display env", xDisplayEnv: ":0", wantDisplay: DisplayServerX11},
-		{name: string(Unknown), wantDisplay: DisplayServerUnknown},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := detectLinuxDisplayServer(
-				testCase.sessionType,
-				testCase.waylandEnv,
-				testCase.xDisplayEnv,
-			)
-			if got != testCase.wantDisplay {
-				t.Fatalf("detectLinuxDisplayServer() = %q, want %q", got, testCase.wantDisplay)
 			}
 		})
 	}

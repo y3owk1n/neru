@@ -90,7 +90,10 @@ label and the matrix disagree, the matrix is right.
 
 Linux is not one target. The live backend is detected once at startup from
 `XDG_CURRENT_DESKTOP`, `WAYLAND_DISPLAY`, and `DISPLAY`
-([backend_linux.go](../internal/adapter/platform/backend_linux.go)):
+([backend_linux.go](../internal/adapter/platform/backend_linux.go)). This is the
+only place the compositor *family* is decided — the `display_server` field in
+`neru info` and `neru doctor` names the stack of whichever row below matched,
+rather than reading the environment a second time:
 
 | Backend                | Detected when                                       | Status                       |
 | ---------------------- | --------------------------------------------------- | ---------------------------- |

@@ -49,6 +49,38 @@ func (b LinuxBackend) String() string {
 	}
 }
 
+// IsWayland reports whether this backend runs under a Wayland compositor, the
+// split every subsystem with two implementations dispatches on.
+func (b LinuxBackend) IsWayland() bool {
+	switch b {
+	case BackendWaylandWlroots, BackendWaylandKDE, BackendWaylandGNOME, BackendWaylandOther:
+		return true
+	case BackendX11, BackendUnknown:
+		return false
+	default:
+		return false
+	}
+}
+
+// displayServer returns the display-stack label for this backend: what the
+// daemon is driving, said in the vocabulary `neru info` and `neru doctor`
+// report. It is derived rather than detected on purpose — a second read of the
+// environment answered "wayland" for a session whose backend was X11 (#1429).
+func (b LinuxBackend) displayServer() DisplayServer {
+	switch b {
+	case BackendX11:
+		return DisplayServerX11
+	case BackendWaylandKDE:
+		return DisplayServerWaylandKDE
+	case BackendWaylandWlroots, BackendWaylandGNOME, BackendWaylandOther:
+		return DisplayServerWayland
+	case BackendUnknown:
+		return DisplayServerUnknown
+	default:
+		return DisplayServerUnknown
+	}
+}
+
 var (
 	cachedBackend     LinuxBackend
 	cachedBackendOnce sync.Once
