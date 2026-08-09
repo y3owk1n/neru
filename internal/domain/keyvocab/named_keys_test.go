@@ -23,6 +23,10 @@ const (
 	keyInsert    = "Insert"
 	keyPageDown  = "PageDown"
 
+	keyMouseLeft   = "MouseLeft"
+	keyMouseRight  = "MouseRight"
+	keyMouseMiddle = "MouseMiddle"
+
 	nameEnter     = "enter"
 	nameBackspace = "backspace"
 	nameInsert    = "insert"
@@ -37,6 +41,7 @@ func documentedNamedKeys() []string {
 		"Space", keyReturn, keyEnter, keyEscape, "Tab", keyDelete, keyBackspace,
 		"Up", "Down", keyLeft, "Right", "Home", "End", "PageUp", keyPageDown,
 		keyInsert,
+		keyMouseLeft, keyMouseRight, keyMouseMiddle,
 	}
 	for index := 1; index <= 24; index++ {
 		keys = append(keys, "F"+strconv.Itoa(index))

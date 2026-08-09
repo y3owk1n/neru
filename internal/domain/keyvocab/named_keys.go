@@ -29,7 +29,42 @@ const (
 	// reaches a binding only on Linux and Windows. It stays in the shared set
 	// for the same reason F21-F24 do.
 	KeyInsert = "Insert"
+	// KeyMouseLeft, KeyMouseRight and KeyMouseMiddle are the physical mouse
+	// buttons. They are named keys because a mode binds them the way it binds a
+	// key, but they are not keystrokes: no virtual keycode names them, and only
+	// the macOS tap reports them today. Two consequences callers rely on — a
+	// mode observes a button without consuming it, so the click still reaches
+	// the application underneath, and a button carries no modifier prefix, so a
+	// modified click reports the button alone.
+	KeyMouseLeft   = "MouseLeft"
+	KeyMouseRight  = "MouseRight"
+	KeyMouseMiddle = "MouseMiddle"
 )
+
+// mouseButtons is the subset of the vocabulary that names a mouse button
+// rather than a keystroke. It exists so the global-hotkey validator can refuse
+// one: a global hotkey is resolved to a virtual keycode, which no mouse button
+// has, so a binding written there would parse and then never fire.
+var mouseButtons = []string{KeyMouseLeft, KeyMouseRight, KeyMouseMiddle}
+
+// IsMouseButton reports whether name is one of the mouse buttons,
+// case-insensitively.
+func IsMouseButton(name string) bool {
+	lowered := strings.ToLower(name)
+
+	return slices.ContainsFunc(mouseButtons, func(button string) bool {
+		return strings.ToLower(button) == lowered
+	})
+}
+
+// MouseButtons returns every mouse button in display form, sorted, so a caller
+// listing them in a diagnostic reads the declaration rather than restating it.
+func MouseButtons() []string {
+	buttons := slices.Clone(mouseButtons)
+	slices.Sort(buttons)
+
+	return buttons
+}
 
 // shorthandEscape is the one spelling that resolves to a named key without
 // being one. It is deliberately absent from namedKeys: a keystroke arriving as
@@ -82,6 +117,9 @@ func buildNamedKeys() []string {
 		KeyPageUp,
 		KeyPageDown,
 		KeyInsert,
+		KeyMouseLeft,
+		KeyMouseRight,
+		KeyMouseMiddle,
 	}
 
 	for index := 1; index <= functionKeyCount; index++ {

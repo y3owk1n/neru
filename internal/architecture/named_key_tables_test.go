@@ -96,7 +96,20 @@ var darwinNamedKeyGaps = map[string]string{
 	keyvocab.KeyInsert: "Carbon declares no Insert virtual key code, " +
 		"so an Insert binding reaches a keystroke only on Linux and Windows — " +
 		"the same shape as the F21-F24 gap (docs/adr/0008-a-vocabulary-has-one-home.md)",
+	keyvocab.KeyMouseLeft:   mouseButtonsAreNotKeystrokes,
+	keyvocab.KeyMouseRight:  mouseButtonsAreNotKeystrokes,
+	keyvocab.KeyMouseMiddle: mouseButtonsAreNotKeystrokes,
 }
+
+// mouseButtonsAreNotKeystrokes is the reason the mouse buttons are missing from
+// the macOS keyboard tables, and it is a different shape from the other gaps:
+// F21-F24 and Insert are keys Carbon happens not to declare a code for, while a
+// mouse button has no virtual key code to declare. The tap names one straight
+// from the mouse event type rather than through specialKeyName, so neither
+// keyboard table carries it and neither should grow an entry.
+const mouseButtonsAreNotKeystrokes = "a mouse button is not a keystroke and has " +
+	"no virtual key code; the event tap names it from the mouse event type " +
+	"rather than through the keyboard tables"
 
 // TestDarwinNamedKeyTablesArePinnedToTheVocabulary keeps macOS binding the keys
 // Neru says it binds.

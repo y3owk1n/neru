@@ -138,6 +138,7 @@ or no-op) · ❌ no code path
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
 | **Keyboard capture**          | ✅ CGEventTap            | ✅ `XGrabKeyboard`     | ✅ evdev grab (wl-keyboard fallback) | ✅ evdev grab   | ✅ `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
+| **Mouse buttons as bindings** | ✅ CGEventTap, observed  | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
 | **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
