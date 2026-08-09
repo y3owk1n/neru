@@ -49,9 +49,20 @@ var carbonKeyCodes = map[string]uint16{
 	"F20":                90,
 }
 
-// darwinNamedKeyGaps are the named keys Carbon declares no virtual key code
-// for, so a binding on one reaches a keystroke only on Linux and Windows.
-var darwinNamedKeyGaps = []string{"F21", "F22", "F23", "F24", keyvocab.KeyInsert}
+// darwinNamedKeyGaps are the named keys that parse to no Carbon virtual key
+// code. Two shapes are in here for different reasons. F21-F24 and Insert are
+// keys Carbon happens not to declare a code for, so a binding on one reaches a
+// keystroke only on Linux and Windows. The mouse buttons are not keystrokes at
+// all: no virtual key code could name one, the mode event tap names them from
+// the mouse event type rather than through the keymap, and a global hotkey on
+// one is refused at validation precisely because this parse cannot succeed.
+var darwinNamedKeyGaps = []string{
+	"F21", "F22", "F23", "F24",
+	keyvocab.KeyInsert,
+	keyvocab.KeyMouseLeft,
+	keyvocab.KeyMouseRight,
+	keyvocab.KeyMouseMiddle,
+}
 
 // TestParseKeyString_NamedKeysParseToTheirCarbonKeyCode checks that every
 // named key a config can bind parses to the key it means on macOS. A name the

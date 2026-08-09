@@ -22,7 +22,8 @@ On Linux, Neru supports X11 and the Wayland desktops listed in
 - **Alpha**: core navigation works, but hint coverage is incomplete and per-app
   config does not re-apply on focus change.
 
-Windows has one known gap and Linux has two, under [Known gaps](#known-gaps).
+Windows has two known gaps and Linux has three, under
+[Known gaps](#known-gaps).
 Both stay Beta because CI proves them rather than daily use. A Beta platform
 becomes Stable after six releases in a row with no bug filed against it alone.
 
@@ -233,13 +234,17 @@ Linux and Windows have no exclusives.
 A gap is anything you can write that means less on a platform than on macOS.
 A boundary is a requirement the platform imposes, not something Neru lacks.
 
-**Linux**: two gaps.
+**Linux**: three gaps.
 
 - **Vim mode reads Latin script and the languages the locale names**, with
   their tesseract language data installed. macOS reads every script it knows.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.
+- **`MouseLeft`, `MouseRight` and `MouseMiddle` validate but never fire.** Only
+  the macOS tap reports a physical mouse button: the evdev capture is scoped to
+  keyboards, and X11 would need raw XInput2 button events. They stay valid so
+  one config works everywhere.
 
 These are boundaries, not gaps:
 
@@ -263,6 +268,9 @@ These are boundaries, not gaps:
 
 - **Vim mode reads one language**, the first in the account's language list
   that has an OCR pack. macOS reads every script it knows.
+- **The three mouse buttons validate but never fire**, for the same reason they
+  do not on Linux. The low-level hook captures keys only, and a `WH_MOUSE_LL`
+  hook beside it would be what reports a button.
 
 These are boundaries, not gaps:
 
