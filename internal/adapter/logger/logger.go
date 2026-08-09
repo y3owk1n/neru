@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -196,16 +195,9 @@ func Sync() error {
 	defer logFileMu.RUnlock()
 
 	if globalLogger != nil {
-		err := globalLogger.Sync()
+		err := genuineSyncFailure(globalLogger.Sync())
 		if err != nil {
-			// Ignore common sync errors that occur when stdout/stderr is a
-			// pipe or terminal:
-			//   - "invalid argument" (EINVAL on Linux)
-			//   - "inappropriate ioctl for device" (ENOTSUP on macOS)
-			if !strings.Contains(err.Error(), "invalid argument") &&
-				!strings.Contains(err.Error(), "inappropriate ioctl for device") {
-				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
-			}
+			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 		}
 	}
 
@@ -219,13 +211,9 @@ func Close() error {
 	defer logFileMu.Unlock()
 
 	if globalLogger != nil {
-		err := globalLogger.Sync()
+		err := genuineSyncFailure(globalLogger.Sync())
 		if err != nil {
-			// Ignore common sync errors that occur during shutdown
-			if !strings.Contains(err.Error(), "invalid argument") &&
-				!strings.Contains(err.Error(), "inappropriate ioctl for device") {
-				return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
-			}
+			return derrors.Wrap(err, derrors.CodeLoggingFailed, "failed to sync logger")
 		}
 
 		globalLogger = nil
