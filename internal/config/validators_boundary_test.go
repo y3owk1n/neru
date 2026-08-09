@@ -34,13 +34,13 @@ func fontSizeBounds() []intBound {
 		{
 			name:     "hints.ui.font_size",
 			set:      func(c *config.Config, v int) { c.Hints.UI.FontSize = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1, maxValid: math.MaxInt32,
 		},
 		{
 			name:     "hints.search_input_ui.font_size",
 			set:      func(c *config.Config, v int) { c.Hints.SearchInputUI.FontSize = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1, maxValid: math.MaxInt32,
 		},
 		{
@@ -96,13 +96,13 @@ func visionIntBounds() []intBound {
 		{
 			name:     "hints.vision.request_timeout_ms",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.RequestTimeoutMS = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 		{
 			name:     "hints.vision.rectangle_max_candidates",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.RectangleMaxCandidates = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 	}
@@ -144,7 +144,7 @@ func assertConfigValid(t *testing.T, cfg *config.Config, what string) {
 	t.Helper()
 
 	validators := map[string]func(*config.Config) error{
-		"ValidateHints":           (*config.Config).ValidateHints,
+		"ValidateHints":           func(c *config.Config) error { return c.ValidateHints(nil) },
 		"ValidateGrid":            func(c *config.Config) error { return c.ValidateGrid(nil, config.WrittenConfig{}) },
 		"ValidateMonitorSelect":   (*config.Config).ValidateMonitorSelect,
 		"ValidateStickyModifiers": (*config.Config).ValidateStickyModifiers,
@@ -310,14 +310,14 @@ func TestConfig_UnitFloatBoundaries(t *testing.T) {
 			for _, value := range []float64{-0.001, -1, 1.001, 2} {
 				cfg := validBase(t)
 				bound.set(cfg, value)
-				assertRejected(t, cfg.ValidateHints(), bound.name, value)
+				assertRejected(t, cfg.ValidateHints(nil), bound.name, value)
 			}
 
 			// 1.0 is the inclusive upper bound for both variants.
 			cfg := validBase(t)
 			bound.set(cfg, 1)
 
-			err := cfg.ValidateHints()
+			err := cfg.ValidateHints(nil)
 			if err != nil {
 				t.Errorf("%s = 1 (the inclusive maximum) was rejected: %v", bound.name, err)
 			}
@@ -326,7 +326,7 @@ func TestConfig_UnitFloatBoundaries(t *testing.T) {
 			cfg = validBase(t)
 			bound.set(cfg, 0)
 
-			err = cfg.ValidateHints()
+			err = cfg.ValidateHints(nil)
 			if bound.inclusiveZero {
 				if err != nil {
 					t.Errorf("%s = 0 was rejected, but this field allows zero: %v", bound.name, err)
@@ -339,7 +339,7 @@ func TestConfig_UnitFloatBoundaries(t *testing.T) {
 			cfg = validBase(t)
 			bound.set(cfg, 0.5)
 
-			err = cfg.ValidateHints()
+			err = cfg.ValidateHints(nil)
 			if err != nil {
 				t.Errorf("%s = 0.5 was rejected: %v", bound.name, err)
 			}
@@ -385,28 +385,28 @@ func TestConfig_AspectPairBoundaries(t *testing.T) {
 			for _, value := range []float64{0, -0.5} {
 				cfg := validBase(t)
 				pair.setMin(cfg, value)
-				assertRejected(t, cfg.ValidateHints(), pair.name+" min", value)
+				assertRejected(t, cfg.ValidateHints(nil), pair.name+" min", value)
 			}
 
 			// A non-positive maximum is rejected.
 			for _, value := range []float64{0, -0.5} {
 				cfg := validBase(t)
 				pair.setMax(cfg, value)
-				assertRejected(t, cfg.ValidateHints(), pair.name+" max", value)
+				assertRejected(t, cfg.ValidateHints(nil), pair.name+" max", value)
 			}
 
 			// min > max is rejected even when both are positive.
 			cfg := validBase(t)
 			pair.setMin(cfg, 5)
 			pair.setMax(cfg, 2)
-			assertRejected(t, cfg.ValidateHints(), pair.name+" min>max", "5 > 2")
+			assertRejected(t, cfg.ValidateHints(nil), pair.name+" min>max", "5 > 2")
 
 			// min == max is the inclusive edge and must be accepted.
 			cfg = validBase(t)
 			pair.setMin(cfg, 2)
 			pair.setMax(cfg, 2)
 
-			err := cfg.ValidateHints()
+			err := cfg.ValidateHints(nil)
 			if err != nil {
 				t.Errorf("%s with min == max == 2 was rejected: %v", pair.name, err)
 			}
@@ -429,31 +429,31 @@ func visionSizeThresholds() []intBound {
 		{
 			name:     "hints.vision.button_icon_max_size",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.ButtonIconMaxSize = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 		{
 			name:     "hints.vision.link_max_height",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.LinkMaxHeight = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 		{
 			name:     "hints.vision.link_min_width",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.LinkMinWidth = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 		{
 			name:     "hints.vision.image_min_size",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.ImageMinSize = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 		{
 			name:     "hints.vision.checkbox_max_size",
 			set:      func(c *config.Config, v int) { c.Hints.Vision.CheckboxMaxSize = v },
-			validate: (*config.Config).ValidateHints,
+			validate: func(c *config.Config) error { return c.ValidateHints(nil) },
 			minValid: 1,
 		},
 	}
@@ -468,14 +468,14 @@ func TestConfig_VisionLinkMinAspectBoundary(t *testing.T) {
 	for _, value := range []float64{0, -0.1, -1} {
 		cfg := validBase(t)
 		cfg.Hints.Vision.LinkMinAspect = value
-		assertRejected(t, cfg.ValidateHints(), "hints.vision.link_min_aspect", value)
+		assertRejected(t, cfg.ValidateHints(nil), "hints.vision.link_min_aspect", value)
 	}
 
 	for _, value := range []float64{0.001, 1, 10} {
 		cfg := validBase(t)
 		cfg.Hints.Vision.LinkMinAspect = value
 
-		err := cfg.ValidateHints()
+		err := cfg.ValidateHints(nil)
 		if err != nil {
 			t.Errorf("hints.vision.link_min_aspect = %v was rejected: %v", value, err)
 		}
@@ -490,7 +490,7 @@ func TestConfig_VisionRequiresADetector(t *testing.T) {
 	cfg.Hints.Vision.DetectText = false
 	cfg.Hints.Vision.DetectRectangles = false
 
-	assertRejected(t, cfg.ValidateHints(), "hints.vision detectors", "both disabled")
+	assertRejected(t, cfg.ValidateHints(nil), "hints.vision detectors", "both disabled")
 
 	// Either one alone is enough.
 	for _, useText := range []bool{true, false} {
@@ -498,7 +498,7 @@ func TestConfig_VisionRequiresADetector(t *testing.T) {
 		cfg.Hints.Vision.DetectText = useText
 		cfg.Hints.Vision.DetectRectangles = !useText
 
-		err := cfg.ValidateHints()
+		err := cfg.ValidateHints(nil)
 		if err != nil {
 			t.Errorf("vision with detect_text=%t, detect_rectangles=%t was rejected: %v",
 				useText, !useText, err)

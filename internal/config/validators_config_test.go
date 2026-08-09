@@ -174,28 +174,28 @@ func TestConfigValidateHints_DuplicateHintChars(t *testing.T) {
 
 	cfg.Hints.HintCharacters = "ab"
 
-	err := cfg.ValidateHints()
+	err := cfg.ValidateHints(nil)
 	if err != nil {
 		t.Fatalf("ValidateHints() unexpected error for unique chars: %v", err)
 	}
 
 	cfg.Hints.HintCharacters = "aab"
 
-	err = cfg.ValidateHints()
+	err = cfg.ValidateHints(nil)
 	if err == nil {
 		t.Fatal("ValidateHints() expected error for duplicate hint_characters")
 	}
 
 	cfg.Hints.HintCharacters = "aba"
 
-	err = cfg.ValidateHints()
+	err = cfg.ValidateHints(nil)
 	if err == nil {
 		t.Fatal("ValidateHints() expected error for duplicate hint_characters (non-adjacent)")
 	}
 
 	cfg.Hints.HintCharacters = "aA"
 
-	err = cfg.ValidateHints()
+	err = cfg.ValidateHints(nil)
 	if err == nil {
 		t.Fatal("ValidateHints() expected error for case-insensitive duplicate hint_characters")
 	}
@@ -206,14 +206,14 @@ func TestConfigValidateHints_AsciiHintChars(t *testing.T) {
 
 	cfg.Hints.HintCharacters = "ab"
 
-	err := cfg.ValidateHints()
+	err := cfg.ValidateHints(nil)
 	if err != nil {
 		t.Fatalf("ValidateHints() unexpected error: %v", err)
 	}
 
 	cfg.Hints.HintCharacters = "aé"
 
-	err = cfg.ValidateHints()
+	err = cfg.ValidateHints(nil)
 	if err == nil {
 		t.Fatal("ValidateHints() expected error for non-ASCII hint_characters")
 	}
