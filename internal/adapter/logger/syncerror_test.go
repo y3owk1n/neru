@@ -96,6 +96,24 @@ func TestGenuineSyncFailure_ReportsFailureOnRedirectedRegularFile(t *testing.T) 
 	}
 }
 
+// A stream whose descriptor is already gone has nothing left to flush to, even
+// when it was pointing at a real file.
+func TestGenuineSyncFailure_NilForClosedStream(t *testing.T) {
+	stream := regularFileStream(t)
+
+	failure := syncFailure(stream, syscall.EBADF)
+
+	closeErr := stream.Close()
+	if closeErr != nil {
+		t.Fatalf("Close() error = %v", closeErr)
+	}
+
+	got := genuineSyncFailureFor(failure, stream)
+	if got != nil {
+		t.Errorf("genuineSyncFailureFor() = %v, want nil", got)
+	}
+}
+
 // Only a failed *flush* of a stream is noise — anything else about it is a real
 // error.
 func TestGenuineSyncFailure_KeepsNonSyncStreamError(t *testing.T) {

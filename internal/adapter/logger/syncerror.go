@@ -81,11 +81,12 @@ func isUnflushableStreamError(err error, streams []*os.File) bool {
 // redirected, so the name alone says nothing: a redirect to a regular file is
 // flushable, and a failure there is real and must be reported. A stream whose
 // descriptor is already gone counts as unflushable — there is nothing left to
-// flush it to.
+// flush it to — but a stream that cannot be inspected for any other reason is
+// given no benefit of the doubt.
 func isUnflushable(stream *os.File) bool {
 	info, err := stream.Stat()
 	if err != nil {
-		return true
+		return errors.Is(err, syscall.EBADF) || errors.Is(err, os.ErrClosed)
 	}
 
 	return !info.Mode().IsRegular()
