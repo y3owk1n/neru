@@ -536,10 +536,11 @@ type RecursiveGridConfig struct {
 	Enabled bool `json:"enabled" toml:"enabled"`
 	// Animation configures native depth transition animations for recursive-grid on supported platforms.
 	Animation RecursiveGridAnimationConfig `json:"animation" toml:"animation"`
-	// Grid dimensions: columns and rows (default: 2x2)
+	// Grid dimensions: columns and rows (default: 3x3)
 	GridCols int `json:"gridCols" toml:"grid_cols"`
 	GridRows int `json:"gridRows" toml:"grid_rows"`
-	// Key bindings (warpd convention for 2x2: u=TL, i=TR, j=BL, k=BR)
+	// Key bindings, one per cell, left to right then top to bottom
+	// (default: rtyfghvbn for the 3x3 grid above)
 	Keys string          `json:"keys" toml:"keys"`
 	UI   RecursiveGridUI `json:"ui"   toml:"ui"`
 	// Behavior

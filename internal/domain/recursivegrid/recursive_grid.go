@@ -7,8 +7,6 @@ import (
 )
 
 const (
-	// MinGridDimension is the minimum allowed value for grid columns or rows.
-	MinGridDimension = 1
 	// DefaultGridCols is the default recursive-grid column count.
 	DefaultGridCols = 3
 	// DefaultGridRows is the default recursive-grid row count.
