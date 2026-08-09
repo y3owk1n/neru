@@ -14,6 +14,7 @@ const (
 	x11KeysymPageUp   = 0xFF55 // XK_Page_Up / XK_Prior
 	x11KeysymPageDown = 0xFF56 // XK_Page_Down / XK_Next
 	x11KeysymEnd      = 0xFF57 // XK_End
+	x11KeysymInsert   = 0xFF63 // XK_Insert
 )
 
 // The keypad keysyms X11 reports while NumLock is off, pinned the same way.
@@ -71,6 +72,12 @@ func TestX11KeyFromLookupNavigationKeys(t *testing.T) {
 			got:       x11KeyFromLookup(0, nil, x11KeysymEnd),
 			evdevCode: evdevKeyEnd,
 			want:      "End",
+		},
+		{
+			name:      "insert",
+			got:       x11KeyFromLookup(0, nil, x11KeysymInsert),
+			evdevCode: evdevKeyInsert,
+			want:      "Insert",
 		},
 	}
 

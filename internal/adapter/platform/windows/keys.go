@@ -31,6 +31,7 @@ const (
 	vkUp       = 0x26
 	vkRight    = 0x27
 	vkDown     = 0x28
+	vkInsert   = 0x2D
 	vkDelete   = 0x2E
 	vkLShift   = 0xA0
 	vkRShift   = 0xA1
@@ -148,6 +149,8 @@ func KeyNameFromVirtualKey(virtualKey uint32) string {
 		return "Home"
 	case vkEnd:
 		return "End"
+	case vkInsert:
+		return "Insert"
 	case vkDelete:
 		return "Delete"
 	case vkLShift, vkRShift:
@@ -347,6 +350,8 @@ func nameToVirtualKey(name string) (uint32, bool) {
 		return vkHome, true
 	case "end":
 		return vkEnd, true
+	case "insert":
+		return vkInsert, true
 	default:
 		if vk, ok := functionKeyVirtualKey(lowered); ok {
 			return vk, true

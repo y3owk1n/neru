@@ -25,9 +25,12 @@ Those four are the state this ADR was written against, and three are now
 fixed: the navigation keys reach X11 and Windows (#1382), the macOS numpad
 folds to named keys (#1377), and `Insert` validates everywhere (#1390). The
 paragraph above is kept as written because the decision below was made against
-it, and because the shape it describes outlived the instances — `Insert` is
-now the accepted spelling that X11, Windows and macOS all drop, which is the
-same failure wearing the opposite sign.
+it, and because the shape it describes outlived the instances — `Insert`
+became the accepted spelling that X11, Windows and macOS all dropped, the same
+failure wearing the opposite sign. X11 and Windows emit it now (#1392), and
+macOS is the one backend left. That one is not the same failure: Carbon
+declares no Insert virtual key code, so it is the documented F21–F24 gap under
+another name.
 
 The element roles have the opposite shape: one real home —
 `internal/domain/element`'s `RoleVocabulary` table, with per-platform coverage

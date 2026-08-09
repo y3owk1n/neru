@@ -101,7 +101,9 @@ func TestFunctionKeyRoundTrip(t *testing.T) {
 // documented as valid on every platform and the other backends emit them, so
 // the hook has to name them and a global hotkey has to register them rather
 // than fail with errUnsupportedHotkeyKey. MapVirtualKey yields no character for
-// these codes, so the explicit table is the only path that names them.
+// these codes, so the explicit table is the only path that names them. Insert
+// is here for the same reason; macOS carries no entry for it, which
+// internal/architecture/named_key_tables_test.go states and pins.
 func TestNavigationKeyRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -114,6 +116,7 @@ func TestNavigationKeyRoundTrip(t *testing.T) {
 		{name: "page down", virtualKey: vkNext, want: "PageDown"},
 		{name: "home", virtualKey: vkHome, want: "Home"},
 		{name: "end", virtualKey: vkEnd, want: "End"},
+		{name: "insert", virtualKey: vkInsert, want: "Insert"},
 	}
 
 	for _, testCase := range testCases {
