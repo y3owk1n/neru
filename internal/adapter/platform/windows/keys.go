@@ -23,6 +23,10 @@ const (
 	vkReturn   = 0x0D
 	vkEscape   = 0x1B
 	vkSpace    = 0x20
+	vkPrior    = 0x21
+	vkNext     = 0x22
+	vkEnd      = 0x23
+	vkHome     = 0x24
 	vkLeft     = 0x25
 	vkUp       = 0x26
 	vkRight    = 0x27
@@ -134,6 +138,16 @@ func KeyNameFromVirtualKey(virtualKey uint32) string {
 		return "Up"
 	case vkDown:
 		return "Down"
+	// MapVirtualKey yields no character for the navigation keys, so this table
+	// is the only path that names them. The names match the Linux backends.
+	case vkPrior:
+		return "PageUp"
+	case vkNext:
+		return "PageDown"
+	case vkHome:
+		return "Home"
+	case vkEnd:
+		return "End"
 	case vkDelete:
 		return "Delete"
 	case vkLShift, vkRShift:
@@ -325,6 +339,14 @@ func nameToVirtualKey(name string) (uint32, bool) {
 		return vkUp, true
 	case "down":
 		return vkDown, true
+	case "pageup":
+		return vkPrior, true
+	case "pagedown":
+		return vkNext, true
+	case "home":
+		return vkHome, true
+	case "end":
+		return vkEnd, true
 	default:
 		if vk, ok := functionKeyVirtualKey(lowered); ok {
 			return vk, true

@@ -200,6 +200,17 @@ func x11KeysymName(keysym C.KeySym) string {
 		return "Up"
 	case C.XK_Down:
 		return "Down"
+	// Like the function keys below, the navigation keys produce no character
+	// from XLookupString, so this lookup is the only way they reach the
+	// handler. The names match the evdev and Wayland backends.
+	case C.XK_Home:
+		return evdevKeyNameHome
+	case C.XK_End:
+		return evdevKeyNameEnd
+	case C.XK_Page_Up:
+		return evdevKeyNamePageUp
+	case C.XK_Page_Down:
+		return evdevKeyNamePageDown
 	default:
 		return x11FunctionKeysymName(keysym)
 	}
