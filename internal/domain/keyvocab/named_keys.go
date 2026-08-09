@@ -25,7 +25,10 @@ const (
 	KeyEnd       = "End"
 	KeyPageUp    = "PageUp"
 	KeyPageDown  = "PageDown"
-	KeyInsert    = "Insert"
+	// KeyInsert has no macOS virtual keycode (Carbon declares none), so it
+	// reaches a binding only on Linux and Windows. It stays in the shared set
+	// for the same reason F21-F24 do.
+	KeyInsert = "Insert"
 )
 
 // shorthandEscape is the one spelling that resolves to a named key without

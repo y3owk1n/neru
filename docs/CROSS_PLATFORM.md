@@ -580,7 +580,14 @@ Work that is genuinely missing, as opposed to deliberately platform-specific.
 
 **macOS**
 
-No known functional gaps; it is the reference implementation.
+1. Named keys without a Carbon keycode — `Insert` and `F21`–`F24` validate but
+   never fire, because Carbon declares no virtual key code for them. They stay
+   in the shared key vocabulary so one config file works on every platform
+   ([ADR 0008](./adr/0008-a-vocabulary-has-one-home.md)), and the absence is
+   pinned by `internal/architecture/named_key_tables_test.go` — the day macOS
+   grows a keycode, that test fails.
+
+Otherwise none; macOS is the reference implementation.
 
 ---
 

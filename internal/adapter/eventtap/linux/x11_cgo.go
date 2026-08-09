@@ -227,10 +227,11 @@ func x11KeysymName(keysym C.KeySym) string {
 		return evdevKeyNamePageUp
 	case C.XK_Page_Down, C.XK_KP_Page_Down:
 		return evdevKeyNamePageDown
-	// Keypad-only, for want of a main-keyboard equivalent that reaches this
-	// lookup: XLookupString answers the main Delete key with a character.
-	case C.XK_KP_Insert:
+	case C.XK_Insert, C.XK_KP_Insert:
 		return evdevKeyNameInsert
+	// Keypad-only, for want of a main-keyboard equivalent that reaches this
+	// lookup: XLookupString answers the main Delete key with a character, and
+	// the keypad's center key has no main-keyboard counterpart at all.
 	case C.XK_KP_Delete:
 		return evdevKeyNameDelete
 	case C.XK_KP_Begin:
