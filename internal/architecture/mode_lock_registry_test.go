@@ -309,7 +309,7 @@ func modeHandlerSourceFiles(t *testing.T) []modeHandlerFile {
 
 		files = append(files, modeHandlerFile{
 			path:    file.relPath,
-			syntax:  parseModeHandlerFile(t, fileSet, file.absPath, file.relPath),
+			syntax:  parseRepoGoFile(t, fileSet, file.absPath, file.relPath),
 			fileSet: fileSet,
 		})
 	}
@@ -321,11 +321,11 @@ func modeHandlerSourceFiles(t *testing.T) []modeHandlerFile {
 	return files
 }
 
-// parseModeHandlerFile parses one file of the package, failing the test rather
+// parseRepoGoFile parses one Go file of the checkout, failing the test rather
 // than returning an error: a file that will not parse is a broken checkout, and
 // skipping it would leave the guardrail passing over the one file it cannot
 // read.
-func parseModeHandlerFile(
+func parseRepoGoFile(
 	t *testing.T,
 	fileSet *token.FileSet,
 	absPath, relPath string,

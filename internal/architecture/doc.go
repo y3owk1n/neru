@@ -40,6 +40,8 @@
 //     that same boundary, by running the native copy.
 //   - layering_test.go — domain stays pure, infra does not import app, and app
 //     reaches infra only through ports.
+//   - mode_extension_switch_test.go — behavior only some modes have is an
+//     optional extension, never an arm of a switch over domain.Mode.
 //   - mode_flag_contract_test.go — mode commands register exactly what the
 //     grammar declares, and docs/CLI.md is generated from the descriptor table.
 //   - mode_lock_registry_test.go — every mutex the mode handler declares has a
