@@ -8,15 +8,30 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
+// The animation floor itself is not declared here: every smooth-cursor
+// animation is floored at config.MinSmoothCursorAnimationDuration, the same
+// constant ValidateSmoothCursor rejects a shorter relative_movement_duration
+// against, so the validator and the animator cannot disagree about what the
+// daemon will honor. darwin's animator reads it the same way.
 const (
-	// minCursorAnimationDuration is the floor for a single move so even a
-	// zero-distance request settles promptly instead of instantly.
-	minCursorAnimationDuration = 10 // ms
-	// minCursorStepDelay is the shortest gap between injected steps.
+	// minCursorStepDelay is the shortest gap between injected steps — a
+	// scheduling floor on this animator's own timer, not a config value. No
+	// config option declares it and none derives from it (darwin likewise
+	// keeps its own minStepDelay local), so there is nothing here for a
+	// config change to desync from and it stays local.
 	minCursorStepDelay = 1 // ms
-	// defaultCursorSteps is used when the config value is unset (<= 0).
+	// defaultCursorSteps is the step count used when a caller passes none
+	// (<= 0). It equals config.DefaultSmoothCursorSteps today, and that is a
+	// coincidence rather than a derivation: both smooth-cursor call sites
+	// pass cfg.SmoothCursor.Steps, which ValidateSmoothCursor already
+	// requires to be >= 1, so no validated config can reach this fallback at
+	// all. It answers a different question — what step count to use for a
+	// caller that supplied a nonsense one — and moving the config default
+	// must not move it.
 	defaultCursorSteps = 10
 )
 
@@ -371,8 +386,8 @@ restart:
 		duration = float64(req.fixedDuration)
 	}
 
-	if duration < minCursorAnimationDuration {
-		duration = minCursorAnimationDuration
+	if duration < config.MinSmoothCursorAnimationDuration {
+		duration = config.MinSmoothCursorAnimationDuration
 	}
 
 	actualSteps := req.steps

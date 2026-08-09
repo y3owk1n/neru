@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/config"
 )
 
 // recorder captures the moves an animator injects so tests can assert on the
@@ -85,6 +87,50 @@ func TestSmoothCursorAnimatorLandsOnTarget(t *testing.T) {
 
 	if rec.count() < 2 {
 		t.Fatalf("expected a stepped glide (>=2 moves), got %d", rec.count())
+	}
+}
+
+// TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum pins the floor
+// this animator applies to config.MinSmoothCursorAnimationDuration — the same
+// constant ValidateSmoothCursor rejects a shorter relative_movement_duration
+// against, so the value the validator promises to honor is the value the
+// animator honors.
+//
+// It reads the floor back out of behavior rather than comparing constants: a
+// below-floor duration asked for in far more steps than the floor can schedule
+// collapses to one step per minCursorStepDelay of the floor, so the number of
+// injected moves *is* the floor. Move the config constant and this expectation
+// moves with it; re-introduce a local copy that disagrees and this fails.
+func TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum(t *testing.T) {
+	t.Parallel()
+
+	wantSteps := config.MinSmoothCursorAnimationDuration / minCursorStepDelay
+
+	rec := &recorder{}
+	animator := newSmoothCursorAnimator(rec.pos, rec.move)
+
+	animator.animateRelativeBy(
+		image.Point{X: 4 * wantSteps, Y: 0},
+		func(point image.Point) image.Point { return point },
+		wantSteps*100,
+		1,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := animator.wait(ctx)
+	if err != nil {
+		t.Fatalf("wait returned error: %v", err)
+	}
+
+	if got := rec.count(); got != wantSteps {
+		t.Fatalf(
+			"injected %d steps for a below-floor animation, want %d "+
+				"(config.MinSmoothCursorAnimationDuration / minCursorStepDelay)",
+			got,
+			wantSteps,
+		)
 	}
 }
 
