@@ -102,13 +102,32 @@ are the precedent, not the exception.
   predicate. The pin now runs the shared Go rule and reads only the Objective-C
   one, exactly as the label-autohide pin beside it does.
 - **The exception is the half of this rule deletion cannot enforce, so what is
-  pinned is inventoried here.** Four language-boundary copies are pinned as of
-  #1323: the three named above, plus the synthetic key-up and modifier-toggle
+  pinned is inventoried here.** Five language-boundary copies are pinned as of
+  #1374: the three named above, plus the synthetic key-up and modifier-toggle
   wire prefixes, which `internal/adapter/platform/darwin/eventtap_darwin.m` and
   `internal/adapter/platform/linux/overlay_wayland.c` format with `printf`
   because neither can import `internal/domain/keyvocab`, held to that package by
   `internal/architecture/keyvocab_wire_test.go`. That one predates this ADR and
-  is the precedent the placement-vocabulary pin followed.
+  is the precedent the placement-vocabulary pin followed. The fifth is the first
+  pin over a *list*: the named keys, retyped twice in Objective-C —
+  `gSpecialNameToCodeMap` in `keymap_darwin.m` turns a written binding into a
+  keycode, `specialKeyName` in `eventtap_darwin.m` turns a keystroke back into a
+  name — held to `internal/domain/keyvocab` and to each other by
+  `internal/architecture/named_key_tables_test.go`. What that pin had to be
+  honest about is that the two tables are not copies: the inbound one carries
+  the `Enter` and `Backspace` aliases and the outbound one must not, or one
+  keystroke would reach the mode handler under two spellings. So the pin derives
+  each table's expected contents from the vocabulary rather than from the other
+  table, and states the three deliberate absences out loud — F21–F24 and
+  `Insert`, checked against the `KeyCode` enum so a gap that stops being a
+  keycode gap fails, and `Clear`, which the numpad fold spells precisely because
+  no binding can be written for it. The numpad folds from #1372 are on the
+  keymap side only, correct because every path that can be handed a numpad
+  keycode also asks `NeruKeyCodeToName` or `NeruKeyCodeToCharacter`, which
+  carry the folds; the pin holds what a fold may spell, not which key folds
+  where, which `keymap_integration_darwin_test.go` owns — on a tagged,
+  macOS-only run, so deleting a fold outright is caught there and not by the
+  pin.
 
   That list is the complete set of *pinned* copies, and it is deliberately not a
   claim that no others exist — sweeping for them while writing the sub-key
