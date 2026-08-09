@@ -40,6 +40,10 @@ func (d *cursorAnimationDone) close() {
 	})
 }
 
+// cursorRequest is a single "animate to end" target. It carries no completion
+// object of its own: completion is tracked per animation *session* (see
+// smoothCursorAnimator), so coalescing a superseded target never releases a
+// waiter early.
 type cursorRequest struct {
 	end              image.Point
 	steps            int
@@ -48,14 +52,40 @@ type cursorRequest struct {
 	maxDuration      int
 	durationPerPixel float64
 	fixedDuration    int // when > 0, overrides the distance-derived duration
-	done             *cursorAnimationDone
 }
 
+// smoothCursorAnimator glides the cursor toward a target: one worker
+// goroutine, latest-target-wins, and a completion channel WaitForCursorIdle
+// blocks on.
+//
+// Completion is per session — every target arriving mid-session shares one
+// completion, so a waiter tracks the latest target rather than being released
+// when an intermediate one is superseded. A move, wait, act sequence
+// (ActionService) would otherwise act at a point the cursor had already left.
 type smoothCursorAnimator struct {
+	// pos samples the live cursor position and post emits one move event.
+	// Both are injected so the worker loop can be driven without cgo: the
+	// animator is otherwise only observable through the events it posts to the
+	// window server. Production wires them to CoreGraphics in cursorAnimator.
+	//
+	// Both may be called with a.mu held (post always is, so the check and the
+	// post cannot be split — see postIfCurrent), so neither may call back into
+	// the animator. The production pair are plain cgo calls, which is what
+	// makes that safe; a substitute must be too.
+	pos  func() image.Point
+	post func(point image.Point, eventType, button uint32)
+
 	mu     sync.Mutex
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
-	done   *cursorAnimationDone
+	// done is the current session's completion; nil only between stop() and
+	// the next session. After a session ends naturally it keeps referencing
+	// the closed completion, so a late waiter still sees "idle".
+	done *cursorAnimationDone
+	// busy reports that a session is in progress — the worker is still
+	// draining toward a target. A target submitted while busy joins that
+	// session instead of starting a new completion.
+	busy bool
 	// generation is bumped by stop() to invalidate steps from the animation
 	// being canceled. See postIfCurrent.
 	generation uint64
@@ -66,7 +96,21 @@ type smoothCursorAnimator struct {
 	hasPending bool
 }
 
-var cursorAnimator smoothCursorAnimator
+func newSmoothCursorAnimator(
+	pos func() image.Point,
+	post func(point image.Point, eventType, button uint32),
+) *smoothCursorAnimator {
+	return &smoothCursorAnimator{pos: pos, post: post}
+}
+
+// postCursorMoveEvent posts one cursor move (or drag) event through
+// CoreGraphics. It is the production half of the animator's post seam.
+func postCursorMoveEvent(point image.Point, eventType, button uint32) {
+	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
+	C.NeruPostMouseMoveEventWithButton(pos, C.CGEventType(eventType), C.CGMouseButton(button))
+}
+
+var cursorAnimator = newSmoothCursorAnimator(CursorPosition, postCursorMoveEvent)
 
 func (a *smoothCursorAnimator) stop() {
 	a.mu.Lock()
@@ -82,6 +126,7 @@ func (a *smoothCursorAnimator) stop() {
 	// the zoom viewport — back toward the abandoned target. Bumping the
 	// generation under the same lock the worker posts under closes that window.
 	a.generation++
+	a.busy = false
 	a.hasPending = false
 
 	if stopCh != nil {
@@ -137,6 +182,7 @@ func (a *smoothCursorAnimator) takePendingForSettle() (image.Point, bool) {
 	a.stopCh = nil
 	a.done = nil
 	a.generation++
+	a.busy = false
 	a.hasPending = false
 
 	if stopCh != nil {
@@ -173,8 +219,7 @@ func (a *smoothCursorAnimator) postIfCurrent(
 		return false
 	}
 
-	pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
-	C.NeruPostMouseMoveEventWithButton(pos, C.CGEventType(eventType), C.CGMouseButton(button))
+	a.post(point, eventType, button)
 
 	return true
 }
@@ -205,18 +250,14 @@ func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType, 
 		durationPerPixel = cfg.SmoothCursor.DurationPerPixel
 	}
 
-	done := newCursorAnimationDone()
-	req := cursorRequest{
+	a.submit(cursorRequest{
 		end:              end,
 		steps:            steps,
 		eventType:        eventType,
 		button:           button,
 		maxDuration:      maxDuration,
 		durationPerPixel: durationPerPixel,
-		done:             done,
-	}
-
-	a.submit(req)
+	})
 }
 
 // animateRelativeBy animates a relative move with a fixed duration,
@@ -241,7 +282,7 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 
 	base := a.pendingEnd
 	if !a.hasPending {
-		base = CursorPosition()
+		base = a.pos()
 	}
 
 	end := clamp(base.Add(delta))
@@ -258,7 +299,6 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 		eventType:     eventType,
 		button:        button,
 		fixedDuration: durationMs,
-		done:          newCursorAnimationDone(),
 	})
 }
 
@@ -269,15 +309,10 @@ func (a *smoothCursorAnimator) submit(req cursorRequest) {
 	a.submitLocked(req)
 }
 
-// submitLocked records req as the pending animation and hands it to the
-// worker. Callers must hold a.mu. The channel send cannot block: the buffer
-// holds one request, the worker never takes a.mu around its receive, and
-// submitters are serialized by a.mu, so after the drop below a slot is free.
+// submitLocked records req as the pending animation target and hands it to the
+// worker, starting the worker and a fresh session completion when needed.
+// Callers must hold a.mu.
 func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
-	a.done = req.done
-	a.pendingEnd = req.end
-	a.hasPending = true
-
 	if a.reqCh == nil {
 		a.reqCh = make(chan cursorRequest, 1)
 		a.stopCh = make(chan struct{})
@@ -285,16 +320,42 @@ func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 		go a.run(a.reqCh, a.stopCh)
 	}
 
+	if !a.busy {
+		a.done = newCursorAnimationDone()
+		a.busy = true
+	}
+
+	a.pendingEnd = req.end
+	a.hasPending = true
+
+	a.enqueueLocked(req)
+}
+
+// enqueueLocked places req on the worker channel, coalescing so only the latest
+// target survives. Callers must hold a.mu.
+//
+// The buffer holds one request and, under the lock, we are the only producer
+// while the worker is the only consumer (it removes, never adds), so after
+// draining a stale target the follow-up send cannot block — it stays a plain
+// send rather than another non-blocking one, because submitLocked has already
+// published req.end as the pending endpoint and a dropped target would leave
+// pendingTarget() naming a point nothing is animating toward. Targets carry no
+// completion object, so dropping a superseded one is a plain discard — the
+// shared session completion is untouched, and its waiters stay attached to the
+// target that replaced it.
+func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
 	select {
 	case a.reqCh <- req:
+		return
 	default:
-		select {
-		case dropped := <-a.reqCh:
-			dropped.done.close()
-		default:
-		}
-		a.reqCh <- req
 	}
+
+	select {
+	case <-a.reqCh:
+	default:
+	}
+
+	a.reqCh <- req
 }
 
 func (a *smoothCursorAnimator) run(reqCh <-chan cursorRequest, stopCh <-chan struct{}) {
@@ -320,7 +381,7 @@ func (a *smoothCursorAnimator) runRequest(
 ) {
 restart:
 	generation := a.currentGeneration()
-	start := CursorPosition()
+	start := a.pos()
 	distance := math.Hypot(float64(req.end.X-start.X), float64(req.end.Y-start.Y))
 
 	duration := math.Min(float64(req.maxDuration), distance*req.durationPerPixel)
@@ -348,11 +409,8 @@ restart:
 	for step := 1; step <= actualSteps; step++ {
 		select {
 		case <-stopCh:
-			req.done.close()
-
 			return
 		case nextReq := <-reqCh:
-			req.done.close()
 			req = nextReq
 
 			goto restart
@@ -365,9 +423,9 @@ restart:
 			Y: int(float64(start.Y) + float64(req.end.Y-start.Y)*progress),
 		}
 
+		// A false answer means stop() or settle() bumped the generation; both
+		// already closed this session's completion, so the worker just leaves.
 		if !a.postIfCurrent(generation, intermediate, req.eventType, req.button) {
-			req.done.close()
-
 			return
 		}
 
@@ -376,12 +434,11 @@ restart:
 			select {
 			case <-stopCh:
 				stopAndDrainTimer(timer)
-				req.done.close()
 
 				return
 			case nextReq := <-reqCh:
 				stopAndDrainTimer(timer)
-				req.done.close()
+
 				req = nextReq
 
 				goto restart
@@ -390,16 +447,48 @@ restart:
 		}
 	}
 
-	req.done.close()
-	a.clearDoneIfCurrent(req.done)
+	// Target reached. Continue the same session if a newer target is already
+	// queued; otherwise the session ends and its waiters are released.
+	next, ok := a.finishOrNext(reqCh, stopCh)
+	if ok {
+		req = next
+
+		goto restart
+	}
 }
 
-func (a *smoothCursorAnimator) clearDoneIfCurrent(done *cursorAnimationDone) {
+// finishOrNext, called once a target is reached, either hands back the next
+// queued target to continue the current session, or ends the session by
+// closing its completion (keeping a.done referencing the closed completion so
+// a late waiter still sees "idle"). It no-ops when this worker has been
+// superseded by a stop()/settle()/restart, detected via stopCh identity, so a
+// stale worker never closes a newer session's completion.
+func (a *smoothCursorAnimator) finishOrNext(
+	reqCh <-chan cursorRequest,
+	stopCh <-chan struct{},
+) (cursorRequest, bool) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 
-	if a.done == done {
-		a.done = nil
-		a.hasPending = false
+	if a.stopCh != stopCh {
+		a.mu.Unlock()
+
+		return cursorRequest{}, false
 	}
+
+	select {
+	case next := <-reqCh:
+		a.mu.Unlock()
+
+		return next, true
+	default:
+	}
+
+	done := a.done
+	a.busy = false
+	a.hasPending = false
+	a.mu.Unlock()
+
+	done.close()
+
+	return cursorRequest{}, false
 }
