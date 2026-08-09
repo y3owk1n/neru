@@ -305,6 +305,14 @@ func callbackContextUnreadableHeaders(
 				"",
 			),
 		},
+		{
+			name: "an old copy of the struct left commented out beside it",
+			header: mustRewrite(t, header,
+				"typedef struct {",
+				"/* typedef struct {\n\tuint32_t callbackID;\n} "+
+					callbackContextTypedef+"; */\n\ntypedef struct {",
+			),
+		},
 	}
 }
 
@@ -403,6 +411,7 @@ func nativeFieldSpelling(goName string) string {
 // The body admits no brace of its own, which is what makes the name the thing
 // being addressed: were another struct to be declared above this one in the
 // header, the match would begin at that one's opening brace and swallow it.
+// Every match is read, not the first — see parseCallbackContextHeader for why.
 var callbackContextStructPattern = regexp.MustCompile(
 	`typedef struct \{([^{}]*)\}[ \t]*` + regexp.QuoteMeta(callbackContextTypedef) + `;`,
 )
@@ -433,8 +442,8 @@ func readCallbackContextHeader(t *testing.T) []callbackContextField {
 // they could — an error value would buy nothing here, since the only callers
 // turn it straight into a test failure.
 func parseCallbackContextHeader(header string) ([]callbackContextField, string) {
-	body := callbackContextStructPattern.FindStringSubmatch(header)
-	if body == nil {
+	declarations := callbackContextStructPattern.FindAllStringSubmatch(header, -1)
+	if declarations == nil {
 		return nil, fmt.Sprintf(
 			"%s: no `typedef struct { ... } %s;` declaration (renamed or moved?); "+
 				"the layout %s is cast to would be pinned by nothing",
@@ -442,9 +451,25 @@ func parseCallbackContextHeader(header string) ([]callbackContextField, string) 
 		)
 	}
 
+	// Reading text rather than preprocessed C, this pin cannot tell a
+	// declaration the compiler sees from one inside a block comment or an
+	// inactive #if. What it can do is refuse to choose: a header spelling the
+	// typedef twice is reported, so an old copy left commented out beside a new
+	// one fails here instead of being silently pinned in the new one's place. A
+	// header carrying only a commented-out copy is the case this does not
+	// cover, and cgo does — MallocCallbackContext names the type.
+	if len(declarations) > 1 {
+		return nil, fmt.Sprintf(
+			"%s: %d `typedef struct { ... } %s;` declarations; this pin reads text "+
+				"rather than preprocessed C, so it cannot say which one the compiler "+
+				"sees, and pinning the wrong one reads as coverage",
+			callbackContextHeader, len(declarations), callbackContextTypedef,
+		)
+	}
+
 	var fields []callbackContextField
 
-	for line := range strings.SplitSeq(body[1], "\n") {
+	for line := range strings.SplitSeq(declarations[0][1], "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
 			continue
