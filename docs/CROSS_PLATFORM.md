@@ -397,7 +397,9 @@ available. See `findActiveFrame` in `atspi_linux.go`.
 on-screen position, so AT-SPI reports element coordinates relative to the
 window. Neru offsets them by the focused window's screen origin, supplied by a
 compositor-specific `windowOriginSource`
-([window_origin_linux.go](../internal/adapter/accessibility/atspi/window_origin.go)):
+([window_origin.go](../internal/adapter/accessibility/atspi/window_origin.go)),
+chosen from the backend `DetectLinuxBackend` reported — so nothing here starts on
+a session that backend did not identify:
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -405,6 +407,7 @@ compositor-specific `windowOriginSource`
 | niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
 | Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
 | Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
+| Anything else — X11, GNOME, other Wayland | none                                          | X11 needs none — AT-SPI already reports screen coordinates there. The rest report no origin, so hints stay window-relative. |
 
 Each source verifies the reported window size matches the AT-SPI frame (a focus
 change can race the query) and is best-effort: an unavailable origin degrades to

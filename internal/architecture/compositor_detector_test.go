@@ -32,8 +32,9 @@ import (
 //   - SWAYSOCK, NIRI_SOCKET, HYPRLAND_INSTANCE_SIGNATURE — the wlroots socket
 //     trio, which asks which compositor's CLI to shell out to. LinuxBackend has
 //     one value covering niri, sway, Hyprland, River and Wayfire, so it cannot
-//     answer that and folding the trio in would lose the answer. Nothing here
-//     confines them; #1430 is the ticket for the contract they need.
+//     answer that and folding the trio in would lose the answer. They are
+//     confined by their own rule in compositor_socket_test.go: readable, but
+//     only once the backend has decided the session is wlroots.
 var compositorIdentityEnv = []string{
 	"XDG_CURRENT_DESKTOP",
 	"XDG_SESSION_TYPE",
@@ -122,13 +123,27 @@ func TestCompositorIdentityEchoesStayHonest(t *testing.T) {
 }
 
 // compositorIdentityReads returns, per non-test Go file, the compositor-identity
-// variables it names as a string literal — which is how every read of one is
-// spelled, whether through os.Getenv, os.LookupEnv or a lookup of its own.
+// variables it names.
+func compositorIdentityReads(t *testing.T) map[string][]string {
+	t.Helper()
+
+	return envNameReads(t, compositorIdentityEnv)
+}
+
+// envNameReads returns, per non-test Go file of the checkout, which of names it
+// mentions as a string literal — which is how every read of an environment
+// variable is spelled, whether through os.Getenv, os.LookupEnv or a lookup of
+// its own.
 //
 // Equality, not containment: factory_messages_linux.go's error text embeds
 // "XDG_CURRENT_DESKTOP=%q" beside its read, and a message naming the variable
 // it is reporting on is not a probe.
-func compositorIdentityReads(t *testing.T) map[string][]string {
+//
+// It serves both environment guardrails in this package — the identity
+// variables above and the compositor sockets in compositor_socket_test.go —
+// because what counts as a read is one question, and answering it twice is how
+// the two pins would drift into disagreeing about the same file.
+func envNameReads(t *testing.T, names []string) map[string][]string {
 	t.Helper()
 
 	repoRoot := findRepoRoot(t)
@@ -155,7 +170,7 @@ func compositorIdentityReads(t *testing.T) map[string][]string {
 			}
 
 			value, unquoteErr := strconv.Unquote(literal.Value)
-			if unquoteErr != nil || !slices.Contains(compositorIdentityEnv, value) {
+			if unquoteErr != nil || !slices.Contains(names, value) {
 				return true
 			}
 
@@ -167,7 +182,7 @@ func compositorIdentityReads(t *testing.T) map[string][]string {
 		})
 	})
 
-	assertWalkedAtLeast(t, "Go files that could probe the compositor", checked, bulkWalkFloor)
+	assertWalkedAtLeast(t, "Go files that could read the environment", checked, bulkWalkFloor)
 
 	for _, variables := range reads {
 		slices.Sort(variables)

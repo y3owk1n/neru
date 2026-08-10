@@ -18,6 +18,9 @@
 //   - compositor_detector_test.go — the compositor family is decided in one
 //     place: the environment variables naming the desktop are read only by the
 //     detector that owns them.
+//   - compositor_socket_test.go — a compositor's IPC socket variable is read
+//     only downstream of the detected backend, never as a way to decide which
+//     compositor the session runs.
 //   - config_chain_test.go — the links no projection can show: every config
 //     validator reaching the ladder, every schema field reaching a default.
 //   - config_derivation_test.go — every derived config value is derived in the

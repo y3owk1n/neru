@@ -4,10 +4,130 @@ package atspi
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 )
+
+// TestNewWindowOriginSourceStartsNoBridgeOffWayland pins the user-visible half
+// of #1430: on a session the backend detector called X11, starting the
+// window-origin source must touch nothing outside the process.
+//
+// Before the fix the source was picked from the compositor sockets alone, and a
+// plain X11 session set none of them, so it fell through to the KWin bridge and
+// started it: session bus, exported object, bus name, and a KWin script written
+// into $XDG_RUNTIME_DIR on a desktop that runs no KWin.
+func TestNewWindowOriginSourceStartsNoBridgeOffWayland(t *testing.T) {
+	runtimeDir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
+
+	newWindowOriginSource(platform.BackendX11, zap.NewNop()).start()
+
+	entries, readErr := os.ReadDir(runtimeDir)
+	if readErr != nil {
+		t.Fatalf("ReadDir(%s) error = %v", runtimeDir, readErr)
+	}
+
+	for _, entry := range entries {
+		t.Errorf(
+			"starting the X11 window-origin source wrote %s into XDG_RUNTIME_DIR; "+
+				"no compositor bridge may start on a backend that did not identify it",
+			entry.Name(),
+		)
+	}
+}
+
+// noOriginType is the type name newWindowOriginSource returns for a backend
+// with no compositor to ask, spelled as %T prints it.
+const noOriginType = "atspi.noWindowOrigin"
+
+// swaySocket is a plausible SWAYSOCK value; nothing ever connects to it,
+// because the selection under test reads only whether it is set.
+const swaySocket = "/run/sway.sock"
+
+// The compositor sockets the selection reads, named once so a case sets the
+// same variable the reset loop clears.
+const (
+	niriSocketEnv        = "NIRI_SOCKET"
+	swaySocketEnv        = "SWAYSOCK"
+	hyprlandSignatureEnv = "HYPRLAND_INSTANCE_SIGNATURE"
+)
+
+// TestNewWindowOriginSourceFollowsTheBackend pins which source each backend
+// gets, including the two orderings that used to go wrong: a compositor socket
+// left in the environment of a session running something else never picks a
+// source, and a backend with no source of its own reports no origin instead of
+// falling through to the KWin bridge.
+func TestNewWindowOriginSourceFollowsTheBackend(t *testing.T) {
+	cases := []struct {
+		name    string
+		backend platform.LinuxBackend
+		sockets map[string]string
+		want    string
+	}{
+		{"x11 has no compositor to ask", platform.BackendX11, nil, noOriginType},
+		{
+			"x11 with a stale wlroots socket still asks nobody",
+			platform.BackendX11,
+			map[string]string{swaySocketEnv: swaySocket},
+			noOriginType,
+		},
+		{"kde uses the KWin bridge", platform.BackendWaylandKDE, nil, "*atspi.kwinBridge"},
+		{
+			"kde ignores a wlroots socket",
+			platform.BackendWaylandKDE,
+			map[string]string{swaySocketEnv: swaySocket},
+			"*atspi.kwinBridge",
+		},
+		{
+			"wlroots picks niri by its socket",
+			platform.BackendWaylandWlroots,
+			map[string]string{niriSocketEnv: "/run/niri.sock"},
+			"*atspi.niriOriginSource",
+		},
+		{
+			"wlroots picks sway by its socket",
+			platform.BackendWaylandWlroots,
+			map[string]string{swaySocketEnv: swaySocket},
+			"*atspi.swayOriginSource",
+		},
+		{
+			"wlroots picks Hyprland by its signature",
+			platform.BackendWaylandWlroots,
+			map[string]string{hyprlandSignatureEnv: "abc"},
+			"*atspi.hyprlandOriginSource",
+		},
+		{
+			"a wlroots compositor with no IPC source reports no origin",
+			platform.BackendWaylandWlroots,
+			nil,
+			noOriginType,
+		},
+		{"gnome has no source", platform.BackendWaylandGNOME, nil, noOriginType},
+		{"other wayland has no source", platform.BackendWaylandOther, nil, noOriginType},
+		{"an unknown backend has no source", platform.BackendUnknown, nil, noOriginType},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			for _, name := range []string{niriSocketEnv, swaySocketEnv, hyprlandSignatureEnv} {
+				t.Setenv(name, testCase.sockets[name])
+			}
+
+			got := fmt.Sprintf("%T", newWindowOriginSource(testCase.backend, zap.NewNop()))
+			if got != testCase.want {
+				t.Errorf(
+					"newWindowOriginSource(%v) = %s, want %s",
+					testCase.backend, got, testCase.want,
+				)
+			}
+		})
+	}
+}
 
 func TestNiriComputeOrigin(t *testing.T) {
 	out := niriOutput{}
