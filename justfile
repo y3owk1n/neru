@@ -17,12 +17,14 @@ MACOSX_DEPLOYMENT_TARGET := "14.0"
 LDFLAGS := "-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version=" + VERSION + " -X github.com/y3owk1n/neru/internal/buildinfo.GitCommit=" + GIT_COMMIT + " -X github.com/y3owk1n/neru/internal/buildinfo.BuildDate=" + BUILD_DATE
 
 # Default build
+[doc('Build the development binary; what plain `just` with no recipe runs.')]
 default: build
 
 # Build the application (development)
 # Uses CGO on macOS (required for Objective-C bridge) and Linux (required for
 
 # X11/Wayland native backends). Windows currently builds with CGO disabled.
+[doc('Build the development binary into bin/neru, CGO on except on Windows.')]
 build:
     @echo "Building Neru..."
     @echo "Version: {{ VERSION }}"
@@ -42,6 +44,7 @@ build:
 # arches Neru ships (amd64, arm64), and a compiler that cannot answer
 # -dumpmachine gets the benefit of the doubt. Both fail open, so the guard never
 # blocks a build that would have worked.
+[doc('Build a Linux binary with CGO; needs a Linux-targeting C compiler.')]
 build-linux ARCH="amd64":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -78,6 +81,7 @@ build-linux ARCH="amd64":
 #
 # Must be run before go build on/for Windows.  The .syso files are written into
 # cmd/neru/ so go build picks them up automatically.
+[doc('Generate the Windows icon and manifest .syso files into cmd/neru/.')]
 generate-winres ARCH="amd64":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -95,6 +99,7 @@ generate-winres ARCH="amd64":
 # Build a Windows binary from any host.
 # This produces a binary with grid, recursive grid, scroll, global hotkeys,
 # mouse injection, IPC, and initial UIA accessibility.
+[doc('Build a Windows binary from any host, with CGO off.')]
 build-windows ARCH="amd64":
     @echo "Building Neru for windows/{{ ARCH }}..."
     mkdir -p bin
@@ -105,6 +110,7 @@ build-windows ARCH="amd64":
 # Build a macOS binary for the current host.
 
 # macOS requires CGO because the native bridge is part of the real product.
+[doc('Build a macOS binary for this host, native bridge included.')]
 build-darwin:
     @echo "Building Neru for macOS..."
     mkdir -p bin
@@ -112,6 +118,7 @@ build-darwin:
     @echo "✓ Build complete: bin/neru-darwin"
 
 # Build with optimizations for release
+[doc('Build an optimized, trimpath release binary into bin/neru.')]
 release:
     @echo "Building release version..."
     @echo "Version: {{ VERSION }}"
@@ -121,6 +128,7 @@ release:
     @echo "✓ Release build complete: bin/neru"
 
 # Build with custom version
+[doc('Build a release binary stamped with the version you pass.')]
 build-version VERSION_OVERRIDE:
     @echo "Building Neru with custom version..."
     CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/y3owk1n/neru/internal/buildinfo.Version={{ VERSION_OVERRIDE }} -X github.com/y3owk1n/neru/internal/buildinfo.GitCommit={{ GIT_COMMIT }} -X github.com/y3owk1n/neru/internal/buildinfo.BuildDate={{ BUILD_DATE }}" -trimpath -o bin/neru ./cmd/neru
@@ -129,6 +137,7 @@ build-version VERSION_OVERRIDE:
 # Build a macOS release artifact for CI on a native macOS host.
 
 # Usage: just release-ci-darwin arm64 v1.2.3
+[doc('Build the macOS release artifact, on a native macOS host.')]
 release-ci-darwin ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (darwin/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
@@ -141,6 +150,7 @@ release-ci-darwin ARCH VERSION_OVERRIDE:
 # Build a Linux release artifact for CI on a native Linux host.
 
 # Usage: just release-ci-linux amd64 v1.2.3
+[doc('Build the Linux release artifact, on a native Linux host.')]
 release-ci-linux ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (linux/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
@@ -153,6 +163,7 @@ release-ci-linux ARCH VERSION_OVERRIDE:
 # Build a Windows release artifact for CI.
 
 # Usage: just release-ci-windows amd64 v1.2.3
+[doc('Build the Windows release artifact, from any host.')]
 release-ci-windows ARCH VERSION_OVERRIDE:
     @echo "Building release artifact (windows/{{ ARCH }}) for CI..."
     @echo "Version: {{ VERSION_OVERRIDE }}"
@@ -164,6 +175,7 @@ release-ci-windows ARCH VERSION_OVERRIDE:
     @echo "✓ Release artifact for windows/{{ ARCH }} built successfully"
 
 # Bundle the application
+[doc('Build, then package and ad-hoc sign build/Neru.app.')]
 bundle: release
     @echo "Bundling Neru..."
     mkdir -p build/Neru.app/Contents/{MacOS,Resources}
@@ -183,6 +195,7 @@ bundle: release
 # first: `just bundle` (macOS), `just build` (Linux), `just build-windows`
 # (Windows). Pass -y to accept every prompt non-interactively (`just install -y`).
 # On Windows this runs under a bash such as Git Bash.
+[doc('Install a built Neru with the platform script in scripts/.')]
 install *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -198,6 +211,7 @@ install *ARGS:
 # every prompt non-interactively, and --purge to also remove your config and
 # logs (they are kept otherwise, so -y alone can never delete your config.toml).
 # On Windows this runs under a bash such as Git Bash.
+[doc('Undo `just install`; your config survives unless you pass --purge.')]
 uninstall *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -213,10 +227,12 @@ uninstall *ARGS:
 # Run all tests (unit + integration). Desktop-safe: tests that would drive the
 # real cursor, keyboard or overlays skip themselves here — run `just
 # test-desktop` to include them when you can hand the machine over.
+[doc('Run the unit and integration tests, leaving the desktop alone.')]
 test: test-unit test-integration
     @echo "Running all tests..."
 
 # Run unit tests
+[doc('Run the unit tests.')]
 test-unit:
     @echo "Running unit tests..."
     go test -v ./...
@@ -234,6 +250,7 @@ test-unit:
 #
 # CI runs this recipe too, via test-ci, so a list that no longer resolves fails
 # the build rather than only the next person to type it.
+[doc('Run the test slice whose behavior is identical on all three platforms.')]
 test-foundation:
     @echo "Running cross-platform foundation tests..."
     go test ./internal/config ./internal/config/loader \
@@ -268,6 +285,7 @@ test-foundation:
 # second time here is what let the old version of this recipe report packages
 # that were platform-specific by directory or by a //go:build line no filename
 # check could see.
+[doc('Print the package list the test-foundation recipe should be running.')]
 list-foundation-packages:
     @NERU_LIST_FOUNDATION=1 go test -count=1 -v \
         -run TestFoundationSliceMatchesTheRecipe ./internal/architecture | grep '^\./'
@@ -288,6 +306,7 @@ list-foundation-packages:
 # result cached from a run under different conditions is then replayed as a
 # pass, which is worse than no result at all: it reports green for a run that
 # never happened.
+[doc('Run the integration tests, minus the ones that drive the desktop.')]
 test-integration:
     @echo "Running integration tests (desktop-safe)..."
     go test -tags=integration -p 1 -count=1 -v ./...
@@ -296,21 +315,25 @@ test-integration:
 # desktop: the cursor moves, real clicks and scrolls land, overlays flash, and
 # an event tap briefly intercepts the keyboard. Hand the machine over while it
 # runs. Needs Accessibility permission (System Settings > Privacy & Security).
+[doc('Run every integration test, including the ones that drive the desktop.')]
 test-desktop:
     @echo "Running integration tests (including desktop-driving tests)..."
     NERU_DESKTOP_TESTS=1 go test -tags=integration -p 1 -count=1 -v ./...
 
 # Run with race detection
+[doc('Run the unit and integration tests under the race detector.')]
 test-race: test-race-unit test-race-integration
     @echo "Running tests with race detection..."
 
 # Run unit tests with race detection
+[doc('Run the unit tests under the race detector.')]
 test-race-unit:
     @echo "Running unit tests with race detection..."
     go test -race -v ./...
 
 # Run integration tests with race detection
 # See test-integration for why -p 1 and -count=1 are required here.
+[doc('Run the integration tests under the race detector.')]
 test-race-integration:
     @echo "Running integration tests with race detection..."
     go test -tags=integration -race -p 1 -count=1 -v ./...
@@ -321,6 +344,7 @@ test-race-integration:
 # desktop session with Accessibility granted — it takes over the cursor and
 # keyboard while it runs. CI gates on test-ci below, which is the same minus
 # the passes that are meaningless on a headless runner.
+[doc('Run every suite, plain and under -race, desktop-driving tests included.')]
 test-all:
     NERU_DESKTOP_TESTS=1 just test test-race
 
@@ -331,6 +355,7 @@ test-all:
 # Tests that touch real input or permissions must guard themselves with
 # testing.Short(); permission-free integration tests (config, logger, IPC,
 # CLI) still run fully.
+[doc('Run the integration tests the way CI does, under -short.')]
 test-integration-ci:
     @echo "Running integration tests (CI profile: -short)..."
     go test -tags=integration -short -p 1 -count=1 ./...
@@ -348,6 +373,7 @@ test-integration-ci:
 # TestFoundationSliceRunsInCI keeps it reachable from here; the workflow invokes
 # this recipe on macOS, Linux and Windows alike, which is where a slice claiming
 # to be cross-platform-safe should be proven.
+[doc('Run every test suite CI runs: foundation, unit, unit -race, integration.')]
 test-ci: test-foundation test-unit test-race-unit test-integration-ci
 
 # Run the set of checks CI gates a pull request on, in the same order, on this
@@ -355,10 +381,12 @@ test-ci: test-foundation test-unit test-race-unit test-integration-ci
 # here is one leg of three. This is the real pre-push bar — `just test` alone
 # is a subset of it. For the deepest local verification (full integration +
 # race passes on a real desktop session) run `just test-all` as well.
+[doc('Run the checks CI gates a pull request on, on this host only.')]
 ci: fmt-check lint vet build test-ci vuln
     @echo "✓ All CI checks passed"
 
 # Check if files are formatted correctly
+[doc('Check that the Objective-C sources are clang-format clean.')]
 fmt-check:
     #!/usr/bin/env bash
     echo "Not checking formatting for go files... It will be checked in lint"
@@ -384,6 +412,7 @@ fmt-check:
     echo "✓ All Objective-C files are properly formatted"
 
 # Generate man pages
+[doc('Generate the man pages into OUTPUT_DIR.')]
 genman OUTPUT_DIR="build/man":
     @echo "Generating man pages..."
     go run ./cmd/genman {{ OUTPUT_DIR }}
@@ -392,11 +421,13 @@ genman OUTPUT_DIR="build/man":
 # Rewrite the mode-flag reference from the grammar's descriptor table.
 # Run after adding, removing or re-wording a mode flag; the architecture
 # guardrail fails while the page is out of date.
+[doc('Rewrite the mode-flag reference in docs/CLI.md from the grammar.')]
 genflagref:
     @echo "Generating the mode-flag reference..."
     go run ./cmd/genflagref docs/CLI.md
 
 # Clean build artifacts
+[doc('Delete the build outputs, the app bundles and the lint cache.')]
 clean:
     @echo "Cleaning build artifacts..."
     rm -rf bin/
@@ -424,6 +455,7 @@ clean:
 export GOLANGCI_LINT_CACHE := justfile_directory() / ".golangci-cache"
 
 # Format code
+[doc('Format the Go sources with golangci-lint and the Objective-C ones.')]
 fmt:
     @echo "Formatting Go files..."
     golangci-lint fmt
@@ -433,9 +465,11 @@ fmt:
     @echo "✓ Format complete"
 
 # Lint code (Go via golangci-lint, Objective-C via clang-tidy)
+[doc('Lint the Go and the Objective-C sources.')]
 lint: lint-go lint-objc
 
 # Lint Go code
+[doc('Lint the Go sources with golangci-lint.')]
 lint-go:
     @echo "Linting Go code..."
     golangci-lint run
@@ -452,6 +486,7 @@ lint-go:
 #    tables outside the lock — the analyzer sees those stores as dead.
 #  - optin.performance.GCDAntipattern: permission prompts are called from Go
 #    through a synchronous bridge, so blocking on a semaphore is the contract.
+[doc('Lint the Objective-C sources with the clang analyzer; macOS only.')]
 lint-objc:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -479,6 +514,7 @@ lint-objc:
     echo "✓ Objective-C lint complete"
 
 # Vet
+[doc('Run go vet over the host build.')]
 vet:
     @echo "Vetting code..."
     go vet ./...
@@ -492,6 +528,7 @@ vet:
 #
 # CGO is off, so this covers the pure-Go and no-cgo backends. The cgo-only Linux
 # backends (X11, wlroots) still need a cross toolchain or CI to type-check.
+[doc('Run go vet over the Linux and Windows builds too, with CGO off.')]
 vet-cross:
     @echo "Vetting for linux/amd64 (CGO off)..."
     GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go vet ./...
@@ -510,6 +547,7 @@ vet-cross:
 # Docker caches the image after the first run.
 #
 # Requires a running Docker daemon.
+[doc('Run the Linux test suite in a CI-equivalent container; needs Docker.')]
 test-linux:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -529,6 +567,7 @@ test-linux:
     echo "✓ Linux test suite passed"
 
 # Same as test-linux but with CGO off, exercising the no-cgo Linux backends.
+[doc('Run the Linux test suite in a container with CGO off; needs Docker.')]
 test-linux-nocgo:
     @echo "Running the Linux test suite in a container (CGO off)..."
     docker run --rm -v "$PWD":/src -w /src \
@@ -541,6 +580,7 @@ test-linux-nocgo:
 # Windows cannot be executed from a macOS or Linux host, so this is the
 # strongest available check: it catches everything `go vet` does plus anything
 # that only fails when the test binary is linked.
+[doc('Compile every package and its test binary for Windows.')]
 test-windows-compile:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -565,6 +605,7 @@ test-windows-compile:
 # the golangci-lint version pinned in .github/workflows/ci.yml.
 #
 # Requires a running Docker daemon.
+[doc('Lint the Linux and Windows builds in a container; needs Docker.')]
 lint-cross:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -596,6 +637,7 @@ lint-cross:
 #
 # Deliberately excludes lint-cross and test-linux, which need Docker — run those
 # separately for a real Linux lint and execution rather than a type-check.
+[doc('Type-check the Linux and Windows builds; no Docker, no cross toolchain.')]
 check-cross: vet-cross test-windows-compile
     @echo "✓ Cross-platform checks complete (run 'just lint-cross' and 'just test-linux' for real Linux runs)"
 
@@ -610,6 +652,7 @@ check-cross: vet-cross test-windows-compile
 # The tool is fetched at @latest rather than pinned: its value is knowing about
 # vulnerabilities published after the pin would have been written, and the
 # vulnerability database is fetched at run time regardless.
+[doc('Scan the dependencies for known vulnerabilities with govulncheck.')]
 vuln:
     @echo "Scanning for known vulnerabilities..."
     go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
@@ -626,6 +669,7 @@ vuln:
 # thoroughly exercised from a neighbouring package reads as zero. The action
 # sequence executor measured 0% that way and 77% this way; nothing about the
 # tests changed, only which package was asked.
+[doc('Run the unit tests with coverage and print the total.')]
 coverage:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -635,11 +679,13 @@ coverage:
     echo "✓ Coverage profile written to coverage.txt"
 
 # Render the coverage profile as a browsable HTML report.
+[doc('Render the coverage profile as a browsable HTML report.')]
 coverage-html: coverage
     go tool cover -html=coverage.txt -o coverage.html
     @echo "✓ Coverage report written to coverage.html"
 
 # Download dependencies
+[doc('Download the module dependencies and tidy go.mod.')]
 deps:
     @echo "Downloading dependencies..."
     go mod download
@@ -647,12 +693,14 @@ deps:
     @echo "✓ Dependencies updated"
 
 # Verify dependencies
+[doc('Verify the downloaded module dependencies against go.sum.')]
 verify:
     @echo "Verifying dependencies..."
     go mod verify
     @echo "✓ Dependencies verified"
 
 # Generate icon.icns from a source PNG (e.g., just generate-icns icon-1024.png)
+[doc('Generate resources/icon.icns from a source PNG.')]
 generate-icns SOURCE:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -677,6 +725,7 @@ generate-icns SOURCE:
 # Resizes to 44×44 pixels (22pt @2x retina for macOS menu bar)
 
 # Usage: just generate-tray-icons active.png disabled.png
+[doc('Generate the two 44x44 systray icons from source PNGs.')]
 generate-tray-icons ACTIVE DISABLED:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -691,6 +740,7 @@ generate-tray-icons ACTIVE DISABLED:
 # Generate all icons from source PNGs
 
 # Usage: just generate-icons app-icon.png tray-active.png tray-disabled.png
+[doc('Generate the app icon and both systray icons from source PNGs.')]
 generate-icons APP_ICON TRAY_ACTIVE TRAY_DISABLED:
     just generate-icns {{ APP_ICON }}
     just generate-tray-icons {{ TRAY_ACTIVE }} {{ TRAY_DISABLED }}
@@ -711,6 +761,7 @@ PROTOCOL_DIR := "protocol"
 WLR_PROTOCOL_DIR := "internal/adapter/platform/linux/wlr_protocol"
 
 # Download Wayland protocol XMLs from canonical upstream repositories
+[doc('Download the Wayland protocol XMLs from their upstream repositories.')]
 fetch-protocols:
     @echo "Fetching Wayland protocol XMLs..."
     mkdir -p {{ PROTOCOL_DIR }}
@@ -726,6 +777,7 @@ fetch-protocols:
     @echo "✓ Protocol XMLs downloaded to {{ PROTOCOL_DIR }}/"
 
 # Generate wayland-scanner files from XMLs
+[doc('Generate the wayland-scanner headers and code from the XMLs.')]
 generate-protocols:
     @echo "Generating wayland-scanner protocol files..."
     mkdir -p {{ WLR_PROTOCOL_DIR }}
@@ -768,5 +820,6 @@ generate-protocols:
     @echo "✓ Protocol files generated in {{ WLR_PROTOCOL_DIR }}/"
 
 # Download and generate all Wayland protocols
+[doc('Download the Wayland protocol XMLs and generate their code.')]
 generate-all-protocols: fetch-protocols generate-protocols
     @echo "✓ All Wayland protocols downloaded and generated"

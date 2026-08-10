@@ -39,6 +39,9 @@
 //     by naming it, and every test name or test file it names resolves.
 //   - hint_placement_vocabulary_test.go — the hint placement vocabulary is the
 //     same on both sides of the Go/Objective-C boundary.
+//   - justfile_doc_test.go — every recipe just --list shows declares its own
+//     one-line summary, rather than inheriting whichever line of the comment
+//     block above it just happens to read.
 //   - keyvocab_wire_test.go — the native key event emitters and keyvocab agree
 //     on what they put on the wire.
 //   - label_autohide_rule_test.go — the label autohide rule is pinned across
