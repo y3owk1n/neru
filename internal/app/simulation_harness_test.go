@@ -751,7 +751,11 @@ func (a *simAXPort) PerformActionAtPoint(
 	return nil
 }
 
-func (a *simAXPort) Scroll(_ context.Context, deltaX, deltaY int) error {
+func (a *simAXPort) Scroll(
+	_ context.Context,
+	deltaX, deltaY int,
+	_ action.Modifiers,
+) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

@@ -180,12 +180,18 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	return nil
 }
 
-func x11ScrollAtCursor(deltaX, deltaY int) error {
+func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	display, err := x11ActionDisplay()
 	if err != nil {
 		return err
 	}
 	defer C.neru_ax_close_display(display)
+
+	// Held across every scroll button click, the way a person holding ctrl and
+	// turning the wheel produces a zoom. Runs before the display is closed:
+	// defers unwind last-in first-out.
+	x11PressModifiers(display, modifiers)
+	defer x11ReleaseModifiers(display, modifiers)
 
 	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
 	// Incoming deltas are pixel-level values from the scroll service config

@@ -11,6 +11,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 const (
@@ -19,8 +21,14 @@ const (
 	easeOutCubicExponent       = 3  // Exponent for ease-out cubic easing
 )
 
+// scrollRequest is one animated scroll. The modifier set belongs to the
+// request rather than to the call that started the animation, because a
+// request preempts whatever is in flight: a plain scroll_down arriving mid-zoom
+// cancels the zoom and finishes unmodified, which is what the second binding
+// asked for.
 type scrollRequest struct {
 	deltaX, deltaY   int
+	modifiers        action.Modifiers
 	steps            int
 	maxDuration      int
 	durationPerPixel float64
@@ -48,6 +56,7 @@ func (a *scrollAnimator) stop() {
 
 func (a *scrollAnimator) animate(
 	deltaX, deltaY int,
+	modifiers action.Modifiers,
 	steps int,
 	maxDuration int,
 	durationPerPixel float64,
@@ -55,6 +64,7 @@ func (a *scrollAnimator) animate(
 	req := scrollRequest{
 		deltaX:           deltaX,
 		deltaY:           deltaY,
+		modifiers:        modifiers,
 		steps:            steps,
 		maxDuration:      maxDuration,
 		durationPerPixel: durationPerPixel,
@@ -117,6 +127,10 @@ restart:
 		return
 	}
 
+	// Recomputed after every restart, so a request that preempts this one
+	// stamps its own modifiers on the chunks that remain.
+	flags := modifiersToCGEventFlags(req.modifiers)
+
 	duration := math.Min(float64(req.maxDuration), magnitude*req.durationPerPixel)
 	if duration < minScrollAnimationDuration {
 		duration = minScrollAnimationDuration
@@ -161,7 +175,7 @@ restart:
 		prevX = targetX
 		prevY = targetY
 
-		C.NeruScrollAtPoint(cgPos, C.int(chunkX), C.int(chunkY))
+		C.NeruScrollAtPoint(cgPos, C.int(chunkX), C.int(chunkY), flags)
 
 		if step < actualSteps {
 			timer.Reset(stepDelay)

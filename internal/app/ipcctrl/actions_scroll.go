@@ -26,12 +26,18 @@ func (h *ActionsHandler) handleScrollAction(
 		}
 	}
 
-	if parsed.useSelection && parsed.useBare {
-		return ipc.Response{
-			Success: false,
-			Message: msgSelectionAndBareCannotBeUsedTogether,
-			Code:    ipc.CodeInvalidInput,
-		}
+	// Scroll never reaches performTargetedAction, so it validates the flag
+	// combinations itself. Sticky modifiers are deliberately not merged in
+	// here: they are a click affordance, and a scroll that silently picked one
+	// up would zoom where the user asked to pan.
+	flagErrResp := validateActionFlags(actionName, parsed)
+	if flagErrResp != nil {
+		return *flagErrResp
+	}
+
+	modifiers, modErr := action.ParseModifiers(parsed.modifierStr)
+	if modErr != nil {
+		return refuseAction(modErr.Error())
 	}
 
 	direction, amount, ok := scrollActionMapping(actionName)
@@ -47,6 +53,7 @@ func (h *ActionsHandler) handleScrollAction(
 		zap.String("action", actionName),
 		zap.Int("direction", int(direction)),
 		zap.Int("amount", int(amount)),
+		zap.String("modifiers", modifiers.String()),
 	)
 
 	targetsSelection := parsed.useSelection
@@ -87,7 +94,7 @@ func (h *ActionsHandler) handleScrollAction(
 		}
 	}
 
-	scrollErr := h.scrollService.Scroll(ctx, direction, amount, parsed.stepsOverride)
+	scrollErr := h.scrollService.Scroll(ctx, direction, amount, parsed.stepsOverride, modifiers)
 	if scrollErr != nil {
 		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
 			zap.String("action", actionName))

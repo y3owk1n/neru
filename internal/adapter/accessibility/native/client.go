@@ -293,11 +293,12 @@ func performMouseButtonAction(
 	return MouseDownAtPoint(point, button, modifiers)
 }
 
-// Scroll performs a scroll action.
-func (c *Client) Scroll(deltaX, deltaY int) error {
+// Scroll performs a scroll action, presenting modifiers as held while it is
+// emitted.
+func (c *Client) Scroll(deltaX, deltaY int, modifiers action.Modifiers) error {
 	ensureMouseUp()
 
-	scrollErr := ScrollAtCursor(deltaX, deltaY)
+	scrollErr := ScrollAtCursor(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}

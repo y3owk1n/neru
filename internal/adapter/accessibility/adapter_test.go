@@ -196,7 +196,7 @@ func TestAdapter_Scroll(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			scrollErr := adapter.Scroll(ctx, testCase.deltaX, testCase.deltaY)
+			scrollErr := adapter.Scroll(ctx, testCase.deltaX, testCase.deltaY, 0)
 			if scrollErr != nil {
 				t.Errorf("Scroll() error = %v", scrollErr)
 			}

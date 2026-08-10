@@ -710,9 +710,10 @@ func MouseUp(button action.MouseButton) error {
 	return darwin.MouseUp(button)
 }
 
-// ScrollAtCursor scrolls the element at the current cursor position by the specified deltas.
-func ScrollAtCursor(deltaX, deltaY int) error {
-	return darwin.ScrollAtCursor(deltaX, deltaY)
+// ScrollAtCursor scrolls the element at the current cursor position by the
+// specified deltas, with modifiers presented as held.
+func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
+	return darwin.ScrollAtCursor(deltaX, deltaY, modifiers)
 }
 
 // CurrentCursorPosition returns the current cursor position in screen coordinates.

@@ -321,9 +321,9 @@ func MouseUp(button action.MouseButton) error {
 	return MouseUpAtPoint(pos, button, 0)
 }
 
-// ScrollAtCursor scrolls the mouse.
-func ScrollAtCursor(_ int, deltaY int) error {
-	return winplatform.ScrollWheel(deltaY)
+// ScrollAtCursor scrolls the mouse, with modifiers presented as held.
+func ScrollAtCursor(_ int, deltaY int, modifiers action.Modifiers) error {
+	return winplatform.ScrollWheel(deltaY, modifiers)
 }
 
 // CurrentCursorPosition returns the cursor position.

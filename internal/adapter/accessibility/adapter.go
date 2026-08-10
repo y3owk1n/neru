@@ -231,12 +231,17 @@ func (a *Adapter) PerformActionAtPoint(
 }
 
 // Scroll performs a scroll action at the current cursor position.
-func (a *Adapter) Scroll(_ context.Context, deltaX, deltaY int) error {
+func (a *Adapter) Scroll(
+	_ context.Context,
+	deltaX, deltaY int,
+	modifiers action.Modifiers,
+) error {
 	a.logger.Debug("Performing scroll",
 		zap.Int("deltaX", deltaX),
-		zap.Int("deltaY", deltaY))
+		zap.Int("deltaY", deltaY),
+		zap.String("modifiers", modifiers.String()))
 
-	scrollErr := a.client.Scroll(deltaX, deltaY)
+	scrollErr := a.client.Scroll(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}

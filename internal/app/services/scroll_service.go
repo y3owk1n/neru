@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -71,11 +72,14 @@ func NewScrollService(
 
 // Scroll performs a scrolling operation in the specified direction and magnitude.
 // If stepOverride is > 0, it overrides the configured scroll step for this invocation.
+// modifiers are presented as held for the duration of the scroll, which is what
+// turns a scroll into a zoom in the applications that read one.
 func (s *ScrollService) Scroll(
 	ctx context.Context,
 	direction ScrollDirection,
 	amount ScrollAmount,
 	stepOverride int,
+	modifiers action.Modifiers,
 ) error {
 	deltaX, deltaY := s.calculateDelta(ctx, direction, amount, stepOverride)
 
@@ -94,9 +98,10 @@ func (s *ScrollService) Scroll(
 		zap.Int("dir", int(direction)),
 		zap.Int("amount", int(amount)),
 		zap.Int("deltaX", deltaX),
-		zap.Int("deltaY", deltaY))
+		zap.Int("deltaY", deltaY),
+		zap.String("modifiers", modifiers.String()))
 
-	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY)
+	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		return derrors.WrapActionFailed(scrollErr, "scroll")
 	}

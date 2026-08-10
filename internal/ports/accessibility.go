@@ -39,8 +39,14 @@ type AccessibilityPort interface {
 		modifiers action.Modifiers,
 	) error
 
-	// Scroll performs a scroll action at the current cursor position.
-	Scroll(ctx context.Context, deltaX, deltaY int) error
+	// Scroll performs a scroll action at the current cursor position,
+	// presenting modifiers as held while the scroll is emitted — a ctrl-modified
+	// scroll zooms where an unmodified one pans.
+	//
+	// A backend that cannot present a non-zero modifier set returns
+	// derrors.CodeNotSupported rather than scrolling without it: a scroll that
+	// silently drops its ctrl looks to the user like a broken binding.
+	Scroll(ctx context.Context, deltaX, deltaY int, modifiers action.Modifiers) error
 
 	// ReleaseHeldButtons releases any mouse button this process is still
 	// holding down.

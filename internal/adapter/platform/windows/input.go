@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"slices"
 	"unsafe"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -26,6 +27,8 @@ const (
 	mouseeventfMiddleUp   = 0x0040
 	mouseeventfWheel      = 0x0800
 	mouseeventfAbsolute   = 0x8000
+
+	keyeventfKeyUp = 0x0002
 
 	wheelDelta = 120
 )
@@ -48,8 +51,30 @@ type input struct {
 	mi        mouseInput
 }
 
-// Compile-time guard: INPUT must be 40 bytes on 64-bit Windows targets.
-var _ [40 - unsafe.Sizeof(input{})]byte
+// keyboardInput and keyInput mirror Win32 KEYBDINPUT/INPUT. KEYBDINPUT is the
+// smaller arm of the INPUT union, so the trailing padding is what keeps the
+// struct at the 40 bytes SendInput's cbSize demands.
+type keyboardInput struct {
+	wVk         uint16
+	wScan       uint16
+	dwFlags     uint32
+	time        uint32
+	dwExtraInfo uintptr
+}
+
+type keyInput struct {
+	inputType uint32
+	_         uint32
+	ki        keyboardInput
+	_         [8]byte
+}
+
+// Compile-time guards: INPUT must be 40 bytes on 64-bit Windows targets,
+// whichever arm of the union is in use.
+var (
+	_ [40 - unsafe.Sizeof(input{})]byte
+	_ [40 - unsafe.Sizeof(keyInput{})]byte
+)
 
 var procSendInput = user32.NewProc("SendInput")
 
@@ -61,6 +86,33 @@ func sendMouseInput(flags uint32, data uint32) error {
 	event.inputType = inputMouse
 	event.mi.dwFlags = flags
 	event.mi.mouseData = data
+
+	ret, _, err := procSendInput.Call(
+		1,
+		uintptr(unsafe.Pointer(&event)),
+		unsafe.Sizeof(event),
+	)
+	if ret == 0 {
+		if err != nil {
+			return fmt.Errorf("SendInput: %w", err)
+		}
+
+		return errSendInputFailed
+	}
+
+	return nil
+}
+
+// sendKeyboardInput presses or releases one virtual key.
+func sendKeyboardInput(virtualKey uint16, isUp bool) error {
+	var event keyInput
+
+	event.inputType = inputKeyboard
+	event.ki.wVk = virtualKey
+
+	if isUp {
+		event.ki.dwFlags = keyeventfKeyUp
+	}
 
 	ret, _, err := procSendInput.Call(
 		1,
@@ -168,13 +220,72 @@ func MouseUp(point image.Point, button action.MouseButton) error {
 	return sendMouseInput(flagsForButton(button).up, 0)
 }
 
-// ScrollWheel scrolls vertically at the current cursor position.
-func ScrollWheel(deltaLines int) error {
+// ScrollWheel scrolls vertically at the current cursor position, holding
+// modifiers down for the duration.
+//
+// A SendInput wheel event carries no modifier field — unlike a CGEvent, which
+// takes flags — so the only way to present a held ctrl is to press the real
+// key, wheel, and release it. Releasing only what this call pressed leaves a
+// modifier the user is physically holding untouched.
+func ScrollWheel(deltaLines int, modifiers action.Modifiers) error {
 	if deltaLines == 0 {
 		return nil
 	}
 
+	pressErr := pressModifiers(modifiers)
+	if pressErr != nil {
+		return pressErr
+	}
+
+	defer releaseModifiers(modifiers)
+
 	return sendMouseInput(mouseeventfWheel, uint32(int32(deltaLines)*wheelDelta))
+}
+
+// modifierKeys lists the virtual-key code (keys.go) for each modifier bit, in
+// the order they are pressed. Release walks it backwards.
+var modifierKeys = []struct {
+	bit action.Modifiers
+	key uint16
+}{
+	{bit: action.ModShift, key: vkShift},
+	{bit: action.ModCtrl, key: vkControl},
+	{bit: action.ModAlt, key: vkMenu},
+	{bit: action.ModCmd, key: vkLWin},
+}
+
+// pressModifiers holds down every key in modifiers, releasing what it already
+// pressed if one of them fails so a partial set is never left latched.
+func pressModifiers(modifiers action.Modifiers) error {
+	var pressed action.Modifiers
+
+	for _, modifier := range modifierKeys {
+		if !modifiers.Has(modifier.bit) {
+			continue
+		}
+
+		err := sendKeyboardInput(modifier.key, false)
+		if err != nil {
+			releaseModifiers(pressed)
+
+			return err
+		}
+
+		pressed |= modifier.bit
+	}
+
+	return nil
+}
+
+// releaseModifiers lets go of every key in modifiers, in reverse press order.
+// Errors are dropped: a release that fails has nothing better to try, and
+// reporting it would mask the outcome of the action it wraps.
+func releaseModifiers(modifiers action.Modifiers) {
+	for _, modifier := range slices.Backward(modifierKeys) {
+		if modifiers.Has(modifier.bit) {
+			_ = sendKeyboardInput(modifier.key, true)
+		}
+	}
 }
 
 // CurrentCursorPosition returns the current cursor location.

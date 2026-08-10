@@ -48,7 +48,7 @@ type Client interface {
 		restoreCursor bool,
 		modifiers action.Modifiers,
 	) error
-	Scroll(deltaX, deltaY int) error
+	Scroll(deltaX, deltaY int, modifiers action.Modifiers) error
 	MoveMouse(p image.Point, bypassSmooth bool)
 	CursorPosition() image.Point
 
