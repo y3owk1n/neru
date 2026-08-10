@@ -22,6 +22,11 @@ import (
 // focusedWindowQueryTimeout bounds each compositor IPC call.
 const focusedWindowQueryTimeout = 500 * time.Millisecond
 
+// compositorCLIPipeGuard bounds how long Output may keep waiting on the CLI's
+// stdout pipe after the context kills the process — a CLI that leaked a child
+// inheriting stdout would otherwise hold the pipe open indefinitely.
+const compositorCLIPipeGuard = time.Second
+
 // coordPair is the length of an [x,y] / [w,h] JSON array.
 const coordPair = 2
 
@@ -47,7 +52,19 @@ func compositorJSON(dst any, name string, args ...string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), focusedWindowQueryTimeout)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, name, args...).Output()
+	return compositorJSONContext(ctx, dst, name, args...)
+}
+
+// compositorJSONContext is compositorJSON bounded by the caller's context, for
+// call sites that already carry a deadline (the pre-activation cursor sync).
+// The deadline is real: CommandContext kills the CLI when it expires, and the
+// pipe guard keeps Output from waiting past the kill — this can run under the
+// mode handler's lock, where an unbounded wait stops the keyboard.
+func compositorJSONContext(ctx context.Context, dst any, name string, args ...string) bool {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = compositorCLIPipeGuard
+
+	out, err := cmd.Output()
 	if err != nil {
 		return false
 	}

@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 	"os"
 	"time"
@@ -138,7 +139,23 @@ func waylandCursorPosition() (image.Point, error) {
 	return wlrootsCursorPosition()
 }
 
-func waylandRefreshCursorPosition() error {
+// waylandRefreshCursorPosition re-learns the physical cursor position after
+// user-driven mouse movement the daemon cannot observe. The compositor's own
+// IPC is authoritative and cheap where it exists (Hyprland), so it is asked
+// first and mirrored into the wlroots cache; the layer-shell discovery pass
+// stays as the fallback for compositors without such a query (#1279).
+func waylandRefreshCursorPosition(ctx context.Context) error {
+	if point, ok := waylandCompositorCursorPosition(ctx); ok {
+		return wlrootsSetCursor(point)
+	}
+
+	// An IPC attempt that burned the whole deadline must not buy the discovery
+	// pass a second budget: this can run under the mode handler's lock, and the
+	// discovery wait is bounded internally, not by this context.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	return wlrootsRefreshCursorPosition()
 }
 

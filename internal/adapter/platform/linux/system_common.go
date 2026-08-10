@@ -463,7 +463,7 @@ func (s *SystemAdapter) SyncCursorPosition(ctx context.Context) error {
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		return waylandRefreshCursorPosition()
+		return waylandRefreshCursorPosition(ctx)
 	}
 
 	return nil
