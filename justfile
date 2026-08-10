@@ -232,10 +232,27 @@ test: test-unit test-integration
     @echo "Running all tests..."
 
 # Run unit tests
+#
+# No -v here or on test-race-unit, and test-foundation has never carried one,
+# while test-integration, test-desktop and test-race-integration below keep
+# theirs (test-integration-ci has never had one either). The asymmetry is
+# deliberate — ADR 0012 (docs/adr/0012-the-first-hour-must-not-lie.md) decided
+# it, so read that before "fixing" the inconsistency.
+#
+# `go test` prints a failing test's name and its full output without -v, so on
+# the unit suites the flag adds the passing lines and nothing else: one line
+# per test where a green run needs one per package, and noise around the part
+# that matters when it is red. The three recipes that keep it are the ones
+# where that per-test line is progress — they run -p 1 serialized, skip
+# heavily on headless runners, and have hung.
+#
+# The intuitive split — quiet locally, verbose in CI — is not available:
+# test-ci is a composition of other recipes and never invokes `go test`
+# itself, so there is no seam between the two audiences to hang a switch on.
 [doc('Run the unit tests.')]
 test-unit:
     @echo "Running unit tests..."
-    go test -v ./...
+    go test ./...
 
 # Run the cross-platform-safe test slice: every package that contains no
 # platform-tagged source at all, so its behavior is identical on macOS, Linux
@@ -326,10 +343,11 @@ test-race: test-race-unit test-race-integration
     @echo "Running tests with race detection..."
 
 # Run unit tests with race detection
+# See test-unit for why this recipe carries no -v and the integration ones do.
 [doc('Run the unit tests under the race detector.')]
 test-race-unit:
     @echo "Running unit tests with race detection..."
-    go test -race -v ./...
+    go test -race ./...
 
 # Run integration tests with race detection
 # See test-integration for why -p 1 and -count=1 are required here.
