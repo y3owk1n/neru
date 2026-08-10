@@ -38,7 +38,7 @@ just genman             # man pages via ./cmd/genman
 just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
 ```
 
-Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows).
+Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `check-cross`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows). `check-cross` is the only step that looks at the other two targets; `docs/DEVELOPMENT.md` states what it covers and what it does not.
 
 Single test: `go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/`; integration tests need `-tags=integration`.
 
@@ -76,7 +76,7 @@ Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` —
 
 - Logging: give your subsystem's logger its own name (`logger.Named("eventtap")`) — that is the direction rather than an invariant, since a package handed a logger and not naming it logs under its caller's name, and most do. Constructors accept nil (`zap.NewNop()` fallback). `info` is for lifecycle/config/mode-activation only; per-keypress internals go to `debug`. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees** — log counts, durations, IDs, booleans instead.
 - Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, and the name says what broke. `Test<Type>_<Method>_<EdgeCase>` where the subject is a method — three quarters of the tree — and otherwise a name for whatever the subject actually is: the rule a guardrail states (`TestEverySchemaFieldHasAnExplicitDefault`, and nearly all of `internal/architecture`), or a package-level function under test (`TestSelectFrame`, `internal/adapter/accessibility/atspi`). A guide file may claim a test exists only by naming it, and `internal/architecture/guide_test_citations_test.go` fails when a name one cites resolves to nothing. Platform stubs return `derrors.CodeNotSupported`; contract tests pin that per subsystem rather than for every stub in the tree — `internal/adapter/platform/AGENTS.md` names the ones that exist. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go` — extend those journeys when changing user-visible mode behavior.
-- Commits are conventional commits; Release Please ships the subject verbatim in the changelog, so write it for users (the `create-pr` skill covers this).
+- Commits are conventional commits, and so is the PR title. Only the **title** reaches users — the repo squash-merges, so Release Please ships that verbatim in the changelog and nothing from the branch (the `create-pr` skill covers this).
 - Each documented fact has exactly one home — ownership table in `docs/CROSS_PLATFORM.md`. Capability *status* goes there, never in `docs/ARCHITECTURE.md` (shape, not status). Update docs in the same change as platform work.
 
 ## Agent Resources

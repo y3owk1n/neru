@@ -89,11 +89,18 @@ build links against.
     Before pushing, run **`just ci`** — the same recipes CI gates your PR on,
     run on your host only, where CI runs them on macOS, Linux and Windows. It
     is a superset of the checks above (adds `go vet`, the
-    cross-platform foundation slice, a `-race` pass over the unit suite, the
-    CI profile of the integration suite, and a vulnerability scan). For the
-    deepest verification on a real desktop session, `just test-all` runs full
-    integration under `-race` too. Doing Linux or Windows work? Start with
+    cross-platform foundation slice, a CGO-off type-check of the Linux and
+    Windows builds, a `-race` pass over the unit suite, the CI profile of the
+    integration suite, and a vulnerability scan). For the deepest verification
+    on a real desktop session, `just test-all` runs full integration under
+    `-race` too. Doing Linux or Windows work? Start with
     `just test-foundation` and `just build-linux` / `just build-windows`.
+
+    That type-check is `just check-cross`, and it is the only part of the run
+    that looks at the other two legs — worth knowing about, because everything
+    else compiles for your host. What it covers, and the cgo-only Linux paths
+    it cannot, are in
+    [DEVELOPMENT.md](docs/DEVELOPMENT.md#what-just-ci-covers-and-what-it-does-not).
 
 6. **Update the docs** in the same PR. Each fact has one home — the
    [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)
@@ -116,8 +123,19 @@ build links against.
 
 We use [Conventional Commits](https://www.conventionalcommits.org/) to power
 automated releases via
-[Release Please](https://github.com/googleapis/release-please). **The commit
-subject is what ships in the changelog**, so write it for users.
+[Release Please](https://github.com/googleapis/release-please).
+
+**The artifact that reaches the changelog is the squash title, not your commit
+subjects.** Pull requests here squash-merge — it is the only merge method the
+repository enables — so the whole branch lands as one commit whose subject is
+the PR title, and that title is what Release Please reads. Write *it* for
+users.
+
+Branch commits stay conventional all the same, for two reasons that do not
+depend on the changelog: a reviewer reads the branch commit by commit, and a
+subject that says what changed is the cheapest way to make that possible; and
+the title you type is almost always one of them, so a branch of well-written
+subjects hands you the right title for free.
 
 **Format:**
 

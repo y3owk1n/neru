@@ -1,14 +1,16 @@
 ---
 name: create-pr
-description: "Commit working changes and open a Neru pull request the maintainer's way: conventional commit subjects written for the changelog, the just ci gate, and the repo PR template filled honestly. Use when asked to commit, create a PR, open a pull request, or ship finished work in this repo."
+description: "Commit working changes and open a Neru pull request the maintainer's way: conventional commit subjects, a PR title written for the changelog, the just ci gate, and the repo PR template filled honestly. Use when asked to commit, create a PR, open a pull request, or ship finished work in this repo."
 ---
 
 # Committing and opening a PR in Neru
 
-Release Please turns commit subjects directly into the public changelog, and
-the PR template checkboxes are review contract, not decoration. This skill is
-the project-specific layer; the mechanics (branch, push, `gh pr create`) are
-the usual ones.
+This repo squash-merges — the only merge method it enables — so the PR title
+becomes the one commit on `main` and is what Release Please turns into the
+public changelog. Nothing you write on the branch reaches a user. The PR
+template checkboxes are review contract, not decoration. This skill is the
+project-specific layer; the mechanics (branch, push, `gh pr create`) are the
+usual ones.
 
 ## Hard rules
 
@@ -21,11 +23,12 @@ the usual ones.
 - **Never stage indiscriminately.** No `git add -A`, no `git add .` — working
   trees hold unrelated local files. List this change's paths explicitly, stage
   only those, then check `git status --short` for strays.
-- **Never mark a breaking change in the commit.** No `!` before the colon and
-  no `BREAKING CHANGE:` footer, even when the change genuinely is breaking —
-  Release Please cuts a major bump off those markers, and that call belongs to
-  a human. Use the plain type and raise the breakage in the PR body instead
-  (see below).
+- **Never mark a breaking change — in the commit or in the PR title.** No `!`
+  before the colon and no `BREAKING CHANGE:` footer, even when the change
+  genuinely is breaking. Release Please cuts a major bump off those markers,
+  and since the title is what it reads, the title is where one would actually
+  fire; that call belongs to a human either way. Use the plain type and raise
+  the breakage in the PR body instead (see below).
 
 ## Before committing
 
@@ -46,10 +49,13 @@ the usual ones.
 Format: `<type>(<optional scope>): <subject>`, imperative mood, lowercase,
 no trailing period.
 
-- **The subject ships in the changelog. Write it for a Neru user, not for the
-  diff.** `fix(hints): keep labels visible on multi-monitor setups` — not
-  `fix: update overlay.go`.
-- Types that appear in the changelog: `feat`, `fix`, `perf`, `revert`,
+- **Write the subject for a Neru user, not for the diff.**
+  `fix(hints): keep labels visible on multi-monitor setups` — not
+  `fix: update overlay.go`. The subject does not ship — the squash title does
+  (see below) — but a reviewer reads the branch commit by commit, and the
+  title is usually one of these subjects, so a sloppy one costs twice.
+- Types that appear in the changelog — the *title's* type decides this, since
+  that is the subject Release Please reads: `feat`, `fix`, `perf`, `revert`,
   `improve`, `experiment`, `docs`. Hidden from it: `refactor`, `test`,
   `chore`, `ci`, `build`, `style`. (`release-please-config.json` is the
   authority — note it accepts `improve` and `experiment`, which the
@@ -65,8 +71,9 @@ no trailing period.
 
 ## The pull request
 
-**Title** is a conventional commit subject too — squash merges make it the
-changelog entry.
+**Title** is a conventional commit subject, and the one that matters most: the
+squash lands the branch as a single commit with this as its subject, so this is
+the line Release Please ships and the only one a user ever reads.
 
 **Body** follows `.github/pull_request_template.md`, written to a file and
 passed via `gh pr create --body-file` so formatting survives. Fill it
@@ -121,7 +128,9 @@ note out — and never as a commit marker (see Hard rules).
 
 - Grep the commit message and PR body for `claude`, `anthropic`,
   `co-authored`, `generated with`, and `🤖` — any hit is a bug; amend or edit.
-- Check the subject has no `!` and the message no `BREAKING CHANGE:` footer.
+- Check the PR title and every commit subject for a `!` before the colon, and
+  every message for a `BREAKING CHANGE:` footer. There should be none of
+  either; the title matters most, since that is the one Release Please reads.
 - Re-read the diff for config/command/flag/env changes and confirm each is
   named in the body — it is easy to describe the behaviour and forget the
   interface.
