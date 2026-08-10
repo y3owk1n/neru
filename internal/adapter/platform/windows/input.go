@@ -30,6 +30,14 @@ const (
 
 	keyeventfKeyUp = 0x0002
 
+	// neruInjectedTag rides in dwExtraInfo on every keyboard event this
+	// process synthesizes, so the low-level keyboard hook can tell Neru's own
+	// injection apart from a real keypress. Without it a modified scroll's
+	// ctrl comes straight back through the hook and is read as the user
+	// tapping ctrl. Deliberately narrower than filtering LLKHF_INJECTED, which
+	// would also hide injection by other tools.
+	neruInjectedTag = 0x4E455255 // 'N','E','R','U'
+
 	wheelDelta = 120
 )
 
@@ -80,18 +88,10 @@ var procSendInput = user32.NewProc("SendInput")
 
 var errSendInputFailed = errors.New("SendInput failed")
 
-func sendMouseInput(flags uint32, data uint32) error {
-	var event input
-
-	event.inputType = inputMouse
-	event.mi.dwFlags = flags
-	event.mi.mouseData = data
-
-	ret, _, err := procSendInput.Call(
-		1,
-		uintptr(unsafe.Pointer(&event)),
-		unsafe.Sizeof(event),
-	)
+// sendOneInput posts a single already-filled INPUT record. Both union arms go
+// through here so the call convention and the failure reporting are stated once.
+func sendOneInput(event unsafe.Pointer, size uintptr) error {
+	ret, _, err := procSendInput.Call(1, uintptr(event), size)
 	if ret == 0 {
 		if err != nil {
 			return fmt.Errorf("SendInput: %w", err)
@@ -103,31 +103,29 @@ func sendMouseInput(flags uint32, data uint32) error {
 	return nil
 }
 
+func sendMouseInput(flags uint32, data uint32) error {
+	var event input
+
+	event.inputType = inputMouse
+	event.mi.dwFlags = flags
+	event.mi.mouseData = data
+
+	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
+}
+
 // sendKeyboardInput presses or releases one virtual key.
 func sendKeyboardInput(virtualKey uint16, isUp bool) error {
 	var event keyInput
 
 	event.inputType = inputKeyboard
 	event.ki.wVk = virtualKey
+	event.ki.dwExtraInfo = neruInjectedTag
 
 	if isUp {
 		event.ki.dwFlags = keyeventfKeyUp
 	}
 
-	ret, _, err := procSendInput.Call(
-		1,
-		uintptr(unsafe.Pointer(&event)),
-		unsafe.Sizeof(event),
-	)
-	if ret == 0 {
-		if err != nil {
-			return fmt.Errorf("SendInput: %w", err)
-		}
-
-		return errSendInputFailed
-	}
-
-	return nil
+	return sendOneInput(unsafe.Pointer(&event), unsafe.Sizeof(event))
 }
 
 // MoveMouseTo moves the cursor to the given screen point.
@@ -256,6 +254,12 @@ var modifierKeys = []struct {
 
 // pressModifiers holds down every key in modifiers, releasing what it already
 // pressed if one of them fails so a partial set is never left latched.
+//
+// SendInput delivers these to Neru's own low-level keyboard hook, which runs
+// its callback inline on the hook thread and from there reaches the mode
+// handler's lock. neruInjectedTag is what stops that: keep it on every
+// synthesized key, or this becomes a call into the handler from whatever
+// goroutine is injecting.
 func pressModifiers(modifiers action.Modifiers) error {
 	var pressed action.Modifiers
 
