@@ -72,8 +72,13 @@ disk on X11 sessions. That is user-visible, so the code moves, not the prose.
   more. The guardrail ADR 0009 promised is therefore justified, but its target is
   narrower than that ADR's wording: a non-`static` `Neru*` definition whose
   declaration lives anywhere but its own subsystem's header. A pin that only asked
-  "is it declared somewhere" would be a no-op. Seven such definitions exist today
-  and all seven are `static`, so the pin lands green.
+  "is it declared somewhere" would be a no-op. Six such definitions exist today and
+  all six are `static`, so the pin lands green. A seventh, `_NeruEnableCursorInBackground`
+  in `internal/adapter/platform/darwin/overlay_darwin.m`, is `static` too but is
+  outside the pin's reach for a different reason — its leading underscore puts it
+  outside the `Neru*` PascalCase naming contract rather than making it file-local,
+  which is why `internal/architecture/darwin_entry_point_headers_test.go` counts
+  six.
 - **Some contracts are half-covered, and the guardrail takes the other half.**
   `exhaustive` is enabled and fires on an *incomplete* switch over `domain.Mode`. A
   complete one lints clean — and a complete switch is what a careful contributor
@@ -104,14 +109,16 @@ disk on X11 sessions. That is user-visible, so the code moves, not the prose.
   suffix belongs to `internal/ports`.
 - **A sentence may claim a guardrail only by naming it.** The failure of this kind
   the grill actually found was not an unenforced rule but a lying one:
-  `AGENTS.md:78` states that every platform stub gets a contract test when three
-  exist against thirty-eight candidates, and `internal/config/AGENTS.md:5` says
+  `AGENTS.md:78` stated that every platform stub gets a contract test when three
+  existed against thirty-eight candidates, and `internal/config/AGENTS.md:5` said
   three of the four config links are guarded when it is two links by three tests. A
   sentence that claims enforcement it does not have is worse than one that claims
   nothing, because it stops the reader checking. So an `AGENTS.md` may assert that
   a test exists only by naming it, and a guardrail asserts that every such name
-  resolves to a real test function — which several sentences already do, and which
-  fails the two above on the day it is written.
+  resolves to a real test function — which several sentences already do. Neither of
+  the two above could survive that rule: the test each implies has no name to give,
+  because it does not exist. Both were restated to say what is actually checked
+  (#1432, #1428), which is the outcome the rule is for.
 - **The link points from the test to the prose, never back.** This was already the
   house style and is recorded here so it stays one: the failure message names the
   offending file, states the rule in the imperative, and cites the document that

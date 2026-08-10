@@ -120,8 +120,16 @@ expectations, and build mode is
 
 Enforced twice: `depguard` in `.golangci.yml`, and
 [dependency_boundary_test.go](../internal/architecture/dependency_boundary_test.go).
-The only exemptions are `platform/darwin/**`, `*_darwin.go`, and
-`*integration_darwin_test.go`.
+The duplication is deliberate. `depguard` matches directories, so its exemption
+for a darwin-only package is sound only while every file in such a directory
+carries the build tag that makes it darwin-only — and what checks that is
+`TestPlatformPackagesTagEveryFile`, a Go test with no lint equivalent. The test
+is the primary enforcement; the lint rule is the fast feedback.
+
+Both exempt the same three shapes, and they are shapes rather than a list of
+packages: any file under a directory named `darwin`, any `*_darwin.go`, and any
+`*integration_darwin_test.go`. A new darwin backend package needs no edit to
+either.
 
 Cross the boundary through `ports.SystemPort` or a build-tagged dispatch pair
 (`platform_darwin.go` / `platform_other.go`).
@@ -321,10 +329,12 @@ All shared code uses a **global top-left (0,0)** coordinate system.
 - **Units** — screen pixels, unscaled
 
 macOS Cocoa uses a bottom-left origin with Y increasing upwards. The inversion
-happens inside the darwin adapter
-([accessibility_screen_darwin.m](../internal/adapter/platform/darwin/accessibility_screen_darwin.m))
-— flipped coordinates must never leak into shared Go. Conversions live in
-`internal/domain/geometry`.
+happens inside the darwin adapter, open-coded at each site that needs it
+([accessibility_screen_darwin.m](../internal/adapter/platform/darwin/accessibility_screen_darwin.m)
+is one of several) — flipped coordinates must never leak into shared Go, which
+is the property the rule buys and the code has. `internal/domain/geometry` is
+not where a flip lives: it translates origins, rescales and clamps, every
+function is sign-preserving in Y, and Linux imports it too.
 
 ---
 

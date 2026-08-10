@@ -623,9 +623,14 @@ Read these before changing platform code:
 - [architecture/platform_slots_test.go](../internal/architecture/platform_slots_test.go) — the file-layout rules, as executable checks
 - [ARCHITECTURE.md](./ARCHITECTURE.md) and the root [AGENTS.md](../AGENTS.md) conventions
 
-Contributing Linux support? Also open the reserved backend files in the package
-you plan to touch (`*_linux_common.go`, `*_linux_x11.go`, `*_linux_wayland.go`)
-before writing anything.
+Contributing Linux support? Nothing is reserved and waiting for you — read the
+Linux files the package already has before writing anything. Where they sit
+depends on the package: a single-platform directory such as
+`internal/adapter/platform/linux/` drops the OS token and splits by backend
+(`system_x11_cgo.go`, `system_wayland_wlroots_cgo.go`), while a mixed package
+carries it (`internal/adapter/platform/factory_linux.go`,
+`internal/adapter/overlay/backend_linux.go`). The slot table below is the full
+set.
 
 ## The Three Tiers
 
@@ -779,6 +784,7 @@ violation fails `just test` rather than review:
 | --------------------------------- | --------------------------------------------------------- |
 | `*_darwin.go`                     | macOS                                                     |
 | `*_windows.go`                    | Windows                                                   |
+| `*_linux.go`                      | Linux, with no backend axis to split on                   |
 | `*_other.go`                      | non-target fallback for dispatch-style packages           |
 | `*_unix.go`                       | the `!windows` side of a split (established Go convention) |
 | `*_linux_common.go`               | Linux-shared wrapper, fallback, or backend routing        |
@@ -792,6 +798,11 @@ Inside a package that is already one platform (`adapter/*/darwin`,
 the directory carries it. `overlay/linux/wayland_cgo.go` and
 `platform/linux/system_x11_cgo.go` keep only the axes that still vary; a
 `system_linux_x11_cgo.go` inside `platform/linux/` would say linux twice.
+
+That is why the four Linux backend rows above hold no files today: every Linux
+backend split in the tree lives inside a single-platform directory and has
+dropped the token. The rows are the spelling to use if a mixed package ever
+needs one — not files waiting to be opened.
 
 What the guardrail test checks:
 
@@ -853,8 +864,8 @@ than navigation.
 
 That is the case for
 `overlay/render/{grid,hints,recursivegrid,modeindicator,stickyindicator}`. Each
-is one real renderer plus small stubs, and `overlay_linux_common.go` is already
-the obvious file to open.
+is one real renderer plus small stubs, and `overlay_other.go` is already the
+obvious file to open.
 
 ### Giving a capability its own packages
 
@@ -1034,18 +1045,19 @@ usually the mechanism:
   lacks it.
 - **Genuinely DE-specific** — active-window geometry (KWin D-Bus vs Mutter
   D-Bus) and hotkey registration. These belong in DE-named files such as
-  `kwin_geometry_linux.go`.
+  `internal/adapter/accessibility/atspi/kwin_geometry.go`.
 
 Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
-needs a path no other family shares. Current sub-slots:
-`system_linux_wayland_wlroots_*.go` (virtual-pointer input) and
-`system_linux_wayland_kde_*.go` (libei input), with
-`system_wayland_input.go` as the shared routing seam.
+needs a path no other family shares — spelled without the OS token inside
+`internal/adapter/platform/linux/`, which is where every one of them lives
+today: `system_wayland_wlroots_*.go` (virtual-pointer input) and
+`system_wayland_kde_*.go` (libei input), with `system_wayland_input.go` as the
+shared routing seam.
 
 **To add a compositor** (COSMIC, say): add a `LinuxBackend` value and detection
 in `backend_linux.go`, route it in the factory and the relevant dispatch seams,
-and add a new `*_linux_wayland_<compositor>.go` slot *only* if it cannot reuse an
-existing mechanism file.
+and add a new compositor sub-slot *only* if it cannot reuse an existing
+mechanism file.
 
 Per-DE decisions, measured protocol support, and known issues live in
 [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md); host setup lives in

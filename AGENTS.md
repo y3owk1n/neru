@@ -38,9 +38,9 @@ just genman             # man pages via ./cmd/genman
 just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
 ```
 
-Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — exactly what CI gates on (adds `vet`, `test-foundation`, `-race`, `vuln`).
+Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows).
 
-Single test: `go test -run TestHandler_HandleKey ./internal/app/modes/`; integration tests need `-tags=integration`.
+Single test: `go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/`; integration tests need `-tags=integration`.
 
 ## Architecture
 
@@ -62,7 +62,7 @@ internal/architecture   guardrail tests for package boundaries
 Hard rules that apply everywhere:
 
 - **The One Rule**: non-darwin-tagged code must never import `internal/adapter/platform/darwin`. Enforced by `depguard` and `internal/architecture/dependency_boundary_test.go`. Details and platform file slots: `internal/adapter/platform/AGENTS.md`.
-- **Coordinates**: all shared code uses global top-left origin, Y down, unscaled pixels; Cocoa's flip stays inside the darwin adapter (`internal/domain/geometry` owns conversions).
+- **Coordinates**: all shared code uses global top-left origin, Y down, unscaled pixels; Cocoa's bottom-left flip stays inside the darwin adapter and never reaches shared Go. Detail, including where a flip does *not* live: `docs/ARCHITECTURE.md` (Coordinate System).
 - **Errors**: use `derrors` (`derrors.New` / `derrors.Wrap`). Unsupported platform behavior returns `derrors.CodeNotSupported` explicitly — never a silent no-op; callers degrade via `IsNotSupported`.
 - **`modes.Handler` has a strict locking contract** — read `internal/app/modes/AGENTS.md` before touching modes or anything that calls back into the handler.
 
@@ -74,8 +74,8 @@ Configuration is hot-reloadable TOML; adding an option touches four links every 
 
 Formatting and lint mechanics are fully enforced by `just fmt` + `just lint` — run them rather than memorizing rules. What tooling cannot enforce:
 
-- Logging: named zap loggers per subsystem; constructors accept nil (`zap.NewNop()` fallback). `info` is for lifecycle/config/mode-activation only; per-keypress internals go to `debug`. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees** — log counts, durations, IDs, booleans instead.
-- Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, `TestType_Method_EdgeCase` naming. Platform stubs return `derrors.CodeNotSupported`; contract tests pin that per subsystem rather than for every stub in the tree — `internal/adapter/platform/AGENTS.md` names the ones that exist. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go` — extend those journeys when changing user-visible mode behavior.
+- Logging: give your subsystem's logger its own name (`logger.Named("eventtap")`) — that is the direction rather than an invariant, since a package handed a logger and not naming it logs under its caller's name, and most do. Constructors accept nil (`zap.NewNop()` fallback). `info` is for lifecycle/config/mode-activation only; per-keypress internals go to `debug`. **Never log UI text, element titles/values, hint search terms, keystreams, exec output, or raw config subtrees** — log counts, durations, IDs, booleans instead.
+- Tests: unit tests use port mocks from `internal/ports/mocks`; real-OS tests are `*_integration_<os>_test.go` tagged `//go:build integration && <os>`. Table-driven, and the name says what broke. `Test<Type>_<Method>_<EdgeCase>` where the subject is a method — three quarters of the tree — and otherwise a name for whatever the subject actually is: the rule a guardrail states (`TestEverySchemaFieldHasAnExplicitDefault`, and nearly all of `internal/architecture`), or a package-level function under test (`TestSelectFrame`, `internal/adapter/accessibility/atspi`). A guide file may claim a test exists only by naming it, and `internal/architecture/guide_test_citations_test.go` fails when a name one cites resolves to nothing. Platform stubs return `derrors.CodeNotSupported`; contract tests pin that per subsystem rather than for every stub in the tree — `internal/adapter/platform/AGENTS.md` names the ones that exist. Full user journeys (hotkey → overlay draw → cursor/click) run as plain unit tests through the simulation harness in `internal/app/simulation_harness_test.go` — extend those journeys when changing user-visible mode behavior.
 - Commits are conventional commits; Release Please ships the subject verbatim in the changelog, so write it for users (the `create-pr` skill covers this).
 - Each documented fact has exactly one home — ownership table in `docs/CROSS_PLATFORM.md`. Capability *status* goes there, never in `docs/ARCHITECTURE.md` (shape, not status). Update docs in the same change as platform work.
 

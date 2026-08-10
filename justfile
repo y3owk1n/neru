@@ -350,10 +350,11 @@ test-integration-ci:
 # to be cross-platform-safe should be proven.
 test-ci: test-foundation test-unit test-race-unit test-integration-ci
 
-# Run the exact set of checks CI gates a pull request on, in the same order.
-# This is the real pre-push bar — `just test` alone is a subset of it. For
-# the deepest local verification (full integration + race passes on a real
-# desktop session) run `just test-all` as well.
+# Run the set of checks CI gates a pull request on, in the same order, on this
+# host. CI runs the same recipes on macOS, Linux and Windows, so a green run
+# here is one leg of three. This is the real pre-push bar — `just test` alone
+# is a subset of it. For the deepest local verification (full integration +
+# race passes on a real desktop session) run `just test-all` as well.
 ci: fmt-check lint vet build test-ci vuln
     @echo "✓ All CI checks passed"
 

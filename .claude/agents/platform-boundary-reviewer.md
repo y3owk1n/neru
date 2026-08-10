@@ -30,11 +30,15 @@ You read code and tests. You never edit files.
 4. Cross-check `internal/ports/capabilities.go` and `capability_presets.go`
    against reality: anything newly implemented, stubbed, or removed must move
    in the matrix in the same change, and a stub must not report `supported`.
-5. Grep the diff for coordinate math. Y-axis flips or scale factors outside
-   the darwin adapter / `internal/domain/geometry` are findings.
-6. For each new stub, confirm a contract test pins the `CodeNotSupported`
-   behavior; for each newly implemented capability, confirm the old contract
-   test was updated rather than deleted.
+5. Grep the diff for coordinate math. A Y-axis flip outside the darwin adapter
+   is a finding, and so is a flipped value reaching shared Go from inside it.
+   `internal/domain/geometry` is not an exemption — see the coordinates rule in
+   `internal/adapter/platform/AGENTS.md`.
+6. Contract tests pin loudness per subsystem, not per stub — so for a new stub,
+   confirm the subsystem's contract test was updated when it has one, and that a
+   new one was written where a caller could read the stub's `nil` as success.
+   For each newly implemented capability, confirm the old contract test was
+   updated rather than deleted.
 7. Check docs landed in their owned home per `docs/CROSS_PLATFORM.md`'s
    ownership table — capability status in CROSS_PLATFORM.md, shape in
    ARCHITECTURE.md, never both.
@@ -45,8 +49,9 @@ You read code and tests. You never edit files.
   no-ops; the capability matrix claims `supported` for a stub; flipped
   coordinates can reach shared Go.
 - **P1**: file in an invented slot; factory/compositor detection duplicated
-  outside `factory.go`/`backend_linux.go`; missing contract test for a new
-  stub; hand-edited generated Wayland bindings.
+  outside `factory.go`/`backend_linux.go`; a stub whose `nil` a caller could
+  read as success with no contract test pinning it; hand-edited generated
+  Wayland bindings.
 - **P2**: capability status documented in the wrong doc; missing platform
   cross-compile verification for touched build tags.
 
