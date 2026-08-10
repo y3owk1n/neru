@@ -21,7 +21,7 @@ not made.
 
 The lies were real and none of them were features. `just --list` — the command
 `DEVELOPMENT.md` names under *Verify* as the way to see what the project can do
-— was wrong for twenty-six of fifty-two recipes, because `just` takes only the
+— was wrong for twenty-six of fifty-three recipes, because `just` takes only the
 last contiguous comment line before a recipe and this justfile writes rationale
 paragraphs there. `build` advertised itself as "*X11/Wayland native backends).
 Windows currently builds with CGO disabled.*"; `list-foundation-packages` as
