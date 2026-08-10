@@ -286,11 +286,11 @@ and pull requests are very welcome.
 
 ```bash
 git checkout -b feature/your-feature
-just ci   # everything CI checks, locally
+just ci   # the same recipes CI gates on, on your host only
 # open a pull request
 ```
 
-→ [Contributing Guide](CONTRIBUTING.md) · [Development Guide](docs/DEVELOPMENT.md) · [Good first issues](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+→ [Contributing Guide](CONTRIBUTING.md) · [Development Guide](docs/DEVELOPMENT.md)
 
 ---
 

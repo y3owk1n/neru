@@ -44,7 +44,9 @@
       scan, build); CI runs them on macOS, Linux and Windows
 - [ ] Tests added/updated for new or changed functionality
 - [ ] Documentation updated (if applicable)
-- [ ] Commit messages follow [conventional commits](https://www.conventionalcommits.org/)
+- [ ] PR title is a [conventional commit](https://www.conventionalcommits.org/)
+      subject written for users — this PR squash-merges, so the title is what
+      Release Please ships in the changelog, not the commits on the branch
 
 ## Screenshots / Recordings
 

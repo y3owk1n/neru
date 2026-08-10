@@ -31,7 +31,8 @@ the usual ones.
 
 1. Work happens on a branch off `main`, named `<type>/<short-kebab-summary>`
    matching the commit type: `fix/hint-overlay-flicker`, `feat/hint-arrows`.
-2. Run the full gate — it is exactly what CI runs, so surprises surface here:
+2. Run the full gate — the same recipes CI gates on, run on your host only,
+   where CI runs them on macOS, Linux and Windows:
 
    ```bash
    just ci
