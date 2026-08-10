@@ -1,4 +1,4 @@
 interface:
   display_name: "Create PR"
   short_description: "Commit and open a PR with Neru's conventions and template"
-  default_prompt: "Use $create-pr to commit this work with changelog-ready conventional commits, run the just ci gate, and open a PR following the template."
+  default_prompt: "Use $create-pr to commit this work with conventional commits and a changelog-ready PR title, run the just ci gate, and open a PR following the template."

@@ -438,9 +438,12 @@ Releases are automated by
 release PR builds and publishes the binaries on GitHub.
 
 Versioning is semantic — `vMAJOR.MINOR.PATCH`: breaking changes, backward-
-compatible features, bug fixes. Because Release Please derives the changelog
-from commit subjects, the [conventional commit
-format](../CONTRIBUTING.md#commit-messages) is what ships to users.
+compatible features, bug fixes. Release Please derives the changelog from the
+commit subjects on `main`, and because pull requests squash-merge, each of
+those is a PR title. So the [conventional commit
+format](../CONTRIBUTING.md#commit-messages) applied to the *title* is what
+ships to users; the subjects on the branch are squashed away before Release
+Please ever sees them.
 
 > [!NOTE]
 > The Homebrew version bump lives in a separate repo and is updated separately.

@@ -123,8 +123,19 @@ build links against.
 
 We use [Conventional Commits](https://www.conventionalcommits.org/) to power
 automated releases via
-[Release Please](https://github.com/googleapis/release-please). **The commit
-subject is what ships in the changelog**, so write it for users.
+[Release Please](https://github.com/googleapis/release-please).
+
+**The artifact that reaches the changelog is the squash title, not your commit
+subjects.** Pull requests here squash-merge — it is the only merge method the
+repository enables — so the whole branch lands as one commit whose subject is
+the PR title, and that title is what Release Please reads. Write *it* for
+users.
+
+Branch commits stay conventional all the same, for two reasons that do not
+depend on the changelog: a reviewer reads the branch commit by commit, and a
+subject that says what changed is the cheapest way to make that possible; and
+the title you type is almost always one of them, so a branch of well-written
+subjects hands you the right title for free.
 
 **Format:**
 
