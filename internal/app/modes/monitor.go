@@ -50,6 +50,12 @@ func (h *Handler) MoveMonitor(
 		return derrors.New(derrors.CodeActionFailed, "action service not available")
 	}
 
+	// "Next" is relative to the monitor under the cursor, and on Wayland the
+	// cursor position is a cache a user-driven mouse move invalidates — refresh
+	// it first or the step starts from the last place Neru put the cursor, not
+	// where the user did (#1279). Runs outside h.mu, like the warp below.
+	h.syncCursorPosition(ctx)
+
 	targetBounds, targetDisplayName, err := h.resolveMonitorTarget(ctx, direction)
 	if err != nil {
 		return err

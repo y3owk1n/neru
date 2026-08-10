@@ -96,16 +96,34 @@ func (h *handlerState) resetScrollContext() {
 // position when the platform keeps one. Adapters that do not implement
 // ports.CursorSynchronizer are already authoritative, so there is nothing to do.
 func (h *handlerState) syncCursorPositionForModeActivation() {
+	h.syncCursorPosition(h.ctx)
+}
+
+// syncCursorPosition refreshes the platform's cursor cache within
+// cursorSyncTimeout. A failure is a warning, not a debug line: everything that
+// selects a monitor from the cursor (ScreenBounds on Wayland) now reads a
+// stale position, which puts the overlay on the wrong display (#1279) — and
+// that has to be answerable from a default log.
+//
+// Called from two lock contexts: under h.mu (activation, via
+// prepareForModeActivation) and under only moveMonitorMu (MoveMonitor). That
+// is safe because it touches nothing a reload or activation mutates — h.system
+// and h.logger are construction-time-only — and it must stay that way: reading
+// h.config or any mode component here is a data race with the unlocked caller.
+func (h *handlerState) syncCursorPosition(ctx context.Context) {
 	syncer, ok := h.system.(ports.CursorSynchronizer)
 	if !ok {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(h.ctx, cursorSyncTimeout)
+	ctx, cancel := context.WithTimeout(ctx, cursorSyncTimeout)
 	defer cancel()
 
 	err := syncer.SyncCursorPosition(ctx)
 	if err != nil {
-		h.logger.Debug("Failed to sync cursor position for mode activation", zap.Error(err))
+		h.logger.Warn(
+			"Failed to sync cursor position; monitor selection may be stale",
+			zap.Error(err),
+		)
 	}
 }

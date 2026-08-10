@@ -42,6 +42,11 @@ var compositorSocketReaders = map[string]string{
 	"internal/adapter/accessibility/atspi/window_origin.go": "picks the " +
 		"compositor CLI to query for the focused window's origin, reached only " +
 		"from newWindowOriginSource's BackendWaylandWlroots arm",
+	"internal/adapter/platform/linux/system_cursor_ipc.go": "picks the " +
+		"compositor CLI to query for the physical cursor position, reached only " +
+		"from SystemAdapter.SyncCursorPosition behind waylandUsesWlrClientStack; " +
+		"an unset or stale socket answers not-found and the sync falls back to " +
+		"layer-shell discovery",
 }
 
 // TestCompositorSocketsAreReadOnlyBehindTheBackend pins the second half of
