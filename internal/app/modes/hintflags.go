@@ -2,7 +2,6 @@ package modes
 
 import (
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -76,10 +75,9 @@ func applyHintFlagsFresh(ctx *hints.Context, activation modecmd.Activation) {
 	ctx.SetOnExit(activation.OnExit)
 	ctx.SetPendingModifier(activation.Modifier)
 	ctx.SetRepeat(false)
-	ctx.SetCursorFollowSelection(resolveCursorFollowSelection(
-		domain.ModeHints,
-		activation.CursorFollowSelection,
-	))
+	ctx.SetCursorFollowSelection(
+		resolveCursorFollowSelection(activation.CursorFollowSelection),
+	)
 	ctx.SetFilterRoles(activation.FilterRoles)
 	ctx.SetFilterTextContains(activation.FilterTextContains)
 	ctx.SetStartWithSearch(activation.Search != nil && *activation.Search)

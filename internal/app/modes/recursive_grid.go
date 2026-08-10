@@ -71,10 +71,7 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 	if isRefresh && activation.CursorFollowSelection == nil && h.recursiveGrid.Context != nil {
 		cursorShouldFollow = h.recursiveGrid.Context.CursorFollowSelection()
 	} else {
-		cursorShouldFollow = resolveCursorFollowSelection(
-			domain.ModeRecursiveGrid,
-			activation.CursorFollowSelection,
-		)
+		cursorShouldFollow = resolveCursorFollowSelection(activation.CursorFollowSelection)
 	}
 
 	// Auto-zoom to depth if requested.

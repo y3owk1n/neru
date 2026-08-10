@@ -269,8 +269,7 @@ func applyGridFlags(ctx *grid.Context, activation modecmd.Activation, isRefresh 
 	ctx.SetOnExit(activation.OnExit)
 	ctx.SetPendingModifier(activation.Modifier)
 	ctx.SetRepeat(activation.Repeat != nil && *activation.Repeat)
-	ctx.SetCursorFollowSelection(resolveCursorFollowSelection(
-		domain.ModeGrid,
-		activation.CursorFollowSelection,
-	))
+	ctx.SetCursorFollowSelection(
+		resolveCursorFollowSelection(activation.CursorFollowSelection),
+	)
 }
