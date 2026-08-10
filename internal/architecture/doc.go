@@ -42,6 +42,9 @@
 //   - justfile_doc_test.go — every recipe just --list shows declares its own
 //     one-line summary, rather than inheriting whichever line of the comment
 //     block above it just happens to read.
+//   - justfile_parse_test.go — the one justfile reader the suite shares: what
+//     a recipe is, what it runs, and the attributes above it, so no second
+//     parser learns those cases over again.
 //   - keyvocab_wire_test.go — the native key event emitters and keyvocab agree
 //     on what they put on the wire.
 //   - label_autohide_rule_test.go — the label autohide rule is pinned across
