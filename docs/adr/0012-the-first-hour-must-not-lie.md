@@ -83,10 +83,16 @@ promised falsely.
   declaration, and the rendered list is a projection of it.
 - **It earns a guardrail, by ADR 0011's test.** The justfile parses, every
   recipe runs, `just lint` is silent and every test passes with the list wrong —
-  which is how it stayed wrong for months. The guardrail reads `justfile` as
-  text and fails on a public recipe with no `[doc('…')]`, in the manner ADR 0011
-  prescribes for `internal/architecture`: no shelling out to `just`, so it holds
-  on every leg regardless of what is installed.
+  which is how it stayed wrong for months. The guardrail is
+  `internal/architecture/justfile_doc_test.go`: it reads `justfile` as text and
+  fails on a public recipe with no `[doc('…')]`, an empty summary, or one over
+  eighty characters, in the manner ADR 0011 prescribes for
+  `internal/architecture` — no shelling out to `just`, so it holds on every leg
+  regardless of what is installed. The eighty is a cap on the summary *text*,
+  not on the rendered line: `just` pads the signature column to the widest
+  signature in the file, so a rendered-width rule would couple every recipe's
+  verdict to the longest one and an eighty-column budget would leave
+  twenty-four characters for the summary itself.
 - **`-v` comes off the unit recipes and stays on the integration ones.** The
   intuitive split — quiet locally, verbose in CI — is not available: `test-ci`
   is a composition of `test-foundation test-unit test-race-unit
