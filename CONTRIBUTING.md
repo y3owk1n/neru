@@ -84,8 +84,9 @@ recommended path and provides every tool pre-configured.
     > socket makes the IPC integration tests silently skip. Details in
     > [DEVELOPMENT.md](docs/DEVELOPMENT.md#testing).
 
-    Before pushing, run **`just ci`** — it is exactly what CI gates your PR on,
-    and it is a superset of the checks above (adds `go vet`, the
+    Before pushing, run **`just ci`** — the same recipes CI gates your PR on,
+    run on your host only, where CI runs them on macOS, Linux and Windows. It
+    is a superset of the checks above (adds `go vet`, the
     cross-platform foundation slice, a `-race` pass over the unit suite, the
     CI profile of the integration suite, and a vulnerability scan). For the
     deepest verification on a real desktop session, `just test-all` runs full

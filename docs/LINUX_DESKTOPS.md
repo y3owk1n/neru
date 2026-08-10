@@ -40,7 +40,7 @@ all pointer and keyboard injection goes through **libei** via
 
 Routing lives in `system_wayland_input.go` — if the compositor advertises
 `zwlr_virtual_pointer_v1` it uses the virtual pointer, otherwise libei. The two
-paths never overlap. Code slots: `system_linux_wayland_kde_*.go`,
+paths never overlap. Code slots: `platform/linux/system_wayland_kde_*.go`,
 `accessibility/atspi/kwin_geometry.go`, `accessibility/atspi/client.go`.
 
 AT-SPI reports window-relative coordinates, so a KWin script pushes
@@ -174,7 +174,8 @@ Two behaviors are specific enough to note here:
   misaligned there. Details in
   [CROSS_PLATFORM.md](CROSS_PLATFORM.md#accessibility-and-hints).
 
-Code slots: `system_linux_wayland_wlroots_*.go` and the shared wlroots C client.
+Code slots: `platform/linux/system_wayland_wlroots_*.go` and the shared wlroots
+C client.
 
 ### Testing tips
 

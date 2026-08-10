@@ -73,11 +73,11 @@ const darwinEntryPointRule = "declare every non-static Neru* entry point in its 
 // since version 16, this repo passes no -W flags of its own, and cgo refuses
 // the same call on the Go side — so the naive breach fails the build and names
 // the symbol. Six such definitions exist in the bridge today and every one of
-// them is static, which is the shape that is meant to have no prototype. ADR
-// 0011 counts seven: the one this pin does not count is
-// _NeruEnableCursorInBackground, static as well, and outside the Neru*
-// PascalCase naming contract by its leading underscore rather than by being
-// file-local.
+// them is static, which is the shape that is meant to have no prototype. A
+// seventh definition reads like one and is not counted here:
+// _NeruEnableCursorInBackground is static as well, but what puts it outside
+// this pin is its leading underscore — the Neru* PascalCase naming contract,
+// which nativeEntryPointOpening's leading word boundary is what enforces.
 //
 // What is silent is the same definition with its prototype written somewhere
 // else: at the top of the calling .m, into a cgo preamble (for which there is

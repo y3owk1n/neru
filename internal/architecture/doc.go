@@ -35,6 +35,8 @@
 //   - doc_links_test.go — no contributor doc names a path that does not exist.
 //   - foundation_slice_test.go — the test-foundation recipe holds every
 //     package that runs everywhere, and CI runs the recipe.
+//   - guide_test_citations_test.go — a guide file may claim a test exists only
+//     by naming it, and every test name or test file it names resolves.
 //   - hint_placement_vocabulary_test.go — the hint placement vocabulary is the
 //     same on both sides of the Go/Objective-C boundary.
 //   - keyvocab_wire_test.go — the native key event emitters and keyvocab agree

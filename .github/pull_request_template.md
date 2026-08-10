@@ -39,8 +39,9 @@
 ## General Checklist
 
 - [ ] Code formatted (`just fmt`)
-- [ ] `just ci` passes — the exact checks CI runs (format check, lint, vet,
-      tests including `-race`, vulnerability scan, build)
+- [ ] `just ci` passes — the same checks CI runs, on your host only (format
+      check, lint, vet, tests including a unit `-race` pass, vulnerability
+      scan, build); CI runs them on macOS, Linux and Windows
 - [ ] Tests added/updated for new or changed functionality
 - [ ] Documentation updated (if applicable)
 - [ ] Commit messages follow [conventional commits](https://www.conventionalcommits.org/)

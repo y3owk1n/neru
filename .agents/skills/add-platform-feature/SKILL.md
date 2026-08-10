@@ -29,9 +29,11 @@ unimplemented, and reports itself honestly in the capability matrix.
 - Unit tests with port mocks stay platform-neutral.
 - Real-OS behavior goes in `*_integration_<os>_test.go` tagged
   `//go:build integration && <os>`.
-- Every new stub gets (or updates) a contract test pinning the
-  `CodeNotSupported` behavior, so a later "implementation" that silently
-  no-ops fails a test.
+- Contract tests pin `CodeNotSupported` per subsystem, not per stub. Update the
+  subsystem's existing one if it has one, and write a new one when a caller
+  could read the stub's `nil` as success, so a later "implementation" that
+  silently no-ops fails a test. `internal/adapter/platform/AGENTS.md` names the
+  ones that exist.
 
 ## Docs (same change, not a follow-up)
 

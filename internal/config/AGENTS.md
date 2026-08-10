@@ -2,14 +2,14 @@
 
 `~/.config/neru/config.toml`, hot-reloadable via `loader/` (load/watch/persist/set-field).
 
-Adding or changing an option touches **four links every time, and up to four more when the option needs them**. The split is the part worth knowing. The universal four are projections of one declaration, and three of them have a guardrail test in `internal/architecture` that fails when you skip them. The conditional four are real code that has to be written either way — which is why generating the chain would buy back less than the file count suggests (`docs/adr/0006-config-options-get-guardrails-not-generation.md`).
+Adding or changing an option touches **four links every time, and up to four more when the option needs them**. The split is the part worth knowing. The universal four are projections of one declaration, and **two** of them — the default and the example — carry guardrail tests in `internal/architecture` that fail when you skip them, three tests between them. Link 1 is the declaration the other three are checked against, and link 4 has nothing behind it at all. The conditional four are real code that has to be written either way — which is why generating the chain would buy back less than the file count suggests (`docs/adr/0006-config-options-get-guardrails-not-generation.md`).
 
 ## Universal — every option
 
 1. **Struct field** in `config.go` (`toml:"snake_case"`, nested in its feature's sub-struct). The source of truth the rest of the chain is checked against.
 2. **Shared default** in `newDefaultConfig()` (`config_defaults.go`). Every field is assigned by name, even when the value assigned is the zero value — a zero nobody wrote cannot be told from a forgotten one. Miss it and `TestEverySchemaFieldHasAnExplicitDefault` fails.
 3. **Example line** in `configs/default-config.toml`, commented out when the option has no default. Miss it and `TestConfigOptionsAppearInTheDefaultExample` fails. Misspell a key in any of the four shipped examples and `TestShippedExamplesWriteOnlySchemaKeys` fails — the decoder drops an unknown key in silence, so a typo there is a dead line that looks like it works.
-4. **Reference row** in `docs/CONFIGURATION.md`, the single home for config reference facts. **No test enforces this one** — the other three are checked, this one is not: matching a Go field to a prose row is the fuzziest match of the four, and ADR 0006 declined it. It is on you and the reviewer.
+4. **Reference row** in `docs/CONFIGURATION.md`, the single home for config reference facts. **No test enforces this one** — the default and the example are checked, this one is not: matching a Go field to a prose row is the fuzziest match of the four, and ADR 0006 declined it. It is on you and the reviewer.
 
 ## Conditional — only when the option needs it
 

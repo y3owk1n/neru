@@ -150,7 +150,7 @@ Targeting a single package or test:
 
 ```bash
 go test ./internal/domain/hint/
-go test -run TestHandler_HandleKey ./internal/app/modes/
+go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/
 go test -tags=integration ./internal/adapter/accessibility/
 ```
 
@@ -213,8 +213,11 @@ Neru has four testing layers:
 4. **Architecture tests** — guardrails protecting package boundaries and
    platform isolation (`internal/architecture/`).
 
-When you add a stubbed platform feature, add or update a contract test so the
-unsupported behavior is explicit and stable until the real implementation lands.
+Contract tests pin stub loudness per subsystem rather than per stub. When you
+add a stubbed platform feature, update the subsystem's existing contract test if
+it has one, and write a new one when a caller could read the stub's `nil` as
+success — `internal/adapter/platform/AGENTS.md` states the rule and names the
+tests that exist.
 
 ### Organization
 
@@ -223,9 +226,9 @@ unsupported behavior is explicit and stable until the real implementation lands.
 | **Unit**        | `*_test.go`                  | —                     | `just test-unit`        |
 | **Integration** | `*_integration_<os>_test.go` | `integration && <os>` | `just test-integration` |
 
-Tests are table-driven and named `TestType_Method_EdgeCase`. Naming, mocks, and
-build-tag conventions are in the root [AGENTS.md](../AGENTS.md); the macOS
-main-run-loop test harness is documented in
+Naming, mocks, and build-tag conventions are in the root
+[AGENTS.md](../AGENTS.md), which is their single home; the macOS main-run-loop
+test harness is documented in
 [darwin/AGENTS.md](../internal/adapter/platform/darwin/AGENTS.md).
 
 ### What each layer covers
