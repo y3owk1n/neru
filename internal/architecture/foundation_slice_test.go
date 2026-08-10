@@ -391,12 +391,16 @@ func recipePackages(t *testing.T, recipes justRecipes) []string {
 // justRecipes is the justfile read as a graph, keyed by recipe name.
 type justRecipes map[string]justRecipe
 
-// justRecipe is one recipe: the indented lines under its header, and the
-// recipes running it runs — its header dependencies plus any `just <name>` call
-// in that body.
+// justRecipe is one recipe: the indented lines under its header, the
+// attributes declared immediately above it, and the recipes running it runs —
+// its header dependencies plus any `just <name>` call in that body.
 type justRecipe struct {
 	body string
 	runs []string
+	// attributes is the `[…]` lines between the recipe's comment block and its
+	// header, joined as they appear. justfile_doc_test.go reads the declared
+	// summary out of them.
+	attributes string
 }
 
 // mustFind returns a recipe, failing the test when the justfile has none by
@@ -484,39 +488,57 @@ func justHeaderLine(line string) (string, []string, bool) {
 func parseJustfile(t *testing.T) justRecipes {
 	t.Helper()
 
+	recipes := parseJustfileText(readRepoFile(t, justfileName))
+	if len(recipes) == 0 {
+		t.Fatalf("%s defines no recipes; the header match is broken", justfileName)
+	}
+
+	return recipes
+}
+
+// parseJustfileText is parseJustfile over text already in hand, so a guardrail
+// can hold the parser itself to a fixture rather than only to the checkout.
+func parseJustfileText(text string) justRecipes {
 	var (
 		recipes = justRecipes{}
 		bodies  = map[string][]string{}
+		pending string
 		current string
 	)
 
-	for line := range strings.Lines(readRepoFile(t, justfileName)) {
+	for line := range strings.Lines(text) {
 		line = strings.TrimRight(line, "\n")
 
 		switch {
+		// A blank line ends an attribute run. `just` requires an attribute to
+		// sit directly above the header it decorates and errors on anything
+		// between, so a pending attribute separated from one decorates nothing.
 		case line == "":
+			pending = ""
 		case strings.HasPrefix(line, " "), strings.HasPrefix(line, "\t"):
 			if current != "" {
 				bodies[current] = append(bodies[current], line)
 			}
-		// A comment or an attribute in column one interrupts nothing: the
-		// recipe it decorates has not started yet.
-		case strings.HasPrefix(line, "#"), strings.HasPrefix(line, "["):
+		// A comment in column one interrupts nothing: the recipe it decorates
+		// has not started yet. It does end an attribute run, for the reason
+		// above.
+		case strings.HasPrefix(line, "#"):
+			pending = ""
+		case strings.HasPrefix(line, "["):
+			pending += line + "\n"
 		default:
 			name, deps, isHeader := justHeaderLine(line)
 			if !isHeader {
 				current = ""
+				pending = ""
 
 				continue
 			}
 
 			current = name
-			recipes[name] = justRecipe{runs: deps}
+			recipes[name] = justRecipe{runs: deps, attributes: pending}
+			pending = ""
 		}
-	}
-
-	if len(recipes) == 0 {
-		t.Fatalf("%s defines no recipes; the header match is broken", justfileName)
 	}
 
 	for name, lines := range bodies {
