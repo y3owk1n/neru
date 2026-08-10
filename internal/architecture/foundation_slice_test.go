@@ -33,9 +33,13 @@ const (
 // `ci` is still ungated — which is why this file checks both.
 const ciWorkflow = ".github/workflows/ci.yml"
 
-// localCIRecipe is the recipe CONTRIBUTING.md and AGENTS.md call "exactly what
-// CI gates your PR on". That claim is only true while it reaches everything
-// ciWorkflow reaches.
+// localCIRecipe is the recipe CONTRIBUTING.md and AGENTS.md name as the
+// pre-push gate — the recipes CI gates on, run on one host. That description
+// is only true while it reaches everything ciWorkflow reaches.
+//
+// Described rather than quoted, on purpose: the two documents word it
+// differently, and a comment quoting either goes stale the next time it is
+// edited, silently.
 const localCIRecipe = "ci"
 
 // listFoundationEnv makes the test print the slice it computes, one package per
@@ -169,8 +173,8 @@ func TestFoundationSliceRunsInCI(t *testing.T) {
 
 	if !recipes.reaches([]string{localCIRecipe}, foundationRecipe) {
 		t.Errorf(
-			"the %s recipe in %s does not reach %s, so it is no longer the local "+
-				"mirror of CI that CONTRIBUTING.md says it is",
+			"the %s recipe in %s does not reach %s, so it is no longer the "+
+				"host-local run of the same recipes that CONTRIBUTING.md says it is",
 			localCIRecipe,
 			justfileName,
 			foundationRecipe,

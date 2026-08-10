@@ -38,7 +38,7 @@ just genman             # man pages via ./cmd/genman
 just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
 ```
 
-Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows).
+Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `check-cross`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows). `check-cross` is the only step that looks at the other two targets; `docs/DEVELOPMENT.md` states what it covers and what it does not.
 
 Single test: `go test -run TestScrollMode_HandleKey_DoesNothing ./internal/app/modes/`; integration tests need `-tags=integration`.
 

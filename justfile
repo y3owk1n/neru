@@ -399,8 +399,21 @@ test-ci: test-foundation test-unit test-race-unit test-integration-ci
 # here is one leg of three. This is the real pre-push bar — `just test` alone
 # is a subset of it. For the deepest local verification (full integration +
 # race passes on a real desktop session) run `just test-all` as well.
+#
+# check-cross narrows the gap that leaves rather than closing it. go vet and
+# golangci-lint both honour the host's build tags, so a build break in a linux-
+# or windows-tagged file is invisible to every other recipe here and first
+# appears as a red CI job on a leg this host never ran. It sits after build so
+# a plain compile error surfaces before the test suites do. What the check
+# reaches, and what it cannot, is stated in docs/DEVELOPMENT.md.
+#
+# lint-cross and test-linux stay out on purpose: both need a running Docker
+# daemon, and a documented pre-push gate that fails on absent infrastructure is
+# precisely the first-hour failure docs/adr/0012-the-first-hour-must-not-lie.md
+# is about. CI remains the check for the cgo-only Linux paths, and a real Linux
+# lint or test run is `just lint-cross` / `just test-linux`, on demand.
 [doc('Run the checks CI gates a pull request on, on this host only.')]
-ci: fmt-check lint vet build test-ci vuln
+ci: fmt-check lint vet build check-cross test-ci vuln
     @echo "✓ All CI checks passed"
 
 # Check if files are formatted correctly

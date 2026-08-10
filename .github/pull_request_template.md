@@ -40,8 +40,9 @@
 
 - [ ] Code formatted (`just fmt`)
 - [ ] `just ci` passes — the same checks CI runs, on your host only (format
-      check, lint, vet, tests including a unit `-race` pass, vulnerability
-      scan, build); CI runs them on macOS, Linux and Windows
+      check, lint, vet, build, a CGO-off type-check of the Linux and Windows
+      builds, tests including a unit `-race` pass, vulnerability scan); CI
+      runs them on macOS, Linux and Windows
 - [ ] Tests added/updated for new or changed functionality
 - [ ] Documentation updated (if applicable)
 - [ ] PR title is a [conventional commit](https://www.conventionalcommits.org/)

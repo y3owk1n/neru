@@ -89,11 +89,18 @@ build links against.
     Before pushing, run **`just ci`** — the same recipes CI gates your PR on,
     run on your host only, where CI runs them on macOS, Linux and Windows. It
     is a superset of the checks above (adds `go vet`, the
-    cross-platform foundation slice, a `-race` pass over the unit suite, the
-    CI profile of the integration suite, and a vulnerability scan). For the
-    deepest verification on a real desktop session, `just test-all` runs full
-    integration under `-race` too. Doing Linux or Windows work? Start with
+    cross-platform foundation slice, a CGO-off type-check of the Linux and
+    Windows builds, a `-race` pass over the unit suite, the CI profile of the
+    integration suite, and a vulnerability scan). For the deepest verification
+    on a real desktop session, `just test-all` runs full integration under
+    `-race` too. Doing Linux or Windows work? Start with
     `just test-foundation` and `just build-linux` / `just build-windows`.
+
+    That type-check is `just check-cross`, and it is the only part of the run
+    that looks at the other two legs — worth knowing about, because everything
+    else compiles for your host. What it covers, and the cgo-only Linux paths
+    it cannot, are in
+    [DEVELOPMENT.md](docs/DEVELOPMENT.md#what-just-ci-covers-and-what-it-does-not).
 
 6. **Update the docs** in the same PR. Each fact has one home — the
    [documentation checklist](docs/CROSS_PLATFORM.md#documentation-checklist)

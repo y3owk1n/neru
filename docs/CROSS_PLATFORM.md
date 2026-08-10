@@ -992,7 +992,11 @@ runner (`just release-ci-linux`).
 
 golangci-lint honours build tags, so a `//go:build linux` file is invisible to
 `just lint` on macOS. A change can be locally clean and still fail the Linux or
-Windows lint job. To reproduce one of those failures:
+Windows lint job.
+
+A *build* break in one of those files no longer gets that far — `just ci` runs
+`just check-cross`, which catches it before you push. Lint findings are the
+part that still needs reproducing, and for one of those:
 
 ```bash
 CGO_ENABLED=0 GOOS=linux golangci-lint run ./internal/...

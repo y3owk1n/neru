@@ -159,11 +159,32 @@ Wayland protocol generation and icon recipes.
 | Lint    | `just lint`                  | golangci-lint + clang-tidy on `.m` files (macOS) |
 | Lint    | `just vet`                   | `go vet`                                        |
 | Lint    | `just vuln`                  | `govulncheck` — reachable CVEs in dependencies  |
+| Lint    | `just check-cross`           | CGO-off type-check of the Linux and Windows builds |
+| Gate    | `just ci`                    | The pre-push gate: the checks CI gates on, on this host |
 | Format  | `just fmt`                   | Format Go and Objective-C                       |
 | Format  | `just fmt-check`             | Check Objective-C formatting                    |
 | Docs    | `just genman`                | Generate man pages                              |
 | Docs    | `just genflagref`            | Rewrite the mode-flag reference in `docs/CLI.md` |
 | Clean   | `just clean`                 | Remove build artifacts                          |
+
+### What `just ci` covers, and what it does not
+
+`just ci` runs `fmt-check lint vet build check-cross test-ci vuln`, in that
+order, on this host. CI runs the same recipes on macOS, Linux and Windows, so a
+green run here is one leg of three.
+
+`just check-cross` is the only member that looks at the other two targets. It
+type-checks the Linux and Windows builds with CGO off, which catches a build
+break in a plain `//go:build linux` or `//go:build windows` file — invisible to
+`just lint` and `just vet`, since both compile for the host — but not one in a
+cgo-tagged file, which CGO-off skips entirely. It costs seconds and needs no
+Docker.
+
+The cgo-only Linux paths need a real Linux toolchain. `just lint-cross` and
+`just test-linux` provide one in a container, and CI checks them on every push.
+Neither is part of `just ci`, deliberately: a documented pre-push gate that
+fails for want of a running Docker daemon is worse than one that admits its
+limits ([ADR 0012](adr/0012-the-first-hour-must-not-lie.md)).
 
 Targeting a single package or test:
 
