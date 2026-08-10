@@ -190,6 +190,11 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	// Held across every scroll button click, the way a person holding ctrl and
 	// turning the wheel produces a zoom. Runs before the display is closed:
 	// defers unwind last-in first-out.
+	//
+	// These are the same unconditional helpers the click paths use, so the
+	// release lets go of the whole named set — including a key the user is
+	// physically holding, or one a sticky modifier is holding through XTest.
+	// That gap predates this caller and is not narrowed here.
 	x11PressModifiers(display, modifiers)
 	defer x11ReleaseModifiers(display, modifiers)
 

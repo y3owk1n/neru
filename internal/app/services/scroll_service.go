@@ -103,6 +103,13 @@ func (s *ScrollService) Scroll(
 
 	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY, modifiers)
 	if scrollErr != nil {
+		// A backend that cannot present the requested modifiers refuses with
+		// CodeNotSupported; keep that code so the reply can say so rather than
+		// reporting a generic failure.
+		if derrors.IsNotSupported(scrollErr) {
+			return scrollErr
+		}
+
 		return derrors.WrapActionFailed(scrollErr, "scroll")
 	}
 

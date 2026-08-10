@@ -300,6 +300,14 @@ func (c *Client) Scroll(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	scrollErr := ScrollAtCursor(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
+		// A backend refusing a modifier it cannot present says so with
+		// CodeNotSupported, and derrors matches only the outermost code — so
+		// wrapping here would turn "this platform cannot do that" into a
+		// generic failure before any caller could tell them apart.
+		if derrors.IsNotSupported(scrollErr) {
+			return scrollErr
+		}
+
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 

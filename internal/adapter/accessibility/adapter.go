@@ -243,6 +243,11 @@ func (a *Adapter) Scroll(
 
 	scrollErr := a.client.Scroll(deltaX, deltaY, modifiers)
 	if scrollErr != nil {
+		// Preserve a refusal the backend made explicitly; see Client.Scroll.
+		if derrors.IsNotSupported(scrollErr) {
+			return scrollErr
+		}
+
 		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
 	}
 

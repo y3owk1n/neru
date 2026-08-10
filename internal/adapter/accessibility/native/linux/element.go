@@ -433,6 +433,11 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	if currentLinuxBackend() == linuxBackendWayland {
 		if modifiers != 0 {
+			// Uncapped, unlike the X11 path's 50-click ceiling, because this
+			// is the same event count the uinput batch below would send for
+			// the same delta — the events are merely slower per round trip.
+			// Capping here would make a modified go_bottom travel a different
+			// distance from an unmodified one, which is worse than slow.
 			return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
 		}
 

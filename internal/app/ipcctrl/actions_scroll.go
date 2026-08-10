@@ -8,6 +8,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
@@ -99,10 +100,18 @@ func (h *ActionsHandler) handleScrollAction(
 		h.logger.Error("Scroll action failed", zap.Error(scrollErr),
 			zap.String("action", actionName))
 
+		// "this platform cannot hold that modifier" is a different answer from
+		// "the scroll failed", and only the first tells the user their config
+		// is fine and their session is not.
+		code := ipc.CodeActionFailed
+		if derrors.IsNotSupported(scrollErr) {
+			code = ipc.CodeNotSupported
+		}
+
 		return ipc.Response{
 			Success: false,
 			Message: "failed to perform scroll action: " + scrollErr.Error(),
-			Code:    ipc.CodeActionFailed,
+			Code:    code,
 		}
 	}
 

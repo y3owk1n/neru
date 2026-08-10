@@ -356,6 +356,27 @@ func TestBuildClickActionCommand_HasButtonPhaseFlags(t *testing.T) {
 	}
 }
 
+// TestBuildScrollActionCommand_HasModifierFlag pins the CLI half of issue
+// #1448. The scroll subcommands are built here rather than by
+// BuildActionCommand, so registering --modifier on the latter left every
+// documented `neru action scroll_up --modifier ctrl` failing with "unknown
+// flag" while the same string worked from a config binding.
+func TestBuildScrollActionCommand_HasModifierFlag(t *testing.T) {
+	for _, supportSteps := range []bool{true, false} {
+		cmd := cli.BuildScrollActionCommand("scroll_up", "short desc", "long desc", supportSteps)
+
+		for _, flagName := range []string{"modifier", "selection", "bare"} {
+			if cmd.Flags().Lookup(flagName) == nil {
+				t.Errorf(
+					"BuildScrollActionCommand(supportSteps=%v) missing --%s flag",
+					supportSteps,
+					flagName,
+				)
+			}
+		}
+	}
+}
+
 func TestBuildActionCommand_HasNoButtonPhaseFlags(t *testing.T) {
 	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"}, true)
 

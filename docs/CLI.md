@@ -802,10 +802,8 @@ unmodified, and it is `--modifier ctrl` that makes it zoom.
 
 **Platforms:** vertical scrolling works everywhere. Horizontal scrolling
 (`scroll_left`, `scroll_right`) is not implemented on Windows and has no effect
-there — combined with `--modifier` it fails rather than reporting a zoom that
-never happened. A modified scroll never falls back to an unmodified one; see the
-[capability matrix](CROSS_PLATFORM.md#capability-matrix) for what each backend
-does.
+there. For what each backend does with `--modifier`, see the
+[capability matrix](CROSS_PLATFORM.md#capability-matrix).
 
 **Examples**
 

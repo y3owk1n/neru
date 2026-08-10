@@ -579,6 +579,42 @@ func TestScrollService_Health(t *testing.T) {
 	}
 }
 
+// TestScrollService_Scroll_KeepsNotSupportedCode pins that a backend's refusal
+// survives the service. derrors matches only the outermost code, so wrapping a
+// CodeNotSupported as CodeActionFailed here would turn "this session cannot
+// hold that modifier" into a generic failure by the time it reaches the reply.
+func TestScrollService_Scroll_KeepsNotSupportedCode(t *testing.T) {
+	refusal := derrors.New(derrors.CodeNotSupported, "no backend to press a modifier through")
+
+	mockAcc := &mocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, _ int, _ action.Modifiers) error {
+			return refusal
+		},
+	}
+
+	service := services.NewScrollService(
+		mockAcc,
+		&mocks.MockSystemPort{},
+		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
+		logger.Get(),
+	)
+
+	err := service.Scroll(
+		context.Background(),
+		services.ScrollDirectionDown,
+		services.ScrollAmountChar,
+		0,
+		action.ModCtrl,
+	)
+	if err == nil {
+		t.Fatal("Scroll() returned nil for a refused modifier")
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("Scroll() error = %v, want it to still report CodeNotSupported", err)
+	}
+}
+
 // TestScrollService_Scroll_ForwardsModifiers pins that the modifier set named
 // on the action reaches the accessibility port unchanged. A scroll that loses
 // its ctrl pans where the user asked for a zoom, so dropping the set silently

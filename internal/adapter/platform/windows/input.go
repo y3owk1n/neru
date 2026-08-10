@@ -230,12 +230,13 @@ func ScrollWheel(deltaLines int, modifiers action.Modifiers) error {
 		return nil
 	}
 
-	pressErr := pressModifiers(modifiers)
+	pressed, pressErr := pressModifiers(modifiers)
 	if pressErr != nil {
 		return pressErr
 	}
 
-	defer releaseModifiers(modifiers)
+	// Only what this call actually pressed, never the whole requested set.
+	defer releaseModifiers(pressed)
 
 	return sendMouseInput(mouseeventfWheel, uint32(int32(deltaLines)*wheelDelta))
 }
@@ -252,15 +253,24 @@ var modifierKeys = []struct {
 	{bit: action.ModCmd, key: vkLWin},
 }
 
-// pressModifiers holds down every key in modifiers, releasing what it already
-// pressed if one of them fails so a partial set is never left latched.
+// pressModifiers holds down every key in modifiers that is not already down,
+// and reports the set it actually pressed so the caller releases only that.
+// A key that fails releases what came before it, so a partial set is never
+// left latched.
+//
+// Skipping keys the user is already holding is the point, not an optimization.
+// A binding like "Ctrl+K" = "action scroll_up --modifier ctrl" fires with ctrl
+// physically down, and a key is one bit of OS state rather than a count: press
+// it a second time and our release afterwards tells every application the user
+// let go, while they are still holding it. Everything they type or click until
+// they release and press again would arrive unmodified.
 //
 // SendInput delivers these to Neru's own low-level keyboard hook, which runs
 // its callback inline on the hook thread and from there reaches the mode
 // handler's lock. neruInjectedTag is what stops that: keep it on every
 // synthesized key, or this becomes a call into the handler from whatever
 // goroutine is injecting.
-func pressModifiers(modifiers action.Modifiers) error {
+func pressModifiers(modifiers action.Modifiers) (action.Modifiers, error) {
 	var pressed action.Modifiers
 
 	for _, modifier := range modifierKeys {
@@ -268,20 +278,27 @@ func pressModifiers(modifiers action.Modifiers) error {
 			continue
 		}
 
+		if isVirtualKeyDown(uint32(modifier.key)) {
+			continue
+		}
+
 		err := sendKeyboardInput(modifier.key, false)
 		if err != nil {
 			releaseModifiers(pressed)
 
-			return err
+			return 0, err
 		}
 
 		pressed |= modifier.bit
 	}
 
-	return nil
+	return pressed, nil
 }
 
 // releaseModifiers lets go of every key in modifiers, in reverse press order.
+// Callers pass what pressModifiers reported pressing, never the requested set,
+// so a key the user is holding is left alone.
+//
 // Errors are dropped: a release that fails has nothing better to try, and
 // reporting it would mask the outcome of the action it wraps.
 func releaseModifiers(modifiers action.Modifiers) {
