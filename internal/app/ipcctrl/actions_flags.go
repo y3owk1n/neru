@@ -19,14 +19,17 @@ import (
 // was written. Forgetting an entry here is now a rejection, not a dropped
 // flag.
 var (
-	// pointTargetingFlags choose between the mode selection and the cursor.
-	pointTargetingFlags = []string{flagSelection, flagBare}
 	// clickFlags are accepted by the three click actions, which can be split
 	// into their press and release halves.
 	clickFlags = []string{flagModifier, flagSelection, flagBare, flagState, flagToggle}
 	// heldButtonFlags are accepted by the press/release/toggle actions, which
 	// already name a phase and so take no --state or --toggle.
 	heldButtonFlags = []string{flagModifier, flagSelection, flagBare}
+	// pagedScrollFlags are accepted by the scroll sub-actions whose amount is
+	// fixed by configuration, so they take no --steps.
+	pagedScrollFlags = []string{flagModifier, flagSelection, flagBare}
+	// steppedScrollFlags add --steps for the directional sub-actions.
+	steppedScrollFlags = []string{flagModifier, flagSteps, flagSelection, flagBare}
 )
 
 // actionFlagSupport maps an action name to the flags it accepts.
@@ -62,14 +65,14 @@ var actionFlagSupport = map[string][]string{
 	// The bare scroll name is only reachable from a hotkey string or raw IPC
 	// and takes no flags; the directional sub-actions below are the usable form.
 	string(action.NameScroll):      {},
-	string(action.NameScrollUp):    {flagSteps, flagSelection, flagBare},
-	string(action.NameScrollDown):  {flagSteps, flagSelection, flagBare},
-	string(action.NameScrollLeft):  {flagSteps, flagSelection, flagBare},
-	string(action.NameScrollRight): {flagSteps, flagSelection, flagBare},
-	string(action.NameGoTop):       pointTargetingFlags,
-	string(action.NameGoBottom):    pointTargetingFlags,
-	string(action.NamePageUp):      pointTargetingFlags,
-	string(action.NamePageDown):    pointTargetingFlags,
+	string(action.NameScrollUp):    steppedScrollFlags,
+	string(action.NameScrollDown):  steppedScrollFlags,
+	string(action.NameScrollLeft):  steppedScrollFlags,
+	string(action.NameScrollRight): steppedScrollFlags,
+	string(action.NameGoTop):       pagedScrollFlags,
+	string(action.NameGoBottom):    pagedScrollFlags,
+	string(action.NamePageUp):      pagedScrollFlags,
+	string(action.NamePageDown):    pagedScrollFlags,
 
 	string(action.NameCycleHint):       {flagBackward},
 	string(action.NameWaitForModeExit): {flagBail},
@@ -86,9 +89,10 @@ var actionFlagSupport = map[string][]string{
 // flagRejectionMessage overrides the generated message for flags whose
 // audience reads better as prose than as a list of every action name.
 var flagRejectionMessage = map[string]string{
-	flagState:     msgStateOnlyOnClicks,
-	flagToggle:    msgStateOnlyOnClicks,
-	flagModifier:  "--modifier is only supported with click and mouse button actions",
+	flagState:  msgStateOnlyOnClicks,
+	flagToggle: msgStateOnlyOnClicks,
+	flagModifier: "--modifier is only supported with click, mouse button, " +
+		"and scroll actions",
 	flagSelection: "--selection is only supported with move_mouse, scroll, and mouse button actions",
 	flagBare:      "--bare is only supported with move_mouse, scroll, and mouse button actions",
 }

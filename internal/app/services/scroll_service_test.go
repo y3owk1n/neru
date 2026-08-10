@@ -9,6 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -27,7 +28,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
 					}
@@ -42,7 +43,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionUp,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
 					}
@@ -57,7 +58,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountHalfPage,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					// Down = negative deltaY
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY for scroll down, got %d", deltaY)
@@ -73,7 +74,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionUp,
 			amount:    services.ScrollAmountHalfPage,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					// Up = positive deltaY
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY for scroll up, got %d", deltaY)
@@ -89,7 +90,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionLeft,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					// Left = positive deltaX
 					if deltaX <= 0 {
 						t.Errorf("Expected positive deltaX for scroll left, got %d", deltaX)
@@ -105,7 +106,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionRight,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					// Right = negative deltaX
 					if deltaX >= 0 {
 						t.Errorf("Expected negative deltaX for scroll right, got %d", deltaX)
@@ -121,7 +122,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			direction: services.ScrollDirectionDown,
 			amount:    services.ScrollAmountChar,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, _, _ int, _ action.Modifiers) error {
 					return derrors.New(
 						derrors.CodeAccessibilityFailed,
 						"scroll permission denied",
@@ -136,7 +137,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountChar,
 			stepOverride: 99,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY != -99 {
 						t.Errorf("Expected deltaY -99 for step override down, got %d", deltaY)
 					}
@@ -152,7 +153,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountChar,
 			stepOverride: 77,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY != 77 {
 						t.Errorf("Expected deltaY 77 for step override up, got %d", deltaY)
 					}
@@ -168,7 +169,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountChar,
 			stepOverride: 42,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					if deltaX != 42 {
 						t.Errorf("Expected deltaX 42 for step override left, got %d", deltaX)
 					}
@@ -184,7 +185,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountChar,
 			stepOverride: 33,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					if deltaX != -33 {
 						t.Errorf("Expected deltaX -33 for step override right, got %d", deltaX)
 					}
@@ -200,7 +201,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountHalfPage,
 			stepOverride: 5,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					// Should use stepOverride (5), not config.ScrollStepHalf (30)
 					if deltaY != -5 {
 						t.Errorf("Expected deltaY -5 for step override, got %d", deltaY)
@@ -217,7 +218,7 @@ func TestScrollService_Scroll(t *testing.T) {
 			amount:       services.ScrollAmountEnd,
 			stepOverride: 8,
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					// Should use stepOverride (8), not config.ScrollStepFull (50)
 					if deltaY != 8 {
 						t.Errorf("Expected deltaY 8 for step override, got %d", deltaY)
@@ -236,7 +237,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				c.InvertScroll = true
 			},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY <= 0 {
 						t.Errorf("Expected positive deltaY (inverted from down), got %d", deltaY)
 					}
@@ -254,7 +255,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				c.InvertScroll = true
 			},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					if deltaY >= 0 {
 						t.Errorf("Expected negative deltaY (inverted from up), got %d", deltaY)
 					}
@@ -272,7 +273,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				c.InvertScroll = true
 			},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					if deltaX >= 0 {
 						t.Errorf("Expected negative deltaX (inverted from left), got %d", deltaX)
 					}
@@ -290,7 +291,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				c.InvertScroll = true
 			},
 			setupMocks: func(acc *mocks.MockAccessibilityPort) {
-				acc.ScrollFunc = func(_ context.Context, deltaX, _ int) error {
+				acc.ScrollFunc = func(_ context.Context, deltaX, _ int, _ action.Modifiers) error {
 					if deltaX <= 0 {
 						t.Errorf("Expected positive deltaX (inverted from right), got %d", deltaX)
 					}
@@ -321,7 +322,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				acc.FocusedAppBundleIDFunc = func(_ context.Context) (string, error) {
 					return "com.apple.Safari", nil
 				}
-				acc.ScrollFunc = func(_ context.Context, _, deltaY int) error {
+				acc.ScrollFunc = func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 					// Safari scroll_step is overridden to 25, so Down is -25
 					if deltaY != -25 {
 						t.Errorf("Expected deltaY -25 for Safari app override, got %d", deltaY)
@@ -365,6 +366,7 @@ func TestScrollService_Scroll(t *testing.T) {
 				testCase.direction,
 				testCase.amount,
 				testCase.stepOverride,
+				0,
 			)
 
 			if (scrollErr != nil) != testCase.wantErr {
@@ -378,7 +380,7 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 	var gotDeltaY int
 
 	mockAcc := &mocks.MockAccessibilityPort{
-		ScrollFunc: func(_ context.Context, _, deltaY int) error {
+		ScrollFunc: func(_ context.Context, _, deltaY int, _ action.Modifiers) error {
 			gotDeltaY = deltaY
 
 			return nil
@@ -396,7 +398,7 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 	ctx := context.Background()
 
 	// Baseline: a normal-amount scroll uses the configured step.
-	err := service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0)
+	err := service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0, 0)
 	if err != nil {
 		t.Fatalf("Scroll() error = %v, want nil", err)
 	}
@@ -410,7 +412,7 @@ func TestScrollService_UpdateConfig(t *testing.T) {
 	// point of the call, and what this test previously never checked.
 	service.UpdateConfig(config.ScrollConfig{ScrollStep: 100, ScrollStepFull: 2000})
 
-	err = service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0)
+	err = service.Scroll(ctx, services.ScrollDirectionDown, services.ScrollAmountChar, 0, 0)
 	if err != nil {
 		t.Fatalf("Scroll() after UpdateConfig error = %v, want nil", err)
 	}
@@ -450,7 +452,7 @@ func TestScrollService_Scroll_SettlesCursorBeforeScroll(t *testing.T) {
 
 	settledAtScrollTime := -1
 	mockAcc := &mocks.MockAccessibilityPort{
-		ScrollFunc: func(_ context.Context, _, _ int) error {
+		ScrollFunc: func(_ context.Context, _, _ int, _ action.Modifiers) error {
 			settledAtScrollTime = system.settleCalls
 
 			return nil
@@ -468,6 +470,7 @@ func TestScrollService_Scroll_SettlesCursorBeforeScroll(t *testing.T) {
 		context.Background(),
 		services.ScrollDirectionDown,
 		services.ScrollAmountChar,
+		0,
 		0,
 	)
 	if err != nil {
@@ -492,7 +495,7 @@ func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
 
 	scrolled := false
 	mockAcc := &mocks.MockAccessibilityPort{
-		ScrollFunc: func(_ context.Context, _, _ int) error {
+		ScrollFunc: func(_ context.Context, _, _ int, _ action.Modifiers) error {
 			scrolled = true
 
 			return nil
@@ -510,6 +513,7 @@ func TestScrollService_Scroll_SettleErrorDoesNotBlockScroll(t *testing.T) {
 		context.Background(),
 		services.ScrollDirectionDown,
 		services.ScrollAmountChar,
+		0,
 		0,
 	)
 	if err != nil {
@@ -570,6 +574,93 @@ func TestScrollService_Health(t *testing.T) {
 					got,
 					testCase.accessibilityErr,
 				)
+			}
+		})
+	}
+}
+
+// TestScrollService_Scroll_KeepsNotSupportedCode pins that a backend's refusal
+// survives the service. derrors matches only the outermost code, so wrapping a
+// CodeNotSupported as CodeActionFailed here would turn "this session cannot
+// hold that modifier" into a generic failure by the time it reaches the reply.
+func TestScrollService_Scroll_KeepsNotSupportedCode(t *testing.T) {
+	refusal := derrors.New(derrors.CodeNotSupported, "no backend to press a modifier through")
+
+	mockAcc := &mocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, _ int, _ action.Modifiers) error {
+			return refusal
+		},
+	}
+
+	service := services.NewScrollService(
+		mockAcc,
+		&mocks.MockSystemPort{},
+		config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
+		logger.Get(),
+	)
+
+	err := service.Scroll(
+		context.Background(),
+		services.ScrollDirectionDown,
+		services.ScrollAmountChar,
+		0,
+		action.ModCtrl,
+	)
+	if err == nil {
+		t.Fatal("Scroll() returned nil for a refused modifier")
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("Scroll() error = %v, want it to still report CodeNotSupported", err)
+	}
+}
+
+// TestScrollService_Scroll_ForwardsModifiers pins that the modifier set named
+// on the action reaches the accessibility port unchanged. A scroll that loses
+// its ctrl pans where the user asked for a zoom, so dropping the set silently
+// is what this test exists to catch.
+func TestScrollService_Scroll_ForwardsModifiers(t *testing.T) {
+	tests := []struct {
+		name      string
+		modifiers action.Modifiers
+	}{
+		{name: "no modifiers", modifiers: 0},
+		{name: "single modifier", modifiers: action.ModCtrl},
+		{name: "combined modifiers", modifiers: action.ModCtrl | action.ModShift},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			var got action.Modifiers
+
+			mockAcc := &mocks.MockAccessibilityPort{
+				ScrollFunc: func(_ context.Context, _, _ int, modifiers action.Modifiers) error {
+					got = modifiers
+
+					return nil
+				},
+			}
+
+			service := services.NewScrollService(
+				mockAcc,
+				&mocks.MockSystemPort{},
+				config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 30, ScrollStepFull: 50},
+				logger.Get(),
+			)
+
+			err := service.Scroll(
+				context.Background(),
+				services.ScrollDirectionDown,
+				services.ScrollAmountChar,
+				0,
+				testCase.modifiers,
+			)
+			if err != nil {
+				t.Fatalf("Scroll() error = %v, want nil", err)
+			}
+
+			if got != testCase.modifiers {
+				t.Errorf("port received modifiers %q, want %q", got, testCase.modifiers)
 			}
 		})
 	}

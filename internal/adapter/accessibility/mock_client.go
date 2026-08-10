@@ -144,7 +144,7 @@ func (m *MockAXClient) PerformAction(
 }
 
 // Scroll returns the configured scroll error.
-func (m *MockAXClient) Scroll(_, _ int) error {
+func (m *MockAXClient) Scroll(_, _ int, _ action.Modifiers) error {
 	return m.MockScrollErr
 }
 

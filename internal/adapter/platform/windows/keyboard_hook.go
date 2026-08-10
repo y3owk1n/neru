@@ -190,6 +190,19 @@ func (h *KeyboardHook) run() {
 		}
 
 		kbd := (*kbdLLHookStruct)(lParam)
+
+		// Keys this process injected come back through this hook. Handing one
+		// to the callback would re-enter the mode handler from the hook
+		// thread, and the down/up pair a modified scroll holds reads as the
+		// user tapping that modifier — latching a sticky modifier nobody
+		// pressed. Only Neru's own injection is skipped (neruInjectedTag);
+		// another tool's synthetic input is still seen.
+		if kbd.dwExtraInfo == neruInjectedTag {
+			ret, _, _ := procCallNextHookEx.Call(0, uintptr(code), wParam, uintptr(lParam))
+
+			return ret
+		}
+
 		isUp := wParam == wmKeyUp || wParam == wmSysKeyUp || kbd.flags&llkhfUp != 0
 
 		key := hookKeyName(kbd.vkCode, isUp)

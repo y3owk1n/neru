@@ -306,13 +306,18 @@ func MouseUp(button action.MouseButton) error {
 	return nil
 }
 
-// ScrollAtCursor performs a scroll action at the current cursor position.
-func ScrollAtCursor(deltaX, deltaY int) error {
+// ScrollAtCursor performs a scroll action at the current cursor position,
+// stamping modifiers onto the event so a ctrl-modified scroll zooms rather than
+// pans. Under smooth scroll the set travels on the animation request, because
+// every chunk the animator posts has to carry it — a zoom that applied only to
+// the first frame would read as a broken binding.
+func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	cfg := currentConfig()
 	if cfg != nil && cfg.SmoothScroll.Enabled {
 		scrollAnim.animate(
 			deltaX,
 			deltaY,
+			modifiers,
 			cfg.SmoothScroll.Steps,
 			cfg.SmoothScroll.MaxDuration,
 			cfg.SmoothScroll.DurationPerPixel,
@@ -325,7 +330,13 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 
 	pos := CursorPosition()
 	cgPos := C.CGPoint{x: C.double(pos.X), y: C.double(pos.Y)}
-	result := C.NeruScrollAtPoint(cgPos, C.int(deltaX), C.int(deltaY))
+	result := C.NeruScrollAtPoint(
+		cgPos,
+		C.int(deltaX),
+		C.int(deltaY),
+		modifiersToCGEventFlags(modifiers),
+	)
+
 	if result == 0 {
 		return derrors.Newf(
 			derrors.CodeActionFailed,

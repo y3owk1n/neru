@@ -90,8 +90,8 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	)
 }
 
-func x11ScrollAtCursor(deltaX, deltaY int) error {
-	_, _ = deltaX, deltaY
+func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
+	_, _, _ = deltaX, deltaY, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"X11 scroll requires CGO-enabled Linux builds",

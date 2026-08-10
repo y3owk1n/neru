@@ -299,6 +299,7 @@ Use --bare to force current-cursor targeting.`,
 // If supportSteps is true, a --steps flag is added to override the scroll step amount.
 func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra.Command {
 	var (
+		modifier  string
 		selection bool
 		bare      bool
 		steps     int
@@ -320,6 +321,10 @@ func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra
 			}
 
 			args := []string{use}
+			if modifier != "" {
+				args = append(args, "--modifier="+modifier)
+			}
+
 			if selection {
 				args = append(args, "--selection")
 			}
@@ -345,6 +350,8 @@ func BuildScrollActionCommand(use, short, long string, supportSteps bool) *cobra
 		},
 	}
 
+	cmd.Flags().StringVar(&modifier, "modifier", "",
+		"Comma-separated modifier keys to hold during the scroll (cmd, super, meta, shift, alt, option, ctrl)")
 	cmd.Flags().
 		BoolVar(&selection, "selection", false, "Explicitly use the active mode selection as the target point")
 	cmd.Flags().

@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -477,6 +478,87 @@ func TestHandleAction_NameRejectedOnNonMoveMonitor(t *testing.T) {
 
 	if resp.Message != "--name is only supported with move_monitor" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+// scrollControllerWithModifierCapture builds a controller whose scroll service
+// records the modifier set that reached the accessibility port.
+func scrollControllerWithModifierCapture(
+	got *action.Modifiers,
+) *ActionsHandler {
+	accessibility := &portmocks.MockAccessibilityPort{
+		ScrollFunc: func(_ context.Context, _, _ int, modifiers action.Modifiers) error {
+			*got = modifiers
+
+			return nil
+		},
+	}
+
+	return &ActionsHandler{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+		scrollService: services.NewScrollService(
+			accessibility,
+			&portmocks.MockSystemPort{},
+			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
+			zap.NewNop(),
+		),
+	}
+}
+
+// TestHandleAction_ScrollAcceptsModifier pins issue #1448: every scroll
+// sub-action takes --modifier and hands the parsed set to the scroll service,
+// which is what makes ctrl + scroll_up zoom instead of pan.
+func TestHandleAction_ScrollAcceptsModifier(t *testing.T) {
+	scrollActions := []string{
+		scrollUp, scrollDown, "scroll_left", "scroll_right",
+		"go_top", "go_bottom", "page_up", "page_down",
+	}
+
+	for _, name := range scrollActions {
+		t.Run(name, func(t *testing.T) {
+			var got action.Modifiers
+
+			controller := scrollControllerWithModifierCapture(&got)
+
+			resp := controller.handleAction(context.Background(), ipc.Command{
+				Action: ActionCommand,
+				Args:   []string{name, flagModifier + "=ctrl,shift"},
+			})
+
+			if !resp.Success {
+				t.Fatalf("handleAction(%s --modifier ctrl,shift) failed: %s", name, resp.Message)
+			}
+
+			if want := action.ModCtrl | action.ModShift; got != want {
+				t.Errorf("port received modifiers %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// TestHandleAction_ScrollRejectsUnknownModifier keeps a typo loud: an
+// unparseable modifier must refuse the action rather than scroll without it.
+func TestHandleAction_ScrollRejectsUnknownModifier(t *testing.T) {
+	var got action.Modifiers
+
+	controller := scrollControllerWithModifierCapture(&got)
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: ActionCommand,
+		Args:   []string{scrollUp, flagModifier + "=hyper"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(scroll_up --modifier hyper) expected refusal")
+	}
+
+	if resp.Code != ipc.CodeInvalidInput {
+		t.Fatalf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
+	}
+
+	if got != 0 {
+		t.Errorf("a refused modifier still reached the port as %q", got)
 	}
 }
 

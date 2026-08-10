@@ -134,6 +134,7 @@ or no-op) · ❌ no code path
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
@@ -283,6 +284,17 @@ Go; only the final injection primitive differs:
 **The one behavioral difference:** Windows `ScrollAtCursor` ignores `deltaX`, so
 horizontal scrolling is a no-op there. Everything else behaves the same on all
 three platforms.
+
+**Modifiers on a scroll** reach the injection primitive by two different routes,
+because only one of the primitives has a field for them. macOS stamps
+`CGEventSetFlags` on the scroll event — and on every chunk of a smooth-scroll
+animation, since a zoom applied to the first frame only is not a zoom. The other
+three press the real key, scroll, and release it. On Wayland that forces a
+choice: the modifier can only go out on the virtual keyboard (libei on KDE),
+while the fast path for the scroll is the uinput device, so a modified scroll
+skips the uinput batch entirely and goes out on the wlroots/libei seat. A path
+with no backend to press through answers `CodeNotSupported`; none of them
+scrolls unmodified and reports success.
 
 **Held mouse buttons.** Press and release are separate actions, so every backend
 must remember what it pressed — and that bookkeeping is shared, not

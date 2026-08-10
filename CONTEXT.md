@@ -120,6 +120,14 @@ _Avoid_: theme, palette, config
 
 ### Reaching the operating system
 
+**Modifier**:
+A key Neru presents as held while an action fires. A person names one either on
+the action itself — `--modifier ctrl` — or by switching on a sticky modifier
+beforehand; which actions honor which route is part of the action's
+definition, not the modifier's. How a platform produces the effect is not part
+of the word.
+_Avoid_: modifier flag, mod key, held key, chord
+
 **Bridge**:
 A package that compiles native source — Objective-C on macOS, C on Linux — and
 publishes it as headers. A Bridge's interface is those headers, not its Go API:

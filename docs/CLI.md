@@ -784,18 +784,26 @@ selection:
 Scroll one step in a direction.
 
 ```
-neru action scroll_up|scroll_down|scroll_left|scroll_right [--steps <px>] [--selection] [--bare]
+neru action scroll_up|scroll_down|scroll_left|scroll_right
+            [--modifier <mods>] [--steps <px>] [--selection] [--bare]
 ```
 
-| Flag          | Type | Description                                                                |
-| ------------- | ---- | -------------------------------------------------------------------------- |
-| `--steps`     | int  | Scroll amount in pixels. Uses `scroll.scroll_step` when omitted.            |
-| `--selection` | bool | See [Targeting](#targeting).                                               |
-| `--bare`      | bool | See [Targeting](#targeting).                                               |
+| Flag          | Type   | Description                                                                     |
+| ------------- | ------ | --------------------------------------------------------------------------------- |
+| `--modifier`  | string | Modifiers held during the scroll: `cmd`, `shift`, `alt`, `ctrl`. Comma-separated.  |
+| `--steps`     | int    | Scroll amount in pixels. Uses `scroll.scroll_step` when omitted.                   |
+| `--selection` | bool   | See [Targeting](#targeting).                                                       |
+| `--bare`      | bool   | See [Targeting](#targeting).                                                       |
+
+A modified scroll is what most applications read as zoom, so
+`--modifier ctrl` on `scroll_up` zooms in where a plain `scroll_up` pans. The
+modifier is not implied by the binding: `"Ctrl+K" = "action scroll_up"` scrolls
+unmodified, and it is `--modifier ctrl` that makes it zoom.
 
 **Platforms:** vertical scrolling works everywhere. Horizontal scrolling
 (`scroll_left`, `scroll_right`) is not implemented on Windows and has no effect
-there.
+there. For what each backend does with `--modifier`, see the
+[capability matrix](CROSS_PLATFORM.md#capability-matrix).
 
 **Examples**
 
@@ -803,6 +811,8 @@ there.
 neru action scroll_down
 neru action scroll_down --steps 200
 neru action scroll_left --steps 100
+neru action scroll_up --modifier ctrl        # Zoom in, in most applications
+neru action scroll_down --modifier ctrl      # Zoom out
 ```
 
 ---
@@ -812,11 +822,19 @@ neru action scroll_left --steps 100
 Scroll by a page, or to the top or bottom.
 
 ```
-neru action page_up|page_down|go_top|go_bottom [--selection] [--bare]
+neru action page_up|page_down|go_top|go_bottom [--modifier <mods>] [--selection] [--bare]
 ```
 
+| Flag          | Type   | Description                                                                     |
+| ------------- | ------ | --------------------------------------------------------------------------------- |
+| `--modifier`  | string | Modifiers held during the scroll: `cmd`, `shift`, `alt`, `ctrl`. Comma-separated.  |
+| `--selection` | bool   | See [Targeting](#targeting).                                                       |
+| `--bare`      | bool   | See [Targeting](#targeting).                                                       |
+
 Page actions use `scroll.scroll_step_half` and `scroll.scroll_step_full`. These
-subcommands take no `--steps` flag.
+subcommands take no `--steps` flag. `go_top` and `go_bottom` scroll
+`scroll.scroll_step_full` pixels — a million by default — so combining one with
+`--modifier ctrl` sends a million pixels of zoom.
 
 **Examples**
 

@@ -18,7 +18,7 @@ type MockAccessibilityPort struct {
 	ClickableElementsFunc    func(context.Context, ports.ElementFilter) ([]*element.Element, error)
 	PerformActionFunc        func(context.Context, *element.Element, action.Type) error
 	PerformActionAtPointFunc func(context.Context, action.Type, image.Point, action.Modifiers) error
-	ScrollFunc               func(context.Context, int, int) error
+	ScrollFunc               func(context.Context, int, int, action.Modifiers) error
 	FocusedAppBundleIDFunc   func(context.Context) (string, error)
 	IsAppExcludedFunc        func(context.Context, string) bool
 	PrimeApplicationFunc     func(context.Context, string) (bool, error)
@@ -104,9 +104,13 @@ func (m *MockAccessibilityPort) PerformActionAtPoint(
 }
 
 // Scroll implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) Scroll(ctx context.Context, deltaX, deltaY int) error {
+func (m *MockAccessibilityPort) Scroll(
+	ctx context.Context,
+	deltaX, deltaY int,
+	modifiers action.Modifiers,
+) error {
 	if m.ScrollFunc != nil {
-		return m.ScrollFunc(ctx, deltaX, deltaY)
+		return m.ScrollFunc(ctx, deltaX, deltaY, modifiers)
 	}
 
 	return nil

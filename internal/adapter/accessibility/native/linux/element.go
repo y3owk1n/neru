@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
@@ -415,13 +416,31 @@ func MouseUp(button action.MouseButton) error {
 	return nil
 }
 
-// ScrollAtCursor scrolls at the cursor.
-func ScrollAtCursor(deltaX, deltaY int) error {
+// ScrollAtCursor scrolls at the cursor, presenting modifiers as held.
+//
+// Linux has no event-flags concept, so a modifier is a real key press around
+// the scroll. On Wayland that forces a choice of injection layer: the modifier
+// can only be pressed on the wlroots virtual keyboard (or libei on KDE), while
+// the fast path for the scroll itself is the uinput evdev device. Interleaving
+// the two leaves the compositor to merge seat state across devices, which it is
+// not obliged to do — so a modified scroll goes out entirely through
+// wlroots/libei and skips the uinput batch. That costs throughput on a large
+// modified scroll and buys a modifier that actually arrives.
+func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	if currentLinuxBackend() == linuxBackendX11 {
-		return x11ScrollAtCursor(deltaX, deltaY)
+		return x11ScrollAtCursor(deltaX, deltaY, modifiers)
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
+		if modifiers != 0 {
+			// Uncapped, unlike the X11 path's 50-click ceiling, because this
+			// is the same event count the uinput batch below would send for
+			// the same delta — the events are merely slower per round trip.
+			// Capping here would make a modified go_bottom travel a different
+			// distance from an unmodified one, which is worse than slow.
+			return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
+		}
+
 		// Scale factor: each uinput scroll event approximates ~1 line.
 		const scrollScale = 30
 
@@ -485,7 +504,19 @@ func ScrollAtCursor(deltaX, deltaY int) error {
 			return nil
 		}
 
-		return wlrootsScrollAtCursor(remainX, remainY)
+		return wlrootsScrollAtCursor(remainX, remainY, 0)
+	}
+
+	// No backend to inject through. An unmodified scroll has always been a
+	// silent no-op here; a modified one must not be, because the user would
+	// read the missing zoom as a broken binding rather than as a missing
+	// backend.
+	if modifiers != 0 {
+		return derrors.Newf(
+			derrors.CodeNotSupported,
+			"modified scroll (%s) is not supported without an X11 or Wayland backend",
+			modifiers,
+		)
 	}
 
 	return nil

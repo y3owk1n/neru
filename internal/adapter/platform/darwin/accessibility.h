@@ -260,8 +260,9 @@ CGRect NeruGetScrollBounds(void *element);
 /// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY);
+int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags);
 
 #pragma mark - Mouse Action Functions
 

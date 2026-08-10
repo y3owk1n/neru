@@ -269,13 +269,29 @@ const (
 	wlrootsScrollStep      = 30 // pixels per notch (matches uinput scrollScale)
 )
 
-func wlrootsScrollAtCursor(deltaX, deltaY int) error {
+// wlrootsScrollAtCursor emits the scroll on the wlroots virtual pointer, with
+// modifiers held on the virtual keyboard (libei on KDE) for its duration.
+//
+// Both halves go out through the same seat, which is the whole reason a
+// modified scroll is routed here rather than through the faster uinput batch.
+// The release only lets go of what this call pressed, so a modifier the user is
+// physically holding survives it.
+func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return derrors.New(
 			derrors.CodeNotSupported,
 			"WAYLAND_DISPLAY is not set; wlroots backend is unavailable",
 		)
 	}
+
+	err := wlrootsPressModifiers(modifiers)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = wlrootsReleaseModifiers(modifiers)
+	}()
 
 	if deltaY != 0 {
 		err := wlrootsScrollAxis(0, deltaY)

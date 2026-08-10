@@ -151,14 +151,21 @@ CGRect NeruGetScrollBounds(void *element) {
 /// @param pos The point at which to post the scroll event
 /// @param deltaX Horizontal scroll amount
 /// @param deltaY Vertical scroll amount
+/// @param flags CGEventFlags for modifier keys (0 for none)
 /// @return 1 on success, 0 on failure
-int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY) {
+int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags) {
 	@autoreleasepool {
 		CGEventRef scrollEvent = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 2, deltaY, deltaX);
 		if (!scrollEvent)
 			return 0;
 
 		CGEventSetLocation(scrollEvent, pos);
+		// Only stamp a non-empty set. Unlike a click, which clears the flags to
+		// guarantee a clean press, an unmodified scroll leaves whatever the
+		// created event already carries alone — that is what scrolling did
+		// before modifiers existed here, and nothing asked for it to change.
+		if (flags != 0)
+			CGEventSetFlags(scrollEvent, flags);
 		CGEventPost(kNeruMouseEventTapLocation, scrollEvent);
 		CFRelease(scrollEvent);
 		return 1;

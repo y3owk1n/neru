@@ -93,8 +93,8 @@ func wlrootsMouseUp(button action.MouseButton) error {
 	)
 }
 
-func wlrootsScrollAtCursor(deltaX, deltaY int) error {
-	_, _ = deltaX, deltaY
+func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
+	_, _, _ = deltaX, deltaY, modifiers
 	return derrors.New(
 		derrors.CodeNotSupported,
 		"wlroots backend requires CGO-enabled Linux builds",
