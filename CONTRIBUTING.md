@@ -47,7 +47,9 @@ issues, so reports stay confidential.
 
 Set up your environment by following
 [DEVELOPMENT.md](docs/DEVELOPMENT.md#development-setup) — Devbox is the
-recommended path and provides every tool pre-configured.
+recommended path and provides the toolchain pre-configured. On Linux, read the
+prerequisites there first: Devbox does not cover the system packages a CGO
+build links against.
 
 ---
 
@@ -234,9 +236,7 @@ and don't submit changes you can't explain.
 
 ## Good First Contributions
 
-Not sure where to start? Issues labeled
-[`good first issue`](https://github.com/y3owk1n/neru/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-are curated to be well-scoped for newcomers. Beyond those:
+Not sure where to start? Any of these are welcome:
 
 - 🐛 Bug fixes — check the [open issues](https://github.com/y3owk1n/neru/issues)
 - 📝 Documentation improvements or typo fixes

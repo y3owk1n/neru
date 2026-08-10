@@ -43,13 +43,21 @@ Then from a second terminal:
 ./bin/neru hints        # should show hint overlays
 ```
 
+> [!IMPORTANT]
+> On macOS this needs Accessibility permission granted to whichever app starts
+> the daemon — your terminal, when you run `./bin/neru launch` by hand. Without
+> it the smoke test reports an accessibility error instead of drawing overlays.
+> Same grant, same place as for the integration tests: see
+> [Running integration tests](#running-integration-tests).
+
 There is no `just run` recipe — build first, then launch the daemon directly.
 The CLI talks to the running daemon over a socket, so both halves come from the
 same `./bin/neru` binary.
 
 For end-user installation (Homebrew, Nix, prebuilt binaries) see
-[INSTALLATION.md](INSTALLATION.md); for preparing a Linux host see
-[LINUX_SETUP.md](LINUX_SETUP.md).
+[INSTALLATION.md](INSTALLATION.md); on Linux,
+[LINUX_SETUP.md](LINUX_SETUP.md) covers both preparing the host and the
+[build dependencies](LINUX_SETUP.md#build-dependencies) a source build needs.
 
 ---
 
@@ -59,13 +67,17 @@ For end-user installation (Homebrew, Nix, prebuilt binaries) see
 
 - **Go 1.26+** — [Install Go](https://golang.org/dl/)
 - **Xcode Command Line Tools** (macOS) — `xcode-select --install`
+- **Build dependencies** (Linux) — the system `-dev`/`-devel` packages a CGO
+  build links against, listed for apt, dnf and pacman in
+  [LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies). Install them before your
+  first build, including under Devbox.
 - **Just** — command runner — [install](https://github.com/casey/just)
 - **golangci-lint** — linter — [install](https://golangci-lint.run/usage/install/)
 
 ### Option A: Devbox (recommended)
 
 [Devbox](https://www.jetify.com/devbox) provides an isolated environment with
-every tool pre-configured:
+the toolchain below pre-configured:
 
 ```bash
 curl -fsSL https://get.jetify.com/devbox | bash
@@ -79,6 +91,13 @@ in the repo root takes over whenever you `cd` in.
 
 Devbox manages Go 1.26+, gopls, gotools, gofumpt, golines, golangci-lint, just,
 and clang-tools (for CGo).
+
+On Linux it is not enough on its own: Devbox does not pull the `-dev` outputs a
+CGO build links against
+([jetify-com/devbox#2761](https://github.com/jetify-com/devbox/issues/2761)),
+so install the system packages listed in
+[LINUX_SETUP.md](LINUX_SETUP.md#build-dependencies) first — `just build` fails
+in the compiler without them.
 
 ### Option B: Manual installation
 
