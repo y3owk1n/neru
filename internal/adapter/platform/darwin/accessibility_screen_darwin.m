@@ -160,12 +160,13 @@ int NeruScrollAtPoint(CGPoint pos, int deltaX, int deltaY, CGEventFlags flags) {
 			return 0;
 
 		CGEventSetLocation(scrollEvent, pos);
-		// Only stamp a non-empty set. Unlike a click, which clears the flags to
-		// guarantee a clean press, an unmodified scroll leaves whatever the
-		// created event already carries alone — that is what scrolling did
-		// before modifiers existed here, and nothing asked for it to change.
-		if (flags != 0)
-			CGEventSetFlags(scrollEvent, flags);
+		// Stamp unconditionally, zero included. A NULL-source event is born
+		// carrying the combined session state's modifier flags, so skipping this
+		// for an empty set does not produce an unmodified scroll — it produces
+		// whatever the system currently believes is held, which is how a plain
+		// scroll_down ended up zooming after a Ctrl+J binding. Every other
+		// positioned event Neru posts clears its flags the same way.
+		CGEventSetFlags(scrollEvent, flags);
 		CGEventPost(kNeruMouseEventTapLocation, scrollEvent);
 		CFRelease(scrollEvent);
 		return 1;

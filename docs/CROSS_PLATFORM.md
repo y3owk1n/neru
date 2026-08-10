@@ -287,8 +287,11 @@ three platforms.
 
 **Modifiers on a scroll** reach the injection primitive by two different routes,
 because only one of the primitives has a field for them. macOS stamps
-`CGEventSetFlags` on the scroll event — and on every chunk of a smooth-scroll
-animation, since a zoom applied to the first frame only is not a zoom. The other
+`CGEventSetFlags` on the scroll event — always, the empty set included, because a
+NULL-source event is born carrying whatever the combined session state currently
+holds, so an unstamped scroll inherits ambient modifiers rather than carrying
+none — and on every chunk of a smooth-scroll animation, since a zoom applied to
+the first frame only is not a zoom. The other
 three press the real key, scroll, and release it. On Wayland that forces a
 choice: the modifier can only go out on the virtual keyboard (libei on KDE),
 while the fast path for the scroll is the uinput device, so a modified scroll
@@ -586,6 +589,12 @@ Work that is genuinely missing, as opposed to deliberately platform-specific.
    tap's key stream
 5. Secure input detection — always false
 6. Wayland global hotkeys — need `input`-group access and a CGO build
+7. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   `XTestFakeButtonEvent` still carries whatever the X server records the user as
+   physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
+   ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
+   event instead; a real-key backend has no per-event field to zero, so closing
+   this means reading the live key state through `XQueryKeymap` in the C bridge
 
 **Windows**
 
