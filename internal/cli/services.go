@@ -6,15 +6,19 @@ import (
 
 // ServicesCmd is the CLI services command for managing the system service.
 //
-// macOS: backed by launchd.
+// macOS: backed by a launchd user agent.
+// Linux: backed by a systemd user unit; other init systems return
+// CodeNotSupported.
 // Other platforms: stubbed and returns CodeNotSupported until implemented.
 var ServicesCmd = &cobra.Command{
 	Use:   "services",
-	Short: "Manage the Neru system service (macOS launchd)",
+	Short: "Manage the Neru system service (macOS launchd, Linux systemd)",
 	Long: `Manage the Neru system service for automatic startup on login.
 
-On macOS, this manages a launchd plist so Neru starts automatically
-when you log in. Available on macOS only.
+On macOS this manages a launchd agent, and on Linux a systemd user unit
+ordered after graphical-session.target, so Neru starts automatically once
+your graphical session is up. Linux service management covers systemd
+only; other init systems report ERR_NOT_SUPPORTED.
 
 Subcommands:
   install     Install and load the system service
@@ -29,7 +33,7 @@ Subcommands:
 var ServicesInstallCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install and load the system service",
-	Long:  `Install the Neru launchd service so it starts automatically on login. Creates the plist file and loads it with launchctl.`,
+	Long:  `Install the Neru service so it starts automatically on login: a launchd plist loaded with launchctl on macOS, a systemd user unit enabled with systemctl --user on Linux.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := installService()
 		if err != nil {
@@ -46,7 +50,7 @@ var ServicesInstallCmd = &cobra.Command{
 var ServicesUninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Unload and remove the system service",
-	Long:  `Unload the Neru launchd service and remove its plist file. Neru will no longer start automatically on login.`,
+	Long:  `Unload the Neru service and remove the file that describes it — the launchd plist on macOS, the systemd user unit on Linux. Neru will no longer start automatically on login.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := uninstallService()
 		if err != nil {
@@ -63,7 +67,7 @@ var ServicesUninstallCmd = &cobra.Command{
 var ServicesStartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the system service",
-	Long:  `Start the Neru launchd service (loads the plist with launchctl). The daemon will begin running in the background.`,
+	Long:  `Start the installed Neru service. The daemon will begin running in the background.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := startService()
 		if err != nil {
@@ -80,7 +84,7 @@ var ServicesStartCmd = &cobra.Command{
 var ServicesStopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Stop the system service",
-	Long:  `Stop the Neru launchd service (unloads the plist with launchctl). The daemon process will be terminated.`,
+	Long:  `Stop the installed Neru service. The daemon process will be terminated; the service stays installed and starts again on your next login.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := stopService()
 		if err != nil {
@@ -97,7 +101,7 @@ var ServicesStopCmd = &cobra.Command{
 var ServicesRestartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restart the system service",
-	Long:  `Stop then immediately start the Neru launchd service. Useful after configuration changes or to recover from an unresponsive state.`,
+	Long:  `Stop then immediately start the Neru service. Useful after configuration changes or to recover from an unresponsive state.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := restartService()
 		if err != nil {
@@ -114,7 +118,7 @@ var ServicesRestartCmd = &cobra.Command{
 var ServicesStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the system service",
-	Long:  `Check whether the Neru launchd service is currently loaded and running. Displays the service PID if active.`,
+	Long:  `Check whether the Neru service is installed and running. A machine where it was never installed is reported as such rather than as an error.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.Println(statusService())
 

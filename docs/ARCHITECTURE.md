@@ -375,14 +375,14 @@ sync with reality; the policy and per-platform status live in
 **`neru services`** — the command itself is shared:
 [services.go](../internal/cli/services.go) registers `ServicesCmd`
 unconditionally and delegates to unexported helpers (`installService`,
-`startService`, …). The helpers are a Tier-2 dispatch pair:
+`startService`, …). The helpers are a Tier-2 dispatch set:
 [services_darwin.go](../internal/cli/services_darwin.go) (`//go:build darwin`)
-drives `launchctl` and `.plist` files, while
-[services_other.go](../internal/cli/services_other.go) (`//go:build !darwin`)
-returns `CodeNotSupported`. Adding Linux service management means carving a
-`services_linux.go` out of the `!darwin` slot and implementing the same helpers
-over `systemctl` — registration is already shared, so no new `init()` is
-needed.
+drives `launchctl` and `.plist` files,
+[services_linux.go](../internal/cli/services_linux.go) (`//go:build linux`)
+drives `systemctl --user` and a unit file, and
+[services_other.go](../internal/cli/services_other.go)
+(`//go:build !darwin && !linux`) returns `CodeNotSupported`. Registration is
+shared, so a platform joining the set adds one file and no `init()`.
 
 **`IsRunningFromAppBundle`** — [root.go](../internal/cli/root.go) delegates to
 a build-tagged implementation: [root_darwin.go](../internal/cli/root_darwin.go)
