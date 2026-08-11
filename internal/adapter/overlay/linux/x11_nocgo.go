@@ -70,6 +70,16 @@ func (o *x11Overlay) Flush() {}
 
 func (o *x11Overlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *x11Overlay) DrawHintSearchInput(
+	string,
+	hintscomponent.SearchInputFrame,
+	hintscomponent.SearchInputStyle,
+) image.Rectangle {
+	return image.Rectangle{}
+}
+
+func (o *x11Overlay) HideHintSearchInput(image.Rectangle) {}
+
 func (o *x11Overlay) Scale() float64 { return 1 }
 
 func (o *x11Overlay) DrawMonitorSelect([]manager.MonitorSelectTarget, manager.MonitorSelectStyle) {}

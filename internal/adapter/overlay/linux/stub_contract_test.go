@@ -128,16 +128,20 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 	}
 }
 
-// TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo pins what
-// separates the search input from every other draw above: those report
-// CodeNotSupported because there is no surface to draw on, so attaching a
-// backend would make them succeed. This one is not implemented at all — no
-// Linux backend draws the badge — so a surface changes nothing, and reporting
-// success once one exists would put the mode handler back where this started.
-func TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo(t *testing.T) {
+// TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted pins what
+// the refusal means now that both backends draw the badge. It used to mean
+// "unimplemented here", and attaching X11 or wlroots changed nothing; it now
+// means the draw put no pixels anywhere — a backend pointer whose native handle
+// is closed or was never opened, which is the state a torn-down session leaves.
+//
+// Answering nil there is the failure the old body was written against from the
+// other end: the mode handler would believe a query and a match count were on
+// screen with nothing on it. What a live surface answers is
+// TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen.
+func TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted(t *testing.T) {
 	tests := map[string]*Manager{
-		"x11 attached": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
-		"wlroots attached": {
+		"x11 attached, handle closed": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
+		"wlroots attached, handle closed": {
 			backend: linuxOverlayBackendWaylandWlroots,
 			wlroots: &wlrootsOverlay{},
 		},

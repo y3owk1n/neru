@@ -15,8 +15,6 @@ import (
 const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level, " +
 		"a Quartz concept with no X11, Wayland or Win32 counterpart"
-	noteSearchInputBadge = "no Linux overlay backend draws the hints search input badge; " +
-		"the query still reaches hints through the event tap"
 	noteVisionStrategy = "no element-detection engine outside macOS answers the vision " +
 		"strategy, so it finds nothing there and none of its settings are read; use axtree"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
@@ -59,12 +57,13 @@ var strategyOptions = []string{
 	"app_configs.strategy",
 }
 
-// darwinOnly, darwinAndLinux and darwinAndWindows are the columns this schema
-// uses today, named so a reader compares two options by the same words.
+// darwinOnly and darwinAndLinux are the narrow columns this schema uses today,
+// named so a reader compares two options by the same words. A darwin+windows
+// column existed for the hints search badge until Linux drew it too; add one
+// back the moment an option needs it rather than reaching for the nearest fit.
 var (
-	darwinOnly       = parity.Platforms{parity.Darwin}
-	darwinAndLinux   = parity.Platforms{parity.Darwin, parity.Linux}
-	darwinAndWindows = parity.Platforms{parity.Darwin, parity.Windows}
+	darwinOnly     = parity.Platforms{parity.Darwin}
+	darwinAndLinux = parity.Platforms{parity.Darwin, parity.Linux}
 )
 
 // PlatformSupport declares, for every option in the schema, the platforms on
@@ -140,22 +139,6 @@ func PlatformSupport() parity.Declaration {
 
 		parity.On(parity.KindOption, darwinOnly, noteGridPrewarm,
 			"grid.prewarm_enabled",
-		),
-
-		parity.On(parity.KindOption, darwinAndWindows, noteSearchInputBadge,
-			"hints.search_input_ui.font_size",
-			"hints.search_input_ui.font_family",
-			"hints.search_input_ui.border_radius",
-			"hints.search_input_ui.padding_x",
-			"hints.search_input_ui.padding_y",
-			"hints.search_input_ui.border_width",
-			"hints.search_input_ui.position",
-			"hints.search_input_ui.x_offset",
-			"hints.search_input_ui.y_offset",
-			"hints.search_input_ui.width",
-			"hints.search_input_ui.background_color",
-			"hints.search_input_ui.text_color",
-			"hints.search_input_ui.border_color",
 		),
 
 		parity.On(parity.KindOption, darwinOnly, noteVisionStrategy,
@@ -258,6 +241,16 @@ func PlatformSupport() parity.Declaration {
 			"hints.ui.padding_y",
 			"hints.ui.border_width",
 			"hints.ui.placement",
+			"hints.search_input_ui.font_size",
+			"hints.search_input_ui.font_family",
+			"hints.search_input_ui.border_radius",
+			"hints.search_input_ui.padding_x",
+			"hints.search_input_ui.padding_y",
+			"hints.search_input_ui.border_width",
+			"hints.search_input_ui.position",
+			"hints.search_input_ui.x_offset",
+			"hints.search_input_ui.y_offset",
+			"hints.search_input_ui.width",
 			"hints.boundary_highlight.enabled",
 			"hints.boundary_highlight.border_width",
 			"hints.boundary_highlight.border_radius",
@@ -418,6 +411,9 @@ func PlatformSupport() parity.Declaration {
 			"hints.ui.text_color",
 			"hints.ui.matched_text_color",
 			"hints.ui.border_color",
+			"hints.search_input_ui.background_color",
+			"hints.search_input_ui.text_color",
+			"hints.search_input_ui.border_color",
 			"hints.boundary_highlight.border_color",
 			"hints.boundary_highlight.background_color",
 

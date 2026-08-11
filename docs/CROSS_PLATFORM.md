@@ -162,7 +162,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
-| **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream fallback | 🟡 key-stream fallback       | 🟡 key-stream fallback  | 🟡 key-stream fallback       |
+| **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
 | **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
@@ -237,6 +237,18 @@ so a plain `scroll_down` on X11 arrives as the single wheel click it always did
 nothing else. From two notches up (`scroll_step_half`, `scroll_step_full`, or a
 `scroll_step` above 60) the same eased curve applies as everywhere else, and
 those are the scrolls the animation is worth having for.
+
+⁵ This row is about the native *field* — a platform text control that owns
+keyboard focus and brings the system's input method with it. Only macOS has
+one. Everywhere else the query is read from the event tap's key stream, which
+is why dead keys and IME composition do not work there and a hint search takes
+plain characters.
+
+**What the box on screen is, is a different question, and every platform draws
+one.** Linux paints the search badge onto the shared overlay surface with the
+same Cairo primitives as its other badges, so `hints.search_input_ui.*` means
+what it says on all three; the badge is a display of the query the mode handler
+already holds, and it never captures a key.
 
 Neru sends the same distance on every backend; only the granularity of a step
 differs — though on Wayland the animated path spends that distance as a
@@ -576,7 +588,7 @@ discovery rather than the mode itself.
 | **Hints**         | Element discovery              | ✅ full AX tree            | ⚠️ AT-SPI, toolkit-dependent | ⚠️ UIA, shallow tree      |
 | **Hints**         | `vision` strategy + per-app overrides | ✅                  | ❌ macOS-only              | ❌ macOS-only               |
 | **Hints**         | Menubar / dock elements        | ✅                         | 🟡                         | 🟡                          |
-| **Hints**         | Search input badge             | ✅                         | 🟡 `CodeNotSupported`      | ✅                          |
+| **Hints**         | Search input badge             | ✅                         | ✅ Cairo badge             | ✅                          |
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
@@ -703,19 +715,6 @@ green in every cell while an option means nothing, which is exactly how
 | `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
 | `grid.prewarm_enabled` | option | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `hints.search_input_ui.font_size` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.font_family` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.border_radius` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.padding_x` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.padding_y` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.border_width` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.position` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.x_offset` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.y_offset` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.width` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.background_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.text_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
-| `hints.search_input_ui.border_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
 | `hints.vision.detect_text` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
 | `hints.vision.request_timeout_ms` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
 | `hints.vision.minimum_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
@@ -835,39 +834,36 @@ command — that means less here than it does on macOS, whether or not the
 
 1. `neru docs` — returns `CodeNotSupported` although the tray already opens
    URLs through `xdg-open` in the same repo
-2. Hints search input badge — not drawn; the overlay manager reports
-   `CodeNotSupported` and the query goes on reaching hints through the event
-   tap's key stream
-3. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
+2. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
    strategy below and the missing half of `ports.Vision`. Take it per backend:
    `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
-4. `vision` hint strategy — no engine. Met by linking one through
+3. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
    use so a missing `tessdata` reports `CodeNotSupported` naming what is
    absent. Note the strategy is wider than OCR: macOS also runs rectangle
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. Needs 3
-5. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   declared macOS-only and Linux `vision` is text-only. Needs 2
+4. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
-6. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+5. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-7. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+6. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-8. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+7. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-9. Wayland global hotkeys — a setup requirement rather than missing code: they
+8. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-10. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
-    tray has one icon for both running and paused states where macOS has two,
-    and the `CGO_ENABLED=0` build should announce its boundary once at startup
-    rather than failing feature by feature
+9. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+   tray has one icon for both running and paused states where macOS has two,
+   and the `CGO_ENABLED=0` build should announce its boundary once at startup
+   rather than failing feature by feature
 
 The gaps above are the work; what a person writes and finds inert *today* is
 [Platform Support Per Word](#platform-support-per-word), which is generated

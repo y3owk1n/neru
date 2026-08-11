@@ -4,6 +4,7 @@ package linux
 
 import (
 	"image"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
@@ -20,15 +21,25 @@ import (
 type recordedRect struct {
 	bounds  image.Rectangle
 	radius  float64
+	fill    uint32
+	border  uint32
 	rounded bool
 }
 
 // recordingSurface is an overlaySurface that draws nothing and remembers what
 // it was asked to draw. It stands in for Cairo so these tests need no display,
 // and it observes the shared drawing code at the one boundary the backends see.
+//
+// A hint badge is deliberately not recorded in rects: the radius tests below
+// count the shapes a draw produced, and the badge beside each label would tell
+// them nothing they assert.
 type recordingSurface struct {
-	scale float64
-	rects []recordedRect
+	scale        float64
+	rects        []recordedRect
+	texts        []string
+	clearedRects []image.Rectangle
+	clears       int
+	flushes      int
 }
 
 func (s *recordingSurface) alive() bool { return true }
@@ -39,13 +50,15 @@ func (s *recordingSurface) ensureBuffers() {}
 
 func (s *recordingSurface) beginFrame() bool { return true }
 
-func (s *recordingSurface) surfaceClear() {}
+func (s *recordingSurface) surfaceClear() { s.clears++ }
 
-func (s *recordingSurface) clearFrame() {}
+func (s *recordingSurface) clearFrame() { s.clears++ }
 
-func (s *recordingSurface) surfaceClearRect(image.Rectangle) {}
+func (s *recordingSurface) surfaceClearRect(rect image.Rectangle) {
+	s.clearedRects = append(s.clearedRects, rect)
+}
 
-func (s *recordingSurface) surfaceFlush() {}
+func (s *recordingSurface) surfaceFlush() { s.flushes++ }
 
 func (s *recordingSurface) surfaceHide() {}
 
@@ -55,14 +68,16 @@ func (s *recordingSurface) finishIndicator() {}
 
 func (s *recordingSurface) syncBeforeAnimation() {}
 
-func (s *recordingSurface) rectPrim(bounds image.Rectangle, _, _ uint32, _ float64) {
-	s.rects = append(s.rects, recordedRect{bounds: bounds})
+func (s *recordingSurface) rectPrim(bounds image.Rectangle, fill, border uint32, _ float64) {
+	s.rects = append(s.rects, recordedRect{bounds: bounds, fill: fill, border: border})
 }
 
 func (s *recordingSurface) roundedRectPrim(
-	bounds image.Rectangle, radius float64, _, _ uint32, _ float64,
+	bounds image.Rectangle, radius float64, fill, border uint32, _ float64,
 ) {
-	s.rects = append(s.rects, recordedRect{bounds: bounds, radius: radius, rounded: true})
+	s.rects = append(s.rects, recordedRect{
+		bounds: bounds, radius: radius, fill: fill, border: border, rounded: true,
+	})
 }
 
 func (s *recordingSurface) hintBadgePrim(
@@ -70,7 +85,14 @@ func (s *recordingSurface) hintBadgePrim(
 ) {
 }
 
-func (s *recordingSurface) textPrim(_, _ string, _, _, _ float64, _ uint32) {}
+func (s *recordingSurface) textPrim(text, _ string, _, _, _ float64, _ uint32) {
+	s.texts = append(s.texts, text)
+}
+
+// paintedText reports whether the surface was asked to paint a string.
+func (s *recordingSurface) paintedText(text string) bool {
+	return slices.Contains(s.texts, text)
+}
 
 // TestSharedOverlay_DrawHints_BoundaryHighlightHonoursItsBorderRadius pins
 // hints.boundary_highlight.border_radius to the shape Linux draws. The expected

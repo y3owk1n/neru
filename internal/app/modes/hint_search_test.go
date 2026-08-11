@@ -191,3 +191,50 @@ func TestStartHintSearch_NoBoxOnScreenGivesTheKeyboardBack(t *testing.T) {
 		t.Error("the handler still believes it owes the event tap a re-enable")
 	}
 }
+
+// TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox pins the half of a
+// theme refresh a redraw of the labels alone would lose. On the backends that
+// paint the search box onto the same surface as the labels — Linux and Windows
+// — that redraw clears it, so a theme change mid-search would take the box off
+// the screen while the search is still running and still taking keys.
+func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
+	t.Parallel()
+
+	searchDraws := 0
+	overlayPort := &portmocks.MockOverlayPort{
+		DrawHintSearchFunc: func(ports.HintSearch) error {
+			searchDraws++
+
+			return nil
+		},
+		HintSearchBoundsFunc: func(image.Rectangle) image.Rectangle { return image.Rectangle{} },
+	}
+
+	handler := newHintSearchTestHandler(t, overlayPort, &portmocks.MockTextInputPort{})
+	mode := &HintsMode{baseMode: baseMode{handler: &handler.handlerState}}
+
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
+	if !mode.RefreshForThemeChange() {
+		t.Fatal("RefreshForThemeChange() = false with hints on screen")
+	}
+
+	if searchDraws != 0 {
+		t.Errorf("the search box was drawn %d times with no search open, want 0", searchDraws)
+	}
+
+	handler.hints.Context.SetSearchActive(true)
+
+	if !mode.RefreshForThemeChange() {
+		t.Fatal("RefreshForThemeChange() = false with hints on screen")
+	}
+
+	if searchDraws != 1 {
+		t.Errorf(
+			"the search box was drawn %d times after a theme change, want 1: "+
+				"the label redraw cleared it",
+			searchDraws,
+		)
+	}
+}

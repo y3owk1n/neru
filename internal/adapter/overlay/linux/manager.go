@@ -44,6 +44,11 @@ const (
 	// winAutoRadiusBoundaryCap. An element box is much larger than a badge, so
 	// without the cap the auto radius would round it into an oval.
 	hintBoundaryAutoRadiusMax = 4
+	// searchInputAutoRadiusMax caps the auto (search_input_ui.border_radius =
+	// -1) corner radius of the hints search badge, matching the macOS overlay's
+	// MIN(height/2, 8). It is looser than the hint badge's cap because the box
+	// is taller: the same 6 would read as square corners on it.
+	searchInputAutoRadiusMax = 8
 
 	stickyBadgeClearPadding = 3
 )
@@ -91,6 +96,13 @@ type Manager struct {
 
 	modeIndicatorBadgeRect    image.Rectangle
 	modeIndicatorBadgeVisible bool
+
+	// searchBadgeRect is where the hints search badge was last painted, and the
+	// empty rectangle means there is none on screen. It is the third piece of
+	// screen state this manager keeps, for the same reason as the two above:
+	// the badge is painted onto the one shared surface rather than into a
+	// window of its own, so taking it off means knowing what it covered.
+	searchBadgeRect image.Rectangle
 }
 
 var (
@@ -177,10 +189,7 @@ func (m *Manager) Hide() {
 		m.wlroots.Hide()
 	}
 
-	m.stickyBadgeVisible = false
-	m.stickyBadgeRect = image.Rectangle{}
-	m.modeIndicatorBadgeVisible = false
-	m.modeIndicatorBadgeRect = image.Rectangle{}
+	m.forgetBadgesLocked()
 }
 
 // SetKeyboardCaptureEnabled controls whether the Wayland overlay requests
@@ -213,10 +222,7 @@ func (m *Manager) Clear() {
 		m.wlroots.Clear()
 	}
 
-	m.stickyBadgeVisible = false
-	m.stickyBadgeRect = image.Rectangle{}
-	m.modeIndicatorBadgeVisible = false
-	m.modeIndicatorBadgeRect = image.Rectangle{}
+	m.forgetBadgesLocked()
 }
 
 // ClearCache is a no-op on Linux; the overlay backend does not retain stale
@@ -430,6 +436,12 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	// A hints draw clears the whole surface, so any search badge on it went
+	// with the labels. Forgetting it here is what keeps the hide that follows a
+	// canceled search from erasing a rectangle out of the hints it just put
+	// back — there is nothing left of the badge to take down.
+	m.searchBadgeRect = image.Rectangle{}
+
 	if m.x11 != nil {
 		m.x11.DrawHints(hintsSlice, style, offset)
 
@@ -447,38 +459,90 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return nil
 }
 
-// DrawHintSearchInput reports that no Linux backend draws the hints search
-// input.
+// DrawHintSearchInput paints the hints search badge on the active backend.
 //
-// Unlike the draws above, the refusal does not depend on a surface: the badge
-// is unimplemented here, so attaching X11 or wlroots changes nothing. Returning
-// nil told the caller a query and a result count were on screen when nothing
-// was — the same silent no-op the platform guide forbids, on a call that
-// already has an error channel to say it with. Hint search itself keeps
-// working: the caller degrades on CodeNotSupported and the query still comes
-// through the event tap's key stream, which is what the Linux TextInput
-// capability already promises (`ports/capability_presets.go`).
+// It is a display and nothing more: the query arrives as an argument, having
+// been read from the event tap's key stream and held by the mode handler, and
+// no key reaches this surface. That is the whole difference from the macOS
+// implementation, where the field is a real NSTextField that owns keyboard
+// focus — here there is one owner of the query string and it is not the
+// overlay.
+//
+// Nothing is cleared first. The badge is painted over the hints the same draw
+// cycle just put on the surface, the way an indicator badge is, because a
+// search that erased the labels it is narrowing would be showing the user the
+// one thing they are not looking for.
 func (m *Manager) DrawHintSearchInput(
-	_ string,
-	_ int,
-	_ hints.SearchInputFrame,
-	_ hints.SearchInputStyle,
+	query string,
+	resultCount int,
+	frame hints.SearchInputFrame,
+	style hints.SearchInputStyle,
 ) error {
-	return derrors.New(
-		derrors.CodeNotSupported,
-		"overlay hint search input not implemented on linux backend",
-	)
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	label := badge.SearchLabel(query, resultCount)
+
+	if m.x11 != nil {
+		m.searchBadgeRect = m.x11.DrawHintSearchInput(label, frame, style)
+	} else if m.wlroots != nil {
+		m.searchBadgeRect = m.wlroots.DrawHintSearchInput(label, frame, style)
+	}
+
+	// The backend answers with the rectangle it painted, and the empty one means
+	// it painted nothing — no backend at all, or one whose native handle is
+	// closed. Reporting success then would tell the mode handler a query and a
+	// match count were on screen when the screen is blank, which is the silent
+	// no-op this method used to be for a different reason.
+	if m.searchBadgeRect.Empty() {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"no linux overlay surface to draw the hint search input on",
+		)
+	}
+
+	return nil
 }
 
-// HideHintSearchInput hides the hints search input.
+// HideHintSearchInput takes the hints search badge off the shared surface.
 //
 // It keeps its errorless signature deliberately (#1328). The two directions are
 // not symmetric: a draw makes a claim about what is on screen and the error
 // channel is the only place to withdraw it, while hiding claims nothing that
-// could be untrue here — nothing was ever painted, so there is nothing left on
-// screen and this genuinely succeeded. Widening it would hand every platform a
+// could be untrue — whatever was painted is gone, and a call with nothing to
+// take down has already succeeded. Widening it would hand every platform a
 // return value no caller could act on, on a call that runs from teardown.
-func (m *Manager) HideHintSearchInput() {}
+func (m *Manager) HideHintSearchInput() {
+	// Canceling before the lock is what DrawHintsWithStyle does and for the
+	// same reason: putting the badge away repaints the hints, and an animation
+	// still running would paint over that. It happens out here because
+	// cancelAnimation waits for a goroutine that takes renderMu on every frame
+	// — which is also why the repaint below goes through repaintHints rather
+	// than drawHints, so no second cancel is attempted under the lock. The same
+	// call answers whether there is a backend at all.
+	if !m.cancelBackendAnimation() {
+		return
+	}
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	painted := m.searchBadgeRect
+	if painted.Empty() {
+		return
+	}
+
+	m.searchBadgeRect = image.Rectangle{}
+
+	// Nil-checked like every other dispatch here rather than trusting the
+	// answer above: that one was taken before renderMu was released for the
+	// cancel, so a Destroy landing in between leaves this pointer nil.
+	if m.x11 != nil {
+		m.x11.HideHintSearchInput(painted)
+	} else if m.wlroots != nil {
+		m.wlroots.HideHintSearchInput(painted)
+	}
+}
 
 // DrawModeIndicator draws the mode indicator overlay.
 func (m *Manager) DrawModeIndicator(posX, posY int) {
@@ -1040,6 +1104,18 @@ func (m *Manager) overlayScale() float64 {
 	}
 
 	return 1
+}
+
+// forgetBadgesLocked drops every record of what is painted on the shared
+// surface. It follows a Hide or a Clear, which take the whole surface away
+// rather than one badge at a time, so there is nothing left to erase and the
+// records would only describe a screen that is gone.
+func (m *Manager) forgetBadgesLocked() {
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
+	m.modeIndicatorBadgeVisible = false
+	m.modeIndicatorBadgeRect = image.Rectangle{}
+	m.searchBadgeRect = image.Rectangle{}
 }
 
 func (m *Manager) clearStickyBadgeLocked() {

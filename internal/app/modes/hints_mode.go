@@ -57,6 +57,12 @@ func (m *HintsMode) RefreshForMonitorMove(ctx context.Context, targetBounds imag
 // RefreshForThemeChange draws the labels the session already holds again, so
 // they pick up the colors the overlay just re-resolved. Nothing is regenerated:
 // the elements have not moved, only the palette changed.
+//
+// An open search is redrawn with them. The labels and the search box are one
+// surface on the backends that paint the box themselves, so redrawing the
+// labels alone takes the box off the screen — and a search whose box vanished
+// on a theme change looks like a search that ended, while the next key still
+// goes to it.
 func (m *HintsMode) RefreshForThemeChange() bool {
 	handler := m.handler
 
@@ -76,6 +82,10 @@ func (m *HintsMode) RefreshForThemeChange() bool {
 		},
 		"refresh hints after theme change",
 	)
+
+	if handler.hints.Context.SearchActive() {
+		handler.drawHintSearchInput()
+	}
 
 	return true
 }
