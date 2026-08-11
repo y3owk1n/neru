@@ -132,14 +132,24 @@ type notifier struct {
 	connect func() (*dbus.Conn, error)
 
 	mu sync.Mutex
-	// conn is the connection a completed dial produced, kept so the ordinary
-	// path after the first notification dials nothing.
+	// conn is the connection the last dial produced, kept so the ordinary path
+	// after the first notification dials nothing. A dial that fails clears it,
+	// so no caller is ever handed a connection that is known to be gone.
 	conn *dbus.Conn
-	// dialErr is what the last completed dial reported.
-	dialErr error
-	// dialDone is non-nil while a dial is in flight, and is closed when it
-	// finishes. Callers wait on it rather than starting a second dial.
-	dialDone chan struct{}
+	// dialing is the dial in flight, and nil when none is. Callers wait on it
+	// rather than starting a second dial.
+	dialing *dialAttempt
+}
+
+// dialAttempt is one attempt to reach the session bus and the outcome every
+// caller that waited on it reads. conn and err are written once, before done is
+// closed, and read only after it closes — that close is what publishes them, so
+// a caller sees the result of the dial it actually waited on rather than
+// whatever the notifier's fields hold by the time it is scheduled.
+type dialAttempt struct {
+	done chan struct{}
+	conn *dbus.Conn
+	err  error
 }
 
 // sessionNotifier is the process-wide notifier. dbus.SessionBus hands back one
@@ -265,6 +275,11 @@ func daemonReachableFrom(owned bool, activatable []string) bool {
 // notification and a `neru doctor` probe from spoiling each other. A
 // connection that succeeds is kept, so the ordinary path after the first
 // notification dials nothing at all.
+//
+// A dial that fails is reported as a failure even when a connection was cached
+// before it: the cached one had already disconnected — that is what started
+// this dial — so handing it back would have the caller talk into a dead
+// transport and report the daemon rejecting a message that never left.
 func (n *notifier) session(ctx context.Context) (*dbus.Conn, error) {
 	n.mu.Lock()
 
@@ -275,53 +290,55 @@ func (n *notifier) session(ctx context.Context) (*dbus.Conn, error) {
 		return conn, nil
 	}
 
-	if n.dialDone == nil {
-		n.dialDone = make(chan struct{})
-		go n.dial(n.dialDone)
+	attempt := n.dialing
+	if attempt == nil {
+		attempt = &dialAttempt{done: make(chan struct{})}
+		n.dialing = attempt
+
+		go n.dial(attempt)
 	}
 
-	dialed := n.dialDone
 	n.mu.Unlock()
 
 	select {
-	case <-dialed:
+	case <-attempt.done:
 	case <-ctx.Done():
 		return nil, derrors.Wrap(ctx.Err(), derrors.CodeTimeout, dialTimedOutDetail)
 	}
 
-	n.mu.Lock()
-	conn, err := n.conn, n.dialErr
-	n.mu.Unlock()
-
-	if conn != nil {
-		return conn, nil
+	if attempt.err != nil {
+		return nil, derrors.Wrap(attempt.err, derrors.CodeNotSupported, noSessionBusDetail)
 	}
 
-	if err != nil {
-		return nil, derrors.Wrap(err, derrors.CodeNotSupported, noSessionBusDetail)
+	if attempt.conn == nil {
+		return nil, derrors.New(derrors.CodeNotSupported, noSessionBusDetail)
 	}
 
-	return nil, derrors.New(derrors.CodeNotSupported, noSessionBusDetail)
+	return attempt.conn, nil
 }
 
 // dial performs the one uncancellable connect and publishes its outcome by
-// closing done. It clears the in-flight marker first, so the next caller after
-// a failed dial retries rather than reading a stale answer forever.
-func (n *notifier) dial(done chan struct{}) {
+// closing the attempt's done channel. It clears the in-flight marker, so the
+// next caller after a failed dial retries rather than reading a stale answer
+// forever, and replaces the cached connection with whatever this dial produced
+// — nothing, when it failed, since the connection it was replacing is gone.
+func (n *notifier) dial(attempt *dialAttempt) {
 	conn, err := n.connect()
+
+	attempt.conn, attempt.err = conn, err
 
 	n.mu.Lock()
 
-	n.dialErr = err
-	n.dialDone = nil
-
+	n.conn = nil
 	if err == nil {
 		n.conn = conn
 	}
 
+	n.dialing = nil
+
 	n.mu.Unlock()
 
-	close(done)
+	close(attempt.done)
 }
 
 // withNotifyDeadline bounds the round trip. A caller's own deadline wins — it
@@ -343,6 +360,14 @@ func withNotifyDeadline(ctx context.Context) (context.Context, context.CancelFun
 func notifyError(err error) error {
 	if isMissingDaemon(err) {
 		return derrors.Wrap(err, derrors.CodeNotSupported, noDaemonDetail)
+	}
+
+	// The connection went away between the check that it was live and this
+	// call. That is the session bus being gone, not a daemon refusing anything,
+	// and saying so is what sends the user to the right place; the next call
+	// redials, because the cached connection no longer reports itself connected.
+	if errors.Is(err, dbus.ErrClosed) {
+		return derrors.Wrap(err, derrors.CodeNotSupported, noSessionBusDetail)
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {

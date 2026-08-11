@@ -5,6 +5,7 @@ package linux
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,29 @@ var errNoBus = errors.New("dbus: couldn't determine address of session bus")
 // is what a daemon started outside a desktop session sees.
 func unreachableNotifier() *notifier {
 	return &notifier{connect: func() (*dbus.Conn, error) { return nil, errNoBus }}
+}
+
+// idleTransport is enough of a connection for godbus to build a *dbus.Conn
+// around without a session bus. Nothing is ever sent over it: the tests using
+// it need a connection they can close, to stand for one the bus dropped.
+type idleTransport struct{}
+
+func (idleTransport) Read([]byte) (int, error)    { return 0, io.EOF }
+func (idleTransport) Write(p []byte) (int, error) { return len(p), nil }
+func (idleTransport) Close() error                { return nil }
+
+// openConn is a connection that reports itself connected until it is closed.
+func openConn(t *testing.T) *dbus.Conn {
+	t.Helper()
+
+	conn, err := dbus.NewConn(idleTransport{})
+	if err != nil {
+		t.Fatalf("building a test connection failed: %v", err)
+	}
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	return conn
 }
 
 // TestNotifier_SendReportsNotSupportedWithoutASessionBus is the loud-stub pin
@@ -123,6 +147,71 @@ func TestNotifier_SendGivesUpOnADialThatNeverReturns(t *testing.T) {
 	}
 }
 
+// TestNotifier_SessionReportsAFailedRedialRatherThanTheDroppedConnection pins
+// what the cached connection is worth once the session bus goes away. A logind
+// session ending, a bus restart or a suspend all drop it, and the notifier then
+// holds a connection nothing can be sent over. Handing that back would have the
+// caller talk into a dead transport and report the daemon rejecting a message
+// that never left — sending a user to look at a daemon that is fine.
+func TestNotifier_SessionReportsAFailedRedialRatherThanTheDroppedConnection(t *testing.T) {
+	dropped := openConn(t)
+	redialed := openConn(t)
+
+	dials := 0
+
+	reconnecting := &notifier{
+		connect: func() (*dbus.Conn, error) {
+			dials++
+
+			switch dials {
+			case 1:
+				return dropped, nil
+			case 2:
+				return nil, errNoBus
+			default:
+				return redialed, nil
+			}
+		},
+	}
+
+	first, err := reconnecting.session(context.Background())
+	if err != nil {
+		t.Fatalf("the first session dial failed: %v", err)
+	}
+
+	if first != dropped {
+		t.Fatal("session returned a connection the dial did not produce")
+	}
+
+	// The bus goes away under the cached connection, and the redial fails.
+	_ = dropped.Close()
+
+	_, err = reconnecting.session(context.Background())
+	if err == nil {
+		t.Fatal("session handed back the dropped connection instead of reporting the failed redial")
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Errorf("session returned %v (code %q), want CodeNotSupported naming the session bus",
+			err, derrors.GetCode(err))
+	}
+
+	if !strings.Contains(err.Error(), notifyBusName) {
+		t.Errorf("error %q does not say what could not be reached", err.Error())
+	}
+
+	// A failed dial leaves nothing cached, so the session coming back is picked
+	// up rather than the failure sticking for the rest of the daemon's life.
+	third, err := reconnecting.session(context.Background())
+	if err != nil {
+		t.Fatalf("session did not recover once the bus came back: %v", err)
+	}
+
+	if third != redialed {
+		t.Error("session returned a stale connection after a successful redial")
+	}
+}
+
 // TestNotifier_DaemonReachableReportsNotSupportedWithoutASessionBus keeps the
 // `neru doctor` probe honest in the same session: a capability that cannot be
 // confirmed must not answer "reachable".
@@ -171,6 +260,11 @@ func TestNotifyError_ClassifiesWhatTheCallerCanActOn(t *testing.T) {
 			name: "the daemon never answered",
 			err:  context.DeadlineExceeded,
 			want: derrors.CodeTimeout,
+		},
+		{
+			name: "the connection went away mid-call",
+			err:  dbus.ErrClosed,
+			want: derrors.CodeNotSupported,
 		},
 	}
 
