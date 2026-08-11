@@ -198,6 +198,19 @@ static const struct wl_pointer_listener neru_wlr_pointer_listener = {
 
 // ---------- Seat listener ----------
 
+// The relative pointer is what tracks physical mouse movement into the cursor
+// cache, and it is built on top of the wl_pointer — so it has to be rebuilt
+// every time that is, not only at connect. A pointer that came back without one
+// would leave the cached cursor position silently frozen against the user's own
+// hand.
+static void neru_wlr_bind_relative_pointer(NeruWlrootsClient *c) {
+	if (!c->rel_ptr_mgr || !c->pointer || c->rel_ptr)
+		return;
+
+	c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
+	zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
+}
+
 // The seat tells us when a pointer exists, and only then may we ask for one.
 // Our own virtual pointer is enough to bring one into being, so a seat that
 // starts without one gains it as soon as neru_wlr_connect creates the virtual
@@ -210,6 +223,7 @@ static void neru_wlr_seat_capabilities(void *data, struct wl_seat *seat, uint32_
 	if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && !c->pointer) {
 		c->pointer = wl_seat_get_pointer(seat);
 		wl_pointer_add_listener(c->pointer, &neru_wlr_pointer_listener, c);
+		neru_wlr_bind_relative_pointer(c);
 		return;
 	}
 
@@ -1058,11 +1072,10 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 	// virtual pointer created just above is what brings it into existence.
 	wl_display_roundtrip(c->display);
 
-	// Create relative pointer for tracking physical cursor motion.
-	if (c->rel_ptr_mgr && c->pointer) {
-		c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
-		zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
-	}
+	// Create relative pointer for tracking physical cursor motion. The seat
+	// handler usually got here first — the roundtrip above is what lets it —
+	// and this is the case where the manager arrived after the capability.
+	neru_wlr_bind_relative_pointer(c);
 
 	// Subscribe to foreign-toplevel events. Binding the manager makes the
 	// compositor replay a `toplevel` event for every existing window; a
