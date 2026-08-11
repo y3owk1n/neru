@@ -66,13 +66,15 @@ Nested tables are written with their full path, so `[hints.ui]` means a `[ui]`
 table inside `[hints]`. Options marked as overridable per app can also appear
 inside an `app_configs` entry for that section.
 
-**Platform support.** Sections and options whose behaviour is not identical on
-all three platforms carry a `Platforms:` line. Anything without one behaves the
-same on macOS, Linux, and Windows. Unsupported options are still accepted and
-validated rather than rejected, so one config file can be shared across
-machines — but see the table below for what each one does instead, because a
-few (notably `hints.strategy`) fail silently rather than degrading. The full
-list is in [Platform-specific options](#platform-specific-options).
+**Platform support.** Some sections below carry a `Platforms:` line, but the
+complete answer is the one the daemon itself reads —
+[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word), which
+is generated from that declaration rather than kept by hand. An option missing
+from it behaves the same on macOS, Linux, and Windows. Unsupported options are
+still accepted and validated rather than rejected, so one config file can be
+shared across machines, and the daemon warns once at load about the lines that
+mean nothing here. What each one does instead is in
+[Platform-specific options](#platform-specific-options).
 
 On Linux, "supported" means an X11 session or a Wayland session on wlroots or
 KWin. GNOME Wayland is not supported at all; the daemon exits at startup.
@@ -81,33 +83,32 @@ KWin. GNOME Wayland is not supported at all; the daemon exits at startup.
 
 ## Platform-specific options
 
-Every option not listed here behaves the same on all three platforms.
+Every option not listed below behaves the same on all three platforms.
 
-| Option or section                        | macOS | Linux | Windows | Behaviour when unsupported                          |
-| ---------------------------------------- | :---: | :---: | :-----: | ---------------------------------------------------- |
-| `general.kb_layout_to_use`                | Yes   | No    | No      | Ignored; layout is detected automatically.           |
-| `general.hide_overlay_in_screen_share`    | Yes   | No    | No      | Ignored.                                             |
-| `general.passthrough_unbounded_keys`      | Yes   | Partial | No    | Linux: Wayland evdev backend only, not X11. Windows: ignored. |
-| `general.should_exit_after_passthrough`   | Yes   | Partial | No    | Follows `passthrough_unbounded_keys`.                |
-| `hints.strategy = "vision"`               | Yes   | No    | No      | Accepted by validation everywhere, but detection returns nothing and no hints appear. Set `axtree` on Linux and Windows. |
-| `[hints.vision]`                          | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_menubar_hints`             | Yes   | No    | No      | Ignored; no equivalent surface exists.               |
-| `hints.additional_menubar_hints_targets`  | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_dock_hints`                | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_nc_hints`                  | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_stage_manager_hints`       | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_pip_hints`                 | Yes   | No    | No      | Ignored.                                             |
-| `hints.include_screen_capture_hints`      | Yes   | No    | No      | Ignored.                                             |
-| `hints.detect_mission_control`            | Yes   | No    | No      | Ignored.                                             |
-| `hints.on_mission_control_activated`      | Yes   | No    | No      | Never fires.                                         |
-| `hints.on_mission_control_deactivated`    | Yes   | No    | No      | Never fires.                                         |
-| `[hints.search_input_ui]`                 | Yes   | No    | Yes     | Linux: search filtering works, but the input badge is not drawn. |
-| `[monitor_select]`                        | Yes   | Yes   | No      | Windows: the mode returns `ERR_NOT_SUPPORTED`.       |
-| `[virtual_pointer]`                       | Yes   | Partial | Partial | Linux and Windows: the standalone overlay is not drawn (it pairs with macOS-only cursor hiding), but these options still style the recursive-grid in-frame pointer. |
-| `[smooth_cursor]`                         | Yes   | Yes   | No      | Windows: cursor moves instantly.                     |
-| `smooth_cursor.relative_movement_duration` | Yes  | Yes   | No      | Windows: relative moves stay instant.                |
-| `[smooth_scroll]`                         | Yes   | No    | No      | Linux and Windows: scrolling is instant.             |
-| `[recursive_grid.animation]`              | Yes   | Yes   | No      | Windows: depth transitions are not animated.         |
+The list itself lives in
+[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word), which
+is generated from the declaration the daemon reads: writing one of those options
+on a platform that ignores it produces one warning at load and a row in
+`neru doctor`, and never a refusal — the file loads, so one configuration can be
+carried between machines
+([ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md)). It was kept
+by hand here until that declaration existed, which is exactly how a
+cross-platform `[smooth_scroll]` block came to be documented while only macOS
+read it.
+
+Three cases the platform column cannot state, because support is partial rather
+than absent:
+
+- `general.passthrough_unbounded_keys` and `general.should_exit_after_passthrough`
+  reach the focused application on macOS and on the Wayland evdev tap, but not
+  on X11 — the display server cannot pass a grabbed chord through at all — and
+  not on Windows.
+- `[virtual_pointer]` styles two things. The standalone overlay is macOS-only
+  (it pairs with system cursor hiding, a
+  [platform exclusive](CROSS_PLATFORM.md#platform-exclusives)), while these same
+  options style the recursive-grid in-frame pointer on every platform.
+- `hints.strategy = "vision"` fails silently rather than degrading: detection
+  returns nothing and no hints appear. Set `axtree` on Linux and Windows.
 
 Accessibility coverage for hints also differs in kind rather than by option; see
 [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).

@@ -36,6 +36,7 @@ just lint               # golangci-lint + clang-tidy on .m files (macOS)
 just fmt                # golangci-lint fmt, then clang-format on .h/.m/.c
 just genman             # man pages via ./cmd/genman
 just genflagref         # mode-flag reference in docs/CLI.md via ./cmd/genflagref
+just gensupportref      # platform-support table in docs/CROSS_PLATFORM.md via ./cmd/gensupportref
 ```
 
 Pre-commit gate: `just fmt && just lint && just test && just build`. Before pushing: `just ci` — the same recipes CI gates on, on your host only (adds `vet`, `test-foundation`, `check-cross`, `vuln`, and a **unit-only** `-race` pass; integration under `-race` is `just test-all`, and CI itself runs the whole set on macOS, Linux and Windows). `check-cross` is the only step that looks at the other two targets; `docs/DEVELOPMENT.md` states what it covers and what it does not.
@@ -50,10 +51,11 @@ Hexagonal (ports and adapters). Domain and application logic are pure Go; every 
 cmd/neru            entry point (main_darwin.go calls runtime.LockOSThread for Cocoa)
 internal/cli        Cobra commands; most just send an IPC request to the daemon
 internal/app        wiring, lifecycle, modes, services, IPC controller
-internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modecmd
+internal/domain     pure logic: hint, grid, recursivegrid, element, action, state, modecmd, parity
 internal/ports      interface contracts + `mocks/`
 internal/derrors    the shared error vocabulary
 internal/flagref    renders the mode-flag reference in docs/CLI.md from the modecmd descriptor table
+internal/supportref renders the platform-support table in docs/CROSS_PLATFORM.md from the declarations
 internal/adapter    adapters: accessibility, eventtap, hotkeys, overlay, ipc, vision, systray, platform/*
 internal/config     TOML schema, defaults, validators, theme (+ loader)
 internal/architecture   guardrail tests for package boundaries
@@ -68,7 +70,7 @@ Hard rules that apply everywhere:
 
 Runtime shape: a daemon plus a thin CLI. `neru launch` starts the daemon; other commands dial a Unix socket (`$TMPDIR/neru.sock`, 0600) or Windows named pipe — transport in `internal/adapter/ipc`, handlers in `internal/app/ipcctrl`. New user-facing behavior usually needs a CLI command, an IPC handler, and the service/mode work behind it (the `add-cli-command` skill walks it). Startup is a numbered, individually-unwound phase sequence in `internal/app/new.go`. Input flow: native event tap → `adapter/eventtap` → `app/modes/handler.go` → active `Mode` → `app/services/*` → adapter → native API.
 
-Configuration is hot-reloadable TOML; adding an option touches four links every time and up to four more when it needs them, with a guardrail test behind most of them — read `internal/config/AGENTS.md` or use the `add-config-option` skill.
+Configuration is hot-reloadable TOML; adding an option touches five links every time and up to four more when it needs them, with a guardrail test behind most of them — read `internal/config/AGENTS.md` or use the `add-config-option` skill. One of the five is the option's **platform column**: every option, mode flag and action declares which of macOS, Linux and Windows writing it does anything on, beside the vocabulary that owns it, and writing an inert one warns at load rather than refusing (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`).
 
 ## Conventions
 

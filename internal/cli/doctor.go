@@ -27,13 +27,22 @@ This command performs client-side checks (IPC socket, config) first,
 then queries the running daemon for component-level health status
 (accessibility permissions, overlay state, input monitoring).
 
+The platform_support row is a different question from the component
+health below it: it names the options, actions and mode flags your
+configuration writes that do nothing on this platform. They load and
+the daemon runs, so it never fails the check.
+
 Runs client-side checks even when the daemon is not running, so you
 can use it to verify accessibility permissions before launching.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		cmd.Println("Neru Doctor — pre-flight checks")
 		cmd.Println()
 		// --- client-side checks (no daemon needed) --------------------------
-		rolesUsable := printClickableRolesCheck(cmd)
+		loadResult := doctorConfigLoad()
+
+		rolesUsable := printClickableRolesCheck(cmd, loadResult)
+
+		printPlatformSupportCheck(cmd, loadResult)
 
 		endpointPath := ipc.SocketPath()
 

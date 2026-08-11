@@ -5,6 +5,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // Semantic role names injected into the clickable role list when the
@@ -621,6 +622,13 @@ type LoadResult struct {
 	// whenever ValidationError is set: the configuration they described is not
 	// the one that ended up loaded.
 	Warnings []string
+
+	// Inert are the words the user's files write that do nothing on this
+	// platform, as [InertWords] found them. One of the warnings above says the
+	// same thing in a sentence; this is the same finding with its platform
+	// column and its reason still attached, which is what `neru doctor` prints
+	// (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
+	Inert parity.Declaration
 }
 
 func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringArray {

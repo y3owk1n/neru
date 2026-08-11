@@ -156,15 +156,7 @@ func runRolesExplain(cmd *cobra.Command) error {
 //
 // The result feeds the doctor exit status, so a health check run from a script
 // fails on a configuration that cannot hint anything.
-func printClickableRolesCheck(cmd *cobra.Command) bool {
-	svc := loader.NewService(config.DefaultConfig(), "", nil, nil)
-
-	path := configPath
-	if path == "" {
-		path = svc.FindConfigFile()
-	}
-
-	loadResult := svc.LoadWithValidation(path)
+func printClickableRolesCheck(cmd *cobra.Command, loadResult *config.LoadResult) bool {
 	if loadResult.ValidationError != nil {
 		cmd.Printf("  ❌ %-24s %s\n", "clickable_roles", "config invalid: see neru config validate")
 

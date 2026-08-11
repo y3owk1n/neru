@@ -113,6 +113,17 @@ we do not have yet.
   `warnings.go:16-19` names as the failure that would make the whole tier
   meaningless. The rule this ADR pins: a cross-field check a user could act on
   rides out on `LoadResult`.
+- **Amended (#1453).** The chain is five links now, not four: an option also
+  declares which platforms writing it does anything on, and
+  `TestEveryConfigOptionDeclaresItsPlatformSupport` is a fifth guardrail on the
+  same principle — a column nobody wrote cannot be told from a forgotten one.
+  The fifth link is also the first projection this ADR's reasoning does not
+  cover: its documentation rows *are* generated, into
+  `docs/CROSS_PLATFORM.md`, because they were never a hand-written reference
+  row per option but one table of the words that are not supported everywhere,
+  where the match this ADR called fuzzy is exact
+  (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`). Nothing else
+  here moves: the default, the example and the reference row stay hand-written.
 - **Reversing this is cheap, which is why it is worth writing down.** Nothing
   here forecloses generation; the guardrails become the generator's acceptance
   tests if it is ever built. What would be expensive is the opposite order —

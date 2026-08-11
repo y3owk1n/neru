@@ -165,6 +165,7 @@ Wayland protocol generation and icon recipes.
 | Format  | `just fmt-check`             | Check Objective-C formatting                    |
 | Docs    | `just genman`                | Generate man pages                              |
 | Docs    | `just genflagref`            | Rewrite the mode-flag reference in `docs/CLI.md` |
+| Docs    | `just gensupportref`         | Rewrite the platform-support table in `docs/CROSS_PLATFORM.md` |
 | Clean   | `just clean`                 | Remove build artifacts                          |
 
 ### What `just ci` covers, and what it does not
@@ -445,7 +446,12 @@ and [CLI.md](CLI.md); the `add-cli-command` skill walks it step by step.
 **Mode flags** — one entry in the descriptor table in
 `internal/domain/modecmd`, then `just genflagref`. The entry is what registers
 the flag on every command that accepts it and what writes its row in
-[CLI.md](CLI.md); an architecture test fails while either is missing.
+[CLI.md](CLI.md); an architecture test fails while either is missing. A flag
+also declares which platforms writing it does anything on, in
+`platform_support.go` beside that table, and so do the config options and the
+action names in their own packages — then `just gensupportref`. An architecture
+test fails while a word has no column, and the daemon warns once at load about
+the inert ones a configuration writes.
 
 ### Dependency injection
 

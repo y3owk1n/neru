@@ -10,10 +10,10 @@ that exists on macOS but not Linux, a validator that never runs, or an example
 file that still shows the old key. `internal/config/AGENTS.md` states the
 contract and which test fails per link; this is the order to do it in.
 
-Four steps are universal. Then check the conditional four — the ones that turn
-a one-line option into a nine-file one, and that no guide used to name.
+Five steps are universal. Then check the conditional four — the ones that turn
+a one-line option into a ten-file one, and that no guide used to name.
 
-## The universal four
+## The universal five
 
 1. **Schema.** Add the struct field in `internal/config/config.go` with a
    `toml:"snake_case_name"` tag matching the surrounding section. Follow the
@@ -39,6 +39,17 @@ a one-line option into a nine-file one, and that no guide used to name.
    home for config reference facts; do not also describe the option in
    ARCHITECTURE or README. **No test catches a missing row** — this is the one
    universal link a reviewer has to check by eye.
+5. **Platform column.** Add the option's path to `PlatformSupport()` in
+   `internal/config/platform_support.go`, saying which of macOS, Linux and
+   Windows writing it actually does something on. Say so even when the answer
+   is all three: a column nobody wrote cannot be told from a forgotten one, and
+   `TestEveryConfigOptionDeclaresItsPlatformSupport` fails on an option that is
+   neither. A narrower column needs a note saying why, in the words the user
+   reads — it reaches the load-time warning, the `neru doctor`
+   `platform_support` row and the published table, which you regenerate with
+   `just gensupportref`. A `config.Color` is declared at the field, not at its
+   `light` and `dark` leaves
+   (`docs/adr/0013-parity-is-measured-in-words-not-subsystems.md`).
 
 Steps 2 and 3 exempt three shapes, and an option with one of them passes both
 tests whether or not you do the work: the `light`/`dark` leaves under a `Color`,

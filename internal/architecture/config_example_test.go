@@ -104,6 +104,11 @@ type configSchema struct {
 	// known holds every path a shipped example may legitimately write,
 	// intermediate tables included.
 	known map[string]bool
+	// colorNodes holds the path of every config.Color field, which is one
+	// option to whoever writes it and two leaves to the walk. The example
+	// checks want the leaves; the platform-support declaration wants the node,
+	// because a Color is written as one value as readily as a table.
+	colorNodes []string
 	// opaque holds the prefixes whose children the user names rather than the
 	// schema: the hotkey tables and the macro table.
 	opaque []string
@@ -304,6 +309,8 @@ func (s *configSchema) walkValue(typ reflect.Type, val reflect.Value, path, exem
 		s.walkValue(typ.Elem(), reflect.Value{}, path, exemption)
 	case typ == colorType:
 		// Exemption 1, structural by type.
+		s.colorNodes = append(s.colorNodes, path)
+
 		for _, leaf := range colorLeaves {
 			s.record(joinPath(path, leaf), exemptColorLeaf)
 		}
