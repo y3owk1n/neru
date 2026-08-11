@@ -15,8 +15,9 @@ import (
 const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level, " +
 		"a Quartz concept with no X11, Wayland or Win32 counterpart"
-	noteVisionStrategy = "no element-detection engine outside macOS answers the vision " +
-		"strategy, so it finds nothing there and none of its settings are read; use axtree"
+	noteVisionStrategy = "the vision strategy needs an element-detection engine, which " +
+		"macOS has in the Vision framework and Linux in tesseract; Windows has neither, " +
+		"so it finds nothing there and none of its settings are read; use axtree"
 	noteVisionRectangles = "rectangle detection has no OCR answer, so it stays macOS-only " +
 		"even where the vision strategy lands; that half is text-only"
 	noteRecursiveGridAnimation = "the Windows overlay backend has no grid transition animation"
@@ -141,7 +142,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.prewarm_enabled",
 		),
 
-		parity.On(parity.KindOption, darwinOnly, noteVisionStrategy,
+		parity.On(parity.KindOption, darwinAndLinux, noteVisionStrategy,
 			"hints.vision.detect_text",
 			"hints.vision.request_timeout_ms",
 			"hints.vision.minimum_confidence",
@@ -164,7 +165,7 @@ func PlatformSupport() parity.Declaration {
 			"hints.vision.rectangle_min_aspect",
 			"hints.vision.rectangle_max_aspect",
 		),
-		parity.ValueOn(parity.KindOption, darwinOnly, noteVisionStrategy,
+		parity.ValueOn(parity.KindOption, darwinAndLinux, noteVisionStrategy,
 			visionStrategy, strategyOptions...,
 		),
 

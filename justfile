@@ -598,6 +598,7 @@ test-linux:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
         libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libtesseract-dev tesseract-ocr-eng \
         pkg-config >/dev/null 2>&1
     DOCKERFILE
     echo "Running the Linux test suite (CGO on, headless)..."
@@ -656,6 +657,7 @@ lint-cross:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxinerama-dev libxfixes-dev libxkbcommon-dev wayland-protocols \
         libei-dev liboeffis-dev libxi-dev libxrender-dev libfontconfig1-dev \
+        libtesseract-dev tesseract-ocr-eng \
         pkg-config >/dev/null 2>&1
     BASE
     docker build -q -t neru-linux-lint - >/dev/null <<'LINT'
