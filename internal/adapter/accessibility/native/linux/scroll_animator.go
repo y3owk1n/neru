@@ -372,7 +372,16 @@ func (a *scrollAnimator) runOnce(
 		return scrollRequest{}, false
 	}
 
-	session, err := a.begin(req.modifiers)
+	var (
+		session scrollSession
+		err     error
+	)
+
+	// Opening presses real modifier keys, so it takes the fence too: without it
+	// a worker starting here could press ctrl before a worker stopped a moment
+	// ago released it.
+	a.underFence(func() { session, err = a.begin(req.modifiers) }, nil)
+
 	if err != nil {
 		// A backend that fails here rather than at ScrollAtCursor's check is
 		// one that broke between the two — the KDE portal grant dropped, the
