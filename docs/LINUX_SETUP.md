@@ -313,8 +313,9 @@ systemctl --user enable --now neru
    fallbacks where the portal is unavailable.
 4. **Notifications** — Delivered over `org.freedesktop.Notifications` on the
    session bus, so a notification daemon (mako, dunst, or your desktop's own)
-   has to be running. What Neru does when none is, and why an alert is not
-   modal here: "Native alerts on Linux" under the
+   has to be running — or installed as a D-Bus service the bus starts on
+   demand, as most desktops ship theirs. What Neru does when neither, and why
+   an alert is not modal here: "Native alerts on Linux" under the
    [Capability Matrix](./CROSS_PLATFORM.md#capability-matrix).
 5. **Wayland modified clicks** — Need `evdev` access (see [keyboard permissions](#wayland-keyboard-capture-permissions)).
 6. **Monitor hotplug** — Adding/removing a monitor is tracked live (RandR on X11,

@@ -260,9 +260,11 @@ returns which button was pressed; no ordinary Wayland or X11 client can do that,
 so a Linux alert informs rather than asks, and callers that would have branched
 on the answer take the safe default. The two startup alerts are where that shows
 up: a missing config file starts Neru on built-in defaults and says so, instead
-of offering create / defaults / quit. Delivery depends on a notification daemon
-running (mako, dunst, or the desktop's own); with none, `ShowNotification` and
-`ShowAlert` report `CodeNotSupported` naming what is absent, `neru doctor`
+of offering create / defaults / quit. Delivery depends on the session having a
+notification daemon (mako, dunst, or the desktop's own) — either running, or
+registered with the bus to be started on demand, which is how most desktops ship
+theirs and which `neru doctor` counts as present. With none, `ShowNotification`
+and `ShowAlert` report `CodeNotSupported` naming what is absent, `neru doctor`
 probes the session and downgrades the notifications row with a line saying what
 to install, and the two startup alerts fall back to stderr.
 

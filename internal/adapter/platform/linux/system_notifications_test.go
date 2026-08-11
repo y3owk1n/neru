@@ -188,6 +188,50 @@ func TestNotifyError_ClassifiesWhatTheCallerCanActOn(t *testing.T) {
 	}
 }
 
+// TestDaemonReachableFrom_CountsAServiceTheBusWouldStart pins the question the
+// probe is actually asking. Most desktops ship their notification daemon as a
+// D-Bus service, which owns nothing until the first Notify starts it, so
+// ownership alone would have `neru doctor` send a user to install what they
+// already have — and the message they would see says to install a daemon.
+func TestDaemonReachableFrom_CountsAServiceTheBusWouldStart(t *testing.T) {
+	tests := []struct {
+		name        string
+		owned       bool
+		activatable []string
+		want        bool
+	}{
+		{
+			name:  "a running daemon owns the name",
+			owned: true,
+			want:  true,
+		},
+		{
+			name:        "nothing owns it, but the bus would start one",
+			activatable: []string{"org.freedesktop.portal.Desktop", notifyBusName},
+			want:        true,
+		},
+		{
+			name:        "nothing owns it and nothing would be started",
+			activatable: []string{"org.freedesktop.portal.Desktop"},
+			want:        false,
+		},
+		{
+			name: "the bus can start nothing at all",
+			want: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := daemonReachableFrom(testCase.owned, testCase.activatable)
+			if got != testCase.want {
+				t.Errorf("daemonReachableFrom(%t, %v) = %t, want %t",
+					testCase.owned, testCase.activatable, got, testCase.want)
+			}
+		})
+	}
+}
+
 // TestIsMissingDaemon_MatchesBothGodbusErrorShapes guards the reason the check
 // is written twice: godbus yields dbus.Error by value from a client call and
 // *dbus.Error from NewError, and matching only one shape would classify a

@@ -5,6 +5,7 @@ package linux
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -36,6 +37,10 @@ const (
 	notifyAppName = "Neru"
 	// nameHasOwnerMethod answers whether anything owns a well-known name.
 	nameHasOwnerMethod = "org.freedesktop.DBus.NameHasOwner"
+	// listActivatableNamesMethod lists the names the bus can start on demand.
+	// A daemon installed as a D-Bus service owns nothing until the first call
+	// reaches it, so ownership alone answers the wrong question.
+	listActivatableNamesMethod = "org.freedesktop.DBus.ListActivatableNames"
 	// serviceUnknownError and nameHasNoOwnerError are the two bus errors that
 	// mean "nobody is listening" rather than "the daemon refused this".
 	serviceUnknownError = "org.freedesktop.DBus.Error.ServiceUnknown"
@@ -79,8 +84,9 @@ const notifyTimeout = 2 * time.Second
 const (
 	noSessionBusDetail = "no reachable D-Bus session bus on this linux session, so " +
 		notifyBusName + " cannot be asked to show anything"
-	noDaemonDetail = "no notification daemon is running on this linux session; nothing owns " +
-		notifyBusName + " — start one (mako, dunst, or the desktop's own)"
+	noDaemonDetail = "no notification daemon on this linux session; nothing owns " +
+		notifyBusName + ", and the session bus has no service registered to start one " +
+		"on demand — install or start one (mako, dunst, or the desktop's own)"
 	dialTimedOutDetail = "the D-Bus session bus on this linux session did not accept a " +
 		"connection in time"
 )
@@ -188,10 +194,16 @@ func (n *notifier) send(ctx context.Context, note notification) error {
 	return nil
 }
 
-// daemonReachable reports nil when a notification daemon currently owns the
-// notification name, and why not otherwise. It asks the bus daemon rather than
+// daemonReachable reports nil when a notification the user sent now would
+// reach a daemon, and why not otherwise. It asks the bus daemon rather than
 // sending a notification, so `neru doctor` can answer "will I see
 // notifications?" without putting one on screen.
+//
+// Two questions, because ownership alone answers a narrower one than the user
+// asked. A daemon shipped as a D-Bus service — which is how most desktops ship
+// theirs — owns nothing until something calls it, and the bus starts it on the
+// first Notify. Reporting that session as having no notifications would send a
+// user off to install what they already have.
 func (n *notifier) daemonReachable(ctx context.Context) error {
 	callCtx, cancel := withNotifyDeadline(ctx)
 	defer cancel()
@@ -210,11 +222,34 @@ func (n *notifier) daemonReachable(ctx context.Context) error {
 		return notifyError(err)
 	}
 
-	if !owned {
+	if owned {
+		return nil
+	}
+
+	var activatable []string
+
+	err = conn.BusObject().
+		CallWithContext(callCtx, listActivatableNamesMethod, noCallFlags).
+		Store(&activatable)
+	if err != nil {
+		// The bus could not say what it can start, and nothing owns the name:
+		// the last thing known is that nobody is listening, so that is what is
+		// reported rather than a guess in either direction.
+		return derrors.Wrap(err, derrors.CodeNotSupported, noDaemonDetail)
+	}
+
+	if !daemonReachableFrom(owned, activatable) {
 		return derrors.New(derrors.CodeNotSupported, noDaemonDetail)
 	}
 
 	return nil
+}
+
+// daemonReachableFrom turns the bus's two answers into the one the user asked
+// for: a notification sent now would reach a daemon if one holds the name, and
+// equally if the bus would start one on being asked.
+func daemonReachableFrom(owned bool, activatable []string) bool {
+	return owned || slices.Contains(activatable, notifyBusName)
 }
 
 // session returns a live session-bus connection, bounded by ctx.

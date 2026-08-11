@@ -4,6 +4,7 @@ package linux_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -182,6 +183,24 @@ func TestShowNotification_ReportsASessionWithNoDaemon(t *testing.T) {
 
 	if owned {
 		t.Skipf("%s is owned here, so the no-daemon path cannot be exercised", notificationsName)
+	}
+
+	// A name nothing owns is not the same as a name nothing answers: a daemon
+	// shipped as a D-Bus service owns nothing until the bus starts it on this
+	// very call, and there the notification arrives. Only a session where the
+	// bus would start nothing either is the one this test is about.
+	var activatable []string
+
+	err = conn.BusObject().
+		Call("org.freedesktop.DBus.ListActivatableNames", 0).
+		Store(&activatable)
+	if err != nil {
+		t.Fatalf("asking the bus what it can start failed: %v", err)
+	}
+
+	if slices.Contains(activatable, notificationsName) {
+		t.Skipf("%s is D-Bus activatable here, so a notification would start a daemon",
+			notificationsName)
 	}
 
 	err = linux.ShowNotification(context.Background(), "Neru", "nobody is listening")
