@@ -280,10 +280,70 @@ func TestRenderServiceUnit_AnchorsOnTheGraphicalSession(t *testing.T) {
 		"After=graphical-session.target",
 		"PartOf=graphical-session.target",
 		"WantedBy=graphical-session.target",
-		"ExecStart=/usr/local/bin/neru launch",
+		`ExecStart="/usr/local/bin/neru" launch`,
 	} {
 		if !strings.Contains(unit, want) {
 			t.Errorf("rendered unit is missing %q:\n%s", want, unit)
 		}
+	}
+}
+
+// TestRenderServiceUnit_EscapesTheExecutablePath pins that the path systemd
+// executes is the path Neru was run from, byte for byte, whatever is in it.
+//
+// The two characters that matter are not exotic: a space makes systemd read one
+// path as a command plus an argument, and a percent makes it resolve a
+// specifier — %h expands, and a specifier systemd does not know fails the whole
+// unit load.
+func TestRenderServiceUnit_EscapesTheExecutablePath(t *testing.T) {
+	testCases := []struct {
+		name       string
+		binaryPath string
+		want       string
+	}{
+		{
+			name:       "an ordinary path is quoted and otherwise untouched",
+			binaryPath: "/usr/local/bin/neru",
+			want:       `ExecStart="/usr/local/bin/neru" launch`,
+		},
+		{
+			name:       "a space stays one path instead of becoming two words",
+			binaryPath: "/opt/my apps/neru",
+			want:       `ExecStart="/opt/my apps/neru" launch`,
+		},
+		{
+			name:       "a percent is written as the literal systemd reads back",
+			binaryPath: "/opt/100%/neru",
+			want:       `ExecStart="/opt/100%%/neru" launch`,
+		},
+		{
+			name:       "a specifier systemd knows is not left for it to expand",
+			binaryPath: "/home/%h/bin/neru",
+			want:       `ExecStart="/home/%%h/bin/neru" launch`,
+		},
+		{
+			name:       "a backslash is escaped, since quoting turns it into one",
+			binaryPath: `/opt/we\ird/neru`,
+			want:       `ExecStart="/opt/we\\ird/neru" launch`,
+		},
+		{
+			name:       "a double quote is escaped rather than closing the quoting",
+			binaryPath: `/opt/"quoted"/neru`,
+			want:       `ExecStart="/opt/\"quoted\"/neru" launch`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			unit := renderServiceUnit(testCase.binaryPath)
+			if !strings.Contains(unit, testCase.want) {
+				t.Errorf(
+					"renderServiceUnit(%q) is missing %q:\n%s",
+					testCase.binaryPath,
+					testCase.want,
+					unit,
+				)
+			}
+		})
 	}
 }

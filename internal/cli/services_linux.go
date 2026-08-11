@@ -72,7 +72,32 @@ WantedBy=graphical-session.target
 // renderServiceUnit fills the unit template with the absolute path of the
 // binary that is installing itself.
 func renderServiceUnit(binaryPath string) string {
-	return strings.ReplaceAll(serviceUnitTemplate, "NERU_BINARY_PATH", binaryPath)
+	return strings.ReplaceAll(
+		serviceUnitTemplate,
+		"NERU_BINARY_PATH",
+		systemdQuoteExecPath(binaryPath),
+	)
+}
+
+// systemdQuoteExecPath spells a filesystem path the way an Exec line reads one
+// back unchanged.
+//
+// A Linux path may hold any byte but / and NUL, and two of them are load
+// bearing to systemd. Whitespace splits an Exec line into words, so
+// /opt/my apps/neru would be read as the command /opt/my with the argument
+// apps/neru; double quotes are what hold it together, and inside them a
+// backslash opens a C-style escape, so a literal backslash or quote has to
+// double up. A percent opens a specifier, which is resolved before the line is
+// split and regardless of quoting — %h would silently become the home
+// directory, %y would fail the unit load — and %% is the literal one.
+func systemdQuoteExecPath(path string) string {
+	escaped := strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		`%`, `%%`,
+	).Replace(path)
+
+	return `"` + escaped + `"`
 }
 
 // systemdIsInit reports whether systemd booted this machine, by the presence of
