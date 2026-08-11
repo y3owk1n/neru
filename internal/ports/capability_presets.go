@@ -119,8 +119,16 @@ func LinuxCapabilities() PlatformCapabilities {
 				"key stream, so dead keys and IME composition do not reach it; " +
 				"the overlay draws the search badge",
 		),
+		// Half of this port is implemented: screen capture works through
+		// wlr-screencopy on wlroots compositors and XGetImage on X11. The
+		// status stays stub because the capability the key names is element
+		// detection, and no OCR engine is linked to turn those pixels into
+		// elements — reporting supported would tell `neru doctor` a strategy is
+		// selectable when selecting it still yields no hints.
 		Vision: stubCapability(
-			"no OCR/vision element detection; hints come from AT-SPI only",
+			"screen capture works (wlr-screencopy on wlroots, XGetImage on X11, " +
+				"unavailable on KWin), but no OCR engine is linked, so there is no " +
+				"vision element detection; hints come from AT-SPI only",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via a uinput virtual keyboard when /dev/uinput is " +

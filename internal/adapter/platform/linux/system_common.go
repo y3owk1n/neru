@@ -26,6 +26,10 @@ const (
 	backendX11            = "x11"
 	backendWaylandWlroots = "wayland-wlroots"
 	backendWaylandKDE     = "wayland-kde"
+	// backendUnknown mirrors platform.LinuxBackend.String() for BackendUnknown.
+	// This package cannot import platform (the factory there imports this one),
+	// so the label is duplicated rather than referenced.
+	backendUnknown = "unknown"
 )
 
 // SystemAdapter is a Linux system adapter.
@@ -770,7 +774,14 @@ func (s *SystemAdapter) currentCursorPosition() image.Point {
 // client protocols as wlroots (layer shell, xdg-output, virtual pointer, etc.).
 // KDE Plasma's KWin implements these for third-party clients; GNOME does not.
 func (s *SystemAdapter) waylandUsesWlrClientStack() bool {
-	return s.backend == backendWaylandWlroots || s.backend == backendWaylandKDE
+	return backendUsesWlrClientStack(s.backend)
+}
+
+// backendUsesWlrClientStack answers the same question for a backend label with
+// no adapter in hand — screen capture routes on the label alone. One spelling
+// so a future wlr-family backend is added in one place.
+func backendUsesWlrClientStack(backend string) bool {
+	return backend == backendWaylandWlroots || backend == backendWaylandKDE
 }
 
 // Ensure SystemAdapter implements ports.SystemPort.

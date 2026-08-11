@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package vision
 
@@ -11,22 +11,34 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// DetectElements is a no-op stub on non-darwin platforms.
+// DetectElements reports not-supported on the platforms with no vision
+// implementation at all (Windows today).
 func (a *Adapter) DetectElements(
 	_ context.Context,
 	_ image.Rectangle,
 	_ config.HintsVisionConfig,
 	_ bool,
 ) ([]*element.Element, error) {
-	return nil, derrors.New(derrors.CodeNotSupported, "vision detection is only supported on macOS")
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"vision element detection is not implemented on this platform",
+	)
 }
 
-// CaptureScreen is a no-op stub on non-darwin platforms.
+// CaptureScreen reports not-supported: Windows has no capture backend here.
+// Linux does, in adapter_linux.go.
 func (a *Adapter) CaptureScreen(_ context.Context) (*image.RGBA, error) {
-	return nil, derrors.New(derrors.CodeNotSupported, "screen capture is only supported on macOS")
+	return nil, derrors.New(
+		derrors.CodeNotSupported,
+		"screen capture is not implemented on this platform",
+	)
 }
 
-// Health reports not-supported on non-darwin platforms.
+// Health reports not-supported, which is how the hint pipeline learns the
+// vision strategy is unavailable here.
 func (a *Adapter) Health(_ context.Context) error {
-	return derrors.New(derrors.CodeNotSupported, "vision framework is only available on macOS")
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"the vision strategy is not implemented on this platform",
+	)
 }

@@ -1,0 +1,235 @@
+#include "x11_screencapture.h"
+
+#include "screencapture.h"
+
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+// Xlib's default error handler calls exit() on a protocol error, and XGetImage
+// answers BadMatch for any rectangle that is not wholly inside the drawable —
+// which a display hotplug between the clip and the request can produce however
+// carefully the region was clipped. Swapping in a handler that records the
+// error instead of exiting turns "the daemon dies mid-capture" into "the
+// capture failed".
+//
+// XSetErrorHandler is process-global and the daemon has other Xlib users
+// (eventtap, hotkeys, overlay, accessibility), each on its own Display. So
+// captures serialise on this mutex, the handler claims only errors from the
+// display it installed itself for, and everything else is forwarded to the
+// handler it replaced — otherwise a capture would both swallow another
+// subsystem's error and fail itself over it.
+static pthread_mutex_t neru_x11_capture_mutex = PTHREAD_MUTEX_INITIALIZER;
+static Display *neru_x11_capture_display;
+static XErrorHandler neru_x11_capture_previous_handler;
+static int neru_x11_capture_error;
+
+static int neru_x11_capture_error_handler(Display *display, XErrorEvent *event) {
+	if (display != neru_x11_capture_display) {
+		if (neru_x11_capture_previous_handler) {
+			return neru_x11_capture_previous_handler(display, event);
+		}
+
+		return 0;
+	}
+
+	neru_x11_capture_error = 1;
+
+	return 0;
+}
+
+// neru_x11_mask_shift returns how far right a channel mask sits.
+static int neru_x11_mask_shift(unsigned long mask) {
+	int shift = 0;
+
+	if (!mask) {
+		return 0;
+	}
+
+	while (!(mask & 1UL)) {
+		mask >>= 1;
+		shift++;
+	}
+
+	return shift;
+}
+
+// neru_x11_mask_width returns how many bits a channel mask covers.
+static int neru_x11_mask_width(unsigned long mask) {
+	int bits = 0;
+
+	while (mask) {
+		bits += (int)(mask & 1UL);
+		mask >>= 1;
+	}
+
+	return bits;
+}
+
+// neru_x11_channel extracts one 8-bit channel from a raw pixel. Visuals with
+// fewer than 8 bits per channel (16-bit displays) are scaled up rather than
+// rejected; the vision strategy reads shapes and text, not exact colours.
+static unsigned char neru_x11_channel(unsigned long pixel, unsigned long mask, int shift, int bits) {
+	if (!mask || bits <= 0) {
+		return 0;
+	}
+
+	unsigned long value = (pixel & mask) >> shift;
+
+	if (bits >= 8) {
+		return (unsigned char)(value >> (bits - 8));
+	}
+
+	unsigned long max = (1UL << bits) - 1UL;
+
+	return (unsigned char)((value * 255UL) / max);
+}
+
+// neru_x11_read_pixel returns the raw pixel at (col, row). The 32-bits-per-pixel
+// case — every modern TrueColor visual — is read straight out of the image data
+// rather than through XGetPixel, which is an indirect call per pixel and shows
+// up as tens of milliseconds on a full-screen grab.
+static unsigned long neru_x11_read_pixel(XImage *image, int col, int row, int direct) {
+	if (!direct) {
+		return XGetPixel(image, col, row);
+	}
+
+	const unsigned char *src =
+	    (const unsigned char *)image->data + (size_t)row * (size_t)image->bytes_per_line + (size_t)col * 4u;
+
+	if (image->byte_order == LSBFirst) {
+		return (unsigned long)src[0] | ((unsigned long)src[1] << 8) | ((unsigned long)src[2] << 16) |
+		       ((unsigned long)src[3] << 24);
+	}
+
+	return (unsigned long)src[3] | ((unsigned long)src[2] << 8) | ((unsigned long)src[1] << 16) |
+	       ((unsigned long)src[0] << 24);
+}
+
+// neru_x11_capture_convert turns an XImage into the packed RGBA8888 buffer the
+// Go side expects.
+static int neru_x11_capture_convert(XImage *image, int width, int height, NeruCapture *out) {
+	if (!image->red_mask || !image->green_mask || !image->blue_mask) {
+		// A PseudoColor visual: the pixel value is a colormap index and the
+		// masks are zero. Refusing is better than emitting garbage.
+		return NERU_CAPTURE_ERR_FORMAT;
+	}
+
+	size_t size = (size_t)width * (size_t)height * 4u;
+
+	unsigned char *pixels = malloc(size);
+	if (!pixels) {
+		return NERU_CAPTURE_ERR_ALLOC;
+	}
+
+	int red_shift = neru_x11_mask_shift(image->red_mask);
+	int red_bits = neru_x11_mask_width(image->red_mask);
+	int green_shift = neru_x11_mask_shift(image->green_mask);
+	int green_bits = neru_x11_mask_width(image->green_mask);
+	int blue_shift = neru_x11_mask_shift(image->blue_mask);
+	int blue_bits = neru_x11_mask_width(image->blue_mask);
+
+	int direct = image->bits_per_pixel == 32;
+
+	for (int row = 0; row < height; row++) {
+		unsigned char *dst = pixels + (size_t)row * (size_t)width * 4u;
+
+		for (int col = 0; col < width; col++) {
+			unsigned long pixel = neru_x11_read_pixel(image, col, row, direct);
+
+			dst[0] = neru_x11_channel(pixel, image->red_mask, red_shift, red_bits);
+			dst[1] = neru_x11_channel(pixel, image->green_mask, green_shift, green_bits);
+			dst[2] = neru_x11_channel(pixel, image->blue_mask, blue_shift, blue_bits);
+			dst[3] = 0xFF;
+			dst += 4;
+		}
+	}
+
+	out->pixels = pixels;
+	out->width = width;
+	out->height = height;
+
+	return NERU_CAPTURE_OK;
+}
+
+int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
+	int begin = neru_capture_begin(out, w, h);
+	if (begin != NERU_CAPTURE_OK) {
+		return begin;
+	}
+
+	if (!getenv("DISPLAY")) {
+		return NERU_CAPTURE_ERR_NO_DISPLAY;
+	}
+
+	// Its own connection: every thread in this package owns its Display, which
+	// is what lets the tree do without XInitThreads.
+	Display *display = XOpenDisplay(NULL);
+	if (!display) {
+		return NERU_CAPTURE_ERR_NO_DISPLAY;
+	}
+
+	Window root = DefaultRootWindow(display);
+
+	XWindowAttributes attrs;
+	if (!XGetWindowAttributes(display, root, &attrs)) {
+		XCloseDisplay(display);
+
+		return NERU_CAPTURE_ERR_FAILED;
+	}
+
+	// The region must lie wholly inside the root window. Clipping it instead
+	// would return a frame whose top-left is not the caller's, and nothing in
+	// the result says so — the caller could no longer map a pixel back to a
+	// screen coordinate. Refusing keeps one invariant worth having: what comes
+	// back covers exactly what was asked for.
+	if (x < 0 || y < 0 || x + w > attrs.width || y + h > attrs.height) {
+		XCloseDisplay(display);
+
+		return NERU_CAPTURE_ERR_REGION;
+	}
+
+	pthread_mutex_lock(&neru_x11_capture_mutex);
+
+	neru_x11_capture_error = 0;
+	neru_x11_capture_display = display;
+	neru_x11_capture_previous_handler = XSetErrorHandler(neru_x11_capture_error_handler);
+
+	XImage *image = XGetImage(display, root, x, y, (unsigned int)w, (unsigned int)h, AllPlanes, ZPixmap);
+
+	// Errors arrive asynchronously; sync so the handler has run before it is
+	// swapped back out.
+	XSync(display, False);
+	XSetErrorHandler(neru_x11_capture_previous_handler);
+
+	int failed = neru_x11_capture_error;
+
+	neru_x11_capture_display = NULL;
+	neru_x11_capture_previous_handler = NULL;
+
+	pthread_mutex_unlock(&neru_x11_capture_mutex);
+
+	if (!image || failed) {
+		if (image) {
+			XDestroyImage(image);
+		}
+
+		XCloseDisplay(display);
+
+		return NERU_CAPTURE_ERR_FAILED;
+	}
+
+	int status = neru_x11_capture_convert(image, w, h, out);
+
+	// XDestroyImage frees image->data, which held screen pixels; wipe it first.
+	if (image->data) {
+		neru_capture_wipe((unsigned char *)image->data, (size_t)image->bytes_per_line * (size_t)image->height);
+	}
+
+	XDestroyImage(image);
+	XCloseDisplay(display);
+
+	return status;
+}
