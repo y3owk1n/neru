@@ -148,7 +148,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
-| **Smooth scroll animation**   | ✅                       | ❌                     | ❌                           | ❌                      | ❌                           |
+| **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
 | **Overlay**                   | ✅ NSPanel + CoreAnimation | ✅ X11 + Cairo       | ✅ layer-shell + Cairo       | ✅ layer-shell + Cairo  | ✅ layered HWND + GDI        |
 | **Global hotkeys**            | ✅ per-key CGEventTap    | ✅ `XGrabKey`          | ⚠️ passive evdev read        | ⚠️ passive evdev read   | ✅ `RegisterHotKey`          |
@@ -218,6 +218,41 @@ the one row whose limit sits on a different axis: it needs **systemd**, on every
 Linux backend alike. A machine booted by runit, OpenRC or s6 gets
 `CodeNotSupported` from every `neru services` subcommand — a stated boundary
 rather than a gap, see "Service management on Linux" below.
+
+⁴ `smooth_scroll` animates on every Linux backend, but only Wayland can make a
+step shorter than a wheel notch. `zwlr_virtual_pointer_v1.axis` carries a
+fractional value with no discrete step count, and wlroots forwards exactly that
+to the focused client as a continuous `wl_pointer.axis`; libei's
+`ei_device_scroll_delta` is pixel-precise and KWin forwards it the same way.
+X11 has no such value to send: core scrolling is buttons 4 to 7 and a button
+event is one notch by definition, and the XTEST pointer the server creates for
+`XTestFakeButtonEvent` is allocated with two axes, `Rel X` and `Rel Y`
+(`CorePointerProc` in xorg-server's `dix/devices.c`), so it has no scroll
+valuator for the smooth XI2 path real devices use.
+
+**So X11 animates in notches, and a scroll worth one notch is not animated at
+all.** The default `scroll.scroll_step` of 50 pixels is exactly one notch there,
+so a plain `scroll_down` on X11 arrives as the single wheel click it always did
+— deliberately, and immediately: delivering it late would be added latency and
+nothing else. From two notches up (`scroll_step_half`, `scroll_step_full`, or a
+`scroll_step` above 60) the same eased curve applies as everywhere else, and
+those are the scrolls the animation is worth having for.
+
+Neru sends the same distance on every backend; only the granularity of a step
+differs — though on Wayland the animated path spends that distance as a
+continuous delta where the unanimated one spends it as notches, and an
+application may scale the two differently, so switching the animation on can
+change how far a scroll reaches there. Wayland steps also declare axis source
+`continuous` rather than `wheel`, because a wheel source invites a toolkit to
+round the fraction back to a detent.
+
+Measured on wlroots (sway) by
+`TestScrollAtCursor_DeliversSubNotchStepsWithSmoothScroll`, which maps a real
+`xdg-shell` window and reads what the compositor delivers to it. **The X11 and
+KDE conclusions are read from the sources named above and are not measured on
+hardware**, and neither is the uinput `REL_WHEEL_HI_RES` route — the
+headless-sway job reads no input devices at all, so nothing written to a uinput
+device reaches the compositor there.
 
 ### Notes on the ⚠️ entries
 
@@ -549,7 +584,7 @@ discovery rather than the mode itself.
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
-| **Scroll**        | Smooth scroll animation        | ✅                         | ❌                         | ❌                          |
+| **Scroll**        | Smooth scroll animation        | ✅                         | ✅ (X11: whole notches)    | ❌                          |
 | **Monitor select**| Whole mode                     | ✅ native panels           | ✅ Cairo panels            | 🟡 `CodeNotSupported`       |
 
 Everything else is shared: multi-letter labels, label direction, hide-unmatched,
@@ -734,10 +769,10 @@ green in every cell while an option means nothing, which is exactly how
 | `smooth_cursor.max_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
 | `smooth_cursor.duration_per_pixel` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
 | `smooth_cursor.relative_movement_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
-| `smooth_scroll.enabled` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
-| `smooth_scroll.steps` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
-| `smooth_scroll.max_duration` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
-| `smooth_scroll.duration_per_pixel` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
+| `smooth_scroll.enabled` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
+| `smooth_scroll.steps` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
+| `smooth_scroll.max_duration` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
+| `smooth_scroll.duration_per_pixel` | option | ✅ | ✅ | ❌ | the Windows scroll is injected in one step; macOS and Linux animate it, and on X11 the steps are whole wheel notches because X has no smaller scroll to send |
 | `--split-word` | mode flag | ✅ | ❌ | ❌ | splitting detected text into words needs the vision strategy, which only macOS has an engine for; elsewhere the flag is refused rather than ignored |
 | `--strategy=vision` | mode flag | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so detection returns nothing and no hints appear; use axtree |
 | `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
@@ -763,10 +798,16 @@ whatever the [Capability Matrix](#capability-matrix) currently reports
 | Screen-sharing hide                       | macOS    | `platform/darwin/overlay_darwin.m`                      | NSWindow sharing level is a Quartz concept                    |
 | Secure input detection                    | macOS    | `platform/darwin/secureinput.go`                        | `CGSessionCopyCurrentDictionary`, a private API; neither X11 nor Wayland has the concept |
 
-Two entries left this table in ADR 0013. **Smooth scroll animation** was
-recorded as needing "a synthesizable continuous scroll event stream"; uinput has
-`REL_WHEEL_HI_RES`, `wl_pointer` axis values are continuous and libei carries
-scroll deltas, so it is a Linux gap pending a spike. The **Vision (OCR) hint
+Two entries left this table in ADR 0013 and neither is coming back.
+**Smooth scroll animation** was recorded as needing "a synthesizable continuous
+scroll event stream"; the spike found one on Wayland — a
+`zwlr_virtual_pointer_v1` axis event with no discrete step count, and libei's
+pixel-precise scroll delta on KWin — and it now animates on every Linux backend,
+with X11 limited to whole notches for the reason footnote ⁴ of the
+[Capability Matrix](#capability-matrix) gives. A limit on one backend is not an
+exclusive: it is that backend's documented limit, which is what
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) says the
+non-blessed stacks carry. The **Vision (OCR) hint
 strategy** was recorded as needing macOS-only `VNRequest` APIs; the API is
 macOS-only but the capability is not, so it is a Linux gap too — met by an OCR
 engine linked the way every other native dependency here is, with its language
@@ -794,40 +835,36 @@ command — that means less here than it does on macOS, whether or not the
 
 1. `neru docs` — returns `CodeNotSupported` although the tray already opens
    URLs through `xdg-open` in the same repo
-2. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
-   validated and then silently ignored. Spike `REL_WHEEL_HI_RES` (uinput),
-   continuous `wl_pointer` axis values and libei scroll deltas before
-   committing
-3. Hints search input badge — not drawn; the overlay manager reports
+2. Hints search input badge — not drawn; the overlay manager reports
    `CodeNotSupported` and the query goes on reaching hints through the event
    tap's key stream
-4. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
+3. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
    strategy below and the missing half of `ports.Vision`. Take it per backend:
    `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
-5. `vision` hint strategy — no engine. Met by linking one through
+4. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
    use so a missing `tessdata` reports `CodeNotSupported` naming what is
    absent. Note the strategy is wider than OCR: macOS also runs rectangle
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. Needs 4
-6. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   declared macOS-only and Linux `vision` is text-only. Needs 3
+5. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
-7. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+6. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-8. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+7. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-9. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+8. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-10. Wayland global hotkeys — a setup requirement rather than missing code: they
-    need `input`-group membership and a CGO build. Failing loudly with the
-    remedy, and documenting it as a first-class setup step, is the work
-11. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+9. Wayland global hotkeys — a setup requirement rather than missing code: they
+   need `input`-group membership and a CGO build. Failing loudly with the
+   remedy, and documenting it as a first-class setup step, is the work
+10. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
     tray has one icon for both running and paused states where macOS has two,
     and the `CGO_ENABLED=0` build should announce its boundary once at startup
     rather than failing feature by feature
@@ -1065,12 +1102,22 @@ violation fails `just test` rather than review:
 | `*_linux_wayland.go`              | Wayland                                                   |
 | `*_linux_wayland_<compositor>.go` | one compositor family needing a distinct path             |
 | `*_cgo.go` / `*_nocgo.go`         | CGO and pure-Go variants of the same slot                 |
+| `*_integration_cgo.go`            | cgo scaffolding for an integration test, `//go:build … && integration` so it never ships |
 
 Inside a package that is already one platform (`adapter/*/darwin`,
 `adapter/*/linux`, `adapter/platform/windows`, …) the OS token is dropped —
 the directory carries it. `overlay/linux/wayland_cgo.go` and
 `platform/linux/system_x11_cgo.go` keep only the axes that still vary; a
 `system_linux_x11_cgo.go` inside `platform/linux/` would say linux twice.
+
+The `*_integration_cgo.go` row exists for one situation and should stay rare:
+Go rejects `import "C"` in a `_test.go` file outright, so an integration test
+that needs C — `accessibility/native/linux/scroll_probe_integration_cgo.go`
+mapping a Wayland window to measure what a compositor delivers — has to put it
+in a non-test file. The `integration` term is what keeps that file out of every
+build the product is made from, and the C stays inline in the cgo preamble
+rather than in a `.c` file beside it, because a `.c` file compiles into the
+package unconditionally.
 
 That is why the four Linux backend rows above hold no files today: every Linux
 backend split in the tree lives inside a single-platform directory and has

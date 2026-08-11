@@ -57,7 +57,11 @@ typedef struct NeruWlrootsClient {
 	struct wl_shm *shm;
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_seat *seat;
-	struct wl_pointer *pointer;
+	// Atomic because the seat's capabilities event is what sets it, and that
+	// event can arrive on the dispatch thread long after connect — a mouse
+	// plugged into a session that started without one. Everything else here
+	// reads it.
+	_Atomic(struct wl_pointer *) pointer;
 
 	struct zwp_relative_pointer_manager_v1 *rel_ptr_mgr;
 	struct zwp_relative_pointer_v1 *rel_ptr;
@@ -133,6 +137,12 @@ int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
 int neru_wlr_click(NeruWlrootsClient *c, int button);
 int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete);
 int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count);
+// Emit one continuous (sub-notch capable) scroll step: an axis event carrying a
+// fractional wl_fixed value and no discrete step count.  With no discrete step
+// the compositor forwards the fraction to the focused client as a plain
+// wl_pointer.axis, which is what makes an animated scroll finer than a wheel
+// notch possible.  value is in the same units neru_wlr_scroll's delta uses.
+int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
 int neru_wlr_get_cursor(NeruWlrootsClient *c, int *x, int *y);
 void neru_wlr_set_cursor(NeruWlrootsClient *c, int x, int y);

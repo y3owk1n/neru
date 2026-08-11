@@ -234,6 +234,26 @@ func waylandScroll(axis, delta, discrete int) error {
 	return libeiScroll(axis, delta)
 }
 
+// waylandScrollContinuous routes one sub-notch-capable scroll step through the
+// same backend choice as waylandScroll.
+//
+// Both backends carry a fraction of a notch without rounding it away — the
+// wlroots virtual pointer through an axis event with no discrete step count,
+// libei through ei_device_scroll_delta, which is pixel-precise by contract — so
+// unlike the discrete path this one needs no per-backend fallback.
+func waylandScrollContinuous(axis int, delta float64) error {
+	hasVirtualPointer, err := wlrootsHasVirtualPointer()
+	if err != nil {
+		return err
+	}
+
+	if hasVirtualPointer {
+		return wlrootsScrollContinuous(axis, delta)
+	}
+
+	return libeiScrollContinuous(axis, delta)
+}
+
 // waylandScrollBatch routes a batched scroll through the same backend choice as
 // waylandScroll. wlroots compositors flush every event in one wlrootsScrollBatch
 // call; KWin/KDE has no virtual pointer and libei has no batch API, so it emits

@@ -12,11 +12,11 @@ import (
 // The words the fixtures below are built around, named once so two fixtures
 // cannot disagree about how one of them is spelled.
 const (
-	smoothScrollEnabled = "smooth_scroll.enabled"
-	hideCursorStep      = "action hide_cursor"
-	leftClickStep       = "action left_click"
-	visionStrategy      = "vision"
-	hideCursorAction    = "hide_cursor"
+	screenShareHide  = "general.hide_overlay_in_screen_share"
+	hideCursorStep   = "action hide_cursor"
+	leftClickStep    = "action left_click"
+	visionStrategy   = "vision"
+	hideCursorAction = "hide_cursor"
 )
 
 // TestWarnInertWords_SaysItOnce reads the sentence a Linux user is shown, from
@@ -29,14 +29,17 @@ func TestWarnInertWords_SaysItOnce(t *testing.T) {
 	warnings := &config.Warnings{}
 
 	written := config.Written{
-		Options: map[string]string{smoothScrollEnabled: "true"},
+		Options: map[string]string{screenShareHide: "true"},
 		Steps:   []string{hideCursorStep},
 	}
 
 	inert := warnInertWords(warnings, written, parity.Linux)
 
-	if got := inert.Names(); !slices.Equal(got, []string{smoothScrollEnabled, hideCursorAction}) {
-		t.Fatalf("warnInertWords found %v, want [smooth_scroll.enabled hide_cursor]", got)
+	if got := inert.Names(); !slices.Equal(got, []string{screenShareHide, hideCursorAction}) {
+		t.Fatalf(
+			"warnInertWords found %v, want [general.hide_overlay_in_screen_share hide_cursor]",
+			got,
+		)
 	}
 
 	messages := warnings.Messages()
@@ -47,7 +50,7 @@ func TestWarnInertWords_SaysItOnce(t *testing.T) {
 	for _, want := range []string{
 		"2 settings",
 		"do nothing on linux",
-		smoothScrollEnabled,
+		screenShareHide,
 		hideCursorAction,
 		"neru doctor",
 	} {
@@ -119,9 +122,9 @@ func TestWrittenConfiguration_ReadsPathsAndSteps(t *testing.T) {
 	written := writtenConfiguration(raw, "")
 
 	for path, want := range map[string]string{
-		smoothScrollEnabled:   "",
-		"smooth_scroll.steps": "",
-		"hints.strategy":      visionStrategy,
+		"smooth_scroll.enabled": "",
+		"smooth_scroll.steps":   "",
+		"hints.strategy":        visionStrategy,
 	} {
 		got, wrote := written.Options[path]
 		if !wrote {

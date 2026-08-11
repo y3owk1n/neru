@@ -182,8 +182,22 @@ func libeiButton(button int, pressed bool) error {
 }
 
 func libeiScroll(axis, delta int) error {
+	return libeiScrollContinuous(axis, float64(delta))
+}
+
+// libeiScrollContinuous emits one scroll of an arbitrary pixel distance,
+// including a fraction of a wheel notch.
+//
+// ei_device_scroll_delta is pixel-precise and KWin forwards it with a zero
+// v120 step count, so the fraction reaches the focused client as a plain
+// wl_pointer.axis instead of being held back until a whole notch adds up. That
+// is what the smooth-scroll animator needs, and libeiScroll is the same call
+// with a whole number.
+func libeiScrollContinuous(axis int, delta float64) error {
 	return globalLibeiState.execute(
-		func(c *C.NeruEiClient) bool { return C.neru_ei_scroll(c, C.int(axis), C.int(delta)) != 0 },
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_scroll(c, C.int(axis), C.double(delta)) != 0
+		},
 		func() error {
 			return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
 		},

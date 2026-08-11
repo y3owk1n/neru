@@ -264,9 +264,9 @@ func wlrootsMouseUp(button action.MouseButton) error {
 // pixel-level delta values supplied by the scroll service
 // (e.g. ScrollStep=50, ScrollStepHalf=500, ScrollStepFull=1000000).
 const (
-	wlrootsScrollScale     = 30
+	wlrootsScrollScale     = scrollPixelsPerNotch
 	wlrootsScrollMaxEvents = 50
-	wlrootsScrollStep      = 30 // pixels per notch (matches uinput scrollScale)
+	wlrootsScrollStep      = scrollPixelsPerNotch // pixels per notch
 )
 
 // wlrootsScrollAtCursor emits the scroll on the wlroots virtual pointer, with
@@ -308,6 +308,79 @@ func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error
 	}
 
 	return nil
+}
+
+// waylandScrollSession injects an animated scroll on Wayland as continuous axis
+// events, holding any modifiers for the length of the animation.
+//
+// It uses the continuous axis rather than the discrete one the unanimated path
+// sends, and that choice is the whole reason smooth scroll works here: an axis
+// event with no discrete step count reaches the focused client as the fraction
+// it carries, while a discrete one declares a wheel notch that the compositor
+// may hold back until whole notches accumulate. Both wlroots (through
+// zwlr_virtual_pointer) and KWin (through libei's pixel-precise scroll delta)
+// pass the fraction through; linux.WaylandScrollContinuous picks between them.
+type waylandScrollSession struct {
+	modifiers action.Modifiers
+}
+
+// waylandScrollBackendAvailable answers whether an animated scroll could inject
+// here, without touching the compositor to find out.
+func waylandScrollBackendAvailable() error {
+	if os.Getenv("WAYLAND_DISPLAY") == "" {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"WAYLAND_DISPLAY is not set; wlroots backend is unavailable",
+		)
+	}
+
+	return nil
+}
+
+func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+	err := waylandScrollBackendAvailable()
+	if err != nil {
+		return nil, err
+	}
+
+	if modifiers != 0 {
+		pressErr := wlrootsPressModifiers(modifiers)
+		if pressErr != nil {
+			return nil, pressErr
+		}
+	}
+
+	return &waylandScrollSession{modifiers: modifiers}, nil
+}
+
+// granularity is zero: a Wayland axis value is a distance, not a step count, so
+// there is no unit to round to.
+func (s *waylandScrollSession) granularity() float64 { return 0 }
+
+func (s *waylandScrollSession) inject(deltaX, deltaY float64) error {
+	if deltaY != 0 {
+		// Wayland axis convention: positive = scroll down. Application
+		// convention: positive delta = scroll up. Same negation the discrete
+		// path applies in wlrootsScrollAxis.
+		err := linux.WaylandScrollContinuous(0, -deltaY)
+		if err != nil {
+			return err
+		}
+	}
+
+	if deltaX != 0 {
+		return linux.WaylandScrollContinuous(1, deltaX)
+	}
+
+	return nil
+}
+
+// close releases only what this session pressed, so a modifier the user is
+// physically holding survives the animation.
+func (s *waylandScrollSession) close() {
+	if s.modifiers != 0 {
+		_ = wlrootsReleaseModifiers(s.modifiers)
+	}
 }
 
 // wlrootsScrollAxis sends Wayland axis events for one axis.
