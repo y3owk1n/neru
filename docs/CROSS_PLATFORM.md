@@ -864,17 +864,15 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. `neru docs` — returns `CodeNotSupported` although the tray already opens
-   URLs through `xdg-open` in the same repo
-2. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
+1. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
    (`wlr-screencopy-unstable-v1`) capture real pixels and honor a region, so
    the blessed stack is done. KWin implements no screencopy protocol Neru can
    use and reports `CodeNotSupported` naming itself. Its only pixel source is
    the portal's ScreenCast session, whose frames arrive over PipeWire — a new
    required system library, so closing this adds `libpipewire-0.3` to the Linux
    dependency list, the packaging and the CI images. It may share a solution
-   with entry 5, which already holds a portal session
-3. `vision` hint strategy — no engine. Met by linking one through
+   with entry 4, which already holds a portal session
+2. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
    use so a missing `tessdata` reports `CodeNotSupported` naming what is
@@ -882,23 +880,23 @@ command — that means less here than it does on macOS, whether or not the
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
    declared macOS-only and Linux `vision` is text-only. The capture half it
-   needs is in place on X11 and wlroots; on KDE it inherits entry 2
-4. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   needs is in place on X11 and wlroots; on KDE it inherits entry 1
+3. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
-5. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+4. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-6. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+5. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-7. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+6. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-8. Wayland global hotkeys — a setup requirement rather than missing code: they
+7. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-9. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+8. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
    tray has one icon for both running and paused states where macOS has two,
    and the `CGO_ENABLED=0` build should announce its boundary once at startup
    rather than failing feature by feature

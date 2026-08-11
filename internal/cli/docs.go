@@ -6,8 +6,8 @@ import (
 
 // DocsCmd is the CLI docs command for opening Neru documentation in the browser.
 //
-// macOS: uses open.
-// Other platforms: stubbed and returns CodeNotSupported until implemented.
+// macOS: uses open. Linux: uses xdg-open.
+// Other platforms return CodeNotSupported.
 var DocsCmd = &cobra.Command{
 	Use:   "docs",
 	Short: "Open documentation in the browser",
