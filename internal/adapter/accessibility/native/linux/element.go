@@ -5,11 +5,13 @@ package linux
 import (
 	"image"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	linuxplatform "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -428,21 +430,23 @@ const scrollPixelsPerNotch = 30
 // Linux has no event-flags concept, so a modifier is a real key press around
 // the scroll. On Wayland that forces a choice of injection layer: the modifier
 // can only be pressed on the wlroots virtual keyboard (or libei on KDE), while
-// the fast path for the scroll itself is the uinput evdev device. Interleaving
-// the two leaves the compositor to merge seat state across devices, which it is
-// not obliged to do — so a modified scroll goes out entirely through
-// wlroots/libei and skips the uinput batch. That costs throughput on a large
-// modified scroll and buys a modifier that actually arrives.
+// the fast path for the scroll itself is the uinput evdev device. Hyprland
+// reliably handles the uinput path, provided the virtual keyboard modifier has
+// had time to reach the compositor first.
 //
 // With smooth_scroll.enabled the scroll is handed to the animator instead and
-// arrives as a sequence of eased chunks, which is what the same setting does on
-// macOS. The backend is asked whether it can inject at all before that handoff,
-// because the animation runs on a worker goroutine where a refusal has nobody
-// to go back to — and a refusal that reaches nobody is exactly the silent
-// no-op turning this option on must not introduce.
+// arrives as a sequence of eased chunks. Modified Wayland scrolls use the
+// immediate uinput path instead, because Hyprland does not reliably merge the
+// virtual keyboard modifier with virtual-pointer scroll events.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	cfg := currentLinuxConfig()
 	if cfg != nil && cfg.SmoothScroll.Enabled {
+		if currentLinuxBackend() == linuxBackendWayland && modifiers != 0 {
+			scrollAnim.stop()
+
+			return scrollAtCursorNow(deltaX, deltaY, modifiers)
+		}
+
 		err := scrollBackendAvailable()
 		if err != nil {
 			return err
@@ -480,13 +484,17 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	if currentLinuxBackend() == linuxBackendWayland {
+		err := pressWaylandScrollModifiers(modifiers)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = releaseWaylandScrollModifiers(modifiers) }()
+
+		// Keyboard and uinput events arrive through separate input sources.
+		// Let Hyprland apply the modifier before the scroll device reports it.
 		if modifiers != 0 {
-			// Uncapped, unlike the X11 path's 50-click ceiling, because this
-			// is the same event count the uinput batch below would send for
-			// the same delta — the events are merely slower per round trip.
-			// Capping here would make a modified go_bottom travel a different
-			// distance from an unmodified one, which is worse than slow.
-			return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
+			const modifierSettleDelay = 5 * time.Millisecond
+			time.Sleep(modifierSettleDelay)
 		}
 
 		// Scale factor: each uinput scroll event approximates ~1 line.
@@ -568,6 +576,54 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
+}
+
+func pressWaylandScrollModifiers(modifiers action.Modifiers) error {
+	for _, item := range []struct {
+		mod  action.Modifiers
+		name string
+	}{
+		{action.ModShift, "shift"},
+		{action.ModCtrl, "ctrl"},
+		{action.ModAlt, "alt"},
+		{action.ModCmd, "cmd"},
+	} {
+		if !modifiers.Has(item.mod) {
+			continue
+		}
+
+		err := linuxplatform.WaylandModifierEvent(item.name, true)
+		if err != nil {
+			_ = releaseWaylandScrollModifiers(modifiers)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func releaseWaylandScrollModifiers(modifiers action.Modifiers) error {
+	var firstErr error
+	for _, item := range []struct {
+		mod  action.Modifiers
+		name string
+	}{
+		{action.ModCmd, "cmd"},
+		{action.ModAlt, "alt"},
+		{action.ModCtrl, "ctrl"},
+		{action.ModShift, "shift"},
+	} {
+		if !modifiers.Has(item.mod) {
+			continue
+		}
+
+		err := linuxplatform.WaylandModifierEvent(item.name, false)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	return firstErr
 }
 
 // CurrentCursorPosition returns the cursor position.
