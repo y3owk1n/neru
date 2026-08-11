@@ -201,6 +201,7 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 
 	printProfile(cmd, healthData["profile"])
 	printDarkMode(cmd, healthData["capabilities"])
+	printNotifications(cmd, healthData["capabilities"])
 
 	cmd.Println()
 	// Print component checks
@@ -312,6 +313,25 @@ func printDarkMode(cmd *cobra.Command, rawCapabilities any) {
 	}
 
 	cmd.Println("  Dark Mode: " + detail)
+}
+
+// printNotifications renders a "Notifications:" metadata line when the daemon
+// populated notifications_detail, which it does exactly when notifications are
+// unavailable — so the line appears only when there is something to do about
+// it. On Linux that reason is probed live and names the daemon to install; on
+// the other platforms it names what is unbuilt.
+func printNotifications(cmd *cobra.Command, rawCapabilities any) {
+	capabilities, ok := rawCapabilities.(map[string]any)
+	if !ok {
+		return
+	}
+
+	detail := stringValue(capabilities["notifications_detail"])
+	if detail == "" {
+		return
+	}
+
+	cmd.Println("  Notifications: " + detail)
 }
 
 // Status payload keys for the runtime toggles, named as the daemon reports

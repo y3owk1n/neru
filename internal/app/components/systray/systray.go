@@ -362,9 +362,34 @@ func (c *Component) handleVersionCopy() {
 	writeToClipboardErr := clipboard.WriteAll(buildinfo.Version)
 	if writeToClipboardErr != nil {
 		c.logger.Error("Error copying version to clipboard", zap.Error(writeToClipboardErr))
-	} else if c.system != nil {
-		c.system.ShowNotification("Neru", "Version copied to clipboard")
+	} else {
+		c.notify("Version copied to clipboard")
 	}
+}
+
+// notify puts a short message in front of the user, and reports it when the
+// platform could not. A tray toggle whose only feedback is a notification is
+// silent twice over if the notification is dropped without a word — which is
+// what a Linux session with no notification daemon does.
+//
+// It runs off the menu loop. Showing a notification is a session-bus round
+// trip on Linux, and the loop it would park is the same one that carries every
+// later menu click, Quit included; nothing here reads the result, so waiting
+// for it buys the user nothing and costs them the menu.
+//
+// Only the failure is logged: the message is UI text, which never goes to a
+// log (root AGENTS.md, Conventions).
+func (c *Component) notify(message string) {
+	if c.system == nil {
+		return
+	}
+
+	go func() {
+		err := c.system.ShowNotification(c.ctx, "Neru", message)
+		if err != nil {
+			c.logger.Warn("Could not show a tray notification", zap.Error(err))
+		}
+	}()
 }
 
 // handleToggleEnable toggles the enabled state of the application.
@@ -408,9 +433,7 @@ func (c *Component) handleToggleScreenShare() {
 		status = "hidden"
 	}
 
-	if c.system != nil {
-		c.system.ShowNotification("Neru", "Screen share visibility: "+status)
-	}
+	c.notify("Screen share visibility: " + status)
 }
 
 // updateScreenShareMenuItem updates the screen share menu item text based on state.
@@ -432,9 +455,7 @@ func (c *Component) handleToggleScrollInvert() {
 		status = "on"
 	}
 
-	if c.system != nil {
-		c.system.ShowNotification("Neru", "Scroll invert: "+status)
-	}
+	c.notify("Scroll invert: " + status)
 }
 
 // updateScrollInvertMenuItem updates the scroll invert menu item text based on state.

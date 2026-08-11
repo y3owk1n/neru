@@ -188,8 +188,14 @@ func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) er
 }
 
 // ShowNotification displays a lightweight toast/banner notification on macOS.
-func (s *SystemAdapter) ShowNotification(title, message string) {
+//
+// The UserNotifications path is fire-and-forget, so this returns as soon as
+// the request is handed to the notification center; there is no failure to
+// report at this point and it always reports success.
+func (s *SystemAdapter) ShowNotification(_ context.Context, title, message string) error {
 	ShowNotification(title, message)
+
+	return nil
 }
 
 // CheckScreenCapturePermission reports whether macOS screen recording is

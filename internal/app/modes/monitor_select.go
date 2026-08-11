@@ -253,7 +253,24 @@ func (h *handlerState) discoverMonitorsForSelection() ([]monitorSelectTarget, er
 func (h *handlerState) reportMonitorSelectNotSupported() {
 	h.logger.Info("monitor_select is not supported on this platform")
 
-	if h.system != nil {
-		h.system.ShowNotification("neru monitor_select", "Not supported on this platform")
+	if h.system == nil {
+		return
 	}
+
+	// This runs under h.mu, and showing a notification is a session-bus round
+	// trip on Linux — a blocking call the locking contract keeps off the lock.
+	// The goroutine touches no handler state, only values read here, and a
+	// notification that cannot be shown is reported rather than dropped.
+	system, logger, ctx := h.system, h.logger, h.ctx
+
+	go func() {
+		err := system.ShowNotification(
+			ctx,
+			"neru monitor_select",
+			"Not supported on this platform",
+		)
+		if err != nil {
+			logger.Warn("Could not notify that monitor_select is unsupported", zap.Error(err))
+		}
+	}()
 }
