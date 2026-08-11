@@ -15,16 +15,25 @@
 // error instead of exiting turns "the daemon dies mid-capture" into "the
 // capture failed".
 //
-// XSetErrorHandler is process-global, so captures serialise on this mutex and
-// the previous handler is restored before returning. Another thread's X error
-// landing inside that window is handled by this handler rather than the
-// default — which is strictly safer for it, since returning beats exiting.
+// XSetErrorHandler is process-global and the daemon has other Xlib users
+// (eventtap, hotkeys, overlay, accessibility), each on its own Display. So
+// captures serialise on this mutex, the handler claims only errors from the
+// display it installed itself for, and everything else is forwarded to the
+// handler it replaced — otherwise a capture would both swallow another
+// subsystem's error and fail itself over it.
 static pthread_mutex_t neru_x11_capture_mutex = PTHREAD_MUTEX_INITIALIZER;
+static Display *neru_x11_capture_display;
+static XErrorHandler neru_x11_capture_previous_handler;
 static int neru_x11_capture_error;
 
 static int neru_x11_capture_error_handler(Display *display, XErrorEvent *event) {
-	(void)display;
-	(void)event;
+	if (display != neru_x11_capture_display) {
+		if (neru_x11_capture_previous_handler) {
+			return neru_x11_capture_previous_handler(display, event);
+		}
+
+		return 0;
+	}
 
 	neru_x11_capture_error = 1;
 
@@ -146,16 +155,9 @@ static int neru_x11_capture_convert(XImage *image, int width, int height, NeruCa
 }
 
 int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
-	if (!out) {
-		return NERU_CAPTURE_ERR_REGION;
-	}
-
-	out->pixels = NULL;
-	out->width = 0;
-	out->height = 0;
-
-	if (w <= 0 || h <= 0) {
-		return NERU_CAPTURE_ERR_REGION;
+	int begin = neru_capture_begin(out, w, h);
+	if (begin != NERU_CAPTURE_OK) {
+		return begin;
 	}
 
 	if (!getenv("DISPLAY")) {
@@ -178,42 +180,34 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 		return NERU_CAPTURE_ERR_FAILED;
 	}
 
-	int left = x < 0 ? 0 : x;
-	int top = y < 0 ? 0 : y;
-	int right = x + w;
-	int bottom = y + h;
-
-	if (right > attrs.width) {
-		right = attrs.width;
-	}
-
-	if (bottom > attrs.height) {
-		bottom = attrs.height;
-	}
-
-	if (right <= left || bottom <= top) {
+	// The region must lie wholly inside the root window. Clipping it instead
+	// would return a frame whose top-left is not the caller's, and nothing in
+	// the result says so — the caller could no longer map a pixel back to a
+	// screen coordinate. Refusing keeps one invariant worth having: what comes
+	// back covers exactly what was asked for.
+	if (x < 0 || y < 0 || x + w > attrs.width || y + h > attrs.height) {
 		XCloseDisplay(display);
 
 		return NERU_CAPTURE_ERR_REGION;
 	}
 
-	int clipped_w = right - left;
-	int clipped_h = bottom - top;
-
 	pthread_mutex_lock(&neru_x11_capture_mutex);
 
 	neru_x11_capture_error = 0;
+	neru_x11_capture_display = display;
+	neru_x11_capture_previous_handler = XSetErrorHandler(neru_x11_capture_error_handler);
 
-	XErrorHandler previous = XSetErrorHandler(neru_x11_capture_error_handler);
-	XImage *image =
-	    XGetImage(display, root, left, top, (unsigned int)clipped_w, (unsigned int)clipped_h, AllPlanes, ZPixmap);
+	XImage *image = XGetImage(display, root, x, y, (unsigned int)w, (unsigned int)h, AllPlanes, ZPixmap);
 
 	// Errors arrive asynchronously; sync so the handler has run before it is
 	// swapped back out.
 	XSync(display, False);
-	XSetErrorHandler(previous);
+	XSetErrorHandler(neru_x11_capture_previous_handler);
 
 	int failed = neru_x11_capture_error;
+
+	neru_x11_capture_display = NULL;
+	neru_x11_capture_previous_handler = NULL;
 
 	pthread_mutex_unlock(&neru_x11_capture_mutex);
 
@@ -227,7 +221,7 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 		return NERU_CAPTURE_ERR_FAILED;
 	}
 
-	int status = neru_x11_capture_convert(image, clipped_w, clipped_h, out);
+	int status = neru_x11_capture_convert(image, w, h, out);
 
 	// XDestroyImage frees image->data, which held screen pixels; wipe it first.
 	if (image->data) {

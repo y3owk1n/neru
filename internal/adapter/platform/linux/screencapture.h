@@ -48,6 +48,11 @@ typedef struct {
 // Safe to call on a zeroed struct.
 void neru_capture_free(NeruCapture *capture);
 
+// neru_capture_begin zeroes out and validates the requested rectangle. Both
+// backends open with it, so a caller never sees a stale pointer beside an error
+// code. Returns NERU_CAPTURE_OK when the request is worth sending on.
+int neru_capture_begin(NeruCapture *out, int w, int h);
+
 // neru_capture_wipe zeroes size bytes of buf through a volatile pointer, so the
 // compiler cannot elide the write on a buffer that is about to be freed or
 // unmapped. Exposed for the backends' intermediate buffers.

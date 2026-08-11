@@ -6,6 +6,8 @@ import (
 	"image"
 	"os"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // These run against a live display server — an Xvfb :display or a headless
@@ -15,9 +17,20 @@ import (
 //
 // Run with: go test -tags=integration ./internal/adapter/platform/linux/
 
-// captureBackend returns the backend label for the live session, or "" when
-// there is no display server to capture from.
-func captureBackend() string {
+// liveCaptureBackend returns the backend label for the session these tests can
+// capture from, skipping when there is none.
+//
+// A Wayland session is assumed to be wlroots-family. This file cannot ask
+// platform.DetectLinuxBackend, because internal/adapter/platform imports this
+// package and an in-package test cannot import it back; nor may it read the
+// desktop-identity environment itself, which platform/AGENTS.md confines to
+// backend_linux.go. The guess is harmless because it is not load-bearing: a
+// compositor that turns out not to implement screencopy — KWin — answers
+// CodeNotSupported and requireCapture skips, so this file reports what the
+// session can actually do rather than what it was labeled.
+func liveCaptureBackend(t *testing.T) string {
+	t.Helper()
+
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		return backendWaylandWlroots
 	}
@@ -26,21 +39,33 @@ func captureBackend() string {
 		return backendX11
 	}
 
+	t.Skip("no display server: set DISPLAY or WAYLAND_DISPLAY")
+
 	return ""
+}
+
+// requireCapture captures region, skipping when this display server has no
+// capture path at all and failing when it has one that did not work.
+func requireCapture(t *testing.T, backend string, region image.Rectangle) *image.RGBA {
+	t.Helper()
+
+	img, err := CaptureScreenRegion(backend, region)
+	if derrors.IsNotSupported(err) {
+		t.Skipf("this display server cannot capture: %v", err)
+	}
+
+	if err != nil {
+		t.Fatalf("CaptureScreenRegion(%s, %v) failed: %v", backend, region, err)
+	}
+
+	return img
 }
 
 // TestCaptureScreenRegion_ReturnsPixels is the acceptance check: a real display
 // server, real pixels, in the layout image.RGBA promises.
 func TestCaptureScreenRegion_ReturnsPixels(t *testing.T) {
-	backend := captureBackend()
-	if backend == "" {
-		t.Skip("no display server: set DISPLAY or WAYLAND_DISPLAY")
-	}
-
-	img, err := CaptureScreenRegion(backend, image.Rectangle{})
-	if err != nil {
-		t.Fatalf("CaptureScreenRegion(%s, whole screen) failed: %v", backend, err)
-	}
+	backend := liveCaptureBackend(t)
+	img := requireCapture(t, backend, image.Rectangle{})
 
 	if img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
 		t.Fatalf("captured an empty image: %v", img.Rect)
@@ -70,46 +95,50 @@ func TestCaptureScreenRegion_ReturnsPixels(t *testing.T) {
 // caller constrained to one window must pay for one window, not for the whole
 // display.
 func TestCaptureScreenRegion_HonorsTheRegion(t *testing.T) {
-	backend := captureBackend()
-	if backend == "" {
-		t.Skip("no display server: set DISPLAY or WAYLAND_DISPLAY")
-	}
-
-	full, err := CaptureScreenRegion(backend, image.Rectangle{})
-	if err != nil {
-		t.Fatalf("whole-screen capture failed: %v", err)
-	}
+	backend := liveCaptureBackend(t)
+	full := requireCapture(t, backend, image.Rectangle{})
 
 	region := image.Rect(0, 0, full.Rect.Dx()/2, full.Rect.Dy()/2)
-
-	part, err := CaptureScreenRegion(backend, region)
-	if err != nil {
-		t.Fatalf("CaptureScreenRegion(%s, %v) failed: %v", backend, region, err)
-	}
+	part := requireCapture(t, backend, region)
 
 	if part.Rect.Dx() >= full.Rect.Dx() || part.Rect.Dy() >= full.Rect.Dy() {
 		t.Fatalf("region capture returned %v for %v, which is not smaller than the whole screen %v",
 			part.Rect, region, full.Rect)
 	}
 
-	// The compositor answers in physical pixels, so a scaled output returns
-	// more pixels than the logical region asked for. What must hold on every
-	// backend is that the aspect ratio survived — a region capture that
-	// silently fell back to the whole screen would fail the check above, and
-	// one that captured the wrong rectangle would usually fail this.
+	// The frame covers exactly the region, so it is never smaller than the
+	// logical rectangle asked for. It can be larger: a scaled Wayland output
+	// answers in physical pixels.
 	if part.Rect.Dx() < region.Dx() || part.Rect.Dy() < region.Dy() {
 		t.Errorf("region capture returned %v, smaller than the %v logical region requested",
 			part.Rect, region)
 	}
 }
 
+// TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion pins the
+// exact-region contract at its edge. Clipping would return a frame whose
+// top-left is not the caller's, with nothing in the result to say so.
+func TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion(t *testing.T) {
+	backend := liveCaptureBackend(t)
+	full := requireCapture(t, backend, image.Rectangle{})
+
+	overhanging := image.Rect(full.Rect.Dx()-10, 0, full.Rect.Dx()+200, 100)
+
+	img, err := CaptureScreenRegion(backend, overhanging)
+	if err == nil {
+		t.Fatalf("capturing %v, which leaves the screen, succeeded and returned %v",
+			overhanging, img.Rect)
+	}
+
+	if img != nil {
+		t.Error("a partially off-screen capture returned an image alongside its error")
+	}
+}
+
 // TestCaptureScreenRegion_RejectsAnOffScreenRegion pins that a region with no
 // pixels behind it fails rather than quietly returning the whole screen.
 func TestCaptureScreenRegion_RejectsAnOffScreenRegion(t *testing.T) {
-	backend := captureBackend()
-	if backend == "" {
-		t.Skip("no display server: set DISPLAY or WAYLAND_DISPLAY")
-	}
+	backend := liveCaptureBackend(t)
 
 	img, err := CaptureScreenRegion(backend, image.Rect(1_000_000, 1_000_000, 1_000_100, 1_000_100))
 	if err == nil {

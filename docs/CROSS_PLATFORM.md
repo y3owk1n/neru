@@ -282,9 +282,21 @@ Plasma therefore reports `CodeNotSupported` naming itself, and it is
 [Known Gaps](#known-gaps) Linux entry 2. Capture is a **region** operation on
 both implemented backends: the caller's rectangle is what gets read back, so
 constraining detection to the focused window costs a window rather than a
-display. On a scaled Wayland output the compositor answers in physical pixels,
-so the returned frame can be larger than the logical region asked for — the same
-thing a Retina capture does on macOS.
+display.
+
+What comes back covers **exactly** the region asked for, and that is enforced
+rather than hoped for: a rectangle that leaves the screen, that is degenerate,
+or that spans two monitors on Wayland (`wlr-screencopy` captures one output)
+**fails** instead of coming back clipped. A clipped frame carries nothing that
+says where its own top-left is, so a caller could no longer map a pixel back to
+a screen coordinate — and a caller asking for one window must never silently
+receive the whole display.
+
+One thing to know before reading a frame: on a scaled Wayland output the
+compositor answers in **physical pixels**, so it can be larger than the logical
+region by the output's scale factor — the same thing a Retina capture does on
+macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
+places those pixels.
 
 ### Notes on the ⚠️ entries
 

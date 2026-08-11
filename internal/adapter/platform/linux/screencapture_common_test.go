@@ -47,10 +47,10 @@ func TestResolveCaptureRegion(t *testing.T) {
 			want:   image.Rect(100, 200, 500, 700),
 		},
 		{
-			name:   "a zero-height region falls back to the whole screen",
-			region: image.Rect(10, 10, 200, 10),
-			bounds: screen,
-			want:   screen,
+			name:    "a degenerate region is refused, not widened to the whole screen",
+			region:  image.Rect(10, 10, 200, 10),
+			bounds:  screen,
+			wantErr: true,
 		},
 		{
 			name:      "a screen-bounds failure is reported, not guessed around",
@@ -112,6 +112,10 @@ func TestCaptureScreenRegion_UnknownBackendReportsNotSupported(t *testing.T) {
 		{name: "gnome", backend: "wayland-gnome", want: "wayland-gnome"},
 		{name: "other wayland", backend: "wayland-other", want: "wayland-other"},
 		{name: "no backend detected", backend: "", want: "no display backend"},
+		// What DetectLinuxBackend actually returns for a session it could not
+		// identify — the label the production caller passes, and the one an
+		// earlier version of this code missed.
+		{name: "detection answered unknown", backend: "unknown", want: "no display backend"},
 	}
 
 	for _, testCase := range tests {
@@ -160,6 +164,104 @@ func TestCaptureScreenRegion_HeadlessSessionFailsLoudly(t *testing.T) {
 
 			if img != nil {
 				t.Error("CaptureScreenRegion returned an image alongside its error")
+			}
+		})
+	}
+}
+
+// TestCaptureError covers the only part of a failed capture a user ever sees:
+// the sentence. Each native status has to arrive as a distinguishable error,
+// and the ones that mean "this display server will never do this" have to be
+// CodeNotSupported so callers degrade instead of retrying.
+//
+// The KDE row is the load-bearing one. KWin advertises no
+// zwlr_screencopy_manager_v1, so a KDE session lands on captureStatusNoProtocol,
+// and three documents — the capability matrix, Known Gaps and
+// LINUX_DESKTOPS.md — state that it names itself there. Nothing in this
+// repository can run KWin, so this pins the sentence rather than the session.
+func TestCaptureError(t *testing.T) {
+	tests := []struct {
+		name             string
+		status           captureStatus
+		what             string
+		wantNotSupported bool
+		wantSubstring    string
+	}{
+		{
+			name:             "KDE implements no screencopy protocol",
+			status:           captureStatusNoProtocol,
+			what:             captureCompositorLabel(backendWaylandKDE),
+			wantNotSupported: true,
+			wantSubstring:    captureLabelKDE,
+		},
+		{
+			name:             "a compositor missing the protocol says which protocol",
+			status:           captureStatusNoProtocol,
+			what:             captureCompositorLabel(backendWaylandWlroots),
+			wantNotSupported: true,
+			wantSubstring:    "wlr-screencopy-unstable-v1",
+		},
+		{
+			name:             "no display server to connect to",
+			status:           captureStatusNoDisplay,
+			what:             captureLabelXServer,
+			wantNotSupported: true,
+			wantSubstring:    captureLabelXServer,
+		},
+		{
+			name:             "an unreadable pixel format is not a transient failure",
+			status:           captureStatusFormat,
+			what:             captureLabelXServer,
+			wantNotSupported: true,
+			wantSubstring:    "pixel format",
+		},
+		{
+			name:          "no output covers the region",
+			status:        captureStatusNoOutput,
+			what:          captureLabelCompositor,
+			wantSubstring: "covers the requested region",
+		},
+		{
+			name:          "an empty region",
+			status:        captureStatusRegion,
+			what:          captureLabelXServer,
+			wantSubstring: "region is empty",
+		},
+		{
+			name:          "the compositor never answered",
+			status:        captureStatusTimeout,
+			what:          captureLabelCompositor,
+			wantSubstring: "in time",
+		},
+		{
+			name:          "the copy failed",
+			status:        captureStatusFailed,
+			what:          captureLabelCompositor,
+			wantSubstring: "failed to capture the screen",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := captureError(testCase.status, testCase.what)
+			if err == nil {
+				t.Fatal("captureError returned nil for a failure status")
+			}
+
+			if derrors.IsNotSupported(err) != testCase.wantNotSupported {
+				t.Errorf(
+					"captureError code is %q, want CodeNotSupported == %v",
+					derrors.GetCode(err),
+					testCase.wantNotSupported,
+				)
+			}
+
+			if !strings.Contains(err.Error(), testCase.wantSubstring) {
+				t.Errorf(
+					"captureError said %q, which does not mention %q",
+					err.Error(),
+					testCase.wantSubstring,
+				)
 			}
 		})
 	}

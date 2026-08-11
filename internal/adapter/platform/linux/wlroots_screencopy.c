@@ -22,6 +22,10 @@
 // — a smaller state machine for the same pixels.
 #define NERU_SCREENCOPY_MANAGER_VERSION 1
 
+// Only reached when a caller passes a non-positive budget; the Go wrapper
+// always passes screenCaptureTimeoutMS.
+#define NERU_SCREENCOPY_FALLBACK_TIMEOUT_MS 2000
+
 typedef struct {
 	struct wl_output *output;
 	struct zxdg_output_v1 *xdg_output;
@@ -330,14 +334,17 @@ static int neru_screencopy_shm_file(size_t size) {
 	return fd;
 }
 
-// neru_screencopy_select_output picks the output covering most of the requested
-// region and writes the region translated into that output's local logical
-// coordinates. Returns the output, or NULL when nothing covers the region.
+// neru_screencopy_select_output finds the output that wholly contains the
+// requested region and writes the region in that output's local logical
+// coordinates. Returns NULL when no single output contains it.
+//
+// screencopy captures one output, so a region spanning two monitors could only
+// be answered by cropping — which would hand back a frame whose top-left is not
+// the caller's, with nothing in the result to say so. Refusing keeps the
+// invariant that what comes back covers exactly what was asked for; stitching
+// several outputs is work no caller needs yet.
 static NeruScreencopyOutput *neru_screencopy_select_output(
-    NeruScreencopyCtx *ctx, int x, int y, int w, int h, int *local_x, int *local_y, int *local_w, int *local_h) {
-	NeruScreencopyOutput *best = NULL;
-	long best_area = 0;
-
+    NeruScreencopyCtx *ctx, int x, int y, int w, int h, int *local_x, int *local_y) {
 	for (int i = 0; i < ctx->nr_outputs; i++) {
 		NeruScreencopyOutput *out = &ctx->outputs[i];
 
@@ -345,29 +352,17 @@ static NeruScreencopyOutput *neru_screencopy_select_output(
 			continue;
 		}
 
-		int left = x > out->x ? x : out->x;
-		int top = y > out->y ? y : out->y;
-		int right = (x + w) < (out->x + out->w) ? (x + w) : (out->x + out->w);
-		int bottom = (y + h) < (out->y + out->h) ? (y + h) : (out->y + out->h);
-
-		if (right <= left || bottom <= top) {
+		if (x < out->x || y < out->y || x + w > out->x + out->w || y + h > out->y + out->h) {
 			continue;
 		}
 
-		long area = (long)(right - left) * (long)(bottom - top);
-		if (area <= best_area) {
-			continue;
-		}
+		*local_x = x - out->x;
+		*local_y = y - out->y;
 
-		best = out;
-		best_area = area;
-		*local_x = left - out->x;
-		*local_y = top - out->y;
-		*local_w = right - left;
-		*local_h = bottom - top;
+		return out;
 	}
 
-	return best;
+	return NULL;
 }
 
 // neru_screencopy_convert turns the mapped shm buffer into packed RGBA8888.
@@ -506,20 +501,15 @@ static int neru_screencopy_copy_frame(
 }
 
 int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, NeruCapture *out) {
-	if (!out) {
-		return NERU_CAPTURE_ERR_REGION;
-	}
-
-	out->pixels = NULL;
-	out->width = 0;
-	out->height = 0;
-
-	if (w <= 0 || h <= 0) {
-		return NERU_CAPTURE_ERR_REGION;
+	int begin = neru_capture_begin(out, w, h);
+	if (begin != NERU_CAPTURE_OK) {
+		return begin;
 	}
 
 	if (timeout_ms <= 0) {
-		timeout_ms = 2000;
+		// Go owns the real budget (screenCaptureTimeoutMS); this only keeps a
+		// direct C caller from waiting forever.
+		timeout_ms = NERU_SCREENCOPY_FALLBACK_TIMEOUT_MS;
 	}
 
 	NeruScreencopyCtx ctx;
@@ -566,19 +556,16 @@ int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, N
 
 	int local_x = 0;
 	int local_y = 0;
-	int local_w = 0;
-	int local_h = 0;
 
-	NeruScreencopyOutput *target =
-	    neru_screencopy_select_output(&ctx, x, y, w, h, &local_x, &local_y, &local_w, &local_h);
+	NeruScreencopyOutput *target = neru_screencopy_select_output(&ctx, x, y, w, h, &local_x, &local_y);
 	if (!target) {
 		neru_screencopy_teardown(&ctx);
 
 		return NERU_CAPTURE_ERR_NO_OUTPUT;
 	}
 
-	struct zwlr_screencopy_frame_v1 *frame = zwlr_screencopy_manager_v1_capture_output_region(
-	    ctx.screencopy_mgr, 0, target->output, local_x, local_y, local_w, local_h);
+	struct zwlr_screencopy_frame_v1 *frame =
+	    zwlr_screencopy_manager_v1_capture_output_region(ctx.screencopy_mgr, 0, target->output, local_x, local_y, w, h);
 
 	zwlr_screencopy_frame_v1_add_listener(frame, &neru_screencopy_frame_listener, &ctx);
 

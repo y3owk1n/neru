@@ -15,6 +15,36 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
+// A Go test file cannot use cgo, so the NERU_CAPTURE_* codes are mirrored as
+// Go constants in screencapture_common.go and the error vocabulary is written
+// against those. These constant expressions are what keeps the two halves
+// honest: each converts a difference to uint in both directions, so a value
+// that drifts stops compiling here rather than silently mapping the wrong
+// failure to the wrong sentence.
+const (
+	_ = uint(C.NERU_CAPTURE_OK-captureStatusOK) + uint(captureStatusOK-C.NERU_CAPTURE_OK)
+	_ = uint(C.NERU_CAPTURE_ERR_NO_DISPLAY-captureStatusNoDisplay) +
+		uint(captureStatusNoDisplay-C.NERU_CAPTURE_ERR_NO_DISPLAY)
+	_ = uint(C.NERU_CAPTURE_ERR_NO_PROTOCOL-captureStatusNoProtocol) +
+		uint(captureStatusNoProtocol-C.NERU_CAPTURE_ERR_NO_PROTOCOL)
+	_ = uint(C.NERU_CAPTURE_ERR_NO_OUTPUT-captureStatusNoOutput) +
+		uint(captureStatusNoOutput-C.NERU_CAPTURE_ERR_NO_OUTPUT)
+	_ = uint(C.NERU_CAPTURE_ERR_REGION-captureStatusRegion) +
+		uint(captureStatusRegion-C.NERU_CAPTURE_ERR_REGION)
+	_ = uint(C.NERU_CAPTURE_ERR_FORMAT-captureStatusFormat) +
+		uint(captureStatusFormat-C.NERU_CAPTURE_ERR_FORMAT)
+	_ = uint(C.NERU_CAPTURE_ERR_ALLOC-captureStatusAlloc) +
+		uint(captureStatusAlloc-C.NERU_CAPTURE_ERR_ALLOC)
+	_ = uint(C.NERU_CAPTURE_ERR_FAILED-captureStatusFailed) +
+		uint(captureStatusFailed-C.NERU_CAPTURE_ERR_FAILED)
+	_ = uint(C.NERU_CAPTURE_ERR_TIMEOUT-captureStatusTimeout) +
+		uint(captureStatusTimeout-C.NERU_CAPTURE_ERR_TIMEOUT)
+)
+
+// bytesPerCapturedPixel matches the RGBA8888 layout documented on NeruCapture
+// in screencapture.h, which is also image.RGBA's layout.
+const bytesPerCapturedPixel = 4
+
 // captureResult turns a filled NeruCapture into an image.RGBA and releases the
 // native buffer.
 //
@@ -43,57 +73,4 @@ func captureResult(capture *C.NeruCapture) (*image.RGBA, error) {
 	copy(img.Pix, unsafe.Slice((*byte)(unsafe.Pointer(capture.pixels)), size))
 
 	return img, nil
-}
-
-// bytesPerCapturedPixel matches the RGBA8888 layout documented on NeruCapture
-// in screencapture.h, which is also image.RGBA's layout.
-const bytesPerCapturedPixel = 4
-
-// captureError maps a NERU_CAPTURE_ERR_* code onto the shared error vocabulary.
-// what names the backend, so a user reading the message knows which display
-// server refused rather than only that "capture failed".
-func captureError(status C.int, what string) error {
-	switch status {
-	case C.NERU_CAPTURE_ERR_NO_DISPLAY:
-		return derrors.New(
-			derrors.CodeNotSupported,
-			"screen capture is unavailable: could not connect to "+what,
-		)
-	case C.NERU_CAPTURE_ERR_NO_PROTOCOL:
-		return derrors.New(
-			derrors.CodeNotSupported,
-			what+" does not implement wlr-screencopy-unstable-v1, the protocol Neru "+
-				"captures the screen with",
-		)
-	case C.NERU_CAPTURE_ERR_NO_OUTPUT:
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"no output of "+what+" covers the requested region",
-		)
-	case C.NERU_CAPTURE_ERR_REGION:
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"the requested capture region is empty or lies outside the screen",
-		)
-	case C.NERU_CAPTURE_ERR_FORMAT:
-		return derrors.New(
-			derrors.CodeNotSupported,
-			what+" offered a pixel format Neru cannot read",
-		)
-	case C.NERU_CAPTURE_ERR_ALLOC:
-		return derrors.New(
-			derrors.CodeInternal,
-			"could not allocate a buffer for the screen capture",
-		)
-	case C.NERU_CAPTURE_ERR_TIMEOUT:
-		return derrors.New(
-			derrors.CodeActionFailed,
-			what+" did not answer the screen capture in time",
-		)
-	default:
-		return derrors.New(
-			derrors.CodeActionFailed,
-			what+" failed to capture the screen",
-		)
-	}
 }

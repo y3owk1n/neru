@@ -38,7 +38,7 @@ func x11CaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 	)
 
 	if status != C.NERU_CAPTURE_OK {
-		return nil, captureError(status, "the X server")
+		return nil, captureError(captureStatus(status), captureLabelXServer)
 	}
 
 	return captureResult(&capture)

@@ -45,17 +45,8 @@ func wlrootsCaptureRegion(region image.Rectangle, backend string) (*image.RGBA, 
 	)
 
 	if status != C.NERU_CAPTURE_OK {
-		return nil, captureError(status, captureCompositorLabel(backend))
+		return nil, captureError(captureStatus(status), captureCompositorLabel(backend))
 	}
 
 	return captureResult(&capture)
-}
-
-// captureCompositorLabel names the compositor family in capture errors.
-func captureCompositorLabel(backend string) string {
-	if backend == backendWaylandKDE {
-		return "KDE Plasma (KWin)"
-	}
-
-	return "this Wayland compositor"
 }
