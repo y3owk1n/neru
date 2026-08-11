@@ -62,6 +62,14 @@ space (see
 Re-measure with the one-liner under
 [Checking compositor protocols](#checking-compositor-protocols).
 
+`zwlr_screencopy_manager_v1` is absent here too — KWin's own capture path is
+`zkde_screencast_unstable_v1` and the portal's ScreenCast session, both of which
+deliver frames over PipeWire. Screen capture therefore reports
+`CodeNotSupported` naming KDE Plasma; it is
+[Known Gaps](CROSS_PLATFORM.md#known-gaps) Linux entry 2. That claim is read
+from KWin's protocol set rather than taken from the measured session above; the
+one-liner below now greps for it, so you can confirm it on your own KWin.
+
 ### Setup notes (beyond LINUX_SETUP.md)
 
 1. **RemoteDesktop consent** — the first input in a session shows a "Remote
@@ -157,8 +165,9 @@ source device. Neru's injected events appear with an "Unknown" input device
 
 This is the reference Wayland path: `zwlr_layer_shell_v1` overlays with an empty
 `input_region` for click-through, `zwlr_virtual_pointer_v1` for pointer input,
-and `zwp_virtual_keyboard_v1` for sticky modifiers and `action feed`. The full
-per-capability breakdown is in the
+`zwp_virtual_keyboard_v1` for sticky modifiers and `action feed`, and
+`zwlr_screencopy_manager_v1` for screen capture. The full per-capability
+breakdown is in the
 [Capability Matrix](CROSS_PLATFORM.md#capability-matrix).
 
 Two behaviors are specific enough to note here:
@@ -271,7 +280,7 @@ event tap, is explained in
 Run inside the graphical session (`WAYLAND_DISPLAY` set):
 
 ```bash
-wayland-info | grep -E 'zwlr_layer_shell|zwlr_virtual_pointer|zwp_virtual_keyboard|fake_input|xdg_output'
+wayland-info | grep -E 'zwlr_layer_shell|zwlr_virtual_pointer|zwp_virtual_keyboard|zwlr_screencopy|fake_input|xdg_output'
 ```
 
 Neru's wlroots input path needs **both** `zwlr_layer_shell_v1` and

@@ -1,4 +1,4 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package vision_test
 
@@ -12,19 +12,20 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// The vision adapter is fully stubbed off macOS: the Vision framework and
-// ScreenCaptureKit have no equivalent elsewhere, so every method reports
-// CodeNotSupported.
+// The vision adapter is fully stubbed on the platforms with neither half of
+// the port: no capture backend and no recognition engine, so every method
+// reports CodeNotSupported. Linux has capture and is pinned separately by
+// adapter_stub_contract_linux_test.go.
 //
 // Pinning that matters more than it looks. The hint pipeline chooses between
 // the accessibility strategy and the vision strategy at runtime, and it decides
 // vision is unavailable by calling Health and checking IsNotSupported. If a
 // stub here started returning nil — say a refactor gave Health a default
-// "return nil" — the pipeline would select the vision strategy on Linux, then
-// get an empty element list from DetectElements and show the user no hints at
-// all, with no error to explain why.
+// "return nil" — the pipeline would select the vision strategy here, then get
+// an empty element list from DetectElements and show the user no hints at all,
+// with no error to explain why.
 //
-// Tagged !darwin, so this runs on both the Linux and Windows CI runners.
+// Tagged !darwin && !linux, so this runs on the Windows CI runner.
 func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()
@@ -65,7 +66,7 @@ func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 			err := testCase.call()
 			if err == nil {
 				t.Fatalf(
-					"%s returned nil off darwin; the hint pipeline would select the vision "+
+					"%s returned nil; the hint pipeline would select the vision "+
 						"strategy and then silently produce no hints",
 					testCase.name,
 				)
@@ -93,7 +94,7 @@ func TestVisionAdapter_StubsReturnNoPartialResults(t *testing.T) {
 		true,
 	)
 	if err == nil {
-		t.Fatal("DetectElements returned nil error off darwin")
+		t.Fatal("DetectElements returned a nil error")
 	}
 
 	if elements != nil {
@@ -103,7 +104,7 @@ func TestVisionAdapter_StubsReturnNoPartialResults(t *testing.T) {
 
 	capture, err := adapter.CaptureScreen(ctx)
 	if err == nil {
-		t.Fatal("CaptureScreen returned nil error off darwin")
+		t.Fatal("CaptureScreen returned a nil error")
 	}
 
 	if capture != nil {
@@ -138,6 +139,6 @@ func TestVisionAdapter_NilLoggerIsAccepted(t *testing.T) {
 	// Exercising a method proves the fallback logger is actually usable.
 	err := adapter.Health(context.Background())
 	if err == nil {
-		t.Error("Health returned nil off darwin")
+		t.Error("Health returned nil")
 	}
 }
