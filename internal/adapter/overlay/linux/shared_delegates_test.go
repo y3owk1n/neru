@@ -67,7 +67,7 @@ func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32) {
 	s.touched("textPrim")
 }
 
-// movedDelegate is one of the fourteen exported methods the two backends used
+// movedDelegate is one of the sixteen exported methods the two backends used
 // to declare identically and now share, called with arguments that would draw.
 // Passing empty ones would let a delegate look guarded when it was only
 // short-circuiting on its input.
@@ -125,11 +125,21 @@ func movedDelegates() []movedDelegate {
 		{"DrawMouseActionIndicator", func(o *sharedOverlay) {
 			o.DrawMouseActionIndicator(image.Pt(10, 10), ports.MouseActionIndicatorStyle{})
 		}},
+		{"DrawHintSearchInput", func(o *sharedOverlay) {
+			o.DrawHintSearchInput(
+				"/ sav  3",
+				hintscomponent.NewSearchInputFrame(image.Pt(10, 20), 300),
+				hintscomponent.SearchInputStyle{},
+			)
+		}},
+		{"HideHintSearchInput", func(o *sharedOverlay) {
+			o.HideHintSearchInput(image.Rect(10, 20, 310, 60))
+		}},
 		{"setOriginOffset", func(o *sharedOverlay) { o.setOriginOffset(image.Pt(1920, 0)) }},
 	}
 }
 
-// The fourteen delegates moved onto sharedOverlay in #1415 and are promoted
+// The sixteen delegates on sharedOverlay (fourteen moved there in #1415) are promoted
 // into both backends, so the per-backend `o != nil && o.raw != nil` prologue
 // they each carried is gone. The receiver half of it is the manager's job —
 // promotion panics before any guard could run, which is why manager.go's

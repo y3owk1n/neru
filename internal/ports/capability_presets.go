@@ -109,9 +109,15 @@ func LinuxCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
 		),
+		// The overlay draws the search badge on every Linux backend, so the
+		// query is on screen; what is still a stub is the *field* — no Linux
+		// text control owns keyboard focus for it, so the characters come from
+		// the event tap and an input method never sees them.
 		TextInput: stubCapability(
-			"native hint-search field not implemented yet; hint search falls back " +
-				"to the event tap's key stream",
+			"no native hint-search field: the query is read from the event tap's " +
+				"key stream, so dead keys and IME composition do not reach it. The " +
+				"overlay draws the search badge itself, through the same Cairo " +
+				"primitives as its other badges",
 		),
 		Vision: stubCapability(
 			"no OCR/vision element detection; hints come from AT-SPI only",

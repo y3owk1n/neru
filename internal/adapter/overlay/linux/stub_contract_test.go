@@ -128,13 +128,13 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 	}
 }
 
-// TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo pins what
-// separates the search input from every other draw above: those report
-// CodeNotSupported because there is no surface to draw on, so attaching a
-// backend would make them succeed. This one is not implemented at all — no
-// Linux backend draws the badge — so a surface changes nothing, and reporting
-// success once one exists would put the mode handler back where this started.
-func TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo(t *testing.T) {
+// TestLinuxOverlayManager_HintSearchInputRefusesOnlyForWantOfABackend pins that
+// the search input is now an ordinary draw here. It used to refuse
+// unconditionally — the badge was unimplemented, so attaching X11 or wlroots
+// changed nothing — and the whole of what that refusal meant was "this is not
+// drawn on Linux". Both backends draw it now, so the only thing left to refuse
+// for is the one every draw above refuses for: no backend at all.
+func TestLinuxOverlayManager_HintSearchInputRefusesOnlyForWantOfABackend(t *testing.T) {
 	tests := map[string]*Manager{
 		"x11 attached": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
 		"wlroots attached": {
@@ -150,9 +150,12 @@ func TestLinuxOverlayManager_HintSearchInputIsUnsupportedWithABackendToo(t *test
 				hints.NewSearchInputFrame(image.Pt(10, 10), 200),
 				hints.SearchInputStyle{},
 			)
-			if !derrors.IsNotSupported(err) {
-				t.Errorf("DrawHintSearchInput returned %v (code %q), want CodeNotSupported",
-					err, derrors.GetCode(err))
+			if derrors.IsNotSupported(err) {
+				t.Errorf(
+					"DrawHintSearchInput refused with a backend attached: %v; "+
+						"the badge is drawn on every Linux backend now",
+					err,
+				)
 			}
 		})
 	}

@@ -70,6 +70,16 @@ func (o *wlrootsOverlay) Flush() {}
 
 func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
 
+func (o *wlrootsOverlay) DrawHintSearchInput(
+	string,
+	hintscomponent.SearchInputFrame,
+	hintscomponent.SearchInputStyle,
+) image.Rectangle {
+	return image.Rectangle{}
+}
+
+func (o *wlrootsOverlay) HideHintSearchInput(image.Rectangle) {}
+
 func (o *wlrootsOverlay) DrawMonitorSelect(
 	[]manager.MonitorSelectTarget,
 	manager.MonitorSelectStyle,

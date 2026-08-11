@@ -105,6 +105,16 @@ type sharedOverlay struct {
 	// (badges, monitor_select, the click indicator) do not apply it.
 	originOffset image.Point
 
+	// lastHints is the hint set this surface was last painted with, kept so the
+	// search badge can be taken off it without erasing the labels underneath.
+	// Both surfaces are one Cairo target, so the badge is painted over the
+	// hints and hiding it means repainting them rather than clearing a
+	// rectangle out of them. It is dropped whenever the surface is cleared or
+	// hidden, so nothing is repainted that is no longer on screen.
+	lastHints      []*hintscomponent.Hint
+	lastHintStyle  hintscomponent.StyleMode
+	lastHintOffset badge.HintOffset
+
 	// renderMu serializes rendering with the manager (and, on Wayland, with
 	// the keyboard poller's wl_display access). The manager owns the mutex
 	// object and holds it across synchronous draw calls; only the animation
@@ -122,9 +132,9 @@ type sharedOverlay struct {
 }
 
 // The exported methods below are what the manager calls on a backend. They
-// live here rather than once per backend because thirteen of the fourteen make
+// live here rather than once per backend because fifteen of the sixteen make
 // no C call at all — the whole of each was a nil-guard prologue and one
-// delegate into the code beneath it — and the fourteenth, Flush, goes through
+// delegate into the code beneath it — and the sixteenth, Flush, goes through
 // the surfaceFlush primitive this seam already declares. Show, Resize and
 // Destroy stay per-backend: Wayland re-runs buffer setup before showing, layer
 // shells auto-resize so Resize is empty there, and Wayland's Destroy waits on
@@ -269,6 +279,31 @@ func (o *sharedOverlay) DrawMouseActionIndicator(
 	o.drawMouseActionIndicator(point, style)
 }
 
+// DrawHintSearchInput paints the hint-search badge and answers the rectangle it
+// covered, so the manager knows what to put back when it is hidden. The empty
+// rectangle means nothing was painted.
+func (o *sharedOverlay) DrawHintSearchInput(
+	label string,
+	frame hintscomponent.SearchInputFrame,
+	style hintscomponent.SearchInputStyle,
+) image.Rectangle {
+	if !o.drawable() {
+		return image.Rectangle{}
+	}
+
+	return o.drawHintSearchInput(label, frame, style)
+}
+
+// HideHintSearchInput takes the badge painted over the given rectangle off the
+// surface.
+func (o *sharedOverlay) HideHintSearchInput(painted image.Rectangle) {
+	if !o.drawable() || painted.Empty() {
+		return
+	}
+
+	o.hideHintSearchInput(painted)
+}
+
 // setRenderMu wires the mutex that serializes rendering on *this* surface. On
 // Wayland it is also what serializes wl_display access between rendering and
 // the keyboard poller — the Wayland client API is not thread-safe — which is
@@ -297,12 +332,14 @@ func (o *sharedOverlay) drawable() bool {
 
 func (o *sharedOverlay) hide() {
 	o.cancelAnimation()
+	o.lastHints = nil
 	o.srf.surfaceHide()
 }
 
 func (o *sharedOverlay) clear() {
 	o.cancelAnimation()
 	o.hasLast = false
+	o.lastHints = nil
 	o.srf.surfaceClear()
 }
 
@@ -487,6 +524,13 @@ func (o *sharedOverlay) drawHints(
 
 	o.srf.surfaceClear()
 
+	// Remembered after the surface is committed to this set, so a frame that
+	// was skipped above cannot leave the cache describing a screen that was
+	// never painted.
+	o.lastHints = hintsSlice
+	o.lastHintStyle = style
+	o.lastHintOffset = offset
+
 	fontSize := float64(max(style.FontSize(), 1))
 	for _, hint := range hintsSlice {
 		// hint.Position() is the element center in screen-local coordinates;
@@ -553,6 +597,72 @@ func (o *sharedOverlay) drawHints(
 		)
 	}
 
+	o.srf.surfaceFlush()
+}
+
+// drawHintSearchInput paints the search badge over the hints already on the
+// surface, the way an indicator badge is painted: no buffer selection and no
+// clear, because the labels beneath it are what the user is searching and the
+// badge is one more thing on the same Cairo target.
+//
+// It flushes for itself rather than waiting for the indicator tick's Flush. A
+// query the user typed that appears a poll later is the latency this badge
+// exists to remove.
+func (o *sharedOverlay) drawHintSearchInput(
+	label string,
+	frame hintscomponent.SearchInputFrame,
+	style hintscomponent.SearchInputStyle,
+) image.Rectangle {
+	o.srf.ensureBuffers()
+
+	fontSize := float64(max(style.FontSize(), 1))
+
+	// Size the badge from the scaled font so it fits the text drawTextCentered
+	// renders, the way every other badge here is sized. The configured width is
+	// a pixel measurement like an indicator's offsets, and stays unscaled.
+	bounds := o.offset(badge.SearchBounds(
+		frame.Position(),
+		frame.Width(),
+		label,
+		fontSize*o.srf.surfaceScale(),
+		style.PaddingX(),
+		style.PaddingY(),
+	))
+
+	o.drawRoundedRect(
+		bounds,
+		badge.BorderRadius(style.BorderRadius(), bounds, searchInputAutoRadiusMax),
+		badge.ParseHexARGB(style.BackgroundColor()),
+		badge.ParseHexARGB(style.BorderColor()),
+		float64(max(style.BorderWidth(), 0)),
+	)
+	o.drawTextCentered(
+		label, bounds,
+		style.FontFamily(),
+		fontSize,
+		badge.ParseHexARGB(style.TextColor()),
+	)
+
+	o.srf.surfaceFlush()
+
+	return bounds
+}
+
+// hideHintSearchInput puts back what the badge covered.
+//
+// Where there are hints on the surface that means repainting them: the badge
+// sits on the same target as the labels, so erasing its rectangle alone would
+// take a bite out of the hints the user is about to type — and the confirm path
+// hides the badge with the narrowed labels still on screen. Where there are no
+// hints there is nothing to put back and the rectangle is simply erased.
+func (o *sharedOverlay) hideHintSearchInput(painted image.Rectangle) {
+	if len(o.lastHints) > 0 {
+		o.drawHints(o.lastHints, o.lastHintStyle, o.lastHintOffset)
+
+		return
+	}
+
+	o.clearRect(painted)
 	o.srf.surfaceFlush()
 }
 
@@ -1088,7 +1198,7 @@ func (o *sharedOverlay) drawSubgrid(bounds image.Rectangle, style gridcomponent.
 // setOriginOffset stores the active screen origin used to translate
 // screen-local grid/recursive-grid/hint coordinates onto the correct monitor.
 //
-// It is the fourteenth of the delegates above and the one that was already
+// It is the last of the delegates above and the one that was already
 // here: the per-backend wrappers only added the receiver guard promotion makes
 // unreachable. Like SetHideUnmatched it touches no surface, so a closed handle
 // does not stop it recording where the next draw belongs.
