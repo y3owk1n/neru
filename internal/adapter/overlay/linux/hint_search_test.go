@@ -4,8 +4,11 @@ package linux
 
 import (
 	"image"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/config"
 )
@@ -211,4 +214,105 @@ func TestLinuxOverlayManager_HideHintSearchInput_TakesTheBadgeOffTheSurface(t *t
 			t.Error("hiding a badge that was never drawn touched the surface")
 		}
 	})
+}
+
+// silentSurface is a live overlaySurface that records nothing. The race test
+// below uses it rather than recordingSurface deliberately: a recorder needs a
+// lock of its own to be driven from two goroutines, and that lock would order
+// every draw against every other one — hiding exactly the unsynchronized access
+// the detector is there to find.
+type silentSurface struct{}
+
+func (s *silentSurface) alive() bool                      { return true }
+func (s *silentSurface) surfaceScale() float64            { return 1 }
+func (s *silentSurface) ensureBuffers()                   {}
+func (s *silentSurface) beginFrame() bool                 { return true }
+func (s *silentSurface) surfaceClear()                    {}
+func (s *silentSurface) clearFrame()                      {}
+func (s *silentSurface) surfaceClearRect(image.Rectangle) {}
+func (s *silentSurface) surfaceFlush()                    {}
+func (s *silentSurface) surfaceHide()                     {}
+func (s *silentSurface) showIndicator()                   {}
+func (s *silentSurface) finishIndicator()                 {}
+func (s *silentSurface) syncBeforeAnimation()             {}
+
+func (s *silentSurface) rectPrim(image.Rectangle, uint32, uint32, float64) {}
+
+func (s *silentSurface) roundedRectPrim(image.Rectangle, float64, uint32, uint32, float64) {}
+
+func (s *silentSurface) hintBadgePrim(
+	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, float64,
+) {
+}
+
+func (s *silentSurface) textPrim(_, _ string, _, _, _ float64, _ uint32) {}
+
+// TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw is the
+// -race regression for the screen state this feature added. searchBadgeRect on
+// the manager and the lastHints trio on the surface are written by the badge
+// draw, by the hints draw that erases it and by the hide that puts it back,
+// which reach the manager from the mode handler and from an indicator tick
+// alike — so all three have to stay inside renderMu. It only runs on the Linux
+// leg, `go test -race ./internal/adapter/overlay/linux/` there.
+func TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw(t *testing.T) {
+	t.Parallel()
+
+	overlay := &x11Overlay{}
+	overlay.srf = &silentSurface{}
+	manager := &Manager{backend: linuxOverlayBackendX11, x11: overlay}
+
+	drawn := []*hints.Hint{hints.NewHint("aa", image.Pt(100, 100), image.Pt(20, 10), "")}
+	frame := hints.NewSearchInputFrame(image.Pt(10, 20), 300)
+	style := searchStyle(false)
+
+	// Enough rounds that the two loops genuinely overlap: at 200 an unlocked
+	// write escaped the detector on a run more often than not.
+	const rounds = 5000
+
+	var (
+		group    sync.WaitGroup
+		refusals atomic.Int64
+	)
+
+	group.Add(2)
+
+	go func() {
+		defer group.Done()
+
+		for range rounds {
+			if manager.DrawHintsWithStyle(drawn, hints.StyleMode{}) != nil {
+				refusals.Add(1)
+			}
+		}
+	}()
+
+	go func() {
+		defer group.Done()
+
+		for range rounds {
+			if manager.DrawHintSearchInput("sav", 3, frame, style) != nil {
+				refusals.Add(1)
+			}
+
+			manager.HideHintSearchInput()
+		}
+	}()
+
+	group.Wait()
+
+	if got := refusals.Load(); got != 0 {
+		t.Errorf("%d of %d draws were refused against a live surface", got, rounds*2)
+	}
+
+	// Both loops end on a call that forgets the badge — the hide, and the hints
+	// draw that erases it — so whichever landed last, nothing is recorded as
+	// being on screen. A non-empty rectangle here is a write that escaped the
+	// lock, not a timing difference.
+	manager.renderMu.Lock()
+	defer manager.renderMu.Unlock()
+
+	if !manager.searchBadgeRect.Empty() {
+		t.Errorf("searchBadgeRect = %v after every badge was hidden, want the empty rectangle",
+			manager.searchBadgeRect)
+	}
 }

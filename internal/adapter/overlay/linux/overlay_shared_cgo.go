@@ -102,15 +102,24 @@ type sharedOverlay struct {
 	// pixels. Grid, recursive-grid and hint content arrives in screen-local
 	// coordinates (origin 0,0); adding this offset places it on the correct
 	// monitor of the desktop-spanning overlay window. Absolute-coordinate draws
-	// (badges, monitor_select, the click indicator) do not apply it.
+	// (the indicator badges, monitor_select, the click indicator) do not apply
+	// it. The hints search badge does, badge though it is: its frame is placed
+	// against the screen the caller named, so it arrives screen-local like the
+	// labels it sits beside.
 	originOffset image.Point
 
 	// lastHints is the hint set this surface was last painted with, kept so the
 	// search badge can be taken off it without erasing the labels underneath.
 	// Both surfaces are one Cairo target, so the badge is painted over the
 	// hints and hiding it means repainting them rather than clearing a
-	// rectangle out of them. It is dropped whenever the surface is cleared or
-	// hidden, so nothing is repainted that is no longer on screen.
+	// rectangle out of them.
+	//
+	// It is dropped by clear() and hide(), which is where every mode transition
+	// goes (`Adapter.ClearFrame`), so nothing is repainted that is no longer on
+	// screen. The draws that clear the surface for themselves — grid, recursive
+	// grid, monitor-select — do not drop it, and do not need to: what decides
+	// whether any of this is read is the manager's searchBadgeRect, and only a
+	// badge draw sets that.
 	lastHints      []*hintscomponent.Hint
 	lastHintStyle  hintscomponent.StyleMode
 	lastHintOffset badge.HintOffset
@@ -509,13 +518,33 @@ func (o *sharedOverlay) drawMonitorSelect(
 	o.srf.surfaceFlush()
 }
 
+// drawHints paints a hint set over the whole surface, stopping any animation
+// that would otherwise paint over it.
+//
+// The cancel is why this is separate from repaintHints below: it waits for the
+// animation goroutine to exit and that goroutine takes renderMu on every frame,
+// so it must not run with renderMu held (see cancelAnimation). Every caller of
+// this one cancels through Manager.cancelBackendAnimation before taking the
+// lock, and the second cancel here is the belt to that pair of braces.
 func (o *sharedOverlay) drawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
 	offset badge.HintOffset,
 ) {
-	o.srf.ensureBuffers()
 	o.cancelAnimation()
+	o.repaintHints(hintsSlice, style, offset)
+}
+
+// repaintHints is drawHints without that cancel, for the one caller that is
+// already inside the render lock when it decides to repaint: hiding the search
+// badge. Reaching drawHints from there would take renderMu into a call
+// documented as needing it released.
+func (o *sharedOverlay) repaintHints(
+	hintsSlice []*hintscomponent.Hint,
+	style hintscomponent.StyleMode,
+	offset badge.HintOffset,
+) {
+	o.srf.ensureBuffers()
 	o.hasLast = false
 
 	if !o.srf.beginFrame() {
@@ -608,6 +637,13 @@ func (o *sharedOverlay) drawHints(
 // It flushes for itself rather than waiting for the indicator tick's Flush. A
 // query the user typed that appears a poll later is the latency this badge
 // exists to remove.
+//
+// Painting over the surface rather than into a cleared rectangle rests on the
+// order the caller keeps: every badge draw follows a hints draw, which clears
+// the whole surface, because the mode handler filters the hints and then draws
+// the badge (`applyHintSearchFilter`) and the hint manager delivers that update
+// inside the call. Without it a backspace would leave the tail of the longer
+// label behind.
 func (o *sharedOverlay) drawHintSearchInput(
 	label string,
 	frame hintscomponent.SearchInputFrame,
@@ -657,7 +693,7 @@ func (o *sharedOverlay) drawHintSearchInput(
 // hints there is nothing to put back and the rectangle is simply erased.
 func (o *sharedOverlay) hideHintSearchInput(painted image.Rectangle) {
 	if len(o.lastHints) > 0 {
-		o.drawHints(o.lastHints, o.lastHintStyle, o.lastHintOffset)
+		o.repaintHints(o.lastHints, o.lastHintStyle, o.lastHintOffset)
 
 		return
 	}

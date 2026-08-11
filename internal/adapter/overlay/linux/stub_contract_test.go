@@ -128,16 +128,20 @@ func TestLinuxOverlayManager_DrawCallsAreSafeWithRealArguments(t *testing.T) {
 	}
 }
 
-// TestLinuxOverlayManager_HintSearchInputRefusesOnlyForWantOfABackend pins that
-// the search input is now an ordinary draw here. It used to refuse
-// unconditionally — the badge was unimplemented, so attaching X11 or wlroots
-// changed nothing — and the whole of what that refusal meant was "this is not
-// drawn on Linux". Both backends draw it now, so the only thing left to refuse
-// for is the one every draw above refuses for: no backend at all.
-func TestLinuxOverlayManager_HintSearchInputRefusesOnlyForWantOfABackend(t *testing.T) {
+// TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted pins what
+// the refusal means now that both backends draw the badge. It used to mean
+// "unimplemented here", and attaching X11 or wlroots changed nothing; it now
+// means the draw put no pixels anywhere — a backend pointer whose native handle
+// is closed or was never opened, which is the state a torn-down session leaves.
+//
+// Answering nil there is the failure the old body was written against from the
+// other end: the mode handler would believe a query and a match count were on
+// screen with nothing on it. What a live surface answers is
+// TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen.
+func TestLinuxOverlayManager_HintSearchInputRefusesWhenNothingWasPainted(t *testing.T) {
 	tests := map[string]*Manager{
-		"x11 attached": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
-		"wlroots attached": {
+		"x11 attached, handle closed": {backend: linuxOverlayBackendX11, x11: &x11Overlay{}},
+		"wlroots attached, handle closed": {
 			backend: linuxOverlayBackendWaylandWlroots,
 			wlroots: &wlrootsOverlay{},
 		},
@@ -150,12 +154,9 @@ func TestLinuxOverlayManager_HintSearchInputRefusesOnlyForWantOfABackend(t *test
 				hints.NewSearchInputFrame(image.Pt(10, 10), 200),
 				hints.SearchInputStyle{},
 			)
-			if derrors.IsNotSupported(err) {
-				t.Errorf(
-					"DrawHintSearchInput refused with a backend attached: %v; "+
-						"the badge is drawn on every Linux backend now",
-					err,
-				)
+			if !derrors.IsNotSupported(err) {
+				t.Errorf("DrawHintSearchInput returned %v (code %q), want CodeNotSupported",
+					err, derrors.GetCode(err))
 			}
 		})
 	}

@@ -189,11 +189,7 @@ func (m *Manager) Hide() {
 		m.wlroots.Hide()
 	}
 
-	m.stickyBadgeVisible = false
-	m.stickyBadgeRect = image.Rectangle{}
-	m.modeIndicatorBadgeVisible = false
-	m.modeIndicatorBadgeRect = image.Rectangle{}
-	m.searchBadgeRect = image.Rectangle{}
+	m.forgetBadgesLocked()
 }
 
 // SetKeyboardCaptureEnabled controls whether the Wayland overlay requests
@@ -226,11 +222,7 @@ func (m *Manager) Clear() {
 		m.wlroots.Clear()
 	}
 
-	m.stickyBadgeVisible = false
-	m.stickyBadgeRect = image.Rectangle{}
-	m.modeIndicatorBadgeVisible = false
-	m.modeIndicatorBadgeRect = image.Rectangle{}
-	m.searchBadgeRect = image.Rectangle{}
+	m.forgetBadgesLocked()
 }
 
 // ClearCache is a no-op on Linux; the overlay backend does not retain stale
@@ -491,15 +483,21 @@ func (m *Manager) DrawHintSearchInput(
 
 	label := badge.SearchLabel(query, resultCount)
 
-	switch {
-	case m.x11 != nil:
+	if m.x11 != nil {
 		m.searchBadgeRect = m.x11.DrawHintSearchInput(label, frame, style)
-	case m.wlroots != nil:
+	} else if m.wlroots != nil {
 		m.searchBadgeRect = m.wlroots.DrawHintSearchInput(label, frame, style)
-	default:
+	}
+
+	// The backend answers with the rectangle it painted, and the empty one means
+	// it painted nothing — no backend at all, or one whose native handle is
+	// closed. Reporting success then would tell the mode handler a query and a
+	// match count were on screen when the screen is blank, which is the silent
+	// no-op this method used to be for a different reason.
+	if m.searchBadgeRect.Empty() {
 		return derrors.New(
 			derrors.CodeNotSupported,
-			"overlay hint search input not implemented on linux backend",
+			"no linux overlay surface to draw the hint search input on",
 		)
 	}
 
@@ -516,9 +514,12 @@ func (m *Manager) DrawHintSearchInput(
 // return value no caller could act on, on a call that runs from teardown.
 func (m *Manager) HideHintSearchInput() {
 	// Canceling before the lock is what DrawHintsWithStyle does and for the
-	// same reason: putting the badge away repaints the hints, and that draw's
-	// cancelAnimation waits for a goroutine which takes renderMu on every
-	// frame. The same call answers whether there is a backend at all.
+	// same reason: putting the badge away repaints the hints, and an animation
+	// still running would paint over that. It happens out here because
+	// cancelAnimation waits for a goroutine that takes renderMu on every frame
+	// — which is also why the repaint below goes through repaintHints rather
+	// than drawHints, so no second cancel is attempted under the lock. The same
+	// call answers whether there is a backend at all.
 	if !m.cancelBackendAnimation() {
 		return
 	}
@@ -1103,6 +1104,18 @@ func (m *Manager) overlayScale() float64 {
 	}
 
 	return 1
+}
+
+// forgetBadgesLocked drops every record of what is painted on the shared
+// surface. It follows a Hide or a Clear, which take the whole surface away
+// rather than one badge at a time, so there is nothing left to erase and the
+// records would only describe a screen that is gone.
+func (m *Manager) forgetBadgesLocked() {
+	m.stickyBadgeVisible = false
+	m.stickyBadgeRect = image.Rectangle{}
+	m.modeIndicatorBadgeVisible = false
+	m.modeIndicatorBadgeRect = image.Rectangle{}
+	m.searchBadgeRect = image.Rectangle{}
 }
 
 func (m *Manager) clearStickyBadgeLocked() {

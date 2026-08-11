@@ -15,9 +15,12 @@ const searchPrompt = "/ Search hints"
 // once it is not.
 //
 // It lives here rather than in a backend for the reason PlaceHint does: the
-// badge is a display of state the app already holds, and a backend deciding for
-// itself how to word it would let the same search read differently on two
-// machines.
+// badge is a display of state the app already holds, and where it is worded is
+// not where it is painted. Linux reads it; macOS builds the same string in
+// Objective-C (`drawSearchInputInRect`) and Windows composes its own inline,
+// which is why the count reads `/ sav  3` on two platforms and `/ sav  3 /` on
+// the third. Bringing that third one here is a change to what a Windows user
+// sees, so it is not made in passing.
 func SearchLabel(query string, resultCount int) string {
 	if query == "" {
 		return searchPrompt
