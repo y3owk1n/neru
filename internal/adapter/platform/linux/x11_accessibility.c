@@ -134,3 +134,37 @@ void neru_ax_release_modifier(Display *display, KeySym keysym) {
 		XFlush(display);
 	}
 }
+
+/* Resolves a keysym to the keycode carrying it, or 0 when the live keymap has
+ * no key for it — a layout without a right Alt, say. */
+unsigned int neru_ax_keysym_to_keycode(Display *display, KeySym keysym) {
+	return (unsigned int)XKeysymToKeycode(display, keysym);
+}
+
+/* Reads the server's live key state into the 32-byte vector XQueryKeymap
+ * defines: one bit per keycode, which is the only way to learn what the user is
+ * physically holding. */
+void neru_ax_query_keymap(Display *display, char *keys32) { XQueryKeymap(display, keys32); }
+
+/* Reports whether keycode is down in a vector neru_ax_query_keymap filled. */
+int neru_ax_keycode_is_held(const char *keys32, unsigned int keycode) {
+	if (keycode >= NERU_AX_KEYMAP_BITS) {
+		return 0;
+	}
+
+	unsigned char byte = (unsigned char)keys32[keycode / 8];
+
+	return (byte >> (keycode % 8)) & 1;
+}
+
+/* Presses or releases a keycode through XTEST. Unlike the modifier helpers
+ * above this takes the keycode the keymap answered with, so a key read as held
+ * is the same key that gets released. */
+void neru_ax_key_event(Display *display, unsigned int keycode, int pressed) {
+	if (keycode == 0) {
+		return;
+	}
+
+	XTestFakeKeyEvent(display, (KeyCode)keycode, pressed ? True : False, CurrentTime);
+	XFlush(display);
+}

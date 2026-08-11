@@ -145,8 +145,8 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
 | **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
-| **Scroll injection**          | ✅ both axes             | ✅ both axes           | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
-| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
+| **Scroll injection**          | ✅ both axes             | ✅ both axes ⁸         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
+| **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
 | **Smooth scroll animation**   | ✅                       | ⚠️ whole notches only ⁴ | ✅ continuous virtual-pointer axis ⁴ | ⚠️ libei scroll delta, unverified ⁴ | ❌       |
 | **Element discovery (hints)** | ✅ AXUIElement           | ⚠️ AT-SPI walk         | ⚠️ AT-SPI walk               | ⚠️ AT-SPI walk          | ⚠️ UIA, shallow tree         |
@@ -164,7 +164,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
 | **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ❌ ⁶                    | ❌                           |
-| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌ no capture (entry 2) | ❌                           |
+| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌ no capture (entry 1) | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
 
@@ -279,7 +279,7 @@ client is already trusted with the session.
 ScreenCast session, which delivers frames over PipeWire — a required system
 library Neru does not link and a build-dependency change beyond this row. KDE
 Plasma therefore reports `CodeNotSupported` naming itself, and it is
-[Known Gaps](#known-gaps) Linux entry 2. Capture is a **region** operation on
+[Known Gaps](#known-gaps) Linux entry 1. Capture is a **region** operation on
 both implemented backends: the caller's rectangle is what gets read back, so
 constraining detection to the focused window costs a window rather than a
 display.
@@ -325,6 +325,23 @@ asks about, which is the focused window: full-display OCR takes seconds where
 one window takes tens of milliseconds. Recognized text is screen content and is
 treated as such — never logged, never written to disk, and cleared out of the
 engine before each recognition returns.
+
+⁸ An X11 button event carries the modifiers the server records as **held**,
+rather than a set the sender chooses the way `CGEventSetFlags` does, so an
+injected scroll used to pick up whatever the user's hand was on: binding
+`Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most applications read
+as zoom. Neru reads the live key state with `XQueryKeymap`, releases the
+modifiers the injection would otherwise falsify, presses the ones that were
+asked for, and undoes both when it is done — so a scroll presents exactly what
+`--modifier` named and nothing else, held across every chunk of an animated one.
+A modifier that is both held and asked for is left alone rather than pressed a
+second time.
+
+**Letting go inside that window is not observed.** An XTEST release makes the
+user's own release a no-op at the master keyboard, so a modifier released during
+an injected scroll is pressed back and reads as held until it is pressed and
+released once more. Restoring is the deliberate bias: the opposite one drops a
+modifier the user is still holding out of everything they do next.
 
 ### Notes on the ⚠️ entries
 
@@ -901,25 +918,19 @@ command — that means less here than it does on macOS, whether or not the
    the portal's ScreenCast session, whose frames arrive over PipeWire — a new
    required system library, so closing this adds `libpipewire-0.3` to the Linux
    dependency list, the packaging and the CI images. It may share a solution
-   with entry 4, which already holds a portal session. It is also what keeps
+   with entry 2, which already holds a portal session. It is also what keeps
    the `vision` hint strategy off KDE: the engine is linked on every backend,
    and KWin is the one with no pixels to hand it
-3. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
-   `XTestFakeButtonEvent` still carries whatever the X server records the user as
-   physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
-   ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
-   event instead; a real-key backend has no per-event field to zero, so closing
-   this means reading the live key state through `XQueryKeymap` in the C bridge
-4. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+2. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-5. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+3. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-6. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+4. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-7. Wayland global hotkeys — a setup requirement rather than missing code: they
+5. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-8. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+6. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
    tray has one icon for both running and paused states where macOS has two,
    and the `CGO_ENABLED=0` build should announce its boundary once at startup
    rather than failing feature by feature

@@ -189,15 +189,13 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	defer C.neru_ax_close_display(display)
 
 	// Held across every scroll button click, the way a person holding ctrl and
-	// turning the wheel produces a zoom. Runs before the display is closed:
-	// defers unwind last-in first-out.
-	//
-	// These are the same unconditional helpers the click paths use, so the
-	// release lets go of the whole named set — including a key the user is
-	// physically holding, or one a sticky modifier is holding through XTest.
-	// That gap predates this caller and is not narrowed here.
-	x11PressModifiers(display, modifiers)
-	defer x11ReleaseModifiers(display, modifiers)
+	// turning the wheel produces a zoom — and, just as much, *not* held when
+	// nothing asked for it: an X11 button event carries whatever the server
+	// records as down, so a plain scroll_down bound to Ctrl+J would zoom. The
+	// hold presents exactly this set for the length of the whole loop. Runs
+	// before the display is closed: defers unwind last-in first-out.
+	hold := x11HoldModifiers(display, modifiers)
+	defer hold.release()
 
 	// X11 scrolling is simulated via discrete button clicks (4, 5, 6, 7).
 	// Incoming deltas are pixel-level values from the scroll service config
@@ -285,8 +283,8 @@ const (
 // do is spread those notches over time on the same eased curve every other
 // backend uses, which is why granularity is a whole notch rather than zero.
 type x11ScrollSession struct {
-	display   *C.Display
-	modifiers action.Modifiers
+	display *C.Display
+	hold    x11ModifierHold
 }
 
 // x11ScrollBackendAvailable answers whether an animated scroll could inject
@@ -308,12 +306,10 @@ func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 		return nil, err
 	}
 
-	// The same unconditional helpers the click paths use: the release lets go
-	// of the whole named set, including a key the user is physically holding.
-	// That gap predates this caller and is not narrowed here.
-	x11PressModifiers(display, modifiers)
-
-	return &x11ScrollSession{display: display, modifiers: modifiers}, nil
+	// Taken once for the whole animation rather than per chunk, so every chunk
+	// goes out under the same modifier state: the requested set presented, and
+	// anything the user happens to be holding suppressed for the duration.
+	return &x11ScrollSession{display: display, hold: x11HoldModifiers(display, modifiers)}, nil
 }
 
 func (s *x11ScrollSession) granularity() float64 { return scrollPixelsPerNotch }
@@ -353,7 +349,7 @@ func (s *x11ScrollSession) clickAxis(delta float64, positive, negative C.uint) e
 }
 
 func (s *x11ScrollSession) close() {
-	x11ReleaseModifiers(s.display, s.modifiers)
+	s.hold.release()
 	C.neru_ax_close_display(s.display)
 }
 
@@ -480,6 +476,14 @@ func x11ActionDisplay() (*C.Display, error) {
 	return display, nil
 }
 
+// x11PressModifiers presents modifiers additively: it presses the named set and
+// says nothing about what else the keyboard is holding, so an injected click
+// still carries a modifier the user's hand is on, and the release below still
+// lets go of one they are holding themselves.
+//
+// The scroll path no longer uses this pair — it takes an x11ModifierHold, which
+// presents exactly the named set — and the click paths still do. Converting
+// them is the same shape of change and belongs to its own.
 func x11PressModifiers(display *C.Display, modifiers action.Modifiers) {
 	if modifiers.Has(action.ModShift) {
 		C.neru_ax_press_modifier(display, C.XK_Shift_L)
