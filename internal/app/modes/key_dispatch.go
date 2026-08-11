@@ -408,6 +408,15 @@ func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []strin
 		return
 	}
 
+	// A mouse button is reported as a press with no release: the tap observes
+	// the button rather than consuming it, and emits no "__keyup_" for it. A
+	// repeat started here is stopped by that key-up, so it would instead run
+	// until the mode exits. Refusing to start one keeps a button a discrete
+	// press, which is the only thing it can honestly be.
+	if keyvocab.IsMouseButton(config.NormalizeKeyForComparison(key)) {
+		return
+	}
+
 	h.startHeldRepeat(key, bindKey, actions)
 }
 
