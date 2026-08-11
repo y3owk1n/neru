@@ -66,7 +66,7 @@ Re-measure with the one-liner under
 `zkde_screencast_unstable_v1` and the portal's ScreenCast session, both of which
 deliver frames over PipeWire. Screen capture therefore reports
 `CodeNotSupported` naming KDE Plasma; it is
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) Linux entry 2. That claim is read
+[Known Gaps](CROSS_PLATFORM.md#known-gaps) Linux entry 1. That claim is read
 from KWin's protocol set rather than taken from the measured session above; the
 one-liner below now greps for it, so you can confirm it on your own KWin.
 

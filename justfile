@@ -290,6 +290,7 @@ test-foundation:
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/platform/fontcache \
         ./internal/adapter/platform/fontgeneric \
+        ./internal/adapter/platform/modifierstate \
         ./internal/adapter/platform/mousestate \
         ./internal/ports ./internal/ports/mocks \
         ./internal/domain/geometry
