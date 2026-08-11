@@ -76,8 +76,14 @@ func LinuxCapabilities() PlatformCapabilities {
 		Overlay: supportedCapability(
 			"native overlays available via X11 windows or Wayland layer-shell + Cairo",
 		),
-		Notifications: stubCapability(
-			"native notifications not implemented yet; target freedesktop notifications",
+		// Live-probed by the Linux SystemAdapter, which downgrades this to a
+		// stub when nothing owns the notification name on the session bus.
+		// See linux.SystemAdapter.notificationCapability.
+		Notifications: supportedCapability(
+			"notifications and alerts delivered to the session's freedesktop " +
+				"notification daemon over D-Bus (org.freedesktop.Notifications); " +
+				"an alert is a critical-urgency notification that stays until " +
+				"dismissed, not a modal dialog",
 		),
 		GlobalHotkeys: supportedCapability(
 			"global hotkeys available via X11 XGrabKey; on Wayland via a passive " +

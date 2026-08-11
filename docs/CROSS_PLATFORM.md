@@ -65,7 +65,7 @@ reference implementation, and a gap on this platform is a bug.
 
 **Beta** — good for daily driving. Every navigation mode works and behaves the
 same as it does on a stable platform; what is missing sits around the edges
-(notifications, alerts, a few animations) rather than in your way.
+(a few animations, the OCR hint strategy) rather than in your way.
 
 **Alpha** — worth trying, not yet worth switching to. Core navigation works, but
 hint coverage is incomplete and per-app config does not re-apply on focus
@@ -157,8 +157,8 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
 | **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
-| **Native alerts**             | ✅ NSAlert               | 🟡                     | 🟡                           | 🟡                      | ✅ `MessageBoxW`             |
-| **Native notifications**      | ✅ UNNotification        | 🟡                     | 🟡                           | 🟡                      | 🟡                           |
+| **Native alerts**             | ✅ NSAlert               | ⚠️ D-Bus, not modal    | ⚠️ D-Bus, not modal          | ⚠️ D-Bus, not modal     | ✅ `MessageBoxW`             |
+| **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | 🟡          |
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
@@ -249,6 +249,24 @@ points at the build, and is warned about once, since no retry changes how the
 binary was compiled. Both name the same fallback — bind `neru <mode>` as a
 compositor keybinding. While a mode is active the in-mode event tap grabs the
 same devices, so the listener naturally goes quiet until the mode exits.
+
+**Native alerts on Linux.** Notifications and alerts both go to the session's
+freedesktop notification daemon over D-Bus — the same session bus the tray's
+StatusNotifierItem uses, in pure Go, so a `CGO_ENABLED=0` build shows them too.
+An alert differs from a notification only in insistence: critical urgency and no
+expiry, which the specification requires a daemon to leave on screen until it is
+dismissed. What it is *not* is modal. macOS's `NSAlert` stops the world and
+returns which button was pressed; no ordinary Wayland or X11 client can do that,
+so a Linux alert informs rather than asks, and callers that would have branched
+on the answer take the safe default. The two startup alerts are where that shows
+up: a missing config file starts Neru on built-in defaults and says so, instead
+of offering create / defaults / quit. Delivery depends on the session having a
+notification daemon (mako, dunst, or the desktop's own) — either running, or
+registered with the bus to be started on demand, which is how most desktops ship
+theirs and which `neru doctor` counts as present. With none, `ShowNotification`
+and `ShowAlert` report `CodeNotSupported` naming what is absent, `neru doctor`
+probes the session and downgrades the notifications row with a line saying what
+to install, and the two startup alerts fall back to stderr.
 
 **Smooth cursor animation on Linux.** Off by default; opt in with
 `smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`
@@ -751,49 +769,45 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. Native notifications and alerts — both stubs; target freedesktop D-Bus
-   notifications. `ShowNotification` has an empty body and no error to carry,
-   `ShowAlert` returns `CodeNotSupported`, and the config-onboarding and
-   validation-error alerts silently return defaults instead of prompting
-2. `neru services` — no systemd user unit, so install/uninstall/start/stop/
+1. `neru services` — no systemd user unit, so install/uninstall/start/stop/
    restart/status all return `CodeNotSupported` where macOS writes a launchd
    plist. Scope is systemd; other init systems stay `CodeNotSupported`
-3. `neru docs` — returns `CodeNotSupported` although the tray already opens
+2. `neru docs` — returns `CodeNotSupported` although the tray already opens
    URLs through `xdg-open` in the same repo
-4. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
+3. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
    validated and then silently ignored. Spike `REL_WHEEL_HI_RES` (uinput),
    continuous `wl_pointer` axis values and libei scroll deltas before
    committing
-5. Hints search input badge — not drawn; the overlay manager reports
+4. Hints search input badge — not drawn; the overlay manager reports
    `CodeNotSupported` and the query goes on reaching hints through the event
    tap's key stream
-6. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
+5. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
    strategy below and the missing half of `ports.Vision`. Take it per backend:
    `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
-7. `vision` hint strategy — no engine. Met by linking one through
+6. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
    use so a missing `tessdata` reports `CodeNotSupported` naming what is
    absent. Note the strategy is wider than OCR: macOS also runs rectangle
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. Needs 6
-8. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   declared macOS-only and Linux `vision` is text-only. Needs 5
+7. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
-9. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+8. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-10. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
-    draws it on all three platforms
-11. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+9. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+   draws it on all three platforms
+10. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
     back to the active screen
-12. Wayland global hotkeys — a setup requirement rather than missing code: they
+11. Wayland global hotkeys — a setup requirement rather than missing code: they
     need `input`-group membership and a CGO build. Failing loudly with the
     remedy, and documenting it as a first-class setup step, is the work
-13. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+12. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
     tray has one icon for both running and paused states where macOS has two,
     and the `CGO_ENABLED=0` build should announce its boundary once at startup
     rather than failing feature by feature

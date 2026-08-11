@@ -40,7 +40,7 @@ wlroots Wayland with a CGO build, with a closed set of macOS-only exemptions.
 
 The two largest open areas:
 
-- **Linux** — freedesktop notifications and alerts across all backends, and
+- **Linux** — screen capture and the OCR hint strategy it unblocks, and
   persisting the KDE RemoteDesktop portal grant across daemon restarts.
 - **Windows** — foreground-window and display-hotplug events, which currently
   block per-app config re-application and monitor tracking.

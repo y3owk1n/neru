@@ -311,7 +311,12 @@ systemctl --user enable --now neru
    by app. DE-specific coordinate details: [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md).
 3. **Dark mode** — Via `org.freedesktop.appearance` portal, with session-specific
    fallbacks where the portal is unavailable.
-4. **Notifications** — May log instead of using `org.freedesktop.Notifications`.
+4. **Notifications** — Delivered over `org.freedesktop.Notifications` on the
+   session bus, so a notification daemon (mako, dunst, or your desktop's own)
+   has to be running — or installed as a D-Bus service the bus starts on
+   demand, as most desktops ship theirs. What Neru does when neither, and why
+   an alert is not modal here: "Native alerts on Linux" under the
+   [Capability Matrix](./CROSS_PLATFORM.md#capability-matrix).
 5. **Wayland modified clicks** — Need `evdev` access (see [keyboard permissions](#wayland-keyboard-capture-permissions)).
 6. **Monitor hotplug** — Adding/removing a monitor is tracked live (RandR on X11,
    `wl_output` on Wayland) and the overlay follows; a relaunch is only needed for a

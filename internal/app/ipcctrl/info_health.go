@@ -180,6 +180,17 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		out[string(ports.CapabilityDarkModeDetection)+detailSuffix] = detail
 	}
 
+	// Notifications get the same treatment, gated on the status rather than on
+	// the platform: "stub" alone does not tell a user whether a daemon to
+	// install, a build to change, or nothing at all would fix it, while the
+	// supported detail only restates the mechanism and is left out. Linux
+	// probes a live reason into this; the other platforms carry a static one,
+	// and either is worth the line when the capability is not there.
+	if detail := capabilities.Notifications.Detail; detail != "" &&
+		!capabilities.Notifications.Supported() {
+		out[string(ports.CapabilityNotifications)+detailSuffix] = detail
+	}
+
 	return out
 }
 

@@ -171,7 +171,8 @@ func linuxProfile(ds DisplayServer) Profile {
 		Notifications: BackendPlan{
 			Name:      "freedesktop notifications",
 			BuildMode: BuildModePureGo,
-			Notes:     "D-Bus notifications should be achievable without CGO",
+			Notes: "org.freedesktop.Notifications over the session bus, on every backend " +
+				"and with no CGO; needs a notification daemon running",
 		},
 	}
 }

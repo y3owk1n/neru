@@ -31,19 +31,24 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 		name                string
 		capabilities        ports.PlatformCapabilities
 		accessibilityStatus ports.FeatureStatus
+		notificationsStatus ports.FeatureStatus
 	}{
 		// Linux discovers clickable elements via an AT-SPI (D-Bus) tree walk;
-		// Windows discovers them via UI Automation. Notifications remain stubbed
-		// on both (asserted below).
+		// Windows discovers them via UI Automation. Linux notifications go to
+		// the freedesktop notification daemon over the same session bus, so the
+		// preset is supported and the adapter downgrades it live when no daemon
+		// is running; Windows has no toast implementation at all.
 		{
 			name:                "linux",
 			capabilities:        ports.LinuxCapabilities(),
 			accessibilityStatus: ports.FeatureStatusSupported,
+			notificationsStatus: ports.FeatureStatusSupported,
 		},
 		{
 			name:                "windows",
 			capabilities:        ports.WindowsCapabilities(),
 			accessibilityStatus: ports.FeatureStatusSupported,
+			notificationsStatus: ports.FeatureStatusStub,
 		},
 	}
 
@@ -61,10 +66,11 @@ func TestNonDarwinCapabilities_ReportStubbedFeatures(t *testing.T) {
 				)
 			}
 
-			if testCase.capabilities.Notifications.Status != ports.FeatureStatusStub {
+			if testCase.capabilities.Notifications.Status != testCase.notificationsStatus {
 				t.Fatalf(
-					"Notifications status = %q, want stub",
+					"Notifications status = %q, want %q",
 					testCase.capabilities.Notifications.Status,
+					testCase.notificationsStatus,
 				)
 			}
 		})

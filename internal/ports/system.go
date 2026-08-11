@@ -125,7 +125,16 @@ type SystemPort interface {
 	ShowAlert(ctx context.Context, title, message string) error
 
 	// ShowNotification displays a lightweight toast/banner notification.
-	ShowNotification(title, message string)
+	//
+	// It carries an error because a notification is not always deliverable:
+	// on Linux the session's notification daemon may be absent, which is an
+	// ordinary state on a minimal compositor session, and a caller that
+	// cannot tell "shown" from "dropped" has nothing to fall back to.
+	// Platforms with no notification path at all report CodeNotSupported.
+	//
+	// Returning nil means the platform accepted the message, not that the
+	// user has seen it — delivery can still be asynchronous.
+	ShowNotification(ctx context.Context, title, message string) error
 }
 
 // RelativeCursorMover is an optional SystemPort extension: move the cursor by

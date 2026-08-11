@@ -6,6 +6,7 @@ package linux
 import (
 	"bufio"
 	"context"
+	"errors"
 	"image"
 	"io"
 	"os"
@@ -83,6 +84,12 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 
 	value, source, ok := darkModePreference()
 	capabilities.DarkModeDetection = darkModeCapability(value, source, ok)
+
+	// Notifications are live-probed for the same reason dark mode is: the code
+	// path exists on every backend, but whether the user will see anything
+	// depends on a notification daemon being installed, which is a session fact
+	// rather than a build one.
+	capabilities.Notifications = s.notificationCapability(capabilities.Notifications)
 
 	// Screen, cursor and process support is what this binary and session can
 	// actually reach, not what the build target intends — the static preset is
@@ -491,15 +498,20 @@ func (s *SystemAdapter) IsSecureInputEnabled() bool {
 // ShowSecureInputNotification is a no-op on Linux — secure input is a macOS-only concept.
 func (s *SystemAdapter) ShowSecureInputNotification() {}
 
-// ShowAlert displays a native system alert on Linux.
-// TODO(linux): implement using libnotify, zenity, or kdialog.
+// ShowAlert displays a message the user has to dismiss, through the session's
+// freedesktop notification daemon. Delivery does not depend on the display
+// server, so every Linux backend takes the same path; see alertNotification
+// for why this is a critical-urgency notification rather than a modal dialog.
 func (s *SystemAdapter) ShowAlert(ctx context.Context, title, message string) error {
-	return derrors.New(derrors.CodeNotSupported, "ShowAlert not yet implemented on linux")
+	return ShowAlert(ctx, title, message)
 }
 
-// ShowNotification displays a lightweight notification on Linux.
-// TODO(linux): implement using org.freedesktop.Notifications D-Bus interface.
-func (s *SystemAdapter) ShowNotification(title, message string) {}
+// ShowNotification displays a lightweight notification through the session's
+// freedesktop notification daemon, reporting CodeNotSupported when the session
+// has no bus or no daemon to show it rather than dropping the message.
+func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message string) error {
+	return ShowNotification(ctx, title, message)
+}
 
 // CheckScreenCapturePermission reports true: Linux does not gate screen capture
 // behind a permission.
@@ -551,6 +563,67 @@ func (s *SystemAdapter) probedCapability(
 	default:
 		return declared
 	}
+}
+
+// notificationFeature names the notification probe's slot in capabilityProbes,
+// and opens the detail it reports.
+const notificationFeature = "desktop notifications"
+
+// notificationCapability live-probes whether a notification daemon is
+// reachable right now. The question a user runs `neru doctor` to answer is
+// "will I see notifications?", and on Linux that is answered by the session
+// rather than by this code: every backend can send one, and a session with no
+// daemon shows none. Reporting the static "supported" there would be the same
+// lie the empty ShowNotification body used to tell.
+//
+// It shares the probe slots and the budget with probedCapability but not its
+// body: that one explains a failure in terms of the display-server backend,
+// which decides nothing here — notifications are a session-bus service every
+// backend reaches the same way. The budget has to be the full one because the
+// first probe of a daemon's life pays for the session-bus connect as well as
+// the question, and reporting "could not be confirmed" on a session where
+// notifications work is the same dishonesty in the other direction.
+func (s *SystemAdapter) notificationCapability(
+	declared ports.FeatureCapability,
+) ports.FeatureCapability {
+	completed, err := s.probes.run(
+		notificationFeature,
+		capabilityProbeTimeout,
+		func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), capabilityProbeTimeout)
+			defer cancel()
+
+			return sessionNotifier.daemonReachable(ctx)
+		},
+	)
+
+	switch {
+	case !completed:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: notificationFeature + " could not be confirmed: the session bus did not " +
+				"answer within " + capabilityProbeTimeout.String(),
+		}
+	case err != nil:
+		return ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: notificationFeature + " are unavailable: " + userFacingReason(err),
+		}
+	default:
+		return declared
+	}
+}
+
+// userFacingReason unwraps a domain error to the sentence written for the
+// user, leaving the "[CODE] …" prefix out of a capability detail that `neru
+// doctor` prints verbatim.
+func userFacingReason(err error) string {
+	var domainErr *derrors.Error
+	if errors.As(err, &domainErr) {
+		return domainErr.Message()
+	}
+
+	return err.Error()
 }
 
 // unavailableDetail explains why a probed capability is unavailable, in terms

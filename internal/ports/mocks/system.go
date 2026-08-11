@@ -29,7 +29,7 @@ type MockSystemPort struct {
 	IsSecureInputEnabledFunc           func() bool
 	ShowSecureInputNotificationFunc    func()
 	ShowAlertFunc                      func(ctx context.Context, title, message string) error
-	ShowNotificationFunc               func(title, message string)
+	ShowNotificationFunc               func(ctx context.Context, title, message string) error
 	CapabilitiesFunc                   func() ports.PlatformCapabilities
 	PlatformLabelFunc                  func() string
 	HealthFunc                         func(ctx context.Context) error
@@ -227,10 +227,12 @@ func (m *MockSystemPort) ShowAlert(ctx context.Context, title, message string) e
 }
 
 // ShowNotification is a mock implementation.
-func (m *MockSystemPort) ShowNotification(title, message string) {
+func (m *MockSystemPort) ShowNotification(ctx context.Context, title, message string) error {
 	if m.ShowNotificationFunc != nil {
-		m.ShowNotificationFunc(title, message)
+		return m.ShowNotificationFunc(ctx, title, message)
 	}
+
+	return nil
 }
 
 // Capabilities is a mock implementation.

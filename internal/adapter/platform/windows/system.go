@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -226,9 +227,16 @@ func (s *SystemAdapter) ShowAlert(_ context.Context, title, message string) erro
 	return nil
 }
 
-// ShowNotification displays a lightweight notification on Windows.
+// ShowNotification reports CodeNotSupported on Windows: there is no toast
+// implementation yet, and the port carries an error precisely so a caller is
+// told the message was dropped rather than assuming it was shown.
 // TODO(windows): implement using Windows Toast Notifications API.
-func (s *SystemAdapter) ShowNotification(title, message string) {}
+func (s *SystemAdapter) ShowNotification(_ context.Context, title, message string) error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"ShowNotification not yet implemented on windows; target toast notifications",
+	)
+}
 
 // CheckScreenCapturePermission reports true: Windows does not gate screen capture
 // behind a permission.
