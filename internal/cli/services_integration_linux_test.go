@@ -94,6 +94,120 @@ func TestStatusService_ReportsNotInstalledWhenTheUnitIsAbsent(t *testing.T) {
 	}
 }
 
+// shadowSystemctl puts a systemctl on PATH ahead of the real one, failing for
+// the verb named in failVerb — or for every verb when that is empty — and
+// succeeding silently otherwise.
+//
+// It is what lets an unreachable or uncooperative user manager be tested
+// without one: the failures that matter here (a stale session bus, a manager
+// that never started) cannot be provoked on a working machine, and the
+// alternative — driving the real manager into a failure — is exactly what a
+// test must not do to a developer's session.
+func shadowSystemctl(t *testing.T, failVerb string) {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	const script = `#!/bin/sh
+for arg in "$@"; do
+	if [ -z "$NERU_FAKE_SYSTEMCTL_FAIL" ] || [ "$arg" = "$NERU_FAKE_SYSTEMCTL_FAIL" ]; then
+		echo "fake systemctl: cannot $arg" >&2
+		exit 1
+	fi
+done
+exit 0
+`
+
+	err := os.WriteFile(filepath.Join(dir, "systemctl"), []byte(script), 0o755)
+	if err != nil {
+		t.Fatalf("WriteFile(systemctl) error = %v", err)
+	}
+
+	t.Setenv("NERU_FAKE_SYSTEMCTL_FAIL", failVerb)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// TestUninstallService_ReportsSystemdFailures pins that an uninstall which did
+// not finish says so.
+//
+// A discarded `disable --now` error is an uninstall that prints success while
+// the daemon keeps running and the unit stays enabled for the next login, which
+// is the worst of the three outcomes: the user believes the machine is in a
+// state it is not in.
+func TestUninstallService_ReportsSystemdFailures(t *testing.T) {
+	requireSystemdMachine(t)
+
+	testCases := []struct {
+		name           string
+		failVerb       string
+		writeUnit      bool
+		wantErr        bool
+		wantUnitAtPath bool
+	}{
+		{
+			name:           "disable fails, so the unit file is left where it was",
+			failVerb:       "disable",
+			writeUnit:      true,
+			wantErr:        true,
+			wantUnitAtPath: true,
+		},
+		{
+			name:      "the reload after removal fails and is still reported",
+			failVerb:  "daemon-reload",
+			writeUnit: true,
+			wantErr:   true,
+		},
+		{
+			// Nothing installed anywhere: an uninstall with nothing to do stays
+			// a no-op rather than becoming an error now that failures surface.
+			name: "no unit installed, and systemd unreachable besides",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			shadowSystemctl(t, testCase.failVerb)
+
+			unitPath, err := serviceUnitPath()
+			if err != nil {
+				t.Fatalf("serviceUnitPath() error = %v", err)
+			}
+
+			if testCase.writeUnit {
+				err = os.MkdirAll(filepath.Dir(unitPath), unitDirPerm)
+				if err != nil {
+					t.Fatalf("MkdirAll() error = %v", err)
+				}
+
+				err = os.WriteFile(
+					unitPath,
+					[]byte(renderServiceUnit("/usr/local/bin/neru")),
+					unitFilePerm,
+				)
+				if err != nil {
+					t.Fatalf("WriteFile(%s) error = %v", unitPath, err)
+				}
+			}
+
+			gotErr := uninstallService()
+			if (gotErr != nil) != testCase.wantErr {
+				t.Fatalf("uninstallService() error = %v, wantErr %v", gotErr, testCase.wantErr)
+			}
+
+			_, statErr := os.Stat(unitPath)
+			if gotAtPath := statErr == nil; gotAtPath != testCase.wantUnitAtPath {
+				t.Errorf(
+					"unit present at %s = %v, want %v",
+					unitPath,
+					gotAtPath,
+					testCase.wantUnitAtPath,
+				)
+			}
+		})
+	}
+}
+
 // TestInstallService_RoundTripsThroughSystemd is the end-to-end claim: the unit
 // Neru writes is one systemd accepts, enables and forgets again.
 //

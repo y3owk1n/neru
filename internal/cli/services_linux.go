@@ -442,14 +442,32 @@ func uninstallService() error {
 		return err
 	}
 
-	err = requireOwnUnit(unitPath, serviceUnitExists(unitPath))
+	installed := serviceUnitExists(unitPath)
+
+	err = requireOwnUnit(unitPath, installed)
 	if err != nil {
 		return err
 	}
 
-	// Best effort: a unit that was never enabled, or a user manager that has
-	// already forgotten it, must not stop the file from being removed.
-	_, _ = systemctl("disable", "--now", serviceUnitName)
+	// Nothing to uninstall is not a failure, and it is the one case where there
+	// is no unit for systemd to be asked about — asking anyway would fail on a
+	// unit that does not exist and turn a no-op into an error.
+	if !installed {
+		return nil
+	}
+
+	// Everything past here is reported rather than swallowed. `disable --now`
+	// is idempotent over a unit that was never enabled or is already stopped,
+	// so a failure here is a real one — an unreachable user manager, usually —
+	// and hiding it would leave the daemon running and the unit still enabled
+	// for the next login while the CLI printed success.
+	err = runSystemctl(
+		"stop and disable the service (the unit file at "+unitPath+" was left in place)",
+		"disable", "--now", serviceUnitName,
+	)
+	if err != nil {
+		return err
+	}
 
 	err = os.Remove(unitPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -460,9 +478,11 @@ func uninstallService() error {
 		)
 	}
 
-	_, _ = systemctl("daemon-reload")
-
-	return nil
+	return runSystemctl(
+		"reload the systemd user manager after removing "+unitPath+
+			" (run `systemctl --user daemon-reload` once it is reachable)",
+		"daemon-reload",
+	)
 }
 
 // driveService is start, stop and restart, which are the three subcommands
