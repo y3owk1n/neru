@@ -168,6 +168,28 @@ func CaptureScreenRegion(backend string, region image.Rectangle) (*image.RGBA, e
 	return nil, derrors.New(derrors.CodeNotSupported, unsupportedCaptureBackend(backend))
 }
 
+// ScreenCaptureSupported reports whether backend has a capture path at all,
+// without capturing anything.
+//
+// It exists for the callers that need to know whether a capability built on
+// capture is available *before* deciding to use it — the vision hint strategy's
+// health check, which must not read the user's screen to answer a question
+// about which display server is running. nil means the backend implements
+// capture; the error is the same CodeNotSupported sentence a capture attempt
+// would have produced, naming the display server that has none.
+//
+// It answers on the label alone, so it says nothing about whether the live
+// compositor honors the protocol. KWin carries the wlroots label and advertises
+// no wlr-screencopy, so it passes here and fails at the capture — the one place
+// that can tell.
+func ScreenCaptureSupported(backend string) error {
+	if backend == backendX11 || backendUsesWlrClientStack(backend) {
+		return nil
+	}
+
+	return derrors.New(derrors.CodeNotSupported, unsupportedCaptureBackend(backend))
+}
+
 // unsupportedCaptureBackend explains which display server has no capture path.
 // "screen capture failed" means two different things on GNOME and on a session
 // with no display server at all, and only the message can tell them apart.

@@ -897,6 +897,54 @@
         }
       }
     },
+    "tesseract@5.5.2": {
+      "last_modified": "2026-08-01T16:34:20Z",
+      "resolved": "github:NixOS/nixpkgs/a5cbcfe954791221bfffe2307f7d1a1bf61a871e#tesseract",
+      "source": "devbox-search",
+      "version": "5.5.2",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/pajzicgg31c5ghs9l4q2nkcndhf17id7-tesseract-5.5.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/pajzicgg31c5ghs9l4q2nkcndhf17id7-tesseract-5.5.2"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/xcc6aa5dwa7n24z6djzncwrjghnnj4ln-tesseract-5.5.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/xcc6aa5dwa7n24z6djzncwrjghnnj4ln-tesseract-5.5.2"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ygxv2nig79j0l0nbgyl6660hxlb2vq3r-tesseract-5.5.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/ygxv2nig79j0l0nbgyl6660hxlb2vq3r-tesseract-5.5.2"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/f87ns5vl166f9xwzj8711lw2p855ljgw-tesseract-5.5.2",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/f87ns5vl166f9xwzj8711lw2p855ljgw-tesseract-5.5.2"
+        }
+      }
+    },
     "wayland-protocols@1.33": {
       "last_modified": "2024-02-24T23:06:34Z",
       "resolved": "github:NixOS/nixpkgs/9a9dae8f6319600fa9aebde37f340975cab4b8c0#wayland-protocols",
