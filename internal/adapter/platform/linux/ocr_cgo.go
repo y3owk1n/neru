@@ -33,6 +33,7 @@ const (
 	_ = uint(C.NERU_OCR_ERR_IMAGE-ocrStatusImage) + uint(ocrStatusImage-C.NERU_OCR_ERR_IMAGE)
 	_ = uint(C.NERU_OCR_ERR_RECOGNIZE-ocrStatusRecognize) +
 		uint(ocrStatusRecognize-C.NERU_OCR_ERR_RECOGNIZE)
+	_ = uint(C.NERU_OCR_ERR_BUSY-ocrStatusBusy) + uint(ocrStatusBusy-C.NERU_OCR_ERR_BUSY)
 )
 
 // ocrConfig builds the native config for one call. The returned free function
@@ -97,7 +98,16 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
 		return nil, err
 	}
 
-	if img == nil || img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 || len(img.Pix) == 0 {
+	if img == nil || img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
+		return nil, ocrError(ocrStatusImage)
+	}
+
+	// The buffer has to hold every row the geometry claims. C reads it by
+	// stride, so a Pix shorter than the geometry describes — a hand-built image,
+	// a sub-image sliced wrong — is an out-of-bounds read inside tesseract
+	// rather than a Go panic. Checked here because this is the last place the
+	// Go type system can see it.
+	if len(img.Pix) < (img.Rect.Dy()-1)*img.Stride+img.Rect.Dx()*bytesPerCapturedPixel {
 		return nil, ocrError(ocrStatusImage)
 	}
 

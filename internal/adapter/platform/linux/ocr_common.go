@@ -63,6 +63,7 @@ const (
 	ocrStatusAlloc
 	ocrStatusImage
 	ocrStatusRecognize
+	ocrStatusBusy
 )
 
 // OCRWord is one run of recognized text, in the coordinate space of the image
@@ -112,6 +113,11 @@ func ocrError(status ocrStatus) error {
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"the captured frame is not a shape the OCR engine can read",
+		)
+	case ocrStatusBusy:
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"the OCR engine was still busy with an earlier frame; try again",
 		)
 	// ocrStatusOK rides with the recognition failure rather than getting its
 	// own sentence, the way captureError pairs captureStatusOK with

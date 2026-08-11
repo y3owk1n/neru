@@ -26,6 +26,9 @@
 #define NERU_OCR_ERR_IMAGE 3
 // Recognition failed, or ran past the caller's deadline.
 #define NERU_OCR_ERR_RECOGNIZE 4
+// The engine was busy with another recognition for longer than this caller was
+// willing to wait.
+#define NERU_OCR_ERR_BUSY 5
 
 typedef struct {
 	// text is a NUL-terminated UTF-8 string owned by the result.

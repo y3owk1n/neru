@@ -2,10 +2,12 @@
 
 #include "screencapture.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tesseract/capi.h>
+#include <time.h>
 
 // The engine is cached for the daemon's lifetime, and that is a latency
 // decision rather than a convenience: TessBaseAPIInit2 loads an LSTM model from
@@ -16,10 +18,47 @@
 //
 // Recognition is serialized on this mutex. TessBaseAPI is not thread-safe, and
 // the daemon can reach here from the IPC handler and a mode at once.
+//
+// Nothing waits on it forever, which is the point of neru_ocr_lock below. The
+// only bound on a recognition is tesseract's own deadline, and tesseract checks
+// that *between* recognition units — so one pathological frame can overrun it.
+// A plain lock would then wedge every later activation in cgo, where Go cannot
+// cancel it, and the daemon would need restarting to hint again. A bounded wait
+// turns that into one failed activation that says so.
 static pthread_mutex_t neru_ocr_mutex = PTHREAD_MUTEX_INITIALIZER;
 static TessBaseAPI *neru_ocr_api;
 static char *neru_ocr_datapath;
 static char *neru_ocr_language;
+
+// How long a caller with no budget of its own waits for the engine. Long enough
+// to queue behind a normal recognition (tens of milliseconds), short enough
+// that a wedged one is reported rather than waited on.
+#define NERU_OCR_DEFAULT_WAIT_MS 3000
+
+// neru_ocr_lock takes the engine lock, waiting at most wait_ms. Returns
+// NERU_OCR_OK when it holds the lock, NERU_OCR_ERR_BUSY otherwise.
+static int neru_ocr_lock(int wait_ms) {
+	if (wait_ms <= 0) {
+		wait_ms = NERU_OCR_DEFAULT_WAIT_MS;
+	}
+
+	struct timespec deadline;
+	if (clock_gettime(CLOCK_REALTIME, &deadline) != 0) {
+		// No clock to build a deadline from. Blocking is still better than
+		// refusing every recognition on a machine whose clock call failed.
+		return pthread_mutex_lock(&neru_ocr_mutex) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
+	}
+
+	deadline.tv_sec += wait_ms / 1000;
+	deadline.tv_nsec += (long)(wait_ms % 1000) * 1000000L;
+
+	if (deadline.tv_nsec >= 1000000000L) {
+		deadline.tv_sec += 1;
+		deadline.tv_nsec -= 1000000000L;
+	}
+
+	return pthread_mutex_timedlock(&neru_ocr_mutex, &deadline) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
+}
 
 // Screens are close enough to 96 dpi, and saying so silences tesseract's
 // "Invalid resolution 0 dpi" warning on stderr as well as improving its
@@ -117,7 +156,11 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 }
 
 int neru_ocr_probe(const NeruOCRConfig *config) {
-	pthread_mutex_lock(&neru_ocr_mutex);
+	int locked = neru_ocr_lock(config != NULL ? config->timeoutMS : 0);
+	if (locked != NERU_OCR_OK) {
+		return locked;
+	}
+
 	TessBaseAPI *api = neru_ocr_acquire_locked(config);
 	pthread_mutex_unlock(&neru_ocr_mutex);
 
@@ -221,7 +264,10 @@ int neru_ocr_recognize(
 		return NERU_OCR_ERR_IMAGE;
 	}
 
-	pthread_mutex_lock(&neru_ocr_mutex);
+	int locked = neru_ocr_lock(config->timeoutMS);
+	if (locked != NERU_OCR_OK) {
+		return locked;
+	}
 
 	TessBaseAPI *api = neru_ocr_acquire_locked(config);
 	if (api == NULL) {
