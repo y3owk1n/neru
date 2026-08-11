@@ -42,28 +42,31 @@ const (
 )
 
 // mouseButtons is the subset of the vocabulary that names a mouse button
-// rather than a keystroke. It exists so the global-hotkey validator can refuse
-// one: a global hotkey is resolved to a virtual keycode, which no mouse button
-// has, so a binding written there would parse and then never fire.
+// rather than a keystroke. The validators read it to refuse the two shapes a
+// button cannot take: a global hotkey, which is resolved to a virtual keycode
+// that no button has, and a modifier combo, which no tap ever emits.
 var mouseButtons = []string{KeyMouseLeft, KeyMouseRight, KeyMouseMiddle}
+
+// mouseButtonIndex indexes the buttons by lowercase spelling, the way
+// namedKeyDisplay indexes the vocabulary, so the set is derived from the
+// declaration above rather than lowercased at every lookup.
+var mouseButtonIndex = lowercaseIndex(mouseButtons)
 
 // IsMouseButton reports whether name is one of the mouse buttons,
 // case-insensitively.
 func IsMouseButton(name string) bool {
-	lowered := strings.ToLower(name)
+	_, ok := mouseButtonIndex[strings.ToLower(name)]
 
-	return slices.ContainsFunc(mouseButtons, func(button string) bool {
-		return strings.ToLower(button) == lowered
-	})
+	return ok
 }
 
-// MouseButtons returns every mouse button in display form, sorted, so a caller
-// listing them in a diagnostic reads the declaration rather than restating it.
+// MouseButtons returns every mouse button in display form, in declaration
+// order, so a caller listing them in a diagnostic reads the declaration rather
+// than restating it. Declaration order is left, right, middle — the order the
+// buttons are usually spoken in, and the one a reader of the diagnostic is
+// least surprised by.
 func MouseButtons() []string {
-	buttons := slices.Clone(mouseButtons)
-	slices.Sort(buttons)
-
-	return buttons
+	return slices.Clone(mouseButtons)
 }
 
 // shorthandEscape is the one spelling that resolves to a named key without

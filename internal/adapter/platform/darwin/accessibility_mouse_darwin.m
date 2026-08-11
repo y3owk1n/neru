@@ -32,11 +32,6 @@
 /// last leaves the cursor and the viewport agreeing.
 static os_unfair_lock mouseMoveLock = OS_UNFAIR_LOCK_INIT;
 
-/// Marks events Neru posts itself, so the mode event tap can tell its own
-/// synthetic clicks apart from ones the user physically produced. Must match
-/// the marker in keyfeed_darwin.m and the check in eventTapCallback.
-static const int neruSyntheticMouseEventMarker = 0x1337;
-
 /// Pan the zoom viewport to reveal a point and post an event positioned there
 /// @param event Event to post, with its location already set to position
 /// @param position Position the event acts at
@@ -46,7 +41,7 @@ static void postPositionedEventLocked(CGEventRef event, CGPoint position) {
 	// Tag before posting so the event tap ignores it. Every synthetic mouse
 	// event Neru emits funnels through here, so this is the single point that
 	// keeps `action left_click` from being mistaken for a physical click.
-	CGEventSetIntegerValueField(event, kCGEventSourceUserData, neruSyntheticMouseEventMarker);
+	CGEventSetIntegerValueField(event, kCGEventSourceUserData, kNeruSyntheticEventMarker);
 
 	// Go threads have no autorelease pool, and posting autoreleases a CFData per
 	// event. Without this pool the daemon keeps every one until it exits.
