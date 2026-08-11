@@ -6,6 +6,7 @@ import (
 	"image"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -183,6 +184,89 @@ func TestRecognizeText_SurvivesRepeatedUse(t *testing.T) {
 	}
 }
 
+// TestRecognizeText_DoesNotDegradeAcrossFrames is the latency guardrail on the
+// cached engine, and it exists because the tidy-looking version of this code is
+// a sevenfold regression.
+//
+// The engine is reused across activations, so anything it accumulates is paid
+// for by every later frame. Clearing the adaptive classifier between frames —
+// which reads like the correct hygiene, since it holds shapes learned from the
+// frame just read — also resets the document dictionary, and reinitializing
+// that took recognition of this frame from 0.5s to 3.5s. The opposite mistake,
+// letting real state grow unboundedly, would show here as the same shape.
+//
+// The bound is deliberately loose. This asserts against a regression of the
+// size that makes the hint strategy unusable, not against runner noise, and a
+// dense frame is used because a frame with one word in it exercises none of
+// what accumulates.
+func TestRecognizeText_DoesNotDegradeAcrossFrames(t *testing.T) {
+	requireEngine(t)
+
+	// Window-sized and full of text, which is the shape a real activation hands
+	// over on a session where the focused-window bounds cannot be resolved.
+	img := renderDenseText(1904, 994)
+
+	var first time.Duration
+
+	for round := range 3 {
+		started := time.Now()
+
+		words, stats, err := RecognizeText(img, OCRParams{TimeoutMS: 60000})
+		if err != nil {
+			t.Fatalf("round %d: %v", round, err)
+		}
+
+		if len(words) == 0 {
+			t.Fatalf("round %d found no text in a frame full of it", round)
+		}
+
+		elapsed := time.Since(started)
+		t.Logf(
+			"round %d: %d runs in %s (engine reported %s)",
+			round,
+			len(words),
+			elapsed,
+			stats.Recognition,
+		)
+
+		if round == 0 {
+			first = elapsed
+
+			continue
+		}
+
+		if elapsed > 4*first {
+			t.Errorf("round %d took %s against %s for the first frame; "+
+				"the engine is accumulating something across recognitions",
+				round, elapsed, first)
+		}
+	}
+}
+
+// renderDenseText fills a frame with text the way a real screen is dense,
+// rather than the single word the other tests draw. What accumulates in the
+// engine accumulates per recognized word, so a sparse frame exercises none of
+// it.
+func renderDenseText(width, height int) *image.RGBA {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for i := range img.Pix {
+		img.Pix[i] = 0xFF
+	}
+
+	const scale = 3
+
+	cellWidth := scaledWidth("HELLO", scale) + blockGlyphWidth*scale
+	cellHeight := blockGlyphHeight * scale * 3
+
+	for y := cellHeight; y+cellHeight < height; y += cellHeight {
+		for x := cellWidth; x+cellWidth < width; x += cellWidth {
+			drawBlockText(img, "HELLO", image.Pt(x, y), scale)
+		}
+	}
+
+	return img
+}
+
 // scaledWidth is how wide renderBlockText draws text, ignoring the margin.
 func scaledWidth(text string, scale int) int {
 	return len(text) * (blockGlyphWidth + blockGlyphSpacing) * scale
@@ -220,6 +304,14 @@ func renderBlockText(text string, origin image.Point, scale int) *image.RGBA {
 		img.Pix[i] = 0xFF
 	}
 
+	drawBlockText(img, text, origin, scale)
+
+	return img
+}
+
+// drawBlockText draws text onto an existing canvas at origin, so a caller can
+// place several runs on one frame.
+func drawBlockText(img *image.RGBA, text string, origin image.Point, scale int) {
 	for index, letter := range text {
 		glyph, ok := blockGlyphs[letter]
 		if !ok {
@@ -244,8 +336,6 @@ func renderBlockText(text string, origin image.Point, scale int) *image.RGBA {
 			}
 		}
 	}
-
-	return img
 }
 
 func fillBlack(img *image.RGBA, rect image.Rectangle) {

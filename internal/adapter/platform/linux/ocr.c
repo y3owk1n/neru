@@ -14,8 +14,8 @@
 // decision rather than a convenience: TessBaseAPIInit2 loads an LSTM model from
 // disk, which costs hundreds of milliseconds, and a hint activation that paid
 // it every time would be unusable. What is cached is the *engine*, never a
-// frame — every recognition ends with TessBaseAPIClear, so between calls the
-// handle holds a loaded model and no pixels.
+// frame — every recognition ends in neru_ocr_reset_locked, so between calls the
+// handle holds a loaded model and nothing derived from anyone's screen.
 //
 // Recognition is serialized on this mutex. TessBaseAPI is not thread-safe, and
 // the daemon can reach here from the IPC handler and a mode at once.
@@ -168,6 +168,24 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 	return neru_ocr_api;
 }
 
+// neru_ocr_reset_locked drops the frame and the recognition results. Every path
+// out of a recognition goes through it, so no pixels and no recognized text
+// reach the next one.
+//
+// It deliberately does *not* call TessBaseAPIClearAdaptiveClassifier, and that
+// is a measured decision rather than an oversight. Clearing the adaptive
+// classifier per frame reads like the tidy thing to do — it holds character
+// shapes learned from the frame just read — but it also resets the document
+// dictionary, and the reinitialization that costs is paid by the *next*
+// recognition: on a 1904x994 frame it took recognition from 0.5s to 3.5s, a
+// sevenfold regression on the one path where latency is the product. Keeping it
+// measured flat across repeated frames instead.
+//
+// What is retained is classifier state — character shape templates — and not
+// text, not pixels, and nothing that can be read back as screen content. It
+// lives in memory for the life of the daemon and never touches disk.
+static void neru_ocr_reset_locked(TessBaseAPI *api) { TessBaseAPIClear(api); }
+
 int neru_ocr_probe(const NeruOCRConfig *config) {
 	int locked = neru_ocr_lock(config != NULL ? config->timeoutMS : 0);
 	if (locked != NERU_OCR_OK) {
@@ -300,7 +318,7 @@ int neru_ocr_recognize(
 	if (config->timeoutMS > 0) {
 		monitor = TessMonitorCreate();
 		if (monitor == NULL) {
-			TessBaseAPIClear(api);
+			neru_ocr_reset_locked(api);
 			pthread_mutex_unlock(&neru_ocr_mutex);
 
 			return NERU_OCR_ERR_ALLOC;
@@ -321,7 +339,7 @@ int neru_ocr_recognize(
 	}
 
 	if (recognized != 0) {
-		TessBaseAPIClear(api);
+		neru_ocr_reset_locked(api);
 		pthread_mutex_unlock(&neru_ocr_mutex);
 
 		// Tesseract reports one failure code for "gave up on the deadline" and
@@ -348,9 +366,7 @@ int neru_ocr_recognize(
 		TessResultIteratorDelete(iterator);
 	}
 
-	// Drop the frame and the recognition state before releasing the lock: the
-	// engine stays warm, the user's screen does not stay in it.
-	TessBaseAPIClear(api);
+	neru_ocr_reset_locked(api);
 	pthread_mutex_unlock(&neru_ocr_mutex);
 
 	if (status != NERU_OCR_OK) {
