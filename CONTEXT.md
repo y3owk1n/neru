@@ -139,6 +139,27 @@ Bridge at all — it crosses through a build-tagged pair. The decision is ADR
 0009.
 _Avoid_: cgo package, native layer, FFI layer, glue
 
+### Behaving the same on every platform
+
+**Parity**:
+The promise that Linux behaves as macOS does for every name a person can
+write — every option, mode flag, action and command — on the [[Blessed stack]].
+Parity is defined over the vocabulary, not over subsystems: a capability
+reported as supported while an [[Option]] it backs is silently ignored is not
+parity. A closed, declared set of capabilities is exempt because the concept
+itself is macOS-only; anything not on that list is a gap, whatever the
+capability matrix currently claims. The decision is ADR 0013.
+_Avoid_: feature parity, full support, cross-platform
+
+**Blessed stack**:
+The one Linux configuration where [[Parity]] is a behavioral claim rather than a
+capability claim: wlroots Wayland, CGO build. It names a protocol family rather
+than a compositor, so one compositor's upstream defect is an exception to
+document, not a parity failure. The other supported backends owe the same
+capabilities and inherit their own documented limits. Being blessed is not a
+statement about popularity — it is the stack whose remaining gaps are closable.
+_Avoid_: reference platform, primary backend, tier one
+
 ### Computing the same thing twice
 
 **Shared derivation**:

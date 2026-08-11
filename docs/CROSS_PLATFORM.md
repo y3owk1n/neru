@@ -74,6 +74,11 @@ Every claim behind these labels is enumerated in the
 [Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
 label and the matrix disagree, the matrix is right.
 
+**Linux moves from Beta to Stable** when its [Known Gaps](#known-gaps) entries
+are empty for the blessed stack and the headless-sway CI job is green and
+required for merge — not before, and not on a judgment call
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+
 ### Per-platform
 
 | Aspect               | macOS (Darwin)              | Linux                                    | Windows                        |
@@ -121,7 +126,13 @@ implements it. The KDE and wlroots columns differ only where noted; both are
 Wayland with `wlr-layer-shell` overlays.
 
 **Legend:** ✅ supported · ⚠️ works with known limits · 🟡 stub (`CodeNotSupported`
-or no-op) · ❌ no code path
+or no-op) · ❌ no code path · ➖ macOS-only capability, exempt from parity
+(see [Platform Exclusives](#platform-exclusives))
+
+This table answers whether a *subsystem* works. It cannot answer whether every
+option, mode flag, action and command means the same thing on each platform —
+that is what [Known Gaps](#known-gaps) tracks, per
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
 
 | Capability                    | macOS                    | Linux X11              | Linux Wayland (wlroots)      | Linux Wayland (KDE)     | Windows                      |
 | ----------------------------- | ------------------------ | ---------------------- | ---------------------------- | ----------------------- | ---------------------------- |
@@ -147,8 +158,8 @@ or no-op) · ❌ no code path
 | **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
 | **Native alerts**             | ✅ NSAlert               | 🟡                     | 🟡                           | 🟡                      | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | 🟡                     | 🟡                           | 🟡                      | 🟡                           |
-| **Secure input detection**    | ✅                       | 🟡 always false        | 🟡 always false              | 🟡 always false         | 🟡 always false              |
-| **System cursor hide**        | ✅ `CGDisplayHideCursor` | ❌                     | ❌                           | ❌                      | ❌                           |
+| **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
+| **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream fallback | 🟡 key-stream fallback       | 🟡 key-stream fallback  | 🟡 key-stream fallback       |
 | **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
@@ -557,15 +568,27 @@ actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
 
 ## Platform Exclusives
 
-Features available on exactly one platform, with why they do not port:
+Features available on exactly one platform, with why they do not port. This is
+a **closed set** — anything not listed here is a gap rather than an exclusive,
+whatever the [Capability Matrix](#capability-matrix) currently reports
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
 
 | Feature                                   | Platform | Location                                                | Why it is exclusive                                          |
 | ----------------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| System cursor hide + virtual-pointer replacement | macOS | `app/modes/cursor_darwin.go`, `adapter/overlay/render/virtualpointer/overlay_darwin.go` | `CGDisplayHideCursor` has no X11/Wayland/Win32 equivalent |
-| Smooth scroll animation                   | macOS    | `platform/darwin/scroll_animator.go`                    | Needs a synthesizable continuous scroll event stream          |
-| Vision (OCR) hint strategy                | macOS    | `ports/vision.go`, `platform/darwin/vision_darwin.m`    | macOS-only `VNRequest` APIs                                   |
+| System cursor hide + virtual-pointer replacement | macOS | `app/modes/cursor_darwin.go`, `adapter/overlay/render/virtualpointer/overlay_darwin.go` | A Wayland client may not hide another client's cursor. X11 could (`xfixes` is already linked in `platform/linux/cgo.go`), but the blessed stack is Wayland, so shipping it on one backend would not be parity |
 | Screen-sharing hide                       | macOS    | `platform/darwin/overlay_darwin.m`                      | NSWindow sharing level is a Quartz concept                    |
-| Secure input detection                    | macOS    | `platform/darwin/secureinput.go`                        | `CGSessionCopyCurrentDictionary`, a private API               |
+| Secure input detection                    | macOS    | `platform/darwin/secureinput.go`                        | `CGSessionCopyCurrentDictionary`, a private API; neither X11 nor Wayland has the concept |
+
+Two entries left this table in ADR 0013. **Smooth scroll animation** was
+recorded as needing "a synthesizable continuous scroll event stream"; uinput has
+`REL_WHEEL_HI_RES`, `wl_pointer` axis values are continuous and libei carries
+scroll deltas, so it is a Linux gap pending a spike. The **Vision (OCR) hint
+strategy** was recorded as needing macOS-only `VNRequest` APIs; the API is
+macOS-only but the capability is not, so it is a Linux gap too — met by an OCR
+engine linked the way every other native dependency here is, with its language
+data resolved at use. Its rectangle-detection half has no OCR answer, so
+`detect_rectangles` and the four `rectangle_*` options stay macOS-only and are
+declared as such.
 
 Linux and Windows have no exclusive *user-facing* features — their unique
 elements (evdev, `zwlr_virtual_pointer`, libei, the Wayland sync-cursor surface,
@@ -578,23 +601,71 @@ serving cross-platform features, and are listed in the
 ## Known Gaps
 
 Work that is genuinely missing, as opposed to deliberately platform-specific.
+A gap is anything a person can *write* — an option, a mode flag, an action, a
+command — that means less here than it does on macOS, whether or not the
+[Capability Matrix](#capability-matrix) reports its subsystem as supported
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
 
 **Linux**
 
-1. Native notifications and alerts — stubs; target freedesktop D-Bus notifications
-2. Smooth scroll animation — not implemented
-3. GNOME/Mutter Wayland — unsupported; the daemon refuses to start
-4. Hints search input badge — not drawn; the overlay manager reports
+1. Native notifications and alerts — both stubs; target freedesktop D-Bus
+   notifications. `ShowNotification` has an empty body and no error to carry,
+   `ShowAlert` returns `CodeNotSupported`, and the config-onboarding and
+   validation-error alerts silently return defaults instead of prompting
+2. `neru services` — no systemd user unit, so install/uninstall/start/stop/
+   restart/status all return `CodeNotSupported` where macOS writes a launchd
+   plist. Scope is systemd; other init systems stay `CodeNotSupported`
+3. `neru docs` — returns `CodeNotSupported` although the tray already opens
+   URLs through `xdg-open` in the same repo
+4. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
+   validated and then silently ignored. Spike `REL_WHEEL_HI_RES` (uinput),
+   continuous `wl_pointer` axis values and libei scroll deltas before
+   committing
+5. Hints search input badge — not drawn; the overlay manager reports
    `CodeNotSupported` and the query goes on reaching hints through the event
    tap's key stream
-5. Secure input detection — always false
-6. Wayland global hotkeys — need `input`-group access and a CGO build
-7. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+6. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
+   strategy below and the missing half of `ports.Vision`. Take it per backend:
+   `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
+7. `vision` hint strategy — no engine. Met by linking one through
+   `#cgo pkg-config`, as every other native dependency here is, with the engine
+   added to the required Linux library list and its language data checked at
+   use so a missing `tessdata` reports `CodeNotSupported` naming what is
+   absent. Note the strategy is wider than OCR: macOS also runs rectangle
+   detection and saliency, which no OCR engine answers, so
+   `hints.vision.detect_rectangles` and the four `rectangle_*` options are
+   declared macOS-only and Linux `vision` is text-only. Needs 6
+8. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
+9. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+   consent prompt returns on every start
+10. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+    draws it on all three platforms
+11. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+    back to the active screen
+12. Wayland global hotkeys — a setup requirement rather than missing code: they
+    need `input`-group membership and a CGO build. Failing loudly with the
+    remedy, and documenting it as a first-class setup step, is the work
+13. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+    tray has one icon for both running and paused states where macOS has two,
+    and the `CGO_ENABLED=0` build should announce its boundary once at startup
+    rather than failing feature by feature
+
+Two enabling pieces of work are tracked as issues rather than gaps, because
+neither is a capability: a headless-sway CI job running the desktop-driving
+test tier, and the single declaration of the darwin-only set that the load-time
+warning, `neru doctor` and the docs rows all project from.
+
+**Not Linux gaps**, and deliberately so: secure input detection and system
+cursor hide are [Platform Exclusives](#platform-exclusives); GNOME/Mutter
+Wayland and Cosmic are supported-desktop decisions, not capabilities; and X11
+modifier passthrough is impossible for the display server rather than unbuilt —
+`XGrabKeyboard` is all-or-nothing and `XSendEvent` is ignored by most
+applications.
 
 **Windows**
 

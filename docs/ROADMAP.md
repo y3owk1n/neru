@@ -33,6 +33,11 @@ yet worth switching to. Every remaining item is tracked as a numbered entry in
 from a duplicate list here, so the status you read is the status the code
 reports.
 
+What Linux owes macOS, and what it does not, is settled in
+[ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): parity is a
+behavioral promise about every option, mode flag, action and command, made on
+wlroots Wayland with a CGO build, with a closed set of macOS-only exemptions.
+
 The two largest open areas:
 
 - **Linux** — freedesktop notifications and alerts across all backends, and
