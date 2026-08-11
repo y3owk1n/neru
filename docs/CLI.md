@@ -98,7 +98,7 @@ Accepted by every command.
 | [`toggle-cursor-follow-selection`](#neru-toggle-cursor-follow-selection) | Toggle cursor follow | Yes | All |
 | [`toggle-screen-share`](#neru-toggle-screen-share)           | Hide overlays while sharing     | Yes | macOS |
 | [`roles`](#neru-roles)                                       | List the role vocabulary        | No  | All |
-| [`services`](#neru-services)                                 | Manage the system service       | No  | macOS |
+| [`services`](#neru-services)                                 | Manage the system service       | No  | macOS · Linux |
 | [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | macOS |
 
 ¹ Element discovery quality differs by platform: a full accessibility tree on
@@ -1510,19 +1510,28 @@ Manage Neru as a system service that starts on login.
 neru services install|uninstall|start|stop|restart|status
 ```
 
-**Platforms:** macOS only, using launchd. Other platforms return
-`ERR_NOT_SUPPORTED`. When
-Neru was installed through Nix, Homebrew, or another package manager, use that
-tool's service manager instead.
+**Platforms:** macOS, using a launchd user agent, and Linux, using a systemd
+user unit. Windows returns `ERR_NOT_SUPPORTED`. When Neru was installed through
+Nix, Homebrew, home-manager, or another package manager that manages the service
+itself, use that tool instead — on Linux, `install` and `uninstall` both refuse
+rather than touching a unit Neru did not write.
 
 | Subcommand  | Description                                |
 | ----------- | ------------------------------------------ |
-| `install`   | Install and load the launchd service        |
-| `uninstall` | Unload and remove the service               |
+| `install`   | Write the service definition and enable it for login |
+| `uninstall` | Disable the service and remove its definition |
 | `start`     | Start the service                           |
 | `stop`      | Stop the service                            |
 | `restart`   | Restart the service                         |
-| `status`    | Report whether the service is loaded and running |
+| `status`    | Report whether the service is installed and running |
+
+The definition is a launchd plist in `~/Library/LaunchAgents` on macOS and a
+systemd user unit on Linux; where the Linux unit is written, what it contains,
+and what happens on a machine booted by another init system are in
+[LINUX_SETUP.md](LINUX_SETUP.md#systemd-user-service).
+
+`status` reports a machine where the service was never installed as exactly
+that, rather than failing.
 
 ---
 

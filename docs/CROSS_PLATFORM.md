@@ -165,6 +165,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream fallback | 🟡 key-stream fallback       | 🟡 key-stream fallback  | 🟡 key-stream fallback       |
 | **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
+| **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
 
 ¹ Per-app hotkey overrides need to know which application is focused. Where the
 app watcher fires, it publishes that identity to the mode handler and the keymap
@@ -211,6 +212,12 @@ resolver — it is remembered under the family name exactly as written
 (`internal/adapter/platform/fontcache`); the non-CGO Linux build re-derives it
 each time. Either way what a name resolves to depends on that name alone and
 never on what was resolved before it.
+
+³ The Linux columns of this table are display servers, and service management is
+the one row whose limit sits on a different axis: it needs **systemd**, on every
+Linux backend alike. A machine booted by runit, OpenRC or s6 gets
+`CodeNotSupported` from every `neru services` subcommand — a stated boundary
+rather than a gap, see "Service management on Linux" below.
 
 ### Notes on the ⚠️ entries
 
@@ -267,6 +274,22 @@ theirs and which `neru doctor` counts as present. With none, `ShowNotification`
 and `ShowAlert` report `CodeNotSupported` naming what is absent, `neru doctor`
 probes the session and downgrades the notifications row with a line saying what
 to install, and the two startup alerts fall back to stderr.
+
+**Service management on Linux.** The mechanism is a **systemd user unit**
+anchored on `graphical-session.target` — `After=` and `WantedBy=` it because
+every backend needs a display server and starting before one exists would only
+produce a crash loop, `PartOf=` it so a logout/login cycle restarts the daemon
+instead of leaving an orphan attached to a display that is gone.
+
+Coverage is **systemd and no other init system**: runit, OpenRC and s6 report
+`CodeNotSupported` naming systemd, which
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md) records as a
+stated boundary rather than a gap. What answers the question is systemd's own
+runtime marker, `/run/systemd/system`, not `systemctl` on `PATH` — that binary
+ships in packages installed on machines running something else. `status` on a
+machine where the unit was never installed says so instead of failing. Where the
+unit is written and how a user drives it:
+[LINUX_SETUP.md](./LINUX_SETUP.md#systemd-user-service).
 
 **Smooth cursor animation on Linux.** Off by default; opt in with
 `smooth_cursor.move_mouse_enabled` (the same cross-platform `SmoothCursorConfig`
@@ -769,45 +792,42 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. `neru services` — no systemd user unit, so install/uninstall/start/stop/
-   restart/status all return `CodeNotSupported` where macOS writes a launchd
-   plist. Scope is systemd; other init systems stay `CodeNotSupported`
-2. `neru docs` — returns `CodeNotSupported` although the tray already opens
+1. `neru docs` — returns `CodeNotSupported` although the tray already opens
    URLs through `xdg-open` in the same repo
-3. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
+2. Smooth scroll animation — not implemented, and `smooth_scroll.*` is parsed,
    validated and then silently ignored. Spike `REL_WHEEL_HI_RES` (uinput),
    continuous `wl_pointer` axis values and libei scroll deltas before
    committing
-4. Hints search input badge — not drawn; the overlay manager reports
+3. Hints search input badge — not drawn; the overlay manager reports
    `CodeNotSupported` and the query goes on reaching hints through the event
    tap's key stream
-5. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
+4. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
    strategy below and the missing half of `ports.Vision`. Take it per backend:
    `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
-6. `vision` hint strategy — no engine. Met by linking one through
+5. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
    use so a missing `tessdata` reports `CodeNotSupported` naming what is
    absent. Note the strategy is wider than OCR: macOS also runs rectangle
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. Needs 5
-7. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
+   declared macOS-only and Linux `vision` is text-only. Needs 4
+6. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
    ctrl+scroll for as long as ctrl is down. macOS forces the empty set onto the
    event instead; a real-key backend has no per-event field to zero, so closing
    this means reading the live key state through `XQueryKeymap` in the C bridge
-8. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
+7. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
    consent prompt returns on every start
-9. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+8. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-10. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
-    back to the active screen
-11. Wayland global hotkeys — a setup requirement rather than missing code: they
+9. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+   back to the active screen
+10. Wayland global hotkeys — a setup requirement rather than missing code: they
     need `input`-group membership and a CGO build. Failing loudly with the
     remedy, and documenting it as a first-class setup step, is the work
-12. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+11. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
     tray has one icon for both running and paused states where macOS has two,
     and the `CGO_ENABLED=0` build should announce its boundary once at startup
     rather than failing feature by feature
@@ -820,10 +840,11 @@ widens.
 
 **Not Linux gaps**, and deliberately so: secure input detection and system
 cursor hide are [Platform Exclusives](#platform-exclusives); GNOME/Mutter
-Wayland and Cosmic are supported-desktop decisions, not capabilities; and X11
+Wayland and Cosmic are supported-desktop decisions, not capabilities; X11
 modifier passthrough is impossible for the display server rather than unbuilt —
 `XGrabKeyboard` is all-or-nothing and `XSendEvent` is ignored by most
-applications.
+applications; and `neru services` on a non-systemd init is a stated boundary,
+not unfinished work.
 
 **Windows**
 
@@ -837,6 +858,8 @@ applications.
 8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
 9. `monitor_select` mode — returns `CodeNotSupported`
 10. Font resolution — alias mapping only, no system font enumeration
+11. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+    installs a launchd agent and Linux a systemd user unit
 
 **macOS**
 

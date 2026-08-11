@@ -276,28 +276,81 @@ excluded_apps = ["firefox", "chromium-browser", "code"]
 
 ### systemd user service
 
-`neru services install/start/stop` is macOS-only. On Linux, use systemd:
+`neru services` manages the daemon for you. One command installs a systemd user
+unit, enables it for every login, and starts it now:
 
 ```bash
-mkdir -p ~/.config/systemd/user
-cat > ~/.config/systemd/user/neru.service << EOF
-[Unit]
-Description=Neru keyboard navigation daemon
-After=graphical-session.target
-PartOf=graphical-session.target
-
-[Service]
-ExecStart=%h/.local/bin/neru launch
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=graphical-session.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable --now neru
+neru services install
 ```
+
+The other subcommands drive the same unit:
+
+```bash
+neru services status      # installed? running? enabled at login?
+neru services stop        # stop now, still starts on next login
+neru services start
+neru services restart
+neru services uninstall   # disable and remove the unit
+```
+
+**What it writes.** `neru.service`, under `$XDG_CONFIG_HOME/systemd/user` —
+`~/.config/systemd/user` unless you set that variable to an absolute path, which
+is the same base directory Neru resolves `config.toml` from. `ExecStart` is the
+resolved path of the `neru` binary you ran `install` with, so run
+`neru services uninstall && neru services install` after moving the binary.
+Why it is anchored on `graphical-session.target`, and why other init systems are
+out of scope: ["Service management on Linux"](./CROSS_PLATFORM.md#capability-matrix).
+
+**Your session has to export itself first.** A systemd *user* manager starts
+before your compositor and inherits nothing from it, so unless the session
+imports its own variables, `neru launch` runs with no `WAYLAND_DISPLAY`,
+`DISPLAY`, `XDG_CURRENT_DESKTOP` or compositor socket, and Neru cannot find a
+display server to drive. Most desktop environments (GNOME, KDE Plasma) and
+session wrappers (`uwsm`) do this for you. A bare compositor started from a TTY
+does not — add it to your compositor config, before anything that depends on it:
+
+```
+# sway (~/.config/sway/config)
+exec systemctl --user import-environment \
+  WAYLAND_DISPLAY DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+exec dbus-update-activation-environment --systemd \
+  WAYLAND_DISPLAY DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+exec systemctl --user start graphical-session.target
+```
+
+Hyprland, niri and River take the same three lines with their own socket
+variable (`HYPRLAND_INSTANCE_SIGNATURE`, `NIRI_SOCKET`) in place of `SWAYSOCK`.
+
+**If it does not start.** `graphical-session.target` is reached only if
+something in your session activates it — the third `exec` above is what does it
+for a bare compositor. Check both:
+
+```bash
+systemctl --user status neru.service
+systemctl --user is-active graphical-session.target
+```
+
+If the target is inactive and you would rather not wire the session up, run
+`neru launch` from your compositor's autostart instead.
+
+**Other init systems.** Service management covers systemd only. On a machine
+booted by runit, OpenRC or s6, every `neru services` subcommand reports
+`ERR_NOT_SUPPORTED`; run `neru launch` from your session's own supervisor or
+autostart. This is a stated boundary rather than a missing feature — see
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
+
+**Installed through a package manager?** If Nix, home-manager or your
+distribution already ships a `neru.service`, manage it there. `neru services`
+stays out of the way in both directions: `install` refuses rather than
+overwriting a unit it did not write, and `uninstall` refuses rather than
+deleting one — a store symlink at Neru's own path, or a unit sitting elsewhere
+on systemd's search path.
+
+**Relocated `$XDG_CONFIG_HOME`?** Set it in your session, not only in a shell
+rc: the user manager fixed its unit search path at login, so a directory it
+never heard of is one it will never read. `neru services install` checks the
+manager's own search path and says so rather than writing a unit that would sit
+there unloaded.
 
 ---
 
