@@ -200,6 +200,55 @@ Watch mode, if you have [entr](https://eradman.com/entrproject/):
 find . -name "*.go" | entr -r just test
 ```
 
+### What the headless-sway job covers, and what it does not
+
+CI carries one leg `just ci` has no counterpart for: **`desktop (ubuntu-latest)`**
+in `.github/workflows/ci.yml`. It starts sway on the wlroots headless backend
+with a session D-Bus and AT-SPI on it, and runs `just test-desktop` — the tier
+that drives the real cursor, keyboard and overlays, and which runs on no other
+platform in CI at all. A disposable runner is the one place that tier is safe:
+the reason it is opt-in locally is that it commandeers the machine, and there
+is no desktop here to commandeer.
+
+What it covers is the **blessed stack** of
+[ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): wlroots
+Wayland with a CGO build. It asserts the session really is that stack before it
+runs anything — the compositor must advertise `zwlr_layer_shell_v1` and
+`zwlr_virtual_pointer_manager_v1`, `CGO_ENABLED` must be 1, and the
+accessibility bus must answer — so a broken environment fails as a broken
+environment rather than as a wall of test failures that look like Neru's.
+
+What it does not cover:
+
+- **Linux desktop-driving behavior, yet.** Every test that reads
+  `NERU_DESKTOP_TESTS` today is a macOS one, and Linux has a single integration
+  test at all — the fontconfig resolver. So this leg currently proves the
+  environment exists and re-runs the suite inside it; it starts paying the
+  moment a Linux `*_integration_linux_test.go` lands. That is the point of
+  building it first: a Linux desktop test written before anything can execute
+  it is a test written on faith.
+- **X11 and KDE.** Xwayland is disabled in the session on purpose, so `DISPLAY`
+  is unset and backend detection has only the Wayland answer. An Xvfb leg is
+  worth having and is deliberately second — under ADR 0013 X11 owes capability
+  parity rather than behavioral parity.
+- **Anything needing device access.** The runner has no `/dev/dri` (the
+  compositor runs the pixman renderer) and no `input` group membership, so the
+  evdev-backed paths cannot run.
+- **A verdict.** The leg is **advisory**: `continue-on-error` keeps it off the
+  merge button, and its result is a job summary counting failures, packages
+  reporting `FAIL`, and every skip with the reason it gave. It is advisory
+  because it is the first job here to stand up infrastructure of its own — a
+  compositor, a session bus and an accessibility bus — and a flake in any of
+  the three would red a pull request for a reason that has nothing to do with
+  it, on a tier whose stability nothing has measured yet.
+
+Making it blocking is two moves, and both are the maintainer's: delete
+`continue-on-error` from the job, and add `desktop (ubuntu-latest)` to the
+branch protection rule — a repository setting, not a file in this tree. ADR 0013
+makes that flip part of Linux graduating from Beta to Stable, alongside the
+Linux entries in
+[Known Gaps](CROSS_PLATFORM.md#known-gaps) being empty.
+
 ---
 
 ## Building
@@ -293,7 +342,9 @@ Until there is a recipe, run them the way the container recipe does and add the
 tag — `docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci go
 test -tags=integration ./...` — on an image with fonts and `fc-list` installed
 (`fontconfig fonts-dejavu-core`). CI covers them on `ubuntu-latest`, where
-`just test-ci` runs the integration suite natively.
+`just test-ci` runs the integration suite natively, and again on the
+headless-sway leg, which runs `just test-desktop` inside a real wlroots session
+— see [What the headless-sway job covers](#what-the-headless-sway-job-covers-and-what-it-does-not).
 
 ### Running integration tests
 

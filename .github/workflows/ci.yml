@@ -51,7 +51,17 @@ jobs:
                     # numbers that differ only by which build tags were active.
                     - os: macos-latest
                       check: coverage
+                    # The desktop-driving test tier, on the blessed Linux stack
+                    # of ADR 0013: sway with the wlroots headless backend. What
+                    # this leg covers and what it does not is stated in
+                    # docs/DEVELOPMENT.md, with the rest of the test tiers.
+                    - os: ubuntu-latest
+                      check: desktop
         runs-on: ${{ matrix.os }}
+        # The desktop leg is advisory, for the reason docs/DEVELOPMENT.md gives.
+        # Making it blocking is deleting this key and adding
+        # "desktop (ubuntu-latest)" to the branch protection rule.
+        continue-on-error: ${{ matrix.check == 'desktop' }}
         steps:
             # Default checkout: on pull_request events this tests the merge
             # commit (PR + main combined), which is what will actually land —
@@ -181,3 +191,252 @@ jobs:
               if: matrix.check == 'vuln' && (runner.os == 'Windows' || runner.os == 'Linux')
               run: just vuln
               shell: bash
+
+            # ---------------------------------------------------------------
+            # The headless-sway desktop leg: everything below runs only for
+            # matrix.check == 'desktop'. It stands up the session the desktop
+            # tier needs — a wlroots compositor, a session bus, and AT-SPI on
+            # it — and runs the tier against it. What that covers and what it
+            # does not is in docs/DEVELOPMENT.md.
+            # ---------------------------------------------------------------
+
+            - name: Install headless desktop session
+              if: matrix.check == 'desktop'
+              run: |
+                  sudo apt-get install -y \
+                    sway \
+                    dbus-x11 \
+                    at-spi2-core \
+                    wayland-utils
+
+            - name: Start sway, session bus and AT-SPI
+              if: matrix.check == 'desktop'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  # A Wayland compositor puts its socket in XDG_RUNTIME_DIR and
+                  # refuses a world-readable one. The runner has neither.
+                  runtime_dir="${RUNNER_TEMP}/xdg-runtime"
+                  mkdir -p "$runtime_dir"
+                  chmod 700 "$runtime_dir"
+
+                  # A session bus first: AT-SPI's bus launcher is activated on
+                  # it, and every later step inherits the address through
+                  # GITHUB_ENV.
+                  eval "$(dbus-launch --sh-syntax)"
+
+                  cat > "${RUNNER_TEMP}/sway.conf" <<'SWAYCONF'
+                  # Xwayland is off deliberately. It would set DISPLAY, and
+                  # neru's Linux backend detection would then have an X11 answer
+                  # available on the one job whose purpose is the wlroots
+                  # Wayland stack.
+                  xwayland disable
+                  output HEADLESS-1 resolution 1920x1080 position 0 0
+                  SWAYCONF
+
+                  # WLR_RENDERER=pixman because the runner has no /dev/dri for
+                  # the GLES2 renderer to open.
+                  WLR_BACKENDS=headless \
+                  WLR_RENDERER=pixman \
+                  WLR_LIBINPUT_NO_DEVICES=1 \
+                  XDG_RUNTIME_DIR="$runtime_dir" \
+                  XDG_SESSION_TYPE=wayland \
+                  XDG_CURRENT_DESKTOP=sway \
+                  setsid sway -c "${RUNNER_TEMP}/sway.conf" -d \
+                    > "${RUNNER_TEMP}/sway.log" 2>&1 &
+
+                  socket=""
+                  for _ in $(seq 1 100); do
+                    socket=$(find "$runtime_dir" -maxdepth 1 -name 'wayland-*' \
+                      ! -name '*.lock' -print -quit)
+                    [ -n "$socket" ] && break
+                    sleep 0.2
+                  done
+                  if [ -z "$socket" ]; then
+                    echo "sway never created a Wayland socket. Its log:" >&2
+                    cat "${RUNNER_TEMP}/sway.log" >&2
+                    exit 1
+                  fi
+
+                  # The IPC socket lands alongside the Wayland one, but "lands
+                  # alongside" is an assumption rather than an ordering sway
+                  # promises, so it gets the same wait and the same diagnostic.
+                  swaysock=""
+                  for _ in $(seq 1 50); do
+                    swaysock=$(find "$runtime_dir" -maxdepth 1 \
+                      -name 'sway-ipc.*.sock' -print -quit)
+                    [ -n "$swaysock" ] && break
+                    sleep 0.2
+                  done
+                  if [ -z "$swaysock" ]; then
+                    echo "sway never created an IPC socket. Its log:" >&2
+                    cat "${RUNNER_TEMP}/sway.log" >&2
+                    exit 1
+                  fi
+
+                  # at-spi2-core ships its launcher in libexec, and the
+                  # directory moved between releases, so ask rather than assume.
+                  launcher=""
+                  for candidate in \
+                    /usr/libexec/at-spi-bus-launcher \
+                    /usr/lib/at-spi2-core/at-spi-bus-launcher \
+                    /usr/lib/at-spi2/at-spi-bus-launcher; do
+                    if [ -x "$candidate" ]; then
+                      launcher="$candidate"
+                      break
+                    fi
+                  done
+                  if [ -z "$launcher" ]; then
+                    echo "at-spi-bus-launcher not found; AT-SPI would be absent" >&2
+                    exit 1
+                  fi
+                  XDG_RUNTIME_DIR="$runtime_dir" \
+                  setsid "$launcher" --launch-immediately \
+                    > "${RUNNER_TEMP}/at-spi.log" 2>&1 &
+
+                  {
+                    echo "XDG_RUNTIME_DIR=$runtime_dir"
+                    echo "WAYLAND_DISPLAY=$(basename "$socket")"
+                    echo "SWAYSOCK=$swaysock"
+                    echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
+                    echo "XDG_SESSION_TYPE=wayland"
+                    echo "XDG_CURRENT_DESKTOP=sway"
+                  } >> "$GITHUB_ENV"
+
+            # The tier is only worth its runtime if the session really is the
+            # blessed stack, so this asserts the two globals neru's wlroots
+            # paths bind (overlay_wayland.c, wlroots_client.h), that CGO is on,
+            # and that the accessibility bus answers. A missing one fails here,
+            # where it reads as a broken environment rather than as test
+            # failures.
+            - name: Verify the session is the blessed stack
+              if: matrix.check == 'desktop'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  swaymsg -t get_outputs
+                  wayland-info > "${RUNNER_TEMP}/wayland-info.log"
+                  for global in zwlr_layer_shell_v1 zwlr_virtual_pointer_manager_v1; do
+                    if ! grep -q "$global" "${RUNNER_TEMP}/wayland-info.log"; then
+                      echo "compositor does not advertise $global" >&2
+                      exit 1
+                    fi
+                    echo "advertised: $global"
+                  done
+
+                  # ADR 0013 blesses the CGO build; the CGO-off Linux build is a
+                  # near-total stub, and a green run of it would prove nothing.
+                  cgo=$(go env CGO_ENABLED)
+                  if [ "$cgo" != "1" ]; then
+                    echo "CGO_ENABLED=$cgo; the blessed stack is the CGO build" >&2
+                    exit 1
+                  fi
+
+                  # at-spi-bus-launcher was backgrounded a step ago and the bus
+                  # is D-Bus-activated, so the first ask can arrive early.
+                  for attempt in $(seq 1 25); do
+                    if dbus-send --session --print-reply --dest=org.a11y.Bus \
+                      /org/a11y/bus org.a11y.Bus.GetAddress; then
+                      break
+                    fi
+                    if [ "$attempt" = "25" ]; then
+                      echo "the accessibility bus never answered. Its log:" >&2
+                      cat "${RUNNER_TEMP}/at-spi.log" >&2
+                      exit 1
+                    fi
+                    sleep 0.4
+                  done
+
+            - name: Run just test-desktop
+              if: matrix.check == 'desktop'
+              shell: bash
+              timeout-minutes: 40
+              run: |
+                  set -euo pipefail
+                  just test-desktop 2>&1 | tee "${RUNNER_TEMP}/test-desktop.log"
+
+            # A skip in this tier is a claim that Linux behavior went unchecked,
+            # which is the thing the job exists to make visible — so skips and
+            # failures are counted into the job summary rather than left in
+            # 20,000 lines of -v output nobody opens.
+            - name: Report skips and failures
+              if: always() && matrix.check == 'desktop'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  log="${RUNNER_TEMP}/test-desktop.log"
+                  if [ ! -f "$log" ]; then
+                    echo "The desktop tier never ran; see the session steps above." \
+                      >> "$GITHUB_STEP_SUMMARY"
+                    exit 0
+                  fi
+                  skips=$(grep -c -- '--- SKIP: ' "$log" || true)
+                  fails=$(grep -c -- '--- FAIL: ' "$log" || true)
+                  # A package that fails to build reports FAIL with no failing
+                  # test in it, so the per-test count alone would read as green.
+                  badpkgs=$(grep -c '^FAIL[[:space:]]' "$log" || true)
+                  {
+                    echo "### Linux desktop tier (headless sway) — advisory"
+                    echo ""
+                    echo "Advisory: this leg does not gate the merge button."
+                    echo "See docs/DEVELOPMENT.md for what it covers."
+                    echo ""
+                    echo "| | Count |"
+                    echo "| --- | --- |"
+                    echo "| \`--- FAIL:\` lines | ${fails} |"
+                    echo "| Packages reporting FAIL | ${badpkgs} |"
+                    echo "| Skipped tests | ${skips} |"
+                    echo ""
+                    if [ "$badpkgs" != "0" ]; then
+                      echo "#### Packages"
+                      echo ""
+                      echo '```'
+                      grep '^FAIL[[:space:]]' "$log"
+                      echo '```'
+                      echo ""
+                    fi
+                    if [ "$fails" != "0" ]; then
+                      echo "#### Failures"
+                      echo ""
+                      echo '```'
+                      grep -- '--- FAIL: ' "$log" | sed 's/^[[:space:]]*//'
+                      echo '```'
+                      echo ""
+                    fi
+                    if [ "$skips" != "0" ]; then
+                      echo "#### Skips, with the reason each gave"
+                      echo ""
+                      echo '```'
+                      # go test -v prints what t.Skip logged *before* the
+                      # result line, so the reason is the line already gone
+                      # past — hence the one-line lookback rather than getline.
+                      awk '
+                        /--- SKIP: /{
+                          name = $0
+                          sub(/^[[:space:]]*/, "", name)
+                          print name
+                          if (prev ~ /^[[:space:]]+[^[:space:]]+\.go:[0-9]+:/) {
+                            reason = prev
+                            sub(/^[[:space:]]*/, "", reason)
+                            print "    " reason
+                          }
+                        }
+                        { prev = $0 }
+                      ' "$log"
+                      echo '```'
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload desktop tier logs
+              if: always() && matrix.check == 'desktop'
+              uses: actions/upload-artifact@v7
+              with:
+                  name: linux-desktop-logs
+                  path: |
+                      ${{ runner.temp }}/test-desktop.log
+                      ${{ runner.temp }}/sway.log
+                      ${{ runner.temp }}/at-spi.log
+                      ${{ runner.temp }}/wayland-info.log
+                  if-no-files-found: warn
+                  retention-days: 14
