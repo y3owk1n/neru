@@ -339,12 +339,17 @@ booted by runit, OpenRC or s6, every `neru services` subcommand reports
 autostart. This is a stated boundary rather than a missing feature — see
 [ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md).
 
-**Installed through a package manager?** If Nix, home-manager or your
-distribution already ships a `neru.service`, manage it there. `neru services`
-stays out of the way in both directions: `install` refuses rather than
+**Installed through a package manager, or wrote the unit yourself?** If Nix,
+home-manager or your distribution already ships a `neru.service` — or you wrote
+one by hand from an older version of this guide — manage it there. `neru
+services` stays out of the way in both directions: `install` refuses rather than
 overwriting a unit it did not write, and `uninstall` refuses rather than
-deleting one — a store symlink at Neru's own path, or a unit sitting elsewhere
-on systemd's search path.
+disabling or deleting one. Ownership is read out of the file rather than assumed
+from its path: every unit Neru installs opens with
+``# Installed by `neru services install` ``, and a `neru.service` without that
+line is one Neru will not touch, wherever it sits. Remove yours the way you
+created it (`systemctl --user disable --now neru.service` and delete the file),
+then `neru services install` writes Neru's own in its place.
 
 **Relocated `$XDG_CONFIG_HOME`?** Set it in your session, not only in a shell
 rc: the user manager fixed its unit search path at login, so a directory it

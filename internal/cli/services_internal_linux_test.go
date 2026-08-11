@@ -111,7 +111,21 @@ func TestRequireOwnUnit_RefusesAUnitNeruDidNotWrite(t *testing.T) {
 
 	ownUnit := filepath.Join(dir, "own.service")
 
-	err := os.WriteFile(ownUnit, []byte("[Unit]\n"), 0o600)
+	err := os.WriteFile(ownUnit, []byte(renderServiceUnit("/usr/local/bin/neru")), 0o600)
+	if err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	// A unit somebody wrote by hand at Neru's own path — the snippet the setup
+	// guide told users to write before `neru services` could do it for them.
+	// Nothing but its contents tells it apart from one Neru installed.
+	handWrittenUnit := filepath.Join(dir, "hand-written.service")
+
+	err = os.WriteFile(
+		handWrittenUnit,
+		[]byte("[Unit]\nDescription=neru\n\n[Service]\nExecStart=/usr/local/bin/neru launch\n"),
+		0o600,
+	)
 	if err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -131,6 +145,12 @@ func TestRequireOwnUnit_RefusesAUnitNeruDidNotWrite(t *testing.T) {
 		wantErr        bool
 	}{
 		{name: "a file Neru wrote", unitPath: ownUnit, knownToSystemd: true},
+		{
+			name:           "a regular file carrying no marker of Neru's",
+			unitPath:       handWrittenUnit,
+			knownToSystemd: true,
+			wantErr:        true,
+		},
 		{
 			name:           "a package manager's symlink",
 			unitPath:       linkedUnit,

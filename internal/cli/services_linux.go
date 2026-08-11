@@ -45,6 +45,14 @@ const (
 // coming up; the budget is for `daemon-reload` on a busy machine.
 const systemctlTimeout = 15 * time.Second
 
+// serviceUnitMarker is the line Neru writes into every unit it installs, and
+// the only positive evidence that a neru.service is Neru's to disable and
+// delete. The path cannot supply that evidence: the hand-written unit this
+// feature replaces — the one LINUX_SETUP.md used to spell out — sits at exactly
+// this path under exactly this name, and so does anything a user or a
+// configuration tool wrote there by the same instructions.
+const serviceUnitMarker = "# Installed by `neru services install`"
+
 // serviceUnitTemplate is the systemd user unit Neru installs.
 //
 // The anchor is graphical-session.target rather than default.target: every
@@ -53,7 +61,11 @@ const systemctlTimeout = 15 * time.Second
 // starts it with each new session, and PartOf= stops it when that session ends
 // — together they are what makes the unit survive a logout/login cycle rather
 // than linger as an orphan attached to a display that is gone.
-const serviceUnitTemplate = `[Unit]
+const serviceUnitTemplate = serviceUnitMarker + `
+# Neru rewrites this file on install and deletes it on uninstall. A neru.service
+# without the line above is one Neru leaves alone.
+
+[Unit]
 Description=Neru keyboard-driven mouse replacement daemon
 Documentation=https://github.com/y3owk1n/neru
 After=graphical-session.target
@@ -347,13 +359,16 @@ func unitDirIsScanned(unitDir, searchPath string) bool {
 // stops `uninstall` from disabling or deleting a neru.service somebody else
 // owns.
 //
-// Neru's own installs are a plain file it wrote. Nix and home-manager put a
-// symlink into the store at the same path, and a distribution package puts a
-// real unit somewhere else on the search path entirely — deleting the first and
-// disabling the second both look like success while breaking a setup Neru does
-// not manage. knownToSystemd says whether the manager can resolve a
-// neru.service at all, which is the only way to tell "nothing installed" (fine,
-// uninstall is a no-op) from "installed elsewhere" (refuse).
+// Nix and home-manager put a symlink into the store at Neru's own path, a
+// distribution package puts a real unit somewhere else on the search path
+// entirely, and a user following the setup guide that predates this feature
+// wrote a plain file at that same path by hand — deleting any of the three
+// looks like success while breaking a setup Neru does not manage. Being a
+// regular file at the right path says nothing, so ownership is read out of the
+// file: the marker line Neru writes is the one thing only an install puts
+// there. knownToSystemd says whether the manager can resolve a neru.service at
+// all, which is the only way to tell "nothing installed" (fine, uninstall is a
+// no-op) from "installed elsewhere" (refuse).
 func requireOwnUnit(unitPath string, knownToSystemd bool) error {
 	info, err := os.Lstat(unitPath)
 	if err != nil {
@@ -377,6 +392,27 @@ func requireOwnUnit(unitPath string, knownToSystemd bool) error {
 			"%s is a symlink, so Neru did not write it — a package manager such as "+
 				"nix or home-manager did; disable the service there instead",
 			unitPath,
+		)
+	}
+
+	contents, err := os.ReadFile(unitPath)
+	if err != nil {
+		return derrors.Wrapf(
+			err,
+			derrors.CodeConfigIOFailed,
+			"failed to read the systemd user unit at %s to check whether Neru wrote it",
+			unitPath,
+		)
+	}
+
+	if !strings.Contains(string(contents), serviceUnitMarker) {
+		return derrors.Newf(
+			derrors.CodeInvalidInput,
+			"%s carries no %q line, so Neru did not write it — a hand-written unit or "+
+				"a configuration tool did; remove it there, and `neru services install` "+
+				"will write Neru's own in its place",
+			unitPath,
+			serviceUnitMarker,
 		)
 	}
 
