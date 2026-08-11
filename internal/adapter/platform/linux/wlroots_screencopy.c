@@ -26,6 +26,10 @@
 // always passes screenCaptureTimeoutMS.
 #define NERU_SCREENCOPY_FALLBACK_TIMEOUT_MS 2000
 
+// Largest frame dimension accepted from the compositor. Far above any real
+// display, and small enough that width * height * 4 cannot overflow.
+#define NERU_SCREENCOPY_MAX_DIMENSION 32768
+
 typedef struct {
 	struct wl_output *output;
 	struct zxdg_output_v1 *xdg_output;
@@ -313,6 +317,41 @@ static int neru_screencopy_wait(NeruScreencopyCtx *ctx, const int *flag, int64_t
 	return *flag ? 1 : 0;
 }
 
+// The sync callback only flips a flag; the caller owns the wl_callback and
+// destroys it either way, so a timed-out roundtrip cannot leave a listener
+// pointing at a stack variable that has gone.
+static void neru_screencopy_sync_done(void *data, struct wl_callback *callback, uint32_t serial) {
+	(void)callback;
+	(void)serial;
+
+	*(int *)data = 1;
+}
+
+static const struct wl_callback_listener neru_screencopy_sync_listener = {
+    .done = neru_screencopy_sync_done,
+};
+
+// neru_screencopy_roundtrip is wl_display_roundtrip with the caller's deadline
+// on it. The library version blocks forever, which would let a compositor that
+// stops answering during discovery hang the capture well past the budget Go
+// asked for — the one thing the timeout exists to prevent.
+static int neru_screencopy_roundtrip(NeruScreencopyCtx *ctx, int64_t deadline) {
+	int done = 0;
+
+	struct wl_callback *callback = wl_display_sync(ctx->display);
+	if (!callback) {
+		return 0;
+	}
+
+	wl_callback_add_listener(callback, &neru_screencopy_sync_listener, &done);
+
+	int ok = neru_screencopy_wait(ctx, &done, deadline);
+
+	wl_callback_destroy(callback);
+
+	return ok;
+}
+
 static int neru_screencopy_shm_file(size_t size) {
 	int fd = (int)syscall(__NR_memfd_create, "neru-screencopy-shm", 0);
 	if (fd < 0) {
@@ -455,11 +494,26 @@ static void neru_screencopy_teardown(NeruScreencopyCtx *ctx) {
 // compositor asked for, hand it over, wait for the result, convert.
 static int neru_screencopy_copy_frame(
     NeruScreencopyCtx *ctx, struct zwlr_screencopy_frame_v1 *frame, int64_t deadline, NeruCapture *out) {
-	if (ctx->width == 0 || ctx->height == 0 || ctx->stride < ctx->width * 4u) {
+	// Frame metadata arrives from the compositor, so it is validated rather than
+	// trusted: the dimensions are capped and every product is computed in 64
+	// bits. Without that, a width near UINT32_MAX makes width * 4 wrap, the
+	// stride check passes, and the conversion loop then reads past a mapping
+	// sized from the wrapped value.
+	if (ctx->width == 0 || ctx->height == 0 || ctx->width > NERU_SCREENCOPY_MAX_DIMENSION ||
+	    ctx->height > NERU_SCREENCOPY_MAX_DIMENSION) {
 		return NERU_CAPTURE_ERR_FORMAT;
 	}
 
-	size_t size = (size_t)ctx->stride * (size_t)ctx->height;
+	if ((uint64_t)ctx->stride < (uint64_t)ctx->width * 4u) {
+		return NERU_CAPTURE_ERR_FORMAT;
+	}
+
+	uint64_t mapping = (uint64_t)ctx->stride * (uint64_t)ctx->height;
+	if (mapping > (uint64_t)SIZE_MAX) {
+		return NERU_CAPTURE_ERR_FORMAT;
+	}
+
+	size_t size = (size_t)mapping;
 
 	int fd = neru_screencopy_shm_file(size);
 	if (fd < 0) {
@@ -525,10 +579,10 @@ int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, N
 	ctx.registry = wl_display_get_registry(ctx.display);
 	wl_registry_add_listener(ctx.registry, &neru_screencopy_registry_listener, &ctx);
 
-	if (wl_display_roundtrip(ctx.display) < 0) {
+	if (!neru_screencopy_roundtrip(&ctx, deadline)) {
 		neru_screencopy_teardown(&ctx);
 
-		return NERU_CAPTURE_ERR_NO_DISPLAY;
+		return NERU_CAPTURE_ERR_TIMEOUT;
 	}
 
 	if (!ctx.screencopy_mgr || !ctx.shm) {
@@ -548,10 +602,10 @@ int neru_screencopy_capture_region(int x, int y, int w, int h, int timeout_ms, N
 		zxdg_output_v1_add_listener(ctx.outputs[i].xdg_output, &neru_screencopy_xdg_output_listener, &ctx.outputs[i]);
 	}
 
-	if (wl_display_roundtrip(ctx.display) < 0) {
+	if (!neru_screencopy_roundtrip(&ctx, deadline)) {
 		neru_screencopy_teardown(&ctx);
 
-		return NERU_CAPTURE_ERR_NO_OUTPUT;
+		return NERU_CAPTURE_ERR_TIMEOUT;
 	}
 
 	int local_x = 0;
