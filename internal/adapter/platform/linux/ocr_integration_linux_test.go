@@ -148,22 +148,37 @@ func TestRecognizeText_RefusesADegenerateImage(t *testing.T) {
 	}
 }
 
-// TestRecognizeText_SurvivesRepeatedUse exercises the cached engine: the handle
-// is created once and reused, so the second recognition must find it warm and
-// free of the first frame rather than in whatever state that call left it.
+// TestRecognizeText_SurvivesRepeatedUse exercises the cached engine, which is
+// the one piece of this subsystem that outlives a call.
+//
+// The handle is created once and reused, so every recognition after the first
+// must find it warm and free of the previous frame rather than in whatever
+// state that call left it. The frames differ in size on purpose: a reuse bug
+// that only shows when the image geometry changes would pass a loop over one
+// buffer. The health probe runs between them because the adapter runs it before
+// every detection, and it takes the same lock and the same handle.
 func TestRecognizeText_SurvivesRepeatedUse(t *testing.T) {
 	requireEngine(t)
 
-	img := renderBlockText("HELLO", image.Pt(60, 40), 8)
+	frames := []image.Point{{X: 60, Y: 40}, {X: 120, Y: 80}, {X: 20, Y: 10}, {X: 300, Y: 200}}
 
-	for attempt := range 3 {
-		words, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
-		if err != nil {
-			t.Fatalf("RecognizeText call %d: %v", attempt+1, err)
-		}
+	for round := range 2 {
+		for frame, origin := range frames {
+			healthErr := OCRHealth()
+			if healthErr != nil {
+				t.Fatalf("round %d frame %d: OCRHealth: %v", round, frame, healthErr)
+			}
 
-		if len(words) == 0 {
-			t.Fatalf("RecognizeText call %d found nothing", attempt+1)
+			img := renderBlockText("HELLO", origin, 8)
+
+			words, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
+			if err != nil {
+				t.Fatalf("round %d frame %d (%v): %v", round, frame, img.Rect, err)
+			}
+
+			if len(words) == 0 {
+				t.Fatalf("round %d frame %d (%v) found nothing", round, frame, img.Rect)
+			}
 		}
 	}
 }
