@@ -32,7 +32,16 @@ type VisionPort interface {
 		splitWord bool,
 	) ([]*element.Element, error)
 
-	// CaptureScreen returns the current screen image for the primary display.
+	// CaptureScreen returns the current screen image. Which screen "current"
+	// means is the platform's own answer: macOS captures the primary display,
+	// Linux the screen holding the cursor, because Wayland exposes no primary
+	// display at all. Either way the image's bounds start at (0, 0) and carry no
+	// global origin.
+	//
 	// Used by DetectElements internally, but exposed for testing or inspection.
+	//
+	// The result is arbitrary screen content. Implementations and callers must
+	// never log it, derive log text from it, write it to disk, or keep it past
+	// the detection that asked for it.
 	CaptureScreen(ctx context.Context) (*image.RGBA, error)
 }

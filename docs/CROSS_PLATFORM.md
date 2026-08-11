@@ -163,7 +163,8 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
-| **Vision / OCR detection**    | ✅ Vision framework      | ❌                     | ❌                           | ❌                      | ❌                           |
+| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ❌ ⁶                    | ❌                           |
+| **Vision / OCR detection**    | ✅ Vision framework      | ❌ no OCR engine       | ❌ no OCR engine             | ❌ no OCR engine        | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
 
@@ -265,6 +266,37 @@ KDE conclusions are read from the sources named above and are not measured on
 hardware**, and neither is the uinput `REL_WHEEL_HI_RES` route — the
 headless-sway job reads no input devices at all, so nothing written to a uinput
 device reaches the compositor there.
+
+⁶ Capture is taken per backend rather than through xdg-desktop-portal
+ScreenCast everywhere, because a consent picker in front of what becomes a hint
+refresh is a latency and consent-fatigue regression the blessed stack has no
+need to pay ([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+X11 reads the root window back with `XGetImage`; wlroots-family compositors
+implement `wlr-screencopy-unstable-v1`, which needs no consent because the
+client is already trusted with the session.
+
+**KWin implements neither**, and its only pixel source is the portal's
+ScreenCast session, which delivers frames over PipeWire — a required system
+library Neru does not link and a build-dependency change beyond this row. KDE
+Plasma therefore reports `CodeNotSupported` naming itself, and it is
+[Known Gaps](#known-gaps) Linux entry 2. Capture is a **region** operation on
+both implemented backends: the caller's rectangle is what gets read back, so
+constraining detection to the focused window costs a window rather than a
+display.
+
+What comes back covers **exactly** the region asked for, and that is enforced
+rather than hoped for: a rectangle that leaves the screen, that is degenerate,
+or that spans two monitors on Wayland (`wlr-screencopy` captures one output)
+**fails** instead of coming back clipped. A clipped frame carries nothing that
+says where its own top-left is, so a caller could no longer map a pixel back to
+a screen coordinate — and a caller asking for one window must never silently
+receive the whole display.
+
+One thing to know before reading a frame: on a scaled Wayland output the
+compositor answers in **physical pixels**, so it can be larger than the logical
+region by the output's scale factor — the same thing a Retina capture does on
+macOS. The image's own bounds start at `(0, 0)`; the region passed in is what
+places those pixels.
 
 ### Notes on the ⚠️ entries
 
@@ -834,9 +866,14 @@ command — that means less here than it does on macOS, whether or not the
 
 1. `neru docs` — returns `CodeNotSupported` although the tray already opens
    URLs through `xdg-open` in the same repo
-2. Screen capture — no code path anywhere in the tree. Prerequisite for the OCR
-   strategy below and the missing half of `ports.Vision`. Take it per backend:
-   `wlr-screencopy` on wlroots, `XGetImage` on X11, the portal only for KDE
+2. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
+   (`wlr-screencopy-unstable-v1`) capture real pixels and honor a region, so
+   the blessed stack is done. KWin implements no screencopy protocol Neru can
+   use and reports `CodeNotSupported` naming itself. Its only pixel source is
+   the portal's ScreenCast session, whose frames arrive over PipeWire — a new
+   required system library, so closing this adds `libpipewire-0.3` to the Linux
+   dependency list, the packaging and the CI images. It may share a solution
+   with entry 5, which already holds a portal session
 3. `vision` hint strategy — no engine. Met by linking one through
    `#cgo pkg-config`, as every other native dependency here is, with the engine
    added to the required Linux library list and its language data checked at
@@ -844,7 +881,8 @@ command — that means less here than it does on macOS, whether or not the
    absent. Note the strategy is wider than OCR: macOS also runs rectangle
    detection and saliency, which no OCR engine answers, so
    `hints.vision.detect_rectangles` and the four `rectangle_*` options are
-   declared macOS-only and Linux `vision` is text-only. Needs 2
+   declared macOS-only and Linux `vision` is text-only. The capture half it
+   needs is in place on X11 and wlroots; on KDE it inherits entry 2
 4. X11 unmodified scroll — a scroll with no `--modifier` presses nothing, so the
    `XTestFakeButtonEvent` still carries whatever the X server records the user as
    physically holding. Binding `Ctrl+J` to a plain `scroll_down` therefore sends
