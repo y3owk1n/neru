@@ -86,7 +86,9 @@ jobs:
                     libxkbcommon-dev \
                     wayland-protocols \
                     libei-dev \
-                    liboeffis-dev
+                    liboeffis-dev \
+                    libtesseract-dev \
+                    tesseract-ocr-eng
 
             # Install Devbox on macOS only
             - name: Install Devbox

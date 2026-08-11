@@ -3,6 +3,7 @@
   fetchurl,
   gitUpdater,
   installShellFiles,
+  makeWrapper,
   stdenv,
   versionCheckHook,
   lib,
@@ -20,6 +21,13 @@
   libxrender,
   libxtst,
   libxi,
+  # tesseract backs the `vision` hint strategy on Linux. It is a required
+  # dependency rather than an optional one: neru links libtesseract dynamically,
+  # so a missing library stops the daemon before any neru code runs, whatever
+  # hints.strategy is set to. The language data ships in the same derivation, at
+  # $out/share/tessdata, and the wrapper below is what points neru at it — a Nix
+  # store path is not somewhere the runtime search of /usr/share could find.
+  tesseract,
   version ? "main",
   useZip ? false,
   commitHash ? null,
@@ -79,6 +87,7 @@ if useZip then
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       autoPatchelfHook
+      makeWrapper
     ];
 
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
@@ -94,6 +103,7 @@ if useZip then
       libxrender
       libxtst
       libxi
+      tesseract
     ];
 
     installPhase = ''
@@ -131,6 +141,12 @@ if useZip then
               --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
               --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
       fi
+    ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
+      # --set-default, so a user who exports their own TESSDATA_PREFIX (a
+      # tessdata_fast checkout, another language) keeps it.
+      wrapProgram $out/bin/neru \
+        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     '';
 
     doInstallCheck = true;
@@ -187,6 +203,7 @@ else
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       pkg-config
+      makeWrapper
     ];
 
     buildInputs =
@@ -203,6 +220,7 @@ else
         libxrender
         libxtst
         libxi
+        tesseract
       ]
       ++ lib.optionals stdenv.hostPlatform.isDarwin [
         apple-sdk_15
@@ -225,6 +243,13 @@ else
       	--fish <($out/bin/neru completion fish) \
       	--zsh <($out/bin/neru completion zsh)
       fi
+    ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
+      # tesseract resolves its language data at run time, and it lives in a
+      # store path no filesystem search would find. --set-default, so a user who
+      # exports their own TESSDATA_PREFIX keeps it.
+      wrapProgram $out/bin/neru \
+        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     ''
     + lib.optionalString stdenv.hostPlatform.isDarwin ''
       # Create a simple .app bundle on the fly for macOS source builds.

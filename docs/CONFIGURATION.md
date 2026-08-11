@@ -107,8 +107,12 @@ than absent:
   (it pairs with system cursor hiding, a
   [platform exclusive](CROSS_PLATFORM.md#platform-exclusives)), while these same
   options style the recursive-grid in-frame pointer on every platform.
-- `hints.strategy = "vision"` fails silently rather than degrading: detection
-  returns nothing and no hints appear. Set `axtree` on Linux and Windows.
+- `hints.strategy = "vision"` works on macOS and Linux, and fails silently on
+  Windows rather than degrading: detection returns nothing and no hints appear,
+  so set `axtree` there. On Linux it is **text-only** — tesseract OCR answers
+  the text half of the strategy, so `detect_rectangles` and the four
+  `rectangle_*` options below are macOS-only, and it needs the tesseract English
+  language data installed ([Linux setup](LINUX_SETUP.md#build-dependencies)).
 
 Accessibility coverage for hints also differs in kind rather than by option; see
 [Accessibility and hints](CROSS_PLATFORM.md#accessibility-and-hints).
@@ -745,7 +749,7 @@ Explicit component colors override theme derivation. Omitted colors inherit from
 
 ## [hints]
 
-Labels clickable UI elements with short overlay labels. By default uses the macOS Accessibility API (`axtree` strategy). Optionally uses Vision Framework (`vision` strategy) for apps with poor AX trees — detects elements via screen capture + text/rectangle recognition scoped to the focused window.
+Labels clickable UI elements with short overlay labels. By default uses the platform accessibility tree (`axtree` strategy). Optionally uses on-screen recognition (`vision` strategy) for apps whose accessibility tree is too thin to hint from — detects elements from a screen capture scoped to the focused window, through the Vision framework on macOS (text plus rectangles) and tesseract OCR on Linux (text only).
 
 Press `/` to text-search elements. `Space` for multi-word queries. `Return` confirms filtered hints (first is auto-selected). `Escape` cancels search.
 
@@ -756,7 +760,7 @@ Start with search visible: `neru hints --search` (see [CLI.md](CLI.md#neru-hints
 | Option                             | Type         | Default                 | Description                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------- | ------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `enabled`                          | bool         | `true`                  | Enable/disable hints mode                                                                                                                                                                                                                                                                                                            |
-| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (macOS Accessibility API) or `"vision"` (Vision Framework). Vision mode detects the frontmost window content via screen capture + text/rectangle recognition while still using AX for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`.                     |
+| `strategy`                         | string       | `"axtree"`              | Element detection strategy: `"axtree"` (the platform accessibility tree) or `"vision"` (screen recognition — Vision framework on macOS, tesseract OCR on Linux, unavailable on Windows). Vision mode detects the frontmost window content from a screen capture while still using the accessibility tree for system elements (menubar, dock, NC). Overridable per-app via `[hints.app_configs]`. |
 | `hint_characters`                  | string       | `"asdfghjkl"`           | Characters used for labels                                                                                                                                                                                                                                                                                                           |
 | `label_direction`                  | string       | `"normal"`              | Hint label algorithm: `"normal"` (default, prefix-avoidance greedy) or `"reverse"` (reverse-order tiers). Empty value defaults to `"normal"`. Overridable per-app via `[hints.app_configs]` and per-activation via the `neru hints --label-direction` CLI flag. See [Choosing a label direction](#choosing-a-label-direction) below. |
 | `max_depth`                        | int          | `50`                    | Max accessibility tree depth (0 = unlimited)                                                                                                                                                                                                                                                                                         |
@@ -925,17 +929,24 @@ width = 320
 
 Tunable settings for Vision-based hint detection (only used when `hints.strategy` or the app-specific `strategy` override is set to `"vision"`).
 
+The engine differs by platform and the options do not: macOS runs the Vision
+framework, Linux runs tesseract OCR over a screen capture of the focused window.
+The one visible consequence is that **rectangle detection is macOS-only** — an
+OCR engine answers text and nothing else — so `detect_rectangles` and the four
+`rectangle_*` options are read on macOS alone and warn once at load if written
+elsewhere. Every other option below is read on both.
+
 | Option                             | Type  | Default | Description                                                                                       |
 | ---------------------------------- | ----- | ------- | ------------------------------------------------------------------------------------------------- |
-| `detect_text`                      | bool  | `true`  | Enable text detection via the Vision framework.                                                   |
-| `detect_rectangles`                | bool  | `true`  | Enable rectangle detection via the Vision framework.                                              |
-| `request_timeout_ms`               | int   | `5000`  | Timeout in milliseconds for Vision framework analysis requests.                                   |
-| `minimum_confidence`               | float | `0.0`   | Minimum confidence score (0.0 to 1.0) for keeping Vision framework observations.                  |
+| `detect_text`                      | bool  | `true`  | Enable text detection. With this off, Linux detects nothing at all.                               |
+| `detect_rectangles`                | bool  | `true`  | Enable rectangle detection.                                                       |
+| `request_timeout_ms`               | int   | `5000`  | Timeout in milliseconds for one analysis request (one OCR pass on Linux).                         |
+| `minimum_confidence`               | float | `0.0`   | Minimum confidence score (0.0 to 1.0) for keeping an observation.                                 |
 | `merge_iou_threshold`              | float | `0.5`   | Intersection-over-Union (IoU) overlap threshold for merging redundant overlapping bounding boxes. |
-| `rectangle_max_candidates`         | int   | `100`   | Maximum number of rectangle candidate observations to evaluate.                                   |
-| `rectangle_min_size`               | float | `0.01`  | Minimum normalized size of detected rectangles (e.g. `0.01` is 1% of screen/window dimensions).   |
-| `rectangle_min_aspect`             | float | `0.3`   | Minimum aspect ratio (width/height) for rectangle elements.                                       |
-| `rectangle_max_aspect`             | float | `10.0`  | Maximum aspect ratio (width/height) for rectangle elements.                                       |
+| `rectangle_max_candidates`         | int   | `100`   | Maximum number of rectangle candidate observations to evaluate.                   |
+| `rectangle_min_size`               | float | `0.01`  | Minimum normalized size of detected rectangles (e.g. `0.01` is 1% of screen/window dimensions). |
+| `rectangle_min_aspect`             | float | `0.3`   | Minimum aspect ratio (width/height) for rectangle elements.                       |
+| `rectangle_max_aspect`             | float | `10.0`  | Maximum aspect ratio (width/height) for rectangle elements.                       |
 | `button_min_confidence`            | float | `0.3`   | Minimum confidence score threshold for classifying a rectangle as a button.                       |
 | `button_min_aspect`                | float | `0.8`   | Minimum aspect ratio for button elements.                                                         |
 | `button_max_aspect`                | float | `8.0`   | Maximum aspect ratio for button elements.                                                         |

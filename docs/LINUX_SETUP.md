@@ -134,6 +134,17 @@ Neru links `libei` and `liboeffis` at build time (KDE and future libei-based
 Wayland paths). Install the `-dev`/`-devel` packages below even if you only test
 on wlroots compositors today.
 
+Two of them are for the `vision` hint strategy, and both are required rather
+than optional. **tesseract** is what recognizes on-screen text when an
+application's AT-SPI tree is too thin to hint from, and Neru links it
+dynamically — a missing `libtesseract.so` stops the daemon before any Neru code
+runs, whatever `hints.strategy` is set to. Its **English language data** is a
+separate package on every distribution, and unlike the library it is resolved at
+use: without it Neru starts normally and `hints.strategy = vision` reports that
+`eng.traineddata` is missing rather than silently finding nothing. If you keep
+your language data somewhere else — a `tessdata_fast` checkout, say — point
+`TESSDATA_PREFIX` at it and Neru will prefer that.
+
 ### Debian / Ubuntu
 
 ```bash
@@ -149,6 +160,8 @@ sudo apt-get install -y \
   libei-dev \
   liboeffis-dev \
   libfontconfig-dev \
+  libtesseract-dev \
+  tesseract-ocr-eng \
   wayland-protocols \
   fonts-dejavu-core
 ```
@@ -168,6 +181,8 @@ sudo dnf install -y \
   libei-devel \
   liboeffis-devel \
   fontconfig-devel \
+  tesseract-devel \
+  tesseract-langpack-eng \
   wayland-protocols-devel \
   dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
 ```
@@ -186,6 +201,8 @@ sudo pacman -S \
   libxkbcommon \
   libei \
   fontconfig \
+  tesseract \
+  tesseract-data-eng \
   wayland-protocols \
   ttf-dejavu
 ```
