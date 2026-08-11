@@ -18,6 +18,7 @@ import "C"
 import (
 	"image"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -34,6 +35,11 @@ const (
 	_ = uint(C.NERU_OCR_ERR_RECOGNIZE-ocrStatusRecognize) +
 		uint(ocrStatusRecognize-C.NERU_OCR_ERR_RECOGNIZE)
 	_ = uint(C.NERU_OCR_ERR_BUSY-ocrStatusBusy) + uint(ocrStatusBusy-C.NERU_OCR_ERR_BUSY)
+	_ = uint(
+		C.NERU_OCR_ERR_TIMEOUT-ocrStatusTimeout,
+	) + uint(
+		ocrStatusTimeout-C.NERU_OCR_ERR_TIMEOUT,
+	)
 )
 
 // ocrConfig builds the native config for one call. The returned free function
@@ -90,16 +96,22 @@ func OCRHealth() error {
 // its own buffer before recognition starts, and the engine is cleared before
 // the call returns, so nothing native holds the frame afterwards.
 //
-// Nothing derived from the result is logged here or by the caller — an OCR
-// result is a transcript of the user's screen.
-func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
+// The second result describes the work rather than the frame — a duration, so
+// a caller can log how long a recognition took and, when one fails, whether it
+// ran to the budget or gave up at once. It is filled on both paths.
+//
+// Nothing derived from the recognized text is logged here or by the caller — an
+// OCR result is a transcript of the user's screen.
+func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
+	var stats OCRStats
+
 	datapath, err := tessdataDir()
 	if err != nil {
-		return nil, err
+		return nil, stats, err
 	}
 
 	if img == nil || img.Rect.Dx() <= 0 || img.Rect.Dy() <= 0 {
-		return nil, ocrError(ocrStatusImage)
+		return nil, stats, ocrError(ocrStatusImage)
 	}
 
 	// The buffer has to hold every row the geometry claims. C reads it by
@@ -108,7 +120,7 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
 	// rather than a Go panic. Checked here because this is the last place the
 	// Go type system can see it.
 	if len(img.Pix) < (img.Rect.Dy()-1)*img.Stride+img.Rect.Dx()*bytesPerCapturedPixel {
-		return nil, ocrError(ocrStatusImage)
+		return nil, stats, ocrError(ocrStatusImage)
 	}
 
 	config, free := ocrConfig(datapath, params)
@@ -127,15 +139,17 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
 
 	runtime.KeepAlive(img)
 
+	stats.Recognition = time.Duration(result.elapsedMS) * time.Millisecond
+
 	if status != C.NERU_OCR_OK {
-		return nil, ocrError(ocrStatus(status))
+		return nil, stats, ocrError(ocrStatus(status))
 	}
 
 	defer C.neru_ocr_result_free(&result)
 
 	count := int(result.count)
 	if count == 0 || result.words == nil {
-		return nil, nil
+		return nil, stats, nil
 	}
 
 	words := make([]OCRWord, 0, count)
@@ -157,5 +171,5 @@ func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
 		})
 	}
 
-	return words, nil
+	return words, stats, nil
 }

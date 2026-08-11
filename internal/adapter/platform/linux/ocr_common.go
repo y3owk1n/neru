@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 )
@@ -64,6 +65,7 @@ const (
 	ocrStatusImage
 	ocrStatusRecognize
 	ocrStatusBusy
+	ocrStatusTimeout
 )
 
 // OCRWord is one run of recognized text, in the coordinate space of the image
@@ -80,6 +82,14 @@ type OCRWord struct {
 	// normalizes so this is the same scale hints.vision.minimum_confidence and
 	// the macOS backend use.
 	Confidence float64
+}
+
+// OCRStats describes the work one recognition did, so a caller can log it.
+// Durations and counts only — nothing here derives from what was on the screen.
+type OCRStats struct {
+	// Recognition is how long the engine spent on the frame, which is the
+	// number that separates "gave up on the deadline" from "failed instantly".
+	Recognition time.Duration
 }
 
 // OCRParams is what one recognition needs beyond the pixels.
@@ -119,6 +129,12 @@ func ocrError(status ocrStatus) error {
 			derrors.CodeActionFailed,
 			"the OCR engine was still busy with an earlier frame; try again",
 		)
+	case ocrStatusTimeout:
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"text recognition ran past hints.vision.request_timeout_ms; raise it, or "+
+				"narrow what is being read by hinting a smaller window",
+		)
 	// ocrStatusOK rides with the recognition failure rather than getting its
 	// own sentence, the way captureError pairs captureStatusOK with
 	// captureStatusFailed: this function is only reached on a failure branch,
@@ -127,7 +143,7 @@ func ocrError(status ocrStatus) error {
 	case ocrStatusOK, ocrStatusRecognize:
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"text recognition failed or ran past hints.vision.request_timeout_ms",
+			"the OCR engine could not read the captured frame",
 		)
 	default:
 		return derrors.New(

@@ -20,10 +20,10 @@ func OCRHealth() error {
 	)
 }
 
-func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, error) {
+func RecognizeText(img *image.RGBA, params OCRParams) ([]OCRWord, OCRStats, error) {
 	_, _ = img, params
 
-	return nil, derrors.New(
+	return nil, OCRStats{}, derrors.New(
 		derrors.CodeNotSupported,
 		"text recognition requires CGO-enabled Linux builds",
 	)

@@ -86,17 +86,26 @@ func (a *Adapter) DetectElements(
 		return nil, err
 	}
 
-	started := time.Now()
-
-	words, err := platformlinux.RecognizeText(img, platformlinux.OCRParams{
+	words, stats, err := platformlinux.RecognizeText(img, platformlinux.OCRParams{
 		WordLevel: splitWord,
 		TimeoutMS: cfg.RequestTimeoutMS,
 	})
 	if err != nil {
+		// A failed recognition is logged with what it cost and what it was
+		// given, because those are the two numbers that say which failure it
+		// was: a frame the engine gave up on immediately reads nothing like one
+		// that ran to the budget, and the budget is the option a user can turn.
+		// Dimensions and durations describe the work, never its content.
+		a.logger.Error("Vision detection failed",
+			zap.Duration("recognition", stats.Recognition),
+			zap.Int("budget_ms", cfg.RequestTimeoutMS),
+			zap.Int("frame_width", img.Rect.Dx()),
+			zap.Int("frame_height", img.Rect.Dy()),
+			zap.Error(err),
+		)
+
 		return nil, err
 	}
-
-	recognized := time.Since(started)
 
 	regions := regionsFromWords(
 		toRecognizedWords(words),
@@ -112,7 +121,9 @@ func (a *Adapter) DetectElements(
 	elements, skipped := elementsFromRegions(merged, &classifier)
 
 	a.logger.Debug("Vision detection complete",
-		zap.Duration("recognition", recognized),
+		zap.Duration("recognition", stats.Recognition),
+		zap.Int("frame_width", img.Rect.Dx()),
+		zap.Int("frame_height", img.Rect.Dy()),
 		zap.Int("raw_words", len(words)),
 		zap.Int("merged_elements", len(elements)),
 		zap.Int("skipped_regions", skipped),

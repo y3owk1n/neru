@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tesseract/capi.h>
@@ -34,6 +35,18 @@ static char *neru_ocr_language;
 // to queue behind a normal recognition (tens of milliseconds), short enough
 // that a wedged one is reported rather than waited on.
 #define NERU_OCR_DEFAULT_WAIT_MS 3000
+
+// neru_ocr_now_ms is a monotonic millisecond clock, for measuring how long a
+// recognition took. Monotonic so a clock adjustment mid-recognition cannot turn
+// a fast frame into a reported timeout.
+static int64_t neru_ocr_now_ms(void) {
+	struct timespec now;
+	if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) {
+		return 0;
+	}
+
+	return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
 
 // neru_ocr_lock takes the engine lock, waiting at most wait_ms. Returns
 // NERU_OCR_OK when it holds the lock, NERU_OCR_ERR_BUSY otherwise.
@@ -259,6 +272,7 @@ int neru_ocr_recognize(
 
 	out->words = NULL;
 	out->count = 0;
+	out->elapsedMS = 0;
 
 	if (pixels == NULL || width <= 0 || height <= 0 || stride < width * NERU_OCR_BYTES_PER_PIXEL) {
 		return NERU_OCR_ERR_IMAGE;
@@ -295,7 +309,12 @@ int neru_ocr_recognize(
 		TessMonitorSetDeadlineMSecs(monitor, config->timeoutMS);
 	}
 
+	int64_t started = neru_ocr_now_ms();
+
 	int recognized = TessBaseAPIRecognize(api, monitor);
+
+	int64_t elapsed = neru_ocr_now_ms() - started;
+	out->elapsedMS = (int)(elapsed > 0 ? elapsed : 0);
 
 	if (monitor != NULL) {
 		TessMonitorDelete(monitor);
@@ -304,6 +323,14 @@ int neru_ocr_recognize(
 	if (recognized != 0) {
 		TessBaseAPIClear(api);
 		pthread_mutex_unlock(&neru_ocr_mutex);
+
+		// Tesseract reports one failure code for "gave up on the deadline" and
+		// "could not read this frame", and the two want opposite responses from
+		// a user. The clock is what separates them: recognition that ran to the
+		// budget was stopped by it.
+		if (config->timeoutMS > 0 && elapsed >= (int64_t)config->timeoutMS) {
+			return NERU_OCR_ERR_TIMEOUT;
+		}
 
 		return NERU_OCR_ERR_RECOGNIZE;
 	}

@@ -52,7 +52,7 @@ func TestRecognizeText_ReadsRenderedText(t *testing.T) {
 
 	img := renderBlockText(word, image.Pt(60, 40), 8)
 
-	words, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
+	words, _, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
 	if err != nil {
 		t.Fatalf("RecognizeText: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestRecognizeText_BlankFrameIsNotAnError(t *testing.T) {
 
 	img := renderBlockText("", image.Pt(400, 200), 8)
 
-	words, err := RecognizeText(img, OCRParams{TimeoutMS: 5000})
+	words, _, err := RecognizeText(img, OCRParams{TimeoutMS: 5000})
 	if err != nil {
 		t.Fatalf("RecognizeText on a blank frame: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestRecognizeText_BlankFrameIsNotAnError(t *testing.T) {
 func TestRecognizeText_RefusesADegenerateImage(t *testing.T) {
 	requireEngine(t)
 
-	words, err := RecognizeText(image.NewRGBA(image.Rectangle{}), OCRParams{})
+	words, _, err := RecognizeText(image.NewRGBA(image.Rectangle{}), OCRParams{})
 	if err == nil {
 		t.Fatalf("RecognizeText accepted an empty image and returned %d words", len(words))
 	}
@@ -171,7 +171,7 @@ func TestRecognizeText_SurvivesRepeatedUse(t *testing.T) {
 
 			img := renderBlockText("HELLO", origin, 8)
 
-			words, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
+			words, _, err := RecognizeText(img, OCRParams{WordLevel: true, TimeoutMS: 5000})
 			if err != nil {
 				t.Fatalf("round %d frame %d (%v): %v", round, frame, img.Rect, err)
 			}

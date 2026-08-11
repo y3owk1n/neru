@@ -29,6 +29,10 @@
 // The engine was busy with another recognition for longer than this caller was
 // willing to wait.
 #define NERU_OCR_ERR_BUSY 5
+// Recognition ran past the caller's deadline. Split from ERR_RECOGNIZE because
+// the two want opposite responses: a timeout means raise the budget or hand
+// over a smaller region, a failure means something is wrong with the frame.
+#define NERU_OCR_ERR_TIMEOUT 6
 
 typedef struct {
 	// text is a NUL-terminated UTF-8 string owned by the result.
@@ -48,6 +52,12 @@ typedef struct {
 typedef struct {
 	NeruOCRWord *words;
 	int count;
+	// How long the recognition itself took, in milliseconds. Filled on success
+	// and on failure alike, because "it took the whole budget" and "it gave up
+	// immediately" are different bugs and only this tells them apart. A
+	// duration describes the work, not what was on the screen, so it is
+	// loggable.
+	int elapsedMS;
 } NeruOCRResult;
 
 typedef struct {
