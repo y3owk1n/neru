@@ -99,7 +99,7 @@ Accepted by every command.
 | [`toggle-screen-share`](#neru-toggle-screen-share)           | Hide overlays while sharing     | Yes | macOS |
 | [`roles`](#neru-roles)                                       | List the role vocabulary        | No  | All |
 | [`services`](#neru-services)                                 | Manage the system service       | No  | macOS · Linux |
-| [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | macOS |
+| [`docs`](#neru-docs)                                         | Open documentation in a browser | No  | macOS · Linux |
 
 ¹ Element discovery quality differs by platform: a full accessibility tree on
 macOS, an AT-SPI walk on Linux whose coverage depends on the application, and an
@@ -1546,7 +1546,7 @@ Open documentation in a browser.
 neru docs config|cli
 ```
 
-**Platforms:** macOS only; other platforms return `ERR_NOT_SUPPORTED`.
+**Platforms:** macOS and Linux; other platforms return `ERR_NOT_SUPPORTED`.
 
 URLs point at the Git tag matching the installed version. Development builds
 fall back to `main`.

@@ -894,9 +894,7 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. `neru docs` — returns `CodeNotSupported` although the tray already opens
-   URLs through `xdg-open` in the same repo
-2. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
+1. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
    (`wlr-screencopy-unstable-v1`) capture real pixels and honor a region, so
    the blessed stack is done. KWin implements no screencopy protocol Neru can
    use and reports `CodeNotSupported` naming itself. Its only pixel source is
