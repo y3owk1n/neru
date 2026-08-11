@@ -90,6 +90,23 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	)
 }
 
+// x11ScrollBackendAvailable refuses before the animator is ever started. The
+// backend is detected from the environment, which says nothing about cgo, so
+// without this a CGO_ENABLED=0 build with DISPLAY set would answer "scrolled"
+// and move nothing.
+func x11ScrollBackendAvailable() error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"X11 scroll requires CGO-enabled Linux builds",
+	)
+}
+
+func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+	_ = modifiers
+
+	return nil, x11ScrollBackendAvailable()
+}
+
 func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	_, _, _ = deltaX, deltaY, modifiers
 	return derrors.New(

@@ -99,7 +99,9 @@ that promise broken, and the matrix is structurally unable to see it.
   needing "a synthesizable continuous scroll event stream"; uinput has
   `REL_WHEEL_HI_RES`, `wl_pointer` axis values are continuous, and libei carries
   scroll deltas, so it moves to the gap list pending a spike that could still
-  kill it. The Vision (OCR) hint strategy is macOS-only for want of an engine,
+  kill it. *(Amended: the spike ran and smooth scroll ships. This paragraph's
+  claim that all three injection paths have the primitive was two thirds right —
+  see the amendment at the end.)* The Vision (OCR) hint strategy is macOS-only for want of an engine,
   not for want of an API, and Linux arguably needs it more than macOS does —
   AT-SPI coverage is toolkit-dependent in a way the AX tree is not. It moves to
   the gap list too. System cursor hide stays exempt, but its stated reason was
@@ -194,3 +196,64 @@ that promise broken, and the matrix is structurally unable to see it.
   because the word is the decision and it was previously used loosely enough to
   mean either measure; the second because without it *Parity* has to re-explain
   which Linux it is talking about every time it is used.
+
+## Amendment: X11 has no sub-notch scroll
+
+The smooth-scroll spike this ADR called for has run, and one sentence above
+needs correcting. "uinput has `REL_WHEEL_HI_RES`, `wl_pointer` axis values are
+continuous, and libei carries scroll deltas" was offered as evidence that all
+three Linux injection paths have the primitive. Two of them do. **X11 does
+not**, and no budget changes that.
+
+Core X11 scrolling is buttons 4 to 7, and a button event is one notch by
+definition — the XI2 protocol specification says so in as many words: "One unit
+of scrolling in either direction is considered to be equivalent to one button
+event". The smooth-scroll path real devices use is an XI2 scroll valuator, and
+the XTEST pointer that `XTestFakeButtonEvent` drives has none: the X server
+allocates it through `CorePointerProc` (`dix/devices.c`) with exactly two axes,
+`Rel X` and `Rel Y`, and no XI2 request lets a client add a scroll class to a
+device — only an input driver can, at device init. So on X11 there is no
+sub-notch value to send, and this is a property of the display server, alongside
+modifier passthrough, rather than unbuilt work.
+
+That does not make smooth scroll an exclusive again, and the option is not
+declared inert on Linux. What a person writes `smooth_scroll` for is a scroll
+that arrives as a movement instead of a jump, and X11 delivers that from two
+notches up: the animator spreads the same eased curve over whole notches,
+honouring `steps`, `max_duration` and `duration_per_pixel` exactly as the other
+backends do, and travelling exactly as far.
+
+Be precise about the size where it does not, because it is the common one. A
+scroll worth one notch has one event to send however it is scheduled, and the
+default `scroll_step` of 50 pixels is exactly one notch, so a plain
+`scroll_down` on X11 is not animated — it goes out immediately and unchanged,
+rather than being held back to arrive on a curve it cannot express. Turning the
+option on there buys nothing for that binding and costs nothing either, and
+`scroll_step_half` and `scroll_step_full` do animate. Granularity is the shape
+this ADR already has a slot for — "the other supported backends owe the same
+capabilities and carry their own documented limits" — and the limit is
+documented as footnote ⁴ of the Capability Matrix, in the size a person will
+actually notice rather than as a protocol fact.
+
+Two further findings from the spike, recorded because they cost the next person
+the same day otherwise:
+
+- **The wlroots path that carries the fraction is the virtual pointer, not
+  uinput.** `zwlr_virtual_pointer_v1.axis` leaves the discrete step count at
+  zero, and wlroots forwards a zero step count to the focused client as a plain
+  continuous `wl_pointer.axis` with no accumulator in front of it. The uinput
+  `REL_WHEEL_HI_RES` route arrives as `axis_value120` instead, which a client
+  older than `wl_pointer` version 8 accumulates to whole notches before it sees
+  anything. The animator uses the virtual pointer for that reason, and because
+  it is the path the headless-sway job can actually observe: that job runs
+  `WLR_BACKENDS=headless` with no libinput, so nothing written to a uinput
+  device reaches the compositor there at all.
+- **The claim is measured on wlroots only, and on one path of it.**
+  `TestScrollAtCursor_DeliversSubNotchStepsWithSmoothScroll` maps a real
+  xdg-shell window under headless sway and asserts that a sub-notch delta
+  arrives with no notch count attached and with axis source `continuous`. Three
+  things are *not* measured and say so wherever they are stated: the X11
+  conclusion, the KWin one (read from libei's `ei_device_scroll_delta`
+  contract), and the uinput `REL_WHEEL_HI_RES` route, which that job cannot
+  observe at all. An Xvfb harness would let the X11 half be checked rather than
+  argued.

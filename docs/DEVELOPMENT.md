@@ -221,20 +221,21 @@ environment rather than as a wall of test failures that look like Neru's.
 
 What it does not cover:
 
-- **Linux desktop-driving behavior, yet.** Every test that reads
-  `NERU_DESKTOP_TESTS` today is a macOS one, and Linux has a single integration
-  test at all — the fontconfig resolver. So this leg currently proves the
-  environment exists and re-runs the suite inside it; it starts paying the
-  moment a Linux `*_integration_linux_test.go` lands. That is the point of
-  building it first: a Linux desktop test written before anything can execute
-  it is a test written on faith.
+- **Most Linux desktop-driving behavior, still.** The leg has started paying:
+  `scroll_smooth_integration_linux_test.go` maps a real xdg-shell window in the
+  session and measures what the compositor delivers to it, which is how the
+  smooth-scroll claim in ADR 0013's amendment is checked rather than argued.
+  Everything else that reads `NERU_DESKTOP_TESTS` is still a macOS test.
 - **X11 and KDE.** Xwayland is disabled in the session on purpose, so `DISPLAY`
   is unset and backend detection has only the Wayland answer. An Xvfb leg is
   worth having and is deliberately second — under ADR 0013 X11 owes capability
   parity rather than behavioral parity.
 - **Anything needing device access.** The runner has no `/dev/dri` (the
   compositor runs the pixman renderer) and no `input` group membership, so the
-  evdev-backed paths cannot run.
+  evdev-backed paths cannot run. The compositor would not see them either:
+  `WLR_LIBINPUT_NO_DEVICES=1` on the headless backend means it reads no input
+  devices, so nothing written to a uinput device reaches it whatever the
+  permissions are. What is observable here is the `zwlr_virtual_pointer` path.
 - **A verdict.** The leg is **advisory**: `continue-on-error` keeps it off the
   merge button, and its result is a job summary counting failures, packages
   reporting `FAIL`, and every skip with the reason it gave. It is advisory

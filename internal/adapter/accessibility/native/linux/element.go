@@ -416,6 +416,13 @@ func MouseUp(button action.MouseButton) error {
 	return nil
 }
 
+// scrollPixelsPerNotch is how many pixels of a caller's delta make one wheel
+// notch. The scroll service speaks in pixels (scroll_step = 50,
+// scroll_step_half = 500, scroll_step_full = 1000000) and every Linux injection
+// path has to land on the same conversion, or the same binding would travel a
+// different distance depending on which backend answered.
+const scrollPixelsPerNotch = 30
+
 // ScrollAtCursor scrolls at the cursor, presenting modifiers as held.
 //
 // Linux has no event-flags concept, so a modifier is a real key press around
@@ -426,7 +433,48 @@ func MouseUp(button action.MouseButton) error {
 // not obliged to do — so a modified scroll goes out entirely through
 // wlroots/libei and skips the uinput batch. That costs throughput on a large
 // modified scroll and buys a modifier that actually arrives.
+//
+// With smooth_scroll.enabled the scroll is handed to the animator instead and
+// arrives as a sequence of eased chunks, which is what the same setting does on
+// macOS. The backend is asked whether it can inject at all before that handoff,
+// because the animation runs on a worker goroutine where a refusal has nobody
+// to go back to — and a refusal that reaches nobody is exactly the silent
+// no-op turning this option on must not introduce.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
+	cfg := currentLinuxConfig()
+	if cfg != nil && cfg.SmoothScroll.Enabled {
+		err := scrollBackendAvailable()
+		if err != nil {
+			return err
+		}
+
+		if deltaX == 0 && deltaY == 0 {
+			return nil
+		}
+
+		scrollAnim.animate(
+			deltaX,
+			deltaY,
+			modifiers,
+			cfg.SmoothScroll.Steps,
+			cfg.SmoothScroll.MaxDuration,
+			cfg.SmoothScroll.DurationPerPixel,
+		)
+
+		return nil
+	}
+
+	// A scroll arriving with the animation switched off must not be chased by
+	// chunks scheduled before the reload.
+	scrollAnim.stop()
+
+	return scrollAtCursorNow(deltaX, deltaY, modifiers)
+}
+
+// scrollAtCursorNow injects the whole scroll in one go, which is what every
+// caller got before smooth scroll existed and what a caller still gets with it
+// switched off.
+func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 	if currentLinuxBackend() == linuxBackendX11 {
 		return x11ScrollAtCursor(deltaX, deltaY, modifiers)
 	}
@@ -442,7 +490,7 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 		}
 
 		// Scale factor: each uinput scroll event approximates ~1 line.
-		const scrollScale = 30
+		const scrollScale = scrollPixelsPerNotch
 
 		// maxBatchEvents caps the number of uinput events sent per
 		// write/flush to avoid overflowing the kernel evdev buffer (~8192

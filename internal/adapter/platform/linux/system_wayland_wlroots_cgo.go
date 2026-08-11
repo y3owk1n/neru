@@ -621,6 +621,38 @@ func wlrootsScroll(axis, delta, discrete int) error {
 	return nil
 }
 
+// wlrootsScrollContinuous sends one sub-notch-capable scroll step on the virtual
+// pointer: an axis event carrying a fractional value and no discrete step count.
+//
+// This is the primitive smooth scroll is built on. wlroots leaves
+// delta_discrete at zero for a plain axis request, and a zero delta_discrete is
+// what makes the compositor pass the fraction on to the focused client as a
+// wl_pointer.axis rather than holding it in a value120 accumulator until a whole
+// notch adds up.
+//
+// axis: 0 = vertical, 1 = horizontal. delta is in the same units wlrootsScroll
+// takes, so one wheel notch is the same number either way.
+func wlrootsScrollContinuous(axis int, delta float64) error {
+	err := ensureWlrootsState()
+	if err != nil {
+		return err
+	}
+
+	globalWlrootsState.mu.Lock()
+	client := globalWlrootsState.client
+	defer globalWlrootsState.mu.Unlock()
+
+	res := C.neru_wlr_scroll_continuous(client, C.int(axis), C.double(delta))
+	if res == 0 {
+		return derrors.New(
+			derrors.CodeActionFailed,
+			"failed to perform wlroots continuous scroll event",
+		)
+	}
+
+	return nil
+}
+
 func wlrootsScrollBatch(axis int, deltas, discretes []int) error {
 	if len(deltas) == 0 {
 		return nil

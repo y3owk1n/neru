@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -204,8 +205,8 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	// We scale them to a capped number of clicks to avoid flooding X11
 	// with tens of thousands of button events on large scrolls.
 	const (
-		scale     = 30
-		maxClicks = 50
+		scale     = scrollPixelsPerNotch
+		maxClicks = maxScrollUnitsPerRequest
 	)
 
 	if deltaY != 0 {
@@ -262,6 +263,98 @@ func x11ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
+}
+
+// X11 scroll buttons, in the order a wheel reports them.
+const (
+	x11ScrollUp    = C.uint(4)
+	x11ScrollDown  = C.uint(5)
+	x11ScrollLeft  = C.uint(6)
+	x11ScrollRight = C.uint(7)
+)
+
+// x11ScrollSession injects an animated scroll on X11 as wheel-button clicks,
+// holding the display connection and any modifiers for the length of the
+// animation.
+//
+// X11 has no sub-notch scroll to synthesize. Core scrolling is buttons 4 to 7
+// and a button event is one notch by definition, and the XTEST pointer the
+// server creates for XTestFakeButtonEvent has no scroll valuators at all — it
+// is allocated with two axes, Rel X and Rel Y — so the smooth-scrolling XI2
+// path real devices use is not reachable from here. What an animation can still
+// do is spread those notches over time on the same eased curve every other
+// backend uses, which is why granularity is a whole notch rather than zero.
+type x11ScrollSession struct {
+	display   *C.Display
+	modifiers action.Modifiers
+}
+
+// x11ScrollBackendAvailable answers whether an animated scroll could inject
+// here, without opening a connection to find out.
+func x11ScrollBackendAvailable() error {
+	if os.Getenv("DISPLAY") == "" {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"DISPLAY is not set; X11 action backend is unavailable",
+		)
+	}
+
+	return nil
+}
+
+func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+	display, err := x11ActionDisplay()
+	if err != nil {
+		return nil, err
+	}
+
+	// The same unconditional helpers the click paths use: the release lets go
+	// of the whole named set, including a key the user is physically holding.
+	// That gap predates this caller and is not narrowed here.
+	x11PressModifiers(display, modifiers)
+
+	return &x11ScrollSession{display: display, modifiers: modifiers}, nil
+}
+
+func (s *x11ScrollSession) granularity() float64 { return scrollPixelsPerNotch }
+
+func (s *x11ScrollSession) inject(deltaX, deltaY float64) error {
+	err := s.clickAxis(deltaY, x11ScrollUp, x11ScrollDown)
+	if err != nil {
+		return err
+	}
+
+	return s.clickAxis(deltaX, x11ScrollRight, x11ScrollLeft)
+}
+
+// clickAxis emits one chunk as whole wheel clicks. The animator only ever hands
+// it exact multiples of a notch, so the rounding here settles floating-point
+// error rather than a real fraction.
+func (s *x11ScrollSession) clickAxis(delta float64, positive, negative C.uint) error {
+	if delta == 0 {
+		return nil
+	}
+
+	button := positive
+	if delta < 0 {
+		button = negative
+	}
+
+	clicks := int(math.Round(math.Abs(delta) / scrollPixelsPerNotch))
+
+	for range clicks {
+		if C.neru_ax_button(s.display, button, 1) == 0 ||
+			C.neru_ax_button(s.display, button, 0) == 0 {
+			return derrors.New(derrors.CodeActionFailed, "failed scroll event on X11")
+		}
+	}
+
+	return nil
+}
+
+func (s *x11ScrollSession) close() {
+	x11ReleaseModifiers(s.display, s.modifiers)
+	C.neru_ax_close_display(s.display)
 }
 
 func x11ClickButtonAtPoint(

@@ -25,8 +25,8 @@ const (
 	noteMonitorSelect          = "monitor_select needs the optional MonitorSelector overlay " +
 		"extension, which the Windows backend does not implement"
 	noteSmoothCursor = "cursor movement is not animated on Windows"
-	noteSmoothScroll = "only the darwin scroll animator reads these; elsewhere the scroll " +
-		"is injected in one step"
+	noteSmoothScroll = "the Windows scroll is injected in one step; macOS and Linux animate it, " +
+		"and on X11 the steps are whole wheel notches because X has no smaller scroll to send"
 	noteKeyboardLayout = "the keyboard layout is detected rather than chosen outside macOS"
 	notePassthrough    = "unbound modifier chords reach the focused application on macOS and " +
 		"on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not"
@@ -222,7 +222,7 @@ func PlatformSupport() parity.Declaration {
 			"smooth_cursor.relative_movement_duration",
 		),
 
-		parity.On(parity.KindOption, darwinOnly, noteSmoothScroll,
+		parity.On(parity.KindOption, darwinAndLinux, noteSmoothScroll,
 			"smooth_scroll.enabled",
 			"smooth_scroll.steps",
 			"smooth_scroll.max_duration",

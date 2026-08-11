@@ -11,6 +11,7 @@ import (
 // The words the fixtures below are built around, named once so two fixtures
 // cannot disagree about how one of them is spelled.
 const (
+	screenShareHide     = "general.hide_overlay_in_screen_share"
 	smoothScrollEnabled = "smooth_scroll.enabled"
 	hintsStrategy       = "hints.strategy"
 	hideCursorStep      = "action hide_cursor"
@@ -34,9 +35,14 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 		want  parity.Platforms
 	}{
 		{
-			"smooth scroll is read only by the darwin animator",
-			smoothScrollEnabled, "",
+			"hiding the overlay from a screen share is a Quartz concept",
+			screenShareHide, "",
 			parity.Platforms{parity.Darwin},
+		},
+		{
+			"smooth scroll animates on macOS and Linux, not Windows",
+			smoothScrollEnabled, "",
+			parity.Platforms{parity.Darwin, parity.Linux},
 		},
 		{
 			"rectangle detection has no OCR answer",
@@ -114,13 +120,13 @@ func TestInertWords_Options(t *testing.T) {
 		},
 		{
 			name:    "an option written where it is inert is reported",
-			written: map[string]string{smoothScrollEnabled: trueValue},
+			written: map[string]string{screenShareHide: trueValue},
 			target:  parity.Linux,
-			want:    []string{smoothScrollEnabled},
+			want:    []string{screenShareHide},
 		},
 		{
 			name:    "the same option is not reported where it works",
-			written: map[string]string{smoothScrollEnabled: trueValue},
+			written: map[string]string{screenShareHide: trueValue},
 			target:  parity.Darwin,
 			want:    nil,
 		},

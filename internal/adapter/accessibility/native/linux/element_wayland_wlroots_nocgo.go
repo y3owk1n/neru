@@ -93,6 +93,23 @@ func wlrootsMouseUp(button action.MouseButton) error {
 	)
 }
 
+// waylandScrollBackendAvailable refuses before the animator is ever started.
+// The backend is detected from the environment, which says nothing about cgo,
+// so without this a CGO_ENABLED=0 build in a Wayland session would answer
+// "scrolled" and move nothing.
+func waylandScrollBackendAvailable() error {
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"wlroots backend requires CGO-enabled Linux builds",
+	)
+}
+
+func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+	_ = modifiers
+
+	return nil, waylandScrollBackendAvailable()
+}
+
 func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	_, _, _ = deltaX, deltaY, modifiers
 	return derrors.New(

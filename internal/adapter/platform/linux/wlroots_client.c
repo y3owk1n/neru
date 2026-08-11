@@ -196,6 +196,63 @@ static const struct wl_pointer_listener neru_wlr_pointer_listener = {
     .axis_discrete = neru_wlr_pointer_axis_discrete,
 };
 
+// ---------- Seat listener ----------
+
+// The relative pointer is what tracks physical mouse movement into the cursor
+// cache, and it is built on top of the wl_pointer — so it has to be rebuilt
+// every time that is, not only at connect. A pointer that came back without one
+// would leave the cached cursor position silently frozen against the user's own
+// hand.
+static void neru_wlr_bind_relative_pointer(NeruWlrootsClient *c) {
+	if (!c->rel_ptr_mgr || !c->pointer || c->rel_ptr)
+		return;
+
+	c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
+	zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
+}
+
+// The seat tells us when a pointer exists, and only then may we ask for one.
+// Our own virtual pointer is enough to bring one into being, so a seat that
+// starts without one gains it as soon as neru_wlr_connect creates the virtual
+// pointer — which is why connect waits a roundtrip before using c->pointer.
+static void neru_wlr_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
+	NeruWlrootsClient *c = (NeruWlrootsClient *)data;
+	if (!c)
+		return;
+
+	if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && !c->pointer) {
+		c->pointer = wl_seat_get_pointer(seat);
+		wl_pointer_add_listener(c->pointer, &neru_wlr_pointer_listener, c);
+		neru_wlr_bind_relative_pointer(c);
+		return;
+	}
+
+	// The event is level-triggered, so a seat that loses its pointer sends it
+	// again with the bit clear and the compositor treats the wl_pointer as
+	// gone. Holding on to it would turn the next use into a request on a dead
+	// object — a protocol error that kills the connection, which is the failure
+	// this listener exists to avoid in the other direction.
+	if (!(capabilities & WL_SEAT_CAPABILITY_POINTER) && c->pointer) {
+		if (c->rel_ptr) {
+			zwp_relative_pointer_v1_destroy(c->rel_ptr);
+			c->rel_ptr = NULL;
+		}
+		wl_pointer_release(c->pointer);
+		c->pointer = NULL;
+	}
+}
+
+static void neru_wlr_seat_name(void *data, struct wl_seat *seat, const char *name) {
+	(void)data;
+	(void)seat;
+	(void)name;
+}
+
+static const struct wl_seat_listener neru_wlr_seat_listener = {
+    .capabilities = neru_wlr_seat_capabilities,
+    .name = neru_wlr_seat_name,
+};
+
 typedef struct {
 	NeruWlrootsClient *client;
 	NeruWaylandScreen *screen;
@@ -777,8 +834,12 @@ static void neru_wlr_registry_global(
 		c->rel_ptr_mgr = wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
 		c->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7 < version ? 7 : version);
-		c->pointer = wl_seat_get_pointer(c->seat);
-		wl_pointer_add_listener(c->pointer, &neru_wlr_pointer_listener, c);
+		// The pointer is taken from the capabilities event rather than here:
+		// wl_seat.get_pointer on a seat that has never advertised a pointer is
+		// a protocol error, and it kills the whole connection.  A seat with no
+		// pointer yet is not hypothetical — a session with no input device
+		// attached is one, and so is the headless compositor CI runs.
+		wl_seat_add_listener(c->seat, &neru_wlr_seat_listener, c);
 	} else if (strcmp(interface, "wl_output") == 0) {
 		if (c->nr_screens < NERU_MAX_OUTPUTS) {
 			NeruWaylandScreen *scr = &c->screens[c->nr_screens];
@@ -1006,11 +1067,15 @@ NeruWlrootsClient *neru_wlr_connect(void) {
 		neru_wlr_setup_virtual_keyboard(c);
 	}
 
-	// Create relative pointer for tracking physical cursor motion.
-	if (c->rel_ptr_mgr && c->pointer) {
-		c->rel_ptr = zwp_relative_pointer_manager_v1_get_relative_pointer(c->rel_ptr_mgr, c->pointer);
-		zwp_relative_pointer_v1_add_listener(c->rel_ptr, &neru_wlr_relative_pointer_listener, c);
-	}
+	// Let the seat answer before anything reads c->pointer: the pointer is
+	// taken from the capabilities event, and on a seat that had none the
+	// virtual pointer created just above is what brings it into existence.
+	wl_display_roundtrip(c->display);
+
+	// Create relative pointer for tracking physical cursor motion. The seat
+	// handler usually got here first — the roundtrip above is what lets it —
+	// and this is the case where the manager arrived after the capability.
+	neru_wlr_bind_relative_pointer(c);
 
 	// Subscribe to foreign-toplevel events. Binding the manager makes the
 	// compositor replay a `toplevel` event for every existing window; a
@@ -1342,6 +1407,28 @@ int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
 	} else {
 		zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta));
 	}
+	zwlr_virtual_pointer_v1_frame(c->vptr);
+	wl_display_flush(c->display);
+	pthread_mutex_unlock(&c->display_mutex);
+	return 1;
+}
+
+int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value) {
+	if (!c || !c->vptr)
+		return 0;
+
+	pthread_mutex_lock(&c->display_mutex);
+	// Source "continuous" rather than "wheel": a wheel source tells the client
+	// the value came off a detented device, and a toolkit is entitled to round
+	// it back to detents on that word alone.  What this sends is a distance in
+	// a continuous space, which is what the enum's continuous member means, and
+	// unlike "finger" it implies no kinetic scrolling and needs no axis_stop.
+	zwlr_virtual_pointer_v1_axis_source(c->vptr, WL_POINTER_AXIS_SOURCE_CONTINUOUS);
+	// axis rather than axis_discrete: wlroots leaves delta_discrete at zero for
+	// this request, and a zero delta_discrete is what makes the compositor send
+	// the fraction on to the client instead of holding it in a v120 accumulator
+	// until a whole notch adds up.
+	zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_double(value));
 	zwlr_virtual_pointer_v1_frame(c->vptr);
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);

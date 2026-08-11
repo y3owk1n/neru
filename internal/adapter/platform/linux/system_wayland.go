@@ -45,6 +45,20 @@ func WaylandScroll(axis, delta, discrete int) error {
 	return waylandScroll(axis, delta, discrete)
 }
 
+// WaylandScrollContinuous sends one scroll step of an arbitrary distance,
+// including less than one wheel notch. axis: 0=vertical, 1=horizontal; delta is
+// in the same logical pixels WaylandScroll takes, with the same sign
+// convention.
+//
+// It exists beside WaylandScroll because the two say different things to a
+// client: WaylandScroll's discrete step count declares "one wheel notch", which
+// a compositor is entitled to hold back until whole notches accumulate, while
+// this one declares a continuous distance and is delivered as written. Smooth
+// scroll is the caller.
+func WaylandScrollContinuous(axis int, delta float64) error {
+	return waylandScrollContinuous(axis, delta)
+}
+
 // WlrootsScrollBatch sends multiple scroll events in a single flush.
 // deltas and discretes must have the same length. Routes through the
 // waylandScrollBatch seam so KDE (libei, no virtual pointer) emits one

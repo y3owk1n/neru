@@ -1530,7 +1530,16 @@ speeds up over the ramp exactly as without animation — just smoothly.
 
 Splits scroll deltas into chunked ease-out events for visual feedback.
 
-**Platforms:** macOS only. Linux and Windows fall back to instant scrolling.
+**Platforms:** macOS and Linux. Windows falls back to instant scrolling, and on
+Linux X11 a step can be no finer than a wheel notch — what that means for a
+given scroll is in the
+[capability matrix](CROSS_PLATFORM.md#capability-matrix).
+
+Neru sends the same distance whether the animation is on or off. On Wayland it
+sends it in a different *currency*: a continuous delta rather than a count of
+wheel notches, and an application is free to scale those two differently. So
+turning the animation on can change how far a `scroll_down` reaches in a given
+application, and `scroll.scroll_step` is the setting to trim if it does.
 
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |

@@ -312,7 +312,7 @@ int neru_ei_button(NeruEiClient *c, int button, int pressed) {
 	return 1;
 }
 
-int neru_ei_scroll(NeruEiClient *c, int axis, int delta) {
+int neru_ei_scroll(NeruEiClient *c, int axis, double delta) {
 	if (!c) {
 		return 0;
 	}
@@ -321,9 +321,9 @@ int neru_ei_scroll(NeruEiClient *c, int axis, int delta) {
 		return 0;
 	}
 	if (axis == 1) {
-		ei_device_scroll_delta(c->pointer, (double)delta, 0.0);
+		ei_device_scroll_delta(c->pointer, delta, 0.0);
 	} else {
-		ei_device_scroll_delta(c->pointer, 0.0, (double)delta);
+		ei_device_scroll_delta(c->pointer, 0.0, delta);
 	}
 	ei_device_frame(c->pointer, ei_now(c->ei));
 	ei_dispatch(c->ei);
