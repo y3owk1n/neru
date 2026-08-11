@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/docsregion"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
@@ -18,6 +18,13 @@ const (
 	BeginMarker = "<!-- BEGIN GENERATED MODE FLAGS: edit internal/domain/modecmd, then run `just genflagref` -->"
 	EndMarker   = "<!-- END GENERATED MODE FLAGS -->"
 )
+
+// markers is the region this reference is published into.
+var markers = docsregion.Markers{
+	Begin: BeginMarker,
+	End:   EndMarker,
+	What:  "mode-flag",
+}
 
 // The words the value column uses for each shape a flag is written in.
 const (
@@ -65,53 +72,16 @@ func Table() string {
 // Everything outside the markers is left exactly as it was: the reference is
 // one table inside a hand-written page, not the page.
 func Rewrite(document string) (string, error) {
-	begin, end, err := bounds(document)
-	if err != nil {
-		return "", err
-	}
-
-	return document[:begin] + "\n\n" + Table() + "\n" + document[end:], nil
+	return markers.Rewrite(document, Table())
 }
 
 // Region returns what a document currently holds between the markers.
 //
 // [Rewrite] answers "what should this page say?"; this answers "what does it
 // say?", which is what a reader reporting a page's contents back — a guardrail
-// naming the flag it could not find — needs. Both read the markers here, so
-// there is one answer to where the region starts.
+// naming the flag it could not find — needs.
 func Region(document string) (string, error) {
-	begin, end, err := bounds(document)
-	if err != nil {
-		return "", err
-	}
-
-	return document[begin:end], nil
-}
-
-// bounds locates the generated region: the offset just past the opening marker
-// and the offset of the closing one.
-func bounds(document string) (int, int, error) {
-	begin := strings.Index(document, BeginMarker)
-	if begin < 0 {
-		return 0, 0, derrors.Newf(
-			derrors.CodeInvalidInput,
-			"document has no generated mode-flag region; add the %q marker",
-			BeginMarker,
-		)
-	}
-
-	begin += len(BeginMarker)
-
-	end := strings.Index(document, EndMarker)
-	if end < begin {
-		return 0, 0, derrors.Newf(
-			derrors.CodeInvalidInput,
-			"document has no closing mode-flag marker after the opening one; add %q",
-			EndMarker,
-		)
-	}
-
-	return begin, end, nil
+	return markers.Region(document)
 }
 
 // shorthand renders the single-letter alias, or nothing when the flag has none.

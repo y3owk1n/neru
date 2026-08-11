@@ -259,6 +259,14 @@ platform capabilities, and internal component state. Platform capabilities come
 from the capability matrix described in
 [CROSS_PLATFORM.md](CROSS_PLATFORM.md#capability-matrix).
 
+The `platform_support` row answers a different question from those
+capabilities: it names the options, actions and mode flags **your**
+configuration writes that do nothing on this platform, with the reason for
+each. They are not errors — the file loads and the daemon runs, which is what
+lets one configuration be carried between platforms — so the row never fails
+the check. The full set is
+[Platform Support Per Word](CROSS_PLATFORM.md#platform-support-per-word).
+
 ---
 
 # Navigation modes

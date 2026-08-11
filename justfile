@@ -282,9 +282,10 @@ test-foundation:
         ./internal/domain ./internal/domain/action \
         ./internal/domain/element ./internal/domain/grid \
         ./internal/domain/hint ./internal/domain/keyvocab \
-        ./internal/domain/modecmd ./internal/domain/recursivegrid \
+        ./internal/domain/modecmd ./internal/domain/parity \
+        ./internal/domain/recursivegrid \
         ./internal/domain/state ./internal/derrors \
-        ./internal/flagref \
+        ./internal/flagref ./internal/supportref \
         ./internal/adapter/logger \
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/platform/fontcache \
@@ -456,6 +457,14 @@ genman OUTPUT_DIR="build/man":
 genflagref:
     @echo "Generating the mode-flag reference..."
     go run ./cmd/genflagref docs/CLI.md
+
+# Rewrite the platform-support table from the per-vocabulary declarations.
+# Run after changing a platform column in any platform_support.go; the
+# architecture guardrail fails while the page is out of date.
+[doc('Rewrite the platform-support table in docs/CROSS_PLATFORM.md.')]
+gensupportref:
+    @echo "Generating the platform-support table..."
+    go run ./cmd/gensupportref docs/CROSS_PLATFORM.md
 
 # Clean build artifacts
 [doc('Delete the build outputs, the app bundles and the lint cache.')]

@@ -79,7 +79,7 @@ clickable_roles = ` + testCase.roles + `
 			cmd := &cobra.Command{}
 			cmd.SetOut(&out)
 
-			got := printClickableRolesCheck(cmd)
+			got := printClickableRolesCheck(cmd, doctorConfigLoad())
 			if got != testCase.wantUsable {
 				t.Errorf(
 					"printClickableRolesCheck() = %v, want %v\noutput:\n%s",

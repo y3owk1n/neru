@@ -70,6 +70,9 @@
 //   - overlay_frame_test.go — an overlay Frame carries domain values only.
 //   - platform_slots_test.go — platform files use the documented file slots,
 //     tagged packages tag every file, package comments reach every target.
+//   - platform_support_test.go — every option, mode flag and action declares
+//     the platforms it does something on, and docs/CROSS_PLATFORM.md publishes
+//     that declaration rather than a copy of it.
 //   - ports_test.go — every port has a mock, and every mock asserts that it
 //     satisfies the interface.
 //   - repo_walk_test.go — the one walk the suite shares: what it prunes, what

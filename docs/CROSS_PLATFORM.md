@@ -28,6 +28,7 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 - [Accessibility And Hints](#accessibility-and-hints)
 - [Overlay Rendering](#overlay-rendering)
 - [Mode Coverage](#mode-coverage)
+- [Platform Support Per Word](#platform-support-per-word)
 - [Platform Exclusives](#platform-exclusives)
 - [Known Gaps](#known-gaps)
 
@@ -566,6 +567,148 @@ actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
 
 ---
 
+## Platform Support Per Word
+
+Every option, mode flag and action carries a platform column, declared once
+beside the vocabulary that owns it —
+[`internal/config/platform_support.go`](../internal/config/platform_support.go),
+[`internal/domain/modecmd/platform_support.go`](../internal/domain/modecmd/platform_support.go)
+and
+[`internal/domain/action/platform_support.go`](../internal/domain/action/platform_support.go).
+The table below is a projection of those declarations, as are the warning the
+daemon prints once at load and the `platform_support` row in `neru doctor`
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+
+It lists only the words whose column is narrower than every platform. The
+several hundred that work everywhere are declared too — being supported
+everywhere is written down rather than assumed — and
+`internal/architecture/platform_support_test.go` fails the build when a word is
+neither. Writing one of these where it is inert is never a config error: the
+file loads, the daemon runs, and one warning says which lines mean nothing here,
+so that one configuration can be carried between platforms
+([ADR 0008](./adr/0008-a-vocabulary-has-one-home.md)).
+
+This table answers a different question from the
+[Capability Matrix](#capability-matrix). The matrix says whether a subsystem
+works; this says whether a word a person wrote does anything. A subsystem can be
+green in every cell while an option means nothing, which is exactly how
+`smooth_scroll` shipped.
+
+<!-- BEGIN GENERATED PLATFORM SUPPORT: edit the platform_support.go declarations, then run `just gensupportref` -->
+
+| Word | Kind | macOS | Linux | Windows | Why |
+| ---- | ---- | --- | --- | --- | --- |
+| `general.hide_overlay_in_screen_share` | option | ✅ | ❌ | ❌ | hiding the overlay from a screen share is an NSWindow sharing level, a Quartz concept with no X11, Wayland or Win32 counterpart |
+| `general.kb_layout_to_use` | option | ✅ | ❌ | ❌ | the keyboard layout is detected rather than chosen outside macOS |
+| `general.passthrough_unbounded_keys` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
+| `general.passthrough_unbounded_keys_blacklist` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
+| `general.should_exit_after_passthrough` | option | ✅ | ✅ | ❌ | unbound modifier chords reach the focused application on macOS and on the Wayland evdev tap; X11 cannot pass them through at all and Windows does not |
+| `hints.include_menubar_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.additional_menubar_hints_targets` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.include_dock_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.include_nc_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.include_stage_manager_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.include_pip_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.include_screen_capture_hints` | option | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
+| `hints.detect_mission_control` | option | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
+| `hints.on_mission_control_activated` | option | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
+| `hints.on_mission_control_deactivated` | option | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
+| `hints.max_depth` | option | ✅ | ❌ | ❌ | only the AX walk takes a depth limit; the AT-SPI walk uses a fixed one and the UIA walk records the option without reading it |
+| `hints.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `hints.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `hints.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `hints.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `recursive_grid.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `recursive_grid.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `scroll.app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `scroll.app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `app_configs.ignore_clickable_check` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `app_configs.visible_check_enabled` | option | ✅ | ❌ | ❌ | the clickable and visibility checks are AX-specific; the AT-SPI and UIA walks decide what is clickable their own way and never consult these |
+| `grid.prewarm_enabled` | option | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
+| `hints.search_input_ui.font_size` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.font_family` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.border_radius` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.padding_x` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.padding_y` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.border_width` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.position` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.x_offset` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.y_offset` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.width` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.background_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.text_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.search_input_ui.border_color` | option | ✅ | ❌ | ✅ | no Linux overlay backend draws the hints search input badge; the query still reaches hints through the event tap |
+| `hints.vision.detect_text` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.request_timeout_ms` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.minimum_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.merge_iou_threshold` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_min_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_min_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_max_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.button_icon_max_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_min_aspect` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_max_height` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.link_min_width` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.image_min_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.checkbox_max_size` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.generic_clickable_min_confidence` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.vision.detect_rectangles` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
+| `hints.vision.rectangle_max_candidates` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
+| `hints.vision.rectangle_min_size` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
+| `hints.vision.rectangle_min_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
+| `hints.vision.rectangle_max_aspect` | option | ✅ | ❌ | ❌ | rectangle detection has no OCR answer, so it stays macOS-only even where the vision strategy lands; that half is text-only |
+| `hints.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `hints.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `grid.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `recursive_grid.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `scroll.app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `app_configs.strategy = vision` | option | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so it finds nothing there and none of its settings are read; use axtree |
+| `recursive_grid.animation.enabled` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
+| `recursive_grid.animation.duration_ms` | option | ✅ | ✅ | ❌ | the Windows overlay backend has no grid transition animation |
+| `monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.characters` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.font_size` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.font_family` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.border_radius` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.padding_x` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.padding_y` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.border_width` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.subtitle_font_size` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.subtitle_font_family` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.background_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.text_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.matched_text_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.border_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.backdrop_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `monitor_select.ui.subtitle_text_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `mode_indicator.monitor_select.enabled` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `mode_indicator.monitor_select.text` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `mode_indicator.monitor_select.background_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `mode_indicator.monitor_select.text_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `mode_indicator.monitor_select.border_color` | option | ✅ | ✅ | ❌ | monitor_select needs the optional MonitorSelector overlay extension, which the Windows backend does not implement |
+| `smooth_cursor.move_mouse_enabled` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
+| `smooth_cursor.steps` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
+| `smooth_cursor.max_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
+| `smooth_cursor.duration_per_pixel` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
+| `smooth_cursor.relative_movement_duration` | option | ✅ | ✅ | ❌ | cursor movement is not animated on Windows |
+| `smooth_scroll.enabled` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
+| `smooth_scroll.steps` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
+| `smooth_scroll.max_duration` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
+| `smooth_scroll.duration_per_pixel` | option | ✅ | ❌ | ❌ | only the darwin scroll animator reads these; elsewhere the scroll is injected in one step |
+| `--split-word` | mode flag | ✅ | ❌ | ❌ | splitting detected text into words needs the vision strategy, which only macOS has an engine for; elsewhere the flag is refused rather than ignored |
+| `--strategy=vision` | mode flag | ✅ | ❌ | ❌ | no element-detection engine outside macOS answers the vision strategy, so detection returns nothing and no hints appear; use axtree |
+| `hide_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
+| `show_cursor` | action | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
+| `scroll_left` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |
+| `scroll_right` | action | ✅ | ✅ | ❌ | the Windows wheel event carries no horizontal delta, so a sideways scroll injects nothing |
+| `feed` | action | ✅ | ✅ | ❌ | Windows has no key-injection path yet, so the key it would post is never sent; the key_feed capability reports stub to match |
+
+<!-- END GENERATED PLATFORM SUPPORT -->
+
+---
+
 ## Platform Exclusives
 
 Features available on exactly one platform, with why they do not port. This is
@@ -655,10 +798,11 @@ command — that means less here than it does on macOS, whether or not the
     and the `CGO_ENABLED=0` build should announce its boundary once at startup
     rather than failing feature by feature
 
-Two enabling pieces of work are tracked as issues rather than gaps, because
-neither is a capability: a headless-sway CI job running the desktop-driving
-test tier, and the single declaration of the darwin-only set that the load-time
-warning, `neru doctor` and the docs rows all project from.
+The gaps above are the work; what a person writes and finds inert *today* is
+[Platform Support Per Word](#platform-support-per-word), which is generated
+from the declaration the load-time warning and `neru doctor` also read. A gap
+closing is the same edit in both places: the code lands and the word's column
+widens.
 
 **Not Linux gaps**, and deliberately so: secure input detection and system
 cursor hide are [Platform Exclusives](#platform-exclusives); GNOME/Mutter
@@ -1267,6 +1411,18 @@ return derrors.New(derrors.CodeNotSupported, "ScreenBounds not yet implemented o
 Name the missing operation and the platform in the message. Callers degrade
 gracefully via `derrors.IsNotSupported(err)`.
 
+**A word is not the same question as a subsystem.** When the thing you shipped
+or stubbed is an option, a mode flag or an action rather than a capability,
+the answer goes in the `PlatformSupport()` declaration beside that vocabulary —
+`internal/config/platform_support.go`,
+`internal/domain/modecmd/platform_support.go`,
+`internal/domain/action/platform_support.go` — and
+`internal/architecture/platform_support_test.go` fails the build while a word
+has no column. Regenerate the published table with `just gensupportref`. A
+subsystem can be green in every cell of the matrix while an option a person
+wrote means nothing
+([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+
 Capability reporting is part of the contract, not a user nicety — it is what
 `neru doctor` prints. When you implement or partially implement a feature,
 review [capabilities.go](../internal/ports/capabilities.go),
@@ -1301,6 +1457,7 @@ update the one that owns it rather than restating it elsewhere:
 | ----------------------------------------------- | ------------------------------------------------------------- |
 | A capability's status or mechanism              | **this file** — the parity tables in Part 1                   |
 | A gap closed or discovered                      | **this file** — [Known Gaps](#known-gaps)                     |
+| Which platforms an option, mode flag or action does anything on | the `PlatformSupport()` declaration beside that vocabulary, then `just gensupportref` |
 | Desktop-specific setup, protocol support, or a DE workaround | [LINUX_DESKTOPS.md](./LINUX_DESKTOPS.md)         |
 | Host dependencies, permissions, or deployment   | [LINUX_SETUP.md](./LINUX_SETUP.md) — keep DE-agnostic         |
 | A layer boundary, port contract, or data flow   | [ARCHITECTURE.md](./ARCHITECTURE.md)                          |

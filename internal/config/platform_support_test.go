@@ -1,0 +1,280 @@
+package config_test
+
+import (
+	"slices"
+	"testing"
+
+	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/parity"
+)
+
+// The words the fixtures below are built around, named once so two fixtures
+// cannot disagree about how one of them is spelled.
+const (
+	smoothScrollEnabled = "smooth_scroll.enabled"
+	hintsStrategy       = "hints.strategy"
+	hideCursorStep      = "action hide_cursor"
+	hideCursorAction    = "hide_cursor"
+	visionStrategy      = "vision"
+	trueValue           = "true"
+)
+
+// TestPlatformSupport_DeclaresTheKnownNarrowColumns pins the members ADR 0013
+// named, so a well-meaning cleanup that widened one back to every platform has
+// to argue with a test rather than with nobody.
+func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
+	t.Parallel()
+
+	declaration := config.PlatformSupport()
+
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		want  parity.Platforms
+	}{
+		{
+			"smooth scroll is read only by the darwin animator",
+			smoothScrollEnabled, "",
+			parity.Platforms{parity.Darwin},
+		},
+		{
+			"rectangle detection has no OCR answer",
+			"hints.vision.detect_rectangles", "",
+			parity.Platforms{parity.Darwin},
+		},
+		{
+			"the vision strategy is a value, not the option",
+			hintsStrategy, visionStrategy,
+			parity.Platforms{parity.Darwin},
+		},
+		{
+			"monitor_select has no Windows overlay extension",
+			"monitor_select.enabled", "",
+			parity.Platforms{parity.Darwin, parity.Linux},
+		},
+		{
+			"smooth cursor is not animated on Windows",
+			"smooth_cursor.steps", "",
+			parity.Platforms{parity.Darwin, parity.Linux},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			word, found := declaration.Lookup(parity.KindOption, test.path, test.value)
+			if !found {
+				t.Fatalf("no declaration for option %q with value %q", test.path, test.value)
+			}
+
+			if !slices.Equal(word.Platforms, test.want) {
+				t.Errorf("%q is declared on %v, want %v", test.path, word.Platforms, test.want)
+			}
+
+			if word.Note == "" {
+				t.Errorf("%q carries a narrow column with no note saying why", test.path)
+			}
+		})
+	}
+}
+
+// TestPlatformSupport_DeclaresTheOptionBehindAValue is the reason the strategy
+// option resolves at all on a platform with no vision engine: the option is
+// recognized everywhere and only one value of it is not.
+func TestPlatformSupport_DeclaresTheOptionBehindAValue(t *testing.T) {
+	t.Parallel()
+
+	word, found := config.PlatformSupport().Lookup(parity.KindOption, hintsStrategy, "")
+	if !found {
+		t.Fatal("hints.strategy itself is not declared")
+	}
+
+	if !word.Platforms.Everywhere() {
+		t.Errorf("hints.strategy is declared as %v; the option is written everywhere, "+
+			"and only its vision value is not", word.Platforms)
+	}
+}
+
+func TestInertWords_Options(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		written map[string]string
+		target  parity.Platform
+		want    []string
+	}{
+		{
+			name:    "an option nobody wrote is not reported",
+			written: map[string]string{"grid.enabled": trueValue},
+			target:  parity.Linux,
+			want:    nil,
+		},
+		{
+			name:    "an option written where it is inert is reported",
+			written: map[string]string{smoothScrollEnabled: trueValue},
+			target:  parity.Linux,
+			want:    []string{smoothScrollEnabled},
+		},
+		{
+			name:    "the same option is not reported where it works",
+			written: map[string]string{smoothScrollEnabled: trueValue},
+			target:  parity.Darwin,
+			want:    nil,
+		},
+		{
+			name:    "a value is reported only when it is the one declared",
+			written: map[string]string{hintsStrategy: visionStrategy},
+			target:  parity.Linux,
+			want:    []string{"hints.strategy = vision"},
+		},
+		{
+			name:    "the same option with another value is not reported",
+			written: map[string]string{hintsStrategy: "axtree"},
+			target:  parity.Linux,
+			want:    nil,
+		},
+		{
+			name:    "a leaf below a color reports the color",
+			written: map[string]string{"monitor_select.ui.background_color.light": "#fff"},
+			target:  parity.Windows,
+			want:    []string{"monitor_select.ui.background_color"},
+		},
+		{
+			name:    "an option inert only on Windows is silent on Linux",
+			written: map[string]string{"smooth_cursor.steps": "20"},
+			target:  parity.Linux,
+			want:    nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := config.InertWords(config.Written{Options: test.written}, test.target).Names()
+			if !slices.Equal(got, test.want) {
+				t.Errorf("InertWords(%v) = %v, want %v", test.written, got, test.want)
+			}
+		})
+	}
+}
+
+func TestInertWords_Steps(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		steps  []string
+		target parity.Platform
+		want   []string
+	}{
+		{
+			name:   "an action that works everywhere is not reported",
+			steps:  []string{"action left_click"},
+			target: parity.Linux,
+			want:   nil,
+		},
+		{
+			name:   "a darwin-only action is reported where it does nothing",
+			steps:  []string{hideCursorStep},
+			target: parity.Linux,
+			want:   []string{hideCursorAction},
+		},
+		{
+			name:   "the same action is not reported on darwin",
+			steps:  []string{hideCursorStep},
+			target: parity.Darwin,
+			want:   nil,
+		},
+		{
+			name:   "an action written twice is reported once",
+			steps:  []string{hideCursorStep, hideCursorStep},
+			target: parity.Linux,
+			want:   []string{hideCursorAction},
+		},
+		{
+			name:   "horizontal scroll is reported on Windows",
+			steps:  []string{"action scroll_right"},
+			target: parity.Windows,
+			want:   []string{"scroll_right"},
+		},
+		{
+			name:   "horizontal scroll is silent on Linux",
+			steps:  []string{"action scroll_right"},
+			target: parity.Linux,
+			want:   nil,
+		},
+		{
+			name:   "a mode flag value with no engine is reported",
+			steps:  []string{"hints --strategy=vision"},
+			target: parity.Linux,
+			want:   []string{"--strategy=vision"},
+		},
+		{
+			name:   "the same flag with a supported value is not",
+			steps:  []string{"hints --strategy=axtree"},
+			target: parity.Linux,
+			want:   nil,
+		},
+		{
+			name:   "a flag inert whatever its value is reported alongside one",
+			steps:  []string{"hints --strategy=vision --split-word"},
+			target: parity.Windows,
+			want:   []string{"--strategy=vision", "--split-word"},
+		},
+		{
+			name:   "a mode command with no narrow flag is silent",
+			steps:  []string{"hints --toggle"},
+			target: parity.Windows,
+			want:   nil,
+		},
+		{
+			name:   "a step that is not a command at all is silent",
+			steps:  []string{"exec notify-send nothing", ""},
+			target: parity.Linux,
+			want:   nil,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := config.InertWords(config.Written{Steps: test.steps}, test.target).Names()
+			if !slices.Equal(got, test.want) {
+				t.Errorf("InertWords(%v) = %v, want %v", test.steps, got, test.want)
+			}
+		})
+	}
+}
+
+// TestInertWords_LeavesTheShippedBindingsSilentWhereTheyWork keeps the warning
+// about what somebody wrote. The shipped scroll bindings name scroll_left and
+// scroll_right, which inject nothing on Windows — a Known Gaps entry rather than
+// a line a user can go and fix — which is why the reading is of the user's files
+// and not of the merged configuration, and why Windows is not asserted here.
+func TestInertWords_LeavesTheShippedBindingsSilentWhereTheyWork(t *testing.T) {
+	t.Parallel()
+
+	defaults := config.DefaultConfig()
+
+	var steps []string
+
+	for _, actions := range defaults.Hotkeys.Bindings {
+		steps = append(steps, actions...)
+	}
+
+	for _, target := range []parity.Platform{parity.Darwin, parity.Linux} {
+		found := config.InertWords(config.Written{Steps: steps}, target).Names()
+		if len(found) > 0 {
+			t.Errorf(
+				"the default global bindings write %v, which does nothing on %s; "+
+					"either the default is wrong or the word's column is",
+				found, target,
+			)
+		}
+	}
+}

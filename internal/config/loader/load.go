@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
 // appConfigsKey names the per-app override table, which appears inside
@@ -48,7 +49,8 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 		return rejected
 	}
 
-	if overridePath := overrideFileToLayer(result.ConfigPath); overridePath != "" {
+	overridePath := overrideFileToLayer(result.ConfigPath)
+	if overridePath != "" {
 		overrideErr := s.applyOverrideFile(result.Config, overridePath)
 		if overrideErr != nil {
 			return refuse(result, overrideErr)
@@ -77,6 +79,19 @@ func (s *Service) LoadWithValidation(path string) *config.LoadResult {
 	// two are the same string, and only the snapshot above still tells them
 	// apart (config.WrittenConfig).
 	warnings := &config.Warnings{}
+
+	// Judged against the files rather than the configuration they produced: a
+	// word that is inert here is only worth reporting when somebody wrote it,
+	// and past the merge a default nobody chose reads the same as a line
+	// somebody typed. A build for a platform no declaration has a column for
+	// claims nothing, so it warns about nothing.
+	if platform, known := parity.Current(); known {
+		result.Inert = warnInertWords(
+			warnings,
+			writtenConfiguration(raw, overridePath),
+			platform,
+		)
+	}
 
 	validateErr := result.Config.ValidateWithWarnings(warnings, config.AsWritten(written))
 	if validateErr != nil {
@@ -112,8 +127,10 @@ func refuse(result *config.LoadResult, err error) *config.LoadResult {
 	result.Written = config.DefaultConfigForDecoding()
 
 	// The warnings were about the file that was refused, not about the defaults
-	// now running, so they go with it.
+	// now running, so they go with it — and so do the inert words, which were
+	// found in that same file.
 	result.Warnings = nil
+	result.Inert = nil
 
 	return result
 }
