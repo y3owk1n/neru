@@ -46,9 +46,19 @@ static NSDictionary<NSNumber *, NSString *> *gKeyCodeToCharShiftedCaps = nil;
 static dispatch_block_t gLayoutChangeDebounceBlock = nil;
 
 /// optional callback invoked after layout maps are rebuilt
-static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback = NULL;
+/// empty layout-change callback slot
+///
+/// Spelled as a cast rather than NULL: Apple clang 15 — the newest toolchain
+/// available on macOS 14.4 and earlier — rejects NULL, 0 and nil alike as
+/// compile-time constant initializers for an _Atomic function pointer. A cast
+/// to the pointer type is accepted by every clang, so this builds on old and
+/// new toolchains both.
+#define KEYMAP_NO_LAYOUT_CALLBACK ((KeymapLayoutChangeCallback)0)
+
+/// optional callback invoked after layout maps are rebuilt
+static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback = KEYMAP_NO_LAYOUT_CALLBACK;
 /// second callback slot for Go-level layout change notifications
-static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback2 = NULL;
+static _Atomic(KeymapLayoutChangeCallback) gLayoutChangeCallback2 = KEYMAP_NO_LAYOUT_CALLBACK;
 
 #pragma mark - UCKeyTranslate Helper
 
