@@ -79,6 +79,15 @@ func (m *MockSystrayPort) Tooltip() string {
 	return m.tooltip
 }
 
+// Icon returns the last icon passed to SetIcon and whether it was set as a
+// macOS template image.
+func (m *MockSystrayPort) Icon() ([]byte, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.icon, m.iconIsTemplate
+}
+
 // Items returns the top-level items created so far.
 func (m *MockSystrayPort) Items() []*MockSystrayMenuItem {
 	m.mu.Lock()
