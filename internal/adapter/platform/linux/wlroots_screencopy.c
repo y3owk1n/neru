@@ -2,6 +2,7 @@
 
 #include "common_defs.h"
 #include "screencapture.h"
+#include "shm_file.h"
 #include "wlr_protocol/screencopy.h"
 #include "wlr_protocol/xdg-output.h"
 
@@ -11,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
@@ -352,27 +352,6 @@ static int neru_screencopy_roundtrip(NeruScreencopyCtx *ctx, int64_t deadline) {
 	return ok;
 }
 
-static int neru_screencopy_shm_file(size_t size) {
-	int fd = (int)syscall(__NR_memfd_create, "neru-screencopy-shm", 0);
-	if (fd < 0) {
-		return -1;
-	}
-
-	int rc;
-
-	do {
-		rc = ftruncate(fd, (off_t)size);
-	} while (rc < 0 && errno == EINTR);
-
-	if (rc < 0) {
-		close(fd);
-
-		return -1;
-	}
-
-	return fd;
-}
-
 // neru_screencopy_select_output finds the output that wholly contains the
 // requested region and writes the region in that output's local logical
 // coordinates. Returns NULL when no single output contains it.
@@ -515,7 +494,7 @@ static int neru_screencopy_copy_frame(
 
 	size_t size = (size_t)mapping;
 
-	int fd = neru_screencopy_shm_file(size);
+	int fd = neru_shm_file_create("neru-screencopy-shm", size);
 	if (fd < 0) {
 		return NERU_CAPTURE_ERR_ALLOC;
 	}

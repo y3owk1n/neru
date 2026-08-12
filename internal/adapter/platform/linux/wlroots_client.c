@@ -6,13 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 
-// Include wlroots protocol headers relative to this package.
+// Include the sibling bridge headers and the wlroots protocol headers
+// relative to this package.
+#include "shm_file.h"
 #include "wlr_protocol/foreign-toplevel.h"
 #include "wlr_protocol/layer-shell.h"
 #include "wlr_protocol/relative-pointer-unstable-v1.h"
@@ -268,36 +269,6 @@ typedef struct {
 
 static int neru_wlr_discovery_attach_buffer(NeruWlrootsClient *c, NeruCursorDiscoverySurface *surface);
 
-static int neru_wlr_create_shm_file(off_t size) {
-	int ret;
-
-#ifdef __NR_memfd_create
-	int fd = syscall(__NR_memfd_create, "neru-cursor-discovery-shm", 0);
-	if (fd >= 0) {
-		do {
-			ret = ftruncate(fd, size);
-		} while (ret < 0 && errno == EINTR);
-		if (ret >= 0)
-			return fd;
-		close(fd);
-	}
-#endif
-
-	char name[] = "/tmp/neru-cursor-discovery-XXXXXX";
-	fd = mkstemp(name);
-	if (fd < 0)
-		return -1;
-	unlink(name);
-	do {
-		ret = ftruncate(fd, size);
-	} while (ret < 0 && errno == EINTR);
-	if (ret < 0) {
-		close(fd);
-		return -1;
-	}
-	return fd;
-}
-
 static void neru_wlr_discovery_configure(
     void *data, struct zwlr_layer_surface_v1 *layer_surface, uint32_t serial, uint32_t width, uint32_t height) {
 	NeruCursorDiscoverySurface *surface = (NeruCursorDiscoverySurface *)data;
@@ -328,7 +299,7 @@ static int neru_wlr_discovery_attach_buffer(NeruWlrootsClient *c, NeruCursorDisc
 
 	size_t stride = (size_t)surface->width * 4u;
 	surface->shm_size = stride * (size_t)surface->height;
-	int fd = neru_wlr_create_shm_file((off_t)surface->shm_size);
+	int fd = neru_shm_file_create("neru-cursor-discovery-shm", surface->shm_size);
 	if (fd < 0)
 		return 0;
 
