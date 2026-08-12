@@ -227,12 +227,20 @@ func (r *StyleResolver) push(cfg *config.Config, style Style) {
 		return
 	}
 
-	r.manager.ConfigureComponents(cfg, PointerAppearance{
-		FillColor:  style.VirtualPointer.FillColor,
-		FontFamily: style.VirtualPointer.FontFamily,
-		Char:       style.VirtualPointer.Char,
-		FontSize:   style.VirtualPointer.FontSize,
-	})
+	r.manager.ConfigureComponents(cfg, pointerAppearance(style.VirtualPointer))
+}
+
+// pointerAppearance is the resolved pointer look as the manager takes it. It
+// exists so the configuration notification above and the per-move draw
+// (Adapter.UpdateGridPointer) read the same four fields off the same Style
+// rather than each deciding which of them a backend gets.
+func pointerAppearance(style VirtualPointerStyle) PointerAppearance {
+	return PointerAppearance{
+		FillColor:  style.FillColor,
+		FontFamily: style.FontFamily,
+		Char:       style.Char,
+		FontSize:   style.FontSize,
+	}
 }
 
 // buildVirtualPointerStyle resolves the cursor stand-in drawn inside the grid

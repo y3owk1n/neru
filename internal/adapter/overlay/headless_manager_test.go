@@ -165,7 +165,12 @@ func (n *headlessManager) ShowSubgrid(cell *domainGrid.Cell, style rendergrid.St
 func (n *headlessManager) SetHideUnmatched(hide bool) {}
 
 // DrawGridPointer is a no-op implementation.
-func (n *headlessManager) DrawGridPointer(_ overlay.Mode, _ image.Point, _ int, _ string) {}
+func (n *headlessManager) DrawGridPointer(
+	_ overlay.Mode,
+	_ image.Point,
+	_ overlay.PointerAppearance,
+) {
+}
 
 // HideGridPointer is a no-op implementation.
 func (n *headlessManager) HideGridPointer(_ overlay.Mode) {}

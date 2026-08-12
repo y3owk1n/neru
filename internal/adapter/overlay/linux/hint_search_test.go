@@ -87,7 +87,7 @@ func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen
 	}
 
 	if !surface.paintedText("/ sav  3") {
-		t.Errorf("painted %v, want the query and its match count", surface.texts)
+		t.Errorf("painted %v, want the query and its match count", surface.paintedStrings())
 	}
 
 	if surface.clears != 0 {
