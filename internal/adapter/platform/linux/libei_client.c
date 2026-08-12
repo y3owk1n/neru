@@ -153,16 +153,22 @@ static int ensure_emulating(NeruEiClient *c, struct ei_device *device, int resum
 }
 
 // attach_eis wires a libei sender context onto an already-open EIS socket and
-// pumps the event loop until the devices are usable. It takes ownership of
-// eis_fd in every case: on success libei closes it at teardown, and on failure
-// it is closed here or by the ei_unref the caller's neru_ei_disconnect does.
-// Returns 1 when the client is ready to emit, 0 otherwise.
-static int attach_eis(NeruEiClient *c, int eis_fd, int64_t deadline) {
+// pumps the event loop until the devices are usable. Returns 1 when the client
+// is ready to emit, 0 otherwise.
+//
+// owns_fd says whether this call is responsible for eis_fd when libei never
+// takes it. It must be 0 on the liboeffis path, where the descriptor belongs to
+// struct oeffis and closing it here would leave oeffis_unref closing it a second
+// time, and 1 on the ConnectToEIS path, where the caller handed the descriptor
+// over and nothing else will ever close it. Once ei_setup_backend_fd has been
+// called libei owns the descriptor either way and closes it at ei_unref.
+static int attach_eis(NeruEiClient *c, int eis_fd, int owns_fd, int64_t deadline) {
 	// 1) libei sender context attached to the EIS fd.
 	c->ei = ei_new_sender(NULL);
 	if (!c->ei) {
-		// Nothing took the fd, so nothing else will close it.
-		close(eis_fd);
+		if (owns_fd) {
+			close(eis_fd);
+		}
 		return 0;
 	}
 	ei_configure_name(c->ei, "neru");
@@ -255,7 +261,8 @@ NeruEiClient *neru_ei_connect(int timeout_ms) {
 		}
 	}
 
-	if (!attach_eis(c, eis_fd, deadline)) {
+	// owns_fd = 0: the descriptor belongs to struct oeffis until libei takes it.
+	if (!attach_eis(c, eis_fd, 0, deadline)) {
 		neru_ei_disconnect(c);
 		return NULL;
 	}
@@ -276,7 +283,8 @@ NeruEiClient *neru_ei_connect_fd(int eis_fd, int timeout_ms) {
 
 	int64_t deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 30000);
 
-	if (!attach_eis(c, eis_fd, deadline)) {
+	// owns_fd = 1: the caller handed the descriptor over and keeps no copy.
+	if (!attach_eis(c, eis_fd, 1, deadline)) {
 		neru_ei_disconnect(c);
 		return NULL;
 	}

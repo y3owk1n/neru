@@ -24,6 +24,34 @@ import (
 // the one refusal that a second prompt would simply repeat back at them.
 var errPortalRequestCanceled = errors.New("the remote desktop consent request was canceled")
 
+// errPortalGrantNotPresented reports that a handshake failed before the stored
+// restore token was ever put in front of the portal. Nothing refused the token,
+// because nothing was shown it — so it is kept.
+var errPortalGrantNotPresented = errors.New(
+	"the stored grant was never presented to the portal",
+)
+
+// notPresentedError marks a failure as having happened before the token was
+// presented. It is transparent on purpose: the message and the derrors code are
+// the wrapped error's, so only the extra question this type answers is new.
+type notPresentedError struct {
+	err error
+}
+
+func (e notPresentedError) Error() string { return e.err.Error() }
+
+func (e notPresentedError) Unwrap() error { return e.err }
+
+func (e notPresentedError) Is(target error) bool { return target == errPortalGrantNotPresented }
+
+// failedBeforePresenting marks err as a failure the stored token cannot be
+// blamed for. Every step before SelectDevices is one: the bus dial, the reply
+// subscription and CreateSession all run before the token is sent, so a failure
+// in any of them says nothing about whether the grant is still good.
+func failedBeforePresenting(err error) error {
+	return notPresentedError{err: err}
+}
+
 // errPortalGrantYieldedNoDevices reports that the portal handed over a session
 // but no input device ever came up on it. The grant itself was fine, so a
 // second handshake through any other path would ask the same portal for the
@@ -103,16 +131,21 @@ func establishPortalGrant(
 // blamed on the token it presented — which is what decides whether the token is
 // thrown away and the user asked afresh.
 //
-// Only failures the portal itself produced count. Two do not, and treating
-// them as the token's fault would throw away a grant that still works and buy
-// a consent prompt on the next start with it:
+// Only a refusal of the token itself counts. Three failures do not, and
+// treating any of them as the token's fault would throw away a grant that still
+// works and buy a consent prompt on the next start with it:
 //
+//   - the handshake never got as far as presenting the token — the bus dial,
+//     the reply subscription and CreateSession all run before SelectDevices
+//     sends it, so nothing had been shown the token to refuse;
 //   - the user canceled the dialog, which says nothing about the token and
 //     which a second prompt would only ask again;
-//   - the session bus was unreachable or the handshake ran out of time, where
-//     nothing ever reached the portal to refuse anything.
+//   - the call ran out of time or the session bus was unreachable, which is the
+//     portal not answering rather than the portal saying no.
 func storedGrantPresumedDead(err error) bool {
 	switch {
+	case errors.Is(err, errPortalGrantNotPresented):
+		return false
 	case errors.Is(err, errPortalRequestCanceled):
 		return false
 	case derrors.IsCode(err, derrors.CodeTimeout), derrors.IsNotSupported(err):

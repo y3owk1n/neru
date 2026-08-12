@@ -3,11 +3,15 @@
 package linux
 
 import (
+	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/godbus/dbus/v5"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // TestPortalRequestPath_DerivesTheHandleFromTheSenderName pins the object-path
@@ -114,6 +118,78 @@ func TestPortalSelectDevicesOptions_AsksForAPersistentKeyboardAndPointer(t *test
 	token, isString := options["restore_token"].Value().(string)
 	if !isString || token != storedToken {
 		t.Errorf("restore_token = %v, want the stored token", options["restore_token"])
+	}
+}
+
+// TestPortalCallFailed_KeepsTheBusErrorBodyOutOfTheMessage is a privacy
+// guard, not a phrasing one. One of the options this code sends the portal is
+// a restore token, and a backend that quotes a rejected option back in its
+// error body would carry that credential into an error a caller may log. Only
+// the error name is allowed through.
+func TestPortalCallFailed_KeepsTheBusErrorBodyOutOfTheMessage(t *testing.T) {
+	busError := dbus.Error{
+		Name: "org.freedesktop.portal.Error.InvalidArgument",
+		Body: []any{"restore_token 'secret-credential' is not valid"},
+	}
+
+	err := portalCallFailed(busError, "the portal refused SelectDevices")
+	if err == nil {
+		t.Fatal("portalCallFailed() = nil, want an error")
+	}
+
+	if strings.Contains(err.Error(), "secret-credential") {
+		t.Errorf("error carries the bus error body: %q", err.Error())
+	}
+
+	if !strings.Contains(err.Error(), busError.Name) {
+		t.Errorf("error = %q, want it to name %q", err.Error(), busError.Name)
+	}
+}
+
+// TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout matters because the
+// restore policy branches on the code: a slow portal reported as a refusal
+// would have the stored grant thrown away and the user prompted, for a failure
+// that never reached the portal at all.
+func TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout(t *testing.T) {
+	err := portalCallFailed(context.DeadlineExceeded, "the portal refused Start")
+
+	if !derrors.IsCode(err, derrors.CodeTimeout) {
+		t.Errorf("portalCallFailed(DeadlineExceeded) code = %q, want %q",
+			derrors.GetCode(err), derrors.CodeTimeout)
+	}
+
+	if storedGrantPresumedDead(err) {
+		t.Error("a timed-out call marks the stored grant dead, want it kept")
+	}
+}
+
+// TestDialPortalBus_DoesNotStartASecondDialWhileOneIsStuck pins the rule the
+// capability probes already follow: an uncancellable native-ish call that has
+// wedged gets one outstanding attempt, not one per caller. Every mid-action
+// input operation reaches this while no session is up, so restarting would buy
+// an orphaned goroutine and a half-open connection per keypress.
+func TestDialPortalBus_DoesNotStartASecondDialWhileOneIsStuck(t *testing.T) {
+	dialer := &portalDialer{}
+
+	first, err := dialer.start()
+	if err != nil {
+		t.Fatalf("first start() error = %v", err)
+	}
+
+	_, err = dialer.start()
+	if err == nil {
+		t.Fatal("second start() error = nil, want a refusal while one is outstanding")
+	}
+
+	if !derrors.IsCode(err, derrors.CodeTimeout) {
+		t.Errorf("second start() code = %q, want %q", derrors.GetCode(err), derrors.CodeTimeout)
+	}
+
+	// Drain the real dial so the test leaves no goroutine behind, and close
+	// whatever it produced — this machine may well have a session bus.
+	result := <-first
+	if result.conn != nil {
+		_ = result.conn.Close()
 	}
 }
 

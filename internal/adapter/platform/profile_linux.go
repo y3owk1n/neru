@@ -31,7 +31,8 @@ func linuxKDEProfile() Profile {
 		},
 		KeyboardCapture: BackendPlan{
 			Name: "evdev capture + key injection via uinput when /dev/uinput is writable, " +
-				"else libei via RemoteDesktop portal (consent per daemon launch)",
+				"else libei via RemoteDesktop portal (one-time consent, restored from " +
+				"a stored grant on later starts)",
 		},
 		Overlay: BackendPlan{
 			Name: "wlr-layer-shell via KWin",

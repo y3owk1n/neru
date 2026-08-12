@@ -6,7 +6,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"strings"
+	"sync"
 
 	"github.com/godbus/dbus/v5"
 
@@ -114,7 +116,7 @@ const portalHandleTokenBytes = 8
 func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalGrant, error) {
 	conn, err := dialPortalBus(ctx)
 	if err != nil {
-		return portalGrant{}, err
+		return portalGrant{}, failedBeforePresenting(err)
 	}
 
 	grant, err := negotiateRemoteDesktop(ctx, conn, restoreToken)
@@ -127,8 +129,24 @@ func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalG
 	return grant, nil
 }
 
+// dialedBus is one outcome of the uncancellable session-bus dial.
+type dialedBus struct {
+	conn *dbus.Conn
+	err  error
+}
+
+// portalDialer holds the one bus dial that may be outstanding at a time.
+type portalDialer struct {
+	mu       sync.Mutex
+	inFlight bool
+}
+
+// portalBusDialer is process-wide because the thing it caps is process-wide:
+// one wedged session bus, however many callers walk into it.
+var portalBusDialer = &portalDialer{}
+
 // dialPortalBus connects to the session bus without letting an unresponsive bus
-// hold the caller.
+// hold the caller, and without starting a second dial while one is stuck.
 //
 // dbus.ConnectSessionBus takes no context: the connect, the auth handshake and
 // the Hello round trip are all uncancellable, so a bus that accepts a
@@ -137,18 +155,18 @@ func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalG
 // there freezes every global hotkey — the dial therefore runs on a goroutine
 // the caller can abandon, and whatever it eventually produces is closed rather
 // than leaked.
+//
+// Abandoning is not enough on its own. Every mid-action input operation reaches
+// this while no session is established, so a wedged bus would otherwise buy one
+// more orphaned goroutine and half-open connection per keypress. The same rule
+// the capability probes follow applies here — one outstanding attempt, never
+// restarted while it is stuck — so a caller that arrives to find a dial already
+// hanging is refused immediately rather than adding to the pile.
 func dialPortalBus(ctx context.Context) (*dbus.Conn, error) {
-	type dialed struct {
-		conn *dbus.Conn
-		err  error
+	done, err := portalBusDialer.start()
+	if err != nil {
+		return nil, err
 	}
-
-	done := make(chan dialed, 1)
-
-	go func() {
-		conn, err := dbus.ConnectSessionBus()
-		done <- dialed{conn: conn, err: err}
-	}()
 
 	select {
 	case result := <-done:
@@ -178,6 +196,39 @@ func dialPortalBus(ctx context.Context) (*dbus.Conn, error) {
 	}
 }
 
+// start launches the dial, or refuses when one is already outstanding.
+func (d *portalDialer) start() (<-chan dialedBus, error) {
+	d.mu.Lock()
+
+	if d.inFlight {
+		d.mu.Unlock()
+
+		return nil, derrors.New(
+			derrors.CodeTimeout,
+			"an earlier connection to the D-Bus session bus is still unanswered, "+
+				"so the RemoteDesktop portal cannot be reached yet",
+		)
+	}
+
+	d.inFlight = true
+
+	d.mu.Unlock()
+
+	done := make(chan dialedBus, 1)
+
+	go func() {
+		conn, err := dbus.ConnectSessionBus()
+
+		d.mu.Lock()
+		d.inFlight = false
+		d.mu.Unlock()
+
+		done <- dialedBus{conn: conn, err: err}
+	}()
+
+	return done, nil
+}
+
 // negotiateRemoteDesktop runs CreateSession, SelectDevices, Start and
 // ConnectToEIS on conn, in that order, and returns the grant they produced.
 func negotiateRemoteDesktop(
@@ -185,13 +236,16 @@ func negotiateRemoteDesktop(
 	conn *dbus.Conn,
 	restoreToken string,
 ) (portalGrant, error) {
+	// Everything up to and including CreateSession runs before SelectDevices
+	// presents the restore token, so each failure below is marked as one the
+	// stored grant cannot be blamed for.
 	names := conn.Names()
 	if len(names) == 0 {
-		return portalGrant{}, derrors.New(
+		return portalGrant{}, failedBeforePresenting(derrors.New(
 			derrors.CodeActionFailed,
 			"the D-Bus session bus assigned no unique name, so no portal request "+
 				"could be listened for",
-		)
+		))
 	}
 
 	requester := &portalRequester{
@@ -213,11 +267,11 @@ func negotiateRemoteDesktop(
 	if err != nil {
 		conn.RemoveSignal(requester.signals)
 
-		return portalGrant{}, derrors.Wrap(
+		return portalGrant{}, failedBeforePresenting(derrors.Wrap(
 			err,
 			derrors.CodeActionFailed,
 			"could not subscribe to the RemoteDesktop portal's replies",
-		)
+		))
 	}
 
 	// Nothing after the handshake answers on a Request, so the subscription is
@@ -235,9 +289,10 @@ func negotiateRemoteDesktop(
 
 	session, err := createRemoteDesktopSession(ctx, requester)
 	if err != nil {
-		return portalGrant{}, err
+		return portalGrant{}, failedBeforePresenting(err)
 	}
 
+	// From here the token is in play: SelectDevices is the call that carries it.
 	err = selectRemoteDesktopDevices(ctx, requester, session, restoreToken)
 	if err != nil {
 		closeRemoteDesktopSession(conn, session)
@@ -350,15 +405,56 @@ func connectToEIS(
 		map[string]dbus.Variant{},
 	).Store(&socket)
 	if err != nil {
-		return 0, derrors.Wrap(
+		return 0, portalCallFailed(
 			err,
-			derrors.CodeActionFailed,
 			"the RemoteDesktop portal granted a session but would not hand over an "+
 				"EIS socket to inject through",
 		)
 	}
 
 	return int(socket), nil
+}
+
+// portalCallFailed phrases a failed portal method call.
+//
+// It deliberately does not wrap the bus error itself. A D-Bus error body is
+// written by the portal backend and can quote the option it rejected, and one
+// of the options sent here is a restore token — a credential that must not
+// reach an error a caller may print or log. The error *name* says what went
+// wrong without quoting anything we sent, so that is what is carried.
+//
+// A call that ran out of time is reported as a timeout rather than a refusal,
+// which is what keeps a slow portal from being mistaken for one that rejected
+// the stored grant (see storedGrantPresumedDead).
+func portalCallFailed(err error, message string) error {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return derrors.New(derrors.CodeTimeout, message+", and the request ran out of time")
+	}
+
+	name := busErrorName(err)
+	if name != "" {
+		return derrors.New(derrors.CodeActionFailed, message+" ("+name+")")
+	}
+
+	return derrors.New(derrors.CodeActionFailed, message)
+}
+
+// busErrorName reduces a D-Bus error to its name, and reports "" for anything
+// that is not one. godbus yields dbus.Error by value on a client call and by
+// pointer from NewError, so both are matched.
+func busErrorName(err error) string {
+	var busError dbus.Error
+
+	var busErrorPtr *dbus.Error
+
+	switch {
+	case errors.As(err, &busError):
+		return busError.Name
+	case errors.As(err, &busErrorPtr):
+		return busErrorPtr.Name
+	default:
+		return ""
+	}
 }
 
 // closeRemoteDesktopSession ends a session explicitly. The portal would notice
@@ -411,12 +507,7 @@ func (r *portalRequester) call(
 		append(append([]any{}, args...), options)...,
 	).Store(&handle)
 	if err != nil {
-		return nil, derrors.Wrapf(
-			err,
-			derrors.CodeActionFailed,
-			"the RemoteDesktop portal refused %s",
-			method,
-		)
+		return nil, portalCallFailed(err, "the RemoteDesktop portal refused "+method)
 	}
 
 	// The portal answers on the path it chose. That is normally the derived one
