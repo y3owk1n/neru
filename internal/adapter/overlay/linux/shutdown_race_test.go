@@ -7,10 +7,14 @@ import (
 	"sync"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/domain"
+	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
 const (
@@ -93,7 +97,25 @@ func cancelingCalls() []cancelingCall {
 				_ = mgr.DrawMonitorSelect(nil, manager.MonitorSelectStyle{})
 			},
 		},
+		{
+			name: "ShowSubgrid",
+			call: func(mgr *Manager) {
+				mgr.ShowSubgrid(firstGridCell(), grid.Style{})
+			},
+		},
 	}
+}
+
+// firstGridCell is one cell of a grid the size of the fake screen this package's
+// tests draw on, which is what opening a subgrid takes. It lives here rather
+// than beside the subgrid tests because this file carries the broader build tag
+// of the two, so both the cgo and the no-cgo build see it.
+func firstGridCell() *domainGrid.Cell {
+	return domainGrid.NewGrid(
+		"ab",
+		image.Rect(0, 0, raceScreenWidth, raceScreenHeight),
+		zap.NewNop(),
+	).AllCells()[0]
 }
 
 // gridPointerCalls are the two entry points grid mode's pointer stand-in
