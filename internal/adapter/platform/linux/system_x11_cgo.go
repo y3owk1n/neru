@@ -125,9 +125,13 @@ func x11FocusedApplicationPID() (int, error) {
 	var ok C.int
 	pid := C.neru_x11_get_window_pid(display, window, &ok)
 	if ok == 0 {
+		// Either the window exposes no pid, or _NET_ACTIVE_WINDOW named one
+		// that has since closed — a window manager that exited leaves the
+		// property behind pointing at a window nobody updates any more.
 		return 0, derrors.New(
 			derrors.CodeActionFailed,
-			"failed to query _NET_WM_PID for active X11 window",
+			"failed to query _NET_WM_PID for the active X11 window; it exposes no pid, "+
+				"or the window it names has closed",
 		)
 	}
 

@@ -172,6 +172,14 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 	return NERU_X11_ACTIVE_WINDOW_OK;
 }
 
+// Every request below is addressed to a window this process does not own, and
+// _NET_ACTIVE_WINDOW can name one that is already gone: the window closes
+// between the read and this call, or its window manager exited and left the
+// property behind pointing at a window that has since died. The X server
+// answers BadWindow, and Xlib's default handler calls exit() — reproduced on
+// Xvfb, where a stale id took the whole process down. So each of them runs
+// inside the shared protocol-error trap and reports "nothing to say" instead.
+
 unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) {
 	if (window == 0) {
 		*ok = 0;
@@ -184,11 +192,14 @@ unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) 
 	unsigned long item_count;
 	unsigned long bytes_after;
 	unsigned char *data = NULL;
+
+	neru_x11_error_trap_begin(display);
 	int status = XGetWindowProperty(
 	    display, window, property, 0, 1, False, XA_CARDINAL, &actual_type, &actual_format, &item_count, &bytes_after,
 	    &data);
+	int trapped = neru_x11_error_trap_end(display);
 
-	if (status != Success || data == NULL || item_count == 0) {
+	if (trapped || status != Success || data == NULL || item_count == 0) {
 		if (data != NULL) {
 			XFree(data);
 		}
@@ -208,8 +219,22 @@ char *neru_x11_get_window_class(Display *display, Window window) {
 		return NULL;
 	}
 
-	XClassHint hint;
-	if (XGetClassHint(display, window, &hint) == 0) {
+	XClassHint hint = {NULL, NULL};
+
+	neru_x11_error_trap_begin(display);
+	int got = XGetClassHint(display, window, &hint);
+	int trapped = neru_x11_error_trap_end(display);
+
+	if (got == 0 || trapped) {
+		// A trapped call can still have filled the hint before erroring, so
+		// release it on the way out rather than assuming it is untouched.
+		if (hint.res_name != NULL) {
+			XFree(hint.res_name);
+		}
+		if (hint.res_class != NULL) {
+			XFree(hint.res_class);
+		}
+
 		return NULL;
 	}
 
@@ -274,17 +299,22 @@ int neru_x11_get_focused_window_bounds(Display *display, int *x, int *y, int *w,
 		return 0;
 	}
 
-	XWindowAttributes attrs;
-	if (XGetWindowAttributes(display, window, &attrs) == 0) {
-		return 0;
-	}
-
 	// attrs.x/y are relative to the parent; translate the window origin into
 	// root coordinates so the bounds are global across a multi-monitor layout.
+	// Both requests share one trapped section: the window can die between them
+	// just as easily as before the first.
+	XWindowAttributes attrs;
 	int root_x = 0;
 	int root_y = 0;
 	Window child;
-	if (XTranslateCoordinates(display, window, attrs.root, 0, 0, &root_x, &root_y, &child) == 0) {
+
+	neru_x11_error_trap_begin(display);
+	int got_attrs = XGetWindowAttributes(display, window, &attrs);
+	int translated =
+	    got_attrs != 0 ? XTranslateCoordinates(display, window, attrs.root, 0, 0, &root_x, &root_y, &child) : 0;
+	int trapped = neru_x11_error_trap_end(display);
+
+	if (got_attrs == 0 || translated == 0 || trapped) {
 		return 0;
 	}
 
