@@ -15,6 +15,7 @@ import (
 	overlaymanager "github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
@@ -388,6 +389,90 @@ func (et *EventTap) PostModifierEvent(modifier string, isDown bool) {
 			et.consumeSyntheticModifierEvent(modifier, isDown)
 		}
 	}
+}
+
+// syntheticModifierNames is every modifier the tap has a name for, paired with
+// the bit an injection path names it by. It is the same set x11ModifierName
+// resolves keysyms onto, because the two have to agree for a registration to
+// match the event it was made for.
+var syntheticModifierNames = []struct {
+	bit  action.Modifiers
+	name string
+}{
+	{action.ModShift, evdevModifierShift},
+	{action.ModCtrl, evdevModifierCtrl},
+	{action.ModAlt, evdevModifierAlt},
+	{action.ModCmd, evdevModifierCmd},
+}
+
+// RememberSyntheticModifier disowns a modifier key event Neru is about to
+// inject through a path of its own, so the tap reads it as Neru's rather than
+// as the user's.
+//
+// PostModifierEvent posts its own key events and books them in on the way past.
+// The accessibility backend does not go through it: presenting an action's
+// modifiers on X11 means pressing and releasing real keys against the display
+// server (see internal/adapter/platform/modifierstate), and those key events
+// re-enter the grab like any other. A press followed by a release is a modifier
+// tap by this tap's own definition, so without this the injection can latch a
+// sticky modifier the user never pressed (#1484).
+//
+// It is the caller's job to call this immediately before injecting rather than
+// after: the grab reads on its own goroutine and can see the event first
+// otherwise. Registrations expire on their own after
+// syntheticModifierSuppressionWindow, which is what covers an injection that
+// the display server ends up refusing — an XTest key event reports nothing to
+// take back.
+//
+// X11 is the whole of what this is for. Wayland's virtual-keyboard modifier
+// path generates no evdev or wl_keyboard event, so nothing re-enters and the
+// only caller — the X11 injection backend — never runs there.
+func (et *EventTap) RememberSyntheticModifier(modifier action.Modifiers, isDown bool) {
+	name := syntheticModifierName(modifier)
+	if name == "" {
+		// Unreachable while every key a plan names carries one modifier, and a
+		// silent regression to #1484 if that ever stops being true — so it
+		// says so rather than degrading quietly. Debug, not warn: the
+		// injection itself is still correct, and this is per-keypress.
+		if et.logger != nil && modifier != 0 {
+			et.logger.Debug(
+				"Injected modifier key names no single modifier; leaving it unannounced",
+				zap.Stringer("modifiers", modifier),
+			)
+		}
+
+		return
+	}
+
+	et.rememberSyntheticModifierEvent(name, isDown)
+}
+
+// syntheticModifierName is the name the grab will read an injected key event
+// under, and "" when modifier does not name exactly one.
+//
+// One key event resolves to one name (x11ModifierName) and one registration is
+// what consuming it takes off the queue, so a set naming two would leave one
+// entry unanswered for the whole suppression window — long enough to swallow a
+// modifier the user really pressed. Announcing nothing for a set it cannot
+// place is the safer of the two failures: it leaves the injection unannounced,
+// which is where the injection path started, rather than suppressing an event
+// that was never Neru's.
+func syntheticModifierName(modifier action.Modifiers) string {
+	var name string
+
+	for _, known := range syntheticModifierNames {
+		if !modifier.Has(known.bit) {
+			continue
+		}
+
+		if name != "" {
+			return ""
+		}
+
+		name = known.name
+	}
+
+	return name
 }
 
 // SetKeyboardLayout sets the keyboard layout.

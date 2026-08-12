@@ -24,15 +24,31 @@ type Key struct {
 	Canonical bool
 }
 
+// Edit is one key a plan touches: which key to inject, and which modifier that
+// key presents.
+//
+// The modifier travels with the keycode because injecting a modifier key is not
+// only a request to the display server — on a backend where an injected key
+// event re-enters Neru's own event tap, the tap has to be told which modifier
+// is about to move, and the keycode alone does not say. Reading it back off the
+// keymap a second time at injection would be a second round trip and a second
+// chance to disagree with the plan.
+type Edit struct {
+	// Keycode identifies the key to the backend that read it.
+	Keycode uint32
+	// Modifier is the modifier this key presents.
+	Modifier action.Modifiers
+}
+
 // Plan is the pair of edits that make the keyboard present exactly the
 // requested modifiers for the length of one injection.
 type Plan struct {
-	// Suppress are keycodes to release before injecting and press again
+	// Suppress are keys to release before injecting and press again
 	// afterwards: keys something is holding whose modifier was not requested.
-	Suppress []uint32
-	// Press are keycodes to press before injecting and release afterwards:
+	Suppress []Edit
+	// Press are keys to press before injecting and release afterwards:
 	// requested modifiers nothing is already holding.
-	Press []uint32
+	Press []Edit
 }
 
 // PlanFor works out how to present exactly requested, given the live keyboard.
@@ -66,17 +82,24 @@ func PlanFor(keys []Key, requested action.Modifiers) Plan {
 			continue
 		}
 
-		plan.Suppress = append(plan.Suppress, key.Keycode)
+		plan.Suppress = append(plan.Suppress, key.edit())
 	}
 
 	for _, key := range readable {
 		if key.Canonical && requested.Has(key.Modifier) && !presented.Has(key.Modifier) {
-			plan.Press = append(plan.Press, key.Keycode)
+			plan.Press = append(plan.Press, key.edit())
 			presented |= key.Modifier
 		}
 	}
 
 	return plan
+}
+
+// edit is the injectable half of a key: what to inject, and what injecting it
+// presents. Held and Canonical are readings of the keyboard as it was when the
+// plan was made, and say nothing once the plan is being applied.
+func (k Key) edit() Edit {
+	return Edit{Keycode: k.Keycode, Modifier: k.Modifier}
 }
 
 // distinctKeys drops the keys no injection can use: one the keymap answered
@@ -111,15 +134,15 @@ func distinctKeys(keys []Key) []Key {
 // silently drops that modifier from everything they do next. The exception is a
 // key that reads down again: something pressed it after we let go, so a second
 // press would leave a hold our release never answers.
-func (p Plan) Restore(held []uint32) []uint32 {
-	var restore []uint32
+func (p Plan) Restore(held []uint32) []Edit {
+	var restore []Edit
 
-	for _, keycode := range p.Suppress {
-		if slices.Contains(held, keycode) {
+	for _, edit := range p.Suppress {
+		if slices.Contains(held, edit.Keycode) {
 			continue
 		}
 
-		restore = append(restore, keycode)
+		restore = append(restore, edit)
 	}
 
 	return restore

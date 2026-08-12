@@ -430,6 +430,12 @@ func initializeEventTapAndIPC(app *App) error {
 		tap := eventtapadapter.NewEventTap(app.HandleKeyPress, logger)
 		if tap != nil {
 			app.eventTap = eventtapadapter.NewAdapter(tap, logger)
+
+			// A backend that presents an action's modifiers by pressing real
+			// keys has to say so, or the tap reads its own injection as the
+			// user pressing that modifier. Which backends need it is a
+			// per-platform answer; the concrete tap is only in reach here.
+			registerSyntheticModifierSink(tap, logger)
 		}
 	}
 
@@ -546,6 +552,10 @@ func cleanupEventTapAndIPC(app *App) {
 	if app.eventTap != nil {
 		app.eventTap.Destroy()
 		app.eventTap = nil
+
+		// The injection backend holds the tap in a slot of its own, which
+		// outlives this App unless it is let go of here.
+		registerSyntheticModifierSink(nil, app.logger)
 	}
 
 	// Clean up IPC controller

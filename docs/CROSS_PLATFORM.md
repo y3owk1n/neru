@@ -529,7 +529,11 @@ NULL-source event is born carrying whatever the combined session state currently
 holds, so an unstamped scroll inherits ambient modifiers rather than carrying
 none — and on every chunk of a smooth-scroll animation, since a zoom applied to
 the first frame only is not a zoom. The other
-three press the real key, scroll, and release it. On Wayland that forces a
+three press the real key, scroll, and release it. On X11 that key event feeds
+back into Neru's own `XGrabKeyboard` with nothing on it to say whose it is, so
+each one is announced to the event tap before it goes out and consumed on the
+way back in — otherwise an injected press and release read as the user tapping
+that modifier, and `sticky_modifiers` latched one nobody pressed. On Wayland that forces a
 choice: the modifier can only go out on the virtual keyboard (libei on KDE),
 while the fast path for the scroll is the uinput device, so a modified scroll
 skips the uinput batch entirely and goes out on the wlroots/libei seat. A path
@@ -1111,7 +1115,10 @@ Current ports: `SystemPort`, `AccessibilityPort`, `OverlayPort`, `EventTapPort`,
 Optional extensions, reached by type assertion (Tier 3): `RelativeCursorMover`
 and `CursorSynchronizer` on `SystemPort`, `HotkeyReleaseRegistrar` and
 `HotkeyHealthReporter` on `HotkeyPort`, `OverlayKeyboardPassthroughReporter` on
-`EventTapPort`, and `OverlayCapabilityReporter` on `OverlayPort`.
+`EventTapPort`, `OverlayCapabilityReporter` on `OverlayPort`, and
+`SyntheticModifierSink` on the `tap.Tap` backend contract (Linux only — it is
+declared in a `_linux.go` file beside `Tap`, because only X11 cannot tell its
+own injected key events apart from the user's).
 
 [`keyfeed`](../internal/adapter/keyfeed/) is the reference example: shared
 normalization untagged in `keyfeed.go`, one unexported `postKey` per platform,
