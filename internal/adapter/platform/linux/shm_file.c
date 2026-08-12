@@ -48,7 +48,15 @@ int neru_shm_file_create(const char *name, size_t size) {
 		return -1;
 	}
 
-	unlink(path);
+	// Refusing on a failed unlink is the whole difference between this fallback
+	// and a named file full of screen pixels sitting in /tmp. Every caller
+	// already degrades on -1, and a /tmp that mkstemp could write but not
+	// unlink is broken enough that failing is the honest answer.
+	if (unlink(path) < 0) {
+		close(fd);
+
+		return -1;
+	}
 
 	if (neru_shm_file_truncate(fd, size) < 0) {
 		close(fd);
