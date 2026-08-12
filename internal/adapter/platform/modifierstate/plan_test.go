@@ -16,6 +16,33 @@ const (
 	superLeft    = 133
 )
 
+// keycodeModifiers is what each of those keys presents, so a test can name a
+// plan half by its keys and still get the edits a real keymap would produce.
+var keycodeModifiers = map[uint32]action.Modifiers{
+	shiftLeft:    action.ModShift,
+	controlLeft:  action.ModCtrl,
+	controlRight: action.ModCtrl,
+	altLeft:      action.ModAlt,
+	superLeft:    action.ModCmd,
+}
+
+// edits builds one half of a plan from the keys it touches.
+func edits(keycodes ...uint32) []modifierstate.Edit {
+	if len(keycodes) == 0 {
+		return nil
+	}
+
+	built := make([]modifierstate.Edit, 0, len(keycodes))
+	for _, keycode := range keycodes {
+		built = append(built, modifierstate.Edit{
+			Keycode:  keycode,
+			Modifier: keycodeModifiers[keycode],
+		})
+	}
+
+	return built
+}
+
 // TestPlanFor_SuppressesAHeldModifierNobodyAskedFor is the bug this package
 // exists for: on a backend with no per-event modifier field, an injected event
 // carries whatever the display server records as held. A plain scroll fired
@@ -29,7 +56,7 @@ func TestPlanFor_SuppressesAHeldModifierNobodyAskedFor(t *testing.T) {
 
 	plan := modifierstate.PlanFor(keys, 0)
 
-	if len(plan.Suppress) != 1 || plan.Suppress[0] != controlLeft {
+	if !equalEdits(plan.Suppress, edits(controlLeft)) {
 		t.Fatalf("PlanFor suppressed %v, want the held ctrl key %d", plan.Suppress, controlLeft)
 	}
 
@@ -58,7 +85,7 @@ func TestPlanFor_PressesOnlyWhatNothingIsAlreadyHolding(t *testing.T) {
 		)
 	}
 
-	if len(plan.Press) != 1 || plan.Press[0] != shiftLeft {
+	if !equalEdits(plan.Press, edits(shiftLeft)) {
 		t.Fatalf("PlanFor pressed %v, want only the unheld shift key %d", plan.Press, shiftLeft)
 	}
 }
@@ -75,8 +102,8 @@ func TestPlanFor_SuppressesEveryKeyCarryingAnUnwantedModifier(t *testing.T) {
 
 	plan := modifierstate.PlanFor(keys, action.ModAlt)
 
-	want := []uint32{controlLeft, controlRight}
-	if !equalKeycodes(plan.Suppress, want) {
+	want := edits(controlLeft, controlRight)
+	if !equalEdits(plan.Suppress, want) {
 		t.Fatalf("PlanFor suppressed %v, want %v", plan.Suppress, want)
 	}
 }
@@ -110,8 +137,8 @@ func TestPlanFor_ReadsAKeycodeOnceWhenTwoNamesShareIt(t *testing.T) {
 
 	plan := modifierstate.PlanFor(keys, 0)
 
-	want := []uint32{altLeft}
-	if !equalKeycodes(plan.Suppress, want) {
+	want := edits(altLeft)
+	if !equalEdits(plan.Suppress, want) {
 		t.Fatalf("PlanFor suppressed %v, want %v", plan.Suppress, want)
 	}
 }
@@ -129,13 +156,35 @@ func TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed(t *testing.T)
 
 	plan := modifierstate.PlanFor(keys, action.ModCmd)
 
-	if !equalKeycodes(plan.Suppress, []uint32{altLeft}) {
+	if !equalEdits(plan.Suppress, edits(altLeft)) {
 		t.Fatalf("PlanFor suppressed %v, want the held alt key %d", plan.Suppress, altLeft)
 	}
 
-	if !equalKeycodes(plan.Press, []uint32{superLeft}) {
+	if !equalEdits(plan.Press, edits(superLeft)) {
 		t.Fatalf("PlanFor pressed %v, want the super key %d to present the requested cmd",
 			plan.Press, superLeft)
+	}
+}
+
+// TestPlanFor_EveryEditNamesTheModifierItsKeyPresents is what lets a backend
+// announce an injection to anything watching the keyboard: an injected key
+// event is indistinguishable from the user's own on X11, so whatever suppresses
+// it has to be told which modifier is about to go down or up, and the plan is
+// the only thing that knows which key was chosen for it.
+func TestPlanFor_EveryEditNamesTheModifierItsKeyPresents(t *testing.T) {
+	keys := []modifierstate.Key{
+		{Keycode: controlLeft, Modifier: action.ModCtrl, Held: true, Canonical: true},
+		{Keycode: shiftLeft, Modifier: action.ModShift, Canonical: true},
+	}
+
+	plan := modifierstate.PlanFor(keys, action.ModShift)
+
+	if len(plan.Suppress) != 1 || plan.Suppress[0].Modifier != action.ModCtrl {
+		t.Fatalf("PlanFor suppressed %v, want the held ctrl key carrying ModCtrl", plan.Suppress)
+	}
+
+	if len(plan.Press) != 1 || plan.Press[0].Modifier != action.ModShift {
+		t.Fatalf("PlanFor pressed %v, want the shift key carrying ModShift", plan.Press)
 	}
 }
 
@@ -143,12 +192,12 @@ func TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed(t *testing.T)
 // fail: a scroll that leaves ctrl released while the user is still holding it
 // is worse than the modifier leak the suppression exists to stop.
 func TestPlan_Restore_PressesBackEveryKeyItSuppressed(t *testing.T) {
-	plan := modifierstate.Plan{Suppress: []uint32{controlLeft, altLeft}}
+	plan := modifierstate.Plan{Suppress: edits(controlLeft, altLeft)}
 
 	got := plan.Restore(nil)
 
-	want := []uint32{controlLeft, altLeft}
-	if !equalKeycodes(got, want) {
+	want := edits(controlLeft, altLeft)
+	if !equalEdits(got, want) {
 		t.Fatalf("Restore() = %v, want %v", got, want)
 	}
 }
@@ -157,17 +206,19 @@ func TestPlan_Restore_PressesBackEveryKeyItSuppressed(t *testing.T) {
 // injection: a key that reads down was pressed by someone else after we let go
 // of it, and pressing it again would leave a press our release never answers.
 func TestPlan_Restore_SkipsAKeyThatIsDownAgain(t *testing.T) {
-	plan := modifierstate.Plan{Suppress: []uint32{controlLeft, altLeft}}
+	plan := modifierstate.Plan{Suppress: edits(controlLeft, altLeft)}
 
 	got := plan.Restore([]uint32{altLeft, shiftLeft})
 
-	want := []uint32{controlLeft}
-	if !equalKeycodes(got, want) {
+	want := edits(controlLeft)
+	if !equalEdits(got, want) {
 		t.Fatalf("Restore() = %v, want %v", got, want)
 	}
 }
 
-func equalKeycodes(got, want []uint32) bool {
+// equalEdits reports whether got names exactly want, key for key and modifier
+// for modifier, in order.
+func equalEdits(got, want []modifierstate.Edit) bool {
 	if len(got) != len(want) {
 		return false
 	}

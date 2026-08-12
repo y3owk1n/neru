@@ -38,8 +38,8 @@ type stashedPress struct {
 type expectedRelease struct {
 	button       uint32
 	wantHeld     bool
-	wantSuppress []uint32
-	wantPress    []uint32
+	wantSuppress []modifierstate.Edit
+	wantPress    []modifierstate.Edit
 }
 
 // TestStash_Take_AnswersEachReleaseWithItsOwnPress covers what a release gets
@@ -55,15 +55,15 @@ func TestStash_Take_AnswersEachReleaseWithItsOwnPress(t *testing.T) {
 			presses: []stashedPress{{
 				button: leftButton,
 				plan: modifierstate.Plan{
-					Suppress: []uint32{controlLeft},
-					Press:    []uint32{shiftLeft},
+					Suppress: edits(controlLeft),
+					Press:    edits(shiftLeft),
 				},
 			}},
 			releases: []expectedRelease{{
 				button:       leftButton,
 				wantHeld:     true,
-				wantSuppress: []uint32{controlLeft},
-				wantPress:    []uint32{shiftLeft},
+				wantSuppress: edits(controlLeft),
+				wantPress:    edits(shiftLeft),
 			}},
 		},
 		{
@@ -81,13 +81,13 @@ func TestStash_Take_AnswersEachReleaseWithItsOwnPress(t *testing.T) {
 				"nothing answers.",
 			presses: []stashedPress{{
 				button: leftButton,
-				plan:   modifierstate.Plan{Suppress: []uint32{controlLeft}},
+				plan:   modifierstate.Plan{Suppress: edits(controlLeft)},
 			}},
 			releases: []expectedRelease{
 				{
 					button:       leftButton,
 					wantHeld:     true,
-					wantSuppress: []uint32{controlLeft},
+					wantSuppress: edits(controlLeft),
 				},
 				{button: leftButton, wantHeld: false},
 			},
@@ -99,23 +99,23 @@ func TestStash_Take_AnswersEachReleaseWithItsOwnPress(t *testing.T) {
 			presses: []stashedPress{
 				{
 					button: leftButton,
-					plan:   modifierstate.Plan{Suppress: []uint32{controlLeft}},
+					plan:   modifierstate.Plan{Suppress: edits(controlLeft)},
 				},
 				{
 					button: rightButton,
-					plan:   modifierstate.Plan{Suppress: []uint32{altLeft}},
+					plan:   modifierstate.Plan{Suppress: edits(altLeft)},
 				},
 			},
 			releases: []expectedRelease{
 				{
 					button:       rightButton,
 					wantHeld:     true,
-					wantSuppress: []uint32{altLeft},
+					wantSuppress: edits(altLeft),
 				},
 				{
 					button:       leftButton,
 					wantHeld:     true,
-					wantSuppress: []uint32{controlLeft},
+					wantSuppress: edits(controlLeft),
 				},
 			},
 		},
@@ -136,23 +136,23 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 				{
 					button: leftButton,
 					plan: modifierstate.Plan{
-						Suppress: []uint32{controlLeft},
-						Press:    []uint32{shiftLeft},
+						Suppress: edits(controlLeft),
+						Press:    edits(shiftLeft),
 					},
 				},
 				{
 					button: leftButton,
 					plan: modifierstate.Plan{
-						Suppress: []uint32{altLeft},
-						Press:    []uint32{superLeft},
+						Suppress: edits(altLeft),
+						Press:    edits(superLeft),
 					},
 				},
 			},
 			releases: []expectedRelease{{
 				button:       leftButton,
 				wantHeld:     true,
-				wantSuppress: []uint32{controlLeft, altLeft},
-				wantPress:    []uint32{shiftLeft, superLeft},
+				wantSuppress: edits(controlLeft, altLeft),
+				wantPress:    edits(shiftLeft, superLeft),
 			}},
 		},
 		{
@@ -169,15 +169,15 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 				{
 					button: leftButton,
 					plan: modifierstate.Plan{
-						Suppress: []uint32{controlLeft},
-						Press:    []uint32{shiftLeft},
+						Suppress: edits(controlLeft),
+						Press:    edits(shiftLeft),
 					},
 				},
 				{
 					button: leftButton,
 					plan: modifierstate.Plan{
-						Suppress: []uint32{shiftLeft},
-						Press:    []uint32{controlLeft},
+						Suppress: edits(shiftLeft),
+						Press:    edits(controlLeft),
 					},
 				},
 			},
@@ -186,8 +186,8 @@ func TestStash_Put_MergesASecondPressOfAButtonAlreadyDown(t *testing.T) {
 			releases: []expectedRelease{{
 				button:       leftButton,
 				wantHeld:     true,
-				wantSuppress: []uint32{controlLeft},
-				wantPress:    []uint32{shiftLeft},
+				wantSuppress: edits(controlLeft),
+				wantPress:    edits(shiftLeft),
 			}},
 		},
 	})
@@ -213,10 +213,10 @@ func TestStash_Put_SerializesConcurrentPresses(t *testing.T) {
 
 	for button := range uint32(buttons) {
 		wait.Go(func() {
-			stash.Put(button, modifierstate.Plan{Suppress: []uint32{controlLeft}})
+			stash.Put(button, modifierstate.Plan{Suppress: edits(controlLeft)})
 
 			plan, held := stash.Take(button)
-			restored[button] = held && equalKeycodes(plan.Suppress, []uint32{controlLeft})
+			restored[button] = held && equalEdits(plan.Suppress, edits(controlLeft))
 		})
 	}
 
@@ -264,14 +264,14 @@ func runStashScenarios(t *testing.T, scenarios []stashScenario) {
 					continue
 				}
 
-				if !equalKeycodes(plan.Suppress, release.wantSuppress) {
+				if !equalEdits(plan.Suppress, release.wantSuppress) {
 					t.Fatalf(
 						"Take #%d on button %d returned suppress %v, want %v",
 						step+1, release.button, plan.Suppress, release.wantSuppress,
 					)
 				}
 
-				if !equalKeycodes(plan.Press, release.wantPress) {
+				if !equalEdits(plan.Press, release.wantPress) {
 					t.Fatalf(
 						"Take #%d on button %d returned press %v, want %v",
 						step+1, release.button, plan.Press, release.wantPress,

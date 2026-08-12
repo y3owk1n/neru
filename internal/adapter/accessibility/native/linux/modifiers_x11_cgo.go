@@ -80,15 +80,41 @@ func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11Modifie
 		plan:    modifierstate.PlanFor(x11ModifierKeys(display), modifiers),
 	}
 
-	for _, keycode := range hold.plan.Suppress {
-		C.neru_ax_key_event(display, C.uint(keycode), 0)
+	for _, edit := range hold.plan.Suppress {
+		hold.inject(edit, false)
 	}
 
-	for _, keycode := range hold.plan.Press {
-		C.neru_ax_key_event(display, C.uint(keycode), 1)
+	for _, edit := range hold.plan.Press {
+		hold.inject(edit, true)
 	}
 
 	return hold
+}
+
+// inject presses or releases one of the plan's keys, after telling the wired
+// sink what is about to go out.
+//
+// Every key event this file emits goes through here, and it announces before it
+// injects rather than after, because the announcement's only reader is a
+// keyboard grab on another goroutine that can see the event first otherwise.
+// XTest reports nothing back, so a key event the server drops leaves an
+// announcement nobody answers — the tap expires those on its own.
+//
+// A registration names a modifier and a direction rather than an event, so the
+// user pressing that same modifier in the gap between these two lines has their
+// press matched against it instead of ours. That window is one cgo call wide
+// and cannot be closed from here: XTest offers nothing to put on the event that
+// would say whose it is, which is the whole reason this channel exists. It is
+// the same window PostModifierEvent has always had for the modifiers it posts.
+func (h x11ModifierHold) inject(edit modifierstate.Edit, pressed bool) {
+	recordSyntheticModifier(edit.Modifier, pressed)
+
+	state := C.int(0)
+	if pressed {
+		state = 1
+	}
+
+	C.neru_ax_key_event(h.display, C.uint(edit.Keycode), state)
 }
 
 // release lets go of what the hold pressed and presses back what it suppressed,
@@ -102,16 +128,16 @@ func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11Modifie
 // nothing to check against. The window is one injection, and pressing the same
 // modifier inside it is the narrower case of the two.
 func (h x11ModifierHold) release() {
-	for _, keycode := range h.plan.Press {
-		C.neru_ax_key_event(h.display, C.uint(keycode), 0)
+	for _, edit := range h.plan.Press {
+		h.inject(edit, false)
 	}
 
 	if len(h.plan.Suppress) == 0 {
 		return
 	}
 
-	for _, keycode := range h.plan.Restore(x11HeldModifierKeycodes(h.display)) {
-		C.neru_ax_key_event(h.display, C.uint(keycode), 1)
+	for _, edit := range h.plan.Restore(x11HeldModifierKeycodes(h.display)) {
+		h.inject(edit, true)
 	}
 }
 

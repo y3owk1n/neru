@@ -73,19 +73,27 @@ func (p Plan) mergedWith(next Plan) Plan {
 	}
 }
 
-// appendUnclaimed adds the keycodes of next to keycodes, skipping any that
-// keycodes already carries or that the opposite half of the earlier plan
+// appendUnclaimed adds the edits of next to edits, skipping any naming a key
+// that edits already carries or that the opposite half of the earlier plan
 // already answers for.
-func appendUnclaimed(keycodes, next, opposite []uint32) []uint32 {
-	merged := keycodes
+func appendUnclaimed(edits, next, opposite []Edit) []Edit {
+	merged := edits
 
-	for _, keycode := range next {
-		if slices.Contains(merged, keycode) || slices.Contains(opposite, keycode) {
+	for _, edit := range next {
+		if namesKey(merged, edit.Keycode) || namesKey(opposite, edit.Keycode) {
 			continue
 		}
 
-		merged = append(merged, keycode)
+		merged = append(merged, edit)
 	}
 
 	return merged
+}
+
+// namesKey reports whether any edit injects keycode. Edits are compared by the
+// key they name rather than whole, because two plans can reach the same key
+// under different modifier names — an X11 layout that resolves Meta onto the
+// Super key gives one keycode two of them.
+func namesKey(edits []Edit, keycode uint32) bool {
+	return slices.ContainsFunc(edits, func(edit Edit) bool { return edit.Keycode == keycode })
 }
