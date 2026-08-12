@@ -746,6 +746,7 @@ discovery rather than the mode itself.
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ❌ no-op                    |
+| **Grid**          | What an open subgrid shows     | ✅ the subgrid alone       | ✅ the subgrid alone       | ⚠️ the parent cells return under it on the next repaint |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
@@ -755,7 +756,9 @@ discovery rather than the mode itself.
 Everything else is shared: multi-letter labels, label direction, hide-unmatched,
 split-word, interactive search *behavior* (only the on-screen badge differs),
 boundary highlight, mode indicator, sticky-modifier indicator, all pending
-actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
+actions on grid cells, backtracking, and every scroll granularity. Opening a
+subgrid is shared too — the keys, the cells and the point each one selects — and
+only what is left on screen behind it differs, which is the row above.
 
 > The **cursor-replacement virtual pointer** — the pointer drawn when the real
 > cursor is hidden — is separate from the two grid indicators above and is
