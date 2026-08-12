@@ -632,6 +632,47 @@ func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *test
 	}
 }
 
+// TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas is the same rule read
+// backwards, and the case composition is most often suspected of breaking: a
+// scroll_up landing mid-scroll_down inherits a *negative* remainder, so the new
+// animation travels less than its own delta — or not at all.
+//
+// That is the point. The pair asked for -600 then +600, which is a net zero,
+// and the first animation has already sent part of its -600. Ignoring the
+// remainder would inject the whole +600 on top of what went out and leave the
+// page above where it started, which is the same truncation bug facing the
+// other way. Conserving the requested total is what makes a reversal land where
+// the two presses said. darwin's animator carries the same test.
+func TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
+	const stride = 600
+
+	log := &scrollLog{}
+	animator := newScrollAnimator(log.begin)
+
+	t.Cleanup(animator.stop)
+
+	// Long enough that the reversal certainly lands mid-animation.
+	animator.animate(0, -stride, 0, 40, 2000, 1.0)
+
+	waitFor(t, func() bool { return log.count() > 0 })
+
+	if got := log.traveled(); got >= 0 {
+		t.Fatalf("the first animation traveled %v before the reversal, want some downward travel",
+			got)
+	}
+
+	animator.animate(0, stride, 0, 40, 2000, 1.0)
+
+	waitFor(t, func() bool { return math.Abs(log.traveled()) < 1e-6 })
+
+	// Give the animator room to overshoot before believing the zero.
+	time.Sleep(80 * time.Millisecond)
+
+	if got := log.traveled(); math.Abs(got) > 1e-6 {
+		t.Errorf("a scroll of -%d reversed by +%d netted %v, want 0", stride, stride, got)
+	}
+}
+
 // TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest covers the other seam
 // a delta can be dropped at: a request the worker has not taken yet is replaced
 // wholesale by the next one. None of it has been injected, so all of it folds
