@@ -6,6 +6,7 @@ package linux
 #cgo linux pkg-config: x11 xtst
 #include <stdlib.h>
 #include "../../../platform/linux/x11_accessibility.h"
+#include "../../../platform/linux/x11_system.h"
 */
 import "C"
 
@@ -30,6 +31,20 @@ const (
 	mouseButtonBack   = 7
 )
 
+// linuxFocusedApplicationIdentity answers which application owns the focused
+// X11 window, as a WM_CLASS/pid pair, and ("", 0) when it cannot say.
+//
+// The active window and the identity of whatever it names come from the system
+// bridge (x11_system.h) rather than from a second copy in this one. They were
+// two copies until #1499: the system one had learned to tell a window manager
+// with nothing focused from a display owned by none, and to survive a property
+// naming a window that has since closed, while the copy here still let that
+// close exit the daemon.
+//
+// The five answers that bridge distinguishes collapse to one here on purpose.
+// This signature has no error to carry, and its callers — focused-app identity
+// and the frontmost-window queries behind it — re-sample on the next focus
+// event either way, so "no identity" is the whole of what they can act on.
 func linuxFocusedApplicationIdentity() (string, int) {
 	if os.Getenv("DISPLAY") == "" {
 		return "", 0
@@ -42,11 +57,11 @@ func linuxFocusedApplicationIdentity() (string, int) {
 	defer C.neru_ax_close_display(display)
 
 	var window C.Window
-	if C.neru_ax_get_active_window(display, &window) == 0 {
+	if C.neru_x11_get_active_window(display, &window) != C.int(C.NERU_X11_ACTIVE_WINDOW_OK) {
 		return "", 0
 	}
 
-	className := C.neru_ax_window_class(display, window)
+	className := C.neru_x11_get_window_class(display, window)
 
 	bundleID := ""
 	if className != nil {
@@ -55,7 +70,7 @@ func linuxFocusedApplicationIdentity() (string, int) {
 	}
 
 	var ok C.int
-	pid := int(C.neru_ax_window_pid(display, window, &ok))
+	pid := int(C.neru_x11_get_window_pid(display, window, &ok))
 
 	return bundleID, pid
 }
