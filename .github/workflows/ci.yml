@@ -131,16 +131,9 @@ jobs:
                   version: v2.12.2
                   install-only: true
 
-            # Install just on Windows
-            - name: Install just (Windows)
-              if: runner.os == 'Windows'
-              run: |
-                  choco install just -y
-              shell: pwsh
-
-            # Install just on Linux
-            - name: Install just (Linux)
-              if: runner.os == 'Linux'
+            # Install just directly on Windows & Linux
+            - name: Install just
+              if: runner.os == 'Windows' || runner.os == 'Linux'
               uses: extractions/setup-just@v4
 
             # Run checks with Devbox on macOS
