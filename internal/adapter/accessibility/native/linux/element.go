@@ -358,7 +358,9 @@ func MouseDownAtPoint(
 // A press holds its modifiers until the matching release, so the release has to
 // undo the set recorded at press time rather than whatever this call was given —
 // releasing a modified press with a bare "up" action would otherwise leave the
-// modifier logically held. The wlroots path applies the same rule internally.
+// modifier logically held. The wlroots path applies the same rule internally,
+// and the X11 one picks up the keys its own press actually touched, so the set
+// recorded here is what it falls back on for a release with no press behind it.
 func MouseUpAtPoint(
 	point image.Point,
 	button action.MouseButton,

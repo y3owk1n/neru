@@ -38,22 +38,6 @@ int neru_ax_button(Display *display, unsigned int button, int pressed) {
 	return ok;
 }
 
-void neru_ax_press_modifier(Display *display, KeySym keysym) {
-	KeyCode keycode = XKeysymToKeycode(display, keysym);
-	if (keycode != 0) {
-		XTestFakeKeyEvent(display, keycode, True, CurrentTime);
-		XFlush(display);
-	}
-}
-
-void neru_ax_release_modifier(Display *display, KeySym keysym) {
-	KeyCode keycode = XKeysymToKeycode(display, keysym);
-	if (keycode != 0) {
-		XTestFakeKeyEvent(display, keycode, False, CurrentTime);
-		XFlush(display);
-	}
-}
-
 /* Resolves a keysym to the keycode carrying it, or 0 when the live keymap has
  * no key for it — a layout without a right Alt, say. */
 unsigned int neru_ax_keysym_to_keycode(Display *display, KeySym keysym) {
