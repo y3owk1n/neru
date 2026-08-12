@@ -99,7 +99,10 @@ type Geometry struct {
 	// is set once and read from any goroutine.
 	logger atomic.Pointer[zap.Logger]
 
-	startOnce sync.Once
+	startMu   sync.Mutex
+	starting  bool
+	installed bool
+	warned    bool
 
 	mu       sync.RWMutex
 	rect     image.Rectangle
@@ -136,14 +139,19 @@ func newGeometry(logger *zap.Logger) *Geometry {
 	return geometry
 }
 
-// EnsureStarted installs the KWin script once per process, off the calling
-// goroutine. It never blocks: the install is a handful of D-Bus round trips to
-// KWin, and the callers reaching it include the mode handler, where a slow
-// native call holds the keyboard grab.
+// EnsureStarted installs the KWin script, off the calling goroutine. It never
+// blocks: the install is a handful of D-Bus round trips to KWin, and the
+// callers reaching it include the mode handler, where a slow native call holds
+// the keyboard grab.
 //
-// Until the install lands, Bounds reports nothing rather than a rectangle.
+// Until the install lands, Bounds reports nothing rather than a rectangle. A
+// failed attempt is retried by the next caller — the daemon starts when the
+// session does, and spending its only attempt on a bus that was not up yet
+// would leave the whole run with no geometry.
 func (g *Geometry) EnsureStarted() {
-	g.startOnce.Do(func() { go g.start() })
+	if g.beginStart() {
+		go g.start()
+	}
 }
 
 // UpdateActiveWindow is the exported D-Bus method the KWin script calls. The
@@ -229,24 +237,50 @@ func (g *Geometry) log() *zap.Logger {
 }
 
 func (g *Geometry) start() {
-	err := g.install()
-	if err != nil {
-		g.recordStartFailure(err)
-		g.log().Warn("KWin geometry bridge unavailable", zap.Error(err))
-
-		return
-	}
-
-	g.log().Debug("KWin geometry bridge installed")
+	g.endStart(g.install())
 }
 
-// recordStartFailure remembers why the bridge cannot answer, so Bounds can say
-// so instead of reporting an absent window.
-func (g *Geometry) recordStartFailure(err error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+// beginStart claims the right to run an install attempt. It is false when one
+// is already in flight or the script is installed, so callers can ask on every
+// request without stacking attempts or reinstalling.
+func (g *Geometry) beginStart() bool {
+	g.startMu.Lock()
+	defer g.startMu.Unlock()
 
+	if g.starting || g.installed {
+		return false
+	}
+
+	g.starting = true
+
+	return true
+}
+
+// endStart records an attempt's outcome. A failure is remembered as the reason
+// Bounds cannot answer — and said out loud once, since the error reaches every
+// later caller anyway and a session with no KWin would otherwise warn on every
+// hint activation. A success clears the reason: it described a condition that
+// has passed.
+func (g *Geometry) endStart(err error) {
+	g.startMu.Lock()
+	g.starting = false
+	g.installed = err == nil
+	firstFailure := err != nil && !g.warned
+	g.warned = g.warned || err != nil
+	g.startMu.Unlock()
+
+	g.mu.Lock()
 	g.startErr = err
+	g.mu.Unlock()
+
+	switch {
+	case err == nil:
+		g.log().Debug("KWin geometry script installed")
+	case firstFailure:
+		g.log().Warn("KWin geometry script unavailable", zap.Error(err))
+	default:
+		g.log().Debug("KWin geometry script still unavailable", zap.Error(err))
+	}
 }
 
 // install exports the D-Bus receiver and loads the KWin script.

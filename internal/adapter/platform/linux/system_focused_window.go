@@ -129,7 +129,9 @@ func warmFocusedWindowSource(backend string) {
 }
 
 // kwinFocusedWindowBounds reads the geometry KWin last pushed to the shared
-// cache, installing the script if this is the first caller to need it.
+// cache, installing the script if nothing has installed it yet — including
+// after an earlier attempt failed, so a bus that was not up at daemon start
+// does not cost the whole run.
 //
 // The install is asynchronous by contract, so a call that arrives before KWin
 // has answered reports no window rather than waiting: this runs under the mode

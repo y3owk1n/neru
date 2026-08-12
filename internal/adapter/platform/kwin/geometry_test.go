@@ -109,7 +109,7 @@ func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.recordStartFailure(errTestInstallFailed)
+	geometry.endStart(errTestInstallFailed)
 
 	_, ok, err := geometry.Bounds()
 	if ok {
@@ -127,12 +127,63 @@ func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.recordStartFailure(errTestInstallFailed)
+	geometry.endStart(errTestInstallFailed)
 	_ = geometry.UpdateActiveWindow("10,20,300,400,kate")
 
 	rect, ok, err := geometry.Bounds()
 	if !ok || err != nil {
 		t.Fatalf("Bounds() = (%v, %v, %v), want the pushed rectangle", rect, ok, err)
+	}
+}
+
+// TestGeometry_BeginStartRetriesUntilTheScriptIsInstalled pins the install
+// guard.
+//
+// The daemon starts when the session does, so the first attempt can land before
+// the session bus or KWin is up. A once-only attempt would spend the daemon's
+// only try on that race and leave the whole run with no focused-window
+// geometry, which is the failure this source exists to remove — so a failed
+// attempt is retried by the next caller, while one already in flight is not
+// duplicated and a successful one is never repeated.
+func TestGeometry_BeginStartRetriesUntilTheScriptIsInstalled(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	if !geometry.beginStart() {
+		t.Fatal("the first caller was not allowed to install")
+	}
+
+	if geometry.beginStart() {
+		t.Error("a second caller started a duplicate install while one was in flight")
+	}
+
+	geometry.endStart(errTestInstallFailed)
+
+	if !geometry.beginStart() {
+		t.Fatal("a failed install was never retried; the daemon would run blind until restart")
+	}
+
+	geometry.endStart(nil)
+
+	if geometry.beginStart() {
+		t.Error("an installed script was reinstalled")
+	}
+}
+
+// TestGeometry_ASuccessfulRetryClearsTheRecordedReason keeps a spent reason
+// from outliving the condition it described.
+func TestGeometry_ASuccessfulRetryClearsTheRecordedReason(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	geometry.beginStart()
+	geometry.endStart(errTestInstallFailed)
+
+	geometry.beginStart()
+	geometry.endStart(nil)
+
+	_, ok, err := geometry.Bounds()
+	if ok || err != nil {
+		t.Fatalf("Bounds() after a successful retry = (%v, %v), want (false, nil) — "+
+			"installed, with nothing reported yet", ok, err)
 	}
 }
 
