@@ -283,6 +283,171 @@ func TestSimulation_GridNarrowingCostsNoRedraw(t *testing.T) {
 	}
 }
 
+// stopCursorFollowing turns cursor-follow-selection off with the key bound to
+// it and waits for the change to land. The toggle is a mode hotkey, so the app
+// runs it on a goroutine; the pointer refresh it owes is what says it ran.
+func stopCursorFollowing(sim *simHarness) {
+	sim.t.Helper()
+
+	before := sim.overlay.gridSurfaceUpdates()
+
+	sim.press("`")
+
+	sim.waitFor("the cursor stopped following the selection", func() bool {
+		return sim.overlay.gridSurfaceUpdates() > before
+	})
+}
+
+// TestSimulation_GridSelectionUpdatesTheSurfaceOnce is the other half of what
+// ADR 0003 promises, and what #1492 was: the keystroke that picks a cell opens
+// the subgrid *and* moves the selection, and where both are painted onto one
+// surface saying it in two calls repaints that surface twice for one key. The
+// mode says it once.
+//
+// Cursor-follow is turned off first ("`"), because that is the session this is
+// about: with the real cursor following the selection there is no pointer
+// stand-in to move and the second update never existed. The last keystroke of
+// the label is the one measured — the ones before it narrow, which is the path
+// the test above covers.
+func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	label := []rune(cells[len(cells)/2].Coordinate())
+	if len(label) < 2 {
+		t.Fatalf("grid label %q is one character; it has no narrowing half", string(label))
+	}
+
+	sim.typeLabel(string(label[:len(label)-1]))
+
+	updatesBefore := sim.overlay.gridSurfaceUpdates()
+	subgridsBefore := sim.overlay.subgridCount()
+
+	sim.press(strings.ToLower(string(label[len(label)-1])))
+
+	sim.waitFor("the subgrid opened", func() bool {
+		return sim.overlay.subgridCount() > subgridsBefore
+	})
+
+	if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 1 {
+		t.Errorf("the selection keystroke asked the grid surface to change %d times, want 1",
+			got)
+	}
+
+	// And the one call carried both: the pointer stands on the cell the subgrid
+	// was opened inside, which is the only thing on screen saying where the
+	// selection is for this user.
+	pointer, drawn := sim.overlay.lastGridPointer()
+	if !drawn || !pointer.Visible {
+		t.Errorf("selection pointer = %+v (drawn = %v), want it on screen with the subgrid",
+			pointer, drawn)
+	}
+}
+
+// moveCellKey is the key this file's arrow-key journey binds `move_cell` to.
+// Grid mode's default hotkeys point the arrows at `move_mouse_*`, so sliding an
+// open subgrid is a binding a user writes — and it reaches the same subgrid
+// callback the selection keystroke does, which is why it is measured here.
+const moveCellKey = "Right"
+
+// TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress is the third
+// keystroke #1492 names: a held arrow inside a subgrid re-opens the subgrid over
+// the neighboring cell and moves the selection with it, once per repeat. Each
+// press must cost the surface one change, or a held key multiplies the one the
+// spec is about.
+func TestSimulation_MovingAnOpenSubgridUpdatesTheSurfaceOncePerPress(t *testing.T) {
+	cfg := simConfig()
+	cfg.Grid.Hotkeys[moveCellKey] = config.StringOrStringArray{
+		"action move_cell --direction=right",
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	// The first cell, so there is a neighbor to the right to slide onto.
+	sim.typeLabel(cells[0].Coordinate())
+
+	sim.waitFor("the subgrid opened", func() bool { return sim.overlay.subgridCount() > 0 })
+
+	const presses = 3
+
+	for press := range presses {
+		subgridsBefore := sim.overlay.subgridCount()
+		updatesBefore := sim.overlay.gridSurfaceUpdates()
+
+		sim.press(moveCellKey)
+
+		sim.waitFor("the subgrid moved", func() bool {
+			return sim.overlay.subgridCount() > subgridsBefore
+		})
+
+		if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 1 {
+			t.Fatalf("press %d asked the grid surface to change %d times, want 1",
+				press+1, got)
+		}
+	}
+}
+
+// TestSimulation_LeavingGridRepaintsNothingOnTheWayOut is the teardown half of
+// the same promise (#1492): the grid is about to be taken off the screen, so
+// resetting what the overlay still holds for it must not repaint it first. The
+// overlay's own leaving half drops that state, and a mode that reset it from
+// here repainted a grid twice to throw it away a moment later.
+func TestSimulation_LeavingGridRepaintsNothingOnTheWayOut(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	// A visible pointer is the state teardown used to repaint for.
+	stopCursorFollowing(sim)
+
+	cells := sim.overlay.lastGrid().Cells()
+	if len(cells) == 0 {
+		t.Fatal("grid drawn with zero cells")
+	}
+
+	sim.typeLabel(cells[len(cells)/2].Coordinate())
+
+	sim.waitFor("the selection is on screen", func() bool {
+		pointer, drawn := sim.overlay.lastGridPointer()
+
+		return drawn && pointer.Visible
+	})
+
+	updatesBefore := sim.overlay.gridSurfaceUpdates()
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+	sim.waitFor("grid off screen", func() bool { return !sim.overlay.isVisible() })
+
+	if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 0 {
+		t.Errorf("leaving grid mode asked the grid surface to change %d times, want 0: it was "+
+			"repainted on the way to being cleared", got)
+	}
+}
+
 // TestSimulation_GridLeavesNothingOnScreen pins the leaving half: exiting grid
 // mode takes the grid off the screen and returns the overlay to idle, so the
 // next mode does not appear next to the last one.
@@ -1665,7 +1830,7 @@ func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 	sim.typeLabel(cells[len(cells)/2].Coordinate())
 
 	sim.waitFor("the selection is on screen", func() bool {
-		pointer, drawn := sim.overlay.lastGridPointer(domain.ModeGrid)
+		pointer, drawn := sim.overlay.lastGridPointer()
 
 		return drawn && pointer.Visible
 	})
@@ -1683,7 +1848,7 @@ func TestSimulation_ScreenChangeRebuildsGridAndClearsSelection(t *testing.T) {
 			got, want)
 	}
 
-	if pointer, _ := sim.overlay.lastGridPointer(domain.ModeGrid); pointer.Visible {
+	if pointer, _ := sim.overlay.lastGridPointer(); pointer.Visible {
 		t.Errorf(
 			"the selection at %v survived the screen change; it points at a place on a display that is gone",
 			pointer.Position,

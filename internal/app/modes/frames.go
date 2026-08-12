@@ -129,13 +129,19 @@ func (h *handlerState) setGridHideUnmatched(hide bool) {
 	h.overlayPort.SetGridHideUnmatched(hide)
 }
 
-// showGridSubgrid opens the finer grid drawn inside one cell.
-func (h *handlerState) showGridSubgrid(cell *domainGrid.Cell) {
+// showGridSubgrid opens the finer grid drawn inside one cell, with the pointer
+// stand-in the selection that opened it asks for.
+//
+// The pointer travels with the open rather than in a call of its own (#1492).
+// The keystroke that picks a cell is the keystroke that moves the selection, and
+// on a backend that paints both into one surface two calls are two repaints of
+// it — arrow keys inside a subgrid included, once per repeat of a held key.
+func (h *handlerState) showGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer) {
 	if h.overlayPort == nil {
 		return
 	}
 
-	h.overlayPort.ShowGridSubgrid(cell)
+	h.overlayPort.ShowGridSubgrid(cell, pointer)
 }
 
 // updateGridPointer moves the pointer stand-in on a grid mode's surface, or

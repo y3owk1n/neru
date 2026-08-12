@@ -213,8 +213,12 @@ type simOverlayPort struct {
 	searchQueries []string
 	stickySymbols []string
 
-	// gridPointers is the pointer each grid surface was last asked to draw.
-	gridPointers map[domain.Mode]ports.GridPointer
+	// gridPointers is the pointer each grid surface was last asked to draw, and
+	// gridPointerCalls how many times one was asked for in a call of its own.
+	// The second is what says a keystroke did not pay for a second repaint of a
+	// surface the first call already painted (#1492).
+	gridPointers     map[domain.Mode]ports.GridPointer
+	gridPointerCalls int
 
 	// indicatorVisible is the visibility each indicator was last asked for.
 	// An indicator draws through its own call rather than a frame, so this —
@@ -316,12 +320,19 @@ func (m *simOverlayPort) SetGridHideUnmatched(hide bool) {
 	m.hideUnmatched = append(m.hideUnmatched, hide)
 }
 
-// ShowGridSubgrid records the cell a subgrid was opened inside.
-func (m *simOverlayPort) ShowGridSubgrid(cell *domainGrid.Cell) {
+// ShowGridSubgrid records the cell a subgrid was opened inside, and the pointer
+// stand-in that came with it.
+//
+// The pointer is recorded where UpdateGridPointer records one, because it is
+// the same statement about the same surface: a user whose cursor does not
+// follow the selection sees the pointer land on the cell they just picked, and
+// which call carried it is the overlay's business (#1492).
+func (m *simOverlayPort) ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.subgridCells = append(m.subgridCells, cell)
+	m.recordGridPointerLocked(domain.ModeGrid, pointer)
 }
 
 // UpdateGridPointer records the pointer stand-in a grid surface draws where
@@ -332,11 +343,8 @@ func (m *simOverlayPort) UpdateGridPointer(mode domain.Mode, pointer ports.GridP
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.gridPointers == nil {
-		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
-	}
-
-	m.gridPointers[mode] = pointer
+	m.gridPointerCalls++
+	m.recordGridPointerLocked(mode, pointer)
 }
 
 func (m *simOverlayPort) DrawModeIndicator(_, _ int) {}
@@ -412,6 +420,16 @@ func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
 func (m *simOverlayPort) SetKeyboardCaptureEnabled(_ bool) {}
 
 func (m *simOverlayPort) Destroy() {}
+
+// recordGridPointerLocked stores what a grid surface was last asked to draw
+// where the selection is. Caller must hold m.mu.
+func (m *simOverlayPort) recordGridPointerLocked(mode domain.Mode, pointer ports.GridPointer) {
+	if m.gridPointers == nil {
+		m.gridPointers = make(map[domain.Mode]ports.GridPointer)
+	}
+
+	m.gridPointers[mode] = pointer
+}
 
 // recordLocked stores what a frame put on screen. The caller holds m.mu.
 func (m *simOverlayPort) recordLocked(frame ports.Frame) {
@@ -624,13 +642,14 @@ func (m *simOverlayPort) lastHideUnmatched() (bool, bool) {
 	return m.hideUnmatched[len(m.hideUnmatched)-1], true
 }
 
-// lastGridPointer reports the pointer a grid surface was last asked to draw,
-// and whether it was ever asked at all.
-func (m *simOverlayPort) lastGridPointer(mode domain.Mode) (ports.GridPointer, bool) {
+// lastGridPointer reports the pointer grid mode's surface was last asked to
+// draw, and whether it was ever asked at all. Recursive grid's rides the frame
+// it hands over on every keystroke, so a journey reads that one off the frame.
+func (m *simOverlayPort) lastGridPointer() (ports.GridPointer, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	pointer, drawn := m.gridPointers[mode]
+	pointer, drawn := m.gridPointers[domain.ModeGrid]
 
 	return pointer, drawn
 }
@@ -641,6 +660,17 @@ func (m *simOverlayPort) subgridCount() int {
 	defer m.mu.Unlock()
 
 	return len(m.subgridCells)
+}
+
+// gridSurfaceUpdates reports how many times the grid surface was asked to
+// change by an incremental call — narrowing, opening a subgrid, moving the
+// pointer. On a backend that paints that surface whole it is the repaint count
+// for everything short of a frame, which is what makes it worth counting.
+func (m *simOverlayPort) gridSurfaceUpdates() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.matchPrefixes) + len(m.subgridCells) + m.gridPointerCalls
 }
 
 // recursiveGridDrawCount reports how many times the recursive grid was drawn.

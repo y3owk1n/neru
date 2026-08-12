@@ -39,7 +39,7 @@ func TestLinuxOverlayManager_ShowSubgrid_BeginsTheFrameBeforeClearingIt(t *testi
 
 	overlayManager, surface := gridOnSurface(t)
 
-	overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{})
+	overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{}, noGridPointer)
 
 	want := []string{"beginFrame", "surfaceClear", "surfaceFlush"}
 	if !slices.Equal(surface.frameOps, want) {
@@ -81,7 +81,7 @@ func TestLinuxOverlayManager_ShowSubgrid_CancelsTheAnimationWithRenderMuReleased
 		}
 	}()
 
-	overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{})
+	overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{}, noGridPointer)
 
 	select {
 	case <-animDone:
@@ -124,9 +124,9 @@ func TestLinuxOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *testi
 		gridPointerAppearance.Char,
 	}
 
-	// The pointer is put on the surface before the open so that it is part of
-	// what the open paints, which leaves moving it below a repaint of the same
-	// content rather than a change to it.
+	// The pointer arrives with the open (#1492), so it is part of what the open
+	// paints — which leaves moving it below a repaint of the same content
+	// rather than a change to it.
 	repaints := []struct {
 		name    string
 		repaint func(*Manager)
@@ -156,14 +156,11 @@ func TestLinuxOverlayManager_ShowSubgrid_IsWhatEveryRepaintAfterItDraws(t *testi
 			overlayManager, surface := gridOnSurface(t)
 			overlayManager.x11.sublayerKeys = subgridTestKeys
 
-			overlayManager.DrawGridPointer(
-				manager.ModeGrid,
-				image.Pt(120, 240),
-				gridPointerAppearance,
+			overlayManager.ShowSubgrid(
+				firstGridCell(),
+				gridcomponent.Style{},
+				gridPointerAt(image.Pt(120, 240)),
 			)
-			surface.forget()
-
-			overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{})
 
 			opened := surface.paintedStrings()
 			openedRects := slices.Clone(surface.rects)

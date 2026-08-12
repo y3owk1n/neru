@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 const (
@@ -89,18 +88,12 @@ func (h *handlerState) cleanupGridMode() {
 		h.grid.Manager.ResetSilent()
 	}
 
-	// Reset the overlay's match state so the native hideUnmatched flag and
-	// stale cell-match data do not persist across activations. Normally
-	// the update callback (fired by Reset()) would do this, but
-	// ResetSilent() deliberately skips it.
-	h.setGridHideUnmatched(false)
-	h.updateGridMatches("")
-
-	// Explicitly hide the virtual pointer before clearing the overlay.
-	// NeruClearOverlay also resets cursorIndicatorVisible, but we do this
-	// explicitly so the pointer cleanup does not silently depend on the
-	// overlay clear implementation.
-	h.updateGridPointer(domain.ModeGrid, ports.GridPointer{})
+	// What the overlay still holds from this session — the hide-unmatched flag,
+	// the match prefix and the pointer stand-in — is dropped by the frame clear
+	// that follows in performCommonCleanup, and dropped there on purpose
+	// (#1492): resetting them from here repainted the grid, twice, to throw it
+	// away a moment later. ClearFrame owns the leaving half of every surface,
+	// and these are the last things a caller had to take off one itself.
 
 	// Stop the indicator poller before common cleanup takes the frame off the
 	// screen: a tick landing after the clear would put an indicator back on it.

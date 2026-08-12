@@ -221,7 +221,19 @@ type Interface interface {
 		virtualPointer recursivegrid.VirtualPointerState,
 	) error
 	UpdateGridMatches(prefix string)
-	ShowSubgrid(cell *domainGrid.Cell, style grid.Style)
+	// ShowSubgrid replaces the cells on the grid surface with the finer grid
+	// inside one cell.
+	//
+	// It takes the pointer stand-in the way DrawRecursiveGrid does, and for the
+	// same reason (#1492): a backend that paints both onto one surface repaints
+	// that surface once per call, and the keystroke that opens a subgrid is the
+	// keystroke that moves the pointer. A backend whose pointer is a layer of
+	// its own applies it after the open and pays nothing for the pairing.
+	ShowSubgrid(
+		cell *domainGrid.Cell,
+		style grid.Style,
+		virtualPointer recursivegrid.VirtualPointerState,
+	)
 	SetHideUnmatched(hide bool)
 
 	// DrawGridPointer and HideGridPointer drive the pointer stand-in drawn on
