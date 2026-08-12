@@ -1552,6 +1552,14 @@ wheel notches, and an application is free to scale those two differently. So
 turning the animation on can change how far a `scroll_down` reaches in a given
 application, and `scroll.scroll_step` is the setting to trim if it does.
 
+The same holds for a key held down under [`[held_repeat]`](#held_repeat). A
+repeat tick preempts the animation still in flight, and folds whatever that
+animation had not yet sent into its own, so N repeats travel as far as N
+discrete presses — on X11, within a wheel notch per repeat, since nothing there
+can express a fraction of one. A binding with a *different* modifier set still
+cancels outright: a plain `scroll_down` arriving mid-zoom finishes unmodified,
+and the zoom's remaining distance is dropped rather than sent as a plain scroll.
+
 | Option               | Type  | Default | Description                        |
 | -------------------- | ----- | ------- | ---------------------------------- |
 | `enabled`            | bool  | `false` | Enable smooth scrolling            |
