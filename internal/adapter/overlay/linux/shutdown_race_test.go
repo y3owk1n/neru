@@ -100,7 +100,7 @@ func cancelingCalls() []cancelingCall {
 		{
 			name: "ShowSubgrid",
 			call: func(mgr *Manager) {
-				mgr.ShowSubgrid(firstGridCell(), grid.Style{})
+				mgr.ShowSubgrid(firstGridCell(), grid.Style{}, recursivegrid.VirtualPointerState{})
 			},
 		},
 	}

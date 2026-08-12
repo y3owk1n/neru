@@ -134,16 +134,31 @@ func (h *handlerState) moveCursorToSelection(
 // refreshGridVirtualPointer puts the pointer stand-in where grid mode's
 // selection is, or takes it off when the cursor follows the selection itself
 // and there is nothing to stand in for.
+//
+// It is the call for the keystrokes that move the pointer and nothing else. The
+// one that opens a subgrid moves both, and carries the value below on the open
+// instead (#1492).
 func (h *handlerState) refreshGridVirtualPointer() {
 	if h.grid == nil || h.grid.Context == nil {
 		return
 	}
 
-	h.updateGridPointer(domain.ModeGrid, selectionPointer(
+	h.updateGridPointer(domain.ModeGrid, h.gridPointer())
+}
+
+// gridPointer is the pointer grid mode should be showing. Like
+// recursiveGridPointer it is read twice — as a call of its own, and as part of
+// the subgrid open that repaints the surface it stands on.
+func (h *handlerState) gridPointer() ports.GridPointer {
+	if h.grid == nil || h.grid.Context == nil {
+		return ports.GridPointer{}
+	}
+
+	return selectionPointer(
 		h.grid.Context.SelectionPoint,
 		h.grid.Context.CursorFollowSelection(),
 		h.screenBounds,
-	))
+	)
 }
 
 // refreshRecursiveGridVirtualPointer does the same for recursive-grid mode.

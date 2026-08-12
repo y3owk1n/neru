@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	gridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
+	recursivegridcomponent "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
 )
 
@@ -21,6 +22,23 @@ var gridPointerAppearance = manager.PointerAppearance{
 	FontFamily: "Test Sans",
 	Char:       "✛",
 	FontSize:   20,
+}
+
+// noGridPointer is what a draw that carries a pointer carries when the real
+// cursor is on the selection and there is nothing to stand in for.
+var noGridPointer recursivegridcomponent.VirtualPointerState
+
+// gridPointerAt is the pointer standing at point, wearing the appearance above
+// so that a draw which reads it cannot be mistaken for one that fell back.
+func gridPointerAt(point image.Point) recursivegridcomponent.VirtualPointerState {
+	return recursivegridcomponent.VirtualPointerState{
+		Visible:   true,
+		Position:  point,
+		Size:      gridPointerAppearance.FontSize,
+		FillColor: gridPointerAppearance.FillColor,
+		Char:      gridPointerAppearance.Char,
+		FontName:  gridPointerAppearance.FontFamily,
+	}
 }
 
 // gridOnSurface draws a grid on a recording surface and forgets everything
@@ -161,12 +179,57 @@ func TestLinuxOverlayManager_UpdateGridMatches_KeepsThePointerOnTheSurface(t *te
 	}
 }
 
-// A subgrid replaces the cells on the same surface, and the pointer stands on
-// the cell the subgrid was opened inside — so it survives that repaint too.
-func TestLinuxOverlayManager_ShowSubgrid_KeepsThePointerOnTheSurface(t *testing.T) {
+// A subgrid replaces the cells on the same surface and the pointer stands on
+// the cell it was opened inside, so the two are one keystroke's worth of
+// change — and #1492 is that this surface must be repainted once for it.
+//
+// The pointer starts somewhere else and the open moves it, which is what makes
+// the flush count an assertion rather than an accident: a backend that ignored
+// the pointer it was handed would need a second repaint to catch up, and one
+// that took it would paint the glyph at its new place in the frame it was
+// already painting.
+func TestLinuxOverlayManager_ShowSubgrid_PaintsThePointerItCarriesInOneRepaint(t *testing.T) {
 	t.Parallel()
 
 	overlayManager, surface := gridOnSurface(t)
+	overlayManager.x11.sublayerKeys = subgridTestKeys
+
+	overlayManager.DrawGridPointer(
+		manager.ModeGrid,
+		image.Pt(10, 20),
+		gridPointerAppearance,
+	)
+	surface.forget()
+
+	overlayManager.ShowSubgrid(
+		firstGridCell(),
+		gridcomponent.Style{},
+		gridPointerAt(image.Pt(120, 240)),
+	)
+
+	if surface.flushes != 1 {
+		t.Errorf("the selection keystroke flushed the surface %d times, want 1", surface.flushes)
+	}
+
+	painted, found := surface.findText(gridPointerAppearance.Char)
+	if !found {
+		t.Fatalf("painted %v, want the pointer among them", surface.paintedStrings())
+	}
+
+	if painted.center != image.Pt(120, 240) {
+		t.Errorf("pointer centered at %v, want the place the selection moved to",
+			painted.center)
+	}
+}
+
+// The other half of the same call: a session whose real cursor follows the
+// selection has no pointer to stand in for it, and the open says so rather than
+// leaving whatever the surface last held.
+func TestLinuxOverlayManager_ShowSubgrid_TakesThePointerOffWhenItCarriesNone(t *testing.T) {
+	t.Parallel()
+
+	overlayManager, surface := gridOnSurface(t)
+	overlayManager.x11.sublayerKeys = subgridTestKeys
 
 	overlayManager.DrawGridPointer(
 		manager.ModeGrid,
@@ -175,11 +238,11 @@ func TestLinuxOverlayManager_ShowSubgrid_KeepsThePointerOnTheSurface(t *testing.
 	)
 	surface.forget()
 
-	cell := domainGrid.NewGrid("ab", image.Rect(0, 0, 800, 600), zap.NewNop()).AllCells()[0]
-	overlayManager.ShowSubgrid(cell, gridcomponent.Style{})
+	overlayManager.ShowSubgrid(firstGridCell(), gridcomponent.Style{}, noGridPointer)
 
-	if !surface.paintedText(gridPointerAppearance.Char) {
-		t.Errorf("painted %v, want the pointer still among them", surface.paintedStrings())
+	if surface.paintedText(gridPointerAppearance.Char) {
+		t.Errorf("painted %v, want no pointer: the open carried none",
+			surface.paintedStrings())
 	}
 }
 
@@ -193,7 +256,7 @@ func TestLinuxOverlayManager_DrawGridPointer_BeginsTheFrameBeforeClearingIt(t *t
 	overlayManager, surface := gridOnSurface(t)
 
 	cell := domainGrid.NewGrid("ab", image.Rect(0, 0, 800, 600), zap.NewNop()).AllCells()[0]
-	overlayManager.ShowSubgrid(cell, gridcomponent.Style{})
+	overlayManager.ShowSubgrid(cell, gridcomponent.Style{}, noGridPointer)
 	surface.forget()
 
 	overlayManager.DrawGridPointer(
@@ -225,6 +288,41 @@ func TestLinuxOverlayManager_DrawGridPointer_LeavesTheRecursiveGridSurfaceAlone(
 	if len(surface.texts) != 0 || surface.flushes != 0 {
 		t.Errorf("recursive grid's pointer painted %v and flushed %d times, want neither",
 			surface.paintedStrings(), surface.flushes)
+	}
+}
+
+// The teardown order the overlay's leaving half runs (#1492): clear the
+// surface, then hide the pointer. The hide has to be free, because it lands on
+// a surface that has just been cleared and is one call from being hidden — a
+// repaint there would paint the grid, or an open subgrid, back onto it.
+//
+// What makes it free is the clear having already forgotten the pointer, so the
+// equality guard in SetGridPointer has nothing to do. Asserting the flush count
+// rather than the absence of the glyph is the point: a repaint that painted no
+// pointer would still have repainted.
+func TestLinuxOverlayManager_HideGridPointer_PaintsNothingAfterAClear(t *testing.T) {
+	t.Parallel()
+
+	overlayManager, surface := gridOnSurface(t)
+
+	overlayManager.DrawGridPointer(
+		manager.ModeGrid,
+		image.Pt(120, 240),
+		gridPointerAppearance,
+	)
+	overlayManager.Clear()
+	surface.forget()
+
+	overlayManager.HideGridPointer(manager.ModeGrid)
+
+	if surface.flushes != 0 {
+		t.Errorf("hiding the pointer after a clear flushed the surface %d times, want 0",
+			surface.flushes)
+	}
+
+	if len(surface.paintedStrings()) != 0 {
+		t.Errorf("painted %v onto a surface that was just cleared, want nothing",
+			surface.paintedStrings())
 	}
 }
 

@@ -46,11 +46,17 @@ func (o *x11Overlay) ClearRect(image.Rectangle)                              {}
 func (o *x11Overlay) Resize()                                                {}
 func (o *x11Overlay) Destroy()                                               {}
 func (o *x11Overlay) UpdateGridMatches(string)                               {}
-func (o *x11Overlay) ShowSubgrid(*domainGrid.Cell, gridcomponent.Style)      {}
 func (o *x11Overlay) SetHideUnmatched(bool)                                  {}
 func (o *x11Overlay) setOriginOffset(image.Point)                            {}
 func (o *x11Overlay) DrawGrid(*domainGrid.Grid, string, gridcomponent.Style) {}
 func (o *x11Overlay) forgetGridPointer()                                     {}
+
+func (o *x11Overlay) ShowSubgrid(
+	*domainGrid.Cell,
+	gridcomponent.Style,
+	recursivegridcomponent.VirtualPointerState,
+) {
+}
 
 func (o *x11Overlay) SetGridPointer(recursivegridcomponent.VirtualPointerState) {}
 

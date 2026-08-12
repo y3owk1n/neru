@@ -196,8 +196,31 @@ func (o *sharedOverlay) UpdateGridMatches(prefix string) {
 	o.updateGridMatches(prefix)
 }
 
-func (o *sharedOverlay) ShowSubgrid(cell *domainGrid.Cell, _ gridcomponent.Style) {
-	if !o.drawable() || cell == nil {
+// ShowSubgrid opens the finer grid inside one cell, with the pointer stand-in
+// the same keystroke moved.
+//
+// The pointer is recorded past the nil cell and before the surface check, which
+// is the same line SetGridPointer draws: a record kept without a surface is
+// state the next repaint reads rather than a draw of its own, but a call with
+// no cell is a call that said nothing about this surface at all — recording its
+// pointer would leave the record describing a screen nobody asked for, and
+// SetGridPointer's equality guard would then swallow the call that meant it.
+//
+// Recording it and letting showSubgrid's own repaint paint it is the whole of
+// what #1492 buys — no equality guard here, because an open repaints the
+// surface whether or not the pointer moved.
+func (o *sharedOverlay) ShowSubgrid(
+	cell *domainGrid.Cell,
+	_ gridcomponent.Style,
+	pointer recursivegridcomponent.VirtualPointerState,
+) {
+	if cell == nil {
+		return
+	}
+
+	o.gridPointer = pointer
+
+	if !o.drawable() {
 		return
 	}
 

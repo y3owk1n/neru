@@ -199,6 +199,31 @@ func (b *Base) HideGridPointer(mode Mode) {
 	}
 }
 
+// ApplyGridPointer puts a pointer state onto a grid mode's surface, or takes
+// the pointer off when the state is not visible. It is the state-shaped form of
+// the two calls above, for the draws that carry the pointer with them rather
+// than being followed by a call of their own (#1492) — a subgrid open, today.
+//
+// A backend that overrides DrawGridPointer must not reach this: Go dispatches
+// the two calls below to Base, not to the override. The backends that paint the
+// pointer themselves — the Linux ones — implement the carrying draw themselves
+// too, so the only callers here are the ones whose pointer is a layer of its
+// own and costs nothing to apply after the draw.
+func (b *Base) ApplyGridPointer(mode Mode, pointer recursivegrid.VirtualPointerState) {
+	if !pointer.Visible {
+		b.HideGridPointer(mode)
+
+		return
+	}
+
+	b.DrawGridPointer(mode, pointer.Position, PointerAppearance{
+		FillColor:  pointer.FillColor,
+		FontFamily: pointer.FontName,
+		Char:       pointer.Char,
+		FontSize:   pointer.Size,
+	})
+}
+
 // gridPointerSurface is the pointer half the grid and recursive-grid render
 // components share, for the same reason indicatorSurface exists: the manager
 // answers in modes, not in render types.

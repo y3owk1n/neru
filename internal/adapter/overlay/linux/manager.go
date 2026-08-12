@@ -768,7 +768,15 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	}
 }
 
-// ShowSubgrid shows the subgrid overlay.
+// ShowSubgrid shows the subgrid overlay, with the pointer stand-in that belongs
+// on the same surface once the cell has been picked.
+//
+// This is where the pointer riding the open earns its place (#1492). Both are
+// painted into one Cairo target here, so a mode that opened the subgrid and
+// then moved the pointer repainted that target twice for one keystroke — and
+// arrow keys inside a subgrid come through here on every repeat. Handing the
+// pointer to the backend before it paints leaves the keystroke the one repaint
+// the open always had.
 //
 // Canceling before the lock is what HideHintSearchInput does and for the same
 // reason: the subgrid replaces the whole surface, and an animation still running
@@ -776,7 +784,11 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 // goroutine that takes renderMu on every frame — canceling from under the lock
 // is a deadlock, not a slow path. The same call answers whether there is a
 // backend at all.
-func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+func (m *Manager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	style grid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) {
 	if !m.cancelBackendAnimation() {
 		return
 	}
@@ -790,11 +802,11 @@ func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
 	if m.x11 != nil {
 		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 
-		m.x11.ShowSubgrid(cell, style)
+		m.x11.ShowSubgrid(cell, style, virtualPointer)
 	} else if m.wlroots != nil {
 		m.syncSublayerKeysLocked(&m.wlroots.sublayerKeys)
 
-		m.wlroots.ShowSubgrid(cell, style)
+		m.wlroots.ShowSubgrid(cell, style, virtualPointer)
 	}
 }
 

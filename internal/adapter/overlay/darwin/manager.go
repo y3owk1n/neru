@@ -451,12 +451,24 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 	m.GridOverlay().UpdateMatches(prefix)
 }
 
-// ShowSubgrid shows a subgrid for the specified cell.
-func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+// ShowSubgrid shows a subgrid for the specified cell, with the pointer
+// stand-in the selection that opened it asks for.
+//
+// The pointer is a layer of the overlay window here rather than something
+// painted into the cells, so applying it after the subgrid costs a layer
+// update and no redraw — which is why this platform never paid the double
+// repaint #1492 is about, and why taking the pointer as an argument changes
+// nothing it does.
+func (m *Manager) ShowSubgrid(
+	cell *domainGrid.Cell,
+	style grid.Style,
+	virtualPointer recursivegrid.VirtualPointerState,
+) {
 	if m.GridOverlay() == nil {
 		return
 	}
 	m.GridOverlay().ShowSubgrid(cell, style)
+	m.ApplyGridPointer(manager.ModeGrid, virtualPointer)
 }
 
 // SetHideUnmatched sets whether to hide unmatched cells.

@@ -127,6 +127,21 @@ func (a *Adapter) RedrawFrame(ctx context.Context, frame ports.Frame) error {
 }
 
 // ClearFrame takes the frame on screen off it and returns the overlay to idle.
+//
+// It also drops what the grid's incremental calls left behind, which grid mode
+// used to reset for itself on the way out (#1492). Both run after the surface
+// has been cleared, which is what makes them cost nothing where the reset used
+// to cost a repaint: the hide-unmatched flag is a flag, and a backend that
+// repaints on a pointer change has already forgotten the pointer, so the hide
+// is the statement without the repaint. What each backend does beyond that is
+// its own — macOS marks its emptied view for redisplay either way — and this is
+// teardown, not a keystroke. The match prefix needs no reset at all: a grid
+// coming back up is a transition, which clears and redraws in full.
+//
+// The pair is unconditional rather than gated on grid mode having been the one
+// on screen. The leaving half does not ask which mode it is leaving — that is
+// what stops a caller from having to remember — and neither call means anything
+// to a surface no grid was drawn on.
 func (a *Adapter) ClearFrame(ctx context.Context) error {
 	err := contextAlive(ctx)
 	if err != nil {
@@ -138,6 +153,8 @@ func (a *Adapter) ClearFrame(ctx context.Context) error {
 	a.manager.Clear()
 	a.manager.ClearCache()
 	a.hideMonitorSelect()
+	a.manager.SetHideUnmatched(false)
+	a.manager.HideGridPointer(ModeGrid)
 	a.manager.Hide()
 	a.manager.SwitchTo(ModeIdle)
 	a.subgridDrawn.Store(false)
@@ -235,9 +252,18 @@ func (a *Adapter) SetGridHideUnmatched(hide bool) {
 }
 
 // ShowGridSubgrid opens the finer grid inside one cell, with the grid Style
-// the overlay already resolved.
-func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell) {
-	a.manager.ShowSubgrid(cell, ResolvedStyle(a.styles).Grid)
+// the overlay already resolved and the pointer stand-in that belongs on the
+// same surface.
+//
+// The pointer rides the open rather than following it in a call of its own
+// (#1492), which is what makes the keystroke that picks a cell cost one repaint
+// on a backend that paints the two into one surface. Meeting it with the
+// resolved Style happens here, as it does for the pointer a recursive-grid
+// frame carries — appearance never travels from a mode.
+func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer) {
+	style := ResolvedStyle(a.styles)
+
+	a.manager.ShowSubgrid(cell, style.Grid, gridSurfacePointer(pointer, style.VirtualPointer))
 	a.subgridDrawn.Store(true)
 }
 
@@ -532,7 +558,7 @@ func (a *Adapter) drawRecursiveGrid(frame ports.RecursiveGridFrame, kind drawKin
 		frame.NextLayout.Keys,
 		frame.NextLayout.Dimensions,
 		style.RecursiveGrid,
-		recursiveGridPointer(frame.Pointer, style.VirtualPointer),
+		gridSurfacePointer(frame.Pointer, style.VirtualPointer),
 	)
 	if drawErr != nil {
 		if derrors.IsNotSupported(drawErr) {
@@ -637,10 +663,10 @@ func (a *Adapter) drawScroll(kind drawKind) error {
 	return nil
 }
 
-// recursiveGridPointer meets the pointer a frame describes with the Style the
-// overlay resolved. Position is the caller's; everything else is appearance,
-// and appearance never travels on a frame.
-func recursiveGridPointer(
+// gridSurfacePointer meets the pointer a frame or a subgrid open describes with
+// the Style the overlay resolved. Position is the caller's; everything else is
+// appearance, and appearance never travels from a mode.
+func gridSurfacePointer(
 	pointer ports.GridPointer,
 	style VirtualPointerStyle,
 ) overlayRecursiveGrid.VirtualPointerState {

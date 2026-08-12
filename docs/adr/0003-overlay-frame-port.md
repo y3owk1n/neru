@@ -81,6 +81,23 @@ are declarative; updates — hot, already narrow, already correct — are not.
   measurable time cost. That is the price this ADR said a fully declarative
   port would charge on every keystroke, paid only where the surface was
   already being repainted anyway.
+- **The update half widens; it does not become a frame.** #1492 is the first
+  time the hybrid's imperative side hit the problem the declarative side solves
+  by construction: grid mode's selection keystroke opens a subgrid *and* moves
+  the pointer, and on Linux both are painted into one Cairo target, so two
+  calls were two full repaints of it per key — held arrow keys inside a subgrid
+  included. The frame path would have fixed it and is exactly what this ADR
+  rules out here, so `ShowGridSubgrid` took the pointer as an argument instead,
+  the way `RecursiveGridFrame` already carried it. Measured the way this ADR's
+  previous entry was, interleaved over the simulation harness (n=8, Apple M3):
+  the selection keystroke's grid-surface updates went 2 → 1 (p=0.000) with time
+  and allocations unchanged (~4.74µs → ~4.79µs, p=0.65; 18 allocations either
+  way), and grid narrowing — the keystroke this ADR exists to protect — stayed
+  unchanged again (~5.25µs both ways, p=0.80). Widening a hot call is therefore
+  the move when a keystroke changes two things on one surface, and the frame
+  path is still not. The leaving half took the matching share: `ClearFrame`
+  drops what the update calls left, because a mode resetting it by hand was a
+  mode repainting a surface it was about to clear.
 - **The last two surfaces converted, and the mode handler kept one overlay
   reference.** Done in #1212: `MonitorSelectFrame` carries the displays on
   offer, and `ScrollFrame` carries nothing at all — scroll is a mode the

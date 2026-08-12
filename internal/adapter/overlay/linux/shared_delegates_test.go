@@ -90,7 +90,10 @@ func movedDelegates() []movedDelegate {
 		{"Clear", func(o *sharedOverlay) { o.Clear() }},
 		{"ClearRect", func(o *sharedOverlay) { o.ClearRect(image.Rect(1, 1, 20, 20)) }},
 		{"UpdateGridMatches", func(o *sharedOverlay) { o.UpdateGridMatches("ab") }},
-		{"ShowSubgrid", func(o *sharedOverlay) { o.ShowSubgrid(cell, gridcomponent.Style{}) }},
+		{
+			"ShowSubgrid",
+			func(o *sharedOverlay) { o.ShowSubgrid(cell, gridcomponent.Style{}, noGridPointer) },
+		},
 		{"SetHideUnmatched", func(o *sharedOverlay) { o.SetHideUnmatched(true) }},
 		{"DrawGrid", func(o *sharedOverlay) {
 			o.DrawGrid(domainGrid.NewGrid("abc", bounds, zap.NewNop()), "a", gridcomponent.Style{})
