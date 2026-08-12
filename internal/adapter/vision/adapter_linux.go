@@ -166,7 +166,7 @@ func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {
 // KWin advertises no wlr-screencopy and so cannot be captured today, but that
 // is a fact about the running compositor rather than about the label, and it is
 // discovered where the rest of the tree discovers it: at the capture, which
-// fails naming KWin (Known Gaps Linux entry 2).
+// fails naming KWin (Known Gaps Linux entry 1).
 //
 // The recognition half catches the failure a user can actually fix: tesseract
 // language data is a separate distribution package from the library Neru links,

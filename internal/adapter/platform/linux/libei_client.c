@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 struct NeruEiClient {
 	struct oeffis *oeffis;
@@ -151,57 +152,29 @@ static int ensure_emulating(NeruEiClient *c, struct ei_device *device, int resum
 	return 1;
 }
 
-NeruEiClient *neru_ei_connect(int timeout_ms) {
-	NeruEiClient *c = calloc(1, sizeof(*c));
-	if (!c) {
-		return NULL;
-	}
-
-	int64_t deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 30000);
-
-	// 1) Portal session via liboeffis -> EIS fd.
-	c->oeffis = oeffis_new(NULL);
-	if (!c->oeffis) {
-		neru_ei_disconnect(c);
-		return NULL;
-	}
-	oeffis_create_session(c->oeffis, OEFFIS_DEVICE_POINTER | OEFFIS_DEVICE_KEYBOARD);
-
-	int eis_fd = -1;
-	int ofd = oeffis_get_fd(c->oeffis);
-	while (eis_fd < 0) {
-		if (wait_readable(ofd, deadline) != 1) {
-			neru_ei_disconnect(c);
-			return NULL;
-		}
-		oeffis_dispatch(c->oeffis);
-		enum oeffis_event_type ev = oeffis_get_event(c->oeffis);
-		if (ev == OEFFIS_EVENT_CONNECTED_TO_EIS) {
-			eis_fd = oeffis_get_eis_fd(c->oeffis);
-		} else if (ev == OEFFIS_EVENT_DISCONNECTED || ev == OEFFIS_EVENT_CLOSED) {
-			neru_ei_disconnect(c);
-			return NULL;
-		}
-	}
-
-	// 2) libei sender context attached to the EIS fd.
+// attach_eis wires a libei sender context onto an already-open EIS socket and
+// pumps the event loop until the devices are usable. It takes ownership of
+// eis_fd in every case: on success libei closes it at teardown, and on failure
+// it is closed here or by the ei_unref the caller's neru_ei_disconnect does.
+// Returns 1 when the client is ready to emit, 0 otherwise.
+static int attach_eis(NeruEiClient *c, int eis_fd, int64_t deadline) {
+	// 1) libei sender context attached to the EIS fd.
 	c->ei = ei_new_sender(NULL);
 	if (!c->ei) {
-		neru_ei_disconnect(c);
-		return NULL;
+		// Nothing took the fd, so nothing else will close it.
+		close(eis_fd);
+		return 0;
 	}
 	ei_configure_name(c->ei, "neru");
 	if (ei_setup_backend_fd(c->ei, eis_fd) != 0) {
-		neru_ei_disconnect(c);
-		return NULL;
+		return 0;
 	}
 
-	// 3) Pump the event loop until the absolute pointer is resumed.
+	// 2) Pump the event loop until the absolute pointer is resumed.
 	int efd = ei_get_fd(c->ei);
 	while (!c->pointer_resumed) {
 		if (wait_readable(efd, deadline) != 1) {
-			neru_ei_disconnect(c);
-			return NULL;
+			return 0;
 		}
 		ei_dispatch(c->ei);
 		drain(c);
@@ -228,7 +201,7 @@ NeruEiClient *neru_ei_connect(int timeout_ms) {
 		}
 	}
 
-	// 3b) Give the keyboard device a brief extra window to appear after the
+	// 3) Give the keyboard device a brief extra window to appear after the
 	// pointer. The portal may advertise both devices but the keyboard add/resume
 	// events can arrive slightly later. If keyboard was not granted by the portal
 	// this loop simply times out in ~1 s and the connection still succeeds so
@@ -242,6 +215,70 @@ NeruEiClient *neru_ei_connect(int timeout_ms) {
 			ei_dispatch(c->ei);
 			drain(c);
 		}
+	}
+
+	return 1;
+}
+
+NeruEiClient *neru_ei_connect(int timeout_ms) {
+	NeruEiClient *c = calloc(1, sizeof(*c));
+	if (!c) {
+		return NULL;
+	}
+
+	int64_t deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 30000);
+
+	// Portal session via liboeffis -> EIS fd. This path cannot restore an
+	// earlier grant (liboeffis exposes no restore token), so it prompts on
+	// every start; neru_ei_connect_fd is the path that does not.
+	c->oeffis = oeffis_new(NULL);
+	if (!c->oeffis) {
+		neru_ei_disconnect(c);
+		return NULL;
+	}
+	oeffis_create_session(c->oeffis, OEFFIS_DEVICE_POINTER | OEFFIS_DEVICE_KEYBOARD);
+
+	int eis_fd = -1;
+	int ofd = oeffis_get_fd(c->oeffis);
+	while (eis_fd < 0) {
+		if (wait_readable(ofd, deadline) != 1) {
+			neru_ei_disconnect(c);
+			return NULL;
+		}
+		oeffis_dispatch(c->oeffis);
+		enum oeffis_event_type ev = oeffis_get_event(c->oeffis);
+		if (ev == OEFFIS_EVENT_CONNECTED_TO_EIS) {
+			eis_fd = oeffis_get_eis_fd(c->oeffis);
+		} else if (ev == OEFFIS_EVENT_DISCONNECTED || ev == OEFFIS_EVENT_CLOSED) {
+			neru_ei_disconnect(c);
+			return NULL;
+		}
+	}
+
+	if (!attach_eis(c, eis_fd, deadline)) {
+		neru_ei_disconnect(c);
+		return NULL;
+	}
+
+	return c;
+}
+
+NeruEiClient *neru_ei_connect_fd(int eis_fd, int timeout_ms) {
+	if (eis_fd < 0) {
+		return NULL;
+	}
+
+	NeruEiClient *c = calloc(1, sizeof(*c));
+	if (!c) {
+		close(eis_fd);
+		return NULL;
+	}
+
+	int64_t deadline = now_ms() + (timeout_ms > 0 ? timeout_ms : 30000);
+
+	if (!attach_eis(c, eis_fd, deadline)) {
+		neru_ei_disconnect(c);
+		return NULL;
 	}
 
 	return c;

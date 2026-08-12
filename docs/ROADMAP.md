@@ -41,8 +41,7 @@ wlroots Wayland with a CGO build, with a closed set of macOS-only exemptions.
 The two largest open areas:
 
 - **Linux** — screen capture on KDE, which is the one backend the OCR hint
-  strategy cannot reach, and persisting the KDE RemoteDesktop portal grant
-  across daemon restarts.
+  strategy cannot reach.
 - **Windows** — foreground-window and display-hotplug events, which currently
   block per-app config re-application and monitor tracking.
 
