@@ -377,6 +377,17 @@ client cannot read another client's process credentials.
 `/proc`; with no match it returns `CodeNotSupported` carrying the app_id rather
 than a fabricated number.
 
+**An unfocused desktop is not a failure on X11 either.** The X11 arm of the same
+method reads `_NET_ACTIVE_WINDOW`, which has four ways of not giving you a
+window, and it reports them as two kinds. A desktop where nothing is focused —
+the wallpaper clicked, the last window closed — is `CodeNotSupported`, so
+callers degrade exactly as they do on Wayland. A display no EWMH window manager
+owns, a failed property read and a malformed property are `CodeActionFailed`,
+each naming which it was. `neru doctor` downgrades the `process` capability to
+`stub` either way, because a live probe reports what a caller observes right
+now; the `Focused app:` line beside it is what separates "focus a window" from
+"install or fix something".
+
 **App watcher.** macOS gets focus changes pushed from an NSWorkspace observer.
 Linux has no equivalent single API, so `appwatcher/platform_linux.go` subscribes
 to a backend focus-change fd (`linux.SubscribeFocusedApp`: X11 event fd, or the

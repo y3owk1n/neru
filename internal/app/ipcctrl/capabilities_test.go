@@ -167,3 +167,103 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 		t.Fatalf("profile.os = %v (%T), want non-empty string", profile["os"], profile["os"])
 	}
 }
+
+// TestIPCController_StatusCarriesTheFocusedAppReason checks that a stubbed
+// process capability ships its reason, not just its status.
+//
+// On Linux the capability is live-probed, so "stub" is the answer both when
+// focused-app inspection is genuinely missing and when the desktop merely has
+// nothing focused. Those need opposite things from the user — nothing, or a
+// working display server — and the status alone says neither. A detail written
+// but never serialized is the failure mode this pins: the string existed and
+// `neru doctor` printed the bare status regardless.
+func TestIPCController_StatusCarriesTheFocusedAppReason(t *testing.T) {
+	const reason = "focused-app inspection found no focused window on linux backend x11"
+
+	cfg := config.DefaultConfig()
+	logger := zap.NewNop()
+	system := &portmocks.MockSystemPort{
+		CapabilitiesFunc: func() ports.PlatformCapabilities {
+			return ports.PlatformCapabilities{
+				Platform: testOS,
+				Process: ports.FeatureCapability{
+					Status: ports.FeatureStatusStub,
+					Detail: reason,
+				},
+			}
+		},
+	}
+
+	controller := ipcctrl.New(ipcctrl.Deps{
+		ConfigService: loader.NewService(cfg, "", logger, nil),
+		AppState:      state.NewAppState(),
+		Config:        cfg,
+		System:        system,
+		Logger:        logger,
+	})
+
+	resp := controller.HandleCommand(
+		context.Background(),
+		ipc.Command{Action: domain.CommandStatus},
+	)
+
+	statusData, statusDataOK := resp.Data.(map[string]any)
+	if !statusDataOK {
+		t.Fatalf("status data type = %T, want map[string]any", resp.Data)
+	}
+
+	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
+	if !capabilitiesOK {
+		t.Fatalf("capabilities type = %T, want map[string]any", statusData["capabilities"])
+	}
+
+	if got := capabilities["process_detail"]; got != reason {
+		t.Errorf("process_detail = %v, want %q; without it `neru doctor` prints a bare "+
+			"\"stub\" and an unfocused desktop is indistinguishable from a broken one",
+			got, reason)
+	}
+}
+
+// TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported is the other
+// half: the sibling key is a reason a capability did not answer, so a working
+// one must not carry a line explaining itself.
+func TestIPCController_StatusOmitsTheFocusedAppReasonWhenSupported(t *testing.T) {
+	cfg := config.DefaultConfig()
+	logger := zap.NewNop()
+	system := &portmocks.MockSystemPort{
+		CapabilitiesFunc: func() ports.PlatformCapabilities {
+			return ports.PlatformCapabilities{
+				Platform: testOS,
+				Process: ports.FeatureCapability{
+					Status: ports.FeatureStatusSupported,
+					Detail: "_NET_ACTIVE_WINDOW / WM_CLASS",
+				},
+			}
+		},
+	}
+
+	controller := ipcctrl.New(ipcctrl.Deps{
+		ConfigService: loader.NewService(cfg, "", logger, nil),
+		AppState:      state.NewAppState(),
+		Config:        cfg,
+		System:        system,
+		Logger:        logger,
+	})
+
+	resp := controller.HandleCommand(
+		context.Background(),
+		ipc.Command{Action: domain.CommandStatus},
+	)
+
+	statusData, _ := resp.Data.(map[string]any)
+
+	capabilities, capabilitiesOK := statusData["capabilities"].(map[string]any)
+	if !capabilitiesOK {
+		t.Fatalf("capabilities type = %T, want map[string]any", statusData["capabilities"])
+	}
+
+	if got, present := capabilities["process_detail"]; present {
+		t.Errorf("process_detail = %v on a supported capability; the sibling key exists "+
+			"to explain a capability that did not answer", got)
+	}
+}

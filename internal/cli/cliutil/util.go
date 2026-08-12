@@ -202,6 +202,7 @@ func (f *OutputFormatter) PrintHealth(cmd *cobra.Command, success bool, data any
 	printProfile(cmd, healthData["profile"])
 	printDarkMode(cmd, healthData["capabilities"])
 	printNotifications(cmd, healthData["capabilities"])
+	printFocusedApp(cmd, healthData["capabilities"])
 
 	cmd.Println()
 	// Print component checks
@@ -332,6 +333,29 @@ func printNotifications(cmd *cobra.Command, rawCapabilities any) {
 	}
 
 	cmd.Println("  Notifications: " + detail)
+}
+
+// printFocusedApp renders a "Focused app:" metadata line when the daemon
+// populated process_detail, which it does exactly when focused-app inspection
+// did not answer.
+//
+// The status beside it is "stub" whether the subsystem is missing or the
+// desktop simply has nothing focused, because the capability is live-probed and
+// has to report what a caller observes right now. This line is what tells those
+// two apart — without it, clicking the wallpaper on X11 reads as a broken
+// display server.
+func printFocusedApp(cmd *cobra.Command, rawCapabilities any) {
+	capabilities, ok := rawCapabilities.(map[string]any)
+	if !ok {
+		return
+	}
+
+	detail := stringValue(capabilities["process_detail"])
+	if detail == "" {
+		return
+	}
+
+	cmd.Println("  Focused app: " + detail)
 }
 
 // Status payload keys for the runtime toggles, named as the daemon reports

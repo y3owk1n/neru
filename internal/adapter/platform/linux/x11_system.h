@@ -13,10 +13,29 @@ typedef struct {
 	char *name;
 } NeruX11Monitor;
 
+// NeruX11ActiveWindowResult distinguishes the answers reading
+// _NET_ACTIVE_WINDOW can give. A desktop with nothing focused answered the
+// question and is not a failure — collapsing it into the failures made a user
+// who clicked their wallpaper look like a broken X server. The three failures
+// are kept apart from each other too, because the fix differs: start an EWMH
+// window manager, look at the display server, or fix whatever wrote a
+// non-conforming property.
+typedef enum {
+	NERU_X11_ACTIVE_WINDOW_OK = 0,            // *out holds a live window id
+	NERU_X11_ACTIVE_WINDOW_NONE = 1,          // queried fine; nothing is focused
+	NERU_X11_ACTIVE_WINDOW_NO_WM = 2,         // no window manager claims EWMH here
+	NERU_X11_ACTIVE_WINDOW_QUERY_FAILED = 3,  // XGetWindowProperty failed
+	NERU_X11_ACTIVE_WINDOW_MALFORMED = 4,     // present, but not a 32-bit WINDOW value
+} NeruX11ActiveWindowResult;
+
 Display *neru_x11_open_display(void);
 void neru_x11_close_display(Display *display);
 int neru_x11_query_pointer(Display *display, int *x, int *y);
 int neru_x11_move_pointer(Display *display, int x, int y);
+// neru_x11_get_active_window reads _NET_ACTIVE_WINDOW from the root window. It
+// returns one NeruX11ActiveWindowResult value, typed int like every other entry
+// point here so cgo sees the same C.int the rest of this bridge returns. *out is
+// written only on NERU_X11_ACTIVE_WINDOW_OK and left untouched otherwise.
 int neru_x11_get_active_window(Display *display, Window *out);
 unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok);
 // neru_x11_get_window_class returns a heap-allocated copy of the window's

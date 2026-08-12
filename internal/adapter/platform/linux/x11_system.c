@@ -39,6 +39,35 @@ int neru_x11_move_pointer(Display *display, int x, int y) {
 	return ok;
 }
 
+// neru_x11_root_has_ewmh reports whether a window manager has claimed EWMH on
+// this display, by looking for _NET_SUPPORTED on the root window.
+//
+// This is the only reliable way to tell "no window manager" from "a window
+// manager with nothing focused", because _NET_ACTIVE_WINDOW being absent means
+// both. Openbox — what CI's X11 leg runs — advertises _NET_ACTIVE_WINDOW in
+// _NET_SUPPORTED but writes no such property until something takes focus, while
+// other window managers write None instead. _NET_SUPPORTED is the property the
+// spec makes a window manager set, and it is set for the WM's whole lifetime.
+static int neru_x11_root_has_ewmh(Display *display) {
+	Atom property = XInternAtom(display, "_NET_SUPPORTED", False);
+	Atom actual_type;
+	int actual_format;
+	unsigned long item_count;
+	unsigned long bytes_after;
+	unsigned char *data = NULL;
+	Window root = neru_x11_root_window(display);
+	int status = XGetWindowProperty(
+	    display, root, property, 0, 1, False, XA_ATOM, &actual_type, &actual_format, &item_count, &bytes_after, &data);
+
+	int present = (status == Success && actual_type == XA_ATOM && item_count > 0);
+
+	if (data != NULL) {
+		XFree(data);
+	}
+
+	return present;
+}
+
 int neru_x11_get_active_window(Display *display, Window *out) {
 	Atom property = XInternAtom(display, "_NET_ACTIVE_WINDOW", False);
 	Atom actual_type;
@@ -51,21 +80,45 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 	    display, root, property, 0, 1, False, XA_WINDOW, &actual_type, &actual_format, &item_count, &bytes_after,
 	    &data);
 
-	if (status != Success || data == NULL || item_count == 0) {
+	if (status != Success) {
 		if (data != NULL) {
 			XFree(data);
 		}
-		return 0;
+		return NERU_X11_ACTIVE_WINDOW_QUERY_FAILED;
 	}
 
-	*out = *((Window *)data);
+	// XGetWindowProperty reports an absent property as Success with an actual
+	// type of None. Two very different sessions look like that — one with no
+	// window manager at all, and one whose window manager simply has nothing to
+	// point at — so _NET_SUPPORTED decides which, rather than the caller being
+	// told a healthy desktop is broken.
+	if (actual_type == None) {
+		if (data != NULL) {
+			XFree(data);
+		}
+		return neru_x11_root_has_ewmh(display) ? NERU_X11_ACTIVE_WINDOW_NONE : NERU_X11_ACTIVE_WINDOW_NO_WM;
+	}
+
+	// A type or format mismatch also comes back as Success with nothing
+	// fetched, so anything that is not the single 32-bit WINDOW value EWMH
+	// specifies is a malformed property rather than a missing one.
+	if (actual_type != XA_WINDOW || actual_format != 32 || item_count == 0 || data == NULL) {
+		if (data != NULL) {
+			XFree(data);
+		}
+		return NERU_X11_ACTIVE_WINDOW_MALFORMED;
+	}
+
+	Window active = *((Window *)data);
 	XFree(data);
 
-	if (*out == 0) {
-		return 0;  // Invalid/No focused window
+	if (active == None) {
+		return NERU_X11_ACTIVE_WINDOW_NONE;  // A live desktop with nothing focused.
 	}
 
-	return 1;
+	*out = active;
+
+	return NERU_X11_ACTIVE_WINDOW_OK;
 }
 
 unsigned long neru_x11_get_window_pid(Display *display, Window window, int *ok) {
@@ -162,8 +215,11 @@ NeruX11Monitor *neru_x11_get_monitors(Display *display, int *count) {
 }
 
 int neru_x11_get_focused_window_bounds(Display *display, int *x, int *y, int *w, int *h) {
+	// Bounds callers get one bit either way: without a focused window there is
+	// no geometry to report, and they widen to the active screen. Which of the
+	// four answers came back is the focused-app path's business, not theirs.
 	Window window;
-	if (neru_x11_get_active_window(display, &window) == 0) {
+	if (neru_x11_get_active_window(display, &window) != NERU_X11_ACTIVE_WINDOW_OK) {
 		return 0;
 	}
 
