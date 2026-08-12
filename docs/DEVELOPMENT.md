@@ -211,6 +211,13 @@ platform in CI at all. A disposable runner is the one place that tier is safe:
 the reason it is opt-in locally is that it commandeers the machine, and there
 is no desktop here to commandeer.
 
+It has a sibling, **`desktop-x11 (ubuntu-latest)`**, which runs the same tier
+against the other Linux display stack and is described
+[below](#what-the-xvfb-x11-leg-covers-and-what-it-does-not). The two are one
+matrix entry apiece and share everything but their display server: the session
+bus, AT-SPI, the CGO and accessibility assertions, the tier itself, the
+reporting and the log artifact are one copy each.
+
 What it covers is the **blessed stack** of
 [ADR 0013](adr/0013-parity-is-measured-in-words-not-subsystems.md): wlroots
 Wayland with a CGO build. It asserts the session really is that stack before it
@@ -227,9 +234,8 @@ What it does not cover:
   smooth-scroll claim in ADR 0013's amendment is checked rather than argued.
   Everything else that reads `NERU_DESKTOP_TESTS` is still a macOS test.
 - **X11 and KDE.** Xwayland is disabled in the session on purpose, so `DISPLAY`
-  is unset and backend detection has only the Wayland answer. An Xvfb leg is
-  worth having and is deliberately second — under ADR 0013 X11 owes capability
-  parity rather than behavioral parity.
+  is unset and backend detection has only the Wayland answer. X11 has its own
+  leg now — see below. KDE has none; nothing in CI runs KWin.
 - **Anything needing device access.** The runner has no `/dev/dri` (the
   compositor runs the pixman renderer) and no `input` group membership, so the
   evdev-backed paths cannot run. The compositor would not see them either:
@@ -237,8 +243,12 @@ What it does not cover:
   devices, so nothing written to a uinput device reaches it whatever the
   permissions are. What is observable here is the `zwlr_virtual_pointer` path.
 - **A verdict.** The leg is **advisory**: `continue-on-error` keeps it off the
-  merge button, and its result is a job summary counting failures, packages
-  reporting `FAIL`, and every skip with the reason it gave. It is advisory
+  merge button, and its result is a job summary counting executed tests,
+  failures, packages reporting `FAIL`, and every skip with the reason it gave.
+  Those counts are a floor as well as a report — the step fails if nothing
+  executed, or if a test skipped because it could not see the display server
+  the job exists to provide, because a leg that skips its way to green is worth
+  less than no leg at all. It is advisory
   because it is the first job here to stand up infrastructure of its own — a
   compositor, a session bus and an accessibility bus — and a flake in any of
   the three would red a pull request for a reason that has nothing to do with
@@ -250,6 +260,62 @@ branch protection rule — a repository setting, not a file in this tree. ADR 00
 makes that flip part of Linux graduating from Beta to Stable, alongside the
 Linux entries in
 [Known Gaps](CROSS_PLATFORM.md#known-gaps) being empty.
+
+### What the Xvfb X11 leg covers, and what it does not
+
+**`desktop-x11 (ubuntu-latest)`** runs the same `just test-desktop` tier against
+the other Linux display stack: Xvfb, a window manager, a session D-Bus and
+AT-SPI. Under ADR 0013 X11 owes **capability** parity rather than behavioral
+parity — a lower bar than the wlroots leg's, but not the zero bar it had while
+nothing observed X11 at all.
+
+What it covers is the X11 half of every subsystem that has two implementations,
+which is a separate body of code rather than a fallback: XTest for pointer and
+key injection, `XGrabKey` for global hotkeys, `XGrabKeyboard` for capture,
+XRandR for screen enumeration, `XGetImage` for screen capture, XFixes for the
+click-through overlay shape, `_NET_ACTIVE_WINDOW` and `WM_CLASS` for focused-app
+identity, and one global `Xft.dpi` resource for scaling instead of per-output
+Wayland scale factors. As on the wlroots leg, the session is asserted before the
+tier runs: the server must offer XTEST, XFIXES and RANDR, an EWMH window manager
+must own the root window, `CGO_ENABLED` must be 1, and the accessibility bus
+must answer.
+
+**A window manager is required, and that was settled rather than assumed.**
+Under a bare Xvfb, `xprop -root _NET_SUPPORTED` answers `no such atom on any
+window` — the root window carries exactly one property, `_XKB_RULES_NAMES`, so
+there is no EWMH on the display at all and every path that reads
+`_NET_ACTIVE_WINDOW` would find nothing. With openbox running, `_NET_SUPPORTED`
+lists `_NET_ACTIVE_WINDOW` among 80-odd atoms. openbox is the smallest EWMH-aware
+window manager in the archive, so it is what the job starts, and the verify step
+asserts the property rather than trusting the package: the leg fails as a broken
+environment if the window manager is ever dropped or fails to claim the display.
+
+What it does not cover:
+
+- **Behavioral parity.** ADR 0013 does not promise X11 the wlroots leg's bar,
+  and this leg is not evidence that it meets it.
+- **A focused window.** The session runs a window manager but no client, so
+  `_NET_ACTIVE_WINDOW` is unset — the same empty-desktop state the sway leg is
+  in, deliberately, so the two legs answer the same question. The mechanism is
+  proven present; which application is focused is not exercised.
+- **Anything needing device access**, for the same reasons as the sway leg: no
+  `/dev/dri`, no `input` group.
+- **A verdict**, and for the same reason — `continue-on-error`, the same
+  counting-and-floor summary, and `desktop-x11 (ubuntu-latest)` is the name to
+  add to branch protection to change that.
+
+**It found a defect on its first run, which is the point.** Because the session
+has a window manager and no client, `internal/adapter/platform`'s capability
+contract — `TestCapabilities_DeclaredStatusMatchesAdapterBehavior` and
+`TestCapabilities_StubsSurfaceNotSupportedNotNil` — runs against a live X11
+desktop with nothing focused, a state no other job here reaches. It failed
+there: the X11 arm answered a failed query where a stub owes `CodeNotSupported`,
+filed as [#1495](https://github.com/y3owk1n/neru/issues/1495), the X11 sibling
+of [#1493](https://github.com/y3owk1n/neru/issues/1493). That fix landed first
+and the leg is green on it. What the `process` capability is classified as, and
+what each way of having no focused window now answers, is stated once in the
+[capability matrix](CROSS_PLATFORM.md#capability-matrix) and its notes — this
+leg runs the contract that pins it rather than restating its verdict.
 
 ---
 
@@ -344,9 +410,10 @@ Until there is a recipe, run them the way the container recipe does and add the
 tag — `docker run --rm -v "$PWD":/src -w /src -e CGO_ENABLED=1 neru-linux-ci go
 test -tags=integration ./...` — on an image with fonts and `fc-list` installed
 (`fontconfig fonts-dejavu-core`). CI covers them on `ubuntu-latest`, where
-`just test-ci` runs the integration suite natively, and again on the
-headless-sway leg, which runs `just test-desktop` inside a real wlroots session
-— see [What the headless-sway job covers](#what-the-headless-sway-job-covers-and-what-it-does-not).
+`just test-ci` runs the integration suite natively, and again on the two desktop
+legs, which run `just test-desktop` inside a real wlroots session and a real X11
+one — see [What the headless-sway job covers](#what-the-headless-sway-job-covers-and-what-it-does-not)
+and [What the Xvfb X11 leg covers](#what-the-xvfb-x11-leg-covers-and-what-it-does-not).
 
 ### Running integration tests
 
