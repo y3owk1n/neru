@@ -126,7 +126,12 @@ type scrollSession interface {
 // X11 scroll is button clicks, and a scroll_step_full of a million pixels would
 // otherwise be tens of thousands of them). Zero means uncapped, which is what a
 // continuous backend takes.
-func scrollChunks(delta, steps int, granularity float64, maxUnits int) []float64 {
+//
+// delta is a float rather than the integer the caller's action carries because
+// a request can arrive holding the undelivered remainder of the one it
+// preempted (see composeUndelivered), and that remainder is a position on an
+// eased curve.
+func scrollChunks(delta float64, steps int, granularity float64, maxUnits int) []float64 {
 	if steps <= 0 {
 		steps = defaultScrollSteps
 	}
@@ -136,7 +141,7 @@ func scrollChunks(delta, steps int, granularity float64, maxUnits int) []float64
 		return chunks
 	}
 
-	total := float64(delta)
+	total := delta
 
 	if granularity > 0 && maxUnits > 0 {
 		ceiling := float64(maxUnits) * granularity
@@ -186,12 +191,40 @@ func scrollChunks(delta, steps int, granularity float64, maxUnits int) []float64
 // a request preempts whatever is in flight: a plain scroll_down arriving
 // mid-zoom cancels the zoom and finishes unmodified, which is what the second
 // binding asked for. darwin's animator carries them for the same reason.
+//
+// The deltas are floats although every caller's action is in whole pixels: a
+// request that preempts a same-modifier one absorbs its undelivered remainder,
+// which is a point on an eased curve rather than a whole pixel.
 type scrollRequest struct {
-	deltaX, deltaY   int
+	deltaX, deltaY   float64
 	modifiers        action.Modifiers
 	steps            int
 	maxDuration      int
 	durationPerPixel float64
+}
+
+// composeUndelivered folds the part of inflight that never went out — remX,
+// remY — into the request preempting it, but only when the two ask for the same
+// modifiers.
+//
+// Same modifiers is the held-repeat case, since a repeat re-sends the binding
+// it is repeating: without this, every tick throws away whatever the previous
+// tick had not yet injected, and holding a scroll key travels visibly less than
+// the same number of discrete presses.
+//
+// Different modifiers is the deliberate cancel scrollRequest documents: a plain
+// scroll_down arriving mid-zoom finishes unmodified. Carrying the zoom's
+// remainder into it would inject that distance as a plain scroll the user never
+// asked for, so it is dropped exactly as before.
+func composeUndelivered(next, inflight scrollRequest, remX, remY float64) scrollRequest {
+	if next.modifiers != inflight.modifiers {
+		return next
+	}
+
+	next.deltaX += remX
+	next.deltaY += remY
+
+	return next
 }
 
 // scrollAnimator spreads a scroll over time on one worker goroutine, with the
@@ -257,8 +290,8 @@ func (a *scrollAnimator) animate(
 	durationPerPixel float64,
 ) {
 	req := scrollRequest{
-		deltaX:           deltaX,
-		deltaY:           deltaY,
+		deltaX:           float64(deltaX),
+		deltaY:           float64(deltaY),
 		modifiers:        modifiers,
 		steps:            steps,
 		maxDuration:      maxDuration,
@@ -278,12 +311,16 @@ func (a *scrollAnimator) animate(
 	a.enqueueLocked(req)
 }
 
-// enqueueLocked places req on the worker channel, coalescing so only the latest
-// request survives. The caller must hold a.mu.
+// enqueueLocked places req on the worker channel, folding in a request the
+// worker has not taken yet. The caller must hold a.mu.
 //
 // Under the lock we are the only producer and the worker is the only consumer,
-// so after draining a superseded request the buffer is empty and the follow-up
-// send cannot block.
+// so after draining the buffer is empty and the follow-up send cannot block.
+//
+// A request still sitting in the buffer has had none of its delta injected, so
+// composeUndelivered folds all of it in — on the same rule the worker applies
+// when a request preempts it mid-animation, which is what keeps the two seams
+// from disagreeing about whether a same-modifier scroll can be dropped.
 func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
 	select {
 	case a.reqCh <- req:
@@ -292,7 +329,8 @@ func (a *scrollAnimator) enqueueLocked(req scrollRequest) {
 	}
 
 	select {
-	case <-a.reqCh:
+	case queued := <-a.reqCh:
+		req = composeUndelivered(req, queued, queued.deltaX, queued.deltaY)
 	default:
 	}
 
@@ -409,7 +447,16 @@ func (a *scrollAnimator) runOnce(
 		case <-stopCh:
 			return scrollRequest{}, false
 		case next := <-reqCh:
-			return next, true
+			// Chunks from step on have not gone out. What the schedule already
+			// declined to send is absent from them by construction, and stays
+			// dropped: the sub-unit residue a granular backend cannot express,
+			// which a discrete press drops too — so a held key and the same
+			// number of presses still land within one wheel notch per tick of
+			// each other on X11 — and the distance past maxUnits, which is a
+			// rate ceiling no animation was going to deliver.
+			return composeUndelivered(
+				next, req, sumFrom(chunksX, step), sumFrom(chunksY, step),
+			), true
 		default:
 		}
 
@@ -447,7 +494,11 @@ func (a *scrollAnimator) runOnce(
 		case next := <-reqCh:
 			stopAndDrainScrollTimer(timer)
 
-			return next, true
+			// This chunk has gone out; the undelivered remainder starts at the
+			// next one.
+			return composeUndelivered(
+				next, req, sumFrom(chunksX, step+1), sumFrom(chunksY, step+1),
+			), true
 		case <-timer.C:
 		}
 	}
@@ -455,11 +506,23 @@ func (a *scrollAnimator) runOnce(
 	return scrollRequest{}, false
 }
 
+// sumFrom totals the chunks from index on — the part of a schedule that has not
+// been injected yet.
+func sumFrom(chunks []float64, from int) float64 {
+	var total float64
+
+	for _, chunk := range chunks[from:] {
+		total += chunk
+	}
+
+	return total
+}
+
 // scrollScheduleTiming turns a request's configuration into a step count and
 // the gap between steps, using the same arithmetic darwin's animator does so
 // one configuration produces one animation on both.
 func scrollScheduleTiming(req scrollRequest) (int, time.Duration) {
-	magnitude := math.Hypot(float64(req.deltaX), float64(req.deltaY))
+	magnitude := math.Hypot(req.deltaX, req.deltaY)
 
 	duration := math.Min(float64(req.maxDuration), magnitude*req.durationPerPixel)
 	if duration < minScrollAnimationDuration {
