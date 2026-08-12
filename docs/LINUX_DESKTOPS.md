@@ -72,11 +72,13 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
 
 ### Setup notes (beyond LINUX_SETUP.md)
 
-1. **RemoteDesktop consent** — the first input in a session shows a "Remote
-   Control" portal prompt. Approve it once per daemon lifetime. The prompt
-   **reappears on every fresh daemon start** (reboot, logout, relaunch):
-   `liboeffis` does not expose restore-token / `persist_mode`, so KDE cannot
-   persist the grant across launches.
+1. **RemoteDesktop consent** — the first daemon start on a machine shows a
+   "Remote Control" portal prompt. Approve it once and later starts reuse the
+   same grant with no prompt: Neru asks the portal to persist the session and
+   keeps the restore token it hands back in
+   `$XDG_STATE_HOME/neru/remote-desktop.token` (`~/.local/state/neru/…` by
+   default), readable by you alone. Deleting that file, or revoking the
+   permission in System Settings, brings the prompt back on the next start.
 2. **Hotkeys** — Neru's own `[hotkeys]` config works on KDE Wayland when the
    daemon can read `/dev/input` (see
    [Global hotkeys on Wayland](#global-hotkeys-on-wayland)). If you would rather
@@ -96,9 +98,6 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
 
 ### Known issues
 
-- **Consent re-prompt every daemon launch** — see above. Planned follow-up:
-  drive `org.freedesktop.portal.RemoteDesktop` directly with a stored
-  `restore_token` + `persist_mode` instead of relying on `liboeffis` alone.
 - **Modifier keys need a keyboard device from the portal** — if the grant
   includes only a pointer device, modified clicks degrade.
 - **Key feeding needs a keyboard device from the portal** — `action feed`
@@ -115,6 +114,11 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
 Approve the consent dialog before the connect times out. If denied, revoke and
 re-grant in System Settings (Apps & Window Management / portal permissions).
 Confirm the portal services are running.
+
+A grant that was revoked while Neru still held its restore token needs no
+manual cleanup: the stored token is dropped on the first refusal and the prompt
+is shown once more, on that same start. If you would rather start clean, delete
+`~/.local/state/neru/remote-desktop.token`.
 
 **"compositor does not support zwlr_virtual_pointer_v1" on KDE**
 

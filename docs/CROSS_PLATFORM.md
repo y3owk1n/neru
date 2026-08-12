@@ -917,20 +917,19 @@ command — that means less here than it does on macOS, whether or not the
    use and reports `CodeNotSupported` naming itself. Its only pixel source is
    the portal's ScreenCast session, whose frames arrive over PipeWire — a new
    required system library, so closing this adds `libpipewire-0.3` to the Linux
-   dependency list, the packaging and the CI images. It may share a solution
-   with entry 2, which already holds a portal session. It is also what keeps
-   the `vision` hint strategy off KDE: the engine is linked on every backend,
-   and KWin is the one with no pixels to hand it
-2. KDE RemoteDesktop portal grant — does not survive a daemon restart, so the
-   consent prompt returns on every start
-3. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
+   dependency list, the packaging and the CI images. It may reuse the
+   RemoteDesktop session the input path already holds, which persists its grant
+   with a restore token and so has already paid the consent prompt. It is also
+   what keeps the `vision` hint strategy off KDE: the engine is linked on every
+   backend, and KWin is the one with no pixels to hand it
+2. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
    draws it on all three platforms
-4. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+3. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-5. Wayland global hotkeys — a setup requirement rather than missing code: they
+4. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-6. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+5. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
    tray has one icon for both running and paused states where macOS has two,
    and the `CGO_ENABLED=0` build should announce its boundary once at startup
    rather than failing feature by feature
