@@ -41,11 +41,12 @@ all pointer and keyboard injection goes through **libei** via
 Routing lives in `system_wayland_input.go` — if the compositor advertises
 `zwlr_virtual_pointer_v1` it uses the virtual pointer, otherwise libei. The two
 paths never overlap. Code slots: `platform/linux/system_wayland_kde_*.go`,
-`accessibility/atspi/kwin_geometry.go`, `accessibility/atspi/client.go`.
+`platform/kwin/`, `accessibility/atspi/kwin_origin.go`,
+`accessibility/atspi/client.go`.
 
 AT-SPI reports window-relative coordinates, so a KWin script pushes
 focused-window geometry over D-Bus to translate them into global compositor
-space (see
+space — the same script every other focused-window answer here reads (see
 [window-origin offsets](CROSS_PLATFORM.md#accessibility-and-hints)).
 
 ### Protocol support (KWin 6.6.4, measured)

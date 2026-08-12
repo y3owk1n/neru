@@ -52,6 +52,15 @@ func compositorJSON(dst any, name string, args ...string) bool {
 // match exactly; GTK/CSD apps can differ by a title bar's worth of pixels.
 const windowOriginSizeTolerance = 32
 
+// absInt is the magnitude every source compares against that tolerance with.
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+
+	return v
+}
+
 // windowOriginSource supplies the focused window's on-screen origin so AT-SPI
 // window-relative element coordinates can be offset into screen coordinates.
 type windowOriginSource interface {
@@ -110,7 +119,7 @@ func (noWindowOrigin) originFor(_, _ int) (int, int, bool) { return 0, 0, false 
 func newWindowOriginSource(backend platform.LinuxBackend, logger *zap.Logger) windowOriginSource {
 	switch backend {
 	case platform.BackendWaylandKDE:
-		return newKWinBridge(logger)
+		return newKWinOriginSource(logger)
 	case platform.BackendWaylandWlroots:
 		return newWlrootsOriginSource(logger)
 	case platform.BackendX11,

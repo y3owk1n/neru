@@ -300,10 +300,19 @@ func (s *HintService) generateHintsVision(
 	// Get focused window bounds for vision detection
 	windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
 	if boundsErr != nil || !found {
-		s.logger.Debug(
-			"No focused window bounds, falling back to full screen",
-			zap.Error(boundsErr),
-		)
+		// The two ways of getting here are not the same event. found=false with
+		// no error is a desktop with nothing focused — routine, and the whole
+		// screen is the right answer. An error means the platform could not
+		// answer at all, and then scanning the whole screen is a degradation
+		// nobody asked for: slower, noisier, and silent until now.
+		if boundsErr != nil {
+			s.logger.Warn(
+				"Could not read the focused window, scanning the whole screen instead",
+				zap.Error(boundsErr),
+			)
+		} else {
+			s.logger.Debug("No focused window, scanning the whole screen")
+		}
 
 		windowBounds, boundsErr = s.system.ScreenBounds(ctx)
 		if boundsErr != nil {

@@ -9,15 +9,22 @@ import (
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/kwin"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // Wayland focused-window bounds. A Wayland client cannot query another client's
-// on-screen geometry, so the focused window's global bounds come from the
-// running compositor's IPC: Hyprland (`hyprctl activewindow`), Sway
-// (`swaymsg -t get_tree`), and niri (`niri msg focused-window/-output`). KWin and
-// GNOME expose no simple CLI for this here, so they report not-found and callers
-// fall back to the active screen. Every query is best-effort and bounded by a
-// short timeout so a wedged compositor cannot stall hint activation.
+// on-screen geometry, so the focused window's global bounds come from whatever
+// the running compositor exposes: Hyprland (`hyprctl activewindow`), Sway
+// (`swaymsg -t get_tree`) and niri (`niri msg focused-window/-output`) each have
+// a CLI; KWin has none, and answers through the geometry script
+// [github.com/y3owk1n/neru/internal/adapter/platform/kwin] installs — the same
+// bridge the AT-SPI window-origin path reads, because it is the same fact.
+// A compositor with none of those refuses rather than reporting no window, so a
+// caller can tell "nobody to ask" from "nothing is focused". Every query is
+// best-effort and bounded by a short timeout so a wedged compositor cannot
+// stall hint activation.
 //
 // focusedWindowQueryTimeout bounds each compositor IPC call.
 const focusedWindowQueryTimeout = 500 * time.Millisecond
@@ -30,20 +37,131 @@ const compositorCLIPipeGuard = time.Second
 // coordPair is the length of an [x,y] / [w,h] JSON array.
 const coordPair = 2
 
-// waylandFocusedWindowBounds returns the focused window's global bounds by
-// querying the running wlroots-family compositor. found=false (nil error) when
-// the compositor is unknown/unsupported or the query fails.
-func waylandFocusedWindowBounds() (image.Rectangle, bool, error) {
+// focusedWindowSource names where a session's focused-window geometry comes
+// from. It exists so the routing decision can be read — and tested — without a
+// compositor running: the sources differ in mechanism (a CLI, a KWin script)
+// but the choice between them is one function of the backend and the
+// environment.
+type focusedWindowSource int
+
+const (
+	// focusedWindowSourceNone is a Wayland session with nothing to ask. It is
+	// an answer, not a default: callers are told so rather than shown an
+	// absent window.
+	focusedWindowSourceNone focusedWindowSource = iota
+	focusedWindowSourceKWin
+	focusedWindowSourceNiri
+	focusedWindowSourceSway
+	focusedWindowSourceHyprland
+)
+
+// waylandFocusedWindowSource picks the geometry source for a Wayland session.
+//
+// The backend decides first and the environment only refines it. A compositor
+// socket says which CLI is *reachable*, not which compositor this session runs:
+// a KDE session that inherited SWAYSOCK from a user unit would otherwise be
+// asked about a sway tree it has no window in.
+func waylandFocusedWindowSource(backend string) focusedWindowSource {
+	if backend == backendWaylandKDE {
+		return focusedWindowSourceKWin
+	}
+
 	switch {
 	case os.Getenv("NIRI_SOCKET") != "":
-		return niriFocusedWindowBounds()
+		return focusedWindowSourceNiri
 	case os.Getenv("SWAYSOCK") != "":
-		return swayFocusedWindowBounds()
+		return focusedWindowSourceSway
 	case os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") != "":
-		return hyprlandFocusedWindowBounds()
+		return focusedWindowSourceHyprland
 	default:
-		return image.Rectangle{}, false, nil
+		return focusedWindowSourceNone
 	}
+}
+
+// waylandFocusedWindowBounds returns the focused window's global bounds from
+// the source its session exposes.
+//
+// A CodeNotSupported error means this session has no source to ask, which
+// callers must not read as an unfocused desktop. found=false with a nil error
+// still covers two cases on the wlroots arm — no window is focused, and the
+// compositor's CLI was asked but did not answer usably (a wedged query, or
+// niri's tiled windows, which report no on-screen position at all). Separating
+// those is work on the CLI sources rather than on this routing.
+func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
+	switch waylandFocusedWindowSource(backend) {
+	case focusedWindowSourceKWin:
+		return kwinFocusedWindowBounds()
+	case focusedWindowSourceNiri:
+		return niriFocusedWindowBounds()
+	case focusedWindowSourceSway:
+		return swayFocusedWindowBounds()
+	case focusedWindowSourceHyprland:
+		return hyprlandFocusedWindowBounds()
+	case focusedWindowSourceNone:
+	}
+
+	return image.Rectangle{}, false, derrors.New(
+		derrors.CodeNotSupported,
+		"no focused-window geometry source on linux backend "+backend+
+			": this compositor exposes neither an IPC neru can query nor a scripting bridge",
+	)
+}
+
+// warmFocusedWindowSource starts a session's geometry source before anything
+// asks it anything, and is called once when the adapter is built.
+//
+// Only KDE has a source that must be installed before it can answer, and until
+// it is installed the cache reports no window — which is indistinguishable from
+// a focused desktop, so the first hint activation or `move_mouse --window` after
+// startup would get the silent fallback this file exists to remove. Doing it at
+// construction overlaps the install with the rest of daemon startup instead of
+// with the user's first keystroke, and the installer retries a failed attempt
+// on its own, so a session bus that was not up yet is usually resolved before
+// anything asks rather than at the expense of whoever asks first.
+//
+// Nothing leaves this process on a session that is not running KWin: the
+// install probes for it on the bus before it exports, owns a name or writes a
+// script (#1430).
+func warmFocusedWindowSource(backend string) {
+	if backend != backendWaylandKDE {
+		return
+	}
+
+	kwin.Shared(nil).EnsureStarted()
+}
+
+// kwinFocusedWindowBounds reads the geometry KWin last pushed to the shared
+// cache, installing the script if nothing has installed it yet — including
+// after an earlier attempt failed, so a bus that was not up at daemon start
+// does not cost the whole run.
+//
+// The install is asynchronous by contract, so a call that arrives before KWin
+// has answered reports no window rather than waiting: this runs under the mode
+// handler's lock, where blocking on D-Bus would stop the keyboard. A call that
+// arrives while an attempt is in flight gets the last completed attempt's
+// answer for the same reason — and waiting for the in-flight one would not help
+// it anyway, since a script that loads this instant still has to call back
+// before there is a rectangle to report.
+//
+// A script that could not be installed is CodeNotSupported rather than a
+// failure, because that is what the caller has to do about it: this session
+// cannot report focused-window geometry at all, the same answer a compositor
+// with no source gives, and the sentence names why. Reporting it as an
+// accessibility failure would send the user to check a permission.
+func kwinFocusedWindowBounds() (image.Rectangle, bool, error) {
+	geometry := kwin.Shared(nil)
+	geometry.EnsureStarted()
+
+	rect, found, err := geometry.Bounds()
+	if err != nil {
+		return image.Rectangle{}, false, derrors.Wrap(
+			err,
+			derrors.CodeNotSupported,
+			"the KWin focused-window geometry script is not installed",
+		)
+	}
+
+	return rect, found, nil
 }
 
 // compositorJSON runs a compositor CLI and decodes its JSON stdout into dst.

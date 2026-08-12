@@ -54,7 +54,7 @@ func isDesktopShellApp(name string) bool {
 // ACTIVE state the moment we inject a cursor move via libei, which on
 // re-activation makes findActiveFrame select an empty surface and tears the
 // hints overlay down. This mirrors the KWin geometry bridge blocklist in
-// kwin_geometry_linux.go so both code paths ignore the same noise.
+// internal/adapter/platform/kwin so both code paths ignore the same noise.
 func isNonTargetSurfaceApp(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "xwaylandvideobridge",

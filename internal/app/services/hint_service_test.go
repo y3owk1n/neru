@@ -2,12 +2,17 @@ package services_test
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 	"github.com/y3owk1n/neru/internal/app/services"
@@ -944,6 +949,100 @@ func TestHintService_GenerateHintsRoleFlagOverridesConfig(t *testing.T) {
 			t.Errorf("filter.Roles = %v, configured role %q leaked past the override",
 				captured, role)
 		}
+	}
+}
+
+// newVisionHintService builds a vision-strategy service whose focused-window
+// answer is whatever the caller wants to observe the fallback for.
+func newVisionHintService(
+	log *zap.Logger,
+	bounds func(context.Context) (image.Rectangle, bool, error),
+) *services.HintService {
+	mockSystem := &mocks.MockSystemPort{}
+	mockSystem.FocusedWindowBoundsFunc = bounds
+	mockSystem.ScreenBoundsFunc = func(context.Context) (image.Rectangle, error) {
+		return image.Rect(0, 0, 1920, 1080), nil
+	}
+
+	generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+
+	return services.NewHintService(
+		&mocks.MockAccessibilityPort{},
+		&mocks.MockOverlayPort{},
+		mockSystem,
+		generator,
+		config.HintsConfig{},
+		log,
+		&mockVisionPort{},
+	)
+}
+
+// TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen pins the
+// difference between the two ways vision ends up scanning a whole monitor.
+//
+// A platform that cannot report focused-window geometry — a wlroots compositor
+// with no IPC, a KWin bridge that never installed — is not the same event as a
+// desktop with nothing focused, and it used to be logged as if it were. Scoping
+// OCR to the entire screen instead of one window is slower and noisier, and the
+// reason has to be readable without a debug build.
+func TestHintService_GenerateHintsVisionSaysWhyItFellBackToTheScreen(t *testing.T) {
+	tests := []struct {
+		name      string
+		bounds    func(context.Context) (image.Rectangle, bool, error)
+		wantLevel zapcore.Level
+		wantText  string
+	}{
+		{
+			name: "a platform that cannot answer is a warning",
+			bounds: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rectangle{}, false, derrors.New(
+					derrors.CodeNotSupported,
+					"no focused-window geometry source on linux backend wayland-wlroots",
+				)
+			},
+			wantLevel: zapcore.WarnLevel,
+			wantText:  "wayland-wlroots",
+		},
+		{
+			name: "nothing focused is routine",
+			bounds: func(context.Context) (image.Rectangle, bool, error) {
+				return image.Rectangle{}, false, nil
+			},
+			wantLevel: zapcore.DebugLevel,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			core, logs := observer.New(zap.DebugLevel)
+
+			service := newVisionHintService(zap.New(core), testCase.bounds)
+
+			_, err := service.GenerateHints(
+				context.Background(), nil, nil, "com.example.app", domain.StrategyVision, "", false,
+			)
+			if err != nil {
+				t.Fatalf("GenerateHints() unexpected error: %v", err)
+			}
+
+			entries := logs.FilterLevelExact(testCase.wantLevel).
+				FilterMessageSnippet("focused window").
+				All()
+			if len(entries) == 0 {
+				t.Fatalf("no %s entry about the focused window; logged %v",
+					testCase.wantLevel, logs.All())
+			}
+
+			if testCase.wantText == "" {
+				return
+			}
+
+			logged := fmt.Sprint(entries[0].Message, entries[0].ContextMap())
+			if !strings.Contains(logged, testCase.wantText) {
+				t.Errorf("entry %q does not carry %q, so the reason is unreadable",
+					logged, testCase.wantText)
+			}
+		})
 	}
 }
 

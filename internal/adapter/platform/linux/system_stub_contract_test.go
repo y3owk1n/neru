@@ -5,6 +5,7 @@ package linux_test
 import (
 	"context"
 	"image"
+	"os"
 	"strings"
 	"testing"
 
@@ -15,6 +16,14 @@ import (
 // unimplementedBackend is a backend name no dispatch branch recognizes, so
 // every method falls through to its stub.
 const unimplementedBackend = "test-unimplemented-backend"
+
+// The backend labels the adapter is built with, spelled as
+// platform.LinuxBackend.String() produces them.
+const (
+	x11Backend     = "x11"
+	wlrootsBackend = "wayland-wlroots"
+	kdeBackend     = "wayland-kde"
+)
 
 // stubCall names a SystemAdapter method and invokes it, discarding any
 // non-error results so only the error contract is under test.
@@ -163,8 +172,8 @@ func TestSystemAdapter_PlatformLabelReflectsTheBackend(t *testing.T) {
 		want    string
 	}{
 		{unimplementedBackend, "linux/" + unimplementedBackend},
-		{"x11", "linux/x11"},
-		{"wayland-wlroots", "linux/wayland-wlroots"},
+		{x11Backend, "linux/" + x11Backend},
+		{wlrootsBackend, "linux/" + wlrootsBackend},
 		{"", "linux"},
 	}
 
@@ -207,7 +216,7 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 func TestSystemAdapter_CapabilitiesMatchBackendBehavior(t *testing.T) {
 	// Every backend name that reaches the dispatch, including ones with no
 	// implementation, so both sides of the contract are exercised.
-	backends := []string{unimplementedBackend, "", "x11", "wayland-wlroots", "wayland-kde"}
+	backends := []string{unimplementedBackend, "", x11Backend, wlrootsBackend, kdeBackend}
 
 	ctx := context.Background()
 
@@ -331,6 +340,69 @@ func TestSystemAdapter_DowngradedCapabilitiesExplainWhy(t *testing.T) {
 				entry.key, detail,
 			)
 		}
+	}
+}
+
+// TestSystemAdapter_FocusedWindowBoundsRefusesWithNoGeometrySource extends the
+// stub contract to a backend that is otherwise implemented.
+//
+// River and Wayfire are wlroots compositors with no IPC Neru can query, and
+// answering "no focused window" there is indistinguishable from a desktop with
+// nothing focused — so every caller silently scoped itself to the whole active
+// screen and nothing said why. Refusing is what lets a caller tell the two
+// apart, and the message has to name the backend for the same reason every
+// other refusal here does.
+func TestSystemAdapter_FocusedWindowBoundsRefusesWithNoGeometrySource(t *testing.T) {
+	// A compositor socket inherited from another session must not stand in for
+	// a source this one has.
+	for _, name := range []string{"NIRI_SOCKET", "SWAYSOCK", "HYPRLAND_INSTANCE_SIGNATURE"} {
+		t.Setenv(name, "")
+	}
+
+	adapter := linux.NewSystemAdapter(wlrootsBackend)
+
+	_, found, err := adapter.FocusedWindowBounds(context.Background())
+	if found {
+		t.Fatal("FocusedWindowBounds reported a window with no compositor to ask")
+	}
+
+	if !derrors.IsNotSupported(err) {
+		t.Fatalf("FocusedWindowBounds error = %v (code %q), want CodeNotSupported so "+
+			"callers can tell a missing source from an unfocused desktop",
+			err, derrors.GetCode(err))
+	}
+
+	if !strings.Contains(err.Error(), wlrootsBackend) {
+		t.Errorf("error %q does not name the backend %q", err.Error(), wlrootsBackend)
+	}
+}
+
+// TestSystemAdapter_StartsNoCompositorBridgeOffKDE pins the other half of
+// #1430 for the platform adapter: building an adapter for a session KWin does
+// not run must touch nothing outside the process. The KDE adapter installs a
+// KWin script at construction so the first caller is not answered from a cold
+// cache; every other backend must leave $XDG_RUNTIME_DIR alone.
+func TestSystemAdapter_StartsNoCompositorBridgeOffKDE(t *testing.T) {
+	for _, backend := range []string{x11Backend, wlrootsBackend, unimplementedBackend} {
+		t.Run(backend, func(t *testing.T) {
+			runtimeDir := t.TempDir()
+			t.Setenv("XDG_RUNTIME_DIR", runtimeDir)
+
+			linux.NewSystemAdapter(backend)
+
+			entries, readErr := os.ReadDir(runtimeDir)
+			if readErr != nil {
+				t.Fatalf("ReadDir(%s) error = %v", runtimeDir, readErr)
+			}
+
+			for _, entry := range entries {
+				t.Errorf(
+					"building the %s adapter wrote %s into XDG_RUNTIME_DIR; no compositor "+
+						"bridge may start on a backend that did not identify it",
+					backend, entry.Name(),
+				)
+			}
+		})
 	}
 }
 
