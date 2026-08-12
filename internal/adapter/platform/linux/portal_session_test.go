@@ -236,41 +236,53 @@ func TestEstablishPortalGrant_DoesNotPromptAgainWhenTheUserCanceled(t *testing.T
 	}
 }
 
-// TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheHandshakeNeverPresentedIt
-// covers the failures that happen before SelectDevices carries the token: the
-// bus dial, the reply subscription, CreateSession. They surface as ordinary
-// action failures, so without the marking they would look exactly like the
-// portal refusing the grant — and would spend a perfectly good one.
-func TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheHandshakeNeverPresentedIt(
-	t *testing.T,
-) {
-	store := &fakeTokenStore{token: storedToken}
-	failure := failedBeforePresenting(
-		derrors.New(derrors.CodeActionFailed, "could not subscribe to the portal's replies"),
-	)
-	opener := &recordingOpener{t: t, answers: []openerAnswer{{err: failure}}}
-
-	_, err := establishPortalGrant(context.Background(), store, opener.open)
-	if err == nil {
-		t.Fatal("establishPortalGrant() error = nil, want the handshake's failure")
+// TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheFailureWasNotItsFault
+// covers the steps at either end of the handshake that never had the token in
+// their hands — the bus dial, the reply subscription and CreateSession before
+// it is sent, ConnectToEIS after the grant is already complete. They surface as
+// ordinary action failures, so without the marking they would look exactly like
+// the portal refusing the grant, and would spend a perfectly good one.
+func TestEstablishPortalGrant_KeepsTheStoredTokenWhenTheFailureWasNotItsFault(t *testing.T) {
+	tests := []struct {
+		name   string
+		reason string
+	}{
+		{name: "before the token is sent", reason: "could not subscribe to the portal's replies"},
+		{name: "after the grant completes", reason: "would not hand over an EIS socket"},
 	}
 
-	if len(opener.presented) != 1 {
-		t.Errorf("portal attempts = %d, want 1", len(opener.presented))
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			store := &fakeTokenStore{token: storedToken}
+			failure := unrelatedToStoredGrant(
+				derrors.New(derrors.CodeActionFailed, testCase.reason),
+			)
+			opener := &recordingOpener{t: t, answers: []openerAnswer{{err: failure}}}
 
-	if store.cleared != 0 {
-		t.Errorf("stored token cleared %d times, want 0", store.cleared)
-	}
+			_, err := establishPortalGrant(context.Background(), store, opener.open)
+			if err == nil {
+				t.Fatal("establishPortalGrant() error = nil, want the handshake's failure")
+			}
 
-	// The marking must not swallow what the failure actually said, or a user
-	// reading the error learns nothing about why the session did not come up.
-	if !derrors.IsCode(err, derrors.CodeActionFailed) {
-		t.Errorf("error code = %q, want %q", derrors.GetCode(err), derrors.CodeActionFailed)
-	}
+			if len(opener.presented) != 1 {
+				t.Errorf("portal attempts = %d, want 1", len(opener.presented))
+			}
 
-	if !strings.Contains(err.Error(), "could not subscribe") {
-		t.Errorf("error = %q, want it to carry the underlying reason", err.Error())
+			if store.cleared != 0 {
+				t.Errorf("stored token cleared %d times, want 0", store.cleared)
+			}
+
+			// The marking must not swallow what the failure actually said, or a
+			// user reading the error learns nothing about why nothing came up.
+			if !derrors.IsCode(err, derrors.CodeActionFailed) {
+				t.Errorf("error code = %q, want %q",
+					derrors.GetCode(err), derrors.CodeActionFailed)
+			}
+
+			if !strings.Contains(err.Error(), testCase.reason) {
+				t.Errorf("error = %q, want it to carry the underlying reason", err.Error())
+			}
+		})
 	}
 }
 

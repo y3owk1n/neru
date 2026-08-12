@@ -24,32 +24,41 @@ import (
 // the one refusal that a second prompt would simply repeat back at them.
 var errPortalRequestCanceled = errors.New("the remote desktop consent request was canceled")
 
-// errPortalGrantNotPresented reports that a handshake failed before the stored
-// restore token was ever put in front of the portal. Nothing refused the token,
-// because nothing was shown it — so it is kept.
-var errPortalGrantNotPresented = errors.New(
-	"the stored grant was never presented to the portal",
+// errPortalFailureUnrelatedToGrant reports a handshake failure the stored
+// restore token cannot be blamed for, so the token is kept.
+var errPortalFailureUnrelatedToGrant = errors.New(
+	"the remote desktop handshake failed for a reason unrelated to the stored grant",
 )
 
-// notPresentedError marks a failure as having happened before the token was
-// presented. It is transparent on purpose: the message and the derrors code are
-// the wrapped error's, so only the extra question this type answers is new.
-type notPresentedError struct {
+// unrelatedError marks such a failure. It is transparent on purpose: the
+// message and the derrors code are the wrapped error's, so the only new thing
+// is the extra question this type answers.
+type unrelatedError struct {
 	err error
 }
 
-func (e notPresentedError) Error() string { return e.err.Error() }
+func (e unrelatedError) Error() string { return e.err.Error() }
 
-func (e notPresentedError) Unwrap() error { return e.err }
+func (e unrelatedError) Unwrap() error { return e.err }
 
-func (e notPresentedError) Is(target error) bool { return target == errPortalGrantNotPresented }
+func (e unrelatedError) Is(target error) bool { return target == errPortalFailureUnrelatedToGrant }
 
-// failedBeforePresenting marks err as a failure the stored token cannot be
-// blamed for. Every step before SelectDevices is one: the bus dial, the reply
-// subscription and CreateSession all run before the token is sent, so a failure
-// in any of them says nothing about whether the grant is still good.
-func failedBeforePresenting(err error) error {
-	return notPresentedError{err: err}
+// unrelatedToStoredGrant marks err as a failure that says nothing about the
+// stored token. Two stretches of the handshake qualify, at either end of it:
+//
+//   - everything before SelectDevices — the bus dial, the reply subscription,
+//     CreateSession — because the token has not been sent yet, so nothing has
+//     been shown it to refuse;
+//   - ConnectToEIS, because by then the grant is complete: the portal has
+//     started the session and handed back a fresh token, and a socket it will
+//     not produce is not a credential problem.
+//
+// What is left in between is SelectDevices and Start, the two calls that carry
+// the token and consume it. A failure there is treated as the token's fault,
+// deliberately erring toward one extra consent prompt rather than toward a
+// daemon that can never establish a session again.
+func unrelatedToStoredGrant(err error) error {
+	return unrelatedError{err: err}
 }
 
 // errPortalGrantYieldedNoDevices reports that the portal handed over a session
@@ -131,20 +140,20 @@ func establishPortalGrant(
 // blamed on the token it presented — which is what decides whether the token is
 // thrown away and the user asked afresh.
 //
-// Only a refusal of the token itself counts. Three failures do not, and
-// treating any of them as the token's fault would throw away a grant that still
-// works and buy a consent prompt on the next start with it:
+// Only a refusal by one of the two calls that carry the token counts. Three
+// failures do not, and treating any of them as the token's fault would throw
+// away a grant that still works and buy a consent prompt on the next start
+// with it:
 //
-//   - the handshake never got as far as presenting the token — the bus dial,
-//     the reply subscription and CreateSession all run before SelectDevices
-//     sends it, so nothing had been shown the token to refuse;
+//   - a step that never had the token in its hands, at either end of the
+//     handshake — see unrelatedToStoredGrant;
 //   - the user canceled the dialog, which says nothing about the token and
 //     which a second prompt would only ask again;
 //   - the call ran out of time or the session bus was unreachable, which is the
 //     portal not answering rather than the portal saying no.
 func storedGrantPresumedDead(err error) bool {
 	switch {
-	case errors.Is(err, errPortalGrantNotPresented):
+	case errors.Is(err, errPortalFailureUnrelatedToGrant):
 		return false
 	case errors.Is(err, errPortalRequestCanceled):
 		return false

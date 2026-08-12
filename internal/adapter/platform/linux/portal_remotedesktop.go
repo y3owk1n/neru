@@ -116,7 +116,7 @@ const portalHandleTokenBytes = 8
 func openRemoteDesktopSession(ctx context.Context, restoreToken string) (portalGrant, error) {
 	conn, err := dialPortalBus(ctx)
 	if err != nil {
-		return portalGrant{}, failedBeforePresenting(err)
+		return portalGrant{}, unrelatedToStoredGrant(err)
 	}
 
 	grant, err := negotiateRemoteDesktop(ctx, conn, restoreToken)
@@ -241,7 +241,7 @@ func negotiateRemoteDesktop(
 	// stored grant cannot be blamed for.
 	names := conn.Names()
 	if len(names) == 0 {
-		return portalGrant{}, failedBeforePresenting(derrors.New(
+		return portalGrant{}, unrelatedToStoredGrant(derrors.New(
 			derrors.CodeActionFailed,
 			"the D-Bus session bus assigned no unique name, so no portal request "+
 				"could be listened for",
@@ -267,7 +267,7 @@ func negotiateRemoteDesktop(
 	if err != nil {
 		conn.RemoveSignal(requester.signals)
 
-		return portalGrant{}, failedBeforePresenting(derrors.Wrap(
+		return portalGrant{}, unrelatedToStoredGrant(derrors.Wrap(
 			err,
 			derrors.CodeActionFailed,
 			"could not subscribe to the RemoteDesktop portal's replies",
@@ -289,10 +289,12 @@ func negotiateRemoteDesktop(
 
 	session, err := createRemoteDesktopSession(ctx, requester)
 	if err != nil {
-		return portalGrant{}, failedBeforePresenting(err)
+		return portalGrant{}, unrelatedToStoredGrant(err)
 	}
 
-	// From here the token is in play: SelectDevices is the call that carries it.
+	// The token is in play across the next two calls: SelectDevices carries it
+	// and Start consumes it, so a refusal from either is the one signal there is
+	// that the stored grant is no longer good. Their errors go back unmarked.
 	err = selectRemoteDesktopDevices(ctx, requester, session, restoreToken)
 	if err != nil {
 		closeRemoteDesktopSession(conn, session)
@@ -307,11 +309,13 @@ func negotiateRemoteDesktop(
 		return portalGrant{}, err
 	}
 
+	// Past Start the grant is complete and a fresh token is already in hand, so
+	// a socket the portal will not produce says nothing about the stored one.
 	eisFD, err := connectToEIS(ctx, requester, session)
 	if err != nil {
 		closeRemoteDesktopSession(conn, session)
 
-		return portalGrant{}, err
+		return portalGrant{}, unrelatedToStoredGrant(err)
 	}
 
 	return portalGrant{
