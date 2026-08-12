@@ -813,6 +813,76 @@
         }
       }
     },
+    "pipewire@1.4.2": {
+      "last_modified": "2025-06-17T18:11:34Z",
+      "resolved": "github:NixOS/nixpkgs/f45e75fc63fc8a7ffc3da382b2f6b681c5b71875#pipewire",
+      "source": "devbox-search",
+      "version": "1.4.2",
+      "systems": {
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/8ypcznrsp31ra2zma86z710s77wrxmc0-pipewire-1.4.2",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/rg867g1s89q2yi2bgw7iz4vfybwni5al-pipewire-1.4.2-man",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/fir9s8ihzh6hk7k8xxgn7vwv9j5szsij-pipewire-1.4.2-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/cmdhmkf57xrc4ymlazbs3dxvyi4w9kxk-pipewire-1.4.2-doc"
+            },
+            {
+              "name": "installedTests",
+              "path": "/nix/store/l8ia7m5vs8bm11ds6k65sjjxhqk2bwfy-pipewire-1.4.2-installedTests"
+            },
+            {
+              "name": "jack",
+              "path": "/nix/store/kn375469pypvl86fljivmx8a59yh5vs6-pipewire-1.4.2-jack"
+            }
+          ],
+          "store_path": "/nix/store/8ypcznrsp31ra2zma86z710s77wrxmc0-pipewire-1.4.2"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/lwmv9vlbhmnj4bvd7y7bwxnhfbwbwzi6-pipewire-1.4.2",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/yr09s00svjbf8d369702k06f05k0jr5d-pipewire-1.4.2-man",
+              "default": true
+            },
+            {
+              "name": "installedTests",
+              "path": "/nix/store/k3wpcp7pjf1yfl0jg2lds2cl3pwwl1d4-pipewire-1.4.2-installedTests"
+            },
+            {
+              "name": "jack",
+              "path": "/nix/store/y6bg8kbly9p7wyp0hyyqddgbjvxlpcjd-pipewire-1.4.2-jack"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/b9rp3l556x481zhndjhsimyw611avkz2-pipewire-1.4.2-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/bv6bbjrlv89mdvi9igp0mhjn7ap4mnc7-pipewire-1.4.2-doc"
+            }
+          ],
+          "store_path": "/nix/store/lwmv9vlbhmnj4bvd7y7bwxnhfbwbwzi6-pipewire-1.4.2"
+        }
+      }
+    },
     "pkg-config@0.29.2": {
       "last_modified": "2025-11-23T21:50:36Z",
       "resolved": "github:NixOS/nixpkgs/ee09932cedcef15aaf476f9343d1dea2cb77e261#pkg-config",

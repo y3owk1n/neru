@@ -75,6 +75,7 @@
     },
     "pipewire": {
       "version":   "1.4.2",
+      "outputs":   ["out", "dev"],
       "platforms": ["x86_64-linux", "aarch64-linux"]
     }
   },
