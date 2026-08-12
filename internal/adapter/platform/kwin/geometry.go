@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
@@ -35,6 +36,14 @@ const (
 
 	// The geometry script is only readable/writable by the owner.
 	scriptFileMode = 0o600
+
+	// installRetries is how many further attempts the installer makes on its
+	// own after a failed one, and installRetryBackoff the wait before the
+	// first of them, doubling each time (~1s, 2s, 4s). The window being
+	// covered is a daemon that started before the session bus or KWin did,
+	// which resolves in seconds or not at all.
+	installRetries      = 3
+	installRetryBackoff = time.Second
 )
 
 // scriptFileName is the KWin script's name under $XDG_RUNTIME_DIR. It is stable
@@ -144,10 +153,13 @@ func newGeometry(logger *zap.Logger) *Geometry {
 // callers reaching it include the mode handler, where a slow native call holds
 // the keyboard grab.
 //
-// Until the install lands, Bounds reports nothing rather than a rectangle. A
-// failed attempt is retried by the next caller — the daemon starts when the
-// session does, and spending its only attempt on a bus that was not up yet
-// would leave the whole run with no geometry.
+// Until the install lands, Bounds reports nothing rather than a rectangle, and
+// a call that arrives while an attempt is in flight still gets whatever the
+// last completed attempt learned. Waiting for the in-flight one instead would
+// not answer it either — a script that loads this instant still has to call
+// back before there is a rectangle to report — so the wait would buy a stall on
+// the activation path and nothing else. The install converging without a caller
+// is what start covers.
 func (g *Geometry) EnsureStarted() {
 	if g.beginStart() {
 		go g.start()
@@ -201,11 +213,17 @@ func (g *Geometry) UpdateActiveWindow(payload string) *dbus.Error {
 // reported it.
 //
 // The three answers are distinct on purpose. A rectangle with ok is what KWin
-// says. ok=false with no error means the bridge is installed (or still
-// installing) and has been told about no window — the desktop is focused, or
-// activation has not moved since the daemon started. A non-nil error means the
-// bridge could not be installed at all, which is the one case a caller must not
+// says. ok=false with no error means the bridge is installed (or installing for
+// the first time) and has been told about no window — the desktop is focused,
+// or activation has not moved since the daemon started. A non-nil error means
+// the bridge could not be installed, which is the one case a caller must not
 // read as "there is no focused window".
+//
+// A retry already in flight does not soften the last failure into that middle
+// answer. It is the failure that is true right now, and reporting "installing"
+// on every call would hide a session with no KWin behind a permanent maybe —
+// the silent widening to the active screen this bridge exists to end. The
+// reason is cleared the moment an attempt supersedes it.
 func (g *Geometry) Bounds() (image.Rectangle, bool, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -236,8 +254,37 @@ func (g *Geometry) log() *zap.Logger {
 	return nopLogger
 }
 
+// start runs an install attempt and, when it fails, retries it a few times on
+// this goroutine before releasing the claim.
+//
+// Retrying only when the next caller arrives heals the session but not that
+// caller: the request that triggers the retry is the one that reads the
+// previous failure, and for the AT-SPI origin it is the one that places a
+// screenful of hints at the wrong position. Retrying here costs the request
+// path nothing, because no request ever waits for this goroutine.
+//
+// The claim is held across the whole sequence, so a request arriving mid-retry
+// does not stack a second installer; each failure is still published as it
+// happens, so Bounds keeps naming the current reason rather than going quiet
+// for the length of the backoff.
 func (g *Geometry) start() {
-	g.endStart(g.install())
+	g.runInstall(g.install, installRetryBackoff)
+}
+
+// runInstall is start's loop with its two dependencies passed in, so the retry
+// policy can be tested without a session bus or a wall-clock wait.
+func (g *Geometry) runInstall(install func() error, backoff time.Duration) {
+	for attempt := range installRetries + 1 {
+		err := install()
+		if err == nil || attempt == installRetries {
+			g.endStart(err)
+
+			return
+		}
+
+		g.recordAttempt(err)
+		time.Sleep(backoff << attempt)
+	}
 }
 
 // beginStart claims the right to run an install attempt. It is false when one
@@ -256,15 +303,26 @@ func (g *Geometry) beginStart() bool {
 	return true
 }
 
-// endStart records an attempt's outcome. A failure is remembered as the reason
-// Bounds cannot answer — and said out loud once, since the error reaches every
-// later caller anyway and a session with no KWin would otherwise warn on every
-// hint activation. A success clears the reason: it described a condition that
-// has passed.
+// endStart records the last attempt of a sequence and releases the claim, so
+// the next caller can retry a failure and none can repeat a success.
 func (g *Geometry) endStart(err error) {
 	g.startMu.Lock()
 	g.starting = false
 	g.installed = err == nil
+	g.startMu.Unlock()
+
+	g.recordAttempt(err)
+}
+
+// recordAttempt publishes an attempt's outcome without releasing the claim, for
+// the failures the installer is about to retry itself.
+//
+// A failure is remembered as the reason Bounds cannot answer — and said out
+// loud once, since the error reaches every later caller anyway and a session
+// with no KWin would otherwise warn on every hint activation. A success clears
+// the reason: it described a condition that has passed.
+func (g *Geometry) recordAttempt(err error) {
+	g.startMu.Lock()
 	firstFailure := err != nil && !g.warned
 	g.warned = g.warned || err != nil
 	g.startMu.Unlock()

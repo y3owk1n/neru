@@ -115,7 +115,9 @@ func waylandFocusedWindowBounds(backend string) (image.Rectangle, bool, error) {
 // a focused desktop, so the first hint activation or `move_mouse --window` after
 // startup would get the silent fallback this file exists to remove. Doing it at
 // construction overlaps the install with the rest of daemon startup instead of
-// with the user's first keystroke.
+// with the user's first keystroke, and the installer retries a failed attempt
+// on its own, so a session bus that was not up yet is usually resolved before
+// anything asks rather than at the expense of whoever asks first.
 //
 // Nothing leaves this process on a session that is not running KWin: the
 // install probes for it on the bus before it exports, owns a name or writes a
@@ -135,7 +137,11 @@ func warmFocusedWindowSource(backend string) {
 //
 // The install is asynchronous by contract, so a call that arrives before KWin
 // has answered reports no window rather than waiting: this runs under the mode
-// handler's lock, where blocking on D-Bus would stop the keyboard.
+// handler's lock, where blocking on D-Bus would stop the keyboard. A call that
+// arrives while an attempt is in flight gets the last completed attempt's
+// answer for the same reason — and waiting for the in-flight one would not help
+// it anyway, since a script that loads this instant still has to call back
+// before there is a rectangle to report.
 //
 // A script that could not be installed is CodeNotSupported rather than a
 // failure, because that is what the caller has to do about it: this session

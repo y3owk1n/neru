@@ -187,6 +187,110 @@ func TestGeometry_ASuccessfulRetryClearsTheRecordedReason(t *testing.T) {
 	}
 }
 
+// TestGeometry_RunInstallRetriesWithoutWaitingForACaller pins the half of the
+// retry the request path cannot provide.
+//
+// A caller-triggered retry heals the session but not the caller that triggered
+// it: that request reads the previous failure, and for the AT-SPI origin it is
+// the one that places a screenful of hints at the wrong position. So a failed
+// attempt is retried by the installer itself, and the transient case — a daemon
+// that started before the session bus or KWin did — is over before anything
+// asks.
+func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	attempts := 0
+	install := func() error {
+		attempts++
+		if attempts < 3 {
+			return errTestInstallFailed
+		}
+
+		return nil
+	}
+
+	geometry.beginStart()
+	geometry.runInstall(install, 0)
+
+	if attempts != 3 {
+		t.Fatalf(
+			"install ran %d times, want 3 — a failed attempt must be retried on its own",
+			attempts,
+		)
+	}
+
+	_, ok, err := geometry.Bounds()
+	if ok || err != nil {
+		t.Fatalf("Bounds() after a successful retry = (%v, %v), want (false, nil)", ok, err)
+	}
+
+	if geometry.beginStart() {
+		t.Error("an installed script was reinstalled")
+	}
+}
+
+// TestGeometry_RunInstallStopsRetryingAndReportsTheReason keeps the installer's
+// own retry bounded, and keeps it from swallowing the answer when it gives up:
+// a session with no KWin must end up carrying the reason, because the caller
+// that reads it is the one deciding whether to widen to the active screen.
+// Giving up also hands the retry back to the next caller rather than ending it.
+func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	attempts := 0
+	install := func() error {
+		attempts++
+
+		return errTestInstallFailed
+	}
+
+	geometry.beginStart()
+	geometry.runInstall(install, 0)
+
+	if attempts != installRetries+1 {
+		t.Fatalf("install ran %d times, want %d", attempts, installRetries+1)
+	}
+
+	_, ok, err := geometry.Bounds()
+	if ok || !errors.Is(err, errTestInstallFailed) {
+		t.Fatalf("Bounds() = (%v, %v), want the recorded reason", ok, err)
+	}
+
+	if !geometry.beginStart() {
+		t.Error("a bounded retry that gave up also stopped the next caller from trying")
+	}
+}
+
+// TestGeometry_RunInstallReportsEachFailureAsItHappens keeps Bounds honest for
+// the length of the backoff. The installer holds its claim across the whole
+// sequence, so if it published nothing until the last attempt, every caller
+// arriving in between would be told "no window" — the silent fallback — instead
+// of the reason.
+func TestGeometry_RunInstallReportsEachFailureAsItHappens(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	var duringBackoff error
+
+	attempts := 0
+	install := func() error {
+		attempts++
+		if attempts > 1 {
+			_, _, duringBackoff = geometry.Bounds()
+
+			return nil
+		}
+
+		return errTestInstallFailed
+	}
+
+	geometry.beginStart()
+	geometry.runInstall(install, 0)
+
+	if !errors.Is(duringBackoff, errTestInstallFailed) {
+		t.Errorf("Bounds() between attempts = %v, want the failure already recorded", duringBackoff)
+	}
+}
+
 // TestShared_ReturnsOneBridge pins the shared derivation: both callers must
 // read the same cache, because each one that builds its own also owns the
 // D-Bus name and installs the script a second time.
