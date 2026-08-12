@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 	"os"
 	"testing"
@@ -49,7 +50,7 @@ func liveCaptureBackend(t *testing.T) string {
 func requireCapture(t *testing.T, backend string, region image.Rectangle) *image.RGBA {
 	t.Helper()
 
-	img, err := CaptureScreenRegion(backend, region)
+	img, err := CaptureScreenRegion(context.Background(), backend, region)
 	if derrors.IsNotSupported(err) {
 		t.Skipf("this display server cannot capture: %v", err)
 	}
@@ -116,7 +117,7 @@ func TestCaptureScreenRegion_SurvivesRepeatedUse(t *testing.T) {
 
 	for round := range 2 {
 		for index, region := range regions {
-			img, err := CaptureScreenRegion(backend, region)
+			img, err := CaptureScreenRegion(context.Background(), backend, region)
 			if err != nil {
 				t.Fatalf("round %d region %d (%v): capture %d of this process failed: %v",
 					round, index, region, round*len(regions)+index+2, err)
@@ -163,7 +164,7 @@ func TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion(t *testing.T) {
 
 	overhanging := image.Rect(full.Rect.Dx()-10, 0, full.Rect.Dx()+200, 100)
 
-	img, err := CaptureScreenRegion(backend, overhanging)
+	img, err := CaptureScreenRegion(context.Background(), backend, overhanging)
 	if err == nil {
 		t.Fatalf("capturing %v, which leaves the screen, succeeded and returned %v",
 			overhanging, img.Rect)
@@ -179,7 +180,11 @@ func TestCaptureScreenRegion_RejectsAPartiallyOffScreenRegion(t *testing.T) {
 func TestCaptureScreenRegion_RejectsAnOffScreenRegion(t *testing.T) {
 	backend := liveCaptureBackend(t)
 
-	img, err := CaptureScreenRegion(backend, image.Rect(1_000_000, 1_000_000, 1_000_100, 1_000_100))
+	img, err := CaptureScreenRegion(
+		context.Background(),
+		backend,
+		image.Rect(1_000_000, 1_000_000, 1_000_100, 1_000_100),
+	)
 	if err == nil {
 		t.Fatalf("capturing a region off every screen succeeded, returning %v", img.Rect)
 	}

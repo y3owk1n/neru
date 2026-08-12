@@ -72,6 +72,10 @@
     "tesseract": {
       "version":   "5.5.2",
       "platforms": ["x86_64-linux", "aarch64-linux"]
+    },
+    "pipewire": {
+      "version":   "1.4.2",
+      "platforms": ["x86_64-linux", "aarch64-linux"]
     }
   },
   "shell": {

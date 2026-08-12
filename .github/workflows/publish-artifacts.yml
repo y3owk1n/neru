@@ -216,7 +216,8 @@ jobs:
                     libei-dev \
                     liboeffis-dev \
                     libtesseract-dev \
-                    tesseract-ocr-eng
+                    tesseract-ocr-eng \
+                    libpipewire-0.3-dev
 
             - uses: actions/setup-go@v7
               with:
@@ -278,7 +279,8 @@ jobs:
                     libei-dev \
                     liboeffis-dev \
                     libtesseract-dev \
-                    tesseract-ocr-eng
+                    tesseract-ocr-eng \
+                    libpipewire-0.3-dev
 
             - uses: actions/setup-go@v7
               with:

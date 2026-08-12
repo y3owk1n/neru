@@ -13,21 +13,26 @@ import (
 // consent prompt, and decides what to do when the stored token no longer
 // works.
 //
-// It is separated from the D-Bus handshake below it because the handshake is
+// It is separated from the D-Bus handshakes beside it because a handshake is
 // the part no test on this repository's development platform can drive — it
 // needs a live xdg-desktop-portal with a KDE backend — while "which token do we
 // present, and how many times do we ask" is a decision with three inputs and
 // no I/O.
+//
+// It is written once for both grants KDE needs. RemoteDesktop (input) and
+// ScreenCast (capture) are separate sessions with separate tokens, because they
+// are separate consents, but the question they ask of a stored token is
+// identical and answering it twice is how the two would drift apart.
 
 // errPortalRequestCanceled reports that the user answered the portal's consent
 // dialog with "no". It is distinguished from every other failure because it is
 // the one refusal that a second prompt would simply repeat back at them.
-var errPortalRequestCanceled = errors.New("the remote desktop consent request was canceled")
+var errPortalRequestCanceled = errors.New("the portal consent request was canceled")
 
 // errPortalFailureUnrelatedToGrant reports a handshake failure the stored
 // restore token cannot be blamed for, so the token is kept.
 var errPortalFailureUnrelatedToGrant = errors.New(
-	"the remote desktop handshake failed for a reason unrelated to the stored grant",
+	"the portal handshake failed for a reason unrelated to the stored grant",
 )
 
 // unrelatedError marks such a failure. It is transparent on purpose: the
@@ -44,19 +49,19 @@ func (e unrelatedError) Unwrap() error { return e.err }
 func (e unrelatedError) Is(target error) bool { return target == errPortalFailureUnrelatedToGrant }
 
 // unrelatedToStoredGrant marks err as a failure that says nothing about the
-// stored token. Two stretches of the handshake qualify, at either end of it:
+// stored token. Two stretches of a handshake qualify, at either end of it:
 //
-//   - everything before SelectDevices — the bus dial, the reply subscription,
-//     CreateSession — because the token has not been sent yet, so nothing has
-//     been shown it to refuse;
-//   - ConnectToEIS, because by then the grant is complete: the portal has
-//     started the session and handed back a fresh token, and a socket it will
-//     not produce is not a credential problem.
+//   - everything before the call that presents the token — the bus dial, the
+//     reply subscription, CreateSession — because the token has not been sent
+//     yet, so nothing has been shown it to refuse;
+//   - everything after Start, because by then the grant is complete: the portal
+//     has started the session and handed back a fresh token, and a socket or a
+//     stream it will not produce is not a credential problem.
 //
-// What is left in between is SelectDevices and Start, the two calls that carry
-// the token and consume it. A failure there is treated as the token's fault,
-// deliberately erring toward one extra consent prompt rather than toward a
-// daemon that can never establish a session again.
+// What is left in between is the pair of calls that carry the token and consume
+// it — SelectDevices/SelectSources and Start. A failure there is treated as the
+// token's fault, deliberately erring toward one extra consent prompt rather
+// than toward a daemon that can never establish a session again.
 func unrelatedToStoredGrant(err error) error {
 	return unrelatedError{err: err}
 }
@@ -67,6 +72,14 @@ func unrelatedToStoredGrant(err error) error {
 // same devices and get the same answer — at the cost of another dialog.
 var errPortalGrantYieldedNoDevices = errors.New(
 	"the granted remote desktop session brought up no input device",
+)
+
+// errNoScreenCastConsent reports that no ScreenCast grant is held and none can
+// be restored, on a path that is not allowed to put a dialog on screen. It is
+// the answer a capture gives when the user has never approved screen sharing:
+// the prompt belongs to the permission request, not to a hint refresh.
+var errNoScreenCastConsent = errors.New(
+	"no screen-sharing consent has been granted to Neru yet",
 )
 
 // portalGrant is one established RemoteDesktop grant: the EIS socket libei
@@ -84,12 +97,20 @@ type portalGrant struct {
 	close func()
 }
 
-// portalOpener establishes a RemoteDesktop grant, restoring the session that
-// restoreToken names when it is not empty.
-type portalOpener func(ctx context.Context, restoreToken string) (portalGrant, error)
+// grantRestoreToken reports the token this grant handed back. It is what makes
+// portalGrant usable by the shared restore policy below.
+func (g portalGrant) grantRestoreToken() string { return g.restoreToken }
 
-// establishPortalGrant opens a RemoteDesktop grant, reusing the stored one when
-// there is one to reuse.
+// portalRestorableGrant is the one thing the restore policy needs to know about
+// a grant: which token restores it next time. Everything else a grant carries —
+// an EIS socket, a set of PipeWire nodes — belongs to the interface that
+// negotiated it and never reaches this file.
+type portalRestorableGrant interface {
+	grantRestoreToken() string
+}
+
+// establishPortalGrant opens a portal grant, reusing the stored one when there
+// is one to reuse.
 //
 // It attempts the portal at most twice, ever. The first attempt presents
 // whatever token is stored; if that is refused the token is dropped and one
@@ -100,16 +121,18 @@ type portalOpener func(ctx context.Context, restoreToken string) (portalGrant, e
 // Whatever token the grant hands back is stored, because a restore token is
 // invalidated by the use that consumes it — keeping the presented one would
 // restore exactly once and prompt on every start after that.
-func establishPortalGrant(
+func establishPortalGrant[T portalRestorableGrant](
 	ctx context.Context,
 	store restoreTokenStore,
-	open portalOpener,
-) (portalGrant, error) {
+	open func(ctx context.Context, restoreToken string) (T, error),
+) (T, error) {
+	var none T
+
 	stored := store.load()
 
 	grant, err := open(ctx, stored)
 	if err == nil {
-		persistRestoreToken(store, grant.restoreToken)
+		persistRestoreToken(store, grant.grantRestoreToken())
 
 		return grant, nil
 	}
@@ -118,7 +141,7 @@ func establishPortalGrant(
 	// attempt would repeat the first exactly. Nor when the failure was not the
 	// token's fault — see storedGrantPresumedDead.
 	if stored == "" || !storedGrantPresumedDead(err) {
-		return portalGrant{}, err
+		return none, err
 	}
 
 	// The stored token is presumed revoked or expired. Drop it, so the next
@@ -128,10 +151,56 @@ func establishPortalGrant(
 
 	grant, err = open(ctx, "")
 	if err != nil {
-		return portalGrant{}, err
+		return none, err
 	}
 
-	persistRestoreToken(store, grant.restoreToken)
+	persistRestoreToken(store, grant.grantRestoreToken())
+
+	return grant, nil
+}
+
+// restorePortalGrant opens a portal grant without ever putting a consent dialog
+// on screen: it presents the stored token and accepts whatever the portal makes
+// of it.
+//
+// This is the variant the capture path uses. A capture runs while the user is
+// waiting for hints to appear, so a dialog there is both a several-second stall
+// and a question asked at the worst possible moment; the prompt belongs to
+// SystemPort.RequestScreenCapturePermission, which runs off the mode handler's
+// lock with a budget sized for a human. With nothing stored there is nothing to
+// present, so the caller is told to ask for consent rather than sent into a
+// handshake whose only possible outcome is a dialog.
+//
+// A token the portal refuses is still dropped. Leaving it would have every
+// later capture replay a credential that cannot work, and the next permission
+// request would present it before falling back to a prompt — one refused round
+// trip in front of a dialog the user is going to see anyway.
+func restorePortalGrant[T portalRestorableGrant](
+	ctx context.Context,
+	store restoreTokenStore,
+	open func(ctx context.Context, restoreToken string) (T, error),
+) (T, error) {
+	var none T
+
+	stored := store.load()
+	if stored == "" {
+		return none, derrors.Wrap(
+			errNoScreenCastConsent,
+			derrors.CodeNotSupported,
+			"the screen cannot be captured until screen sharing is approved once",
+		)
+	}
+
+	grant, err := open(ctx, stored)
+	if err != nil {
+		if storedGrantPresumedDead(err) {
+			_ = store.clear()
+		}
+
+		return none, err
+	}
+
+	persistRestoreToken(store, grant.grantRestoreToken())
 
 	return grant, nil
 }

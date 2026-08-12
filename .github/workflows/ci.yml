@@ -88,7 +88,8 @@ jobs:
                     libei-dev \
                     liboeffis-dev \
                     libtesseract-dev \
-                    tesseract-ocr-eng
+                    tesseract-ocr-eng \
+                    libpipewire-0.3-dev
 
             # Install Devbox on macOS only
             - name: Install Devbox

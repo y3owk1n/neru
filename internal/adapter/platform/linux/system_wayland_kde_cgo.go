@@ -116,7 +116,7 @@ func (s *libeiState) ensureLockedTimeout(timeoutMs int) error {
 // closes it on every path, so nothing here closes it: the portal session is
 // what this function still has to unwind.
 func connectViaPortal(deadline time.Time) (*C.NeruEiClient, func(), error) {
-	store, err := newFileRestoreTokenStore()
+	store, err := newFileRestoreTokenStore(remoteDesktopTokenFileName)
 	if err != nil {
 		return nil, nil, derrors.Wrap(
 			err,

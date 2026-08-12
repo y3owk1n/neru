@@ -40,8 +40,9 @@ wlroots Wayland with a CGO build, with a closed set of macOS-only exemptions.
 
 The two largest open areas:
 
-- **Linux** — screen capture on KDE, which is the one backend the OCR hint
-  strategy cannot reach.
+- **Linux** — Wayland global hotkeys, which need `input`-group membership and a
+  CGO build rather than missing code, and whose remaining work is failing
+  loudly with the remedy.
 - **Windows** — foreground-window and display-hotplug events, which currently
   block per-app config re-application and monitor tracking.
 

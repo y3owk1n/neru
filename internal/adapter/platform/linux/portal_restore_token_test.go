@@ -17,9 +17,9 @@ func storeUnderTempState(t *testing.T) (*fileRestoreTokenStore, string) {
 	state := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", state)
 
-	store, err := newFileRestoreTokenStore()
+	store, err := newFileRestoreTokenStore(remoteDesktopTokenFileName)
 	if err != nil {
-		t.Fatalf("newFileRestoreTokenStore() error = %v", err)
+		t.Fatalf("newFileRestoreTokenStore(remoteDesktopTokenFileName) error = %v", err)
 	}
 
 	return store, filepath.Join(state, "neru")

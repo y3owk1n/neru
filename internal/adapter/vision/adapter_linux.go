@@ -17,8 +17,9 @@ import (
 )
 
 // Linux answers this port with two native pieces: screen capture
-// (wlr-screencopy on wlroots compositors, XGetImage on X11) and tesseract
-// through platform/linux/ocr.c.
+// (wlr-screencopy on wlroots compositors, XGetImage on X11, a PipeWire stream
+// off the portal's ScreenCast session on KDE) and tesseract through
+// platform/linux/ocr.c.
 //
 // It answers the *text* half of the strategy only. macOS runs three Vision
 // requests — text recognition, rectangle detection and saliency — and an OCR
@@ -162,11 +163,11 @@ func (a *Adapter) CaptureScreen(ctx context.Context) (*image.RGBA, error) {
 // taking a frame: a health check that read the user's screen to find out which
 // display server is running would be the wrong trade twice over. That catches
 // the sessions whose label settles it — no display server at all, GNOME, an
-// unrecognized Wayland compositor — and it deliberately does not catch KDE.
-// KWin advertises no wlr-screencopy and so cannot be captured today, but that
-// is a fact about the running compositor rather than about the label, and it is
-// discovered where the rest of the tree discovers it: at the capture, which
-// fails naming KWin (Known Gaps Linux entry 1).
+// unrecognized Wayland compositor — and it deliberately does not catch a KDE
+// session whose screen-sharing consent has not been approved yet. That is a
+// permission rather than a capability, and it is what
+// SystemPort.CheckScreenCapturePermission answers, ahead of the activation, so
+// the user is asked instead of told the strategy is unavailable.
 //
 // The recognition half catches the failure a user can actually fix: tesseract
 // language data is a separate distribution package from the library Neru links,
@@ -219,7 +220,7 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 
 	started := time.Now()
 
-	img, err := platformlinux.CaptureScreenRegion(a.backend(), region)
+	img, err := platformlinux.CaptureScreenRegion(ctx, a.backend(), region)
 	if err != nil {
 		return nil, err
 	}

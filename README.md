@@ -231,8 +231,9 @@ More modes, more engines, more platforms — and it's free. If you've been payin
 **Hints caveats.** On **Linux**, hints work through AT-SPI, so coverage depends
 on the app exposing an accessibility tree (GTK/Qt do; Chromium and Electron apps
 need `--force-renderer-accessibility`). Where that tree is too thin, Vision OCR
-is the fallback — tesseract, text only, and not on KDE, which has no screen
-capture Neru can use. On **Windows**, UI Automation coverage is initial and the
+is the fallback — tesseract, text only, and on KDE behind a one-time
+screen-sharing prompt, because KWin's only pixel source is the desktop portal.
+On **Windows**, UI Automation coverage is initial and the
 tree walk is shallow, per-app config does not re-apply when you change windows,
 and there is no OCR fallback at all. **Linux requires X11 or Wayland on
 wlroots/KWin — GNOME Wayland is not supported**; use a GNOME X11 session.
