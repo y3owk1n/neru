@@ -49,7 +49,9 @@ const (
 // system_notifications.go.
 var (
 	// errSessionBusDialInFlight means a dial was already outstanding and this
-	// dialer refuses rather than adding to it.
+	// dialer refuses rather than adding to it. Only a dialer more than one
+	// caller reaches can produce it, which is why privateBusConnection has no
+	// answer for it and portalBusConnection does.
 	errSessionBusDialInFlight = errors.New("a session-bus dial is already outstanding")
 	// errSessionBusDialAbandoned means the caller's context ran out before the
 	// dial answered. The dial itself carries on — it cannot be canceled — and
@@ -62,14 +64,6 @@ var (
 	errSessionBusDialEmpty = errors.New("the session-bus dial produced no connection")
 )
 
-// privateBusDialer bounds the dial ConnectSessionBus performs. It is separate
-// from the portal's because the two answer to different callers: refusing is
-// right where the keyboard grab is held, and there is no grab behind this one.
-var privateBusDialer = &sessionBusDialer{
-	connect: connectPrivateSessionBus,
-	policy:  awaitTheDialInFlight,
-}
-
 // ConnectSessionBus opens a session-bus connection of the caller's own under
 // the same bound the portal and the notifier dial under, and hands it over for
 // the caller to close.
@@ -80,25 +74,44 @@ var privateBusDialer = &sessionBusDialer{
 // caller that gives up should fall back to whatever it does when there is no
 // bus at all — the failure is the same one, arriving later.
 //
-// A caller arriving while a dial is outstanding waits on it rather than being
-// refused, so a bus that is merely slow does not send a second caller straight
-// to its fallback. The connection it then gets is the first caller's as well:
-// concurrent callers share one, and whichever closes it first closes it for
-// both. A Neru process starts one theme observer, so there is no second caller
-// today — a second use of this needs a connection of its own, which means a
-// dialer of its own rather than a second caller on this one.
+// What this entry point provides is the bound and nothing else. Every caller
+// gets a connection of its own, so the one it is handed to close is never one
+// another caller is also closing. There is deliberately no process-wide cap on
+// the dials started from here: the cap that has to exist is the portal's, over
+// the path that reaches the bus holding the keyboard grab, and it keeps its own
+// dialer to carry it.
 func ConnectSessionBus(ctx context.Context) (*dbus.Conn, error) {
-	return privateBusConnection(ctx, privateBusDialer)
+	return privateBusConnection(ctx, connectPrivateSessionBus)
 }
 
-// privateBusConnection phrases one bounded dial for a caller that owns what it
-// gets.
+// privateBusConnection dials one bounded connection for a caller that owns what
+// it gets, and phrases the ways that ends without one.
 //
-// The refusal is answered even though this dialer waits rather than refusing:
-// a bus that is merely slow reported as one that is not there sends a user
-// looking for a bus they have, and that mistake is one policy field away from
-// being made.
-func privateBusConnection(ctx context.Context, dialer *sessionBusDialer) (*dbus.Conn, error) {
+// The dialer is built here, per call, rather than shared between calls. Sharing
+// one is how the portal caps its dials, but a dialer that waits hands every
+// caller waiting on an outstanding dial the same connection — and a connection
+// two callers each own is a connection each of them closes. The bound survives
+// the per-call dialer whole: the caller still walks away when ctx runs out, and
+// the dial it abandoned still has whatever it eventually produces closed rather
+// than leaked. Only the cross-caller cap goes, which this path never wanted —
+// the theme observer dials once, while the daemon is starting.
+//
+// A dialer with a single caller can never be dialed while a dial is already
+// outstanding, so errSessionBusDialInFlight is not among the outcomes answered
+// here. A refusal is the portal's to phrase, over the dialer that can make one.
+func privateBusConnection(
+	ctx context.Context,
+	connect func() (*dbus.Conn, error),
+) (*dbus.Conn, error) {
+	dialer := &sessionBusDialer{
+		connect: connect,
+		// Inert on a dialer with one caller — there is never an outstanding
+		// dial for that caller to arrive on. It is written rather than left at
+		// its zero value because that value is refuseWhileDialing, which would
+		// read as a refusal this path has no way to make.
+		policy: awaitTheDialInFlight,
+	}
+
 	conn, err := dialer.dial(ctx)
 
 	switch {
@@ -109,11 +122,6 @@ func privateBusConnection(ctx context.Context, dialer *sessionBusDialer) (*dbus.
 			ctx.Err(),
 			derrors.CodeTimeout,
 			"the D-Bus session bus did not accept a connection in time",
-		)
-	case errors.Is(err, errSessionBusDialInFlight):
-		return nil, derrors.New(
-			derrors.CodeTimeout,
-			"an earlier connection to the D-Bus session bus is still unanswered",
 		)
 	default:
 		return nil, derrors.Wrap(err, derrors.CodeNotSupported, "no reachable D-Bus session bus")

@@ -278,15 +278,10 @@ func TestPrivateBusConnection_GivesUpOnAWedgedBusRatherThanHoldingStartup(t *tes
 
 	dials := make(chan struct{}, 1)
 
-	dialer := &sessionBusDialer{
-		policy:  awaitTheDialInFlight,
-		connect: wedgedConnect(dials, release),
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), dialTestBudget)
 	defer cancel()
 
-	conn, err := privateBusConnection(ctx, dialer)
+	conn, err := privateBusConnection(ctx, wedgedConnect(dials, release))
 	if conn != nil {
 		t.Error("privateBusConnection handed back a connection the dial never produced")
 	}
@@ -303,50 +298,76 @@ func TestPrivateBusConnection_GivesUpOnAWedgedBusRatherThanHoldingStartup(t *tes
 // two fallbacks the same one. A session with no bus is an ordinary state on a
 // minimal setup, and the theme observer polls either way.
 func TestPrivateBusConnection_ReportsAnAbsentBusAsUnsupported(t *testing.T) {
-	dialer := &sessionBusDialer{
-		policy:  awaitTheDialInFlight,
-		connect: func() (*dbus.Conn, error) { return nil, errNoBus },
-	}
-
-	_, err := privateBusConnection(context.Background(), dialer)
+	_, err := privateBusConnection(
+		context.Background(),
+		func() (*dbus.Conn, error) { return nil, errNoBus },
+	)
 	if !derrors.IsNotSupported(err) {
 		t.Errorf("privateBusConnection = %v (code %q), want %q",
 			err, derrors.GetCode(err), derrors.CodeNotSupported)
 	}
 }
 
-// TestPrivateBusConnection_DoesNotCallAStuckBusAnAbsentOne separates the two
-// answers a caller would act on differently. Nothing dials this with the
-// refusing policy today, and the point is that switching it to one could not
-// start telling a user their session bus is missing when it is merely slow.
-func TestPrivateBusConnection_DoesNotCallAStuckBusAnAbsentOne(t *testing.T) {
+// TestPrivateBusConnection_GivesConcurrentCallersConnectionsOfTheirOwn is the
+// ownership rule this entry point is built around. What it hands back is the
+// caller's to close, so two callers handed one connection would be two callers
+// closing it — the dialer is therefore built per call, and never shared, which
+// a caller waiting on somebody else's outstanding dial would undo.
+func TestPrivateBusConnection_GivesConcurrentCallersConnectionsOfTheirOwn(t *testing.T) {
 	release := make(chan struct{})
-	defer close(release)
+	dials := make(chan struct{}, 2)
 
-	dials := make(chan struct{}, 1)
-
-	dialer := &sessionBusDialer{
-		policy:  refuseWhileDialing,
-		connect: wedgedConnect(dials, release),
+	// One connection per dial, so a caller handed somebody else's shows up as
+	// the same pointer twice rather than as anything subtler.
+	owned := make(chan *dbus.Conn, 2)
+	for range 2 {
+		owned <- openConn(t)
 	}
 
-	stuck, cancelStuck := context.WithTimeout(context.Background(), dialTestBudget)
-	defer cancelStuck()
+	connect := func() (*dbus.Conn, error) {
+		dials <- struct{}{}
 
-	_, _ = privateBusConnection(stuck, dialer)
+		<-release
 
+		select {
+		case conn := <-owned:
+			return conn, nil
+		default:
+			return nil, errNoBus
+		}
+	}
+
+	results := make(chan *dbus.Conn, 2)
+
+	for range 2 {
+		go func() {
+			conn, err := privateBusConnection(context.Background(), connect)
+			if err != nil {
+				results <- nil
+
+				return
+			}
+
+			results <- conn
+		}()
+	}
+
+	// Both dials have to be outstanding at once for the sharing this guards
+	// against to be possible at all: a caller that joined the other's dial
+	// would never start a second one.
 	awaitDial(t, dials)
 
-	refused, cancelRefused := context.WithTimeout(context.Background(), dialTestBudget)
-	defer cancelRefused()
-
-	_, err := privateBusConnection(refused, dialer)
-	if derrors.IsNotSupported(err) {
-		t.Errorf("a refused caller was told %q, which reads as a session with no bus", err)
+	select {
+	case <-dials:
+	case <-time.After(dialTestLimit):
+		t.Fatal("the second caller waited on the first caller's dial rather than starting its own")
 	}
 
-	if !derrors.IsCode(err, derrors.CodeTimeout) {
-		t.Errorf("a refused caller got code %q, want %q", derrors.GetCode(err), derrors.CodeTimeout)
+	close(release)
+
+	first, second := awaitConn(t, results), awaitConn(t, results)
+	if first == second {
+		t.Error("two concurrent callers were handed one connection, which each of them closes")
 	}
 }
 
@@ -376,6 +397,25 @@ func awaitWaiters(t *testing.T, dialer *sessionBusDialer, want int) {
 	}
 
 	t.Fatalf("fewer than %d callers ever waited on the outstanding dial", want)
+}
+
+// awaitConn takes one caller's connection off results, failing rather than
+// hanging when the caller was answered with no connection or not at all.
+func awaitConn(t *testing.T, results <-chan *dbus.Conn) *dbus.Conn {
+	t.Helper()
+
+	select {
+	case conn := <-results:
+		if conn == nil {
+			t.Fatal("a caller was answered without a connection")
+		}
+
+		return conn
+	case <-time.After(dialTestLimit):
+		t.Fatal("a caller was never answered")
+
+		return nil
+	}
 }
 
 // awaitClosed waits for the dialer to close a connection it was left holding
