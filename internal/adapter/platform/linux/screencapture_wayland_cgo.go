@@ -21,11 +21,11 @@ import (
 
 // wlrootsCaptureRegion reads region back through wlr-screencopy-unstable-v1.
 //
-// backend names the compositor family in the error, which matters most for the
-// one that reaches here and cannot answer: KWin implements no screencopy
-// protocol Neru can use, so KDE Plasma sessions get a CodeNotSupported saying
-// so rather than a bare failure.
-func wlrootsCaptureRegion(region image.Rectangle, backend string) (*image.RGBA, error) {
+// Only the wlroots family reaches here. KWin shares this client stack for
+// everything else — wl_output, xdg-output, layer shell — but advertises no
+// screencopy manager, so CaptureScreenRegion sends KDE to the portal backend
+// before this branch is considered.
+func wlrootsCaptureRegion(region image.Rectangle) (*image.RGBA, error) {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return nil, derrors.New(
 			derrors.CodeNotSupported,
@@ -45,7 +45,7 @@ func wlrootsCaptureRegion(region image.Rectangle, backend string) (*image.RGBA, 
 	)
 
 	if status != C.NERU_CAPTURE_OK {
-		return nil, captureError(captureStatus(status), captureCompositorLabel(backend))
+		return nil, captureError(captureStatus(status), captureLabelCompositor)
 	}
 
 	return captureResult(&capture)

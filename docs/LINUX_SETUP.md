@@ -134,8 +134,8 @@ Neru links `libei` and `liboeffis` at build time (KDE and future libei-based
 Wayland paths). Install the `-dev`/`-devel` packages below even if you only test
 on wlroots compositors today.
 
-Two of them are for the `vision` hint strategy, and both are required rather
-than optional. **tesseract** is what recognizes on-screen text when an
+Three of them are for reading what is on screen, and all three are required
+rather than optional. **tesseract** is what recognizes on-screen text when an
 application's AT-SPI tree is too thin to hint from, and Neru links it
 dynamically — a missing `libtesseract.so` stops the daemon before any Neru code
 runs, whatever `hints.strategy` is set to. Its **English language data** is a
@@ -144,6 +144,14 @@ use: without it Neru starts normally and `hints.strategy = vision` reports that
 `eng.traineddata` is missing rather than silently finding nothing. If you keep
 your language data somewhere else — a `tessdata_fast` checkout, say — point
 `TESSDATA_PREFIX` at it and Neru will prefer that.
+
+**pipewire** is how a KDE Plasma session hands over the pixels tesseract then
+reads. KWin implements no screencopy protocol, so capture there goes through
+`xdg-desktop-portal`'s ScreenCast session and its frames arrive over PipeWire.
+It is linked the same way and carries the same consequence — a missing
+`libpipewire-0.3.so` stops the daemon on every desktop, not only on KDE. On KDE
+you also approve screen sharing once, the first time a vision-strategy hint
+activation needs it; the grant is remembered across restarts.
 
 ### Debian / Ubuntu
 
@@ -162,6 +170,7 @@ sudo apt-get install -y \
   libfontconfig-dev \
   libtesseract-dev \
   tesseract-ocr-eng \
+  libpipewire-0.3-dev \
   wayland-protocols \
   fonts-dejavu-core
 ```
@@ -183,6 +192,7 @@ sudo dnf install -y \
   fontconfig-devel \
   tesseract-devel \
   tesseract-langpack-eng \
+  pipewire-devel \
   wayland-protocols-devel \
   dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
 ```
@@ -203,6 +213,7 @@ sudo pacman -S \
   fontconfig \
   tesseract \
   tesseract-data-eng \
+  libpipewire \
   wayland-protocols \
   ttf-dejavu
 ```

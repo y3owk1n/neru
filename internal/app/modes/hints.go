@@ -358,6 +358,12 @@ func (h *Handler) resumeHintActivationAfterPermission(
 	case ports.ScreenCaptureQuit:
 		h.shutdown()
 	case ports.ScreenCaptureCanceled:
+		// Canceled is the platform's answer for "the user said no" *and* for a
+		// permission gate that could not be reached at all — a stopped
+		// xdg-desktop-portal on KDE, say — because the consent vocabulary has no
+		// third word for it. Leaving the mode without a line would make the two
+		// indistinguishable from a hint activation that silently did nothing.
+		h.logger.Info("Screen capture was not permitted; leaving hints mode")
 		h.exitMode()
 	case ports.ScreenCaptureGranted:
 		// A Granted consent implies the check now passes (the SystemPort

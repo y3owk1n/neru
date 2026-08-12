@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"context"
 	"image"
 	"strings"
 	"testing"
@@ -120,7 +121,11 @@ func TestCaptureScreenRegion_UnknownBackendReportsNotSupported(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			img, err := CaptureScreenRegion(testCase.backend, image.Rect(0, 0, 10, 10))
+			img, err := CaptureScreenRegion(
+				context.Background(),
+				testCase.backend,
+				image.Rect(0, 0, 10, 10),
+			)
 			if err == nil {
 				t.Fatal("CaptureScreenRegion returned nil error for a backend with no capture path")
 			}
@@ -154,10 +159,15 @@ func TestCaptureScreenRegion_UnknownBackendReportsNotSupported(t *testing.T) {
 func TestCaptureScreenRegion_HeadlessSessionFailsLoudly(t *testing.T) {
 	t.Setenv("DISPLAY", "")
 	t.Setenv("WAYLAND_DISPLAY", "")
+	// KDE reads its pixels through the portal rather than the display server, so
+	// "headless" for that backend means no stored screen-sharing grant. Pointing
+	// the state directory at a throwaway guarantees that, on a developer machine
+	// that has one as much as on the CI runner that does not.
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
 	for _, backend := range []string{"x11", "wayland-wlroots", "wayland-kde"} {
 		t.Run(backend, func(t *testing.T) {
-			img, err := CaptureScreenRegion(backend, image.Rect(0, 0, 10, 10))
+			img, err := CaptureScreenRegion(context.Background(), backend, image.Rect(0, 0, 10, 10))
 			if err == nil {
 				t.Fatal("CaptureScreenRegion succeeded with no display server")
 			}
@@ -174,11 +184,8 @@ func TestCaptureScreenRegion_HeadlessSessionFailsLoudly(t *testing.T) {
 // and the ones that mean "this display server will never do this" have to be
 // CodeNotSupported so callers degrade instead of retrying.
 //
-// The KDE row is the load-bearing one. KWin advertises no
-// zwlr_screencopy_manager_v1, so a KDE session lands on captureStatusNoProtocol,
-// and three documents — the capability matrix, Known Gaps and
-// LINUX_DESKTOPS.md — state that it names itself there. Nothing in this
-// repository can run KWin, so this pins the sentence rather than the session.
+// Nothing in this repository can run any of the three display servers these
+// sentences describe, so this pins the sentence rather than the session.
 func TestCaptureError(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -188,16 +195,9 @@ func TestCaptureError(t *testing.T) {
 		wantSubstring    string
 	}{
 		{
-			name:             "KDE implements no screencopy protocol",
-			status:           captureStatusNoProtocol,
-			what:             captureCompositorLabel(backendWaylandKDE),
-			wantNotSupported: true,
-			wantSubstring:    captureLabelKDE,
-		},
-		{
 			name:             "a compositor missing the protocol says which protocol",
 			status:           captureStatusNoProtocol,
-			what:             captureCompositorLabel(backendWaylandWlroots),
+			what:             captureLabelCompositor,
 			wantNotSupported: true,
 			wantSubstring:    "wlr-screencopy-unstable-v1",
 		},

@@ -28,6 +28,13 @@
   # $out/share/tessdata, and the wrapper below is what points neru at it — a Nix
   # store path is not somewhere the runtime search of /usr/share could find.
   tesseract,
+  # pipewire is how KDE Plasma sessions read the screen. KWin implements no
+  # screencopy protocol, so capture there goes through xdg-desktop-portal's
+  # ScreenCast session and its frames arrive over PipeWire. Like tesseract it is
+  # required rather than optional: neru links libpipewire-0.3 dynamically, so a
+  # missing library stops the daemon before any neru code runs, whatever desktop
+  # it was started on.
+  pipewire,
   version ? "main",
   useZip ? false,
   commitHash ? null,
@@ -104,6 +111,7 @@ if useZip then
       libxtst
       libxi
       tesseract
+      pipewire
     ];
 
     installPhase = ''
@@ -221,6 +229,7 @@ else
         libxtst
         libxi
         tesseract
+        pipewire
       ]
       ++ lib.optionals stdenv.hostPlatform.isDarwin [
         apple-sdk_15

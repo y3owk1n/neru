@@ -521,18 +521,49 @@ func (s *SystemAdapter) ShowNotification(ctx context.Context, title, message str
 	return ShowNotification(ctx, title, message)
 }
 
-// CheckScreenCapturePermission reports true: Linux does not gate screen capture
-// behind a permission.
+// CheckScreenCapturePermission reports whether the screen can be read right
+// now, without prompting.
+//
+// Two of the three Linux backends have no gate at all and report true, which is
+// the "this platform has no such gate" answer ports/system.go specifies rather
+// than a silent no-op: X11 reads the root window back and the wlroots family
+// implements wlr-screencopy, and a client already trusted with the session
+// needs no further permission for either.
+//
+// KDE Plasma is the exception and the reason this method stopped answering
+// unconditionally. KWin implements no screencopy protocol, so capture goes
+// through xdg-desktop-portal's ScreenCast session — which *is* a consent gate,
+// and a preflight that reported it open regardless would leave the one Linux
+// backend with a permission the only one whose permission was never checked.
+//
+// A build with no native backends compiled in has no gate either, because it
+// has no capture: the refusal belongs to the capture, which names CGO, rather
+// than to a consent prompt that could not help.
 func (s *SystemAdapter) CheckScreenCapturePermission(_ context.Context) bool {
-	return true
+	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+		return true
+	}
+
+	return screenCastConsentHeld()
 }
 
-// RequestScreenCapturePermission reports granted without prompting: Linux has no
-// screen-recording permission to request.
+// RequestScreenCapturePermission establishes KDE's screen-sharing consent and
+// reports what the user chose; on every other Linux backend it reports granted
+// without showing anything, because there is nothing to ask for.
+//
+// On KDE it runs the ScreenCast handshake, which shows the portal's source
+// picker when there is no stored grant to restore and shows nothing when there
+// is. It blocks — the caller is contractually required not to hold a lock
+// across it — and it is where the whole prompt budget is spent, so that no
+// capture ever waits on a dialog.
 func (s *SystemAdapter) RequestScreenCapturePermission(
-	_ context.Context,
+	ctx context.Context,
 ) ports.ScreenCaptureConsent {
-	return ports.ScreenCaptureGranted
+	if s.backend != backendWaylandKDE || !nativeBackendsCompiledIn {
+		return ports.ScreenCaptureGranted
+	}
+
+	return requestScreenCastConsent(ctx)
 }
 
 // capabilityProbeTimeout bounds how long a single capability probe may take

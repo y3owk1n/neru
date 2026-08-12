@@ -8,33 +8,37 @@ import (
 	"strings"
 )
 
-// Persistence for the RemoteDesktop portal's restore token.
+// Persistence for a portal session's restore token.
 //
-// The token is what turns KDE's "Remote Control" consent prompt from a
-// per-start interruption into a one-time grant: the portal hands one back when
-// a session is started with persist_mode set, and a later session that presents
-// it is restored without asking the user again.
+// The token is what turns KDE's consent prompt from a per-start interruption
+// into a one-time grant: the portal hands one back when a session is started
+// with persist_mode set, and a later session that presents it is restored
+// without asking the user again.
 //
-// It is a credential, and it is treated as one. Presenting the token replays a
-// grant that lets its holder move the pointer and press keys in this user's
-// session, so it is written owner-readable only, under the user's own state
-// directory, and it is never logged, never put in an error message, and never
-// reported through `neru doctor`. Nothing in this file or its callers formats
-// the value into anything a human or a log file will see.
+// There are two of them, one per grant, because there are two consents. The
+// RemoteDesktop token replays permission to move the pointer and press keys;
+// the ScreenCast token replays permission to read the screen. Storing them in
+// one file would mean a user who revokes one silently losing the other, and
+// would tie two dialogs together that KDE deliberately asks separately.
+//
+// A token is a credential, and it is treated as one. Presenting one replays a
+// grant over this user's session, so it is written owner-readable only, under
+// the user's own state directory, and it is never logged, never put in an error
+// message, and never reported through `neru doctor`. Nothing in this file or
+// its callers formats the value into anything a human or a log file will see.
 const (
 	// restoreTokenFileMode keeps the token readable by its owner alone.
 	restoreTokenFileMode os.FileMode = 0o600
 	// restoreTokenDirMode keeps the directory holding it owner-only too, so a
 	// token is not discoverable by listing the directory either.
 	restoreTokenDirMode os.FileMode = 0o700
-	// restoreTokenFileName is the token's file inside Neru's state directory.
-	// XDG_STATE_HOME is the right base: the token is state that should survive
-	// a restart, is specific to this machine's portal, and is neither
+	// remoteDesktopTokenFileName holds the input grant's token, and
+	// screenCastTokenFileName the capture grant's, inside Neru's state
+	// directory. XDG_STATE_HOME is the right base: a token is state that should
+	// survive a restart, is specific to this machine's portal, and is neither
 	// configuration the user edits nor data worth carrying to another host.
-	restoreTokenFileName = "remote-desktop.token"
-	// restoreTokenTempPattern names the temporary file a save writes before
-	// renaming it into place.
-	restoreTokenTempPattern = ".remote-desktop.token.*"
+	remoteDesktopTokenFileName = "remote-desktop.token"
+	screenCastTokenFileName    = "screen-cast.token"
 )
 
 // restoreTokenStore holds the portal grant's restore token across daemon
@@ -60,18 +64,18 @@ type fileRestoreTokenStore struct {
 
 var _ restoreTokenStore = (*fileRestoreTokenStore)(nil)
 
-// newFileRestoreTokenStore resolves the token's path from the XDG base
+// newFileRestoreTokenStore resolves fileName's path from the XDG base
 // directories, honoring XDG_STATE_HOME exactly as LogDir does. It creates
 // nothing: the directory is made on the first save, so a session that never
 // reaches the portal leaves no trace.
-func newFileRestoreTokenStore() (*fileRestoreTokenStore, error) {
+func newFileRestoreTokenStore(fileName string) (*fileRestoreTokenStore, error) {
 	base, err := xdgDir("XDG_STATE_HOME", ".local", "state")
 	if err != nil {
 		return nil, err
 	}
 
 	return &fileRestoreTokenStore{
-		path: filepath.Join(base, "neru", restoreTokenFileName),
+		path: filepath.Join(base, "neru", fileName),
 	}, nil
 }
 
@@ -102,7 +106,9 @@ func (s *fileRestoreTokenStore) save(token string) error {
 		return err
 	}
 
-	temp, err := os.CreateTemp(dir, restoreTokenTempPattern)
+	// The temporary file is named after the token it will become, so two stores
+	// saving at once cannot collide and a leftover is traceable to its grant.
+	temp, err := os.CreateTemp(dir, "."+filepath.Base(s.path)+".*")
 	if err != nil {
 		return err
 	}

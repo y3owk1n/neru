@@ -119,19 +119,21 @@ func LinuxCapabilities() PlatformCapabilities {
 				"key stream, so dead keys and IME composition do not reach it; " +
 				"the overlay draws the search badge",
 		),
-		// Both halves are implemented: capture through wlr-screencopy or
-		// XGetImage, recognition through tesseract. The detail names the three
-		// things that can still be missing on a given machine — a KWin session
-		// has no capture path, the tesseract language data is a separate
+		// Both halves are implemented on every backend: capture through
+		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
+		// recognition through tesseract. The detail names the three things that
+		// can still be missing on a given machine — KDE's screen-sharing consent
+		// has to be approved once, the tesseract language data is a separate
 		// distribution package from the library Neru links, and the CGO-off
 		// build has no engine — because this preset is static and `neru doctor`
 		// reports it without probing. VisionPort.Health answers the same
 		// question for the live session, and names which one it is.
 		Vision: supportedCapability(
 			"vision element detection via tesseract OCR over a screen capture " +
-				"(wlr-screencopy on wlroots, XGetImage on X11, unavailable on KWin); " +
-				"text only, with no rectangle detection; needs a cgo build and the " +
-				"tesseract eng language data installed",
+				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
+				"ScreenCast session on KDE, which asks for screen-sharing consent " +
+				"once); text only, with no rectangle detection; needs a cgo build " +
+				"and the tesseract eng language data installed",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via a uinput virtual keyboard when /dev/uinput is " +

@@ -65,7 +65,7 @@ reference implementation, and a gap on this platform is a bug.
 
 **Beta** — good for daily driving. Every navigation mode works and behaves the
 same as it does on a stable platform; what is missing sits around the edges
-(a few animations, a KDE-only capture gap) rather than in your way.
+(a few animations, a setup step for Wayland hotkeys) rather than in your way.
 
 **Alpha** — worth trying, not yet worth switching to. Core navigation works, but
 hint coverage is incomplete and per-app config does not re-apply on focus
@@ -163,8 +163,8 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **System cursor hide**        | ✅ `CGDisplayHideCursor` | ➖                     | ➖                           | ➖                      | ➖                           |
 | **`monitor_select` mode**     | ✅ native panels         | ✅ Cairo panels        | ✅ Cairo panels              | ✅ Cairo panels         | 🟡 `CodeNotSupported`        |
 | **Native hint-search field**  | ✅ NSTextField overlay   | 🟡 key-stream input ⁵  | 🟡 key-stream input ⁵        | 🟡 key-stream input ⁵   | 🟡 key-stream input ⁵        |
-| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ❌ ⁶                    | ❌                           |
-| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌ no capture (entry 1) | ❌                           |
+| **Screen capture**            | ✅ ScreenCaptureKit      | ✅ `XGetImage`         | ✅ `wlr-screencopy`          | ⚠️ portal ScreenCast, consent ⁶ | ❌                   |
+| **Vision / OCR detection**    | ✅ Vision framework      | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ⚠️ tesseract, text only ⁷ | ❌                           |
 | **Key feed (`neru key`)**     | ✅ `CGEventPost`         | ✅ uinput               | ✅ uinput / virtual-keyboard | ✅ uinput               | 🟡 `CodeNotSupported`        |
 | **Service management (`neru services`)** | ✅ launchd user agent | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | ⚠️ systemd user unit only ³ | 🟡 `CodeNotSupported` |
 
@@ -275,22 +275,35 @@ X11 reads the root window back with `XGetImage`; wlroots-family compositors
 implement `wlr-screencopy-unstable-v1`, which needs no consent because the
 client is already trusted with the session.
 
-**KWin implements neither**, and its only pixel source is the portal's
-ScreenCast session, which delivers frames over PipeWire — a required system
-library Neru does not link and a build-dependency change beyond this row. KDE
-Plasma therefore reports `CodeNotSupported` naming itself, and it is
-[Known Gaps](#known-gaps) Linux entry 1. Capture is a **region** operation on
-both implemented backends: the caller's rectangle is what gets read back, so
-constraining detection to the focused window costs a window rather than a
-display.
+**KWin implements neither**, so KDE Plasma is the one backend that pays the
+portal: its pixels come from an `org.freedesktop.portal.ScreenCast` session,
+delivered over PipeWire (`libpipewire-0.3`, a required
+[build dependency](./LINUX_SETUP.md#build-dependencies) on every Linux
+install). That is the ⚠️ in the row, and it is a **permission** rather than a
+missing capability — which is why `CheckScreenCapturePermission` and
+`RequestScreenCapturePermission` report the portal's real consent state there
+and report "no gate" on X11 and wlroots. The prompt is paid **once**: the grant
+is persisted with a restore token in
+`$XDG_STATE_HOME/neru/screen-cast.token`, restored silently on every later
+start, and it is never asked for by a capture — the mode handler's permission
+preflight is the only thing that can raise a dialog, and it runs off its lock
+with a budget sized for a human. Sources are requested as monitors with the
+cursor left out; windows are not asked for, because a window stream carries no
+position and a region has to be placeable.
+
+Capture is a **region** operation on all three backends: the caller's rectangle
+is what gets read back, so constraining detection to the focused window costs a
+window rather than a display.
 
 What comes back covers **exactly** the region asked for, and that is enforced
 rather than hoped for: a rectangle that leaves the screen, that is degenerate,
-or that spans two monitors on Wayland (`wlr-screencopy` captures one output)
-**fails** instead of coming back clipped. A clipped frame carries nothing that
-says where its own top-left is, so a caller could no longer map a pixel back to
-a screen coordinate — and a caller asking for one window must never silently
-receive the whole display.
+or that spans two monitors on Wayland (`wlr-screencopy` captures one output,
+and a ScreenCast stream is one monitor) **fails** instead of coming back
+clipped. A clipped frame carries nothing that says where its own top-left is,
+so a caller could no longer map a pixel back to a screen coordinate — and a
+caller asking for one window must never silently receive the whole display. On
+KDE a region on a monitor the user chose **not** to share fails the same way,
+and says so.
 
 One thing to know before reading a frame: on a scaled Wayland output the
 compositor answers in **physical pixels**, so it can be larger than the logical
@@ -958,18 +971,7 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. Screen capture on KDE — X11 (`XGetImage`) and the wlroots family
-   (`wlr-screencopy-unstable-v1`) capture real pixels and honor a region, so
-   the blessed stack is done. KWin implements no screencopy protocol Neru can
-   use and reports `CodeNotSupported` naming itself. Its only pixel source is
-   the portal's ScreenCast session, whose frames arrive over PipeWire — a new
-   required system library, so closing this adds `libpipewire-0.3` to the Linux
-   dependency list, the packaging and the CI images. It may reuse the
-   RemoteDesktop session the input path already holds, which persists its grant
-   with a restore token and so has already paid the consent prompt. It is also
-   what keeps the `vision` hint strategy off KDE: the engine is linked on every
-   backend, and KWin is the one with no pixels to hand it
-2. Wayland global hotkeys — a setup requirement rather than missing code: they
+1. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
 

@@ -88,8 +88,11 @@ type SystemPort interface {
 	// CheckScreenCapturePermission reports whether screen recording is
 	// permitted, without prompting.
 	//
-	// Only the vision hint strategy needs this, and only macOS gates screen
-	// capture behind a permission — platforms with no such gate report true.
+	// Only the vision hint strategy needs this. Two backends gate screen
+	// capture: macOS behind TCC, and KDE Plasma behind the xdg-desktop-portal
+	// ScreenCast grant its compositor leaves as the only way to read the
+	// screen. Everywhere else — X11, wlroots, Windows — there is no such gate
+	// and the answer is true, which is a statement rather than a silent no-op.
 	CheckScreenCapturePermission(ctx context.Context) bool
 
 	// RequestScreenCapturePermission shows the platform's guidance for
@@ -98,6 +101,11 @@ type SystemPort interface {
 	// It blocks on a modal dialog, so callers must not hold a lock across it.
 	// Platforms with no permission gate return ScreenCaptureGranted without
 	// showing anything.
+	//
+	// It is also the only place a gated backend may put a consent prompt on
+	// screen: a capture runs while the user waits for a mode to open, so the
+	// prompt belongs here, where the caller has already taken it off its lock
+	// and given it a budget sized for a human.
 	//
 	// Returning ScreenCaptureGranted implies a subsequent
 	// CheckScreenCapturePermission reports true — callers retry a blocked

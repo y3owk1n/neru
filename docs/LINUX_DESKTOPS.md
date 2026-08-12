@@ -65,11 +65,13 @@ Re-measure with the one-liner under
 
 `zwlr_screencopy_manager_v1` is absent here too — KWin's own capture path is
 `zkde_screencast_unstable_v1` and the portal's ScreenCast session, both of which
-deliver frames over PipeWire. Screen capture therefore reports
-`CodeNotSupported` naming KDE Plasma; it is
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) Linux entry 1. That claim is read
-from KWin's protocol set rather than taken from the measured session above; the
-one-liner below now greps for it, so you can confirm it on your own KWin.
+deliver frames over PipeWire. Neru therefore captures the screen here through
+`org.freedesktop.portal.ScreenCast`, which is a consent gate rather than a
+protocol Neru can simply bind: see
+[Screen-sharing consent](#screen-sharing-consent) below. That claim about the
+protocol set is read from KWin rather than taken from the measured session
+above; the one-liner below now greps for it, so you can confirm it on your own
+KWin.
 
 ### Setup notes (beyond LINUX_SETUP.md)
 
@@ -95,7 +97,33 @@ one-liner below now greps for it, so you can confirm it on your own KWin.
     | Scroll         | `/home/<you>/.local/bin/neru scroll`         |
 
 3. **Portal services** — input needs `xdg-desktop-portal` and
-   `xdg-desktop-portal-kde` running in the session.
+   `xdg-desktop-portal-kde` running in the session. So does screen capture.
+
+### Screen-sharing consent
+
+KWin has no screencopy protocol, so `hints.strategy = vision` reads the screen
+through the portal's ScreenCast session — a second, separate grant from the
+"Remote Control" one above, because sharing your screen and driving your
+pointer are two different permissions and KDE asks them separately.
+
+The prompt appears the first time a vision-strategy hint activation needs a
+frame, not at startup, and it is a source picker rather than a yes/no dialog.
+Pick every screen you are willing to have read: a region on a screen you did
+not share fails rather than coming back cropped, and Neru asks for monitors
+only — never windows — because only a monitor stream says where on screen its
+pixels are. The pointer is left out of the frames.
+
+Approve it once. Neru asks the portal to persist the session and keeps the
+restore token in `$XDG_STATE_HOME/neru/screen-cast.token`
+(`~/.local/state/neru/…` by default), readable by you alone, so later starts
+restore the same grant with no picker. Deleting that file, or revoking the
+permission in **System Settings → Apps & Window Management → Application
+Permissions**, brings the picker back. No capture ever raises the dialog by
+itself — a hint refresh that finds no grant fails and says a grant is needed.
+
+The session is established once and reused; the PipeWire connection under it is
+opened per capture and closed with it, so KWin is not streaming your screen
+between the frames Neru actually reads.
 
 ### Known issues
 
