@@ -173,8 +173,11 @@ func x11MouseUpAtPoint(
 	return x11MouseButtonAtPoint(point, modifiers, x11Button(button), false, false)
 }
 
-// x11MouseUp releases button at the cursor, then releases modifiers — the set
-// its press is holding, which nothing else will undo.
+// x11MouseUp releases button at the cursor and undoes the hold its press took —
+// the modifiers that press is presenting, which nothing else will undo.
+//
+// modifiers is what the caller believes the press is holding, and is used only
+// when this connection finds no press to pick up from.
 func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	display, err := x11ActionDisplay()
 	if err != nil {
@@ -182,8 +185,11 @@ func x11MouseUp(button action.MouseButton, modifiers action.Modifiers) error {
 	}
 	defer C.neru_ax_close_display(display)
 
-	// Runs before the display is closed: defers unwind last-in first-out.
-	defer x11ReleaseModifiers(display, modifiers)
+	// Taken before the button event so the release still goes out under the
+	// modifiers the press presented, and undone after it. Runs before the
+	// display is closed: defers unwind last-in first-out.
+	hold := x11ResumeModifierHold(display, x11Button(button), modifiers)
+	defer hold.release()
 
 	if C.neru_ax_button(display, x11Button(button), 0) == 0 {
 		return derrors.Newf(
@@ -382,8 +388,14 @@ func x11ClickButtonAtPoint(
 	defer C.neru_ax_close_display(display)
 
 	original := x11CurrentCursorPosition()
-	x11PressModifiers(display, modifiers)
-	defer x11ReleaseModifiers(display, modifiers)
+
+	// An X11 button event carries whatever the server records as down rather
+	// than a set the sender chooses, so the click presents exactly this set:
+	// a modifier the user's hand is on is suppressed for the length of the
+	// click, and one they are holding is left held afterwards. Runs before the
+	// display is closed: defers unwind last-in first-out.
+	hold := x11HoldModifiers(display, modifiers)
+	defer hold.release()
 
 	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
 		return derrors.Newf(
@@ -423,21 +435,29 @@ func x11MouseButtonAtPoint(
 	defer C.neru_ax_close_display(display)
 
 	original := x11CurrentCursorPosition()
-	x11PressModifiers(display, modifiers)
 
-	// Only release modifiers within this function for mouse-up events.
-	// For mouse-down (isDown=true), modifiers must stay held until the
-	// corresponding mouse-up call; releasing them here would break
-	// modifier+drag operations (e.g. Shift+drag).
-	if !isDown {
-		defer x11ReleaseModifiers(display, modifiers)
+	// A press takes the hold; a release picks up the one its press took, so
+	// both events and the drag between them present the same modifiers.
+	//
+	// A press keeps its hold until that release — undoing it here would make a
+	// modified drag unmodified from its first pixel of movement — so only a
+	// release undoes it on the way out. That defer runs before the display is
+	// closed: defers unwind last-in first-out.
+	var hold x11ModifierHold
+
+	if isDown {
+		hold = x11HoldModifiers(display, modifiers)
+	} else {
+		hold = x11ResumeModifierHold(display, button, modifiers)
+
+		defer hold.release()
 	}
 
 	if C.neru_ax_move_pointer(display, C.int(point.X), C.int(point.Y)) == 0 {
-		// If we failed to move and modifiers are held for a mouse-down,
-		// release them now to avoid stuck modifier keys.
+		// Nothing will come to release a press that never happened, so a
+		// failure has to undo its own hold rather than leave keys stuck.
 		if isDown {
-			x11ReleaseModifiers(display, modifiers)
+			hold.release()
 		}
 
 		return derrors.Newf(
@@ -454,15 +474,21 @@ func x11MouseButtonAtPoint(
 	}
 
 	if C.neru_ax_button(display, button, C.int(pressed)) == 0 {
-		// Release modifiers on failure to avoid stuck keys.
+		// Same as above: no release is coming, so undo the hold here.
 		if isDown {
-			x11ReleaseModifiers(display, modifiers)
+			hold.release()
 		}
 
 		return derrors.New(
 			derrors.CodeActionFailed,
 			"failed to dispatch X11 mouse button event",
 		)
+	}
+
+	// The press succeeded, so its hold outlives this call and this connection:
+	// the release picks it up from here.
+	if isDown {
+		hold.keepForRelease(button)
 	}
 
 	if restoreCursor {
@@ -489,42 +515,4 @@ func x11ActionDisplay() (*C.Display, error) {
 	}
 
 	return display, nil
-}
-
-// x11PressModifiers presents modifiers additively: it presses the named set and
-// says nothing about what else the keyboard is holding, so an injected click
-// still carries a modifier the user's hand is on, and the release below still
-// lets go of one they are holding themselves.
-//
-// The scroll path no longer uses this pair — it takes an x11ModifierHold, which
-// presents exactly the named set — and the click paths still do. Converting
-// them is the same shape of change and belongs to its own.
-func x11PressModifiers(display *C.Display, modifiers action.Modifiers) {
-	if modifiers.Has(action.ModShift) {
-		C.neru_ax_press_modifier(display, C.XK_Shift_L)
-	}
-	if modifiers.Has(action.ModCtrl) {
-		C.neru_ax_press_modifier(display, C.XK_Control_L)
-	}
-	if modifiers.Has(action.ModAlt) {
-		C.neru_ax_press_modifier(display, C.XK_Alt_L)
-	}
-	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_press_modifier(display, C.XK_Super_L)
-	}
-}
-
-func x11ReleaseModifiers(display *C.Display, modifiers action.Modifiers) {
-	if modifiers.Has(action.ModCmd) {
-		C.neru_ax_release_modifier(display, C.XK_Super_L)
-	}
-	if modifiers.Has(action.ModAlt) {
-		C.neru_ax_release_modifier(display, C.XK_Alt_L)
-	}
-	if modifiers.Has(action.ModCtrl) {
-		C.neru_ax_release_modifier(display, C.XK_Control_L)
-	}
-	if modifiers.Has(action.ModShift) {
-		C.neru_ax_release_modifier(display, C.XK_Shift_L)
-	}
 }

@@ -115,6 +115,63 @@ func (h x11ModifierHold) release() {
 	}
 }
 
+// x11DragModifiers is the hold a mouse-down took, kept until the mouse-up that
+// ends the drag comes to undo it.
+//
+// It is package state because the two calls share nothing else: a press opens a
+// display, presses, injects and closes it, and the release opens its own. What
+// crosses that boundary is a plan of X keycodes, which name keys on the display
+// server rather than on the connection that read them — the same keycode
+// releases the same key on the next connection.
+var x11DragModifiers modifierstate.Stash
+
+// keepForRelease keeps this hold for the release of button to pick up, instead
+// of undoing it when the call that took it returns. button is the X11 button
+// number the press injected, which is what the release has to hand back.
+//
+// A press has to keep presenting its modifiers for as long as the button is
+// down, because the drag in between is what carries them: releasing them at the
+// end of the press would make a shift+drag an unmodified one from the first
+// pixel of movement.
+//
+// That makes the window a whole drag rather than one injection, and stretches
+// the tradeoff the hold already carries: a suppressed key the user lets go of
+// mid-drag is still pressed back at the end, and reads as held until they press
+// and release it once more. Restoring is the safer bias here for the same
+// reason it is inside one injection — the opposite one drops a modifier the
+// user is still holding out of everything they do next — but the window it
+// applies over is as long as the user's drag.
+//
+// The keyboard is read once, by the press. What the release replays is the
+// press's plan rather than a fresh reading, so a modifier the user takes hold
+// of or lets go of mid-drag is presented on the release event as it was at the
+// press. Re-reading at the release would decide the drag's modifiers twice,
+// which is the one thing a drag cannot have.
+func (h x11ModifierHold) keepForRelease(button C.uint) {
+	x11DragModifiers.Put(uint32(button), h.plan)
+}
+
+// x11ResumeModifierHold picks up the hold the press of button kept, so this
+// connection can undo what another one did, and takes a fresh hold of modifiers
+// when there was no such press. button is the X11 button number, the same one
+// the press was injected with.
+//
+// The fallback is what a release with nothing behind it needs: a bare mouse-up
+// action, or one whose press this process never made. It presents the modifiers
+// the caller named for the length of the release event and undoes them
+// afterwards, which is the plain non-drag shape.
+func x11ResumeModifierHold(
+	display *C.Display,
+	button C.uint,
+	modifiers action.Modifiers,
+) x11ModifierHold {
+	if plan, held := x11DragModifiers.Take(uint32(button)); held {
+		return x11ModifierHold{display: display, plan: plan}
+	}
+
+	return x11HoldModifiers(display, modifiers)
+}
+
 // x11ModifierKeys reads the live keymap and reports every modifier key on it.
 func x11ModifierKeys(display *C.Display) []modifierstate.Key {
 	var keymap [C.NERU_AX_KEYMAP_BYTES]C.char

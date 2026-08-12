@@ -23,8 +23,6 @@ int neru_ax_query_pointer(Display *display, int *x, int *y);
  * neru_x11_get_window_pid and neru_x11_get_window_class from x11_system.h. */
 int neru_ax_move_pointer(Display *display, int x, int y);
 int neru_ax_button(Display *display, unsigned int button, int pressed);
-void neru_ax_press_modifier(Display *display, KeySym keysym);
-void neru_ax_release_modifier(Display *display, KeySym keysym);
 unsigned int neru_ax_keysym_to_keycode(Display *display, KeySym keysym);
 void neru_ax_query_keymap(Display *display, char *keys32);
 int neru_ax_keycode_is_held(const char *keys32, unsigned int keycode);

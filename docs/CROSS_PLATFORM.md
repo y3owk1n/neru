@@ -144,7 +144,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Keymap learns the focused app** | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ✅ published by the watcher | ⚠️ asked when the keymap settles ¹ |
 | **Cursor position**           | ✅ `CGEventGetLocation`  | ✅ `XQueryPointer`     | ✅ compositor IPC (Hyprland) / sync-surface trick | ✅ sync-surface trick | ✅ `GetCursorPos` |
 | **Cursor move**               | ✅ `CGEventPost` ([`postMouseMoveLocked`](../internal/adapter/platform/darwin/accessibility_mouse_darwin.m)) | ✅ XTest (`XTestFakeMotionEvent`) | ✅ `zwlr_virtual_pointer` | ✅ libei                | ✅ `SetCursorPos`            |
-| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest               | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
+| **Mouse buttons / drag**      | ✅ `CGEventPost`         | ✅ XTest ⁸             | ✅ `zwlr_virtual_pointer`    | ✅ libei                | ✅ `SendInput`               |
 | **Scroll injection**          | ✅ both axes             | ✅ both axes ⁸         | ✅ both axes (uinput + virtual pointer) | ✅ libei     | ⚠️ vertical only             |
 | **Modified scroll (`--modifier`)** | ✅ `CGEventSetFlags` on every chunk | ✅ XTest key hold ⁸ | ✅ virtual keyboard, uinput batch skipped | ✅ libei | ✅ `SendInput` key hold |
 | **Smooth cursor animation**   | ✅ (incl. relative, opt-in) | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ✅ incl. relative, opt-in | ❌                        |
@@ -339,20 +339,30 @@ one window takes tens of milliseconds. Recognized text is screen content and is
 treated as such — never logged, never written to disk, and cleared out of the
 engine before each recognition returns.
 
-⁸ An X11 button event carries the modifiers the server records as **held**,
+⁸ An X11 pointer event carries the modifiers the server records as **held**,
 rather than a set the sender chooses the way `CGEventSetFlags` does, so an
-injected scroll used to pick up whatever the user's hand was on: binding
-`Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most applications read
-as zoom. Neru reads the live key state with `XQueryKeymap`, releases the
-modifiers the injection would otherwise falsify, presses the ones that were
-asked for, and undoes both when it is done — so a scroll presents exactly what
-`--modifier` named and nothing else, held across every chunk of an animated one.
-A modifier that is both held and asked for is left alone rather than pressed a
-second time.
+injected click or scroll used to pick up whatever the user's hand was on:
+binding `Ctrl+J` to a plain `scroll_down` sent ctrl+scroll, which most
+applications read as zoom, and a click fired while ctrl was down arrived as a
+ctrl+click, which browsers read as open-in-new-tab. Neru reads the live key
+state with `XQueryKeymap`, releases the modifiers the injection would otherwise
+falsify, presses the ones that were asked for, and undoes both when it is done —
+so a click, drag or scroll presents exactly what `--modifier` named and nothing
+else, held across every chunk of an animated scroll. A modifier that is both
+held and asked for is left alone rather than pressed a second time, which is
+what keeps a modified click from releasing a modifier the user never let go of.
+
+**A drag holds that state for as long as the button is down.** Its press and its
+release are separate calls on separate display connections, so the press leaves
+its suppressions and presses in place — the drag in between has to carry the
+same modifiers the press did — and the release undoes them. An X keycode names a
+key on the server rather than on the connection that read it, which is what lets
+the release finish what the press started.
 
 **Letting go inside that window is not observed.** An XTEST release makes the
 user's own release a no-op at the master keyboard, so a modifier released during
-an injected scroll is pressed back and reads as held until it is pressed and
+an injected scroll — or during a drag, where the window is as long as the user
+holds the button — is pressed back and reads as held until it is pressed and
 released once more. Restoring is the deliberate bias: the opposite one drops a
 modifier the user is still holding out of everything they do next.
 
