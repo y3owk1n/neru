@@ -637,6 +637,18 @@ func userFacingReason(err error) string {
 // unavailableDetail explains why a probed capability is unavailable, in terms
 // the user can act on.
 func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
+	// An unfocused desktop is not an unavailable capability. The probe still
+	// downgrades the entry — FocusedApplicationPID refuses right now, and the
+	// matrix `neru doctor` prints has to agree with what a caller observes —
+	// but describing that as "unavailable" sends the user looking for a portal
+	// to install or a session to restart when focusing any window is the whole
+	// fix. This branch comes first because reaching this sentinel at all proves
+	// a native backend answered, which makes every explanation below wrong.
+	if errors.Is(cause, errNoFocusedWindow) {
+		return feature + " found no focused window on linux backend " + s.backendLabel() +
+			": the query works and answers as soon as a window takes focus"
+	}
+
 	if !nativeBackendsCompiledIn {
 		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
 			"and wlroots client stacks are absent; use a CGO-enabled build"
