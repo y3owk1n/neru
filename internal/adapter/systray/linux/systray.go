@@ -120,8 +120,12 @@ func (m *MenuItem) SetTitle(title string) {
 	bumpMenu()
 }
 
-// SetTooltip sets the menu item tooltip (Linux, no-op: dbusmenu has no per-item
-// tooltip property).
+// SetTooltip sets the menu item tooltip (Linux). It is an empty body by
+// protocol, not by omission: com.canonical.dbusmenu defines no per-item
+// tooltip property, so there is nothing to send and nothing for a tray host to
+// render. Nothing in Neru calls it; the tray icon's own hover text is the
+// package-level SetTooltip below, which works. docs/CROSS_PLATFORM.md owns the
+// full statement, as footnote 9 of the Capability Matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
 
 // SetIcon sets the menu item icon (Linux).

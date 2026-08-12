@@ -156,7 +156,7 @@ that is what [Known Gaps](#known-gaps) tracks, per
 | **Modifier passthrough**      | ✅                       | ❌                     | ✅ evdev backend only        | ✅ evdev backend only   | ❌                           |
 | **Dark mode detection**       | ✅ Cocoa appearance      | ✅ xdg appearance portal | ✅ xdg appearance portal   | ✅ kdeglobals + portal  | ✅ registry                  |
 | **Font resolution**           | ✅ NSFont                | ✅ fontconfig          | ✅ fontconfig                | ✅ fontconfig           | ⚠️ generic-alias map only ²  |
-| **System tray**               | ✅ NSStatusItem          | ✅ D-Bus StatusNotifierItem | ✅ StatusNotifierItem        | ✅ StatusNotifierItem   | ✅ Win32 notification area   |
+| **System tray**               | ✅ NSStatusItem ⁹        | ✅ D-Bus StatusNotifierItem ⁹ | ✅ StatusNotifierItem ⁹      | ✅ StatusNotifierItem ⁹ | ✅ Win32 notification area ⁹ |
 | **Native alerts**             | ✅ NSAlert               | ⚠️ D-Bus, not modal    | ⚠️ D-Bus, not modal          | ⚠️ D-Bus, not modal     | ✅ `MessageBoxW`             |
 | **Native notifications**      | ✅ UNNotification        | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | ✅ `org.freedesktop.Notifications` | 🟡          |
 | **Secure input detection**    | ✅                       | ➖ always false        | ➖ always false              | ➖ always false         | ➖ always false              |
@@ -342,6 +342,30 @@ user's own release a no-op at the master keyboard, so a modifier released during
 an injected scroll is pressed back and reads as held until it is pressed and
 released once more. Restoring is the deliberate bias: the opposite one drops a
 modifier the user is still holding out of everything they do next.
+
+⁹ **The tray icon carries the paused state on every platform**, because the
+tray is the only place a user can see that Neru is paused without pressing a
+key. macOS swaps between two hand-drawn template glyphs, which the menu bar
+themes for it. A host that renders icon bytes literally — the SNI hosts on
+Linux, the Win32 notification area — cannot restyle anything for us, so it is
+handed the brand tile desaturated and flattened towards grey, derived from the
+running tile itself ([icon/paused.go](../internal/adapter/systray/icon/paused.go))
+so the two can never drift apart. It is a color change rather than a
+translucency one on purpose: the icon bytes reach Win32 with straight alpha
+where GDI's icon path wants it premultiplied, so a faded tile would render at
+the host's discretion rather than ours.
+
+**Hover text works everywhere and is the tray icon's**, not a menu item's:
+`NSStatusItem.toolTip`, the SNI `ToolTip` property, and `NOTIFYICONDATA.szTip`
+all carry the "Neru - Running" / "Neru - Paused" string, which is the only
+tooltip `ports.SystrayPort` declares. Per-item menu tooltips are a different
+thing, and Neru sets none — `com.canonical.dbusmenu` defines no per-item
+tooltip property at all (an item carries `label`, `enabled`, `visible`,
+`icon-data` and the `toggle-*` pair), so `MenuItem.SetTooltip` in
+[systray/linux/systray.go](../internal/adapter/systray/linux/systray.go) is an
+empty body by protocol rather than unfinished work, as is its Win32
+popup-menu twin. The macOS backend has no such method at all. Nothing a user
+can hover therefore differs between the three.
 
 ### Notes on the ⚠️ entries
 
@@ -935,10 +959,6 @@ command — that means less here than it does on macOS, whether or not the
 2. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-3. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
-   tray has one icon for both running and paused states where macOS has two,
-   and the `CGO_ENABLED=0` build should announce its boundary once at startup
-   rather than failing feature by feature
 
 The gaps above are the work; what a person writes and finds inert *today* is
 [Platform Support Per Word](#platform-support-per-word), which is generated
@@ -953,6 +973,20 @@ modifier passthrough is impossible for the display server rather than unbuilt �
 `XGrabKeyboard` is all-or-nothing and `XSendEvent` is ignored by most
 applications; and `neru services` on a non-systemd init is a stated boundary,
 not unfinished work.
+
+**The `CGO_ENABLED=0` Linux build is outside the boundary too**, and says so
+itself. It is a distribution convenience for a configuration macOS does not
+offer at all: cursor, clicks, scroll, hotkeys, keyboard capture, overlay,
+screen enumeration, display hotplug, focused app, `neru key` and the `vision`
+strategy are all `CodeNotSupported` mirrors there, so the daemon starts and
+then fails feature by feature. It therefore announces what kind of build it is once at
+startup — naming what will not work and how to leave it — rather than letting a
+user discover the boundary one keystroke at a time
+([ADR 0012](./adr/0012-the-first-hour-must-not-lie.md),
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)). A CGO
+build never prints it: a warning every ordinary run carries is one people learn
+to scroll past. The tray, notifications and alerts are pure Go and keep
+working, which is exactly why the build exists.
 
 **Windows**
 

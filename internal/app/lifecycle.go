@@ -60,6 +60,11 @@ func (a *App) Run() error {
 		zap.String("log_level", cfg.Logging.LogLevel),
 		zap.Bool("file_logging", !cfg.Logging.DisableFileLogging))
 
+	// Immediately after the identity line and before anything can fail: a build
+	// outside the parity boundary says so once, here, rather than one stubbed
+	// keystroke at a time.
+	announceBuildBoundary(a.logger, platform.CurrentOS(), cgoEnabled)
+
 	err := a.ipcServer.Start(a.ctx)
 	if err != nil {
 		a.logger.Error("Failed to start IPC server", zap.Error(err))

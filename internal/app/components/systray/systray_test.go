@@ -1,6 +1,7 @@
 package systray_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -124,6 +125,50 @@ func TestComponent_OnReady(t *testing.T) {
 
 			t.Errorf("OnReady() built no %q item; got %v", want, titles)
 		}
+	}
+}
+
+// trayIconAtReady builds the menu for one enabled state and returns the icon
+// the tray was left showing.
+func trayIconAtReady(t *testing.T, enabled bool) []byte {
+	t.Helper()
+
+	tray := &portmocks.MockSystrayPort{}
+	component := systray.NewComponent(
+		&mockApp{isEnabled: enabled},
+		tray,
+		nil,
+		zaptest.NewLogger(t),
+	)
+
+	component.OnReady()
+
+	t.Cleanup(component.OnExit)
+
+	icon, _ := tray.Icon()
+
+	return icon
+}
+
+// TestComponent_OnReady_ShowsADistinctIconWhilePaused pins the one place a
+// user can see that Neru is paused without pressing a key. Every platform owes
+// two tray icons — macOS a second template glyph, the tray hosts that render
+// bytes literally a greyed tile — and showing one icon for both states makes the
+// state invisible.
+func TestComponent_OnReady_ShowsADistinctIconWhilePaused(t *testing.T) {
+	running := trayIconAtReady(t, true)
+	paused := trayIconAtReady(t, false)
+
+	if len(running) == 0 {
+		t.Fatal("the tray was left with no icon while running")
+	}
+
+	if len(paused) == 0 {
+		t.Fatal("the tray was left with no icon while paused")
+	}
+
+	if bytes.Equal(running, paused) {
+		t.Error("the tray shows the same icon running and paused; the paused state is invisible")
 	}
 }
 
