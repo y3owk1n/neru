@@ -671,7 +671,7 @@ discovery rather than the mode itself.
 | **Hints**         | Label arrow / tail             | ✅ NSBezierPath            | ✅ Cairo triangle          | ✅ sampled triangle, see below |
 | **Hints**         | Label placement                | ✅ top / center / bottom   | ✅ top / center / bottom   | ✅ top / center / bottom   |
 | **Grid**          | Transition animation           | ✅                         | ✅                         | ❌                          |
-| **Grid**          | Virtual pointer indicator      | ✅                         | ❌ no-op                   | ❌ no-op                    |
+| **Grid**          | Virtual pointer indicator      | ✅                         | ✅                         | ❌ no-op                    |
 | **Recursive grid**| Transition animation           | ✅                         | ✅                         | ❌                          |
 | **Recursive grid**| Virtual pointer indicator      | ✅                         | ✅                         | ✅                          |
 | **Recursive grid**| Sub-key preview                | ✅ mini-grid of next keys  | ✅ mini-grid of next keys  | ✅ mini-grid of next keys   |
@@ -684,7 +684,7 @@ boundary highlight, mode indicator, sticky-modifier indicator, all pending
 actions on grid cells, subgrid zoom, backtracking, and every scroll granularity.
 
 > The **cursor-replacement virtual pointer** — the pointer drawn when the real
-> cursor is hidden — is separate from the recursive-grid indicator above and is
+> cursor is hidden — is separate from the two grid indicators above and is
 > macOS-only: `virtualpointer.Overlay` is a no-op on every non-darwin build, and
 > it is paired with `CGDisplayHideCursor`, which has no equivalent elsewhere.
 
@@ -922,14 +922,12 @@ command — that means less here than it does on macOS, whether or not the
    with a restore token and so has already paid the consent prompt. It is also
    what keeps the `vision` hint strategy off KDE: the engine is linked on every
    backend, and KWin is the one with no pixels to hand it
-2. Grid virtual-pointer indicator — a no-op on Linux, while recursive grid
-   draws it on all three platforms
-3. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
+2. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
    back to the active screen
-4. Wayland global hotkeys — a setup requirement rather than missing code: they
+3. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-5. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+4. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
    tray has one icon for both running and paused states where macOS has two,
    and the `CGO_ENABLED=0` build should announce its boundary once at startup
    rather than failing feature by feature
@@ -955,12 +953,15 @@ not unfinished work.
 3. Native notifications — no toast support
 4. UIA tree depth — shallow walk; complex apps under-report clickable elements
 5. Grid and recursive-grid transition animation — not implemented
-6. Smooth cursor and smooth scroll animation — not implemented
-7. Modifier passthrough and `PostModifierEvent` — no-ops
-8. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
-9. `monitor_select` mode — returns `CodeNotSupported`
-10. Font resolution — alias mapping only, no system font enumeration
-11. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
+6. Grid virtual-pointer indicator — a no-op, while recursive grid draws it.
+   `virtual_pointer.ui.*` is therefore partly inert here rather than wholly, so
+   it stays declared everywhere and is tracked as this entry instead
+7. Smooth cursor and smooth scroll animation — not implemented
+8. Modifier passthrough and `PostModifierEvent` — no-ops
+9. Horizontal scroll — `ScrollAtCursor` ignores `deltaX`
+10. `monitor_select` mode — returns `CodeNotSupported`
+11. Font resolution — alias mapping only, no system font enumeration
+12. `neru services` — every subcommand returns `CodeNotSupported`, where macOS
     installs a launchd agent and Linux a systemd user unit
 
 **macOS**

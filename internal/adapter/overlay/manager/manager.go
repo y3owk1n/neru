@@ -228,7 +228,14 @@ type Interface interface {
 	// a grid mode's own surface, which is not one of the cursor-following
 	// Indicators: it belongs to the mode's drawing, and the mode names it by
 	// mode rather than by render component.
-	DrawGridPointer(mode Mode, point image.Point, size int, fillColor string)
+	//
+	// The whole resolved appearance travels with the position, not the size
+	// and fill alone: a backend that paints the glyph on its own surface —
+	// every Linux one — holds no render component with the pointer's
+	// configuration in it, so the char and the family have nowhere else to
+	// come from. The darwin components read them from the configuration
+	// ConfigureComponents hands them and ignore these two.
+	DrawGridPointer(mode Mode, point image.Point, appearance PointerAppearance)
 	HideGridPointer(mode Mode)
 	Flush()
 	SetSharingType(hide bool)

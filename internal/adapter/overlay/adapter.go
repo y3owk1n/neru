@@ -242,8 +242,8 @@ func (a *Adapter) ShowGridSubgrid(cell *domainGrid.Cell) {
 }
 
 // UpdateGridPointer places the pointer stand-in on a grid mode's surface, or
-// takes it off. Its size and color come from the resolved Style, so no caller
-// carries appearance here.
+// takes it off. Its whole appearance — size, fill, char and family — comes from
+// the resolved Style, so no caller carries any of it here.
 func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer) {
 	surface, surfaceErr := overlayMode(mode)
 	if surfaceErr != nil {
@@ -259,9 +259,11 @@ func (a *Adapter) UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
 		return
 	}
 
-	style := ResolvedStyle(a.styles).VirtualPointer
-
-	a.manager.DrawGridPointer(surface, pointer.Position, style.FontSize, style.FillColor)
+	a.manager.DrawGridPointer(
+		surface,
+		pointer.Position,
+		pointerAppearance(ResolvedStyle(a.styles).VirtualPointer),
+	)
 }
 
 // overlayMode translates a mode into the overlay's own name for it. The two

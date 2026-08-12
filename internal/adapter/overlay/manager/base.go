@@ -181,9 +181,14 @@ func (b *Base) ResizeIndicatorToActiveScreen(indicator ports.Indicator) {
 // DrawGridPointer puts the pointer stand-in on the surface a grid mode draws
 // on. A mode names the mode; which render component that is, and whether it
 // was ever built, is this package's business.
-func (b *Base) DrawGridPointer(mode Mode, point image.Point, size int, fillColor string) {
+//
+// A render component takes the size and the fill only: the char and the family
+// it draws with are the ones ConfigureComponents already handed it. A backend
+// that paints the pointer onto its own surface instead reads the rest of the
+// appearance out of the argument, which is why it travels whole.
+func (b *Base) DrawGridPointer(mode Mode, point image.Point, appearance PointerAppearance) {
 	if surface := b.gridPointerSurfaceFor(mode); surface != nil {
-		surface.ShowVirtualPointer(point, size, fillColor)
+		surface.ShowVirtualPointer(point, appearance.FontSize, appearance.FillColor)
 	}
 }
 

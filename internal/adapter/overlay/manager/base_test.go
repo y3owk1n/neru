@@ -107,7 +107,10 @@ func TestBase_GridPointerCallsAreSilentWithoutARenderComponent(t *testing.T) {
 		manager.ModeMonitorSelect,
 		manager.ModeIdle,
 	} {
-		base.DrawGridPointer(mode, image.Pt(10, 20), 12, "#ffffff")
+		base.DrawGridPointer(mode, image.Pt(10, 20), manager.PointerAppearance{
+			FontSize:  12,
+			FillColor: "#ffffff",
+		})
 		base.HideGridPointer(mode)
 	}
 

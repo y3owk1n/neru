@@ -137,11 +137,10 @@ type recursiveGridDraw struct {
 
 // gridPointerDraw is the pointer stand-in a grid surface was last asked for.
 type gridPointerDraw struct {
-	mode      overlay.Mode
-	visible   bool
-	point     image.Point
-	size      int
-	fillColor string
+	mode       overlay.Mode
+	visible    bool
+	point      image.Point
+	appearance overlay.PointerAppearance
 }
 
 func newScreenManager() *screenManager {
@@ -235,15 +234,13 @@ func (m *screenManager) DrawRecursiveGrid(
 func (m *screenManager) DrawGridPointer(
 	mode overlay.Mode,
 	point image.Point,
-	size int,
-	fillColor string,
+	appearance overlay.PointerAppearance,
 ) {
 	m.pointer = gridPointerDraw{
-		mode:      mode,
-		visible:   true,
-		point:     point,
-		size:      size,
-		fillColor: fillColor,
+		mode:       mode,
+		visible:    true,
+		point:      point,
+		appearance: appearance,
 	}
 }
 
@@ -661,9 +658,37 @@ func TestAdapterGridUpdates_ReachTheOverlayWithoutAFrame(t *testing.T) {
 	}
 }
 
+// TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance pins what a
+// backend that paints the glyph itself needs and used to be denied: the char
+// and the font family travel with the size and the fill, so a backend with no
+// render component holding the pointer's configuration can still draw the
+// pointer the user configured rather than a hardcoded fallback.
+func TestAdapterUpdateGridPointer_CarriesTheWholeResolvedAppearance(t *testing.T) {
+	t.Parallel()
+
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, pointerStyles{}, zap.NewNop())
+
+	adapter.UpdateGridPointer(
+		domain.ModeGrid,
+		ports.GridPointer{Visible: true, Position: image.Pt(12, 34)},
+	)
+
+	want := overlay.PointerAppearance{
+		FillColor:  pointerFill,
+		FontFamily: pointerFontFamily,
+		Char:       pointerChar,
+		FontSize:   pointerSize,
+	}
+	if manager.pointer.appearance != want {
+		t.Errorf("pointer appearance = %+v, want the resolved style %+v",
+			manager.pointer.appearance, want)
+	}
+}
+
 // TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface pins that the
-// caller says which grid surface the pointer belongs to and nothing else: its
-// size and color are the Style the overlay already resolved.
+// caller says which grid surface the pointer belongs to and where it sits, and
+// nothing else: its appearance is the Style the overlay already resolved.
 func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T) {
 	t.Parallel()
 
@@ -683,9 +708,12 @@ func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T
 		t.Errorf("pointer drawn at %v, want (12,34)", manager.pointer.point)
 	}
 
-	if manager.pointer.size != pointerSize || manager.pointer.fillColor != pointerFill {
+	if manager.pointer.appearance.FontSize != pointerSize ||
+		manager.pointer.appearance.FillColor != pointerFill {
 		t.Errorf("pointer drawn with size %d and fill %q, want the resolved style's %d and %q",
-			manager.pointer.size, manager.pointer.fillColor, pointerSize, pointerFill)
+			manager.pointer.appearance.FontSize,
+			manager.pointer.appearance.FillColor,
+			pointerSize, pointerFill)
 	}
 
 	adapter.UpdateGridPointer(domain.ModeRecursiveGrid, ports.GridPointer{})
@@ -698,8 +726,10 @@ func TestAdapterUpdateGridPointer_PlacesThePointerOnTheNamedSurface(t *testing.T
 // pointerSize and pointerFill are the resolved virtual-pointer style the
 // pointer test expects to arrive without the caller naming it.
 const (
-	pointerSize = 24
-	pointerFill = "#abcdef"
+	pointerSize       = 24
+	pointerFill       = "#abcdef"
+	pointerChar       = "✛"
+	pointerFontFamily = "Test Sans"
 )
 
 // pointerStyles resolves only the virtual pointer's appearance.
@@ -711,8 +741,10 @@ func (pointerStyles) Refresh()               {}
 func (pointerStyles) Style() overlay.Style {
 	return overlay.Style{
 		VirtualPointer: overlay.VirtualPointerStyle{
-			FontSize:  pointerSize,
-			FillColor: pointerFill,
+			FontSize:   pointerSize,
+			FillColor:  pointerFill,
+			Char:       pointerChar,
+			FontFamily: pointerFontFamily,
 		},
 	}
 }

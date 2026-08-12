@@ -36,10 +36,21 @@ type recordedRect struct {
 type recordingSurface struct {
 	scale        float64
 	rects        []recordedRect
-	texts        []string
+	texts        []recordedText
 	clearedRects []image.Rectangle
 	clears       int
 	flushes      int
+}
+
+// recordedText is one string the surface was asked to paint, with everything
+// that decides how it looks. Most of these tests read only the string; a glyph
+// whose position, size and color are the point needs the rest.
+type recordedText struct {
+	text       string
+	fontFamily string
+	center     image.Point
+	fontSize   float64
+	color      uint32
 }
 
 func (s *recordingSurface) alive() bool { return true }
@@ -85,13 +96,55 @@ func (s *recordingSurface) hintBadgePrim(
 ) {
 }
 
-func (s *recordingSurface) textPrim(text, _ string, _, _, _ float64, _ uint32) {
-	s.texts = append(s.texts, text)
+func (s *recordingSurface) textPrim(
+	text, fontFamily string, centerX, centerY, fontSize float64, color uint32,
+) {
+	s.texts = append(s.texts, recordedText{
+		text:       text,
+		fontFamily: fontFamily,
+		center:     image.Pt(int(centerX), int(centerY)),
+		fontSize:   fontSize,
+		color:      color,
+	})
 }
 
 // paintedText reports whether the surface was asked to paint a string.
 func (s *recordingSurface) paintedText(text string) bool {
-	return slices.Contains(s.texts, text)
+	_, found := s.findText(text)
+
+	return found
+}
+
+// findText returns the last paint of a string, with how it was painted.
+func (s *recordingSurface) findText(text string) (recordedText, bool) {
+	for _, painted := range slices.Backward(s.texts) {
+		if painted.text == text {
+			return painted, true
+		}
+	}
+
+	return recordedText{}, false
+}
+
+// paintedStrings is what was painted, as the strings alone. Failure messages
+// read it; assertions that care how a glyph looks use findText.
+func (s *recordingSurface) paintedStrings() []string {
+	painted := make([]string, len(s.texts))
+	for index, recorded := range s.texts {
+		painted[index] = recorded.text
+	}
+
+	return painted
+}
+
+// forget drops everything recorded so far, so a test can assert on what one
+// call painted rather than on everything that led up to it.
+func (s *recordingSurface) forget() {
+	s.rects = nil
+	s.texts = nil
+	s.clearedRects = nil
+	s.clears = 0
+	s.flushes = 0
 }
 
 // TestSharedOverlay_DrawHints_BoundaryHighlightHonoursItsBorderRadius pins
