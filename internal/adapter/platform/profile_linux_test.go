@@ -2,7 +2,10 @@
 
 package platform
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // sessionTypeWayland is what a Wayland login session writes into
 // XDG_SESSION_TYPE. No detector reads it any more; the cases below set it to
@@ -129,7 +132,35 @@ func TestLinuxKDEProfile(t *testing.T) {
 		t.Fatal("Overlay.Name should describe wlr-layer-shell via KWin")
 	}
 
-	if got.Notifications.Name != "not implemented" {
-		t.Fatalf("Notifications.Name = %q, want not implemented", got.Notifications.Name)
+	// Notifications are a session-bus service, so the KDE stack gets the same
+	// freedesktop backend every other Linux backend gets (#1471). This plan read
+	// "not implemented" long after it shipped and doctor read that to the user
+	// (#1486), so the assertions below pin the agreement rather than a string:
+	// KDE names the backend linuxProfile names, and states the one precondition
+	// it has in the words linuxProfile states it in.
+	x11Notifications := linuxProfile(DisplayServerX11).Notifications
+
+	if !strings.Contains(got.Notifications.Name, x11Notifications.Name) {
+		t.Fatalf(
+			"Notifications.Name = %q, want it to name the %q backend",
+			got.Notifications.Name,
+			x11Notifications.Name,
+		)
+	}
+
+	if !strings.Contains(x11Notifications.Notes, notificationDaemonCaveat) {
+		t.Fatalf(
+			"linuxProfile Notifications.Notes = %q, want it to state %q",
+			x11Notifications.Notes,
+			notificationDaemonCaveat,
+		)
+	}
+
+	if !strings.Contains(got.Notifications.Name, notificationDaemonCaveat) {
+		t.Fatalf(
+			"Notifications.Name = %q, want it to state %q",
+			got.Notifications.Name,
+			notificationDaemonCaveat,
+		)
 	}
 }
