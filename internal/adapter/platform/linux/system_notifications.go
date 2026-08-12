@@ -125,37 +125,42 @@ func alertNotification(title, message string) notification {
 	}
 }
 
-// notifier delivers notifications over the session bus. The connector is a
-// field rather than a direct dbus.SessionBus call so the no-bus and no-daemon
-// paths stay testable on a machine that has both.
+// notifier delivers notifications over the session bus.
 type notifier struct {
-	connect func() (*dbus.Conn, error)
+	// dialer bounds the uncancellable dial (session_bus_dial.go). Which dial it
+	// performs is a field on it rather than a direct dbus.SessionBus call, so
+	// the no-bus and no-daemon paths stay testable on a machine that has both.
+	dialer *sessionBusDialer
 
 	mu sync.Mutex
 	// conn is the connection the last dial produced, kept so the ordinary path
 	// after the first notification dials nothing. A dial that fails clears it,
 	// so no caller is ever handed a connection that is known to be gone.
 	conn *dbus.Conn
-	// dialing is the dial in flight, and nil when none is. Callers wait on it
-	// rather than starting a second dial.
-	dialing *dialAttempt
 }
 
-// dialAttempt is one attempt to reach the session bus and the outcome every
-// caller that waited on it reads. conn and err are written once, before done is
-// closed, and read only after it closes — that close is what publishes them, so
-// a caller sees the result of the dial it actually waited on rather than
-// whatever the notifier's fields hold by the time it is scheduled.
-type dialAttempt struct {
-	done chan struct{}
-	conn *dbus.Conn
-	err  error
+// newNotifier builds a notifier over connect, waiting on an outstanding dial
+// rather than refusing one: a notification and a `neru doctor` probe reaching
+// the same slow bus must not spoil each other, and both can afford to wait
+// where the input path cannot.
+//
+// The connection is the process-wide one, which is what stops a dial nobody is
+// waiting for any more from being closed — dbus.SessionBus hands back one
+// connection per process, and the tray's StatusNotifierItem speaks over it too.
+func newNotifier(connect func() (*dbus.Conn, error)) *notifier {
+	return &notifier{
+		dialer: &sessionBusDialer{
+			connect:     connect,
+			policy:      awaitTheDialInFlight,
+			processWide: true,
+		},
+	}
 }
 
 // sessionNotifier is the process-wide notifier. dbus.SessionBus hands back one
 // shared connection per process, so this reuses the session bus the tray also
 // dials rather than opening a second one.
-var sessionNotifier = &notifier{connect: dbus.SessionBus}
+var sessionNotifier = newNotifier(dbus.SessionBus)
 
 // ShowNotification shows a lightweight desktop notification through the
 // session's notification daemon, reporting CodeNotSupported when there is no
@@ -267,78 +272,68 @@ func daemonReachableFrom(owned bool, activatable []string) bool {
 // The dial has to be bounded separately from the call because dbus.SessionBus
 // takes no context: the connect, the auth handshake and the Hello round trip
 // are all uncancellable, so a bus that accepts a connection and then stops
-// answering blocks the caller forever. It therefore runs on a goroutine the
-// caller can abandon, bounded by each caller's own deadline rather than by the
-// dial. One dial exists at a time — godbus serializes them on its own lock, so
-// a second could do nothing but wait behind the first — and later callers
-// share its outcome instead of being turned away, which is what keeps a tray
-// notification and a `neru doctor` probe from spoiling each other. A
-// connection that succeeds is kept, so the ordinary path after the first
-// notification dials nothing at all.
+// answering blocks the caller forever. session_bus_dial.go holds that bound —
+// the dial runs on a goroutine the caller can abandon, bounded by each caller's
+// own deadline rather than by the dial. One dial exists at a time — godbus
+// serializes them on its own lock, so a second could do nothing but wait behind
+// the first — and later callers share its outcome instead of being turned away,
+// which is what keeps a tray notification and a `neru doctor` probe from
+// spoiling each other. A connection that succeeds is kept, so the ordinary path
+// after the first notification dials nothing at all.
 //
 // A dial that fails is reported as a failure even when a connection was cached
 // before it: the cached one had already disconnected — that is what started
 // this dial — so handing it back would have the caller talk into a dead
 // transport and report the daemon rejecting a message that never left.
 func (n *notifier) session(ctx context.Context) (*dbus.Conn, error) {
-	n.mu.Lock()
+	cached := n.cachedSession()
+	if cached != nil {
+		return cached, nil
+	}
 
-	if n.conn != nil && n.conn.Connected() {
-		conn := n.conn
-		n.mu.Unlock()
+	conn, err := n.dialer.dial(ctx)
+	if err == nil {
+		n.remember(conn)
 
 		return conn, nil
 	}
 
-	attempt := n.dialing
-	if attempt == nil {
-		attempt = &dialAttempt{done: make(chan struct{})}
-		n.dialing = attempt
-
-		go n.dial(attempt)
-	}
-
-	n.mu.Unlock()
-
-	select {
-	case <-attempt.done:
-	case <-ctx.Done():
+	if errors.Is(err, errSessionBusDialAbandoned) {
 		return nil, derrors.Wrap(ctx.Err(), derrors.CodeTimeout, dialTimedOutDetail)
 	}
 
-	if attempt.err != nil {
-		return nil, derrors.Wrap(attempt.err, derrors.CodeNotSupported, noSessionBusDetail)
-	}
+	// The dial failed, so whatever was cached is gone — reaching a dial at all
+	// means the cached connection had already stopped reporting itself
+	// connected. Dropping it keeps a later caller from reading a stale answer.
+	n.remember(nil)
 
-	if attempt.conn == nil {
+	if errors.Is(err, errSessionBusDialEmpty) {
 		return nil, derrors.New(derrors.CodeNotSupported, noSessionBusDetail)
 	}
 
-	return attempt.conn, nil
+	return nil, derrors.Wrap(err, derrors.CodeNotSupported, noSessionBusDetail)
 }
 
-// dial performs the one uncancellable connect and publishes its outcome by
-// closing the attempt's done channel. It clears the in-flight marker, so the
-// next caller after a failed dial retries rather than reading a stale answer
-// forever, and replaces the cached connection with whatever this dial produced
-// — nothing, when it failed, since the connection it was replacing is gone.
-func (n *notifier) dial(attempt *dialAttempt) {
-	conn, err := n.connect()
-
-	attempt.conn, attempt.err = conn, err
-
+// cachedSession returns the connection the last dial produced when it is still
+// live, and nil when there is nothing worth handing back.
+func (n *notifier) cachedSession() *dbus.Conn {
 	n.mu.Lock()
+	defer n.mu.Unlock()
 
-	n.conn = nil
-	if err == nil {
-		n.conn = conn
+	if n.conn == nil || !n.conn.Connected() {
+		return nil
 	}
 
-	n.dialing = nil
+	return n.conn
+}
 
-	n.mu.Unlock()
+// remember replaces the cached connection with what the last dial produced —
+// nothing, when it failed.
+func (n *notifier) remember(conn *dbus.Conn) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
-	close(attempt.done)
+	n.conn = conn
 }
 
 // withNotifyDeadline bounds the round trip. A caller's own deadline wins — it

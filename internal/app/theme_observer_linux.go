@@ -3,11 +3,14 @@
 package app
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
 const (
@@ -20,11 +23,24 @@ const (
 
 	pollFallbackInterval = 5 * time.Second
 	minSignalBodyLength  = 3
+
+	// themeBusDialTimeout caps the session-bus dial this makes. The dial itself
+	// cannot be canceled, so without a cap a bus that accepts a connection and
+	// then stops answering holds daemon startup — this runs on the goroutine
+	// that starts it — rather than merely costing theme changes. Giving up is
+	// cheap: polling picks the theme up anyway, a few seconds later.
+	themeBusDialTimeout = 2 * time.Second
 )
 
 // setupThemeObserver subscribes to xdg-desktop-portal SettingChanged
 // D-Bus signals and refreshes theme-aware styles when the color scheme
 // changes. Falls back to polling if D-Bus is unavailable.
+//
+// A session bus that never answers counts as unavailable rather than as a
+// reason to wait: the dial is bounded (linux.ConnectSessionBus), and a dial
+// that outlasts its budget takes the same polling fallback as a dial that
+// failed outright — the daemon is still starting up on this goroutine, and
+// polling notices a theme change a few seconds later either way.
 //
 // All teardown state is captured per App instance in the stop closure —
 // package-level state here would be shared across App instances, and a
@@ -48,7 +64,10 @@ func (a *App) setupThemeObserver() {
 		waitGroup.Wait()
 	}
 
-	conn, err := dbus.ConnectSessionBus()
+	dialCtx, cancelDial := context.WithTimeout(a.ctx, themeBusDialTimeout)
+	defer cancelDial()
+
+	conn, err := linux.ConnectSessionBus(dialCtx)
 	if err != nil {
 		a.logger.Warn("D-Bus unavailable, falling back to polling for theme changes",
 			zap.Error(err))

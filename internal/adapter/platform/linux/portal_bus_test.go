@@ -123,33 +123,90 @@ func TestPortalCallFailed_ReportsARanOutOfTimeCallAsATimeout(t *testing.T) {
 	}
 }
 
-// TestDialPortalBus_DoesNotStartASecondDialWhileOneIsStuck pins the rule the
-// capability probes already follow: an uncancellable native-ish call that has
-// wedged gets one outstanding attempt, not one per caller. Every mid-action
-// input operation reaches this while no session is up, so restarting would buy
-// an orphaned goroutine and a half-open connection per keypress.
-func TestDialPortalBus_DoesNotStartASecondDialWhileOneIsStuck(t *testing.T) {
-	dialer := &portalDialer{}
-
-	first, err := dialer.start()
-	if err != nil {
-		t.Fatalf("first start() error = %v", err)
+// TestPortalBusConnection_ReportsEachWayADialEndsInThePortalsOwnWords pins what
+// a user is told when the session bus will not answer, because that sentence is
+// the whole of the diagnosis they get. The bound underneath is shared with the
+// notifier and the theme observer (session_bus_dial.go), and the three of them
+// report a wedged bus differently on purpose — this is the portal's half of
+// that, down to the code each answer carries.
+func TestPortalBusConnection_ReportsEachWayADialEndsInThePortalsOwnWords(t *testing.T) {
+	tests := []struct {
+		name     string
+		dialer   func(chan<- struct{}, <-chan struct{}) *sessionBusDialer
+		outlast  bool
+		wantCode derrors.Code
+		wantSays string
+	}{
+		{
+			name: "nothing to dial",
+			dialer: func(chan<- struct{}, <-chan struct{}) *sessionBusDialer {
+				return &sessionBusDialer{
+					policy:  refuseWhileDialing,
+					connect: func() (*dbus.Conn, error) { return nil, errNoBus },
+				}
+			},
+			wantCode: derrors.CodeNotSupported,
+			wantSays: "no reachable D-Bus session bus",
+		},
+		{
+			name: "a dial that outlasts the caller",
+			dialer: func(dials chan<- struct{}, release <-chan struct{}) *sessionBusDialer {
+				return &sessionBusDialer{
+					policy:  refuseWhileDialing,
+					connect: wedgedConnect(dials, release),
+				}
+			},
+			outlast:  true,
+			wantCode: derrors.CodeTimeout,
+			wantSays: "did not accept a connection in time",
+		},
 	}
 
-	_, err = dialer.start()
-	if err == nil {
-		t.Fatal("second start() error = nil, want a refusal while one is outstanding")
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			release := make(chan struct{})
+			defer close(release)
 
-	if !derrors.IsCode(err, derrors.CodeTimeout) {
-		t.Errorf("second start() code = %q, want %q", derrors.GetCode(err), derrors.CodeTimeout)
-	}
+			dials := make(chan struct{}, 1)
+			dialer := testCase.dialer(dials, release)
 
-	// Drain the real dial so the test leaves no goroutine behind, and close
-	// whatever it produced — this machine may well have a session bus.
-	result := <-first
-	if result.conn != nil {
-		_ = result.conn.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), dialTestBudget)
+			defer cancel()
+
+			_, err := portalBusConnection(ctx, dialer)
+			if err == nil {
+				t.Fatal("portalBusConnection() = nil, want the reason there is no connection")
+			}
+
+			if !derrors.IsCode(err, testCase.wantCode) {
+				t.Errorf("code = %q, want %q", derrors.GetCode(err), testCase.wantCode)
+			}
+
+			if !strings.Contains(err.Error(), testCase.wantSays) {
+				t.Errorf("error = %q, want it to say %q", err.Error(), testCase.wantSays)
+			}
+
+			if !testCase.outlast {
+				return
+			}
+
+			// The dial is still outstanding, and the input path reaches this
+			// holding the keyboard grab: a caller arriving now is turned away
+			// rather than piling a second uncancellable dial on the first.
+			refused, cancelRefused := context.WithTimeout(context.Background(), dialTestBudget)
+			defer cancelRefused()
+
+			_, err = portalBusConnection(refused, dialer)
+			if !derrors.IsCode(err, derrors.CodeTimeout) {
+				t.Errorf("a refused caller got code %q, want %q",
+					derrors.GetCode(err), derrors.CodeTimeout)
+			}
+
+			if !strings.Contains(err.Error(), "is still unanswered") {
+				t.Errorf("a refused caller was told %q, which does not say a dial is stuck",
+					err.Error())
+			}
+		})
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
-	"sync"
 
 	"github.com/godbus/dbus/v5"
 
@@ -107,21 +106,14 @@ const (
 	portalNameScreenCast    = "ScreenCast"
 )
 
-// dialedBus is one outcome of the uncancellable session-bus dial.
-type dialedBus struct {
-	conn *dbus.Conn
-	err  error
-}
-
-// portalDialer holds the one bus dial that may be outstanding at a time.
-type portalDialer struct {
-	mu       sync.Mutex
-	inFlight bool
-}
-
 // portalBusDialer is process-wide because the thing it caps is process-wide:
-// one wedged session bus, however many callers walk into it.
-var portalBusDialer = &portalDialer{}
+// one wedged session bus, however many callers walk into it. Its connections
+// are private, so one no caller is waiting for any more is closed by the dialer
+// rather than leaked.
+var portalBusDialer = &sessionBusDialer{
+	connect: connectPrivateSessionBus,
+	policy:  refuseWhileDialing,
+}
 
 // dialPortalBus connects to the session bus without letting an unresponsive bus
 // hold the caller, and without starting a second dial while one is stuck.
@@ -132,7 +124,8 @@ var portalBusDialer = &portalDialer{}
 // action input path reaches this while holding the keyboard grab, so blocking
 // there freezes every global hotkey — the dial therefore runs on a goroutine
 // the caller can abandon, and whatever it eventually produces is closed rather
-// than leaked.
+// than leaked. session_bus_dial.go holds that machinery, which the notifier and
+// the app's theme observer need in the same shape.
 //
 // Abandoning is not enough on its own. Every mid-action input operation reaches
 // this while no session is established, so a wedged bus would otherwise buy one
@@ -145,74 +138,43 @@ var portalBusDialer = &portalDialer{}
 // dial is outstanding, a RemoteDesktop dial is refused, and the other way
 // round. It is deliberate — what is being capped is one wedged session bus,
 // which is process-wide however many portal interfaces are speaking to it — and
-// it is bounded, because inFlight clears when ConnectSessionBus returns rather
-// than when the handshake behind it finishes. A consent dialog left open for
-// two minutes therefore blocks nothing.
+// it is bounded, because the dial stops counting as outstanding when
+// ConnectSessionBus returns rather than when the handshake behind it finishes.
+// A consent dialog left open for two minutes therefore blocks nothing.
 func dialPortalBus(ctx context.Context) (*dbus.Conn, error) {
-	done, err := portalBusDialer.start()
-	if err != nil {
-		return nil, err
-	}
-
-	select {
-	case result := <-done:
-		if result.err != nil {
-			return nil, derrors.Wrap(
-				result.err,
-				derrors.CodeNotSupported,
-				"no reachable D-Bus session bus, so xdg-desktop-portal cannot be "+
-					"asked for a session",
-			)
-		}
-
-		return result.conn, nil
-	case <-ctx.Done():
-		go func() {
-			result := <-done
-			if result.conn != nil {
-				_ = result.conn.Close()
-			}
-		}()
-
-		return nil, derrors.Wrap(
-			ctx.Err(),
-			derrors.CodeTimeout,
-			"the D-Bus session bus did not accept a connection in time",
-		)
-	}
+	return portalBusConnection(ctx, portalBusDialer)
 }
 
-// start launches the dial, or refuses when one is already outstanding.
-func (d *portalDialer) start() (<-chan dialedBus, error) {
-	d.mu.Lock()
+// portalBusConnection phrases one bounded dial the way the portal paths report
+// it. Every sentence here reaches the user, and each says which of the three
+// things went wrong: nothing to dial, a dial that outlasted the caller, or a
+// dial the caller was not allowed to start.
+func portalBusConnection(ctx context.Context, dialer *sessionBusDialer) (*dbus.Conn, error) {
+	conn, err := dialer.dial(ctx)
 
-	if d.inFlight {
-		d.mu.Unlock()
-
+	switch {
+	case err == nil:
+		return conn, nil
+	case errors.Is(err, errSessionBusDialInFlight):
 		return nil, derrors.New(
 			derrors.CodeTimeout,
 			"an earlier connection to the D-Bus session bus is still unanswered, "+
 				"so xdg-desktop-portal cannot be reached yet",
 		)
+	case errors.Is(err, errSessionBusDialAbandoned):
+		return nil, derrors.Wrap(
+			ctx.Err(),
+			derrors.CodeTimeout,
+			"the D-Bus session bus did not accept a connection in time",
+		)
+	default:
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeNotSupported,
+			"no reachable D-Bus session bus, so xdg-desktop-portal cannot be "+
+				"asked for a session",
+		)
 	}
-
-	d.inFlight = true
-
-	d.mu.Unlock()
-
-	done := make(chan dialedBus, 1)
-
-	go func() {
-		conn, err := dbus.ConnectSessionBus()
-
-		d.mu.Lock()
-		d.inFlight = false
-		d.mu.Unlock()
-
-		done <- dialedBus{conn: conn, err: err}
-	}()
-
-	return done, nil
 }
 
 // portalRequester issues portal calls whose answer arrives as a Request
