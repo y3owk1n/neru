@@ -15,6 +15,10 @@ import (
 // query is being talked about.
 const activeWindowProperty = "_NET_ACTIVE_WINDOW"
 
+// supportingWMCheckProperty is the property that separates a live window
+// manager from one that exited leaving its advertisements on the root window.
+const supportingWMCheckProperty = "_NET_SUPPORTING_WM_CHECK"
+
 // TestX11ActiveWindowQueryError is the whole point of splitting the
 // _NET_ACTIVE_WINDOW answers apart: a desktop with nothing focused is a state
 // callers degrade through, and the three ways the query can fail are failures
@@ -43,11 +47,16 @@ func TestX11ActiveWindowQueryError(t *testing.T) {
 			wantWords: []string{"no window", "focus"},
 		},
 		{
-			name:      "no EWMH window manager names itself",
+			// The property named here is the one that answers the question a
+			// window manager's own presence cannot: root-window properties
+			// outlive the client that wrote them, so a window manager that was
+			// killed leaves _NET_SUPPORTED behind and only the
+			// _NET_SUPPORTING_WM_CHECK handshake still fails.
+			name:      "no live EWMH window manager names itself",
 			result:    x11ActiveWindowNoWindowManager,
 			wantErr:   true,
 			wantCode:  derrors.CodeActionFailed,
-			wantWords: []string{activeWindowProperty, "window manager"},
+			wantWords: []string{activeWindowProperty, supportingWMCheckProperty, "window manager"},
 		},
 		{
 			name:      "a failed property read names itself",

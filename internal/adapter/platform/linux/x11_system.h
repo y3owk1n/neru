@@ -23,7 +23,7 @@ typedef struct {
 typedef enum {
 	NERU_X11_ACTIVE_WINDOW_OK = 0,            // *out holds a live window id
 	NERU_X11_ACTIVE_WINDOW_NONE = 1,          // queried fine; nothing is focused
-	NERU_X11_ACTIVE_WINDOW_NO_WM = 2,         // no window manager claims EWMH here
+	NERU_X11_ACTIVE_WINDOW_NO_WM = 2,         // no live EWMH window manager owns this display
 	NERU_X11_ACTIVE_WINDOW_QUERY_FAILED = 3,  // XGetWindowProperty failed
 	NERU_X11_ACTIVE_WINDOW_MALFORMED = 4,     // present, but not a 32-bit WINDOW value
 } NeruX11ActiveWindowResult;

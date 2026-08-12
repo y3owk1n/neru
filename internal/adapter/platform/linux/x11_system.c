@@ -1,5 +1,7 @@
 #include "x11_system.h"
 
+#include "x11_error_trap.h"
+
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -39,17 +41,30 @@ int neru_x11_move_pointer(Display *display, int x, int y) {
 	return ok;
 }
 
-// neru_x11_root_has_ewmh reports whether a window manager has claimed EWMH on
-// this display, by looking for _NET_SUPPORTED on the root window.
+// neru_x11_root_has_live_wm reports whether an EWMH window manager owns this
+// display *right now*, by completing the _NET_SUPPORTING_WM_CHECK handshake:
+// the root window names a window the window manager created, and that window
+// names itself back through the same property.
 //
-// This is the only reliable way to tell "no window manager" from "a window
-// manager with nothing focused", because _NET_ACTIVE_WINDOW being absent means
-// both. Openbox — what CI's X11 leg runs — advertises _NET_ACTIVE_WINDOW in
-// _NET_SUPPORTED but writes no such property until something takes focus, while
-// other window managers write None instead. _NET_SUPPORTED is the property the
-// spec makes a window manager set, and it is set for the WM's whole lifetime.
-static int neru_x11_root_has_ewmh(Display *display) {
-	Atom property = XInternAtom(display, "_NET_SUPPORTED", False);
+// Something is needed here because _NET_ACTIVE_WINDOW being absent means both
+// "no window manager" and "a window manager with nothing focused". Openbox —
+// what CI's X11 leg runs — advertises _NET_ACTIVE_WINDOW in _NET_SUPPORTED and
+// then writes no such property until something takes focus, while other window
+// managers write None instead.
+//
+// The handshake, and not the mere presence of _NET_SUPPORTED, is what answers
+// it. Root-window properties belong to the root window, not to the client that
+// wrote them, so a window manager that is killed while any other client keeps
+// the session alive leaves every _NET_* property it ever wrote sitting there —
+// verified on Xvfb + openbox: SIGKILL the window manager with one connection
+// held open and _NET_SUPPORTED is still readable indefinitely afterwards. A
+// presence check would call that display "a window manager with nothing
+// focused" forever. The window _NET_SUPPORTING_WM_CHECK names is the window
+// manager's own and dies with its connection, which is precisely why EWMH
+// specifies the self-reference: it distinguishes a live window manager from a
+// stale advertisement.
+static int neru_x11_root_has_live_wm(Display *display) {
+	Atom property = XInternAtom(display, "_NET_SUPPORTING_WM_CHECK", False);
 	Atom actual_type;
 	int actual_format;
 	unsigned long item_count;
@@ -57,15 +72,51 @@ static int neru_x11_root_has_ewmh(Display *display) {
 	unsigned char *data = NULL;
 	Window root = neru_x11_root_window(display);
 	int status = XGetWindowProperty(
-	    display, root, property, 0, 1, False, XA_ATOM, &actual_type, &actual_format, &item_count, &bytes_after, &data);
+	    display, root, property, 0, 1, False, XA_WINDOW, &actual_type, &actual_format, &item_count, &bytes_after,
+	    &data);
 
-	int present = (status == Success && actual_type == XA_ATOM && item_count > 0);
+	if (status != Success || actual_type != XA_WINDOW || actual_format != 32 || item_count == 0 || data == NULL) {
+		if (data != NULL) {
+			XFree(data);
+		}
 
-	if (data != NULL) {
-		XFree(data);
+		return 0;
 	}
 
-	return present;
+	Window wm_window = *((Window *)data);
+	XFree(data);
+
+	if (wm_window == None) {
+		return 0;
+	}
+
+	// A stale property points at a window the server destroyed with the window
+	// manager's connection, so this read answers BadWindow. Trapping it is not
+	// optional: Xlib's default error handler would exit the daemon.
+	data = NULL;
+
+	neru_x11_error_trap_begin(display);
+	status = XGetWindowProperty(
+	    display, wm_window, property, 0, 1, False, XA_WINDOW, &actual_type, &actual_format, &item_count, &bytes_after,
+	    &data);
+	int trapped = neru_x11_error_trap_end(display);
+
+	if (trapped || status != Success || actual_type != XA_WINDOW || actual_format != 32 || item_count == 0 ||
+	    data == NULL) {
+		if (data != NULL) {
+			XFree(data);
+		}
+
+		return 0;
+	}
+
+	Window echoed = *((Window *)data);
+	XFree(data);
+
+	// The self-reference is the half that survives window-id reuse: a stale
+	// root property pointing at an id some other client has since been given
+	// answers with that client's property, not with its own id.
+	return echoed == wm_window;
 }
 
 int neru_x11_get_active_window(Display *display, Window *out) {
@@ -90,13 +141,13 @@ int neru_x11_get_active_window(Display *display, Window *out) {
 	// XGetWindowProperty reports an absent property as Success with an actual
 	// type of None. Two very different sessions look like that — one with no
 	// window manager at all, and one whose window manager simply has nothing to
-	// point at — so _NET_SUPPORTED decides which, rather than the caller being
-	// told a healthy desktop is broken.
+	// point at — so the _NET_SUPPORTING_WM_CHECK handshake decides which, rather
+	// than the caller being told a healthy desktop is broken.
 	if (actual_type == None) {
 		if (data != NULL) {
 			XFree(data);
 		}
-		return neru_x11_root_has_ewmh(display) ? NERU_X11_ACTIVE_WINDOW_NONE : NERU_X11_ACTIVE_WINDOW_NO_WM;
+		return neru_x11_root_has_live_wm(display) ? NERU_X11_ACTIVE_WINDOW_NONE : NERU_X11_ACTIVE_WINDOW_NO_WM;
 	}
 
 	// A type or format mismatch also comes back as Success with nothing

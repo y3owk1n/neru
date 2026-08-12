@@ -24,14 +24,17 @@ type x11ActiveWindowResult int
 const (
 	// x11ActiveWindowFound means the property held a real window id.
 	x11ActiveWindowFound x11ActiveWindowResult = iota
-	// x11ActiveWindowNone means the query succeeded and a window manager that
-	// claims EWMH has nothing focused — the property reads None, or it is
-	// absent because that window manager writes it only once something takes
-	// focus (openbox does, which is why _NET_SUPPORTED and not
-	// _NET_ACTIVE_WINDOW decides this).
+	// x11ActiveWindowNone means the query succeeded and a live EWMH window
+	// manager has nothing focused — the property reads None, or it is absent
+	// because that window manager writes it only once something takes focus
+	// (openbox does, which is why the _NET_SUPPORTING_WM_CHECK handshake and
+	// not _NET_ACTIVE_WINDOW decides this).
 	x11ActiveWindowNone
-	// x11ActiveWindowNoWindowManager means no window manager claims EWMH on
-	// this display at all, so nothing will ever answer the question.
+	// x11ActiveWindowNoWindowManager means no live EWMH window manager owns
+	// this display, so nothing will ever answer the question. A window manager
+	// that exited leaves its root-window properties behind, so this is decided
+	// by the _NET_SUPPORTING_WM_CHECK handshake, which its window cannot
+	// complete once it is gone.
 	x11ActiveWindowNoWindowManager
 	// x11ActiveWindowQueryFailed means XGetWindowProperty itself failed.
 	x11ActiveWindowQueryFailed
@@ -75,8 +78,9 @@ func x11ActiveWindowQueryError(result x11ActiveWindowResult) error {
 	case x11ActiveWindowNoWindowManager:
 		return derrors.New(
 			derrors.CodeActionFailed,
-			"the X11 root window advertises no _NET_SUPPORTED; no EWMH-compliant "+
-				"window manager owns this display, so _NET_ACTIVE_WINDOW is unanswerable",
+			"the X11 root window's _NET_SUPPORTING_WM_CHECK handshake does not complete; "+
+				"no live EWMH-compliant window manager owns this display, so "+
+				"_NET_ACTIVE_WINDOW is unanswerable",
 		)
 
 	case x11ActiveWindowQueryFailed:

@@ -1,44 +1,19 @@
 #include "x11_screencapture.h"
 
 #include "screencapture.h"
+#include "x11_error_trap.h"
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-// Xlib's default error handler calls exit() on a protocol error, and XGetImage
-// answers BadMatch for any rectangle that is not wholly inside the drawable —
-// which a display hotplug between the clip and the request can produce however
-// carefully the region was clipped. Swapping in a handler that records the
-// error instead of exiting turns "the daemon dies mid-capture" into "the
-// capture failed".
-//
-// XSetErrorHandler is process-global and the daemon has other Xlib users
-// (eventtap, hotkeys, overlay, accessibility), each on its own Display. So
-// captures serialise on this mutex, the handler claims only errors from the
-// display it installed itself for, and everything else is forwarded to the
-// handler it replaced — otherwise a capture would both swallow another
-// subsystem's error and fail itself over it.
-static pthread_mutex_t neru_x11_capture_mutex = PTHREAD_MUTEX_INITIALIZER;
-static Display *neru_x11_capture_display;
-static XErrorHandler neru_x11_capture_previous_handler;
-static int neru_x11_capture_error;
-
-static int neru_x11_capture_error_handler(Display *display, XErrorEvent *event) {
-	if (display != neru_x11_capture_display) {
-		if (neru_x11_capture_previous_handler) {
-			return neru_x11_capture_previous_handler(display, event);
-		}
-
-		return 0;
-	}
-
-	neru_x11_capture_error = 1;
-
-	return 0;
-}
+// XGetImage answers BadMatch for any rectangle that is not wholly inside the
+// drawable — which a display hotplug between the clip and the request can
+// produce however carefully the region was clipped — and Xlib's default error
+// handler calls exit() on it. The capture therefore runs inside the shared
+// protocol-error trap (x11_error_trap.h), which turns "the daemon dies
+// mid-capture" into "the capture failed".
 
 // neru_x11_mask_shift returns how far right a channel mask sits.
 static int neru_x11_mask_shift(unsigned long mask) {
@@ -191,25 +166,11 @@ int neru_x11_capture_region(int x, int y, int w, int h, NeruCapture *out) {
 		return NERU_CAPTURE_ERR_REGION;
 	}
 
-	pthread_mutex_lock(&neru_x11_capture_mutex);
-
-	neru_x11_capture_error = 0;
-	neru_x11_capture_display = display;
-	neru_x11_capture_previous_handler = XSetErrorHandler(neru_x11_capture_error_handler);
+	neru_x11_error_trap_begin(display);
 
 	XImage *image = XGetImage(display, root, x, y, (unsigned int)w, (unsigned int)h, AllPlanes, ZPixmap);
 
-	// Errors arrive asynchronously; sync so the handler has run before it is
-	// swapped back out.
-	XSync(display, False);
-	XSetErrorHandler(neru_x11_capture_previous_handler);
-
-	int failed = neru_x11_capture_error;
-
-	neru_x11_capture_display = NULL;
-	neru_x11_capture_previous_handler = NULL;
-
-	pthread_mutex_unlock(&neru_x11_capture_mutex);
+	int failed = neru_x11_error_trap_end(display);
 
 	if (!image || failed) {
 		if (image) {
