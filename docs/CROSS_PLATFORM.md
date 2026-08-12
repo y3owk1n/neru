@@ -597,7 +597,7 @@ a session that backend did not identify:
 
 | Compositor | Source                                                       | Limits                                                                                                                    |
 | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| KDE / KWin | KWin script pushing focused-window geometry over D-Bus       | —                                                                                                                          |
+| KDE / KWin | KWin script pushing focused-window geometry over D-Bus ([platform/kwin](../internal/adapter/platform/kwin)) | The script reports on **activation** and nothing else, so the cache lags in two ways: a window moved or resized without a focus change keeps its old rectangle until focus returns to it, and once a window has been seen the cache never empties — after the last one closes, the focused-window answer is the rectangle the dead window had rather than "nothing is focused". The AT-SPI origin path catches the first through its frame-size check; `FocusedWindowBounds` has no such signal. |
 | niri       | `niri msg -j focused-window` / `focused-output`              | Floating and fullscreen windows only. **Tiled** windows — including a maximized column (`Mod+F`) — expose no on-screen position ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are misaligned there. |
 | Sway       | `swaymsg -t get_tree`, focused node `rect` + `window_rect`   | —                                                                                                                          |
 | Hyprland   | `hyprctl -j activewindow` `at` / `size`                      | —                                                                                                                          |
@@ -606,6 +606,16 @@ a session that backend did not identify:
 Each source verifies the reported window size matches the AT-SPI frame (a focus
 change can race the query) and is best-effort: an unavailable origin degrades to
 unoffset window-relative coordinates rather than misplacing hints.
+
+**The same sources answer `FocusedWindowBounds`,** which is what scopes vision
+detection and `neru action move_mouse --window` to the focused window. The
+rectangle and the origin are one fact, so KWin has one geometry bridge shared by
+both callers rather than a second implementation per caller — the KWin arm of
+[system_focused_window.go](../internal/adapter/platform/linux/system_focused_window.go)
+reads the cache the AT-SPI path offsets by. A Wayland compositor with no source
+at all (River, Wayfire) reports `CodeNotSupported` there rather than "no focused
+window": both send the caller to the active screen, but only one of them says
+so, and the difference is what stopped this being invisible on KDE.
 
 ---
 
@@ -922,12 +932,10 @@ command — that means less here than it does on macOS, whether or not the
    with a restore token and so has already paid the consent prompt. It is also
    what keeps the `vision` hint strategy off KDE: the engine is linked on every
    backend, and KWin is the one with no pixels to hand it
-2. `FocusedWindowBounds` — returns not-found on KWin, so callers silently fall
-   back to the active screen
-3. Wayland global hotkeys — a setup requirement rather than missing code: they
+2. Wayland global hotkeys — a setup requirement rather than missing code: they
    need `input`-group membership and a CGO build. Failing loudly with the
    remedy, and documenting it as a first-class setup step, is the work
-4. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
+3. Tail — the tray tooltip is a no-op (dbusmenu carries no such property), the
    tray has one icon for both running and paused states where macOS has two,
    and the `CGO_ENABLED=0` build should announce its boundary once at startup
    rather than failing feature by feature
@@ -1435,7 +1443,10 @@ usually the mechanism:
   lacks it.
 - **Genuinely DE-specific** — active-window geometry (KWin D-Bus vs Mutter
   D-Bus) and hotkey registration. These belong in DE-named files such as
-  `internal/adapter/accessibility/atspi/kwin_geometry.go`.
+  `internal/adapter/accessibility/atspi/kwin_origin.go`, or in a DE-named
+  package when more than one subsystem needs the same fact —
+  `internal/adapter/platform/kwin` holds the KWin geometry bridge because the
+  AT-SPI window origin and `FocusedWindowBounds` are two readings of it.
 
 Use a `*_linux_wayland_<compositor>.go` sub-slot only when a compositor family
 needs a path no other family shares — spelled without the OS token inside

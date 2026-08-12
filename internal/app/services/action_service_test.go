@@ -3,12 +3,14 @@ package services_test
 import (
 	"context"
 	"image"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
@@ -437,5 +439,56 @@ func TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry(t *tes
 
 	if drawn {
 		t.Fatal("expected no indicator for an unrecognized config entry")
+	}
+}
+
+// TestMoveMouseToCenterOfWindow_KeepsANotSupportedRefusalIntact pins what a
+// person sees when their compositor cannot report focused-window geometry at
+// all. The platform refuses with CodeNotSupported and names what is missing;
+// re-coding that as an accessibility failure would send them to check a
+// permission they have already granted.
+func TestMoveMouseToCenterOfWindow_KeepsANotSupportedRefusalIntact(t *testing.T) {
+	refusal := derrors.New(
+		derrors.CodeNotSupported,
+		"no focused-window geometry source on linux backend wayland-wlroots",
+	)
+
+	sys := &portmocks.MockSystemPort{
+		FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+			return image.Rectangle{}, false, refusal
+		},
+	}
+	service := newTestActionService(&portmocks.MockAccessibilityPort{}, sys)
+
+	err := service.MoveMouseToCenterOfWindow(context.Background(), 0, 0)
+	if !derrors.IsNotSupported(err) {
+		t.Fatalf("MoveMouseToCenterOfWindow() error = %v (code %q), want CodeNotSupported",
+			err, derrors.GetCode(err))
+	}
+
+	if !strings.Contains(derrors.Message(err), "wayland-wlroots") {
+		t.Errorf("error message %q drops what the platform said was missing",
+			derrors.Message(err))
+	}
+}
+
+// TestMoveMouseToCenterOfWindow_ReportsARealFailureAsAccessibilityFailure keeps
+// the other half: an error that is not a platform refusal still reads as one
+// thing going wrong rather than as a feature this platform never had.
+func TestMoveMouseToCenterOfWindow_ReportsARealFailureAsAccessibilityFailure(t *testing.T) {
+	sys := &portmocks.MockSystemPort{
+		FocusedWindowBoundsFunc: func(context.Context) (image.Rectangle, bool, error) {
+			return image.Rectangle{}, false, derrors.New(
+				derrors.CodeBridgeFailed,
+				"X connection lost",
+			)
+		},
+	}
+	service := newTestActionService(&portmocks.MockAccessibilityPort{}, sys)
+
+	err := service.MoveMouseToCenterOfWindow(context.Background(), 0, 0)
+	if derrors.GetCode(err) != derrors.CodeAccessibilityFailed {
+		t.Fatalf("MoveMouseToCenterOfWindow() code = %q, want %q",
+			derrors.GetCode(err), derrors.CodeAccessibilityFailed)
 	}
 }

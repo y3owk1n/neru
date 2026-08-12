@@ -76,12 +76,12 @@ func TestNewWindowOriginSourceFollowsTheBackend(t *testing.T) {
 			map[string]string{swaySocketEnv: swaySocket},
 			noOriginType,
 		},
-		{"kde uses the KWin bridge", platform.BackendWaylandKDE, nil, "*atspi.kwinBridge"},
+		{"kde uses the KWin bridge", platform.BackendWaylandKDE, nil, "*atspi.kwinOriginSource"},
 		{
 			"kde ignores a wlroots socket",
 			platform.BackendWaylandKDE,
 			map[string]string{swaySocketEnv: swaySocket},
-			"*atspi.kwinBridge",
+			"*atspi.kwinOriginSource",
 		},
 		{
 			"wlroots picks niri by its socket",

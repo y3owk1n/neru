@@ -52,6 +52,8 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	// keeps every method a safe no-op elsewhere.
 	adapter.relativeAnimator = newRelativeCursorAnimator(wlrootsMoveCursorBy)
 
+	warmFocusedWindowSource(backend)
+
 	return adapter
 }
 
@@ -265,12 +267,14 @@ func (s *SystemAdapter) ScreenNames(ctx context.Context) ([]string, error) {
 // FocusedWindowBounds returns the global bounds of the currently focused window
 // on Linux, used to constrain hint/vision detection to the active window's
 // monitor (matching darwin). X11 reads _NET_ACTIVE_WINDOW geometry directly.
-// Wayland has no protocol exposing another client's on-screen geometry, so it
-// queries the running wlroots-family compositor's IPC (niri/Sway/Hyprland);
-// KWin and GNOME return not-found and callers fall back to the active screen.
+// Wayland has no protocol exposing another client's on-screen geometry, so the
+// answer comes from the compositor: an IPC CLI on the wlroots family, the KWin
+// geometry script on KDE.
 //
-// found=false with a nil error means "no focused window bounds available" — a
-// normal fallback, not an error.
+// A compositor with no source at all says so with CodeNotSupported, because a
+// caller that falls back to the active screen should know it is falling back.
+// found=false with a nil error is the ordinary "no bounds available" answer —
+// most often an unfocused desktop.
 func (s *SystemAdapter) FocusedWindowBounds(
 	ctx context.Context,
 ) (image.Rectangle, bool, error) {
@@ -279,7 +283,7 @@ func (s *SystemAdapter) FocusedWindowBounds(
 	}
 
 	if s.waylandUsesWlrClientStack() {
-		return waylandFocusedWindowBounds()
+		return waylandFocusedWindowBounds(s.backend)
 	}
 
 	return image.Rectangle{}, false, derrors.New(

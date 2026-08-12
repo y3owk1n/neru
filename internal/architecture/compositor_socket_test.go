@@ -34,11 +34,9 @@ var compositorSocketEnv = []string{
 var compositorSocketReaders = map[string]string{
 	"internal/adapter/platform/linux/system_focused_window.go": "picks the " +
 		"compositor CLI to query for focused-window bounds, reached only from " +
-		"SystemAdapter.FocusedWindowBounds behind waylandUsesWlrClientStack, " +
-		"which tests the backend the adapter was built with (that branch covers " +
-		"KDE as well as wlroots, so a KWin session with a stale socket still " +
-		"asks the wrong CLI — a narrower gate there is a change to that " +
-		"subsystem, not to this pin)",
+		"waylandFocusedWindowSource once the backend has already answered — KDE " +
+		"is routed to its KWin bridge before any socket is read, so a KDE " +
+		"session that inherited SWAYSOCK is no longer asked about a sway tree",
 	"internal/adapter/accessibility/atspi/window_origin.go": "picks the " +
 		"compositor CLI to query for the focused window's origin, reached only " +
 		"from newWindowOriginSource's BackendWaylandWlroots arm",

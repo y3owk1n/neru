@@ -377,6 +377,13 @@ func (s *ActionService) MoveMouseToCenterOfWindow(
 	if err != nil {
 		s.logger.Error("Failed to get focused window bounds", zap.Error(err))
 
+		// A platform that has no way to answer already says so, and names what
+		// is missing. Wrapping that as an accessibility failure would send the
+		// user to check a permission instead of reading the sentence.
+		if derrors.IsNotSupported(err) {
+			return err
+		}
+
 		return derrors.WrapAccessibilityFailed(err, "get focused window bounds")
 	}
 

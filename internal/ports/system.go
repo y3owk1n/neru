@@ -64,6 +64,11 @@ type SystemPort interface {
 	// FocusedWindowBounds returns the bounds of the currently focused window.
 	// Returns the bounds and true if a window was found, or a zero rectangle
 	// and false if no focused window exists (e.g. the desktop is focused).
+	//
+	// A platform that cannot answer the question at all — a Wayland compositor
+	// exposing no window geometry to other clients — returns CodeNotSupported
+	// rather than false, so a caller scoping itself to the whole screen instead
+	// knows it is falling back rather than obeying an answer.
 	FocusedWindowBounds(ctx context.Context) (image.Rectangle, bool, error)
 
 	// MoveCursorToPoint moves the mouse cursor to the specified point.
