@@ -99,6 +99,13 @@ func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11Modifie
 // keyboard grab on another goroutine that can see the event first otherwise.
 // XTest reports nothing back, so a key event the server drops leaves an
 // announcement nobody answers — the tap expires those on its own.
+//
+// A registration names a modifier and a direction rather than an event, so the
+// user pressing that same modifier in the gap between these two lines has their
+// press matched against it instead of ours. That window is one cgo call wide
+// and cannot be closed from here: XTest offers nothing to put on the event that
+// would say whose it is, which is the whole reason this channel exists. It is
+// the same window PostModifierEvent has always had for the modifiers it posts.
 func (h x11ModifierHold) inject(edit modifierstate.Edit, pressed bool) {
 	recordSyntheticModifier(edit.Modifier, pressed)
 
