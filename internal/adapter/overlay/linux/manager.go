@@ -769,10 +769,24 @@ func (m *Manager) UpdateGridMatches(prefix string) {
 }
 
 // ShowSubgrid shows the subgrid overlay.
+//
+// Canceling before the lock is what HideHintSearchInput does and for the same
+// reason: the subgrid replaces the whole surface, and an animation still running
+// would paint over it. It happens out here because cancelAnimation waits for a
+// goroutine that takes renderMu on every frame — canceling from under the lock
+// is a deadlock, not a slow path. The same call answers whether there is a
+// backend at all.
 func (m *Manager) ShowSubgrid(cell *domainGrid.Cell, style grid.Style) {
+	if !m.cancelBackendAnimation() {
+		return
+	}
+
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	// Nil-checked like every other dispatch here rather than trusting the
+	// answer above: that one was taken before renderMu was released for the
+	// cancel, so a Destroy landing in between leaves this pointer nil.
 	if m.x11 != nil {
 		m.syncSublayerKeysLocked(&m.x11.sublayerKeys)
 

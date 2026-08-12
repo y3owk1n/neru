@@ -406,14 +406,40 @@ func (o *sharedOverlay) updateGridMatches(prefix string) {
 	o.redrawGrid()
 }
 
+// showSubgrid replaces what is on the grid surface with the finer grid inside
+// one cell.
+//
+// Its sequence is redrawGrid's and repaintGridSurface's, and the order of the
+// first two calls is the load-bearing part of it — repaintGridSurface below
+// says why.
+//
+// It clears through the surface primitive rather than through clear() because
+// clear() begins by canceling a running animation, and this is reached with
+// renderMu held — the cancel that used to happen here is Manager.ShowSubgrid's
+// now, made before it takes the lock. What is left of clear() is the two records
+// of what the surface holds, dropped below.
 func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 	o.currentSubgrid = cell
 	o.srf.ensureBuffers()
-	o.clear()
 
 	if !o.srf.beginFrame() {
 		return
 	}
+
+	o.srf.surfaceClear()
+
+	// Dropped after the clear rather than before it, so a frame that could not
+	// begin leaves both still describing the screen it did not touch: the
+	// recursive-grid animation must not zoom out of bounds that are gone, and
+	// hiding the hint search badge must not repaint labels that are gone.
+	//
+	// currentSubgrid above is deliberately not one of these. It records what the
+	// mode has open rather than what was painted, which is why it is set before
+	// the guard: the next repaint of this surface has to draw the subgrid the
+	// mode is in, including the repaint that follows a frame this one could not
+	// begin.
+	o.hasLast = false
+	o.lastHints = nil
 
 	o.paintSubgridContent(cell)
 	o.srf.surfaceFlush()
@@ -441,11 +467,8 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 // It also clears through the surface primitive rather than through clear():
 // every caller reaches it with renderMu held, and clear() begins by canceling a
 // running animation, which waits on a goroutine that takes renderMu on every
-// frame. showSubgrid above calls clear() and is reached under renderMu too —
-// that is older than this and not made worse here, because it only bites while
-// an animation is painting the surface a subgrid is being opened on, which the
-// grid frame coming up canceled. A second caller of clear() from this depth
-// would be a new way to reach it, so this one does not add one.
+// frame. showSubgrid above is the same shape for the same reason, and cancels
+// from Manager.ShowSubgrid instead — no repaint of this surface calls clear().
 func (o *sharedOverlay) repaintGridSurface() {
 	if o.currentSubgrid == nil {
 		o.redrawGrid()
