@@ -4,6 +4,7 @@ package linux
 
 import (
 	"image"
+	"slices"
 	"testing"
 
 	"go.uber.org/zap"
@@ -179,6 +180,31 @@ func TestLinuxOverlayManager_ShowSubgrid_KeepsThePointerOnTheSurface(t *testing.
 
 	if !surface.paintedText(gridPointerAppearance.Char) {
 		t.Errorf("painted %v, want the pointer still among them", surface.paintedStrings())
+	}
+}
+
+// Moving the pointer while a subgrid is open repaints the subgrid, and the
+// order it does that in decides which Wayland buffer the clear lands in:
+// beginFrame is what selects the writable one, so clearing before it wipes the
+// buffer already on screen and shows the stale one next.
+func TestLinuxOverlayManager_DrawGridPointer_BeginsTheFrameBeforeClearingIt(t *testing.T) {
+	t.Parallel()
+
+	overlayManager, surface := gridOnSurface(t)
+
+	cell := domainGrid.NewGrid("ab", image.Rect(0, 0, 800, 600), zap.NewNop()).AllCells()[0]
+	overlayManager.ShowSubgrid(cell, gridcomponent.Style{})
+	surface.forget()
+
+	overlayManager.DrawGridPointer(
+		manager.ModeGrid,
+		image.Pt(120, 240),
+		gridPointerAppearance,
+	)
+
+	want := []string{"beginFrame", "surfaceClear", "surfaceFlush"}
+	if !slices.Equal(surface.frameOps, want) {
+		t.Errorf("frame ran %v, want %v", surface.frameOps, want)
 	}
 }
 

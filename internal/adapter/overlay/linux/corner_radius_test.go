@@ -40,6 +40,12 @@ type recordingSurface struct {
 	clearedRects []image.Rectangle
 	clears       int
 	flushes      int
+
+	// frameOps is the order the frame-lifecycle primitives were called in.
+	// Which buffer a Wayland draw lands in depends on it — beginFrame selects
+	// the writable one, so a clear before it wipes the buffer on screen and
+	// leaves the one about to be shown stale — and no counter can see that.
+	frameOps []string
 }
 
 // recordedText is one string the surface was asked to paint, with everything
@@ -59,9 +65,16 @@ func (s *recordingSurface) surfaceScale() float64 { return s.scale }
 
 func (s *recordingSurface) ensureBuffers() {}
 
-func (s *recordingSurface) beginFrame() bool { return true }
+func (s *recordingSurface) beginFrame() bool {
+	s.frameOps = append(s.frameOps, "beginFrame")
 
-func (s *recordingSurface) surfaceClear() { s.clears++ }
+	return true
+}
+
+func (s *recordingSurface) surfaceClear() {
+	s.frameOps = append(s.frameOps, "surfaceClear")
+	s.clears++
+}
 
 func (s *recordingSurface) clearFrame() { s.clears++ }
 
@@ -69,7 +82,10 @@ func (s *recordingSurface) surfaceClearRect(rect image.Rectangle) {
 	s.clearedRects = append(s.clearedRects, rect)
 }
 
-func (s *recordingSurface) surfaceFlush() { s.flushes++ }
+func (s *recordingSurface) surfaceFlush() {
+	s.frameOps = append(s.frameOps, "surfaceFlush")
+	s.flushes++
+}
 
 func (s *recordingSurface) surfaceHide() {}
 
@@ -143,6 +159,7 @@ func (s *recordingSurface) forget() {
 	s.rects = nil
 	s.texts = nil
 	s.clearedRects = nil
+	s.frameOps = nil
 	s.clears = 0
 	s.flushes = 0
 }

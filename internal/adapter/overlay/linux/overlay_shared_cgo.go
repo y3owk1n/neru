@@ -410,7 +410,13 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 	o.currentSubgrid = cell
 	o.srf.ensureBuffers()
 	o.clear()
-	o.paintSubgrid(cell)
+
+	if !o.srf.beginFrame() {
+		return
+	}
+
+	o.paintSubgridContent(cell)
+	o.srf.surfaceFlush()
 }
 
 // repaintGridSurface paints the grid surface as it currently stands, which is
@@ -427,8 +433,13 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 // a cell is chosen, and the equality guard in SetGridPointer keeps the
 // narrowing keystroke at the one repaint it already had.
 //
-// It clears through the surface primitive rather than through clear(): every
-// caller reaches it with renderMu held, and clear() begins by canceling a
+// Its sequence is redrawGrid's, and the order of the first two calls is the
+// load-bearing part: beginFrame is what selects the writable buffer on Wayland,
+// so clearing before it wipes the buffer that is on screen and leaves the one
+// about to be shown holding whatever it last held.
+//
+// It also clears through the surface primitive rather than through clear():
+// every caller reaches it with renderMu held, and clear() begins by canceling a
 // running animation, which waits on a goroutine that takes renderMu on every
 // frame. showSubgrid above calls clear() and is reached under renderMu too —
 // that is older than this and not made worse here, because it only bites while
@@ -436,27 +447,28 @@ func (o *sharedOverlay) showSubgrid(cell *domainGrid.Cell) {
 // grid frame coming up canceled. A second caller of clear() from this depth
 // would be a new way to reach it, so this one does not add one.
 func (o *sharedOverlay) repaintGridSurface() {
-	if o.currentSubgrid != nil {
-		o.srf.ensureBuffers()
-		o.srf.surfaceClear()
-		o.paintSubgrid(o.currentSubgrid)
+	if o.currentSubgrid == nil {
+		o.redrawGrid()
 
 		return
 	}
 
-	o.redrawGrid()
-}
+	o.srf.ensureBuffers()
 
-// paintSubgrid draws the finer grid inside one cell, with the pointer riding
-// the same pass. The caller has already cleared what it replaces.
-func (o *sharedOverlay) paintSubgrid(cell *domainGrid.Cell) {
 	if !o.srf.beginFrame() {
 		return
 	}
 
+	o.srf.surfaceClear()
+	o.paintSubgridContent(o.currentSubgrid)
+	o.srf.surfaceFlush()
+}
+
+// paintSubgridContent draws the finer grid inside one cell, with the pointer
+// riding the same pass, into a frame the caller has begun and cleared.
+func (o *sharedOverlay) paintSubgridContent(cell *domainGrid.Cell) {
 	o.drawSubgrid(cell.Bounds(), o.cachedStyle)
 	o.paintGridPointer()
-	o.srf.surfaceFlush()
 }
 
 // paintGridPointer puts grid mode's pointer stand-in on the surface, in the
