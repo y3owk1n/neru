@@ -235,6 +235,14 @@ else
         apple-sdk_15
       ];
 
+    # pipewire's libspa-0.2.pc carries `-fno-strict-overflow` in its Cflags, and
+    # libpipewire-0.3 pulls it in via Requires. cgo refuses any pkg-config flag
+    # outside its allowlist, and that one is not on it, so the linux adapter
+    # fails to build until cgo is told the flag is safe.
+    env = lib.optionalAttrs stdenv.hostPlatform.isLinux {
+      CGO_CFLAGS_ALLOW = "-fno-strict-overflow";
+    };
+
     # Allow Go to use any available toolchain
     preBuild = ''
       export GOTOOLCHAIN=auto
