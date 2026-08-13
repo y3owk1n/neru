@@ -60,7 +60,9 @@ func (c *Client) reportOriginFailure(err error) {
 }
 
 // clearOriginFailure forgets the last reported reason, so a source that starts
-// working and later breaks again is heard the second time too.
+// working and later breaks again is heard the second time too. Every answer
+// clears it, including one with no origin in it: what ends a failure is the
+// source answering at all.
 func (c *Client) clearOriginFailure() { c.originFailure.Store(nil) }
 
 // windowOriginSizeTolerance is the max per-dimension difference (px) allowed
