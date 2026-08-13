@@ -3,9 +3,12 @@
 package atspi
 
 import (
+	"image"
+
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform/kwin"
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // KDE window-origin source. KWin exposes no CLI the way the wlroots family
@@ -39,16 +42,31 @@ func (s *kwinOriginSource) start() { s.geometry.EnsureStarted() }
 // belongs to a different window, and offsetting by it would land every hint at
 // the previous window's screen position. A size mismatch is the cheapest
 // reliable staleness signal, so callers then fall back to unoffset
-// (window-relative) coordinates — which is also what a bridge that never
-// installed gets, since an unoffset hint is the same degradation either way.
-func (s *kwinOriginSource) originFor(frameW, frameH int) (int, int, bool) {
-	rect, ok, err := s.geometry.Bounds()
-	if !ok {
-		if err != nil {
-			s.logger.Debug("KWin origin unavailable", zap.Error(err))
-		}
+// (window-relative) coordinates.
+//
+// A bridge that could not be installed is reported rather than folded into that
+// same answer. The degradation is identical — an unoffset hint either way — but
+// one of them is a KDE session that will never place a hint correctly until
+// something is fixed, and telling a person that is the whole reason this source
+// carries a reason at all.
+//
+// It is reported in the same words the focused-window arm uses for the same
+// failure, because it is the same bridge: CodeNotSupported, because what a
+// person has to do about it is not check a permission but install a script that
+// is missing. One geometry source answering one way here and another there is
+// what having one geometry source is for.
+func (s *kwinOriginSource) originFor(frameW, frameH int) (image.Point, bool, error) {
+	rect, cached, err := s.geometry.Bounds()
+	if err != nil {
+		return image.Point{}, false, derrors.Wrap(
+			err,
+			derrors.CodeNotSupported,
+			"the KWin focused-window geometry script is not installed",
+		)
+	}
 
-		return 0, 0, false
+	if !cached {
+		return image.Point{}, false, nil
 	}
 
 	if absInt(rect.Dx()-frameW) > windowOriginSizeTolerance ||
@@ -57,8 +75,8 @@ func (s *kwinOriginSource) originFor(frameW, frameH int) (int, int, bool) {
 			zap.Int("cachedW", rect.Dx()), zap.Int("cachedH", rect.Dy()),
 			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
 
-		return 0, 0, false
+		return image.Point{}, false, nil
 	}
 
-	return rect.Min.X, rect.Min.Y, true
+	return rect.Min, true, nil
 }

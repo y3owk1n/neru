@@ -3,7 +3,11 @@
 package atspi
 
 import (
+	"image"
+
 	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/compositorcli"
 )
 
 // Sway window-origin source. `swaymsg -t get_tree` returns the full node tree;
@@ -62,22 +66,30 @@ func findFocused(node *swayNode) *swayNode {
 	return nil
 }
 
-func (s *swayOriginSource) originFor(frameW, frameH int) (int, int, bool) {
+func (s *swayOriginSource) originFor(frameW, frameH int) (image.Point, bool, error) {
 	var tree swayNode
-	if !compositorJSON(&tree, "swaymsg", "-t", "get_tree") {
-		return 0, 0, false
+
+	err := compositorcli.Query(&tree, "swaymsg", "-t", "get_tree")
+	if err != nil {
+		return image.Point{}, false, err
 	}
 
-	return swayComputeOrigin(&tree, frameW, frameH, s.logger)
+	origin, ok := swayComputeOrigin(&tree, frameW, frameH, s.logger)
+
+	return origin, ok, nil
 }
 
 // swayComputeOrigin finds the focused node in a sway tree and derives its
 // on-screen content origin (rect + window_rect, which excludes decorations),
 // rejecting a size mismatch with the AT-SPI frame.
-func swayComputeOrigin(tree *swayNode, frameW, frameH int, logger *zap.Logger) (int, int, bool) {
+func swayComputeOrigin(
+	tree *swayNode,
+	frameW, frameH int,
+	logger *zap.Logger,
+) (image.Point, bool) {
 	focused := findFocused(tree)
 	if focused == nil {
-		return 0, 0, false
+		return image.Point{}, false
 	}
 
 	// Content origin/size: prefer window_rect (excludes decorations); fall back
@@ -97,8 +109,8 @@ func swayComputeOrigin(tree *swayNode, frameW, frameH int, logger *zap.Logger) (
 			zap.Int("contentW", contentW), zap.Int("contentH", contentH),
 			zap.Int("frameW", frameW), zap.Int("frameH", frameH))
 
-		return 0, 0, false
+		return image.Point{}, false
 	}
 
-	return originX, originY, true
+	return image.Pt(originX, originY), true
 }
