@@ -237,6 +237,16 @@ type simOverlayPort struct {
 	// overlay" means.
 	appliedConfigs []*config.Config
 	styleRefreshes int
+
+	// showFrameGate, when set, is called at the top of ShowFrame with the frame
+	// about to be drawn, *outside* m.mu. It is how a journey holds an
+	// activation open at a known point: the draw is the slowest step of one and
+	// runs under the handler's lock, so a gate that blocks there parks the
+	// activation mid-flight with h.mu held, which is the state a key pressed
+	// during a mode switch actually meets. Set it before the activation and
+	// read it under gateMu, because activations run on their own goroutines.
+	gateMu        sync.Mutex
+	showFrameGate func(ports.Frame)
 }
 
 var _ ports.OverlayPort = (*simOverlayPort)(nil)
@@ -246,6 +256,10 @@ func (m *simOverlayPort) Health(_ context.Context) error { return nil }
 // ShowFrame puts a frame on screen: the overlay comes up and the frame's
 // content replaces whatever was there.
 func (m *simOverlayPort) ShowFrame(_ context.Context, frame ports.Frame) error {
+	if gate := m.frameGate(); gate != nil {
+		gate(frame)
+	}
+
 	if _, isPicker := frame.(ports.MonitorSelectFrame); isPicker && m.refuseMonitorSelect {
 		return derrors.New(derrors.CodeNotSupported, "no monitor picker on this backend")
 	}
@@ -435,6 +449,23 @@ func (m *simOverlayPort) Destroy() {
 }
 
 // isDestroyed reports whether the overlay has been released.
+// setShowFrameGate installs (or clears, with nil) the hook ShowFrame calls
+// before it draws.
+func (m *simOverlayPort) setShowFrameGate(gate func(ports.Frame)) {
+	m.gateMu.Lock()
+	defer m.gateMu.Unlock()
+
+	m.showFrameGate = gate
+}
+
+// frameGate answers the gate currently installed, if any.
+func (m *simOverlayPort) frameGate() func(ports.Frame) {
+	m.gateMu.Lock()
+	defer m.gateMu.Unlock()
+
+	return m.showFrameGate
+}
+
 func (m *simOverlayPort) isDestroyed() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

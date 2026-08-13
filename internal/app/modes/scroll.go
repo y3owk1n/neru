@@ -19,10 +19,18 @@ func (h *handlerState) startInteractiveScroll() {
 
 	if h.appState.CurrentMode() != domain.ModeIdle {
 		// Mode-to-mode transition: clean up the current mode but keep the
-		// event tap enabled. Skipping disableEventTap avoids a brief dead
-		// window where CGEventTap silently drops key events between the
-		// disable and subsequent re-enable (the root cause of missed
-		// scrolling keys when activating from grid mode).
+		// event tap enabled, for the reason exitModeForTransition states — this
+		// is where that dead window was first found, in the shape of missed
+		// scrolling keys when activating from grid mode.
+		//
+		// Scroll keeps a cleanup of its own rather than calling that helper,
+		// and the three differences are all deliberate: it does not clear the
+		// overlay frame (the ScrollFrame below replaces it, and clearing first
+		// is a wasted round trip on the backend where this mode is entered
+		// most), it does not pass through idle (nothing here can abandon the
+		// activation, so there is no state to be caught in), and it *does*
+		// reset the suppressed modifiers that performCommonCleanup deliberately
+		// keeps. Unify them only with an answer for that third one.
 		h.performModeSpecificCleanup()
 		h.stopHeldRepeat()
 

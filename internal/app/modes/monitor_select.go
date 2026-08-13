@@ -133,7 +133,13 @@ func (h *handlerState) activateMonitorSelectMode(_ modecmd.Activation) {
 		return
 	}
 
-	h.exitMode()
+	// Coming from another mode, the keyboard is handed over rather than given
+	// back: exit now, release at return if nothing is entered. Entering from
+	// idle takes the same pair — the exit is a no-op there and the release
+	// finds nothing to give back — because a picker that cannot draw returns
+	// through the same path either way.
+	defer h.exitModeForTransition()()
+
 	h.monitorSelect = session
 
 	// The picker comes up as a Frame, so the overlay owns switching to the
