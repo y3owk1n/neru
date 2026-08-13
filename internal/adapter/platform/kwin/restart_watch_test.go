@@ -5,13 +5,22 @@ package kwin
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"go.uber.org/zap"
 )
 
-// testKWinOwner is a bus name KWin could hold; only whether it is empty matters.
-const testKWinOwner = ":1.42"
+const (
+	// testKWinOwner is a bus name KWin could hold; only whether it is empty
+	// matters.
+	testKWinOwner = ":1.42"
+
+	// installScheduleWait bounds how long a scheduled install may take to reach
+	// its installer. It is a failure deadline, not a delay: the happy path
+	// returns as soon as the goroutine runs.
+	installScheduleWait = 2 * time.Second
+)
 
 // TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying covers the
 // staleness a restart causes, and what has to be said about it.
@@ -67,6 +76,20 @@ func TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying(t *testing.T) {
 func TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
+	// The replacement the retired attempt schedules is held at the door, so
+	// what is asserted below is the state the departure left rather than
+	// whatever that replacement went on to publish.
+	scheduled, release := make(chan struct{}, 1), make(chan struct{})
+	geometry.installer = func() error {
+		scheduled <- struct{}{}
+
+		<-release
+
+		return nil
+	}
+
+	defer close(release)
+
 	stale, ok := geometry.beginStart()
 	if !ok {
 		t.Fatal("the first caller was not allowed to install")
@@ -77,6 +100,13 @@ func TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved(t *testing.T) {
 	// The attempt that was already in flight now finishes, successfully.
 	geometry.endStart(stale, nil)
 
+	select {
+	case <-scheduled:
+	case <-time.After(installScheduleWait):
+		t.Fatal("a stale install left nothing installed and scheduled nothing, so " +
+			"the bridge would sit idle until some request happened along")
+	}
+
 	_, cached, err := geometry.Bounds()
 	if cached {
 		t.Error("a stale install left a window cached for a departed compositor")
@@ -86,10 +116,41 @@ func TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved(t *testing.T) {
 		t.Errorf("Bounds() error = %v, want the departure to still be the reason — "+
 			"a stale success must not erase it", err)
 	}
+}
 
-	if _, again := geometry.beginStart(); !again {
-		t.Error("a stale install marked the bridge installed, so nothing would " +
-			"ever install into the compositor that comes back")
+// TestGeometry_ARetiredInstallSchedulesTheOneItBlocked covers a compositor that
+// leaves and comes back while an install is still running.
+//
+// The return finds the claim held by the attempt that is now stale, so it cannot
+// start the replacement itself and nothing else is coming. The stale attempt is
+// therefore the one that has to schedule it on its way out — otherwise the
+// bridge sits uninstalled, reporting the departure as the reason, until some
+// request happens along and pays for the discovery.
+func TestGeometry_ARetiredInstallSchedulesTheOneItBlocked(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	installs := make(chan struct{}, 1)
+	geometry.installer = func() error {
+		installs <- struct{}{}
+
+		return nil
+	}
+
+	stale, ok := geometry.beginStart()
+	if !ok {
+		t.Fatal("the first caller was not allowed to install")
+	}
+
+	geometry.kwinOwnerChanged("")
+	geometry.kwinOwnerChanged(testKWinOwner)
+
+	geometry.endStart(stale, nil)
+
+	select {
+	case <-installs:
+	case <-time.After(installScheduleWait):
+		t.Fatal("a compositor came back while an install was in flight and nothing " +
+			"ever installed into it")
 	}
 }
 

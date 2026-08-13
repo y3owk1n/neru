@@ -89,6 +89,12 @@ type Geometry struct {
 	installed bool
 	warned    bool
 
+	// installer is what one attempt runs. It is a field rather than a method
+	// call so a test can drive the whole claim-and-generation machinery —
+	// including the reinstall that a retired attempt has to schedule — without
+	// a session bus to install into.
+	installer func() error
+
 	// generation counts how many times what an install attempt is *about* has
 	// stopped being true — KWin changing hands underneath one in flight. An
 	// attempt carries the generation it began in and publishes nothing unless
@@ -127,6 +133,7 @@ func Shared(logger *zap.Logger) *Geometry {
 
 func newGeometry(logger *zap.Logger) *Geometry {
 	geometry := &Geometry{}
+	geometry.installer = geometry.install
 	geometry.adoptLogger(logger)
 
 	return geometry
@@ -286,7 +293,7 @@ func (g *Geometry) log() *zap.Logger {
 // happens, so Bounds keeps naming the current reason rather than going quiet
 // for the length of the backoff.
 func (g *Geometry) start(generation uint64) {
-	g.runInstall(generation, g.install, installRetryBackoff)
+	g.runInstall(generation, g.installer, installRetryBackoff)
 }
 
 // runInstall is start's loop with its two dependencies passed in, so the retry
@@ -329,13 +336,19 @@ func (g *Geometry) beginStart() (uint64, bool) {
 // endStart records the last attempt of a sequence and releases the claim, so
 // the next caller can retry a failure and none can repeat a success.
 //
-// An attempt from a superseded generation releases the claim and says nothing
-// else. It was about a compositor that has since changed hands, so its success
-// is not evidence that this one is installed, and its outcome must not overwrite
-// what the departure recorded — a stale success would otherwise leave an empty
-// cache with no reason, which reads as an unfocused desktop and sends callers
-// silently back to the active screen. It leaves nothing installed, so the next
-// caller starts an attempt about the compositor that is actually there.
+// An attempt from a superseded generation publishes nothing. It was about a
+// compositor that has since changed hands, so its success is not evidence that
+// this one is installed, and its outcome must not overwrite what the departure
+// recorded — a stale success would otherwise leave an empty cache with no
+// reason, which reads as an unfocused desktop and sends callers silently back to
+// the active screen.
+//
+// It schedules a fresh attempt on its way out instead, because it was holding
+// the claim for the whole time it was stale: a compositor that arrived in that
+// window found the claim taken, could not start an installer of its own, and has
+// nobody else coming. Leaving that to the next caller would mean the request
+// that discovers it is the one that pays, which for the AT-SPI origin is a
+// screenful of hints placed window-relative.
 func (g *Geometry) endStart(generation uint64, err error) {
 	g.startMu.Lock()
 	g.starting = false
@@ -349,6 +362,7 @@ func (g *Geometry) endStart(generation uint64, err error) {
 
 	if !current {
 		g.log().Debug("KWin geometry install finished for a compositor that has since gone")
+		g.EnsureStarted()
 
 		return
 	}
