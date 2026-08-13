@@ -540,18 +540,49 @@ func (et *EventTap) injectSyntheticRelease(code uint16) {
 }
 
 // waitForEvdevKeysReleased blocks until every physically held key is released,
-// or the pre-grab timeout passes. Grabbing while a key is held makes the kernel
-// route that key's release to our fd only — libinput never sees it, considers
-// the key pressed forever, and silently eats its next press. Returns true when
-// the tap was stopped while waiting.
+// or one of the two pre-grab bounds passes. Grabbing while a key is held makes
+// the kernel route that key's release to our fd only — libinput never sees it,
+// considers the key pressed forever, and silently eats its next press. Returns
+// true when the tap was stopped while waiting.
+//
+// It waits in two stages, and the constants say why they are bounded
+// differently. Modifiers first, because a swallowed modifier release outlives
+// this mode; then everything still down, briefly, because by then it cannot be
+// a modifier. Both stages end in the same place when their bound passes: the
+// grab happens anyway, onto the handled path #1087 built for it.
+//
+// The stages are not redundant even though the second one's question subsumes
+// the first — EVIOCGKEY reports modifiers like any other key, so "nothing is
+// pressed" already implies "no modifier is held". What separates them is the
+// bound each carries and how closely each watches: the modifier stage polls at
+// five milliseconds because releasing an activation chord is on the path of
+// every mode entry and the latency is paid there, while the hold stage can tick
+// slower and wake on evdev traffic instead.
 func (et *EventTap) waitForEvdevKeysReleased(
 	capture *waylandEvdevCapture,
 	overlayCapture overlaymanager.KeyboardCaptureController,
 ) bool {
+	modifierDeadline := time.After(waylandEvdevModifierReleaseTimeout)
+
 	for capture.modifierKeysHeld() {
 		select {
 		case <-et.stopCh:
 			return true
+		case <-modifierDeadline:
+			// Grab with the modifier still down rather than never grabbing.
+			// Warn, not debug: this is the keyboard being taken while the
+			// kernel says a modifier is held, so the synthetic release on the
+			// way out is the only thing standing between the user and a
+			// modifier stuck under every application they use next.
+			if et.logger != nil {
+				et.logger.Warn(
+					"Grabbing the keyboard with a modifier still held; its release will "+
+						"not reach the compositor until this mode exits",
+					zap.Duration("waited", waylandEvdevModifierReleaseTimeout),
+				)
+			}
+
+			return false
 		case <-time.After(waylandEvdevModifierReleasePollPeriod):
 		}
 	}
@@ -567,7 +598,7 @@ func (et *EventTap) waitForEvdevKeysReleased(
 		overlayCapture.SetKeyboardCaptureEnabled(true)
 	}
 
-	deadline := time.After(waylandEvdevPreGrabTimeout)
+	deadline := time.After(waylandEvdevPreGrabHoldTimeout)
 	ticker := time.NewTicker(waylandEvdevPreGrabHoldPollPeriod)
 
 	defer func() {
@@ -590,6 +621,19 @@ func (et *EventTap) waitForEvdevKeysReleased(
 		case <-et.stopCh:
 			return true
 		case <-deadline:
+			// Debug rather than warn, unlike the modifier bound above: this is
+			// the ordinary way a user typing into an activation gets their mode
+			// promptly, and the key held through the grab costs them one
+			// suppressed press. A count, never the keys — the keystream is not
+			// something this may log (root AGENTS.md, Conventions).
+			if et.logger != nil {
+				et.logger.Debug(
+					"Grabbing the keyboard with keys still held; their first press is suppressed",
+					zap.Int("held", len(pressed)),
+					zap.Duration("waited", waylandEvdevPreGrabHoldTimeout),
+				)
+			}
+
 			return false
 		case <-ticker.C:
 		case _, ok := <-capture.events:

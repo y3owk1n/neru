@@ -24,10 +24,52 @@ const (
 	waylandEvdevEventBufferSize           = 128
 	waylandEvdevModifierReleasePollPeriod = 5 * time.Millisecond
 	waylandEvdevPreGrabHoldPollPeriod     = 50 * time.Millisecond
-	waylandEvdevPreGrabTimeout            = 5 * time.Second
 	waylandEvdevHotplugBufSize            = 4096
 	waylandEvdevHotplugSettleDelay        = 100 * time.Millisecond
 	waylandEvdevHotplugPollInterval       = 500 * time.Millisecond
+)
+
+// The two bounds on how long a mode activation waits for the keyboard to go
+// quiet before grabbing it. Waiting at all is #1087's first line of defense:
+// grabbing while a key is held routes that key's release to our fd alone, so
+// libinput never sees it, considers the key down forever and eats its next
+// press. The other two lines are the ones that make *these* bounds affordable —
+// initialKeys suppresses the kernel's replay of a key already held at grab
+// time, and shutdownEvdevSession injects a synthetic release for it on the way
+// out — so a wait that expires falls back onto a handled path rather than off a
+// cliff. That is what lets both of these be bounds instead of conditions.
+//
+// They differ because what is being waited for differs, and because the cost of
+// giving up differs with it.
+const (
+	// waylandEvdevModifierReleaseTimeout bounds the wait for held *modifiers*.
+	// It is the long one: a modifier whose release we swallow is stuck across
+	// every application the user touches next, not just this mode, so it is
+	// worth waiting out an activation chord that is being held. What it may not
+	// be is unbounded, which is what it was — the loop had no deadline at all,
+	// so a modifier the kernel reports as held (a chord the user rests on, a
+	// key wedged by something else) left the mode active, the overlay drawn and
+	// the keyboard never grabbed, with everything typed going to the focused
+	// application and nothing said about it. `platform/linux/AGENTS.md` has the
+	// rule this broke: never block on the eventtap goroutine.
+	waylandEvdevModifierReleaseTimeout = 5 * time.Second
+
+	// waylandEvdevPreGrabHoldTimeout bounds the wait for ordinary keys, and is
+	// short because by the time it runs the modifier wait above has already
+	// finished — so what is still down is a plain key, whose worst case is one
+	// key eaten rather than a modifier stuck under everything.
+	//
+	// Five seconds here was the reported bug (a user mashing keys as the mode
+	// came up, seeing "the grid clearly not moving… when I stop for a second,
+	// it seems to fix the issue"): someone typing through an activation holds a
+	// key at almost every poll, so the wait runs to its deadline and the mode
+	// takes no input until it does. Waiting is futile in exactly that case —
+	// the next poll finds another key down, and the grab that eventually
+	// happens is a grab with a key held either way. Half a second is long
+	// enough for the release of a deliberate keypress, which is what waiting is
+	// for, and short enough that typing into an activation costs a beat rather
+	// than the five seconds it cost before.
+	waylandEvdevPreGrabHoldTimeout = 500 * time.Millisecond
 )
 
 // waylandEvdevKeyboardActive reports whether an evdev keyboard grab is currently

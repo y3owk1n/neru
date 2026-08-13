@@ -47,7 +47,9 @@ func (h *handlerState) activateRecursiveGridModeWithAction(activation modecmd.Ac
 		// The overlay is cleared unconditionally below.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitMode()
+		// Coming from another mode, the keyboard is handed over rather than
+		// given back: exit now, release at return if nothing is entered.
+		defer h.exitModeForTransition()()
 	}
 
 	// Get screen bounds

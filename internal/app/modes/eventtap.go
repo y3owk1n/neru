@@ -28,6 +28,13 @@ func (h *handlerState) hasEventTap() bool {
 	return h.eventTap != nil
 }
 
+// eventTapEnabled reports whether keyboard capture is currently live. A handler
+// with no tap reads as not capturing, which is what a caller asking whether the
+// keyboard has to be given back wants to hear.
+func (h *handlerState) eventTapEnabled() bool {
+	return h.eventTap != nil && h.eventTap.IsEnabled()
+}
+
 // enableEventTap starts keyboard capture.
 func (h *handlerState) enableEventTap() {
 	if h.eventTap == nil {

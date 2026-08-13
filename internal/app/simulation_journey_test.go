@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1423,6 +1424,185 @@ func TestSimulation_RapidModeSwitching(t *testing.T) {
 		sim.press("Escape")
 		sim.waitMode(domain.ModeIdle)
 	}
+}
+
+// TestSimulation_ModeSwitchNeverDropsTheKeyboard is the regression for a
+// reported Linux bug: the journey is a user going from one mode straight into
+// another, and what must not happen in between is Neru letting go of the
+// keyboard.
+//
+// It was letting go — every mode but scroll ran the full exit, which releases
+// the capture, and only took it back after the next mode had queried the
+// screen, built its state and drawn its overlay. On Linux that is long enough
+// to type into: the user switched from scroll to recursive grid, pressed their
+// grid keys, and watched them arrive in Discord as text.
+//
+// The whole assertion is that no disable reaches the tap between the two
+// activations, because a disable *is* the window: there is no way for the
+// capture to drop and the keys in it to still be Neru's.
+func TestSimulation_ModeSwitchNeverDropsTheKeyboard(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), threeButtons(t))
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	// Record from here: the calls made on the way into scroll are not what
+	// this journey is about.
+	var (
+		releasedMu sync.Mutex
+		released   bool
+	)
+
+	sim.tap.SetOnCall(func(label string) {
+		if label != "disable" {
+			return
+		}
+
+		releasedMu.Lock()
+		defer releasedMu.Unlock()
+
+		released = true
+	})
+
+	// Every mode-to-mode pair goes through the same exit, so the two that are
+	// not scroll are worth walking as well: scroll was the only one already
+	// carrying the carve-out this fixes.
+	for _, step := range []struct {
+		hotkey string
+		mode   domain.Mode
+	}{
+		{recursiveGridHotkey, domain.ModeRecursiveGrid},
+		{gridHotkey, domain.ModeGrid},
+		{hintsHotkey, domain.ModeHints},
+	} {
+		sim.pressHotkey(step.hotkey)
+		sim.waitMode(step.mode)
+
+		releasedMu.Lock()
+		dropped := released
+		releasedMu.Unlock()
+
+		if dropped {
+			t.Fatalf(
+				"the keyboard was released on the way into %s: "+
+					"everything typed in that window reaches the focused application instead of Neru",
+				domain.ModeString(step.mode),
+			)
+		}
+
+		if !sim.tap.IsEnabled() {
+			t.Fatalf("%s is active with no keyboard capture", domain.ModeString(step.mode))
+		}
+	}
+}
+
+// TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode is the reporter's
+// original ask, which the two tests around this one do not actually cover:
+// "I would at least like it if those inputs are delayed than if they are
+// ignored". Keeping the keyboard is what makes that possible, but what delivers
+// it is the lock — an activation holds h.mu from start to finish and the tap's
+// dispatcher delivers through HandleKeyPress, which takes the same lock — and
+// nothing pinned that the key actually arrives.
+//
+// The switch is held open at the overlay draw, which is where a real Linux
+// activation spends its time and which runs under h.mu. With the activation
+// parked there, a grid key is pressed. It must not be dropped, and it must not
+// be handled by the mode being left: it has to wait and land in the mode coming
+// up, which is observable as the recursive grid zooming into the cell that key
+// names.
+//
+// This pins the delivery half only, and deliberately: press() calls
+// HandleKeyPress directly, the way the tap's dispatcher does, so what is
+// asserted here is that a key arriving mid-activation waits on the lock and is
+// handled by the new mode. That it is *captured* rather than leaked to the
+// focused application in the first place is the other half, and belongs to
+// TestSimulation_ModeSwitchNeverDropsTheKeyboard above. Neither test is the
+// whole claim on its own.
+//
+// What none of the three covers is the race that remains: a key the tap reads
+// *before* the activation takes h.mu is still the old mode's, and scroll drops
+// it (handleGenericScrollKey does nothing). The hotkey dispatch and the tap's
+// dispatcher are separate goroutines contending for the lock unordered, so that
+// window is not closed by anything here — see exitModeForTransition, which says
+// so rather than claiming the whole ask is delivered.
+func TestSimulation_KeyPressedDuringAModeSwitchLandsInTheNewMode(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(scrollHotkey)
+	sim.waitMode(domain.ModeScroll)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	var (
+		activationParked = make(chan struct{})
+		releaseGate      = make(chan struct{})
+		parkOnce         sync.Once
+	)
+
+	sim.overlay.setShowFrameGate(func(frame ports.Frame) {
+		if _, isRecursiveGrid := frame.(ports.RecursiveGridFrame); !isRecursiveGrid {
+			return
+		}
+
+		parkOnce.Do(func() {
+			close(activationParked)
+			<-releaseGate
+		})
+	})
+
+	go sim.pressHotkey(recursiveGridHotkey)
+
+	<-activationParked
+
+	// The activation is now inside the draw, holding h.mu. This press goes to
+	// the tap's side of the handler and can only be delivered once the lock is
+	// free, by which time recursive grid is the active mode. "r" is the
+	// top-left cell of the default 3x3 layout.
+	keyDelivered := make(chan struct{})
+
+	go func() {
+		defer close(keyDelivered)
+
+		sim.press("r")
+	}()
+
+	// Give the press long enough to be wrongly handled by scroll — where the
+	// generic key handler does nothing — before letting the activation finish.
+	time.Sleep(simPollInterval)
+	close(releaseGate)
+
+	sim.waitMode(domain.ModeRecursiveGrid)
+	<-keyDelivered
+
+	sim.overlay.setShowFrameGate(nil)
+
+	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
+	sim.waitFor("the key pressed mid-switch zoomed the new mode's grid", func() bool {
+		bounds, ok := sim.overlay.lastRecursiveGridBounds()
+
+		return ok && bounds.In(topLeftThird)
+	})
+}
+
+// TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack is the other half of
+// the journey above, and the reason keeping the capture is safe: the transition
+// hands the keyboard to a mode that may never arrive.
+//
+// Here it does not — hints is asked for on a screen with nothing clickable, so
+// the activation gives up after the exit that kept the capture. The app is left
+// idle, and idle holding the keyboard would be worse than the bug being fixed:
+// every key the user pressed would go nowhere at all.
+func TestSimulation_AbandonedModeSwitchGivesTheKeyboardBack(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("the mode taking keystrokes", sim.tap.IsEnabled)
+
+	sim.pressHotkey(hintsHotkey)
+	sim.waitMode(domain.ModeIdle)
+
+	sim.waitFor("the keyboard given back", func() bool { return !sim.tap.IsEnabled() })
 }
 
 // TestSimulation_ThemeChangeReachesVisibleOverlay covers the journey the

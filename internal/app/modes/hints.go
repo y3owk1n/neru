@@ -112,7 +112,12 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		// fails.
 		h.stopIndicatorPolling()
 	} else {
-		h.exitMode()
+		// Coming from another mode, the keyboard is handed over rather than
+		// given back: exit now, release at return if nothing is entered. Hints
+		// has more ways to give up than any other mode — every
+		// abandonHintActivation below, plus the permission dialog that suspends
+		// the activation — and the deferred release covers all of them.
+		defer h.exitModeForTransition()()
 	}
 
 	if actionString == domain.UnknownAction {
