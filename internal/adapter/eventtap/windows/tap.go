@@ -102,27 +102,6 @@ func (et *EventTap) SetHotkeys(hotkeys []string) {
 	et.hotkeys = append([]string(nil), hotkeys...)
 }
 
-// isRegisteredHotkey reports whether key is one of the chords registered as a
-// global hotkey, compared in the normalized form both sides are matched in so a
-// binding written "Primary+G" answers for the "Ctrl+G" the hook reads.
-func (et *EventTap) isRegisteredHotkey(key string) bool {
-	normalized := config.NormalizeKeyForComparison(key)
-	if normalized == "" {
-		return false
-	}
-
-	et.mu.RLock()
-	defer et.mu.RUnlock()
-
-	for _, hotkey := range et.hotkeys {
-		if config.NormalizeKeyForComparison(hotkey) == normalized {
-			return true
-		}
-	}
-
-	return false
-}
-
 // SetModifierPassthrough sets modifier passthrough.
 func (et *EventTap) SetModifierPassthrough(_ bool, _ []string) {}
 
@@ -188,6 +167,27 @@ func IsUinputScrollAvailable() bool {
 
 // IsWaylandEvdevKeyboardActive returns false on Windows (no evdev / Wayland).
 func IsWaylandEvdevKeyboardActive() bool {
+	return false
+}
+
+// isRegisteredHotkey reports whether key is one of the chords registered as a
+// global hotkey, compared in the normalized form both sides are matched in so a
+// binding written "Primary+G" answers for the "Ctrl+G" the hook reads.
+func (et *EventTap) isRegisteredHotkey(key string) bool {
+	normalized := config.NormalizeKeyForComparison(key)
+	if normalized == "" {
+		return false
+	}
+
+	et.mu.RLock()
+	defer et.mu.RUnlock()
+
+	for _, hotkey := range et.hotkeys {
+		if config.NormalizeKeyForComparison(hotkey) == normalized {
+			return true
+		}
+	}
+
 	return false
 }
 
