@@ -214,24 +214,14 @@ func (a *Adapter) PostModifierEvent(modifier string, isDown bool) {
 // promises a tap that is down when it returns and the app closes the rest of
 // its infrastructure on the strength of that.
 //
-// The critical section has one exit, deliberately: this is the one method in
-// the file whose correctness is a lock *release* ordering, and a second unlock
-// site is how a later change loses it quietly.
+// Nothing here unlocks mid-method: the state change is claimTeardown's whole
+// body, released by its own defer, and this method runs what it was handed
+// after that returns. That is the "settle it under the lock, act after the
+// release" idiom the handler's guide states, and the reason it is two methods
+// rather than one with an explicit Unlock in the middle.
 func (a *Adapter) Destroy() {
-	a.mu.Lock()
-
-	alreadyDestroying := a.destroyed
-	if !alreadyDestroying {
-		a.destroyed = true
-		a.enabled = false
-		a.teardownDone = make(chan struct{})
-	}
-
-	teardownDone := a.teardownDone
-
-	a.mu.Unlock()
-
-	if alreadyDestroying {
+	teardownDone, ours := a.claimTeardown()
+	if !ours {
 		<-teardownDone
 
 		return
@@ -251,6 +241,27 @@ func (a *Adapter) Destroy() {
 // Non-Linux backends and the no-cgo Linux build report false.
 func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
 	return overlayKeyboardPassthroughAllowed()
+}
+
+// claimTeardown settles who is tearing the tap down and marks the adapter
+// destroyed and disabled in the same hold.
+//
+// It answers the channel that closes when the teardown is finished, and
+// whether this caller is the one that has to run it: false means someone else
+// already claimed it and the channel is theirs to wait on.
+func (a *Adapter) claimTeardown() (chan struct{}, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.destroyed {
+		return a.teardownDone, false
+	}
+
+	a.destroyed = true
+	a.enabled = false
+	a.teardownDone = make(chan struct{})
+
+	return a.teardownDone, true
 }
 
 // Ensure Adapter implements ports.EventTapPort and the optional overlay
