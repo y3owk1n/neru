@@ -60,12 +60,14 @@ disagree, the code wins** — and the disagreement is a bug worth fixing here.
 
 Three words carry the whole promise, so they are worth pinning down:
 
-**Stable** — fully featured. Everything Neru does works here. This is the
-reference implementation, and a gap on this platform is a bug.
+**Stable** — fully featured *and* proven in use. Everything Neru does works
+here, and it has been exercised long enough that a gap is a surprise rather
+than an expectation. A gap on this platform is a bug.
 
 **Beta** — good for daily driving. Every navigation mode works and behaves the
-same as it does on a stable platform; what is missing sits around the edges
-(a few animations, a setup step for Wayland hotkeys) rather than in your way.
+same as it does on a stable platform. A platform is beta either because
+something is still missing, or because what is there has not yet been proven
+outside CI. Which one applies is stated per platform below.
 
 **Alpha** — worth trying, not yet worth switching to. Core navigation works, but
 hint coverage is incomplete and per-app config does not re-apply on focus
@@ -75,10 +77,23 @@ Every claim behind these labels is enumerated in the
 [Capability Matrix](#capability-matrix) and [Known Gaps](#known-gaps). If a
 label and the matrix disagree, the matrix is right.
 
-**Linux moves from Beta to Stable** when its [Known Gaps](#known-gaps) entries
-are empty for the blessed stack and the headless-sway CI job is green and
-required for merge — not before, and not on a judgment call
-([ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)).
+**Linux parity is complete.** Every option, mode flag, action and command means
+on the blessed stack what it means on macOS, [Known Gaps](#known-gaps) carries
+no Linux entry, and the headless-sway job gates merges. That was the whole of
+[ADR 0013](./adr/0013-parity-is-measured-in-words-not-subsystems.md)'s promise,
+and it is kept.
+
+**Linux stays Beta anyway**, because parity is a claim about coverage and
+Stable is a claim about reliability. Fourteen capabilities landed in a
+fortnight on a platform the maintainer does not daily-drive, each proven by a
+CI job rather than by use. Coverage is what a checklist can establish; that
+these hold up on a real compositor, under a real workload, over weeks of
+ordinary use, is not.
+
+**Linux moves to Stable** after six consecutive releases in which no
+`platform: linux` bug is filed that a macOS user would not also hit —
+`gh issue list --label "platform: linux" --label bug`. Not before, and still
+not on a judgment call.
 
 ### Per-platform
 
@@ -1020,9 +1035,14 @@ command — that means less here than it does on macOS, whether or not the
 
 **Linux**
 
-1. Wayland global hotkeys — a setup requirement rather than missing code: they
-   need `input`-group membership and a CGO build. Failing loudly with the
-   remedy, and documenting it as a first-class setup step, is the work
+None — parity is complete on the blessed stack.
+[What the labels mean](#what-the-labels-mean) says why the label is still Beta.
+
+The `input`-group membership Wayland global hotkeys need is a host setup step
+rather than a gap, and belongs here only if it stops being one: Neru warns with
+the remedy that fits when the listener cannot start, and
+[LINUX_SETUP.md](./LINUX_SETUP.md#install-time-environment-adjustments) carries
+it as install-time item 2.
 
 The gaps above are the work; what a person writes and finds inert *today* is
 [Platform Support Per Word](#platform-support-per-word), which is generated
