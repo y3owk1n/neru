@@ -340,6 +340,12 @@ which of the two applies to your session.
 | `Shift`   |                                         |
 | `Primary` | `Cmd` on macOS, `Ctrl` on Linux/Windows |
 
+**Shift and a symbol: write the character Shift produces.** On Linux a key is
+named by what the active layout makes it mean, so `Shift` plus the `;` key is
+`"Shift+:"` and not `"Shift+;"` — the same for `"Shift+\""` over `"Shift+'"`, and
+so on for every symbol with a shifted twin. Letters are unaffected: `"Shift+L"` is
+right either way.
+
 **Available keys** (the `Key` part after modifiers):
 
 | Category   | Keys                                                                                                    |
@@ -471,6 +477,16 @@ Where the compositor or X11 exposes a focus-change signal, Neru applies per-app 
 ### Per-Mode Hotkeys
 
 Each mode can define hotkeys active only while that mode is running. Follows the same [merging rules](#merging-behavior) as global hotkeys.
+
+**Precedence while a mode is open.** The mode's own table is asked first, and a
+Ctrl/Alt/Cmd chord it does not bind falls back to `[hotkeys]` — so a global
+`"Super+;" = "recursive_grid --toggle"` still toggles the mode off from inside it,
+however you got there. Bind the chord in `[<mode>.hotkeys]` to give it a different
+meaning in that mode; `__disabled__` does not silence it there, it removes the
+*mode's* binding and hands the key back to the global one. Bare keys and
+`Shift`-only combos are never taken this way — inside a mode those are its input.
+How each platform delivers a chord to an open mode, and what that costs on X11,
+is in [CROSS_PLATFORM.md](CROSS_PLATFORM.md#keyboard-capture-and-hotkeys).
 
 ```toml
 [hints.hotkeys]

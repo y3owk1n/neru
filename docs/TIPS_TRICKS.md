@@ -260,7 +260,7 @@ If the depth exceeds the available grid depth, zooming clamps silently at the de
 
 Instead of a separate launcher key for every mode, one key can walk through all of them. Press it from idle to open the first mode, then press the same key again to advance through hints, recursive grid, grid, and scroll, wrapping back to hints at the end.
 
-This works because a per-mode hotkey overrides a global hotkey bound to the same key (requires Neru 1.47.0 and later). The global `[hotkeys]` binding fires only from idle. Once you are inside a mode, that mode's own `[<mode>.hotkeys]` binding for the same key wins, and it points at the next mode in the cycle.
+This works because a per-mode hotkey overrides a global hotkey bound to the same key (requires Neru 1.47.0 and later). Once you are inside a mode, that mode's own `[<mode>.hotkeys]` binding for the same key wins, and it points at the next mode in the cycle. A global binding the active mode does *not* rebind keeps working from inside that mode — which is what lets one chord toggle a mode off however you entered it — so the cycle needs the per-mode entry for every key it walks.
 
 ```toml
 # From idle, this opens hints.

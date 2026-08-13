@@ -82,8 +82,10 @@ func (et *EventTap) closeEvdevCapture() {
 
 func (et *EventTap) runWaylandEvdev() bool {
 	// Clear the evdev-active flag on every exit path (mode end / ungrab), so the
-	// overlay may reclaim the keyboard grab if it ever becomes the fallback.
-	defer waylandEvdevKeyboardActive.Store(false)
+	// overlay may reclaim the keyboard grab if it ever becomes the fallback, and
+	// count the grab out so the passive hotkey listener knows to rebuild what it
+	// believes is held (waylandEvdevGrabGeneration).
+	defer endEvdevGrabGeneration()
 
 	// Get or create the persistent capture (initialized once, reused
 	// across Enable/Disable cycles). This avoids re-scanning
@@ -94,7 +96,7 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	et.refreshEvdevXkbState(capture)
+	capture.refreshXkbState()
 
 	// Only the Linux overlay backends can hold or release the keyboard.
 	overlayCapture, _ := overlay.Get().(overlaymanager.KeyboardCaptureController)
@@ -177,13 +179,12 @@ func (et *EventTap) handleWaylandEvdevEvent(
 	// consistent for key symbol resolution via XKB (respects options
 	// like caps:swapescape set by the compositor).
 	capture, _ := et.evdevWaylandCapture.(*waylandEvdevCapture)
-	if capture != nil && capture.xkbState != nil {
-		switch event.value {
-		case evdevValuePress:
-			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 1)
-		case evdevValueRelease:
-			C.neru_xkb_state_key((*C.neru_xkb_state)(capture.xkbState), C.uint16_t(event.code), 0)
-		}
+
+	switch event.value {
+	case evdevValuePress:
+		capture.feedKey(event.code, true)
+	case evdevValueRelease:
+		capture.feedKey(event.code, false)
 	}
 
 	// Resolve the modifier name through the XKB keymap so that compositor
@@ -191,7 +192,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 	// XKB remaps a physical modifier to a different function, the handler
 	// uses the remapped modifier name (or bypasses modifier handling when
 	// the key is remapped to a non-modifier).
-	modifier := et.xkbStateModifierName(capture, event.code)
+	modifier := capture.modifierName(event.code)
 	if modifier != "" {
 		if event.value == evdevValueRepeat {
 			return
@@ -199,21 +200,11 @@ func (et *EventTap) handleWaylandEvdevEvent(
 
 		isDown := event.value == evdevValuePress
 
-		switch {
-		case isDown:
-			alreadyTracked := state.pressed[event.code]
-			state.trackKey(event.code, true)
-			if !alreadyTracked {
-				state.modifiers.update(modifier, true)
-			}
-		case state.pressed[event.code]:
-			state.trackKey(event.code, false)
-			state.modifiers.update(modifier, false)
-		default:
-			// Release without a matching press (press happened before
-			// fd was opened). Don't decrement — the count was never
-			// incremented for this key, and doing so would drive it
-			// negative, causing allZero() to return true prematurely.
+		// A release with no press behind it means the press happened before
+		// this fd was opened, which is the ordinary way a grab starts under a
+		// held modifier. Nothing was counted for it, so nothing is decremented
+		// and there is nothing to report either.
+		if state.trackModifier(event.code, modifier, isDown) == modifierReleaseUnmatched {
 			return
 		}
 
@@ -265,7 +256,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 			return
 		}
 
-		key := et.xkbEvdevKeyName(capture, event.code)
+		key := capture.keyName(event.code)
 		if key != "" {
 			if keyUp := keyvocab.KeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
@@ -299,7 +290,7 @@ func (et *EventTap) handleWaylandEvdevEvent(
 		return
 	}
 
-	key := et.xkbEvdevKeyName(capture, event.code)
+	key := capture.keyName(event.code)
 	if key == "" {
 		return
 	}

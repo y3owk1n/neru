@@ -59,6 +59,17 @@ type Deps struct {
 	// RunSequence executes a binding's steps. It is the sequence executor's
 	// RunAndForget: hotkeys have nobody to report an outcome to.
 	RunSequence func(source string, steps []string)
+	// PublishRegisteredHotkeys reports the chords the platform backend actually
+	// took, every time the table is rebuilt. May be nil.
+	//
+	// The event taps need it because two of them hand a registered chord back to
+	// the mechanism that owns it rather than dispatching it themselves (macOS in
+	// its tap, Windows in its hook), and a chord the backend *refused* is owned by
+	// nobody: handing that one back drops it, where dispatching it at least lets
+	// the mode handler resolve it. Registration is the only place that knows which
+	// is which — the configured table cannot tell, because a refusal is logged and
+	// skipped (registerHotkeys).
+	PublishRegisteredHotkeys func(keys []string)
 	// Context bounds held-key repeat, so shutdown stops a repeating key.
 	Context func() context.Context
 
@@ -77,6 +88,7 @@ type Binder struct {
 	actionService     FocusedApp
 	configSnapshot    func() *config.Config
 	runActionSequence func(source string, steps []string)
+	publishRegistered func(keys []string)
 	ctx               func() context.Context
 	logger            *zap.Logger
 
@@ -105,6 +117,7 @@ func New(deps Deps) *Binder {
 		actionService:       deps.FocusedApp,
 		configSnapshot:      deps.Config,
 		runActionSequence:   deps.RunSequence,
+		publishRegistered:   deps.PublishRegisteredHotkeys,
 		ctx:                 deps.Context,
 		logger:              logger.Named("app.hotkey"),
 		hotkeyRepeatCancels: make(map[string]context.CancelFunc),

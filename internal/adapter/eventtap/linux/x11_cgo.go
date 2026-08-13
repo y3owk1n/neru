@@ -155,12 +155,15 @@ func (et *EventTap) runX11() {
 			continue
 		}
 
-		key := x11KeyFromLookup(length, buffer, keysym)
+		key := x11ChordFromLookup(&modState, length, buffer, keysym)
 		if key == "" {
 			continue
 		}
 
 		if eventType == C.KeyRelease {
+			// KeyUpEvent keeps only the base key, so the chord's prefix costs
+			// nothing here and the held-key bookkeeping sees the same name it
+			// always did.
 			if keyUp := keyvocab.KeyUpEvent(key); keyUp != "" {
 				et.dispatchKey(keyUp)
 			}
@@ -170,6 +173,76 @@ func (et *EventTap) runX11() {
 
 		et.dispatchKey(key)
 	}
+}
+
+// x11ChordFromLookup names a key press the way the evdev backend does: the
+// modifiers held, in the canonical order, then the key itself.
+//
+// Until this existed the X11 tap dispatched a bare key and reported modifiers
+// only as separate sticky-modifier events, so no chord was ever assembled while a
+// mode was open — which left every `[<mode>.hotkeys]` entry written as a
+// Ctrl/Alt/Super chord, and the global fallback with it, unable to match on X11.
+//
+// The base key comes from the *keysym* rather than from the string XLookupString
+// produced, because the two disagree exactly where it matters: with Ctrl held the
+// string is a control character (Ctrl+C gives \x03) while the keysym is still
+// XK_c. The keysym is state-resolved, so Shift has already chosen the level — the
+// same thing xkb_state_key_get_one_sym does for the evdev reader, which is what
+// makes the two backends agree about what Shift+; is called.
+//
+// A keysym this cannot name — a layout whose symbols fall outside Latin-1 —
+// falls back to the character the server produced, unprefixed, which is what this
+// tap dispatched for every key before chords existed. That keeps a non-Latin
+// layout no worse off than it was.
+func x11ChordFromLookup(
+	modState *linuxModifierState,
+	length C.int,
+	buffer []C.char,
+	keysym C.KeySym,
+) string {
+	if base := x11BaseKeyName(uint32(keysym)); base != "" {
+		return x11ChordName(modState, base)
+	}
+
+	return keyvocab.NormalizeKey(x11KeyFromLookup(length, buffer, keysym))
+}
+
+// x11ChordName joins the modifiers held to the key they were held with. It is the
+// whole of the chord spelling, kept apart from cgo so it can be read and tested
+// as the one rule it is.
+func x11ChordName(modState *linuxModifierState, base string) string {
+	if base == "" {
+		return ""
+	}
+
+	return keyvocab.NormalizeKey(modState.prefix() + base)
+}
+
+// x11BaseKeyName names the key a keysym stands for, ignoring which modifiers are
+// held: the named keys first, then anything whose keysym *is* its character.
+//
+// Latin-1 keysyms carry their code point directly — that is the X11 protocol's
+// own rule — which covers the printable ASCII and Latin-1 ranges. Everything else
+// answers "" and the caller decides what to do about it.
+func x11BaseKeyName(keysym uint32) string {
+	// The named keys win: XK_space is 0x20 and has to be "Space" rather than " ".
+	if name := x11KeysymName(C.KeySym(keysym)); name != "" {
+		return name
+	}
+
+	const (
+		asciiPrintableFirst = 0x20
+		asciiPrintableLast  = 0x7e
+		latin1First         = 0xa0
+		latin1Last          = 0xff
+	)
+
+	if (keysym >= asciiPrintableFirst && keysym <= asciiPrintableLast) ||
+		(keysym >= latin1First && keysym <= latin1Last) {
+		return string(rune(keysym))
+	}
+
+	return ""
 }
 
 func x11KeyFromLookup(length C.int, buffer []C.char, keysym C.KeySym) string {

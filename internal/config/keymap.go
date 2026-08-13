@@ -57,6 +57,66 @@ func (c *Config) ResolveKeymap(modeName, focusedApp string) Keymap {
 	return newKeymap(c.HotkeysForModeAndApp(modeName, focusedApp))
 }
 
+// ResolveGlobalKeymap resolves the global [hotkeys] bindings in force with an
+// application focused: the global table with that app's [[app_configs]] hotkey
+// overrides applied on top, under the same rules ResolveKeymap applies to a
+// mode's own table.
+//
+// It exists because the global table is read in two places that have to agree
+// about what it says. The platform hotkey backend registers from it, and a mode
+// falls back to it for a chord the mode itself does not bind — which is the only
+// thing that can run a global binding where the in-mode capture is exclusive
+// (internal/app/modes/keymap.go).
+func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
+	bindings := c.GlobalHotkeysForApp(focusedApp)
+	if len(bindings) == 0 {
+		return Keymap{}
+	}
+
+	// GlobalHotkeysForApp answers in the plain-slice shape the hotkey backend
+	// registers from; newKeymap indexes the table shape the mode tables use.
+	table := make(map[string]StringOrStringArray, len(bindings))
+	for key, steps := range bindings {
+		table[key] = StringOrStringArray(steps)
+	}
+
+	return newKeymap(table)
+}
+
+// ModifierChords returns the bindings whose key carries a Ctrl, Alt or Cmd
+// modifier, and drops the rest.
+//
+// It is the line between a shortcut and typing, drawn where
+// HasPassthroughModifier already draws it: a bare key or a Shift-only combo is
+// something a mode reads as input — a hint label, a grid cell key, a navigation
+// key — and a table that may shadow a mode's own keys must not offer one.
+//
+// The result binds no sequence starts. A two-keystroke sequence is spelled as a
+// pair of bare letters, so nothing that survives this filter could begin one.
+func (k Keymap) ModifierChords() Keymap {
+	if len(k.byKey) == 0 {
+		return Keymap{}
+	}
+
+	// The map key is already normalized, so "Primary+G" is tested in the form
+	// the platform resolved it to rather than the alias it was written as.
+	byKey := make(map[string]Binding, len(k.byKey))
+
+	for normalized, binding := range k.byKey {
+		if !HasPassthroughModifier(normalized) {
+			continue
+		}
+
+		byKey[normalized] = binding
+	}
+
+	if len(byKey) == 0 {
+		return Keymap{}
+	}
+
+	return Keymap{byKey: byKey}
+}
+
 // newKeymap indexes a merged hotkey table by normalized key.
 //
 // Two spellings of the same key are one binding, and the table they come from

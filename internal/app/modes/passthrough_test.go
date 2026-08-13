@@ -21,7 +21,7 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 		"k":     {"action scroll_up"},
 	}
 
-	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameHints, ""))
+	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameHints, ""), config.Keymap{})
 	want := []string{
 		config.CanonicalHotkeyForPlatform("Alt+K"),
 		config.CanonicalHotkeyForPlatform("Cmd+L"),
@@ -41,7 +41,7 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 		"gg":       {"action go_top"},
 	}
 
-	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameScroll, ""))
+	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameScroll, ""), config.Keymap{})
 	want := []string{
 		config.CanonicalHotkeyForPlatform("Cmd+Down"),
 		config.CanonicalHotkeyForPlatform("Cmd+Up"),
@@ -441,5 +441,55 @@ func TestRefreshPassthroughForFocusedAppChange_IsSafeWhileKeysAreHandled(t *test
 	want := []string{canonical(passthroughFirstChord)}
 	if got := tap.InterceptedModifierKeys(); !slices.Equal(got, want) {
 		t.Errorf("intercepted modifier keys = %v after the switches, want %v", got, want)
+	}
+}
+
+// The global chords a mode falls back to have to be blacklisted like the mode's
+// own keys. Left off the list, the Wayland evdev tap reads them as unbound
+// shortcuts and re-injects them into the focused application, so the user's own
+// hotkey reaches their editor and the handler never sees the key at all — which
+// is the shape the reported --toggle failure took.
+func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *testing.T) {
+	t.Parallel()
+
+	const globalChord = "Super+;"
+
+	canonical := config.CanonicalHotkeyForPlatform
+
+	cfg := &config.Config{
+		General: config.GeneralConfig{PassthroughUnboundedKeys: true},
+		Hotkeys: config.HotkeysConfig{
+			Bindings: map[string][]string{
+				globalChord: {"recursive_grid --toggle"},
+				// A bare key is never in force inside a mode, so it must not be
+				// consumed on the global table's behalf either.
+				"F13": {config.ModeNameGrid},
+			},
+		},
+		RecursiveGrid: config.RecursiveGridConfig{
+			Hotkeys: map[string]config.StringOrStringArray{
+				passthroughFirstChord: {stepLeftClick},
+			},
+		},
+	}
+
+	_, tap := newPassthroughHandler(t, cfg, "", (*Handler).SetModeRecursiveGrid)
+
+	_, blacklist := tap.ModifierPassthrough()
+	for _, want := range []string{canonical(globalChord), canonical(passthroughFirstChord)} {
+		if !slices.Contains(blacklist, want) {
+			t.Errorf("blacklist is %v, want %q among them", blacklist, want)
+		}
+	}
+
+	if slices.Contains(blacklist, canonical("F13")) {
+		t.Errorf("blacklist %v consumes a bare global key the mode never resolves", blacklist)
+	}
+
+	want := []string{canonical(passthroughFirstChord), canonical(globalChord)}
+	slices.Sort(want)
+
+	if got := tap.InterceptedModifierKeys(); !slices.Equal(got, want) {
+		t.Errorf("intercepted modifier keys = %v, want %v", got, want)
 	}
 }

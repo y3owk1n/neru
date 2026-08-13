@@ -141,11 +141,17 @@ type handlerState struct {
 	// Both belong to keymap.go, which is where the rules about them are
 	// written; the cell is lock-free on purpose and must stay that way.
 	focusedApp *focusedAppCell
-	// keymap is the bindings in force, keymapSettledFor is what they were
-	// settled for, and keymapSettled says one has been settled at all — the
-	// zero keymap is a legitimate answer (a mode that binds nothing), so it
-	// cannot double as "not settled yet".
+	// keymap is the mode's own bindings in force and globalHotkeys is the global
+	// [hotkeys] table it falls back to for a chord it does not bind, filtered to
+	// modifier chords. The two settle together and from the same inputs, so a
+	// keystroke that consults both still asks the platform nothing.
+	//
+	// keymapSettledFor is what they were settled for, and keymapSettled says they
+	// have been settled at all — two zero keymaps are a legitimate answer (a mode
+	// that binds nothing, with no global chords), so neither can double as "not
+	// settled yet".
 	keymap           configpkg.Keymap
+	globalHotkeys    configpkg.Keymap
 	keymapSettledFor keymapInputs
 	keymapSettled    bool
 
