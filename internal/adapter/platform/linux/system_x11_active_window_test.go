@@ -19,6 +19,10 @@ const activeWindowProperty = "_NET_ACTIVE_WINDOW"
 // manager from one that exited leaving its advertisements on the root window.
 const supportingWMCheckProperty = "_NET_SUPPORTING_WM_CHECK"
 
+// focusedAppFeature is the capability label `neru doctor` prints these details
+// under, shared by every test that reads one back.
+const focusedAppFeature = "focused-app inspection"
+
 // TestX11ActiveWindowQueryError is the whole point of splitting the
 // _NET_ACTIVE_WINDOW answers apart: a desktop with nothing focused is a state
 // callers degrade through, and the three ways the query can fail are failures
@@ -160,7 +164,7 @@ func TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel(t *
 // what has to stop claiming the subsystem is gone.
 func TestSystemAdapter_UnavailableDetail_SeparatesAnUnfocusedDesktopFromAFailure(t *testing.T) {
 	adapter := NewSystemAdapter(backendX11)
-	feature := "focused-app inspection"
+	feature := focusedAppFeature
 
 	unfocused := adapter.unavailableDetail(feature, x11ActiveWindowQueryError(x11ActiveWindowNone))
 

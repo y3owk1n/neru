@@ -47,11 +47,11 @@ func TestX11FocusedApplicationPID_AWindowManagerIsNeverMistakenForNoWindowManage
 	case err == nil:
 		// A window is focused and exposes its PID — the ordinary path.
 	case derrors.IsNotSupported(err):
-		// Nothing is focused. That is the answer this ticket exists to allow,
-		// and callers degrade through it.
-	case strings.Contains(err.Error(), windowPIDProperty):
-		// The focused window exposes no _NET_WM_PID. A different property, and
-		// not what this test is about.
+		// Nothing is focused, or the focused window advertises no pid. Both are
+		// answers this ticket exists to allow, and callers degrade through them.
+	case strings.Contains(err.Error(), wmPIDProperty):
+		// The pid property failed to read. A different property, and not what
+		// this test is about.
 	default:
 		t.Fatalf(
 			"a display whose _NET_SUPPORTING_WM_CHECK handshake completes answered %v "+
@@ -60,10 +60,6 @@ func TestX11FocusedApplicationPID_AWindowManagerIsNeverMistakenForNoWindowManage
 		)
 	}
 }
-
-// windowPIDProperty names the second property the focused-app path reads, so
-// its failure can be told apart from the active-window query's.
-const windowPIDProperty = "_NET_WM_PID"
 
 // supportingWMCheck is the property whose two-step self-reference proves a
 // window manager is running now rather than having run once.

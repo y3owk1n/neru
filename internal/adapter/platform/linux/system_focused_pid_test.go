@@ -3,10 +3,14 @@
 package linux
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 const (
@@ -197,4 +201,48 @@ func TestResolvePIDByAppID(t *testing.T) {
 			t.Fatalf("resolvePIDByAppID = (%d, %v), want (0, false)", pid, ok)
 		}
 	})
+}
+
+// TestWaylandNoFocusedAppError is the wlroots half of what #1495 fixed for X11.
+// The blessed Wayland stack answers an unfocused session the same way an
+// unfocused X11 display does, so `neru doctor` has to explain it the same way:
+// "focused-app inspection is unavailable" on a session where nothing has taken
+// focus yet sends the user looking for something to install.
+func TestWaylandNoFocusedAppError(t *testing.T) {
+	t.Parallel()
+
+	err := waylandNoFocusedAppError()
+
+	if !derrors.IsNotSupported(err) {
+		t.Fatalf("waylandNoFocusedAppError() = %v, want %q so callers degrade through it",
+			err, derrors.CodeNotSupported)
+	}
+
+	// The sentinel's premise is that a native backend answered, which a build
+	// without the foreign-toplevel client cannot have done.
+	wrapsSentinel := errors.Is(err, errNoFocusedWindow)
+	if wrapsSentinel != nativeBackendsCompiledIn {
+		t.Fatalf("waylandNoFocusedAppError() wraps errNoFocusedWindow = %v, want %v",
+			wrapsSentinel, nativeBackendsCompiledIn)
+	}
+
+	if !nativeBackendsCompiledIn {
+		return
+	}
+
+	feature := focusedAppFeature
+	detail := NewSystemAdapter(backendWaylandWlroots).unavailableDetail(feature, err)
+
+	if strings.Contains(detail, "unavailable") {
+		t.Errorf("an unfocused wlroots session is described as %q; it must not claim "+
+			"the capability is unavailable", detail)
+	}
+
+	// "takes focus" rather than "focus": the sentence has to promise the answer
+	// arrives when a window is focused, not merely mention the word.
+	for _, word := range []string{feature, backendWaylandWlroots, "takes focus"} {
+		if !strings.Contains(detail, word) {
+			t.Errorf("the unfocused-session detail %q does not mention %q", detail, word)
+		}
+	}
 }

@@ -680,6 +680,16 @@ func (s *SystemAdapter) unavailableDetail(feature string, cause error) string {
 			": the query works and answers as soon as a window takes focus"
 	}
 
+	// The same argument one property down, and the reason it is a second
+	// sentinel rather than the first: a window is focused, and it advertises no
+	// _NET_WM_PID. Nothing is broken and nothing can be installed to change it —
+	// EWMH does not require the property — so the sentence above would send the
+	// user to focus a window they already focused.
+	if errors.Is(cause, errNoWindowPID) {
+		return feature + " found no _NET_WM_PID on the focused window on linux backend " +
+			s.backendLabel() + ": the query works and answers for a window that publishes one"
+	}
+
 	if !nativeBackendsCompiledIn {
 		return feature + " is unavailable: this binary was built without CGO, so the X11 " +
 			"and wlroots client stacks are absent; use a CGO-enabled build"

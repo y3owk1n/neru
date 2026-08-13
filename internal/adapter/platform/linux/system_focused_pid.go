@@ -23,14 +23,15 @@ import (
 func waylandFocusedApplicationPID() (int, error) {
 	appID, ok := WaylandFocusedAppID()
 	if !ok || appID == "" {
-		return 0, derrors.New(
-			derrors.CodeNotSupported,
-			"FocusedApplicationPID: no focused app_id available on this Wayland compositor",
-		)
+		return 0, waylandNoFocusedAppError()
 	}
 
 	pid, found := resolvePIDByAppID(appID, "/proc")
 	if !found {
+		// Not the unfocused-desktop sentinel: a window *is* focused, and the
+		// heuristic that maps its app_id onto a process missed. Wearing the
+		// sentinel here would tell the user to focus a window they already have
+		// focused.
 		return 0, derrors.Newf(
 			derrors.CodeNotSupported,
 			"FocusedApplicationPID: Wayland exposes no PID for the focused app (app_id=%q); no /proc match found",
@@ -39,6 +40,35 @@ func waylandFocusedApplicationPID() (int, error) {
 	}
 
 	return pid, nil
+}
+
+// waylandNoFocusedAppError explains an empty answer from the foreign-toplevel
+// manager, which is the wlroots family's version of an unfocused desktop.
+//
+// It wraps errNoFocusedWindow so the capability surface explains it the way the
+// X11 arm's is explained (#1495): the query works, and it answers as soon as a
+// window takes focus. The CGO-off build takes the other branch, because there
+// the manager is absent rather than idle, and the reassuring sentence would be a
+// lie on a binary that can never answer.
+//
+// What it cannot yet separate is a compositor whose foreign-toplevel manager
+// never bound: WaylandFocusedAppID reports that with the same bare false as an
+// idle session, so on a CGO build both arrive here. Telling them apart needs the
+// wlroots client to say which happened, in both its cgo and nocgo halves.
+func waylandNoFocusedAppError() error {
+	if !nativeBackendsCompiledIn {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"FocusedApplicationPID: this binary was built without CGO, so the "+
+				"foreign-toplevel client that reports the focused app_id is absent",
+		)
+	}
+
+	return derrors.Wrap(
+		errNoFocusedWindow,
+		derrors.CodeNotSupported,
+		"FocusedApplicationPID: no focused app_id available on this Wayland compositor",
+	)
 }
 
 // resolvePIDByAppID scans procRoot (normally "/proc") for a process whose
