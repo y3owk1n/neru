@@ -10,6 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// initialGeneration is the generation a bridge that has seen no compositor
+// change is on, which is what an attempt started before any of them carries.
+const initialGeneration = 0
+
 // errTestInstallFailed stands in for whatever kept the KWin script from being
 // installed. It is deliberately not errKWinAbsent: what is pinned is that the
 // reason reaches the caller verbatim, whatever it happens to be.
@@ -205,7 +209,7 @@ func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
 func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
 	_, ok, err := geometry.Bounds()
 	if ok {
@@ -223,7 +227,7 @@ func TestGeometry_BoundsReportsAFailedInstall(t *testing.T) {
 func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 	_ = geometry.UpdateActiveWindow("10,20,300,400,kate")
 
 	rect, ok, err := geometry.Bounds()
@@ -244,23 +248,23 @@ func TestGeometry_BoundsPrefersLiveGeometryOverAStaleFailure(t *testing.T) {
 func TestGeometry_BeginStartRetriesUntilTheScriptIsInstalled(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Fatal("the first caller was not allowed to install")
 	}
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("a second caller started a duplicate install while one was in flight")
 	}
 
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Fatal("a failed install was never retried; the daemon would run blind until restart")
 	}
 
-	geometry.endStart(nil)
+	geometry.endStart(initialGeneration, nil)
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("an installed script was reinstalled")
 	}
 }
@@ -271,10 +275,10 @@ func TestGeometry_ASuccessfulRetryClearsTheRecordedReason(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
 	geometry.beginStart()
-	geometry.endStart(errTestInstallFailed)
+	geometry.endStart(initialGeneration, errTestInstallFailed)
 
 	geometry.beginStart()
-	geometry.endStart(nil)
+	geometry.endStart(initialGeneration, nil)
 
 	_, ok, err := geometry.Bounds()
 	if ok || err != nil {
@@ -305,8 +309,8 @@ func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 		return nil
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if attempts != 3 {
 		t.Fatalf(
@@ -320,7 +324,7 @@ func TestGeometry_RunInstallRetriesWithoutWaitingForACaller(t *testing.T) {
 		t.Fatalf("Bounds() after a successful retry = (%v, %v), want (false, nil)", ok, err)
 	}
 
-	if geometry.beginStart() {
+	if _, ok := geometry.beginStart(); ok {
 		t.Error("an installed script was reinstalled")
 	}
 }
@@ -340,8 +344,8 @@ func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
 		return errTestInstallFailed
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if attempts != installRetries+1 {
 		t.Fatalf("install ran %d times, want %d", attempts, installRetries+1)
@@ -352,7 +356,7 @@ func TestGeometry_RunInstallStopsRetryingAndReportsTheReason(t *testing.T) {
 		t.Fatalf("Bounds() = (%v, %v), want the recorded reason", ok, err)
 	}
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Error("a bounded retry that gave up also stopped the next caller from trying")
 	}
 }
@@ -379,8 +383,8 @@ func TestGeometry_RunInstallReportsEachFailureAsItHappens(t *testing.T) {
 		return errTestInstallFailed
 	}
 
-	geometry.beginStart()
-	geometry.runInstall(install, 0)
+	generation, _ := geometry.beginStart()
+	geometry.runInstall(generation, install, 0)
 
 	if !errors.Is(duringBackoff, errTestInstallFailed) {
 		t.Errorf("Bounds() between attempts = %v, want the failure already recorded", duringBackoff)

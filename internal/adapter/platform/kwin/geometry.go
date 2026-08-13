@@ -89,6 +89,14 @@ type Geometry struct {
 	installed bool
 	warned    bool
 
+	// generation counts how many times what an install attempt is *about* has
+	// stopped being true — KWin changing hands underneath one in flight. An
+	// attempt carries the generation it began in and publishes nothing unless
+	// that is still the current one, so a success against a compositor that has
+	// since gone cannot mark the bridge installed or erase the record of its
+	// going. Guarded by startMu.
+	generation uint64
+
 	mu       sync.RWMutex
 	window   Window
 	valid    bool
@@ -137,8 +145,8 @@ func newGeometry(logger *zap.Logger) *Geometry {
 // the activation path and nothing else. The install converging without a caller
 // is what start covers.
 func (g *Geometry) EnsureStarted() {
-	if g.beginStart() {
-		go g.start()
+	if generation, ok := g.beginStart(); ok {
+		go g.start(generation)
 	}
 }
 
@@ -277,59 +285,88 @@ func (g *Geometry) log() *zap.Logger {
 // does not stack a second installer; each failure is still published as it
 // happens, so Bounds keeps naming the current reason rather than going quiet
 // for the length of the backoff.
-func (g *Geometry) start() {
-	g.runInstall(g.install, installRetryBackoff)
+func (g *Geometry) start(generation uint64) {
+	g.runInstall(generation, g.install, installRetryBackoff)
 }
 
 // runInstall is start's loop with its two dependencies passed in, so the retry
 // policy can be tested without a session bus or a wall-clock wait.
-func (g *Geometry) runInstall(install func() error, backoff time.Duration) {
+func (g *Geometry) runInstall(
+	generation uint64,
+	install func() error,
+	backoff time.Duration,
+) {
 	for attempt := range installRetries + 1 {
 		err := install()
 		if err == nil || attempt == installRetries {
-			g.endStart(err)
+			g.endStart(generation, err)
 
 			return
 		}
 
-		g.recordAttempt(err)
+		g.recordAttempt(generation, err)
 		time.Sleep(backoff << attempt)
 	}
 }
 
-// beginStart claims the right to run an install attempt. It is false when one
-// is already in flight or the script is installed, so callers can ask on every
-// request without stacking attempts or reinstalling.
-func (g *Geometry) beginStart() bool {
+// beginStart claims the right to run an install attempt and hands back the
+// generation that attempt is about. It is false when one is already in flight or
+// the script is installed, so callers can ask on every request without stacking
+// attempts or reinstalling.
+func (g *Geometry) beginStart() (uint64, bool) {
 	g.startMu.Lock()
 	defer g.startMu.Unlock()
 
 	if g.starting || g.installed {
-		return false
+		return 0, false
 	}
 
 	g.starting = true
 
-	return true
+	return g.generation, true
 }
 
 // endStart records the last attempt of a sequence and releases the claim, so
 // the next caller can retry a failure and none can repeat a success.
-func (g *Geometry) endStart(err error) {
+//
+// An attempt from a superseded generation releases the claim and says nothing
+// else. It was about a compositor that has since changed hands, so its success
+// is not evidence that this one is installed, and its outcome must not overwrite
+// what the departure recorded — a stale success would otherwise leave an empty
+// cache with no reason, which reads as an unfocused desktop and sends callers
+// silently back to the active screen. It leaves nothing installed, so the next
+// caller starts an attempt about the compositor that is actually there.
+func (g *Geometry) endStart(generation uint64, err error) {
 	g.startMu.Lock()
 	g.starting = false
-	g.installed = err == nil
+	current := generation == g.generation
+
+	if current {
+		g.installed = err == nil
+	}
+
 	g.startMu.Unlock()
 
-	g.recordAttempt(err)
+	if !current {
+		g.log().Debug("KWin geometry install finished for a compositor that has since gone")
+
+		return
+	}
+
+	g.recordAttempt(generation, err)
 }
 
 // forgetInstall puts the bridge back where it was before it ever installed
-// anything, so the next EnsureStarted actually tries.
-func (g *Geometry) forgetInstall() {
+// anything and retires every attempt in flight, returning the generation that
+// replaces them so the caller can speak for the new state itself.
+func (g *Geometry) forgetInstall() uint64 {
 	g.startMu.Lock()
+	defer g.startMu.Unlock()
+
 	g.installed = false
-	g.startMu.Unlock()
+	g.generation++
+
+	return g.generation
 }
 
 // recordAttempt publishes an attempt's outcome without releasing the claim, for
@@ -339,8 +376,17 @@ func (g *Geometry) forgetInstall() {
 // loud once, since the error reaches every later caller anyway and a session
 // with no KWin would otherwise warn on every hint activation. A success clears
 // the reason: it described a condition that has passed.
-func (g *Geometry) recordAttempt(err error) {
+//
+// A superseded generation publishes nothing, for the reason endStart gives.
+func (g *Geometry) recordAttempt(generation uint64, err error) {
 	g.startMu.Lock()
+
+	if generation != g.generation {
+		g.startMu.Unlock()
+
+		return
+	}
+
 	firstFailure := err != nil && !g.warned
 	g.warned = g.warned || err != nil
 	g.startMu.Unlock()

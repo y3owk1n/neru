@@ -30,7 +30,7 @@ func TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
 	geometry.beginStart()
-	geometry.endStart(nil)
+	geometry.endStart(initialGeneration, nil)
 	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
 
 	geometry.kwinOwnerChanged("")
@@ -45,9 +45,51 @@ func TestGeometry_KWinLeavingTheBusReportsWhyRatherThanEmptying(t *testing.T) {
 			"an empty cache with no reason reads as an unfocused desktop", err)
 	}
 
-	if !geometry.beginStart() {
+	if _, ok := geometry.beginStart(); !ok {
 		t.Error("a bridge whose compositor restarted still counted itself installed, " +
 			"so nothing would ever reinstall the script")
+	}
+}
+
+// TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved closes the race that
+// would undo everything the departure just recorded.
+//
+// An install is several D-Bus round trips, so KWin can release its name while
+// one is still running — which is exactly what `kwin --replace` during daemon
+// startup does. That attempt can then succeed, and if it were believed it would
+// mark the bridge installed and clear the reason, leaving an empty cache with no
+// error: "the bridge works and nothing is focused", for a compositor that is not
+// there. Callers would widen to the active screen believing they had asked.
+//
+// It must also leave nothing installed, so the next caller starts an attempt
+// about the compositor that is actually there rather than being told one is
+// already in place.
+func TestGeometry_AnInstallFromBeforeADepartureIsNotBelieved(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	stale, ok := geometry.beginStart()
+	if !ok {
+		t.Fatal("the first caller was not allowed to install")
+	}
+
+	geometry.kwinOwnerChanged("")
+
+	// The attempt that was already in flight now finishes, successfully.
+	geometry.endStart(stale, nil)
+
+	_, cached, err := geometry.Bounds()
+	if cached {
+		t.Error("a stale install left a window cached for a departed compositor")
+	}
+
+	if !errors.Is(err, errKWinAbsent) {
+		t.Errorf("Bounds() error = %v, want the departure to still be the reason — "+
+			"a stale success must not erase it", err)
+	}
+
+	if _, again := geometry.beginStart(); !again {
+		t.Error("a stale install marked the bridge installed, so nothing would " +
+			"ever install into the compositor that comes back")
 	}
 }
 
@@ -59,8 +101,11 @@ func TestGeometry_KWinReturningToTheBusClearsTheReason(t *testing.T) {
 
 	geometry.kwinOwnerChanged("")
 
-	geometry.beginStart()
-	geometry.endStart(nil)
+	// The reinstall that follows a return is about the compositor that is there
+	// now, so it carries the generation the return put the bridge on and is
+	// believed — unlike the stale attempt in the test above.
+	generation, _ := geometry.beginStart()
+	geometry.endStart(generation, nil)
 
 	_, ok, err := geometry.Bounds()
 	if ok || err != nil {

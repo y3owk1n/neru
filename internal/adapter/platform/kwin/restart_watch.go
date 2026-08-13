@@ -162,10 +162,14 @@ func kwinOwnerFrom(signal *dbus.Signal) (string, bool) {
 // bridge answering one way. The next successful install clears it.
 func (g *Geometry) kwinOwnerChanged(owner string) {
 	g.invalidate()
-	g.forgetInstall()
+
+	// Retiring the attempts in flight is what makes the reason below stick: one
+	// of them may be an install against the compositor that just left, and
+	// without this its outcome would land afterwards and overwrite this.
+	generation := g.forgetInstall()
 
 	if owner == "" {
-		g.recordAttempt(errKWinAbsent)
+		g.recordAttempt(generation, errKWinAbsent)
 
 		return
 	}

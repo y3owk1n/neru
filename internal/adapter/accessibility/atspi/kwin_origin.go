@@ -82,6 +82,14 @@ func (s *kwinOriginSource) start() { s.geometry.EnsureStarted() }
 // is missing. One geometry source answering one way here and another there is
 // what having one geometry source is for.
 func (s *kwinOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
+	// Asked on every activation rather than once at construction, for the same
+	// reason the focused-window arm asks on every call: the bridge can lose its
+	// install after having one — KWin restarting takes the script with it — and
+	// a source that only ever tried at startup would spend the rest of the
+	// session placing hints window-relative. It is free once installed and never
+	// blocks, so the mode handler's lock is not held on anything.
+	s.geometry.EnsureStarted()
+
 	window, cached, err := s.geometry.Focused()
 	if err != nil {
 		return image.Point{}, false, derrors.Wrap(
