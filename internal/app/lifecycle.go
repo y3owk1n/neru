@@ -519,6 +519,18 @@ func (a *App) Cleanup() {
 			a.hotkeys.Unregister()
 		}
 
+		// Unsubscribe from screen-share state before the overlay is released,
+		// for the same reason the layout-change closure goes first: a callback
+		// registered against a destroyed overlay is a call nothing should
+		// still be making. It narrows the window rather than closing it —
+		// AppState publishes on a goroutine per subscriber, so one already
+		// launched is unaffected by unsubscribing — and what closes it is the
+		// darwin manager serializing SetSharingType against its own teardown.
+		if a.screenShareSubscriptionID != 0 {
+			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
+			a.screenShareSubscriptionID = 0
+		}
+
 		// The event tap goes before the overlay, and the order is load-bearing
 		// (#1515): tearing the tap down drains its key dispatcher, and that
 		// drain delivers whatever key was still queued into the mode handler,
@@ -536,10 +548,6 @@ func (a *App) Cleanup() {
 			a.overlayPort.Destroy()
 		}
 
-		if a.screenShareSubscriptionID != 0 {
-			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
-			a.screenShareSubscriptionID = 0
-		}
 		// Close the accessibility client to release platform resources
 		// (e.g. AT-SPI D-Bus connection and a11y status on Linux).
 		if a.axClient != nil {

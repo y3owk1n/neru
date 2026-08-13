@@ -542,6 +542,15 @@ func (a *Adapter) SetHiddenInScreenShare(hidden bool) {
 // edge. What closes the window is the caller: App.Cleanup tears the event tap
 // down first, so the drain that delivers a queued key has finished before this
 // runs.
+//
+// The one call that arrives on a goroutine of its own is
+// SetHiddenInScreenShare — AppState publishes screen-share state with a
+// goroutine per subscriber — so ordering cannot be what closes that one, and
+// unsubscribing does not either: a goroutine already launched is past the
+// point where removing the subscription reaches it. It is closed where the
+// state it touches lives, in the darwin manager, which takes the mutex
+// dedicated to that flag across its own teardown (darwin/manager.go). Every
+// other backend answers SetSharingType with a no-op and has no such pair.
 func (a *Adapter) Destroy() {
 	if !a.destroyed.CompareAndSwap(false, true) {
 		<-a.teardownDone
