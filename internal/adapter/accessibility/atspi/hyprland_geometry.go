@@ -34,7 +34,7 @@ type hyprlandWindow struct {
 	Size []int `json:"size"`
 }
 
-func (h *hyprlandOriginSource) originFor(frameW, frameH int) (image.Point, bool, error) {
+func (h *hyprlandOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var win hyprlandWindow
 
 	err := compositorcli.Query(&win, "hyprctl", "-j", "activewindow")
@@ -42,7 +42,7 @@ func (h *hyprlandOriginSource) originFor(frameW, frameH int) (image.Point, bool,
 		return image.Point{}, false, err
 	}
 
-	origin, ok := hyprlandComputeOrigin(win, frameW, frameH, h.logger)
+	origin, ok := hyprlandComputeOrigin(win, frame.Width, frame.Height, h.logger)
 
 	return origin, ok, nil
 }

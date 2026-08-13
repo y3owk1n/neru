@@ -81,23 +81,42 @@ func absInt(v int) int {
 	return v
 }
 
+// windowFrame describes the AT-SPI frame an origin is being asked for. A source
+// answers about "the focused window", and this is everything the caller knows
+// about the window it is actually going to walk — so it is also how a source
+// checks that the two are the same window.
+type windowFrame struct {
+	// Width and Height are the frame's AT-SPI extents. Every source compares
+	// them against the size the compositor reports, within
+	// windowOriginSizeTolerance.
+	Width, Height int
+
+	// FocusedAppID and FocusedTitle are the compositor's focused-toplevel
+	// identity, captured when this frame was selected and by the same
+	// wlr-foreign-toplevel-management read that selected it. Both are empty on
+	// X11 and GNOME, where there is no such protocol to ask — an identity a
+	// source cannot have is not a mismatch, so a source that uses these must
+	// fall through to the size check rather than refuse.
+	FocusedAppID string
+	FocusedTitle string
+}
+
 // windowOriginSource supplies the focused window's on-screen origin so AT-SPI
 // window-relative element coordinates can be offset into screen coordinates.
 type windowOriginSource interface {
 	// start performs any one-time setup. Best-effort; failures are logged.
 	start()
-	// originFor returns the focused window's screen origin, but only when its
-	// size matches the given AT-SPI frame extents within
-	// windowOriginSizeTolerance.
+	// originFor returns the focused window's screen origin, but only when the
+	// window it belongs to is the one the given frame describes.
 	//
 	// The three answers are distinct. An origin with ok is what the compositor
 	// said. ok=false with no error is the compositor answering that it has no
-	// origin to give — nothing focused, a stale cached rectangle, or a niri
-	// window whose tiling gives it no on-screen position. A non-nil error is
-	// the source failing to answer at all, which callers must not read as the
-	// second: both fall back to unoffset coordinates, and only one of them is
-	// something a person can fix.
-	originFor(frameW, frameH int) (origin image.Point, ok bool, err error)
+	// origin to give — nothing focused, a rectangle belonging to a different
+	// window, or a niri window whose tiling gives it no on-screen position. A
+	// non-nil error is the source failing to answer at all, which callers must
+	// not read as the second: both fall back to unoffset coordinates, and only
+	// one of them is something a person can fix.
+	originFor(frame windowFrame) (origin image.Point, ok bool, err error)
 }
 
 // noWindowOrigin is the source for a session no compositor bridge belongs on:
@@ -140,7 +159,7 @@ func (s noWindowOrigin) start() {
 // "Stubs are loud"). It is the same refusal SystemPort.FocusedWindowBounds
 // gives such a session, for the same reason: hints land window-relative either
 // way, and only one of the two says so.
-func (s noWindowOrigin) originFor(_, _ int) (image.Point, bool, error) {
+func (s noWindowOrigin) originFor(_ windowFrame) (image.Point, bool, error) {
 	if s.backend == platform.BackendX11 {
 		return image.Point{}, false, nil
 	}

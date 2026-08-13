@@ -66,7 +66,7 @@ func findFocused(node *swayNode) *swayNode {
 	return nil
 }
 
-func (s *swayOriginSource) originFor(frameW, frameH int) (image.Point, bool, error) {
+func (s *swayOriginSource) originFor(frame windowFrame) (image.Point, bool, error) {
 	var tree swayNode
 
 	err := compositorcli.Query(&tree, "swaymsg", "-t", "get_tree")
@@ -74,7 +74,7 @@ func (s *swayOriginSource) originFor(frameW, frameH int) (image.Point, bool, err
 		return image.Point{}, false, err
 	}
 
-	origin, ok := swayComputeOrigin(&tree, frameW, frameH, s.logger)
+	origin, ok := swayComputeOrigin(&tree, frame.Width, frame.Height, s.logger)
 
 	return origin, ok, nil
 }

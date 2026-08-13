@@ -276,7 +276,8 @@ func TestWindowOriginSource_ReportsAFailedQueryInsteadOfDroppingTheOffset(t *tes
 		t.Run(testCase.name, func(t *testing.T) {
 			fakeCompositorCLIs(t, testCase.scripts)
 
-			origin, known, err := testCase.source(zap.NewNop()).originFor(frameW, frameH)
+			origin, known, err := testCase.source(zap.NewNop()).
+				originFor(windowFrame{Width: frameW, Height: frameH})
 
 			if testCase.wantNamed != "" {
 				if err == nil {
@@ -362,7 +363,8 @@ func TestClient_ReportOriginFailure_SaysOneSteadyReasonOnce(t *testing.T) {
 func TestNiriOriginSource_KeepsATiledWindowAnAnswer(t *testing.T) {
 	fakeCompositorCLIs(t, niriCLI(`{"layout":{"window_size":[946,942]}}`, ""))
 
-	origin, ok, err := newNiriOriginSource(zap.NewNop()).originFor(frameW, frameH)
+	origin, ok, err := newNiriOriginSource(zap.NewNop()).
+		originFor(windowFrame{Width: frameW, Height: frameH})
 	if ok || err != nil {
 		t.Fatalf("originFor() = (%v, %v, %v), want no origin and no error — a "+
 			"tiled window has none to give, and saying so must not warn on every "+

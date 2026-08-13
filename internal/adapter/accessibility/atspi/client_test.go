@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	appIDFirefox = "org.mozilla.firefox"
-	appKonsole   = "konsole"
-	titleEditor  = "Editor"
+	appIDFirefox     = "org.mozilla.firefox"
+	appKonsole       = "konsole"
+	appKonsoleDotted = "org.kde.konsole"
+	appFirefox       = "firefox"
+	titleEditor      = "Editor"
 )
 
 func TestAppMatchesFocusedID(t *testing.T) {
@@ -25,8 +27,8 @@ func TestAppMatchesFocusedID(t *testing.T) {
 		{"reverse-dns app_id vs display name", "Firefox", appIDFirefox, true},
 		{"bare app_id case-insensitive", "Helium", "helium", true},
 		{"exact match", appKonsole, appKonsole, true},
-		{"reverse-dns both sides", "org.kde.konsole", appKonsole, true},
-		{"kde reverse-dns app_id", "Konsole", "org.kde.konsole", true},
+		{"reverse-dns both sides", appKonsoleDotted, appKonsole, true},
+		{"kde reverse-dns app_id", "Konsole", appKonsoleDotted, true},
 		{"no match", "Unnamed", appIDFirefox, false},
 		{"empty atspi name", "", appIDFirefox, false},
 		{"empty app_id", "Firefox", "", false},
@@ -49,7 +51,7 @@ func TestLastDotSegment(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"org.mozilla.firefox", "firefox"},
+		{"org.mozilla.firefox", appFirefox},
 		{"helium", ""},
 		{"trailing.", ""},
 		{"", ""},
