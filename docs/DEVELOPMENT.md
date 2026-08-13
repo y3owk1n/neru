@@ -242,24 +242,28 @@ What it does not cover:
   `WLR_LIBINPUT_NO_DEVICES=1` on the headless backend means it reads no input
   devices, so nothing written to a uinput device reaches it whatever the
   permissions are. What is observable here is the `zwlr_virtual_pointer` path.
-- **A verdict.** The leg is **advisory**: `continue-on-error` keeps it off the
-  merge button, and its result is a job summary counting executed tests,
-  failures, packages reporting `FAIL`, and every skip with the reason it gave.
-  Those counts are a floor as well as a report — the step fails if nothing
-  executed, or if a test skipped because it could not see the display server
-  the job exists to provide, because a leg that skips its way to green is worth
-  less than no leg at all. It is advisory
-  because it is the first job here to stand up infrastructure of its own — a
-  compositor, a session bus and an accessibility bus — and a flake in any of
-  the three would red a pull request for a reason that has nothing to do with
-  it, on a tier whose stability nothing has measured yet.
+Its result is a job summary counting executed tests, failures, packages
+reporting `FAIL`, and every skip with the reason it gave. Those counts are a
+floor as well as a report — the step fails if nothing executed, or if a test
+skipped because it could not see the display server the job exists to provide,
+because a leg that skips its way to green is worth less than no leg at all.
 
-Making it blocking is two moves, and both are the maintainer's: delete
-`continue-on-error` from the job, and add `desktop (ubuntu-latest)` to the
-branch protection rule — a repository setting, not a file in this tree. ADR 0013
-makes that flip part of Linux graduating from Beta to Stable, alongside the
-Linux entries in
-[Known Gaps](CROSS_PLATFORM.md#known-gaps) being empty.
+**Both desktop legs block.** They started advisory, because they were the first
+jobs here to stand up infrastructure of their own — a compositor, a session bus
+and an accessibility bus — and a flake in any of the three would have redded a
+pull request for a reason that had nothing to do with it, on a tier whose
+stability nothing had measured yet. That last clause is what changed: across 40
+runs each on pull requests and `main`, neither leg had a failing step, so the
+flake rate stopped being an unknown and became a number. Job-level
+`continue-on-error` reports a failed job as successful, so that count was taken
+from step conclusions rather than job ones.
+
+It matters that they block. Neru is developed on macOS, where none of the
+behavior these legs exercise can run, so ADR 0013's promises are worth exactly
+as much as the jobs that check them — and an advisory job that nobody has to
+read is not a check. The two legs owe different bars, and that difference is
+about what the tests assert rather than about what a failure means: a suite that
+passes today and starts failing tomorrow is a regression at either bar.
 
 ### What the Xvfb X11 leg covers, and what it does not
 
@@ -300,9 +304,9 @@ What it does not cover:
   proven present; which application is focused is not exercised.
 - **Anything needing device access**, for the same reasons as the sway leg: no
   `/dev/dri`, no `input` group.
-- **A verdict**, and for the same reason — `continue-on-error`, the same
-  counting-and-floor summary, and `desktop-x11 (ubuntu-latest)` is the name to
-  add to branch protection to change that.
+
+It does deliver a verdict: this leg blocks too, on the same measurement. A lower
+bar is a smaller set of claims, not a weaker consequence for breaking one.
 
 **It found a defect on its first run, which is the point.** Because the session
 has a window manager and no client, `internal/adapter/platform`'s capability
