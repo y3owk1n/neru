@@ -519,6 +519,19 @@ func (a *App) Cleanup() {
 			a.hotkeys.Unregister()
 		}
 
+		// The event tap goes before the overlay, and the order is load-bearing
+		// (#1515): tearing the tap down drains its key dispatcher, and that
+		// drain delivers whatever key was still queued into the mode handler,
+		// which draws. Released the other way round, a key arriving in the
+		// window between the two calls is handled after the overlay is gone.
+		// The overlay adapter refuses to draw once it has been destroyed, so
+		// this is no longer the only thing standing between a drained key and
+		// a freed native window — but it is what keeps the drain finishing
+		// while there is still a surface to finish onto.
+		if a.eventTap != nil {
+			a.eventTap.Destroy()
+		}
+
 		if a.overlayPort != nil {
 			a.overlayPort.Destroy()
 		}
@@ -526,10 +539,6 @@ func (a *App) Cleanup() {
 		if a.screenShareSubscriptionID != 0 {
 			a.appState.OffScreenShareStateChanged(a.screenShareSubscriptionID)
 			a.screenShareSubscriptionID = 0
-		}
-
-		if a.eventTap != nil {
-			a.eventTap.Destroy()
 		}
 		// Close the accessibility client to release platform resources
 		// (e.g. AT-SPI D-Bus connection and a11y status on Linux).

@@ -225,6 +225,11 @@ type simOverlayPort struct {
 	// not a frame — is what a journey can observe about one being on screen.
 	indicatorVisible map[ports.Indicator]bool
 
+	// destroyed is whether the overlay has been released. A shutdown journey
+	// reads it to say whether a key still being delivered has a surface left to
+	// draw on (#1515).
+	destroyed bool
+
 	// appliedConfigs are the configurations a reload handed the overlay, and
 	// styleRefreshes how many times a theme change asked it to re-resolve
 	// against the one it already held. The overlay owns config + theme ->
@@ -419,7 +424,23 @@ func (m *simOverlayPort) SetHiddenInScreenShare(_ bool) {}
 // about the fixture rather than a method silently swallowing a call.
 func (m *simOverlayPort) SetKeyboardCaptureEnabled(_ bool) {}
 
-func (m *simOverlayPort) Destroy() {}
+// Destroy releases the overlay. What it records is the one thing a shutdown
+// journey needs to observe: from here on there is no surface, so anything that
+// still reaches this port is reaching one that has been freed.
+func (m *simOverlayPort) Destroy() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.destroyed = true
+}
+
+// isDestroyed reports whether the overlay has been released.
+func (m *simOverlayPort) isDestroyed() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.destroyed
+}
 
 // recordGridPointerLocked stores what a grid surface was last asked to draw
 // where the selection is. Caller must hold m.mu.
@@ -980,6 +1001,26 @@ func (c *simCursor) moveCount() int {
 
 // --- harness ---------------------------------------------------------------
 
+// simEventTap is the shared event tap mock plus the one thing a shutdown
+// journey needs a real tap for: tearing one down drains its key dispatcher,
+// and that drain delivers whatever key was still queued (`dispatchWg.Wait()`
+// on Linux, `stopDispatcher` on macOS). drain is where a journey puts that.
+type simEventTap struct {
+	*mocks.MockEventTapPort
+
+	drain func()
+}
+
+var _ ports.EventTapPort = (*simEventTap)(nil)
+
+func (t *simEventTap) Destroy() {
+	if t.drain != nil {
+		t.drain()
+	}
+
+	t.MockEventTapPort.Destroy()
+}
+
 type simHarness struct {
 	t   testing.TB
 	app *app.App
@@ -990,7 +1031,9 @@ type simHarness struct {
 	ax         *simAXPort
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
-	tap        *mocks.MockEventTapPort
+	// tap is the port the app was wired with: the shared mock, whose methods
+	// promote through, plus the drain a shutdown journey drives.
+	tap *simEventTap
 	// watcher is the platform application watcher: the thing that tells Neru
 	// the user switched applications. A journey drives a focus change through
 	// it rather than by poking the accessibility fake alone, because the
@@ -1231,7 +1274,7 @@ func buildSimHarness(
 		image.Point{X: displays[0].bounds.Dx() / 2, Y: displays[0].bounds.Dy() / 2},
 	)}
 	hotkeys := &simHotkeyPort{}
-	tap := &mocks.MockEventTapPort{}
+	tap := &simEventTap{MockEventTapPort: &mocks.MockEventTapPort{}}
 	desktop := &simDesktop{}
 	desktop.set(displays)
 

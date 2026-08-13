@@ -453,6 +453,13 @@ type OverlayPort interface {
 	// connections. It runs on the shutdown path, after the modes have already
 	// cleared what they drew, and must be safe to call when nothing was ever
 	// shown.
+	//
+	// It is final: every other method on this port is a no-op afterwards, and
+	// the ones that answer report what a screenless overlay honestly can — a
+	// drawing call succeeds without drawing, IsVisible is false, the hint
+	// search bounds are empty and Health reports CodeNotSupported. A caller
+	// racing a shutdown is a race the shutdown already won, not a failure it
+	// needs told about (#1515).
 	Destroy()
 }
 
