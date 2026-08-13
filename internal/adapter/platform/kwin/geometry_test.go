@@ -11,8 +11,9 @@ import (
 )
 
 // errTestInstallFailed stands in for whatever kept the KWin script from being
-// installed; Bounds only has to carry it back, not interpret it.
-var errTestInstallFailed = errors.New("org.kde.KWin is not on the session bus")
+// installed. It is deliberately not errKWinAbsent: what is pinned is that the
+// reason reaches the caller verbatim, whatever it happens to be.
+var errTestInstallFailed = errors.New("the session bus refused the connection")
 
 // TestGeometry_BoundsBeforeAnyUpdate pins the cold answer. Nothing has been
 // pushed yet, so the bridge reports "nothing to say" — not a zero rectangle a
@@ -89,8 +90,8 @@ func TestGeometry_UpdateActiveWindowRejectsUnusablePayloads(t *testing.T) {
 }
 
 // TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass keeps the geometry
-// working when the class is absent — it is a diagnostic, not part of the
-// answer.
+// working when the class is absent — it is a correlation key, not part of the
+// answer, and a KWin version that reports no class must still report a window.
 func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 	geometry := newGeometry(zap.NewNop())
 
@@ -99,6 +100,101 @@ func TestGeometry_UpdateActiveWindowAcceptsAMissingResourceClass(t *testing.T) {
 	rect, ok, err := geometry.Bounds()
 	if !ok || err != nil || rect != image.Rect(0, 0, 1920, 1080) {
 		t.Errorf("Bounds() = (%v, %v, %v), want the pushed rectangle", rect, ok, err)
+	}
+}
+
+// TestGeometry_FocusedCarriesTheWindowIdentity pins the half of the payload the
+// AT-SPI origin path correlates with. Without it a cached rectangle can only be
+// checked by size, and two same-sized windows are indistinguishable (#972).
+//
+// The caption is last in the payload because it is the one field that can
+// contain a comma, so a title with one has to survive the split whole.
+func TestGeometry_FocusedCarriesTheWindowIdentity(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow(
+		"100,50,800,600,konsole,konsole,one, two and three — Konsole")
+
+	window, ok, err := geometry.Focused()
+	if !ok || err != nil {
+		t.Fatalf("Focused() = (%v, %v, %v), want a window", window, ok, err)
+	}
+
+	want := Window{
+		Rect:  image.Rect(100, 50, 900, 650),
+		Class: "konsole",
+		Name:  "konsole",
+		Title: "one, two and three — Konsole",
+	}
+	if window != want {
+		t.Errorf("Focused() = %+v, want %+v", window, want)
+	}
+}
+
+// TestGeometry_ClearActiveWindowEmptiesTheCache is the other half of the fix
+// this bridge needed: a rectangle that has stopped describing anything.
+//
+// KWin reported on activation and nothing else, so once a window had been seen
+// the cache could never empty — after the last one closed, "where is the
+// focused window" was answered with the rectangle the dead window had. Emptying
+// it is not a failure and must not be reported as one: the bridge is installed
+// and working, and what it has to say is that nothing is focused.
+func TestGeometry_ClearActiveWindowEmptiesTheCache(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+
+	dbusErr := geometry.ClearActiveWindow("closed")
+	if dbusErr != nil {
+		t.Fatalf("ClearActiveWindow returned %v, want nil", dbusErr)
+	}
+
+	rect, ok, err := geometry.Bounds()
+	if ok || err != nil {
+		t.Fatalf("Bounds() after a clear = (%v, %v, %v), want (empty, false, nil) — "+
+			"nothing is focused, which is an answer and not a failure", rect, ok, err)
+	}
+}
+
+// TestGeometry_UpdateAfterAClearReportsAgain keeps a clear from being terminal.
+// Focus leaving every window is the ordinary state of a desktop between two
+// windows, not the end of the bridge's usefulness.
+func TestGeometry_UpdateAfterAClearReportsAgain(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+	_ = geometry.ClearActiveWindow("desktop")
+	_ = geometry.UpdateActiveWindow("10,20,300,400,kate,kate,Kate")
+
+	rect, ok, err := geometry.Bounds()
+	if !ok || err != nil || rect != image.Rect(10, 20, 310, 420) {
+		t.Errorf("Bounds() = (%v, %v, %v), want the newly pushed rectangle", rect, ok, err)
+	}
+}
+
+// TestGeometry_ClearActiveWindowIsNotAMalformedPush pins the distinction the
+// two methods exist to draw.
+//
+// A malformed push is a push that failed, and the previous rectangle survives
+// it as the best available answer. A clear is KWin saying that rectangle
+// describes nothing on screen. Collapsing them — a clear expressed as an empty
+// payload, say — would make one of the two behave as the other.
+func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
+	geometry := newGeometry(zap.NewNop())
+
+	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
+	_ = geometry.UpdateActiveWindow("")
+
+	_, cached, _ := geometry.Bounds()
+	if !cached {
+		t.Fatal("a malformed push emptied the cache; only a clear may do that")
+	}
+
+	_ = geometry.ClearActiveWindow("closed")
+
+	_, cached, _ = geometry.Bounds()
+	if cached {
+		t.Error("a clear left the previous rectangle in place")
 	}
 }
 
